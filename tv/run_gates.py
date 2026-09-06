@@ -502,6 +502,18 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_seal_verdict",
+         [sys.executable, os.path.join(HERE, "test_seal_verdict.py")], 120,
+         why="seal_covers_extraction answers yes or no, and its `no` covered two OPPOSITE facts: "
+             "a seal that examined a session and recorded there was nothing to take, and a seal "
+             "that never says what it took. Measured-zero collapsed into nobody-looked, inside "
+             "the function whose job is policing evidence. It made `seals_certify_nothing` read "
+             "as 30 records with no evidence when 22 of them cover ZERO ROWS and say so; the "
+             "real defect is SIX seals over 42 rows. seal_verdict() adds COVERED/EMPTY/"
+             "UNEVIDENCED and this pins the load-bearing half: rows==0 is required, so a seal "
+             "claiming nothing-to-take while covering 7 rows stays UNEVIDENCED and the word "
+             "EMPTY cannot become self-certifying. Also pins that the strict bool did NOT soften "
+             "-- two other gates depend on it"),
     Gate("test_owner_resolution",
          [sys.executable, os.path.join(HERE, "test_owner_resolution.py")], 120,
          why="`window._D2R_OWNER` is the most consequential boolean in bible.html -- "

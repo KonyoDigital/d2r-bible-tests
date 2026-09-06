@@ -201,6 +201,12 @@ def gap(reels=None, river=None):
         # Reported, never inferred: this asks frame_authority rather than re-deriving the rule.
         # [[unknown-stays-unknown]] [[label-outlived-referent]]
         _cert, _cert_why = (False, "no seal for this session")
+        # ⚠ INITIALISED PER ROW, and that is not a formality. `_verdict` is only assigned
+        # inside `if has_seal:`, so leaving it out of this line let a reel with NO seal
+        # inherit the previous iteration's verdict. Measured the moment it was wired:
+        # 27 rows reported EMPTY when only 22 seals are empty — more EMPTY answers than
+        # there are empty seals, which is the arithmetic that exposed it.
+        _verdict = None
         if has_seal:
             try:
                 # local import: `FA` above lives inside a try, so it is undefined on the path where
@@ -208,6 +214,17 @@ def gap(reels=None, river=None):
                 # certified" rather than "could not be asked".
                 import frame_authority as _FA
                 _cert, _cert_why = _FA.seal_covers_extraction(seals.get(sid) or {})
+                # ⚠ v2702 — AND SAY WHICH KIND OF "NOT CERTIFIED" THIS IS. The bool above cannot
+                # tell an empty examination from an absent one, so 22 of his 30 seals reported as
+                # failures when every one of them covers 0 rows and RECORDS that there was nothing
+                # to take. `certified` keeps its strict meaning; `sealVerdict` says whether the
+                # false is EMPTY (measured, nothing there) or UNEVIDENCED (nobody can tell).
+                try:
+                    _verdict, _vwhy = _FA.seal_verdict(seals.get(sid) or {})
+                except Exception:
+                    _verdict, _vwhy = (None, None)
+                if _verdict == getattr(_FA, "EMPTY", "EMPTY"):
+                    _cert_why = _vwhy
             except Exception as _e:
                 _cert, _cert_why = (False, "the contract could not be asked (%s)" % str(_e)[:60])
 
@@ -233,6 +250,9 @@ def gap(reels=None, river=None):
 
         rows.append({"reel": reel, "session": sid, "state": state, "names": n,
                      "sealed": has_seal, "certified": bool(_cert), "certifiedWhy": _cert_why,
+                     # the three-state beside the bool, never instead of it: a reader that
+                     # only knows `certified` keeps the strict answer it already had.
+                     "sealVerdict": _verdict,
                      "why": why,
                      "scenario": scenario, "scenarioWhy": s_why,
                      # ⚠ v2588 — THE CHRONICLE COUNT WAS DROPPED. A cold review noticed the

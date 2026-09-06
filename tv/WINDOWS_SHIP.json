@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2701",
+  "ver": "v2702",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2701: v2697 gave four counts the same denominator in one sweep; three were right because they walk the node list and clipped is not, so the page target printed 54 of 8",
+  "note": "v2702: seal_covers_extraction could only say yes or no, and its no covered both an examined-empty session and a seal that never looked, so 22 honest seals over zero rows read as failures and the real defect of six seals was hidden inside a count of thirty",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

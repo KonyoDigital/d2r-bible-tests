@@ -228,6 +228,65 @@ def seal_covers_extraction(row, contract=EXTRACTION_CONTRACT):
     return True, "the sweep took %s before anything here became disposable" % ", ".join(contract)
 
 
+#: the three answers a seal can honestly give. `seal_covers_extraction` can only say yes or no,
+#: and that is the whole defect this vocabulary exists to end.
+COVERED, EMPTY, UNEVIDENCED = "COVERED", "EMPTY", "UNEVIDENCED"
+
+
+def seal_verdict(row, contract=EXTRACTION_CONTRACT):
+    """-> (COVERED | EMPTY | UNEVIDENCED, why). What this seal actually establishes.
+
+    ⚠⚠ v2702 — WHY A THIRD ANSWER WAS NEEDED, MEASURED ON HIS 30 SEALS.
+    `seal_covers_extraction` reads ONLY `extracted`. It never looks at `examinedEmpty` or
+    `extractedWhy`, so a seal that examined a session and recorded "there was nothing to take"
+    is scored IDENTICALLY to one that never looked. That is measured-zero collapsed into
+    nobody-looked, inside the function whose entire job is policing evidence.
+
+    It made a real number read as a disaster. `seals_certify_nothing` was filed as "ALL 30 seals
+    certify nothing", and the split is:
+
+        22 seals: `extracted: []`, extractedWhy "examined and there was nothing to take",
+                  and `rows` == 0 for EVERY ONE. Seals over EMPTY sessions. There was no row
+                  to take a name from, so there is no failure here to report.
+         8 seals: no `extracted` key at all (they predate the contract). Six of those cover
+                  7 rows each -- 42 rows of real content sealed with no record of what was
+                  taken. THAT is the defect, and it is six seals, not thirty.
+
+    ⚠ `rows == 0` IS LOAD-BEARING AND IS NOT A FORMALITY. A seal that claims "nothing to take"
+    while covering seven rows is not empty, it is UNEVIDENCED wearing an excuse — the same shape
+    as a probe returning 0 for a container it never opened. Only a seal over zero rows can
+    honestly be EMPTY, so the declaration alone is never enough. [[zero-needs-a-denominator]]
+
+    ⚠ THIS DOES NOT LOOSEN ANY GATE. `seal_covers_extraction` is unchanged and still answers the
+    strict question, because two gates depend on its strictness: test_control asserts the frame
+    authority is "the stricter of the two", and reel_retention is asserted NEVER to consult it
+    (every existing seal predates the contract, so the prune would never fire again). This adds a
+    word the vocabulary lacked; it takes nothing away.
+    """
+    covered, why = seal_covers_extraction(row, contract)
+    if covered:
+        return COVERED, why
+    if not isinstance(row, dict):
+        return UNEVIDENCED, why
+
+    got = row.get("extracted")
+    if not isinstance(got, (list, tuple, set)) or len(got) > 0:
+        # absent, wrong type, or a partial list — all of these are genuinely unevidenced
+        return UNEVIDENCED, why
+
+    rows = row.get("rows")
+    declared = bool(row.get("examinedEmpty")) or ("nothing" in str(row.get("extractedWhy") or "").lower())
+    if rows == 0 and declared:
+        return EMPTY, ("this seal examined a session with 0 rows and recorded that there was "
+                       "nothing to take. An empty examination is a MEASUREMENT, not a missing "
+                       "one — it is not the same fact as a seal that never looked")
+    if rows == 0:
+        return UNEVIDENCED, ("this seal covers 0 rows but never SAYS it examined an empty "
+                             "session, so nothing distinguishes it from one that did not look")
+    return UNEVIDENCED, ("this seal covers %s row(s) and took nothing from them, which is not an "
+                         "empty examination — it is an unevidenced one" % rows)
+
+
 def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     """MAY this one frame be deleted? Returns (bool, why) and the why is written for him, not for a log.
 

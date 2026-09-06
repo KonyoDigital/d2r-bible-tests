@@ -22226,3 +22226,38 @@ to be checked per counter rather than applied in a sweep. I applied it in a swee
 reported `1`. The extra element was the rail (`rail :: Console ▶On A`). Nothing was edited in
 between. Not chased further here, but it is a real source of false blocks and is filed rather than
 left as folklore.
+
+## REG-669 — the evidence contract could not say "empty", so 22 honest seals read as failures
+
+**Shipped:** v2702 · **Gate:** `tv/test_seal_verdict.py`
+
+`seal_covers_extraction` answers yes or no, and its **no** covered two opposite situations: a seal
+that examined a session and recorded *there was nothing to take*, and a seal that never says what
+it took. Measured-zero collapsed into nobody-looked — inside the function whose entire job is
+policing evidence.
+
+**What it cost, measured on his 30 seals.** `seals_certify_nothing` was filed as *"ALL 30 seals
+certify nothing"*, read as thirty records asserting work with nothing behind them. The split:
+
+| | |
+|---|---|
+| 22 seals | `extracted: []`, why *"examined and there was nothing to take"*, **`rows` == 0 for every one** |
+| 8 seals | no `extracted` key (predate the contract); **6 of them cover 7 rows each = 42 rows** |
+
+So the real defect is **six seals, not thirty**, and the report said thirty because the vocabulary
+had no word for empty.
+
+**Fix:** `seal_verdict()` returns `COVERED` / `EMPTY` / `UNEVIDENCED`, and `extract_gap` carries it
+as `sealVerdict` beside the unchanged bool. ⚠ **`rows == 0` is load-bearing**: a seal claiming
+"nothing to take" while covering seven rows is unevidenced wearing an excuse, so the declaration
+alone is never enough or `EMPTY` becomes self-certifying.
+
+⚠ **It loosens nothing.** `seal_covers_extraction` is untouched, because `test_control` pins the
+frame authority as "the stricter of the two" and `reel_retention` is asserted never to consult it.
+
+⚠ **Two of my own errors, both caught by arithmetic.** Wiring `sealVerdict` into `extract_gap`
+left `_verdict` assigned only inside `if has_seal:`, so a seal-less reel inherited the previous
+row's verdict — **27 rows reported EMPTY when only 22 seals are empty**, which is the impossibility
+that exposed it. And the first sabotage run reported all three mutations GREEN: the harness put
+`'tv'` ahead of the sandbox on `sys.path`, so the real module loaded every time. Re-run with the
+loaded path asserted, all three go RED.
