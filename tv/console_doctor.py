@@ -681,6 +681,63 @@ def _check_the_backup_loop_is_actually_WRITING():
                 % (why[:60], int(writes or 0)))
 
 
+#: Stations that owe something NO automatic lane can deliver, and why each is by design rather than
+#: a gap. ⚠ Without this split the row cries wolf on 40 of 40 and gets ignored — and a distrusted
+#: instrument is a switched-off instrument, which is how the defects below survived in the first place.
+_BY_DESIGN_STATIONS = {
+    "JOIN": "sealed AND the names are on disk; the seal does not carry them — that is a CODE change",
+    "CAPTURE": "the capture itself must change (REG-340), not the lane that reads it",
+}
+
+
+def _check_the_river_is_moving():
+    """v2742 — 40 OF 40 REELS SIT AT A STATION NO AUTOMATIC LANE TAKES ITS INPUT FROM.
+
+    Konyo: *"something needs to run that river ... something needs to automate this puppy if its
+    not wired connect and wire it properly"*.
+
+    MEASURED across his 40 reels: EMPTY 6 · STATION 7 · PRINTER 11 · JOIN 4 · CAPTURE 12.
+    Two are by design. Two are real, and this row exists to keep them visible:
+      · STATION (7, the PAID queue) HAS a reel-reading lane — chronicle_autoreel_tick — but it
+        selects on the durable sweep memory rather than on this station, so the queue and the
+        reader never meet.
+      · PRINTER (11) owes a SEAL only the vault lane can write, and its work list is retention's
+        `vault-owes` — measured 0 of 40 PERMANENTLY, because that tag is the LAST rule in a
+        first-match-wins list and every reel matches something earlier. Eleven reels are waiting
+        for a seal nothing will ever write.
+
+    ⚠ THIS ROW IS RED TODAY AND THAT IS CORRECT. A check that could only ever be green measures
+    nothing. It goes green when a lane actually drains a station, not when someone edits a list.
+    ⚠ IT IS A STATE, NOT A LOCK. No wilson score belongs here: a score belongs on a claim that can
+    be ATTACKED, and "the river is moving" is a reading. Inventing attacks to give a state a number
+    is the inflation `_hardening_gap` refuses. [[build-the-heart-and-census-everywhere]]
+    """
+    try:
+        import reel_router as _rr
+        d = _rr.route()
+    except Exception as e:
+        return UNKNOWN, "reel_router will not answer (%s), so the river is UNMEASURED" % str(e)[:60]
+    if not isinstance(d, dict) or not d.get("ok"):
+        return UNKNOWN, ((d or {}).get("why") or "reel_router did not answer")
+    rows = d.get("reels")
+    if not isinstance(rows, list) or not rows:
+        return UNKNOWN, "no reel was stationed, so nothing can be concluded about the river"
+    stuck = {}
+    for r in rows:
+        st = (r or {}).get("station")
+        if not st or st in _BY_DESIGN_STATIONS or st in ("ROUTED", "TOMBSTONE"):
+            continue
+        if (r or {}).get("owes"):
+            stuck[st] = stuck.get(st, 0) + 1
+    if not stuck:
+        return OK, "every stationed reel has a lane that can take it (%d reel(s) walked)" % len(rows)
+    total = sum(stuck.values())
+    named = ", ".join("%s %d" % (k, v) for k, v in sorted(stuck.items(), key=lambda kv: -kv[1]))
+    return MISSING, ("%d of %d reel(s) sit at a station that owes work no automatic lane delivers "
+                     "(%s). They are not stuck on evidence — nothing is scheduled to move them."
+                     % (total, len(rows), named))
+
+
 def _check_the_vault_stores_are_readable():
     """His ledger is the whole point of the vault manager. An unreadable store must never read as
     an empty one — that difference is what the free ledger view exists to keep."""
@@ -1720,6 +1777,7 @@ CHECKS = [
     ("evidence ledger", _check_the_evidence_ledger_is_readable),
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
+    ("the river", _check_the_river_is_moving),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),

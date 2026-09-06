@@ -73,7 +73,14 @@ STATION_OWNER = {
     # it all." Until now a pruned reel simply VANISHED from every probe in this family — they all
     # walk the live HIST_DIR/reel_* set — so the river had a mouth and no delta: nothing could say
     # "this reel existed, was routed, was sealed, and here is what closed it out."
-    # MEASURED: reel_tombstones.json holds 410 reels and 5,768 MB reclaimed, read by nothing.
+    # MEASURED 2026-09-04: the ledger held 410 reels and 5,768 MB reclaimed and NOTHING READ
+    # IT. That sentence is now stale and kept only as the reason this station exists: v2692
+    # made this file a reader (39 lines below), control_app._footage_why reads it to tell him
+    # a run's film was RETIRED rather than playing hollow, and dead_field reads it to ask
+    # whether a field is recorded on every row and filled on none. store_owners declares all
+    # three. A measurement that was true when written and is false now is exactly the label
+    # that outlives its referent, and it was sitting inside the fix for it.
+    # [[label-outlived-referent]]
     "tombstone": ("reel_retention", "if it is gone, what closed it out? (and this one is still here)"),
 }
 
@@ -191,6 +198,29 @@ def _by_reel(blob, key="rows"):
     return out, dropped
 
 
+def _tombstone_census(blob):
+    """The ledger's totals, as a FIELD. -> dict, and UNKNOWN is never 0.
+
+    v2692 put the ledger's totals into every row's `why` sentence and nowhere else, so the only
+    way to learn how many reels have been closed out was to parse English off one of forty rows.
+    A number a reader has to regex is a number nothing can join to. This publishes it once.
+
+    ⚠ A LEDGER THAT WOULD NOT LOAD IS `reels: None`, NEVER `reels: 0`. "Nobody could read it" and
+    "nothing was ever closed out" are opposite facts and only one of them is safe to act on.
+    [[unknown-stays-unknown]]
+    """
+    if blob is None:
+        return {"ok": False, "reels": None, "mb": None,
+                "why": "the ledger could not be read, so how many reels were ever closed out is "
+                       "UNKNOWN — not zero"}
+    rows = (blob.get("reels") or []) if isinstance(blob, dict) else []
+    return {"ok": True, "reels": len(rows),
+            "mb": round(sum(float(r.get("mb") or 0) for r in rows if isinstance(r, dict)), 1),
+            "why": ("%d reel(s) have been closed out. They are ABSENT from `rows` by definition — "
+                    "every walk in this family enumerates reels on disk — so a station count of 0 "
+                    "at the far end means 'none on this shelf', never 'none ever'" % len(rows))}
+
+
 def stream(reel=None):
     """Follow every reel from the door to the far end. -> dict
 
@@ -203,13 +233,22 @@ def stream(reel=None):
     # ESTABLISHED — the reading breaks in the state it exists to report. This is the same defect
     # REG-544 fixed in dead_field, in a different file, SHIPPED IN THE SAME BATCH. A shape that
     # changes with the verdict is not a shape.
-    def _unknown(why):
+    def _unknown(why, tombstoned=None):
+        # ⚠ REG-546 — the UNKNOWN return carries EVERY key the normal one does, this new
+        # field included. A consumer reading `tombstoned` must not raise on exactly the path
+        # that means nothing was established. The default is the UNKNOWN-shaped census, so a
+        # caller that could not even reach the ledger still gets `reels: None`, never 0.
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0,
+                "tombstoned": (tombstoned if tombstoned is not None
+                               else _tombstone_census(None)),
                 "unknownStations": 0, "droppedRows": 0, "stations": list(STATIONS),
                 "owners": {k: v[0] for k, v in STATION_OWNER.items()},
                 "questions": {k: v[1] for k, v in STATION_OWNER.items()}, "why": why}
 
     src, whys = _sources()
+    # ⚠ ONE reading, taken where every other owner's is taken, so the per-row station and
+    # the shelf-wide census can never disagree about the same ledger.
+    tomb_census = _tombstone_census(src.get("tombstones"))
     river, _d1 = _by_reel(src.get("river"))
     doors, _d2 = _by_reel(src.get("door"))
     routes, _d3 = _by_reel(src.get("routes"))
@@ -217,7 +256,7 @@ def stream(reel=None):
     egap, _d5 = _by_reel(src.get("gap"))
     dropped = _d1 + _d2 + _d3
     if not river and not doors:
-        return _unknown("UNKNOWN, not an empty shelf — %s"
+        return _unknown(tombstoned=tomb_census, why="UNKNOWN, not an empty shelf — %s"
                         % ("; ".join(whys) if whys else
                            "no owner answered and none said why"))
 
@@ -433,6 +472,10 @@ def stream(reel=None):
         "walked": len(rows), "unknownStations": unknown, "droppedRows": dropped,
         "stations": list(STATIONS), "owners": {k: v[0] for k, v in STATION_OWNER.items()},
         "questions": {k: v[1] for k, v in STATION_OWNER.items()},
+        # v#### — THE FAR END GETS ITS DENOMINATOR. `counts["tombstone"]` can only ever
+        # count reels ON DISK, so it reads as "nothing was ever closed out" when the truth
+        # is "410 were, and they are gone". [[zero-needs-a-denominator]]
+        "tombstoned": tomb_census,
         "why": (("%d reel(s) followed from the door to the far end across %d station(s). %s "
                  "⚠ THE FAR END IS UNDECIDED FOR EVERY REEL BY DESIGN: A15 never says which door "
                  "decides `clean`, the two candidates disagree on this shelf, and conjoining them "

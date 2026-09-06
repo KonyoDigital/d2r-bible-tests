@@ -544,6 +544,21 @@ GATES = [
              "to the same ignorance, and the direction that cost two fixture reels at v2229 — and "
              "that POLICY holds stay uncovered, because he asked for the evidence frames."),
 
+    Gate("test_the_river_is_watched",
+         [sys.executable, os.path.join(HERE, "test_the_river_is_watched.py")], 120,
+         why="v2742 — MEASURED heart coverage before adding any: reel_router (the station assigner, "
+             "the whole per-reel stamp) had 0 corroborator invariants, 0 doctor checks, and 0 "
+             "references from the console. printer the same. Built, correct, covered by its own "
+             "suite, invisible to every supervision layer. This pins the two new watchers: the "
+             "doctor row 'the river' (RED today at 24 of 40 — PRINTER 11, STATION 7, EMPTY 6 — and "
+             "asserted to be ABLE to fail, since a row that can only be green measures nothing), "
+             "and the invariant 'router-and-shelf-agree' at `==` because a router stationing FEWER "
+             "reels than the shelf holds is dropping some and MORE means it invented one. Also "
+             "pins that the by-design exclusions (JOIN, CAPTURE/REG-340) each carry a REASON, and "
+             "that NO wilson lock was invented for a STATE — a score belongs on a claim attacks can "
+             "refute, and manufacturing attacks for a reading is the inflation _hardening_gap "
+             "refuses."),
+
     Gate("test_seed_never_reaches_another_world",
          [sys.executable, os.path.join(HERE, "test_seed_never_reaches_another_world.py")], 180,
          why="v2740 — whose finds a console may inherit, pinned in all THREE states. The seed lands "

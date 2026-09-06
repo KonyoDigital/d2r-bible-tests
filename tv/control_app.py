@@ -16509,7 +16509,12 @@ def printer_state(rep=None):
     return {"ok": bool(r.get("ok")), "state": r.get("state"), "counts": r.get("counts") or {},
             "stations": r.get("stations") or [], "owners": r.get("owners") or {},
             "questions": r.get("questions") or {}, "walked": r.get("walked"),
-            "unknownStations": r.get("unknownStations"), "why": r.get("why", "")}
+            "unknownStations": r.get("unknownStations"),
+            # ⚠ THIS WHITELIST IS A SEAM AND IT SWALLOWS NEW FIELDS SILENTLY. `rows` is
+            # dropped here on purpose; anything else added to stream() dies here unless it
+            # is named, with both halves looking correct. [[the-unjoined-end]]
+            "tombstoned": r.get("tombstoned"),
+            "why": r.get("why", "")}
 
 
 def dead_field_state():
@@ -23554,7 +23559,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2741",
+        "ver": "v2742",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

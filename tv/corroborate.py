@@ -1527,7 +1527,71 @@ def _inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed():
             "the one board it was written for", right, "<=")
 
 
-BUILDERS = (_inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed,
+def _inv_the_router_and_the_shelf_count_the_SAME_reels():
+    """v2742 — THE STATION ASSIGNER IS WATCHED BY NOTHING, AND IT IS THE WHOLE STAMP.
+
+    Konyo: *"all connected to the heart of the console obviously so they flag themselves"*.
+
+    MEASURED before writing this, because a fourth watcher over a well-watched module is decoration
+    while the centre goes unguarded:
+
+        module            corroborate invariants     console_doctor checks
+        reel_router                 0                        0     <- the STATION ASSIGNER
+        printer                     0                        0     <- the STORYLINE
+        reel_retention             13                        1
+        frame_authority            15                        0
+
+    `reel_router` assigns one station per reel — INTAKE · TRIAGE · EMPTY · STATION · PRINTER ·
+    JOIN · CAPTURE · ROUTED · TOMBSTONE — and is watched by no invariant, checked by no doctor row,
+    and read by NO console code (`grep -c reel_router tv/control_app.py` -> 0). Built, correct,
+    covered by its own suite, and invisible to every supervision layer in the repo.
+
+    THE TWO SIDES:
+      LEFT   how many reels reel_router.route() stations
+      RIGHT  how many reels reel_story.story() puts on the shelf
+    INDEPENDENT BY DERIVATION, which is the point: `reel_router.assert_independent_of_retention`
+    exists precisely because the router must NOT reach through reel_retention, while reel_story
+    quotes retention's plan directly. Two walks over one shelf, computed from different sources.
+    If they disagree about how many reels EXIST, one of them is enumerating something the other
+    cannot see — and neither module can notice that about itself.
+
+    ⚠ EQUALITY, NOT `<=`. A router that stations FEWER reels than the shelf holds is silently
+    dropping some; a router that stations MORE has invented one. Both directions are defects here,
+    so the relation is `==` and the invariant says so rather than picking the comfortable half.
+    ⚠ EITHER SIDE UNREADABLE IS UNKNOWN, NEVER 0 — a fresh checkout with no shelf must not make
+    this hold vacuously. [[zero-needs-a-denominator]]
+    """
+    def left():
+        try:
+            import reel_router as _rr
+            d = _rr.route()
+        except Exception:
+            return None
+        if not isinstance(d, dict) or not d.get("ok"):
+            return None
+        rows = d.get("reels")
+        return len(rows) if isinstance(rows, list) and rows else None
+
+    def right():
+        try:
+            import reel_story as _rs
+            st = _rs.story()
+        except Exception:
+            return None
+        if not isinstance(st, dict) or not st.get("ok"):
+            return None
+        rows = st.get("reels")
+        return len(rows) if isinstance(rows, list) and rows else None
+
+    return ("router-and-shelf-agree",
+            "the station assigner and the shelf are looking at the same reels",
+            "let the router enumerate on a different root, or teach one of them a filter the other "
+            "does not have, and every station count becomes a claim about a shelf nobody else sees",
+            "reels the router stations", left, "reels on the shelf", right, "==")
+
+
+BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
+            _inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed,
             _inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot,
             _inv_the_evidence_ledger_survived_the_sweep_that_filled_it,
             _inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR,

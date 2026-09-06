@@ -148,11 +148,28 @@ def _decided_count():
         st = RS.story()
     except Exception as e:
         return None, None, "reel_story would not answer (%s)" % str(e)[:70]
-    reels = (st.get("reels") or []) if isinstance(st, dict) else []
+    if not isinstance(st, dict):
+        return None, None, ("reel_story answered with %s, not a mapping — there is no shelf here "
+                            "to count" % type(st).__name__)
+    reels = st.get("reels")
     if not reels:
         return None, None, "reel_story returned no reels, so nothing was decided either way"
+    # ⚠⚠ A TRUTHY NON-SEQUENCE IS NOT A SHELF. Measured: {"reels": "abcdefg"} answered
+    # (0, 7) — seven "reels" that are the characters of a string, none of them decided. That is
+    # the strongest possible finding, manufactured by iterating whatever arrived.
+    if not isinstance(reels, (list, tuple)):
+        return None, None, ("reel_story's `reels` is %s, not a sequence — counting it would "
+                            "iterate whatever it happens to be" % type(reels).__name__)
+    # ⚠⚠ AND THE STAGE MUST BE ONE THE LADDER DECLARES. `funnel()`'s ladder loop counts a
+    # reel at an unknown stage as `unknownStage` and this counted the same reel as DECIDED, so the
+    # two readings of one shelf disagreed about how many reels are placed and the observability
+    # verdict rested on the more generous of the two. `is True` rather than truthy for the same
+    # reason `_row_fault` refuses a bool count: a stray string must not pass as a declaration.
+    # [[feedback-contradiction-is-the-finding]]
+    rungs, _lwhy = _ladder()
     decided = sum(1 for r in reels
-                  if isinstance(r, dict) and r.get("stageKnown", False) and r.get("stage"))
+                  if isinstance(r, dict) and r.get("stageKnown") is True and r.get("stage")
+                  and (not rungs or r.get("stage") in rungs))
     return decided, len(reels), ""
 
 
@@ -199,10 +216,42 @@ def _waypoint_cover(sids):
             out[rung] = {"store": store, "covered": None,
                          "why": "the store is %s, not an object" % type(blob).__name__}
             continue
+        # ⚠⚠ A FRACTION OVER ZERO REELS IS NOT A MEASUREMENT OF THIS STORE. With `sids`
+        # empty the sum is 0 for every store, `_observability` reads that as `dark`, and the
+        # passage reads UNRECORDED — "no rung leaves a dated waypoint", asserted about his
+        # pipeline over nothing examined. Reachable whenever every row on the shelf is nameless:
+        # `funnel()` refuses an EMPTY shelf, never a shelf whose rows carry no reel name.
+        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        if not sids:
+            out[rung] = {"store": store, "covered": None,
+                         "why": "%s was readable, but no reel was named to look up — 0 of 0 is a "
+                                "fraction with no denominator, not coverage of zero" % store}
+            continue
         n = sum(1 for s in sids if s in blob or ("reel_" + s) in blob)
         out[rung] = {"store": store, "covered": n,
                      "why": "%d of %d reel(s) have a dated row here" % (n, len(sids))}
     return out
+
+
+def _count(v):
+    """A figure that is really a COUNT, or None because it is not one. -> int|None
+
+    ⚠⚠ THREE SHAPES ARRIVE HERE WEARING A COUNT'S CLOTHES, and all three were measured
+    reading as measurements on the shipped bytes:
+
+        True   `bool` is a subclass of `int`, so `True > 0` held and a store reporting
+               `covered=True` was read as "one reel covered" — OBSERVED. The same shape
+               `self_arming._row_fault` already refuses on its own rows.
+        -1     an impossible coverage, read as "answers for nobody" — a finding about his
+               pipeline manufactured from an instrument fault.
+        "3"    a string count, which would compare and sort and never be a number.
+
+    None means NOT A MEASUREMENT, which every caller here turns into UNKNOWN rather than a
+    fraction. [[unknown-stays-unknown]]
+    """
+    if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+        return None
+    return v
 
 
 def _observability(cover):
@@ -212,6 +261,14 @@ def _observability(cover):
     ⚠ UNKNOWN PROPAGATES. One rung nobody can read makes the whole verdict UNKNOWN rather than
     dragging a fraction down — a rung that could not be measured is not a rung measured as absent.
     """
+    # ⚠⚠ A COVER THAT IS NOT A MAPPING HAS NO VERDICT, AND THIS RAISED INSTEAD OF SAYING SO.
+    # Measured: `_observability(["filmed", "triaged"])` -> AttributeError. A caller that catches
+    # nothing loses the whole funnel; a caller that catches everything records a crash as a
+    # reading. UNKNOWN is the honest answer and it is the one this module gives everywhere else.
+    if not isinstance(cover, dict):
+        return {"state": "UNKNOWN", "seen": 0, "rungCount": 0, "unknown": [], "dark": [],
+                "why": "the cover is %s, not a mapping of rung -> reading, so no rung was "
+                       "examined" % type(cover).__name__}
     total = len(cover)
     # ⚠⚠ AN EMPTY COVER MAP IS NOT A CLEAN BILL OF HEALTH, and this function shipped saying it was
     # for exactly as long as it took to write the attack table below. With `cover == {}` the loop
@@ -224,17 +281,26 @@ def _observability(cover):
                 "why": "no rung was examined, so nothing is observable and nothing is dark either"}
     seen, unknown, dark = 0, [], []
     for rung, v in cover.items():
+        # ⚠ A RUNG WHOSE READING IS NOT A MAPPING IS UNMEASURED, NOT DARK. `v.get` raised here.
+        if not isinstance(v, dict):
+            unknown.append(rung)
+            continue
         if v.get("store"):
-            if v.get("covered") is None:
+            c = _count(v.get("covered"))
+            if c is None:
                 unknown.append(rung)
-            elif v.get("covered") > 0:
+            elif c > 0:
                 seen += 1
             else:
                 dark.append(rung)
         elif v.get("derivedBy"):
-            if v.get("decided") is None:
+            c = _count(v.get("decided"))
+            tot = _count(v.get("decidedOf"))
+            # more reels decided than exist is an instrument fault, not a strong result — the
+            # same refusal `self_arming.bank()` makes for k > n.
+            if c is None or (tot is not None and c > tot):
                 unknown.append(rung)
-            elif v.get("decided") > 0:
+            elif c > 0:
                 seen += 1
             else:
                 dark.append(rung)
@@ -319,14 +385,31 @@ def funnel():
     # modules you looked in**, and I had looked in one.
     sids, nameless = set(), 0
     for r in rows:
-        nm = str((r or {}).get("reel") or "").strip()
+        # ⚠⚠ `(r or {})` DOES NOT MAKE A NON-MAPPING SAFE — `"x" or {}` is `"x"`, and this
+        # raised AttributeError on any row that is not a dict. The ladder loop above defends
+        # against precisely that shape and continues past it, so one module both expected and
+        # forbade the same row and only one of the two loops said so. A row nobody can read has
+        # no reel name, which is what `nameless` already counts. [[the-unjoined-end]]
+        if not isinstance(r, dict):
+            nameless += 1
+            continue
+        nm = str(r.get("reel") or "").strip()
         sid = nm[len("reel_"):] if nm.startswith("reel_") else nm
         if not sid:
             nameless += 1
             continue
         sids.add(sid)
     cover = _waypoint_cover(sids)
-    dated = [k for k, v in cover.items() if isinstance(v.get("covered"), int) and v["covered"] > 0]
+    # ⚠ SAME `_count` RULE AS THE OBSERVABILITY VERDICT: `covered=True` must not date a rung.
+    # ⚠⚠ AND ONLY RUNGS THE LADDER DECLARES MAY COUNT TOWARD IT. `len(dated) >= len(rungs)`
+    # weighs a count from WAYPOINT_SOURCES against a count from reel_story.STAGES; measured with
+    # six dated rungs the ladder does not name, the passage read RECORDED — the strongest verdict
+    # available, over rungs nobody measured. The two vocabularies are identical today, which is
+    # exactly when a drift guard is cheap. [[copy-drift]]
+    dated = [k for k, v in cover.items()
+             if k in rungs and isinstance(v, dict) and _count(v.get("covered"))]
+    offLadder = sorted(k for k in cover if k not in rungs)
+    unwatched = sorted(r for r in rungs if r not in cover)
     # ⚠⚠ REG-555 — UNRECORDED IS A CLAIM ABOUT THE PIPELINE, AND IT WAS BEING MADE OVER STORES
     # NOBODY COULD READ. Measured with both waypoint stores pointed at a directory: `dated` came
     # back empty and the passage read UNRECORDED — *"no rung leaves a dated waypoint"* — which is a
@@ -343,6 +426,9 @@ def funnel():
     # exactly like a rung nobody records. Different facts about his pipeline.
     empty_stores = sorted(k for k, v in cover.items() if v.get("covered") == 0)
     if unreadable:
+        passage = "UNKNOWN"
+    elif offLadder or unwatched:
+        # the two vocabularies have drifted, so no fraction of "rungs dated" is about the ladder
         passage = "UNKNOWN"
     elif len(dated) >= len(rungs):
         passage = "RECORDED"

@@ -30,7 +30,15 @@ traceless.py` holds the laws, and this file holds the evidence they generate.
 
 ⚠ EVERY ATTACK IS A DISTINCT IDEA, NOT A PARAMETER SWEEP. `wilsonByAttack` exists because 80 of
 printer.stream's 83 were two functions applied to 40 reels each. Ten near-identical cover maps
-would be ONE idea. These are ten different ways to be wrong about the same question.
+would be ONE idea. These are TWENTY-SEVEN different ways to be wrong about the same question.
+
+⚠⚠ SEVENTEEN OF THEM WERE ADDED TO CLEAR THE HARDENED TIER, AND NINE WENT RED ON ARRIVAL.
+`wilson_lower(N, N)` is exactly N / (N + 3.8416), so HARD_BAR 0.900 needs 35 distinct attacks and
+`reel.route` held 19. That is a REASON TO LOOK HARDER, never a reason to count louder: an attack
+that cannot fail inflates n and proves nothing, which is the objection `wilsonByAttack` exists to
+make. Nine of the seventeen found a real defect — a fraction over zero reels, a string iterated
+into a decided-count, a bool read as a coverage of one, RECORDED asserted over rungs the ladder
+does not name — and the guards for all nine shipped in the same change.
 """
 import io
 import os
@@ -101,6 +109,285 @@ def _decider_attacks():
     ]
 
 
+
+
+# ── SEVENTEEN MORE DISTINCT ATTACKS ─────────────────────────────────────────────
+# ⚠⚠ EACH RETURNS "ok" OR WHAT IT ACTUALLY GOT, and each is a DIFFERENT IDEA about how
+# "we cannot establish this" gets laundered into a number — never one idea over more inputs.
+# NINE of them went red against the code as it stood when they were written; the guards they
+# demanded shipped in the same change. `wilsonByAttack` counts these one each.
+#
+# ⚠ PURE. Every one builds a dict, swaps a module attribute back in a `finally`, or writes
+# inside a temp directory it removes. Nothing here reads his shelf, arms a sweep or deletes a byte.
+
+class _Reader(object):
+    """Hands the REAL store reader a store's TEXT, with no file anywhere. -> file-like
+
+    ⚠⚠ THE HARNESS MAY NOT WRITE AND MAY NOT DELETE, and `test_it_cannot_write_delete_or_arm_
+    anything` refuses any such name in this source. It is right to: a harness able to create and
+    remove paths is a harness that one wrong path points at his footage. The first cut of these
+    attacks used a temp directory and that gate caught it — working, on the first run of new code.
+
+    So the store attacks swap `one_funnel`'s own `io` for this, which answers from memory, and
+    put it back in a `finally`. No path is created, none is removed, and the code under attack
+    is the real `_waypoint_cover` rather than a re-implementation of it.
+    """
+
+    def __init__(self, text):
+        self.text = text
+
+    def open(self, path, *a, **k):
+        import io as _io
+        if self.text is None:
+            raise IOError("this store does not exist: %s" % path)
+        return _io.StringIO(self.text)
+
+
+def _cover_reading(text, sids):
+    """Run the REAL `_waypoint_cover` over a store whose CONTENT is `text`. -> dict
+
+    ⚠ `_waypoint_cover` does `os.path.join(HERE, store)`, and join with an ABSOLUTE second
+    component discards the first — so the name below never resolves inside tv/ even if the
+    reader shim were removed.
+    """
+    _store, _iomod = OF._store_of, OF.io
+    try:
+        OF._store_of = lambda r: (("/rung_accounting_synthetic_store.json", "")
+                                  if r == "triaged" else (None, "no store"))
+        OF.io = _Reader(text)
+        return OF._waypoint_cover(sids)
+    finally:
+        OF._store_of, OF.io = _store, _iomod
+
+
+def _a_owner_will_not_import():
+    _orig = dict(OF.WAYPOINT_SOURCES)
+    try:
+        OF.WAYPOINT_SOURCES["triaged"] = ("no_such_module_zzz", "STORE")
+        nm, why = OF._store_of("triaged")
+    finally:
+        OF.WAYPOINT_SOURCES.clear()
+        OF.WAYPOINT_SOURCES.update(_orig)
+    return "ok" if (nm is None and why) else "named %r (%s)" % (nm, why)
+
+
+def _a_owner_stopped_declaring_its_constant():
+    import retro_triage as RT
+    had, sv = hasattr(RT, "STORE"), getattr(RT, "STORE", None)
+    try:
+        if had:
+            delattr(RT, "STORE")
+        nm, why = OF._store_of("triaged")
+    finally:
+        if had:
+            setattr(RT, "STORE", sv)
+    return "ok" if (nm is None and why) else "named %r (%s)" % (nm, why)
+
+
+def _a_waypoints_follows_a_rename():
+    import retro_triage as RT
+    sv = getattr(RT, "STORE", None)
+    try:
+        RT.STORE = "retro_triage_RENAMED.json"
+        got = OF.waypoints().get("triaged")
+    finally:
+        RT.STORE = sv
+    return "ok" if got == "retro_triage_RENAMED.json" else "answered %r" % (got,)
+
+
+def _a_store_is_not_an_object():
+    c = _cover_reading('["a", "b"]', {"s1", "s2"})["triaged"].get("covered")
+    return "ok" if c is None else "covered=%r from a store that is a list" % (c,)
+
+
+def _a_store_will_not_open():
+    c = _cover_reading(None, {"s1"})["triaged"].get("covered")
+    return "ok" if c is None else "covered=%r from a store that would not open" % (c,)
+
+
+def _a_one_reel_counted_twice():
+    c = _cover_reading('{"s1": 1, "reel_s1": 1}', {"s1"})["triaged"].get("covered")
+    return "ok" if c == 1 else "covered=%r for ONE reel under two spellings" % (c,)
+
+
+def _a_coverage_over_zero_reels():
+    cov = _cover_reading('{"s1": 1}', set())
+    if cov["triaged"].get("covered") is not None:
+        return "covered=%r with no reel named" % cov["triaged"].get("covered")
+    got = OF._observability(cov).get("state")
+    return "ok" if got == "UNKNOWN" else "verdict %s over zero reels" % got
+
+
+def _a_reels_is_a_truthy_non_sequence():
+    import reel_story as RS
+    orig, out = RS.story, []
+    try:
+        for shape in ("abcdefg", {"x": 1, "y": 2}):
+            RS.story = lambda *a, **k: {"reels": shape}
+            out.append(OF._decided_count()[:2])
+    finally:
+        RS.story = orig
+    return "ok" if all(x == (None, None) for x in out) else "counted %r" % (out,)
+
+
+def _a_stage_the_ladder_does_not_declare():
+    import reel_story as RS
+    orig = RS.story
+    try:
+        RS.story = lambda *a, **k: {"reels": [
+            {"reel": "r1", "stageKnown": True, "stage": "TELEPORTED"}]}
+        dec, tot, _w = OF._decided_count()
+    finally:
+        RS.story = orig
+    return "ok" if dec == 0 else "decided %r of %r at a stage STAGES does not name" % (dec, tot)
+
+
+def _a_cover_is_not_a_mapping():
+    try:
+        got = OF._observability(["filmed", "triaged"]).get("state")
+    except Exception as e:
+        return "raised %s" % type(e).__name__
+    return "ok" if got == "UNKNOWN" else got
+
+
+def _a_rung_reading_is_not_a_mapping():
+    try:
+        got = OF._observability({"a": {"store": "x", "covered": 3}, "b": None}).get("state")
+    except Exception as e:
+        return "raised %s" % type(e).__name__
+    return "ok" if got == "UNKNOWN" else got
+
+
+def _an_impossible_count():
+    neg = OF._observability({"a": {"store": "x", "covered": 3},
+                             "b": {"store": "y", "covered": -1}}).get("state")
+    over = OF._observability({"a": {"store": "x", "covered": 3},
+                              "b": {"store": None, "derivedBy": "m.f()",
+                                    "decided": 41, "decidedOf": 40}}).get("state")
+    return "ok" if (neg == "UNKNOWN" and over == "UNKNOWN") else "covered=-1 %s, 41 of 40 %s" % (neg, over)
+
+
+def _a_bool_wearing_a_counts_clothes():
+    got = OF._observability({"a": {"store": "x", "covered": 3},
+                             "b": {"store": "y", "covered": True}}).get("state")
+    return "ok" if got == "UNKNOWN" else "%s (True read as one reel covered)" % got
+
+
+def _unknown_outranks_dark():
+    got = OF._observability({"a": {"store": "x", "covered": None},
+                             "b": {"store": "y", "covered": 0},
+                             "c": {"store": "z", "covered": 5}}).get("state")
+    return "ok" if got == "UNKNOWN" else got
+
+
+def _with_funnel(ladder, rows, cover):
+    """Drive the REAL `funnel()` over a synthetic shelf. -> dict"""
+    _l, _r, _c = OF._ladder, OF._rows, OF._waypoint_cover
+    try:
+        OF._ladder = lambda: (ladder, "")
+        OF._rows = lambda: (rows, "")
+        OF._waypoint_cover = lambda sids: cover
+        return OF.funnel()
+    finally:
+        OF._ladder, OF._rows, OF._waypoint_cover = _l, _r, _c
+
+
+def _an_unreadable_store_outranks_recorded():
+    f = _with_funnel(("a", "b"),
+                     [{"reel": "reel_s1", "stage": "a", "stageIdx": 0, "stageKnown": True},
+                      {"reel": "reel_s2", "stage": "b", "stageIdx": 1, "stageKnown": True}],
+                     {"a": {"store": "x", "covered": 2}, "b": {"store": "y", "covered": None}})
+    return "ok" if f.get("passage") == "UNKNOWN" else "passage %s" % f.get("passage")
+
+
+def _the_waypoint_vocabulary_drifts_from_the_ladder():
+    f = _with_funnel(("a", "b", "c", "d", "e", "f"),
+                     [{"reel": "reel_s1", "stage": "a", "stageIdx": 0, "stageKnown": True}],
+                     dict((k, {"store": "s", "covered": 2}) for k in "abghij"))
+    return ("ok" if f.get("passage") != "RECORDED"
+            else "RECORDED over %s, none of which the ladder names" % sorted(f.get("datedRungs")))
+
+
+def _a_reel_row_that_is_not_a_mapping():
+    try:
+        f = _with_funnel(("a", "b"),
+                         [{"reel": "reel_s1", "stage": "a", "stageIdx": 0, "stageKnown": True},
+                          "a row that is not a mapping", None],
+                         {"a": {"store": "x", "covered": 1}, "b": {"store": "y", "covered": 1}})
+    except Exception as e:
+        return "raised %s" % type(e).__name__
+    return "ok" if f.get("ok") else "funnel refused: %s" % str(f.get("why"))[:40]
+
+
+def _extra_attacks():
+    """Seventeen more. -> list of (name, fn, why). Each fn answers "ok" or what it got."""
+    return [
+        ("the store's owner will not import", _a_owner_will_not_import,
+         "A GUESSED FILENAME WOULD READ SOMEBODY ELSE'S FILE and report its coverage as this "
+         "rung's. The resolver must name the store or refuse, never derive one from the rung"),
+        ("the owner stopped declaring its store constant",
+         _a_owner_stopped_declaring_its_constant,
+         "A DIFFERENT CAUSE FROM AN IMPORT FAILURE and a different branch: the module is fine "
+         "and the constant was renamed. A stale name here reads a file that is no longer the "
+         "store, which is worse than not reading one"),
+        ("waypoints() must follow a rename", _a_waypoints_follows_a_rename,
+         "REG-537 REGRESSED ONCE ALREADY — this was a dict comprehension evaluated at import, "
+         "three lines under the fix for the same defect. A frozen snapshot cannot be caught by "
+         "asking the resolver, because the resolver is the half that is right"),
+        ("a store that parses but is not an object", _a_store_is_not_an_object,
+         "`s in blob` is legal on a list and answers a confident 0. The refusal must come from "
+         "the type check, not from the lookup happening to find nothing"),
+        ("a store that will not open", _a_store_will_not_open,
+         "UNREADABLE IS NOT ZERO COVERAGE — REG-555's whole subject, asked at the site that "
+         "PRODUCES the None rather than at the verdict that consumes it"),
+        ("one reel present under both spellings", _a_one_reel_counted_twice,
+         "a store holding `s1` AND `reel_s1` must count that reel ONCE. Counting keys instead "
+         "of reels would put coverage above the number of reels asked about, and a fraction "
+         "over 100% reads as healthier than complete"),
+        ("a coverage fraction over ZERO reels", _a_coverage_over_zero_reels,
+         "0 of 0 IS NOT COVERAGE OF ZERO. Reachable whenever every row on the shelf is nameless: "
+         "the empty-shelf guard does not fire, every store answers 0, and the passage claims his "
+         "pipeline records nothing. [[zero-needs-a-denominator]]"),
+        ("`reels` is truthy and not a sequence", _a_reels_is_a_truthy_non_sequence,
+         "ONE LEVEL BELOW the not-a-mapping attack, which the `isinstance(st, dict)` check "
+         "already catches. A string passes that check and is then iterated character by "
+         "character into a confident 'nothing was decided'"),
+        ("a stage the ladder does not declare", _a_stage_the_ladder_does_not_declare,
+         "TWO READERS OF ONE SHELF. `funnel()`'s ladder loop calls this reel unknownStage and "
+         "`_decided_count` called it decided, so the observability verdict rested on the more "
+         "generous of two disagreeing counts. [[feedback-contradiction-is-the-finding]]"),
+        ("the cover is not a mapping", _a_cover_is_not_a_mapping,
+         "A VERDICT FUNCTION THAT RAISES HAS NO STATE AT ALL. Distinct from the empty-map "
+         "attack: that one returns a wrong verdict, this one returns none"),
+        ("one rung's reading is not a mapping", _a_rung_reading_is_not_a_mapping,
+         "the container is sound and one entry is not — a different fix from validating the "
+         "container, and the shape a half-written cover actually has"),
+        ("an impossible coverage count", _an_impossible_count,
+         "covered=-1 read as 'answers for nobody' and decided 41-of-40 read as OBSERVED. More "
+         "coverage than reels is the instrument fault `bank()` refuses as k > n, and a negative "
+         "count is a finding manufactured from one"),
+        ("a bool wearing a count's clothes", _a_bool_wearing_a_counts_clothes,
+         "`bool` subclasses `int`, so `covered=True > 0` held and a store that answered YES was "
+         "read as ONE REEL COVERED. Distinct from an impossible count: this one is a plausible "
+         "number. The same shape `self_arming._row_fault` already refuses on its own rows"),
+        ("UNKNOWN must outrank DARK", _unknown_outranks_dark,
+         "a genuine gap and an unmeasurable rung in the same cover: the verdict must be about "
+         "what could not be established, or a real reading failure hides behind a real finding"),
+        ("an unreadable store outranks RECORDED", _an_unreadable_store_outranks_recorded,
+         "the same precedence one layer up and in another vocabulary — `passage`, not "
+         "`observability`. REG-555 proved the UNRECORDED direction; this proves the RECORDED one"),
+        ("the waypoint vocabulary drifts from the ladder",
+         _the_waypoint_vocabulary_drifts_from_the_ladder,
+         "`len(dated) >= len(rungs)` weighs a count from WAYPOINT_SOURCES against a count from "
+         "reel_story.STAGES. Six dated rungs the ladder never names read as RECORDED — the "
+         "strongest verdict available, over rungs nobody measured. [[copy-drift]]"),
+        ("a reel row that is not a mapping", _a_reel_row_that_is_not_a_mapping,
+         "the ladder loop defends against exactly this shape and continues past it; the sid "
+         "loop twenty lines down did not, because `(r or {})` leaves a truthy non-mapping "
+         "alone. One module expecting and forbidding the same row. [[the-unjoined-end]]"),
+    ]
+
+
 def run():
     """-> (attempts, correct, rows). Pure; touches no store."""
     rows, ok = [], 0
@@ -134,6 +421,15 @@ def run():
         ok += 1 if correct else 0
         rows.append({"attack": name, "expected": "UNKNOWN", "got": got,
                      "correct": correct, "why": why})
+
+    for name, fn, why in _extra_attacks():
+        try:
+            got = fn()
+        except Exception as e:
+            got = "CRASHED(%s)" % str(e)[:40]
+        correct = (got == "ok")
+        ok += 1 if correct else 0
+        rows.append({"attack": name, "expected": "ok", "got": got, "correct": correct, "why": why})
 
     # ── the laundering attack, and it is the one that matters ────────────────────────────────
     # A derived rung proves the PRESENT. `passage` measures recorded HISTORY. If discovering that
@@ -294,8 +590,8 @@ def main(argv):
         else:
             print("  live: NOT BANKED — %s" % (lwhy or "%d of %d check(s) failed" % (ln - lok, ln)))
         row = SA.bank("reel.route", "sabotage", "rung_accounting_wilson", n=n, k=ok, attacks=n,
-                      note="v2725 — ten distinct attacks on whether the rung accounting can refuse "
-                           "when it cannot establish where a reel is",
+                      note="v2725+a2hard — twenty-seven distinct attacks on whether the rung "
+                           "accounting can refuse when it cannot establish where a reel is",
                       ref="tv/test_derived_rungs_are_not_traceless.py")
         print("  banked: %s" % row)
     return 0 if ok == n else 1
