@@ -22261,3 +22261,33 @@ row's verdict — **27 rows reported EMPTY when only 22 seals are empty**, which
 that exposed it. And the first sabotage run reported all three mutations GREEN: the harness put
 `'tv'` ahead of the sandbox on `sys.path`, so the real module loaded every time. Re-run with the
 loaded path asserted, all three go RED.
+
+## REG-670 — three heart invariants read absent evidence as a positive claim
+
+**Shipped:** v2703 · **Found by:** `/code-review`, then each one measured before it was believed
+
+**1. `_inv_a_world_reporting_nothing_holds_nothing` passed vacuously off his Mac — LIVE.**
+`_worlds()` returns `None` only on an *exception*; when `ca._webkit_localstorage_dbs()` simply
+yields nothing it returns `[]`. `left()` summed an empty list to 0, `right()` returned 0, and
+`0 <= 0` held forever. **Measured: this Mac has 1 board world; Linux CI and the Windows PC have 0 —
+and all three printed the same green.** Its own docstring says *"MEASURED when written: 1 board
+world readable on this machine"*, which is exactly the count it never printed at runtime. Now both
+sides return `None` when nothing was examined.
+
+**2. A missing `pfx` was read as an assertion of the owner namespace — LATENT.**
+`if r.get("pfx"): continue` treats an *absent* key as falsy, so it fell through to be judged as an
+owner-namespace post. Two lines below, an absent `id` is explicitly UNKNOWN with a comment citing
+`unknown-stays-unknown` **by name** — the same function giving absent evidence opposite meanings
+depending on which field is missing. Measured on his tally: 404 rows, 401 carry a truthy `pfx`,
+exactly **one** has no `pfx` key, and that row also has no `id`, so the guard below caught it
+first. Latent, not firing. Proven fixed with a synthetic row carrying an id and no `pfx`: `left=0`
+where the old code would have counted it a leak.
+
+**3. An empty `ownerWorlds` manufactured a red — LATENT.**
+A tally written mid-update parses fine and yields `declared == set()`, putting *both* of his real
+installs into `bad`. Measured: `ownerWorlds` holds 2 and `ownerId` is set, so it is not firing.
+Proven fixed: with `ownerWorlds` emptied, both sides now return `None` (UNKNOWN) instead of a
+number. A reader failure must never manufacture a red.
+
+⚠ **The review called all three live; two are latent.** Saying so is the point — a finding
+reported at the wrong severity is a finding that gets acted on at the wrong priority.

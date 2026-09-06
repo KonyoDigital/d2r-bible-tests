@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2702",
+  "ver": "v2703",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2702: seal_covers_extraction could only say yes or no, and its no covered both an examined-empty session and a seal that never looked, so 22 honest seals over zero rows read as failures and the real defect of six seals was hidden inside a count of thirty",
+  "note": "v2703: one invariant summed an empty world list to zero and passed on every machine but his; a missing namespace prefix was read as an owner assertion while a missing id two lines below was correctly unknown; and an empty owner roster manufactured a red instead of an unknown",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

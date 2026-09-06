@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2703** | `(this commit)` | v2703 — REG-670: three heart invariants read absent evidence as a positive claim; one passed vacuously on every machine but his |
 | **v2702** | `(this commit)` | v2702 — REG-669: the evidence contract learns to say EMPTY; 22 of his 30 seals cover ZERO rows and say so, and the real defect is six seals over 42 rows |
 | **v2701** | `(this commit)` | v2701 — REG-668: clipped is counted over descendants, not the node list, so my v2697 sweep printed `clipped 54/8`; a wrong denominator is worse than none |
 | **v2700** | `(this commit)` | v2700 — REG-667: my v2696 copy rewrite grew the claim bar 27% and it covered the inbox popover close button at 375px; same promise, fewer characters |

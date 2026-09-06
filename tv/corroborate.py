@@ -975,9 +975,27 @@ def _inv_only_a_declared_owner_world_posts_owner_numbers():
         oid = d.get("ownerId")
         if oid:
             declared.add(str(oid))
+        # ⚠⚠ v2703 — AN EMPTY ROSTER IS UNKNOWN, NOT A LEAK. `_tally()` returns None only when the
+        # file is missing or will not parse. A tally written mid-update, or by a version that has
+        # not yet populated ownerWorlds, parses fine and yields declared == set() — and then EVERY
+        # owner-namespace route lands in `bad`. Measured on his real tally: ownerWorlds holds 2 and
+        # ownerId is set, so this is LATENT today, not firing. But a reader failure must never
+        # manufacture a red; the honest answer when nothing is declared is that nobody can say.
+        if not declared:
+            return None
         bad = set()
         for v in (d.get("byRoute") or {}).values():
             r = (v or {}).get("route") or {}
+            # ⚠⚠ v2703 — A MISSING `pfx` IS UNKNOWN, NOT AN ASSERTION OF THE OWNER NAMESPACE.
+            # This read `if r.get("pfx"): continue`, so an ABSENT key is falsy and fell through to
+            # be judged as an owner-namespace post. Two lines below, an absent `id` is explicitly
+            # treated as UNKNOWN with a comment citing unknown-stays-unknown by name — the same
+            # file giving absent evidence opposite meanings depending on which field is missing.
+            # Measured on his tally: 404 byRoute rows, 401 carry a truthy pfx, exactly ONE has no
+            # pfx key at all, and that row also has no id, so the guard below catches it first.
+            # LATENT today; it fires the moment a row lands with an id and no pfx.
+            if "pfx" not in r:
+                continue                      # nobody recorded a namespace; that names nobody
             if r.get("pfx"):
                 continue                      # a guest route — its own namespace, not the owner's
             rid = r.get("id")
@@ -989,7 +1007,12 @@ def _inv_only_a_declared_owner_world_posts_owner_numbers():
 
     def right():
         d = _tally()
-        return None if d is None else 0
+        if d is None:
+            return None
+        declared = set(str(w).split("|")[0] for w in (d.get("ownerWorlds") or []))
+        if d.get("ownerId"):
+            declared.add(str(d.get("ownerId")))
+        return None if not declared else 0
 
     return ("owner-namespace-is-declared",
             "no install posts owner-namespace numbers without being a declared owner world",
@@ -1050,14 +1073,30 @@ def _inv_a_world_reporting_nothing_holds_nothing():
             return None
         return out
 
+    #: ⚠⚠ v2703 — AN EMPTY WORLD LIST IS UNKNOWN, NOT ZERO, AND THIS PASSED VACUOUSLY FOR MONTHS.
+    #: `_worlds()` returns None only on an EXCEPTION. When ca._webkit_localstorage_dbs() simply
+    #: yields nothing — Linux CI, the Windows PC, any machine that is not his Mac — it returns [].
+    #: left() then summed an empty list to 0, right() returned 0, and `0 <= 0` held forever.
+    #:
+    #: MEASURED 2026-09-06: this Mac has 1 WebKit localStorage DB and 1 of them is a board world.
+    #: CI and the Windows PC have 0. The invariant printed THE SAME GREEN on all three, having
+    #: examined one board in one case and nothing at all in the others. Its own docstring says
+    #: "MEASURED when written: 1 board world readable on this machine" — which is exactly the
+    #: count it never printed at runtime. [[zero-needs-a-denominator]] inside a heart invariant,
+    #: which is the layer built to catch this everywhere else.
     def left():
         w = _worlds()
         if w is None:
             return None
+        if not w:
+            return None      # nothing examined names nothing; a 0 here would be a lie with no author
         return sum(1 for have, held in w if have == 0 and held > 0)
 
     def right():
-        return None if _worlds() is None else 0
+        w = _worlds()
+        if w is None or not w:
+            return None
+        return 0
 
     return ("a-world-reporting-nothing-holds-nothing",
             "no board world reports zero uniques while its own ledger holds entries",
