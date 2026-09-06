@@ -585,6 +585,22 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_witness_can_see_half_a_window",
+         [sys.executable, os.path.join(HERE, "test_the_witness_can_see_half_a_window.py")], 180,
+         why="v2747 — his Sessions tab lost ~1080x560 of its MAIN COLUMN while the rail painted "
+             "fine, and the only instrument watching for a blank console could not see it: "
+             "paint_witness asks about the WHOLE WINDOW, so content anywhere means 'not blank'. "
+             "PROVEN by his own fault log — 21 faults that day, 16 of them blank-pixel, and ZERO "
+             "within 45 minutes of the 20:14 sighting. region_witness measures a GRID (named "
+             "regions derived from it, never measured separately, so they cannot drift) and can "
+             "say 'this half is drawn and that half is not'. ⚠ Three things testing on his real "
+             "machine changed: samples 24->40 (a cell flipped BLANK->PAINTED with sample count), "
+             "strikes over consecutive looks (moving blank cells = repainting, refused), and an "
+             "OCCLUSION guard — Safari covered 100% of his console while this was built, and a "
+             "one-sided cover would have fired about a healthy window. ⚠⚠ That guard was PRESENT "
+             "AND INERT at first: occluded_by returns a TUPLE, not a dict with a 'state' key. "
+             "8 sabotages, all proven RED."),
+
     Gate("test_a_dead_fill_keeps_its_content",
          [sys.executable, os.path.join(HERE, "test_a_dead_fill_keeps_its_content.py")], 120,
          why="v2746 — his Sessions tab lost ~1080x560 of content and then self-resolved on a "

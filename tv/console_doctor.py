@@ -690,6 +690,49 @@ _BY_DESIGN_STATIONS = {
 }
 
 
+def _check_the_console_painted_all_of_itself():
+    """v2747 — THE WITNESS COULD NOT SEE HALF A BLANK CONSOLE, AND HIS SIGHTING WAS EXACTLY THAT.
+
+    Konyo, 2026-09-06, with a screenshot: *"theres a big empty space here im pretty sure there was
+    something here"*. The Sessions tab's right rail rendered correctly — relaunch, eagle, repair,
+    THE FLEET, THE SHELF — while ~1080x560 of the MAIN COLUMN was blank.
+
+    ⚠⚠ THE BLINDNESS IS MEASURED, NOT ARGUED. `paint_witness.blank_strikes` asks about the WHOLE
+    WINDOW: *"look N of M found content ON THE WINDOW, so it is not blank"*. His rail was painting,
+    so the window HAD content, so the witness said PAINTED — correctly, for the question it asks.
+    `tv/ui_faults.jsonl` settles it: on the day of the sighting it recorded 21 faults, SIXTEEN of
+    them `console-pixels-blank-nothing-else-saw-it`, and ZERO within 45 minutes of 20:14. The
+    instrument was working and blind at the same time. [[gate-blind-to-unexercised-input]]
+
+    ⚠ THIS ROW READS A STATE, IT DOES NOT ACT. region_witness never focuses, reloads or restarts —
+    the rescue decides. A witness that acts is a witness nobody can trust to abstain.
+    ⚠ AND IT ABSTAINS OFTEN, ON PURPOSE: an OCCLUDED window (Safari over his console) or a failed
+    capture is UNKNOWN, never OK and never a fault. Measured live — Safari and Terminal covered
+    100% of his console while this was being built, and a one-sided cover would otherwise have
+    read blank-left/painted-right and fired about a perfectly healthy window.
+    """
+    try:
+        import region_witness as _RW
+    except Exception as exc:
+        return UNKNOWN, ("the region witness would not import (%s), so nothing is known about "
+                         "which parts of the console painted" % type(exc).__name__)
+    pid = os.getpid()
+    try:
+        r = _RW.half_blank_strikes(pid)
+    except Exception as exc:
+        return UNKNOWN, ("the region witness raised (%s) - UNKNOWN, not clean"
+                         % type(exc).__name__)
+    if not r.get("ok"):
+        # a covered or unphotographable window is not evidence about painting
+        return UNKNOWN, str(r.get("why") or "the window could not be looked at")
+    if not r.get("half"):
+        return OK, str(r.get("why") or "every measurable part of the window is drawn")
+    return MISSING, ("the console is PARTLY DRAWN and its beat cannot see it: %s. This is the shape "
+                     "he reported - the DOM intact, the rail painting, and a whole column empty. "
+                     "The whole-window witness reads this as healthy by design."
+                     % str(r.get("why"))[:220])
+
+
 def _check_the_river_is_moving():
     """v2742 — 40 OF 40 REELS SIT AT A STATION NO AUTOMATIC LANE TAKES ITS INPUT FROM.
 
@@ -1980,6 +2023,7 @@ CHECKS = [
     ("evidence ledger", _check_the_evidence_ledger_is_readable),
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
+    ("console painted whole", _check_the_console_painted_all_of_itself),
     ("the river", _check_the_river_is_moving),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
