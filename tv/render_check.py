@@ -679,7 +679,18 @@ TARGETS = {
         # begins "The chronicle routes - 3 - source -> generator -> roster -> freshness ->".
         "sel": "#heart-ov .hrt-k, #heart-ov .hrt-w, #heart-ov .hrt-s, #heart-ov .hrt-note, "
                "#heart-ov .hrt-chain, #heart-ov .hrt-grp, #heart-ov .hrt-legend, "
-               "#heart-ov .hrt-sec, #heart-ov .hrt-head, #heart-ov .hrt-win",
+               "#heart-ov .hrt-sec, #heart-ov .hrt-head, #heart-ov .hrt-win, "
+               # ⚠⚠ THE FAN ITSELF, AND IT WAS MISSING FROM THE FIRST CUT OF THIS TARGET.
+               # I built this target to photograph the lock fan and then chose its classes by
+               # WIDENING from the old target's two — twelve of the fourteen `hrt-*` names — and
+               # the fan was not in that vocabulary at all. Picking more of the wrong list is not
+               # picking the right one.
+               # The answer was in this target's OWN first run: its 375px clip warning named the
+               # element, `hrt-svgwrap :: miniauto.run — INCOMPLETE —`. It appeared there because
+               # `clipped` walks [e] + e.querySelectorAll('*'), so a DESCENDANT is clip-scanned
+               # even when it is not in `sel` — two populations in one target, the same split that
+               # produced the wrong denominator in REG-668.
+               "#heart-ov .hrt-svgwrap",
         "settles": False,
         "warmup": 10.0,
         # ⚠ DECLARED PER WIDTH, AND NAMED SO IT IS NOT A BLANK CHEQUE. Two `.hrt-w` nodes carry
