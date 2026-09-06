@@ -502,6 +502,15 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_eyes_banner_ages_out",
+         [sys.executable, os.path.join(HERE, "test_eyes_banner_ages_out.py")], 120,
+         why="his EYES panel printed 'the Grok balance is exhausted' in the PRESENT TENSE beside "
+             "its own admission that the error was 7d old — while 14 Grok reads succeeded that "
+             "same day and the CLI answered ALIVE. `_age` was computed, rendered, and never asked. "
+             "Age now decides staleness (1h bar, crossed in both directions) and raw JSON never "
+             "reaches the visible line. Found by the cross-family read he required BEFORE ruling "
+             "any design item out."),
+
     Gate("test_one_terror_level",
          [sys.executable, os.path.join(HERE, "test_one_terror_level.py")], 120,
          why="'96 terrorized' was an UNNAMED literal printed immediately right of the zone's real "

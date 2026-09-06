@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2718** | `(this commit)` | v2718 — a seven day old grok error was printed as the present state of his second eye while fourteen reads succeeded that day; age now decides staleness and raw json never reaches the line |
 | **v2717** | `(this commit)` | v2717 — v2714 unified nine sites in bible.html and never touched control_app where the fleet number is actually built; the fleet now publishes the chronicle pair and the corroborator watches the banked denominator |
 | **v2716** | `(this commit)` | v2716 — 96 terrorized was an unnamed literal printed as if the zone produced it; it is a game constant now named once and rendered from one source |
 | **v2715** | `(this commit)` | v2715 — recording a ship in TASKS.md was a step somebody had to remember and it failed on v2670 v2712 v2713 and v2714; the bump writes the row itself now |

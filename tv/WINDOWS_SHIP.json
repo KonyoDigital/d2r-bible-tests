@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2717",
+  "ver": "v2718",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2717: v2714 unified nine sites in bible.html and never touched control_app where the fleet number is actually built; the fleet now publishes the chronicle pair and the corroborator watches the banked denominator",
+  "note": "v2718: a seven day old grok error was printed as the present state of his second eye while fourteen reads succeeded that day; age now decides staleness and raw json never reaches the line",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

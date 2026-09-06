@@ -15707,6 +15707,37 @@ window._lockMark = function(isOpen, px, label){
         }
         var _stale = '';
         var _bq = st.budget || {};
+        /* ══ v2718 — AGE WAS COMPUTED, DISPLAYED, AND NEVER CONSULTED ═══════════════════════════
+           A cross-family read of this very panel, asked whether raw machine output leaks into a
+           user surface, answered STILL A PROBLEM and quoted it back:
+
+               "grok exit 1: Internal error: { \"message\": \"API error (status 402 Payment
+                Required)... subscription CLIs" sitting directly in the user-facing ADVANCED panel
+
+           And the sentence above it read "the Grok balance is exhausted — the second eye cannot
+           read until it is topped up", in the PRESENT TENSE, beside its own admission that the
+           error was "7d ago". MEASURED THE SAME MINUTE: 14 successful Grok reads that day, and
+           `grok -p` answered ALIVE. The balance was fine.
+
+           ⚠⚠ THE HOLE IS NARROW AND WORTH NAMING EXACTLY. v2292 already split this BY TENSE —
+           remembered errors go to the hover, live ones stay on the line — and v2119 already fixed
+           the "dailyUsed === 0" version of it. But `_stale` is decided ONLY by comparing the
+           `N/M today` numbers INSIDE the error string against the live budget. A 402 carries no
+           such numbers, so it matches nothing, `_stale` stays empty, and a week-old failure is
+           printed as the current state of his second eye.
+
+           Meanwhile `_age` is computed four lines up, rendered into the line, and never asked.
+           The age of the THING was on screen and was not used for the one judgement age exists to
+           make. [[stale-reading]] [[label-outlived-referent]]
+
+           ⚠ WHY A THRESHOLD AND NOT "ANY AGE": a failure minutes old IS the current state and must
+           stay on the line — that is the v1501 scar this whole block was built for. An hour is the
+           bar: long enough that a genuine outage still reads as live, short enough that nothing a
+           week old can claim the present tense. */
+        var _ageMs = _et ? Math.max(0, Date.now() - _et) : null;
+        if (_ageMs !== null && _ageMs > 3600000) {
+          _stale = ' — this is a MEMORY, not the meter (it has not recurred since)';
+        }
         /* v2119 (#119) — THE CONTRADICTION IS THE FINDING, AND `dailyUsed === 0` IS NOT IT.
            This captured the remembered counts and then threw them away, testing instead whether
            today's counter happened to be zero. A remembered "208/200 today" is just as stale
@@ -15737,9 +15768,18 @@ window._lockMark = function(isOpen, px, label){
            current while the card said "linked · primary". Moving a stale error into the hover
            makes that scar MORE visible, not less: it is now labelled as remembered rather than
            sitting in the same sentence as the live state. [[stale-reading]] */
+        /* ⚠ v2718 — AND NEVER RENDER THE RAW PAYLOAD. The second eye named this separately from
+           the staleness: a `{ "message": "API error (status 402 ...` dump is machine output in a
+           surface a person reads. g5_grok_eyes maps these to a human sentence already; when the
+           stored text is a raw blob, show the sentence and leave the blob to the hover. Truncating
+           JSON at 90 characters produces a fragment that is neither readable nor complete. */
+        var _rawErr = String(g5s.last_error || '');
+        var _human = /[{}]|exit \d|Traceback|http_status/.test(_rawErr)
+                   ? (_rawErr.split(/[:{]/)[0] || 'the lane refused').trim()
+                   : _rawErr.slice(0, 90);
         var _errLine = '⚠ last Grok error (intake lane'
-                     + (_age ? (', ' + _age) : ', age unknown') + '): '
-                     + String(g5s.last_error).slice(0, 90);
+                     + (_age ? (', ' + _age) : ', age unknown') + '): ' + _human;
+        if (_human !== _rawErr) { more.push('raw: ' + _rawErr.slice(0, 300)); }
         if (_stale) { more.push(_errLine + _stale); } else { bits.push(_errLine); }
       }
       /* lifetime counters and the standing note never change between two glances at this rail —
