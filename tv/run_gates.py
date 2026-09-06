@@ -520,6 +520,18 @@ GATES = [
              "reported to the channel the Doctor already reads, and it still SERVES rather than "
              "refusing — a transient torn read must not become an outage."),
 
+    Gate("test_chronicle_rebuild",
+         [sys.executable, os.path.join(HERE, "test_chronicle_rebuild.py")], 120,
+         why="v2732 — his 'snap shot is not enough'. A rebuild derives a chronicle from the OTHER "
+             "ledgers, so drift and corruption are repaired rather than replayed. This pins the "
+             "three things that almost went wrong: it must NOT reproduce the tally (the first cut "
+             "aimed at d2r_owned 169 while his screen read 292/403, and reproducing 292 landed on "
+             "298 — a second implementation of the number he reads most, six wrong before "
+             "shipping); it must NAME what it cannot reach rather than count it; and it must "
+             "REPORT a date conflict rather than resolve it away. Its purity is asserted by an "
+             "IMPORT ALLOWLIST plus attribute- and bare-name call checks, after a substring "
+             "version was defeated by `import json as _j` and then by `open()`."),
+
     Gate("test_ledger_backup_covers_every_store",
          [sys.executable, os.path.join(HERE, "test_ledger_backup_covers_every_store.py")], 120,
          why="v2731 — his automatic ledger backup ran every 10 minutes for 60 consecutive files "

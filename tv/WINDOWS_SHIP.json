@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2731",
+  "ver": "v2732",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2731: the automatic ledger backup ran every ten minutes for sixty files and never copied two of his six ledgers, and blinded the ratchet meant to watch one of them",
+  "note": "v2732: a rebuild that derives a chronicle from the other ledgers; the first cut aimed at the wrong store and he caught it from the numbers on his own screen",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

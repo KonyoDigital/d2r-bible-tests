@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2732** | `(this commit)` | v2732 — a rebuild that derives a chronicle from the other ledgers; the first cut aimed at the wrong store and he caught it from the numbers on his own screen |
 | **v2731** | `(this commit)` | v2731 — the automatic ledger backup ran every ten minutes for sixty files and never copied two of his six ledgers, and blinded the ratchet meant to watch one of them |
 | **v2730** | `(this commit)` | v2730 — the evidence ledger had no invariant no doctor row and no census entry; and a 0 measured over three text leaves was reported as a win three times |
 | **v2729** | `(this commit)` | v2729 — banking evidence widened two labels and broke the heart fan with no code touched; two unbounded widths fixed, one measured fix reverted for making it worse |

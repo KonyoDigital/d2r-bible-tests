@@ -22536,6 +22536,48 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-695 — the rebuild aimed at the wrong store, and he caught it from the numbers
+
+**v2732.** He asked for a rebuild — *"a rebuild/restore option for each chronicle that is ledger
+related"* — and rejected a snapshot as the answer: *"snap shot is not enough"*. He was right: a save
+point restores THE MOMENT including whatever was already wrong; a rebuild derives from independent
+evidence and repairs drift.
+
+⚠⚠ THE FIRST CUT REBUILT THE WRONG THING, and he spotted it from his own screen: *"make sure to read
+the right one being tallied... my main and fleet are reading 292/403 uniques and 123/135 sets. 99/99
+runewordds"*. MEASURED:
+    d2r_tally      uniques 292/403 · sets 123/135 · runewords 99/99   ✅ exactly his screen
+    d2r_setPieces  123 ✅        d2r_rwMade  99 ✅
+    d2r_owned      169 ❌  <- what the rebuild was built over. VAULT ownership, a different question.
+
+⚠ AND THE SECOND HALF IS WHY "POINT IT AT THE OTHER STORE" IS ALSO WRONG. The uniques tally is
+DERIVED, not stored — `funiScan()` computes it live. Reproducing it here (foundLog ∪ owned
+restricted to the roster) yields **298 against his 292**. Six wrong, because funiScan folds names
+with `_regKey` and honours the v2680 one-tally-per-sunder ruling. Shipping that would be a SECOND
+implementation of the number he reads most, already wrong. [[copy-drift]]
+So the module rebuilds LEDGER ROWS and the board recomputes the tally, exactly as it does today.
+
+MEASURED RECOVERY on his real stores — and note the first proposal for this was `d2r_gameFound`
+alone, which would have recovered NINETEEN:
+    owned                      169
+    derived from the ledgers   167   (foundLog + gameFound + rwMade + evidence)
+    reachable from nothing       2   -> "Death Mask", "Black Cleft", NAMED not counted
+    real date conflicts          1   -> Crescent Moon: foundLog Aug 24 (ticked) vs rwMade Jun 22 (forged)
+
+⚠ AN APOSTROPHE WAS HIDING ONE ITEM IN THREE STORES AT ONCE: owned writes "Saracen's Chance"
+(U+0027); foundLog, gameFound and the evidence ledger all use U+2019. Both t166's "8 with no log
+row" and my own "4 unreachable" were inflated by exactly that.
+⚠ AND THE CONFLICT DETECTOR CRIED WOLF ON ITS FIRST RUN: comparing raw strings reported 21
+disagreements, 20 of which were one instant in two formats ("Aug 16, 2026 · 01:25" vs
+"08/16/2026, 01:25"). Fixed to compare parsed INSTANTS; unparseable stays UNKNOWN and two unknowns
+are not equal. 21 -> 1.
+
+GATE: `test_chronicle_rebuild`, 10 laws, 11 sabotages.
+⚠⚠ ITS PURITY LAW WAS DEFEATED TWICE BEFORE IT HELD. A substring check for "json.dump" missed
+`import json as _j`; an attribute-call check then missed `open('/tmp/x','w')`, which is a bare NAME
+call. It is now an IMPORT ALLOWLIST plus attribute- AND bare-name call checks. A guard that
+inspects one call shape is a guard against one spelling.
+
 ## REG-694 — the backup copied three of his six ledgers, every ten minutes, for sixty files
 
 **v2731.** His words: *"i want it no wiped · i want that saved · and being able to be restored ·
