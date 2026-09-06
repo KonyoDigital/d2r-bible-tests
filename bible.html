@@ -3858,6 +3858,26 @@ window._D2R_OWNER = (function(){
     // gets the banner, because the claim must be clicked.
     var automated = false;
     try { automated = navigator.webdriver === true && location.protocol === 'file:'; } catch(e){}
+    /* ⚠ v2698 — THE AUTOMATED WORLD MUST BE ABLE TO PLAY THE STRANGER, or one path can never
+       be tested at all. v2694 made an automated file:// world resolve as the OWNER so the seed
+       specs would stop being refused. That was right, and it silently made a DIFFERENT path
+       unreachable: the claim bar is gated on `if (claimed || window._D2R_OWNER) return`, so
+       under Playwright the bar never rendered, `btn.onclick` was never assigned, and
+       v2692_seeds_belong_to_a_ledger — the spec whose entire subject is "a stranger who CLAIMS
+       inherits nothing" — died on `b.onclick is not a function`. Two fixes breaking each other:
+       the second one landed on the seat of the first.
+
+       This opt-out is deliberately the narrowest thing that works. It is read ONLY inside the
+       `automated` branch, which means:
+         · it is unreachable for a real person — a real browser has navigator.webdriver false,
+           so no key a user could ever set changes what they see;
+         · it cannot outlive a claim — the `claim === '*'` and `claim === _D2R_INSTALL` checks
+           above both RETURN before this line, so once the button is clicked the claim decides
+           ownership and this flag stops mattering. That is what lets one spec clear the store,
+           act as a stranger, click claim, and then be the owner on the next load. */
+    if (automated) {
+      try { if (window.localStorage.getItem('d2r_testGuest') === '1') return false; } catch(e){}
+    }
     return automated;
   } catch(e){ return false; }
 })();
@@ -49000,7 +49020,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2697', name:'v2697 - the search hint fits the phone box', date:'2026-09-06', note:'a 70-character placeholder written for a 1440px input cut mid-word at 375 and read as broken text; no geometry gate could see it because an input truncating its own placeholder is normal rendering, so the second eye found it cold on the pixels' };
+  window.D2R_BUILD = { id:'v2698', name:'v2698 - the automated world can play the stranger again', date:'2026-09-06', note:'v2694 made an automated file world resolve as the owner so the seed specs would stop being refused, and that silently made the claim bar unreachable, so the one spec about the stranger path died on a missing onclick; a narrow testGuest opt-out restores it without changing anything a real person can reach' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

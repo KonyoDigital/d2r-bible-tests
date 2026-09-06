@@ -196,8 +196,37 @@ test.describe('v1716 — every hunt on the board resolves to a real run', () => 
         if (!w._pickSrc(it.sources, n)) return fail.push(n + ': no farm route');
         if (!w.artUrl(n)) return fail.push(n + ': no art');
       });
-      return { fail, rosterN: roster.size, found: fu.found, calcItems: (w.ITEMS || []).length };
+      /* v2697 — REPORT THE INGREDIENTS, NOT JUST THE TOTAL. `rosterN` came back 392 against the
+         398 asserted below, and from a bare total there is no way to tell WHICH side moved.
+         _gUniqueRoster() is (ITEM_VALUE ∪ _UNI_EXTRA) − _pieces(), and that function reads no
+         environment at all — no seeds, no ledger, no localStorage (verified by reading it with
+         comments stripped). So a 6-name gap between his machine and CI has to come from one of
+         these three inputs, and this line is the difference between naming it on the next run
+         and guessing at it for another session. A total with no denominator is the defect this
+         repo keeps paying for. */
+      const ivKeys = Object.keys(w.ITEM_VALUE || {});
+      const ueKeys = Object.keys(w._UNI_EXTRA || {});
+      /* NAME the entries that did not survive into the roster, rather than reporting a total and
+         leaving the next reader to subtract. _roster() is (ITEM_VALUE ∪ _UNI_EXTRA) − _pieces(),
+         so anything present in an input and absent from the output was dropped as a set piece.
+         This is arithmetic on OBSERVED values — it does not re-implement the exclusion rule,
+         which would just be a second implementation free to disagree with the first. */
+      const ueDropped = ueKeys.filter((n: string) => !roster.has(n));
+      const ivDropped = ivKeys.filter((n: string) => !roster.has(n));
+      const latent = ueKeys.filter((k: string) => /^Latent /.test(k));
+      return { fail, rosterN: roster.size, found: fu.found, calcItems: (w.ITEMS || []).length,
+               ivN: ivKeys.length, ueN: ueKeys.length, latent,
+               ueDropped, ivDroppedN: ivDropped.length, ivDroppedSample: ivDropped.slice(0, 12),
+               setsN: (w.__allSets ? Object.keys(w.__allSets() || {}).length : -1),
+               missingN: (fu.missing || []).length };
     });
+    /* printed unconditionally: when this test FAILS the message must already carry the numbers,
+       because a failure that only says 392 sends the next reader back to re-run it for context. */
+    console.log(`[v1716 roster inputs] ITEM_VALUE=${r.ivN} _UNI_EXTRA=${r.ueN} sets=${r.setsN} ` +
+                `roster=${r.rosterN} missing=${r.missingN} found=${r.found}\n` +
+                `[v1716 dropped]  from _UNI_EXTRA (${r.ueDropped.length}): ${r.ueDropped.join(', ') || '(none)'}\n` +
+                `[v1716 dropped]  from ITEM_VALUE (${r.ivDroppedN}), first 12: ${r.ivDroppedSample.join(', ')}\n` +
+                `[v1716 latent]   ${r.latent.length}: ${r.latent.join(', ')}`);
     expect(r.fail, 'roster entries that cannot be opened or hunted: ' + r.fail.join(' | ')).toEqual([]);
     expect(r.rosterN, 'the roster must have grown by exactly the eleven').toBe(398);
     /* he ruled on the ROSTER. The curated calculator grid is a different surface and stays put.

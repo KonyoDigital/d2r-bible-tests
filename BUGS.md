@@ -22070,3 +22070,38 @@ reserving bottom padding would change the resting layout of every page that show
 a reviewer's fix wholesale is how one visible defect gets swapped for another — that already
 happened here with a 72px reserve vs `max-height`. Filed as `routines_bar_covers_lockers` for
 his eyes.
+
+## REG-665 — the automated world could not stop being the owner, so one path became untestable
+
+**Shipped:** v2698 · **Gate:** `tv/test_owner_resolution.py` (148th gate)
+
+`window._D2R_OWNER` is the most consequential boolean in `bible.html`: `_isCousinShell` is its
+negation, which gates `_seedsBelongHere`, which decides whether 245 of Konyo's uniques show up in
+somebody else's chronicle. **It has now broken in both directions.**
+
+*Too generous* was the Dean defect — a claimed browser inherited the owner's chronicle and showed
+243/403 of another man's finds. v2694 fixed the test-side half by making an automated `file://`
+world resolve as OWNER, so the seed specs stopped being refused. That was correct, and it caused
+the opposite failure: the claim bar is gated on `if (claimed || window._D2R_OWNER) return`, so
+under Playwright the bar never rendered, `btn.onclick` was never assigned, and
+`v2692_seeds_belong_to_a_ledger` — the spec whose entire subject is *"a stranger who CLAIMS
+inherits nothing"* — died on `b.onclick is not a function`. **Two fixes breaking each other; the
+second landed on the seat of the first.**
+
+**Fix:** a `d2r_testGuest` opt-out read ONLY inside the `automated` branch. It is unreachable for a
+real person (a real browser has `navigator.webdriver` false, so no key a user can set changes what
+they see) and it cannot outlive a claim (the `claim === '*'` and `claim === _D2R_INSTALL` checks
+both return above it), which is what lets one spec clear the store, act as a stranger, click claim,
+and be the owner on the next load.
+
+**The gate runs the REAL fragment**, lifted out of `bible.html` and executed in a `vm` sandbox
+across 9 cases — never a Python paraphrase, because a second implementation of a rule is how you
+get a confident number and no truth. Proven RED three ways, one of which reproduces the Dean
+defect exactly.
+
+⚠ **The proof harness lied first, and that is recorded on purpose.** Its first version set
+`global.navigator = {webdriver: true}` in plain node. Modern node ships a **built-in `navigator`**
+whose `webdriver` is `undefined`, and the assignment does not take — so the automated branch never
+fired and the run printed a FAILURE that was entirely the instrument's. Measured:
+`typeof navigator === 'object'`, `navigator.webdriver === undefined`. Hence `vm.createContext`,
+where the sandbox is the only global there is.

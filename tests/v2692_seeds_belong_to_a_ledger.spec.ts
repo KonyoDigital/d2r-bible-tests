@@ -49,7 +49,17 @@ async function readWorld(page: any) {
 test('a stranger who CLAIMS the browser inherits nothing — not the chronicle, not the runewords', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(2500);
-  await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+  /* v2698 — SAY OUT LOUD THAT THIS WORLD IS A STRANGER. An automated file:// world resolves as
+     the OWNER by default (v2694, so the seed specs are not refused), and the claim bar is gated
+     on `if (claimed || _D2R_OWNER) return`. Without this key the bar never renders, btn.onclick
+     is never assigned, and this test — whose whole subject is the stranger path — fails on
+     `b.onclick is not a function` while the thing it is about is perfectly fine.
+     The flag is read ONLY in the automated branch and ONLY while unclaimed, so clicking claim
+     below still makes this world the owner on the next load. */
+  await page.evaluate(() => {
+    try { localStorage.clear(); } catch (e) {}
+    try { localStorage.setItem('d2r_testGuest', '1'); } catch (e) {}
+  });
   await page.reload();
   await page.waitForTimeout(2500);
 

@@ -490,6 +490,18 @@ GATES = [
              "attached. Both decide deletion-adjacent facts: which reels the TEST SUITE names (a "
              "fixture reel is HELD from pruning) and which chronicle routes exist. Asserts a wrong "
              "key is refused, a corrupt cache fails OPEN, and nothing is written without a key"),
+    Gate("test_owner_resolution",
+         [sys.executable, os.path.join(HERE, "test_owner_resolution.py")], 120,
+         why="`window._D2R_OWNER` is the most consequential boolean in bible.html -- "
+             "_isCousinShell is its negation, which gates _seedsBelongHere, which decides "
+             "whether 245 of HIS uniques appear in somebody else's chronicle. It has now broken "
+             "in BOTH directions: too generous gave Dean 243/403 of another man's finds; too "
+             "strict made an automated world unable to stop being the owner, so the claim bar "
+             "never rendered and the one spec about the stranger path died on `b.onclick is not "
+             "a function`. Runs the REAL fragment lifted out of bible.html in a vm sandbox "
+             "across 9 cases -- never a Python paraphrase of the rule. Proven RED three ways, "
+             "including a sabotage that reproduces the Dean defect exactly",
+         ),
     Gate("test_search_placeholder_fits",
          [sys.executable, os.path.join(HERE, "test_search_placeholder_fits.py")], 120,
          why="the global search field carried a 70-character sentence written for a 1440px input; "
