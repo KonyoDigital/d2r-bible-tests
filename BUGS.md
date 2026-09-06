@@ -22047,6 +22047,26 @@ the swap sitting ABOVE the input it mutates (`getElementById` returns null durin
 returns silently, and the page looks perfect at desktop width forever — this repo has shipped that
 exact shape four times). Proven RED under three sabotages, each verified to have landed first.
 
+⚠ **CORRECTION, v2698 — that sentence was true of the sabotages I ran and FALSE about the laws I
+said they pinned.** A code review found two of the three assertions were vacuous, and both
+reproduce:
+
+- `test_swap_keys_on_the_narrow_breakpoint` grepped the **whole 6MB file** for `max-width: 640px`.
+  That string already appeared **twice** in the stylesheet before this feature existed (measured:
+  `git show 707c2e6c:bible.html | grep -c "max-width: 640px"` -> 2), so deleting the entire swap
+  script left it green.
+- `test_swap_sits_below_the_input_it_mutates` compared the **second** occurrence of
+  `data-ph-short` against the **start** of the input tag. Occurrence #1 is the input's own
+  attribute, which sits inside the tag and is therefore always greater; occurrence #2 is later
+  still. Move the script above the input — the exact shape the test exists for — and it stays
+  green.
+
+My three sabotages (lengthen the string, delete the listener, strip the attribute) never exercised
+either one. **The sabotages were real; the claim about what they proved was not.** Both now bind
+to the swap BLOCK, located by content rather than by counting occurrences, and both were re-proven
+RED by the sabotages that actually exercise them: moving the block above the input, and moving the
+breakpoint off 640.
+
 ## REG-664 — `covered 0` was a statement about the tracked set, read as a statement about the page
 
 **Shipped:** v2697 · **Found by:** two of my own checks disagreeing
@@ -22105,3 +22125,48 @@ whose `webdriver` is `undefined`, and the assignment does not take — so the au
 fired and the run printed a FAILURE that was entirely the instrument's. Measured:
 `typeof navigator === 'object'`, `navigator.webdriver === undefined`. Hence `vm.createContext`,
 where the sandbox is the only global there is.
+
+## REG-666 — the un-seed promised an undo that did not exist, and was one-way on his own board
+
+**Shipped:** v2699 · **Found by:** `/code-review` on the pushed range · **Gate:** `tv/test_unseed_is_reversible.py`
+
+Four defects in one destructive control, all confirmed by measurement before anything was changed.
+
+**1. The undo was a sentence.** The confirm said *"a full backup is saved first so this can be
+undone"*. `grep -rn d2r_unseedBackup .` returned **exactly one hit — the write**. Nothing in the
+repo read it: no restore button, no console helper, no script. On the cousin's machine, which the
+code's own comment says has no other undo, there was no undo at all.
+
+**2. It was irreversible on KONYO'S OWN board** — the case the dialog told him to avoid by pressing
+Cancel, while the code comment told the next reader it was self-healing. His `d2r_ledgerName` is
+unset, so `_D2R_LEDGER` falls through to the has-a-chronicle heuristic and answers `KonyoEndgame`;
+that is *why* his floors restore. The un-seed's write of `d2r_ledgerName` lands in the resolver's
+**first** branch (`if (n) return n`), so one click made `_seedsBelongHere` false forever and the
+245 grail entries the strip had just deleted could never come back.
+
+**3. The name was written LAST**, after every destructive step. A quota rejection on any
+`JSON.stringify` above it jumps to the outer catch — which logs and **still reloads** — leaving a
+store that is stripped AND unnamed. That re-seeds on the next load, with the `v1692` one-shot flag
+already deleted, so that migration re-fires too. The v2695 comment states the hazard in words and
+the code sequenced it the wrong way round.
+
+**4. Two stores were backed up and never stripped.** `d2r_rwVerify` kept the owner's seeded
+`{"Mania":"fail","Hysteria":"fail"}` verdicts — and because that seed only writes when the key is
+**null**, renaming the ledger could not clear them either, so Dean's Forge would show a red
+"do not cube" guard on two runewords from someone else's server, permanently. `d2r_owned` matters
+because `_ownedNames()` is `new Set(d2r_owned)` **unioned** with the foundLog keys, so inherited
+names sitting there still counted as found and the board could never reach the 0/403 the button
+promises.
+
+**Fixes:** name the ledger FIRST; strip `d2r_rwVerify` and `d2r_owned` (a name goes only if a seed
+claims it AND it is absent from the post-strip foundLog, so a genuine find that shares a seed's
+name survives); refuse to overwrite an existing snapshot, because the first one is the valuable one
+and a later one photographs the damage; persist the report to `d2r_unseedReport`, since
+`console.log` immediately before `location.reload()` is wiped by default and Dean is not running
+DevTools; and add `window._d2rUnseedRestore` plus a button, which puts every store back **including
+removing the ledger name** — removal, not `''`, because only absence re-arms the heuristic.
+
+⚠ **Proven RED against the bytes that actually shipped as v2697** — 7 of 8 laws, each failing on
+its own assertion. The first cut of the gate resolved the restore function in `setUp`, which made
+all 8 fail on one shared error: eight red lines, one fact. Resolving it lazily is what makes the
+redness attributable.

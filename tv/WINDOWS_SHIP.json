@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2698",
+  "ver": "v2699",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2698: v2694 made an automated file world resolve as the owner so the seed specs would stop being refused, and that silently made the claim bar unreachable, so the one spec about the stranger path died on a missing onclick; a narrow testGuest opt-out restores it without changing anything a real person can reach",
+  "note": "v2699: a code review found the promised backup was written once and read nowhere, so the undo did not exist; the ledger name was written last so any throw left a stripped store that re-seeds; and two stores were backed up but never stripped",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

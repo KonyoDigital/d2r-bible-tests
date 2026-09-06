@@ -118,10 +118,20 @@ class SearchPlaceholderFits(unittest.TestCase):
     # ---- 2. the swap reacts to a resize, not only to a load --------------------------------
 
     def test_swap_keys_on_the_narrow_breakpoint(self):
+        """⚠ v2698 — THIS ASSERTION USED TO BE VACUOUS, and a code review caught it.
+
+        It read `assertIn("max-width: 640px", self.src)` against the WHOLE 6MB file. That string
+        already appeared TWICE in the stylesheet before this feature existed (measured:
+        `git show 707c2e6c:bible.html | grep -c "max-width: 640px"` -> 2), so deleting the entire
+        swap script left it green. It pinned nothing, while REG-663 claimed it pinned a law.
+        Bind it to the swap block instead, which is the only place the breakpoint means anything.
+        """
+        block = self._swap_block()
         self.assertIn(
-            "max-width: %dpx" % NARROW_PX, self.src,
-            "no matchMedia query at the %dpx breakpoint -- nothing decides which placeholder "
-            "is current." % NARROW_PX
+            "max-width: %dpx" % NARROW_PX, block,
+            "the swap does not key on the %dpx breakpoint. NOTE: this now greps the swap BLOCK, "
+            "not the whole file -- the file has unrelated CSS media queries at this width and "
+            "matching those proved nothing." % NARROW_PX
         )
 
     def test_swap_listens_for_change_not_just_load(self):
@@ -135,24 +145,61 @@ class SearchPlaceholderFits(unittest.TestCase):
     # ---- 3. the swap runs AFTER the element it mutates -------------------------------------
 
     def test_swap_sits_below_the_input_it_mutates(self):
-        i_input = self.src.index('<input id="gsearch-input"')
-        i_swap = self.src.index("data-ph-short", self.src.index("data-ph-short") + 1)
+        """⚠ v2698 — THIS ASSERTION COULD NOT FAIL, and a code review caught it.
+
+        It compared the SECOND occurrence of "data-ph-short" against the START of the input tag.
+        Occurrence #1 is the input's own attribute, which sits INSIDE the tag and is therefore
+        always greater than the tag's start; occurrence #2 is later still. Move the script above
+        the input -- the exact shape this test exists for -- and occurrence #2 becomes the input's
+        attribute, which is STILL inside the tag and still greater. Green in both worlds.
+
+        The fix is to compare the two things the law is actually about: where the SCRIPT BLOCK
+        begins, and where the input tag ENDS. Nothing else settles parse order.
+        """
+        i_input_end = self.src.index(">", self.src.index('<input id="gsearch-input"'))
+        i_block = self._swap_block_start()
         self.assertGreater(
-            i_swap, i_input,
-            "the placeholder swap appears ABOVE the input in the document. getElementById "
-            "returns null during parse for an element the parser has not reached yet, the "
-            "handler returns silently, and the page looks correct at desktop width forever. "
+            i_block, i_input_end,
+            "the placeholder swap block begins at %d, BEFORE the input tag closes at %d. "
+            "getElementById returns null during parse for an element the parser has not reached, "
+            "the handler returns silently, and the page looks correct at desktop width forever. "
             "This repo has shipped that shape four times -- see console-ui-two-script-blocks."
+            % (i_block, i_input_end)
         )
 
+    def _swap_block_start(self):
+        """Byte offset of the <script> that performs the swap.
+
+        Located by CONTENT, not by counting occurrences: the block is the one that both reads
+        `data-ph-short` and calls `matchMedia`. Counting occurrences is what made the order test
+        vacuous, so this deliberately does not do that.
+        """
+        hits = []
+        pos = 0
+        while True:
+            st = self.src.find("<script", pos)
+            if st < 0:
+                break
+            en = self.src.find("</script>", st)
+            if en < 0:
+                break
+            body = self.src[st:en]
+            if "data-ph-short" in body and "matchMedia" in body:
+                hits.append(st)
+            pos = en + 1
+        if len(hits) != 1:
+            raise AssertionError(
+                "GUARD CANNOT GRADE: expected exactly 1 <script> block containing both "
+                "`data-ph-short` and `matchMedia`, found %d. The swap was removed, split, or "
+                "duplicated -- fix this test before trusting any verdict it prints." % len(hits)
+            )
+        return hits[0]
+
     def _swap_block(self):
-        """The script that performs the swap, bound at both ends."""
-        i = self.src.index("data-ph-short", self.src.index("data-ph-short") + 1)
-        start = self.src.rfind("<script>", 0, i)
-        end = self.src.find("</script>", i)
-        self.assertNotEqual(start, -1, "swap is not inside a <script> block")
-        self.assertNotEqual(end, -1, "swap's <script> block is never closed")
-        return self.src[start:end]
+        """The swap script's source, bound at both ends."""
+        st = self._swap_block_start()
+        en = self.src.find("</script>", st)
+        return self.src[st:en]
 
 
 if __name__ == "__main__":

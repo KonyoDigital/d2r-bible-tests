@@ -93,8 +93,29 @@ test.describe('REG-443 — the page may not hide its nav for a rail that is not 
     const frame = page.frameLocator('#f');
     await frame.locator('body').waitFor({ state: 'attached', timeout: 30000 });
 
-    const inner = page.frames().find((f) => f.url().includes('bible.html'));
-    expect(inner, 'the board never loaded inside the iframe').toBeTruthy();
+    /* ⚠⚠ v2698 — MATCH THE CHILD, NOT ANY FRAME WHOSE URL SAYS bible.html. The v2689 fix above
+       gave the PARENT a file:// origin by navigating it to bible.html, which was necessary and
+       which quietly made this selector ambiguous: the parent is `.../bible.html` and the child is
+       `.../bible.html?app=1&engine=1`, so BOTH match `.includes('bible.html')` and page.frames()
+       returns the main frame FIRST. This has been resolving to the parent.
+
+       The consequence was a failure that pointed at the product and was entirely about the test:
+       `inner` was truthy, so "the board never loaded inside the iframe" passed; then the poll ran
+       against the PARENT, which carries no ?app=1, so appCtx() and engineDriven() are both false,
+       no class is ever added, the 20s poll times out and returns ''. The comment above records
+       that exact symptom — "the first run that got this far reported body.className === ''" — and
+       read it as an init that had not finished. It was the wrong document all along.
+
+       Bind on what makes the child the child: it is not the main frame AND it carries the query
+       whose meaning is under test. */
+    const inner = page
+      .frames()
+      .find((f) => f !== page.mainFrame() && f.url().includes('engine=1'));
+    expect(
+      inner,
+      'the board never loaded inside the iframe (looked for a NON-main frame carrying engine=1; ' +
+        'frames seen: ' + page.frames().map((f) => f.url()).join(' | '),
+    ).toBeTruthy();
 
     /* ⚠⚠ v2692 — WAIT FOR THE CONDITION, NOT FOR A GUESSED DURATION. This used a flat 2500ms, and
        that timing had NEVER been exercised: until the parent was given a file:// origin the frame

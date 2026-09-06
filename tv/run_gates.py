@@ -490,6 +490,18 @@ GATES = [
              "attached. Both decide deletion-adjacent facts: which reels the TEST SUITE names (a "
              "fixture reel is HELD from pruning) and which chronicle routes exist. Asserts a wrong "
              "key is refused, a corrupt cache fails OPEN, and nothing is written without a key"),
+    Gate("test_unseed_is_reversible",
+         [sys.executable, os.path.join(HERE, "test_unseed_is_reversible.py")], 120,
+         why="window._d2rUnseed DELETES entries out of a person's chronicle and had NO test at "
+             "all, while the previous version of the same control shipped completely inert (an "
+             "apostrophe in \"Gloom's Trap\" terminated its onclick attribute). A code review "
+             "then found four ways it did not do what its dialog said: the promised backup was "
+             "written once and READ NOWHERE, so the undo did not exist; the ledger name was "
+             "written LAST, so any throw left a stripped-and-unnamed store that re-seeds; and "
+             "d2r_rwVerify and d2r_owned were backed up and never stripped. Worst on HIS OWN "
+             "board, where naming the ledger switches the floors off permanently. Proven RED "
+             "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
+             "its own assertion rather than on one shared setUp error"),
     Gate("test_owner_resolution",
          [sys.executable, os.path.join(HERE, "test_owner_resolution.py")], 120,
          why="`window._D2R_OWNER` is the most consequential boolean in bible.html -- "

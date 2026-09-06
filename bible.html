@@ -9900,6 +9900,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
          backup had been written. An inert control that looks live is worse than a missing one.
          A function has no attribute-quoting hazard at all. -->
     <button class="reset-btn" onclick="window._d2rUnseed && window._d2rUnseed()">🧭 Remove the inherited chronicle — keep what I found</button>
+      <!-- v2699 — THE UNDO NEEDS A DOOR. The button above promised in its dialog that "a full
+           backup is saved first so this can be undone", and until now nothing in the entire repo
+           READ that backup: one write, zero reads. A promise with no door is not a promise. -->
+      <button class="reset-btn" onclick="window._d2rUnseedRestore && window._d2rUnseedRestore()">↩️ Undo the un-seed — put this browser back</button>
     </details>
 </div>
 </div>
@@ -9913,8 +9917,10 @@ window._d2rUnseed = function(){
   uiConfirm('Remove the chronicle this browser INHERITED, and keep what YOU found?\n\n'
     + 'This board is showing entries seeded from another person\'s chronicle. It removes ONLY those '
     + '— matched exactly, by name AND date — and names this browser its own ledger so nothing is '
-    + 'seeded into it again.\n\nAnything your own console read is KEPT, and a full backup is saved '
-    + 'first so this can be undone.\n\nIf this IS Konyo\'s own board, press Cancel.')
+    + 'seeded into it again.\n\nAnything your own console read is KEPT. A full snapshot is saved '
+    + 'first, and the button below this one — "Undo the un-seed" — puts everything back, including '
+    + 'the ledger name.\n\nIf this IS Konyo\'s own board, press Cancel: naming the ledger switches '
+    + 'his chronicle floors OFF, and only the Undo button turns them back on.')
   .then(function(ok){
     if (!ok) return;
     try {
@@ -9926,9 +9932,21 @@ window._d2rUnseed = function(){
          NEITHER, so on his board this is the only undo that will exist. Written before anything is
          removed, so a failure half-way leaves the snapshot rather than a stripped store. */
       try {
-        var bk = { at: Date.now(), why: 'pre un-seed' };
-        ['d2r_foundLog','d2r_setPieces','d2r_rwMade','d2r_owned'].forEach(function(k){ bk[k] = LSx.getItem(k); });
-        LSx.setItem('d2r_unseedBackup', JSON.stringify(bk));
+        /* ⚠⚠ v2699 — DO NOT OVERWRITE AN EXISTING SNAPSHOT. There was no already-run guard, so a
+           second click re-wrote d2r_unseedBackup from the ALREADY-STRIPPED store, destroying the
+           only record of the pre-strip state. The first snapshot is the valuable one; a later one
+           is a photograph of the damage. Also carries d2r_rwVerify (now stripped) and the ledger
+           name, because a restore that cannot put the name back cannot undo the part that turns
+           the floors off. */
+        var bk = { at: Date.now(), why: 'pre un-seed', v: 2 };
+        ['d2r_foundLog','d2r_setPieces','d2r_rwMade','d2r_owned','d2r_rwVerify',
+         'd2r_v1692FleshrenderApplied'].forEach(function(k){ bk[k] = LSx.getItem(k); });
+        bk.d2r_ledgerName = window.localStorage.getItem('d2r_ledgerName');
+        if (LSx.getItem('d2r_unseedBackup') == null) {
+          LSx.setItem('d2r_unseedBackup', JSON.stringify(bk));
+        } else {
+          report.push('backup: kept the EARLIER snapshot, did not overwrite it');
+        }
       } catch(e){}
       function strip(key, seed){
         var cur = null;
@@ -9944,8 +9962,28 @@ window._d2rUnseed = function(){
         report.push(key + ': removed ' + hit + ' seeded, kept ' + (before - hit));
       }
       /* every seed, in every store it writes to — the set floor writes _SET_SEED into foundLog too */
+      /* ⚠⚠ v2699 — NAME THE LEDGER FIRST, BEFORE ANYTHING IS DESTROYED. This used to be the LAST
+         statement, after every strip. A QuotaExceededError on any JSON.stringify above it — or any
+         unexpected throw — jumped to the outer catch, which logs and STILL reloads. The store came
+         back stripped and UNNAMED, `_D2R_LEDGER` resolved to 'KonyoEndgame' again by the
+         has-a-chronicle heuristic, the floors re-seeded everything that was just removed, and the
+         v1692 one-shot flag had already been deleted so that migration re-fired too. The v2695
+         comment states the hazard in words — "or the floor simply re-adds the seed on the next
+         load" — and the code sequenced it the wrong way round. Naming first means a half-completed
+         un-seed leaves a NAMED store: less removed than intended, but nothing re-seeded and
+         nothing re-applied. */
+      var nm = 'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8);
+      window.localStorage.setItem('d2r_ledgerName', nm);
+
       strip('d2r_foundLog', G); strip('d2r_foundLog', S); strip('d2r_foundLog', RULE);
       strip('d2r_rwMade', R);
+      /* v2699 — d2r_rwVerify WAS NEVER STRIPPED, so the cousin kept Konyo's seeded verdicts.
+         bible.html seeds {"Mania":"fail","Hysteria":"fail"} into it whenever the key is absent
+         and _seedsBelongHere; v2692's own measurement names it as inherited. Because the seed
+         only writes when the key is NULL, renaming the ledger could never clear it either — his
+         Forge would show a red "do not cube" guard on two runewords from someone else's server,
+         permanently, with nothing in the report mentioning it. */
+      strip('d2r_rwVerify', window._RWV_SEED || { Mania: 'fail', Hysteria: 'fail' });
       /* d2r_setPieces is an ARRAY of names with no dates, so it cannot be exact-matched and a
          name-only strip would delete pieces he owns. Its twin in foundLog HAS just been matched,
          so a piece is inherited exactly when that twin was seeded. Decided by the store that
@@ -9975,10 +10013,104 @@ window._d2rUnseed = function(){
           report.push('v1692 ruling: removed ' + gone.length + ' on the flag, not on a date');
         }
       } catch(e){}
-      var nm = 'Ledger-' + String(window._D2R_INSTALL || Date.now()).slice(0, 8);
-      window.localStorage.setItem('d2r_ledgerName', nm);
+      /* ⚠ v2699 — d2r_owned WAS BACKED UP AND NEVER STRIPPED, so the board could not reach the
+         number the button promises. `_ownedNames()` is `new Set(d2r_owned)` UNIONED with the keys
+         of d2r_foundLog, and every funiScan surface reads it — so an inherited name sitting in
+         d2r_owned still counts as found after the un-seed. The ruling migrations put names there
+         on purpose (chronicleApply calls tvVaultRegister + toggleOwned), which is exactly how
+         seeded names reach that store. A name is removed only if a seed claims it AND it is no
+         longer in the post-strip foundLog — so anything he actually found, including a find that
+         happens to share a seed's name, stays. */
+      try {
+        var ow = JSON.parse(LSx.getItem('d2r_owned') || 'null');
+        if (Array.isArray(ow)) {
+          var flO = {}; try { flO = JSON.parse(LSx.getItem('d2r_foundLog') || '{}') || {}; } catch(e){}
+          var seeded = {};
+          [G, S, RULE].forEach(function(src){ Object.keys(src || {}).forEach(function(n){ seeded[n] = 1; }); });
+          var beforeO = ow.length;
+          var keepO = ow.filter(function(n){ return !(seeded[n] === 1 && flO[n] === undefined); });
+          if (keepO.length !== beforeO) LSx.setItem('d2r_owned', JSON.stringify(keepO));
+          report.push('d2r_owned: removed ' + (beforeO - keepO.length) + ' seeded, kept ' + keepO.length);
+        }
+      } catch(e){}
+
+      /* v2699 — THE REPORT MUST SURVIVE THE RELOAD. It used to be a console.log on the line
+         before location.reload(), and DevTools clears the console on navigation by default — so
+         the only evidence of what was taken and what was kept was wiped before anyone could read
+         it. Dean is not running DevTools at all. Persisting it means the number can be checked
+         afterwards, which is the only thing that distinguishes "removed 245 seeded" from
+         "removed 0, the seeds are keyed differently on this board". */
+      try {
+        window.localStorage.setItem('d2r_unseedReport',
+          JSON.stringify({ at: Date.now(), ledger: nm, lines: report }));
+      } catch(e){}
       try { console.log('[un-seed] ' + nm + ' | ' + report.join(' | ')); } catch(e){}
     } catch(e){ try { console.warn('[un-seed] failed: ' + e); } catch(e2){} }
+    location.reload();
+  });
+};
+
+/* ⚠⚠ v2699 — THE UNDO THE DIALOG PROMISED DID NOT EXIST.
+   The confirm said "a full backup is saved first so this can be undone". `d2r_unseedBackup` was
+   written in exactly ONE place and read in NONE — measured: `grep -rn d2r_unseedBackup .` returned
+   a single hit, the write itself. There was no restore button, no console helper and no script
+   that consumed the key. On the cousin's machine, which the code's own comment says has no other
+   undo, the promised undo was a sentence and nothing else.
+
+   That mattered most on KONYO'S OWN board, where the consequence was irreversible. His
+   d2r_ledgerName is unset, so `_D2R_LEDGER` falls through to the has-a-chronicle heuristic and
+   answers 'KonyoEndgame' — which is why the floors restore for him. The un-seed's write of
+   d2r_ledgerName lands in the resolver's FIRST branch (`if (n) return n`), so one click named his
+   ledger, made `_seedsBelongHere` false forever, and the 245 grail entries the strip had just
+   deleted could never be restored by the floor. A destructive, one-way button sitting in a
+   danger zone under a note telling the next reader it was safe.
+
+   This restores every store the backup carries, INCLUDING the ledger name — putting back an
+   absent name by removing the key, not by writing an empty string, because `if (n) return n`
+   treats '' and absent identically only after a .trim() that an empty string would still pass
+   as falsy. Removing it is what actually re-arms the heuristic. */
+window._d2rUnseedRestore = function(){
+  var LSx = window.LSR || window.localStorage;
+  var raw = null;
+  try { raw = LSx.getItem('d2r_unseedBackup'); } catch(e){}
+  if (!raw) {
+    uiConfirm('There is no un-seed backup in this browser, so there is nothing to restore.\n\n'
+      + 'That means the un-seed has not been run here — or it was run before this browser stored '
+      + 'a snapshot.');
+    return;
+  }
+  var bk = null;
+  try { bk = JSON.parse(raw); } catch(e){}
+  if (!bk) { try { console.warn('[un-seed restore] the backup will not parse'); } catch(e){} return; }
+  var when = '';
+  try { when = new Date(bk.at).toLocaleString(); } catch(e){}
+  uiConfirm('Put this browser back exactly as it was before the un-seed?\n\n'
+    + 'Snapshot taken: ' + (when || 'unknown') + '\n\n'
+    + 'Every store the un-seed touched is restored, and the ledger name it assigned is removed, '
+    + 'so the chronicle floors work again as they did before.\n\n'
+    + 'Anything you recorded SINCE the un-seed will be replaced by the snapshot.')
+  .then(function(ok){
+    if (!ok) return;
+    var done = [];
+    try {
+      ['d2r_foundLog','d2r_setPieces','d2r_rwMade','d2r_owned','d2r_rwVerify',
+       'd2r_v1692FleshrenderApplied'].forEach(function(k){
+        if (!Object.prototype.hasOwnProperty.call(bk, k)) return;
+        try {
+          if (bk[k] == null) { LSx.removeItem(k); done.push(k + ': cleared'); }
+          else { LSx.setItem(k, bk[k]); done.push(k + ': restored'); }
+        } catch(e){}
+      });
+      /* the ledger name is the half that re-arms the floors, so it is restored on the RAW store
+         for the same reason the resolver reads it raw — the owner's keys are bare by definition. */
+      try {
+        if (bk.d2r_ledgerName == null) { window.localStorage.removeItem('d2r_ledgerName'); done.push('ledger name: cleared'); }
+        else { window.localStorage.setItem('d2r_ledgerName', bk.d2r_ledgerName); done.push('ledger name: restored'); }
+      } catch(e){}
+      try { window.localStorage.setItem('d2r_unseedRestoreReport',
+              JSON.stringify({ at: Date.now(), from: bk.at, lines: done })); } catch(e){}
+      try { console.log('[un-seed restore] ' + done.join(' | ')); } catch(e){}
+    } catch(e){ try { console.warn('[un-seed restore] failed: ' + e); } catch(e2){} }
     location.reload();
   });
 };
@@ -49020,7 +49152,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2698', name:'v2698 - the automated world can play the stranger again', date:'2026-09-06', note:'v2694 made an automated file world resolve as the owner so the seed specs would stop being refused, and that silently made the claim bar unreachable, so the one spec about the stranger path died on a missing onclick; a narrow testGuest opt-out restores it without changing anything a real person can reach' };
+  window.D2R_BUILD = { id:'v2699', name:'v2699 - the un-seed can be undone, and it names the ledger before it deletes anything', date:'2026-09-06', note:'a code review found the promised backup was written once and read nowhere, so the undo did not exist; the ledger name was written last so any throw left a stripped store that re-seeds; and two stores were backed up but never stripped' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
