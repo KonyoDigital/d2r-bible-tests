@@ -1374,6 +1374,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2749** | `(this commit)` | v2749 — zero contradictions because the contract refuses every seal and nothing said so |
 | **v2748** | `(this commit)` | v2748 — the derived predicate that names the 32 dead-ended reels was built correct gated and read by nothing |
 | **v2747** | `(this commit)` | v2747 — his blank main column was invisible because the only instrument watching for a blank console asks about the whole window |
 | **v2745** | `(this commit)` | v2745 — overlaps 3 to 0 at three widths, and a cross-family audit proved the score is a count not a confidence |

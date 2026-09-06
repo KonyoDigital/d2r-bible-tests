@@ -690,6 +690,63 @@ _BY_DESIGN_STATIONS = {
 }
 
 
+def _check_the_printer_can_reach_the_corpus():
+    """v2749 — ZERO CONTRADICTIONS BECAUSE THE CONTRACT REFUSES EVERY SEAL.
+
+    His ask, 2026-09-03: *"i want this related to the 3/4D printer it should be in the same zone.
+    that unified printer needs to be built, that processing system for the reels all need a unified
+    logic coming in and out"*. `printer_reach` answers the question that opens: HOW MUCH OF THE
+    CORPUS CAN THE PIPELINE ACT ON AT ALL. Nothing read it — `grep -c printer_reach` was 0 across
+    control_app.py, console_doctor.py, corroborate.py and control_ui.html, the same shape as
+    end_routes one version ago. [[the-unjoined-end]] [[sweep-dont-ask]]
+
+    MEASURED on his tree: reels 437 · seals 31 · joined 21 · **sealsSatisfyingContract 0**, with
+    name, location AND provenance missing on all 31.
+
+    ⚠⚠ THE READING THAT MAKES THIS WORTH A ROW: a downstream reader sees ZERO CONTRADICTIONS and
+    concludes the pipeline is healthy. It is not — the contract refuses every seal, so the
+    contradiction CANNOT ARISE. A zero that means "nothing qualified" wearing the clothes of a zero
+    that means "nothing wrong". [[zero-needs-a-denominator]]
+
+    ⚠ IT NAMES THE MISSING FACTS, never a bare count, because the facts imply DIFFERENT WORK: a
+    missing `name` is a reader change, while a missing `location` is a CAPTURE question — 0 of 1,065
+    deep rows carry a cell — and that is HIS ruling, not something code decides.
+    ⛔ No wilson lock: reachability is a READING, not a claim attacks can refute.
+    """
+    try:
+        import printer_reach as _PR
+    except Exception as exc:
+        return UNKNOWN, ("printer_reach would not import (%s), so how much of the corpus the "
+                         "pipeline can reach is UNKNOWN" % type(exc).__name__)
+    try:
+        r = _PR.report()
+    except Exception as exc:
+        return UNKNOWN, "the printer-reach report raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    if not isinstance(r, dict) or not r.get("counts"):
+        # ⚠ `(r or {}).get(...)` RAISES when r is a truthy NON-dict — a bare string report walks
+        # straight past the isinstance guard and into AttributeError. Caught by this row's own gate
+        # before it shipped: an UNKNOWN path that crashes reports nothing, which is strictly worse
+        # than the unknown it was written to express. [[unknown-stays-unknown]]
+        _why = r.get("why") if isinstance(r, dict) else None
+        return UNKNOWN, str(_why or "the printer-reach report carried no counts")
+    c = r.get("counts") or {}
+    seals = c.get("seals")
+    ok_n = c.get("sealsSatisfyingContract")
+    if seals is None or ok_n is None:
+        # a count nobody took is not zero
+        return UNKNOWN, "the report carried no seal counts, so nothing is known about reach"
+    if ok_n:
+        return OK, ("%s of %s seal(s) satisfy the extraction contract, so the pipeline can act on "
+                    "the corpus" % (ok_n, seals))
+    facts = r.get("missingByFact") or {}
+    named = ", ".join("%s %s" % (k, v) for k, v in sorted(facts.items(), key=lambda kv: -kv[1]))
+    return MISSING, ("NOT ONE of %s seal(s) satisfies the extraction contract, so no reel can be "
+                     "judged disposable and a contradiction cannot arise AT ALL - zero here means "
+                     "the contract refused everything, not that nothing is wrong. Missing: %s. "
+                     "(reels %s, joined %s.) ⚠ `location` is a CAPTURE question, not a reader one."
+                     % (seals, named or "unrecorded", c.get("reels"), c.get("joined")))
+
+
 def _check_every_reel_can_still_reach_an_end_route():
     """v2748 — THE DERIVED END-ROUTE PREDICATE WAS READ BY NOTHING.
 
@@ -726,8 +783,13 @@ def _check_every_reel_can_still_reach_an_end_route():
         r = _ER.report()
     except Exception as exc:
         return UNKNOWN, "the end-route report raised (%s) - UNKNOWN, not clean" % type(exc).__name__
-    if not r or not r.get("ok"):
-        return UNKNOWN, str((r or {}).get("why") or "the end-route report could not be taken")
+    # ⚠ SAME SHAPE AS THE printer-reach ROW, found by sweeping this file the moment that one was
+    # fixed rather than a version later. `r.get("ok")` raises on a truthy NON-dict, and so does the
+    # `(r or {})` fallback beside it — so an UNKNOWN path written to survive a bad report would
+    # itself crash on one. An UNKNOWN that raises reports nothing at all. [[sweep-dont-ask]]
+    if not isinstance(r, dict) or not r.get("ok"):
+        _why = r.get("why") if isinstance(r, dict) else None
+        return UNKNOWN, str(_why or "the end-route report could not be taken")
     dead = r.get("deadEnded")
     waiting = r.get("finishedWaiting")
     walked = r.get("walked")
@@ -829,10 +891,14 @@ def _check_the_river_is_moving():
         return UNKNOWN, "no reel was stationed, so nothing can be concluded about the river"
     stuck = {}
     for r in rows:
-        st = (r or {}).get("station")
+        # the list is guarded above; its ELEMENTS are not, and `(r or {}).get` raises on a truthy
+        # non-dict exactly as it did in the two rows above
+        if not isinstance(r, dict):
+            continue
+        st = r.get("station")
         if not st or st in _BY_DESIGN_STATIONS or st in ("ROUTED", "TOMBSTONE"):
             continue
-        if (r or {}).get("owes"):
+        if r.get("owes"):
             stuck[st] = stuck.get(st, 0) + 1
     if not stuck:
         return OK, "every stationed reel has a lane that can take it (%d reel(s) walked)" % len(rows)
@@ -2086,6 +2152,7 @@ CHECKS = [
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
     ("console painted whole", _check_the_console_painted_all_of_itself),
+    ("printer reach", _check_the_printer_can_reach_the_corpus),
     ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),

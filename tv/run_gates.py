@@ -646,6 +646,22 @@ GATES = [
              "writes: append-only, one row per station actually reached, deduped so a walk over a "
              "still river writes zero bytes."),
 
+    Gate("test_the_printer_reach_is_watched",
+         [sys.executable, os.path.join(HERE, "test_the_printer_reach_is_watched.py")], 120,
+         why="v2749 — `grep -c printer_reach` was 0 across control_app.py, console_doctor.py, "
+             "corroborate.py and control_ui.html: the THIRD module in three versions found built, "
+             "correct, and read by nothing. It answers the question his 3/4D-printer ask opens "
+             "with — how much of the corpus the pipeline can act on. MEASURED: reels 437, seals 31, "
+             "joined 21, sealsSatisfyingContract **0**, with name/location/provenance missing on "
+             "all 31. ⚠⚠ The row exists because a reader seeing ZERO CONTRADICTIONS concludes the "
+             "pipeline is healthy: it is not, the contract refuses every seal so the contradiction "
+             "CANNOT ARISE. It names the missing FACTS because they imply different work — a "
+             "missing `name` is a reader change, a missing `location` is a CAPTURE question (0 of "
+             "1,065 deep rows carry a cell) and HIS ruling. ⚠ Its own gate caught a crash in the "
+             "UNKNOWN path: `(r or {}).get` raises on a truthy non-dict, so an UNKNOWN written to "
+             "survive a bad report crashed on one — and the same shape was then swept out of the "
+             "end-route and river rows in the same pass. 8 sabotages, all RED."),
+
     Gate("test_the_end_route_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_end_route_is_watched.py")], 120,
          why="v2748 — `grep -c end_routes` was 0 in control_app.py, console_doctor.py, "
