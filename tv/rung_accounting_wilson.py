@@ -180,4 +180,13 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    # ⚠ THIS FILE PRINTS NON-ASCII AND IS AN ENTRY POINT, so stdout has to be made encoding-safe
+    # or it crashes WHILE REPORTING on a non-UTF-8 console and a clean tree exits non-zero.
+    # test_control's `test_every_cli_that_prints_non_ascii_is_encoding_safe` refused the push over
+    # exactly this — the gate working, on the first run of a new file.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     sys.exit(main(sys.argv[1:]))
