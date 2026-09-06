@@ -22332,3 +22332,21 @@ store, so `d2r_foundLog` printed three different "kept" totals summing to 460 fo
 **Also added:** a behavioural round-trip test. The un-seed and restore are executed against a mock
 store and every value compared byte for byte — **`ROUND TRIP IS SYMMETRIC`**, including the ledger
 name being *removed* rather than blanked, which is what re-arms the floors.
+
+## REG-672 — a gate that cannot measure on the runner was failing there instead of saying so
+
+**Shipped:** v2705
+
+`test_tombstone_station` walks his reel store through `printer.stream()` and `extract_gap.gap()`.
+GitHub's runner has no reels, so both returned zero rows and the assertions fired with *"this
+measures NOTHING"* — a true sentence and the wrong verdict. Nothing was broken; the venue had
+nothing to look at. It had been red on CI on every run while green on his Mac, which is precisely
+the shape that teaches a reader to ignore a red.
+
+A plain skip would be worse: `SkipTest` exits 0 and `run_gates` records it green (REG-671, same
+session). So this uses `run_gates`' own answer — **`skip_ok=`**, which declares the exact reasons a
+gate's lane may skip for and counts any **undeclared** skip as a failure. The skip is now explicit,
+matched against a registered string, and auditable.
+
+Proven both ways: with reels present, 9 tests run and pass; with `printer.stream()` and
+`extract_gap.gap()` returning nothing, **2 skips with the declared reason and 0 failures**.

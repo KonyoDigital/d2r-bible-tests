@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2704",
+  "ver": "v2705",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2704: a skip was exiting 0 and recording as a pass, the clipped denominator treated a measured zero as absent, the rwVerify seed was never exported so the strip held a second copy of it, that strip matched an enum by value and could delete verdicts a cousin earned himself, and one store printed three contradictory kept totals",
+  "note": "v2705: printer.stream and extract_gap walk his reel store and the runner has no reels, so a gate that was measuring nothing reported red on every CI run while green on his Mac; it now skips with a reason declared in run_gates skip_ok, where an undeclared skip still counts as a failure",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

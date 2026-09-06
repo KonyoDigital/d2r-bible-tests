@@ -539,6 +539,7 @@ GATES = [
              "handler dies silently, which this repo has shipped four times"),
     Gate("test_tombstone_station",
          [sys.executable, os.path.join(HERE, "test_tombstone_station.py")], 180,
+         skip_ok=(r"no reels on this host",),
          why="the printer's last station and the sealed/certified split are REPORTS, and a report "
              "is the easiest thing here to break silently — it keeps returning a shape while the "
              "word stops being true. Two named rots: a tombstone verdict of ON DISK because the "
