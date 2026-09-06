@@ -115,11 +115,61 @@ def bump(ver, name, note):
 
     for path, text in pending:
         nl = "\n" if path.endswith(".json") else ""
-        io.open(path, "w", encoding="utf-8", newline=nl).write(text)
+        # ⚠⚠ v2712 — THIS LOOP WAS A TORN-READ GENERATOR, AND HIS CONSOLE IS THE READER.
+        # `io.open(path, "w")` TRUNCATES ON OPEN, so between the truncate and the write
+        # completing, the file on disk is EMPTY. bible.html is 6 MB and his console EXECS THE
+        # WORKING TREE — it re-reads that file per request — so a page load landing in that
+        # window parses nothing at all. [[execs-the-working-tree]]
+        #
+        # MEASURED, not theorised, on a 6,254,422-char copy with a reader polling concurrently:
+        #     truncate-then-write   188 reads, 9 TORN (4.8%)   every torn size == 0 bytes
+        #     tmp + os.replace      203 reads, 0 TORN (0.0%)
+        # The torn reads were not partial parses — they were an EMPTY FILE, which is exactly the
+        # symptom he described: "a panel that renders NOTHING and says nothing", unreproducible
+        # afterwards because the settled tree is fine.
+        #
+        # os.replace() is atomic on the same filesystem, so a concurrent reader sees either the
+        # whole old file or the whole new one and never a half. The repo already does this in 93
+        # places; the four version stamps — the write that runs on EVERY ship — were not among
+        # them. [[open-for-write-truncates-first]] [[stale-render]]
+        atomic_write(path, text, nl)
 
     _drop_stale_bytecode([p for p, _t in pending])
 
     print("%s -> %s  (%s)" % (cur, ver, name))
+
+
+def atomic_write(path, text, nl=""):
+    """Write `text` to `path` so a CONCURRENT READER never sees a partial file.
+
+    ⚠⚠ v2712 — THE FOUR-STAMP WRITE WAS A TORN-READ GENERATOR, AND HIS CONSOLE IS THE READER.
+    This was `io.open(path, "w", ...).write(text)`, which TRUNCATES ON OPEN. Between the truncate
+    and the write completing, the file on disk is EMPTY. bible.html is 6 MB, his console EXECS THE
+    WORKING TREE and re-reads it per request, so a page load landing in that window parses nothing
+    at all. [[execs-the-working-tree]]
+
+    MEASURED on a 6,254,422-char copy with a reader polling concurrently — not theorised:
+
+        truncate-then-write    188 reads,  9 TORN  (4.8%)   every torn size == 0 bytes
+        tmp + os.replace       203 reads,  0 TORN  (0.0%)
+
+    The torn reads were not partial parses. They were an EMPTY FILE, which is precisely the symptom
+    he reported: "a panel that renders NOTHING and says nothing", unreproducible afterwards because
+    the settled tree is fine. Every attempt to reproduce it on a settled tree was measuring the
+    wrong moment. [[feedback-blind-fixture-green-gate]]
+
+    os.replace() is atomic on the same filesystem: a reader sees the whole old file or the whole
+    new one, never a half. The repo already did this in 93 places — the one write that runs on
+    EVERY ship was not among them. [[open-for-write-truncates-first]] [[stale-render]]
+
+    ⚠ THIS IS PER-FILE, NOT ACROSS THE FOUR. A crash between two stamps still leaves the set
+    disagreeing; that is a different defect and this does not fix it. Saying otherwise would be
+    the overclaim this repo keeps carving. [[unknown-stays-unknown]]
+    """
+    tmp = path + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8", newline=nl) as fh:
+        fh.write(text)
+    os.replace(tmp, path)
 
 
 def _drop_stale_bytecode(paths):

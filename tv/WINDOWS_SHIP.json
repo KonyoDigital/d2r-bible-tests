@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2711",
+  "ver": "v2712",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2711: he ruled once that the printer pills must share a width, it shipped at v2686, and nothing pinned it since; the gate now holds the law rather than the string because the longest label moved this session",
+  "note": "v2712: the four-stamp write left bible.html at zero bytes for 4.8 percent of concurrent reads; now tmp plus os.replace",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

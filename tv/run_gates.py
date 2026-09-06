@@ -502,6 +502,16 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_version_stamps_are_written_atomically",
+         [sys.executable, os.path.join(HERE, "test_version_stamps_are_written_atomically.py")], 120,
+         why="the write that runs on EVERY ship left his 6 MB bible.html at ZERO BYTES. "
+             "bump_version wrote all four stamps with io.open(path,'w'), which truncates on open, "
+             "and his console EXECS the working tree — it re-reads bible.html per request. "
+             "MEASURED with a concurrent reader: 4.8% of reads got an EMPTY file, every torn size "
+             "0 bytes. That is his 'panel that renders NOTHING and says nothing', and it never "
+             "reproduced because a settled tree is fine. Now tmp+os.replace; this pins that the "
+             "SHIP PATH calls it, not merely that the helper exists."),
+
     Gate("test_live_version_is_not_the_working_tree",
          [sys.executable, os.path.join(HERE, "test_live_version_is_not_the_working_tree.py")], 120,
          why="his console EXECS the working tree, so the page in front of him can be bytes that "

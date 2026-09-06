@@ -200,7 +200,13 @@ def bake(write=False, root=None):
     s = src[:m_set.start(1)] + lit(new_set) + src[m_set.end(1):]
     m_gr2 = re.search(r"const _GRAIL_SEED = (\{.*?\});", s, re.S)
     s = s[:m_gr2.start(1)] + lit(new_grail) + s[m_gr2.end(1):]
-    open(BIBLE, "w", encoding="utf-8").write(s)
+    # v2712 — atomic, because his console re-reads bible.html per request and
+    # `open(...,"w")` leaves it ZERO BYTES until the 6 MB write completes.
+    # Measured: 4.8% of concurrent reads saw an empty file. [[stale-render]]
+    _tmp = BIBLE + ".tmp"
+    with open(_tmp, "w", encoding="utf-8") as _fh:
+        _fh.write(s)
+    os.replace(_tmp, BIBLE)
     print("\nWRITTEN. Now re-run the three specs above and update what they report.")
     return 0
 

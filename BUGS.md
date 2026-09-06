@@ -22536,6 +22536,46 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-681 — every ship left his 6 MB board at ZERO BYTES for a few milliseconds
+
+**v2712.** `bump_version.bump()` wrote all four version stamps with
+`io.open(path, "w", ...).write(text)`. That call **truncates on open**, so between the truncate and
+the write completing the file on disk is EMPTY — and one of the four is `bible.html`, 6 MB, which
+his console **re-reads per request** because it execs the working tree.
+
+So every version bump — dozens per session — opened a window in which a page load got nothing at
+all.
+
+**MEASURED**, on a 6,254,422-char scratch copy with a reader polling concurrently (his file was
+never touched):
+
+| write | reads | torn | torn sizes |
+|---|---|---|---|
+| `io.open(p,"w").write()` | 188 | **9 (4.8%)** | **min=0 max=0** |
+| tmp + `os.replace` | 203 | **0 (0.0%)** | — |
+
+⚠ **The torn reads were not partial parses — they were a zero-byte file.** That is his reported
+symptom word for word: *"a panel that renders NOTHING and says nothing"*, and it is why it never
+reproduced. Every reproduction attempt ran against a settled tree, which is fine by definition.
+The bug only exists during the write. [[feedback-blind-fixture-green-gate]]
+
+**FIX** — `bump_version.atomic_write()`: write `path + ".tmp"` in the same directory, then
+`os.replace()`, which is atomic within one filesystem. A reader sees the whole old file or the
+whole new one. Same fix applied at `bake_seed.py:203`. The repo already did this in **93 other
+places**; the one write that runs on every ship was not among them.
+
+**GATE** — `test_version_stamps_are_written_atomically`, 6 laws, deterministic rather than racy
+(a concurrency gate whose control can silently fail to reproduce is a gate that certifies nothing).
+Proven RED four ways: ship loop reverted to the truncating call; `atomic_write` made to write the
+target directly; tmp moved to another filesystem (where `os.replace` silently degrades to a copy);
+`shutil.copyfile` instead of `replace`. Control green, file restored byte-identical after each.
+
+⚠ **Atomicity is per FILE, not across the four stamps.** A crash between two of them still leaves
+the set disagreeing. Different defect, not fixed here.
+
+⚠ The gate tripped on **its own comment** on first run — the comment forbidding `io.open(path,"w")`
+contains that string. Second time in one session. [[source-reading-guard]]
+
 ## REG-679 — a change to the render gate's own definition did not re-run the render gate
 
 **Shipped:** v2710 · **Found by:** a look that needed v2708's bytes, on a target I had just changed
