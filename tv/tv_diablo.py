@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2740"   # the seed door, the 7 evidence frames, and three defects in my own v2739
+VERSION = "v2741"   # the worker dropped the field on arrival, for the fifth time
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

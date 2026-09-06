@@ -416,7 +416,7 @@ def evidence_held_reels(hist_dir=None):
              if r.get("held") and r.get("holdKind") == "evidence" and r.get("reel")}, "")
 
 
-def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
+def plan_frames(hist_dir, root=None, keep=KEEP_RECENT, held_reels=None):
     """What a witness-aware prune WOULD free. Reports; deletes nothing.
 
     Reporting rather than acting is deliberate: this replaces a deleter that ran automatically and
@@ -442,7 +442,22 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT):
     # exists because "the engine reopens these when the prompt improves". Freeing those frames
     # destroys the one thing the hold protects: a re-read with no frames is not a re-read.
     # This module knew about witness FRAMES and nothing about held REELS. [[the-unjoined-end]]
-    held_reels, held_why = evidence_held_reels(hist_dir)
+    # ⚠⚠ v2741 — THE HOLD LIST IS AN INJECTABLE INPUT, and it had to become one.
+    # v2740 computed it unconditionally from `reel_story`, which reads its stores relative to the
+    # HIST dir and derives durability from `_durable_sessions()` — and that reads the LIVE tree,
+    # not the caller's `root`. So a fixture that hands this function its own `root` (which is the
+    # entire contract of these unit tests) had NO WAY to say what is held: every fixture reel came
+    # back evidence-held, and two correct laws about THIS module's own rules went red.
+    # ⚠ NOT A WEAKENED RULE. The production path is unchanged — None still means "go and ask", and
+    # an unreadable answer still refuses everything below. What changed is that a caller which
+    # already supplies its own stores can supply this one too, instead of being silently overruled
+    # by a store it cannot reach. The cross-module rule keeps its own gate in
+    # tv/test_frames_respect_evidence_holds.py, so nothing here is covering for it.
+    # [[feedback-fixtures-never-touch-live-data]] — guard the FIXTURE's reach, not the call site.
+    if held_reels is None:
+        held_reels, held_why = evidence_held_reels(hist_dir)
+    else:
+        held_reels, held_why = set(held_reels), "supplied by the caller"
     out["evidenceHeldReels"] = (None if held_reels is None else sorted(held_reels))
     if held_reels is None:
         # the same answer the seal refusal above gives to the same shape of ignorance, and for the

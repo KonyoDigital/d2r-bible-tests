@@ -184,8 +184,21 @@ export async function onRequestPost(context) {
       // reported — and the tooltip is built to render `t.why`. That is the FOURTH joint of this
       // one feature built on both ends and not joined (this comment said "third"). A refusal
       // carries no item data: a short reason string and nulls. [[the-unjoined-end]]
+      // ⚠⚠ v2741 — THE FIFTH JOINT OF THIS ONE FEATURE, and the three comments above already
+      // describe the other four. v2739/v2740 compute `onOwnerSeed` on the board and the beacon
+      // posts it; this fixed key list dropped it, so the fleet card read a field that could never
+      // arrive. Found by an end-to-end chain check, not by a gate — no gate here grades what the
+      // worker STORES against what the client SENDS. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+      //
+      // ⛔ THE BOUNDARY FOUR LINES ABOVE IS KEPT: a boolean crosses, identity strings do not.
+      // `ledgerName` and `seedLedger` would name a person's world, neither consumer needs them,
+      // and widening a public boundary to make a warning more specific is not a trade this file
+      // makes. Shaped, not trusted: anything that is not a real boolean becomes null, and null is
+      // UNKNOWN — the card renders nothing for it. Only an explicit `true` shows the warning, so a
+      // garbled beacon cannot make a console look clean either way. [[unknown-stays-unknown]]
       const out = { ok: t.ok === true,
                     sets: pair(t.sets), uniques: pair(t.uniques), runewords: pair(t.runewords),
+                    onOwnerSeed: (typeof t.onOwnerSeed === 'boolean') ? t.onOwnerSeed : null,
                     at: Number.isFinite(at) ? at : null };
       if (!out.ok) {
         const why = (typeof t.why === 'string') ? t.why.replace(/\s+/g, ' ').trim() : '';

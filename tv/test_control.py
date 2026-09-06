@@ -19675,7 +19675,9 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
             sealed={"s_1000_1": {"ts": 1, "rows": 1, "extracted": ["name", "location", "provenance"]}},
             accum=[{"name": "Shako", "witnesses": [{"session": "s_1000_1", "frame": "f_1.jpg"}]}],
             reels=self._REELS)
-        p = fa.plan_frames(hist, root=root)
+        # ⚠ held_reels={} — see the note on the recency test: this law is about the WITNESS rule,
+        # and the cross-module evidence hold is gated separately.
+        p = fa.plan_frames(hist, root=root, held_reels=set())
         names = [os.path.basename(f) for f in p["prunable"]]
         self.assertNotIn("f_1.jpg", names, "a witness frame was offered up for deletion")
         self.assertIn("f_2.jpg", names,
@@ -19694,7 +19696,12 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         fa = self._mod()
         root, hist = self._tree(sealed={k: {"ts": 1, "rows": 0, "extracted": ["name", "location", "provenance"]} for k in self._REELS},
                                 reels=self._REELS)
-        p = fa.plan_frames(hist, root=root)
+        # ⚠ held_reels={} ISOLATES THE CROSS-MODULE HOLD, deliberately. v2740 taught plan_frames to
+        # refuse frames in a reel reel_retention holds for an EVIDENCE reason; reel_retention
+        # derives durability from the LIVE tree, so a fixture cannot state its own answer. This
+        # test is about THIS module's recency rule, so the external input is supplied rather than
+        # guessed. That rule has its own gate: tv/test_frames_respect_evidence_holds.py.
+        p = fa.plan_frames(hist, root=root, held_reels=set())
         held = {os.path.basename(os.path.dirname(f)) for f in p["prunable"]}
         self.assertEqual(held, {"reel_s_1000_1"},
                          "only the single OLDEST reel may be offered; the newest five are held "

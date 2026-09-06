@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2740",
+  "ver": "v2741",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2740: one board may own the seed ledger and the reset now closes the door; frames inside an evidence-held reel are refused; the v2739 seed flag was inverted and its tally never carried it",
+  "note": "v2741: and my evidence-hold join gave the frame tests a cross-module input no fixture could reach",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
