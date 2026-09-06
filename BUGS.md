@@ -7,6 +7,49 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
+
+**v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS
+variable named `dump`** — `dump_stores` is interpolated as a bare `true`/`false` LITERAL twelve
+lines above (`if(%s){stores={}...`). The name resolved to nothing, so the **entire** board read
+threw `Can't find variable: dump` and `_ledger_snapshot_once` refused every snapshot from that ship
+onward.
+
+MEASURED on his live console, 2026-09-06 18:15:
+
+```
+ledgerBackup.writes   0
+ledgerBackup.why      "Can't find variable: dump"
+newest backup file    80 minutes old, still the pre-v2731 three-store shape
+```
+
+⚠⚠ **EVERY GATE WAS GREEN THROUGHOUT, AND CORRECTLY.**
+`test_ledger_backup_covers_every_store` asserts the five stores are copied — it grades the SOURCE,
+and source is not a running board. Worse, it pinned the exact defective bytes
+(`assertIn("rwMadeFull:(dump?rwFull:null)")`), so the law was **holding the defect in place**.
+The refusal existed in exactly one place: a string in `_LEDGER_BACKUP_STATE["why"]`, published at
+`/api/status.ledgerBackup` and read by **nobody**. A loop that fails silently every ten minutes is
+indistinguishable from a loop with nothing to do, and the stale file it leaves behind looks like a
+healthy backup right up until the day it is needed.
+
+**FIXED** — `rwMadeFull:rwFull`. `rwFull` is declared `null` and fetched unconditionally eleven
+lines up, so the `dump` gate was pointless as well as broken.
+
+**GATED** — `test_board_read_js_has_no_free_variables` statically extracts the JS `board_ownership`
+actually emits and reports every identifier used but never declared. Proven RED on the real defect
+and on four sabotages (`storez`, `datez`, `ownerX`, `boardLoadd`).
+
+**JOINED TO THE HEART** — his question was *"and all connected to the heart of the console obviously
+right? is it needed?"*, and the answer arrived as a red row:
+· `console_doctor` **"backup loop"** reads the RUNNING loop's last act. Its allowlist is of what the
+loop is ALLOWED to have done, not of known errors — had it been the latter, an unpredicted message
+like this one would have fallen through as healthy.
+· `corroborate` **"backup-restore-vocabulary"** catches a sixth store joining the backup with nobody
+deciding whether it can be put back.
+
+Related: [[the-unjoined-end]] · [[feedback-verify-not-proxy]] · [[regression-guard]] (pin the LAW,
+not the bytes) · [[zero-needs-a-denominator]]
+
 ### 154 — the freed-bytes number now has to EARN its unlock
 
 **v2633, on his ruling: *"fix it to the hardening and wilsons and to the heart so it proves itself

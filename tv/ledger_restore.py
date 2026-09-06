@@ -51,6 +51,24 @@ BACKUP_DIR = os.path.expanduser("~/d2r_ledger_backups")
 #: through `chronicleApply` — it accepts uniques and sets. Saying so is the point: a restore that
 #: silently covered three of five stores while reporting success would be the worst kind.
 RESTORABLE = {"foundLog": "uniques", "setPieces": "sets"}
+
+#: ⚠⚠ THE THREE THAT CANNOT TRAVEL BACK, AND WHY EACH — because the obvious "fix" for one of them
+#: would defeat a gate that exists on purpose. Measured 2026-09-06:
+#:
+#:   owned      `/api/vault_apply` exists and looks like the door for it. It is NOT.
+#:              vault_apply RE-GATES any caller-supplied proposal through `_vault_retro()` —
+#:              KEEP_MIN_WITNESSES = 3, KEEP_CONF_FLOOR = 0.55 — and a restore has a backup FILE,
+#:              not three distinct sessions of testimony. Posting a restore through it would either
+#:              be rejected (correct) or, if someone widened the gate to let it through, would put
+#:              uncorroborated rows in his stash with nothing behind them. That gate was added in
+#:              v1595 precisely because a hand-made body used to go straight through, and a
+#:              cross-family pass on v2641 found two more holes in it. Do not reopen them for this.
+#:   rwMade     the board exposes no apply door for forged runewords at all
+#:   gameFound  in-game records the board writes from the game, not from a tick
+#:
+#: They are still BACKED UP, which is the half that matters most — the data survives. Getting them
+#: back is a door that does not exist yet, and saying so on every plan is the point: a restore that
+#: silently covered two of five stores while reporting success is the worst kind.
 BACKED_UP_ONLY = ("rwMade", "gameFound", "owned")
 
 
