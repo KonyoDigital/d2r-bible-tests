@@ -502,6 +502,16 @@ GATES = [
              "board, where naming the ledger switches the floors off permanently. Proven RED "
              "against the bytes that actually shipped as v2697 -- 7 of 8 laws, each failing on "
              "its own assertion rather than on one shared setUp error"),
+    Gate("test_one_terror_level",
+         [sys.executable, os.path.join(HERE, "test_one_terror_level.py")], 120,
+         why="'96 terrorized' was an UNNAMED literal printed immediately right of the zone's real "
+             "per-zone alvl, so it read as derived from it. Two cold cross-family reads, on two "
+             "versions with two different zone pairs, both flagged it unprompted. It is NOT a "
+             "formula: bible.html states 'mlvl 96 terror' for TEN researched zones spanning alvl "
+             "67-85, so it is a game constant and inventing arithmetic would be a fabricated fix. "
+             "Now one named constant, and this pins the name, the value, the render site and the "
+             "bible's agreement."),
+
     Gate("test_one_chronicle_denominator",
          [sys.executable, os.path.join(HERE, "test_one_chronicle_denominator.py")], 120,
          why="the chronicle denominator was re-derived at ELEVEN sites and they disagreed on his "

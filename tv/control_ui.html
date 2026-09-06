@@ -19755,6 +19755,34 @@ function escC(s) {
 
        THE NUMBERS ARE THE GAME'S TOO. den/lvl come from the game's own levels.txt
        (MonDen(H), MonLvlEx(H)) — not from a tier list I invented. */
+/* ══ v2716 — ONE SOURCE FOR THE TERRORIZED MONSTER LEVEL ═══════════════════════════════════
+   Konyo, 2026-09-06, after a cold cross-family read flagged it twice: *"96 terrorized is a
+   hardcoded literal. sync them to really render the one unified real calculation obviously :)"*
+
+   MEASURED BEFORE CHANGING ANYTHING, because the fix depends on whether 96 is even wrong:
+
+       bible.html   "mlvl 96 terror"  x10 zones  — 96 is the ONLY value stated anywhere
+                    "TC 87 max" x9 · "TC 85 max" x1 (Arcane Sanctuary)
+       this file    TZ_INFO = 80 zones x [density, alvl, artKey] — alvl spans 67..85
+
+   ⚠⚠ SO 96 IS A REAL GAME CONSTANT AND MUST NOT BECOME A FORMULA. Ten independently researched
+   zones, spanning alvl 67 to 85, all state 96. v1801 records the mechanic in his own words: *"a
+   terror zone lifts monster level to the player's own, so that base level is exactly the thing
+   the boost overrides"* — which is precisely why it does NOT vary with the zone. Inventing an
+   arithmetic that reproduced 96 from alvl would be a fabricated calculation dressed as a fix, and
+   would break the moment a zone disagreed. [[unknown-stays-unknown]]
+
+   WHAT WAS ACTUALLY WRONG is that it was an UNNAMED LITERAL inside a template string, printed
+   immediately to the right of the zone's REAL per-zone alvl, so it read as derived from it. Two
+   separate cold reads on two versions with two different zone pairs both reported it as a number
+   that should have differed and did not. A constant that looks computed is a lie about its own
+   provenance, even when the value is right. [[label-outlived-referent]]
+
+   ⚠ AND THE FIGURE THAT GENUINELY VARIES IS NOT HERE AT ALL: the treasure-class ceiling (87, and
+   85 for Arcane). TZ_INFO carries no TC, so the one per-zone number that does differ cannot be
+   rendered. Naming that gap rather than quietly leaving it. [[the-unjoined-end]] */
+var TZ_TERROR_MLVL = 96;
+
 var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-tomb"],"Ancient's Way":[650,82,"exp-icecave"],"Arachnid Lair":[700,85,"act3-spider"],"Arcane Sanctuary":[990,79,"act2-arcane"],"Arreat Plateau":[350,81,"exp-siege"],"Barracks":[680,70,"act1-cathedral"],"Black Marsh":[520,69,"act1-outdoors"],"Blood Moor":[520,67,"act1-outdoors"],"Bloody Foothills":[650,80,"exp-siege"],"Burial Grounds":[520,80,"act1-graveyard"],"Canyon of the Magi":[880,79,"act2-outdoors"],"Catacombs":[680,73,"act1-catacomb"],"Cathedral":[680,72,"act1-cathedral"],"City of the Damned":[800,84,"act4-lava"],"Claw Viper Temple":[2200,83,"claw-viper"],"Cold Plains":[520,68,"act1-outdoors"],"Crypt":[1056,83,"act1-catacomb"],"Crystalline Passage":[700,82,"exp-icecave"],"Dark Wood":[520,68,"act1-outdoors"],"Den of Evil":[600,79,"act1-caves"],"Disused Fane":[990,85,"act3-kurast"],"Drifter Cavern":[600,85,"exp-icecave"],"Dry Hills":[880,76,"act2-outdoors"],"Durance of Hate":[800,83,"act3-sewer"],"Far Oasis":[880,76,"act2-outdoors"],"Flayer Dungeon":[700,83,"flayer-dungeon"],"Flayer Jungle":[650,80,"flayer-jungle"],"Forgotten Tower":[1024,79,"act1-catacomb"],"Frigid Highlands":[450,81,"exp-siege"],"Frozen River":[800,83,"exp-icecave"],"Frozen Tundra":[550,81,"exp-icecave"],"Glacial Trail":[700,83,"exp-icecave"],"Great Marsh":[650,80,"act3-jungle"],"Halls of Anguish":[700,83,"exp-wildtemple"],"Halls of Pain":[700,84,"exp-wildtemple"],"Halls of Vaught":[700,84,"exp-wildtemple"],"Halls of the Dead":[2200,82,"halls-of-the-dead"],"Harem":[2200,78,"harem"],"Icy Cellar":[650,85,"exp-icecave"],"Infernal Pit":[700,85,"act4-lava"],"Jail":[680,71,"act1-cathedral"],"Kurast Bazaar":[325,81,"act3-kurast"],"Kurast Causeway":[325,81,"act3-kurast"],"Lost City":[880,77,"act2-outdoors"],"Lut Gholein Sewers":[680,85,"act2-sewer"],"Maggot Lair":[990,85,"act2-maggot"],"Mausoleum":[1056,85,"act1-graveyard"],"Moo Moo Farm":[800,81,"act1-outdoors"],"Nihlathak's Temple":[0,83,"exp-wildtemple"],"Outer Cloister":[600,70,"act1-cathedral"],"Outer Steppes":[800,82,"act4-lava"],"Palace Cellar":[2200,78,"palace-cellar"],"Pit of Acheron":[800,85,"act4-lava"],"Plains of Despair":[800,83,"act4-lava"],"River of Flame":[800,85,"act4-lava"],"Rocky Waste":[880,75,"act2-outdoors"],"Ruined Temple":[990,85,"act3-kurast"],"Sewers":[680,85,"act3-sewer"],"Spider Cavern":[700,79,"act3-spider"],"Spider Forest":[650,79,"act3-spider"],"Stony Field":[520,68,"act1-outdoors"],"Stony Tomb":[2200,85,"stony-tomb"],"Swampy Pit":[700,85,"act3-jungle"],"Tal Rasha's Chamber":[2200,80,"talrasha-chamber"],"Tal Rasha's Tombs":[2200,80,"talrasha-tombs"],"Tamoe Highland":[520,69,"act1-outdoors"],"The Cave":[600,78,"act1-caves"],"The Chaos Sanctuary":[800,85,"act4-diab"],"The Hole":[600,81,"act1-caves"],"The Pit":[600,85,"act1-caves"],"Throne of Destruction":[700,85,"exp-baallair"],"Tower Cellar":[1024,79,"act1-catacomb"],"Travincal":[325,82,"act3-travincal"],"Tristram":[520,83,"act1-tristram"],"Underground Passage":[600,85,"act1-caves"],"Upper Kurast":[325,81,"act3-kurast"],"Valley of Snakes":[880,77,"act2-outdoors"],"Worldstone Chamber":[0,85,"exp-baallair"],"Worldstone Keep":[700,85,"exp-baallair"]};
 
     /* Zones worth running for a REASON DENSITY CANNOT SEE. Travincal is one of the sparsest
@@ -20003,7 +20031,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 the density beside it still discriminates); the number that decides the run is
                 now beside it. */
              + '<em class="tzz-den">' + (t.den ? t.den + ' density'
-                        + (t.lvl ? ' · alvl ' + t.lvl + ' <b class="tzz-terr">&rarr; 96 terrorized</b>' : '')
+                        + (t.lvl ? ' · alvl ' + t.lvl + ' <b class="tzz-terr">&rarr; ' + TZ_TERROR_MLVL + ' terrorized</b>' : '')
                         : '') + '</em>');
         /* v1596 — EVERY CARD STATES ITS VERDICT. Konyo, looking at a window whose UP NEXT was
            Cathedral + Catacombs: "how is this emphasized so i know the next terror zone is
