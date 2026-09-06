@@ -1052,7 +1052,7 @@ check counted **21 collisions among content nobody could see**.
 **Verified on pixels and by a cold cross-family read**, which answered the question that matters:
 *"A visible scrollbar is present on the right side of the central panel, so content is scrollable."*
 
-⚠ **STILL OWED, NAMED NOT FIXED:** the dash overflows **horizontally** at 375 — the same read caught
+⚠ **STILL OWED, NAMED NOT FIXED:** the dash overflows **horizontally** at 375 — ⚠ **RE-MEASURED 2026-09-06: this is 74px, not the 9px recorded below; see REG-683** — the same read caught
 *"live terror zones · wha"* and *"appea here"* truncated at the right edge. Reachable by scrolling
 sideways, so a lesser fault, and a different one.
 
@@ -22535,6 +22535,60 @@ and the 40 reels on his shelf — so on his machine this code runs, answers UNKN
 which is indistinguishable from a join that does not work at all. The test supplies the input his
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
+
+## REG-682 — nothing in this repo ever asked whether a page scrolls sideways
+
+**v2713.** Measured 2026-09-06: `grep -nE "documentElement.scrollWidth|body.scrollWidth" tv/*.py`
+returned **nothing**. No gate, at any width, on either surface, asserted that the document does not
+scroll horizontally. The class had **zero coverage**.
+
+It is now a metric on every render target: the probe reports `hscroll`, and `verdict()` refuses on
+it against a declared floor that defaults to **0**.
+
+**PROVEN BOTH HALVES, because a law is two things and either can be the dead one:**
+
+| half | proof |
+|---|---|
+| the probe | real page @375 → `hscroll 0`; inject one 1200px child → **836**; remove it → **0** |
+| the verdict | 7 behavioural cases: clean/refuse/floor-allows/floor-exceeded/floor-DROPS/declared-None/metric-absent |
+
+**MEASURED STATE AT v2712 — the law is green because the pages are clean, not because it is blind.**
+`bible.html` and the served console both report `hscroll 0` at 375 / 640 / 901 / 1120 / 1440.
+
+⚠⚠ **WHAT THIS LAW DOES NOT COVER, SAID PLAINLY.** It is document-level. It does **not** catch the
+defect that motivated it — `#home-dash` overflowing its own scroller — because that overflow is
+inside a container with `overflow-x: auto`, so the DOCUMENT never scrolls. A law aimed past its own
+target is worth naming rather than quietly shipping. [[the-unjoined-end]]
+
+---
+
+## REG-683 — a known, written-down, unwatched overrun grew 8× and nobody could have noticed
+
+**Measured 2026-09-06, console @375x800, on the served UI:**
+
+```
+.tf-t          clientW=214  scrollW=388  over=174   overflow-x: hidden   (BY DESIGN - ellipsis)
+#hd-tf-rows    clientW=330  scrollW=395  over=65
+.hd-taskforce  clientW=358  scrollW=409  over=51
+#home-dash     clientW=336  scrollW=410  over=74    overflow-x: auto
+```
+
+**BUGS.md has said "the dash overflows horizontally at 375" since v2608, and v2609 recorded the
+residual as 9px.** It is **74px**. The written number was wrong by 8×, and the file said
+*"Named, not fixed"* — so it was believed, carried forward, and never re-measured.
+
+**CAUSE.** At 375 the roster becomes a 5-column grid:
+`grid-template-columns: max-content minmax(0,1fr) max-content 132px max-content` with
+`column-gap: 12px`. Only column 2 can collapse. The fixed cost is 132px + 4x12px of gaps = **180px**
+before a single `max-content` track is measured, against a 330px box.
+
+⚠ `.tf-t` at 214/388 is **NOT** part of the defect: it carries `text-overflow: ellipsis`, so its cut
+is a deliberate, visible one. Counting it would inflate the finding with a design decision.
+
+**NOT FIXED, AND THE REASON IS HIS, NOT MINE.** 375 is not a width he uses, the content is reachable
+by scrolling, and changing that grid risks the widths he does use. What was wrong was not the
+deferral — it was deferring with a **number nobody re-checked**. The measurement is now recorded;
+the layout call is his. [[unknown-stays-unknown]] [[stale-reading]]
 
 ## REG-681 — every ship left his 6 MB board at ZERO BYTES for a few milliseconds
 

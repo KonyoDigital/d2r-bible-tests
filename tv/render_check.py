@@ -1520,7 +1520,9 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   var txt = nodes.map(function(e){return (e.textContent||'');}).join(' ')
                  .replace(/\s+/g,' ').trim();
   var widths = {}; rects.forEach(function(r){ widths[r.w]=1; });
-  return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, zeroWhat:zeroWhat, off:off,
+  var _de = document.documentElement;
+  var _hscroll = Math.max(0, _de.scrollWidth - _de.clientWidth);
+  return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, zeroWhat:zeroWhat, off:off, hscroll:_hscroll,
     clipped:clipped, clipScanned:clipScanned, clippedWhat:clippedWhat, okTrunc:okTrunc,
     covered:covered, coveredWhat:coveredWhat,
     unreachable:unreachable, unreachableWhat:unreachableWhat,
@@ -1755,6 +1757,41 @@ def verdict(key, m, sel, known=None):
                 _notes.append("%s: ⓘ %d element(s) %s — the declared floor is %d, so %d were FIXED. "
                            "Lower the floor in TARGETS so it cannot excuse them again."
                            % (key, m[field], msg, _floor, _floor - m[field]))
+    # ⚠⚠ THE DOCUMENT MUST NOT SCROLL SIDEWAYS, and until v2712 nothing in this repo said so.
+    # Measured 2026-09-06: no gate anywhere asserted it at any width, while BUGS.md had carried
+    # "the dash overflows horizontally at 375" as NAMED-NOT-FIXED since v2608. A defect that is
+    # known, written down and unwatched is the [[heartov2]] shape — the fixes were never the
+    # problem, nobody was looking.
+    #
+    # PIXELS, NOT ELEMENTS, which is why this does not ride the loop above: that loop prints
+    # "%d element(s) ..." and saying "9 element(s) scroll sideways" would be a false sentence
+    # attached to a true number. [[label-outlived-referent]]
+    #
+    # A declared floor here is a LAST resort. The intent is to fix the overrun and declare 0, so a
+    # regression is refused; a floor written to match today's measurement is an exemption wearing
+    # a number. A DROP is reported so a stale floor cannot quietly excuse more than it was
+    # written for.
+    _hs = m.get("hscroll")
+    if _hs is not None:
+        _hs_decl = (known or {}).get("hscroll", 0)
+        if "hscroll" in (known or {}) and _hs_decl is None:
+            _notes.append("%s: \u24d8 the document scrolls sideways by %dpx — REPORTED, NOT JUDGED"
+                          % (key, _hs))
+        else:
+            _hs_floor = int(_hs_decl or 0)
+            if _hs > _hs_floor:
+                out.append(
+                    "%s: the DOCUMENT SCROLLS SIDEWAYS by %dpx%s. Content past the right edge is "
+                    "reachable only by scrolling horizontally, which on a page laid out to fit is "
+                    "not a feature — it is the tell that some child cannot shrink into its box."
+                    % (key, _hs,
+                       (" — DECLARED FLOOR IS %dpx, this is %dpx MORE" % (_hs_floor, _hs - _hs_floor))
+                       if _hs_floor else ""))
+            elif _hs < _hs_floor:
+                _notes.append(
+                    "%s: \u24d8 the document scrolls sideways by %dpx against a declared floor of "
+                    "%dpx, so %dpx were FIXED. Lower the floor in TARGETS so it cannot excuse them "
+                    "again." % (key, _hs, _hs_floor, _hs_floor - _hs))
     return _tag(out, _notes)
 
 
