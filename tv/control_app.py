@@ -11808,7 +11808,19 @@ def board_ownership(sample=0, dump_stores=False):
           "chronFound:chF,chronTotal:chT},"
           "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied,"
-          "rwMadeFull:(dump?rwFull:null)});"
+          # ⚠⚠ v2735 — THIS LINE KILLED THE BACKUP FOR A WHOLE DAY, AND EVERY GATE STAYED GREEN.
+          # v2731 shipped it as `(dump?rwFull:null)`. There is NO JS variable named `dump` — the
+          # dump_stores flag is interpolated as a bare `true`/`false` LITERAL twelve lines up
+          # (`if(%s){stores={}...`), so the name resolves to nothing and the whole board read throws
+          # `Can't find variable: dump`. Every snapshot since has refused. MEASURED on his live
+          # console: `ledgerBackup.writes: 0`, newest file 80 minutes old and still carrying the
+          # pre-v2731 three-store shape.
+          # The fix that was meant to COMPLETE his backup is what stopped it, and the gate proving
+          # five stores are copied was green the entire time — it grades this SOURCE, and source is
+          # not a running board. [[the-unjoined-end]] [[feedback-verify-not-proxy]]
+          # ⚠ And the gate was never needed: rwFull is declared null and fetched unconditionally
+          # eleven lines up, so it is already null when there is nothing to copy.
+          "rwMadeFull:rwFull});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})(_ctx,_ctx!==window);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()") % int(sample or 0)
     try:
@@ -17866,6 +17878,86 @@ def _ledger_backup_loop():
             pass
 
 
+def _restore_current_from_board():
+    """The board's ledger as it stands now, in the shape ledger_restore.plan expects.
+
+    -> (current, route, why). A store nobody could read comes back None, NEVER {} — restoring INTO
+    an unknown is how a restore invents a loss and puts back rows he already has.
+    """
+    try:
+        got = board_ownership(sample=5000, dump_stores=False)
+    except Exception as e:
+        return None, None, "the board refused: %s" % str(e)[:90]
+    if not isinstance(got, dict) or not got.get("ok"):
+        return None, None, str((got or {}).get("why") or "the board did not answer")
+    sample = got.get("sample") or {}
+    dates = got.get("dates")
+    cur = {
+        # the dated dict when the board gave one, the name list otherwise — both are readable by
+        # plan(), which only needs membership
+        "foundLog": dates if isinstance(dates, dict) and dates else sample.get("foundLog"),
+        "setPieces": sample.get("setPieces"),
+    }
+    return cur, got.get("route"), ""
+
+
+def ledger_restore_plan():
+    """What the newest backup FOR THIS PROFILE would put back. Reads only; writes nothing."""
+    try:
+        import ledger_restore as _LR
+    except Exception as e:
+        return {"ok": False, "why": "ledger_restore is unavailable (%s)" % str(e)[:60]}
+    cur, route, why = _restore_current_from_board()
+    if cur is None:
+        return {"ok": False, "why": ("cannot plan a restore without reading the board first — %s. "
+                                     "What is missing is UNKNOWN, not everything." % why)}
+    if not route:
+        return {"ok": False, "why": ("the board did not say which profile this is, and a restore "
+                                     "that cannot tell one profile from another is how one "
+                                     "person's ledger lands in another's")}
+    return _LR.plan(route, cur)
+
+
+def ledger_restore_apply(confirm=False):
+    """Put back what the newest backup for THIS profile holds and the board does not.
+
+    ⚠ IT GOES THROUGH `chronicle_apply`, THE BOARD'S OWN DOOR — the console never writes the ledger.
+    That door is dated, merge-max and undoable, so a restore can only ADD what is missing and cannot
+    overwrite a newer find with an older one. The dangerous direction is closed by the door itself
+    rather than by a promise here.
+
+    ⚠ AND IT REFUSES WITHOUT `confirm`. Konyo asked for the BACKUP to be automatic and never to need
+    him — it is, every ten minutes. Putting a ledger back is the other half: an automatic restore
+    could resurrect a state he deliberately left behind, and nothing downstream could tell that from
+    a repair. So the plan runs itself; the apply is asked for.
+    """
+    plan = ledger_restore_plan()
+    if not plan.get("ok"):
+        return {"ok": False, "planned": plan, "applied": False, "why": plan.get("why")}
+    if not confirm:
+        return {"ok": True, "planned": plan, "applied": False,
+                "why": ("this is what would be put back — %s. Nothing has been written; call again "
+                        "with confirm to apply it." % plan.get("why"))}
+    try:
+        import ledger_restore as _LR
+    except Exception as e:
+        return {"ok": False, "planned": plan, "applied": False,
+                "why": "ledger_restore is unavailable (%s)" % str(e)[:60]}
+    proposal = _LR.proposal_from(plan)
+    if not proposal:
+        return {"ok": True, "planned": plan, "applied": False,
+                "why": "nothing to put back — the board already holds everything the backup has"}
+    try:
+        res = chronicle_apply(proposal)
+    except Exception as e:
+        return {"ok": False, "planned": plan, "applied": False,
+                "why": "the board refused the restore: %s" % str(e)[:90]}
+    return {"ok": bool((res or {}).get("ok")), "planned": plan, "applied": bool((res or {}).get("ok")),
+            "board": res,
+            "why": ("asked the board to put back %d name(s) from %s"
+                    % (plan.get("missingTotal") or 0, plan.get("file")))}
+
+
 def vault_seen_load(strict=False):
     """Sightings from earlier sweeps that have not grounded.
 
@@ -23354,7 +23446,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2734",
+        "ver": "v2735",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -26260,6 +26352,18 @@ class Handler(BaseHTTPRequestHandler):
             # HIS ruling, HIS door. The console never writes the ledger.
             self._json(200, board_tick(body.get("name"), body.get("kind"),
                                        bool(body.get("want"))))
+            return
+        if path == "/api/ledger_restore_plan":
+            # v2735 — THE READ HALF OF THE RESTORE. Says what the newest backup for THIS profile
+            # would put back, in counts per store, and writes nothing. POST like its siblings.
+            self._json(200, ledger_restore_plan())
+            return
+        if path == "/api/ledger_restore_apply":
+            # v2735 — and the write half, through chronicle_apply, which is the BOARD's door.
+            # ⚠ `confirm` is required. The backup is the automatic half and never needs him; a
+            # restore is a deliberate act, because an automatic one could resurrect a state he
+            # meant to leave behind and nothing downstream could tell that from a repair.
+            self._json(200, ledger_restore_apply(confirm=bool(body.get("confirm"))))
             return
         if path == "/api/board_restore_dates":
             self._json(200, board_restore_dates(body.get("stampPrefix") or body.get("stamp") or ""))

@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2735** | `(this commit)` | v2735 — the line meant to complete his ledger backup killed it - no JS variable named dump - plus a heart check that reads the running loop and the restore wire |
 | **v2734** | `(this commit)` | v2734 — a cross-family witness banked from a shell call with no owning harness, then counted twice while fixing it because fold keys on the ref |
 | **v2733** | `(this commit)` | v2733 — a cross-family eye found the sibling my own fix missed one word away: the separator was bound and the count was not |
 | **v2732** | `(this commit)` | v2732 — a rebuild that derives a chronicle from the other ledgers; the first cut aimed at the wrong store and he caught it from the numbers on his own screen |

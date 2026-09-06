@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2734",
+  "ver": "v2735",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2734: a cross-family witness banked from a shell call with no owning harness, then counted twice while fixing it because fold keys on the ref",
+  "note": "v2735: the line meant to complete his ledger backup killed it - no JS variable named dump - plus a heart check that reads the running loop and the restore wire",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

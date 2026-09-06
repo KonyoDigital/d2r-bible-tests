@@ -76,8 +76,16 @@ class LedgerBackupCoversEveryStore(unittest.TestCase):
             "Object.keys(m).length — a count. His 99 runewords could be counted and never copied, "
             "which is exactly how they stayed out of 60 consecutive backups."
         )
-        self.assertIn("rwMadeFull:(dump?rwFull:null)", SRC,
-                      "the fetched contents are never emitted, so the fetch is dead code")
+        # ⚠⚠ v2735 — THIS ASSERTION USED TO PIN `rwMadeFull:(dump?rwFull:null)`, AND PINNING IT IS
+        # WHAT LET THE DEFECT LIVE. There is no JS variable named `dump`; dump_stores is
+        # interpolated as a bare true/false LITERAL, so the name resolved to nothing and the whole
+        # board read threw `Can't find variable: dump`. His automatic backup wrote ZERO files for a
+        # day with this law green — because the law pinned the BYTES rather than the property.
+        # The bytes are now pinned loosely and the real property is checked by
+        # `test_board_read_js_has_no_free_variables`, which parses the emitted JS.
+        # [[regression-guard]] — pin the LAW, not the number.
+        self.assertRegex(SRC, r"rwMadeFull\s*:\s*rwFull",
+                         "the fetched contents are never emitted, so the fetch is dead code")
 
     def test_both_stores_reach_the_BACKED_UP_ledger(self):
         blk = _between(SRC, 'led = dict(got.get("sample") or {})', "_TRUNC")

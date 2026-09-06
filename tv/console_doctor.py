@@ -594,6 +594,71 @@ def _check_the_ledger_backup_covers_every_store():
                 % (len(WANT), len(files)))
 
 
+#: What the backup loop is allowed to have done last. Anything else is a REFUSAL, and a refusal
+#: repeating every ten minutes is an outage. ⚠ Kept as a closed allowlist rather than a list of
+#: known error strings: an unrecognised message must read as a failure, never as "probably fine".
+_BACKUP_BENIGN = ("wrote ", "unchanged since")
+
+
+def _check_the_backup_loop_is_actually_WRITING():
+    """v2735 — THE BACKUP LOOP REFUSED EVERY SNAPSHOT FOR A DAY AND NOTHING ASKED.
+
+    Konyo, on being shown the restore wire: *"and all connected to the heart of the console
+    obviously right? is it needed?"* — this check is the answer, and it went RED the moment it
+    existed.
+
+    MEASURED on his live console, 2026-09-06 18:15:
+
+        ledgerBackup.writes   0
+        ledgerBackup.why      "Can't find variable: dump"
+        newest backup file    80 minutes old, still the pre-v2731 three-store shape
+
+    v2731 added `rwMadeFull:(dump?rwFull:null)` to the board read. No such JS variable exists —
+    `dump_stores` is interpolated as a bare true/false LITERAL — so the entire read threw and every
+    snapshot was refused from that ship onward.
+
+    ⚠⚠ EVERY GATE WAS GREEN THROUGHOUT, and correctly:
+    `test_ledger_backup_covers_every_store` grades the SOURCE, and source is not a running board.
+    The refusal existed in exactly one place — a string in `_LEDGER_BACKUP_STATE["why"]`, published
+    at `/api/status.ledgerBackup` and read by NOBODY. A loop that fails silently every ten minutes
+    is indistinguishable from a loop with nothing to do, and the newest file it left behind looks
+    like a healthy backup right up until the day it is needed.
+    [[the-unjoined-end]] [[feedback-verify-not-proxy]] [[zero-needs-a-denominator]]
+
+    THE LAW: the last thing the loop did must be a write or a benign skip. Not "no exception was
+    raised" — the loop swallows everything by design so one bad read cannot end it.
+    """
+    # ⚠ 15s, NOT the 4s default. MEASURED: /api/status takes 11.6s COLD and 0.26s warm — it folds
+    # a fleet read and a drift check. At the default this check reported "the console is not
+    # answering" against a console that was answering fine, which is a false UNKNOWN blaming the
+    # wrong thing, and it is how a real red would get dismissed as flakiness. [[stale-reading]]
+    st = _get("/api/status", timeout=15)
+    if not isinstance(st, dict) or not st.get("ok"):
+        return UNKNOWN, ("the console did not answer /api/status within 15s, so what the backup "
+                         "loop last did is UNMEASURED — which is not the same as healthy")
+    lb = st.get("ledgerBackup")
+    if not isinstance(lb, dict):
+        return MISSING, ("/api/status no longer publishes `ledgerBackup`, so the only place the "
+                         "backup loop's refusals are visible is gone and this check is blind")
+    why = str(lb.get("why") or "")
+    writes = lb.get("writes")
+    if writes is None:
+        return UNKNOWN, "the backup state reports no write count, so nothing can be concluded"
+    if not why:
+        # ⚠ A GENUINE UNKNOWN, NOT A PASS. The first snapshot comes 45s after boot; before that the
+        # loop has done nothing and has nothing to report. Grading that as OK would make a
+        # freshly-restarted console always look healthy — the one moment it is least proven.
+        return UNKNOWN, ("the loop has not reported a snapshot yet (%d write(s) so far) — too early "
+                         "to say, and that is not the same as working" % int(writes or 0))
+    if not why.startswith(_BACKUP_BENIGN):
+        return MISSING, ("the backup loop is REFUSING every snapshot: %r. It has written %d file(s) "
+                         "this run, and it retries every %d minutes, so this repeats silently. His "
+                         "ledgers have no fresh automatic copy while this stands."
+                         % (why[:90], int(writes or 0), 10))
+    return OK, ("the loop's last act was %r after %d write(s) this run"
+                % (why[:60], int(writes or 0)))
+
+
 def _check_the_vault_stores_are_readable():
     """His ledger is the whole point of the vault manager. An unreadable store must never read as
     an empty one — that difference is what the free ledger view exists to keep."""
@@ -1632,6 +1697,7 @@ CHECKS = [
     # to protect it both had ZERO rows in this list until now.
     ("evidence ledger", _check_the_evidence_ledger_is_readable),
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
+    ("backup loop", _check_the_backup_loop_is_actually_WRITING),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),

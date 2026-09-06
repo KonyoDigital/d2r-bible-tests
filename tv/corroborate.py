@@ -1369,7 +1369,78 @@ def _inv_a_world_reporting_nothing_holds_nothing():
             "<=")
 
 
-BUILDERS = (_inv_the_evidence_ledger_survived_the_sweep_that_filled_it,
+def _inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot():
+    """v2735 — A BACKUP COPIES FIVE STORES AND THE DOOR IT COMES BACK THROUGH TAKES TWO.
+
+    Konyo: *"i want it no wiped · i want that saved · and being able to be restored · indefinitely"*
+    and *"the join the heart of the console connect and wire whatever is needed so its all not in
+    the dark"*.
+
+    The backup and the restore were built at different times against different vocabularies:
+        BACKED UP (v2731)   foundLog · owned · setPieces · rwMade · gameFound
+        RESTORABLE          foundLog -> uniques, setPieces -> sets   (chronicleApply's two halves)
+    Three of five cannot travel back through that door. `ledger_restore` names them in
+    `BACKED_UP_ONLY` and reports them on every plan, so the gap is stated rather than hidden — a
+    restore that silently covered two of five stores while reporting success is the worst kind.
+
+    ⚠ WHAT THIS INVARIANT ACTUALLY WATCHES is the drift, not the gap. The gap is a known, declared
+    design fact. The failure is a SIXTH store joining the backup — the way rwMade and gameFound
+    joined it — with nobody deciding whether it can be put back. It would be copied faithfully
+    forever and be unrestorable, and every existing check would stay green, because each one grades
+    a list it was given rather than the list that exists. That is the same shape as the two stores
+    which were absent from sixty consecutive backups while a ratchet watched a column that could
+    only read UNKNOWN. [[the-unjoined-end]] [[copy-drift]]
+
+    THE TWO SIDES:
+      LEFT   stores present in the newest backup FILE that `ledger_restore` has never heard of
+      RIGHT  0
+    Independent by SOURCE, not by derivation: the left is read off an artifact on disk that a
+    running console wrote, the right is a constant in a module. A store can only appear on the left
+    by being written to a real backup, which is precisely the event that needs a decision.
+
+    ⚠ NO BACKUP FILE IS UNKNOWN, NOT ZERO. A fresh checkout has never snapshotted anything and has
+    nothing to say about which stores travel; answering 0 would make this hold vacuously forever.
+    [[zero-needs-a-denominator]]
+    """
+    def left():
+        import glob as _g
+        import json as _j
+        import os as _o
+        d = _o.path.expanduser("~/d2r_ledger_backups")
+        if not _o.path.isdir(d):
+            return None
+        files = sorted(_g.glob(_o.path.join(d, "ledger_*.json")), key=_o.path.getmtime, reverse=True)
+        if not files:
+            return None                      # never snapshotted — UNKNOWN, never 0
+        try:
+            with open(files[0], encoding="utf-8") as fh:
+                blob = _j.load(fh)
+        except Exception:
+            return None                      # unreadable is UNKNOWN, not "no stray stores"
+        led = (blob or {}).get("ledger")
+        if not isinstance(led, dict) or not led:
+            return None
+        try:
+            import ledger_restore as _LR
+        except Exception:
+            return None                      # the module is the right-hand side; absent is UNKNOWN
+        known = set(_LR.RESTORABLE) | set(_LR.BACKED_UP_ONLY)
+        return len([k for k in led if k not in known])
+
+    def right():
+        return 0
+
+    return ("backup-restore-vocabulary",
+            "every store the backup writes is one the restore has an answer for, even if the "
+            "answer is that it cannot travel",
+            "add a sixth store to the backup and leave ledger_restore's two lists alone — it is "
+            "then copied faithfully forever and can never be put back, and nothing says so",
+            "stores in the newest backup that ledger_restore does not know", left,
+            "the allowed number of them", right, "<=")
+
+
+BUILDERS = (_inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot,
+            _inv_the_evidence_ledger_survived_the_sweep_that_filled_it,
             _inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR,
             _inv_a_world_reporting_nothing_holds_nothing,
             _inv_only_a_declared_owner_world_posts_owner_numbers,
