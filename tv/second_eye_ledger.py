@@ -196,7 +196,7 @@ def _bytes_seen(path=None):
 
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
-           answer_head=None, reached=True, path=None):
+           answer_head=None, reached=True, path=None, seen_path=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -231,7 +231,14 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         #
         # A hash can. Recording what the photographed file actually hashed to turns "did this look
         # see version X" from an inference into a comparison. [[unknown-stays-unknown]]
-        "bytes": _bytes_seen(),
+        # ⚠ v2712 — THE FIELD COULD NOT BE TOLD WHAT WAS PHOTOGRAPHED. `_bytes_seen()` already
+        # took a path; `record()` never passed one, so every row hashed the WORKING TREE whatever
+        # the look was actually taken against. That defeats the field's own stated purpose — it
+        # exists to turn "did this look see version X" from an inference into a comparison, and a
+        # hash of a file the eye never saw is an inference wearing a measurement's clothes.
+        # Surfaced by needing to look at origin/main's bible.html, which is exactly the case the
+        # field was built for. [[unknown-stays-unknown]]
+        "bytes": _bytes_seen(seen_path),
     }
     p = path or LEDGER_PATH
     try:
