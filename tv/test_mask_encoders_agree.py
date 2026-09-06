@@ -32,6 +32,7 @@ either is correct — that both agree, which is the property that silently rots 
 throwaway headless page; `board_mask` is never called and the live board window is never opened.
 """
 import json
+import time
 import os
 import re
 import sys
@@ -169,6 +170,27 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
             # write through BOTH doors: the snippet reads LSR when the page defines it, and raw
             # localStorage otherwise, so a fixture that writes only one can read the other's stale
             # value without ever saying so.
+            # ⚠⚠ v2708 — WAIT FOR THE PAGE TO FINISH PARSING. This flaked at roughly 2 runs
+            # in 3, locally AND on CI, always the same way: js came back 'AAAAAAA' (an all-zero
+            # mask) against a real python one. `_Tab(url)` returns while the document is still
+            # `interactive`, so the write and the encode could both run before the inline snippet
+            # had parsed — and an encoder that is not there yet answers about an empty store,
+            # which is an honest mask of nothing and looks exactly like a disagreement.
+            #
+            # ⚠ MY FIRST FIX HERE WAS WRONG AND THE MEASUREMENT CAUGHT IT. The comment below says
+            # the served page "carries a `window.LSR` wrapper which the shipped snippet PREFERS",
+            # so I waited for window.LSR. MEASURED: on this harness `typeof window.LSR` is
+            # 'undefined' after 40s, the page has 2 scripts and its source does not contain
+            # "window.LSR" at all. That wait could never succeed, and it turned a flaky gate into
+            # one that skipped every case — quieter, and no more honest. The prose was describing
+            # a different page. [[feedback-comments-vs-code]]
+            _deadline = time.time() + 15.0
+            while time.time() < _deadline:
+                if tab.ev("document.readyState") == "complete":
+                    break
+                time.sleep(0.2)
+            else:
+                return None      # -> the caller skips, and a skip is explicitly NOT a pass
             tab.ev("localStorage.setItem(%s, %s); if (window.LSR && window.LSR.setItem) "
                    "window.LSR.setItem(%s, %s);"
                    % (json.dumps(key), json.dumps(json.dumps(owned)),
