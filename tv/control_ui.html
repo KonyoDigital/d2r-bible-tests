@@ -4002,6 +4002,45 @@
   .sh-daygroup { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; margin: 10px 2px 0;
     padding-bottom: 7px; border-bottom: 1px solid rgba(200,180,120,.14); }
   .sh-daygroup:first-child { margin-top: 0; }
+  /* v2746 — THE RIVER SECTIONS. Konyo: "going down sections structured based on the title",
+     intake to tombstone, with timestamps. Deliberately a VARIANT of .sh-daygroup rather than a new
+     block: the shelf already had one section idiom and a second one would read as a different
+     component saying the same thing.
+     ⚠ Every value below is a TOKEN. The visual-lock ratchet fails on raw px/hex here, and it is
+     right to: a literal is a value nobody can re-theme. */
+  .sh-daygroup.sh-rivergroup .shg-lab { color: var(--gold-hi); letter-spacing: var(--ls-wide); }
+  .sh-daygroup.sh-rivergroup .shg-n { color: var(--gold-dim); font-variant-numeric: tabular-nums; }
+  /* an EMPTY station still prints, dimmed — ROUTED and TOMBSTONE are empty today and that is
+     precisely what he needs to see. A section that vanishes when empty hides the finding. */
+  .sh-daygroup.sh-riverempty { opacity: .48; }
+  .sh-daygroup.sh-riverempty .shg-lab::after { content: ' \00b7 never reached'; color: var(--gold-dim);
+    font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-tight); }
+  /* UNKNOWN is its own state and must not read as an empty river */
+  .sh-daygroup.sh-riverunknown .shg-lab { color: var(--warn, var(--gold-dim)); }
+  /* v2746 — THE PER-REEL STAMP ON THE CARD. Konyo: "each reel their accoring stamps so they
+     accurately get logged and filtered ... visually and backend synced to the stamps in real time".
+     Sits at the foot of the card so it never competes with the run's own headline. */
+  .shc-river { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+    margin-top: auto; padding-top: 6px; border-top: 1px solid var(--edge);
+    font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono); letter-spacing: var(--ls-tight); }
+  .shc-river .shcr-st { color: var(--gold-hi); font-weight: var(--fw-bold); text-transform: uppercase; }
+  .shc-river .shcr-at { color: var(--gold-dim); font-variant-numeric: tabular-nums; }
+  .shc-river .shcr-hops { color: var(--gold-dim); opacity: .8; }
+  /* the WHY is the half that makes a station actionable — a reel waiting on a seal reads
+     differently from one merely sitting somewhere. Wraps rather than truncating with ellipsis,
+     because a clipped reason is a reason nobody can act on. */
+  .shc-river .shcr-why { flex: 1 1 100%; color: var(--text-dim, var(--gold-dim)); opacity: .85; }
+  /* v2746 — the fleet card's PER-LEDGER provenance, replacing a blanket sentence that was false on
+     the owner's own board. One row per ledger that is not plainly EARNED. */
+  .ftt-seed-rows { display: flex; flex-direction: column; gap: 4px; }
+  .ftt-seed-rows .ftts-row { display: grid; grid-template-columns: auto auto 1fr; gap: 6px;
+    align-items: baseline; font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono);
+    letter-spacing: var(--ls-tight); }
+  .ftt-seed-rows .ftts-led { color: var(--gold-hi); text-transform: uppercase; font-weight: var(--fw-bold); }
+  .ftt-seed-rows .ftts-pv { color: var(--gold-dim); text-transform: uppercase; }
+  .ftt-seed-rows .ftts-why { color: var(--text-dim, var(--gold-dim)); opacity: .9; }
+  /* UNKNOWN must not read like a clean result — it is the absence of an answer, not an answer */
+  .ftt-seed-rows .ftts-unknown .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
   .shg-lab { font: var(--fw-bold) var(--fs-md)/1 var(--serif); letter-spacing: var(--ls-wide); color: #e8cf96; }
   .shg-n { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); text-transform: uppercase; color: #8a7e68; }
   /* v1286 (D12) — history activity sparkline: runs-per-day bars, gold on grail days, today highlighted */
@@ -14050,6 +14089,12 @@ window._lockMark = function(isOpen, px, label){
       ? '<div class="sh-search-wrap"><input type="search" id="sh-search" class="sh-search" placeholder="Search runs — item · area · chronicle · session…" autocomplete="off" spellcheck="false">'
         + '<label class="sh-sort-wrap" title="sort the runs">↕<select id="sh-sort" class="sh-sort-sel">'   // v1284 (D11) — sort selector, composes with search+filters
         + '<option value="newest">Newest</option><option value="longest">Longest</option>'
+        /* v2746 — THE SHELF MIRRORS THE RIVER. Konyo: "THE SHELF is not organised the way
+           reels actually flow - it should mirror the river, intake to tombstone, with
+           timestamps". The station order is NEVER hardcoded here: it comes from
+           /api/river's own `stations`, so a station added to reel_router appears on the
+           shelf without a second edit. Two lists of stations is how they drift. */
+        + '<option value="river">\U0001f30a River</option>'
         + '<option value="found">Most found</option><option value="reads">Most reads</option></select></label>'
         + '<button type="button" class="sh-cmp" id="sh-cmp" title="compare two runs side by side" onclick="window._cmpOpen()">⚖ Compare</button>'
         + '<button type="button" class="sh-cmp" id="sh-heat" title="where you farm most" onclick="window._hmOpen()">🗺 Areas</button>'
@@ -14123,7 +14168,13 @@ window._lockMark = function(isOpen, px, label){
     var _ss = $('sh-sort');
     if (_ss){
       _ss.value = SHELF_S;                       // restore the sort across the poll's re-renders
-      _ss.onchange = function(){ SHELF_S = _ss.value; _shSort(); };
+      _ss.onchange = function(){
+        SHELF_S = _ss.value;
+        /* v2746 — the river view needs the river. Ask once, then sort; asking on every
+           re-render would poll a store that only moves on the 90s triage tick. */
+        if (SHELF_S === 'river' && SHELF_RIVER === null) { _shRiverLoad(_shSort); return; }
+        _shSort();
+      };
       _ss.onkeydown = function(e){ e.stopPropagation(); };   // arrow keys navigate options, never the theatre transport
       _shSort();                                  // apply the (persisted or default) sort on every render
     }
@@ -14185,6 +14236,37 @@ window._lockMark = function(isOpen, px, label){
      [[unknown-stays-unknown]] */
   var SHELF_F = { grail: false, verdict: null, day: null, pin: false, ghosts: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
   var SHELF_S = 'newest';   // v1284 (D11) — the shelf sort key, preserved too
+  /* v2746 — the river as the shelf sees it: {n -> {station, why, at, hops}} plus the station
+     ORDER from the backend. null means NOT YET ASKED, which is not the same as an empty river,
+     and the header says which. [[unknown-stays-unknown]] */
+  var SHELF_RIVER = null, SHELF_RIVER_ORDER = null, SHELF_RIVER_WHY = '';
+  function _shRiverLoad(then){
+    fetch('/api/river', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+      if (!d || d.ok !== true){
+        /* an unreadable river must not render as a river with nothing in it */
+        SHELF_RIVER = false; SHELF_RIVER_WHY = String((d && d.why) || 'the river could not be read');
+      } else {
+        var m = {};
+        (d.detail || []).forEach(function(x){
+          /* a reel id is 'reel_' + the session id the card carries in data-n */
+          var key = String(x.reel || '').replace(/^reel_/, '');
+          var hops = x.history || [];
+          m[key] = { station: x.at || null, why: x.why || '',
+                     at: (hops.length ? hops[hops.length - 1].at : null), hops: hops.length };
+        });
+        SHELF_RIVER = m; SHELF_RIVER_ORDER = d.stations || null; SHELF_RIVER_WHY = '';
+      }
+      try { if (then) then(); } catch (e) {}
+    }).catch(function(e){
+      SHELF_RIVER = false; SHELF_RIVER_WHY = 'the river could not be reached: ' + (e && e.message || e);
+      try { if (then) then(); } catch (e2) {}
+    });
+  }
+  function _shStationOf(c){
+    if (!SHELF_RIVER) return null;
+    var r = SHELF_RIVER[c.getAttribute('data-n')];
+    return r ? r.station : null;
+  }
   // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
   // Reads sort keys straight off the card data-attrs; re-appends in order. Newest / longest / most-found / most-reads.
   function _shSort(){
@@ -14196,6 +14278,15 @@ window._lockMark = function(isOpen, px, label){
     var key = SHELF_S || 'newest';
     cards.sort(function(a, b){
       var dp = pn(b) - pn(a); if (dp) return dp;   // D26 — pinned-first, then the chosen sort composes within each group
+      /* v2746 — RIVER ORDER: intake -> tombstone, using the BACKEND's station list. A reel
+         the river has never stamped sorts LAST rather than first: an unknown position must
+         not masquerade as the head of the queue. [[unknown-stays-unknown]] */
+      if (key === 'river'){
+        var ord = SHELF_RIVER_ORDER || [];
+        var ix = function(c){ var st = _shStationOf(c); var i = ord.indexOf(st); return i < 0 ? 9999 : i; };
+        var d = ix(a) - ix(b); if (d) return d;
+        return gn(b, 'data-t0') - gn(a, 'data-t0');
+      }
       if (key === 'longest') return (gn(b, 'data-t1') - gn(b, 'data-t0')) - (gn(a, 'data-t1') - gn(a, 'data-t0'));
       if (key === 'found') return gn(b, 'data-found') - gn(a, 'data-found') || gn(b, 'data-t0') - gn(a, 'data-t0');
       if (key === 'reads') return gn(b, 'data-reads') - gn(a, 'data-reads') || gn(b, 'data-t0') - gn(a, 'data-t0');
@@ -14220,6 +14311,92 @@ window._lockMark = function(isOpen, px, label){
     // D26 — a "📌 Pinned" section over the pinned cards (which sort to the top), shown in ANY sort view
     var pinned = vis.filter(function(c){ return c.getAttribute('data-pin') === '1'; });
     if (pinned.length) mkHead('📌 Pinned', pinned.length, pinned[0], ' sh-pingroup');
+    /* v2746 — THE SHELF, ORGANISED THE WAY REELS ACTUALLY FLOW. Konyo: "THE SHELF should be
+       synced with the backend river route ... going down sections structured based on the title",
+       and "intake to tombstone, with timestamps".
+
+       ⚠ THE SECTION ORDER IS THE BACKEND'S. `SHELF_RIVER_ORDER` comes from /api/river, which
+       reads reel_router.STATIONS. Hardcoding the nine names here would be a SECOND list of
+       stations, and two lists is how they drift apart silently. [[copy-drift]]
+
+       ⚠ AN EMPTY STATION IS STILL PRINTED, dimmed, with 0. A station no reel has reached is the
+       actionable half of this picture — ROUTED and TOMBSTONE are both empty today, and a section
+       that simply vanishes when empty hides exactly the thing he is trying to see.
+       [[zero-needs-a-denominator]] */
+    if ((SHELF_S || 'newest') === 'river'){
+      if (SHELF_RIVER === false || SHELF_RIVER === null){
+        mkHead('\U0001f30a River \u2014 ' + (SHELF_RIVER === null ? 'not read yet' : esc(SHELF_RIVER_WHY)),
+               vis.length, vis[0], ' sh-rivergroup sh-riverunknown');
+        return;
+      }
+      var ordG = SHELF_RIVER_ORDER || [];
+      var byStation = {}; vis.forEach(function(c){
+        var st = _shStationOf(c) || '\u2014 not stamped';
+        (byStation[st] = byStation[st] || []).push(c);
+      });
+      /* declared before the per-card painter above uses it — a `var` function expression is
+         NOT hoisted with its value, and calling it earlier would throw mid-render. */
+      var _ago = function(ms){
+        if (!ms) return '';
+        var m = Math.round((Date.now() - ms) / 60000);
+        if (m < 1) return 'just now';
+        if (m < 60) return m + 'm ago';
+        var h = Math.round(m / 60); return h < 24 ? h + 'h ago' : Math.round(h / 24) + 'd ago';
+      };
+      var order = ordG.concat(Object.keys(byStation).filter(function(k){ return ordG.indexOf(k) < 0; }));
+      /* ⚠ BUILD THE SECTIONS BACKWARDS. Forwards, an EMPTY station has no card to insert before, so
+         appending it dropped it to the bottom of the grid — the first render put
+         INTAKE and TRIAGE *after* CAPTURE, which is the exact opposite of "intake to tombstone".
+         Walking in reverse keeps a running anchor (the section that follows this one), so an empty
+         station lands in RIVER ORDER instead of at the end. Caught on real pixels, not in review. */
+      /* v2746 — EVERY REEL CARRIES ITS OWN STAMP ON THE CARD. Konyo: "and each reel their
+         accoring stamps so they accurately get logged and filtered going through the processing
+         system and filtering system also visually and backend synced to the stamps in real time".
+
+         The section header answers "how many are here"; only a per-card stamp answers "where is
+         THIS one, since when, and what does it owe". The `why` is the load-bearing half — it is
+         what distinguishes a reel WAITING ON A SEAL from one merely sitting somewhere.
+
+         ⚠ data-station / data-stamp-at go on the element itself, so the value is inspectable and
+         a later gate can read what the screen actually shows rather than what the code intended. */
+      vis.forEach(function(c){
+        var r = SHELF_RIVER[c.getAttribute('data-n')];
+        var old = c.querySelector('.shc-river'); if (old) old.remove();
+        if (!r) {
+          c.setAttribute('data-station', '');
+          return;   /* not stamped: no badge, and the section header already says so */
+        }
+        c.setAttribute('data-station', r.station || '');
+        c.setAttribute('data-stamp-at', r.at || '');
+        var b = document.createElement('div');
+        b.className = 'shc-river';
+        b.innerHTML = '<span class="shcr-st">' + esc(r.station || '\u2014') + '</span>'
+          + (r.at ? '<span class="shcr-at">' + esc(_ago(r.at)) + '</span>' : '')
+          + (r.hops > 1 ? '<span class="shcr-hops">' + r.hops + ' hops</span>' : '')
+          + (r.why ? '<span class="shcr-why">' + esc(String(r.why).slice(0, 80)) + '</span>' : '');
+        c.appendChild(b);
+      });
+      var anchor = null;
+      order.slice().reverse().forEach(function(st){
+        var cs = byStation[st] || [];
+        /* the newest stamp in this station — his "with timestamps" */
+        var newest = 0;
+        cs.forEach(function(c){
+          var r = SHELF_RIVER[c.getAttribute('data-n')];
+          if (r && r.at && r.at > newest) newest = r.at;
+        });
+        var h = document.createElement('div');
+        h.className = 'sh-daygroup sh-rivergroup' + (cs.length ? '' : ' sh-riverempty');
+        h.innerHTML = '<span class="shg-lab">' + esc(st) + '</span>'
+          + '<span class="shg-n">' + cs.length + ' reel' + (cs.length === 1 ? '' : 's')
+          + (newest ? ' \u00b7 ' + esc(_ago(newest)) : '') + '</span>';
+        if (cs.length) { grid.insertBefore(h, cs[0]); }
+        else if (anchor) { grid.insertBefore(h, anchor); }
+        else { grid.appendChild(h); }
+        anchor = h;
+      });
+      return;
+    }
     if ((SHELF_S || 'newest') !== 'newest') return;   // day headers only in the date-ordered (Newest) view
     var now = new Date(), startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     var startYest = startToday - 864e5, weekAgo = startToday - 6 * 864e5;
@@ -19559,7 +19736,35 @@ function escC(s) {
            finds into it on every load. Every reader downstream reports them faithfully as his.
            ⚠ null is not false: an older console reports no ledger name at all, and that is
            UNKNOWN, not clean. Only an explicit true says this. */
-        var seeded = (t.onOwnerSeed === true)
+        /* ⚠⚠ v2746 — THE BLANKET SENTENCE WAS FALSE ON HIS OWN BOARD.
+           MEASURED on his live /api/fleet: Dean onOwnerSeed=True AND **Konyo onOwnerSeed=True**.
+           The condition below is a bare `=== true`, so KONYO'S OWN CARD told him his 292 uniques
+           "were inherited, not synced". They are his. The flag is not wrong — it answers "does this
+           world resolve to the seed ledger" — but that has the same answer on the board the seed
+           was WRITTEN FROM and on one that merely inherited it.
+
+           His rule: "one board being seedable is legitimate (it's yours); two is contamination."
+           That is a FLEET judgement and no single row can make it. So the card no longer ACCUSES;
+           it reports per ledger what the authority measured, which is true on either board:
+               uniques   of 292, the owner's seed supplies 246 - about 46 were earned here
+               runewords the seed can supply 99 and this board reports only 94 - 5 MISSING
+           The second line is the one that proves a store was NOT seeded, and the blanket warning
+           could never say it. ⚠ UNKNOWN stays UNKNOWN: a console that did not report renders as
+           unknown, never as clean. [[unknown-stays-unknown]] */
+        var _lv = t.ledgerVerdict || null;
+        var _lvRows = (_lv && _lv.ledgers && _lv.ledgers.length)
+          ? _lv.ledgers.filter(function(L){ return L && L.provenance && L.provenance !== 'EARNED'; })
+          : [];
+        var seeded = _lvRows.length
+          ? '<div class="ftt-seed ftt-seed-rows">'
+            + _lvRows.map(function(L){
+                return '<div class="ftts-row ftts-' + escC(String(L.provenance || '').toLowerCase()) + '">'
+                  + '<span class="ftts-led">' + escC(String(L.ledger || '')) + '</span>'
+                  + '<span class="ftts-pv">' + escC(String(L.provenance || '')) + '</span>'
+                  + '<span class="ftts-why">' + escC(String(L.why || '')) + '</span></div>';
+              }).join('')
+            + '</div>'
+          : (t.onOwnerSeed === true)
           ? '<div class="ftt-seed" title="this world has no ledger name of its own, so it resolves '
             + 'to the owner ledger ' + escC(String(t.seedLedger || '')) + ' and the boot path '
             + 're-seeds the owner\u2019s finds into it. The counts above are real rows in this '

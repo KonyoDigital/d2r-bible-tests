@@ -167,6 +167,10 @@ tv/ui_faults.jsonl
 
 # v2229 — the free-space series. Runtime, per-machine, never committed.
 tv/disk_history.jsonl
+# v2746 — the river's per-reel station stamps. LIVE DATA about HIS reels, written by
+# the free triage tick, same class as disk_history.jsonl above. Code belongs in the repo; a
+# journey store does not, and committing one would make every walk a diff.
+tv/river_stamp.jsonl
 .coldread.tmp.html
 
 # v2394 — the eagle's durable pass. A RUNTIME DECISION RECORD, like .second_eye.jsonl and

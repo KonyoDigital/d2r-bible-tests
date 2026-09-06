@@ -2008,6 +2008,25 @@ def grail_tally():
     out["ledgerName"] = own.get("ledgerName")
     out["seedLedger"] = own.get("seedLedger")
     out["onOwnerSeed"] = own.get("onOwnerSeed")
+    # ⚠⚠ v2746 — THE CARD MUST NOT CALL A MAN'S OWN CHRONICLE "INHERITED".
+    # MEASURED on his live /api/fleet: Dean onOwnerSeed=True AND Konyo onOwnerSeed=True. The card's
+    # condition is a bare `t.onOwnerSeed === true`, so KONYO'S OWN CARD said his 292 uniques "were
+    # inherited, not synced". They are his. The flag is correct — it answers "does this world
+    # resolve to the seed ledger" — but that question has the same answer on the board the seed was
+    # WRITTEN FROM and on a board that merely inherited it.
+    #
+    # His own rule settles it: "one board being seedable is legitimate (it's yours); two is
+    # contamination". That is a FLEET-level judgement, and no single row can make it — which is why
+    # this carries the AUTHORITY's per-ledger verdict beside the raw flag instead of replacing it.
+    # The raw flag stays so an older reader keeps working. [[the-unjoined-end]]
+    try:
+        import ledger_authority as _LA
+        out["ledgerVerdict"] = _LA.classify_row(out)
+    except Exception as _lae:
+        # UNKNOWN, never a cheerful default: a verdict that could not be computed must not read as
+        # "nothing inherited here". [[unknown-stays-unknown]]
+        out["ledgerVerdict"] = {"ok": False, "why": "the authority could not classify this row: %s"
+                                                    % str(_lae)[:140]}
     out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
     if not out["ok"]:
         out["why"] = "the board answered but carried no counts"
@@ -18794,6 +18813,32 @@ def _retro_triage_loop():
                 print("\U0001f9ea triage: %s - %s frame(s), %s panel(s), %s left"
                       % (r["reel"], r.get("frames"), r.get("panels"), r.get("remaining")),
                       flush=True)
+            # v2746 — WALK THE RIVER ON THE SAME FREE TICK. Konyo: "something needs to run that
+            # river". Before this, reel_router recomputed every reel's station on demand and stored
+            # nothing, so a reel had a POSITION and never a JOURNEY — nothing in this tree could say
+            # "it reached PRINTER on the 6th".
+            #
+            # ⚠ THIS IS THE FREE HALF AND ONLY THE FREE HALF. river_stamp.run() reads no footage,
+            # calls no model and moves no reel; it records where the router already said each reel
+            # was. It rides the TRIAGE tick deliberately — the free filter — never the retention
+            # pass, because that one deletes.
+            #
+            # ⚠ IT IS QUIET WHEN NOTHING MOVES. stamp() refuses a row identical to the reel's
+            # current station, so a walk over a still river writes ZERO bytes. Only transitions
+            # cost anything, which is what makes this safe on a short tick.
+            try:
+                import river_stamp as _rvs
+                _rv = _rvs.run(by="loop:tvd-retro-triage")
+                if _rv.get("ok") and _rv.get("moved"):
+                    for _t in (_rv.get("transitions") or [])[:6]:
+                        print("\U0001f30a river: %s  %s -> %s"
+                              % (_t.get("reel"), _t.get("from") or "(new)", _t.get("to")),
+                              flush=True)
+                elif not _rv.get("ok"):
+                    # UNKNOWN, never silence — an unreadable river must say so once per tick.
+                    print("\U0001f30a river: NOT WALKED - %s" % str(_rv.get("why"))[:140], flush=True)
+            except Exception as _rve:
+                print("\U0001f30a river: walk failed - %s" % str(_rve)[:120], flush=True)
         except Exception:
             try:
                 time.sleep(_TRIAGE_EVERY_S)
@@ -23660,7 +23705,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2745",
+        "ver": "v2746",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25706,6 +25751,93 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, chronicle_regate(
                 conf_floor=(q.get("floor") or [None])[0],
                 min_witnesses=(q.get("witnesses") or [None])[0]))
+            return
+        if path == "/api/river":
+            # v2746 — THE RIVER, WIRED. Konyo: "something needs to run that river", and
+            # "the reels going through and getting filtered and plumbed through the processing
+            # system 3d and 4 printer and routes already contructed just need wiring".
+            #
+            # ⚠⚠ THE JOINT THIS CLOSES, MEASURED: `grep -c reel_router tv/control_app.py` was
+            # **0**. reel_router assigns one station per reel — the whole stamp — and was read by
+            # NO console code, watched by no invariant and checked by no doctor row. Built,
+            # correct, covered by its own suite, and invisible to every surface. That is this
+            # repo's most repeated defect in its purest form. [[the-unjoined-end]]
+            #
+            # THREE MODULES, THREE DIFFERENT QUESTIONS — and only one of them remembers:
+            #     reel_router   WHERE IS IT NOW    recomputed every call, stored nowhere
+            #     river_walk    WHO WOULD MOVE IT  the gate -> lane map, read-only
+            #     river_stamp   WHERE HAS IT BEEN  the only one that writes
+            # So a reel had a POSITION and never a JOURNEY. This serves the journey.
+            #
+            # ⚠ READ-ONLY BY DEFAULT. `?walk=1` stamps, and it is still FREE — river_stamp.run()
+            # reads no footage, calls no model and moves no reel; it records where the router
+            # already said each reel was. Every row it writes is byKind "observer", because a walk
+            # that finds a reel somewhere new did not move it and cannot know what did. A lane that
+            # actually acted calls stamp() directly and owns an "actor" row.
+            try:
+                import river_stamp as _RVS
+                _walked = None
+                if (qs.get("walk") or [""])[0] in ("1", "true", "yes"):
+                    _walked = _RVS.run(by="console:/api/river")
+                _cen = _RVS.census()
+                _names = list(_RVS.stations()[0])
+                # ⚠ THE REEL IDS COME FROM THE STORE'S OWN ROWS, NOT FROM census(). An earlier
+                # draft of this route read `_cen.get("reelIds")` — A KEY THAT DOES NOT EXIST — and
+                # would have served an EMPTY `detail` list on every call. A missing key read as
+                # absent produces a clean-looking [] that means "nobody looked", and the shelf
+                # would have rendered "no reels" over a store holding 40. Verified against the
+                # real census keys before shipping. [[zero-needs-a-denominator]]
+                _raw = _RVS.rows()
+                _ids, _seen = [], set()
+                for _row in (_raw.get("rows") or []):
+                    _rid = _row.get("reel")
+                    if _rid and _rid not in _seen:
+                        _seen.add(_rid); _ids.append(_rid)
+                _reels = []
+                for _r in sorted(_ids):
+                    _cur = _RVS.current(_r)
+                    # current() -> (station, why); keep BOTH — the why is what tells him a reel is
+                    # waiting on a seal rather than merely sitting somewhere.
+                    _hops = (_RVS.history(_r) or {}).get("stations") or []
+                    # ⚠ THE `why` COMES FROM THE LAST HOP, NOT FROM current().
+                    # MEASURED ON REAL PIXELS: current() returns ("JOIN", "") — an EMPTY why — while
+                    # the stamp row itself carries the real one ("sealed and 2 name(s) already read
+                    # - the names exist and the seal does not carry them"). Reading current()[1]
+                    # put a badge on all 40 cards with the actionable half BLANK: 40 stamps, 0
+                    # reasons. The why is what separates a reel WAITING ON A SEAL from one merely
+                    # sitting somewhere, so a blank one makes the whole stamp decorative.
+                    _why = (_cur[1] if isinstance(_cur, (list, tuple)) and len(_cur) > 1 else None)
+                    if not _why and _hops:
+                        _why = _hops[-1].get("why")
+                    _reels.append({"reel": _r,
+                                   "at": (_cur[0] if isinstance(_cur, (list, tuple)) and _cur else None),
+                                   "why": _why or None,
+                                   "history": _hops})
+                _rowmeta = {"n": _raw.get("n"), "outOfOrder": _raw.get("outOfOrder"),
+                            "unparsed": _raw.get("unparsed")}
+                self._json(200, {
+                    "ok": bool(_cen.get("ok")),
+                    "stations": _names,
+                    # ⚠ counts = where reels ARE now; visits = how many times a station was ever
+                    # reached. They differ the moment anything moves, and collapsing them would
+                    # make a busy station indistinguishable from a crowded one.
+                    "counts": _cen.get("counts"), "visits": _cen.get("visits"),
+                    "reels": _cen.get("reels"), "stamps": _cen.get("stamps"),
+                    "unparsed": _cen.get("unparsed"),
+                    # ⚠ NOT an empty list dressed as zero: a station no reel has EVER reached is
+                    # the actionable half of this whole picture. ROUTED and TOMBSTONE are both in
+                    # it today. [[unknown-stays-unknown]]
+                    "unreached": _cen.get("unreached"),
+                    "everStamped": _cen.get("everStamped"),
+                    "walked": _walked, "rowMeta": _rowmeta,
+                    "why": _cen.get("why") or "",
+                    "detail": _reels,
+                })
+            except Exception as e:
+                # UNKNOWN, never an empty shelf — an unreadable river must not render as a river
+                # with nothing in it.
+                self._json(200, {"ok": False, "stations": None, "counts": None, "reels": None,
+                                 "why": "the river could not be read: %s" % str(e)[:180]})
             return
         if path == "/api/reel_story":
             # v2383 — WHERE EACH REEL STANDS, and how much of the film was worth keeping.

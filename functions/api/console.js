@@ -199,6 +199,13 @@ export async function onRequestPost(context) {
       const out = { ok: t.ok === true,
                     sets: pair(t.sets), uniques: pair(t.uniques), runewords: pair(t.runewords),
                     onOwnerSeed: (typeof t.onOwnerSeed === 'boolean') ? t.onOwnerSeed : null,
+                    // ⚠ v2746 — FORWARD THE AUTHORITY VERDICT TOO. v2739 shipped `onOwnerSeed` on
+                    // the board and on the card and the SHAPER BETWEEN THEM DROPPED IT, so the
+                    // field existed at both ends and never arrived. Adding a second field without
+                    // adding it here would repeat that exactly. [[the-unjoined-end]]
+                    // Passed through as-is: it is the authority's own object, and re-deriving any
+                    // part of it here would make a second opinion nobody reconciles.
+                    ledgerVerdict: (t.ledgerVerdict && typeof t.ledgerVerdict === 'object') ? t.ledgerVerdict : null,
                     at: Number.isFinite(at) ? at : null };
       if (!out.ok) {
         const why = (typeof t.why === 'string') ? t.why.replace(/\s+/g, ' ').trim() : '';

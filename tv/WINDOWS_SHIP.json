@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2745",
+  "ver": "v2746",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2745: overlaps 3 to 0 at three widths, and a cross-family audit proved the score is a count not a confidence",
+  "note": "v2746: reel_router reached the console for the first time, the shelf mirrors the river intake to tombstone, and the fleet card reports per-ledger provenance instead of a blanket claim that was false on his own board",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

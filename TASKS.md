@@ -1156,7 +1156,11 @@ read, not on the shelf.**
 
 ---
 
-## ✅ READY TO APPLY — one, and four that quietly landed
+## ✅ READY TO APPLY — NONE OPEN. All five landed; #135 was the last, in v2474.
+
+⚠ **2026-09-06 — THE HEADING ITSELF BECAME THE STALE THING.** It read *"one, and four that quietly landed"* while the "one" (#135) carries `✅ SHIPPED v2474` and an explicit note measuring it done on 2026-09-04. A section whose whole subject is *a list that names finished work as READY costs someone the work twice* was doing exactly that in its own title. The rows below were right; the count above them was not.
+
+⚠ The words `READY TO APPLY` are load-bearing — `tv/tasks_freshness.py:65` matches on that substring, and renaming the heading makes the gate report UNKNOWN (`no graded rows found`) rather than fail. A heading is part of the instrument here.
 
 ⚠ **v2435 — FOUR OF THE FIVE ROWS BELOW SHIPPED IN v2400 AND SAT HERE FOR THIRTY-FOUR VERSIONS.**
 Grok Bot filed it as **GB-B-3 / GB-B-4** on 2026-09-01 and repeated it on nineteen consecutive
@@ -1188,6 +1192,35 @@ never on a grep count.
 
 ---
 
+## 🌊 v2746 — THE RIVER RUNS, AND THE CARD STOPPED ACCUSING HIM
+
+| What | Evidence |
+|---|---|
+| **The river is WIRED** | `grep -c "reel_router\|river_stamp" tv/control_app.py` **0 → 9**. `/api/river` serves the journey; the FREE `tvd-retro-triage` tick (90s) walks it, never the retention pass, which deletes. |
+| **The river is DURABLE** | `tv/river_stamp.jsonl`, append-only. First walk stamped **40 reels, 0 refused, 0 unparsed**: EMPTY 6 · STATION 7 · PRINTER 11 · JOIN 4 · CAPTURE 12. ⚠ **INTAKE · TRIAGE · ROUTED · TOMBSTONE have never been reached by any reel.** |
+| **THE SHELF mirrors it** | Station sections in the BACKEND'S order (`INTAKE > … > TOMBSTONE`), per-station counts and last-stamp times, and a per-reel stamp on every card. Pixel-verified on an isolated fixture (`:17961` + headless Chrome `:9224`), never his console; both torn down. |
+| **The card stopped accusing him** | MEASURED live: Dean `onOwnerSeed=True` **and Konyo `onOwnerSeed=True`**, and the card warned on a bare `=== true` — so **his own card said his 292 uniques were "inherited, not synced"**. It now renders the authority's PER-LEDGER verdict. |
+| **The heart grew two rows** | `ledger provenance` and `ledger staleness`, both registered, both RED with actionable text. Staleness: *"uniques seed is +46 behind the live figure (246, newest date 2026-08-10, **AGE UNKNOWN** — a hardcoded literal records no transcription time); sets seed +15 behind."* 246+46 = his 292. |
+| **Gates** | `test_the_river_is_wired_to_the_console` (11 laws, 8 sabotages red) · `test_the_verdict_reaches_the_card` (10 laws, 5 red) · `test_a_dead_fill_keeps_its_content` (6 laws, 6 red) · `test_ledger_authority` (43) · `test_the_river_carries_a_stamp` (26) · `test_end_routes` (27). **183 gates registered.** |
+
+⚠⚠ **FOUR OF MY OWN DEFECTS, CAUGHT BEFORE SHIPPING** — recorded because each is a repeat shape:
+1. The `/api/river` route read `_cen.get("reelIds")`, **a census key that does not exist**, and would
+   have served an EMPTY detail list over a store holding 40 reels. Any test asserting only a 200
+   would have passed it. [[zero-needs-a-denominator]]
+2. The law catching that **failed on its own comment** describing the bug — the identical trap this
+   file already records for task 159. Guards now strip comments and judge CODE.
+3. The shelf's first render put **INTAKE and TRIAGE after CAPTURE** — the exact opposite of "intake
+   to tombstone" — because an empty station has no card to insert before. **Only pixels showed it.**
+4. All 40 card badges rendered with the `why` **blank**, because `current()` returns `("JOIN", "")`
+   while the stamp row carries the real reason. **40/40 now carry a why, up from 0.** Also only pixels.
+
+⚠ And three separate searches this session returned a **false zero**: a case-sensitive grep for user
+notes (`[NOTE ADDED BY USER]` vs the stored `[Note added by user]`), a `<script` regex that matched
+an occurrence **inside a JS string**, and an apostrophe search for a character stored as `\u2019`.
+A zero from a bad instrument is UNKNOWN, not clean. [[feedback-suspect-the-instrument]]
+
+---
+
 ## ⛔ BLOCKED / HIS CALL — six
 
 | # | What | Why it is not mine |
@@ -1195,7 +1228,7 @@ never on a grep count.
 | **133** | No per-entry evidence in `d2r_owned`. | Answered by **166**'s ledger ruling — do 166 first. |
 | **146** | 4.34 GB / 4,128 frames releasable, keeping all 894 that carry. | **The apply is his.** He ruled "yes" on the principle: a frame the printer examined and found empty may be deleted. |
 | **155** | Would spend paid reads. | ✅ **NO LONGER BLOCKED — HE DECIDED IT 2026-09-04, and the ruling is written 73 lines ABOVE this row in this same file** (§💵 HIS MONEY RULING: *"whatever needs to use my money is fine as long as its working properly and coded and not looped and debugged"*, and the section's own sentence *"This unblocks 155"*). A row cannot be blocked by a decision this file records as taken — that is a stale label, not a blocker, and it sat here for a day. **The condition, which is the whole ruling:** a paid pass runs BEHIND the proof — after the path that consumes it is proven — never as the thing that proves it. So it is sequenced after A15's *clean* definition, not blocked by his silence. **Spend on the 29 never-read reels, never a broad sweep**: 24 of the 40 return nothing new (12 sealed-unreadable is a CAPTURE change, 12 names-read is a missing seal). [[paid-work-with-no-memory]] — 3,434 paid reads bought 2 sightings. <!--fp: TASKS.md :: His money.--> |
-| **154** | ⚠ **HALF LANDED (fleet-measured 2026-09-04)** — `pruned_mb=None` now passes at `control_app.py:16151`, `prunedMbInWindow` returns None rather than 0 at `:12732`, guarded by `Test154PrunedMbUnknownIsNotZero`. His live `disk_history.jsonl` shows the change taking effect: rows 0-8269 carry `prunedMb: 0` (last 2026-09-02), rows 8270+ do not. The remainder is still open. Blocked by 155. ⚠ **My own framing was RETRACTED:** `pruned_mb=0` and `hist_bytes=None` are HARDCODED at the only call site, so `prunedMb: 0` across 7,009 rows is a fact about the CALLER. "The prune has never freed a byte" is **not supported**. The real defect is that the field can never report anything. | `tv/control_app.py:14920` (writer at `:11954`) |
+| **154** | ⚠ **HALF LANDED (fleet-measured 2026-09-04)** — `pruned_mb=None` now passes at `control_app.py:16151`, `prunedMbInWindow` returns None rather than 0 at `:12732`, guarded by `Test154PrunedMbUnknownIsNotZero`. His live `disk_history.jsonl` shows the change taking effect: rows 0-8269 carry `prunedMb: 0` (last 2026-09-02), rows 8270+ do not. The remainder is still open. Blocked by 155. ⚠ **My own framing was RETRACTED:** `pruned_mb=0` and `hist_bytes=None` are HARDCODED at the only call site, so `prunedMb: 0` across 7,009 rows is a fact about the CALLER. "The prune has never freed a byte" is **not supported**. The real defect is that the field can never report anything. | ✅ **CODE HALF CLOSED 2026-09-06 (v2743).** The writer now carries the figure: `pruned_mb=round(float(_freed), 1)` at `tv/control_app.py:16896`, taken from `apply_plan`'s own `freedMb`, appended as a SECOND row so the honest pre-prune `None` survives. Pinned by `tv/test_a_prune_records_what_it_freed.py`, 8/8, including an AST reachability law — text-presence laws passed 7/7 over an `if False:` branch when this was sabotaged. ⚠⚠ **AND THE OBSERVATION HALF HAS NEVER FIRED, MEASURED TODAY on his live `tv/disk_history.jsonl`: 8,798 rows · 8,270 carry `0` · 528 carry `null` · **0 have ever carried a nonzero figure**. So the plumbing is built on both ends and NOT YET JOINED by a real prune. That is UNPROVEN, not broken, and not a claim I may make in either direction [[plumbing-with-no-tap]]. **The remaining half is not mine**: it needs a prune to actually run, which the self-arming lock governs and which spends his footage. ⚠ Its old label "Blocked by 155" was already refuted — `disk_history_append`'s call site hardcoded `pruned_mb=None` ~85 lines ABOVE `apply_plan`, so a prune running never changed what got written. The blocker was the caller, not his money. |
 | **136** | ⚠⚠ **UNACTIONABLE — THE TASK ITSELF IS LOST, and that is now provable.** This row has read only *"Blocked by vault names."* since the EARLIEST tracked version of this file (`a8016ea6`, the commit that made TASKS.md tracked at all) — there has never been a description. Its content lived in the session that created it, which is exactly the loss this file's own preamble records: *"the memory queue recorded the NUMBERS and not what they meant."* **Nobody can act on it, including him.** Kept, never deleted — but it must not sit here looking like work. If he remembers what 136 was, it becomes a real row again in one sentence. | ⚠ CONTENT LOST |
 | **148** | ⚠⚠ **UNACTIONABLE — THE TASK ITSELF IS LOST, and that is now provable.** This row has read only *"Blocked by vault names."* since the EARLIEST tracked version of this file (`a8016ea6`, the commit that made TASKS.md tracked at all) — there has never been a description. Its content lived in the session that created it, which is exactly the loss this file's own preamble records: *"the memory queue recorded the NUMBERS and not what they meant."* **Nobody can act on it, including him.** Kept, never deleted — but it must not sit here looking like work. If he remembers what 148 was, it becomes a real row again in one sentence. | ⚠ CONTENT LOST |
 

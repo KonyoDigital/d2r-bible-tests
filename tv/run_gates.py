@@ -585,6 +585,68 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_a_dead_fill_keeps_its_content",
+         [sys.executable, os.path.join(HERE, "test_a_dead_fill_keeps_its_content.py")], 120,
+         why="v2746 — his Sessions tab lost ~1080x560 of content and then self-resolved on a "
+             "restart, which means NOBODY MEASURED THE CAUSE. The obvious suspicion (a fill that "
+             "blanks on a failed fetch) was REFUTED: _tzPaint already repaints the last recorded "
+             "zone with stale:true and _chronXref already repaints _chronLastSt. This pins that "
+             "correct behaviour so it cannot regress, pins the OTHER direction too (a genuine "
+             "empty must still say 'no rotation available', or the fix becomes stale-forever), and "
+             "closes the unguarded `console_ui_two_script_blocks` scar in control_ui.html — a call "
+             "across the block boundary is a DEAD RENDER and it has happened four times. ⚠ The "
+             "probe for that scar was itself wrong twice: a bare name( regex counted "
+             "classList.add() as a call, and `<script` matched an occurrence INSIDE A JS STRING at "
+             "~14102, which would have published '0 violations' over an incomplete corpus. All six "
+             "laws proven RED by in-memory sabotage; the file on disk is never mutated because his "
+             "live console execs this working tree."),
+
+    Gate("test_ledger_authority",
+         [sys.executable, os.path.join(HERE, "test_ledger_authority.py")], 180,
+         why="v2746 — ONE authority over all four seeds (_GRAIL_SEED 245 · _SET_SEED 108 · "
+             "_RWC_SEED 99 · _RULING_SEED 10), parsed from bible.html at runtime so a seed that "
+             "grows cannot make it lie. It caught an arithmetic trap: _GRAIL_SEED and _RULING_SEED "
+             "SHARE NINE NAMES, so the uniques seed is a UNION of 246, not the sum 255. Feeds the "
+             "doctor rows `ledger provenance` and `ledger staleness`, both RED on real data."),
+
+    Gate("test_the_river_carries_a_stamp",
+         [sys.executable, os.path.join(HERE, "test_the_river_carries_a_stamp.py")], 180,
+         why="v2746 — reel_router answers WHERE A REEL IS and remembers nothing, so a reel had a "
+             "POSITION and never a JOURNEY. river_stamp is the only member of the family that "
+             "writes: append-only, one row per station actually reached, deduped so a walk over a "
+             "still river writes zero bytes."),
+
+    Gate("test_end_routes",
+         [sys.executable, os.path.join(HERE, "test_end_routes.py")], 180,
+         why="v2746 — gh210. His ruling settled the DESTINATION (reels should reach their end "
+             "routes) and not the PREDICATE (what makes a reel qualify), so the predicate is "
+             "derived from the reels that already completed rather than invented. ⚠ ROUTED has a "
+             "measured population of ZERO today, which is why the derivation cannot simply read "
+             "reels sitting at that station."),
+
+    Gate("test_the_verdict_reaches_the_card",
+         [sys.executable, os.path.join(HERE, "test_the_verdict_reaches_the_card.py")], 120,
+         why="v2746 — MEASURED on his live /api/fleet: Dean onOwnerSeed=True AND **Konyo "
+             "onOwnerSeed=True**, and the card warns on a bare `=== true`. So HIS OWN CARD told him "
+             "his 292 uniques were 'inherited, not synced'. The flag is right; the sentence over it "
+             "means something else. The card now reports the authority's PER-LEDGER verdict, which "
+             "is true on either board and can DISPROVE inheritance (Dean's runewords: the seed can "
+             "supply 99, the store holds 94 - 5 missing, so it was never seeded). This walks all "
+             "THREE hops because v2739 shipped this exact defect: it computed onOwnerSeed on the "
+             "board and read it on the card while functions/api/console.js silently dropped it."),
+
+    Gate("test_the_river_is_wired_to_the_console",
+         [sys.executable, os.path.join(HERE, "test_the_river_is_wired_to_the_console.py")], 120,
+         why="v2746 — `grep -c reel_router tv/control_app.py` was 0. The station assigner was built, "
+             "correct, covered by its own suite and read by NO console code. This pins the joint: "
+             "/api/river serves the journey, and the FREE triage tick walks it every 90s (never the "
+             "retention pass, which deletes). ⚠ The route I first wrote read `_cen.get(\"reelIds\")` "
+             "— a census key that does not exist — and would have served an EMPTY detail list over "
+             "a store holding 40 reels, passing any test that only checked for a 200. ⚠⚠ And the "
+             "law catching that first failed on its OWN COMMENT describing the bug, the same trap "
+             "TASKS.md records for task 159; it now judges CODE with comments stripped. Eight "
+             "sabotages, all proven RED, in memory only — his console execs this working tree."),
+
     Gate("test_the_river_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_river_is_watched.py")], 120,
          why="v2742 — MEASURED heart coverage before adding any: reel_router (the station assigner, "

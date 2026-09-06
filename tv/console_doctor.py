@@ -1732,6 +1732,201 @@ def _check_what_runs_without_him():
                "its promise" % (len(lanes), len(deleters), ", ".join(deleters) or "none")
 
 
+def _check_every_ledger_can_say_WHERE_IT_CAME_FROM():
+    """v2746 — ONE BOOLEAN IS ANSWERING A THREE-LEDGER QUESTION, AND ON THIS MACHINE IT IS NULL.
+
+    Konyo, on Dean's fleet card: *"it should read he hasnt yet synced his uniques.. sets and
+    runewords has been verified by him already and accepted"*. Three ledgers, three different
+    sentences, and `control_ui.html:19562` renders one blanket band above all three from a single
+    `t.onOwnerSeed`.
+
+    ⚠⚠ THE DEFECT THIS ROW EXISTS FOR IS A DISAGREEMENT NO SINGLE COMPONENT CAN SEE, and it was
+    live on his own console. OBSERVED 2026-09-06T18:49Z, on a tally 0.0 h old — not a stale read:
+
+        /api/board_ownership        onOwnerSeed: true   (seedsBelongHere true, ledger KonyoEndgame)
+        his own row on /api/fleet   tally.onOwnerSeed: null
+
+    Sixteen minutes later the same two reads both said `true`, so the field FLICKERS rather than
+    being permanently absent — which is worse to diagnose and is why this belongs in a doctor.
+
+    THE MECHANISM, proven structurally rather than by timing: there are TWO tally producers and
+    only one carries the field. `grail_tally()` reads the live board and publishes it
+    (control_app.py:2010); when the app window is not showing the board it falls back to
+    `_tally_from_board_store()`, whose returned keys are exactly
+
+        ['at', 'ok', 'profile', 'runewords', 'sets', 'source', 'uniques', 'why']
+
+    — measured on his tree, no provenance among them — because the record it reads is banked by
+    `/api/board_tally` from six keys (`who, route, sets, uniques, runewords, at`,
+    control_app.py:26538) and the board never posts the rest. So whichever producer answers decides
+    whether the warning can appear at all, and UNKNOWN renders as no warning.
+    [[the-unjoined-end]] [[copy-drift]]
+
+    ⚠ AND UNKNOWN IS NOT CLEAN. A console that cannot say where its rows came from is exactly as
+    unable to warn as one that is wrong about it — the difference is only that nobody can tell.
+    [[unknown-stays-unknown]]
+
+    FREE: one shared board read (the same one three other checks already fold into) plus the
+    fleet payload this console already holds. No second poke at the window he is looking at.
+    [[borrowed-surface]]
+    """
+    try:
+        import ledger_authority as LA
+    except Exception as e:
+        return UNKNOWN, "ledger_authority will not import, so nothing can say where a row came " \
+                        "from: %s" % str(e)[:80]
+
+    tbl = LA.seed_table()
+    if not tbl.get("ok"):
+        # a parser that cannot find its subject must never read as "there are no seeds"
+        return MISSING, ("the seed literals could not be read out of bible.html, so no ledger can "
+                         "be told inherited from earned: %s" % str(tbl.get("why"))[:180])
+    seeds = "; ".join("%s %d" % (k, v["n"]) for k, v in sorted(tbl["seeds"].items()))
+
+    got = _board_read()
+    fleet = _get("/api/fleet")
+    if not got and not fleet:
+        return UNKNOWN, "neither the board nor the fleet answered — nobody looked, so nothing is " \
+                        "known about any ledger's provenance"
+
+    board_seed = (got or {}).get("onOwnerSeed") if isinstance(got, dict) else None
+    board_loaded = (got or {}).get("boardLoaded") if isinstance(got, dict) else None
+
+    me = (fleet or {}).get("me") if isinstance(fleet, dict) else None
+    rows = list((fleet or {}).get("online") or []) + list((fleet or {}).get("offline") or [])
+    mine = next((m for m in rows if isinstance(m, dict) and m.get("machine") == me), None)
+    wire_seed = ((mine or {}).get("tally") or {}).get("onOwnerSeed") if mine else None
+
+    # ── THE CONTRADICTION, which is the finding rather than an error bar ─────────────────────
+    if isinstance(got, dict) and got.get("ok") and board_loaded and board_seed is not None \
+            and mine is not None and wire_seed != board_seed:
+        return MISSING, (
+            "this console's BOARD says onOwnerSeed=%r and its own FLEET ROW publishes %r — the "
+            "card he reads is fed by the row, so right now the warning cannot appear here whatever "
+            "the board says. Two tally producers, one field: grail_tally() carries it "
+            "(control_app.py:2010) and _tally_from_board_store() cannot, because /api/board_tally "
+            "banks only who/route/sets/uniques/runewords/at (control_app.py:26538), so the flag "
+            "flickers with whichever producer answered. Fix: publish the provenance on the board's "
+            "POST too, and per ledger. Seeds parsed: %s"
+            % (board_seed, wire_seed, seeds))
+
+    # ── the per-ledger sentence, derived from counts only; no name crosses the boundary ──────
+    flagged, unknown_rows, deficits = [], [], []
+    for m in rows:
+        t = (m or {}).get("tally")
+        if not isinstance(t, dict) or not t.get("ok"):
+            continue
+        who = (m.get("nickname") or m.get("machine") or "?")
+        v = LA.classify_row(t, table=tbl)
+        if t.get("onOwnerSeed") is None:
+            unknown_rows.append(who)
+            continue
+        for led in v.get("ledgers") or []:
+            if led.get("beyondSeed") is not None and led["beyondSeed"] < 0:
+                deficits.append("%s %s %d/%s vs a seed of %s"
+                                % (who, led["ledger"], led["have"], led["total"], led["seedN"]))
+            elif led.get("provenance") == LA.SEEDED:
+                flagged.append("%s %s %s of %s inherited"
+                               % (who, led["ledger"], led["seedN"], led["have"]))
+
+    if deficits:
+        return MISSING, ("a board reports FEWER rows than the owner's seed would have written into "
+                         "it, so its own progress cannot be separated from the seed by counting: "
+                         "%s. That is a real gap in that store, not a rounding artefact — the "
+                         "figure is negative and is reported as such rather than clamped to zero."
+                         % "; ".join(deficits[:4]))
+    if board_seed is None and not flagged and unknown_rows:
+        return UNKNOWN, ("no console on the fleet could say whether its rows came from the owner's "
+                         "seed (%s) — UNKNOWN, not clean. Seeds parsed: %s"
+                         % (", ".join(sorted(set(unknown_rows))[:4]), seeds))
+    return OK, ("every ledger can state its provenance; %d parsed seed(s) [%s]%s"
+                % (len(tbl["seeds"]), seeds,
+                   ("; flagged: " + "; ".join(flagged[:4])) if flagged else "; none inherited"))
+
+
+def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
+    """v2746 — THE SEED SAT 46 FINDS BEHIND FOR MONTHS AND NOTHING WAS WATCHING AGE AT ALL.
+
+    Konyo: *"_GRAIL_SEED 245 uniques but this is my owner seed.. and even that is so outdated.. its
+    at 292/403 we already said and sets 123/135.... it needs to auto update and not be stale"* and
+    then *"connect it all to the heart of the console so nothing becomes stale again"*.
+
+    ⚠⚠ THIS IS DELIBERATELY NOT A SEED CHECK. A seed-specific row would fix one frozen constant and
+    leave the next one to rot identically. It walks EVERY ledger figure by KIND — live reads, other
+    machines' beacons, hardcoded constants — so a constant added tomorrow is graded the day it
+    appears.
+
+    ⚠⚠ AND THE FROZEN ONES ARE GRADED BY **DRIFT**, NEVER BY AGE. This is the single way the whole
+    fix could have gone quietly vacuous: re-parsing bible.html every tick makes the READ fresh and
+    leaves the VALUE exactly as old, so a watchdog that timed the read would report every seed as
+    seconds old forever while it drifted by fifty finds. Nothing anywhere records when a seed was
+    transcribed, so its age is not merely unknown — it is unmeasurable, and `ageKnown` is False for
+    that KIND regardless of any timestamp. What IS measurable is how far it has fallen behind the
+    live figure. MEASURED on his board: uniques seed 246 against a live 292 (46 behind), sets seed
+    108 against 123 (15 behind), runewords 99 against 99 (level).
+    [[stale-reading]] [[unknown-stays-unknown]]
+
+    ⚠ THE BEACON THRESHOLD IS DERIVED FROM THE PIPELINE IT GRADES, not invented: the beacon fires
+    every 240 s, `_TALLY_TTL_S` caches the tally, `fleet_presence` caches the roster 60 s, so a
+    perfectly healthy figure is legitimately that sum old. The stale line is a multiple of the whole
+    chain and the row shows its arithmetic — a threshold under the floor cries wolf and one over the
+    ceiling never fires, and both look exactly like no threshold at all.
+    [[feedback-threshold-above-the-ceiling]]
+
+    FREE: reuses the one shared board read and the fleet payload the console already holds.
+    """
+    try:
+        import ledger_authority as LA
+    except Exception as e:
+        return UNKNOWN, "ledger_authority will not import, so no figure's age is known: %s" % str(e)[:80]
+
+    got = _board_read()
+    fleet = _get("/api/fleet")
+    if not got and not fleet:
+        return UNKNOWN, ("neither the board nor the fleet answered — no figure could be dated, "
+                         "which is UNKNOWN and not the same as everything being fresh")
+    try:
+        st = LA.staleness(own=got if isinstance(got, dict) else None,
+                          fleet=fleet if isinstance(fleet, dict) else None)
+    except Exception as e:
+        return UNKNOWN, "the staleness walk raised: %s" % str(e)[:110]
+
+    rows = st.get("rows") or []
+    if not rows:
+        # a reader that finds nothing to grade is broken, not clean
+        return UNKNOWN, "no ledger figure could be enumerated at all — a watchdog with nothing in " \
+                        "front of it is not a pass"
+    ceil = st["ceiling"]
+    drifted = [r for r in rows if r.get("kind") == LA.FROZEN and r.get("stale") is True]
+    old = [r for r in rows if r.get("kind") == LA.BEACON and r.get("stale") is True]
+    dark = [r for r in rows if r.get("stale") is None]
+
+    if drifted or old:
+        bits = []
+        for r in drifted:
+            # NAME the figure and say HOW FAR, never a count — a count alone is not actionable
+            bits.append("%s is %+d behind the live figure (value %s, newest date it records %s, "
+                        "AGE UNKNOWN — a hardcoded literal records no transcription time)"
+                        % (r["name"], r["drift"], r["value"], r.get("newestFindDate") or "none"))
+        for r in old:
+            bits.append("%s last spoke %.1f min ago (stale past %.1f min)"
+                        % (r["name"], (r["ageMs"] or 0) / 60000.0, ceil["staleMs"] / 60000.0))
+        return MISSING, ("%d of %d ledger figure(s) are out of date: %s. Threshold arithmetic: "
+                         "beacon %.0fs + tally TTL %.0fs + fleet cache %.0fs = %.0fs ceiling, "
+                         "x%d = %.0fs stale line (%s)."
+                         % (len(drifted) + len(old), len(rows), "; ".join(bits[:4]),
+                            ceil["parts"]["beaconPeriodS"], ceil["parts"]["tallyTtlS"],
+                            ceil["parts"]["fleetCacheS"], ceil["ceilingMs"] / 1000.0,
+                            ceil["parts"]["multiple"], ceil["staleMs"] / 1000.0, ceil["how"]))
+    if dark:
+        return UNKNOWN, ("%d of %d ledger figure(s) could not be dated at all (%s) — UNKNOWN age is "
+                         "not a fresh one" % (len(dark), len(rows),
+                                              ", ".join(r["name"] for r in dark[:4])))
+    return OK, ("%d ledger figure(s) are current; every frozen constant is level with its live "
+                "figure and every beacon is inside %.0f min"
+                % (len(rows), ceil["staleMs"] / 60000.0))
+
+
 CHECKS = [
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
@@ -1768,6 +1963,14 @@ CHECKS = [
     ("hunt economy", _check_the_hunt_is_buying_something),
     ("sweep would find", _check_the_sweep_would_find_something),
     ("board is claimed", _check_the_board_world_is_claimed),
+    # v2746 — WHERE each ledger's rows came from, per ledger. `board is claimed` above asks whether
+    # this world PERSISTS; this asks whether its rows are its OWN. Different sentences, and the
+    # second was answered by one boolean over three ledgers until now.
+    ("ledger provenance", _check_every_ledger_can_say_WHERE_IT_CAME_FROM),
+    # v2746 — the GENERAL form of the seed defect. `ledger provenance` asks WHERE a figure came
+    # from; this asks HOW OLD it is, for every ledger figure and not only the seeds. His words:
+    # "connect it all to the heart of the console so nothing becomes stale again".
+    ("ledger staleness", _check_no_ledger_FIGURE_has_gone_stale_unnoticed),
     ("visual lock", _check_the_visual_lock_holds),
     ("art corpus", _check_the_art_corpus),
     ("footage has a reel", _check_footage_belongs_to_a_reel),

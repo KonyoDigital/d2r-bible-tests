@@ -1590,7 +1590,229 @@ def _inv_the_router_and_the_shelf_count_the_SAME_reels():
             "reels the router stations", left, "reels on the shelf", right, "==")
 
 
+def _inv_every_seed_the_authority_NAMES_has_a_door_that_can_REMOVE_it():
+    """v2746 — THE CARD PROMISES A REMOVAL; THE BUTTON IS WHAT PERFORMS IT.
+
+    Konyo, on Dean's fleet card: *"how does that get removed what of him to do?"* — so the fleet
+    card is about to state, per ledger, how many of a person's rows came from the owner's hardcoded
+    seed, and point them at the un-seed door to remove them.
+
+    THAT MAKES TWO HALVES THAT MUST AGREE ABOUT WHICH SEEDS EXIST, and they are maintained in
+    different places by different hands:
+
+        `ledger_authority.SEED_ANCHORS`  the console's list of seed literals, used to COUNT what
+                                         is inherited and to print it on his card
+        `window._d2rUnseed`              bible.html's exit door (:9988), which STRIPS them
+
+    If the authority knows a seed the door does not touch, the card says "246 of your rows were
+    inherited", the person presses the button, and those rows survive — then the boot floor
+    re-asserts them on the next load and the warning comes back with no explanation. If the door
+    strips a seed the authority never counted, the button deletes more than the card said it would.
+    Both directions are silent, and neither file can notice it about itself. [[the-unjoined-end]]
+
+    ⚠⚠ THE FIFTH SEED IS WHY THIS IS NOT HYPOTHETICAL. `_RWV_SEED` (bible.html:18488) was an inline
+    literal until v2704 and is named in bible.html's own comment as "THE FIFTH SEED ... the other
+    four" — a seed that existed, was applied, and was invisible to every list that enumerated them.
+    A sixth added tomorrow lands in exactly the same blind spot.
+
+    THE TWO SIDES:
+      LEFT   seed literals the authority declares AND can actually parse out of bible.html
+      RIGHT  distinct `window._*_SEED` globals the un-seed door's own body reaches
+    Independent by DERIVATION, not merely by file: the left is a DECLARATION TABLE resolved by
+    brace-matching each anchor and parsing the object; the right is read off EXECUTABLE STATEMENTS
+    inside one function body. Neither consults the other, and neither counts rows — a seed that
+    grows by a hundred names moves neither side, which is correct: this asks how many seeds there
+    ARE, never how big they are.
+
+    ⚠ EQUALITY, NOT `<=`. Both directions are real defects, so the relation refuses to pick the
+    comfortable half.
+    ⚠ EITHER SIDE UNREADABLE IS UNKNOWN, NEVER 0 — a bible.html that cannot be read must not make
+    this hold vacuously with 0 == 0. [[zero-needs-a-denominator]]
+    """
+    def left():
+        try:
+            import ledger_authority as la
+            t = la.seed_table()
+        except Exception:
+            return None
+        if not isinstance(t, dict) or not t.get("ok"):
+            return None                      # a refused parse is UNKNOWN, not "no seeds exist"
+        n = len(t.get("seeds") or {})
+        return n or None
+
+    def right():
+        import io as _io
+        import re as _re
+        p = os.path.join(os.path.dirname(HERE), "bible.html")
+        try:
+            with _io.open(p, encoding="utf-8", errors="replace") as fh:
+                src = fh.read()
+        except Exception:
+            return None
+        # ⚠ ANCHORED AT BOTH ENDS. A fixed-size window past the end of a 14 KB function body reads
+        # as "this door reaches no seeds at all", which is a green nobody measured.
+        # [[source-reading-guard]]
+        i = src.find("window._d2rUnseed = function(){")
+        if i < 0:
+            return None                      # the door was renamed — UNKNOWN, never 0
+        j = src.find("window._d2rUnseedRestore", i + 20)
+        if j < 0:
+            return None
+        body = src[i:j]
+        names = set(_re.findall(r"window\.(_[A-Z][A-Z0-9_]*_SEED)\b", body))
+        return len(names) or None
+
+    return ("seed-exit-door-covers-every-seed",
+            "every seed the console counts as inherited has a door that can remove it",
+            "add a sixth seed literal to bible.html and register it in "
+            "ledger_authority.SEED_ANCHORS without teaching window._d2rUnseed to strip it — the "
+            "fleet card then reports rows as inherited that the exit button leaves behind, and the "
+            "boot floor re-asserts them on the next load",
+            "seed literals the authority parses", left,
+            "seeds the un-seed door reaches", right, "==")
+
+
+def _inv_a_posted_COUNT_and_its_own_MASK_agree():
+    """v2746 — TWO SURFACES PUBLISH THE SAME FIGURE; NOTHING EVER ASKED WHETHER THEY MATCH.
+
+    Konyo: *"and also not be mixing with the other consoles and profiles related... and sets also
+    needs to be fetched from the right data so it also renders like the sets tab"*.
+
+    Every machine publishes its set-piece progress TWICE, by two unrelated routes:
+      · `tally.sets.have` — a COUNT its own console posted (`len(d2r_setPieces)`)
+      · `masks.sets`      — an OPAQUE BITMASK, decoded HERE against a roster file on THIS disk
+    Neither is derived from the other. The mask is bits over a shared roster and the worker that
+    carries it never decodes it, so the popcount is computed on this machine from a different
+    artifact entirely. That is a real second witness to one fact, and until now nobody compared them.
+
+    ⚠ THE DIVERGENCE THIS EXISTS FOR IS LATENT ON HIS BOARD, WHICH IS PRECISELY WHY IT NEEDS A LAW.
+    The fleet card's numerator is `d2r_setPieces.length` (control_app.py:11847 via g() at :11715);
+    the Sets tab counts `pieces.filter(p => setPieces.has(p))` (bible.html:23696). The two agree only
+    while the store is a SUBSET of the roster, and nothing checks that. MEASURED 2026-09-06:
+        Dean  128 vs popcount 128        Konyo  123 vs popcount 123
+    Agreeing today is not a reason to leave it unwatched — it is the definition of a hazard that
+    fires the first time a store holds a name the roster lacks. [[gate-blind-to-unexercised-input]]
+
+    THE TWO SIDES:
+      LEFT   machine/ledger pairs where the posted count EQUALS the popcount of that machine's mask
+      RIGHT  machine/ledger pairs that published both and whose mask could be decoded
+    ⚠ ONLY LEDGERS WHOSE TWO SIDES READ THE SAME STORE ARE COMPARED, and the exclusions are NOT
+    silent — `ledger_authority.surface_pairs()` names each one with its reason, and the sibling
+    invariant below grades the exclusion list itself. An exemption nobody can audit is one that grows.
+    ⚠ NO ROW COMPARABLE IS UNKNOWN, NEVER 0 == 0. A fleet that published no masks must not make this
+    hold vacuously. [[zero-needs-a-denominator]]
+    """
+    def left():
+        try:
+            import ledger_authority as la
+            d = la.mask_cross_check()
+        except Exception:
+            return None
+        if not isinstance(d, dict) or not d.get("ok"):
+            return None
+        return d["agreeN"] if d.get("comparableN") else None
+
+    def right():
+        try:
+            import control_app as ca
+            import fleet_mask as fm
+        except Exception:
+            return None
+        try:
+            fl = ca.fleet_presence() or {}
+        except Exception:
+            return None
+        if not isinstance(fl, dict) or not fl.get("ok"):
+            return None
+        rows = list(fl.get("online") or []) + list(fl.get("offline") or [])
+        n = 0
+        for m in rows:
+            if not isinstance(m, dict):
+                continue
+            for led in sorted(fm.LEDGERS):
+                # count only the pairs the left side is allowed to compare: the mask's store and
+                # the tally's store must be the same store, which fleet_mask states for itself.
+                if fm.LEDGERS[led].get("store") != {"sets": "d2r_setPieces",
+                                                    "runewords": "d2r_rwMade"}.get(led):
+                    continue
+                if isinstance((m.get("masks") or {}).get(led), dict) \
+                        and isinstance((m.get("tally") or {}).get(led), dict):
+                    n += 1
+        return n or None
+
+    return ("count-and-mask-agree",
+            "every machine's posted count matches the mask it published for the same ledger",
+            "let one board hold a set-piece name that is not on the shared roster — the card's "
+            "len(store) numerator counts it and the roster-intersection mask does not, so one "
+            "machine reports two different progress figures under one label",
+            "machine/ledger pairs that agree", left,
+            "machine/ledger pairs that published both", right, "==")
+
+
+def _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE():
+    """v2746 — ⚠⚠ THIS IS RED ON ARRIVAL, FOR A DEFECT IT DID NOT CAUSE. READ BEFORE "FIXING" IT.
+
+    Konyo asked that a disagreement between two surfaces be something the heart states rather than
+    something he spots on a screenshot. This is that law, and the first thing it found was already
+    live on his console.
+
+    `uniques` NAMES TWO DIFFERENT QUESTIONS:
+        fleet_mask.LEDGERS["uniques"]["store"] = "d2r_owned"     <- the VAULT
+        grail_tally's `uniques` pair            = chronFound      <- the CHRONICLE
+    v2717 moved the tally from the vault measure to the chronicle measure — control_app.py:2004 says
+    so in as many words, "`uniques` NOW ANSWERS THE SAME QUESTION THE BOARD'S TABS DO" — and moved
+    the old one to `vaultUniques`, named for what it is. **fleet_mask was not moved with it.**
+
+    MEASURED 2026-09-06, popcount vs posted count on the live fleet:
+        sets      Dean 128 vs 128     Konyo 123 vs 123     same store, agrees
+        uniques   Dean 249 vs   0     Konyo 292 vs 160     DIFFERENT stores, one label
+
+    Dean's vault mask is EMPTY, so `fleet_compare(machine, "uniques")` — his "show me what he has
+    that i dont" — answers "he owns none" beside a card reading 249/403. Both numbers are honest
+    about different questions, which is exactly why nothing caught it. [[label-outlived-referent]]
+
+    THE FIX IS NOT HERE: either point fleet_mask's uniques store at the chronicle, or rename that
+    mask `vaultUniques` to match what control_app already calls it. Until one of those happens this
+    is SUPPOSED to be red.
+
+    THE TWO SIDES:
+      LEFT   ledgers where the mask's store and the tally's store are the same store
+      RIGHT  ledgers that have a mask at all
+    Independent by SOURCE: the left reads `fleet_mask.LEDGERS`, a table in one module; the right
+    counts the masks a different module actually publishes.
+    """
+    def left():
+        try:
+            import ledger_authority as la
+            pairs = la.surface_pairs()
+        except Exception:
+            return None
+        if not pairs or any(p.get("ledger") is None for p in pairs):
+            return None
+        n = sum(1 for p in pairs if p.get("sameQuestion") is True)
+        return n if n else None
+
+    def right():
+        try:
+            import fleet_mask as fm
+            n = len(fm.LEDGERS)
+        except Exception:
+            return None
+        return n or None
+
+    return ("one-name-one-store",
+            "no two surfaces publish different questions under the same ledger name",
+            "point fleet_mask's `uniques` mask at d2r_owned while grail_tally counts chronFound — "
+            "both stay internally honest, the cross-reference names the wrong ledger, and the card "
+            "beside it shows a number from the other store",
+            "ledgers whose mask and tally read one store", left,
+            "ledgers that publish a mask", right, "==")
+
+
 BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
+            _inv_every_seed_the_authority_NAMES_has_a_door_that_can_REMOVE_it,
+            _inv_a_posted_COUNT_and_its_own_MASK_agree,
+            _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE,
             _inv_no_world_reports_progress_it_INHERITED_from_the_owner_seed,
             _inv_every_backed_up_store_can_be_PUT_BACK_or_says_it_cannot,
             _inv_the_evidence_ledger_survived_the_sweep_that_filled_it,
@@ -1895,6 +2117,17 @@ def selftest():
         # two DIFFERENT counters out of one report (refused >= located) — an internal ratio, not a
         # shared source. It goes red when _MIN_AREA_FRAC is lowered, which is what it is for.
         "_inv_the_tooltip_finder_refuses_more_than_it_finds",
+        # v2746 — BOTH SIDES REACH control_app.fleet_presence, AND IT IS AN ENVELOPE RATHER THAN A
+        # SOURCE. The two numbers that travel in it are computed by unrelated code: `tally.have` is
+        # a COUNT the other machine's console posted, and the mask is an OPAQUE BITMASK this machine
+        # decodes against a roster file on its own disk — the worker in between never decodes it.
+        # PROVEN INDEPENDENT 2026-09-06 by driving its own prove line rather than by argument: a
+        # synthetic board holding ONE set-piece name absent from the shared roster, posting
+        # have=21 against a mask encoding 20.
+        #     baseline   agreeN 2, comparable 2   ->  2 == 2   AGREE
+        #     sabotage   agreeN 0, comparable 1   ->  0 != 1   DISAGREE
+        # The sides part. A shared envelope is not a shared derivation. [[feedback-suspect-the-instrument]]
+        "_inv_a_posted_COUNT_and_its_own_MASK_agree",
         # left calls ca._register_is_anchor, which CONSULTS inventory_law.is_locked and then falls
         # back to its own frozenset and a "tome of" test — so the console keeps independent
         # knowledge. MEASURED 2026-09-01 by driving its own prove line: drop one entry from
