@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2710",
+  "ver": "v2711",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2710: the gate fired only on page files, so widening a selector in render_check.py changed what is counted and which floors apply without re-running it, and a red target shipped clean",
+  "note": "v2711: he ruled once that the printer pills must share a width, it shipped at v2686, and nothing pinned it since; the gate now holds the law rather than the string because the longest label moved this session",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

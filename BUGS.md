@@ -22564,3 +22564,30 @@ overflowing.
 
 ⚠ **The same question applies to every gate whose definition lives in a file the hook does not
 watch.** Not surveyed. That survey is the real work; this instance is the symptom.
+
+## REG-680 — his ruling on the printer pills shipped with nothing watching it
+
+**Shipped:** v2711 · **His ruling:** *"this is a visual thing? make it symmetric then?"* (A17 #7)
+
+He chose which of two contradicting acceptance criteria wins — **equal pill widths**, taller rail
+accepted as the cost — and it shipped at v2686. **Then nothing pinned it.** `.mini-foc` appears
+three times in `test_control.py` and every one is about the `--mini-focus` **CLI flag**, not the
+CSS. The ruling was implemented and left unwatched.
+
+That is the [[heartov2]] shape, and heartov2 is why this matters: a defect there was fixed **three
+times** and returned each time, because after every fix nobody was looking. **A ruling he had to
+give once should not need giving twice.**
+
+**Pins the law, not the string.** `repeat(2, minmax(0, 1fr))` is today's implementation; the law is
+equal-fraction columns, refusing `auto` / `min-content` / `max-content` / `fit-content`. That
+matters because **the longest label moved this session**: v2709 made a chronicle reel resolve to
+`chronicle · uniques`, longer than any stash label — a content-sized column would have
+desynchronised the pills the moment it did.
+
+⚠ **Two faults in one assertion, both found by the sabotage run, neither by reading:**
+its first form used `\bwidth\s*:\s*(?!100%|auto)` and failed on the REAL file, because `\s*`
+**backtracks to zero-width** so the lookahead inspected `" 100%"` with the leading space. Its
+second form anchored on `(?:^|;)` and matched **nothing at all** — the real declaration is preceded
+by a *comment*, not a `;`, so the loop ran over an empty set and passed having checked zero
+candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
+is telling you the same thing.**

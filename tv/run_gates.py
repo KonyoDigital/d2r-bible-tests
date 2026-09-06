@@ -526,6 +526,17 @@ GATES = [
              "which is indistinguishable from a join that does not work. This supplies the input "
              "his shelf never does. Proven RED four ways, including the zone guard, whose first "
              "law was vacuous because every stash case lacked ledger data"),
+    Gate("test_mini_foc_pills_are_symmetric",
+         [sys.executable, os.path.join(HERE, "test_mini_foc_pills_are_symmetric.py")], 120,
+         why="his A17 #7 ruling — \"this is a visual thing? make it symmetric then?\" — shipped at "
+             "v2686 as a 2-column grid on .mini-foc, and NOTHING pinned it: the three .mini-foc "
+             "mentions in test_control are all about the --mini-focus CLI flag. That is the "
+             "heartov2 shape, where a defect was fixed three times and returned each time because "
+             "after every fix nobody was looking. Pins the LAW not the string — equal-fraction "
+             "columns, refusing auto/min-content/max-content/fit-content — because the longest "
+             "label MOVED this session: v2709 made a chronicle reel resolve to `chronicle - "
+             "uniques`, longer than any stash label, and a content-sized column would have "
+             "desynchronised the pills the moment it did"),
     Gate("test_seal_verdict",
          [sys.executable, os.path.join(HERE, "test_seal_verdict.py")], 120,
          why="seal_covers_extraction answers yes or no, and its `no` covered two OPPOSITE facts: "
