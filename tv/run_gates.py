@@ -514,6 +514,18 @@ GATES = [
              "goes stale, and a confidently wrong live version is worse than none), that an "
              "unaskable question answers None rather than guessing, and that it is CACHED — an "
              "uncached subprocess per poll is how a machine gets saturated. Proven RED four ways"),
+    Gate("test_chronicle_ledger_refines_the_template",
+         [sys.executable, os.path.join(HERE, "test_chronicle_ledger_refines_the_template.py")], 120,
+         why="his check: the printer's template station could name WHICH stash panel a reel showed "
+             "(stash - gems/personal) but only ever said the bare word `chronicle` — four of the "
+             "six MINI_FOCUSES resolved and two reached the doorstep. The ledger was recorded all "
+             "along: tv_diablo asks for chronicleTab on every frame and v1689 writes a visit row "
+             "carrying it (13 rows across 12 sessions: uniques 9, sets 3). ⚠ THE JOIN IS "
+             "UNEXERCISED BY HIS OWN DATA -- zero overlap between those 12 sessions and the 40 "
+             "reels on his shelf -- so on his machine it runs, answers UNKNOWN, and is RIGHT to, "
+             "which is indistinguishable from a join that does not work. This supplies the input "
+             "his shelf never does. Proven RED four ways, including the zone guard, whose first "
+             "law was vacuous because every stash case lacked ledger data"),
     Gate("test_seal_verdict",
          [sys.executable, os.path.join(HERE, "test_seal_verdict.py")], 120,
          why="seal_covers_extraction answers yes or no, and its `no` covered two OPPOSITE facts: "

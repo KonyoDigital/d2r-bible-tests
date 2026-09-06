@@ -22507,3 +22507,31 @@ its own docstring (which names the 6 MB file while forbidding it — `source-rea
 "the comment that trips the guard is usually the one describing the fix"), and its cache law
 checked for the NAME `_LIVE_VER_CACHE`, which survives in the `.update()` call after the early
 return is deleted. That sabotage stayed green until the law was rewritten to pin the return.
+
+## REG-678 — the template station could not name which Chronicle page a reel showed
+
+**Shipped:** v2709 · **His check:** *".mini-foc this should be the printer 3d/4d and processing
+unified station for reels the template and classifier"*
+
+A stash reel resolved to `stash · gems/personal`. A chronicle reel stopped at the bare word
+`chronicle`. `MINI_FOCUSES` has six entries — **four resolved, two reached the doorstep** — because
+`tabs` is built only from `stashTab`, deliberately.
+
+**The ledger was recorded all along.** `tv_diablo` asks for `chronicleTab` on every frame, and
+v1689's `chron_visit_flush` writes a `{lane:'chronicle', kind:'visit'}` row carrying it. Measured:
+**13 visit rows across 12 sessions — uniques 9, sets 3.** No frame read, no new intake field.
+
+⚠ **I eliminated this route twice before finding it**, both times by inferring an absence from one
+sample: "`chronicleTab` is never recorded" (refuted by a grep — 13 files), then "the cheap route
+does not exist" (refuted by the visit rows). Each sample was real; each generalisation was not.
+
+⚠ **The one chronicle reel on his shelf answers UNKNOWN, correctly.** `chron_visit_flush`'s own
+docstring names it: 8 deep frames, `chronicleTab='uniques'`, and **zero visit rows written**,
+because the state machine only closed a visit on the way *out* and he looked at the Chronicle
+last. v1689 fixed that; the reel predates it.
+
+⚠⚠ **And that is why the gate is synthetic.** Zero overlap between the 12 sessions with visit rows
+and the 40 reels on his shelf — so on his machine this code runs, answers UNKNOWN, and is right to,
+which is indistinguishable from a join that does not work at all. The test supplies the input his
+data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
+every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.

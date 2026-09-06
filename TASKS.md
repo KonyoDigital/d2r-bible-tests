@@ -1329,6 +1329,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2709** | `(this commit)` | v2709 — REG-678: the template station names which Chronicle page a reel showed; the ledger was in the visit row all along, and the gate is synthetic because his shelf cannot exercise it |
 | **v2708** | `(this commit)` | v2708 — REG-677: the console reported three versions and all three read the working tree; liveVer now names what actually shipped, with the age of the ref beside it |
 | **v2707** | `(this commit)` | v2707 — REG-674: the UNDO button could hand a claimed browser the seed ledger and re-create the Dean defect |
 | **v2706** | `(this commit)` | v2706 — REG-673: the un-seed snapshot was shared across profiles and never spent, so an Undo after switching profiles would clobber the other account |

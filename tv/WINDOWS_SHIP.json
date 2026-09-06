@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2708",
+  "ver": "v2709",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2708: his console execs the working tree so the page can be bytes that were never pushed, and status reported three versions that all read that same tree while the one field that could name the shipped version was null on mac",
+  "note": "v2709: a stash reel resolved to stash gems personal while a chronicle reel stopped at the bare word chronicle, and the ledger was recorded all along in the visit row v1689 writes at session close",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

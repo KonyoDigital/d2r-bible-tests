@@ -198,6 +198,30 @@ def templates(reels=None, river=None):
         # a segment is a span of time and a tab is a property of a read, and forcing one into
         # the other would make the segmenter answer a question it was not asked. [[copy-drift]]
         _sid = name[len("reel_"):] if name.startswith("reel_") else name
+        # ⚠⚠ v2709 — THE CHRONICLE'S LEDGER, WHICH THIS STATION COULD NEVER NAME.
+        # `tabs` below is deliberately STASH-ONLY (see the comment further down: "a tab is
+        # evidence about WHICH stash panel was open"), so a CHRONICLE reel resolved to the bare
+        # word "chronicle" while every stash reel resolved to "stash · gems/personal". Four of
+        # his six MINI_FOCUSES got a tab and the two chronicle ones reached the doorstep — which
+        # is exactly what he checked for: ".mini-foc ... the template and classifier".
+        #
+        # ⚠ THE DATA WAS THERE THE WHOLE TIME, and I eliminated this route twice before finding
+        # it. tv_diablo asks for `chronicleTab` on EVERY frame, and v1689's chron_visit_flush
+        # writes a {lane:'chronicle', kind:'visit'} row carrying the LEDGER at session close.
+        # MEASURED on his ring: 13 visit rows across 12 sessions — uniques 9, sets 3, one unknown.
+        # No frame read, no new intake field, no image decoding near the snapshot path.
+        #
+        # ⚠ AND THE ONE CHRONICLE REEL ON HIS SHELF TODAY ANSWERS UNKNOWN, CORRECTLY.
+        # s_1786385768689_67392 is named in chron_visit_flush's own docstring: 8 deep frames,
+        # chronicleTab='uniques', and ZERO visit rows written, because the state machine only
+        # closed a visit on the way OUT and he looked at the Chronicle LAST. v1689 fixed that at
+        # session close; this reel predates the fix. An empty answer here is nobody-recorded, not
+        # nothing-was-open. [[unknown-stays-unknown]]
+        _ledgers = sorted({str(r.get("ledger") or r.get("chronicleTab") or "").strip().lower()
+                           for r in (by_session.get(_sid) or [])
+                           if (r.get("lane") == "chronicle" and r.get("kind") == "visit")
+                           or (r.get("lane") == "deep" and str(r.get("chronicleTab") or "").strip())}
+                          - {""})
         tabs = sorted({str(r.get("stashTab") or "").strip()
                        for r in (by_session.get(_sid) or [])
                        if r.get("lane") == "deep" and str(r.get("stashTab") or "").strip()})
@@ -274,8 +298,14 @@ def templates(reels=None, river=None):
         rows.append({"reel": name, "template": template, "zone": zone, "why": zwhy,
                      "activities": acts, "segments": len(segs),
                      "tabs": tabs,
-                     "subTemplate": ((template + " · " + "/".join(tabs))
-                                     if (template and tabs) else template),
+                     # v2709 — a CHRONICLE reel is refined by its LEDGER, a stash reel by its
+                     # TAB. Same shape ("template · what"), two different sources, and neither
+                     # can answer for the other.
+                     "ledgers": _ledgers,
+                     "subTemplate": (
+                         (template + " · " + "/".join(_ledgers))
+                         if (template and zone == "CHRONICLE" and _ledgers)
+                         else ((template + " · " + "/".join(tabs)) if (template and tabs) else template)),
                      "worthReading": worth,
                      "pruneCandidate": candidate})
         counts[zone] = counts.get(zone, 0) + 1
