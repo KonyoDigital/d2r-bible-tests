@@ -47,6 +47,7 @@ STORES = {
         "owner": "retro_triage",
         "holds": "per-reel structural verdict: frames, panels, kinds",
         "readers": {
+            "end_routes":    "reads it to DERIVE the end-route predicate from the reels that\n                              already reached it, rather than inventing one. His ruling\n                              settled the DESTINATION and named the METHOD: 'reverse\n                              engineeer it if needed the ones that are working'.\n                              READ-ONLY: it decides nothing and deletes nothing - a second\n                              prune authority over footage that has no un-delete is\n                              exactly what this file exists to refuse.",
             "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
             "verdict_provenance": "reads ONE row to ask whether it can name what produced it.\n                              41 stores swept, 21 SILENT. It writes nothing, back-fills\n                              nothing and never repairs — naming the gap is the product",
             "run_gates":      "NOT a toucher — a gate DESCRIPTION names this file while\n                              explaining what the gate is for. Prose in a `why` string",
@@ -75,6 +76,7 @@ STORES = {
         "owner": "reel_retention",
         "holds": "reels that were pruned, and when — the record that a reel existed",
         "readers": {
+            "end_routes":    "reads it to DERIVE the end-route predicate from the reels that\n                              already reached it, rather than inventing one. His ruling\n                              settled the DESTINATION and named the METHOD: 'reverse\n                              engineeer it if needed the ones that are working'.\n                              READ-ONLY: it decides nothing and deletes nothing - a second\n                              prune authority over footage that has no un-delete is\n                              exactly what this file exists to refuse.",
             "tv_diablo":     "NOT a toucher — a v2639 comment explains that the recorder's\n                              emergency reaper is deliberately NOT a second writer of this\n                              store; reel_retention._tombstone stays the one writer, and the\n                              recorder records to its own reel_reaps.jsonl instead. Prose",
             "run_gates":     "NOT a toucher — a gate DESCRIPTION names this file while saying\n                              the reaper is not a second writer of it. Prose in a `why` string",
 
@@ -130,6 +132,7 @@ STORES = {
         "owner": "frame_authority",
         "holds": "the seal store — which sessions the vault sweep has sealed, and what it extracted",
         "readers": {
+            "end_routes":    "reads it to DERIVE the end-route predicate from the reels that\n                              already reached it, rather than inventing one. His ruling\n                              settled the DESTINATION and named the METHOD: 'reverse\n                              engineeer it if needed the ones that are working'.\n                              READ-ONLY: it decides nothing and deletes nothing - a second\n                              prune authority over footage that has no un-delete is\n                              exactly what this file exists to refuse.",
             "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
             "verdict_provenance": "reads ONE row to ask whether it can name what produced it.\n                              41 stores swept, 21 SILENT. It writes nothing, back-fills\n                              nothing and never repairs — naming the gap is the product",
 

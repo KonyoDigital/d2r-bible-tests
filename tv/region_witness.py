@@ -41,6 +41,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ THIS FILE PRINTS NON-ASCII, AND HIS WINDOWS CONSOLE IS cp1255. Without this, a report that
+# contains one arrow or emoji raises UnicodeEncodeError WHILE REPORTING — so a perfectly clean tree
+# exits non-zero and the failure is about the printing, not the finding. Caught by the pre-push
+# gate, which is the only thing that could have: it never fails on this Mac.
+try:
+    from console_safe import enable as _console_safe_enable
+    _console_safe_enable()
+except Exception:
+    pass
+
 import paint_witness as PW  # noqa: E402
 
 BLANK = PW.BLANK

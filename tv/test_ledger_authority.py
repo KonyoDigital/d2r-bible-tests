@@ -816,7 +816,7 @@ class OneSourceForTheSetsFigure(unittest.TestCase):
         roster, _ = LA._roster_for("sets")
         self.assertTrue(roster, "no sets roster on this machine — this law examined nothing")
         store = list(roster)[:5] + ["Not On Any Roster At All"]
-        c = LA.canonical("sets", own=_board(stores={"d2r_setPieces": store}))
+        c = LA.ledger_figure("sets", own=_board(stores={"d2r_setPieces": store}))
         self.assertTrue(c["ok"])
         self.assertEqual(5, c["byIntersection"])
         self.assertEqual(6, c["byStoreLength"])
@@ -828,7 +828,7 @@ class OneSourceForTheSetsFigure(unittest.TestCase):
     def test_a_missing_roster_RELABELS_the_rule_rather_than_counting_silently(self):
         """⚠ An unreadable roster is UNKNOWN, never a licence to count by another rule under the
         same label. When there is no roster the rule string itself changes and says why."""
-        c = LA.canonical("runewords", own=_board(stores={"d2r_rwMade": {"Spirit": "x"}},
+        c = LA.ledger_figure("runewords", own=_board(stores={"d2r_rwMade": {"Spirit": "x"}},
                                                  counts={"runewordsMade": 1,
                                                          "runewordsTotal": 2}))
         if c["rule"] == "store-length":
@@ -842,7 +842,7 @@ class OneSourceForTheSetsFigure(unittest.TestCase):
         """`d2r_foundLog` legitimately holds set pieces and other rows, and no surface publishes its
         length as the uniques numerator. Comparing them would be a finding about a method nobody
         uses — so `agree` is None, which is UNKNOWN-by-non-applicability, never a false red."""
-        c = LA.canonical("uniques", own=_board(stores={"d2r_foundLog": {"Wormskull": "x"}}))
+        c = LA.ledger_figure("uniques", own=_board(stores={"d2r_foundLog": {"Wormskull": "x"}}))
         self.assertFalse(c["usesStoreLength"])
         self.assertIsNone(c["agree"])
         self.assertIn("NOT compared", c["why"])
@@ -854,10 +854,10 @@ class OneSourceForTheSetsFigure(unittest.TestCase):
         292 == 292 — which is what makes the figure trustworthy rather than self-consistent."""
         roster, _ = LA._roster_for("sets")
         store = list(roster)[:7]
-        c = LA.canonical("sets", own=_board(stores={"d2r_setPieces": store},
+        c = LA.ledger_figure("sets", own=_board(stores={"d2r_setPieces": store},
                                             counts={"setPieces": 7, "setsTotal": len(roster)}))
         self.assertTrue(c["boardAgrees"])
-        bad = LA.canonical("sets", own=_board(stores={"d2r_setPieces": store},
+        bad = LA.ledger_figure("sets", own=_board(stores={"d2r_setPieces": store},
                                               counts={"setPieces": 8, "setsTotal": len(roster)}))
         self.assertFalse(bad["boardAgrees"],
                          "the board and this machine disagreed and it was not noticed")
@@ -866,13 +866,13 @@ class OneSourceForTheSetsFigure(unittest.TestCase):
         """MEASURED: the board counts uniques against 403 and tv/unique_roster.json holds 398. A
         percentage from one drawn against the other is wrong, so the drift is named."""
         roster, _ = LA._roster_for("sets")
-        c = LA.canonical("sets", own=_board(stores={"d2r_setPieces": list(roster)[:3]},
+        c = LA.ledger_figure("sets", own=_board(stores={"d2r_setPieces": list(roster)[:3]},
                                             counts={"setPieces": 3, "setsTotal": len(roster) + 5}))
         self.assertIn("rosterDrift", c)
         self.assertIn("different rosters", c["rosterDrift"])
 
     def test_every_figure_names_the_world_it_came_from(self):
-        c = LA.canonical("sets", own=_board(stores={"d2r_setPieces": []}))
+        c = LA.ledger_figure("sets", own=_board(stores={"d2r_setPieces": []}))
         self.assertEqual(LA.OWNER_MAIN, c["namespace"]["key"])
 
 

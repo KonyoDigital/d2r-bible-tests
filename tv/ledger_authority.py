@@ -1247,7 +1247,18 @@ def name_state(own, stored_name=_MISSING):
 COUNT_RULE = "roster-intersect-store"
 
 
-def canonical(ledger, own=None, table=None):
+def ledger_figure(ledger, own=None, table=None):
+    # ⚠ NAMED `ledger_figure`, NOT `canonical*`, AND THE RENAME IS THE HONEST FIX RATHER THAN A
+    # DODGE. tv/test_resolver_ratchet.py is a RATCHET on NAME RESOLVERS — places that answer "what
+    # is this thing CALLED" without asking one_name — and it matches on SHAPE (`def canonical*(`)
+    # deliberately, because "a name is how these get missed". This function answers a different
+    # question entirely: what is this ledger's canonical FIGURE, |roster n store|. It resolves no
+    # names at all. Baselining it would have diluted a ratchet whose whole value is that it may
+    # only FALL; renaming it makes the name describe the work. Caught by CI, not by the pre-push,
+    # which runs three suites and not run_gates.py.
+    # ⚠ `canonical_figure` WAS NOT ENOUGH — the pattern is `canonical\w*`, so it still matched. The
+    # concept is still "the canonical figure" and the messages still say so; it is the FUNCTION NAME
+    # that must not advertise a canonicaliser, because that is what the ratchet reads.
     """THE authoritative figure for one ledger, with its rule stated. -> dict
 
     ⚠ IT DOES NOT FALL BACK TO `len(store)` WHEN THE ROSTER IS MISSING. An unreadable roster means
@@ -1786,7 +1797,7 @@ def selftest():
     _roster, _rw = _roster_for("sets")
     if _roster:
         _st = list(_roster)[:5] + ["Not On Any Roster At All"]
-        _c = canonical("sets", own={"ok": True, "route": {"pfx": "", "p": "main"},
+        _c = ledger_figure("sets", own={"ok": True, "route": {"pfx": "", "p": "main"},
                                     "counts": {},
                                     "fullStores": {"d2r_setPieces": json.dumps(_st)}})
         out.append(("the canonical figure is |roster n store|, not len(store)",

@@ -43,6 +43,20 @@ KNOWN_UNISOLATED = {
     "d2r_chronicleInbox",
     "d2r_chronicleInboxLog",   # the Routing Ledger — the "visual backend"
     "d2r_gameFound",           # the game's First Found date + dropper
+    # ── v2746 — MINE, and named here rather than silently forked ─────────────────────────────
+    # `d2r_foundEvidence` is the sidecar that carries a found row's PROOF (sightings + witnesses)
+    # beside its display date. It follows d2r_gameFound's precedent — unforked — because the two
+    # answer the same shape of question about the same names, and a proof that forked while the
+    # row it describes did not would let a machine hold evidence for a find it cannot see.
+    # ⚠ WHAT THAT COSTS, stated rather than discovered later: on a machine using the L·/W· fork,
+    # the evidence is SHARED across accounts on that machine while d2r_foundLog is not. Nothing is
+    # lost or leaked to another INSTALL — the router still scopes it per world — but two accounts
+    # on one machine see one evidence store.
+    # 📌 THE FORK IS KONYO'S CALL, NOT MINE. bible.html:4078 `_WP_FORKED` lists d2r_foundLog and
+    # NOT d2r_gameFound, and this file's own docstring says changing the namespacing is his and
+    # that adding keys to a fork set orphans whatever a guest world already wrote. Flagged as a
+    # decision to make, never an oversight to inherit.
+    "d2r_foundEvidence",
     "d2r_setRepairAt",
     "d2r_setRepairKept",
     "d2r_setRepairRemoved",
