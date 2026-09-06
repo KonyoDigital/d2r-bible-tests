@@ -22536,6 +22536,48 @@ which is indistinguishable from a join that does not work at all. The test suppl
 data never will. Proven RED four ways; the zone-guard law was **vacuous on the first cut** because
 every stash case lacked ledger data, and needed a reel carrying *both* to mean anything.
 
+## REG-684 — one_funnel told four of six rungs they left NO TRACE, and it was false
+
+**v2725.** `one_funnel` printed, for `filmed`, `banked`, `vault-done` and `releasable`:
+"no store records this rung, so passing it leaves no trace" — and reported THE PASSAGE IS PARTIAL,
+2 of 6. Measured: `reel_story` names the decider for every one of those four in its own module
+docstring (`reel_retention.plan()`), and that decider answers for EVERY reel on the shelf — onDisk
+40, kept 40, `stageKnown` false for ZERO reels. The state of every rung was establishable the whole
+time. What those rungs lack is the DATE of passage, not the fact of it; `triaged` and `swept` have
+stores because they CACHE an expensive read, not because they are better observed.
+
+⚠ THE CLASS: uncached reported as unknown — [[unknown-stays-unknown]] one storey up, inside a
+module whose own comments cite that law five times and which already distinguishes ABSENT from
+UNREADABLE from EMPTY with great care (REG-559 was exactly that distinction).
+
+FIX: `DERIVED_SOURCES` names the live decider and the rule it applies; the cover map reports it;
+and a SECOND reading, `observability`, is published BESIDE `passage` and never merged into it.
+⚠ `passage` is deliberately UNCHANGED — still PARTIAL, still 2 dated rungs. A discovery that makes
+a verdict look better must not be allowed to move that verdict, or a strict number silently becomes
+a lenient one with nobody told. The load-bearing law is `test_the_derived_rungs_do_NOT_move_passage`,
+proven red two ways: counting a derived rung as dated, and borrowing the decider count into
+`covered`.
+
+GATE: `test_derived_rungs_are_not_traceless` — 9 laws, 8 sabotages, control green.
+HEART: `corroborate._inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR` — LEFT
+`reel_story.STAGES`, RIGHT the rungs one_funnel accounts for, relation `<=`. Proven red by adding
+the seventh stage reel_story's own docstring already names (PRUNED): 7 <= 6, disagree. Proven
+UNKNOWN rather than vacuously green when STAGES is empty.
+BANK: `rung_accounting_wilson` — 10 distinct attacks, banked to `reel.route` and no other lock
+(7 -> 17 attacks, wilsonByAttack 0.6457 -> 0.8157; kinds honestly unchanged at 1.0, because all
+ten are sabotage-kind and relabelling them would be the confluence cheat).
+
+## REG-685 — the new observability verdict read OBSERVED over an EMPTY cover map
+
+**v2725, found while writing the attack table for REG-684 — not by reading the code back.**
+`_observability({})` returned `state: OBSERVED`, with the sentence "every one of the 0 rung(s) can
+be established". `total = len(cover)` is 0, the loop never runs, and `seen == total` holds at
+0 == 0. A fraction computed over nothing examined, in a function written the same hour as a test
+citing [[zero-needs-a-denominator]] by name.
+
+FIX: an empty cover map returns UNKNOWN carrying its own reason. Pinned as the FIRST attack in
+`rung_accounting_wilson.ATTACKS` — the attack that found it.
+
 ## REG-682 — nothing in this repo ever asked whether a page scrolls sideways
 
 **v2713.** Measured 2026-09-06: `grep -nE "documentElement.scrollWidth|body.scrollWidth" tv/*.py`

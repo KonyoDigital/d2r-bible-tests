@@ -48,6 +48,24 @@ if HERE not in sys.path:
 #: so `triaged` — 40 of 40 reels covered — silently vanishes from the dated rungs while the verdict
 #: stays PARTIAL and nothing looks wrong. A wrong answer wearing a measurement's clothes.
 #: [[copy-drift]] §1: name ONE source, everything else quotes it.
+#: A rung with no CACHE but a LIVE DECIDER. `reel_story`'s module docstring already names the
+#: function that decides each stage; this quotes that mapping rather than restating it, for the
+#: same reason WAYPOINT_SOURCES quotes the owning module's constant. The third field is the RULE
+#: as reel_story states it, so a reader can check the claim without leaving this file.
+#:
+#: ⚠⚠ THE ABSENCE OF A STORE IS NOT THE ABSENCE OF A RECORD, and until v2725 this module said it
+#: was. It printed "no store records this rung, so passing it leaves no trace" for these four,
+#: while `plan()` answers for every reel on the shelf and `reel_story` maps all of them to a known
+#: stage. Measured: onDisk 40, kept 40, stageKnown false for ZERO. The state was observable the
+#: whole time; what is missing is the DATE of passage, not the fact of it.
+#: [[unknown-stays-unknown]] — and the sting is that this module cites that law five times.
+DERIVED_SOURCES = {
+    "filmed":     ("reel_retention", "plan", "the reel directory exists (onDisk)"),
+    "banked":     ("reel_retention", "plan", "tag != rows-not-banked"),
+    "vault-done": ("reel_retention", "plan", "tag != vault-owes"),
+    "releasable": ("reel_retention", "plan", "tag == eligible"),
+}
+
 WAYPOINT_SOURCES = {
     "filmed":     None,
     "triaged":    ("retro_triage", "STORE"),
@@ -117,13 +135,53 @@ def _rows():
         return [], "reel_story would not answer (%s)" % str(e)[:80]
 
 
+def _decided_count():
+    """How many reels the live deciders answer for. -> (decided, total, why)
+
+    ⚠ A decider that will not run returns (None, None, reason) — UNKNOWN, never 0. The store path
+    six lines below already learned this the hard way (REG-559: an unreadable store produced an
+    empty `dated` and a confident finding over evidence nobody gathered). A derived rung is
+    exactly as capable of that mistake, so it refuses the same way.
+    """
+    try:
+        import reel_story as RS
+        st = RS.story()
+    except Exception as e:
+        return None, None, "reel_story would not answer (%s)" % str(e)[:70]
+    reels = (st.get("reels") or []) if isinstance(st, dict) else []
+    if not reels:
+        return None, None, "reel_story returned no reels, so nothing was decided either way"
+    decided = sum(1 for r in reels
+                  if isinstance(r, dict) and r.get("stageKnown", False) and r.get("stage"))
+    return decided, len(reels), ""
+
+
 def _waypoint_cover(sids):
     """For each rung with a store, how many of these reels it has a dated row for. -> dict"""
     out = {}
     for rung in WAYPOINT_SOURCES:
         store, swhy = _store_of(rung)
         if not store:
-            out[rung] = {"store": None, "covered": None, "why": swhy}
+            # ⚠ NOT CACHED IS NOT NOT KNOWN. Ask whether a live decider owns this rung before
+            # reporting it as traceless — the sentence this used to print was measured FALSE for
+            # all four storeless rungs on 2026-09-06.
+            src = DERIVED_SOURCES.get(rung)
+            if not src:
+                out[rung] = {"store": None, "covered": None, "derivedBy": None,
+                             "decided": None, "why": swhy}
+                continue
+            mod, fname, rule = src
+            dec, tot, dwhy = _decided_count()
+            out[rung] = {
+                "store": None, "covered": None,
+                "derivedBy": "%s.%s()" % (mod, fname), "rule": rule,
+                "decided": dec, "decidedOf": tot,
+                "why": (dwhy or
+                        ("no store CACHES this rung, but %s.%s() decides it live (%s) and answers "
+                         "for %d of %d reel(s). The state is observable; what is absent is the "
+                         "DATE of passage, not the fact of it."
+                         % (mod, fname, rule, dec, tot))),
+            }
             continue
         p = os.path.join(HERE, store)
         try:
@@ -147,6 +205,64 @@ def _waypoint_cover(sids):
     return out
 
 
+def _observability(cover):
+    """Can every rung's state be established for every reel RIGHT NOW? -> dict
+
+    A rung counts as observable if a store holds rows for it OR a live decider answers for it.
+    ⚠ UNKNOWN PROPAGATES. One rung nobody can read makes the whole verdict UNKNOWN rather than
+    dragging a fraction down — a rung that could not be measured is not a rung measured as absent.
+    """
+    total = len(cover)
+    # ⚠⚠ AN EMPTY COVER MAP IS NOT A CLEAN BILL OF HEALTH, and this function shipped saying it was
+    # for exactly as long as it took to write the attack table below. With `cover == {}` the loop
+    # never runs, `seen == total` holds at 0 == 0, and the verdict read OBSERVED with the sentence
+    # "every one of the 0 rung(s) can be established". A fraction over nothing examined is the
+    # [[zero-needs-a-denominator]] shape — the same law this module's own tests cite — and it was
+    # found by designing a sabotage for it, not by reading the code back.
+    if not total:
+        return {"state": "UNKNOWN", "seen": 0, "rungCount": 0, "unknown": [], "dark": [],
+                "why": "no rung was examined, so nothing is observable and nothing is dark either"}
+    seen, unknown, dark = 0, [], []
+    for rung, v in cover.items():
+        if v.get("store"):
+            if v.get("covered") is None:
+                unknown.append(rung)
+            elif v.get("covered") > 0:
+                seen += 1
+            else:
+                dark.append(rung)
+        elif v.get("derivedBy"):
+            if v.get("decided") is None:
+                unknown.append(rung)
+            elif v.get("decided") > 0:
+                seen += 1
+            else:
+                dark.append(rung)
+        else:
+            dark.append(rung)
+    if unknown:
+        state = "UNKNOWN"
+        why = ("%d of %d rung(s) could not be measured (%s), so no honest fraction exists"
+               % (len(unknown), total, ", ".join(sorted(unknown))))
+    elif seen == total:
+        state = "OBSERVED"
+        why = ("every one of the %d rung(s) can be established for the reels on the shelf — %d by "
+               "a dated store, %d by a live decider. This says NOTHING about whether the passage "
+               "was DATED; read `passage` for that." % (total, seen - _derived_seen(cover),
+                                                        _derived_seen(cover)))
+    else:
+        state = "PARTIAL"
+        why = ("%d of %d rung(s) can be established; %s answer for nobody"
+               % (seen, total, ", ".join(sorted(dark))))
+    return {"state": state, "seen": seen, "rungCount": total,
+            "unknown": sorted(unknown), "dark": sorted(dark), "why": why}
+
+
+def _derived_seen(cover):
+    return sum(1 for v in cover.values()
+               if not v.get("store") and v.get("derivedBy") and (v.get("decided") or 0) > 0)
+
+
 def funnel():
     """-> {"ok", "ladder", "passage", "rungs", "occupancy", "why"}
 
@@ -163,6 +279,12 @@ def funnel():
                 "rungs": list(rungs), "collisions": [], "unknownStage": 0, "occupancy": {},
                 "waypoints": {}, "walked": 0, "datedRungs": [], "rungCount": len(rungs),
                 "unreadableRungs": [], "emptyStoreRungs": [], "namelessRows": 0,
+                # REG-546's law applies to every key this function can return, including the ones
+                # added after it was written: a caller reading `observability` must not break on
+                # exactly the paths that mean NOTHING WAS ESTABLISHED.
+                "observability": {"state": "UNKNOWN", "seen": 0, "rungCount": len(rungs),
+                                  "unknown": [], "dark": [],
+                                  "why": "nothing was established, so nothing is observable"},
                 "why": w}
 
     rungs, lwhy = _ladder()
@@ -235,6 +357,13 @@ def funnel():
         "occupancy": occupancy, "waypoints": cover, "walked": len(rows),
         "datedRungs": sorted(dated), "rungCount": len(rungs), "unreadableRungs": unreadable,
         "emptyStoreRungs": empty_stores, "namelessRows": nameless,
+        # ⚠⚠ A SECOND, INDEPENDENT READING — deliberately NOT folded into `passage`.
+        # `passage` answers "is a reel's HISTORY through the rungs recorded?" and the answer is
+        # still PARTIAL: two rungs keep a dated row and four do not. `observability` answers a
+        # different question — "can every rung's state be established for every reel, right now?"
+        # Merging them would turn a real gap into a green number, which is precisely the move
+        # [[t155]] warned against when the evidence pointed the other way. Publish both.
+        "observability": _observability(cover),
         # ⚠⚠ REG-558 — THE PREFIX BOUND INSIDE THE TERNARY'S TRUE BRANCH. `+` binds tighter than
         # the conditional expression, so `prefix + A if c else B` parses as `(prefix + A) if c else
         # B` — and the unreadable-stores warning reached ONLY the ONE_LADDER text. Measured: with

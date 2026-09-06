@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2724",
+  "ver": "v2725",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2724: an absent deep row meant either never dispatched or dispatched and thrown away and nothing could tell them apart; the owing is stamped before the network call now",
+  "note": "v2725: one_funnel called four rungs traceless while reel_retention.plan decided every one of them; observability published beside passage, never merged into it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

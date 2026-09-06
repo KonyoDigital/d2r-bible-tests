@@ -12829,6 +12829,40 @@ def _theatre_row_fingerprint(sess, hist_dir):
 _BOARD_SHORT_FLOOR = 600000
 
 
+#: The files his console actually serves or execs. If none of these has been written recently,
+#: the tree was SETTLED and a blank panel cannot be blamed on a save landing mid-request.
+#: [[execs-the-working-tree]] — every save to these is a deploy.
+_SERVED_SOURCES = ("control_ui.html", "control_app.py", "bible.html")
+
+
+def _tree_settled_ms():
+    """Milliseconds since the newest write to anything the console serves. -> (ms, why)
+
+    ⚠ NO SUBPROCESS, EVER. This runs inside a fault path, when the console is already unhealthy;
+    a `git` call there can block on an index lock and turn "record a fault" into "hang the
+    request". Three stats answer the question and cannot wait on anything.
+
+    ⚠ None IS NOT ZERO. If not one source could be stat-ed, nobody knows how old the tree is, and
+    a fault row claiming `0` would read as "written this instant" — the strongest possible claim,
+    manufactured from a failure. [[unknown-stays-unknown]]
+    """
+    newest, seen = None, 0
+    for name in _SERVED_SOURCES:
+        for base in (HERE, os.path.dirname(HERE)):
+            try:
+                m = os.stat(os.path.join(base, name)).st_mtime
+            except Exception:
+                continue
+            seen += 1
+            if newest is None or m > newest:
+                newest = m
+            break
+    if newest is None:
+        return None, ("none of %d served source(s) could be stat-ed, so the age of the tree is "
+                      "unknown — not zero" % len(_SERVED_SOURCES))
+    return int(max(0, time.time() - newest) * 1000), "%d source(s) stat-ed" % seen
+
+
 def ui_fault_record(kind, why=None, where=None, path=None, before=None):
     """Append one fault the UI reported about ITSELF. Append-only, capped, never raises.
 
@@ -12843,6 +12877,20 @@ def ui_fault_record(kind, why=None, where=None, path=None, before=None):
     p = path or _ui_faults_path()
     row = {"at": int(time.time() * 1000), "kind": str(kind or "")[:40],
            "why": str(why or "")[:200], "where": str(where or "")[:120]}
+    # ⚠⚠ WAS THE TREE SETTLED? [[staleRender]] Item B has been unanswerable for days for exactly
+    # one reason: the evidence is destroyed at the moment the fault happens. A sighting near a
+    # commit proves nothing here — this repo ships every 15-50 minutes during a session, so
+    # "near a commit" is the normal state. Stamping the age of the served sources makes the NEXT
+    # sighting decide it, instead of another argument from timing.
+    # `None` stays None: an unstampable tree is unknown, never "written this instant".
+    try:
+        _age, _agewhy = _tree_settled_ms()
+        row["treeAgeMs"] = _age
+        if _age is None:
+            row["treeAgeWhy"] = _agewhy
+    except Exception:
+        row["treeAgeMs"] = None
+        row["treeAgeWhy"] = "the tree-age probe itself failed"
     if isinstance(before, dict):
         row["before"] = before
     try:
@@ -23274,7 +23322,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2724",
+        "ver": "v2725",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -520,6 +520,23 @@ GATES = [
              "reported to the channel the Doctor already reads, and it still SERVES rather than "
              "refusing — a transient torn read must not become an outage."),
 
+    Gate("test_derived_rungs_are_not_traceless",
+         [sys.executable, os.path.join(HERE, "test_derived_rungs_are_not_traceless.py")], 120,
+         why="v2725 — one_funnel told four of its six rungs they left NO TRACE, while "
+             "reel_retention.plan() decided every one of them for all 40 reels. Uncached was "
+             "being reported as unknown, in a module whose own comments cite "
+             "[[unknown-stays-unknown]] five times. The load-bearing law here is the one that "
+             "keeps the discovery OUT of `passage`: four rungs turning out to be observable must "
+             "not raise the number that measures whether their HISTORY is dated, or a strict "
+             "verdict quietly becomes a lenient one with nobody told."),
+
+    Gate("test_rung_accounting_wilson",
+         [sys.executable, os.path.join(HERE, "test_rung_accounting_wilson.py")], 120,
+         why="the harness banking evidence for `reel.route` must attack THAT lock and no other, "
+             "and must refuse to bank a run it failed. It also pins that the attacks are ten "
+             "distinct ideas rather than one cover map ten ways — repetition counted as breadth "
+             "is exactly what wilsonByAttack exists to refuse."),
+
     Gate("test_frame_release_wilson",
          [sys.executable, os.path.join(HERE, "test_frame_release_wilson.py")], 120,
          why="the harness that proves the DELETION GATE must itself be unable to delete — asserted "

@@ -386,6 +386,10 @@ PROVES = {
     #: into the read-fate or an unmeasured reel could be dressed as a measured one. It reads no
     #: footage, arms no sweep and deletes nothing.
     "reel_router_wilson": ("reel.route",),
+    # v2725 — the OTHER half of "where is this reel". reel_router_wilson attacks the routing
+    # decision; this attacks whether the accounting can admit it cannot establish a rung at all.
+    # Both bear on reel.route and neither bears on anything else.
+    "rung_accounting_wilson": ("reel.route",),
     #: A2·HARD — attacks on the vault WRITE door designed by a DIFFERENT model family, which is
     #: the third evidence KIND `vault.apply` needed and the only one available without spending
     #: his money. Two of the three found a real hole (an uncorroborated row under `unsure` reached

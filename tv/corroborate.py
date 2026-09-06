@@ -1168,6 +1168,57 @@ def _inv_only_a_declared_owner_world_posts_owner_numbers():
             "<=")
 
 
+def _inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR():
+    """v2725 — THE RUNG VOCABULARY HAS TWO OWNERS, AND ONLY ONE OF THEM KNOWS IT.
+
+    `reel_story.STAGES` is the ladder a reel climbs. `one_funnel` reports, per rung, how a reel's
+    passage is observed — from a CACHE (`WAYPOINT_SOURCES`) or from a LIVE DECIDER
+    (`DERIVED_SOURCES`, added v2725). Nothing made the second list follow the first.
+
+    THE FAILURE THIS CATCHES, and it is not hypothetical: reel_story's own module docstring
+    already names a SEVENTH stage that STAGES does not yet carry —
+
+        PRUNED   gone, tombstoned   reel_retention._tombstone
+
+    The day that lands in STAGES, one_funnel gains a rung it has never been taught about. It would
+    not crash and it would not go red. `_store_of` would answer "no store records this rung",
+    `DERIVED_SOURCES` would have no entry, and the new rung would report as TRACELESS — the exact
+    false sentence v2725 was written to delete, reappearing on a different rung. The passage
+    fraction would also silently change denominator, from `of 6` to `of 7`, with no edit to the
+    text that prints it. [[label-outlived-referent]]
+
+    THE TWO SIDES ARE INDEPENDENT, which is the whole point:
+      LEFT   reel_story.STAGES               — the shelf's vocabulary, owned by reel_story
+      RIGHT  the rungs one_funnel can account for — owned by one_funnel, and derived from two
+             different maps neither of which reel_story imports
+
+    ⚠ THE RELATION IS `<=`, NOT `==`, ON PURPOSE. one_funnel is allowed to know about a rung the
+    shelf has retired; that is harmless and self-correcting. The dangerous direction is a stage the
+    shelf declares and the funnel cannot see, which is the only one an inequality here forbids.
+    ⚠ EITHER SIDE UNIMPORTABLE IS UNKNOWN, NEVER ZERO. `0 <= 0` would hold forever on any machine
+    where these modules will not load, which is precisely how
+    _inv_a_world_reporting_nothing_holds_nothing passed vacuously for months.
+    """
+    def left():
+        import reel_story as RS
+        st = tuple(getattr(RS, "STAGES", ()) or ())
+        return len(st) if st else None
+
+    def right():
+        import one_funnel as OF
+        known = set(getattr(OF, "WAYPOINT_SOURCES", {}) or {}) | set(
+            getattr(OF, "DERIVED_SOURCES", {}) or {})
+        return len(known) if known else None
+
+    return ("every-rung-is-accounted-for",
+            "every stage the reel shelf declares is a rung one_funnel can observe, by cache or by "
+            "live decider",
+            "add a stage to reel_story.STAGES and teach one_funnel nothing: the new rung reports "
+            "as traceless and the passage denominator moves with no edit to the text printing it",
+            "reel_story.STAGES", left,
+            "rungs one_funnel accounts for", right, "<=")
+
+
 def _inv_a_world_reporting_nothing_holds_nothing():
     """v2696 — WOULD HAVE CAUGHT DEAN'S BOARD, WHICH THE PREVIOUS INVARIANT COULD NOT.
 
@@ -1252,7 +1303,8 @@ def _inv_a_world_reporting_nothing_holds_nothing():
             "<=")
 
 
-BUILDERS = (_inv_a_world_reporting_nothing_holds_nothing,
+BUILDERS = (_inv_every_rung_the_shelf_declares_is_one_the_funnel_can_ACCOUNT_FOR,
+            _inv_a_world_reporting_nothing_holds_nothing,
             _inv_only_a_declared_owner_world_posts_owner_numbers,
             _inv_every_door_counts_the_reels_it_opened,
             _inv_the_tooltip_finder_refuses_more_than_it_finds,
@@ -1290,6 +1342,7 @@ COVERED_BY = {
     "ledger entries":    ("owned-is-contained",),
     "hunt economy":      ("hunt-remembers",),
     "engines corroborate": ("eagle-ran-every-check",),
+    "reel rungs":        ("every-rung-is-accounted-for",),
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
