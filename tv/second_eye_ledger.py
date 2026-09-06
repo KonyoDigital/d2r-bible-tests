@@ -25,6 +25,33 @@ WHAT MAKES THIS DIFFERENT FROM A CHECKBOX — every one of these is a scar this 
 
 The record itself is a runtime record of DECISIONS, like .console_scars.json and
 reel_tombstones.json, so it lives untracked beside them rather than in git.
+
+=== HOW TO ASK, AND IT COST ME THREE LOOKS TO LEARN — 2026-09-06 ===
+⚠⚠ A PRECISE QUESTION ABOUT THE WRONG PROPERTY IS STILL THE WRONG MEASUREMENT.
+[[heartov2]] is two text overlaps on the heart's lock fan, 62x5 and 25x10 px, measured by
+overlap_ratchet and confirmed present at that width. I asked the second eye, three separate times,
+the direct question: "is any label drawn ON TOP OF another label or number?" — once even naming
+the radial diagram and once on a 3x magnified crop. Three times it answered "cleanly separated",
+and three times that was an HONEST answer: it cannot adjudicate whether two named glyphs intersect
+at five pixels. I read that as "nothing is wrong there" and recorded, twice, that the second eye
+was simply the wrong instrument for this defect.
+
+Then I asked an OPEN question — "one thing a careful owner would fix before showing this to
+someone else" — and it named the fan unprompted:
+    "dense overlapping lines + labels around the heart (esp. lower-right cluster near
+     'vault.target', 'prune.arm', 'mini auto.run') make the diagram unreadable"
+It also named `mini auto.run` independently, which is the exact label render_check reports CLIPPED
+at 375. Two instruments, different mechanisms, same label.
+
+SO EVERY LOOK SHOULD CARRY BOTH SHAPES:
+  · CLOSED questions ("is X truncated", "do these two numbers contradict") — they pin specific
+    regressions and their answers are checkable.
+  · AT LEAST ONE OPEN question ("what would an owner fix first", "what is hard to read here") —
+    this is where a defect nobody thought to ask about arrives.
+A look made only of closed questions can only confirm or deny what the asker already suspected,
+which is the smaller half of what a different family of eyes is for.
+⚠ AND "UNKNOWN is preferred over a guess" belongs in the ask, every time. It is what makes
+"no numeric pairs to compare at all" available as an answer instead of a false "they agree".
 """
 
 import io
