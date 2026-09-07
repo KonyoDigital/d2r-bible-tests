@@ -19113,24 +19113,42 @@ def _retro_triage_loop():
             # ⚠ IT RIDES THE TRIAGE TICK, NEVER THE RETENTION PASS — the same rule as the walk
             # below. This lane closes a reel out; it does not delete one, and TOMBSTONE stays with
             # the deleter behind the arming lock.
+            # ⚠⚠ A PER-TICK CEILING, because this is an UNATTENDED WRITER. Raised by the second
+            # eye: "an actor that mutates state should not be driven by a blind timer; one
+            # incorrect selection rule can stamp an unbounded number of reels." The lane is
+            # narrow by construction — it routes only EMPTY, refuses CAPTURE, and writes ROUTED
+            # and never TOMBSTONE — and a wrong stamp IS recoverable, because a later actor row
+            # supersedes it. But "recoverable" is not "bounded". A cap turns a bad rule into a
+            # slow, visible drip instead of a single sweep across the whole shelf, and the
+            # remainder is simply taken on the next tick.
+            _ROUTE_LANE_MAX_PER_TICK = 8
+            _rl_runs = int(_ROUTE_LANE.get("runs") or 0) + 1
             try:
                 import reel_route_lane as _rrl
-                _rl = _rrl.apply(by="loop:tvd-retro-triage")
-                _ROUTE_LANE["at"] = time.time()
-                _ROUTE_LANE["runs"] = int(_ROUTE_LANE.get("runs") or 0) + 1
-                _ROUTE_LANE["ok"] = bool(_rl.get("ok"))
-                _ROUTE_LANE["routed"] = _rl.get("routed")
-                _ROUTE_LANE["already"] = _rl.get("already")
-                _ROUTE_LANE["refused"] = _rl.get("refused")
-                # ⚠ THE DECLINED COUNT TRAVELS. 12 reels sit at CAPTURE owing a capture change no
-                # lane can supply; a driver reporting only what it moved would read as done on a
-                # shelf where they are permanently stuck. [[zero-needs-a-denominator]]
-                _ROUTE_LANE["declined"] = _rl.get("declined")
-                _ROUTE_LANE["why"] = _rl.get("why") or ""
+                _rl = _rrl.apply(by="loop:tvd-retro-triage", limit=_ROUTE_LANE_MAX_PER_TICK)
+                # ⚠ BUILT THEN SWAPPED IN ONE ASSIGNMENT, not mutated field by field. Raised by
+                # the second eye: the doctor reads this dict from another thread and could see it
+                # half-written — `runs` incremented while `ok` still held the previous tick's
+                # value. A rebind is atomic; eight separate writes are eight chances to be read
+                # mid-flight. [[zero-needs-a-denominator]]
+                _nxt = {"at": time.time(), "runs": _rl_runs, "ok": bool(_rl.get("ok")),
+                        "routed": _rl.get("routed"), "already": _rl.get("already"),
+                        "refused": _rl.get("refused"),
+                        # ⚠ THE DECLINED COUNT TRAVELS. 12 reels sit at CAPTURE owing a capture
+                        # change no lane can supply; a driver reporting only what it MOVED would
+                        # read as done on a shelf where they are permanently stuck.
+                        "declined": _rl.get("declined"),
+                        "cap": _ROUTE_LANE_MAX_PER_TICK,
+                        "why": _rl.get("why") or ""}
             except Exception as _rle:
-                _ROUTE_LANE["at"] = time.time()
-                _ROUTE_LANE["ok"] = False
-                _ROUTE_LANE["why"] = "the route lane raised %s" % type(_rle).__name__
+                # ⚠⚠ `runs` IS INCREMENTED HERE TOO, AND THAT WAS A REAL BUG. Found by the second
+                # eye: the first cut set at/ok/why on failure and left `runs` at 0 — so the doctor
+                # row, which branches on `runs == 0`, reported "the route lane HAS NEVER RUN" for
+                # a lane that had run every tick and failed every time. A dead loop and a failing
+                # one are different findings and must not share a sentence.
+                _nxt = dict(_ROUTE_LANE, at=time.time(), runs=_rl_runs, ok=False,
+                            why="the route lane raised %s" % type(_rle).__name__)
+            globals()["_ROUTE_LANE"] = _nxt
             try:
                 import river_stamp as _rvs
                 _rv = _rvs.run(by="loop:tvd-retro-triage")

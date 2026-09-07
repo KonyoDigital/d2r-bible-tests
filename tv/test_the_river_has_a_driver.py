@@ -118,9 +118,15 @@ class TheRiverHasADriver(unittest.TestCase):
         only what it MOVED reads as done on a shelf where they are permanently stuck."""
         import control_app as CA
         self.assertIn("declined", getattr(CA, "_ROUTE_LANE", {}))
-        self.assertIn('_ROUTE_LANE["declined"]', APP,
-                      "the loop drops the declined count, so the honest other half never reaches "
-                      "the console")
+        # ⚠ MATCH THE FIELD, NOT ONE SPELLING OF THE ASSIGNMENT. This pinned
+        # `_ROUTE_LANE["declined"]` and went red when the record moved to an atomic dict-literal
+        # swap that carries the same field. PIN THE LAW, NOT THE LITERAL. [[regression-guard]]
+        body = _loop_body()
+        i = body.find("_rrl.apply(")
+        j = body.find("_rvs.run(", i)
+        self.assertIn('"declined"', body[i:j],
+                      "the loop drops the declined count, so the honest other half — the reels "
+                      "that owe a step no lane can supply — never reaches the console")
 
     # ── ⚠ IT MUST NOT BREAK THE LOOP, AND MUST NOT WRITE ON A QUIET RIVER ───────────────────
     def test_a_RAISING_lane_does_not_take_the_loop_down(self):
@@ -136,8 +142,59 @@ class TheRiverHasADriver(unittest.TestCase):
         self.assertIn("except Exception", seg,
                       "the driver is unguarded, so one bad tick kills the triage loop that also "
                       "carries the survey and the river walk")
-        self.assertIn('_ROUTE_LANE["ok"] = False', APP,
+        self.assertIn("ok=False", seg,
                       "a failed driver tick leaves the record looking like a successful one")
+
+    def test_a_FAILING_tick_still_counts_as_a_RUN(self):
+        """★★ FOUND BY THE SECOND EYE on v2770, and it was a real bug. The first cut set at/ok/why
+        on failure and left `runs` at 0 — so the doctor row, which branches on `runs == 0`,
+        reported "the route lane HAS NEVER RUN" for a lane that ran every tick and failed every
+        time. A DEAD LOOP and a FAILING LOOP are different findings and must not share a sentence:
+        one means the wiring broke, the other means the lane is broken. [[zero-needs-a-denominator]]
+        """
+        body = _loop_body()
+        i = body.find("_rrl.apply(")
+        j = body.find("_rvs.run(", i)
+        seg = body[i:j]
+        k = seg.find("except Exception")
+        self.assertGreater(k, 0, "the driver has no failure path")
+        self.assertIn("runs=", seg[k:],
+                      "the failure path does not record that a run HAPPENED, so a lane failing on "
+                      "every tick is reported as one that has never run")
+
+    def test_the_record_is_swapped_ATOMICALLY_not_mutated_field_by_field(self):
+        """★ RAISED BY THE SECOND EYE: the doctor reads this dict from another thread and could see
+        it half-written — `runs` incremented while `ok` still held the previous tick's value. A
+        rebind is atomic; eight separate writes are eight chances to be read mid-flight."""
+        body = _loop_body()
+        i = body.find("_rrl.apply(")
+        j = body.find("_rvs.run(", i)
+        seg = body[i:j]
+        self.assertIn('globals()["_ROUTE_LANE"] = _nxt', seg,
+                      "the driver record is not swapped in one assignment")
+        self.assertNotIn('_ROUTE_LANE["routed"] =', seg,
+                         "the record is still being mutated field by field, so a reader can catch "
+                         "it half-updated")
+
+    def test_the_unattended_writer_has_a_PER_TICK_CEILING(self):
+        """★ RAISED BY THE SECOND EYE: "an actor that mutates state should not be driven by a blind
+        timer; one incorrect selection rule can stamp an unbounded number of reels." The lane is
+        narrow by construction and a wrong stamp IS recoverable — a later actor row supersedes it —
+        but recoverable is not bounded. A cap turns a bad rule into a slow visible drip instead of
+        one sweep across the whole shelf; the remainder is taken on the next tick."""
+        body = _loop_body()
+        i = body.find("_rrl.apply(")
+        j = body.find("_rvs.run(", i)
+        seg = body[i:j]
+        self.assertIn("limit=", seg,
+                      "the timer-driven lane runs with NO ceiling, so a wrong selection rule "
+                      "stamps the entire shelf in a single unattended tick")
+        import re as _re
+        m = _re.search(r"_ROUTE_LANE_MAX_PER_TICK\s*=\s*(\d+)", body)
+        self.assertIsNotNone(m, "the ceiling is not a named constant")
+        self.assertLessEqual(int(m.group(1)), 25,
+                             "the per-tick ceiling is %s — high enough that a bad rule sweeps the "
+                             "shelf before anyone looks" % m.group(1))
 
     def test_a_quiet_river_costs_ZERO_rows(self):
         """★ The driver runs on a short tick. If a no-op tick wrote anything, an append-only
