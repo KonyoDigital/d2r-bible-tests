@@ -213,10 +213,22 @@ class TheMissingWallShowsTheQlvl(unittest.TestCase):
                            "the uniques wall's badge no longer carries the qlvl — if that moved, "
                            "the chip may now be the right home and this law must be re-pointed "
                            "deliberately rather than left green")
-        self.assertIn("q:_qlvlOf(pp.name)", BIBLE,
-                      "the SETS missing wall does not carry the level. There the badge is the "
-                      "SLOT, so a level is additive — it draws nothing today and lights up the "
-                      "day per-piece data is sourced")
+        # ⚠⚠ v2771 — HIS CLARIFICATION, with a screenshot: "for the sets it says in white the type
+        # base item it is — it needs to be switched to the q level INSTEAD of the base item in
+        # white". So the level goes IN the badge, REPLACING the slot, not beside it. v2765 had it
+        # as a separate chip, which would have put two white tokens on one row.
+        self.assertIn("badge:(_sq?('q'+_sq):_sl)", BIBLE,
+                      "the SETS wall's white badge no longer carries the q-level. He asked for the "
+                      "level IN that slot, replacing the base type — not added next to it")
+        self.assertNotIn("q:_qlvlOf(pp.name)", BIBLE,
+                         "the sets wall carries a SECOND q token beside the badge, so a row with a "
+                         "known level would print it twice — the defect the uniques wall already "
+                         "had")
+        # ⚠ AND IT FALLS BACK, which is why the wall is not blank today. 134 of 148 set entries
+        # have no level, so `_sq` is null and the slot still shows. Dropping to an empty badge
+        # would trade a true fact for a blank while waiting on data (task #20).
+        self.assertIn("_sq?", BIBLE, "the badge no longer falls back to the base type, so 134 set "
+                                     "rows would render an empty white space")
 
     def test_the_renderer_emits_nothing_when_there_is_no_level(self):
         """`e.q ? ... : ''` — a truthiness guard, so both null AND a 0 that ever slipped through
