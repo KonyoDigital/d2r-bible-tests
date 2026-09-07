@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2755** | `(this commit)` | v2755 — A fifth provenance, UNSYNCED, for a board that declared its own ledger and whose store is empty. His catch off his own fleet card: SYNCED sat directly above 0 of 403 found, and both cannot be true. |
 | **v2754** | `(this commit)` | v2754 — KEEP 3 to 2 and THROWOUT 4 to 2 on his ruling, unified with the chronicle lane. Confidence floors untouched, so the throw lane is still the stricter of the two. Verified in code first: the throw lane has no apply path and the prune is disarmed. |
 | **v2753** | `(this commit)` | v2753 — rAF does not fire in a window WebKit thinks is hidden, so the cure for a stale composite was switched off by the disease. Plus the stage witness, which holds the DOM claim and the pixel reading side by side and reports the disagreement. |
 | **v2752** | `(this commit)` | v2752 — his black console read as painted because two rows of title bar border cleared the ink bar |

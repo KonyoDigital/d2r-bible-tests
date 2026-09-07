@@ -585,6 +585,21 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_an_empty_ledger_is_not_synced",
+         [sys.executable, os.path.join(HERE, "test_an_empty_ledger_is_not_synced.py")], 120,
+         why="HIS CATCH: 'SYNCED' SAT DIRECTLY ABOVE '0 / 403 found' ON DEAN'S FLEET CARD. "
+             "SYNCED is defined as 'this ledger's rows were earned on this board' and there were "
+             "no rows — the label outlived its referent. His sets (130) and runewords (96) were "
+             "non-zero, which is why four provenance answers looked sufficient for so long. Added "
+             "a FIFTH, UNSYNCED, at BOTH sites that stamp SYNCED (fixing one and leaving the "
+             "other is this repo's most repeated defect). ⚠ IT IS NOT UNKNOWN: this module's own "
+             "doctrine is '0 IS MEASURED-AND-ZERO, None IS NOBODY LOOKED', and somebody DID look "
+             "at Dean's store and found nothing — collapsing that into UNKNOWN throws a real "
+             "measurement away. The law pins both directions (a populated declared ledger still "
+             "reads SYNCED), pins that an UNREAD store stays UNKNOWN, pins that the card has a CSS "
+             "rule so the new value does not render unstyled, and pins that the constants block "
+             "stopped claiming 'there is no fifth'. 5 sabotages RED."),
+
     Gate("test_the_stage_agrees_with_the_dom",
          [sys.executable, os.path.join(HERE, "test_the_stage_agrees_with_the_dom.py")], 180,
          why="3,090 CARDS BUILT, THE CONSOLE CALLING ITSELF PAINTED, AND HE WAS LOOKING AT BLACK. "

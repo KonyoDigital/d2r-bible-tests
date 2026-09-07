@@ -234,15 +234,30 @@ class ClassificationRefusesToGuess(unittest.TestCase):
 
     def test_a_store_that_is_present_and_EMPTY_is_zero_not_unknown(self):
         """The other half of the same law, and without it the first one is just a blanket refusal.
-        An empty store is MEASURED at 0. [[unknown-stays-unknown]]"""
+        An empty store is MEASURED at 0. [[unknown-stays-unknown]]
+
+        ⚠ THE EXPECTED VALUE CHANGED ON 2026-09-07 AND THE LAW'S PURPOSE DID NOT. This asserted
+        SYNCED. Konyo caught the consequence on his own fleet card — Dean's row read "UNIQUES
+        SYNCED" directly above "UNIQUES 0 / 403 found": *"maybe after he reset it it should read
+        UNSYCNED until he resyncs it again..?"* SYNCED means "this ledger's rows were earned on
+        this board" (ledger_authority.py:98) and an empty ledger has earned nothing, so the label
+        outlived its referent. A fifth provenance was added for exactly this row.
+
+        ⚠⚠ WHAT THIS TEST IS FOR IS UNCHANGED, AND IT IS THE POINT: an empty-but-present store is
+        MEASURED AT ZERO, never UNKNOWN. UNSYNCED is a measured answer — it says the store was read
+        and holds nothing. Swapping the constant keeps the law; swapping it to UNKNOWN would have
+        destroyed it. [[label-outlived-referent]]"""
         r = LA.classify_local(own=_board(stores={"d2r_foundLog": {}, "d2r_setPieces": [],
                                                  "d2r_rwMade": {}}))
         for x in r["ledgers"]:
             self.assertEqual(0, x["rows"], x["ledger"])
             self.assertEqual(0, x["seedRows"])
             self.assertTrue(x["measured"])
-            self.assertEqual(LA.SYNCED, x["provenance"],
-                             "an empty ledger has no inherited rows, so it is not SEEDED")
+            self.assertEqual(LA.UNSYNCED, x["provenance"],
+                             "an empty ledger has no inherited rows so it is not SEEDED, and no "
+                             "earned rows either so it is not SYNCED")
+            self.assertNotEqual(LA.UNKNOWN, x["provenance"],
+                                "an empty store that WAS read must never read as nobody-looked")
 
     def test_a_seed_row_is_recognised_by_the_seed_s_OWN_DATE(self):
         """The boot floor writes `_gfl[n] = _GRAIL_SEED[n]` and ONLY when the key is absent

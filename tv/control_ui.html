@@ -4041,6 +4041,12 @@
   .ftt-seed-rows .ftts-why { color: var(--text-dim, var(--gold-dim)); opacity: .9; }
   /* UNKNOWN must not read like a clean result — it is the absence of an answer, not an answer */
   .ftt-seed-rows .ftts-unknown .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
+  /* 2026-09-07 — UNSYNCED is a fifth provenance, added because "SYNCED" sat above
+     "0 / 403 found" on Dean's card and those cannot both be true. It is a MEASURED empty
+     store, not an unread one, so it is toned like UNKNOWN rather than like an error: the
+     board is fine, it simply holds nothing yet. Without this rule the class falls through
+     to the default and the one row that most needs to stand out reads like the rest. */
+  .ftt-seed-rows .ftts-unsynced .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
   .shg-lab { font: var(--fw-bold) var(--fs-md)/1 var(--serif); letter-spacing: var(--ls-wide); color: #e8cf96; }
   .shg-n { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); text-transform: uppercase; color: #8a7e68; }
   /* v1286 (D12) — history activity sparkline: runs-per-day bars, gold on grail days, today highlighted */

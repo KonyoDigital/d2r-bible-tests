@@ -93,13 +93,28 @@ ROOT = os.path.dirname(HERE)
 BIBLE = os.path.join(ROOT, "bible.html")
 MANUAL_PATH = os.path.join(HERE, "ledger_manual.json")
 
-#: the four provenance answers. There is no fifth, and none of them is a count.
+#: the FIVE provenance answers, and none of them is a count.
+#: ⚠ THIS SAID "four ... there is no fifth" UNTIL 2026-09-07. A fifth was added because the four
+#: could not tell the truth about an empty store — see UNSYNCED. Changing the sentence rather than
+#: leaving it to rot is the point: a comment that outlived its referent is this repo's most
+#: repeated defect. [[label-outlived-referent]]
 SEEDED = "SEEDED"      #: rows in this ledger come from the owner's hardcoded seed
 SYNCED = "SYNCED"      #: this ledger's rows were earned on this board
 MANUAL = "MANUAL"      #: a person declared it accepted — witness-free, ruling #166
 UNKNOWN = "UNKNOWN"    #: nobody could look. NOT a pass, NOT a zero.
+#: ⚠⚠ HIS CATCH, 2026-09-07, off his own fleet card: Dean's row read "UNIQUES **SYNCED** — that
+#: board declared a ledger of its own, so the owner's seed never landed" directly above
+#: "UNIQUES 0 / 403 found". *"maybe after he reset it it should read UNSYCNED until he resyncs it
+#: again..?"* He is right, and the contradiction is exact: SYNCED means "this ledger's rows were
+#: earned on this board", and with zero rows there is nothing that can have been earned. The label
+#: outlived its referent. His SETS (130) and RUNEWORDS (96) rows are non-zero, so only the empty
+#: ledger was incoherent — which is why the four answers looked sufficient for so long.
+#: ⚠ IT IS NOT `UNKNOWN`. This module's own doctrine: "0 IS MEASURED-AND-ZERO, None IS NOBODY
+#: LOOKED. A store that could not be read is None everywhere, never 0." Somebody DID look and
+#: found nothing, so collapsing this into UNKNOWN would throw away a measurement.
+UNSYNCED = "UNSYNCED"  #: it declared its own ledger and that ledger is EMPTY — nothing synced yet
 
-PROVENANCE = (SEEDED, SYNCED, MANUAL, UNKNOWN)
+PROVENANCE = (SEEDED, SYNCED, MANUAL, UNKNOWN, UNSYNCED)
 
 
 #: ── THE LEDGER TABLE ────────────────────────────────────────────────────────────────────────
@@ -729,7 +744,13 @@ def classify_local(own=None, path=None, table=None):
                                    "why": "verdicts, not finds — never added to a tally"}
 
         # ── THE VERDICT, and the counts above are already final before this runs ──────────
-        if row["seedRows"] == 0:
+        if row["seedRows"] == 0 and row.get("rows") == 0:
+            # ⚠ the old wording here read "all 0 row(s) were earned on this board", which is
+            # vacuously true and reads as an achievement. An empty ledger has earned nothing.
+            row["provenance"] = UNSYNCED
+            row["why"] = ("this ledger is EMPTY — no row carries a seed name and no row was "
+                          "earned here either, so nothing has been synced into it yet")
+        elif row["seedRows"] == 0:
             row["provenance"] = SYNCED
             row["why"] = ("no row in this ledger carries a seed name with the seed's own date — "
                           "all %s row(s) were earned on this board" % row["rows"])
@@ -810,6 +831,15 @@ def classify_row(tally, world=None, path=None, table=None):
                 row["why"] = ("of %s, the owner's seed supplies %s — about %s were earned on that "
                               "board. Derived from the counts, because no item name crosses the "
                               "fleet boundary." % (row["have"], seed_n, row["beyondSeed"]))
+        elif on_seed is False and row.get("have") == 0:
+            # ⚠⚠ HIS CATCH. "SYNCED" over "0 / 403 found" is a contradiction: SYNCED means the rows
+            # were earned HERE, and there are none. `have == 0` is trustworthy — this module never
+            # writes 0 for an unread store, only None. So this is measured-and-empty, and it gets
+            # its own answer rather than borrowing one that claims work happened.
+            row["provenance"] = UNSYNCED
+            row["why"] = ("that board declared a ledger of its own, so the owner's seed never "
+                          "landed — and its own store is EMPTY, so nothing has been synced into "
+                          "it yet")
         elif on_seed is False:
             row["provenance"] = SYNCED
             row["why"] = "that board declared a ledger of its own, so the owner's seed never landed"
