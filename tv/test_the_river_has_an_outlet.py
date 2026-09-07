@@ -60,6 +60,16 @@ import river_stamp as ST  # noqa: E402
 LSRC = io.open(os.path.join(HERE, "reel_route_lane.py"), encoding="utf-8").read()
 
 
+#: ⚠ WHY A SKIP AND NOT A FAILURE — and it is NOT a pass either. Found by the post-ship review:
+#: these laws walk the LIVE shelf, `tv/hist` is not in the repo, and CI sets no TV_HIST. So they
+#: were GREEN ON HIS MAC (40 reels) and RED EVERYWHERE ELSE — the host-machine fixture this repo
+#: has a scar for. A shelf with no reels cannot establish anything about where reels sit; it must
+#: say so out loud rather than fail as if the code were broken.
+#: [[feedback-blind-fixture-green-gate]] [[test-venue]]
+_NO_SHELF = ("this shelf holds no reels, so nothing about reel STATIONS could be established here "
+             "— a skip is NOT a pass. Run against a shelf (TV_HIST) to exercise these laws.")
+
+
 def _row(reel, station, kind="actor", by="lane:route", seq=1):
     return {"at": 1788700000000 + seq, "seq": seq, "reel": reel, "station": station,
             "from": None, "by": by, "byKind": kind, "why": "fixture"}
@@ -98,7 +108,8 @@ class TheRiverHasAnOutlet(unittest.TestCase):
     def test_an_ACTOR_stamp_puts_a_reel_at_ROUTED(self):
         """★ The whole point. Before this, no input of any kind could make `route()` return ROUTED."""
         reel = _a_reel_at("EMPTY") or _a_reel_at("CAPTURE") or _a_reel_at("STATION")
-        self.assertIsNotNone(reel, "the shelf answered no reels at all, so nothing was established")
+        if reel is None:
+            self.skipTest(_NO_SHELF)
         with _Stubbed([_row(reel, "ROUTED")]):
             rep = RR.route()
         got = [r for r in rep["reels"] if r["reel"] == reel]
@@ -119,7 +130,8 @@ class TheRiverHasAnOutlet(unittest.TestCase):
         be stamped EMPTY, read as EMPTY, be stamped ROUTED... appending a row to an append-only
         store on every single walk."""
         reel = _a_reel_at("EMPTY") or _a_reel_at("STATION")
-        self.assertIsNotNone(reel)
+        if reel is None:
+            self.skipTest(_NO_SHELF)
         with _Stubbed([_row(reel, "ROUTED", kind="observer", by="walk")]):
             rep = RR.route()
         got = [r for r in rep["reels"] if r["reel"] == reel][0]
@@ -131,7 +143,8 @@ class TheRiverHasAnOutlet(unittest.TestCase):
     def test_the_LAST_actor_row_wins_so_a_reel_can_be_reopened(self):
         """A first-match read would pin a reel at ROUTED permanently, and no lane could undo it."""
         reel = _a_reel_at("EMPTY") or _a_reel_at("STATION")
-        self.assertIsNotNone(reel)
+        if reel is None:
+            self.skipTest(_NO_SHELF)
         with _Stubbed([_row(reel, "ROUTED", seq=1), _row(reel, "STATION", seq=2)]):
             rep = RR.route()
         got = [r for r in rep["reels"] if r["reel"] == reel][0]
@@ -172,6 +185,8 @@ class TheRiverHasAnOutlet(unittest.TestCase):
         with _Stubbed([]):
             p = LANE.plan()
         self.assertTrue(p["ok"], p["why"])
+        if not (p["route"] or p["declined"]):
+            self.skipTest(_NO_SHELF)
         self.assertFalse([x for x in p["route"] if x["from"] == "CAPTURE"],
                          "the lane is routing CAPTURE reels, which owe a capture change first")
         if _a_reel_at("CAPTURE"):
@@ -303,6 +318,8 @@ class TheRiverHasAnOutlet(unittest.TestCase):
         self.assertNotIn(".sort(", LSRC, "the lane re-sorts instead of inheriting the router's FIFO")
         with _Stubbed([]):
             p = LANE.plan()
+        if not p["route"]:
+            self.skipTest(_NO_SHELF)
         ms = [x["capturedMs"] for x in p["route"] if x["capturedMs"] is not None]
         self.assertEqual(sorted(ms), ms, "the routable queue is not oldest-first")
 

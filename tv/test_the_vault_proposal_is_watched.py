@@ -104,6 +104,7 @@ class TheVaultProposalIsWatched(unittest.TestCase):
     def test_it_calls_the_REAL_gate_not_a_second_copy(self):
         """★ A re-implementation of the bar would agree with itself for ever while the real gate
         moved underneath it. Proven by SUBSTITUTION, not by grepping for a name."""
+        self._needs_store()
         seen = {"n": 0}
         real = VR.gate
 
@@ -135,11 +136,22 @@ class TheVaultProposalIsWatched(unittest.TestCase):
                       "the row reads a verdict key gate() does not write — a missing key is falsy, "
                       "so every row would grade as failing and the console would cry wolf for ever")
 
+
+    def _needs_store(self):
+        """⚠ SKIP, NOT FAIL, AND NOT A PASS. `tv/vault_accum.json` is gitignored (.gitignore:142),
+        so on CI and on any fresh clone there is no stored proposal to re-grade. Found by the
+        post-ship review: these laws were green on the one machine holding his ledger and red
+        everywhere else. [[feedback-blind-fixture-green-gate]]"""
+        st, say = _row()()
+        if st == D.OK and ("no vault proposal is stored" in say or "holds no OWNED rows" in say):
+            self.skipTest("there is no stored vault proposal here, so nothing about its GRADING "
+                          "could be established — a skip is NOT a pass. %s" % say[:80])
     # ── ⚠⚠ THE DRIFT IT EXISTS FOR ──────────────────────────────────────────────────────────
     def test_it_goes_RED_when_the_bar_MOVES_UP(self):
         """★★ THE WHOLE POINT, and today it can only be shown by simulation because the bar happens
         to agree with the store right now. At bar 3, 6 of his 7 stored rows stop clearing — exactly
         the state the task recorded before the bar moved back to 2."""
+        self._needs_store()
         real = VR.KEEP_MIN_WITNESSES
         VR.KEEP_MIN_WITNESSES = 3
         try:
@@ -155,6 +167,7 @@ class TheVaultProposalIsWatched(unittest.TestCase):
                       "press a dead end")
 
     def test_it_reads_OK_when_they_AGREE(self):
+        self._needs_store()
         st, say = _row()()
         self.assertIn(st, (D.OK, D.MISSING, D.UNKNOWN))
         if st == D.OK:
@@ -164,6 +177,7 @@ class TheVaultProposalIsWatched(unittest.TestCase):
 
     # ── ⚠ UNKNOWN IS NOT OK ────────────────────────────────────────────────────────────────
     def test_an_unreadable_store_is_UNKNOWN_never_OK(self):
+        self._needs_store()
         import json as _json
         real = _json.load
 
@@ -179,6 +193,7 @@ class TheVaultProposalIsWatched(unittest.TestCase):
         self.assertIn("UNKNOWN", say)
 
     def test_a_RAISING_gate_is_UNKNOWN_never_OK(self):
+        self._needs_store()
         real = VR.gate
 
         def boom(*a, **k):
@@ -195,6 +210,7 @@ class TheVaultProposalIsWatched(unittest.TestCase):
     def test_an_EMPTY_proposal_says_so_rather_than_claiming_agreement(self):
         """[[zero-needs-a-denominator]] — 'nothing stored' and 'everything agrees' are different
         facts and must not share a sentence."""
+        self._needs_store()
         blk = _blk()
         self.assertIn("empty proposal, not a disagreement", blk,
                       "an empty proposal has no wording of its own, so it reads as a clean bill")

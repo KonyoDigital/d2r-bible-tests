@@ -244,7 +244,11 @@ def main(argv):
         elif a == "--apply":
             do = True
         elif a == "--limit" and i + 1 < len(argv):
-            lim = int(argv[i + 1])
+            try:
+                lim = int(argv[i + 1])
+            except ValueError:
+                print("--limit needs a number, got %r" % argv[i + 1])
+                return 2
         elif a == "--check":
             ok, f = assert_matches_owes()
             print("owes agreement: %s" % ("ok" if ok else "FAILED"))
@@ -259,7 +263,9 @@ def main(argv):
     if not by:
         print("--apply needs --by <name>")
         return 2
-    r = apply(by)
+    # ⚠ v2769 — `lim` WAS PARSED AND NEVER PASSED. Found by the post-ship review: a cautious
+    # `--apply --limit 1` first run against an append-only store stamped EVERY routable reel.
+    r = apply(by, limit=lim)
     print(json.dumps(r, indent=1)[:4000])
     return 0 if r["ok"] else 1
 

@@ -407,7 +407,37 @@ def run(by, rep=None, path=None):
                       "never an empty shelf. %s" % str((rep or {}).get("why") or "")[:200])
         return out
     moved = unchanged = refused = 0
+    # ⚠⚠ v2769 — AN OBSERVER MAY NOT CONTRADICT A STANDING ACTOR ROW. FOUND BY THE POST-SHIP
+    # REVIEW AND REPRODUCED IN HIS REAL STORE: all six routed reels held
+    #   ROUTED(actor) -> EMPTY(obs) -> ROUTED(obs) -> EMPTY(obs) -> ROUTED(obs)
+    # — 24 rows in five minutes, into a journal whose own header says it is append-only and never
+    # correctable. The immediate cause was a console still holding pre-v2764 code while
+    # out-of-process walks held the new overlay, and it stopped when the console relaunched.
+    # BUT NOTHING PREVENTED IT: `stamp()` de-dupes against the reel's LAST ROW OF ANY KIND, while
+    # the outlet overlay reads only the last ACTOR row. Two readers, two notions of "where is it",
+    # and every disagreement costs two rows per cycle for ever.
+    # A walk that disagrees with a lane which ACTED is using a different rule than the actor did;
+    # it has not measured a move, so it writes nothing and says so. [[unknown-stays-unknown]]
+    _actor_at = {}
+    for _row in (rows(path).get("rows") or []):
+        if _row.get("byKind") == "actor" and _row.get("reel"):
+            _actor_at[_row["reel"]] = _row.get("station")
     for r in (rep.get("reels") or []):
+        _standing = _actor_at.get(r.get("reel"))
+        if _standing and _standing != r.get("station"):
+            # ⚠ THE LOCAL COUNTER, not out["refused"] — line 448 publishes `refused` and
+            # would overwrite a dict-only increment, leaving "0 refused" beside a list of
+            # six refusals. A count that disagrees with its own evidence is the defect this
+            # file exists to prevent. [[zero-needs-a-denominator]]
+            refused += 1
+            out["refusals"].append({
+                "reel": r.get("reel"),
+                "why": ("a lane ACTED and stamped this reel %s; this walk derives %s. A walk "
+                        "records position, never cause, so it will not overwrite an actor's claim "
+                        "— that is how a river oscillates two rows at a time."
+                        % (_standing, r.get("station")))})
+            continue
+
         res = stamp(r.get("reel"), r.get("station"), out["by"], why=r.get("why"), path=path,
                     observed=True)
         if not res["ok"]:

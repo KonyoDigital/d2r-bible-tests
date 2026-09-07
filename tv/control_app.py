@@ -24042,7 +24042,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2768",
+        "ver": "v2769",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -26189,8 +26189,40 @@ class Handler(BaseHTTPRequestHandler):
                                    "history": _hops})
                 _rowmeta = {"n": _raw.get("n"), "outOfOrder": _raw.get("outOfOrder"),
                             "unparsed": _raw.get("unparsed")}
+                # ── v2769 — THE FOUR LANES HE ASKED TO SEE ──────────────────────────────
+                # Konyo: "INTAKE where the reels come and get stationed · PRINTER where they get
+                # filtered · CAPTURE where they get extracted.. and finally TOMBSTONE", FIFO.
+                # ⚠ river_lanes DECIDES NOTHING — it groups reel_router.route()'s answer, and
+                # refuses to draw at all if its map stops partitioning the router's stations.
+                # A tidy four-lane picture over a broken map is worse than none, because it
+                # looks complete while reels quietly leave the frame.
+                _lanes = None
+                try:
+                    import river_lanes as _RL
+                    _lr = _RL.lanes()
+                    if _lr.get("ok"):
+                        # ⚠ COUNTS AND THE LANE'S OWN SENTENCE ONLY — never the reel arrays. The
+                        # shelf already has the sessions; shipping 40 reel records again would
+                        # double the payload for a strip that draws four numbers.
+                        _lanes = {"ok": True,
+                                  "reconciles": _lr.get("reconciles"),
+                                  "shelf": _lr.get("shelf"),
+                                  "unknown": _lr.get("unknown"),
+                                  "lanes": [{"name": l["name"], "why": l["why"],
+                                             "stations": l["stations"], "count": l["count"],
+                                             "byStation": l["byStation"]}
+                                            for l in _lr.get("lanes") or []]}
+                    else:
+                        # ⚠ A REFUSAL TRAVELS AS A REFUSAL. ok:False with its reason, never an
+                        # empty list that a renderer would draw as four zeroes.
+                        _lanes = {"ok": False, "why": _lr.get("why") or "the lane view refused"}
+                except Exception as _le:
+                    _lanes = {"ok": False,
+                              "why": "river_lanes raised %s, so the lanes are UNKNOWN and "
+                                     "specifically not empty" % type(_le).__name__}
                 self._json(200, {
                     "ok": bool(_cen.get("ok")),
+                    "lanes": _lanes,
                     "stations": _names,
                     # ⚠ counts = where reels ARE now; visits = how many times a station was ever
                     # reached. They differ the moment anything moves, and collapsing them would

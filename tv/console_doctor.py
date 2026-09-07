@@ -1696,7 +1696,20 @@ def _check_the_vault_proposal_still_clears_todays_bar():
     import io as _io
     import json as _json
     import os as _os
-    p = _os.path.join(HERE, "vault_accum.json")
+    # ⚠⚠ THE PATH AUTHORITY, NOT A SECOND JOIN. Found by the post-ship review: this hardcoded
+    # os.path.join(HERE, ...) while control_app resolves the ledger through TV_VAULT_LEDGER /
+    # _fixture_root_for_state(). With either set, the row graded a file the register button would
+    # never write — and a gate run reached into his REAL 7-row ledger instead of the fixture.
+    # The comment above control_app's own definition says it outright: "Guard the PATH, not the
+    # call site." [[feedback-fixtures-never-touch-live-data]]
+    p = None
+    try:
+        import control_app as _ca
+        p = getattr(_ca, "VAULT_LEDGER_PATH", None)
+    except Exception:
+        p = None
+    if not p:
+        p = _os.environ.get("TV_VAULT_LEDGER") or _os.path.join(HERE, "vault_accum.json")
     if not _os.path.isfile(p):
         # ⚠ NO STORE IS NOT A CLEAN BILL AND NOT A FAULT. Nothing has been accumulated yet.
         return OK, ("no vault proposal is stored, so there is nothing whose grading could have "

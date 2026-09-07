@@ -608,6 +608,24 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_shelf_shows_the_four_lanes",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_shows_the_four_lanes.py")], 180,
+         why="THE RIVER MADE VISIBLE AS THE FOUR LANES HE NAMED — INTAKE, PRINTER, CAPTURE, "
+             "TOMBSTONE — over the nine stations that actually exist. river_lanes DECIDES NOTHING: "
+             "reel_router.route() decides and this groups its answer, because his instruction was "
+             "'the backend should be pinpoint perfect and nothing fabricated what so ever.. just "
+             "the visual rendering'. The lane map is a PARTITION of reel_router.STATIONS, proven "
+             "against the router's own tuple, and the view REFUSES TO DRAW if that stops holding "
+             "— four tidy lanes over a broken map is worse than none, because it looks complete "
+             "while reels quietly leave the frame. ⚠⚠ THE DEFECT THAT COST MOST WAS A NAME: the "
+             "strip was first called _shRiverLoad, which ALREADY EXISTED (the SHELF_RIVER "
+             "card-grouping feature). Two function declarations, one scope, later wins SILENTLY — "
+             "the whole feature was unreachable while the container rendered, the export was on "
+             "window, the fetch returned 200 with a good payload, and NOTHING THREW. A second bug "
+             "hid it for four rounds: the could-not-ask branch rendered the SAME words as the "
+             "loading placeholder. test_no_new_duplicate_function_name is the general guard that "
+             "would have caught it in one second.",
+         ),
     Gate("test_the_vault_proposal_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_vault_proposal_is_watched.py")], 180,
          why="THE VAULT ACCUMULATOR'S PROPOSAL WAS SUPERVISED BY NOTHING. console_doctor carried "

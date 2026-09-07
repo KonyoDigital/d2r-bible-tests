@@ -198,8 +198,25 @@ class TheMissingWallShowsTheQlvl(unittest.TestCase):
     def test_both_walls_pass_the_level_through(self):
         """⚠ Built and not called is this repo's most repeated defect. Two walls feed one renderer;
         a level added to one only would look shipped and be half absent. [[the-unjoined-end]]"""
-        self.assertIn("q:_qlvlOf(x.n)", BIBLE, "the UNIQUES missing wall does not carry the level")
-        self.assertIn("q:_qlvlOf(pp.name)", BIBLE, "the SETS missing wall does not carry the level")
+        # ⚠⚠ v2769 — CORRECTED, AND THE CORRECTION IS THE POINT. This first required the UNIQUES
+        # wall to carry `q:` too. The post-ship review found — and the live board CONFIRMED at 220
+        # of 220 rows — that it then printed the level TWICE: "Gull q4 q4". That wall's `badge` is
+        # ALREADY the qlvl (`badge:(x.qlvl>0?'q'+x.qlvl:'')`), so uniques never needed a chip and
+        # v2765 added a duplicate rather than a fix.
+        # The uniques that show nothing are the 96 whose qlvl is 0 in the data, and sets have none
+        # at all — BOTH are the data gap in task #20. The renderer was never this wall's problem.
+        self.assertNotIn("q:_qlvlOf(x.n)", BIBLE,
+                         "the UNIQUES wall carries a q chip again — its badge is already the "
+                         "qlvl, so every row with a real level prints it twice")
+        i = BIBLE.find("badge:(x.qlvl")
+        self.assertGreater(i, 0,
+                           "the uniques wall's badge no longer carries the qlvl — if that moved, "
+                           "the chip may now be the right home and this law must be re-pointed "
+                           "deliberately rather than left green")
+        self.assertIn("q:_qlvlOf(pp.name)", BIBLE,
+                      "the SETS missing wall does not carry the level. There the badge is the "
+                      "SLOT, so a level is additive — it draws nothing today and lights up the "
+                      "day per-piece data is sourced")
 
     def test_the_renderer_emits_nothing_when_there_is_no_level(self):
         """`e.q ? ... : ''` — a truthiness guard, so both null AND a 0 that ever slipped through

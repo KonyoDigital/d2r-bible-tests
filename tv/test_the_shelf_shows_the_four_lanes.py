@@ -1,0 +1,275 @@
+# -*- coding: utf-8 -*-
+"""THE RIVER, MADE VISIBLE AS THE FOUR LANES HE NAMED.
+
+Konyo: *"the visual rendering of it i want it replicating a simple · INTAKE where the reels come
+and get stationed · PRINTER where they get filtered · CAPTURE where they get extracted.. and
+finally TOMBSTONE... first in first out FIFO.. that way its optimzed."*
+
+And the constraint that shapes every line of this: *"now dont get me wrong. the backend should be
+pinpoint perfect and nothing fabricated what so ever.. just the visual rendering of the backend."*
+
+So `river_lanes` DECIDES NOTHING. `reel_router.route()` decides; this groups its answer.
+
+MEASURED on his shelf the day this shipped (40 reels, reconciles true):
+
+    INTAKE       7   INTAKE:0 + TRIAGE:0 + STATION:7 + EMPTY:0
+    PRINTER     11   PRINTER:11
+    CAPTURE     16   CAPTURE:12 + JOIN:4
+    TOMBSTONE    6   ROUTED:6  + TOMBSTONE:0
+    TOTAL       40   = shelf
+
+⚠ TOMBSTONE HOLDS 6 ONLY BECAUSE v2764 UNWELDED ROUTED FROM THE DELETER. Before that the last lane
+could never hold anything — the only writer of a tombstone row lived inside the deleter, behind the
+arming lock, so "finished" and "deleted" were one event and the lane was a labelled empty box.
+
+=== ⚠⚠ THE DEFECT THAT COST THE MOST, AND IT WAS A NAME ===
+The strip was first called `_shRiverRender` / `_shRiverLoad`. **`_shRiverLoad` ALREADY EXISTED** at
+the bottom of control_ui.html — the SHELF_RIVER card-grouping feature. Two function declarations
+with one name in one scope: the later wins, silently. The whole strip was unreachable while every
+piece of it measured correct — the container rendered, the export was on `window`, the fetch fired
+and returned 200 with a good payload, and NO ERROR WAS THROWN ANYWHERE. The placeholder simply
+never changed.
+
+It survived four rounds of probing because a second bug hid it: the could-not-ask branch first
+rendered the SAME words as the loading placeholder, so a permanent failure and an unfinished load
+were indistinguishable. Both are fixed. It was found only by printing
+`window._shRiverLoad.toString()` in the page and reading back a function I had not written.
+
+`test_no_new_duplicate_function_name` is the general guard that would have caught it in one second.
+[[the-unjoined-end]] [[zero-needs-a-denominator]]
+"""
+import io
+import json
+import os
+import re
+import subprocess
+import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+try:
+    from console_safe import enable
+    enable()
+except Exception:
+    pass
+
+import reel_router as RR  # noqa: E402
+import river_lanes as RL  # noqa: E402
+
+UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+APP = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+
+#: function names already declared more than once when this guard was written. Both are NESTED
+#: helpers living inside different parents (measured: `close` at 7962/10332, `ensure` at
+#: 7936/7963/8011, all at indent 4), so they are separate scopes and not collisions.
+KNOWN_DUPES = {"close", "ensure"}
+
+
+def _render(payload):
+    """Run the SHIPPED _shLanesRender in node. -> str|None"""
+    i = UI.find("  function _shLanesRender(d){")
+    j = UI.find("  window._shLanesRender = _shLanesRender;", i)
+    if i < 0 or j < 0:
+        return None
+    js = ("var out = '';\n"
+          "var document = { getElementById: function(){ return { set innerHTML(v){ out = v; },"
+          " get innerHTML(){ return out; } }; } };\n"
+          "var esc = function(s){ return String(s === undefined ? '' : s)"
+          ".replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\"/g,'&quot;'); };\n"
+          + UI[i:j] + "\n"
+          "_shLanesRender(" + json.dumps(payload) + ");\n"
+          "console.log(JSON.stringify(out));")
+    p = os.path.join(os.environ.get("TMPDIR", "/tmp"), "lanes_probe.js")
+    io.open(p, "w", encoding="utf-8").write(js)
+    try:
+        r = subprocess.run(["node", p], capture_output=True, text=True, timeout=90)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads((r.stdout or "").strip().split("\n")[-1])
+    except Exception:
+        return None
+
+
+class TheShelfShowsTheFourLanes(unittest.TestCase):
+
+    # ── ⚠⚠ THE BACKEND IS THE AUTHORITY ─────────────────────────────────────────────────────
+    def test_the_lane_map_PARTITIONS_the_routers_stations(self):
+        """★ Every station in exactly one lane. A station added upstream and not mapped here just
+        STOPS APPEARING on his shelf: the lanes still add up among themselves, the page still
+        renders, and reels quietly leave the picture. That is `reel_story`'s exact defect."""
+        ok, findings = RL.assert_partitions()
+        self.assertTrue(ok, "the lane map no longer partitions reel_router.STATIONS: %r" % findings)
+        mapped = set()
+        for _n, sts, _w in RL.LANES:
+            mapped |= set(sts)
+        self.assertEqual(set(RR.STATIONS), mapped,
+                         "the lane map and the router's station list have diverged")
+
+    def test_it_DECIDES_nothing_and_calls_the_router(self):
+        """★ Proven by SUBSTITUTION. If this computed a station of its own, the stub could not
+        change what it reports — and the console would show a river the backend does not have,
+        which is the one thing he ruled out."""
+        seen = {"n": 0}
+        real = RR.route
+
+        def counting(*a, **k):
+            seen["n"] += 1
+            return real(*a, **k)
+        RR.route = counting
+        try:
+            RL.lanes()
+        finally:
+            RR.route = real
+        self.assertEqual(1, seen["n"], "river_lanes never asked the router")
+
+    def test_a_BROKEN_map_refuses_to_draw(self):
+        """⚠ Four tidy lanes over a broken map is worse than none — it looks complete while reels
+        leave the frame. [[unknown-stays-unknown]]"""
+        real = RL.LANES
+        RL.LANES = (("ONLY", ("STATION",), "a map that covers almost nothing"),)
+        try:
+            rep = RL.lanes()
+        finally:
+            RL.LANES = real
+        self.assertFalse(rep["ok"], "a map covering 1 of 9 stations still drew a river")
+        self.assertIn("partition", rep["why"])
+
+    def test_an_UNREADABLE_router_is_a_refusal_not_an_empty_river(self):
+        real = RR.route
+        RR.route = lambda hist=None: {"ok": False, "why": "simulated"}
+        try:
+            rep = RL.lanes()
+        finally:
+            RR.route = real
+        self.assertFalse(rep["ok"])
+        self.assertIn("not a report that the river is empty", rep["why"])
+
+    def test_FIFO_is_inherited_never_re_sorted(self):
+        """His word: *"first in first out FIFO"*. `route()` already orders oldest-first and puts
+        reels with NO clock LAST — None must not become 0, which is 1970. A second sort here would
+        be a second copy of that rule, free to drift. [[copy-drift]]"""
+        src = io.open(os.path.join(HERE, "river_lanes.py"), encoding="utf-8").read()
+        self.assertNotIn(".sort(", src, "river_lanes re-sorts instead of inheriting the router's order")
+        rep = RL.lanes()
+        if rep["ok"]:
+            for ln in rep["lanes"]:
+                ms = [r["capturedMs"] for r in ln["reels"] if r.get("capturedMs") is not None]
+                self.assertEqual(sorted(ms), ms, "lane %s is not oldest-first" % ln["name"])
+
+    def test_the_lanes_RECONCILE_with_the_shelf(self):
+        rep = RL.lanes()
+        if not rep["ok"]:
+            self.skipTest("the router did not answer here — a skip is NOT a pass")
+        total = sum(l["count"] for l in rep["lanes"])
+        self.assertEqual(rep["shelf"], total + rep["unknown"],
+                         "the lanes hold %d of %d reels — the view is losing some"
+                         % (total, rep["shelf"]))
+        self.assertTrue(rep["reconciles"])
+
+    # ── ⚠ THE WIRE ──────────────────────────────────────────────────────────────────────────
+    def test_the_endpoint_carries_the_lanes(self):
+        i = APP.find('if path == "/api/river":')
+        self.assertGreater(i, 0, "the river route is gone")
+        blk = APP[i:APP.find('\n        if path ', i + 10)]
+        self.assertIn("river_lanes", blk, "/api/river does not carry the lanes")
+        self.assertIn('"lanes": _lanes', blk)
+        self.assertIn('"ok": False', blk,
+                      "a lane refusal does not travel as a refusal, so a renderer would draw it "
+                      "as four zeroes")
+
+    # ── ⚠⚠ THE RENDERER, AGAINST THE REAL FUNCTION ──────────────────────────────────────────
+    def test_it_draws_four_lanes_in_river_order(self):
+        got = _render({"lanes": {"ok": True, "reconciles": True, "shelf": 40, "unknown": 0,
+                                 "lanes": [{"name": n, "why": w, "stations": list(s),
+                                            "count": 3, "byStation": {x: 1 for x in s}}
+                                           for n, s, w in RL.LANES]}})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        for name, _s, _w in RL.LANES:
+            self.assertIn(name, got, "the %s lane is not drawn" % name)
+        self.assertEqual(3, got.count("shr-arrow"),
+                         "the lanes do not read as a waterfall — %d connectors for 4 lanes"
+                         % got.count("shr-arrow"))
+        self.assertIn("FIFO", got, "nothing says the order is oldest-first")
+        self.assertLess(got.index("INTAKE"), got.index("TOMBSTONE"),
+                        "the lanes are not in river order")
+
+    def test_a_REFUSAL_does_not_render_as_four_zeroes(self):
+        got = _render({"lanes": {"ok": False, "why": "the lane map is broken"}})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertNotIn("shr-lane", got, "a refusal still drew lanes")
+        self.assertIn("could not be drawn", got)
+        self.assertIn("the lane map is broken", got, "the refusal does not carry its reason")
+
+    def test_a_COULD_NOT_ASK_does_not_wear_the_placeholders_words(self):
+        """★★ THE BUG THAT HID THE COLLISION FOR FOUR ROUNDS. This branch first rendered "reading
+        the river…" — the exact text the container ships with — so a permanent failure and a page
+        that had simply not finished loading were the same pixels. [[zero-needs-a-denominator]]"""
+        got = _render(None)
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertNotIn("reading the river", got,
+                         "a failed ask renders the loading placeholder's words, so UNKNOWN and "
+                         "not-yet-loaded are indistinguishable on his screen")
+        self.assertIn("UNKNOWN", got)
+
+    def test_a_zero_TOMBSTONE_carries_its_denominator(self):
+        """⚠ TOMBSTONE:0 does NOT mean nothing ever finishes — a released reel LEAVES the shelf,
+        and the ledger holds 410 of them. A bare 0 there would read as a dead river."""
+        got = _render({"lanes": {"ok": True, "reconciles": True, "shelf": 40, "unknown": 0,
+                                 "lanes": [{"name": n, "why": w, "stations": list(s), "count": 1,
+                                            "byStation": {x: (0 if x == "TOMBSTONE" else 1) for x in s}}
+                                           for n, s, w in RL.LANES]}})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertIn("leaves the shelf", got,
+                      "TOMBSTONE reads 0 with nothing explaining it, so the last lane looks dead")
+
+    def test_a_disagreement_is_SHOUTED_not_swallowed(self):
+        got = _render({"lanes": {"ok": True, "reconciles": False, "shelf": 40, "unknown": 0,
+                                 "lanes": [{"name": n, "why": w, "stations": list(s), "count": 1,
+                                            "byStation": {x: 1 for x in s}} for n, s, w in RL.LANES]}})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertIn("shr-warn", got,
+                      "the lanes and the shelf disagree and nothing on screen says so")
+
+    # ── ⚠⚠ THE GENERAL GUARD THE COLLISION EARNED ───────────────────────────────────────────
+    def test_no_new_duplicate_function_name(self):
+        """★★ THE ONE THAT WOULD HAVE SAVED FOUR ROUNDS OF PROBING. `_shRiverLoad` was declared
+        twice in one scope; the later declaration won, silently, and an entire feature was
+        unreachable while every piece of it measured correct and nothing threw.
+
+        ⚠ IT IS A RATCHET, NOT A BAN, because two duplicates predate it and are legitimate:
+        `close` and `ensure` are NESTED helpers inside different parents (measured at indent 4,
+        clustered at 7936/7962/7963/8011/10332), so they occupy separate scopes. Anything NEW
+        must be justified or renamed.
+        """
+        blocks = [(m.start(), UI.index("</script>", m.start()))
+                  for m in re.finditer(r"<script[^>]*>", UI)]
+        self.assertTrue(blocks, "no script blocks found — this guard inspected nothing")
+        import collections
+        dupes = {}
+        for a, b in blocks:
+            names = re.findall(r"(?:^|\n)\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(",
+                               UI[a:b])
+            for k, v in collections.Counter(names).items():
+                if v > 1:
+                    dupes[k] = v
+        new = {k: v for k, v in dupes.items() if k not in KNOWN_DUPES}
+        self.assertEqual({}, new,
+                         "these function names are declared more than once in one script block: "
+                         "%r. In one scope the LATER declaration wins SILENTLY — the earlier "
+                         "function becomes unreachable while every piece of it still looks "
+                         "correct, nothing throws, and no error is logged. Rename, or add to "
+                         "KNOWN_DUPES with the measurement showing the scopes are separate." % new)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

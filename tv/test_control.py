@@ -25042,10 +25042,20 @@ class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
         # whether the door EXISTED and never whether anything opened it. A defined-and-uncalled
         # function is the exact shape of [[plumbing-with-no-tap]], and a gate that pins only the
         # definition makes it look supervised.
-        calls = [ln for ln in self.ui.split("\n")
+        # ⚠⚠ v2769 — THE COMMENT FILTER WAS THE DEFECT THIS LAW EXISTS TO CATCH, IN THE LAW.
+        # Found by the post-ship review: it skipped lines STARTING with a comment marker, but a
+        # multi-line HTML comment's continuation lines start with ordinary words. Three prose
+        # mentions of _chronWaitingJump (in the v2763 and v2767 comment blocks) satisfied it, so
+        # deleting the real caller left the law green over a door nothing opens — a gate passing
+        # on prose about the very thing it is supposed to require.
+        # Comments are STRIPPED now, not skipped line-by-line: <!-- --> and /* */ both.
+        import re as _re
+        _stripped = _re.sub(r"<!--.*?-->", " ", self.ui, flags=_re.S)
+        _stripped = _re.sub(r"/\*.*?\*/", " ", _stripped, flags=_re.S)
+        calls = [ln for ln in _stripped.split("\n")
                  if "_chronWaitingJump" in ln
                  and "window._chronWaitingJump = function" not in ln
-                 and not ln.strip().startswith(("*", "/*", "<!--", "//"))]
+                 and not ln.strip().startswith("//")]
         self.assertTrue(calls,
                         "`_chronWaitingJump` is defined and CALLED BY NOTHING. The one door to "
                         "TV·D ▸ Chronicle Sweep exists and cannot be opened, so the sweep's own "

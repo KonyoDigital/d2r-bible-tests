@@ -44103,8 +44103,18 @@ function renderJournal(){
       var _ownA=_ownedNames();
       var _missAll=_uniItems().filter(function(x){ return !_ownedHas(_ownA,x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
         .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:''),
-                                   eta:_etaLabel(_etaHours(x.n, null)),
-                                   q:_qlvlOf(x.n) }; });   /* v2299 · v2765 */
+                                   eta:_etaLabel(_etaHours(x.n, null)) }; });
+      /* ⚠⚠ v2769 — NO `q:` HERE, AND v2765 WAS WRONG TO ADD ONE. Found by the post-ship review
+         and REPRODUCED on the live board: 220 of 220 missing-unique rows read "Gull q4 q4".
+         This wall's `badge` is ALREADY the qlvl — `badge:(x.qlvl>0?'q'+x.qlvl:'')` two lines up —
+         so the chip duplicated a number that was never missing.
+         ⚠ AND THAT CORRECTS WHAT v2765 CLAIMED TO FIX. His report was "some items here in uniques
+         are missing the q level" and "sets is missing the q level". The uniques that show nothing
+         are the 96 whose qlvl is 0 in the data, and sets have none at all — BOTH are the data gap
+         in task #20, not a render gap. The renderer was never the problem for this wall.
+         The sets wall keeps its `q:` because there the badge is the SLOT ("armor", "belt"), so a
+         level would be additive rather than doubled — it draws nothing today and lights up the
+         day per-piece levels are sourced. [[feedback-verify-not-proxy]] */
       H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
       // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
       // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
@@ -49716,7 +49726,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2768', name:'v2768 - the vault proposal joins the heart', date:'2026-09-07', note:'The accumulator stored proposal was supervised by nothing: the one existing vault row asks only whether the files are readable, never whether what they offer is still acceptable. A proposal is a photograph of a decision made under bars that can move afterwards. The new row re-gates the stored rows against todays bars at call time and reports the delta, and it never re-grades his rows nor touches the bar.' };
+  window.D2R_BUILD = { id:'v2769', name:'v2769 - the shelf shows the four lanes', date:'2026-09-07', note:'The river is drawn as the four lanes he named, INTAKE PRINTER CAPTURE TOMBSTONE, over the nine real stations, FIFO, refusing to draw at all if the lane map stops partitioning the routers stations. Also the post-ship review fixes: the doubled qlvl on 220 unique rows, an observer walk that could overwrite a lane actor row and oscillate forever, the ignored --limit, a caller law satisfied by its own prose, a doctor row bypassing the vault path authority, and two suites that were green only on his machine.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
