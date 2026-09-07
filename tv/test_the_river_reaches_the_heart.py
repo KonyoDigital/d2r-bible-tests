@@ -202,6 +202,53 @@ class TheRiverReachesTheHeart(unittest.TestCase):
             self.assertIn("proposed", str(r.get("why") or ""),
                           "the unknown does not say how many were proposed")
 
+    # ── ⚠⚠ v2772 — THE JOINT THAT ASKED FOR A KEY THE WRITER NEVER WRITES ───────────────────
+    def test_the_surface_joint_reads_the_key_the_writer_ACTUALLY_writes(self):
+        """★ Found by an independent recon pass. `chronicle_retro` persists the surface on every
+        new sighting as `"scene"` — named that way on purpose, because `surface` was already two
+        other narrower vocabularies. This joint counted `surface`, so it read 0 for ever while the
+        console printed "the reader knows which tab the frame showed AND DOES NOT PERSIST IT" long
+        after that stopped being true. Two vocabularies meeting silently.
+        [[the-unjoined-end]] [[label-outlived-referent]]"""
+        i = RSRC.find("def j_surface(")
+        blk = RSRC[i:RSRC.find("\ndef ", i + 1)]
+        self.assertIn('s.get("scene")', blk,
+                      "the surface joint does not read `scene`, which is the key chronicle_retro "
+                      "actually writes — it will report 0 for ever and blame the writer")
+        self.assertIn('s.get("surface")', blk,
+                      "the older `surface` key stopped being counted, so any sighting that does "
+                      "carry it now vanishes from the joint")
+
+    def test_the_WRITER_still_writes_scene(self):
+        """⚠ THE FIXTURE ASSUMPTION, PINNED. If chronicle_retro is ever changed to persist
+        `surface` after all, the joint above should be simplified rather than left carrying two
+        keys for ever — but that must be a decision, not a silent drift."""
+        csrc = io.open(os.path.join(HERE, "chronicle_retro.py"), encoding="utf-8").read()
+        self.assertIn('"scene": "chronicle"', csrc,
+                      "chronicle_retro no longer writes `scene`, so the joint is now watching for "
+                      "a key nobody produces — re-point it deliberately")
+
+    def test_a_zero_here_does_NOT_blame_the_writer(self):
+        """★★ THE SENTENCE IS THE FINDING. A 0 with the old wording sent a reader to fix a writer
+        that was already correct. The real reason is different and it is ACTIONABLE in a different
+        place: the backlog predates the writer, and no chronicle read is scheduled to make more —
+        `chronicle_autoreel_tick` reports 0 reels owing a read, and a reel re-owes only when it
+        GROWS or when PROMPT_VER changes. So it cannot heal by waiting.
+        [[zero-needs-a-denominator]]"""
+        r = RV.j_surface()
+        why = str(r.get("why") or "")
+        if r.get("carried"):
+            self.skipTest("sightings now carry a surface here, so the zero-case wording is not "
+                          "exercised — a skip is NOT a pass")
+        self.assertNotIn("does not persist it", why,
+                         "the joint still blames the reader for dropping a key it writes")
+        self.assertIn("PREDATES", why,
+                      "the zero does not say WHY it is zero, so it reads as a broken writer")
+        self.assertIn("cannot heal by waiting", why,
+                      "nothing says this will not fix itself on the next tick — it will not")
+        self.assertIn(str(len(RV._sightings() or [])), why,
+                      "the zero has no denominator")
+
     def test_the_gate_joint_still_runs_on_his_real_store(self):
         r = RV.j_gate()
         self.assertEqual("gate", r.get("joint"))

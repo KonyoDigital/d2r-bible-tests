@@ -237,10 +237,36 @@ def j_surface():
     if ss is None:
         return _joint("surface", "sightings carrying a surface", None, None,
                       "chron_evidence.json absent or unreadable", "sighting")
-    n = sum(1 for s in ss if str(s.get("surface") or "").strip())
-    return _joint("surface", "sightings carrying a surface", n, len(ss),
-                  "the reader knows which tab the frame showed and does not persist it — so the "
-                  "cross-surface witness cannot fire on any of them", "sighting")
+    # ⚠⚠ v2772 — IT ASKED FOR A KEY THE WRITER NEVER WRITES, AND THE SENTENCE UNDER IT WAS FALSE.
+    # Found by an independent recon pass. `chronicle_retro.py:1349` DOES persist the surface on
+    # every new sighting — as `"scene"`, named that way on purpose (:1337 "NAMED `scene`, NOT
+    # `surface`, DELIBERATELY", because `surface` was already two other, narrower vocabularies).
+    # This joint counted `surface`, so it read 0 for ever and the console kept printing "the reader
+    # knows which tab the frame showed and DOES NOT PERSIST IT" long after that stopped being true.
+    # Two vocabularies meeting silently, which `reel_segments.py:105` is quoted about beside the
+    # writer itself: "two vocabularies meeting SILENTLY is how a branch stops being reachable
+    # without anyone noticing." [[the-unjoined-end]] [[label-outlived-referent]]
+    #
+    # ⚠ AND WIDENING THE GREP TO `surface or scene` WOULD BE THE FIX THAT TURNS A REAL GAP GREEN.
+    # It reports BOTH, separately, with the denominator — because the count is still 0 and the
+    # REASON changed completely: the backlog PREDATES the writer, and `chronicle_autoreel_tick`
+    # reports 0 reels owing a read (a reel re-owes only when it GROWS or when PROMPT_VER changes,
+    # and it has not). So this joint cannot heal by waiting, and saying "not persisted" would send
+    # someone to fix a writer that is already correct. [[zero-needs-a-denominator]]
+    n_scene = sum(1 for s in ss if str(s.get("scene") or "").strip())
+    n_surf = sum(1 for s in ss if str(s.get("surface") or "").strip())
+    n = n_scene + n_surf
+    if n:
+        return _joint("surface", "sightings carrying a surface", n, len(ss),
+                      "%d carry `scene` (the key chronicle_retro writes) and %d carry the older "
+                      "`surface`" % (n_scene, n_surf), "sighting")
+    return _joint("surface", "sightings carrying a surface", 0, len(ss),
+                  "0 of %d carry EITHER key. ⚠ NOT because the reader drops it — chronicle_retro "
+                  "persists it as `scene` — but because every stored sighting PREDATES that "
+                  "writer, and no chronicle read is scheduled to make more (0 reels owe a read; a "
+                  "reel re-owes only when it grows or when PROMPT_VER changes). The backlog cannot "
+                  "be retrofitted without paying to re-read, so this cannot heal by waiting"
+                  % len(ss), "sighting")
 
 
 def j_slot():
