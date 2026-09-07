@@ -1347,13 +1347,36 @@ def _check_the_locked_lanes_still_refuse():
     for lane in ("equipment", "inventory"):
         if lane not in locked:
             return MISSING, "the %s lane is no longer locked against throw suggestions" % lane
-    if getattr(vr, "THROWOUT_MIN_WITNESSES", 0) <= getattr(vr, "KEEP_MIN_WITNESSES", 0):
-        return MISSING, ("the throw bar (%s) is no longer STRICTLY above the keep bar (%s) — there "
-                         "is no un-throw in Diablo"
-                         % (getattr(vr, "THROWOUT_MIN_WITNESSES", "?"),
-                            getattr(vr, "KEEP_MIN_WITNESSES", "?")))
-    return OK, ("%s locked; keep needs %d look(s), throw needs %d recording(s)"
-                % (" + ".join(locked), vr.KEEP_MIN_WITNESSES, vr.THROWOUT_MIN_WITNESSES))
+    # ⚠⚠ v2771 — THIS ROW WAS CRYING WOLF ABOUT HIS OWN RULING, and a distrusted instrument is a
+    # switched-off one. It required the throw bar to be strictly above the keep bar ON WITNESSES,
+    # and reported MISSING when he levelled them on 2026-09-07:
+    #   *"make it two also.. its fine.. i will review what i throw regardless.. as long as it in
+    #    that bin"* · *"i will decide if to throw it out or not to"*
+    # The DANGER the row exists for is real and unchanged — there is no un-throw in Diablo — but
+    # the protection is not carried by the witness count alone. Throwing still demands STRICTLY
+    # more CONFIDENCE (0.85 vs 0.55), and `witness_field="session"` makes the throw bar count
+    # independent RECORDINGS where the keep bar counts looks. So the bars are still ordered; they
+    # are ordered on a different axis than this row was checking.
+    # ⇒ The invariant is now "strictly above on AT LEAST ONE axis, and never below on either".
+    #   A true inversion — throw becoming EASIER than keep — still goes red.
+    _tw = getattr(vr, "THROWOUT_MIN_WITNESSES", 0)
+    _kw = getattr(vr, "KEEP_MIN_WITNESSES", 0)
+    _tc = getattr(vr, "THROWOUT_CONF_FLOOR", 0.0)
+    _kc = getattr(vr, "KEEP_CONF_FLOOR", 0.0)
+    if _tw < _kw or _tc < _kc:
+        return MISSING, ("THE THROW BAR IS NOW EASIER THAN THE KEEP BAR — witnesses %s vs %s, "
+                         "confidence %.2f vs %.2f. An item could be thrown on evidence that would "
+                         "not have kept it, and there is no un-throw in Diablo."
+                         % (_tw, _kw, _tc, _kc))
+    if _tw == _kw and _tc == _kc:
+        return MISSING, ("the throw bar and the keep bar are IDENTICAL on both axes (%s witnesses, "
+                         "%.2f confidence) — nothing anywhere makes throwing harder than keeping, "
+                         "and there is no un-throw in Diablo" % (_tw, _tc))
+    return OK, ("%s locked; keep needs %d look(s) at conf %.2f, throw needs %d recording(s) at "
+                "conf %.2f — throw is stricter on %s"
+                % (" + ".join(locked), _kw, _kc, _tw, _tc,
+                   "witnesses and confidence" if (_tw > _kw and _tc > _kc)
+                   else ("witnesses" if _tw > _kw else "confidence")))
 
 
 def _check_the_two_surfaces_agree():

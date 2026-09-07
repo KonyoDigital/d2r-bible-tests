@@ -608,6 +608,22 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_throw_bar_stays_stricter",
+         [sys.executable, os.path.join(HERE, "test_the_throw_bar_stays_stricter.py")], 120,
+         why="THE `locked lanes` DOCTOR ROW WAS CRYING WOLF ABOUT HIS OWN RULING. It required the "
+             "throw bar to be strictly above the keep bar ON WITNESSES and reported MISSING when he "
+             "levelled them on 2026-09-07 (\"make it two also.. its fine.. i will review what i "
+             "throw regardless\"). The danger is real and unchanged — there is no un-throw in "
+             "Diablo — but the protection is not carried by the witness count: throwing still "
+             "demands STRICTLY more confidence (0.85 vs 0.55), and the throw bar counts independent "
+             "RECORDINGS where the keep bar counts LOOKS. The invariant is now 'strictly above on "
+             "AT LEAST ONE axis, never below on either', so a real inversion and the degenerate "
+             "identical-on-both case both still go red. ⛔ The fix was to the ROW, never to the "
+             "BARS — moving a bar to make a check green is repairing the measurement to fit the "
+             "data, on the one gate in this tree that owns an irreversible act. A row that reports "
+             "his deliberate choice as a fault is one he learns to scroll past, and then it is not "
+             "believed on the day something IS wrong.",
+         ),
     Gate("test_the_river_has_a_driver",
          [sys.executable, os.path.join(HERE, "test_the_river_has_a_driver.py")], 180,
          why="THE RIVER HAD AN OUTLET AND NOTHING DRIVING IT. Found by the post-ship review of "
