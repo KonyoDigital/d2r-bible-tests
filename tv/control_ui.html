@@ -4158,6 +4158,12 @@
   /* v2767 — the sweep door, sized and spaced exactly like .ch-clear beside it. */
   .ch-sweep { margin-left: 6px; opacity: .75; cursor: pointer; }
   .ch-sweep:hover { opacity: 1; }
+  /* ⚠ MEASURED REDUNDANT TODAY, AND KEPT ANYWAY — raised by the second eye, which called it
+     "redundant, or masking a specificity problem". The masking half is REFUTED: with this rule
+     deleted at runtime the computed display is still `none`, so nothing is overriding the UA
+     default. It stays because the override it guards against is one line away — any author rule
+     setting `display` on this class silently defeats `hidden`, which is exactly why the deleted
+     `.chron-waiting[hidden]` rule existed in this same file. */
   .ch-sweep[hidden] { display: none; }
   .ch-clear:hover { color: #ffd0c4; border-color: rgba(255,120,90,.8); background: rgba(90,34,26,.5); }
   .ch-clear[hidden] { display: none; }
@@ -6923,7 +6929,7 @@ body[data-origin="shadow"] #stage::after {
                The chip is modelled on ch-clear directly above: same button, same
                stopPropagation, so the modal click is untouched. Hidden unless the sweep actually
                has something to say. [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
-          <span class="ch-sweep" id="ch-sweep-go" role="button" tabindex="0" hidden title="open TV·D ▸ Chronicle Sweep — the names your readers lifted off your own reels" onclick="event.stopPropagation(); window._chronWaitingJump && window._chronWaitingJump();" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();window._chronWaitingJump&&window._chronWaitingJump();}">&#x1F4DC;</span>
+          <span class="ch-sweep" id="ch-sweep-go" role="button" tabindex="0" hidden aria-label="open Chronicle Sweep" title="open TV·D ▸ Chronicle Sweep — the names your readers lifted off your own reels" onclick="event.stopPropagation(); window._chronWaitingJump && window._chronWaitingJump();" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();window._chronWaitingJump&&window._chronWaitingJump();}">&#x1F4DC;</span>
           <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
         </button>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
@@ -17306,12 +17312,16 @@ window._lockMark = function(isOpen, px, label){
              + ' read from your reels: you already have every one, nothing to register' + _age)));
     }
     /* the button must appear when the sweep needs him even if the board queue is empty */
-    if (_new || _unchecked) btn.hidden = false;
     /* v2767 — the door opens only when the sweep has something to say, and closes with it.
-       A permanently-lit chip would be the strip he asked to be rid of, wearing a smaller coat. */
+       A permanently-lit chip would be the strip he asked to be rid of, wearing a smaller coat.
+       ⚠ ONE CONDITION, COMPUTED ONCE — raised by the second eye on this very change: the button's
+       visibility and the chip's were the same expression written twice, and two copies diverge.
+       The failure it prevents is a visible button with a permanently dead chip. [[copy-drift]] */
+    var _sweepHasSomething = !!(_new || _unchecked);
+    if (_sweepHasSomething) btn.hidden = false;
     try {
       var _swGo = $('ch-sweep-go');
-      if (_swGo) _swGo.hidden = !(_new || _unchecked);
+      if (_swGo) _swGo.hidden = !_sweepHasSomething;
     } catch (e) {}
     btn.__items = data.pending;
     if (CH.open) chModalRender();
