@@ -278,12 +278,55 @@ def j_gate():
         d = json.load(io.open(p, encoding="utf-8"))
     except Exception as e:
         return _joint("gate", "names grounded", None, up, str(e)[:70], "name")
-    n = 0
-    for k in ("grounded", "applied", "accepted"):
-        v = d.get(k)
-        if isinstance(v, (list, dict)):
-            n += len(v)
-    return _joint("gate", "names grounded", n, up, "", "name")
+    # ⚠⚠ v2761 — THIS JOINT ASKED FOR THREE KEYS THE STORE HAS NEVER WRITTEN, and reported the
+    # miss as a hard 0. MEASURED on his live chron_last_result.json — the result carries
+    # ['calibration','contested','contestedExpired','denial','fold','held','hunt','lanes',
+    #  'newlyDated','notFoundDatable','reels','refused','refusedEver','resolverOk','setGroups',
+    #  'totals','verdict','wouldAdd'] — and NOT grounded, applied or accepted. So the river's own
+    # diagnosis said "gate DRY, 0 names grounded of 14,034" for a joint that was never measured.
+    # A zero with no denominator, living inside the instrument that diagnoses the river.
+    # [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+    #
+    # ⚠ AND THE TRUE STATE IS NOT "BLOCKED". `newlyDated` is what a sweep writes when a name
+    # actually grounds. His last sweep: wouldAdd 271 uniques + 83 sets = 354 proposed, and
+    # /api/chronicle_crossref answers "354 of the 354 read are already in your chronicle; 0 are
+    # new". So NOTHING NEW TO GROUND is the honest reading — a legitimate state that this joint
+    # could not tell apart from a blockage, because both rendered as 0.
+    #
+    # THREE STATES, NOT TWO:
+    #   nothing was proposed          -> UNKNOWN, there is no question to answer yet
+    #   proposed, and some grounded   -> CARRIES
+    #   proposed, and NONE grounded   -> DRY, and that is a real blockage worth his attention
+    # ⚠⚠ AND THE ORIGINAL MISS WAS TWO DEFECTS, NOT ONE. Reading the right keys exposed the
+    # second immediately: the sweep store is {"proposal", "result", "savedTs"} and EVERY figure
+    # lives under `result`. So the old code asked the TOP level for grounded/applied/accepted and
+    # would have missed them even if they had been the right names. Two wrong things pointing the
+    # same way is why this read as a confident 0 for so long.
+    d = (d.get("result") if isinstance(d.get("result"), dict) else d)
+    wa = d.get("wouldAdd")
+    proposed = 0
+    if isinstance(wa, dict):
+        for v in wa.values():
+            proposed += (len(v) if isinstance(v, (list, dict)) else int(v or 0))
+    elif isinstance(wa, (list, dict)):
+        proposed = len(wa)
+    nd = d.get("newlyDated")
+    grounded = len(nd) if isinstance(nd, (list, dict)) else None
+    held = d.get("held")
+    n_held = len(held) if isinstance(held, (list, dict)) else 0
+    if grounded is None:
+        return _joint("gate", "names grounded", None, up,
+                      "this sweep result carries no `newlyDated`, so nothing here can say whether "
+                      "a name grounded — absent is not zero", "name")
+    if not proposed:
+        return _joint("gate", "names grounded", None, up,
+                      "no name was proposed by the last sweep (%d held), so there was nothing to "
+                      "ground — that is an empty question, not a dry joint" % n_held, "name")
+    why = ("" if grounded else
+           "%d name(s) were proposed and none grounded (%d held). ⚠ CHECK BEFORE ACTING: if the "
+           "crossref says he already has them all, this is 'nothing NEW to ground' and not a "
+           "blockage." % (proposed, n_held))
+    return _joint("gate", "names grounded", grounded, proposed, why, "name")
 
 
 def j_seal():

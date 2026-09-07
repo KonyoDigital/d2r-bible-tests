@@ -585,6 +585,28 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_river_reaches_the_heart",
+         [sys.executable, os.path.join(HERE, "test_the_river_reaches_the_heart.py")], 180,
+         why="THE RIVER MEASURED ITSELF FOR NOBODY. `tv/river.py` walks ELEVEN joints, grades each "
+             "CARRIES/DRY/UNKNOWN and names the first blockage in a sentence a person can act on — "
+             "and `grep -rl 'import river' tv/*.py` returned ONE file: its own test. Neither "
+             "corroborate.py nor console_doctor.py had ever asked it anything. ⚠ A ROW CALLED 'the "
+             "river' ALREADY EXISTED, which is why the gap survived: it reads reel_router and "
+             "answers WHERE REELS ARE STATIONED, a different question from WHETHER THE JOINTS "
+             "CARRY. The console watched position and was blind to flow. ⚠⚠ AND THE GATE JOINT WAS "
+             "A ZERO WITH NO DENOMINATOR INSIDE THE DIAGNOSTIC ITSELF — TWO defects pointing the "
+             "same way: it counted keys 'grounded'/'applied'/'accepted' that chron_last_result.json "
+             "has NEVER written, AND it asked the top level when every figure lives under "
+             "`result`. It reported '0 names grounded of 14,034' for a joint that was never "
+             "measured. ⚠ THE TRUE STATE WAS NOT BLOCKED: his last sweep proposed 354 and the "
+             "crossref answers '354 of the 354 are already in your chronicle; 0 are new' — NOTHING "
+             "NEW TO GROUND, a legitimate state the old joint could not tell from a blockage "
+             "because both rendered as 0. Now three states, the real keys, and 0 of 354 proposed "
+             "with 41 held and the caveat in its own why. ⚠ IT ALSO CORRECTED ME: my "
+             "'303 of 306 clear the bar' was a (reel,lane) proxy labelled an upper bound; the REAL "
+             "witnesses() says uniques 272/306 (89%%), sets 86/126 (68%%), with 36 set names one "
+             "witness short. 10 laws, 4 sabotages RED."),
+
     Gate("test_his_own_fleet_row_is_not_a_round_trip",
          [sys.executable, os.path.join(HERE, "test_his_own_fleet_row_is_not_a_round_trip.py")], 180,
          why="HIS OWN FLEET ROW CAME BACK FROM CLOUDFLARE TO TELL HIM WHAT WAS ON HIS OWN DISK. "

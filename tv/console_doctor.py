@@ -1663,6 +1663,59 @@ def _check_the_reel_extract_is_moving():
                 % (len(owed), hours, tail + _ret))
 
 
+def _check_the_river_joints_carry():
+    """★ v2761 — THE RIVER'S OWN DIAGNOSIS REACHES A SCREEN FOR THE FIRST TIME.
+
+    Konyo: *"fix the gaps. connect it all to the heart of the console"*.
+
+    MEASURED before writing this: `tv/river.py` measures all ELEVEN joints of the pipeline, names
+    the first blockage in a sentence, and is imported by EXACTLY ONE FILE — its own test.
+    `grep -rl 'import river' tv/*.py` -> test_the_river_carries_a_stamp.py. Neither corroborate.py
+    nor console_doctor.py has ever asked it anything.
+
+    ⚠ AND THERE IS ALREADY A ROW CALLED "the river" — it reads `reel_router` and answers WHERE
+    REELS ARE STATIONED. That is a different question from WHETHER THE JOINTS CARRY. The console
+    watched position and was blind to flow, and the two look similar enough that the gap survived.
+    A sentence like "blocked at 'surface' — 0 of 14,034 sightings carry one" has never been on a
+    screen he looks at. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ DRY IS NOT AUTOMATICALLY A FAILURE, and this must not cry wolf. Some joints are dry because
+    the work genuinely has not been done and he can act; `gate` was dry because nothing NEW was
+    proposed. So the row reports the CENSUS and names the first blockage, and grades on whether
+    the river's own first-blockage sentence exists — never on a bare count.
+    """
+    try:
+        import river as _rv
+    except Exception as e:
+        return UNKNOWN, "river.py will not import (%s), so no joint could be measured" % str(e)[:60]
+    # ⚠ river.py's API is trace() + summary(rows) — NOT survey()/run(). My first cut guessed those
+    # two names behind a hasattr, so the check would have returned UNKNOWN for ever while looking
+    # like a wired watcher. Caught by grepping the module instead of trusting the guess.
+    # [[feedback-suspect-the-instrument]]
+    try:
+        joints = _rv.trace()
+        rep = _rv.summary(joints)
+    except Exception as e:
+        return UNKNOWN, "the river survey raised (%s) — unmeasured, not clean" % str(e)[:60]
+    if not joints or not isinstance(rep, dict):
+        return UNKNOWN, "the river reported no joints at all, so nothing here was measured"
+    by = {}
+    for j in joints:
+        by[str(j.get("state"))] = by.get(str(j.get("state")), 0) + 1
+    n = len(joints)
+    dry = by.get("DRY", 0)
+    unk = by.get("UNKNOWN", 0)
+    say = str(rep.get("say") or "").strip()
+    first = rep.get("firstBlockage")
+    if dry:
+        return MISSING, ("%d of %d joint(s) DRY%s — %s"
+                         % (dry, n, (", %d unmeasured" % unk) if unk else "",
+                            say or ("first blockage: %s" % first)))
+    if unk:
+        return UNKNOWN, "%d of %d joint(s) could not be measured" % (unk, n)
+    return OK, "all %d river joint(s) carry" % n
+
+
 def _check_the_console_UI_has_not_faulted():
     """Has the console reported a fault about ITSELF recently?
 
@@ -2333,6 +2386,9 @@ CHECKS = [
     ("panels on screen", _check_no_panel_is_dark_with_its_content_in_hand),
     # v2336 — the suites belong on GitHub; this notices when one comes back to his laptop
     ("test venue", _check_no_browser_suite_is_scheduled_on_this_mac),
+    # v2761 — the river's ELEVEN joints reach a screen; the existing "the river" row
+    # watches reel_router (WHERE reels are stationed), which is a different question.
+    ("river joints", _check_the_river_joints_carry),
     ("console UI faults", _check_the_console_UI_has_not_faulted),
     ("version drift", _check_version_drift),
     # v2248 — the OTHER out-of-sync: drift is process-vs-disk, this is disk-vs-origin, and
