@@ -8974,7 +8974,12 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 /* v2300 — the unit rides UNDER the count, dimmer and smaller: it must qualify the number
    without competing with it, because the number is what he is scanning for. */
 .forge-tab .ft-ct .ft-u{display:block;font-size:8.5px;font-weight:var(--fw-medium);letter-spacing:.06em;text-transform:uppercase;opacity:.62;line-height:1.05;margin-top:1px}
-.gf-piece .gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
+.gf-piece /* v2765 — the qlvl chip. White on purpose: he asked for it in white, and it is the one
+   figure on the row that is a HARD GATE rather than an estimate — a monster below it
+   cannot drop the item at all, however long he farms. Tabular so the column lines up. */
+.gp-q{color:#fff;font-weight:var(--fw-semibold);font-size:11px;opacity:.92;margin-left:6px;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
 .gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
 .gf-piece.have{background:rgba(95,201,122,.14);border-color:rgba(95,201,122,.55);color:#a9edbb;text-decoration:none}
@@ -42785,6 +42790,44 @@ function renderJournal(){
     });
     _etaIdxCache = out; return out;
   }
+  /* ── v2765 — THE MISSING WALL SHOWS THE ITEM'S QLVL ──────────────────────────────────────
+     Konyo: *"for MISSING when it collapses open i want the q1-87 levels of the item in white...
+     because sets i see they dont have it... some items here in uniques are missing the q level"*.
+
+     ⚠⚠ `qlvl: 0` IN THIS DATA IS A SENTINEL, NOT A LEVEL. Measured across all 5,925 item rows,
+     distinct by name:
+         high     126 of 127 carry a real qlvl        set      14 of 148
+         grail     78 of  91                          special   0 of 4
+         common    93 of 175                          uber      1 of 2
+     So 0 means "this table never recorded one", and printing it would put a confident q0 under
+     134 set pieces. Absent renders NOTHING — not "q0", not "?", not a guess. [[zero-needs-a-denominator]]
+
+     ⚠⚠ AND THE 14 SET ROWS THAT DO CARRY ONE ARE NOT PIECES. They are set-level aggregates —
+     "Trang-Oul set (any piece)", "Immortal King set (any)", "Aldur's Watchtower (any)". Hanging
+     one of those on a piece is exactly what v2299 refused two comments up ("not a set-level
+     average standing in for a piece"), so this reader takes NO fallback source at all, unlike
+     _etaHours which legitimately does. THE SET PIECES SIMPLY HAVE NO QLVL IN THIS PAGE — 134 of
+     148 — and that half of his ask is a DATA gap needing the game's own SetItems table, not a
+     render gap. Saying so is the honest half of shipping this. [[unknown-stays-unknown]] */
+  function _qlvlOf(name){
+    try {
+      var row = _etaIdx()[(typeof window._regKey === 'function') ? window._regKey(name)
+                          : String(name).toLowerCase()];
+      if (!row) {
+        /* the piece names carry a slot parenthetical the drop table does not */
+        var bare = String(name).replace(/\s*\([^)]*\)\s*$/, '');
+        row = _etaIdx()[(typeof window._regKey === 'function') ? window._regKey(bare)
+                        : bare.toLowerCase()];
+      }
+      if (!row) return null;
+      var q = (row.qlvl != null) ? row.qlvl : row.qLvl;
+      q = parseInt(q, 10);
+      /* the sentinel, and the top of the real range */
+      if (!isFinite(q) || q <= 0 || q > 99) return null;
+      return q;
+    } catch(e){ return null; }
+  }
+  window._qlvlOf = _qlvlOf;
   function _etaHours(name, fallbackSrc){
     try {
       var row = _etaIdx()[(typeof window._regKey === 'function') ? window._regKey(name)
@@ -42841,7 +42884,7 @@ function renderJournal(){
        the LONGEST list of item names on the page, printed all 120 of them in one flat cream.
        _allGrid is shared by uniques and sets, which is exactly why neither got a colour: a shared
        renderer with no rarity argument can only ever pick one. */
-    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+(e.eta?'<span class="gp-eta" title="expected time to find THIS item at your current magic find, on its own best run">'+esc(e.eta)+'</span>':'')+'</span>'); });
+    entries.forEach(function(e){ H.push('<span class="gf-piece gf-miss" data-arttip="'+esc(e.tip||e.n)+'">'+_tickBtn(e.key||e.n, fn)+chipLogo(e.n)+'<span class="gp-nm">'+esc(e.n)+'</span>'+(e.badge?'<span class="gq">'+esc(e.badge)+'</span>':'')+(e.q?'<span class="gp-q" title="qlvl — the item level a monster must reach before this can drop at all">q'+esc(e.q)+'</span>':'')+(e.eta?'<span class="gp-eta" title="expected time to find THIS item at your current magic find, on its own best run">'+esc(e.eta)+'</span>':'')+'</span>'); });
     H.push('</div></div></details>');
     return H.join('');
   }
@@ -44054,7 +44097,8 @@ function renderJournal(){
       var _ownA=_ownedNames();
       var _missAll=_uniItems().filter(function(x){ return !_ownedHas(_ownA,x.n); }).sort(function(a,b){ return (a.qlvl||99)-(b.qlvl||99) || a.n.localeCompare(b.n); })
         .map(function(x){ return { n:x.n, key:x.n, badge:(x.qlvl>0?'q'+x.qlvl:''),
-                                   eta:_etaLabel(_etaHours(x.n, null)) }; });   /* v2299 */
+                                   eta:_etaLabel(_etaHours(x.n, null)),
+                                   q:_qlvlOf(x.n) }; });   /* v2299 · v2765 */
       H.push(_allGrid('Every missing unique — tick as you find', 'the complete pool, qlvl-sorted · ✓ tallies the Calculator + meters instantly', _missAll, 'grailFoundUni'));
       // v682.2 — the still-dark remainder: these chronicle rows exist in-game as bare base-type
       // silhouettes; a dark row's unique NAME is hidden until it drops, so it can't be carded yet.
@@ -46379,7 +46423,7 @@ function renderJournal(){
     // v646 — THE GRAIL WALL: identical drawer, identical position on BOTH grail forges
     if(F==='all'){
       var _missP=[];
-      (s.sets||[]).forEach(function(st){ var _agg=_setAggSrc(st.name); (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl, eta:_etaLabel(_etaHours(pp.name, _agg)) }); } }); });   /* v2299 — the piece's OWN clock, the set aggregate only as fallback */
+      (s.sets||[]).forEach(function(st){ var _agg=_setAggSrc(st.name); (st.pieces||[]).forEach(function(pp){ if(!pp.have){ var _cl=pp.name.replace(/\s*\(([^)]+)\)\s*$/,''); var _sl=(pp.name.match(/\(([^)]+)\)\s*$/)||[])[1]||''; _missP.push({ n:_cl, key:pp.name, tip:_cl, badge:_sl, eta:_etaLabel(_etaHours(pp.name, _agg)), q:_qlvlOf(pp.name) }); } }); });   /* v2299 — the piece's OWN clock, the set aggregate only as fallback. v2765 — the qlvl takes NO fallback: a set aggregate's level is not the piece's. */
       _missP.sort(function(a,b){ return a.n.localeCompare(b.n); });
       H.push(_allGrid('Every missing piece — tick as you find', 'all '+_missP.length+' missing set pieces · ✓ tallies the Set Tracker + meters instantly', _missP, 'grailTogglePiece'));
     }
@@ -49666,7 +49710,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2764', name:'v2764 - the river gets an outlet', date:'2026-09-07', note:'ROUTED was unreachable because the only writer of a tombstone row lived inside the deleter, behind the arming lock. Being finished and being deleted were one event, so no reel could ever complete the waterfall. reel_route_lane closes a reel out WITHOUT removing it; the overlay in reel_router.route reads ACTOR rows only so the river cannot flap. EMPTY 6 to 0, ROUTED 0 to 6, TOMBSTONE stays 0 and the prune stays disarmed.' };
+  window.D2R_BUILD = { id:'v2765', name:'v2765 - the gauntlet comes back and the wall shows its levels', date:'2026-09-07', note:'The console cursor stopped depending on a fetch and now uses the boards own proven inline data URI, byte-identical. The MISSING wall prints each item qlvl in white where a real one exists: 296 of 392 unique rows. A qlvl of 0 is a sentinel meaning never recorded and renders nothing, and a set aggregate level is never borrowed by a piece.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

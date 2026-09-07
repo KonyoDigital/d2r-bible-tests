@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2765** | `(this commit)` | v2765 — The console cursor stopped depending on a fetch and now uses the boards own proven inline data URI, byte-identical. The MISSING wall prints each item qlvl in white where a real one exists: 296 of 392 unique rows. A qlvl of 0 is a sentinel meaning never recorded and renders nothing, and a set aggregate level is never borrowed by a piece. |
 | **v2764** | `(this commit)` | v2764 — ROUTED was unreachable because the only writer of a tombstone row lived inside the deleter, behind the arming lock. Being finished and being deleted were one event, so no reel could ever complete the waterfall. reel_route_lane closes a reel out WITHOUT removing it; the overlay in reel_router.route reads ACTOR rows only so the river cannot flap. EMPTY 6 to 0, ROUTED 0 to 6, TOMBSTONE stays 0 and the prune stays disarmed. |
 | **v2763** | `(this commit)` | v2763 — a week-old count stops living on the gameplay home, and the AI READS ticker renders on TV-D alone instead of on every screen |
 | **v2762** | `(this commit)` | v2762 — four grail items had no picture because the page spells them straight and the roster spells them curly |

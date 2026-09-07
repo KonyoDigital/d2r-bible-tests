@@ -14226,13 +14226,54 @@ class TestOneGauntletForBothSurfaces(unittest.TestCase):
         self.assertEqual((m.group(2), m.group(3)), ("2", "1"), "the board's hotspot moved")
 
     def test_the_console_actually_declares_it_with_the_same_hotspot(self):
+        """★ v2765 — THE CONSOLE CURSOR NO LONGER DEPENDS ON A FETCH.
+
+        His report: *"the mouse cursor is regressed... now its regular"*. Everything measurable was
+        already correct — the rule was present and unconditional, the asset served 200 with
+        Content-Type image/png, and the console rendered in Chrome at that origin computed the
+        url(). The board, measured the same way, was never regressed at all.
+
+        ⚠ THE CAUSE WAS NOT ESTABLISHED, and this docstring says so rather than inventing one. The
+        console runs in pywebview/WKWebView and there is no WebKit on this machine to test against
+        ([[test-venue]] keeps browser engines on CI), so "WebKit refuses the fetched cursor" stays
+        a hypothesis. What the fix rests on is narrower and checkable: the board's inline mechanism
+        is PROVEN on his screen, the fetched one is not, and the fetch is the only part that
+        differed. [[unknown-stays-unknown]]
+        """
         with open(os.path.join(self._repo(), "tv", "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
         code = re.sub(r"/\*[\s\S]*?\*/", " ", ui)
-        self.assertIn('cursor: url("/art/hd_cursor_hand32.png") 2 1', code,
-                      "the console is back on the OS arrow")
+        self.assertRegex(code,
+                         r'\*\{cursor:url\("data:image/png;base64,[A-Za-z0-9+/=]+"\)\s*2\s*1,'
+                         r'\s*auto\s*!important\}',
+                         "the console is back on the OS arrow, or its cursor stopped being inline")
+        # ⚠⚠ THE LAW THE FIX IS ACTUALLY MADE OF. A cursor that must be fetched can fail to arrive
+        # for reasons no CSS check can see — cache headers, engine, origin. This forbids the whole
+        # class rather than the one member of it that was measured.
+        self.assertNotIn('cursor: url("/art/', code,
+                         "the console cursor depends on a network fetch again. That is the shape "
+                         "that failed on his screen while every static check stayed green")
         self.assertIn("cursor: text !important", code,
                       "text entry lost its I-beam under the blanket rule")
+
+    def test_the_two_surfaces_carry_the_SAME_hand_inline(self):
+        """★ Both are inline now, so drift between them is a byte comparison rather than a hope.
+        The on-disk asset is still pinned to the board by the test above, which is what keeps
+        /art/hd_cursor_hand32.png honest for anything else that reaches for it."""
+        import base64
+        import hashlib
+        repo = self._repo()
+        pat = r'\*\{cursor:url\("data:image/png;base64,([A-Za-z0-9+/=]+)"\)'
+        out = {}
+        for key, rel in (("board", "bible.html"), ("console", os.path.join("tv", "control_ui.html"))):
+            with open(os.path.join(repo, rel), encoding="utf-8") as fh:
+                m = re.search(pat, fh.read())
+            self.assertTrue(m, "%s lost its inline gauntlet cursor" % key)
+            out[key] = hashlib.md5(base64.b64decode(m.group(1))).hexdigest()
+        self.assertEqual(out["board"], out["console"],
+                         "the console and the board are drawing DIFFERENT hands (%s vs %s) — the "
+                         "asymmetry he reported, arriving by drift instead of by absence"
+                         % (out["board"], out["console"]))
 
     def test_the_verdict_cursors_survive_the_blanket_rule(self):
         """A blanket `*{cursor:...!important}` is exactly the shape that eats a not-allowed. v1915's

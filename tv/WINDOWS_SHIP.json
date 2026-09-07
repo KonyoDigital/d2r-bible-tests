@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2764",
+  "ver": "v2765",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2764: ROUTED was unreachable because the only writer of a tombstone row lived inside the deleter, behind the arming lock. Being finished and being deleted were one event, so no reel could ever complete the waterfall. reel_route_lane closes a reel out WITHOUT removing it; the overlay in reel_router.route reads ACTOR rows only so the river cannot flap. EMPTY 6 to 0, ROUTED 0 to 6, TOMBSTONE stays 0 and the prune stays disarmed.",
+  "note": "v2765: The console cursor stopped depending on a fetch and now uses the boards own proven inline data URI, byte-identical. The MISSING wall prints each item qlvl in white where a real one exists: 296 of 392 unique rows. A qlvl of 0 is a sentinel meaning never recorded and renders nothing, and a set aggregate level is never borrowed by a piece.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

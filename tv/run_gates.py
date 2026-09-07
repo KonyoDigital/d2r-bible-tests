@@ -608,6 +608,21 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_missing_wall_shows_the_qlvl",
+         [sys.executable, os.path.join(HERE, "test_the_missing_wall_shows_the_qlvl.py")], 180,
+         why="THE MISSING WALL PRINTS THE QLVL, AND REFUSES TO PRINT ONE IT DOES NOT HAVE. ⚠⚠ "
+             "`qlvl: 0` IN THIS DATA IS A SENTINEL, NOT A LEVEL — measured distinct by name across "
+             "5,925 item rows: high 126/127, grail 78/91, common 93/175, set 14/148, special 0/4. "
+             "Printing the 0 would put a confident q0 under 134 set pieces and 96 uniques, in the "
+             "longest list on the page, which is exactly where a fabricated figure would never be "
+             "caught. ⚠⚠ AND THE 14 SET ROWS THAT DO CARRY ONE ARE AGGREGATES, NOT PIECES "
+             "(Trang-Oul set (any piece), Immortal King set (any), Sigon's Complete Steel). "
+             "`_etaHours` legitimately borrows a set aggregate as a fallback SOURCE; borrowing one "
+             "for a LEVEL would print the set's gate under every piece of it, which is the "
+             "substitution v2299 refused in the same file. The qlvl reader takes no fallback at "
+             "all. Proven RED by three sabotages; the leak law took three attempts because the "
+             "first two sabotages did not actually leak.",
+         ),
     Gate("test_the_river_has_an_outlet",
          [sys.executable, os.path.join(HERE, "test_the_river_has_an_outlet.py")], 180,
          why="THE RIVER HAD NO OUTLET. `_station_of` could return 7 of the 9 declared stations; "
