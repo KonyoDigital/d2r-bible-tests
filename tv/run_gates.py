@@ -585,6 +585,24 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_river_has_a_mouth",
+         [sys.executable, os.path.join(HERE, "test_the_river_has_a_mouth.py")], 180,
+         why="I REPORTED THAT THE RIVER NEVER REACHED ITS END. IT HAS REACHED IT 410 TIMES. "
+             "reel_router._station_of returns TOMBSTONE zero times in code and the census reads "
+             "counts.TOMBSTONE 0 with unreached [INTAKE,TRIAGE,ROUTED,TOMBSTONE] — and I reported "
+             "that as 'the river has no mouth'. MEASURED, the opposite: the tombstone ledger holds "
+             "410 closed-out reels reclaiming 5,768.1 MB, and the overlap between them and the 40 "
+             "living reels is EXACTLY ZERO, because a tombstoned reel LEAVES THE DISK and stops "
+             "being something the router can station. The router was answering a different "
+             "question and I read its answer as the answer to mine. ⇒ The mouth is read from the "
+             "LEDGER and never manufactured in the router, which keeps "
+             "assert_independent_of_retention() intact — a living reel's position still comes only "
+             "from its own reading evidence. Pins: mouth on the payload and in the SUCCESS branch; "
+             "no router import in river_mouth's CODE (the law was fooled by its own docstring "
+             "first — 4th time this session, now an ast-based _code_of helper); a missing ledger "
+             "is UNKNOWN with n=None, never 0 journeys; FIFO by deletedTs with UNDATED rows "
+             "sorting LAST and counted separately. 8 laws, 6 sabotages RED."),
+
     Gate("test_the_river_walk_says_it_walked",
          [sys.executable, os.path.join(HERE, "test_the_river_walk_says_it_walked.py")], 180,
          why="A SUCCESSFUL WALK THAT FOUND NOTHING SAID NOTHING, so a STILL RIVER and a DEAD LOOP "

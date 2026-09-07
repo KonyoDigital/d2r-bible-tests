@@ -18824,6 +18824,80 @@ _RIVER_WALK = {"at": None, "ok": None, "reels": None, "moved": None, "why": "",
                "walks": 0, "lastMovedAt": None}
 
 
+def river_mouth(limit=12, path=None):
+    """The END of the river: reels that completed the journey and were closed out. -> dict
+
+    Konyo, 2026-09-07, on the shelf drawn as the river: *"down the river ending in extraction and
+    then TOMBSTONE ... i can literaly see REEL SESSIONS timestamped from first in to first out FIFO
+    and eventually pruned and deleted in tombstone"*.
+
+    ⚠⚠ WHY TOMBSTONE LOOKED UNREACHABLE, AND WHY THAT READING WAS WRONG. `reel_router._station_of`
+    returns TOMBSTONE zero times in code, and the live census reads TOMBSTONE 0 — so the obvious
+    conclusion is that no reel has ever finished. MEASURED, the opposite is true: the printer's own
+    tombstone station says, of all 40 living reels, *"not closed out - still here. The ledger
+    records 410 reel(s) that were, reclaiming 5768.1 MB; none of them is this one."*
+
+    **410 reels HAVE reached the mouth.** They are invisible on the shelf because a tombstoned reel
+    LEAVES THE DISK — it stops being a card and becomes a row. The router stations what exists; it
+    was never wrong, it was answering a different question.
+
+    ⇒ So the terminus is read from the LEDGER, not manufactured in the router. That keeps
+    `assert_independent_of_retention()` intact: a living reel's position still comes only from its
+    own reading evidence, and the mouth comes from the record of what retention actually did.
+    Merging them would put a retention fact inside the router, which is the one thing that guard
+    exists to prevent. [[the-unjoined-end]]
+
+    ⚠ UNKNOWN IS A FIRST-CLASS ANSWER. The tombstone file is untracked runtime state and can be
+    absent. "No file" is NOT "no reel ever finished", and this returns ok=False with a reason
+    rather than a confident zero. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    try:
+        import reel_retention as _rr
+        p = path or _rr._tombstone_path()
+    except Exception as e:
+        return {"ok": False, "n": None, "why": "the tombstone ledger could not be located (%s)"
+                                               % str(e)[:70]}
+    try:
+        with open(p, encoding="utf-8") as fh:
+            doc = json.load(fh) or {}
+    except FileNotFoundError:
+        return {"ok": False, "n": None,
+                "why": "there is no tombstone ledger on this venue - retention has no record here, "
+                       "which is NOT the same as no reel having ever finished"}
+    except Exception as e:
+        return {"ok": False, "n": None,
+                "why": "the tombstone ledger could not be read (%s)" % str(e)[:70]}
+    rows = [r for r in (doc.get("reels") or []) if isinstance(r, dict)]
+    # ⚠ FIFO — oldest closed-out FIRST, which is the order he asked to watch. A reel with no
+    # deletedTs sorts LAST rather than first: an undated row must not head the queue.
+    def _k(r):
+        t = r.get("deletedTs")
+        try:
+            return (0, int(t))
+        except Exception:
+            return (1, 0)
+    rows.sort(key=_k)
+    mb = 0.0
+    dated = 0
+    for r in rows:
+        try:
+            mb += float(r.get("mb") or 0)
+        except Exception:
+            pass
+        if r.get("deletedTs"):
+            dated += 1
+    recent = rows[-int(limit or 12):] if rows else []
+    return {"ok": True, "n": len(rows), "mb": round(mb, 1),
+            # ⚠ the denominator travels: an undated row cannot be placed in the river's order, and
+            # saying so is cheaper than a timeline that quietly omits it.
+            "dated": dated, "undated": len(rows) - dated,
+            "recent": [{"reel": r.get("reel"), "session": r.get("session"),
+                        "at": r.get("deletedTs"), "mb": r.get("mb"),
+                        "pages": r.get("pages"), "frames": r.get("frames"),
+                        "focus": r.get("focus"), "why": r.get("why")} for r in recent],
+            "why": ""}
+
+
 def river_walk_state():
     """What the river walk last did. -> dict
 
@@ -23761,7 +23835,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2756",
+        "ver": "v2757",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25894,10 +25968,26 @@ class Handler(BaseHTTPRequestHandler):
                     "reels": _cen.get("reels"), "stamps": _cen.get("stamps"),
                     "unparsed": _cen.get("unparsed"),
                     # ⚠ NOT an empty list dressed as zero: a station no reel has EVER reached is
-                    # the actionable half of this whole picture. ROUTED and TOMBSTONE are both in
-                    # it today. [[unknown-stays-unknown]]
+                    # the actionable half of this whole picture.
+                    #
+                    # ⚠⚠ AND READ THIS FIELD FOR EXACTLY WHAT IT ASKS, WHICH IS NARROWER THAN ITS
+                    # NAME. `unreached` means "the STAMP JOURNAL has never recorded a reel at this
+                    # station". It is ["INTAKE","TRIAGE","ROUTED","TOMBSTONE"] today, beside
+                    # counts.TOMBSTONE = 0 — and I read that pairing as "no reel has ever finished"
+                    # and reported it to him as a finding. IT IS FALSE. MEASURED: the tombstone
+                    # ledger holds 410 closed-out reels reclaiming 5,768 MB, and the overlap
+                    # between them and the 40 living reels is EXACTLY ZERO — because a tombstoned
+                    # reel LEAVES THE DISK and stops being something the router can station.
+                    # The river's mouth has been reached 410 times; nothing surfaced it.
+                    # ⇒ `unreached` for the journal's question, `mouth` for his.
+                    # [[unknown-stays-unknown]] [[label-outlived-referent]]
                     "unreached": _cen.get("unreached"),
                     "everStamped": _cen.get("everStamped"),
+                    # THE END OF THE RIVER, read from the ledger rather than manufactured in the
+                    # router — which keeps `assert_independent_of_retention()` intact: a living
+                    # reel's position still comes only from its own reading evidence, and the mouth
+                    # comes from the record of what retention actually did.
+                    "mouth": river_mouth(),
                     "walked": _walked, "rowMeta": _rowmeta,
                     "why": _cen.get("why") or "",
                     "detail": _reels,

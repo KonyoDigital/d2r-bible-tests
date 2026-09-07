@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2756",
+  "ver": "v2757",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2756: A successful walk that found nothing said nothing, so a still river and a dead loop looked identical. The walk now records that it ran - when, reels compared, moved including zero - and publishes it where a supervisor can read it.",
+  "note": "v2757: I reported that the river never reached its end. It has reached it 410 times, reclaiming 5768 MB - a tombstoned reel leaves the disk and stops being something the router can station. The mouth is now read from the ledger and published on the river.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

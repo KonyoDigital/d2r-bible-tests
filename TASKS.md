@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2757** | `(this commit)` | v2757 — I reported that the river never reached its end. It has reached it 410 times, reclaiming 5768 MB - a tombstoned reel leaves the disk and stops being something the router can station. The mouth is now read from the ledger and published on the river. |
 | **v2756** | `(this commit)` | v2756 — A successful walk that found nothing said nothing, so a still river and a dead loop looked identical. The walk now records that it ran - when, reels compared, moved including zero - and publishes it where a supervisor can read it. |
 | **v2755** | `(this commit)` | v2755 — A fifth provenance, UNSYNCED, for a board that declared its own ledger and whose store is empty. His catch off his own fleet card: SYNCED sat directly above 0 of 403 found, and both cannot be true. |
 | **v2754** | `(this commit)` | v2754 — KEEP 3 to 2 and THROWOUT 4 to 2 on his ruling, unified with the chronicle lane. Confidence floors untouched, so the throw lane is still the stricter of the two. Verified in code first: the throw lane has no apply path and the prune is disarmed. |
