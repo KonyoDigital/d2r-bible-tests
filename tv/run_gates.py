@@ -608,6 +608,21 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_river_has_an_outlet",
+         [sys.executable, os.path.join(HERE, "test_the_river_has_an_outlet.py")], 180,
+         why="THE RIVER HAD NO OUTLET. `_station_of` could return 7 of the 9 declared stations; "
+             "ROUTED and TOMBSTONE were UNREACHABLE, and `river_walk.py` had already written down "
+             "why in its own note: the ONLY writer of a tombstone row lives inside the deleter "
+             "(`reel_retention.apply_plan` -> `_tombstone`), so a reel could not be recorded as "
+             "CLOSED OUT without being REMOVED — and removal is behind the arming lock, which is "
+             "False and stays False. Being finished and being deleted were one event, so no reel "
+             "could ever complete the waterfall. Measured on his shelf before: 40 reels, ROUTED 0, "
+             "TOMBSTONE 0. ⚠⚠ THE FLAP THIS HAD TO AVOID: routing changes no evidence, so the "
+             "router goes on deriving EMPTY for a routed reel; if the outlet overlay read OBSERVER "
+             "rows, the observer walk's own output would feed back in and the station would "
+             "oscillate for ever, appending a transition row to an append-only store on every "
+             "walk. It reads ACTOR rows only. Proven live: walk 1 moved 6, walk 2 moved 0.",
+         ),
     Gate("test_the_river_reaches_the_heart",
          [sys.executable, os.path.join(HERE, "test_the_river_reaches_the_heart.py")], 180,
          why="THE RIVER MEASURED ITSELF FOR NOBODY. `tv/river.py` walks ELEVEN joints, grades each "

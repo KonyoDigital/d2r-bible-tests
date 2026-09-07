@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2763",
+  "ver": "v2764",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2763: a week-old count stops living on the gameplay home, and the AI READS ticker renders on TV-D alone instead of on every screen",
+  "note": "v2764: ROUTED was unreachable because the only writer of a tombstone row lived inside the deleter, behind the arming lock. Being finished and being deleted were one event, so no reel could ever complete the waterfall. reel_route_lane closes a reel out WITHOUT removing it; the overlay in reel_router.route reads ACTOR rows only so the river cannot flap. EMPTY 6 to 0, ROUTED 0 to 6, TOMBSTONE stays 0 and the prune stays disarmed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

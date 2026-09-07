@@ -1663,6 +1663,74 @@ def _check_the_reel_extract_is_moving():
                 % (len(owed), hours, tail + _ret))
 
 
+def _check_the_river_has_an_outlet():
+    """★ THE RIVER COULD NOT FINISH A REEL, AND THE STATION THAT SAYS SO READ 0 FOR ITS WHOLE LIFE.
+
+    Konyo's architecture: *"it just flows and eats session reels regardless of the route it come
+    from initially… it just gets spit out properly"*, and *"there is no loop or worry because it
+    gets eventually tombstoned and deleted and wiped completely. only the data and information gets
+    extracted before hand."*
+
+    `river_walk.py` recorded the weld in its own note: the ONLY writer of a tombstone row lives
+    inside the deleter (`reel_retention.apply_plan` -> `_tombstone`), so a reel could not be
+    recorded as CLOSED OUT without being REMOVED — and removal is behind the arming lock, which is
+    False and stays False. Being finished and being deleted were one event. Measured on his shelf
+    at the time: 40 reels, ROUTED 0, TOMBSTONE 0.
+
+    ⚠ THIS ROW REPORTS FLOW, NOT REACHABILITY. Whether ROUTED can be reached at all is a structural
+    fact and belongs in a gate, where it can be proven red — `test_the_river_has_an_outlet.py` does
+    that. A doctor row that tried to assert reachability from live counts would grade a quiet shelf
+    as a broken outlet every time nothing happened to qualify.
+
+    ⚠⚠ IT ALWAYS PUBLISHES THE DECLINED COUNT. 12 of his reels sit at CAPTURE, which owes
+    "CAPTURE, then ROUTE" — they cannot be closed out and never will be by a lane. Reporting only
+    the routable number would say "0 waiting" on a shelf where 12 reels are permanently stuck, and
+    that reads as done. [[zero-needs-a-denominator]]
+    """
+    try:
+        import reel_router as _rr
+    except Exception as e:
+        return UNKNOWN, "reel_router will not import (%s), so the outlet is unmeasured" % str(e)[:60]
+    try:
+        rep = _rr.route()
+    except Exception as e:
+        return UNKNOWN, "the router raised (%s) — unmeasured, not clean" % str(e)[:60]
+    if not rep.get("ok"):
+        return UNKNOWN, ("the router did not answer (%s), so nothing here was measured"
+                         % str(rep.get("why") or "no reason given")[:80])
+    # ⚠ A STAMP STORE THAT COULD NOT BE READ MAKES ROUTED 0 A GUESS, NOT A COUNT. `route()`
+    # publishes `outletReadable` precisely so this row does not have to infer it from a zero.
+    if not rep.get("outletReadable", False):
+        return UNKNOWN, ("the stamp store could not be read, so how many reels have been closed "
+                         "out is UNKNOWN and specifically not zero — %s"
+                         % str(rep.get("outletWhy") or "")[:90])
+    counts = rep.get("counts") or {}
+    routed = int(counts.get("ROUTED") or 0)
+    shelf = int(rep.get("shelf") or 0)
+    try:
+        import reel_route_lane as _lane
+        p = _lane.plan(rep)
+    except Exception as e:
+        return UNKNOWN, ("the route lane will not import (%s), so who is waiting to be closed out "
+                         "is unmeasured" % str(e)[:60])
+    if not p.get("ok"):
+        return UNKNOWN, ("the route lane could not plan (%s)" % str(p.get("why") or "")[:80])
+    waiting = len(p.get("route") or [])
+    declined = len(p.get("declined") or [])
+    tail = (" · %d at CAPTURE owe a capture change first and no lane can move them (REG-340)"
+            % declined) if declined else ""
+    if waiting:
+        return MISSING, ("%d of %d reel(s) can be closed out RIGHT NOW and have not been — the "
+                         "route lane has not run. ROUTED holds %d%s"
+                         % (waiting, shelf, routed, tail))
+    if routed:
+        return OK, ("%d of %d reel(s) closed out and none waiting — the river has an outlet and "
+                    "it is being used%s" % (routed, shelf, tail))
+    return OK, ("nothing currently qualifies to be closed out: no reel is at a station that owes a "
+                "route outright%s. The outlet is reachable (proven in the gate), it simply has "
+                "nothing to carry" % tail)
+
+
 def _check_the_river_joints_carry():
     """★ v2761 — THE RIVER'S OWN DIAGNOSIS REACHES A SCREEN FOR THE FIRST TIME.
 
@@ -2389,6 +2457,9 @@ CHECKS = [
     # v2761 — the river's ELEVEN joints reach a screen; the existing "the river" row
     # watches reel_router (WHERE reels are stationed), which is a different question.
     ("river joints", _check_the_river_joints_carry),
+    # the outlet — ROUTED was unreachable while its only writer lived inside the deleter, so no
+    # reel could ever be recorded as finished. This watches whether the river actually drains.
+    ("river outlet", _check_the_river_has_an_outlet),
     ("console UI faults", _check_the_console_UI_has_not_faulted),
     ("version drift", _check_version_drift),
     # v2248 — the OTHER out-of-sync: drift is process-vs-disk, this is disk-vs-origin, and

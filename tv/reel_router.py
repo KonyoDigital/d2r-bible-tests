@@ -282,6 +282,47 @@ def _evidence(hist=None):
     return out, seen_why
 
 
+def _routed_by_a_lane(path=None):
+    """Reels an ACTING lane has closed out. -> (dict reel -> row | None, why)
+
+    ⚠⚠ ACTOR ROWS ONLY, AND THAT IS WHAT STOPS THE RIVER FLAPPING. Routing changes no evidence, so
+    `_station_of` goes on deriving EMPTY for a routed reel for ever. If this read observer rows too,
+    the observer walk's own output would feed back in here, the station would oscillate
+    EMPTY -> ROUTED -> EMPTY, and every walk would write another transition row into an append-only
+    store. `river_stamp.run()` hard-codes `byKind: "observer"` with no way to say otherwise, so
+    filtering to actors means this overlay is driven purely by lanes that ACTED and never by itself.
+
+    ⚠ THE LAST ACTOR ROW WINS, not the first match. The store is append-only and ordered, so a reel
+    that was routed and later re-opened by another acting lane must come back out of this set — a
+    first-match read would pin it at ROUTED permanently and no lane could ever undo it.
+
+    ⚠ TOMBSTONE IS NOT OVERLAID HERE, deliberately. Only the deleter writes that row, and a deleted
+    reel is absent from `_evidence` entirely — an overlay for it would be a branch nothing can
+    reach. [[plumbing-with-no-tap]]
+    """
+    try:
+        import river_stamp as _st
+    except Exception as exc:
+        return None, ("the stamp store could not be imported (%s), so whether any reel has been "
+                      "routed is UNKNOWN — it is NOT 'none have'" % type(exc).__name__)
+    try:
+        rep = _st.rows(path)
+    except Exception as exc:
+        return None, ("the stamp store raised %s, so whether any reel has been routed is UNKNOWN"
+                      % type(exc).__name__)
+    if not rep.get("ok"):
+        return None, ("the stamp store could not be read (%s), so whether any reel has been routed "
+                      "is UNKNOWN — it is NOT 'none have'" % (rep.get("why") or "no reason given"))
+    last = {}
+    for row in (rep.get("rows") or []):
+        if row.get("byKind") != "actor":
+            continue
+        reel = row.get("reel")
+        if reel:
+            last[reel] = row
+    return {k: v for k, v in last.items() if v.get("station") == "ROUTED"}, ""
+
+
 def route(hist=None):
     """Every reel on the shelf, with exactly one station each. -> dict
 
@@ -294,9 +335,25 @@ def route(hist=None):
     if ev is None:
         rep["why"] = "UNKNOWN, not an empty shelf — %s" % why
         return rep
+    routed, outlet_why = _routed_by_a_lane()
     rows = []
     for reel, e in ev.items():
         station, swhy = _station_of(e)
+        # ⚠⚠ THE OUTLET. Everything above derives a READ-FATE from the footage; this is the one
+        # thing that is not derivable from it. Routing is an ACT — a lane decided the extraction
+        # contract was satisfied and closed the reel out — and no amount of looking at frames will
+        # ever show it. So it is overlaid here rather than inside `_station_of`, which stays a pure
+        # function of EVIDENCE_FIELDS and is held to that by `assert_independent_of_retention()`.
+        #
+        # This is what unwelds ROUTED from the deleter. `river_walk`'s own note said the only
+        # writer of a tombstone row lives inside `reel_retention.apply_plan`, so a reel could not
+        # be recorded as finished without being REMOVED, and removal is behind the arming lock —
+        # which is why this station read 0 for its whole existence. Finishing and deleting are two
+        # different facts about a reel, and only the second one is locked.
+        _r = (routed or {}).get(reel)
+        if _r is not None:
+            station = "ROUTED"
+            swhy = str(_r.get("why") or ("closed out by %s" % (_r.get("by") or "an unnamed lane")))
         ms, src = _captured_ms(reel, hist)
         # ⚠⚠ `e` MAY BE None, AND THIS LINE USED TO CRASH ON IT — found 2026-09-05 by the very
         # sabotage that replaced `reel.route`'s REG-600 axis, on its first real run. `_station_of`
@@ -366,6 +423,13 @@ def route(hist=None):
     # built to expose. ROUTED and TOMBSTONE are unreached TODAY — nothing routes or tombstones
     # yet (that is gh #210) — and this says so rather than letting a 0 read as "none waiting".
     rep["unreached"] = [st for st in STATIONS if counts.get(st, 0) == 0]
+    # ⚠⚠ AN UNREADABLE STAMP STORE MUST NOT RENDER AS "NOTHING IS ROUTED". `_routed_by_a_lane`
+    # returns None when it could not read, and the loop above then derives every reel — producing
+    # a confident ROUTED 0 that is actually UNKNOWN. This is the field that separates them, and
+    # `outletReadable` is a boolean a consumer can branch on rather than a sentence it must parse.
+    # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    rep["outletReadable"] = routed is not None
+    rep["outletWhy"] = outlet_why
     return rep
 
 
@@ -437,6 +501,13 @@ def assert_independent_of_retention():
          "decides the station"),
         (_evidence, ("funnel", "route", "tag", "held", "holdKind"),
          "builds the evidence the station is decided from"),
+        # ⚠⚠ THE THIRD HALF, ADDED WITH THE OUTLET. This guard's own docstring warns that the
+        # coupling could come back "one function upstream" — and the outlet overlay put a real
+        # decision into `route()`, which was not being watched at all. A station now gets its final
+        # value here, so this is exactly where a keep-reason would next try to enter. It reads an
+        # ACTOR STAMP, which is a record of an act and not a retention tag; this holds it to that.
+        (route, RETENTION_FIELDS,
+         "overlays the outlet and settles the final station"),
     ):
         try:
             seen = _string_keys_read_by(fn)
