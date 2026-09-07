@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2752",
+  "ver": "v2753",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2752: his black console read as painted because two rows of title bar border cleared the ink bar",
+  "note": "v2753: rAF does not fire in a window WebKit thinks is hidden, so the cure for a stale composite was switched off by the disease. Plus the stage witness, which holds the DOM claim and the pixel reading side by side and reports the disagreement.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

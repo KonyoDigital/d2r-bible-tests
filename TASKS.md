@@ -1221,6 +1221,92 @@ A zero from a bad instrument is UNKNOWN, not clean. [[feedback-suspect-the-instr
 
 ---
 
+## ⬛🖱 THE SHELF AND TV·D DID NOT RENDER — THE CURE WAS SWITCHED OFF BY THE DISEASE
+
+He sent a screenshot of a black room: *"shelf isnt rendering when clicked either"*.
+
+**MEASURED on his LIVE console via `/api/status`, while he was looking at it:**
+
+    hidden true · painting false · frozenBeats 29 · blankStrikes 0 · els 84,514
+
+⚠⚠ **THE DOM WAS INTACT AND CORRECT — 84,514 elements. The pixels never followed.** Both shell entry
+points (`shellHome()` for TV·D, `showSessions()`) do the pane work synchronously and then repeat it
+inside `requestAnimationFrame`, commented in the file itself: *"one more paint tick: WebKit sometimes
+keeps the last full-viewport composite"*. **rAF callbacks do not fire in a window WebKit considers
+hidden** — so the cure for the stale composite is dead in exactly the state that produces it.
+
+⚠ **AND `hidden` DID NOT MEAN HE WAS NOT LOOKING.** He was clicking it. A pywebview window macOS
+reports as OCCLUDED — his Terminal overlapped it — sets `visibilityState` to hidden while the window
+is plainly on screen. This is the same family as v2348, which caught `visibilitychange` and fixed the
+**reporting** half (*"Konyo watched a black console for 128s while it insisted he was not looking at
+it"*). The **painting** half was never done.
+
+⚠ **WHY THE EXISTING RESCUE NEVER ARMED: `blankStrikes 0`.** The window is not BLANK, it is STALE —
+chrome and rail still painted, only the room dead. A whole-window ink witness cannot see that, and
+the region witness could not either: at the shipped **3×2 grid every cell catches a lit edge**
+(header, footer strip or rail), so all six read PAINTED at ink 0.02–0.07. Measured — it only becomes
+visible at **8×5**. *That is the chrome-contamination shape of v2752 again, one layer out.*
+
+**THE FIX — `_shellPaintAgain(fn)`: rAF *and* a 32ms timer, latched so the pair runs exactly once.**
+Changes only WHEN the already-trusted pair runs, never what runs.
+
+⛔⛔ **TWO FIXES I WROTE AND THREW AWAY, BOTH WRONG ON MEASUREMENT:**
+1. **A global repaint nudge on `<body>`** (opacity touch). This page has **27 `position: fixed`
+   elements** — an opacity or transform on an ancestor creates a containing block for every one of
+   them, so they would reparent for a tick. A full-body reflow over 84,514 elements is not cheap
+   either. *Written, then measured, then deleted.*
+2. **Firing the pair from a `visibilitychange` handler.** `_shellRestoreConsole()` removes
+   `shell-open` — it would have **kicked him out of whatever board tab he was reading** every time
+   the window regained focus. A fix that loses his place is not a fix. *Caught by reading the
+   function instead of trusting its name.*
+
+**Gate:** `test_the_paint_pass_survives_a_dead_raf.py` — 6 laws, **5 sabotages RED**, including both
+rejected fixes pinned as bans so neither can come back. **196 gates.**
+
+---
+
+## 🧾 THE READ-NAMES LANE — TWO READERS, ONE BANKING STORE, ONE WIRE
+
+His question: *"if it cant be witnessed 3 times then yes it can end up there.. but if it witnessesed
+three times it automatically tallys itself right?"* **Yes — and the auto lane already exists:**
+
+    vault sweep -> vault_accum.json -> vault_retro.gate(3 witnesses) -> vault_apply
+                -> the board's own tick (dated, merge-max, undoable — the same one his hand uses)
+
+⚠⚠ **BUT `vault_accum.json` IS WRITTEN ONLY BY A PAID SWEEP** (`write_census.py:55`), and the 119
+unbanked names came from the **deep** reader's journal ring. **They were never REFUSED — they were
+never JUDGED.** Two readers, one banking store, and only one of them wired to it.
+
+**MEASURED against the real rosters (398 uniques · 135 sets · 100 runewords):**
+
+    42 read PANEL names ->  UNIQUE 9 · SET 5 · RUNEWORD 1 · FURNITURE 3 · NEITHER 24
+    tickable 15   ·   autoTickable 0
+
+⚠⚠ **THE THREE THAT CLEAR THE WITNESS BAR ARE THE THREE THAT CAN NEVER TICK.** His ruling names why:
+*"these are locked inventory only and specifically items.. the tombs and the hordaic cub"* — carried
+permanently, so present in every session **by construction**. Horadric Cube (27 sightings) + Tome of
+Town Portal (16) + Tome of Identify (15) = **58 of 110 sightings, 52.7%**. The 15 grail-eligible
+names have **20 sightings between them**. ⇒ **Manual is the path for all fifteen**, not merely for
+rares. His ruling, confirmed 2026-09-07.
+
+⛔ **THE MODULE REPORTS AND NEVER WRITES,** and that is the load-bearing law: `reel_retention` holds a
+reel with the reason `rows-not-banked`, so **banking a name RELEASES its footage for pruning**. A
+feeder pushing 119 never-judged names into a durable store hands a deleter 119 new permissions in one
+move, and footage has no un-delete. The write ban is proven **from the AST**, not grepped.
+
+⚠ **AND A SABOTAGE FOUND MY OWN GUARD VACUOUS.** `rosters()` refused `None` but would happily return
+**empty** rosters — every name then classifies NEITHER and `tickable` reads a confident **0**, the
+exact clean-zero the module exists to refuse. Leaning on `load_roster` raising is not a guard, it is
+a hope. Now refused at **both** ends: the producer will not make one, the consumer will not eat one.
+⚠ Found only because sabotage #5 came back **GREEN**, and I read that instead of the 13 green ticks
+beside it. *(The same run also caught me measuring `roster sizes: uniques=0 sets=0` — I had called
+the loaders by the wrong names and `hasattr` handed back None.)*
+
+**Gate:** `test_read_names_lane.py` — 13 laws, **5 sabotages RED** · doctor row `read names lane`,
+**45 CHECKS**, red only on machine work so it cannot cry wolf about his hand.
+
+---
+
 ## 🎯 THE WITNESS BAR IS ANTI-CORRELATED WITH GRAIL VALUE — THE TALLY LANE CANNOT BE AUTOMATIC
 
 I was one step from building a tally lane over the 119 read-but-unbanked names, gated on
@@ -1535,6 +1621,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2753** | `(this commit)` | v2753 — rAF does not fire in a window WebKit thinks is hidden, so the cure for a stale composite was switched off by the disease. Plus the stage witness, which holds the DOM claim and the pixel reading side by side and reports the disagreement. |
 | **v2752** | `(this commit)` | v2752 — his black console read as painted because two rows of title bar border cleared the ink bar |
 | **v2751** | `(this commit)` | v2751 — 119 item names read from his reels and none banked, and no paid read is owed for any of them |
 | **v2750** | `(this commit)` | v2750 — five retention rules had never run and a free fixture proved all five work so the paid read is no longer blocked on a circle |

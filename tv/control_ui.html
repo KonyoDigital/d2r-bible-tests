@@ -16807,6 +16807,38 @@ window._lockMark = function(isOpen, px, label){
       });
     } catch(e){}
   }
+  /* ══ A SECOND PAINT PASS THAT SURVIVES A DEAD rAF ═══════════════════════════════════════════
+     Both shell entry points end with `requestAnimationFrame(demote; restore)` and say why:
+     "one more paint tick: WebKit sometimes keeps the last full-viewport composite". That second
+     pass is the cure for a stale composite — and **rAF callbacks do not run in a window WebKit
+     considers hidden**, so the cure is switched off in precisely the state that needs it.
+
+     MEASURED on his live console 2026-09-07, while he was looking at a black room after clicking
+     TV-D and after clicking the shelf:
+         hidden true · painting false · frozenBeats 29 · blankStrikes 0 · els 84,514
+
+     ⚠⚠ AND `hidden` DID NOT MEAN HE WAS NOT LOOKING. He was clicking it. A pywebview window that
+     macOS reports as OCCLUDED — his Terminal overlapped it — sets visibilityState to hidden while
+     the window is plainly on his screen. So the DOM updates on click (84,514 elements, intact and
+     correct) and the pixels never follow.
+
+     ⛔ WHY NOT A GLOBAL REPAINT NUDGE, WHICH WAS THE FIRST ATTEMPT AND WAS WRONG TWICE OVER:
+       · an opacity/transform touch on <body> creates a stacking context, and this page has 27
+         `position: fixed` elements that would reparent to it for a tick;
+       · a full-body reflow over 84,514 elements is not cheap;
+       · and calling `_shellDemotePane()/_shellRestoreConsole()` from a visibility handler would
+         drop `shell-open` and KICK HIM OUT of whatever board tab he was reading.
+     So this changes only WHEN the existing, already-trusted pair runs — never what runs.
+     [[the-unjoined-end]] [[borrowed-surface]] */
+  function _shellPaintAgain(fn){
+    var ran = false;
+    var once = function(){ if (ran) return; ran = true; try { fn(); } catch (e) {} };
+    try { requestAnimationFrame(once); } catch (e) {}
+    /* the fallback, not a duplicate: `once` guarantees the pair runs exactly one more time
+       whichever of the two fires first. A hidden window's timers are throttled, not dead. */
+    try { setTimeout(once, 32); } catch (e) {}
+  }
+
   function shellHome(){
     // v935.9 — demote board FIRST so it can't cover the homepage, then restore console
     if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
@@ -16815,12 +16847,10 @@ window._lockMark = function(isOpen, px, label){
     _shellTab = 'tvd';
     _shellLight('tvd');
     // one more paint tick: WebKit sometimes keeps the last full-viewport composite
-    try {
-      requestAnimationFrame(function(){
-        _shellDemotePane();
-        _shellRestoreConsole();
-      });
-    } catch(e){}
+    _shellPaintAgain(function(){
+      _shellDemotePane();
+      _shellRestoreConsole();
+    });
   }
   /* ══ v2125 — THE BANNER SAID TV·D AND WENT NOWHERE ══════════════════════════════════════════
      Konyo: "347 finds waiting to register but when i click it nothing happens what does it mean
@@ -16882,7 +16912,7 @@ window._lockMark = function(isOpen, px, label){
     // v1589 — the rotation card only lives here now and does not poll while off screen, so ask
     // once on the way in rather than showing him whatever was true when he last looked.
     try { if (typeof window._tzRefresh === 'function') window._tzRefresh(); } catch(e){}
-    try { requestAnimationFrame(function(){ _shellDemotePane(); _shellRestoreConsole(); }); } catch(e){}
+    _shellPaintAgain(function(){ _shellDemotePane(); _shellRestoreConsole(); });
   }
   window._showSessions = showSessions;
   window.addEventListener('resize', function(){

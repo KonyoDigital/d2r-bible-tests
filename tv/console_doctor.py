@@ -2184,6 +2184,87 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
                 % (len(rows), ceil["staleMs"] / 60000.0))
 
 
+def _check_read_names_lane(*_a, **_k):
+    """Where the already-read names would go: the auto door, or his hand.
+
+    ⛔ THIS ROW GOES RED ONLY ON MACHINE WORK. Names waiting on HIM are not a fault — his ruling of
+    2026-09-07 makes the manual lane the correct destination for a rare (*"manual is the path for
+    rares"*), so counting them as red would make the row cry wolf about the design working. Same
+    discipline as `_BY_DESIGN_STATIONS` on the river row: an exemption with a stated reason, so it
+    can be audited instead of silently growing.
+
+    ⚠ WHAT WOULD MAKE IT RED: a name that CLEARS the witness bar, IS on a roster, and still is not
+    banked. That is the auto lane owing work it can do for free — the reads are already paid for.
+    Today that count is 0, and the reason is the finding: the only three names clearing the bar are
+    locked-inventory fixtures (Horadric Cube and the two Tomes), which are 58 of 110 sightings and
+    can never tick.
+    """
+    try:
+        import read_names_lane as _RNL
+    except Exception as exc:
+        return UNKNOWN, ("read_names_lane could not be imported (%s), so where the read names "
+                         "would go is UNKNOWN" % type(exc).__name__)
+    try:
+        sp = _RNL.split()
+    except Exception as exc:
+        return UNKNOWN, "the read-names lane raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    if not isinstance(sp, dict) or not sp.get("ok"):
+        return UNKNOWN, ("the read-names lane could not measure: %s"
+                         % str((sp or {}).get("why") or "no reason given")[:130])
+    # ⚠ None is not 0. An unreadable roster means the classification never happened.
+    if sp.get("tickable") is None:
+        return UNKNOWN, ("the rosters could not be read (%s), so which read names could ever tick "
+                         "is UNKNOWN" % str(sp.get("rosterWhy") or "")[:90])
+    auto_t = sp.get("autoTickable") or 0
+    tick = sp.get("tickable") or 0
+    furn = sp.get("furniture") or 0
+    if auto_t:
+        return MISSING, ("%d read name(s) clear %d witness(es), are on a roster, and are still not "
+                         "banked - the auto door (vault_apply) can take those for free, because "
+                         "the reading is already paid for" % (auto_t, sp.get("minWitnesses")))
+    return OK, ("no read name is owed to the auto lane. %d of %d read name(s) could ever tick and "
+                "all of them fall to HIS hand (single-sighting, which is the normal case for a "
+                "rare); %d more are locked-inventory fixtures that can never tick and account for "
+                "over half of every sighting."
+                % (tick, sp.get("names"), furn))
+
+
+def _check_the_stage_shows_what_the_dom_claims(*_a, **_k):
+    """Does the SCREEN agree with the DOCUMENT about the room? The contradiction is the finding.
+
+    His words, 2026-09-07, over a photograph of a black room with the shelf open: *"connect it to
+    the heart of the console too"*.
+
+    MEASURED at that moment: shelf {open, filled, cards 3090} and theatre {open, loaded, painted,
+    ink} — 3,090 cards built and the console calling itself painted, while he looked at black.
+
+    ⚠⚠ THE SHELF DOOR HAS BEEN HARDENED THREE TIMES FOR THIS SAME COMPLAINT (v2446 swallowed,
+    v2451 toggles, v2666 prove-from-the-rect), and every one of those guards proves the DOCUMENT.
+    `painted` and `ink` are DOM measurements wearing pixel names. This row is the first thing in
+    the console that holds the DOM's claim and the screen's reading side by side.
+
+    ⚠ RED ONLY ON DISAGREEMENT. A dark room with nothing open is correct; an unlookable or covered
+    window is UNKNOWN. Neither is a fault, and grading either as one would make this row cry wolf
+    on the homepage. [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]]
+    """
+    try:
+        import stage_witness as _SW
+    except Exception as exc:
+        return UNKNOWN, ("stage_witness could not be imported (%s), so whether the screen agrees "
+                         "with the DOM is UNKNOWN" % type(exc).__name__)
+    try:
+        v = _SW.verdict()
+    except Exception as exc:
+        return UNKNOWN, "the stage witness raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    st = str((v or {}).get("state") or "UNKNOWN")
+    why = str((v or {}).get("why") or "no reason given")[:300]
+    if st == "CONTRADICTION":
+        return MISSING, why
+    if st == "AGREE":
+        return OK, why
+    return UNKNOWN, why
+
+
 CHECKS = [
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
@@ -2239,6 +2320,8 @@ CHECKS = [
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
     ("console painted whole", _check_the_console_painted_all_of_itself),
     ("names banked", _check_read_names_are_actually_banked),
+    ("read names lane", _check_read_names_lane),
+    ("stage shows the dom", _check_the_stage_shows_what_the_dom_claims),
     ("printer reach", _check_the_printer_can_reach_the_corpus),
     ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),

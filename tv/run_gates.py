@@ -585,6 +585,56 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_stage_agrees_with_the_dom",
+         [sys.executable, os.path.join(HERE, "test_the_stage_agrees_with_the_dom.py")], 180,
+         why="3,090 CARDS BUILT, THE CONSOLE CALLING ITSELF PAINTED, AND HE WAS LOOKING AT BLACK. "
+             "His order: 'connect it to the heart of the console too'. MEASURED live: shelf {open, "
+             "filled, cards 3090} and theatre {open, loaded, painted, ink} while the room was dead. "
+             "The shelf door had ALREADY been hardened three times for this same complaint (v2446 "
+             "swallowed, v2451 toggles, v2666 prove-from-the-RECT) and every one of those guards "
+             "proves the DOCUMENT - `painted` and `ink` are DOM measurements wearing pixel names, "
+             "blind to a stale composite. The pixel witnesses missed it too: paint_witness reads "
+             "the WHOLE window and said PAINTED (header/rail/footer were lit), and region_witness "
+             "at its shipped 3x2 had every cell catching a lit edge. Measured on that dead window: "
+             "3x2->0 blank, 4x3->0, 6x4->0, 8x5->2, 10x6->7, which is why GRID is 8x5. So neither "
+             "side is evidence alone and THE DISAGREEMENT IS THE FINDING. Reads only - no "
+             "relaunch, repair or click, proven from the AST. 10 laws incl. both directions, the "
+             "cry-wolf case (nothing open = OK) and the unlookable-window UNKNOWN."),
+
+    Gate("test_the_paint_pass_survives_a_dead_raf",
+         [sys.executable, os.path.join(HERE, "test_the_paint_pass_survives_a_dead_raf.py")], 120,
+         why="THE CURE FOR A STALE COMPOSITE WAS SWITCHED OFF IN THE ONE STATE THAT CAUSES IT. He "
+             "sent a screenshot of a black room: 'shelf isnt rendering when clicked either'. Both "
+             "shell entry points repeat the demote/restore pair inside requestAnimationFrame, "
+             "commented 'one more paint tick: WebKit sometimes keeps the last full-viewport "
+             "composite' - and rAF DOES NOT FIRE in a window WebKit thinks is hidden. MEASURED on "
+             "his live console via /api/status while he looked at the black room: hidden true, "
+             "painting false, frozenBeats 29, blankStrikes 0, els 84,514. The DOM was intact and "
+             "correct; the pixels never followed. blankStrikes 0 is why the existing rescue never "
+             "armed - the window is not BLANK, it is STALE. AND 'hidden' did not mean he was not "
+             "looking: an OCCLUDED pywebview window (his Terminal overlapped it) reports hidden "
+             "while plainly on screen. Two wrong fixes are recorded in the file: a global "
+             "body-opacity nudge (27 position:fixed elements would reparent) and firing the pair "
+             "from visibilitychange (_shellRestoreConsole drops shell-open and would kick him out "
+             "of the board tab he was reading). 6 laws, 5 sabotages RED."),
+
+    Gate("test_read_names_lane",
+         [sys.executable, os.path.join(HERE, "test_read_names_lane.py")], 180,
+         why="TWO READERS, ONE BANKING STORE, AND ONLY ONE WAS WIRED TO IT. His question: 'if it "
+             "witnessesed three times it automatically tallys itself right?' The auto lane DOES "
+             "exist (vault sweep -> vault_accum -> vault_retro.gate -> vault_apply -> the board's "
+             "own tick), but vault_accum is written only by a PAID SWEEP, while the 119 unbanked "
+             "names came from the DEEP reader's journal. They were never refused - they were never "
+             "JUDGED. MEASURED on his journal: 42 PANEL names, 3 clear the bar, 15 could ever tick "
+             "(UNIQUE 9 / SET 5 / RUNEWORD 1), 24 never. THE THREE THAT CLEAR THE BAR ARE THE "
+             "THREE THAT CAN NEVER TICK - his ruling names why: 'locked inventory only.. the tombs "
+             "and the hordaic cub', carried permanently so present in every session by "
+             "construction. They are 58 of 110 sightings (52.7%) while the 15 real names are 20. "
+             "So manual is the path for ALL FIFTEEN. This module REPORTS AND NEVER WRITES: banking "
+             "releases footage for pruning (rows-not-banked), and the write ban is proven from the "
+             "AST, not grepped. 11 laws incl. both red directions and the unreadable-roster zero "
+             "that this very build produced."),
+
     Gate("test_the_two_deleters_share_one_window",
          [sys.executable, os.path.join(HERE, "test_the_two_deleters_share_one_window.py")], 120,
          why="SWEPT AFTER v2752 — TWO DELETERS, TWO INDEPENDENT `KEEP_RECENT = 5`, AND NOTHING LINKED THEM. "
