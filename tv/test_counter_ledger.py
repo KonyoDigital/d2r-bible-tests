@@ -333,10 +333,29 @@ class TestANotFoundReadingExpires(unittest.TestCase):
         # working, which is the worst moment for a false alarm. The lesson generalises: an
         # allowlist of another module's outputs must be derived from that module, or stated with
         # the reason each member is there. [[gate-blind-to-unexercised-input]]
-        KNOWN = {"undatable", "found", "not-found", "same-moment", "superseded", "denied"}
+        # ⚠ "cross-scene" ADDED 2026-09-07, WITH ITS REASON, because the paragraph above demands
+        # exactly that. Two looks from DIFFERENT SURFACES were never two readings of one claim: a
+        # name absent from the Chronicle page and present in the stash is both, and neither look is
+        # suspect. It cannot appear on his file today — no sighting on disk carries a `scene`, so
+        # this guard would once again be holding on a path that has never executed. Listing it now,
+        # before the deep rows arrive, is the difference between a guard and a coincidence.
+        KNOWN = {"undatable", "found", "not-found", "same-moment", "superseded", "denied",
+                 "cross-scene"}
         self.assertTrue(set(verdicts) <= KNOWN,
                         "the engine invented a verdict this guard does not know: %s"
                         % sorted(set(verdicts) - KNOWN))
+        # ⚠⚠ AND EXERCISE IT HERE, rather than trusting his file to produce one. The guard above
+        # passes today only because no sighting on disk carries a scene — the exact
+        # "held because the path never ran" shape this class was written about.
+        import counter_ledger as _cl
+        _x = _cl.resolve_contested(
+            [{"reel": "r", "frame": "f_1788000000000", "scene": "stash"}],
+            [{"reel": "r", "frame": "f_1788999999999", "scene": "chronicle"}])
+        self.assertEqual("cross-scene", _x["verdict"],
+                         "two looks from different surfaces were treated as a contradiction")
+        self.assertIn(_x["verdict"], KNOWN,
+                      "the engine produces a verdict this allowlist does not know")
+
         self.assertIn("undatable", verdicts,
                       "not one row is reported undatable any more. His pre-receipt evidence is "
                       "still in this file and still cannot be ordered, so something has started "

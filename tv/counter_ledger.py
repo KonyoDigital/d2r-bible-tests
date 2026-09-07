@@ -405,7 +405,53 @@ def resolve_contested(found_sightings, notfound_sightings):
         undatable    at least one side carries no readable timestamp, so the order cannot be
                      established. It stays a flagged contradiction and is never resolved by guess.
                      [[unknown-stays-unknown]] [[stale-reading]]
+        cross-scene  the two looks came from DIFFERENT SURFACES, so they were never two readings
+                     of one claim and no ordering can make them contradict. See below.
+
+    ══ v2759 — TWO LOOKS AT DIFFERENT SURFACES ARE NOT A CONTRADICTION ═══════════════════════════
+    Konyo's ruling, 2026-09-07: *"chron_evidence — widen it, one confluence store"*. Once the deep
+    reader's sightings land in the same store, a name can be **chronicle-ABSENT and stash-PRESENT
+    at the same time, and both true** — the Chronicle log page has not registered it and it is
+    sitting in his stash. That is not a disagreement; it is the situation his own "the board and
+    the game do not add up" panel already reports.
+
+    MEASURED before this guard existed: 12 names are in `notFound` AND were seen by the deep reader
+    on a PANEL surface — Goldwrap, Magefist, Wraithstep, Radament's Sphere, Credendum, Dark
+    Adherent, Rite of Passage, Bramble Mitts, Death Mask, plus the bases Amulet, Grand Charm, Jewel.
+    Without this, the first widened sweep would have manufactured twelve contradictions out of
+    twelve pairs that were never in conflict — and worse, `not-found` LABELS THE FOUND SIGHTING
+    "the suspect one", so a real stash sighting would have been blamed by a menu page.
+
+    ⚠⚠ IT ONLY REFUSES WHEN BOTH SIDES KNOW THEIR SCENE AND DISAGREE. Absence of `scene` is
+    UNKNOWN, never a default — the 8,300 sightings already on disk carry no scene and cannot be
+    given one retroactively, and `_stamp_sighting_locs` states the convention this follows:
+    *"a loc is only written when it is known... None is NEVER stamped. A stored 'unknown' would be
+    indistinguishable from a stored fact the moment the reel is pruned."* So an unknown scene falls
+    through to the timestamp logic exactly as before, which makes this a NO-OP on the day it ships
+    and leaves no row re-graded by a fact nobody recorded.
     """
+    def _scene_of(rows):
+        """The one scene these looks agree on, or None if unknown or mixed.
+
+        ⚠ MIXED IS UNKNOWN, NOT A PICK. If a name was read on two surfaces there is no single
+        scene for that side, and choosing one would invent the very fact this guard exists to
+        respect. [[unknown-stays-unknown]]
+        """
+        got = {str(r.get("scene") or "").strip().lower()
+               for r in (rows or []) if isinstance(r, dict) and r.get("scene")}
+        return got.pop() if len(got) == 1 else None
+
+    _fsc, _nsc = _scene_of(found_sightings), _scene_of(notfound_sightings)
+    if _fsc and _nsc and _fsc != _nsc:
+        return {"foundMs": None, "notFoundMs": None,
+                "foundLooks": len(found_sightings or []),
+                "notFoundLooks": len(notfound_sightings or []),
+                "foundScene": _fsc, "notFoundScene": _nsc,
+                "verdict": "cross-scene",
+                "say": ("read found on %s and not-found on %s — two different surfaces, so these "
+                        "were never two readings of one claim. A name absent from the Chronicle "
+                        "page and present in the stash is both, and neither look is suspect."
+                        % (_fsc, _nsc))}
     fs = [t for t in (sighting_time(x) for x in (found_sightings or [])) if t]
     ns = [t for t in (sighting_time(x) for x in (notfound_sightings or [])) if t]
     out = {"foundMs": max(fs) if fs else None, "notFoundMs": max(ns) if ns else None,

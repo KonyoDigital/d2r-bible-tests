@@ -88,12 +88,22 @@ class TheRiverWalkSaysItWalked(unittest.TestCase):
         self.assertIsNotNone(blk, "the loop is gone or renamed — fix this guard first")
         i = blk.find("_rvs.run(")
         self.assertGreater(i, 0, "the loop no longer walks the river")
-        after = blk[i:i + 1200]
+        # ⚠⚠ ANCHORED AT BOTH ENDS, NEVER A FIXED WINDOW. This read `blk[i:i+1200]` and broke the
+        # moment a comment was added above the branch: the target slid past 1200 chars, `find`
+        # returned -1, and the law reported the exact defect it exists to catch — about code that
+        # was correct. A fixed-size window measures my guess at the region, not the region.
+        # [[source-window-shortcut]] [[source-reading-guard]]
+        j = blk.find('except Exception as _rve', i)
+        self.assertGreater(j, i, "the walk block's own except arm is gone — cannot bound the region")
+        after = blk[i:j]
         self.assertIn('_RIVER_WALK["at"] = time.time()', after,
                       "the walk's result is not recorded before it is reported, so a successful "
                       "walk that found nothing still leaves no trace")
         # ⚠ recorded BEFORE the `if moved` branch, or it only ever records the interesting case
-        self.assertLess(after.find('_RIVER_WALK["at"]'), after.find('if _rv.get("ok") and'),
+        at_at = after.find('_RIVER_WALK["at"]')
+        at_if = after.find('if _rv.get("ok") and')
+        self.assertGreater(at_if, 0, "the moved-branch is gone from the walk block")
+        self.assertLess(at_at, at_if,
                         "the state is written INSIDE the moved-branch, so a quiet tick records "
                         "nothing — which is the whole defect")
 
@@ -147,6 +157,43 @@ class TheRiverWalkSaysItWalked(unittest.TestCase):
         self.assertIn("ageS", d, "the state carries no age, so staleness cannot be judged")
         self.assertIsNone(d.get("ageS") if d.get("at") is None else 0,
                           "ageS must be None when nothing has walked, never a number")
+
+    def test_every_key_the_heartbeat_READS_is_a_key_run_RETURNS(self):
+        """⚠⚠ THE WRONG-KEY NULL, CAUGHT ON HIS LIVE CONSOLE. The first cut recorded
+        `_rv.get("reels")` — and `river_stamp.run()` has NO `reels` key. It returns
+        {ok, moved, unchanged, refused, shelf, why, transitions, refusals}. So the heartbeat stored
+        None, and the doctor row printed it as "not measured" while the denominator sat three words
+        away in the `why` string: "40 were already where the store said".
+
+        A null produced by asking the wrong question is INDISTINGUISHABLE from a null nobody
+        measured, which is the most expensive shape [[unknown-stays-unknown]] takes. This was the
+        fourth wrong-key read of the session and the only one in fresh code — found because the
+        LIVE console published it, not because anything failed.
+
+        So this law does not pin one key. It compares EVERY key the loop reads off the walk result
+        against the keys `run()` actually returns, and fails on any that cannot exist.
+        [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+        """
+        import re
+        import river_stamp as RVS
+        blk = _fn("_retro_triage_loop")
+        self.assertIsNotNone(blk, "the loop is gone")
+        read = set(re.findall(r'_rv\.get\(["\']([A-Za-z_]+)["\']\)', blk))
+        self.assertTrue(read, "the loop reads nothing off the walk result — has it stopped walking?")
+        real = RVS.run(by="test:key-contract")
+        self.assertIsInstance(real, dict, "run() did not return a dict")
+        missing = sorted(k for k in read if k not in real)
+        self.assertEqual([], missing,
+                         "the loop reads %r off the walk result, and run() returns no such key(s) "
+                         "— every one of those silently stores None and renders as 'not measured'. "
+                         "run() actually returns: %s" % (missing, sorted(real.keys())))
+
+    def test_the_denominator_is_a_FIELD_not_only_prose(self):
+        """`moved: 0` beside `reels: null` is a zero with no denominator, even when the number is
+        present in the `why` sentence. A consumer cannot parse prose."""
+        blk = _fn("_retro_triage_loop")
+        self.assertIn('_RIVER_WALK["reels"] = _rv.get("shelf")', blk,
+                      "the shelf size is not recorded, so `moved` has no denominator as a field")
 
     def test_it_still_parses(self):
         ast.parse(SRC)

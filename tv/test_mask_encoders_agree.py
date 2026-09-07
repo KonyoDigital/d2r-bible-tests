@@ -143,7 +143,7 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
             except Exception:
                 pass
 
-    def _js_mask(self, owned):
+    def _js_mask(self, owned, extra=None):
         """Execute the shipped snippet in headless Chrome. -> dict | None (None = could not ask)"""
         try:
             import render_check as RC
@@ -163,7 +163,24 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
         # like a real defect. State shared between cases is an instrument fault.
         # [[feedback-suspect-the-instrument]]
         key = "d2r_probe_store_%d" % (self._probe_n(),)
-        body = js % (json.dumps(self.ROSTER), json.dumps(key))
+        # `extra` seeds ADDITIONAL stores alongside the first, so the union path the snippet grew
+        # in v2759 can be exercised. Each entry is the RAW string to write, or None to leave that
+        # store absent — absent and unparseable are different answers and the snippet treats them
+        # differently, so the harness has to be able to produce both.
+        keys = [key]
+        writes = [(key, json.dumps(owned))]
+        for _i, _raw in enumerate(extra or []):
+            _k = "%s_x%d" % (key, _i)
+            keys.append(_k)
+            if _raw is not None:
+                writes.append((_k, _raw))
+        # ⚠ A LIST, NOT A KEY. The shipped snippet reads a UNION of stores since v2759 —
+        # bible.html's _ownedNames() is `d2r_owned` UNION `keys(d2r_foundLog)` — so `KS` is a
+        # list. Handing it the bare string made JS iterate the string's CHARACTERS, ask
+        # localStorage for "d", "2", "r"..., find none, and answer "no store present on this
+        # board" — five cases failing on the harness speaking a contract the snippet no
+        # longer has. [[feedback-suspect-the-instrument]]
+        body = js % (json.dumps(self.ROSTER), json.dumps(keys))
         tab = None
         try:
             tab = RC._Tab(self._url)
@@ -216,10 +233,11 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
                 time.sleep(0.2)
             else:
                 return None      # -> the caller skips, and a skip is explicitly NOT a pass
-            tab.ev("localStorage.setItem(%s, %s); if (window.LSR && window.LSR.setItem) "
-                   "window.LSR.setItem(%s, %s);"
-                   % (json.dumps(key), json.dumps(json.dumps(owned)),
-                      json.dumps(key), json.dumps(json.dumps(owned))))
+            for _wk, _wv in writes:
+                tab.ev("localStorage.setItem(%s, %s); if (window.LSR && window.LSR.setItem) "
+                       "window.LSR.setItem(%s, %s);"
+                       % (json.dumps(_wk), json.dumps(_wv),
+                          json.dumps(_wk), json.dumps(_wv)))
             raw = tab.ev(body)
             return json.loads(raw) if raw else None
         except Exception as exc:
@@ -267,6 +285,57 @@ class TheTwoEncodersAgreeByteForByte(unittest.TestCase):
 
     def test_a_name_NOT_in_the_roster_is_ignored_by_both(self):
         self._compare([self.ROSTER[3], "Not A Real Item"])
+
+    # ── v2759 — THE UNION, WHICH IS THE WHOLE POINT OF THE FIX ────────────────────────────────
+    # His board's definition of "found" is `d2r_owned` UNION `keys(d2r_foundLog)` — bible.html's
+    # own comment is "found = ledger + LEGACY owned". Until now the mask read ONE store, so a find
+    # recorded only in the legacy half was invisible to the mask while the board still counted it,
+    # and the two halves of one screen answered different questions. The snippet's three
+    # guarantees were written down only as comments; a guarantee with no law is a hope.
+
+    def test_TWO_stores_are_UNIONED_not_last_one_wins(self):
+        """★ THE LAW. Neither store alone produces these bits — if the snippet overwrote rather
+        than accumulated, the mask would equal one half and this fails."""
+        a = [self.ROSTER[i] for i in (0, 1, 7)]
+        b = [self.ROSTER[i] for i in (8, 31, 36)]
+        js = self._js_mask(a, extra=[json.dumps(b)])
+        if js is None:
+            self.skipTest("no headless Chrome — a skip is NOT a pass")
+        self.assertTrue(js.get("ok"), "the js encoder refused: %s" % js.get("why"))
+        both = FM.encode(a + b, self.ROSTER, self.FP)
+        self.assertEqual(js["b"], both["b"],
+                         "the two stores were not unioned. A find living only in the legacy store "
+                         "is exactly the 292-vs-160 gap this fix exists to close.")
+        self.assertEqual(js["have"], len(a) + len(b))
+        # ⚠ and prove the fixture could have caught the failure: each half alone is DIFFERENT.
+        for half in (a, b):
+            self.assertNotEqual(js["b"], FM.encode(half, self.ROSTER, self.FP)["b"],
+                                "the union mask equals one half's mask, so this case could not "
+                                "tell a union from a last-one-wins overwrite")
+
+    def test_an_ABSENT_second_store_is_not_an_error(self):
+        """The legacy store does not exist on a fresh install. Absent must fold to nothing and
+        leave the present store's answer intact — not refuse, and not zero the mask."""
+        a = [self.ROSTER[i] for i in (2, 5, 9)]
+        js = self._js_mask(a, extra=[None])
+        if js is None:
+            self.skipTest("no headless Chrome — a skip is NOT a pass")
+        self.assertTrue(js.get("ok"),
+                        "an absent second store made the mask refuse: %s" % js.get("why"))
+        self.assertEqual(js["b"], FM.encode(a, self.ROSTER, self.FP)["b"])
+
+    def test_an_UNPARSEABLE_store_REFUSES_rather_than_counting_as_empty(self):
+        """⚠ THE DIRECTION THAT MATTERS. A store that exists and will not parse is a real fault.
+        Folding it in as an empty set would silently undercount him and look identical to a board
+        that genuinely owns less — an unknown wearing a measurement's clothes."""
+        a = [self.ROSTER[i] for i in (2, 5, 9)]
+        js = self._js_mask(a, extra=["{ this is not json"])
+        if js is None:
+            self.skipTest("no headless Chrome — a skip is NOT a pass")
+        self.assertFalse(js.get("ok"),
+                         "an unparseable store was folded in as empty and the mask published a "
+                         "number nobody measured")
+        self.assertIn("will not parse", str(js.get("why")))
 
 
 class TheGuardCanFail(unittest.TestCase):

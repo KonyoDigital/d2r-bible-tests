@@ -113,6 +113,19 @@ STORES = {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",
         "readers": {
+            "read_names_lane":  "v2753 — REPORTS ONLY. It works out which already-read names would\n"
+                                "                              auto-tally and which fall to his hand, and never\n"
+                                "                              writes: banking a name RELEASES that reel's footage\n"
+                                "                              for pruning (`rows-not-banked` is a retention hold),\n"
+                                "                              so a reporter that could write would be a deleter.\n"
+                                "                              Its own gate proves the write ban from the AST.",
+            "vault_witness":    "v2759 — REPORTS ONLY. Holds the STORED owned rows beside a re-gate\n"
+                                "                              of their own witnesses at today's live bars, and\n"
+                                "                              publishes the DISAGREEMENT. It exists because\n"
+                                "                              vault_apply's re-gate lives inside `if\n"
+                                "                              caller_supplied` and the console's button posts no\n"
+                                "                              body, so a stored result gated under an older bar is\n"
+                                "                              applied as-is — 6 of 7 of his rows, measured.",
             "tv_diablo":     "v2639 — the disk-floor reel reaper READS the witness sessions so it\n                              can refuse to delete a reel the vault still cites as evidence.\n                              Read only, through a cached mtime check, and it writes nothing here.\n                              Its first victim would otherwise have been the reel behind\n                              'Chaotic Grand Charm'",
 
             "write_census":      "NOT a writer — it names this store to record that the vault lane writes "

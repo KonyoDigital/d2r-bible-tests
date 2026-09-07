@@ -68,9 +68,34 @@ def roster_fingerprint(source_hash):
 # it is refused; a ledger in it carries its own roster file, its own key inside that file, and its
 # own board store — no caller assembles those three by hand ever again. [[copy-drift]]
 LEDGERS = {
+    # ⚠ `stores` is declared for BOTH ledgers, even though sets needs only one. A field present on
+    # one entry and absent on the other is how a caller learns to write `.get("stores") or
+    # [spec["store"]]` in three places and forget it in a fourth.
     "sets":    {"roster": "set_roster.json",    "key": "pieces", "store": "d2r_setPieces",
+                "stores": ["d2r_setPieces"],
                 "label": "set pieces"},
-    "uniques": {"roster": "unique_roster.json", "key": "names",  "store": "d2r_owned",
+    # ══ v2759 — UNIQUES ANSWERS THE CHRONICLE QUESTION, AS THE TALLY HAS SINCE v2717 ═══════════
+    # This read `"store": "d2r_owned"` — the VAULT store — while control_app.py:1997 repointed the
+    # uniques TALLY to the chronicle pair at v2717 and renamed the old measure `vaultUniques`.
+    # Nothing updated this spec, so the cross-reference modal answered "what is in his vault"
+    # under a label meaning "what his Chronicle records", and his own panel read 160/398 beside a
+    # board that says 292/403. `ledger_authority.surface_pairs()` has been reporting
+    # `uniques sameQuestion: false` about exactly this, with nothing acting on it.
+    #
+    # ⚠⚠ AND IT IS A UNION, NOT ONE STORE — WHICH IS WHY `stores` EXISTS BESIDE `store`.
+    # bible.html's `_ownedNames()` (:42994) IS the definition of "found" on his board:
+    # `d2r_owned ∪ keys(d2r_foundLog)`, commented "found = ledger ∪ LEGACY owned". Pointing at
+    # `d2r_foundLog` alone would be correct only IF the two happened to be nested today — a
+    # coincidence, not a definition, and `d2r_owned` being the legacy store is exactly where a
+    # long-running grail keeps its oldest finds. Matching the union is correct by construction.
+    #
+    # ⚠ `store` STAYS A SINGLE STRING and stays PRIMARY. `ledger_authority.surface_pairs()`
+    # compares it to TALLY_STORE as a string to decide `sameQuestion` — the very detector that
+    # proves this fix worked — and `corroborate`'s count-and-mask invariant now asks that detector
+    # rather than re-declaring its own map. Turning `store` into a list would break the instrument
+    # in the same commit that needs it. [[copy-drift]] [[the-unjoined-end]]
+    "uniques": {"roster": "unique_roster.json", "key": "names",  "store": "d2r_foundLog",
+                "stores": ["d2r_foundLog", "d2r_owned"],
                 "label": "uniques"},
 }
 

@@ -267,9 +267,13 @@ class TestTheWholeChainAgreesWithItself(unittest.TestCase):
         body = src[i:src.index("def _mask_cached(", i)]
         m = re.search(r"js = \((.*?)\n          % \(json\.dumps\(roster\)", body, re.S)
         self.assertIsNotNone(m, "the board encoder moved — this test is reading the wrong lines")
-        # the JS now takes (roster, storeKey); the bit order is what this case is about, so the
+        # the JS takes (roster, storeKeyS); the bit order is what this case is about, so the
         # store name is fed a placeholder and only the roster half is exercised.
-        js = eval("(" + m.group(1) + ")") % (json.dumps(self.roster), '"d2r_setPieces"')  # noqa: S307
+        # ⚠ storeKeyS is a LIST since v2759 (the board's "found" is a UNION of two stores). A bare
+        # string is iterated CHARACTER BY CHARACTER by the snippet's loop, so every getItem misses
+        # and it answers {ok:false} — which surfaced here as `KeyError: 'b'`, an error about a
+        # missing key rather than about bit order. [[label-outlived-referent]]
+        js = eval("(" + m.group(1) + ")") % (json.dumps(self.roster), '["d2r_setPieces"]')  # noqa: S307
 
         # ⚠ A CONTIGUOUS PREFIX CANNOT TELL TWO BIT ORDERS APART, and my first version of this test
         # used one. roster[:120] sets every bit of bytes 0-14, so each byte is 0xFF whichever end

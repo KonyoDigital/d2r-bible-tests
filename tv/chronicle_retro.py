@@ -1317,11 +1317,36 @@ def proposal_from_pages(pages):
                 # Two lanes agreeing on a name is corroboration; two lanes agreeing on a name AND
                 # the same find-date is strictly stronger, and it is the only thing that can tell a
                 # find made today from one that was simply never read before.
+                # ══ v2759 — THE SIGHTING SAYS WHICH SURFACE IT CAME FROM ═══════════════════
+                # Konyo's ruling, 2026-09-07: *"chron_evidence — widen it, one confluence store"*.
+                # The deep reader produces name-carrying sightings across SIX scenes (gameplay 200,
+                # chronicle 154, stash 71, inventory 39, loot 6, town 2) and no corroboration store
+                # ever receives them. This is step ONE of that join: every sighting minted here
+                # declares its scene, so that when deep rows do arrive, the comparison machinery
+                # can tell a Chronicle PAGE reading from a STASH reading.
+                #
+                # ⚠ IT IS A CONSTANT HERE, AND THAT IS CORRECT RATHER THAN LAZY. `resp` is
+                # `normalize_page()`'s return, whose eighteen keys are enumerated at
+                # chronicle_hunt.py:176 — `scene` is NOT among them, on either lane. This pipeline
+                # is chronicle-only by construction, twice over: `chronicle_kind()` (:857) refuses
+                # any page whose read scene is not "chronicle", and the live-lane converter (:1469)
+                # skips non-chronicle rows outright. So "chronicle" is the measured truth for every
+                # row this function can mint. The deep-row writer, when it is built, sources the
+                # real per-row scene from the journal row it converts.
+                #
+                # ⚠⚠ NAMED `scene`, NOT `surface`, DELIBERATELY. Two other things already answer to
+                # "surface" here and NEITHER is this: `loc`/`_sighting_loc` collapses inventory,
+                # chronicle, gameplay, town, loot and transition ALL to None (only "stash" is ever
+                # positive), and `witnesses()`'s `surface_of` callback is wired to that same
+                # narrow vocabulary. `scene` is the deep row's own word for the same six values.
+                # reel_segments.py:105 says why this matters: "two vocabularies meeting SILENTLY is
+                # how a branch stops being reachable without anyone noticing". [[copy-drift]]
                 _sight = {
                     "reel": p.get("reel"), "frame": p.get("frame"),
                     "witness": resp.get("witness") or "none",
                     "conf": resp.get("conf") or 0,
                     "lane": lane,
+                    "scene": "chronicle",
                 }
                 _fa = (resp.get("foundAt") or {}).get(nm)
                 if _fa:
@@ -1351,9 +1376,13 @@ def proposal_from_pages(pages):
             # is added is the RECEIPT beside it. Resolving by recency needs a timestamp on the
             # sighting, which these do not carry yet — so this ship makes the contradiction VISIBLE
             # and says plainly that it does not yet make it RESOLVABLE. [[unknown-stays-unknown]]
+            # the notFound RECEIPT carries its scene for the same reason the found sighting does:
+            # `resolve_contested` joins these two by NAME ONLY, so once a stash sighting can appear
+            # on the other side, the receipt has to be able to say it was a Chronicle page.
             prop.setdefault("notFoundSeen", {}).setdefault(ledger, {}).setdefault(nm, []).append({
                 "reel": p.get("reel"), "frame": p.get("frame"),
                 "lane": resp.get("lane") or "claude",
+                "scene": "chronicle",
             })
         for g in (resp.get("sets") or []):
             nm = g.get("set")
@@ -1390,6 +1419,7 @@ def proposal_from_pages(pages):
                         "reel": p.get("reel"), "frame": p.get("frame"),
                         "witness": resp.get("witness") or "none",
                         "conf": resp.get("conf") or 0, "lane": lane,
+                        "scene": "chronicle",
                     })
     prop["notFound"] = {k: sorted(v) for k, v in prop["notFound"].items()}
     # v1921 — THE CONTRADICTION, NAMED. A piece read FOUND on one page and NOT FOUND on another is

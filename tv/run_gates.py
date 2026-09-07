@@ -585,6 +585,62 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_cross_reference_asks_one_question",
+         [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
+         why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "
+             "HALVES. NUMERATOR: fleet_mask's uniques spec still pointed at `d2r_owned` (the VAULT "
+             "store) while control_app:1997 repointed the TALLY to the chronicle pair at v2717 and "
+             "renamed the old measure `vaultUniques`; sets was immune because both its sides read "
+             "d2r_setPieces, which is why one tab was right and the other wrong. And it is a "
+             "UNION: bible.html's _ownedNames() IS the definition of found — d2r_owned plus "
+             "keys(d2r_foundLog), 'ledger + LEGACY owned' — so a single store would be correct "
+             "only by coincidence. DENOMINATOR: the panel printed rosterN=398, of which "
+             "bible.html:3757 says 'produced by neither, and NO array on the page is this size'. "
+             "⚠ rosterN CANNOT become 403 — decode() refuses a mask whose n != len(roster), the "
+             "equality that proves both machines packed the same bit positions — so 403 got its "
+             "own field and does NOT fall back. ⚠⚠ AND THE FIX HAD A LANDMINE AIMED AT ITSELF: "
+             "corroborate held a SECOND hardcoded ledger->store map with 'uniques' absent, so its "
+             "dynamic left side would count uniques the day this shipped while its frozen right "
+             "side would not — the invariant reddening because the code got MORE correct. It now "
+             "asks surface_pairs(). PROOF THE FIX IS RIGHT: with uniques no longer excluded the "
+             "invariant names the defect itself — Konyo uniques tally 292 vs popcount 160. "
+             "12 laws, 10 sabotages RED."),
+
+    Gate("test_a_sighting_says_which_surface",
+         [sys.executable, os.path.join(HERE, "test_a_sighting_says_which_surface.py")], 180,
+         why="TWO LOOKS AT DIFFERENT SURFACES ARE NOT A CONTRADICTION, AND TWELVE OF HIS WERE "
+             "ABOUT TO BE. His ruling: 'chron_evidence - widen it, one confluence store'. Every "
+             "row in that store is chronicle-scene BY CONSTRUCTION (chronicle_kind refuses "
+             "non-chronicle pages; the live-lane converter skips them), while the deep reader "
+             "produces names across SIX scenes that no corroboration store receives. MEASURED: 12 "
+             "names sit in notFound AND were seen by the deep reader on a PANEL surface - "
+             "Goldwrap, Magefist, Wraithstep, Radament's Sphere, Credendum, Dark Adherent, Rite of "
+             "Passage, Bramble Mitts, Death Mask + 3 bases. resolve_contested joins the two sides "
+             "BY NAME ONLY on pure timestamp arithmetic, and its `not-found` verdict says 'the "
+             "found reading is the suspect one' - so a real stash sighting would have been blamed "
+             "by a menu page that had not registered the item yet. Step 1 stamps `scene` at all "
+             "THREE mint sites; step 2 adds a `cross-scene` verdict at the ONE choke point. ⚠ NO-OP "
+             "ON SHIP DAY: it fires only when BOTH sides know their scene and disagree; absence is "
+             "UNKNOWN, never a default, so none of his 8,300 existing rows is re-graded. Named "
+             "`scene` not `surface` because `loc` and witnesses()'s surface_of already answer to "
+             "that with a narrower vocabulary. 8 laws, 6 sabotages RED."),
+
+    Gate("test_the_vault_witness_holds_two_readings",
+         [sys.executable, os.path.join(HERE, "test_the_vault_witness_holds_two_readings.py")], 180,
+         why="I TOLD HIM THE VAULT'S WRITE PATH RE-GATES. ON THE BUTTON HE PRESSES, IT DOES NOT. "
+             "vault_apply's re-gate lives inside `if caller_supplied`, and the console posts "
+             "body:'{}' deliberately ('the engine already holds the gated result'). That rests on "
+             "one buried assumption - that the stored result was gated under the law in force NOW "
+             "- and merge_vault/_absorb merge-max forever without ever calling gate() again. "
+             "MEASURED: 6 of 7 stored OWNED rows could not clear the bar they were displayed "
+             "under; pressing 'register 7' would have applied all seven. His ruling unified the "
+             "bar to 2 the same day so those are legitimate now, but the STRUCTURAL hole is "
+             "untouched - the next bar change recreates it silently. The pair: the stored claim "
+             "beside a re-gate of the SAME evidence at today's constants, AGREE/CONTRADICTION/"
+             "UNKNOWN, never averaged. ⛔ Age is context, never a verdict - his proposal lives on "
+             "disk across restarts by design. PROVEN AGAINST REALITY: AGREE at today's bar of 2, "
+             "CONTRADICTION naming exactly the six rows when set back to 3. 9 laws."),
+
     Gate("test_the_shelf_shows_the_mouth",
          [sys.executable, os.path.join(HERE, "test_the_shelf_shows_the_mouth.py")], 120,
          why="THE SHELF'S TOMBSTONE SECTION SAID 'never reached' OVER 410 COMPLETED JOURNEYS. The "
@@ -1189,7 +1245,16 @@ GATES = [
              "each door a Wilson score, only `shadow` ever passed opened=True, so onair and mini "
              "carried NO denominator while their refused counters ticked and made the ledger look "
              "alive (shadow 609/181, the other two absent). A score nobody increments cannot fail"),
-    Gate("test_gate_banks", [sys.executable, os.path.join(HERE, "test_gate_banks.py")], 120,
+    # ⚠ 600, NOT 120 — THE CEILING WAS BELOW THE FLOOR. MEASURED on an IDLE Mac this suite
+    # takes 126.8s, so a 120s timeout could never pass and the gate reported "timed out after
+    # 120s" with an EMPTY "what actually broke" section — a failure with no defect named,
+    # which reads as noise and gets scrolled past. It is slow for a real reason: it spawns
+    # NESTED run_gates subprocesses to prove the census and the banking end to end, and
+    # `rg.GATES = [g]` means that cost is per-CASE and does not scale with the gate count.
+    # ⚠ The headroom is deliberate: a suite measured at 126.8s idle runs far slower inside a
+    # full set, and a threshold sitting a few seconds above a measurement is a flake waiting
+    # to be blamed on whatever shipped that day. [[feedback-threshold-above-the-ceiling]]
+    Gate("test_gate_banks", [sys.executable, os.path.join(HERE, "test_gate_banks.py")], 600,
          why="the board said since v2444 that the sabotages BANK and the first lock opened itself; "
              "the live console said open 0 of 5, every lock n=0, and the ledger file did not "
              "exist. v2444 put banking in main() only so a test importing the module could not "

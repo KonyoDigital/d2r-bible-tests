@@ -1716,6 +1716,13 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
         try:
             import control_app as ca
             import fleet_mask as fm
+            # ⚠ IMPORTED HERE, IN **THIS** CLOSURE. `la` is imported inside left() and left() only,
+            # so referencing it from right() raises NameError — which the `except Exception:
+            # return None` below then SWALLOWED, turning a broken side into a permanent None that
+            # reads exactly like "nothing comparable to count". Measured when it was written:
+            # right went 1 -> None while left went 1 -> 2. Same shape as the `qs` free-variable
+            # defect in /api/river the same day.
+            import ledger_authority as la
         except Exception:
             return None
         try:
@@ -1725,15 +1732,30 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
         if not isinstance(fl, dict) or not fl.get("ok"):
             return None
         rows = list(fl.get("online") or []) + list(fl.get("offline") or [])
+        # ⚠⚠ ASK THE AUTHORITY, DO NOT RE-DECLARE ITS MAP. This held a SECOND, hardcoded copy of
+        # the ledger->store map with "uniques" simply ABSENT, so the exclusion was accidental
+        # rather than stated: `.get("uniques")` returns None, the comparison can never match, and
+        # uniques was skipped for a reason nobody wrote down.
+        #
+        # ⚠ AND IT WAS A LOADED GUN AIMED AT ITS OWN FIX. `ledger_authority.surface_pairs()`
+        # already reported uniques `sameQuestion: false`; the day fleet_mask's uniques store was
+        # repointed at the tally's, the LEFT side (dynamic) would start counting uniques while
+        # this RIGHT side, frozen in a literal, would not. Left != Right, and the invariant would
+        # go RED because the code became MORE correct — the two-independently-computed-sides drift
+        # this whole file exists to catch, self-inflicted. [[copy-drift]] [[the-unjoined-end]]
+        try:
+            _same = {str(p.get("ledger")): bool(p.get("sameQuestion"))
+                     for p in (la.surface_pairs() or []) if isinstance(p, dict)}
+        except Exception:
+            return None                      # cannot say which pairs are comparable — UNKNOWN
         n = 0
         for m in rows:
             if not isinstance(m, dict):
                 continue
             for led in sorted(fm.LEDGERS):
                 # count only the pairs the left side is allowed to compare: the mask's store and
-                # the tally's store must be the same store, which fleet_mask states for itself.
-                if fm.LEDGERS[led].get("store") != {"sets": "d2r_setPieces",
-                                                    "runewords": "d2r_rwMade"}.get(led):
+                # the tally's store must be the same store, which ledger_authority states ONCE.
+                if not _same.get(led):
                     continue
                 if isinstance((m.get("masks") or {}).get(led), dict) \
                         and isinstance((m.get("tally") or {}).get(led), dict):

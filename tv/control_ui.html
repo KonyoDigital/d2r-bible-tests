@@ -4012,7 +4012,20 @@
   .sh-daygroup.sh-rivergroup .shg-n { color: var(--gold-dim); font-variant-numeric: tabular-nums; }
   /* an EMPTY station still prints, dimmed — a section that vanishes when empty hides the finding. */
   .sh-daygroup.sh-riverempty { opacity: .48; }
-  .sh-daygroup.sh-riverempty .shg-lab::after { content: ' \00b7 never reached'; color: var(--gold-dim);
+  /* ⚠⚠ ON THE COUNT, NOT ON THE LABEL — AND A COLD EYE IS WHY. This was
+     `.shg-lab::after`, which renders "INTAKE ·never reached 0 REELS": a status message wedged
+     between a station's name and its number. Grok, shown the rendered sections COLD with no idea
+     what they were: *"the repeated 'never reached 0 REELS' strings look like placeholder/debug
+     text that was never replaced ... they give the strong impression of an incomplete or partially
+     wired feature"*, and *"it mixes a status message into the count position"*.
+
+     It was deliberate — an empty station IS the finding and a section that vanishes hides it — and
+     it still read as unfinished, which is the one thing a geometry check can never report.
+     ⚠ ITS SUGGESTED FIX WAS REFUSED: "show a clean 0 REELS with no boxes" would delete the
+     distinction the row exists for. `counts` is NOW and `visits` is EVER; "never reached" means
+     visits == 0, which is not the same fact as "none here today". Moving it AFTER the count keeps
+     both and reads as a state rather than as debris. [[visual-regression-detector]] */
+  .sh-daygroup.sh-riverempty .shg-n::after { content: ' \00b7 never reached'; color: var(--gold-dim);
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-tight); }
   /* ⚠⚠ EXCEPT AT THE MOUTH, WHERE "never reached" IS FALSE. This rule read
      "ROUTED and TOMBSTONE are empty today and that is precisely what he needs to see" — and for
@@ -4022,7 +4035,7 @@
      — the false claim and its own refutation in one line. A section carrying a real terminus is
      not empty and must not be dimmed like one. [[label-outlived-referent]] */
   .sh-daygroup.sh-rivermouth { opacity: 1; }
-  .sh-daygroup.sh-rivermouth .shg-lab::after { content: none; }
+  .sh-daygroup.sh-rivermouth .shg-n::after { content: none; }
   .sh-daygroup.sh-rivergroup .shg-mouth { color: var(--gold-hi); font-variant-numeric: tabular-nums; }
   /* the ledger could not be read, or has not been read yet — never shown as "none finished" */
   .sh-daygroup.sh-rivergroup .shg-mouth-unk { color: var(--warn, var(--gold-dim)); }
@@ -14431,9 +14444,9 @@ window._lockMark = function(isOpen, px, label){
         var mouthBit = '';
         if (isMouth){
           if (SHELF_MOUTH === null){
-            mouthBit = ' \u00b7 <span class="shg-mouth shg-mouth-unk">ledger not read yet</span>';
+            mouthBit = '<span class="shg-mouth shg-mouth-unk">ledger not read yet</span>';
           } else if (SHELF_MOUTH && SHELF_MOUTH.ok === false){
-            mouthBit = ' \u00b7 <span class="shg-mouth shg-mouth-unk">'
+            mouthBit = '<span class="shg-mouth shg-mouth-unk">'
                      + esc(String(SHELF_MOUTH.why || 'the ledger could not be read')) + '</span>';
           } else if (SHELF_MOUTH && typeof SHELF_MOUTH.n === 'number'){
             /* ⚠ COMPACT BECAUSE IT WAS MEASURED, NOT BECAUSE IT LOOKS TIDIER. At 5768.1 MB the
@@ -14449,13 +14462,35 @@ window._lockMark = function(isOpen, px, label){
                    : '';
             /* an undated row cannot be placed in the river's order — say so rather than omit it */
             var und = (SHELF_MOUTH.undated ? (' \u00b7 ' + SHELF_MOUTH.undated + ' undated') : '');
-            mouthBit = ' \u00b7 <span class="shg-mouth">' + SHELF_MOUTH.n + ' closed out'
+            mouthBit = '<span class="shg-mouth">' + SHELF_MOUTH.n + ' closed out'
                      + esc(mb + und) + '</span>';
           }
         }
+        /* ══ v2759 — THE ROW NO LONGER OPENS WITH A ZERO IT KNOWS IS MEANINGLESS ════════════
+           The comment forty lines up already said `cs.length` "can only ever be 0" here — and
+           the code printed it first anyway, in the same shape and weight every other station
+           uses. A second eye (grok-4-1-fast-reasoning, on the pixels) read the row cold and
+           reported: "The user reads 'TOMBSTONE 0 REELS' first ... The immediate conclusion is
+           'nothing reached this stage', exactly the opposite of the intended message."
+
+           ⚠ SUPPRESSED, NOT DELETED, AND THE CONDITION IS THE POINT. The second eye proposed
+           dropping the count outright. MEASURED against reel_router before taking it: TOMBSTONE
+           is terminal — "nothing — it is released, and the stamp is its record" — and today
+           holds 0 living reels of 40. But a reel STAMPED tombstone whose file is not yet gone
+           would be a real card and a real signal, and a row that can never show it would hide
+           the one case worth seeing. So the zero goes only while the ledger has journeys to
+           show in its place; any non-zero count still prints, and so does the zero when the
+           ledger is unread or unreadable. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+        var _mouthSpeaks = isMouth && SHELF_MOUTH && SHELF_MOUTH.ok !== false
+                           && typeof SHELF_MOUTH.n === 'number' && SHELF_MOUTH.n > 0;
+        var _bits = [];
+        if (!(_mouthSpeaks && cs.length === 0)){
+          _bits.push(cs.length + ' reel' + (cs.length === 1 ? '' : 's')
+                     + (newest ? ' \u00b7 ' + esc(_ago(newest)) : ''));
+        }
+        if (mouthBit) { _bits.push(mouthBit); }
         h.innerHTML = '<span class="shg-lab">' + esc(st) + '</span>'
-          + '<span class="shg-n">' + cs.length + ' reel' + (cs.length === 1 ? '' : 's')
-          + (newest ? ' \u00b7 ' + esc(_ago(newest)) : '') + mouthBit + '</span>';
+          + '<span class="shg-n">' + _bits.join(' \u00b7 ') + '</span>';
         if (cs.length) { grid.insertBefore(h, cs[0]); }
         else if (anchor) { grid.insertBefore(h, anchor); }
         else { grid.appendChild(h); }
@@ -20032,6 +20067,13 @@ function escC(s) {
      format." The format IS the same because it is the same function — the ledger is an argument,
      not a second copy of this renderer. Its own v2248 note says why: "Two copies of a routing
      rule only ever get fixed once." [[copy-drift]] */
+  /* the denominator he READS, or an honest dash. Declared in this block deliberately: a call
+     across this file's two script blocks is a dead render and has cost four versions. */
+  function _fxDen(j){
+    var n = j && j.showN;
+    if (typeof n === 'number' && n > 0) return String(n);
+    return '?';
+  }
   var _FXR_LEDGERS = {
     sets:    { label: 'set pieces', rarity: 'set',    tab: 'SETS' },
     uniques: { label: 'uniques',    rarity: 'unique', tab: 'UNIQUES' }
@@ -20152,8 +20194,17 @@ function escC(s) {
       + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', false)
       + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', true)
       + '</div>'
-      + '<div class="fx-foot">' + (j.mineN | 0) + ' / ' + (j.rosterN | 0) + ' yours · '
-      + (j.theirsN | 0) + ' / ' + (j.rosterN | 0) + ' theirs · ' + (j.both | 0) + ' shared'
+      /* ⚠⚠ `showN`, NOT `rosterN`. This printed the roster length — 398 for uniques — and
+         bible.html:3757 says of that number: "produced by neither, and NO array on the page is
+         this size". So the panel quoted a fraction of a figure the page itself says corresponds
+         to nothing, beside a tab reading 292/403. `rosterN` still exists and is still load-bearing
+         (fleet_mask.decode() refuses a mask whose n != len(roster), which is what proves both
+         sides packed the same bit positions) — it is simply not a number he should ever READ.
+         ⚠ AND IT DOES NOT FALL BACK. If the board has published no total, `showN` is null and this
+         says so: substituting rosterN would silently reinstate the exact defect, and look right
+         doing it. [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+      + '<div class="fx-foot">' + (j.mineN | 0) + ' / ' + _fxDen(j) + ' yours · '
+      + (j.theirsN | 0) + ' / ' + _fxDen(j) + ' theirs · ' + (j.both | 0) + ' shared'
       + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
       + ', theirs ' + escC(age(j.theirAt)) + '</span></div></div></div>';
     } catch (err) {

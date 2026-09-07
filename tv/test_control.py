@@ -11298,8 +11298,21 @@ class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
         import fleet_mask as _fm
         self.assertEqual(_fm.LEDGERS["sets"]["store"], "d2r_setPieces",
                          "the sets ledger no longer points at the board's own set pieces")
-        self.assertEqual(_fm.LEDGERS["uniques"]["store"], "d2r_owned",
-                         "the uniques ledger no longer points at the board's owned list")
+        # v2759 — THIS PIN HELD THE DEFECT IN PLACE. `d2r_owned` alone is not what his board calls
+        # found: bible.html's _ownedNames() is `d2r_owned` UNION `keys(d2r_foundLog)`, commented
+        # "found = ledger + LEGACY owned", and control_app:1997 moved the TALLY to the chronicle
+        # pair at v2717 while this spec stayed behind — which is how one tab read 160/398 beside a
+        # board reading 292/403. The privacy property this case exists for is unchanged and still
+        # checked below; what moved is WHICH of the board's own stores the mask reads.
+        self.assertEqual(_fm.LEDGERS["uniques"]["store"], "d2r_foundLog",
+                         "the uniques ledger no longer points at the board's found ledger")
+        self.assertEqual(list(_fm.LEDGERS["uniques"]["stores"]), ["d2r_foundLog", "d2r_owned"],
+                         "the uniques mask no longer reads the UNION the board itself calls found, "
+                         "so a find recorded only in the legacy store is invisible to the mask "
+                         "while the board still counts it")
+        self.assertEqual(list(_fm.LEDGERS["sets"]["stores"]), ["d2r_setPieces"],
+                         "the sets ledger grew a second store — sets was never a union, and both "
+                         "its sides reading one store is why sets was right while uniques was not")
         self.assertIn("btoa", fn, "the board no longer encodes — names would have to travel")
         self.assertNotIn("json.dumps(sp)", fn,
                          "the board is serialising its piece list, which would put item names into "

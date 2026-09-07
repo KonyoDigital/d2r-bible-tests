@@ -87,11 +87,23 @@ class TheShelfShowsTheMouth(unittest.TestCase):
     # ── ⚠⚠ THE CONTRADICTION THAT WOULD HAVE SHIPPED ──────────────────────────────────────────
     def test_the_mouth_suppresses_never_reached(self):
         """Without this the header prints "TOMBSTONE · never reached · 410 closed out"."""
-        self.assertIn(".sh-daygroup.sh-rivermouth .shg-lab::after { content: none; }", UI,
+        self.assertIn(".sh-daygroup.sh-rivermouth .shg-n::after { content: none; }", UI,
                       "the ' · never reached' suffix is not suppressed at the mouth, so the header "
                       "asserts the opposite of the number beside it")
         self.assertIn(".sh-daygroup.sh-rivermouth { opacity: 1; }", UI,
                       "the mouth is still dimmed like an empty station")
+
+    def test_never_reached_sits_AFTER_the_count_not_between_name_and_number(self):
+        """⚠ FOUND BY A COLD EYE, NOT BY GEOMETRY. On `.shg-lab::after` the row rendered
+        "INTAKE ·never reached 0 REELS" — a status message wedged between a station's name and its
+        number. Grok, shown the sections with no idea what they were: "the repeated 'never reached
+        0 REELS' strings look like placeholder/debug text that was never replaced". Nothing
+        overflowed, nothing clipped; it simply read as unfinished."""
+        self.assertIn(".sh-daygroup.sh-riverempty .shg-n::after", UI,
+                      "the 'never reached' state is not on the count — if it is back on the label "
+                      "it renders between the station name and its number and reads as debris")
+        self.assertNotIn(".sh-daygroup.sh-riverempty .shg-lab::after", UI,
+                         "the label still carries the state suffix")
 
     def test_the_mouth_class_is_only_applied_when_the_LEDGER_HAS_ROWS(self):
         """⚠ It must not fire on an unread or empty ledger — that would suppress 'never reached'
@@ -113,10 +125,59 @@ class TheShelfShowsTheMouth(unittest.TestCase):
         self.assertIn("' closed out'", CODE,
                       "the ledger figure has no label IN CODE, so it reads as more reels on the "
                       "shelf")
-        self.assertIn("MB reclaimed", CODE, "the reclaimed figure is not shown in code")
+        # ⚠ THE WORDING CHANGED AFTER THIS LAW WAS WRITTEN AND I DID NOT RE-RUN IT. The law said
+        # "MB reclaimed"; a later compaction to GB made it "freed", and v2758 shipped with this
+        # gate RED — the pre-push runs three of the thirty gate files, so nothing caught it.
+        # Pinned on the SHAPE now (a size and the word freed) rather than one phrasing, so a units
+        # change does not falsify the law again. [[regression-guard]]
+        self.assertIn("' freed'", CODE, "the freed-size figure has no label in code")
+        self.assertIn("' GB'", CODE, "the size is not compacted to GB, so a 4-digit MB figure "
+                                     "returns to the header")
+        self.assertIn("' MB'", CODE, "the sub-1GB case lost its unit")
         self.assertIn("undated", CODE,
                       "undated rows are not surfaced — a timeline that omits them silently is the "
                       "defect this view exists to prevent")
+
+    def test_the_terminus_does_NOT_open_with_a_zero_it_knows_is_meaningless(self):
+        """★ v2759 — FOUND BY THE SECOND EYE ON PIXELS, NOT BY ANY GATE HERE.
+
+        The row rendered `TOMBSTONE 0 REELS · 410 CLOSED OUT · 5.6 GB FREED`. grok-4-1-fast-
+        reasoning, shown only the crop and told nothing about the intent, read it cold:
+        "The user reads 'TOMBSTONE 0 REELS' first because that phrase uses the same structure and
+        weight as every other station row above it. The immediate conclusion is 'nothing reached
+        this stage', exactly the opposite of the intended message."
+
+        ⚠ THE CODE ALREADY KNEW. The comment above the class line says `cs.length` "can only ever
+        be 0" at this station — and the header printed it first regardless. Every gate here was
+        green: they all checked that the closed-out figure was PRESENT and LABELLED, and not one
+        asked what the eye meets first. A number can be correct, labelled, measured and still
+        say the opposite of the truth by where it sits. [[label-outlived-referent]]
+
+        ⚠ SUPPRESSED, NOT DELETED — and that is the half the second eye got wrong. It proposed
+        removing the count. MEASURED against reel_router first: TOMBSTONE is terminal ("nothing —
+        it is released, and the stamp is its record") and holds 0 of 40 living reels today, but a
+        reel stamped tombstone whose file is not yet gone WOULD be a real card, and a row that can
+        never show one hides the single case worth seeing. So the zero goes only while the ledger
+        has journeys to print in its place.
+        """
+        self.assertIn("_mouthSpeaks", CODE,
+                      "nothing decides whether the ledger has something to say in the count's "
+                      "place, so the suppression cannot be conditional")
+        self.assertIn("if (!(_mouthSpeaks && cs.length === 0)){", CODE,
+                      "the card count is not guarded on a SPEAKING mouth over ZERO cards. Either "
+                      "the zero is back in front of the 410, or the count was dropped outright — "
+                      "which would hide a tombstoned-but-not-yet-deleted reel.")
+        self.assertNotIn("'<span class=\"shg-n\">' + cs.length + ' reel'", CODE,
+                         "the header builds the count unconditionally again, so TOMBSTONE opens "
+                         "with a 0 that the code's own comment calls meaningless")
+        # ⚠ the separator moved to the JOIN, so a mouthBit still carrying its own leading '·'
+        # would render a doubled separator the moment the count IS suppressed.
+        self.assertNotIn("mouthBit = ' \\u00b7 ", CODE,
+                         "a mouthBit still carries a leading separator; with the count suppressed "
+                         "the row renders 'TOMBSTONE  \u00b7 410 closed out'")
+        self.assertIn("_bits.join(' \\u00b7 ')", CODE,
+                      "the header no longer joins its parts, so separator placement is back to "
+                      "being hardcoded per fragment")
 
     def test_it_is_scoped_to_TOMBSTONE_only(self):
         """⚠ COUNTS BOTH SITES. This first asserted the string was present ANYWHERE, and passed a

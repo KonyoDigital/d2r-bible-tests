@@ -2123,12 +2123,27 @@ def board_mask(ledger="sets"):
         return _mask_give_up(ledger, "no board window")
     js = ("(function(){try{"
           "var R=%s;"
-          "var K=%s;"
-          "var rawv=(window.LSR?window.LSR.getItem(K):localStorage.getItem(K));"
-          "var p=null;try{p=JSON.parse(rawv||'[]');}catch(_p){"
-          "return JSON.stringify({ok:false,why:'store will not parse'});}"
-          "var sp=Array.isArray(p)?p:(p&&typeof p==='object'?Object.keys(p):[]);"
-          "var have={};for(var i=0;i<sp.length;i++){have[String(sp[i])]=1;}"
+          # ⚠ KS is a LIST, because "found" on his board is a UNION. bible.html's _ownedNames()
+          # is `d2r_owned` UNION `keys(d2r_foundLog)` — commented "found = ledger + LEGACY owned"
+          # — and this read ONE key, so a find recorded only in the legacy store was invisible to
+          # the mask while the board counted it. Reading the same union the board reads is what
+          # makes the popcount answer the same question as the tally.
+          "var KS=%s;"
+          "var have={};var readAny=false;var bad=[];"
+          "for(var ki=0;ki<KS.length;ki++){var K=KS[ki];"
+          "  var rawv=(window.LSR?window.LSR.getItem(K):localStorage.getItem(K));"
+          # ⚠ ABSENT AND UNPARSEABLE ARE DIFFERENT. A store this board has never written is not
+          # an error — the legacy one is absent on a fresh install. A store that EXISTS and will
+          # not parse is a real fault and must not be folded into the union as an empty set.
+          "  if(rawv==null||rawv===''){continue;}"
+          "  var p=null;try{p=JSON.parse(rawv);}catch(_p){bad.push(K);continue;}"
+          "  var sp=Array.isArray(p)?p:(p&&typeof p==='object'?Object.keys(p):[]);"
+          "  for(var i=0;i<sp.length;i++){have[String(sp[i])]=1;}"
+          "  readAny=true;}"
+          "if(bad.length){return JSON.stringify({ok:false,why:'store will not parse: '+bad.join(', ')});}"
+          # ⚠ NOT ONE STORE PRESENT is UNKNOWN, never a mask of zeros. A board that has written
+          # neither store has not told us he owns nothing — it has told us nothing.
+          "if(!readAny){return JSON.stringify({ok:false,why:'no store present on this board'});}"
           "var bytes=new Array(Math.ceil(R.length/8));for(var k=0;k<bytes.length;k++)bytes[k]=0;"
           "var hits=0;"
           "for(var j=0;j<R.length;j++){if(have[R[j]]){bytes[(j/8)|0]|=(1<<(j%%8));hits++;}}"
@@ -2136,7 +2151,11 @@ def board_mask(ledger="sets"):
           "var t=btoa(s).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');"
           "return JSON.stringify({ok:true,n:R.length,have:hits,b:t});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
-          % (json.dumps(roster), json.dumps(spec["store"])))
+          % (json.dumps(roster),
+             # ⚠ `.get("stores") or [store]` — the fallback keeps an older spec working rather
+             # than raising on it, and fleet_mask declares `stores` on BOTH ledgers so this
+             # branch is uniform rather than a special case for one of them.
+             json.dumps(list(spec.get("stores") or [spec["store"]]))))
     try:
         raw = _ejs(w, js, timeout=8.0)
     except Exception as e:
@@ -18821,7 +18840,7 @@ def retro_triage_tick():
 #: INCLUDING ZERO. `moved: 0` beside `at: <2s ago>` is a measurement. Silence is not.
 #: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
 _RIVER_WALK = {"at": None, "ok": None, "reels": None, "moved": None, "why": "",
-               "walks": 0, "lastMovedAt": None}
+               "walks": 0, "lastMovedAt": None, "unchanged": None, "refused": None}
 
 
 def river_mouth(limit=12, path=None):
@@ -18946,7 +18965,17 @@ def _retro_triage_loop():
                 _RIVER_WALK["at"] = time.time()
                 _RIVER_WALK["walks"] = int(_RIVER_WALK.get("walks") or 0) + 1
                 _RIVER_WALK["ok"] = bool(_rv.get("ok"))
-                _RIVER_WALK["reels"] = _rv.get("reels")
+                # ⚠ `shelf`, NOT `reels` — run() returns {ok, moved, unchanged, refused, shelf,
+                # why, transitions, refusals} and has NO `reels` key. The first cut asked for one
+                # and got None, which the doctor row then printed as "not measured" while the
+                # denominator sat three words away in the `why` string ("40 were already where the
+                # store said"). A null from a wrong key is indistinguishable from a null nobody
+                # measured — the fourth wrong-key read of this session, this one in my own fresh
+                # code, caught only because the LIVE console published it.
+                # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+                _RIVER_WALK["reels"] = _rv.get("shelf")
+                _RIVER_WALK["unchanged"] = _rv.get("unchanged")
+                _RIVER_WALK["refused"] = _rv.get("refused")
                 _RIVER_WALK["moved"] = _rv.get("moved")
                 _RIVER_WALK["why"] = str(_rv.get("why") or "")
                 if _rv.get("moved"):
@@ -23455,6 +23484,30 @@ def fleet_presence(force=False):
     return out
 
 
+def _fleet_show_total(ledger):
+    """The denominator to SHOW him for this ledger, or None with a reason. -> (int|None, str)
+
+    Reads the board's own published tally rather than any roster length: `board_tally.json` is what
+    his own Chronicle meter divides by, so a panel that quotes it agrees with the tab beside it by
+    construction instead of by coincidence.
+    """
+    try:
+        d = json.load(open(os.path.join(HERE, "board_tally.json"), encoding="utf-8")) or {}
+    except FileNotFoundError:
+        return None, ("no board tally has been published on this machine yet, so the number he "
+                      "counts against is UNKNOWN - it is not the roster length")
+    except Exception as e:
+        return None, "the board tally could not be read (%s)" % str(e)[:60]
+    pair = d.get(str(ledger or "").strip().lower())
+    if not isinstance(pair, dict):
+        return None, ("the board tally carries no %r pair, so its denominator is UNKNOWN"
+                      % str(ledger))
+    t = pair.get("total")
+    if not isinstance(t, int) or t <= 0:
+        return None, "the board tally's %r total is %r, which is not a count" % (str(ledger), t)
+    return t, ""
+
+
 def fleet_compare(machine, ledger="sets"):
     """What THEY have that HE does not, and the other way round. -> dict
 
@@ -23521,6 +23574,26 @@ def fleet_compare(machine, ledger="sets"):
     _slot = _MASK_CACHE.get(ledger) or {}
     out["mineAt"] = int(_slot.get("t", 0) * 1000) if _slot.get("t") else None
     out["rosterN"] = len(roster)
+    # ══ v2759 — THE DENOMINATOR HE READS IS NOT THE DENOMINATOR THE BITS ARE ALIGNED TO ═════════
+    # `rosterN` is LOAD-BEARING: `fleet_mask.decode()` refuses any mask whose `n` does not equal
+    # `len(roster)`, because that equality is what proves both sides packed the same roster into
+    # the same bit positions. It must stay the roster length (398 for uniques) and cannot become
+    # 403 — doing so would make every mask on the fleet undecodable.
+    #
+    # But 398 is not a number he should ever READ. bible.html:3757 already ruled on this, listing
+    # THREE denominators and what each answers:
+    #     403  chronTotal — HIS PINNED RULING, the game's own Chronicle count
+    #     392  funiScan().total — the carded roster after his v2680 one-tally-per-sunder ruling
+    #     398  "produced by neither, and NO array on the page is this size"
+    # The panel was rendering `rosterN` — the third one — so it printed a fraction of a number the
+    # page itself says corresponds to nothing. `showN` carries the number he pinned; `rosterN`
+    # stays beside it for the bits. Two questions, two fields, each named for what it answers.
+    # [[zero-needs-a-denominator]] [[label-outlived-referent]] [[d2r-uniques-percent-calibration]]
+    #
+    # ⚠ UNKNOWN, NEVER A FALLBACK TO rosterN. If the board's own total cannot be read, showing 398
+    # in its place would silently reinstate the exact defect this removes — and it would look
+    # right. A missing denominator is a thing to say, not a thing to substitute.
+    out["showN"], out["showNWhy"] = _fleet_show_total(ledger)
     if not out.get("ok") and their_mask is None:
         # v2329 — the ledger names itself here too. "which pieces it holds" is set wording, and
         # printing it on a UNIQUES comparison is a label describing the wrong thing at exactly the
@@ -23835,7 +23908,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2758",
+        "ver": "v2759",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

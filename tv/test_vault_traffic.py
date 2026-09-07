@@ -181,8 +181,35 @@ class TestTheThrowBarSeenFromBothSides(_Base):
             self.assertFalse(row.get("automatic"), "a throw-out marked itself automatic")
 
     def test_the_throw_bar_is_stricter_than_the_keep_bar_on_BOTH_axes(self):
-        self.assertGreater(vr.THROWOUT_CONF_FLOOR, vr.KEEP_CONF_FLOOR)
-        self.assertGreater(vr.THROWOUT_MIN_WITNESSES, vr.KEEP_MIN_WITNESSES)
+        """⚠ THE RELATION MOVED AXIS ON 2026-09-07 — HIS RULING, AND THIS LAW MISSED IT FOR A SHIP.
+
+        He unified the witness bars: KEEP 3->2 and THROWOUT 4->2, *"make it two also.. its fine..
+        i will review what i throw regardless.. as long as it in that bin"*. THREE separate laws
+        asserted `THROWOUT_MIN_WITNESSES > KEEP_MIN_WITNESSES`; I updated ONE of them (in
+        test_control) and shipped v2754 with the other two RED — and nothing caught it, because
+        `hooks/pre-push` runs three of the thirty gate files and `run_gates.py` is not among them.
+        Fixing one site and leaving its twins is the defect my own deleter gate was written about.
+
+        ⚠⚠ THE GUARANTEE IS INTACT, IT SIMPLY LIVES ON THE OTHER AXIS NOW. Throwing must never be
+        easier than keeping — there is no un-throw in Diablo — and it still is not: the throw lane
+        demands conf >= 0.85 where keep demands 0.55. Equal WITNESSES with a far stricter
+        CONFIDENCE is still strictly stricter overall.
+
+        ⚠ AND HIS RULING RESTS ON A FACT VERIFIED IN CODE, not on taste: the throw lane has NO
+        APPLY PATH. `control_app.vault_apply` re-gates and walks `("owned", "unsure")` only;
+        `throwOut` is carried in the display payload and never consumed by any write. It is a
+        review bin he empties by hand, so a lower bar puts more candidates in front of him and
+        applies nothing. [[label-outlived-referent]]
+        """
+        self.assertGreater(vr.THROWOUT_CONF_FLOOR, vr.KEEP_CONF_FLOOR,
+                           "the throw lane is no longer stricter than the keep lane on ANY axis. "
+                           "Witnesses were equalised by his 2026-09-07 ruling ON THE UNDERSTANDING "
+                           "that confidence still separates them; if this goes too, throwing has "
+                           "become the easier of the two and there is no un-throw.")
+        self.assertGreaterEqual(vr.THROWOUT_MIN_WITNESSES, vr.KEEP_MIN_WITNESSES,
+                                "the throw bar sank BELOW the keep bar on witnesses")
+        self.assertGreaterEqual(vr.THROWOUT_MIN_WITNESSES, 2,
+                                "one sighting is enough to suggest a throw-out")
 
     def test_a_confident_item_below_the_throw_floor_is_still_held(self):
         low = dict(self.ITEM, conf=vr.THROWOUT_CONF_FLOOR - 0.05)

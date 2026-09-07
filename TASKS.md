@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2759** | `(this commit)` | v2759 — the uniques mask reads the union the board calls found, and TOMBSTONE leads with its 410 journeys instead of a 0 the code knew was meaningless |
 | **v2758** | `(this commit)` | v2758 — TOMBSTONE printed never reached over 410 completed journeys, because it counts cards and a closed-out reel leaves the disk. The section now carries the ledger, and the never-reached suffix is suppressed only when the ledger actually holds rows. |
 | **v2757** | `(this commit)` | v2757 — I reported that the river never reached its end. It has reached it 410 times, reclaiming 5768 MB - a tombstoned reel leaves the disk and stops being something the router can station. The mouth is now read from the ledger and published on the river. |
 | **v2756** | `(this commit)` | v2756 — A successful walk that found nothing said nothing, so a still river and a dead loop looked identical. The walk now records that it ran - when, reels compared, moved including zero - and publishes it where a supervisor can read it. |

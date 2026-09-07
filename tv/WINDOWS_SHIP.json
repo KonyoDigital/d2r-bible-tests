@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2758",
+  "ver": "v2759",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2758: TOMBSTONE printed never reached over 410 completed journeys, because it counts cards and a closed-out reel leaves the disk. The section now carries the ledger, and the never-reached suffix is suppressed only when the ledger actually holds rows.",
+  "note": "v2759: the uniques mask reads the union the board calls found, and TOMBSTONE leads with its 410 journeys instead of a 0 the code knew was meaningless",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
