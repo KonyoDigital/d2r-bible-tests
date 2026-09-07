@@ -585,6 +585,71 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_his_own_fleet_row_is_not_a_round_trip",
+         [sys.executable, os.path.join(HERE, "test_his_own_fleet_row_is_not_a_round_trip.py")], 180,
+         why="HIS OWN FLEET ROW CAME BACK FROM CLOUDFLARE TO TELL HIM WHAT WAS ON HIS OWN DISK. "
+             "Konyo, seconds after ticking a set piece: 'i just changed my sets from a 123/135 to "
+             "124/135 but how come THE FLEET is delayed? ... should it not be SHARING A CSS so its "
+             "rendered is always the same?' MEASURED at that moment: board_tally.json already said "
+             "sets 124/135, SIX SECONDS old, while the card read 123 'as of 1m ago'. The data was "
+             "never late — the RENDER was: his own row arrived the way a cousin's does, published "
+             "by the beacon and read back through fleet_presence, which is 60s cached. ⚠ AND THE "
+             "ANSWER TO HIS QUESTION IS NO: sharing a stylesheet would make the two surfaces LOOK "
+             "identical while still printing 123 and 124 — the disagreement would survive in "
+             "matching fonts, which is worse, because two surfaces that look like one source and "
+             "disagree are harder to disbelieve. What they must share is the SOURCE. ⚠ ONLY HIS "
+             "ROW: a peer's numbers are knowable only through the beacon, so overlaying local "
+             "figures onto Dean's row would publish Konyo's board as Dean's. ⚠ THROUGH "
+             "board_tally_load(), the path authority — _fleet_show_total hardcoded its own "
+             "os.path.join and thereby bypassed the TV_HIST isolation override, and this law "
+             "proves the read by SUBSTITUTION rather than by grepping for a string. Verified live "
+             "after relaunch: localRead=True, sets 124/135, both peers still on the beacon. "
+             "9 laws, 3 sabotages RED."),
+
+    Gate("test_the_shelf_builds_what_it_shows",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_builds_what_it_shows.py")], 180,
+         why="THE SHELF BUILT 3,086 CARDS TO SHOW 529 AND THAT STOPPED THE WHOLE WINDOW PAINTING. "
+             "Five reports in one afternoon — black shelf, empty ADVANCED, a theatre with nothing "
+             "to close, a screen-height gap on Sessions — were FOUR SYMPTOMS OF ONE CAUSE. "
+             "MEASURED: opening the shelf took the page 11,744 -> 84,414 elements in ONE build; "
+             "3,086 cards at ~23 elements each = 72,337, which is 86% of the page. 2,557 of those "
+             "cards were built and then display:none'd — 58,811 elements, 70% OF THE PAGE, built "
+             "only to be invisible, while the panel's own chip already said '529 of 3086'. Past "
+             "~84k elements WebKit stops producing frames, so once the shelf had been opened ONCE "
+             "panels he never touched went dark too. His console diagnosed itself and nothing "
+             "surfaced it: uiBeat painting=false, frozenBeats=12, 'DOM is intact (84470 "
+             "elements)', and ui_faults.jsonl carries days of 'BEATING AND DRAWING NOTHING'. "
+             "Proven by relaunch: 84,470 -> 11,796, painting=true. AFTER: 84,414 -> 27,415, 529 "
+             "cards, chip still reads 2,557. ⚠ TWO OF MY OWN READS WERE WRONG FIRST: 'it appends "
+             "without clearing' (refuted — innerHTML replaces, re-opens add 0) and _shellPaintAgain "
+             "(a symptom fix: a page that CANNOT paint asked to try again). ⚠ THE TRAPS THIS PINS: "
+             "return '' rather than .filter() or data-n renumbers and silently breaks the "
+             "card->session join; count the ghosts from TH.sessions or the chip reads '0 empty "
+             "runs' while withholding 2,557; and the chip must REBUILD, not unhide, or it goes "
+             "inert while looking exactly like a chip that works. 7 laws, 3 sabotages RED."),
+
+    Gate("test_one_item_has_one_key",
+         [sys.executable, os.path.join(HERE, "test_one_item_has_one_key.py")], 180,
+         why="THE SAME ITEM WAS STORED TWICE AND ITS SIGHTINGS NEVER MET. chron_evidence.json keys "
+             "the confluence store by RAW name, and his live store held Atma's Scarab as curly 20 "
+             "PLUS straight 38, Saracen's Chance as curly 50 plus straight 6, Endlesshail 22 plus "
+             "'Endless Hail' 2, Stealskull 23 plus 'Steal Skull' 2. The apostrophe split is not "
+             "drift from outside: bible.html spells those four CURLY in the item rows and STRAIGHT "
+             "in ITEM_VALUE, in the same file. ⚠ THE COST IS CORROBORATION, NOT PICTURES — "
+             "merge_proposals de-dupes by (reel, frame, lane) WITHIN a bucket, so two spellings "
+             "meant two buckets and a name seen in reel A under one and reel B under the other "
+             "read as two lonely singles, so cross-reel could never fire. Same defect v1776/v1798 "
+             "killed, arriving through the KEY instead of the value. ⚠⚠ EXACT FOLD ONLY: "
+             "canonical() also does a difflib near-match, which is right for asking what an OCR "
+             "read meant and WRONG as a store key — the roster holds near-twin pairs ('Bone Break' "
+             "/ 'Latent Bone Break') on purpose, so a fuzzy key is a coin flip between two grail "
+             "items. MEASURED over all 310 names: 281 fold exactly, 10 would need fuzzy (left "
+             "RAW), 19 match no roster (rares/bases, left RAW), and exactly 4 collisions — the "
+             "four pairs and nothing else. ⚠ THE FOLD PROVES THE SPLIT WAS REAL: 20+38 becomes 54 "
+             "not 58, because 5 rows were the SAME PHOTOGRAPH banked under both spellings. "
+             "11 laws; sabotage-proven 3 ways (inert fold 5 red, unjoined merge 1 red, fuzzy fold "
+             "2 red)."),
+
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

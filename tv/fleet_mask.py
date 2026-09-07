@@ -108,7 +108,14 @@ def ledger_spec(ledger):
     if name not in LEDGERS:
         return None, ("unknown ledger %r — this machine knows %s"
                       % (ledger, ", ".join(sorted(LEDGERS))))
-    return dict(LEDGERS[name], name=name), None
+    # ⚠ v2760 — COPY THE LIST, NOT THE REFERENCE. `dict(...)` is SHALLOW, so the returned
+    # spec shared its `stores` list object with the module constant: PROVEN by appending to
+    # a returned spec and watching fleet_mask.LEDGERS["uniques"]["stores"] grow for the whole
+    # process, beacon included. The hazard arrived WITH the union fix — `store` was an
+    # immutable string, so no caller could ever have mutated it by accident before.
+    _spec = dict(LEDGERS[name], name=name)
+    _spec["stores"] = list(_spec.get("stores") or ())
+    return _spec, None
 
 
 def load_roster_for(ledger):

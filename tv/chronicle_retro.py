@@ -1542,6 +1542,98 @@ def live_pages(rows, ledger_of=None, lane="live"):
     return out
 
 
+def _tight(s):
+    """Letters and digits only, lowercased — QUALIFIER KEPT. -> str
+
+    Distinct from `chronicle_resolve._norm`, which deliberately drops a trailing parenthetical so
+    'Credendum' can be looked up and find 'Credendum (mithril coil)'. That is right for ASKING;
+    it is wrong for deciding whether two strings are THE SAME NAME, because under it every piece
+    equals its own qualified form and a rename reads as a spelling fix.
+    """
+    return "".join(c for c in str(s or "").lower() if c.isalnum())
+
+
+def _fold_key(name, rosters, ledger):
+    """The store's ONE spelling for `name` — EXACT fold only, never a guess. -> str
+
+    v2760 — THE SAME ITEM WAS STORED TWICE AND ITS SIGHTINGS NEVER MET. MEASURED on his live
+    `chron_evidence.json`, which keys by raw name:
+
+        Atma's Scarab      curly 20 + straight 38   -> 58 sightings split across two keys
+        Saracen's Chance   curly 50 + straight  6   -> 56 sightings split across two keys
+        Endlesshail        22 + 'Endless Hail'   2
+        Stealskull         23 + 'Steal Skull'    2
+
+    Two are apostrophe forms (U+2019 vs U+0027 — bible.html spells these four items curly in the
+    item rows and straight in ITEM_VALUE, in the same file); two are spacing, from a read that
+    split a compound name. The witness machinery keys BY NAME, so a name seen in reel A under one
+    spelling and reel B under the other looks like two lonely single sightings and `cross-reel`
+    can never fire — the exact defect v1776 and v1798 were written to kill, arriving through the
+    KEY instead of through the value. [[the-unjoined-end]]
+
+    ⚠⚠ EXACT FOLD ONLY, AND THAT IS THE WHOLE SAFETY ARGUMENT. `canonical()` also does a difflib
+    near-match, which is right when ASKING what an OCR read meant and WRONG as a store key: a
+    fuzzy key silently merges two different grail items and nothing downstream can tell. This
+    folds only when `_norm(name)` is literally in the roster.
+
+    MEASURED over all 310 evidence names before shipping: 281 fold exactly, 10 would need fuzzy
+    (left RAW, deliberately), 19 match no roster entry (rares and bases — left RAW), and the fold
+    produces EXACTLY 4 collisions, which are the four pairs above. It merges the real duplicates
+    and touches nothing else.
+
+    ⚠ A NAME IS NEVER DROPPED. Anything the roster does not know keeps its own spelling, because
+    an evidence store that can only hold roster items stops being able to witness a rare.
+    """
+    try:
+        import chronicle_resolve as _resolve   # per-callsite, this module's convention
+        ro = rosters.get(ledger) or {}
+        k = _resolve._norm(name)
+    except Exception:
+        return name
+    if not k:
+        return name
+    hit = ro.get(k)
+    if not hit:
+        return name
+    # ⚠⚠ FOLD A SPELLING, NEVER RENAME. MEASURED: without this guard the fold also rewrote
+    # 'Credendum' -> 'Credendum (mithril coil)' and 'Tal Rasha's Adjudication' ->
+    # '... (amulet)', because the set roster is INDEXED BY THE UNQUALIFIED NAME. That is a
+    # rename, not a spelling fix, and it broke three gates at once: `notFound`, `notFoundSeen`,
+    # `contested` and `completeSets` are name-keyed TOO, so renaming one side of the
+    # found/not-found join desynchronised it and every contradiction went silent
+    # ("the contradiction vanished across a merge"). Folding one half of a name-keyed join is
+    # the very defect this function was written to fix, arriving through my own fix.
+    # A fold is legitimate only when both spellings ARE the same name — same letters and
+    # digits, differing in punctuation, case or spacing. Adding or dropping a parenthetical
+    # qualifier changes which string every other store must match on.
+    # [[the-unjoined-end]] [[sabotage-is-usually-the-wrong-one]]
+    # ⚠ `_norm` DROPS THE PARENTHETICAL ENTIRELY — measured: _norm('Credendum (mithril coil)')
+    # == _norm('Credendum') == 'credendum'. So comparing on _norm compares two already-equal
+    # strings and permits exactly the rename it was written to refuse. The check has to keep the
+    # qualifier's letters. [[feedback-suspect-the-instrument]]
+    if _tight(hit) != _tight(name):
+        return name
+    return hit
+
+
+def _fold_rosters():
+    """-> {"uniques": {...}, "sets": {...}}; an unreadable roster folds NOTHING rather than badly."""
+    out = {"uniques": {}, "sets": {}}
+    try:
+        import chronicle_resolve as _resolve
+    except Exception:
+        return out          # nothing folds, and every name keeps its own spelling
+    try:
+        out["uniques"] = _resolve.load_roster() or {}
+    except Exception:
+        out["uniques"] = {}
+    try:
+        out["sets"] = _resolve.load_set_roster() or {}
+    except Exception:
+        out["sets"] = {}
+    return out
+
+
 def merge_proposals(base, incoming):
     """Fold `incoming` into `base` and return a NEW proposal. Evidence only ever ACCUMULATES.
 
@@ -1565,12 +1657,16 @@ def merge_proposals(base, incoming):
            "pagesRead": 0, "pagesRefused": 0, "notFound": {"uniques": set(), "sets": set()}}
     _seen_ref = set()
     _keys = set()
+    _rosters = _fold_rosters()
     for src in (base or {}, incoming or {}):
         if not isinstance(src, dict):
             continue
         for ledger in ("uniques", "sets"):
             for name, sightings in (src.get(ledger) or {}).items():
-                bucket = out[ledger].setdefault(name, [])
+                # ⚠ FOLD BEFORE THE BUCKET, NOT AFTER. The de-dupe below keys on
+                # (reel, frame, lane) WITHIN a bucket, so two spellings kept two buckets and their
+                # sightings could never be compared, let alone corroborate each other.
+                bucket = out[ledger].setdefault(_fold_key(name, _rosters, ledger), [])
                 seen = {(x.get("reel"), x.get("frame"), x.get("lane")) for x in bucket}
                 for sg in (sightings or []):
                     key = (sg.get("reel"), sg.get("frame"), sg.get("lane"))

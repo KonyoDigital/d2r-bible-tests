@@ -138,8 +138,34 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
 
     def test_the_denominator_he_reads_comes_from_the_BOARD_and_never_falls_back(self):
         import control_app as CA
+        # ⚠⚠ v2760 — THIS LAW WAS RED ON EVERY MACHINE BUT HIS, AND GREEN HERE FOR THE WRONG
+        # REASON. It asserted 403 unconditionally, but that number is read out of
+        # tv/board_tally.json — which .gitignore:104 IGNORES. On CI, on the Windows console, or in
+        # any fresh clone the file is absent, `_fleet_show_total` correctly answers (None, why),
+        # and this failed. A gate that can only pass on the machine that happens to hold an
+        # untracked fixture is a host-machine dependency wearing a law's clothes.
+        # [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+        #
+        # ⚠ THE FIX IS NOT A skipTest. Skipping would make the venue where it matters most say
+        # nothing at all. BOTH BRANCHES ARE THE CONTRACT and both are asserted: with a tally, the
+        # number is his pinned 403 and never the roster length; without one, the answer is None
+        # WITH A REASON — never a confident fallback. The second half is the half that actually
+        # protects him, because a fallback to 398 is what the whole task existed to kill.
+        _has_tally = os.path.exists(os.path.join(HERE, "board_tally.json"))
         n, why = CA._fleet_show_total("uniques")
-        self.assertEqual(403, n, "the shown denominator is not his pinned chronTotal")
+        if _has_tally:
+            self.assertEqual(403, n, "the shown denominator is not his pinned chronTotal")
+            self.assertNotEqual(398, n,
+                                "the shown denominator fell back to the roster length — the exact "
+                                "defect this task removed")
+        else:
+            self.assertIsNone(n,
+                              "no board tally exists on this venue, yet a confident denominator "
+                              "was produced — that can only be a fallback, and the only number it "
+                              "could fall back to is the 398 roster length")
+            self.assertTrue(str(why or "").strip(),
+                            "an unknown denominator carries no reason, so the panel would render "
+                            "a bare '?' with nothing to say [[unknown-stays-unknown]]")
         n2, why2 = CA._fleet_show_total("__no_such_ledger__")
         self.assertIsNone(n2, "an unknown ledger produced a confident denominator")
         self.assertTrue(why2, "an unknown denominator carries no reason")

@@ -14028,7 +14028,30 @@ window._lockMark = function(isOpen, px, label){
     // Every shelf open refetches; cards can never show a stale fold again.
     // v1380.2 — if TH.sessions is empty, WAIT for the fetch before painting "No runs" (was a false empty flash)
     var _paintShelf = function(){
+    /* ══ v2760 — BUILD WHAT IS SHOWN, NOT EVERYTHING AND THEN HIDE IT ═════════════════════
+       MEASURED on a private console: opening the shelf took the page from 11,744 elements to
+       84,414 in ONE build — 3,086 cards at ~23 elements each = 72,337, which is 86% of the whole
+       page. The panel's own chip already said "529 of 3086 · 2,557 empty runs — hidden": it BUILT
+       all 3,086 and then `_shFilter` set display:none on 2,557 of them. 58,811 elements — 70% of
+       the page — existed only to be invisible.
+
+       ⚠⚠ AND THAT IS WHY THE WHOLE WINDOW WENT BLACK. Past ~84k elements WebKit stops producing
+       frames, so after the shelf had been opened ONCE, panels he never touched went dark too —
+       ADVANCED empty, the theatre a black rectangle, a screen-height gap on Sessions. His console
+       reported it itself and nothing surfaced it: uiBeat painting=false, frozenBeats=12, "no frame
+       has been drawn ... while the page keeps beating and its DOM is intact (84470 elements)".
+       Confirmed by relaunch: 84,470 -> 11,796 and painting=true.
+
+       ⚠ RETURN '' RATHER THAN FILTERING THE ARRAY. The card carries data-n="'+n+'" and n comes
+       from this index; .filter() would renumber every card and silently break the card->session
+       join — nothing on screen would show it. map() keeps positions, so '' costs a string and
+       nothing else.
+       ⚠ MY FIRST READ WAS "A LEAK, IT APPENDS WITHOUT CLEARING" — REFUTED: thShelf uses
+       `ov.innerHTML =` (replaces) and re-opening adds 0. It builds huge ONCE, which is a
+       different defect with a different fix. [[feedback-suspect-the-instrument]] */
+    var _shBuildGhosts = !(SHELF_F && SHELF_F.ghosts === false);
     var cards = (TH.sessions || []).map(function(sm, i){
+      if (!_shBuildGhosts && sm && sm.stub) return '';
       var n = sm.n || (i + 1);
       var d0 = sm.t0 ? new Date(sm.t0) : null;
       var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
@@ -14481,8 +14504,13 @@ window._lockMark = function(isOpen, px, label){
            the one case worth seeing. So the zero goes only while the ledger has journeys to
            show in its place; any non-zero count still prints, and so does the zero when the
            ledger is unread or unreadable. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
-        var _mouthSpeaks = isMouth && SHELF_MOUTH && SHELF_MOUTH.ok !== false
-                           && typeof SHELF_MOUTH.n === 'number' && SHELF_MOUTH.n > 0;
+        /* ⚠ v2760 — ONE CONDITION, NOT TWO COPIES. This re-derived, forty lines later and
+           under a second name, exactly what `_mouthHasRows` already computed in the same
+           iteration: one drives the sh-rivermouth class (which suppresses ' · never reached'),
+           the other suppresses the count. Edit one and not the other and the row renders
+           ' · never reached' beside a ledger of 410 journeys, or drops the zero while still
+           dimming the section — two halves of one fact drifting apart. [[copy-drift]] */
+        var _mouthSpeaks = _mouthHasRows;
         var _bits = [];
         if (!(_mouthSpeaks && cs.length === 0)){
           _bits.push(cs.length + ' reel' + (cs.length === 1 ? '' : 's')
@@ -14540,7 +14568,16 @@ window._lockMark = function(isOpen, px, label){
       + '<div class="shtl-bars">' + bars + '</div>';
   }
   function _shToggleFilter(f){
-    if (f === 'ghosts') SHELF_F.ghosts = !SHELF_F.ghosts;   // v2199 — show the empty runs again
+    /* ⚠⚠ v2760 — THE GHOSTS CHIP REBUILDS, IT NO LONGER JUST UNHIDES. Since the build skips stub
+       cards while the filter is off, they are ABSENT from the DOM rather than hidden in it, and
+       `_shFilter` alone could never bring them back — the chip would go dead while still looking
+       exactly like a chip that works, which is the failure mode he cannot tell from a mis-click.
+       [[the-unjoined-end]] */
+    if (f === 'ghosts'){
+      SHELF_F.ghosts = !SHELF_F.ghosts;   // v2199 — show the empty runs again
+      try { thShelf(true); } catch (e) {}
+      return;
+    }
     else if (f === 'pin') SHELF_F.pin = !SHELF_F.pin;   // D26
     else if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
     else if (f.indexOf('verdict:') === 0){ var v = f.slice(8); SHELF_F.verdict = (SHELF_F.verdict === v) ? null : v; }
@@ -14599,6 +14636,20 @@ window._lockMark = function(isOpen, px, label){
        out of an honest number. Two different questions, so two different counts:
            hidden  -> how many this rule is SUPPRESSING right now (composes with the other filters)
            shown   -> how many ghost cards are actually on screen */
+    /* ⚠⚠ v2760 — COUNTED FROM THE DATA WHEN THE GHOSTS ARE NOT BUILT. These cards no longer
+       exist in the DOM while the filter is off (see the build site), so walking `data-stub` nodes
+       would find NOTHING and the chip would read "0 empty runs — hidden" while 2,557 were being
+       withheld — a zero with no denominator, and a worse lie than the slowness this fix removes.
+       ⚠ THE SENTENCE IT ANSWERS SHIFTS SLIGHTLY AND THAT IS DELIBERATE: this is "empty runs
+       withheld from the shelf", not "empty runs that would also have matched the other filters".
+       With no other filter active — his default, and the state he photographed — the two are the
+       same number (2,557 of 3,086). Saying it plainly here beats a number nobody can reproduce.
+       [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+    var _stubTotal = 0;
+    for (var _st = 0; _st < (TH.sessions || []).length; _st++){
+      if (TH.sessions[_st] && TH.sessions[_st].stub) _stubTotal++;
+    }
+    if (!SHELF_F.ghosts) _ghostN = _stubTotal;
     var _ghostVisible = 0;
     for (var gv = 0; gv < cards.length; gv++) {
       if (cards[gv].getAttribute('data-stub') === '1' && cards[gv].style.display !== 'none') _ghostVisible++;

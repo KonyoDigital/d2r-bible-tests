@@ -1421,6 +1421,63 @@ def board_tally_save(t):
         return False
 
 
+def _fleet_overlay_local_tally(fl, me):
+    """HIS OWN ROW READS THE LOCAL TALLY INSTEAD OF THE ROUND TRIP. -> how many rows changed
+
+    Konyo, having just ticked a set piece: *"i just changed my sets from a 123/135 to 124/135 but
+    how come THE FLEET is delayed? ... should it not be SHARING A CSS so its rendered is always
+    the same?"*
+
+    MEASURED at that moment: `board_tally.json` already said sets 124/135, SIX SECONDS old, while
+    the card read 123 "as of 1m ago". The data was never late — the RENDER was. His own row
+    arrives the way a cousin's does: published to the server by the beacon and read back through
+    `fleet_presence`, which is 60s cached. His own number went out to Cloudflare and came home to
+    be shown to him, while the true figure sat in a file on the same disk.
+
+    ⚠ AND IT IS NOT A STYLESHEET. Sharing CSS would make the two surfaces LOOK identical while
+    still printing 123 and 124 — the confusion would survive in matching fonts. What they have to
+    share is the SOURCE. Forge reads board_tally.json; now so does his row.
+
+    ⚠ ONLY HIS ROW, AND THAT IS NOT A DETAIL. A peer's numbers are knowable ONLY through the
+    beacon; overlaying local figures onto their row would publish his board as theirs — the same
+    class of defect as rendering one machine's roster as another's denominator.
+
+    ⚠ THROUGH `board_tally_load()`, THE PATH AUTHORITY, never a second os.path.join of its own.
+    That is exactly how `_fleet_show_total` came to bypass the TV_HIST isolation override and read
+    his live state from an isolated run. [[copy-drift]]
+
+    ⚠ A LEDGER IS ONLY OVERLAID WHEN THE LOCAL FILE ACTUALLY CARRIES IT. A missing local figure
+    leaves the beacon's in place rather than blanking a row that was reporting fine — absent is
+    not zero. [[unknown-stays-unknown]]
+    """
+    n = 0
+    try:
+        mine = board_tally_load()
+    except Exception:
+        return 0
+    if not isinstance(mine, dict) or not me:
+        return 0
+    for grp in ("online", "offline"):
+        for row in (fl.get(grp) or []):
+            if not isinstance(row, dict) or str(row.get("machine") or "") != str(me):
+                continue
+            t = dict(row.get("tally") or {})
+            hit = False
+            for led in ("sets", "uniques", "runewords"):
+                v = mine.get(led)
+                if isinstance(v, dict) and v.get("total"):
+                    t[led] = dict(v)
+                    hit = True
+            if not hit:
+                continue
+            if mine.get("at"):
+                t["at"] = mine["at"]
+            t["localRead"] = True
+            row["tally"] = t
+            n += 1
+    return n
+
+
 def board_tally_load():
     try:
         with open(_board_tally_path(), encoding="utf-8") as fh:
@@ -23492,7 +23549,14 @@ def _fleet_show_total(ledger):
     construction instead of by coincidence.
     """
     try:
-        d = json.load(open(os.path.join(HERE, "board_tally.json"), encoding="utf-8")) or {}
+        # ⚠ v2760 — THROUGH THE PATH AUTHORITY, NOT A SECOND os.path.join OF ITS OWN.
+        # Every other reader of this file goes through `_board_tally_path()`, which is
+        # derived from `_chron_swept_path()` and honours the TV_HIST / isolation overrides
+        # added in v1858 precisely so a probe or a test cannot read or pin his live state.
+        # This one hardcoded its own join, so an isolated run took its DENOMINATOR from his
+        # real board — and the v2759 gate then pinned itself to that number. Second
+        # definition of a path the module already owns. [[copy-drift]]
+        d = board_tally_load() or {}
     except FileNotFoundError:
         return None, ("no board tally has been published on this machine yet, so the number he "
                       "counts against is UNKNOWN - it is not the roster length")
@@ -23908,7 +23972,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2759",
+        "ver": "v2760",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25814,6 +25878,30 @@ class Handler(BaseHTTPRequestHandler):
                     _fl = dict(_fl)
                     import socket as _sk
                     _fl["me"] = _sk.gethostname().split(".")[0]
+                    # ── v2760 — HIS OWN ROW READS THE LOCAL TALLY, NOT THE ROUND TRIP ────────
+                    # Konyo, having just ticked a set piece: "i just changed my sets from a
+                    # 123/135 to 124/135 but how come THE FLEET is delayed? ... should it not be
+                    # SHARING A CSS so its rendered is always the same?"
+                    #
+                    # MEASURED at that moment: board_tally.json already said sets 124/135, six
+                    # SECONDS old, while the card said 123 "as of 1m ago". The data was never
+                    # late — the RENDER was, because his own row arrives the same way a cousin's
+                    # does: published to the server by the beacon and read back through
+                    # `fleet_presence`, which is 60s cached. So his own number went to Cloudflare
+                    # and came home to be shown to him, while the true figure sat in a file on
+                    # the same disk.
+                    #
+                    # ⚠ AND IT IS NOT A STYLESHEET. Sharing CSS would make the two surfaces LOOK
+                    # identical while still printing 123 and 124 — the confusion would survive in
+                    # matching fonts. What they have to share is the SOURCE. Forge reads
+                    # board_tally.json directly; now so does his row.
+                    #
+                    # ⚠ THROUGH `board_tally_load()`, the module's path authority, NOT a second
+                    # os.path.join of its own — that is how `_fleet_show_total` came to bypass the
+                    # TV_HIST isolation override. [[copy-drift]]
+                    # ⚠ ONLY HIS ROW. A peer's numbers are only knowable through the beacon, and
+                    # overlaying local figures onto their row would report his board as theirs.
+                    _fleet_overlay_local_tally(_fl, _fl["me"])
                     # ── v2457 — THE DENOMINATOR THE COMPARISON IS ACTUALLY DEFINED AGAINST ────
                     # Konyo, on Dean's row: "still reads for the fleet 398 instead of 403 for
                     # dean.. + the sets should read 125/135 not UNKNOWN number... something isnt
