@@ -15218,7 +15218,36 @@ def _stash_watch_loop():
                 gone_since = None
                 continue
             # only a reel with a DECLARED focus is ours to close
-            if not (m.get("focus") or _current_declared_focus()):
+            # ⚠⚠ v2772 — THIS GUARD COULD NEVER BE FALSE, AND IT WAS ENDING HIS RECORDINGS.
+            # Konyo: *"i click ON AIR and it just closes me out every time.. it suddenly cuts me
+            # out.. same for DEAN, something unified is wrong there."*
+            #
+            # `mini_state()` returns `"focus": m.get("focus") or MINI_FOCUS`, and MINI_FOCUS is the
+            # module DEFAULT "stash" — `_MINI` is initialised with it at import, before any mini has
+            # ever run. So `focus` is NEVER empty, `_current_declared_focus()` re-reads the same
+            # field (the `or` was one value twice, reading as two independent checks), and this
+            # guard was structurally incapable of returning early. THE STASH WATCHER WAS ARMED FOR
+            # EVERY CAPTURE, ALWAYS — including a plain ON AIR that declared no lane at all.
+            #
+            # MEASURED END TO END, during a live ON AIR with no mini running:
+            #     t+ 6s..t+36s  alive=True  mini.focus='stash'  declared='stash'  armed=True
+            #     t+42s         alive=False
+            #     reel: 37 frames, blank 0, 8 text frames, sealed cleanly, exit 0, no stderr
+            # He plays the game rather than standing in his stash, so `stash_screen_open()` returns
+            # None on every poll, `gone_since` arms on the first one, and 25s later stop_agent()
+            # seals the reel and drops him off air. ~40s = one 5s poll + the 25s grace + startup.
+            # It reproduces on his cousin's machine because it is the same code and the same
+            # boot-time default, not anything about either box.
+            #
+            # THE FIX IS `running`, NOT `focus`: a field with a default cannot answer "did anything
+            # declare a lane?". Only an ACTIVE mini declares one.
+            # ⚠ AND IT CANNOT LEAK A REEL, which is the risk that matters because stop_agent()
+            # SEALS. Every mini also starts `_mini_watchdog(token, ends_ts)`, which seals on the
+            # deadline independently. This watcher is an EARLY seal, never the only one — so
+            # narrowing it costs at most a few seconds of extra footage on a real lane reel, and
+            # saves every plain session from being cut off mid-run.
+            # [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+            if not (m.get("running") and m.get("focus")):
                 gone_since = None
                 continue
             fr = _newest_frame_path()

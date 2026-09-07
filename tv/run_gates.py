@@ -608,6 +608,22 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_stash_watcher_only_seals_a_lane",
+         [sys.executable, os.path.join(HERE, "test_the_stash_watcher_only_seals_a_lane.py")], 120,
+         why="A GUARD THAT COULD NEVER BE FALSE WAS ENDING HIS RECORDINGS AFTER 25 SECONDS. His "
+             "report: \"i click ON AIR and it just closes me out every time... same for DEAN, "
+             "something unified is wrong.\" mini_state() returns `focus: m.get(focus) or "
+             "MINI_FOCUS` and _MINI is INITIALISED with that default at import, so `focus` is "
+             "never empty; `_current_declared_focus()` re-reads the same field, making "
+             "`focus or _current_declared_focus()` ONE VALUE READ TWICE. _stash_watch_loop — whose "
+             "docstring says it seals a LANE-DECLARED reel — was armed for EVERY capture. He plays "
+             "rather than standing in his stash, so stash_screen_open() returns None on every poll "
+             "and 25s later stop_agent() sealed his session. The ~40s was never a timer: one 5s "
+             "poll + the 25s grace + startup. Measured before: alive=False at t+42s. After: alive "
+             "at t+80s, watcher silent, no shutdown requested. ⚠ Safe to narrow ONLY because every "
+             "mini also starts _mini_watchdog, which seals on its deadline independently — a law "
+             "here pins that.",
+         ),
     Gate("test_no_control_is_buried_in_another_control",
          [sys.executable, os.path.join(HERE, "test_no_control_is_buried_in_another_control.py")], 180,
          why="A CONTROL INSIDE ANOTHER CONTROL ANNOUNCES ITSELF AS NEITHER. Two role=button spans "

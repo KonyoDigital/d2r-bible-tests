@@ -1764,7 +1764,17 @@
      Sizes are var(--fs-*) tokens on purpose: the visual lock refuses a raw font-size, and an
      `em` is NOT a lookup — it is a percentage of whatever the parent computes to, so swapping
      one for a token changes the rendered size silently. */
-  #th-shelfov .sh-lanes { margin: 0 0 12px; padding: 11px 13px; border: 1px solid var(--edge);
+  /* ⚠ v2772 — A RIGHT GUTTER FOR THE STICKY CLOSE BUTTON, the same 48px `.sh-head` has carried
+     all along. `#th-shelf-x` is position:sticky, top:0, z-index:4, 36x36, on a translucent black
+     ground. At scrollTop 0 it clears the strip at every width — which is why an open-and-measure
+     pass calls this clean. At scrollTop 60 and 120 its rect INTERSECTS `.shr-lane` at 1440, 1120,
+     901 AND 375, and it is the top element there: at 1440 it sits x1003-1039 while the TOMBSTONE
+     tile ends at 1025, covering that tile's top-right corner.
+     ⚠ AND `topElementAtXCentre: th-shelf-x` ALONE PROVES NOTHING — hit-testing the centre of a
+     button returns that button. The overlap is established by rect intersection and it is
+     SCROLL-DEPENDENT; the first reading of it as evidence was mine and it was wrong. */
+  #th-shelfov .sh-lanes { margin: 0 0 12px; padding: 11px 13px; padding-right: 48px;
+    border: 1px solid var(--edge);
     border-radius: 10px; background: rgba(255,255,255,.022); }
   #th-shelfov .shr-head { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono);
     letter-spacing: var(--ls-wide); text-transform: uppercase; color: #d6c8a6; margin-bottom: 9px;
@@ -1772,7 +1782,24 @@
   #th-shelfov .shr-fifo { margin-left: auto; opacity: .6; text-transform: none;
     letter-spacing: var(--ls-tight); }
   #th-shelfov .shr-flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
-  #th-shelfov .shr-lane { flex: 1 1 120px; min-width: 0; padding: 8px 10px; border-radius: 8px;
+  /* ⚠⚠ v2772 — THE BASIS IS 104px, NOT 120px, AND THE 16px IS A MEASURED DEFECT NOT A TASTE CALL.
+     Found by an independent visual audit, and confirmed by a COLD CROSS-FAMILY READ, which is the
+     part that settles it. Between viewport 901 and 904 the four lanes wrapped 3+1: TOMBSTONE
+     became a full-width banner with ~380px of dead space and the third connector pointed at
+     nothing. Handed ONLY the 901 picture, with no vocabulary from the brief, a different model
+     family answered:
+         @1440  "four boxes are workflow stages ... reels move left to right (FIFO)"
+         @901   "INTAKE -> PRINTER -> CAPTURE form a processing pipeline (arrows show flow);
+                 TOMBSTONE is a SEPARATE END-STATE"
+     THE WRAP CHANGED THE MEANING, NOT THE LOOK. A reader was told the last stage is outside the
+     river — which is the one thing this strip exists to say it is not.
+     ARITHMETIC: at 901 the flow is 539px, and 4 lanes at a 120px basis plus 3 arrows plus six 6px
+     gaps need >=543px. Four pixels short. At >=905 they shrink and fit; at <=900 a different shell
+     gives them 181px. So the broken band is exactly 901-904 — and 901 is the width this repo
+     already has a scar at, one pixel above a breakpoint.
+     ⚠ THE RENDERED WIDTH DOES NOT CHANGE ANYWHERE. `flex-grow: 1` means the basis is only the
+     no-wrap threshold; the lanes still fill the row. Lowering it removes a wrap, not a size. */
+  #th-shelfov .shr-lane { flex: 1 1 104px; min-width: 0; padding: 8px 10px; border-radius: 8px;
     border: 1px solid rgba(240,192,96,.20); background: rgba(240,192,96,.05); }
   /* an empty lane is DIMMED, never hidden — a stage nothing reaches is the actionable half */
   #th-shelfov .shr-lane.shr-empty { opacity: .5; border-color: var(--edge);
