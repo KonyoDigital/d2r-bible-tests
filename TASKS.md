@@ -14,6 +14,54 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 
 ---
 
+
+## 📋 OPEN QUEUE — 2026-09-07 · 8 rows · viewer :17955 · GitHub #212-#219
+
+> Filed during the live console session of 2026-09-07. **Every row is a GitHub issue as well as a
+> viewer card, so the list survives this session dying.** Status here is a snapshot; the viewer and
+> the issues are the live surfaces.
+
+| # | GH | what | state |
+|---|---|---|---|
+| 1 | [#212](https://github.com/KonyoDigital/d2r-bible-tests/issues/212) | uniques cross-reference reads **160/398** vs his real **292/403** | ⛔ **ROOT CAUSE FOUND — waiting on HIS choice of denominator** |
+| 2 | [#213](https://github.com/KonyoDigital/d2r-bible-tests/issues/213) | Dean's uniques side reads **0** — should read him missing all 292 | ⛔ same defect as #1 |
+| 3 | [#214](https://github.com/KonyoDigital/d2r-bible-tests/issues/214) | HD art for the floating cursor card, sets **and** uniques | 🔎 measuring coverage |
+| 4 | [#215](https://github.com/KonyoDigital/d2r-bible-tests/issues/215) | fleet card says **UNIQUES SYNCED over 0/403** — an empty store cannot have been synced | ⏸ pending |
+| 5 | [#216](https://github.com/KonyoDigital/d2r-bible-tests/issues/216) | fold the "354 read from your reels" banner into the **inbox** | ⏸ pending |
+| 6 | [#217](https://github.com/KonyoDigital/d2r-bible-tests/issues/217) | move the **backend-data surfaces** off the gameplay home into TV·D / AI READS | 🔎 surveying |
+| 7 | [#218](https://github.com/KonyoDigital/d2r-bible-tests/issues/218) | join the **vault accumulator** to the heart — its stored proposal is graded by a bar that moved | ⏸ pending |
+| 8 | [#219](https://github.com/KonyoDigital/d2r-bible-tests/issues/219) | persist **point+panelBox+container** on every sighting — one write site starves 3 dry joints | 🔎 locating the write site |
+
+### ⛔ THE ONE THING WAITING ON HIM
+
+**#1/#2 are one defect and the fix is one line — but it changes what the panel MEANS.**
+`fleet_mask.py:73` still points uniques at `store: "d2r_owned"` (the VAULT question) while v2717
+repointed the tally to `d2r_foundLog`/`chronTotal` (the CHRONICLE question) and renamed the old
+measure `vaultUniques`. Sets is immune because both its sides read `d2r_setPieces`.
+
+**The repo already knows.** `ledger_authority.surface_pairs()` reports
+`uniques … sameQuestion: FALSE — "the mask counts d2r_owned and the tally counts d2r_foundLog,
+two questions under one label, so their numbers are not comparable"`, and
+`corroborate._inv_a_posted_COUNT_and_its_own_MASK_agree` reads `1 == 1` **because it deliberately
+excludes uniques and says so**. ⚠ Nothing is lying — it was detected, named, excluded with a
+reason, and given a sibling invariant grading the exclusion list. **What never happened is the fix.**
+
+⇒ **HIS CALL: 398 or 403?** `398` = the nameable roster (`unique_roster.json`); `403` = the game
+total (hardcoded `chronTotal`, which his own meter already divides by). Picking silently is how
+`KEEP_MIN_WITNESSES` flipped the wrong way and stayed wrong for weeks. [[d2r_uniques_percent_calibration]]
+
+### 🌊 AND THE END OF THE RIVER HAS NO OUTLET
+
+Measured on `reel_router._station_of`: **`ROUTED` and `TOMBSTONE` are returned ZERO times in code**
+while every other station has exactly one return path. They are declared in `STATIONS` and
+**unreachable by construction** — which is why nothing has ever arrived at the vault end of the
+river. ⚠ And it is not a missing `if`: `_station_of` reads only
+`EVIDENCE_FIELDS = ("sealed","names","worthReading","surveyed")` and `assert_independent_of_retention()`
+guards that boundary on purpose, so ROUTED cannot look at the vault without merging the two
+questions the module exists to keep apart. **That is an architecture decision, not a patch.**
+
+---
+
 ## ⚠⚠ DRIFT AUDIT — 2026-09-05, and the file's own failure recurred
 
 He asked for the list *"optimised to perfection so theres nothing there"*. A read-only pass over all
