@@ -63,6 +63,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ WINDOWS PRINTS THIS FILE'S OWN REPORT IN cp1255, AND THE ARROWS AND WARNING SIGNS IN
+# every `why` string below would crash the CLI WHILE IT REPORTS — a clean run exiting
+# non-zero on the machine that cannot run the suite. [[windows-powershell-gotchas]]
+try:
+    from console_safe import enable
+    enable()
+except Exception:
+    pass
+
 #: The station this lane moves reels TO.
 STATION = "ROUTED"
 

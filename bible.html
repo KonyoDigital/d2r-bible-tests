@@ -8977,7 +8977,7 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 .gf-piece /* v2765 — the qlvl chip. White on purpose: he asked for it in white, and it is the one
    figure on the row that is a HARD GATE rather than an estimate — a monster below it
    cannot drop the item at all, however long he farms. Tabular so the column lines up. */
-.gp-q{color:#fff;font-weight:var(--fw-semibold);font-size:11px;opacity:.92;margin-left:6px;
+.gp-q{color:#fff;font-weight:var(--fw-semibold);font-size:var(--fs-meta);opacity:.92;margin-left:6px;
   font-variant-numeric:tabular-nums;letter-spacing:.02em}
 .gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
@@ -42811,14 +42811,20 @@ function renderJournal(){
      render gap. Saying so is the honest half of shipping this. [[unknown-stays-unknown]] */
   function _qlvlOf(name){
     try {
-      var row = _etaIdx()[(typeof window._regKey === 'function') ? window._regKey(name)
-                          : String(name).toLowerCase()];
-      if (!row) {
-        /* the piece names carry a slot parenthetical the drop table does not */
-        var bare = String(name).replace(/\s*\([^)]*\)\s*$/, '');
-        row = _etaIdx()[(typeof window._regKey === 'function') ? window._regKey(bare)
-                        : bare.toLowerCase()];
-      }
+      var _n = String(name || '').replace(/[\u2018\u2019`]/g, "'");   /* ‘ ’ -> ' : fold BEFORE keying */
+      /* ⚠ IT KEYS IDENTITY, SO IT FOLDS — and it folds ONLY the query. MEASURED on the drop
+         table: 547 distinct names, 215 carry an apostrophe and ALL 215 are STRAIGHT, zero curly.
+         The ROSTER spells four of them curly (Atma’s Scarab, Saracen’s Chance, Seraph’s Hymn,
+         The Cat’s Eye), so a name arriving from that side would miss an index that is uniformly
+         straight. Folding the query is therefore the whole fix; folding the index as well would
+         be a no-op today and a second rule to keep in step tomorrow. */
+      var _key = function(x){
+        return (typeof window._regKey === 'function') ? window._regKey(x)
+                                                      : String(x).toLowerCase();
+      };
+      var row = _etaIdx()[_key(_n)];
+      /* the piece names carry a slot parenthetical the drop table does not */
+      if (!row) row = _etaIdx()[_key(_n.replace(/\s*\([^)]*\)\s*$/, ''))];
       if (!row) return null;
       var q = (row.qlvl != null) ? row.qlvl : row.qLvl;
       q = parseInt(q, 10);
