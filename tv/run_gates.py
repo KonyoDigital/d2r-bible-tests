@@ -585,6 +585,22 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_two_deleters_share_one_window",
+         [sys.executable, os.path.join(HERE, "test_the_two_deleters_share_one_window.py")], 120,
+         why="SWEPT AFTER v2752 — TWO DELETERS, TWO INDEPENDENT `KEEP_RECENT = 5`, AND NOTHING LINKED THEM. "
+             "Found by sweeping for the shape of v2752 (a constant that outlived its instrument); "
+             "this is its cross-module twin, one rule written down twice: frame_authority.py:52 "
+             "and reel_retention.py:47, near-identical prose, no link. ASYMMETRIC AND THAT IS THE "
+             "POINT: retention deletes whole REELS, frame_authority strips FRAMES. Raise "
+             "retention to 10 for safety and leave frame_authority at 5, and reels 6..10 survive "
+             "as directories WHILE BEING GUTTED of their frames — the reel list still shows them, "
+             "the disk figure still drops, and protection reads as INCREASED while being partial. "
+             "Demands EQUALITY, not >=, because the dangerous direction is retention > authority. "
+             "Behavioural half runs the real recent_reels over real directories (host-independent: "
+             "it only globs and sorts, unlike reel_retention.plan which reads a witness index from "
+             "HERE — the v2750 host-dependency). Proven RED on 5 sabotages including BOTH drift "
+             "directions and an equality satisfied by setting both to 0."),
+
     Gate("test_chrome_alone_is_not_paint",
          [sys.executable, os.path.join(HERE, "test_chrome_alone_is_not_paint.py")], 120,
          why="v2752 — HIS BLACK CONSOLE READ AS *PAINTED* BECAUSE OF TWO ROWS OF WINDOW CHROME. He "

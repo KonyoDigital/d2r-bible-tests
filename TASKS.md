@@ -1221,6 +1221,52 @@ A zero from a bad instrument is UNKNOWN, not clean. [[feedback-suspect-the-instr
 
 ---
 
+## ⬛ v2752 — HIS BLACK CONSOLE READ AS *PAINTED*, BECAUSE OF TWO ROWS OF WINDOW CHROME
+
+He sent a screenshot of the console drawing nothing and said *"black screen again.. something should
+be catching this"*. Something should have. **Nothing did, and the cause was two pixel rows.**
+
+MEASURED on that live window while it was black, sampling exactly as `paint_witness.measure()` does:
+
+| crop | modalShare | brightShare | p99 | verdict |
+|---|---|---|---|---|
+| **30** | 0.1252 | **0.0159** | **255** | **PAINTED** ← the shipped value |
+| 31 | 0.1192 | 0.0159 | 230 | PAINTED |
+| 32 | 0.1240 | 0.0000 | 27 | BLANK |
+| 36 | 0.1252 | 0.0000 | 27 | BLANK |
+
+⚠⚠ **All 63 bright samples sat at y=30 exactly** — the title bar's bottom border, luminance 255.
+63 of 3,969 = **1.59%**, a hair over the 1.5% `INK_SHARE_MAX` bar, and the same row dragged p99 to
+255. A window drawing *nothing* cleared **both** ink conditions on chrome alone.
+
+**WHY 30 WAS RIGHT AND STOPPED BEING RIGHT.** Its own note derived it against the MODAL test —
+*"24px already clears the 0.98 bar (0.9872), 30px gives 0.9966"* — and against a UNIFORMITY test
+leftover chrome merely DILUTES. The INK test added later asks whether ANY pixel is bright, and two
+rows of 255 answer yes on every window forever. **The threshold outlived the instrument it was
+measured against**, and the note justifying it stayed true while ceasing to be sufficient.
+`label-outlived-referent` · `feedback-threshold-above-the-ceiling`
+
+⚠ **AND THE SECOND WITNESS DID NOT COVER FOR THE FIRST.** `region_witness` saw it correctly — all
+six cells blank, ink 0.0000 — but `half_blank` returns False for a *fully* blank window **by
+design**, deferring that case to the whole-window witness. Which was the blind one. Two instruments,
+one blind and one politely silent, and between them a black console reported no fault at all.
+`console painted whole` now reports EVERY-CELL-BLANK instead of returning OK. `the-unjoined-end`
+
+**VERIFIED ON THE LIVE WINDOW** before it closed: `look -> BLANK` (*"its brightest 1% of pixels start
+at luminance 27; a painted console reads ~177"*), and `blank_strikes -> BLANK` across 3 consecutive
+looks. `blank_strikes` is what the rescue loop reads, so the rescue can now act.
+
+⚠ **COST, STATED:** 6 more rows excluded from the sample — 0.9% of a 660px window — and a law caps
+the crop below a tenth of the window so this cannot creep into blindness at the top of the page.
+⚠ **AND A LIMIT I HANDED TO THE THIRD EYE (GB-B-193):** 36 is a fixed pixel count checked against
+ONE window size. If the right answer is a derived boundary rather than a constant, that is a real
+refutation and I asked for it explicitly.
+
+**Gate:** `tv/test_chrome_alone_is_not_paint.py` — 6 laws, 6 sabotages RED (including reverting the
+crop to 30 **and** to 31, the one-row-short case), green under a no-screen simulation. **193 gates.**
+
+---
+
 ## 🧾 v2751 — 119 ITEM NAMES WERE ALREADY READ, AND NONE OF THEM ARE BANKED
 
 **His instruction is what found it**, 2026-09-07: *"the routing and funnel and main pipeline should
