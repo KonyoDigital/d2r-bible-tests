@@ -585,6 +585,23 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_river_walk_says_it_walked",
+         [sys.executable, os.path.join(HERE, "test_the_river_walk_says_it_walked.py")], 180,
+         why="A SUCCESSFUL WALK THAT FOUND NOTHING SAID NOTHING, so a STILL RIVER and a DEAD LOOP "
+             "looked identical. Konyo asked for the shelf drawn as the river, 'honest and accurate "
+             "and pinpointed .. visually synced to the backend' — and the thing it would draw was "
+             "not measurable. _retro_triage_loop already walked every tick and reported TWO of "
+             "three outcomes: transitions when something moved, 'NOT WALKED' when it failed; a "
+             "successful walk finding nothing printed nothing and stored nothing. MEASURED: 40 "
+             "stamps, ALL by claude:first-wiring, newest 12.8h old, 0 of 40 carrying a `from` — "
+             "not one row ever written by the loop, which is equally consistent with 'the river is "
+             "still' and 'the loop never runs'. The walk now records that it RAN — when, reels "
+             "compared, moved INCLUDING ZERO — and publishes it on /api/status, because recording "
+             "it in a global and shipping nothing to a surface is the defect control_app's own "
+             "v2457 note describes. ⛔ The doctor row does NOT redden on a calm river (most ticks "
+             "find nothing, by design); it reddens when the WATCHING stops. 10 laws, 6 sabotages "
+             "RED including the original bug (state written inside the moved-branch)."),
+
     Gate("test_an_empty_ledger_is_not_synced",
          [sys.executable, os.path.join(HERE, "test_an_empty_ledger_is_not_synced.py")], 120,
          why="HIS CATCH: 'SYNCED' SAT DIRECTLY ABOVE '0 / 403 found' ON DEAN'S FLEET CARD. "

@@ -18802,6 +18802,44 @@ def retro_triage_tick():
             "partial": bool(out.get("stoppedEarly")), "why": out.get("say")}
 
 
+#: ══ THE RIVER WALK'S HEARTBEAT ═══════════════════════════════════════════════════════════════
+#: Konyo, 2026-09-07, on the shelf-as-river view: *"honest and accurate and pinpointed of course..
+#: i want it visually synced to the backend"*.
+#:
+#: ⚠⚠ THE HOLE THIS FILLS, AND IT IS A SILENCE RATHER THAN A BUG. `_retro_triage_loop` already
+#: walks the river every tick and already reports two of the three outcomes: it prints the
+#: transitions when something MOVED, and prints "NOT WALKED" when the walk FAILED. A successful
+#: walk that found nothing printed nothing and stored nothing.
+#:
+#: MEASURED before this existed: 40 stamps, every one `by: claude:first-wiring`, newest 12.8h old,
+#: 0 of 40 carrying a `from`. NOT ONE ROW was ever written by `loop:tvd-retro-triage`. And that is
+#: consistent with TWO OPPOSITE FACTS — the river is genuinely still, or the loop never ran — with
+#: nothing in the tree able to tell them apart. A view built on that would show "no movement" and
+#: neither he nor I could say which it meant. [[feedback-silence-is-not-evidence]]
+#:
+#: ⇒ So the walk now records that it RAN: when, how many reels it compared, and how many moved —
+#: INCLUDING ZERO. `moved: 0` beside `at: <2s ago>` is a measurement. Silence is not.
+#: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+_RIVER_WALK = {"at": None, "ok": None, "reels": None, "moved": None, "why": "",
+               "walks": 0, "lastMovedAt": None}
+
+
+def river_walk_state():
+    """What the river walk last did. -> dict
+
+    ⚠ `at: None` means the walk has NEVER completed a tick in this process — which is NOT the same
+    as a still river, and the caller must be able to tell. Every consumer reads `at` first.
+    """
+    d = dict(_RIVER_WALK)
+    if d.get("at"):
+        d["ageS"] = round(max(0.0, time.time() - float(d["at"])), 1)
+    else:
+        d["ageS"] = None
+        d["why"] = d.get("why") or ("the river walk has not completed a tick in this process — "
+                                    "that is UNKNOWN, not a still river")
+    return d
+
+
 def _retro_triage_loop():
     """Ticks forever, sleeping between. A watchdog that can die is not a watchdog."""
     while True:
@@ -18829,6 +18867,16 @@ def _retro_triage_loop():
             try:
                 import river_stamp as _rvs
                 _rv = _rvs.run(by="loop:tvd-retro-triage")
+                # ⚠ RECORDED BEFORE IT IS REPORTED, and recorded on EVERY outcome. The printing
+                # below is for his terminal; this is for the console, the doctor and the shelf.
+                _RIVER_WALK["at"] = time.time()
+                _RIVER_WALK["walks"] = int(_RIVER_WALK.get("walks") or 0) + 1
+                _RIVER_WALK["ok"] = bool(_rv.get("ok"))
+                _RIVER_WALK["reels"] = _rv.get("reels")
+                _RIVER_WALK["moved"] = _rv.get("moved")
+                _RIVER_WALK["why"] = str(_rv.get("why") or "")
+                if _rv.get("moved"):
+                    _RIVER_WALK["lastMovedAt"] = time.time()
                 if _rv.get("ok") and _rv.get("moved"):
                     for _t in (_rv.get("transitions") or [])[:6]:
                         print("\U0001f30a river: %s  %s -> %s"
@@ -18838,6 +18886,14 @@ def _retro_triage_loop():
                     # UNKNOWN, never silence — an unreadable river must say so once per tick.
                     print("\U0001f30a river: NOT WALKED - %s" % str(_rv.get("why"))[:140], flush=True)
             except Exception as _rve:
+                # ⚠ the RAISE path also updates the state. Leaving the previous tick's numbers in
+                # place would make a crashed walk read as a healthy one that found nothing.
+                _RIVER_WALK["at"] = time.time()
+                _RIVER_WALK["walks"] = int(_RIVER_WALK.get("walks") or 0) + 1
+                _RIVER_WALK["ok"] = False
+                _RIVER_WALK["reels"] = None
+                _RIVER_WALK["moved"] = None
+                _RIVER_WALK["why"] = "the walk raised: %s" % str(_rve)[:120]
                 print("\U0001f30a river: walk failed - %s" % str(_rve)[:120], flush=True)
         except Exception:
             try:
@@ -23705,7 +23761,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2755",
+        "ver": "v2756",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -23790,6 +23846,12 @@ def status_payload():
         # nobody has asked, and every non-None value carries its own `state` so a request that was
         # REFUSED (stale, unknown pane, mid-capture) is visible rather than silently skipped.
         "viewRequest": view_request(),
+        # ⚠ THE RIVER WALK'S HEARTBEAT, published where a supervisor can read it. Recording it in
+        # a module global and never putting it on a surface is the exact defect the v2457 note
+        # below is about — "I recorded the paint witness ... and shipped nothing to the surface a
+        # supervisor reads". `at: null` means the walk has never completed a tick in THIS process,
+        # which is a different fact from a still river and is never shown as a zero.
+        "riverWalk": river_walk_state(),
         # v2322 — the backup generator, on a surface that can be read. `ageS` is None when no
         # console has EVER checked in, which is a different fact from "it has been silent for a
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]

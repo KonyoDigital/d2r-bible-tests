@@ -2265,6 +2265,52 @@ def _check_the_stage_shows_what_the_dom_claims(*_a, **_k):
     return UNKNOWN, why
 
 
+def _check_the_river_walk_is_walking(*_a, **_k):
+    """Is anything actually WATCHING the river, and when did it last look?
+
+    Konyo, 2026-09-07: *"honest and accurate and pinpointed of course.. i want it visually synced
+    to the backend"* — of the shelf-as-river view he asked for.
+
+    ⚠⚠ THE SILENCE THIS BREAKS. `_retro_triage_loop` walks the river every tick and reports two of
+    three outcomes: it prints transitions when something MOVED and "NOT WALKED" when the walk
+    FAILED. A successful walk finding NOTHING printed nothing and stored nothing. MEASURED before
+    this row existed: 40 stamps, all `by: claude:first-wiring`, newest 12.8h old, 0 carrying a
+    `from` — not one row written by the loop. That is equally consistent with "the river is still"
+    and "the loop never runs", and nothing could tell them apart.
+
+    ⛔ IT DOES NOT GO RED ON A STILL RIVER. `moved: 0` is a perfectly good answer — most ticks find
+    nothing, by design, and a row that reddens on the normal case is a row he stops reading. It
+    goes red on the WATCHING stopping, not on the water being calm.
+    [[feedback-silence-is-not-evidence]] [[unknown-stays-unknown]]
+    """
+    try:
+        import control_app as _CA
+    except Exception as exc:
+        return UNKNOWN, ("control_app could not be imported (%s), so whether the river is being "
+                         "walked is UNKNOWN" % type(exc).__name__)
+    try:
+        st = _CA.river_walk_state()
+    except Exception as exc:
+        return UNKNOWN, "the river walk state raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    if not isinstance(st, dict):
+        return UNKNOWN, "the river walk state is unreadable"
+    if st.get("at") is None:
+        # ⚠ NEVER "no movement". Nobody has looked yet in this process.
+        return UNKNOWN, str(st.get("why") or "the river walk has never completed a tick here")
+    age = st.get("ageS")
+    if st.get("ok") is False:
+        return MISSING, ("the last river walk FAILED %ss ago: %s"
+                         % (age, str(st.get("why"))[:150]))
+    # a walk older than several ticks means the loop has stopped, not that the water is calm
+    if isinstance(age, (int, float)) and age > 900:
+        return MISSING, ("nothing has walked the river for %.0f minute(s) — the loop reports every "
+                         "tick, so this is the WATCHER stopping rather than a still river"
+                         % (age / 60.0))
+    return OK, ("walked %ss ago: %s reel(s) compared, %s moved (%s walk(s) this process). A still "
+                "river is the normal answer; this row goes red when the WATCHING stops."
+                % (age, st.get("reels"), st.get("moved"), st.get("walks")))
+
+
 CHECKS = [
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
@@ -2322,6 +2368,7 @@ CHECKS = [
     ("names banked", _check_read_names_are_actually_banked),
     ("read names lane", _check_read_names_lane),
     ("stage shows the dom", _check_the_stage_shows_what_the_dom_claims),
+    ("river walk", _check_the_river_walk_is_walking),
     ("printer reach", _check_the_printer_can_reach_the_corpus),
     ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),

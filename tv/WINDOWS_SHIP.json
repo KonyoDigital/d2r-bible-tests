@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2755",
+  "ver": "v2756",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2755: A fifth provenance, UNSYNCED, for a board that declared its own ledger and whose store is empty. His catch off his own fleet card: SYNCED sat directly above 0 of 403 found, and both cannot be true.",
+  "note": "v2756: A successful walk that found nothing said nothing, so a still river and a dead loop looked identical. The walk now records that it ran - when, reels compared, moved including zero - and publishes it where a supervisor can read it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
