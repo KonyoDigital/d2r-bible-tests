@@ -608,6 +608,21 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_vault_proposal_is_watched",
+         [sys.executable, os.path.join(HERE, "test_the_vault_proposal_is_watched.py")], 180,
+         why="THE VAULT ACCUMULATOR'S PROPOSAL WAS SUPERVISED BY NOTHING. console_doctor carried "
+             "exactly ONE vault row (`vault stores`) and it asks only whether the FILES ARE "
+             "READABLE; whether what they OFFER is still acceptable was asked by nothing. A "
+             "proposal is a PHOTOGRAPH of a decision made under the bars that existed when it was "
+             "taken, and the bars move. ⚠ THE DRIFT HAS ALREADY HAPPENED IN BOTH DIRECTIONS: when "
+             "this task was written KEEP_MIN_WITNESSES was 3 and 6 of his 7 stored rows failed it; "
+             "re-measured when it came to be built the bar is 2 again and all 7 pass. The task's "
+             "own premise expired between writing and building, which is the argument FOR a row "
+             "that re-asks. ⚠ NOT DANGEROUS: vault_apply re-gates at the WRITE and is "
+             "ALL-OR-NOTHING, so a stale proposal is REFUSED IN FULL rather than landing badly — "
+             "the defect was only that nobody was told. ⛔ The row never re-grades his stored rows "
+             "and never moves the bar, which guards a deleter.",
+         ),
     Gate("test_the_eye_says_which_family_looked",
          [sys.executable, os.path.join(HERE, "test_the_eye_says_which_family_looked.py")], 180,
          why="A DARK EYE AND AN ABSENT ONE LOOKED IDENTICAL ON THE FLEET. The wire carried "

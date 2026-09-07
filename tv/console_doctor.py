@@ -1663,6 +1663,91 @@ def _check_the_reel_extract_is_moving():
                 % (len(owed), hours, tail + _ret))
 
 
+def _check_the_vault_proposal_still_clears_todays_bar():
+    """★ THE STORED VAULT PROPOSAL, RE-GATED AGAINST TODAY'S BARS.
+
+    Konyo, 2026-09-07: *"the vault accumalator that should be connected to the heart of the console
+    with the vault and joined obivously too"* and *"just make sure its all wired and not stale and
+    connected to the heart.. we soon will hit the VAULT and start debugging that"*.
+
+    ⚠⚠ WHY A ROW AND NOT A FIX. A proposal is a PHOTOGRAPH of a decision made under the bars that
+    existed when it was taken. The bars can move afterwards, and then the panel shows rows labelled
+    OWNED that today's own rule would not accept — a stale display over a correct gate. Nothing
+    watched that: `console_doctor` had exactly one vault row (`vault stores`, which asks only
+    whether the files are READABLE), and the proposal itself was supervised by nothing.
+
+    ⚠ AND THE DRIFT IS REAL AND HAS ALREADY HAPPENED IN BOTH DIRECTIONS. When this task was
+    written the bar was 3 and 6 of his 7 stored rows failed it. Re-measured when it came to be
+    built: `KEEP_MIN_WITNESSES` is 2 again ("HIS RULING, 2026-09-07") and all 7 pass. The task's
+    own premise had expired — which is exactly the argument FOR this row rather than against it.
+    A number I measured once is not evidence later. [[inherited-claim-is-not-evidence]]
+
+    ⚠ IT NEVER RE-GRADES HIS STORED ROWS, and it never touches the bar. The write path already
+    re-gates at the WRITE (`vault_apply`, v1595) and is ALL-OR-NOTHING, so a stale proposal cannot
+    land badly — pressing register would REFUSE ALL SEVEN rather than write six wrong ones. What
+    was missing was only that nobody was told. This says the delta out loud and stops there.
+    ⛔ Lowering KEEP_MIN_WITNESSES to make stored rows pass would be repairing the bar to fit the
+    data. The bar guards a deleter.
+    """
+    try:
+        import vault_retro as _vr
+    except Exception as e:
+        return UNKNOWN, "vault_retro will not import (%s), so the proposal is ungraded" % str(e)[:60]
+    import io as _io
+    import json as _json
+    import os as _os
+    p = _os.path.join(HERE, "vault_accum.json")
+    if not _os.path.isfile(p):
+        # ⚠ NO STORE IS NOT A CLEAN BILL AND NOT A FAULT. Nothing has been accumulated yet.
+        return OK, ("no vault proposal is stored, so there is nothing whose grading could have "
+                    "drifted — this is an empty queue, not a measured agreement")
+    try:
+        d = _json.load(_io.open(p, encoding="utf-8"))
+    except Exception as e:
+        return UNKNOWN, ("vault_accum.json could not be read (%s), so whether its rows still "
+                         "clear today's bar is UNKNOWN — it is NOT 'they do'" % str(e)[:60])
+    rows = (d.get("result") or {}).get("owned") if isinstance(d.get("result"), dict) else d.get("owned")
+    rows = [r for r in (rows or []) if isinstance(r, dict)]
+    if not rows:
+        return OK, ("the stored proposal holds no OWNED rows, so nothing is being offered for "
+                    "registration — an empty proposal, not a disagreement")
+    bad = []
+    for r in rows:
+        try:
+            # ⚠ gate() TAKES THE SIGHTING LIST, NOT THE ROW, and its verdict key is "pass", not
+            # "ok". My first cut passed the row dict: iterating a dict yields its KEYS, so `ev`
+            # filtered to [] and every row came back "no evidence at all" — a confident 0 of 7 that
+            # was purely an instrument failure. The suspiciously clean number was the tell.
+            # [[feedback-suspect-the-instrument]]
+            # ⚠⚠ THE BARS ARE PASSED EXPLICITLY, and that is not decoration. `gate()`
+            # declares them as DEFAULT ARGUMENTS (min_witnesses=KEEP_MIN_WITNESSES), and
+            # Python binds a default ONCE at def time — so calling gate() bare grades
+            # against the bar as it was when the module was imported, while the sentence
+            # below quotes `_vr.KEEP_MIN_WITNESSES` as it is NOW. Those can differ, and a
+            # row whose verdict and whose stated bar disagree is worse than no row.
+            # Found by the gate for this file failing: the simulated bar move did not
+            # reach the comparison at all. [[label-outlived-referent]]
+            g = _vr.gate(r.get("witnesses") or [],
+                         conf_floor=_vr.KEEP_CONF_FLOOR,
+                         min_witnesses=_vr.KEEP_MIN_WITNESSES)
+        except Exception as e:
+            return UNKNOWN, ("the vault gate raised %s while re-grading the stored proposal, so "
+                             "the comparison is unmeasured" % type(e).__name__)
+        if not g.get("pass"):
+            bad.append((r.get("name") or "?", g.get("why") or ""))
+    n = len(rows)
+    if not bad:
+        return OK, ("all %d stored OWNED row(s) still clear today's bar (conf %.2f, %d witnesses) "
+                    "— the proposal on screen and the rule that would accept it agree"
+                    % (n, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES))
+    return MISSING, ("%d of %d stored OWNED row(s) NO LONGER clear today's bar (conf %.2f, %d "
+                     "witnesses) — the panel labels them corroborated and the current rule calls "
+                     "them unsure, so the register button offers a write that would be REFUSED in "
+                     "full. First: %s — %s"
+                     % (len(bad), n, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES,
+                        bad[0][0], bad[0][1][:110]))
+
+
 def _check_the_river_has_an_outlet():
     """★ THE RIVER COULD NOT FINISH A REEL, AND THE STATION THAT SAYS SO READ 0 FOR ITS WHOLE LIFE.
 
@@ -2460,6 +2545,9 @@ CHECKS = [
     # the outlet — ROUTED was unreachable while its only writer lived inside the deleter, so no
     # reel could ever be recorded as finished. This watches whether the river actually drains.
     ("river outlet", _check_the_river_has_an_outlet),
+    # the accumulator's stored proposal, re-gated against today's bars. `vault stores` above asks
+    # only whether the files are readable; this asks whether what they OFFER is still acceptable.
+    ("vault proposal", _check_the_vault_proposal_still_clears_todays_bar),
     ("console UI faults", _check_the_console_UI_has_not_faulted),
     ("version drift", _check_version_drift),
     # v2248 — the OTHER out-of-sync: drift is process-vs-disk, this is disk-vs-origin, and

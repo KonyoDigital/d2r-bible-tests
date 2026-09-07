@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2767",
+  "ver": "v2768",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2767: The second eye on v2763 found that _chronWaitingJump was defined, pinned by a test, and called by nothing: folding the 354 strip into the inbox moved its information and orphaned its action. A ch-sweep-go chip on the inbox button now opens TV-D Chronicle Sweep, and the law requires a caller rather than only a definition.",
+  "note": "v2768: The accumulator stored proposal was supervised by nothing: the one existing vault row asks only whether the files are readable, never whether what they offer is still acceptable. A proposal is a photograph of a decision made under bars that can move afterwards. The new row re-gates the stored rows against todays bars at call time and reports the delta, and it never re-grades his rows nor touches the bar.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
