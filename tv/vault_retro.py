@@ -160,11 +160,46 @@ KEEP_CONF_FLOOR = _cr.CONF_FLOOR          # 0.55 — one number, shared with the
 # in which the shelf was examined three times, minutes apart. Only the THROW bar passes
 # witness_field="session" and demands independent recordings. I told him "film it twice"
 # before reading this and it was wrong.
-KEEP_MIN_WITNESSES = 3                    # three DIFFERENT looks agreeing — his ruling
+KEEP_MIN_WITNESSES = 2                    # two DIFFERENT looks agreeing — HIS RULING, 2026-09-07
+# ══ 2026-09-07 — ONE NUMBER FOR "CORROBORATED", WHICH IS HIS RULING AND NOT A LOOSENING ═══════
+#
+# Konyo: *"hmm maybe a unified logic for this... lets keep it maybe 2 witnsses"*, and then, on the
+# throw bar specifically: *"make it two also.. its fine.. i will review what i throw regardless..
+# as long as it in that bin"*, *"i will decide if to throw it out or not to"*.
+#
+# WHAT MOVED: KEEP 3 -> 2 and THROWOUT 4 -> 2. `chronicle_retro.MIN_WITNESSES` was already 2, so
+# the three lanes now agree on what "corroborated" means. Two bars for one question was an
+# accident of authorship, not a decision.
+#
+# ⚠ WHAT DID NOT MOVE, AND IT IS WHY THE THROW LANE IS STILL THE STRICTER OF THE TWO:
+#     KEEP_CONF_FLOOR      0.55
+#     THROWOUT_CONF_FLOOR  0.85   <- unchanged, still strictly above
+# Equal witnesses do not make throwing easier than keeping: the throw lane still demands that the
+# reader was far more certain of what it saw. The old law's spirit ("throw must never quietly
+# become the easier of the two") now rests on confidence rather than on witness count.
+#
+# ⚠⚠ AND THE SAFETY ARGUMENT IS NOT A PROMISE, IT IS A MEASUREMENT. Two things were verified in
+# CODE before this change, not taken from a docstring or from the UI copy:
+#   1. THE THROW LANE HAS NO APPLY PATH. `control_app.vault_apply` re-gates and walks
+#      `for _which in ("owned", "unsure")` — `throwOut` is carried in the display payload and is
+#      never consumed by the write. The screen's own words ("suggestions only ... there is no
+#      un-throw in Diablo, so this lane has no button") are true of the code.
+#   2. THE PRUNE IS DISARMED. `control_app._PRUNE_SAFE_TO_RUN` is False and gates the write half
+#      at :17255; its note says it "remains his". So a lower keep bar frees no footage today.
+# ⚠ THE FUTURE COST, STATED PLAINLY: `reel_retention` holds a reel with the reason
+#   `rows-not-banked`. When he DOES arm the prune, a 2-witness keep bar means more rows count as
+#   banked and therefore more footage becomes eligible. That is a real consequence, deferred
+#   behind a flag only he sets, and it is his call. [[unknown-stays-unknown]]
+#
+# MEASURED CONSEQUENCE ON HIS OWN STORE, the reason he asked: 6 of the 7 rows in his stored
+# vault_accum OWNED lane were banked under a 2-witness bar and could not clear 3, so the panel
+# was calling them "corroborated" on a bar they would fail and "register 7" would have been
+# refused outright by the re-gate. At 2 they are coherent again.
+
 THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR
-THROWOUT_MIN_WITNESSES = 4                # strictly above KEEP_MIN_WITNESSES — and >1 session,
-                                          # always. Raised with the keep bar so the throw bar
-                                          # is never weakened relative to it.
+THROWOUT_MIN_WITNESSES = 2                # HIS RULING, 2026-09-07. See the note below: this is
+                                          # no longer strictly above the keep bar on WITNESSES,
+                                          # and it remains strictly above it on CONFIDENCE.
 
 
 # ── reel selection ──────────────────────────────────────────────────────────────

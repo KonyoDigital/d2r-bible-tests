@@ -75,19 +75,55 @@ correction. Both halves were wrong — the numbers and the unit — and the head
 false for KEEP. What `tv/vault_retro.py:163-167` actually ships is:
 
 ```python
-KEEP_MIN_WITNESSES = 3                    # three DIFFERENT looks agreeing — his ruling
-THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR
-THROWOUT_MIN_WITNESSES = 4                # strictly above KEEP_MIN_WITNESSES — and >1 session,
-                                          # always. Raised with the keep bar so the throw bar
-                                          # is never weakened relative to it.
+KEEP_MIN_WITNESSES = 2                    # two DIFFERENT looks agreeing — HIS RULING, 2026-09-07
+THROWOUT_CONF_FLOOR = 0.85                # strictly above KEEP_CONF_FLOOR — UNCHANGED
+THROWOUT_MIN_WITNESSES = 2                # HIS RULING, 2026-09-07 — equal to keep on WITNESSES,
+                                          # still strictly above it on CONFIDENCE.
 ```
+
+> ## ⚠⚠ 2026-09-07 — THE NUMBERS MOVED, AND THIS PAGE IS WHY THEY MOVED WRONG LAST TIME
+>
+> **This document caused a drift once already.** The constant shipped as `2`; this page said `3`;
+> v2070 resolved it in the page's favour and raised the code. So when he ruled on 2026-09-07 —
+> *"hmm maybe a unified logic for this... lets keep it maybe 2 witnsses"*, and on the throw bar
+> *"make it two also.. its fine.. i will review what i throw regardless.. as long as it in that
+> bin"* — **both the code and this page were changed together**. If you find them disagreeing
+> again, the code is the artifact and this page is the description; fix the page. [[copy-drift]]
+>
+> **WHAT UNIFIED.** `chronicle_retro.MIN_WITNESSES` was already `2`. All three lanes now mean the
+> same thing by "corroborated". Two bars for one question was an accident of authorship.
+>
+> **WHAT DID NOT MOVE, AND IT IS WHY THROW IS STILL THE STRICTER LANE.** The confidence floors are
+> untouched: keep `0.55`, throw `0.85`. Equal witnesses do not make throwing easier than keeping —
+> the throw lane still demands the reader was far more certain of what it saw. The old guarantee
+> ("throw must never quietly become the easier of the two") moved axis; it did not disappear, and
+> `test_the_throw_bar_is_never_the_EASIER_of_the_two` pins it there.
+>
+> **THE SAFETY ARGUMENT IS A MEASUREMENT, NOT A PROMISE.** Two things were verified in code before
+> the change, not taken from this page or from the UI copy:
+> 1. **The throw lane has no apply path.** `control_app.vault_apply` re-gates at the write and
+>    walks `for _which in ("owned", "unsure")` — `throwOut` is carried in the display payload and
+>    never consumed by a write. The screen's "suggestions only … this lane has no button" is true
+>    of the code. So a lower throw bar puts more candidates in his review bin and applies nothing.
+> 2. **The prune is disarmed.** `control_app._PRUNE_SAFE_TO_RUN` is `False` and gates the write
+>    half at `:17255`; its own note says it "remains his".
+>
+> ⚠ **THE DEFERRED COST, STATED.** `reel_retention` holds a reel with the reason `rows-not-banked`.
+> When he arms the prune, a 2-witness keep bar means more rows count as banked and therefore more
+> footage becomes eligible. Real, deferred behind a flag only he sets, and his call.
+>
+> **MEASURED ON HIS OWN STORE** — the reason he asked. 6 of the 7 rows in his stored
+> `vault_accum` OWNED lane were banked under a 2-witness bar and could not clear 3, so the panel
+> called them "corroborated" on a bar they would fail and `register 7` would have been refused
+> outright by the re-gate. At 2, all 7 cohere.
 
 And the two bars do not count the same thing. `vault_retro.gate` defaults to
 `witness_field="witness"` — a **re-look** key opened by `REOPEN_GAP_MS = 180_000` (3 minutes) — so
-the three looks `KEEP_MIN_WITNESSES` demands can all come from **ONE recording** in which the shelf
-was examined three times, minutes apart. Only the throw bar is called with `witness_field="session"`
-(`witness_noun="recording"`), so only it demands `THROWOUT_MIN_WITNESSES = 4` **independent
-recordings**. "Two runs of the same unbroken screen are ONE witness" is still true of both bars: it
+the looks `KEEP_MIN_WITNESSES` demands can all come from **ONE recording** in which the shelf
+was examined twice, minutes apart. Only the throw bar is called with `witness_field="session"`
+(`witness_noun="recording"`), so only it demands `THROWOUT_MIN_WITNESSES = 2` **independent
+recordings** — and that difference in UNIT, not in number, is now what separates the two bars on
+witnesses. "Two runs of the same unbroken screen are ONE witness" is still true of both bars: it
 rules out FRAMES, not re-looks.
 
 So the across-sessions law he described is enforced on THROW alone. His brief asks for that law

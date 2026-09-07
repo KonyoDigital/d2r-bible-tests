@@ -1621,6 +1621,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2754** | `(this commit)` | v2754 — KEEP 3 to 2 and THROWOUT 4 to 2 on his ruling, unified with the chronicle lane. Confidence floors untouched, so the throw lane is still the stricter of the two. Verified in code first: the throw lane has no apply path and the prune is disarmed. |
 | **v2753** | `(this commit)` | v2753 — rAF does not fire in a window WebKit thinks is hidden, so the cure for a stale composite was switched off by the disease. Plus the stage witness, which holds the DOM claim and the pixel reading side by side and reports the disagreement. |
 | **v2752** | `(this commit)` | v2752 — his black console read as painted because two rows of title bar border cleared the ink bar |
 | **v2751** | `(this commit)` | v2751 — 119 item names read from his reels and none banked, and no paid read is owed for any of them |

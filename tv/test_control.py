@@ -10485,12 +10485,26 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
         self.assertTrue(v["pass"], v["why"])
         self.assertIn("look", v["why"])
 
-    def test_TWO_relooks_are_no_longer_enough(self):
-        """The bar has to be able to say no at the new number, or it is not the new bar. This is the
-        case that would have passed before his ruling and must now refuse."""
+    def test_TWO_relooks_are_enough_again_and_ONE_is_still_not(self):
+        """⚠ THE NUMBER HAS MOVED TWICE AND THIS LAW HAS TO MOVE WITH IT, IN BOTH DIRECTIONS.
+
+        The constant was 2. v2070 raised it to 3 because PROJECT_VAULT_MANAGER.md had recorded his
+        rule as 3 since 2026-08-21 while the code said 2 — a doc/code drift resolved in the doc's
+        favour. On 2026-09-07 he ruled it back to 2 and unified it with the chronicle lane:
+        *"hmm maybe a unified logic for this... lets keep it maybe 2 witnsses"*.
+
+        A law that only asserted the refusal would now be pinning a number nobody holds, so this
+        pins BOTH edges of the bar wherever it sits: at the bar it passes, one short it refuses.
+        [[copy-drift]] [[feedback-threshold-above-the-ceiling]]
+        """
         import vault_retro as vr
-        ev = self._ev([("s1", "s1#0"), ("s1", "s1#1")], conf=0.8)
-        self.assertFalse(vr.gate(ev, vr.KEEP_CONF_FLOOR, vr.KEEP_MIN_WITNESSES)["pass"])
+        n = vr.KEEP_MIN_WITNESSES
+        at_bar = self._ev([("s1", "s1#%d" % i) for i in range(n)], conf=0.8)
+        self.assertTrue(vr.gate(at_bar, vr.KEEP_CONF_FLOOR, n)["pass"],
+                        "%d distinct looks did not clear a bar of %d" % (n, n))
+        one_short = self._ev([("s1", "s1#%d" % i) for i in range(n - 1)], conf=0.8)
+        self.assertFalse(vr.gate(one_short, vr.KEEP_CONF_FLOOR, n)["pass"],
+                         "the bar cannot say no one look short of %d, so it is not a bar" % n)
 
     def test_two_glances_without_a_gap_are_still_ONE_witness(self):
         """The rule has to be able to say no, or it is not a rule. Same bucket = same look."""
@@ -10523,12 +10537,41 @@ class TestV1792ARelookCountsForKeepAndNeverForThrow(unittest.TestCase):
         self.assertFalse(vr.gate(ev, vr.THROWOUT_CONF_FLOOR, vr.THROWOUT_MIN_WITNESSES,
                                  witness_field="session", witness_noun="recording")["pass"])
 
-    def test_the_throw_bar_is_STRICTLY_above_the_keep_bar(self):
-        """The relation is the law; the numbers are his. If a future ruling moves keep again, this
-        is what refuses to let throw quietly become the easier of the two."""
+    def test_the_throw_bar_is_never_the_EASIER_of_the_two(self):
+        """The relation is the law; the numbers are his — and on 2026-09-07 he moved them.
+
+        WAS: throw strictly above keep on BOTH axes (witnesses 4>3, conf 0.85>0.55).
+        NOW: witnesses are EQUAL at 2 by his ruling, and conf is UNCHANGED at 0.85>0.55.
+
+        His words: *"make it two also.. its fine.. i will review what i throw regardless.. as long
+        as it in that bin"*, *"i will decide if to throw it out or not to"*.
+
+        ⚠⚠ WHY EQUAL WITNESSES DOES NOT WEAKEN THIS LAW'S PURPOSE. The purpose was that throwing
+        must never become easier than keeping, because there is no un-throw in Diablo. That still
+        holds — on CONFIDENCE. A throw candidate must clear 0.85 where a keep clears 0.55, so the
+        reader has to have been far more certain of what it saw. The guarantee moved axis; it did
+        not disappear, and this test now pins it there.
+
+        ⚠ AND THE PREMISE OF HIS RULING WAS VERIFIED IN CODE, not taken from the UI copy:
+        `control_app.vault_apply` re-gates at the write and walks `("owned", "unsure")` ONLY —
+        `throwOut` is carried in the display payload and never consumed by any write. The lane is
+        a review bin with no apply path, so a lower bar puts more candidates in front of him and
+        applies nothing. That is the whole reason equal witnesses is safe here.
+        """
         import vault_retro as vr
-        self.assertGreater(vr.THROWOUT_MIN_WITNESSES, vr.KEEP_MIN_WITNESSES)
-        self.assertGreater(vr.THROWOUT_CONF_FLOOR, vr.KEEP_CONF_FLOOR)
+        # witnesses: equal is now permitted, BELOW is still forbidden
+        self.assertGreaterEqual(vr.THROWOUT_MIN_WITNESSES, vr.KEEP_MIN_WITNESSES,
+                                "the throw bar sank BELOW the keep bar on witnesses — throwing "
+                                "must never be easier than keeping, and there is no un-throw")
+        # confidence: this is where "strictly above" now lives, and it must not be conceded
+        self.assertGreater(vr.THROWOUT_CONF_FLOOR, vr.KEEP_CONF_FLOOR,
+                           "the throw bar is no longer stricter than the keep bar on ANY axis. "
+                           "Witnesses were equalised by his 2026-09-07 ruling on the understanding "
+                           "that confidence still separates them; if this goes too, throwing has "
+                           "become the easier of the two.")
+        # ⚠ a bar of 1 would make a single sighting throwable, which no ruling has ever asked for
+        self.assertGreaterEqual(vr.THROWOUT_MIN_WITNESSES, 2,
+                                "one sighting is enough to suggest a throw-out")
 
     def test_the_sweep_opens_a_new_bucket_only_after_the_gap(self):
         """Measured through the real sweep rather than asserted on the constant: two runs a minute
