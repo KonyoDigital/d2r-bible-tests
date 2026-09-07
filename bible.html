@@ -8974,12 +8974,18 @@ body:has(#tab-tools.active) .tools-legend-pop.open{display:block}
 /* v2300 — the unit rides UNDER the count, dimmer and smaller: it must qualify the number
    without competing with it, because the number is what he is scanning for. */
 .forge-tab .ft-ct .ft-u{display:block;font-size:8.5px;font-weight:var(--fw-medium);letter-spacing:.06em;text-transform:uppercase;opacity:.62;line-height:1.05;margin-top:1px}
-.gf-piece /* v2765 — the qlvl chip. White on purpose: he asked for it in white, and it is the one
+/* v2765 — the qlvl chip. White on purpose: he asked for it in white, and it is the one
    figure on the row that is a HARD GATE rather than an estimate — a monster below it
    cannot drop the item at all, however long he farms. Tabular so the column lines up. */
-.gp-q{color:#fff;font-weight:var(--fw-semibold);font-size:var(--fs-meta);opacity:.92;margin-left:6px;
+.gf-piece .gp-q{color:#fff;font-weight:var(--fw-semibold);font-size:var(--fs-meta);opacity:.92;margin-left:6px;
   font-variant-numeric:tabular-nums;letter-spacing:.02em}
-.gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
+/* ⚠ v2770 — `.gf-piece` RESTORED HERE. Found by the post-ship review: v2765's comment was
+   inserted BETWEEN the `.gf-piece` selector and its rule, so CSS (which strips comments) read
+   `.gf-piece .gp-q{...}` — correctly scoped — and left `.gp-eta` as a BARE class selector,
+   dropping it from (0,2,0) to (0,1,0) across a 6 MB document. Nothing broke, because there is
+   one render site; a scope change simply rode in unannounced on a diff about adding a chip.
+   Both rules name their ancestor explicitly now, so a comment cannot split a selector again. */
+.gf-piece .gp-eta{font-size:9.5px;font-weight:var(--fw-bold);color:#d8b45e;background:rgba(216,180,94,.12);border-radius:5px;padding:0 5px;white-space:nowrap;font-family:var(--mono,monospace)}
 .gf-piece{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:var(--fw-semibold);border-radius:8px;padding:5px 11px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#cfc4a9;transition:all .13s}
 .gf-piece:hover{filter:brightness(1.25);transform:translateY(-1px)}
 .gf-piece.have{background:rgba(95,201,122,.14);border-color:rgba(95,201,122,.55);color:#a9edbb;text-decoration:none}
@@ -42816,8 +42822,17 @@ function renderJournal(){
          table: 547 distinct names, 215 carry an apostrophe and ALL 215 are STRAIGHT, zero curly.
          The ROSTER spells four of them curly (Atma’s Scarab, Saracen’s Chance, Seraph’s Hymn,
          The Cat’s Eye), so a name arriving from that side would miss an index that is uniformly
-         straight. Folding the query is therefore the whole fix; folding the index as well would
-         be a no-op today and a second rule to keep in step tomorrow. */
+         straight. Folding the index as well would be a no-op today and a second rule to keep in
+         step tomorrow.
+
+         ⚠⚠ v2770 — CORRECTED, AND THE CORRECTION MATTERS. This said the fold was "the whole fix".
+         It is not: `_regKey` ALREADY strips the trailing parenthetical AND folds curly
+         apostrophes, so when it is present BOTH the pre-fold above and the parenthetical retry
+         below are no-ops — the two lookups compute the same key. They are live in exactly one
+         place: the documented `_regKey`-missing fallback, where `_key` is a bare toLowerCase()
+         that neither folds nor strips. So they stay, and the claim is corrected rather than the
+         code. A comment asserting behaviour the code does not have is worse than no comment.
+         [[feedback-comments-vs-code]] */
       var _key = function(x){
         return (typeof window._regKey === 'function') ? window._regKey(x)
                                                       : String(x).toLowerCase();

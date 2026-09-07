@@ -101,7 +101,7 @@ def _why_for(station, reel_why):
     return "routed from %s — %s" % (station, reel_why)
 
 
-def plan(rep=None):
+def plan(rep=None, path=None):
     """Who would be routed, who would be refused, and why. Writes NOTHING. -> dict
 
     -> {"ok", "route": [...], "declined": [...], "shelf", "why"}
@@ -112,7 +112,10 @@ def plan(rep=None):
     if rep is None:
         try:
             import reel_router as _rr
-            rep = _rr.route()
+            # ⚠ v2770 — the store the overlay reads must be the store this lane
+            # stamps into, or the plan is made against one ledger and the writes
+            # land in another.
+            rep = _rr.route(path=path)
         except Exception as exc:
             out["why"] = ("the router could not be walked (%s), so nothing is known about the "
                           "shelf — that is a REFUSAL, not an empty queue" % type(exc).__name__)
@@ -158,7 +161,7 @@ def apply(by, rep=None, limit=None, path=None):
         out["why"] = ("apply() needs a `by` — the lane that stamps must name itself or the rows it "
                       "writes cannot say what moved anything")
         return out
-    p = plan(rep)
+    p = plan(rep, path=path)
     if not p["ok"]:
         out["why"] = p["why"]
         return out

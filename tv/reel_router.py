@@ -323,7 +323,7 @@ def _routed_by_a_lane(path=None):
     return {k: v for k, v in last.items() if v.get("station") == "ROUTED"}, ""
 
 
-def route(hist=None):
+def route(hist=None, path=None):
     """Every reel on the shelf, with exactly one station each. -> dict
 
     The invariant is asserted, not assumed: `sum(counts.values()) == shelf` and every reel appears
@@ -335,7 +335,14 @@ def route(hist=None):
     if ev is None:
         rep["why"] = "UNKNOWN, not an empty shelf — %s" % why
         return rep
-    routed, outlet_why = _routed_by_a_lane()
+    # ⚠⚠ v2770 — `path` IS THREADED, and it was not. Found by the post-ship review: route()
+    # called the overlay with NO path, so the helper's own `path` parameter was unreachable and
+    # `reel_route_lane.apply(by, path=X)` planned against the DEFAULT store while stamping into
+    # X — reels already routed in X re-stamped, reels routed in the real store wrongly skipped.
+    # A fixture run reading his production ledger to decide what to write into the fixture is
+    # exactly what `_evidence`'s own hist refusal exists to prevent.
+    # [[feedback-fixtures-never-touch-live-data]]
+    routed, outlet_why = _routed_by_a_lane(path)
     rows = []
     for reel, e in ev.items():
         station, swhy = _station_of(e)
@@ -508,6 +515,15 @@ def assert_independent_of_retention():
         # ACTOR STAMP, which is a record of an act and not a retention tag; this holds it to that.
         (route, RETENTION_FIELDS,
          "overlays the outlet and settles the final station"),
+        # ⚠⚠ v2770 — THE HELPER, TOO. Found by the post-ship review: `_string_keys_read_by` parses
+        # only the named function's OWN source and does not recurse into callees, so adding
+        # `route` above watched the composition point while the overlay's actual key reads —
+        # row.get("byKind"), row.get("station") — sat unguarded one call down. An edit making the
+        # overlay consult row.get("held") or row.get("tag") is the keep-reason re-entering "one
+        # function upstream", which is the failure this guard's own docstring names, and it would
+        # have passed green while the entry above claimed to cover exactly that place.
+        (_routed_by_a_lane, RETENTION_FIELDS,
+         "reads the actor rows the outlet overlay is driven by"),
     ):
         try:
             seen = _string_keys_read_by(fn)

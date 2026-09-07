@@ -72,13 +72,23 @@ LANE_OF_STATION = {
         "note": "same lane as INTAKE: one survey answers both stations",
     },
     "EMPTY": {
-        "lane": None,
-        "owner": None,
+        # ⚠⚠ v2770 — THIS ENTRY WAS FALSE FROM v2764 UNTIL NOW, and river_walk is the authority
+        # the "river joints" doctor row reads. It still said "NOTHING ROUTES... No lane opens that
+        # gate today" while six reels had already been moved out of EMPTY by a lane — so the
+        # console reported an unowned station with `lane: None` and anyone triaging the river from
+        # that surface was told the outlet was still welded shut. Found by the post-ship review;
+        # the new module quotes this very map in its own docstring as the record of the gap it was
+        # closing, which is how it went stale unnoticed. [[label-outlived-referent]]
+        "lane": "reel_route_lane",
+        "owner": "loop:tvd-retro-triage",
         "consumes": False,
-        "picks": None,
-        "note": "the gate is ROUTE and NOTHING ROUTES. His ruling, 2026-09-05, is quoted in "
-                "reel_router.OWES: a reel with nothing to read still owes a stamped record and "
-                "does not leave the river. No lane opens that gate today",
+        "picks": "reels the survey walked IN FULL that hold zero panel frames",
+        "note": "the gate is ROUTE, and since v2764 a lane opens it: `reel_route_lane` stamps "
+                "ROUTED as an ACTOR, driven by the retro-triage tick since v2770. His ruling, "
+                "2026-09-05, still holds and is quoted in reel_router.OWES — a reel with nothing "
+                "to read still owes a stamped record and does not leave the river. It now gets "
+                "one. ⚠ `consumes` stays False: closing a reel out is not deleting it, and "
+                "TOMBSTONE remains with the deleter behind the arming lock",
     },
     "STATION": {
         "lane": "tvd-chron-autoread",
