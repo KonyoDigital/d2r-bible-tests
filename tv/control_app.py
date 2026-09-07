@@ -1128,6 +1128,36 @@ _ART_MIME = {
 # v1402 — MUST be RLock. start_agent holds _lock then calls _start_capture → _pid_alive
 # which also takes _lock. A plain Lock deadlocks forever → ON AIR spins, /api/on never
 # answers, cousin console looks "stuck". Live evidence 2026-07-26 Hebrew Windows PC.
+# ⚠⚠ v2772 — A WEDGE THAT CANNOT BE INSPECTED IS A WEDGE THAT CANNOT BE FIXED.
+# MEASURED 2026-09-08, while a chronicle sweep was reading 134 of 288 frames:
+#     /            HTTP 200 · 1,679,548 bytes · 0.69s
+#     /api/status  HTTP 000 · 0 bytes · 30.0s TIMEOUT   (and /api/river, /api/heart the same)
+#     console threads: 60
+# The instant the sweep finished: /api/status 200 in 0.158s, threads back to 34. So a sweep
+# monopolises the whole API for its duration — which is exactly what Konyo said it must not do:
+# *"this should not stop it though while it sweeping old reels sessions"* and *"on air is still
+# just should work regardless"*. The UI polls /api/status, so ON AIR spins "loading" and OFF AIR
+# stays greyed while the recording is in fact running.
+#
+# ⚠ AND status_payload IS NOT THE SLOW PART — that was my first conclusion and it was wrong. Warm,
+# it is 33 MILLISECONDS. It blocks because four of its callees take `_lock`
+# (_agent_alive, _capture_health, _pid_alive, _pid_cached), so whatever the sweep holds, they wait.
+# No sweep function takes `_lock` directly, so the holder is further down and READING WILL NOT FIND
+# IT — the process has to say so itself while it is stuck.
+#
+# `faulthandler` dumps every thread's stack on a signal, from C, without needing the GIL to be
+# available to Python code. So:  kill -USR1 <console pid>  ->  full stack of all 60 threads on
+# stderr, naming the exact frame that holds the lock. py-spy is not installed on this Mac and
+# installing it is a change to his machine; this is free and permanent.
+try:
+    import faulthandler as _fh
+    import signal as _sig
+    _fh.enable()
+    if hasattr(_sig, "SIGUSR1"):
+        _fh.register(_sig.SIGUSR1, all_threads=True, chain=True)
+except Exception:
+    pass
+
 _lock = threading.RLock()
 _agent_proc = None  # type: ignore
 _stop_inflight = False   # v768 (Grok R2) — a threaded stop/farewell is running; ON/RESTART must wait
