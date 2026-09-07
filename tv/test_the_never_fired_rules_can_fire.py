@@ -81,7 +81,27 @@ def _build(hist):
 
 
 def _tags(hist):
-    p = RR.plan(hist_dir=hist, keep_recent=0)
+    # ⚠⚠ THE FIXTURE MUST CONTROL THE WITNESS INDEX TOO, AND IT CANNOT DO SO THROUGH hist_dir.
+    # reel_retention.py:388 reads `_fa_idx.witness_index(HERE)` — the MODULE's directory, not the
+    # injected one — so `no-witness-index` (the FIRST rule in the chain) fires for every reel on any
+    # host without an index. MEASURED: this suite passed on his Mac and failed all four laws on CI
+    # with 'eligible' != 'no-witness-index', because CI has no witness store. That is the same shape
+    # REG-570 fixed for the ledgers, one rule higher up, and it makes the gate HOST-DEPENDENT.
+    # Patched here rather than in production code: changing what plan() reads to satisfy a test
+    # would be the test steering the deleter. [[feedback-fixtures-never-touch-live-data]]
+    import frame_authority as _fa
+    _real = _fa.witness_index
+    # ⚠ THE FAKE MUST MATCH THE REAL SHAPE, and my first one did not. witness_index returns
+    # {frames, haveIndex, ok, perStore, sessions} and plan() reads `ok` and `perStore` — a store
+    # mapped to None means "would not parse", which trips `ledger-unreadable`, the SECOND rule.
+    # A fake missing `ok` moved the failure from rule 1 to rule 2 rather than clearing it, which is
+    # exactly how a stubbed dependency lies quietly. Verified against the real return value.
+    _fa.witness_index = lambda *a, **k: {"ok": True, "haveIndex": True, "frames": set(),
+                                         "sessions": set(), "perStore": {}}
+    try:
+        p = RR.plan(hist_dir=hist, keep_recent=0)
+    finally:
+        _fa.witness_index = _real
     got = {}
     for r in (p.get("kept") or []):
         got[r.get("reel")] = r.get("tag")
@@ -116,6 +136,20 @@ class TheNeverFiredRulesCanFire(unittest.TestCase):
                          "a reel this fixture recorded as pages=0 did not land on zero-pages — the "
                          "scratch ledger is being ignored, so the chooser is reading somebody "
                          "else's data (REG-570)")
+
+    def test_the_witness_index_is_controlled_by_the_fixture(self):
+        """⚠ WITHOUT THIS THE SUITE IS HOST-DEPENDENT AND SAYS SO NOWHERE. `no-witness-index` is the
+        FIRST rule; on a host without an index it catches every reel before the subject is reached,
+        and all four laws below fail for a reason that has nothing to do with the chooser."""
+        src = io.open(os.path.join(HERE, "test_the_never_fired_rules_can_fire.py"),
+                      encoding="utf-8").read()
+        self.assertIn("_fa.witness_index = lambda", src,
+                      "the fixture no longer overrides witness_index, so this suite passes or fails "
+                      "on whether the HOST happens to have a witness store")
+        _, got = _tags(self.hist)
+        self.assertNotIn("no-witness-index", set(got.values()),
+                         "a fixture reel landed on no-witness-index, so the override is not taking "
+                         "effect and every verdict below is about the host, not the chooser")
 
     # ── ⚠⚠ THE LAW: each rule fires on the shape built for it ─────────────────────────────────
     def test_each_of_the_five_rules_fires_on_its_own_shape(self):
@@ -153,6 +187,12 @@ class TheNeverFiredRulesCanFire(unittest.TestCase):
         """⚠ THE PREMISE. If his footage ever DOES reach these rules, this file's reason for
         existing changes and someone should re-read it rather than trust its green. [[stale-reading]]"""
         p = RR.plan()
+        # ⚠ ON A HOST WITH NO FOOTAGE THIS LAW HAS NO SUBJECT. CI has no reels, so `neverFired` is
+        # empty for the honest reason that nothing was walked — not because his shelf changed. A
+        # law that cannot see its subject must SKIP and say so, never pass and never fail.
+        if not (p.get("kept") or p.get("candidates")):
+            self.skipTest("no reels on this host, so the live shelf has no blind spot to report — "
+                          "UNKNOWN, and this law is about HIS shelf")
         never = set(p.get("neverFired") or [])
         self.assertTrue(never & {"never-chronicle-swept", "rows-not-banked", "vault-owes", "eligible"},
                         "his live shelf no longer reports these rules as never-reached, so the "
