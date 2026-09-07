@@ -12811,6 +12811,61 @@ def _pixel_blank_report():
     return out
 
 
+#: v2772 — at most ONE escalation per this window, whatever happens. A blank window is bad; a
+#: console that restarts itself every few minutes is unusable. 15 minutes is long enough that a
+#: loop is impossible and short enough that he is not the fallback for a whole session.
+_RESCUE_ESCALATE_EVERY_S = 900.0
+
+
+def _rescue_escalation_decision(futile, now, escalated_ts, recording):
+    """May the rescue loop escalate to a relaunch right now? -> (bool, why:str)
+
+    ⚠⚠ PURE ON PURPOSE. The decision lives here, out of the loop, so a gate can DRIVE it — every
+    dangerous state exercised by calling it, instead of a law grepping the loop's source and being
+    satisfied by the comment that explains the rule. That mistake was made SIX times in one session
+    in this repo. A guard that reads prose certifies dead code. [[source-reading-guard]]
+
+    ⛔ The three refusals are the whole safety argument, and each is measured by the caller:
+      · recording      — a relaunch mid-capture costs him a REEL. Never, at any futile count.
+      · futile < 2     — one failed rescue is not a pattern; the reload may simply have raced.
+      · cooldown       — whatever happens, at most one per _RESCUE_ESCALATE_EVERY_S. This is what
+                         makes a restart LOOP impossible, and it is checked LAST so the reason a
+                         reader sees names the strongest refusal that applies.
+    """
+    if recording:
+        return False, "a reel is recording - a relaunch would cost him the footage"
+    if int(futile or 0) < 2:
+        return False, "only %d futile rescue(s) - not a pattern yet" % int(futile or 0)
+    left = float(escalated_ts or 0.0) + _RESCUE_ESCALATE_EVERY_S - float(now)
+    if left > 0:
+        return False, "cooldown - %ds left of %ds" % (int(left), int(_RESCUE_ESCALATE_EVERY_S))
+    return True, ("%d futile rescue(s) in a row; a reload cannot restart a stopped compositor, so "
+                  "replacing the process instead" % int(futile))
+
+
+def _exec_relaunch_soon():
+    """Replace this process, off the rescue thread. -> None. Never raises into the loop.
+
+    ⚠ It uses the SAME door the manual button uses rather than inventing a second path — two ways
+    to relaunch is how one of them rots. [[copy-drift]]
+    """
+    def _go():
+        try:
+            time.sleep(0.4)
+            stop_agent(farewell=False)
+        except Exception:
+            pass
+        try:
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        except Exception as e:
+            try:
+                print("   relaunch failed (%s) - the window stays as it is" % type(e).__name__,
+                      flush=True)
+            except Exception:
+                pass
+    threading.Thread(target=_go, daemon=True, name="tvd-rescue-relaunch").start()
+
+
 def _console_rescue_loop():
     """The generator itself. Sleeps, asks, and acts — and writes down every time it acts,
     because a self-heal nobody records is a fault that keeps being reported by HIM instead of
@@ -12915,6 +12970,42 @@ def _console_rescue_loop():
                                     why=_rw.get("why"), where="_console_rescue_loop")
                     print("\u26a0\u26a0 console rescue DID NOT restore painting (%d in a row) - %s"
                           % (_UI_RESCUE["futile"], str(_rw.get("why"))[:150]), flush=True)
+                    # ⚠⚠ v2772 — ONE ESCALATION, AND ONLY TO A DIFFERENT ACT.
+                    # The refusal above is RIGHT and stands: retrying the RELOAD is hammering, and
+                    # a reload that cannot restart a stopped compositor will not do it the second
+                    # time. But a RELAUNCH is not a reload — it replaces the process, and MEASURED
+                    # 2026-09-08 it restored his blank window TWICE, in about 3 seconds each, after
+                    # reloads had failed. Over an 8-day window: 73 blank sightings, 111 rescues,
+                    # and 4 x "did not restore painting" — after which nothing stronger happened
+                    # and KONYO WAS THE FALLBACK. He told us by hand, twice tonight.
+                    #
+                    # ⛔ THE GATES ARE THE WHOLE DESIGN, because an auto-relaunch loop is worse
+                    # than a blank window:
+                    #   · NEVER while recording — a relaunch mid-capture costs him a reel.
+                    #   · NEVER more than once per _RESCUE_ESCALATE_EVERY_S, whatever happens.
+                    #   · ONLY after TWO consecutive futile rescues, never the first.
+                    #   · IT DOES NOT VERIFY ITSELF AND TRY AGAIN. One attempt, recorded. If the
+                    #     window is still blank after that, the next tick records a futile rescue
+                    #     as before and the cooldown holds the door shut. Silence is not success,
+                    #     and this must never become a restart loop.
+                    try:
+                        _now = time.time()
+                        _go, _why = _rescue_escalation_decision(
+                            _UI_RESCUE.get("futile"), _now,
+                            _UI_RESCUE.get("escalatedTs"), _agent_alive())
+                        _UI_RESCUE["escalateWhy"] = _why
+                        if _go:
+                            _UI_RESCUE["escalatedTs"] = _now
+                            _UI_RESCUE["escalations"] = int(_UI_RESCUE.get("escalations") or 0) + 1
+                            ui_fault_record("console-escalating-to-relaunch", why=_why,
+                                            where="_console_rescue_loop")
+                            print("\u26a0\u26a0 console rescue futile x%d - ESCALATING to relaunch"
+                                  % _UI_RESCUE["futile"], flush=True)
+                            _exec_relaunch_soon()
+                        else:
+                            print("   (no escalation: %s)" % _why, flush=True)
+                    except Exception as _ee:
+                        print("   (escalation could not run: %s)" % type(_ee).__name__, flush=True)
                 elif _rw.get("worked") is True:
                     # a cure that worked clears the tally; only CONSECUTIVE failures count
                     _UI_RESCUE["futile"] = 0

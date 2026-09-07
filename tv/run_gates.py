@@ -640,6 +640,21 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_the_rescue_has_a_top_rung",
+         [sys.executable, os.path.join(HERE, "test_the_rescue_has_a_top_rung.py")], 120,
+         why="WHEN THE SELF-RESCUE FAILED, KONYO WAS THE FALLBACK. Over 196 hours his fault journal "
+             "shows 73 blank-pixel sightings, 111 rescues, and 4 x "
+             "`console-rescue-did-not-restore-painting` — after which NOTHING stronger happened and "
+             "he had to notice the dead window himself, twice on 2026-09-08. The loop's refusal to "
+             "retry the RELOAD is correct and stands; a relaunch is a DIFFERENT act, and it restored "
+             "his window twice in ~3s where reloads had failed. This gate protects the REFUSALS far "
+             "more than the act: never while a reel is recording (that costs him footage he cannot "
+             "get back), never on one failure, and at most once per 15 minutes so a persistent fault "
+             "can never become a restart loop. It drives `_rescue_escalation_decision` directly and "
+             "checks the loop's call to it by PARSING — a substring law would be satisfied by the "
+             "comment explaining the rule, which is how a defined-and-uncalled function passed green "
+             "six times in one session.",
+         ),
     Gate("test_the_throw_bar_stays_stricter",
          [sys.executable, os.path.join(HERE, "test_the_throw_bar_stays_stricter.py")], 120,
          why="THE `locked lanes` DOCTOR ROW WAS CRYING WOLF ABOUT HIS OWN RULING. It required the "
