@@ -965,6 +965,25 @@
   @keyframes barPulse { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
 
   /* ══ BRAIN TICKER ══ */
+  /* ══ v2763 — THE AI READS TICKER BELONGS TO TV·D, NOT TO EVERY SCREEN ═══════════════════
+     Konyo: "ALSO AI READS and ROUTED personal on the bottom of the console within the sessions
+     tab move it surgically to the TV-D tab its related to the AI readers/recorders analayzers
+     its more related to there."
+
+     ⚠⚠ IT WAS NEVER "ON SESSIONS". MEASURED: `.ticker` had NO view-scoping rule of any kind — it
+     rendered on every view, permanently. He met it on Sessions because he meets it everywhere,
+     and "it is on Sessions" and "it is scoped to nothing" look identical on a screenshot. Naming
+     the container is not the same as naming the rule that shows it. [[the-unjoined-end]]
+
+     ⚠ THE SCOPE IS TWO NEGATIVES, AND BOTH ARE NEEDED. Only Sessions carries
+     `data-view="sessions"`: `_toTVD()` REMOVES the attribute (:17059) and so does every board tab
+     (:17061), so "not sessions" alone would still leave the ticker under Runewords, Crafts,
+     Uniques, Sets, Tools and Vault. `body.shell-open` (:16912) is what marks a board tab, so
+     TV·D is the one state that is neither. Same backend, same content, one home.
+     ⚠ DISPLAY, NOT VISIBILITY: the ticker is a grid row; hiding it any other way leaves its track
+     behind and re-opens the blank-band class of defect. */
+  body[data-view="sessions"] .ticker,
+  body.shell-open .ticker { display: none; }
   .ticker {
     grid-area: tick;
     display: flex; align-items: stretch;
@@ -3725,13 +3744,8 @@
      button that competes with the hunt; the arrow is the only thing that says it goes somewhere. */
   /* v2125 — the destination half of the banner, pushed to the right edge. Was an inline style;
      a chip that names a room deserves to look like a control rather than dimmed prose. */
-  .cw-go { margin-left: auto; opacity: .82; white-space: nowrap;
-           padding: 2px 8px; border-radius: 999px;
-           border: 1px solid rgba(181,140,255,.38); background: rgba(181,140,255,.10); }
-  .chron-waiting:hover .cw-go { opacity: 1; border-color: rgba(181,140,255,.7); }
   /* v2278 — the secondary count, so the strip can carry BOTH numbers without either shouting.
      "347 read, 347 you already have" is context; the headline is what would change. */
-  .cw-note { margin-left: 10px; opacity: .62; font-size: .86em; white-space: nowrap; }
   /* ══ v2290 — THE STRIP MUST NOT SQUEEZE ITS MIDDLE ═════════════════════════════════════════
      A cross-family read of the 901px console called this box "severe text collision ... cut off at
      the container edge". Measured: NEITHER. scrollWidth 606 == clientWidth 606, zero overlapping
@@ -3745,20 +3759,12 @@
      mechanism. The fix is for the real cause: below the width where three parts stop fitting on
      one line, the strip STACKS so each gets the full row instead of the middle being crushed.
      [[visual-regression-detector]] [[feedback-contradiction-is-the-finding]] */
-  .chron-waiting { flex-wrap: wrap; row-gap: 4px; }
   @media (max-width: 1100px) {
-    .chron-waiting { align-items: flex-start; }
-    .chron-waiting > b { white-space: normal; }
-    .cw-go { margin-left: 0; }
   }
   /* v2278 — CALM WHEN THERE IS NOTHING TO DO. His words about this tab: "if nothing for me to do
      it should be cleaner structured and collapsed by default". A row that needs no decision must
      not wear the colour of one — it keeps its place so the count stays legible, and loses the
      accent, the border and the arrow that mean "act on me". */
-  .chron-waiting.cw-quiet { opacity: .58; border-color: rgba(255,255,255,.10) !important;
-                            background: rgba(255,255,255,.03) !important; }
-  .chron-waiting.cw-quiet b { font-weight: var(--fw-med, 500); }
-  .chron-waiting.cw-quiet .cw-go { display: none; }
   /* v2284 — the retired switch's replacement: same shape as its siblings so the section still
      reads as a row, but with no affordance, because there is nothing to press. */
   .shadow-adv-fixed { display: flex; align-items: center; gap: 8px; padding: 7px 10px;
@@ -3795,14 +3801,6 @@
   #hd-chron.chron-landed { outline: 2px solid rgba(181,140,255,.75); outline-offset: 3px;
                            border-radius: 10px; transition: outline-color .5s ease; }
   @media (prefers-reduced-motion: reduce) { #hd-chron.chron-landed { transition: none; } }
-  .chron-waiting { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; width: 100%;
-    margin: 2px 0 0; padding: 7px 11px; text-align: left; cursor: pointer;
-    font: var(--fw-semibold) var(--fs-xs) / 1.4 var(--mono, ui-monospace, monospace);
-    letter-spacing: .03em; color: var(--acc-chron, #c9a6ff);
-    border: 1px solid rgba(181,140,255,.42); border-radius: 8px;
-    background: rgba(181,140,255,.07); }
-  .chron-waiting:hover { background: rgba(181,140,255,.13); border-color: rgba(181,140,255,.6); }
-  .chron-waiting[hidden] { display: none; }
   /* v1541 — the verdict on an empty sweep. Deliberately NOT red for the ok states: "no Chronicle
      appeared in your footage" is information, and dressing it as a fault sends him debugging a
      machine that is working. Only read-nothing — the one case that IS the reader — goes amber. */
@@ -6557,9 +6555,12 @@ body[data-origin="shadow"] #stage::after {
              tab he actually lives on said nothing about 302 of them. It renders only when there is
              something to register, and it says the NUMBER — a nag with no count is furniture.
              [[the-unjoined-end]] -->
-        <button class="chron-waiting" id="chron-waiting" type="button" hidden
-                onclick="window._chronWaitingJump&&window._chronWaitingJump()"
-                title="These are item names the readers lifted off your own reels. Nothing is written to your chronicle until you press REGISTER in TV·D ▸ Chronicle Sweep — this button only takes you there, and you can drop the whole proposal instead."></button>
+        <!-- v2763 — the 354 strip is GONE. What it announced now reaches him through the
+             chronicle inbox, and ONLY when something is actually new. A permanent row on
+             the gameplay home, carrying a week-old number and asking for nothing, is the
+             thing he asked to be rid of. window._chronWaitingJump survives as the inbox
+             row's click target — it is the one proven door to TV·D ▸ Chronicle Sweep. -->
+
         <!-- v1580 — THE ROTATION IS "WHAT TO HUNT TODAY", so it lives in zone Ⅰ (renamed
              Ⅰ TZ TRACKER in v1630 precisely because this rotation card IS what it renders).
              It was in Ⅲ THE RECORD — "the chronicle of your runs" — which is the wrong
@@ -17210,9 +17211,59 @@ window._lockMark = function(isOpen, px, label){
       ? ('Chronicle · ' + nPend + ' pending · ' + nLed + ' in ledger')
       : ('Chronicle ledger · ' + nLed + ' reads (none pending)');
     var clr = $('ch-clear-all'); if (clr) clr.hidden = nPend < 1;   // v1256 — clear-all only when there's something pending to clear
+    /* ══ v2763 — THE SWEEP LIVES IN THE INBOX NOW, AND ONLY WHEN IT NEEDS HIM ═══════════════
+       Konyo: *"is this necesary cant it be"* — of the 354 banner on his gameplay home.
+       MEASURED when he asked: the proposal was 5.9 DAYS OLD, restored from disk, and
+       /api/chronicle_crossref answered "354 of the 354 read are already in your chronicle; 0 are
+       new". A permanent strip on the home screen, announcing a week-old number, asking for
+       nothing. The inbox is where things that NEED HIM live, so it belongs there or nowhere.
+
+       ⚠⚠ NO ROW AT ALL WHEN NOTHING IS NEW. That is the whole ask — "if nothing for me to do it
+       should be cleaner structured and collapsed by default". A row saying "you already have
+       every one" is still a row about nothing. The 354 moves into the button's title, off the
+       screen but not lost.
+       ⚠ AND `newCount` IS NOT `proposed`. 354 read is not 354 to do. The count that reaches the
+       badge is what would CHANGE his ledger, never what was read. [[label-outlived-referent]] */
+    var _needs = window._CHRON_NEEDS || null;
+    var _new = (_needs && _needs.measured && typeof _needs.newCount === 'number')
+             ? _needs.newCount : null;
+    var _unchecked = !!(_needs && _needs.proposed && !_needs.measured);
+    if (nEl) {
+      if (_new) nEl.textContent = String(nPend + _new);
+      else if (nPend > 0) nEl.textContent = String(nPend);
+    }
+    if (_needs && _needs.proposed) {
+      var _age = _needs.ts ? (' · read ' + _chInboxAgo(_needs.ts)) : '';
+      var _from = _needs.fromDisk ? ', restored from disk' : '';
+      btn.title += (_new
+        /* ⚠ THE PHRASE STAYS IN ONE LITERAL. Split as '...are not in ' + 'your chronicle yet'
+           it is absent from the SOURCE while present on screen, and the law that pins these three
+           states greps the source. Third time today. [[source-reading-guard]] */
+        ? ('\n\ud83d\udcdc ' + _new + ' of ' + _needs.proposed
+           + ' read from your reels: not in your chronicle yet' + _age + _from)
+        : (_unchecked
+          ? ('\n\ud83d\udcdc ' + _needs.proposed
+             + ' read from your reels: not yet checked against your chronicle' + _age)
+          : ('\n\ud83d\udcdc ' + _needs.proposed
+             + ' read from your reels: you already have every one, nothing to register' + _age)));
+    }
+    /* the button must appear when the sweep needs him even if the board queue is empty */
+    if (_new || _unchecked) btn.hidden = false;
     btn.__items = data.pending;
     if (CH.open) chModalRender();
   }
+  function _chInboxAgo(ts){
+    var s = Math.max(0, (Date.now() - (+ts || 0)) / 1000);
+    if (s < 90) return 'just now';
+    if (s < 5400) return Math.round(s / 60) + 'm ago';
+    if (s < 172800) return Math.round(s / 3600) + 'h ago';
+    return Math.round(s / 86400) + 'd ago';
+  }
+  /* ⚠⚠ THE EXPORT IS NOT OPTIONAL. `paintChronicleInbox` is a BLOCK-A local (7286-19440) and the
+     sweep painter that feeds it lives in BLOCK B (19556-22947), with the #tvd-eng iframe between
+     them. A direct call across that boundary is a DEAD RENDER — the fifth instance in this file,
+     one of which was an inline ontoggle firing during PARSE. [[console-ui-two-script-blocks]] */
+  window._chInboxRepaint = paintChronicleInbox;
   function chTierRank(t){
     t = String(t || '').toLowerCase();
     if (t === 'grail') return 0;
@@ -21600,45 +21651,28 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
        COUNT and a way to reach it — one line, only when something is waiting, never a
        countless nag. A night of reads nobody can see is a night of reads that did not
        happen. [[the-unjoined-end]] */
-    var _wait = document.getElementById('chron-waiting');
-    if (_wait) {
-      _wait.hidden = !_n;
-      /* v2125 — SAY WHAT IT IS, NOT ONLY WHERE IT GOES. "waiting to register" told him a state
-         and not a meaning: these are names the readers lifted off his own reels, held as a
-         PROPOSAL, with nothing written to his grail until he presses register. His words: "what
-         does it mean and what is it meant for?" */
-      /* v2278 — SAY WHAT WOULD CHANGE, NOT WHAT WAS READ. His words, looking at this exact
-         strip: "okay but did it cross reference what i currently already own? ... im pretty sure
-         i alread have those items ... some i did some the AI did".
-         It did not. MEASURED on his console 2026-08-29: 347 proposed, 347 already in his
-         foundLog, every one already dated, newlyDated 0 — pressing the green button would have
-         changed NOTHING, and the strip claimed every minute that they were absent from his ledger.
-         [[label-outlived-referent]] [[unknown-stays-unknown]] */
-      if (_n) { try { _chronXref(_n); } catch (e) {} }   /* fills _CHRON_XREF for the NEXT paint */
-      var _xr = window._CHRON_XREF || null;
-      var _xrNew = (_xr && _xr.measured) ? _xr.newCount : null;
-      _wait.hidden = !_n;
-      if (_xr && _xr.measured && _xrNew === 0) {
-        /* NOTHING TO DO, so it must not look like something to do. He asked for exactly this:
-           "if nothing for me to do it should be cleaner structured and collapsed by default". */
-        _wait.classList.add('cw-quiet');
-        _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> read from your reels \u2014 '
-          + '<b>you already have every one</b>'
-          + '<span class="cw-note">nothing to register</span>';
-      } else if (_xr && _xr.measured) {
-        _wait.classList.remove('cw-quiet');
-        _wait.innerHTML = '\ud83d\udcdc <b>' + _xrNew + '</b> not in your chronicle yet \u2014 '
-          + '<span class="cw-note">' + _n + ' read, ' + _xr.alreadyCount + ' you already have</span>'
-          + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
-      } else {
-        /* ⚠ NOT CHECKED IS NOT ALL-NEW. The old line named a number under a claim about his
-           ledger that nobody had verified; when the ledger cannot be read, say so. */
-        _wait.classList.remove('cw-quiet');
-        _wait.innerHTML = '\ud83d\udcdc <b>' + _n + '</b> read from your reels \u2014 '
-          + '<b>not yet checked against your chronicle</b>'
-          + '<span class="cw-go">review &amp; register in TV\u00b7D \u2192</span>';
-      }
-    }
+    /* ══ v2763 — THE SWEEP NO LONGER PAINTS ITS OWN STRIP; IT HANDS THE INBOX THE FACTS ═════
+       The #chron-waiting banner is gone (markup, CSS and this painter). What it knew travels to
+       the inbox instead, which is where things that need him live.
+       ⚠ EVERY FIELD IS CARRIED, INCLUDING THE ONES THAT SAY "I DO NOT KNOW". `measured` false is
+       NOT `newCount` 0 — "nobody has checked" and "checked, nothing new" are different answers
+       and the old strip already knew that ("NOT CHECKED IS NOT ALL-NEW"). Dropping `measured`
+       here would collapse them at the new surface and re-earn the same defect one file over.
+       [[unknown-stays-unknown]]
+       ⚠ AND THE AGE TRAVELS. His proposal was 5.9 days old and restored from disk; a count with
+       no age reads as news. [[stale-reading]] */
+    var _xr2 = window._CHRON_XREF || null;
+    window._CHRON_NEEDS = {
+      proposed: _n,
+      measured: !!(_xr2 && _xr2.measured),
+      newCount: (_xr2 && _xr2.measured) ? _xr2.newCount : null,
+      already: (_xr2 && _xr2.measured) ? _xr2.alreadyCount : null,
+      ts: st && st.resultTs ? st.resultTs : null,
+      fromDisk: !!(st && st.resultFromDisk)
+    };
+    if (_n) { try { _chronXref(_n); } catch (e) {} }   /* still fills _CHRON_XREF for the next tick */
+    /* ⚠ ACROSS THE SCRIPT-BLOCK BOUNDARY, SO IT MUST GO THROUGH THE EXPORT. */
+    try { if (window._chInboxRepaint) window._chInboxRepaint(); } catch (e) {}
   }
   /* v2278 — THE TAP. The strip above renders window._CHRON_XREF; this is the only thing that
      fills it. Built on both ends and never joined is exactly how the register button spent days

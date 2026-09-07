@@ -6057,47 +6057,32 @@ class TestV2291NotOKIsNotABrokenLink(unittest.TestCase):
 
 
 class TestV2290TheStripDoesNotCrushItsMiddle(unittest.TestCase):
-    """★ A cross-family read of the 901px console called this box "severe text collision ... cut off
-    at the container edge". Measured: NEITHER — scrollWidth 606 == clientWidth 606, and zero
-    overlapping child pairs.
+    """v2763 — RETIRED WITH ITS SUBJECT, and saying so rather than deleting the file quietly.
 
-    But the geometry showed what it was reacting to. `.cw-go` takes margin-left:auto and claims the
-    remaining width first, so the bold middle phrase was wrapping to THREE lines inside a 159px
-    column (y 557→616) while "347" sat on one (y 576→596). Not clipped, not colliding — crushed.
+    This class measured the WRAPPING of #chron-waiting: that the strip could wrap instead of
+    squeezing its middle phrase to three lines, and that .cw-go stopped claiming the remaining
+    width on a narrow console. Both were real defects, found by holding a 901px render against a
+    1440px one — the middle phrase went from three lines at 159px to one at 336px.
 
-    ⚠ BOTH INSTRUMENTS WERE PARTLY RIGHT AND NEITHER WAS ENOUGH. My earlier sweep tested CLIPPING
-    and reported the strip clean, because clipping is not the property that was wrong. The eye saw
-    the defect and named the wrong mechanism. Only holding the two against each other found it.
-    [[feedback-contradiction-is-the-finding]] [[visual-regression-detector]]
+    The strip is GONE (v2763): what it announced now reaches him through the chronicle inbox, and
+    only when something is actually new. Its geometry laws therefore grade nothing — a guard whose
+    subject has been removed passes for ever while measuring an empty file, which is worse than no
+    guard because it counts as coverage.
 
-    MEASURED AFTER: at 901 the middle phrase is one line at 336px (was three at 159px); at 1440 it
-    is unchanged.
+    ⚠ THE LAWS THAT WERE ABOUT MEANING RATHER THAN LAYOUT MOVED INSTEAD OF DYING — see
+    TestV2126's `test_the_one_door_SURVIVED_the_banner` and TestV2278's re-pointed pair. Only the
+    two that were about this element's box are retired here.
     """
 
-    def setUp(self):
+    def test_the_strip_it_measured_is_really_gone(self):
+        """⚠ The one thing still worth asserting: if the banner ever returns, these geometry laws
+        must return with it rather than the strip coming back unguarded."""
         p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
         with io.open(p, encoding="utf-8") as fh:
-            self.ui = fh.read()
-
-    def test_the_strip_is_allowed_to_WRAP_rather_than_squeeze(self):
-        self.assertIn(".chron-waiting { flex-wrap: wrap;", self.ui,
-                      "the strip is a rigid single row again, so the middle phrase gets whatever "
-                      "width the go-chip leaves and wraps to three lines")
-
-    def test_the_go_chip_stops_claiming_the_remaining_width_when_narrow(self):
-        block = _between(self, self.ui, "@media (max-width: 1100px) {", "\n  }",
-                         what="the narrow-console rule")
-        self.assertIn("margin-left: 0", block,
-                      "the go-chip still takes margin-left:auto at narrow widths, which is the "
-                      "mechanism that crushed the middle")
-
-    def test_it_does_NOT_change_the_wide_layout(self):
-        """⚠ The 1440 view was never wrong. A responsive fix that moves the width he actually uses
-        would trade a narrow-window defect for a daily one."""
-        self.assertIn("@media (max-width: 1100px)", self.ui,
-                      "the fix is unconditional — it now applies at 1440 too, where nothing was "
-                      "wrong")
-
+            ui = fh.read()
+        self.assertNotIn('id="chron-waiting"', ui,
+                         "the waiting strip is back. It needs its wrap and go-chip guards back "
+                         "too — they were retired only because the element was.")
 
 
 class TestV2288TheCanaryWasDecorationForItsWholeLife(unittest.TestCase):
@@ -6867,38 +6852,43 @@ class TestV2278TheStripNamesWhatWouldCHANGE(unittest.TestCase):
                       "the same branch")
 
     def test_zero_new_is_a_DIFFERENT_state_from_unmeasured(self):
-        ui = self._ui()
-        self.assertIn("you already have every one", ui)
-        self.assertIn("nothing new to register", ui)
-        # ⚠ NOT `assertIn("cw-quiet")`. That passed while the rule that does the work had been
-        # renamed away, because two SUPPORTING rules still mentioned the class. A guard on a
-        # selector must pin the DECLARATION, or it measures the decoration and not the effect.
-        # [[source-reading-guard]] [[d2r-css-last-rule-wins]]
-        self.assertIn("cw-quiet", ui, "a row that needs no decision must stop wearing the colour "
-                                      "of one — his ask: 'if nothing for me to do it should be "
-                                      "cleaner structured'")
-        base = _between(self, ui, ".chron-waiting.cw-quiet {", "}", what="the quiet rule")
-        for decl in ("opacity", "border-color", "background"):
-            self.assertIn(decl, base,
-                          "the quiet row no longer overrides %s, so it still looks like a "
-                          "decision waiting to be made" % decl)
-        self.assertIn(".chron-waiting.cw-quiet .cw-go { display: none; }", ui,
-                      "the go-arrow survives in the quiet state, which is the one thing that says "
-                      "'act on me'")
+        """★ v2763 — THE LAW SURVIVES THE STRIP IT WAS WRITTEN FOR, and the new answer is stronger.
 
-    def test_the_quiet_styles_actually_MATCH_the_element(self):
-        # ⚠ a selector that matches nothing is a style that silently does not exist, and CSS gives
-        # no error for it. #chron-waiting is a <button class="chron-waiting">, so the two-class
-        # selector is the one that can win. [[d2r-css-last-rule-wins]]
-        ui = self._ui()
-        self.assertIn('<button class="chron-waiting" id="chron-waiting"', ui,
-                      "the element lost its class, so every .chron-waiting.cw-quiet rule is inert")
-        self.assertIn(".chron-waiting.cw-quiet", ui)
-        self.assertIn("chron-apply chron-nothing" .replace(" ", ".") if False else
-                      ".chron-apply.chron-nothing", ui)
-        self.assertIn('class="chron-btn chron-apply"', ui,
-                      "the apply button lost .chron-apply, so the quiet rule cannot match it")
+        The old rule was "a row that needs no decision must stop wearing the colour of one" — the
+        cw-quiet styling. The banner is now GONE, so a row that needs no decision is not dimmed:
+        IT DOES NOT EXIST. That is the fullest form of his ask, "if nothing for me to do it should
+        be cleaner structured and collapsed by default".
 
+        ⚠ THE HALF THAT MUST NOT BE LOST: 0-new and NOT-MEASURED are still different answers.
+        "checked, nothing new" and "nobody has checked" render identically the moment a surface
+        keeps only a count, and the original strip already knew it ("NOT CHECKED IS NOT ALL-NEW").
+        `measured` therefore travels beside `newCount` across the block boundary, and the three
+        states keep their own wording. [[unknown-stays-unknown]]
+        """
+        ui = self._ui()
+        for state in ("you already have every one",
+                      "not in your chronicle yet",
+                      "not yet checked against your chronicle"):
+            self.assertIn(state, ui,
+                          "the %r state lost its wording, so two different answers now read the "
+                          "same" % state)
+        self.assertIn("measured: !!(_xr2 && _xr2.measured)", ui,
+                      "`measured` no longer crosses to the inbox, so 'nobody checked' collapses "
+                      "into 'checked, nothing new'")
+        self.assertIn("newCount: (_xr2 && _xr2.measured) ? _xr2.newCount : null", ui,
+                      "newCount is carried even when unmeasured, which invents a zero")
+        self.assertNotIn('id="chron-waiting"', ui,
+                         "the always-on strip is back on his gameplay home")
+    def test_the_quiet_row_is_ABSENT_rather_than_dimmed(self):
+        """v2763 — this used to check that .chron-waiting.cw-quiet actually matched the element,
+        after a rename left the styling inert. The element is gone; the rule it enforced is now
+        satisfied structurally instead of visually — when nothing is new, NO row is added at all.
+        Kept (not deleted) because the underlying law is his ask, not the CSS."""
+        ui = self._ui()
+        self.assertNotIn("cw-quiet", ui, "the quiet class is back without its element")
+        self.assertIn("if (_new || _unchecked) btn.hidden = false;", ui,
+                      "the inbox no longer reveals itself only when the sweep needs him — either "
+                      "it is always shown, or it can never be")
     def test_the_reach_into_his_window_is_MEMOISED(self):
         """/api/chronicle_crossref evaluates JS in the window he is looking at, and the strip
         repaints every tick. Unmemoised, this pokes his board several times a second.
@@ -8212,8 +8202,13 @@ class TestV1504TypeFloor(unittest.TestCase):
         ui = self._ui()
         #: sub-1.0 `em` sizes present when this ratchet was set, 2026-09-05. Parents UNMEASURED —
         #: these are watched, not accused. Shrinking this list is progress and must be recorded.
+        #: v2763 — `.cw-note` (0.86) LEFT THE SET, and the ratchet came down with it rather than
+        #: being widened to keep quiet. It belonged to the #chron-waiting banner, which was folded
+        #: into the chronicle inbox: what it announced now reaches him there, and only when
+        #: something is actually new. Five watched, not six. A ratchet that only ever loosens is
+        #: not a ratchet — so this baseline TIGHTENS when a relative size is removed.
         KNOWN = {".rcpt-ic": 0.9, ".rc-watchdog": 0.82, ".find-card .fc-mark": 0.95,
-                 ".dfp-note": 0.92, ".cw-note": 0.86, ".hh-chev": 0.8}
+                 ".dfp-note": 0.92, ".hh-chev": 0.8}
         found = []
         for m in re.finditer(r"font-size:\s*(\d*\.?\d+)em", ui):
             if float(m.group(1)) >= 1.0:
@@ -24964,12 +24959,27 @@ class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
         self.assertIn("shellHome()", self.code, "the jump no longer opens the TV·D cockpit")
         self.assertIn("hd-chron", self.code, "the jump no longer targets the Chronicle Sweep panel")
 
-    def test_the_button_calls_the_one_door(self):
-        """The header's TV·D button and this banner must not grow two ways to reach the cockpit."""
-        btn = _between(self, self.ui, 'id="chron-waiting"', "</button>", what="the waiting banner")
-        self.assertIn("_chronWaitingJump", btn,
-                      "the banner has its own inline route again — the last one drifted from the "
-                      "header button and stopped working")
+    def test_the_one_door_SURVIVED_the_banner(self):
+        """★ v2763 — RE-POINTED, NOT DELETED. The #chron-waiting banner is gone: what it announced
+        now reaches him through the chronicle inbox, and only when something is actually new (his
+        proposal was 5.9 days old with 0 of 354 new — a permanent strip asking for nothing).
+
+        THE LAW IS UNCHANGED: there must be exactly ONE door to the cockpit, not a second inline
+        route that drifts from the header button and quietly stops working. `_chronWaitingJump` is
+        that door and it OUTLIVES the element it was named for — so this now pins the door itself
+        rather than the button that used to hold it.
+        ⚠ Deleting this law with the markup would have dropped the guard that stops a second route
+        being invented. A law about a MECHANISM must not die with one of its callers.
+        """
+        self.assertIn("window._chronWaitingJump", self.ui,
+                      "the one door is gone — anything that wants the cockpit will grow its own "
+                      "route, which is what drifted and broke last time")
+        self.assertNotIn('id="chron-waiting"', self.ui,
+                         "the banner is back on the gameplay home. What it says belongs in the "
+                         "inbox, and only when something needs him.")
+        self.assertIn("window._chInboxRepaint", self.ui,
+                      "the inbox export is gone, so the sweep in BLOCK B can no longer reach the "
+                      "painter in BLOCK A — a dead render, the 5th of that class here")
 
     def test_the_label_says_what_it_MEANS_not_only_where_it_goes(self):
         """His question was "what does it mean and what is it meant for?" — a state ("waiting to
