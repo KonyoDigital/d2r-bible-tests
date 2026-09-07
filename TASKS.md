@@ -1374,6 +1374,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2751** | `(this commit)` | v2751 — 119 item names read from his reels and none banked, and no paid read is owed for any of them |
 | **v2750** | `(this commit)` | v2750 — five retention rules had never run and a free fixture proved all five work so the paid read is no longer blocked on a circle |
 | **v2749** | `(this commit)` | v2749 — zero contradictions because the contract refuses every seal and nothing said so |
 | **v2748** | `(this commit)` | v2748 — the derived predicate that names the 32 dead-ended reels was built correct gated and read by nothing |

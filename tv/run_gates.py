@@ -662,6 +662,23 @@ GATES = [
              "eight, and a law asserts those two still report as never-fired rather than implying "
              "the chain is wholly exercised. 5 sabotages, all RED."),
 
+    Gate("test_read_names_are_banked",
+         [sys.executable, os.path.join(HERE, "test_read_names_are_banked.py")], 180,
+         why="v2751 — 119 ITEM NAMES WERE READ FROM HIS FOOTAGE AND NONE ARE BANKED. MEASURED: "
+             "PRINTER 11 reels / 64 names with NO SEAL AT ALL, JOIN 4 reels / 55 names under a seal "
+             "that does not carry them. The printer says it per reel: 'N item name(s) were read, but "
+             "this session has no seal at all, so the extraction contract was never even asked about "
+             "it.' ⚠⚠ THE READING ALREADY HAPPENED — the names are in the JOURNAL RING right now "
+             "(Andariel's Visage, Atma's Wail, Bartuc's Cut-Throat, Sandstorm Trek) — so NO PAID "
+             "READ IS OWED, and the row says so, because without that sentence a reader reaches for "
+             "the paid lane. ⚠ It reports PANEL separately per his filter (472 corpus names split "
+             "PANEL 110 / FLOOR 208 / CHRONICLE 154, 77% filtered): a floor name has no cell to "
+             "name, so it is a sighting not a holding, and one number over both overstates the work. "
+             "⚠ Two fault kinds stay separate — 'no seal at all' is a lane that never ran, 'sealed "
+             "but blind' is a code problem. ⛔ The row REPORTS and never writes: banking lands in "
+             "vault_accum/vault_seen, witness-gated on purpose, feeding a deleter with no un-delete. "
+             "9 laws, 9 sabotages ALL RED, and green under a fresh-checkout simulation."),
+
     Gate("test_the_printer_reach_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_printer_reach_is_watched.py")], 120,
          why="v2749 — `grep -c printer_reach` was 0 across control_app.py, console_doctor.py, "

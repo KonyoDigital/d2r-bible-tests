@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2750",
+  "ver": "v2751",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2750: five retention rules had never run and a free fixture proved all five work so the paid read is no longer blocked on a circle",
+  "note": "v2751: 119 item names read from his reels and none banked, and no paid read is owed for any of them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

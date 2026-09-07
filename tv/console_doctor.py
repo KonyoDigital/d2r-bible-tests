@@ -690,6 +690,78 @@ _BY_DESIGN_STATIONS = {
 }
 
 
+def _check_read_names_are_actually_banked():
+    """v2751 — 119 ITEM NAMES WERE READ FROM HIS FOOTAGE AND NONE OF THEM ARE BANKED.
+
+    Konyo, 2026-09-07: *"the routing and funnel and main pipeline should still go through it
+    regardless of the paid reads.. i want it filtered and then stamped unified logic"*. Following
+    that instead of the paid-read question is what found this.
+
+    MEASURED across all 40 reels, printer.stream() joined to reel_router.route():
+        PRINTER   11 reels   64 names read, and the session carries NO SEAL AT ALL
+        JOIN       4 reels   55 names read, sealed — and the seal does not carry them
+        CAPTURE/EMPTY/STATION            0 names
+    The printer says it per reel: *"23 item name(s) were read, but this session has no seal at all,
+    so the extraction contract was never even asked about it."*
+
+    ⚠⚠ THE READING ALREADY HAPPENED. The names are in the JOURNAL RING right now, retrievable by
+    session id — Andariel's Visage, Atma's Wail, Bartuc's Cut-Throat, Sandstorm Trek, Tearhaunch.
+    No paid read is owed for any of them; the pipeline is stalled AFTER the read.
+
+    ⚠ AND HIS FILTER DECIDES WHICH ONES COUNT, which is why this row reports PANEL separately.
+    extract_gap's taxonomy (his own words: *"if its a FLOOR ITEM with no stash/inventory open then
+    obviously it cant be in the same exact route"*) splits 472 corpus names PANEL 110 / FLOOR 208 /
+    CHRONICLE 154 — 77% filtered. A floor name has no cell to name, so it is a sighting and not a
+    holding. Reporting one number over both would overstate the work owed.
+
+    ⛔ IT REPORTS AND NEVER WRITES. Banking means landing in vault_accum/vault_seen, which is gated
+    on witnesses deliberately, and footage has no un-delete. This row makes the stall visible; the
+    existing witnessed machinery stays the only thing that writes.
+    """
+    try:
+        import printer as _P, reel_router as _RR, extract_gap as _EG
+    except Exception as exc:
+        return UNKNOWN, ("the printer/router could not be imported (%s), so whether read names are "
+                         "banked is UNKNOWN" % type(exc).__name__)
+    try:
+        rep, rt = _P.stream(), _RR.route()
+    except Exception as exc:
+        return UNKNOWN, "the printer or router raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    if not isinstance(rep, dict) or not isinstance(rt, dict) or not rt.get("ok"):
+        return UNKNOWN, "the printer or router would not answer, so nothing is known about banking"
+    st = {x.get("reel"): x.get("station") for x in (rt.get("reels") or [])}
+    unsealed = sealed_blind = 0
+    reels = set()
+    for r in (rep.get("rows") or []):
+        ex = ((r.get("stations") or {}).get("extract") or {})
+        n, sld = ex.get("names"), ex.get("sealed")
+        if not isinstance(n, int) or not n:
+            continue
+        s = st.get(str(r.get("reel")))
+        if sld is False:
+            unsealed += n; reels.add(str(r.get("reel")))
+        elif s == "JOIN":
+            sealed_blind += n; reels.add(str(r.get("reel")))
+    total = unsealed + sealed_blind
+    if not total:
+        return OK, "every item name the readers produced is carried by a seal"
+    # his filter: only PANEL names can become a holding
+    panel = None
+    try:
+        named, _why = _EG._named_sessions()
+        panel = sum(int((v or {}).get("panel") or 0) for v in (named or {}).values())
+    except Exception:
+        panel = None
+    tail = ("" if panel is None else
+            " Of the corpus's names, %d were read with a container OPEN (stash/inventory) and can "
+            "become a holding; the rest are floor sightings with no cell to name." % panel)
+    return MISSING, ("%d item name(s) were READ from %d reel(s) and NONE are banked: %d sit in "
+                     "sessions with NO SEAL AT ALL, and %d are under a seal that does not carry "
+                     "them. The reading already happened - the names are in the journal ring - so "
+                     "no paid read is owed here.%s"
+                     % (total, len(reels), unsealed, sealed_blind, tail))
+
+
 def _check_the_printer_can_reach_the_corpus():
     """v2749 — ZERO CONTRADICTIONS BECAUSE THE CONTRACT REFUSES EVERY SEAL.
 
@@ -2152,6 +2224,7 @@ CHECKS = [
     ("ledger backup", _check_the_ledger_backup_covers_every_store),
     ("backup loop", _check_the_backup_loop_is_actually_WRITING),
     ("console painted whole", _check_the_console_painted_all_of_itself),
+    ("names banked", _check_read_names_are_actually_banked),
     ("printer reach", _check_the_printer_can_reach_the_corpus),
     ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),
