@@ -67,14 +67,52 @@ import control_app as CA  # noqa: E402
 SRC = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
 
 
-def _loop_src():
+def _loop_src(code_only=True):
+    """The stash watch loop. -> str
+
+    ⚠⚠ COMMENTS STRIPPED BY DEFAULT, and this file is the proof of why. A law below forbids the
+    never-false guard `if not (m.get("focus") or _current_declared_focus()):` — and the FIX's own
+    comment QUOTES that line to explain what was wrong, so the law went red on the explanation of
+    the thing it was written to prevent. Sixth time in this session a guard read prose as code.
+    Judge CODE by its code. [[measured-true-read-wrong]] [[source-reading-guard]]
+    """
     i = SRC.find("def _stash_watch_loop():")
-    return SRC[i:SRC.find("\ndef ", i + 1)] if i >= 0 else ""
+    if i < 0:
+        return ""
+    blk = SRC[i:SRC.find("\ndef ", i + 1)]
+    if not code_only:
+        return blk
+    return "\n".join(ln for ln in blk.split("\n") if not ln.strip().startswith("#"))
 
 
 class TheStashWatcherOnlySealsALane(unittest.TestCase):
 
     # ── ⚠⚠ THE LAW ──────────────────────────────────────────────────────────────────────────
+    def test_a_general_ON_AIR_reel_is_STRUCTURALLY_exempt(self):
+        """★★ HIS RULING, and it is the whole shape of the fix:
+        *"the stash-watcher's code stops are only relevant for when you exit the stash, not all
+        round. ON AIR is just a screenshot and recording of it all in general.. its the first and
+        main we built before the others.. and it worked perfectly."*
+
+        ON AIR is the GENERAL RECORDER. Nothing stash-specific may end it. So the gate is the
+        IDENTITY OF WHO OPENED THE REEL — `_agent_origin` — not a flag that can default or go
+        stale. "hand" is the onair door and is never touched; only "mini" is the stash lane.
+        A flag can be initialised to a default (which is exactly what shipped); who opened this
+        reel cannot."""
+        blk = _loop_src()
+        self.assertIn('_agent_origin != "mini"', blk,
+                      "the stash watcher is no longer bound to the MINI door, so it can once again "
+                      "reach a general ON AIR recording and end it 25s after he leaves his stash")
+        self.assertIn("continue", blk.split('_agent_origin != "mini"')[1][:120],
+                      "the origin check does not skip the poll")
+
+    def test_the_origin_vocabulary_has_not_moved(self):
+        """⚠ THE FIXTURE. `_door_of_origin` maps hand->onair, mini->mini, shadow->shadow. If a
+        fourth origin ever appears, this guard must be re-decided rather than silently admit it."""
+        self.assertIn('{"hand": "onair", "mini": "mini", "shadow": "shadow"}', SRC,
+                      "the origin->door map changed; re-check which origins the stash watcher may "
+                      "act on before trusting the guard above")
+
     def test_the_watcher_requires_a_RUNNING_mini(self):
         """★ `focus` carries a module default, so it can never answer "did anything declare a
         lane?". Only an ACTIVE mini declares one."""

@@ -1261,6 +1261,15 @@ def _env_clean(sim=False, door=""):
         env["TV_STUB"] = "1"
     else:
         env.pop("TV_STUB", None)
+    # ⚠⚠ v2772 — THE CHILD'S LAST WORDS WERE BEING DESTROYED, WHICH IS WHY EVERY CAPTURE FAILURE
+    # HAS BEEN UNDIAGNOSABLE. The agent is spawned with `stdout=_log_fp` (a FILE, not a tty), so
+    # Python block-buffers it — and the agent exits through `os._exit()`, which skips the flush.
+    # Every line it printed on the way out went into a buffer nobody ever wrote.
+    # MEASURED: the console log holds only "control start" and "spawn:" for a run that died after
+    # 30 seconds. Running the SAME command by hand with `python3 -u` printed the whole story
+    # including the reason — "closing session (off) — sealing reel…" — which the console could
+    # never show. A silent death is not a death with no cause; it is a cause with no witness.
+    env["PYTHONUNBUFFERED"] = "1"
     env["TV_PORT"] = str(AGENT_PORT)
     # v2687 — HAND THE CHILD ITS DOOR. start_agent() has known who asked since v2362 (`origin`),
     # but the answer lived in this process only: it reached the UI and never the reel. The agent
@@ -15247,6 +15256,30 @@ def _stash_watch_loop():
             # narrowing it costs at most a few seconds of extra footage on a real lane reel, and
             # saves every plain session from being cut off mid-run.
             # [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+            # ⚠⚠⚠ v2772 — HIS RULING, AND IT IS ARCHITECTURAL, NOT A TUNING:
+            #   *"the stash-watcher's code stops are only relevant for when you exit the stash,
+            #    not all round. ON AIR is just a screenshot and recording of it all in general..
+            #    its the first and main we built before the others.. and it worked perfectly."*
+            #
+            # ON AIR IS THE GENERAL RECORDER. Nothing stash-specific may ever end it. So the gate
+            # is the IDENTITY OF WHO OPENED THE REEL, not a flag that can go stale:
+            #   _agent_origin  "hand"  -> the onair door — the general recording. NEVER touched.
+            #                  "mini"  -> the stash lane. The only reel this watcher may seal.
+            #                  "shadow"-> the background watcher. Not this loop's business either.
+            #
+            # WHY THE ORIGIN AND NOT A FLAG. The guard that shipped was
+            #     if not (m.get("focus") or _current_declared_focus()):
+            # and `mini_state()` returns `"focus": m.get("focus") or MINI_FOCUS`, with `_MINI`
+            # INITIALISED to that default at import — so `focus` was never empty, the second call
+            # re-read the same field, and the whole condition was ONE VALUE READ TWICE. It could
+            # not return early, so the stash rule was armed over his general recording, every time.
+            # He plays the game rather than standing in his stash, so the stash OCR found nothing
+            # on every poll and 25s later stop_agent() ended his session.
+            # A flag can default, go stale, or be set by a lane that already finished. WHO OPENED
+            # THIS REEL cannot. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+            if _agent_origin != "mini":
+                gone_since = None
+                continue
             if not (m.get("running") and m.get("focus")):
                 gone_since = None
                 continue
