@@ -89,17 +89,51 @@ class TheTwoDeletersShareOneWindow(unittest.TestCase):
 
     # ── the default is the DRIFT SURFACE, so pin it ───────────────────────────────────────────
     def test_neither_module_hardcodes_a_DIFFERENT_number_at_its_call_site(self):
-        """Both expose `keep`/`keep_recent` parameters defaulting to the constant. A call site
-        passing a literal instead would drift without either constant changing — the same defect
-        one level down, and invisible to the assertion above."""
-        for fname, params in (("frame_authority.py", ("keep=KEEP_RECENT",)),
-                              ("reel_retention.py", ("keep_recent=KEEP_RECENT",))):
-            src = io.open(os.path.join(HERE, fname), encoding="utf-8").read()
-            for p in params:
-                self.assertIn(p, src,
-                              "%s no longer defaults its recent-window parameter to the constant, "
-                              "so the constant can be correct while the running default is not"
-                              % fname)
+        """Both modules expose a recent-window parameter defaulting to the constant. A call site
+        binding a LITERAL instead would drift without either constant changing — the same defect one
+        level down, and invisible to the equality assertion above.
+
+        ⚠ THIS LAW SHIPPED AS A TEXT MATCH AND WAS FOOLED IN REVIEW, BY THE DEFECT CLASS IT WAS
+        WRITTEN TO CATCH. `assertIn("keep=KEEP_RECENT", src)` passes on:
+
+            # historical note: this used to read keep=KEEP_RECENT before the rewrite
+            def recent_reels(hist_dir, keep=5):
+
+        — the string is present, in a COMMENT, while the running default is a literal. Reproduced
+        before this rewrite; the AST answers `LITERAL:5` where the text answers PASSES.
+        A guard that greps prose grades prose. [[source-reading-guard]]
+        """
+        want = {"frame_authority.py": [("recent_reels", "keep"),
+                                       ("plan_frames", "keep")],
+                "reel_retention.py": [("plan", "keep_recent")]}
+        checked = 0
+        for fname, sigs in want.items():
+            tree = ast.parse(io.open(os.path.join(HERE, fname), encoding="utf-8").read())
+            defs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+            for fn, param in sigs:
+                self.assertIn(fn, defs,
+                              "%s.%s is gone or renamed — this law cannot grade what it cannot "
+                              "find, so fix the guard before trusting its green" % (fname, fn))
+                a = defs[fn].args
+                pos = a.args[len(a.args) - len(a.defaults):] if a.defaults else []
+                pairs = dict(zip([x.arg for x in pos], a.defaults))
+                pairs.update({k.arg: v for k, v in zip(a.kwonlyargs, a.kw_defaults) if v})
+                self.assertIn(param, pairs,
+                              "%s.%s no longer takes a `%s` default at all, so the recent-window "
+                              "is whatever the caller happens to pass" % (fname, fn, param))
+                d = pairs[param]
+                self.assertIsInstance(
+                    d, ast.Name,
+                    "%s.%s binds `%s` to a LITERAL (%r) rather than to KEEP_RECENT. The constants "
+                    "can then agree while the running default does not."
+                    % (fname, fn, param, getattr(d, "value", "?")))
+                self.assertEqual(
+                    "KEEP_RECENT", d.id,
+                    "%s.%s defaults `%s` to %s, not KEEP_RECENT" % (fname, fn, param, d.id))
+                checked += 1
+        # ⚠ a loop that iterated nothing passes having graded nothing. [[zero-needs-a-denominator]]
+        self.assertEqual(3, checked,
+                         "expected to grade 3 call sites, graded %d" % checked)
 
     # ── ⚠ BEHAVIOURAL, NOT MERELY TEXTUAL ─────────────────────────────────────────────────────
     def test_the_shield_actually_holds_the_newest_reels(self):

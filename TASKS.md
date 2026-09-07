@@ -1221,6 +1221,66 @@ A zero from a bad instrument is UNKNOWN, not clean. [[feedback-suspect-the-instr
 
 ---
 
+## 🎯 THE WITNESS BAR IS ANTI-CORRELATED WITH GRAIL VALUE — THE TALLY LANE CANNOT BE AUTOMATIC
+
+I was one step from building a tally lane over the 119 read-but-unbanked names, gated on
+`vault_retro.KEEP_MIN_WITNESSES = 3`. **Recounted from the journal ring using `extract_gap`'s own
+schema** (`lane=="deep"` · `sessionId` · `names[]` · `scene`), 42 distinct PANEL names:
+
+    witnesses per name:   1 session -> 36 names    2 -> 3 names    7 / 9 / 11 -> 1 name each
+
+**THE THREE THAT CLEAR THE BAR:** Horadric Cube (11) · Tome of Town Portal (9) · Tome of Identify (7).
+**THE 36 REFUSED INCLUDE:** Harlequin Crest · Hellfire Torch · War Traveler · Goldwrap · Magefist ·
+Dwarf Star · Wraithstep · Laying of Hands · Lionheart · Crescent Moon · The Disciple · Credendum ·
+Radament's Sphere.
+
+⚠⚠ **The three that pass are the three items every character carries in every session.** They
+corroborate *because they are ubiquitous*. A rare unique sits in ONE stash tab and is seen ONCE — so
+**single-sighting is the NORMAL case for exactly the items a grail tally exists to count**. The lane
+would have banked three names worth nothing to the tally and refused Shako.
+
+**AND THE BAR IS NOT BUGGY.** `KEEP_MIN_WITNESSES` was derived for a **deleter** — may this footage
+be destroyed. I was about to reuse it for a **tally** — does he own this item. A threshold correct
+for its own instrument, consumed by a second question it was never derived against: **the same shape
+as v2752, third instance in one session.** ⇒ carving territory.
+
+⚠ **THE REFUTATION ROUTE I OFFERED GROK IS CLOSED, AND I CLOSED IT MYSELF.** I suggested the count
+might rise if distinct LOOKS counted separately. `vault_retro:395` already counts them — but re-look
+buckets (`sid#n`) are minted in the SWEEP loop, and none of these names has been swept. All 52
+journal session ids are bare, and `_fold_bare_sessions` is explicit that bare-only sessions count
+once. **3 of 42 stands.**
+
+⇒ **MY READ, AND IT IS HIS TO OVERTURN:** ruling #166 already settles this — the automatic lane keeps
+the witness bar, and single-sighting rares are the MANUAL toggle's job by design, not a gap.
+Posted to `gh #179` as GB-B-194 asking for that read to be refuted rather than confirmed.
+
+---
+
+## 🪟 SWEPT AFTER v2752 — TWO DELETERS, TWO `KEEP_RECENT = 5`, AND NOTHING LINKED THEM
+
+Swept 53 multi-consumer constants for v2752's shape. One real hit, and it is **asymmetric**:
+
+    frame_authority.py:52   KEEP_RECENT = 5   # strips FRAMES
+    reel_retention.py:47    KEEP_RECENT = 5   # deletes whole REELS
+
+Raise retention to 10 for safety, leave the other at 5, and reels 6..10 **survive as directories
+while being gutted of their frames** — the reel list still shows them, the disk figure still drops,
+and protection reads as INCREASED while being partial. Demands EQUALITY, not `>=`, because that is
+the dangerous direction. **5 sabotages RED.** Shipped `e0579bbf`. **194 gates.**
+
+⚠ **AND THE REVIEW OF MY OWN SHIP CAUGHT ONE LAW COMMITTING THE DEFECT CLASS IT GUARDS.**
+`test_neither_module_hardcodes_a_DIFFERENT_number_at_its_call_site` shipped as `assertIn(
+"keep=KEEP_RECENT", src)`. **Reproduced:** it PASSES on a file whose default is a literal `5` with
+the string left in a COMMENT. Rewritten to walk the AST and read the actual default binding — the
+AST answers `LITERAL:5` where the text answers PASSES. Sabotage run on the REAL file and restored
+byte-identical (md5 `2f140e06` before and after). [[source-reading-guard]]
+
+⚠ **CHECKED AND CLEAN:** `region_witness` reads `PW.CHROME_TOP_PX` rather than defining its own, so
+it inherited the v2752 fix automatically. That coupling is the correct shape, and it is worth saying
+which check came back clean as well as which did not.
+
+---
+
 ## ⬛ v2752 — HIS BLACK CONSOLE READ AS *PAINTED*, BECAUSE OF TWO ROWS OF WINDOW CHROME
 
 He sent a screenshot of the console drawing nothing and said *"black screen again.. something should
