@@ -585,6 +585,22 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_chrome_alone_is_not_paint",
+         [sys.executable, os.path.join(HERE, "test_chrome_alone_is_not_paint.py")], 120,
+         why="v2752 — HIS BLACK CONSOLE READ AS *PAINTED* BECAUSE OF TWO ROWS OF WINDOW CHROME. He "
+             "sent a screenshot of a black window: 'black screen again.. something should be "
+             "catching this'. Nothing was. MEASURED on that window (pid 4333, 1120x660) while "
+             "blank: crop 30 -> bright 0.0159, p99 255, PAINTED; crop 32 -> bright 0.0000, p99 27, "
+             "BLANK. EVERY one of the 63 bright samples sat at y=30 EXACTLY — the title bar's "
+             "bottom border at luminance 255 — which is 1.59% of the frame, a hair over the 1.5% "
+             "ink bar, and it also dragged p99 to 255. ⚠ CHROME_TOP_PX=30 was correctly derived "
+             "against the MODAL test, where leftover chrome only DILUTES; the INK test added later "
+             "asks whether ANY pixel is bright, and two rows of 255 answer yes forever. The "
+             "threshold outlived the instrument. ⚠ And the second witness did not cover for the "
+             "first: region_witness saw all six cells blank but returns half=False for a FULLY "
+             "blank window, deferring to the whole-window witness — the blind one. Both are fixed. "
+             "6 laws, 6 sabotages RED, including reverting the crop to 30 AND to 31."),
+
     Gate("test_the_witness_can_see_half_a_window",
          [sys.executable, os.path.join(HERE, "test_the_witness_can_see_half_a_window.py")], 180,
          why="v2747 — his Sessions tab lost ~1080x560 of its MAIN COLUMN while the rail painted "

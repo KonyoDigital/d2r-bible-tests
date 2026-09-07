@@ -921,7 +921,21 @@ def _check_the_console_painted_all_of_itself():
     if not r.get("ok"):
         # a covered or unphotographable window is not evidence about painting
         return UNKNOWN, str(r.get("why") or "the window could not be looked at")
+    # ⚠⚠ v2752 — "NOT PARTLY DRAWN" IS TWO OPPOSITE FACTS AND THIS RETURNED OK FOR BOTH.
+    # region_witness answers half=False both when everything is drawn AND when NOTHING is, because
+    # a fully blank window is the whole-window witness's job. MEASURED on his black console: all six
+    # cells blank, ink 0.0000 — and this row returned OK, while paint_witness said PAINTED off two
+    # rows of title-bar border. Two instruments, one blind and one deferring to it, and a black
+    # screen reported no fault at all. The deferral is still right about WHO RESCUES; it was wrong
+    # about staying silent. [[the-unjoined-end]] [[unknown-stays-unknown]]
     if not r.get("half"):
+        _g = r.get("grid") or {}
+        _b, _p = _g.get("blank"), _g.get("painted")
+        if isinstance(_b, int) and isinstance(_p, int) and _b and not _p:
+            return MISSING, ("EVERY measurable cell of the console is blank (%d of %d) - the window "
+                             "is drawing nothing at all. The whole-window witness owns the rescue "
+                             "for this; this row exists so it is never SILENT while that one is "
+                             "deciding." % (_b, _b + _p))
         return OK, str(r.get("why") or "every measurable part of the window is drawn")
     return MISSING, ("the console is PARTLY DRAWN and its beat cannot see it: %s. This is the shape "
                      "he reported - the DOM intact, the rail painting, and a whole column empty. "

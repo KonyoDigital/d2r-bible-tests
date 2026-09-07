@@ -192,7 +192,28 @@ def _grab(window_id, quartz=None):
 #: and it is a floor, not a guess: the bar itself is ~28px at his scale.
 #: ⚠ Skipped only on windows tall enough for it to be chrome rather than the whole thing, so a
 #: small helper window is never measured down to nothing.
-CHROME_TOP_PX = 30
+CHROME_TOP_PX = 36
+#: ⚠⚠ v2752 — 30 WAS CHOSEN AGAINST THE MODAL TEST AND THE INK TEST OUTGREW IT. HIS BLACK CONSOLE
+#: READ AS **PAINTED** BECAUSE OF TWO ROWS OF WINDOW CHROME.
+#: Konyo, 2026-09-07, with a screenshot of a black console: *"black screen again.. something should
+#: be catching this"*. Measured on that exact window (pid 4333, 1120x660) while it was blank:
+#:
+#:     crop  modalShare  brightShare  p99   verdict
+#:      30     0.1252      0.0159     255   PAINTED   <- the shipped value
+#:      31     0.1192      0.0159     230   PAINTED
+#:      32     0.1240      0.0000      27   BLANK
+#:      36     0.1252      0.0000      27   BLANK
+#:
+#: EVERY ONE of the 63 bright samples sat at **y=30 exactly** — the title bar's bottom border, at
+#: luminance 255. 63 of 3,969 samples is 1.59%, just over the 1.5% INK_SHARE_MAX bar, and it also
+#: dragged p99 to 255. So a completely blank window cleared BOTH ink conditions on chrome alone.
+#:
+#: ⚠ THE NOTE ABOVE IS STILL TRUE AND WAS STILL NOT ENOUGH: 30 was derived when the only test was
+#: `modalShare >= 0.98`, where chrome merely dilutes. The INK test that came later asks whether ANY
+#: pixel is bright, and two rows of 255 answer yes. The threshold outlived the instrument it was
+#: measured against. [[label-outlived-referent]] [[feedback-threshold-above-the-ceiling]]
+#: ⚠ THE COST, STATED: 6 more rows of page content are excluded from the sample. That is 0.9% of a
+#: 660px window, and it buys the difference between seeing his black screen and not.
 
 
 def measure(shot, samples=60):

@@ -1221,6 +1221,61 @@ A zero from a bad instrument is UNKNOWN, not clean. [[feedback-suspect-the-instr
 
 ---
 
+## 🧾 v2751 — 119 ITEM NAMES WERE ALREADY READ, AND NONE OF THEM ARE BANKED
+
+**His instruction is what found it**, 2026-09-07: *"the routing and funnel and main pipeline should
+still go through it regardless of the paid reads.. i want it filtered and then stamped unified
+logic"*. Following that instead of the paid-read question overturned an evening's conclusion.
+
+| where | reels | names | state |
+|---|---|---|---|
+| **PRINTER** | 11 | **64** | read, and the session carries **no seal at all** |
+| **JOIN** | 4 | **55** | sealed — and the seal does not carry them |
+| CAPTURE · EMPTY · STATION | 25 | 0 | — |
+
+The printer says it per reel, eleven times: *"23 item name(s) were read, but this session has no seal
+at all, so the extraction contract was never even asked about it."*
+
+⚠⚠ **THE READING ALREADY HAPPENED.** The names are in the **journal ring right now**, retrievable by
+session id — Andariel's Visage, Atma's Wail, Bartuc's Cut-Throat, Arm of King Leoric, Blade of Ali
+Baba, Sandstorm Trek, Tearhaunch. **No paid read is owed for any of them.** That matters because the
+hours before this measurement were spent on the paid question: whether a re-read would help (no —
+`PROMPT_VER` is unchanged at p1839, so it is the same reader over the same frames), whether the vault
+lane could (its work list is the `vault-owes` tag, last in a first-match-wins list, fires on 0 of 40
+permanently), whether to change that (a known-wrong move — a previous rewrite queued 26 reels
+including fixtures at ≤97 paid reads and was caught **twice**). All true. All beside the point.
+
+**HIS FILTER DOCTRINE WAS ALREADY BUILT, AND THE RATE IS HIS.** *"if the 70%+ got filtered out ...
+anything that isnt stash/inventory tooltips chronicle"* — `extract_gap` carries exactly that, quoting
+him: `PANEL_SCENES=(stash, inventory)`, `FLOOR_SCENES=(gameplay, loot, town, transition)`. Over 472
+corpus names: **PANEL 110 · FLOOR 208 · CHRONICLE 154 → 362 of 472 = 77% filtered.**
+
+### Every stage of the pipeline exists and ONE JOINT is missing
+
+| stage | state |
+|---|---|
+| FILTER | ✅ `extract_gap` PANEL/FLOOR/CHRONICLE, 77% filtered |
+| EXTRACT | ✅ the names are in the journal ring, retrievable now |
+| ROUTE | ✅ `reel_router` stations them — PRINTER = "names read, no seal" |
+| **TALLY** | ⛔ **nothing takes PANEL names with no seal and banks them** |
+| TOMBSTONE | ⛔ downstream of the tally, so unreachable |
+
+`the-unjoined-end` a fourth time in one session, and the largest: not a module nothing reads, **a
+stage nothing feeds**.
+
+**Shipped v2751:** doctor row `names banked` (44 checks), gate `test_read_names_are_banked` — 9 laws,
+9 sabotages red, green under a fresh-checkout simulation. ⛔ **The row REPORTS and never writes**, and
+a law pins it: banking lands in `vault_accum`/`vault_seen`, witness-gated on purpose, feeding a
+deleter with no un-delete.
+
+⚠ **FIVE HEART ROWS ARE THIS ONE STALL** — `names banked`, `printer reach`, `end routes reachable`,
+`the river`, `extraction lanes`. That is triangulation, not five defects, and it gives the remaining
+join a definition of done harder than a green suite: **all five must move together.** If only one
+moves the join is partial and the others name which half; if none move it did not work whatever its
+own tests say.
+
+---
+
 ## ⛔ BLOCKED / HIS CALL — FIVE, and each names a DIFFERENT kind of blocker
 
 ⚠ **2026-09-06 — the count said SIX while #133 had shipped in v2746.** Same defect as the READY heading above it: a section whose subject is *what is not done* listing something that is. The rows were right; the number over them was not.
@@ -1374,6 +1429,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2752** | `(this commit)` | v2752 — his black console read as painted because two rows of title bar border cleared the ink bar |
 | **v2751** | `(this commit)` | v2751 — 119 item names read from his reels and none banked, and no paid read is owed for any of them |
 | **v2750** | `(this commit)` | v2750 — five retention rules had never run and a free fixture proved all five work so the paid read is no longer blocked on a circle |
 | **v2749** | `(this commit)` | v2749 — zero contradictions because the contract refuses every seal and nothing said so |
