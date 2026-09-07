@@ -4155,6 +4155,10 @@
   .ch-clear { margin-left: auto; padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
     font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-snug); color: #ffb0a0;
     border: 1px solid rgba(255,120,90,.4); background: rgba(60,24,18,.4); }
+  /* v2767 — the sweep door, sized and spaced exactly like .ch-clear beside it. */
+  .ch-sweep { margin-left: 6px; opacity: .75; cursor: pointer; }
+  .ch-sweep:hover { opacity: 1; }
+  .ch-sweep[hidden] { display: none; }
   .ch-clear:hover { color: #ffd0c4; border-color: rgba(255,120,90,.8); background: rgba(90,34,26,.5); }
   .ch-clear[hidden] { display: none; }
   /* v947.4 — Chronicle inbox modal (selective grid + per-item ✓/✕ — replaces native prompt) */
@@ -6906,7 +6910,21 @@ body[data-origin="shadow"] #stage::after {
         <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before chronicle write">
           📜 Inbox <b id="ch-inbox-n">0</b>
           <!-- v1256 (Konyo: "clear all easily") — one-click CLEAR ALL right on the inbox; stops the click from opening the modal -->
-          <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
+          <!-- ⚠⚠ v2767 — FOUND BY THE SECOND EYE ON v2763 (grok-4-1-fast-reasoning, reviewing the
+               diff cold): "window._chronWaitingJump is now dead code unless called from
+               elsewhere." REPRODUCED: after v2763 folded the 354 strip into this button, the
+               strip's INFORMATION travelled and its ACTION did not. `_chronWaitingJump` — the one
+               door to TV·D ▸ Chronicle Sweep — was defined, pinned by a test, and CALLED BY
+               NOTHING. This button opens the review MODAL, which is a different destination, so a
+               reader seeing "354 read from your reels: not yet checked" in the tooltip had no way
+               to act on it from here.
+               ⚠ AND THE LAW WAS GREEN ABOUT IT. test_the_one_door_SURVIVED_the_banner asserted the
+               door EXISTED, never that anything opened it — a gate passing on dead code.
+               The chip is modelled on ch-clear directly above: same button, same
+               stopPropagation, so the modal click is untouched. Hidden unless the sweep actually
+               has something to say. [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
+          <span class="ch-sweep" id="ch-sweep-go" role="button" tabindex="0" hidden title="open TV·D ▸ Chronicle Sweep — the names your readers lifted off your own reels" onclick="event.stopPropagation(); window._chronWaitingJump && window._chronWaitingJump();" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();window._chronWaitingJump&&window._chronWaitingJump();}">&#x1F4DC;</span>
+          <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();"          <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
         </button>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
         <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
@@ -17289,6 +17307,12 @@ window._lockMark = function(isOpen, px, label){
     }
     /* the button must appear when the sweep needs him even if the board queue is empty */
     if (_new || _unchecked) btn.hidden = false;
+    /* v2767 — the door opens only when the sweep has something to say, and closes with it.
+       A permanently-lit chip would be the strip he asked to be rid of, wearing a smaller coat. */
+    try {
+      var _swGo = $('ch-sweep-go');
+      if (_swGo) _swGo.hidden = !(_new || _unchecked);
+    } catch (e) {}
     btn.__items = data.pending;
     if (CH.open) chModalRender();
   }

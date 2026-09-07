@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2766",
+  "ver": "v2767",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2766: The beacon eye carried only live and ageMs, so a machine with no second model family, one that is idle, and one that is failing all drew the same dark nothing on THE FLEET. The wire now carries provider, family and a three-state second lane, and the card renders absence, rest and failure differently. Availability is never worded as a completed look.",
+  "note": "v2767: The second eye on v2763 found that _chronWaitingJump was defined, pinned by a test, and called by nothing: folding the 354 strip into the inbox moved its information and orphaned its action. A ch-sweep-go chip on the inbox button now opens TV-D Chronicle Sweep, and the law requires a caller rather than only a definition.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

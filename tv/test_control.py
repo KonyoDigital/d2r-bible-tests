@@ -25015,6 +25015,22 @@ class TestV2126TheWaitingBannerOpensTheRoomItNames(unittest.TestCase):
         self.assertIn("window._chronWaitingJump", self.ui,
                       "the one door is gone — anything that wants the cockpit will grow its own "
                       "route, which is what drifted and broke last time")
+        # ⚠⚠ v2767 — AND SOMETHING MUST OPEN IT. FOUND BY THE SECOND EYE on the v2763 diff
+        # (grok-4-1-fast-reasoning, cold): "window._chronWaitingJump is now dead code unless called
+        # from elsewhere." REPRODUCED — after the fold, the strip's INFORMATION reached the inbox
+        # and its ACTION did not: the inbox button opens the review MODAL, a different destination,
+        # so nothing anywhere called the door. THIS LAW WAS GREEN THE WHOLE TIME, because it asked
+        # whether the door EXISTED and never whether anything opened it. A defined-and-uncalled
+        # function is the exact shape of [[plumbing-with-no-tap]], and a gate that pins only the
+        # definition makes it look supervised.
+        calls = [ln for ln in self.ui.split("\n")
+                 if "_chronWaitingJump" in ln
+                 and "window._chronWaitingJump = function" not in ln
+                 and not ln.strip().startswith(("*", "/*", "<!--", "//"))]
+        self.assertTrue(calls,
+                        "`_chronWaitingJump` is defined and CALLED BY NOTHING. The one door to "
+                        "TV·D ▸ Chronicle Sweep exists and cannot be opened, so the sweep's own "
+                        "count can be read in the inbox with no way to act on it.")
         self.assertNotIn('id="chron-waiting"', self.ui,
                          "the banner is back on the gameplay home. What it says belongs in the "
                          "inbox, and only when something needs him.")
