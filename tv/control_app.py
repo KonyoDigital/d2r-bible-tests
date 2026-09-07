@@ -10967,6 +10967,20 @@ def _engine_driver():
 _EYE_WIRE_FRESH_MS = 300000
 
 
+def _redact_for_wire(s, cap=160):
+    """A raw error string on its way to ANOTHER MACHINE. -> str
+
+    ⚠ The console beacon carries this dict to the fleet, so whatever ends up here is read on Dean's
+    box. `g5_grok_eyes` stores `str(e)[:160]` in `last_error`, and an exception routinely names an
+    absolute path — a home directory does not belong on a wire, and it tells him nothing he can act
+    on. Home paths collapse to `~`, and the whole thing is capped.
+    """
+    import re as _re
+    txt = " ".join(str(s or "").split())
+    txt = _re.sub(r"/(?:Users|home)/[^/\s]+", "~", txt)
+    return txt[:cap]
+
+
 def _second_eye_lane_state():
     """Is a DIFFERENT model family available to look, on THIS machine? -> dict
 
@@ -10975,7 +10989,19 @@ def _second_eye_lane_state():
         · no second family is INSTALLED here          (Dean — correct and expected)
         · a second family is installed and IDLE       (Konyo, with the lane toggled off)
         · a second family is installed, on, and FAILING
-    A dark dot for all three is a zero with no denominator. [[zero-needs-a-denominator]]
+
+    ⚠⚠ v2770 — AND THE FIRST CUT OF THIS FUNCTION ONLY FIXED THE FIRST TWO. It returned six
+    states' worth of reality through four labels, and two of them lied:
+
+        installed + ON + FAILING   -> state "on"      · rendered identically to a healthy lane
+        installed + NOT SIGNED IN  -> state "absent"  · "no second model family on this machine
+                                                        (nobody is signed in)" — a sentence
+                                                        contradicting itself inside one bracket
+
+    So the states are now six: absent · unauthorised · off · on · failing · unknown. `absent` is a
+    MEASUREMENT that a machine has none; `unauthorised` is one click from working; `failing` is the
+    far end saying no. A dark dot for all of them is a zero with no denominator.
+    [[zero-needs-a-denominator]] [[label-outlived-referent]]
 
     ⚠ `absent` IS A MEASUREMENT, NOT A FAILURE. Konyo's ruling stands: *"grok doesnt exist for
     dean.. it all needs to be claude based.. default as if shadow is off toggled off"*. A machine
@@ -11014,17 +11040,57 @@ def _second_eye_lane_state():
         # ledger does not recognise. [[copy-drift]]
         fam = None
     out["provider"], out["family"] = prov, fam
-    if not st.get("cliInstalled") or not st.get("authorized"):
-        bits = []
-        if not st.get("cliInstalled"):
-            bits.append("the CLI is not installed")
-        if st.get("needsLogin"):
-            bits.append("nobody is signed in")
+    # ⚠⚠ v2770 — TWO DIFFERENT FACTS WERE COLLAPSED INTO ONE, AND THE SENTENCE CONTRADICTED
+    # ITSELF. `not cliInstalled or not authorized` both landed on `absent`, whose wording is "no
+    # second model family on this machine". A machine with the CLI installed and nobody signed in
+    # therefore rendered as:
+    #
+    #     no second model family on this machine (nobody is signed in)
+    #
+    # — a parenthesis flatly denying the clause in front of it. `absent` is reserved for a machine
+    # that genuinely has none (Dean's, which is CORRECT and expected and must never look broken);
+    # not-signed-in is `unauthorised` and is one click from working. Same dark chip, two different
+    # things for him to do about it, so they are two states. [[zero-needs-a-denominator]]
+    if not st.get("cliInstalled"):
         out.update(state="absent",
-                   why="; ".join(bits) or "the lane is present but not usable on this machine")
+                   why="the second-family CLI is not installed on this machine")
+        return out
+    if not st.get("authorized"):
+        out.update(state="unauthorised",
+                   why="the second-family CLI is installed here but nobody is signed in — one "
+                       "click on Authorize and the lane can run")
+        return out
+    out["mode"] = st.get("mode")
+    # ⚠⚠ AND A LANE THAT IS ON AND FAILING IS NOT A HEALTHY ONE. `state="on"` was returned for
+    # `is_on()` alone, so the case g5_grok_eyes was specifically taught to publish — MEASURED on
+    # his console at 165 calls, 107 errors, last_error a 402 Payment Required — reached the fleet
+    # card as an ordinary lit second lane. The far end had said no, permanently, and the chip said
+    # the lane was on.
+    #
+    # `intentBlocked` is the authority and is deliberately not re-derived here: g5_grok_eyes
+    # computes it as `mode_intent() != "off" and (mode() == "off" or _hard_stop_why())`, i.e. the
+    # switch is asking for the lane AND reality is refusing. A second copy of that expression
+    # would drift from the one the lane itself is judged by. [[copy-drift]] [[the-unjoined-end]]
+    #
+    # ⚠ `off` STAYS QUIET. When the switch is off there is no disagreement to report, intentBlocked
+    # is False by construction, and a resting lane must not wear a fault. [[unknown-stays-unknown]]
+    if st.get("intentBlocked"):
+        _why = (st.get("blockedWhy") or "").strip()
+        if not _why:
+            # The honesty field was empty — the v1767 case. Fall back to the raw error rather than
+            # inventing a reason: an unexplained failure is still a failure, and saying "on" would
+            # be worse.
+            # ⚠⚠ AND IT IS REDACTED, BECAUSE THIS FIELD LEAVES THE MACHINE. `blockedWhy` is built
+            # from a curated table, but `last_error` is whatever the CLI or an exception said —
+            # `str(e)[:160]`, which routinely carries an absolute path. This dict rides the console
+            # beacon to THE FLEET, i.e. onto Dean's box, so a home directory would travel with it.
+            # A reason he can act on does not need to name a file.
+            _why = _redact_for_wire(((st.get("stats") or {}).get("last_error") or ""))
+        out.update(state="failing",
+                   why=_why or "the lane is switched on and the app could not run it, and nothing "
+                               "said why — the reason is UNKNOWN, the failure is not")
         return out
     out["state"] = "on" if st.get("on") else "off"
-    out["mode"] = st.get("mode")
     return out
 
 
@@ -24107,7 +24173,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2770",
+        "ver": "v2771",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

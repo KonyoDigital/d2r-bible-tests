@@ -608,6 +608,22 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_no_control_is_buried_in_another_control",
+         [sys.executable, os.path.join(HERE, "test_no_control_is_buried_in_another_control.py")], 180,
+         why="A CONTROL INSIDE ANOTHER CONTROL ANNOUNCES ITSELF AS NEITHER. Two role=button spans "
+             "lived inside <button id=btn-chronicle-inbox>, and the measured price was the parent's "
+             "ACCESSIBLE NAME swallowing both chip labels: name=\"📜 Inbox 0 open Chronicle Sweep "
+             "🗑 clear all\" before, \"📜 Inbox 0\" after. A screen-reader user heard ONE control "
+             "offering three actions with no way to tell which one Enter would run. ⚠⚠ AND THIS "
+             "FILE REFUTES THE TASK THAT PRODUCED IT: the brief said both chips were "
+             "keyboard-unreachable and their onkeydown handlers were dead code. That measurement "
+             "was taken while `body[data-state=off]` had the whole live bay collapsed to "
+             "display:none — and THE INBOX BUTTON ITSELF measured focusable:false in the same run, "
+             "which was the tell. On air, on the shipped markup, all three were focusable and Tab "
+             "and Enter both worked. A `false` needs a denominator exactly as a zero does. The "
+             "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
+             "was measured against it.",
+         ),
     Gate("test_the_throw_bar_stays_stricter",
          [sys.executable, os.path.join(HERE, "test_the_throw_bar_stays_stricter.py")], 120,
          why="THE `locked lanes` DOCTOR ROW WAS CRYING WOLF ABOUT HIS OWN RULING. It required the "

@@ -109,13 +109,111 @@ class TheEyeSaysWhichFamilyLooked(unittest.TestCase):
         self.assertIn("second", e, "the wire says nothing about a second family, which is the "
                                    "whole gap: absence, rest and failure stay indistinguishable")
 
-    def test_the_second_lane_state_is_one_of_the_four(self):
+    #: v2770 — SIX, NOT FOUR. `on` used to swallow "on and failing" and `absent` used to swallow
+    #: "installed, nobody signed in". Both are separate facts with separate things to do about them.
+    _STATES = ("absent", "unauthorised", "off", "on", "failing", "unknown")
+    #: every state except the two that are simply working needs a sentence: a bare label leaves him
+    #: guessing whether a dark chip is a correct machine, a switch, or a fault.
+    _MUST_EXPLAIN = ("absent", "unauthorised", "failing", "unknown")
+
+    def test_the_second_lane_state_is_one_of_the_six(self):
         st = CA._second_eye_lane_state()
-        self.assertIn(st.get("state"), ("absent", "off", "on", "unknown"))
-        if st["state"] in ("absent", "unknown"):
+        self.assertIn(st.get("state"), self._STATES)
+        if st["state"] in self._MUST_EXPLAIN:
             self.assertTrue(st.get("why"),
                             "the lane is %r and nothing says why — an unexplained absence reads "
                             "as a fault when on most machines it is simply correct" % st["state"])
+
+    def test_a_lane_that_is_ON_AND_FAILING_is_not_reported_as_ON(self):
+        """★★ THE DEFECT THIS ROUND EXISTS FOR. `state` was `"on" if st.get("on") else "off"`, so
+        the case g5_grok_eyes was built to publish — MEASURED live on his console at 165 calls,
+        107 errors, `last_error` a 402 Payment Required, `intentBlocked` true — reached the fleet
+        card as an ordinary lit second lane. The far end had refused permanently and the chip said
+        the lane was on. A failure wearing health is worse than no chip.
+
+        ⚠ THE PROBE REPLACES `g5_grok_eyes.status`, NOT the function under test. Asserting on a
+        re-description of the branch would pass over a deleted branch.
+        """
+        import g5_grok_eyes as g5
+        orig = g5.status
+        base = {"cliInstalled": True, "authorized": True, "on": True, "mode": "primary",
+                "stats": {"last_error": "grok exit 1: 402 Payment Required"}}
+        try:
+            g5.status = lambda: dict(base, intentBlocked=True,
+                                     blockedWhy="the far end answered 402 Payment Required")
+            st = CA._second_eye_lane_state()
+            self.assertEqual("failing", st.get("state"),
+                             "an installed, signed-in, switched-on lane that the far end is "
+                             "refusing reports %r — indistinguishable from a healthy one"
+                             % st.get("state"))
+            self.assertIn("402", st.get("why") or "",
+                          "the failure carries no reason, so the card can only say something is "
+                          "wrong without saying what")
+
+            # ⚠ AND THE HONESTY FIELD IS SOMETIMES EMPTY — that is exactly the v1767 case. An
+            # unexplained failure is still a failure; it must not fall back to "on".
+            g5.status = lambda: dict(base, intentBlocked=True, blockedWhy="")
+            st = CA._second_eye_lane_state()
+            self.assertEqual("failing", st.get("state"))
+            self.assertIn("402", st.get("why") or "",
+                          "blockedWhy was empty and last_error was not consulted, so a real "
+                          "failure is reported with no reason at all")
+
+            # ⚠⚠ AND THAT FALLBACK CARRIES MACHINE TEXT ONTO ANOTHER MACHINE. `last_error` is
+            # `str(e)[:160]` — an exception naming an absolute path is ordinary — and this dict
+            # rides the console beacon to THE FLEET, so it is read on Dean's box. A reason he can
+            # act on does not need to name a home directory.
+            g5.status = lambda: dict(
+                base, intentBlocked=True, blockedWhy="",
+                stats={"last_error": "grok exit 1: cannot open /Users/someone/secretdir/x.json"})
+            why = CA._second_eye_lane_state().get("why") or ""
+            self.assertNotIn("/Users/", why,
+                             "a raw home path is being published to the fleet: %r" % why)
+            self.assertIn("~", why, "the path was dropped entirely rather than redacted, so the "
+                                    "reason lost the shape of what failed")
+            self.assertLessEqual(len(why), 160,
+                                 "an unbounded error string is riding the beacon")
+
+            # a lane the switch is not asking for is RESTING, never faulty
+            g5.status = lambda: dict(base, on=False, mode="off", intentBlocked=False,
+                                     blockedWhy="")
+            self.assertEqual("off", CA._second_eye_lane_state().get("state"),
+                             "a lane toggled off is being reported as a fault")
+            g5.status = lambda: dict(base, intentBlocked=False, blockedWhy="")
+            self.assertEqual("on", CA._second_eye_lane_state().get("state"))
+        finally:
+            g5.status = orig
+
+    def test_INSTALLED_BUT_NOT_SIGNED_IN_is_not_the_same_fact_as_ABSENT(self):
+        """★★ `if not cliInstalled or not authorized` collapsed two different machines into one
+        label, and the rendered sentence contradicted itself inside a single bracket:
+
+            no second model family on this machine (nobody is signed in)
+
+        `absent` is a MEASUREMENT — Dean's box genuinely has none, which is correct and expected
+        and must never look broken. Not-signed-in is one click from working. Different fact,
+        different thing to do, different state. [[zero-needs-a-denominator]]"""
+        import g5_grok_eyes as g5
+        orig = g5.status
+        try:
+            g5.status = lambda: {"cliInstalled": True, "authorized": False, "needsLogin": True,
+                                 "on": False, "intentBlocked": False, "blockedWhy": ""}
+            st = CA._second_eye_lane_state()
+            self.assertEqual("unauthorised", st.get("state"),
+                             "a CLI that is present but not signed in reports %r" % st.get("state"))
+            self.assertNotIn("not installed", (st.get("why") or "").lower(),
+                             "the reason still says the thing is not installed, which is the "
+                             "self-contradiction this split exists to remove")
+
+            g5.status = lambda: {"cliInstalled": False, "authorized": False, "needsInstall": True,
+                                 "on": False, "intentBlocked": False, "blockedWhy": ""}
+            st = CA._second_eye_lane_state()
+            self.assertEqual("absent", st.get("state"))
+            self.assertNotIn("signed in", (st.get("why") or "").lower(),
+                             "a machine with no second family at all is being told nobody signed "
+                             "in to it — there is nothing to sign in to")
+        finally:
+            g5.status = orig
 
     def test_an_UNREACHABLE_lane_is_UNKNOWN_and_never_absent(self):
         """★ THE DISTINCTION THAT MATTERS MOST. "not installed" is a MEASUREMENT; "I could not ask"
@@ -126,11 +224,24 @@ class TheEyeSaysWhichFamilyLooked(unittest.TestCase):
         self.assertIn("except ImportError:", src,
                       "the lane does not separate 'not installed' from 'could not be asked'")
         self.assertIn('state="absent"', src)
-        i = src.find("except Exception as exc:")
-        self.assertGreater(i, 0, "a non-import failure is not handled at all")
-        self.assertNotIn('state="absent"', src[i:i + 400],
-                         "a lane that RAISED is being reported as absent — a failed probe "
-                         "rendering as a measured 'none'")
+        # ⚠⚠ EVERY RAISED-EXCEPTION HANDLER, AND ANCHORED AT BOTH ENDS. This law used to read
+        # `src[i:i + 400]` from the FIRST `except Exception as exc:` — two defects in one line.
+        # A fixed character window reports anything past its 400th byte as ABSENT, and there are
+        # TWO such handlers (the import and the status call): a sabotage that made the SECOND one
+        # return a measured absence sailed straight through, because the law had only ever looked
+        # at the first. [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]
+        starts = [m.start() for m in re.finditer(r"except Exception as exc:", src)]
+        self.assertGreaterEqual(len(starts), 2,
+                                "only %d raised-exception handlers found — the import probe and "
+                                "the status call each need one, so a failure somewhere is being "
+                                "reported as a measurement" % len(starts))
+        for i in starts:
+            j = src.find("return out", i)
+            self.assertGreater(j, i, "a raised-exception handler never returns, so its extent "
+                                     "cannot be established and this law would measure a guess")
+            self.assertNotIn('state="absent"', src[i:j],
+                             "a lane that RAISED is being reported as absent — a failed probe "
+                             "rendering as a measured 'none'")
 
     def test_the_none_contract_is_UNTOUCHED(self):
         """⚠ `_eye_for_wire()` returns None when the pulse did not run, and an existing law
@@ -160,23 +271,32 @@ class TheEyeSaysWhichFamilyLooked(unittest.TestCase):
                              "family the ledger does not recognise." % fam)
 
     # ── ⚠⚠ THE CARD ─────────────────────────────────────────────────────────────────────────
-    def test_the_four_states_render_DIFFERENTLY(self):
-        got = _render({
-            "absent": {"live": False, "ageMs": 63824123, "provider": "claude",
-                       "second": {"state": "absent", "provider": "grok",
-                                  "why": "the CLI is not installed"}},
-            "off": {"live": False, "ageMs": 0, "provider": "claude",
-                    "second": {"state": "off", "provider": "grok"}},
-            "on": {"live": True, "ageMs": 1200, "provider": "claude",
-                   "second": {"state": "on", "provider": "grok"}},
-            "unknown": {"live": False, "ageMs": 5000, "provider": "claude",
-                        "second": {"state": "unknown", "why": "raised TimeoutError"}},
-        })
+    #: the six cases, in one place, so the render laws below cannot drift apart from each other
+    _CASES = {
+        "absent": {"live": False, "ageMs": 63824123, "provider": "claude",
+                   "second": {"state": "absent", "provider": "grok",
+                              "why": "the second-family CLI is not installed on this machine"}},
+        "unauthorised": {"live": False, "ageMs": 4000, "provider": "claude",
+                         "second": {"state": "unauthorised", "provider": "grok",
+                                    "why": "installed here but nobody is signed in"}},
+        "off": {"live": False, "ageMs": 0, "provider": "claude",
+                "second": {"state": "off", "provider": "grok"}},
+        "on": {"live": True, "ageMs": 1200, "provider": "claude",
+               "second": {"state": "on", "provider": "grok"}},
+        "failing": {"live": True, "ageMs": 1200, "provider": "claude",
+                    "second": {"state": "failing", "provider": "grok",
+                               "why": "the far end answered 402 Payment Required"}},
+        "unknown": {"live": False, "ageMs": 5000, "provider": "claude",
+                    "second": {"state": "unknown", "why": "raised TimeoutError"}},
+    }
+
+    def test_the_six_states_render_DIFFERENTLY(self):
+        got = _render(self._CASES)
         if got is None:
             self.skipTest("node unavailable, so the shipped builder could not be run — a skip is "
                           "NOT a pass")
         self.assertIn("no second model family on this machine", got["absent"])
-        self.assertIn("the CLI is not installed", got["absent"],
+        self.assertIn("not installed on this machine", got["absent"],
                       "the absence does not say WHY, so a correct machine looks broken")
         self.assertIn("toggled off", got["off"])
         self.assertIn("second lane ON", got["on"])
@@ -187,6 +307,73 @@ class TheEyeSaysWhichFamilyLooked(unittest.TestCase):
                             "exact defect this file exists for")
         self.assertIn("fleet-eye-dark", got["absent"])
         self.assertIn("fleet-eye-live", got["on"])
+        # ⚠⚠ NO TWO OF THE SIX MAY SHARE A RENDERING. Pairwise, not one-by-one: the first cut of
+        # this file asserted a phrase per state and a state that quietly fell through to the
+        # `else` branch could still satisfy every individual assertion.
+        names = list(self._CASES)
+        pairs = [(a, b) for i, a in enumerate(names) for b in names[i + 1:] if got[a] == got[b]]
+        self.assertEqual([], pairs,
+                         "these states are indistinguishable on screen: %s. Absence, rest, "
+                         "failure and 'nobody asked' are different facts." % pairs)
+        # ⚠ AND THE SENTENCE HE ACTUALLY READS MUST DIFFER, not merely the markup. Comparing whole
+        # HTML strings was too weak on its own: a sabotage that gave FAILING the healthy lane's
+        # exact wording still produced different HTML, because the CSS class alone still differed
+        # — and a class is not something he can read. The tooltip is the text.
+        def _title(h):
+            return h.split('title="', 1)[1].split('"', 1)[0] if 'title="' in h else h
+        tpairs = [(a, b) for i, a in enumerate(names) for b in names[i + 1:]
+                  if _title(got[a]) == _title(got[b])]
+        self.assertEqual([], tpairs,
+                         "these states say the IDENTICAL sentence: %s. Only a CSS class separates "
+                         "them, and a class cannot be read, hovered or screenshotted." % tpairs)
+        # ⚠⚠ AND THE OTHER HALF: two states must not share a LOOK either. v2766's CSS comment
+        # promised "an absent lane is dimmer still and loses its colour entirely" and no such class
+        # was ever written — `absent` and `off` both fell through to `.fleet-eye-dark` and were
+        # pixel-identical, while every string assertion here passed because their titles differ.
+        # Found by rendering all six side by side and LOOKING. [[visual-regression-detector]]
+        def _cls(h):
+            return frozenset(h.split('class="', 1)[1].split('"', 1)[0].split())
+        cpairs = [(a, b) for i, a in enumerate(names) for b in names[i + 1:]
+                  if _cls(got[a]) == _cls(got[b])]
+        self.assertEqual([], cpairs,
+                         "these states are styled IDENTICALLY: %s. Their tooltips differ, so every "
+                         "text assertion passes while the two chips are the same pixels — which is "
+                         "the defect this whole file exists for, one layer down." % cpairs)
+
+    def test_a_FAILING_second_lane_does_not_wear_the_healthy_one_s_look(self):
+        """★★ The whole point. `on` and `failing` both have a second family present, so the ² is
+        right for both — everything else about them must differ, INCLUDING without colour."""
+        got = _render(self._CASES)
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertIn("FAILING", got["failing"],
+                      "a lane the far end is refusing does not say so")
+        self.assertIn("402 Payment Required", got["failing"],
+                      "the failure gives him nothing to act on")
+        self.assertNotIn("fleet-eye-two\"", got["failing"],
+                         "the failing lane is wearing the healthy lane's class, so it is styled "
+                         "as a working second eye")
+        self.assertIn("fleet-eye-two-bad", got["failing"])
+        # ⚠ COLOUR IS NOT THE ONLY CHANNEL. A greyscale screenshot, a colour-blind reader and a
+        # copy-paste of the glyph all lose the class; the difference has to survive in the text.
+        _glyph = lambda h: h.split(">")[1].split("<")[0]
+        self.assertNotEqual(_glyph(got["on"]), _glyph(got["failing"]),
+                            "healthy and failing draw the identical glyph %r, so the only thing "
+                            "separating them is a CSS class" % _glyph(got["on"]))
+
+    def test_NOT_SIGNED_IN_never_renders_as_NO_SECOND_FAMILY(self):
+        """★ The self-contradicting sentence, pinned. The old wording produced, in one bracket,
+        `no second model family on this machine (nobody is signed in)`."""
+        got = _render(self._CASES)
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertNotIn("no second model family on this machine", got["unauthorised"],
+                         "a machine that HAS the second family and is merely signed out is being "
+                         "told it has none — and then told, in the same sentence, that nobody is "
+                         "signed in to the thing that supposedly is not there")
+        self.assertIn("NOT SIGNED IN", got["unauthorised"],
+                      "the one actionable fact — one click on Authorize — is missing")
+        self.assertNotEqual(got["unauthorised"], got["absent"])
 
     def test_no_pulse_renders_NOTHING_rather_than_a_dot(self):
         got = _render({"none": None})

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2770",
+  "ver": "v2771",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2770: v2764 gave the river an outlet and nothing that ran it: reel_route_lane.apply was called by nothing but its own CLI and its own test, so the six reels closed out that day were moved by hand and the outlet row could never clear itself. The triage tick now drives the lane, acting before the walk observes, because reversed every tick would cost a transition row in an append-only journal.",
+  "note": "v2771: Two role-button spans lived inside the inbox button and the parent accessible name had swallowed both their labels, so a screen reader announced one control offering three actions. They are siblings now. The second-eye lane grew a FAILING state and split not-signed-in from genuinely-absent. The sets badge shows the q level in place of the base type. The locked-lanes row stopped reporting his own throw-bar ruling as a fault.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

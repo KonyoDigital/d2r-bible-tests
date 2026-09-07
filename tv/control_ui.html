@@ -4182,12 +4182,35 @@
   .sess-health.v-partial .sh-verdict { color: #e9b96e; border-color: rgba(233,185,110,.45); background: rgba(60,40,10,.35); }
   .sess-health.v-miss .sh-verdict { color: #ffb0a0; border-color: rgba(255,120,90,.5); background: rgba(70,26,20,.4); }
   .sess-health.v-idle .sh-verdict { color: #8fa398; border-color: rgba(143,163,152,.25); background: rgba(0,0,0,.2); }
-  .ch-inbox { width: 100%; margin: 0 0 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer;
-    font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-normal); color: #d9c9ff;
+  /* ⚠⚠ v2770 — THE PILL IS THE ROW, NOT THE BUTTON. The chips used to live INSIDE
+     #btn-chronicle-inbox, which meant the button's accessible name absorbed both of their labels
+     (measured: "📜 Inbox 0 open Chronicle Sweep 🗑 clear all"). They are siblings now, so the box
+     that draws the purple pill has to be their shared parent instead.
+     ⚠ EVERY OFFSET BELOW IS THE ONE IT REPLACES. The row keeps the button's old padding/gap and
+     the button keeps its own inner gap, so `📜 Inbox` → `0` is still 6+4 and `0` → 📜 is still
+     6+6. Verified at 1440/1120/901/375: the chip offsets inside the pill are byte-identical
+     before and after. [[visual-regression-detector]] */
+  .ch-inbox-row { width: 100%; margin: 0 0 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;   /* v1256 — room for the clear-all on the right */
+    /* ⚠⚠ v2770 — IT WRAPS NOW, BECAUSE AT HIS OWN WINDOW WIDTH IT DID NOT FIT AND SAID NOTHING.
+       MEASURED at 1120x628 (the size control_app.py actually opens): the pill is 220px wide with
+       198px of usable room, and `📜 Inbox 0 📜 🗑 clear all` needs ~263. The old markup hid that
+       by letting the label wrap under its own emoji AND still pushed `clear all` 22px past the
+       right edge, where the rail clipped it. A control he uses, rendered half off its own box.
+       `flex-wrap` is the honest answer: everything that fits stays on line one, `clear all` drops
+       to line two instead of being cut in half. [[visual-regression-detector]] */
+    flex-wrap: wrap; row-gap: 4px;
     border: 1px solid rgba(185,165,255,.4); background: rgba(40,32,64,.45); }
-  .ch-inbox { display: flex; align-items: center; gap: 6px; }   /* v1256 — room for the clear-all on the right */
+  .ch-inbox-row[hidden] { display: none; }
+  .ch-inbox-row:hover { border-color: rgba(185,165,255,.7); }
+  /* the button is now only the LEFT half of the pill and draws no box of its own; `flex: 0 0 auto`
+     keeps `📜 Inbox 0` exactly where it was rather than stretching across the row and shoving the
+     sweep chip over to the right edge. */
+  .ch-inbox { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; cursor: pointer;
+    margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+    font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-normal); color: #d9c9ff; }
+  .ch-inbox[hidden] { display: none; }
   .ch-inbox b { color: #f0d89a; margin-left: 4px; }
-  .ch-inbox:hover { border-color: rgba(185,165,255,.7); }
   /* v1256 (Konyo: "clear all easily") — one obvious click on the inbox, dismisses the whole review queue */
   .ch-clear { margin-left: auto; padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
     font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-snug); color: #ffb0a0;
@@ -5579,6 +5602,21 @@
   .fleet-eye-live { opacity: 1; filter: saturate(1.15); }
   .fleet-eye-dark { opacity: .42; filter: grayscale(1); }
   .fleet-eye-two  { opacity: 1; filter: saturate(1.25); }
+  /* ⚠ v2770 — A FAILING SECOND LANE MAY NOT BORROW THE HEALTHY ONE'S LOOK. `fleet-eye-two` is
+     applied only for state "on", so failing gets its own full-opacity-but-warned treatment; the
+     ⚠ in the glyph carries the same fact where colour cannot (greyscale, colour-blindness, a
+     screenshot). A lane nobody signed into is dimmer than dark-but-present and keeps its colour,
+     because it is not broken — it is one click from working.
+     ⚠⚠ AND `absent` FINALLY GETS THE LOOK v2766 SAID IT ALREADY HAD. The comment above promises
+     "an absent lane is dimmer still and loses its colour entirely" — no such class was ever
+     written, so `absent` and `off` both fell through to `.fleet-eye-dark` and were pixel-identical
+     on screen; only the tooltip told them apart. FOUND BY LOOKING at all six chips side by side,
+     which is the only instrument that could have found it: every string comparison passed,
+     because the TITLES differ. [[visual-regression-detector]] [[feedback-comments-vs-code]] */
+  .fleet-eye-two-bad { opacity: 1; filter: none; color: var(--st-broken); }
+  .fleet-eye-noauth  { opacity: .62; filter: grayscale(.35); }
+  .fleet-eye-absent  { opacity: .26; filter: grayscale(1) contrast(.7); }
+  .fleet-eye-noask   { opacity: .55; filter: grayscale(1); }
   /* v2428 — `nowrap` here was the thing the row could not shrink past. It stays OFF; the row
      wraps instead, and `margin-left:auto` still right-aligns the meta on whichever line it lands. */
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
@@ -6835,7 +6873,18 @@ body[data-origin="shadow"] #stage::after {
         <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY as first-class board region (collapsible).
              v1468 — it closes the RECORD zone from INSIDE the section, where it belongs. -->
         <div class="hd-col hd-wide hd-history hist-collapsed" id="hd-history">
-          <div class="hd-h hd-hist-head" id="hd-hist-head" role="button" tabindex="0" aria-expanded="false" title="tap to expand your run history">
+          <!-- ⚠ v2770 — aria-label, BECAUSE THIS HEADER CONTAINS A SECOND CONTROL. Measured on
+               the shipped page (Chrome 141, Accessibility.getPartialAXTree):
+                   #hd-hist-head  role=button  name="🗂 HISTORY EVERY RECORDED RUN see all →"
+               The `see all →` button lives INSIDE this role="button" header, so its label was
+               absorbed into the header's accessible name and a screen reader announced one
+               control offering two destinations. An explicit label stops the absorption: an
+               element with aria-label takes its name from the label, not from its contents.
+               ⚠ THE NESTING ITSELF IS STILL HERE and is recorded as debt by
+               test_no_control_is_buried_in_another_control's ratchet — undoing it needs this
+               header split into a row plus its own pixel pass, which is not this change.
+               [[sweep-dont-ask]] -->
+          <div class="hd-h hd-hist-head" id="hd-hist-head" role="button" tabindex="0" aria-expanded="false" aria-label="HISTORY — tap to expand your run history" title="tap to expand your run history">
             <span class="hh-chev" id="hh-chev" aria-hidden="true">▸</span> 🗂 HISTORY <span class="hd-sub" id="hd-hist-sub">every recorded run</span>
             <button type="button" class="hd-hist-all" id="hd-hist-all" title="open the full shelf — every recorded run">see all →</button></div>
           <div class="hd-hist-strip" id="hd-hist-strip"></div>
@@ -6950,25 +6999,48 @@ body[data-origin="shadow"] #stage::after {
           <div class="sh-row"><span class="sh-k">🚫0️⃣</span><span class="sh-v" id="sh-refire">0 re-fires</span></div>
           <div class="sh-verdict" id="sh-verdict">idle</div>
         </div>
-        <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before chronicle write">
-          📜 Inbox <b id="ch-inbox-n">0</b>
-          <!-- v1256 (Konyo: "clear all easily") — one-click CLEAR ALL right on the inbox; stops the click from opening the modal -->
-          <!-- ⚠⚠ v2767 — FOUND BY THE SECOND EYE ON v2763 (grok-4-1-fast-reasoning, reviewing the
-               diff cold): "window._chronWaitingJump is now dead code unless called from
-               elsewhere." REPRODUCED: after v2763 folded the 354 strip into this button, the
-               strip's INFORMATION travelled and its ACTION did not. `_chronWaitingJump` — the one
-               door to TV·D ▸ Chronicle Sweep — was defined, pinned by a test, and CALLED BY
-               NOTHING. This button opens the review MODAL, which is a different destination, so a
-               reader seeing "354 read from your reels: not yet checked" in the tooltip had no way
-               to act on it from here.
-               ⚠ AND THE LAW WAS GREEN ABOUT IT. test_the_one_door_SURVIVED_the_banner asserted the
-               door EXISTED, never that anything opened it — a gate passing on dead code.
-               The chip is modelled on ch-clear directly above: same button, same
-               stopPropagation, so the modal click is untouched. Hidden unless the sweep actually
-               has something to say. [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
+        <!-- ⚠⚠ v2770 — THE TWO CHIPS ARE SIBLINGS OF THE INBOX BUTTON, NOT ITS CHILDREN.
+             `<button>` may not contain interactive content, and both chips carry role="button"
+             + tabindex="0", so this was a nested pair inside a real button. MEASURED on the
+             shipped markup, Chrome 141 headless, live bay on air:
+
+               AX #btn-chronicle-inbox  role=button  name="📜 Inbox 0 open Chronicle Sweep 🗑 clear all"
+
+             — the parent button's accessible name had SWALLOWED both chip labels, so a screen
+             reader announced one control offering three different actions and no way to tell
+             which one Enter would run. That is the defect, and it is now fixed by structure:
+             a plain flex row holds all three, and each is announced as itself.
+
+             ⚠ THE ORIGINAL DIAGNOSIS ("both chips are keyboard-unreachable, both onkeydown
+             handlers are dead code") IS REFUTED, and the refutation is kept because the way it
+             happened repeats: the probe called .focus() while `body[data-state="off"] .rail
+             .signal > * { display:none }` had the whole live bay collapsed. A display:none
+             element is unfocusable for everyone — the INBOX BUTTON ITSELF measured
+             focusable:false in the same run, which was the tell. With the bay on air, a real
+             Tab from the button reached ch-sweep-go then ch-clear-all and a real Enter fired
+             each handler. A zero needs a denominator. [[zero-needs-a-denominator]]
+             [[feedback-suspect-the-instrument]]
+
+             v1256 (Konyo: "clear all easily") — one-click CLEAR ALL right on the inbox; it stops
+             the click from opening the modal, and that is UNCHANGED here: `.ch-clear` is a
+             control he actively uses.
+             ⚠⚠ v2767 — FOUND BY THE SECOND EYE ON v2763 (grok-4-1-fast-reasoning, reviewing the
+             diff cold): "window._chronWaitingJump is now dead code unless called from
+             elsewhere." REPRODUCED: after v2763 folded the 354 strip into this button, the
+             strip's INFORMATION travelled and its ACTION did not. `_chronWaitingJump` — the one
+             door to TV·D ▸ Chronicle Sweep — was defined, pinned by a test, and CALLED BY
+             NOTHING. The inbox button opens the review MODAL, which is a different destination,
+             so a reader seeing "354 read from your reels: not yet checked" in the tooltip had no
+             way to act on it from here.
+             ⚠ AND THE LAW WAS GREEN ABOUT IT. test_the_one_door_SURVIVED_the_banner asserted the
+             door EXISTED, never that anything opened it — a gate passing on dead code.
+             Hidden unless the sweep actually has something to say.
+             [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
+        <div class="ch-inbox-row" id="ch-inbox-row" hidden>
+          <button type="button" class="ch-inbox" id="btn-chronicle-inbox" hidden title="Chronicle inbox — review before chronicle write">📜 Inbox <b id="ch-inbox-n">0</b></button>
           <span class="ch-sweep" id="ch-sweep-go" role="button" tabindex="0" hidden aria-label="open Chronicle Sweep" title="open TV·D ▸ Chronicle Sweep — the names your readers lifted off your own reels" onclick="event.stopPropagation(); window._chronWaitingJump && window._chronWaitingJump();" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();window._chronWaitingJump&&window._chronWaitingJump();}">&#x1F4DC;</span>
           <span class="ch-clear" id="ch-clear-all" role="button" tabindex="0" title="clear all pending — dismiss from the review queue (not a chronicle write)" onclick="event.stopPropagation(); window._chClearAll();" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();event.preventDefault();window._chClearAll();}">🗑 clear all</span>
-        </button>
+        </div>
         <div class="row"><span class="k"><img class="sjewel" src="/art/hd_eth_rune.png" alt="" onerror="this.style.display='none'">Signal</span><span class="val" id="sig-bridge">—</span></div>
         <!-- Vision folded into the 🔴 Live Eye badge; element kept (hidden) so JS keeps writing it -->
         <div class="row" id="sig-vision-row" hidden><span class="k">👁 Vision</span><span class="val" id="sig-vision">—</span></div>
@@ -7280,7 +7352,10 @@ body[data-origin="shadow"] #stage::after {
     </aside>
 
     <section class="ticker">
-      <div class="tag" id="mind-tag" role="button" title="click — cycle reads · thoughts · story · raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">🧾 AI READS <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:var(--fs-2xs)">· live</span><button class="fx-open" id="fx-open" type="button" title="🔬 open the deep READS FORENSICS — the X-ray of every read, the fixes + the refusals" onclick="event.stopPropagation(); window._forensicsOpen();">🔬</button></div>
+      <!-- ⚠ v2770 — aria-label, same reason as #hd-hist-head. Measured: this tag's accessible
+           name read "🧾 AI READS · LIVE 🔬" because the 🔬 forensics BUTTON sits inside it. The
+           nesting stays (recorded by the ratchet); the absorbed label does not. [[sweep-dont-ask]] -->
+      <div class="tag" id="mind-tag" role="button" aria-label="AI READS — click to cycle reads · thoughts · story · raw log" title="click — cycle reads · thoughts · story · raw log" style="cursor:pointer"><span class="p"></span><img class="tjewel" src="/art/hd_lem_rune.png" alt="" onerror="this.style.display='none'">🧾 AI READS <span id="mind-mode" style="opacity:.55;margin-left:6px;font-size:var(--fs-2xs)">· live</span><button class="fx-open" id="fx-open" type="button" title="🔬 open the deep READS FORENSICS — the X-ray of every read, the fixes + the refusals" onclick="event.stopPropagation(); window._forensicsOpen();">🔬</button></div>
       <div class="brain" id="brain"><div class="empty">— agent thoughts appear here when live —</div></div>
       <!-- F2 · SESSION-VITALS RIBBON — a live reads-activity sparkline + rate vitals, shown only during a scan
            (on-air). Off /api/status via paint(); hidden off-air so the resting console stays slim/no-scroll. -->
@@ -17460,6 +17535,13 @@ window._lockMark = function(isOpen, px, label){
       var _swGo = $('ch-sweep-go');
       if (_swGo) _swGo.hidden = !_sweepHasSomething;
     } catch (e) {}
+    /* ⚠ v2770 — THE ROW CARRIES THE PILL NOW, SO IT HAS TO CARRY THE HIDING TOO. The purple box
+       moved from the button to its parent when the chips became siblings; leaving the row visible
+       while the button hid would paint an empty pill with a lone "clear all" floating in it.
+       ⚠ MIRRORED, NOT RE-DERIVED. `btn.hidden` is the one condition, computed above and read here
+       — the v2767 note directly above is about exactly this and cost a dead chip. [[copy-drift]] */
+    var _chRowEl = $('ch-inbox-row');
+    if (_chRowEl) _chRowEl.hidden = btn.hidden;
     btn.__items = data.pending;
     if (CH.open) chModalRender();
   }
@@ -17911,6 +17993,16 @@ window._lockMark = function(isOpen, px, label){
   })();
   var _chBtn = $('btn-chronicle-inbox');
   if (_chBtn) _chBtn.onclick = function(){ chModalOpen(); };
+  /* ⚠ v2770 — THE DEAD STRIP IN THE MIDDLE OF THE PILL STILL OPENS THE INBOX. The whole purple
+     box used to BE the button, so a click anywhere in it opened the modal. Now the button is only
+     its left half, and without this the gap between `📜 Inbox 0` and the chips would look
+     clickable and do nothing — a control that silently stopped working, which is the class of
+     regression he must never be the one to notice.
+     ⚠ `e.target === _chRow` IS THE WHOLE POINT: it fires only for a click that landed on the
+     row's own padding. A click on the button or on either chip has a different target, so nothing
+     double-fires and the chips' `stopPropagation()` is untouched. [[visual-regression-detector]] */
+  var _chRow = $('ch-inbox-row');
+  if (_chRow) _chRow.onclick = function(e){ if (e.target === _chRow && _chBtn) _chBtn.click(); };
   // hook health paint to also refresh inbox count
   var _paintOrig = paint;
   paint = function(st){ _paintOrig(st); try { paintChronicleInbox(); } catch(e){} };
@@ -20280,19 +20372,43 @@ function escC(s) {
         var when = e.live ? 'reading now'
                  : (age == null ? 'no frame yet this run' : 'last read ' + age + 'm ago');
         var sec = e.second || {};
+        /* \u26a0\u26a0 v2770 \u2014 SIX STATES, SIX RENDERINGS. Two of the four used to lie:
+             \u00b7 a lane installed, ON and FAILING came through as `on` and drew the healthy \uD83D\uDC41\u00b2
+             \u00b7 a lane installed with nobody signed in came through as `absent` and read
+               "no second model family on this machine (nobody is signed in)"
+           A failure that looks like health is worse than no chip at all, and a self-contradicting
+           sentence tells him nothing he can act on. `unauthorised` is one click from working;
+           `absent` is a correct and expected machine (Dean's). [[zero-needs-a-denominator]]
+           \u26a0 AND `failing` MUST NOT BE MISTAKEN FOR A DEGRADED-BUT-WORKING LANE: the \u00b2 stays,
+           because a second lane does exist here, and a \u26a0 rides beside it so the difference
+           survives being read in greyscale or by someone who cannot see the colour. */
         var stail;
         if (sec.state === 'on')          stail = ' \u00b7 ' + (sec.provider || 'a second lane') + ' second lane ON';
+        else if (sec.state === 'failing') stail = ' \u00b7 ' + (sec.provider || 'a second lane') + ' second lane ON but FAILING'
+                                               + (sec.why ? ' (' + sec.why + ')' : '');
         else if (sec.state === 'off')    stail = ' \u00b7 ' + (sec.provider || 'a second lane') + ' available, toggled off';
+        else if (sec.state === 'unauthorised') stail = ' \u00b7 ' + (sec.provider || 'a second lane') + ' is installed here but NOT SIGNED IN'
+                                               + (sec.why ? ' (' + sec.why + ')' : '');
         else if (sec.state === 'absent') stail = ' \u00b7 no second model family on this machine'
                                                + (sec.why ? ' (' + sec.why + ')' : '');
         else                             stail = ' \u00b7 second lane UNKNOWN'
                                                + (sec.why ? ' (' + sec.why + ')' : '');
         var cls = 'fleet-eye' + (e.live ? ' fleet-eye-live' : ' fleet-eye-dark')
-                + (sec.state === 'on' ? ' fleet-eye-two' : '');
+                + (sec.state === 'on' ? ' fleet-eye-two' : '')
+                + (sec.state === 'failing' ? ' fleet-eye-two-bad' : '')
+                + (sec.state === 'unauthorised' ? ' fleet-eye-noauth' : '')
+                + (sec.state === 'absent' ? ' fleet-eye-absent' : '')
+                + (sec.state === 'unknown' || !sec.state ? ' fleet-eye-noask' : '');
         return '<span class="' + cls + '" title="' + escC(prov + ' \u00b7 ' + when + stail) + '">'
-             + '\uD83D\uDC41' + (sec.state === 'on' ? '\u00b2' : '') + '</span>';
+             + '\uD83D\uDC41'
+             + (sec.state === 'on' || sec.state === 'failing' ? '\u00b2' : '')
+             + (sec.state === 'failing' ? '\u26a0' : '')
+             /* \u2753 — nobody could ask. UNKNOWN must not sit in the same pixels as a lane that
+                is simply resting: `off` and `unknown` both fell through to .fleet-eye-dark and
+                were identical on screen. [[unknown-stays-unknown]] */
+             + (sec.state === 'unknown' || !sec.state ? '?' : '') + '</span>';
       };
-      window._fleetEye = _fleetEye;   /* exported so a gate can put all four states to it */
+      window._fleetEye = _fleetEye;   /* exported so a gate can put every state to it */
       var _row = function (m, online) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
         var unpub = (_me && m.machine === _me && _pub && m.ver && m.ver !== _pub);
