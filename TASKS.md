@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2762** | `(this commit)` | v2762 — four grail items had no picture because the page spells them straight and the roster spells them curly |
 | **v2761** | `(this commit)` | v2761 — the eleven joints of the river reach a doctor row for the first time, and the gate joint stops reporting a zero for keys the store never writes |
 | **v2760** | `(this commit)` | v2760 — the shelf stops building 2557 cards it hides, one item stops being stored under two spellings, and his own fleet row reads the local tally instead of a round trip |
 | **v2759** | `(this commit)` | v2759 — the uniques mask reads the union the board calls found, and TOMBSTONE leads with its 410 journeys instead of a 0 the code knew was meaningless |

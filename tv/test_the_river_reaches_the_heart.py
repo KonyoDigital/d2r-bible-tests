@@ -163,13 +163,44 @@ class TheRiverReachesTheHeart(unittest.TestCase):
         self.assertIn("if not proposed:", blk,
                       "nothing distinguishes 'none proposed' from 'proposed and none grounded'")
 
-    def test_the_dry_case_carries_its_caveat(self):
-        """The honest reading today is 'nothing NEW to ground' — he already owns all 354. A joint
-        that says DRY without that context sends him hunting a blockage that is not there."""
+    def test_zero_grounded_of_N_proposed_is_UNKNOWN_not_an_asserted_DRY(self):
+        """★ FOUND BY THE SECOND EYE (grok-4-1-fast-reasoning, reviewing the diff cold): my first
+        cut returned crossed=0 — which grades DRY — while its own `why` said the situation "may be
+        'nothing NEW to ground' and not a blockage". The verdict contradicted its own reason: it
+        asserted a blockage and argued against itself in the sentence underneath.
+
+        AND IT GENUINELY CANNOT TELL. "0 grounded of 354 proposed" is a blockage ONLY if some of
+        those were new; `chronicle_crossref` is what knows, and it has NO cache file — it is
+        computed live against the board window, so this joint cannot ask it without dragging the
+        console in. An instrument that cannot distinguish two states must not pick one.
+        [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+        """
         i = RSRC.find("def j_gate(")
         j = RSRC.find("\ndef ", i + 1)
-        self.assertIn("CHECK BEFORE ACTING", RSRC[i:j],
-                      "the dry verdict carries no caveat about the already-has case")
+        blk = RSRC[i:j]
+        self.assertIn("if not grounded:", blk,
+                      "nothing separates the zero-grounded case, so it falls through to a number")
+        self.assertIn('_joint("gate", "names grounded", None, proposed', blk,
+                      "zero-grounded still reports a COUNT (which grades DRY) rather than None "
+                      "(UNKNOWN) — the joint is asserting a blockage it cannot establish")
+        # ⚠ CONTIGUOUS TEXT ONLY — SECOND TIME TODAY. The source splits this across two literals
+        # ("...This joint cannot " + "tell a real blockage from..."), so a phrase spanning the
+        # boundary is absent from the SOURCE while present in the rendered message. A guard that
+        # greps source must match the source. [[source-reading-guard]]
+        self.assertIn("tell a real blockage from", blk,
+                      "the unknown verdict does not say WHAT it could not tell apart")
+        self.assertIn("chronicle_crossref", blk,
+                      "it does not name the thing that would settle the question, so the reader "
+                      "is left with an unknown and no way to resolve it")
+
+    def test_the_unknown_still_carries_its_denominator(self):
+        """UNKNOWN must not mean unmeasured. It knows 354 were proposed and 41 held; those travel."""
+        r = RV.j_gate()
+        if r.get("state") == RV.UNKNOWN and r.get("upstream"):
+            self.assertTrue(r.get("upstream"),
+                            "an UNKNOWN gate dropped its denominator, so nothing says 0 OF WHAT")
+            self.assertIn("proposed", str(r.get("why") or ""),
+                          "the unknown does not say how many were proposed")
 
     def test_the_gate_joint_still_runs_on_his_real_store(self):
         r = RV.j_gate()

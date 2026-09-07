@@ -322,11 +322,27 @@ def j_gate():
         return _joint("gate", "names grounded", None, up,
                       "no name was proposed by the last sweep (%d held), so there was nothing to "
                       "ground — that is an empty question, not a dry joint" % n_held, "name")
-    why = ("" if grounded else
-           "%d name(s) were proposed and none grounded (%d held). ⚠ CHECK BEFORE ACTING: if the "
-           "crossref says he already has them all, this is 'nothing NEW to ground' and not a "
-           "blockage." % (proposed, n_held))
-    return _joint("gate", "names grounded", grounded, proposed, why, "name")
+    # ⚠⚠ A VERDICT THAT CONTRADICTS ITS OWN REASON IS THE DEFECT, NOT THE PROSE. Found by a
+    # SECOND EYE (grok-4-1-fast-reasoning, reviewing this diff cold): the first cut returned
+    # crossed=0 — which grades DRY — while its own `why` said "this may be 'nothing NEW to
+    # ground' and not a blockage". The instrument asserted a blockage and then argued against
+    # itself in the sentence underneath. That is exactly the shape this repo keeps removing from
+    # other people's code.
+    #
+    # ⚠ AND IT GENUINELY CANNOT TELL THE TWO APART. "0 grounded of 354 proposed" is a blockage
+    # ONLY if some of those 354 were new. `chronicle_crossref` is what knows — and it has no cache
+    # file, it is computed live against the board window, so this joint cannot ask it without
+    # dragging the console in. An instrument that cannot distinguish two states MUST NOT PICK ONE.
+    # UNKNOWN, with both possibilities named and the thing that would settle it.
+    # [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+    if not grounded:
+        return _joint("gate", "names grounded", None, proposed,
+                      "%d name(s) were proposed and none grounded (%d held). This joint cannot "
+                      "tell a real blockage from 'he already has all of them' — chronicle_crossref "
+                      "knows, and is computed live rather than cached. Ask it: newCount > 0 with "
+                      "nothing grounded is a blockage; newCount == 0 means there was nothing new "
+                      "to ground." % (proposed, n_held), "name")
+    return _joint("gate", "names grounded", grounded, proposed, "", "name")
 
 
 def j_seal():

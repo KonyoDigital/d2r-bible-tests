@@ -16972,6 +16972,34 @@ function artUrl(name){
       if (_artTier(_alt) > _artTier(direct)) return _alt;
     }
   } catch(e){}
+  /* ══ v2762 — FOLD THE APOSTROPHE, AND ONE NAMED ONE-OFF ══════════════════════════════════
+     MEASURED: unique_roster.json holds 4 names with a CURLY apostrophe (U+2019) — Atma’s Scarab,
+     Saracen’s Chance, Seraph’s Hymn, The Cat’s Eye — while THIS FILE spells the same four
+     with a STRAIGHT one in ITEM_VALUE and in D2IO_ART. Same item, two spellings, in one file.
+     artUrl did an exact match, so all four missed art that EXISTS under the other spelling.
+     ⚠ FOLDED HERE, NOT IN THE ROSTER. unique_roster.json and set_roster.json SHARE one
+     sourceHash, and changing those bytes invalidates every machine's fleet mask until it
+     republishes — a picture is not worth that. The resolver is the cheap end. [[copy-drift]]
+     ⚠ AND IT IS A LOOKUP FALLBACK, NEVER A REWRITE: the caller's name is untouched, so nothing
+     downstream starts seeing a spelling it did not ask for. */
+  try {
+    var _sw = String(name || '');
+    var _flip = (_sw.indexOf('\u2019') >= 0) ? _sw.replace(/\u2019/g, "'")
+              : (_sw.indexOf("'") >= 0 ? _sw.replace(/'/g, '\u2019') : '');
+    if (_flip && Object.prototype.hasOwnProperty.call(D2IO_ART, _flip)) {
+      if (_artTier(D2IO_ART[_flip]) > _artTier(direct)) return D2IO_ART[_flip];
+    }
+  } catch(e){}
+  /* ⚠ "The Scourge" IS LEFT WITHOUT ART, DELIBERATELY. The task note said its art was "keyed as
+     the bare Scourge (hd_flail.png)" and I wrote a one-off alias for it. MEASURED against the real
+     table before shipping: NEITHER "Scourge" NOR "The Scourge" is an art key at all — the strings
+     that look like one are a BASE CODE ("Scourge":"7fl", from lf-base-codes) and a DESCRIPTION
+     ("+200% ED · damage to demons"). The alias pointed at nothing: plumbing with no tap.
+     `Flail` -> art/base_flail.png does exist, so a base-type fallback was available and is
+     REFUSED: _itemArtPath's own rule is "NO ART FOR THIS ITEM -> NO PICTURE. Not a placeholder,
+     not a fallback glyph, not a guess." A generic flail under his grail item would be exactly
+     that guess. It has no art; it shows none, and the gap stays visible.
+     [[unknown-stays-unknown]] [[plumbing-with-no-tap]] */
   return direct;
 }
 window._artTier = _artTier;
@@ -49638,7 +49666,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2761', name:'v2761 - the river reaches the heart', date:'2026-09-07', note:'the eleven joints of the river reach a doctor row for the first time, and the gate joint stops reporting a zero for keys the store never writes' };
+  window.D2R_BUILD = { id:'v2762', name:'v2762 - the art resolver folds the apostrophe', date:'2026-09-07', note:'four grail items had no picture because the page spells them straight and the roster spells them curly' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

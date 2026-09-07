@@ -585,6 +585,29 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_art_resolver_folds_the_apostrophe",
+         [sys.executable, os.path.join(HERE, "test_the_art_resolver_folds_the_apostrophe.py")], 180,
+         why="FOUR GRAIL ITEMS HAD NO PICTURE BECAUSE ONE FILE SPELLS THEM TWO WAYS. "
+             "unique_roster.json holds Atma's Scarab, Saracen's Chance, Seraph's Hymn and The "
+             "Cat's Eye with a CURLY apostrophe (U+2019) while bible.html spells the same four "
+             "STRAIGHT in ITEM_VALUE and D2IO_ART — same item, two spellings, one file — and "
+             "artUrl matched exactly, so all four missed art that EXISTS under the other "
+             "spelling. The page's own prose already named them. Folded in the RESOLVER, not the "
+             "roster: unique_roster.json and set_roster.json SHARE one sourceHash, and changing "
+             "those bytes invalidates every machine's fleet mask until it republishes — a picture "
+             "is not worth making the fleet undecodable. It is a lookup FALLBACK, never a "
+             "rewrite, so no caller starts seeing a spelling it did not ask for. ⚠⚠ THE ALIAS I "
+             "ALMOST SHIPPED: the task note said The Scourge's art was 'keyed as the bare "
+             "Scourge (hd_flail.png)' and I wrote a one-off for it. MEASURED against the real "
+             "table first — NEITHER 'Scourge' NOR 'The Scourge' is an art key at all; the strings "
+             "that look like keys are a BASE CODE ('Scourge':'7fl') and a DESCRIPTION. The alias "
+             "pointed at nothing. Flail -> base_flail.png does exist, so a base-type fallback was "
+             "available and is REFUSED: _itemArtPath's own rule is 'no art -> NO PICTURE, not a "
+             "placeholder, not a fallback glyph, not a guess'. ⚠ AND THE GUARD ITSELF SKIPPED "
+             "3 OF 7 ON ITS FIRST RUN — the extracted region ends with `window.D2IO_ART = "
+             "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
+             "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
+
     Gate("test_the_river_reaches_the_heart",
          [sys.executable, os.path.join(HERE, "test_the_river_reaches_the_heart.py")], 180,
          why="THE RIVER MEASURED ITSELF FOR NOBODY. `tv/river.py` walks ELEVEN joints, grades each "

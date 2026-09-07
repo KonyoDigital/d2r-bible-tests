@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2761",
+  "ver": "v2762",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2761: the eleven joints of the river reach a doctor row for the first time, and the gate joint stops reporting a zero for keys the store never writes",
+  "note": "v2762: four grail items had no picture because the page spells them straight and the roster spells them curly",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
