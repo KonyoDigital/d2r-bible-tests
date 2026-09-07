@@ -6890,9 +6890,24 @@ class TestV2278TheStripNamesWhatWouldCHANGE(unittest.TestCase):
         Kept (not deleted) because the underlying law is his ask, not the CSS."""
         ui = self._ui()
         self.assertNotIn("cw-quiet", ui, "the quiet class is back without its element")
-        self.assertIn("if (_new || _unchecked) btn.hidden = false;", ui,
-                      "the inbox no longer reveals itself only when the sweep needs him — either "
-                      "it is always shown, or it can never be")
+        # ⚠⚠ v2767 — RE-POINTED AT THE BEHAVIOUR, because pinning the SPELLING made this go red on
+        # a change that preserved it exactly. The second eye asked for the button's condition and
+        # the chip's to be computed ONCE instead of written twice (two copies diverge), so
+        # `if (_new || _unchecked) btn.hidden = false;` became `if (_sweepHasSomething) ...` with
+        # `_sweepHasSomething = !!(_new || _unchecked)` above it. Identical semantics, different
+        # bytes, and a literal-matching law cannot tell those apart. PIN THE LAW, NOT THE LITERAL.
+        # [[regression-guard]]
+        import re as _re
+        m = _re.search(r"var\s+(\w+)\s*=\s*!!\(\s*_new\s*\|\|\s*_unchecked\s*\)\s*;", ui)
+        self.assertIsNotNone(
+            m, "nothing derives the reveal condition from `_new || _unchecked` any more, so the "
+               "inbox no longer reveals itself only when the sweep needs him")
+        self.assertIn("if (%s) btn.hidden = false;" % m.group(1), ui,
+                      "the inbox reveal is no longer guarded by that condition — either it is "
+                      "always shown, or it can never be")
+        self.assertNotIn("\n    btn.hidden = false;", ui,
+                         "there is an UNCONDITIONAL reveal, so the inbox shows itself with nothing "
+                         "to say — the permanent row he asked to be rid of")
     def test_the_reach_into_his_window_is_MEMOISED(self):
         """/api/chronicle_crossref evaluates JS in the window he is looking at, and the strip
         repaints every tick. Unmemoised, this pokes his board several times a second.
