@@ -608,6 +608,19 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_river_has_a_driver",
+         [sys.executable, os.path.join(HERE, "test_the_river_has_a_driver.py")], 180,
+         why="THE RIVER HAD AN OUTLET AND NOTHING DRIVING IT. Found by the post-ship review of "
+             "v2764: reel_route_lane.apply() was referenced by NOTHING but its own CLI and its own "
+             "test, so the six reels closed out that day were moved BY HAND and the `river outlet` "
+             "row would have sat on MISSING for ever the moment a new reel reached EMPTY. The "
+             "diagnosis flowed; the river did not. The triage tick now drives the lane. ⚠⚠ ORDER "
+             "IS CORRECTNESS: the lane ACTS first and the walk OBSERVES after, because reversed "
+             "the walk would stamp the station the lane is about to change and every tick would "
+             "cost a transition row in an append-only journal. ⛔ It rides the TRIAGE tick, never "
+             "the retention pass, and writes ROUTED only — TOMBSTONE stays with the deleter behind "
+             "the arming lock.",
+         ),
     Gate("test_the_shelf_shows_the_four_lanes",
          [sys.executable, os.path.join(HERE, "test_the_shelf_shows_the_four_lanes.py")], 180,
          why="THE RIVER MADE VISIBLE AS THE FOUR LANES HE NAMED — INTAKE, PRINTER, CAPTURE, "

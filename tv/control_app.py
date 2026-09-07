@@ -18966,6 +18966,13 @@ def retro_triage_tick():
 #: ⇒ So the walk now records that it RAN: when, how many reels it compared, and how many moved —
 #: INCLUDING ZERO. `moved: 0` beside `at: <2s ago>` is a measurement. Silence is not.
 #: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+#: v2770 — what the ROUTE LANE did on its last tick. Its sibling below records what the
+#: WALK saw. Two different facts: this one is a CAUSE (a lane acted), that one is a
+#: POSITION (a walk found reels somewhere). Collapsing them would put an unmeasured
+#: cause into the console.
+_ROUTE_LANE = {"at": None, "runs": 0, "ok": None, "routed": None, "already": None,
+               "refused": None, "declined": None, "why": ""}
+
 _RIVER_WALK = {"at": None, "ok": None, "reels": None, "moved": None, "why": "",
                "walks": 0, "lastMovedAt": None, "unchanged": None, "refused": None}
 
@@ -19084,6 +19091,46 @@ def _retro_triage_loop():
             # ⚠ IT IS QUIET WHEN NOTHING MOVES. stamp() refuses a row identical to the reel's
             # current station, so a walk over a still river writes ZERO bytes. Only transitions
             # cost anything, which is what makes this safe on a short tick.
+            # ── v2770 — THE ROUTE LANE ACTS BEFORE THE WALK OBSERVES ────────────────────
+            # Konyo: *"so the river runs smooth and automized down the river in a loop like a
+            # waterfall from station down to tombstone"* and *"it just flows and eats session
+            # reels regardless of the route it come from initially"*.
+            #
+            # ⚠⚠ v2764 GAVE THE RIVER AN OUTLET AND NO DRIVER. Found by the post-ship review:
+            # `reel_route_lane.apply()` was called by nothing — its own CLI and its test. The six
+            # reels closed out that day were moved BY HAND, and the `river outlet` doctor row
+            # would have sat on MISSING for ever the moment a new reel reached EMPTY, saying "N
+            # can be closed out RIGHT NOW and have not been". The diagnosis flowed; the river did
+            # not. [[plumbing-with-no-tap]]
+            #
+            # ⚠ ORDER IS THE POINT: the lane ACTS first, then the walk OBSERVES. The lane writes
+            # actor rows, `reel_router.route()`'s outlet overlay reads them, and the walk below
+            # then finds those reels already at ROUTED and writes nothing. Reversed, the walk
+            # would stamp EMPTY and the lane would move it back — two rows per tick, for ever.
+            # v2769's guard makes that unwritable rather than merely unlikely, but the ordering is
+            # what makes it a no-op instead of a refusal.
+            #
+            # ⚠ IT RIDES THE TRIAGE TICK, NEVER THE RETENTION PASS — the same rule as the walk
+            # below. This lane closes a reel out; it does not delete one, and TOMBSTONE stays with
+            # the deleter behind the arming lock.
+            try:
+                import reel_route_lane as _rrl
+                _rl = _rrl.apply(by="loop:tvd-retro-triage")
+                _ROUTE_LANE["at"] = time.time()
+                _ROUTE_LANE["runs"] = int(_ROUTE_LANE.get("runs") or 0) + 1
+                _ROUTE_LANE["ok"] = bool(_rl.get("ok"))
+                _ROUTE_LANE["routed"] = _rl.get("routed")
+                _ROUTE_LANE["already"] = _rl.get("already")
+                _ROUTE_LANE["refused"] = _rl.get("refused")
+                # ⚠ THE DECLINED COUNT TRAVELS. 12 reels sit at CAPTURE owing a capture change no
+                # lane can supply; a driver reporting only what it moved would read as done on a
+                # shelf where they are permanently stuck. [[zero-needs-a-denominator]]
+                _ROUTE_LANE["declined"] = _rl.get("declined")
+                _ROUTE_LANE["why"] = _rl.get("why") or ""
+            except Exception as _rle:
+                _ROUTE_LANE["at"] = time.time()
+                _ROUTE_LANE["ok"] = False
+                _ROUTE_LANE["why"] = "the route lane raised %s" % type(_rle).__name__
             try:
                 import river_stamp as _rvs
                 _rv = _rvs.run(by="loop:tvd-retro-triage")
@@ -24042,7 +24089,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2769",
+        "ver": "v2770",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

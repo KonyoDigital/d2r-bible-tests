@@ -1821,10 +1821,33 @@ def _check_the_river_has_an_outlet():
     declined = len(p.get("declined") or [])
     tail = (" · %d at CAPTURE owe a capture change first and no lane can move them (REG-340)"
             % declined) if declined else ""
+    # ⚠⚠ v2770 — ASK THE DRIVER, NOT ONLY THE QUEUE. Until v2770 nothing CALLED the lane, so this
+    # row could only ever say "they have not been closed out" without being able to say WHY — and
+    # the answer was "because no code anywhere runs it". Now the triage tick drives it, and a
+    # waiting queue means something different depending on whether the driver is alive:
+    #   driver never ran   -> the loop is dead or the wiring broke. That is the finding.
+    #   driver ran recently-> the reels arrived since, and the next tick will take them.
+    # Collapsing those two into one sentence is how a dead loop reads as a busy one.
+    drv = None
+    try:
+        import control_app as _ca2
+        drv = getattr(_ca2, "_ROUTE_LANE", None)
+    except Exception:
+        drv = None
+    drv_at = (drv or {}).get("at")
+    drv_runs = int((drv or {}).get("runs") or 0)
+    if waiting and not drv_runs:
+        return MISSING, ("%d of %d reel(s) can be closed out RIGHT NOW and have not been, and the "
+                         "route lane HAS NEVER RUN in this process — nothing is driving the "
+                         "river. ROUTED holds %d%s" % (waiting, shelf, routed, tail))
     if waiting:
-        return MISSING, ("%d of %d reel(s) can be closed out RIGHT NOW and have not been — the "
-                         "route lane has not run. ROUTED holds %d%s"
-                         % (waiting, shelf, routed, tail))
+        import time as _t
+        age = int(_t.time() - float(drv_at)) if drv_at else None
+        return MISSING, ("%d of %d reel(s) are waiting to be closed out; the route lane last ran "
+                         "%s and reported: %s. ROUTED holds %d%s"
+                         % (waiting, shelf,
+                            ("%ds ago" % age) if age is not None else "at an unrecorded time",
+                            str((drv or {}).get("why") or "nothing"), routed, tail))
     if routed:
         return OK, ("%d of %d reel(s) closed out and none waiting — the river has an outlet and "
                     "it is being used%s" % (routed, shelf, tail))
