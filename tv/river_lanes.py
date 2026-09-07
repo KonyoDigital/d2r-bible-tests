@@ -86,6 +86,26 @@ def assert_partitions():
     if not declared:
         return False, ["reel_router.STATIONS is empty, so this guard inspected nothing — an "
                        "instrument failure, not a clean result"]
+    # ⚠⚠ THESE FOUR CHECKS WERE MISSING AND THE GUARD STILL CALLED ITSELF A PARTITION PROOF.
+    # Raised by the second eye: a station repeated INSIDE ONE lane's tuple leaves len(seen[st])
+    # at 1, so the old loop saw nothing wrong — while the lane's own `byStation` would then count
+    # that station twice and its total would exceed the shelf. An empty tuple makes a lane that
+    # can never hold anything, and a duplicate lane NAME makes two boxes the reader cannot tell
+    # apart. A guard that names itself after a property must actually test the property.
+    _names = [n for n, _s, _w in LANES]
+    for n in sorted(set(_names)):
+        if _names.count(n) > 1:
+            findings.append("lane %r is declared %d times — two boxes with one name, and a reader "
+                            "cannot tell which reels are in which" % (n, _names.count(n)))
+    for lane, stations, _why in LANES:
+        if not stations:
+            findings.append("lane %r covers NO stations, so it can never hold a reel and will sit "
+                            "on the shelf as a permanently empty box with a label" % lane)
+        for st in sorted(set(stations)):
+            if list(stations).count(st) > 1:
+                findings.append("lane %r lists station %r %d times — its byStation count would be "
+                                "inflated and the lanes would out-total the shelf"
+                                % (lane, st, list(stations).count(st)))
     seen = {}
     for lane, stations, _why in LANES:
         for st in stations:
@@ -157,9 +177,23 @@ def lanes(rep=None):
     out["reconciles"] = (total + out["unknown"]) == out["shelf"]
     out["ok"] = True
     out["why"] = rep.get("why") or ""
+    # ⚠⚠ NAME THE STATIONS THAT FELL OUT, DO NOT JUST COUNT THEM. Raised by the second eye: a
+    # reel at a station no lane covers is dropped from every lane and from `total`, so
+    # `reconciles` goes false and the reader is handed a bare mismatch with nothing to act on.
+    # The station name IS the finding — it says which upstream change orphaned them.
+    _mapped = set()
+    for _n, _sts, _w in LANES:
+        _mapped |= set(_sts)
+    orphan = sorted({r.get("station") for r in (rep.get("reels") or [])
+                     if r.get("station") and r.get("station") not in _mapped
+                     and r.get("station") != "UNKNOWN"})
+    out["orphanStations"] = orphan
     if not out["reconciles"]:
         out["why"] = ("the lanes hold %d reel(s) and the shelf has %d — %d have gone missing from "
-                      "the picture" % (total, out["shelf"], out["shelf"] - total - out["unknown"])) \
+                      "the picture%s"
+                      % (total, out["shelf"], out["shelf"] - total - out["unknown"],
+                         (" · they sit at %s, which no lane covers" % ", ".join(orphan))
+                         if orphan else "")) \
                      + ((" · " + out["why"]) if out["why"] else "")
     return out
 

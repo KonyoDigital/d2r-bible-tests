@@ -110,6 +110,44 @@ class TheShelfShowsTheFourLanes(unittest.TestCase):
         self.assertEqual(set(RR.STATIONS), mapped,
                          "the lane map and the router's station list have diverged")
 
+    def test_the_partition_proof_actually_proves_a_partition(self):
+        """★ RAISED BY THE SECOND EYE on v2769: the guard called itself a partition proof and did
+        not test the property. A station repeated INSIDE ONE lane's tuple leaves len(seen[st]) at
+        1, so nothing objected — while that lane's byStation would count it twice and the lanes
+        would out-total the shelf. An empty tuple makes a lane that can never hold anything; a
+        duplicate lane NAME makes two boxes a reader cannot tell apart."""
+        real = RL.LANES
+        for bad, what in (
+                ((("A", ("STATION", "STATION"), "x"),), "a station repeated inside one lane"),
+                ((("A", (), "x"),), "a lane covering no stations"),
+                ((("A", ("STATION",), "x"), ("A", ("PRINTER",), "y")), "two lanes with one name")):
+            RL.LANES = bad
+            try:
+                ok, findings = RL.assert_partitions()
+            finally:
+                RL.LANES = real
+            self.assertFalse(ok, "%s was accepted as a partition" % what)
+            self.assertTrue(findings, "%s produced no finding to act on" % what)
+
+    def test_an_ORPHANED_station_is_NAMED_not_just_counted(self):
+        """★ RAISED BY THE SECOND EYE: a reel at a station no lane covers is dropped from every
+        lane and from the total, so `reconciles` goes false and the reader gets a bare mismatch
+        with nothing to act on. The station name IS the finding — it says which upstream change
+        orphaned them. [[zero-needs-a-denominator]]"""
+        rep = RR.route()
+        if not rep.get("ok") or not rep.get("reels"):
+            self.skipTest("no shelf here to orphan a reel from — a skip is NOT a pass")
+        import copy
+        fake = copy.deepcopy(rep)
+        fake["reels"][0]["station"] = "NEWSTATION"
+        out = RL.lanes(fake)
+        self.assertTrue(out["ok"])
+        self.assertFalse(out["reconciles"], "a reel left every lane and the totals still agreed")
+        self.assertIn("NEWSTATION", out["why"],
+                      "the orphaned station is not named, so the reader is handed a count with no "
+                      "way to find what fell out")
+        self.assertIn("NEWSTATION", out.get("orphanStations") or [])
+
     def test_it_DECIDES_nothing_and_calls_the_router(self):
         """★ Proven by SUBSTITUTION. If this computed a station of its own, the stub could not
         change what it reports — and the console would show a river the backend does not have,
