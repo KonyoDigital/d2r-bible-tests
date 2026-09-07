@@ -1712,8 +1712,12 @@ def _check_the_vault_proposal_still_clears_todays_bar():
         p = _os.environ.get("TV_VAULT_LEDGER") or _os.path.join(HERE, "vault_accum.json")
     if not _os.path.isfile(p):
         # ⚠ NO STORE IS NOT A CLEAN BILL AND NOT A FAULT. Nothing has been accumulated yet.
-        return OK, ("no vault proposal is stored, so there is nothing whose grading could have "
-                    "drifted — this is an empty queue, not a measured agreement")
+        # ⚠⚠ AND IT NAMES THE PATH IT LOOKED AT. Raised by the second eye: the control_app import
+        # above is wrapped in a bare except, so a broken import silently falls back to a DIFFERENT
+        # path — which is exactly the bug this row was just fixed for. "Nothing is stored" and
+        # "I looked in the wrong place" produce the same sentence unless the place is in it.
+        return OK, ("no vault proposal is stored at %s, so there is nothing whose grading could "
+                    "have drifted — an empty queue, not a measured agreement" % p)
     try:
         d = _json.load(_io.open(p, encoding="utf-8"))
     except Exception as e:
