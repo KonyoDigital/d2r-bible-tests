@@ -10967,6 +10967,67 @@ def _engine_driver():
 _EYE_WIRE_FRESH_MS = 300000
 
 
+def _second_eye_lane_state():
+    """Is a DIFFERENT model family available to look, on THIS machine? -> dict
+
+    ⚠⚠ THREE STATES WORE ONE RENDERING, and that is the whole defect. The wire carried
+    `eye={"live": false, "ageMs": N}` and nothing else, so on THE FLEET these were indistinguishable:
+        · no second family is INSTALLED here          (Dean — correct and expected)
+        · a second family is installed and IDLE       (Konyo, with the lane toggled off)
+        · a second family is installed, on, and FAILING
+    A dark dot for all three is a zero with no denominator. [[zero-needs-a-denominator]]
+
+    ⚠ `absent` IS A MEASUREMENT, NOT A FAILURE. Konyo's ruling stands: *"grok doesnt exist for
+    dean.. it all needs to be claude based.. default as if shadow is off toggled off"*. A machine
+    with no second family is CORRECT, and this says so out loud instead of showing a broken-looking
+    dark eye.
+
+    ⚠⚠ AND AVAILABILITY IS NOT A SECOND EYE. Whatever this returns, a same-family check can never
+    be banked as a cross-family look — `second_eye_ledger` refuses that on purpose, so a model
+    cannot certify its own work. Where no other family exists the honest state is an EMPTY SEAT,
+    said out loud. [[grok-second-eye]] [[feedback-silence-is-not-evidence]]
+    """
+    out = {"state": "unknown", "provider": None, "family": None, "why": ""}
+    try:
+        import g5_grok_eyes as _g5
+    except ImportError:
+        # the lane genuinely is not installed — that is a MEASURED absence, not a failed probe
+        out.update(state="absent", why="the optional second-family lane is not installed here")
+        return out
+    except Exception as exc:
+        out["why"] = ("the second-family lane could not be imported (%s), so whether one exists "
+                      "here is UNKNOWN — it is NOT 'none'" % type(exc).__name__)
+        return out
+    try:
+        st = _g5.status() or {}
+    except Exception as exc:
+        out["why"] = ("the second-family lane raised %s when asked, so its state is UNKNOWN"
+                      % type(exc).__name__)
+        return out
+    prov = "grok"
+    try:
+        import second_eye_ledger as _se
+        fam = _se.family_of(prov)
+    except Exception:
+        # ⚠ NO LOCAL FAMILY TABLE. A second copy here would be free to drift from the ledger that
+        # actually enforces the cross-family rule, and then the wire would name a family the
+        # ledger does not recognise. [[copy-drift]]
+        fam = None
+    out["provider"], out["family"] = prov, fam
+    if not st.get("cliInstalled") or not st.get("authorized"):
+        bits = []
+        if not st.get("cliInstalled"):
+            bits.append("the CLI is not installed")
+        if st.get("needsLogin"):
+            bits.append("nobody is signed in")
+        out.update(state="absent",
+                   why="; ".join(bits) or "the lane is present but not usable on this machine")
+        return out
+    out["state"] = "on" if st.get("on") else "off"
+    out["mode"] = st.get("mode")
+    return out
+
+
 def _eye_for_wire():
     """167 — counts only, for THE FLEET. {live, ageMs} or None.
 
@@ -10980,12 +11041,21 @@ def _eye_for_wire():
         return None
     if not isinstance(eyes, dict):
         return None
+    # ⚠ THE READER'S OWN IDENTITY, carried so a consumer never has to assume it. chronicle_hunt
+    # defaults to Claude (`lane = (page or {}).get("lane") or "claude"`), which is the behaviour
+    # his ruling asks for and is already true — this only puts it ON THE WIRE.
+    try:
+        import second_eye_ledger as _se
+        _pfam = _se.family_of("claude")
+    except Exception:
+        _pfam = None
+    _lane = {"provider": "claude", "family": _pfam, "second": _second_eye_lane_state()}
     live_ts = int(eyes.get("liveTs") or 0)
     if live_ts <= 0:
-        return {"live": False, "ageMs": None}
+        return dict(_lane, live=False, ageMs=None)
     age = int(time.time() * 1000) - live_ts
     if age < 0:
-        return {"live": False, "ageMs": None}
+        return dict(_lane, live=False, ageMs=None)
     # ⚠⚠ v2622 — THE WINDOW MUST BE WIDER THAN THE BEACON THAT CARRIES IT, AND IT WAS NOT.
     # This read `age < 6000`, mirroring the stall threshold the on-screen banner uses. But that
     # banner is repainted from a status poll every few seconds, while THIS value rides
@@ -10996,7 +11066,7 @@ def _eye_for_wire():
     # ⚠ `ageMs` is unchanged and still exact, so a consumer that wants the banner's own strictness
     # can apply it. What changes is only the verdict this WIRE is entitled to reach.
     # [[feedback-threshold-above-the-ceiling]] [[stale-reading]]
-    return {"live": age < _EYE_WIRE_FRESH_MS, "ageMs": age}
+    return dict(_lane, live=age < _EYE_WIRE_FRESH_MS, ageMs=age)
 
 
 def _eyes_pulse():
@@ -23972,7 +24042,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2765",
+        "ver": "v2766",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2765",
+  "ver": "v2766",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2765: The console cursor stopped depending on a fetch and now uses the boards own proven inline data URI, byte-identical. The MISSING wall prints each item qlvl in white where a real one exists: 296 of 392 unique rows. A qlvl of 0 is a sentinel meaning never recorded and renders nothing, and a set aggregate level is never borrowed by a piece.",
+  "note": "v2766: The beacon eye carried only live and ageMs, so a machine with no second model family, one that is idle, and one that is failing all drew the same dark nothing on THE FLEET. The wire now carries provider, family and a three-state second lane, and the card renders absence, rest and failure differently. Availability is never worded as a completed look.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

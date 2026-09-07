@@ -5526,6 +5526,12 @@
      clamp(13px, 1.0vw, 15px); there is deliberately nothing under it. A raw pixel value
      is how a scale stops being a scale. */
   .fleet-eye { flex: none; font-size: var(--fs-2xs); line-height: 1; }
+  /* v2766 — the three states are visibly different, not just different in a tooltip. Live is the
+     only one that earns full opacity; a dark eye is dimmed but PRESENT (it exists and is resting);
+     an absent lane is dimmer still and loses its colour entirely. */
+  .fleet-eye-live { opacity: 1; filter: saturate(1.15); }
+  .fleet-eye-dark { opacity: .42; filter: grayscale(1); }
+  .fleet-eye-two  { opacity: 1; filter: saturate(1.25); }
   /* v2428 — `nowrap` here was the thing the row could not shrink past. It stays OFF; the row
      wraps instead, and `margin-left:auto` still right-aligns the meta on whichever line it lands. */
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
@@ -20081,6 +20087,41 @@ function escC(s) {
              + 'about itself — its own report is as old as its last beacon.">'
              + '\u00b7 ' + lg.behind + ' behind</span>';
       };
+      /* ── v2766 — A DARK EYE AND AN ABSENT ONE STOPPED LOOKING IDENTICAL ────────────────
+         This rendered the glyph ONLY when `m.eye.live`, so three different machines drew the
+         same nothing:
+             · no second model family is INSTALLED there   (Dean — correct and expected)
+             · one is installed and IDLE                   (Konyo, lane toggled off)
+             · one is installed, on, and FAILING
+         Absence, rest and failure are not the same fact, and a card that draws them alike is a
+         zero with no denominator. The wire now carries `provider`, `family` and a three-state
+         `second`, and this spends it. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+         ⚠ AVAILABILITY IS NOT A SECOND EYE. A machine showing a second family here has a lane
+         that COULD look; it has not looked. Only `second_eye_ledger` records a look, and it
+         refuses same-family ones so a model cannot certify its own work. Nothing in this chip
+         may ever read as a filled seat. [[grok-second-eye]] */
+      var _fleetEye = function(e){
+        if (!e) return '';                    /* the pulse did not run — the field is omitted,
+                                                 and UNKNOWN draws nothing rather than a dot */
+        var prov = e.provider || 'the reader';
+        var age  = (e.ageMs == null) ? null : Math.round(e.ageMs / 60000);
+        var when = e.live ? 'reading now'
+                 : (age == null ? 'no frame yet this run' : 'last read ' + age + 'm ago');
+        var sec = e.second || {};
+        var stail;
+        if (sec.state === 'on')          stail = ' \u00b7 ' + (sec.provider || 'a second lane') + ' second lane ON';
+        else if (sec.state === 'off')    stail = ' \u00b7 ' + (sec.provider || 'a second lane') + ' available, toggled off';
+        else if (sec.state === 'absent') stail = ' \u00b7 no second model family on this machine'
+                                               + (sec.why ? ' (' + sec.why + ')' : '');
+        else                             stail = ' \u00b7 second lane UNKNOWN'
+                                               + (sec.why ? ' (' + sec.why + ')' : '');
+        var cls = 'fleet-eye' + (e.live ? ' fleet-eye-live' : ' fleet-eye-dark')
+                + (sec.state === 'on' ? ' fleet-eye-two' : '');
+        return '<span class="' + cls + '" title="' + escC(prov + ' \u00b7 ' + when + stail) + '">'
+             + '\uD83D\uDC41' + (sec.state === 'on' ? '\u00b2' : '') + '</span>';
+      };
+      window._fleetEye = _fleetEye;   /* exported so a gate can put all four states to it */
       var _row = function (m, online) {
         var nameFor = (m.nickname || '').trim() || m.machine || '?';
         var unpub = (_me && m.machine === _me && _pub && m.ver && m.ver !== _pub);
@@ -20169,7 +20210,7 @@ function escC(s) {
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
           + '<b>' + escC(nameFor) + '</b>'
-          + (m.eye && m.eye.live ? '<span class="fleet-eye" title="capture eye is live">\uD83D\uDC41</span>' : '')
+          + _fleetEye(m.eye)
           + '<span class="fleet-meta">' + meta + '</span>'
           + _tip(m) + '</div>';
       };

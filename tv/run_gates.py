@@ -608,6 +608,21 @@ GATES = [
              "D2IO_ART;` and node has no `window`, so the probe exited 1 and three laws reported "
              "nothing while looking like they ran. A skip is not a pass. 7 laws, 2 sabotages RED."),
 
+    Gate("test_the_eye_says_which_family_looked",
+         [sys.executable, os.path.join(HERE, "test_the_eye_says_which_family_looked.py")], 180,
+         why="A DARK EYE AND AN ABSENT ONE LOOKED IDENTICAL ON THE FLEET. The wire carried "
+             "eye={live, ageMs} and the card drew the glyph ONLY when live, so three machines drew "
+             "the same nothing: no second model family INSTALLED (Dean, correct and expected); one "
+             "installed and IDLE (Konyo, toggled off); one installed, on and FAILING. Absence, rest "
+             "and failure are not the same fact. ⚠ THE TASK WAS FIRST WRITTEN AS 'make the eye "
+             "provider-neutral' AND THAT WAS WRONG — chronicle_hunt already defaults to Claude "
+             "(`lane or \"claude\"`) with zero grok references, and G5 is a removable sidecar OFF "
+             "by default. Nothing was rebuilt; the gap was that none of it reached the WIRE. "
+             "⚠⚠ AVAILABILITY IS NOT A SECOND EYE: a lane that COULD look has not looked, only "
+             "second_eye_ledger records one, and it refuses same-family looks so a model cannot "
+             "certify its own work. A law forbids this chip ever wording itself as a completed "
+             "review. Proven RED by four sabotages.",
+         ),
     Gate("test_the_missing_wall_shows_the_qlvl",
          [sys.executable, os.path.join(HERE, "test_the_missing_wall_shows_the_qlvl.py")], 180,
          why="THE MISSING WALL PRINTS THE QLVL, AND REFUSES TO PRINT ONE IT DOES NOT HAVE. ⚠⚠ "

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2766** | `(this commit)` | v2766 — The beacon eye carried only live and ageMs, so a machine with no second model family, one that is idle, and one that is failing all drew the same dark nothing on THE FLEET. The wire now carries provider, family and a three-state second lane, and the card renders absence, rest and failure differently. Availability is never worded as a completed look. |
 | **v2765** | `(this commit)` | v2765 — The console cursor stopped depending on a fetch and now uses the boards own proven inline data URI, byte-identical. The MISSING wall prints each item qlvl in white where a real one exists: 296 of 392 unique rows. A qlvl of 0 is a sentinel meaning never recorded and renders nothing, and a set aggregate level is never borrowed by a piece. |
 | **v2764** | `(this commit)` | v2764 — ROUTED was unreachable because the only writer of a tombstone row lived inside the deleter, behind the arming lock. Being finished and being deleted were one event, so no reel could ever complete the waterfall. reel_route_lane closes a reel out WITHOUT removing it; the overlay in reel_router.route reads ACTOR rows only so the river cannot flap. EMPTY 6 to 0, ROUTED 0 to 6, TOMBSTONE stays 0 and the prune stays disarmed. |
 | **v2763** | `(this commit)` | v2763 — a week-old count stops living on the gameplay home, and the AI READS ticker renders on TV-D alone instead of on every screen |
