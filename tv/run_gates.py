@@ -585,6 +585,23 @@ GATES = [
              "witnessing nothing now scores EMPTY and is HELD while a genuine contributor still "
              "releases. Proven RED on 3 sabotages."),
 
+    Gate("test_the_shelf_shows_the_mouth",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_shows_the_mouth.py")], 120,
+         why="THE SHELF'S TOMBSTONE SECTION SAID 'never reached' OVER 410 COMPLETED JOURNEYS. The "
+             "river view prints every station including the empty ones, deliberately — but it "
+             "counts CARDS, and at TOMBSTONE that can only ever be 0 because a closed-out reel "
+             "LEAVES THE DISK and becomes a row in the retention ledger. MEASURED: 410 tombstoned, "
+             "5,768.1 MB reclaimed, overlap with the 40 living reels EXACTLY ZERO. ⚠⚠ AND THE CSS "
+             "WOULD HAVE PRINTED THE CONTRADICTION IN ONE LINE: .sh-riverempty appends "
+             "' · never reached' to any station with no cards, so the header read 'TOMBSTONE · "
+             "never reached · 410 closed out' — the false claim beside its own refutation. The "
+             "mouth now suppresses that ::after and is not dimmed, ONLY when the ledger actually "
+             "holds rows (the other direction of the same lie). null is not zero: 'ledger not read "
+             "yet' and an unreadable ledger each say so rather than rendering as none finished. "
+             "8 laws, 7 sabotages RED — two of which were VACUOUS on the first run: one asserted "
+             "against the raw file and matched its own explanatory comment (5th prose-trap today), "
+             "the other checked one of two TOMBSTONE scopes and survived on its twin."),
+
     Gate("test_the_river_has_a_mouth",
          [sys.executable, os.path.join(HERE, "test_the_river_has_a_mouth.py")], 180,
          why="I REPORTED THAT THE RIVER NEVER REACHED ITS END. IT HAS REACHED IT 410 TIMES. "

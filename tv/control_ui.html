@@ -4010,11 +4010,22 @@
      right to: a literal is a value nobody can re-theme. */
   .sh-daygroup.sh-rivergroup .shg-lab { color: var(--gold-hi); letter-spacing: var(--ls-wide); }
   .sh-daygroup.sh-rivergroup .shg-n { color: var(--gold-dim); font-variant-numeric: tabular-nums; }
-  /* an EMPTY station still prints, dimmed — ROUTED and TOMBSTONE are empty today and that is
-     precisely what he needs to see. A section that vanishes when empty hides the finding. */
+  /* an EMPTY station still prints, dimmed — a section that vanishes when empty hides the finding. */
   .sh-daygroup.sh-riverempty { opacity: .48; }
   .sh-daygroup.sh-riverempty .shg-lab::after { content: ' \00b7 never reached'; color: var(--gold-dim);
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-tight); }
+  /* ⚠⚠ EXCEPT AT THE MOUTH, WHERE "never reached" IS FALSE. This rule read
+     "ROUTED and TOMBSTONE are empty today and that is precisely what he needs to see" — and for
+     TOMBSTONE that is wrong. It holds no CARDS because a closed-out reel leaves the disk; the
+     ledger records 410 of them. Without this the header would print
+         TOMBSTONE · never reached · 410 closed out
+     — the false claim and its own refutation in one line. A section carrying a real terminus is
+     not empty and must not be dimmed like one. [[label-outlived-referent]] */
+  .sh-daygroup.sh-rivermouth { opacity: 1; }
+  .sh-daygroup.sh-rivermouth .shg-lab::after { content: none; }
+  .sh-daygroup.sh-rivergroup .shg-mouth { color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+  /* the ledger could not be read, or has not been read yet — never shown as "none finished" */
+  .sh-daygroup.sh-rivergroup .shg-mouth-unk { color: var(--warn, var(--gold-dim)); }
   /* UNKNOWN is its own state and must not read as an empty river */
   .sh-daygroup.sh-riverunknown .shg-lab { color: var(--warn, var(--gold-dim)); }
   /* v2746 — THE PER-REEL STAMP ON THE CARD. Konyo: "each reel their accoring stamps so they
@@ -14246,6 +14257,9 @@ window._lockMark = function(isOpen, px, label){
      ORDER from the backend. null means NOT YET ASKED, which is not the same as an empty river,
      and the header says which. [[unknown-stays-unknown]] */
   var SHELF_RIVER = null, SHELF_RIVER_ORDER = null, SHELF_RIVER_WHY = '';
+  /* THE MOUTH — reels that finished the journey and were closed out. `null` until /api/river has
+     answered, which is NOT the same as an empty ledger and must never render as "0 finished". */
+  var SHELF_MOUTH = null;
   function _shRiverLoad(then){
     fetch('/api/river', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
       if (!d || d.ok !== true){
@@ -14261,6 +14275,7 @@ window._lockMark = function(isOpen, px, label){
                      at: (hops.length ? hops[hops.length - 1].at : null), hops: hops.length };
         });
         SHELF_RIVER = m; SHELF_RIVER_ORDER = d.stations || null; SHELF_RIVER_WHY = '';
+        SHELF_MOUTH = d.mouth || null;
       }
       try { if (then) then(); } catch (e) {}
     }).catch(function(e){
@@ -14392,10 +14407,55 @@ window._lockMark = function(isOpen, px, label){
           if (r && r.at && r.at > newest) newest = r.at;
         });
         var h = document.createElement('div');
-        h.className = 'sh-daygroup sh-rivergroup' + (cs.length ? '' : ' sh-riverempty');
+        var _mouthHasRows = (String(st).toUpperCase() === 'TOMBSTONE')
+                            && SHELF_MOUTH && SHELF_MOUTH.ok !== false
+                            && typeof SHELF_MOUTH.n === 'number' && SHELF_MOUTH.n > 0;
+        h.className = 'sh-daygroup sh-rivergroup'
+                    + (cs.length ? '' : ' sh-riverempty')
+                    + (_mouthHasRows ? ' sh-rivermouth' : '');
+        /* ══ THE MOUTH — TOMBSTONE IS NOT EMPTY, IT IS ELSEWHERE ════════════════════════════
+           Konyo asked to see reels "eventually pruned and deleted in tombstone". This section
+           read "0 reels" and I reported to him that the river had never reached its end.
+
+           ⚠⚠ THAT WAS WRONG. MEASURED: the tombstone ledger holds 410 closed-out reels
+           reclaiming 5,768 MB, and the overlap between them and the 40 living reels is EXACTLY
+           ZERO — because a tombstoned reel LEAVES THE DISK. It stops being a card and becomes a
+           row. `cs.length` counts CARDS, so at this station it can only ever be 0, and rendering
+           that as the whole truth is how 410 finished journeys read as "nothing ever finished".
+
+           ⚠ SO THE COUNT HERE COMES FROM A DIFFERENT SOURCE AND SAYS SO. `SHELF_MOUTH` is the
+           retention ledger, not the router; the label names it, because two numbers from two
+           stores under one heading is exactly the confusion this whole view exists to end.
+           ⚠ null is NOT zero: until /api/river answers, this says so rather than claiming none. */
+        var isMouth = (String(st).toUpperCase() === 'TOMBSTONE');
+        var mouthBit = '';
+        if (isMouth){
+          if (SHELF_MOUTH === null){
+            mouthBit = ' \u00b7 <span class="shg-mouth shg-mouth-unk">ledger not read yet</span>';
+          } else if (SHELF_MOUTH && SHELF_MOUTH.ok === false){
+            mouthBit = ' \u00b7 <span class="shg-mouth shg-mouth-unk">'
+                     + esc(String(SHELF_MOUTH.why || 'the ledger could not be read')) + '</span>';
+          } else if (SHELF_MOUTH && typeof SHELF_MOUTH.n === 'number'){
+            /* ⚠ COMPACT BECAUSE IT WAS MEASURED, NOT BECAUSE IT LOOKS TIDIER. At 5768.1 MB the
+               phrase "410 closed out · 5768.1 MB reclaimed" wrapped the section header to TWO
+               lines at 1440/1120/901 and FOUR at 700, in a row where every other station is one
+               line. Nothing overflowed and nothing clipped — it simply looked wrong, which is the
+               one defect class a rect cannot report. GB drops it to a single line everywhere.
+               [[visual-regression-detector]] */
+            var _mbn = SHELF_MOUTH.mb;
+            var mb = (typeof _mbn === 'number')
+                   ? (' \u00b7 ' + (_mbn >= 1024 ? (Math.round(_mbn / 102.4) / 10) + ' GB'
+                                                  : Math.round(_mbn) + ' MB') + ' freed')
+                   : '';
+            /* an undated row cannot be placed in the river's order — say so rather than omit it */
+            var und = (SHELF_MOUTH.undated ? (' \u00b7 ' + SHELF_MOUTH.undated + ' undated') : '');
+            mouthBit = ' \u00b7 <span class="shg-mouth">' + SHELF_MOUTH.n + ' closed out'
+                     + esc(mb + und) + '</span>';
+          }
+        }
         h.innerHTML = '<span class="shg-lab">' + esc(st) + '</span>'
           + '<span class="shg-n">' + cs.length + ' reel' + (cs.length === 1 ? '' : 's')
-          + (newest ? ' \u00b7 ' + esc(_ago(newest)) : '') + '</span>';
+          + (newest ? ' \u00b7 ' + esc(_ago(newest)) : '') + mouthBit + '</span>';
         if (cs.length) { grid.insertBefore(h, cs[0]); }
         else if (anchor) { grid.insertBefore(h, anchor); }
         else { grid.appendChild(h); }
