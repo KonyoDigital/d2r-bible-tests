@@ -684,6 +684,21 @@ GATES = [
              "here'. That is the point: an unexercised route must never read OK, which is this "
              "repo's most repeated way of shipping a blind gate.",
          ),
+    Gate("test_a_populated_world_survives_a_lost_claim",
+         [sys.executable, os.path.join(HERE, "test_a_populated_world_survives_a_lost_claim.py")], 120,
+         why="HE THOUGHT HIS CHRONICLE HAD BEEN DELETED. On 2026-09-08 his own console window read "
+             "0/403 found and offered only \"Claim it to make this browser your board — it imports "
+             "nothing\". Nothing was deleted: 169 owned / 429 foundLog / 125 setPieces / 99 rwMade "
+             "were in the bare keys the whole time. Ownership is `claim === _D2R_INSTALL`, and "
+             "`_D2R_INSTALL` MINTS A NEW ID when both id keys are missing — one eviction and a "
+             "populated board renders as an empty stranger's world. His store held THREE ids and "
+             "three empty guest worlds. A mismatched claim is now a QUESTION (does this browser "
+             "already hold a world?) rather than a verdict, and the recovery re-pins to '*' so an id "
+             "re-mint cannot hide it again. ⛔ THE LAW THAT MATTERS MOST is that an EMPTY world with "
+             "a stale claim stays a GUEST — a guest writes only under `I·<id8>·`, so bare keys prove "
+             "prior ownership and the fix can never hand one ledger to another. The decision is "
+             "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
+         ),
     Gate("test_the_console_notices_its_own_runaway",
          [sys.executable, os.path.join(HERE, "test_the_console_notices_its_own_runaway.py")], 120,
          why="REG-699 — HIS CONSOLE BURNED A CORE FOR TWO HOURS AND NOTHING NOTICED BUT HIM. The "

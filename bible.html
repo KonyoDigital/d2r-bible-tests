@@ -3899,7 +3899,66 @@ window._D2R_OWNER = (function(){
   try {
     var claim = window.localStorage.getItem('d2r_ownerClaim');
     if (claim === '*') return true;                    // documented rollback escape hatch (section 4)
-    if (claim) return !!window._D2R_INSTALL && claim === window._D2R_INSTALL;
+    if (claim) {
+      if (window._D2R_INSTALL && claim === window._D2R_INSTALL) return true;
+      /* ⚠⚠ v2776 — A POPULATED WORLD MUST NEVER BE HIDDEN BY A CLAIM THAT STOPPED MATCHING.
+         KONYO, 2026-09-08, on his own console window: "suddently my profile is missing", then
+         "all vault items and my chronicles deleted". The board showed 0 / 403 found and offered
+         only "Claim it to make this browser your board — it imports nothing." NOTHING was deleted:
+         his 169 owned / 429 foundLog / 125 setPieces / 99 rwMade were in the bare keys the whole
+         time, and the server's fleet card still read 300/403 beside the empty screen.
+
+         THE CAUSE. This claim is pinned to `_D2R_INSTALL`, and `_D2R_INSTALL` MINTS A NEW ID
+         whenever `d2r_installId` and `d2r_installIdCache` are both missing — an eviction, a killed
+         app, a WebKit write that never flushed. One loss and the claim no longer matches, this
+         line returned false, and a populated board rendered as an empty stranger's world.
+         MEASURED in his store: THREE ids over its life (c5c2c92d, 77f64154, e07a5fe1) and three
+         guest worlds beside his real one. It had happened at least twice before he noticed.
+
+         ⇒ SO A MISMATCHED CLAIM IS NOT A VERDICT, IT IS A QUESTION: does this browser already hold
+         a world? Only a browser that was ONCE the owner can have written bare `d2r_owned` /
+         `d2r_foundLog`, because every guest writes under `I·<id8>·`. If those carry entries, this
+         IS his browser and the id simply moved underneath it.
+
+         ⛔ IT CANNOT LEAK ANOTHER LEDGER TO A STRANGER, and that is the property to keep when
+         editing this. Dean's browser has NO bare keys — a guest has only prefixed ones — so the
+         branch cannot fire there. It recovers a world this browser already wrote; it never
+         imports, inherits or seeds one. [[d2r-board-real-localstorage]]
+
+         ⚠ AND IT RE-PINS TO '*', NOT TO THE CURRENT ID. Re-pinning to `_D2R_INSTALL` would restore
+         him today and break him again on the next re-mint — the same trap, re-armed. '*' is the
+         documented escape hatch above and is immune to id churn. Once is enough. */
+      try {
+        var _hasWorld = 0;
+        var _probe = ['d2r_owned', 'd2r_foundLog', 'd2r_setPieces', 'd2r_rwMade'];
+        for (var _i = 0; _i < _probe.length; _i++) {
+          var _raw = null;
+          try { _raw = window.localStorage.getItem(_probe[_i]); } catch(e){}
+          if (!_raw) continue;
+          try {
+            var _p = JSON.parse(_raw);
+            var _n = (_p && _p.length != null) ? _p.length
+                   : (_p && typeof _p === 'object') ? Object.keys(_p).length : 0;
+            if (_n > 0) _hasWorld += _n;
+          } catch(e){}
+        }
+        if (_hasWorld > 0) {
+          /* SAY SO. A silent recovery is how nobody learns the id churned. */
+          try {
+            window.__d2rClaimRecovered = { was: claim, install: window._D2R_INSTALL || null,
+                                           entries: _hasWorld, at: Date.now() };
+            window.localStorage.setItem('d2r_ownerClaim', '*');
+          } catch(e){}
+          try {
+            console.warn('[d2r] owner claim no longer matched this install id, but this browser '
+                       + 'already holds a world of ' + _hasWorld + ' entries — recovering it and '
+                       + 're-pinning the claim to "*" so an id re-mint cannot hide it again.');
+          } catch(e){}
+          return true;
+        }
+      } catch(e){}
+      return false;
+    }
     // AUTOMATION ONLY. An automated browser on a file:// copy is the test suite: 105 spec files
     // address the BARE keys, and Playwright cannot seed a claim into a file:// origin
     // (storageState refuses that origin outright — measured, not assumed). Both conditions are
@@ -49743,7 +49802,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2775', name:'v2775 - the fleet comes back to sessions and the console watches itself', date:'2026-09-08', note:'his ruling put THE FLEET back in the sessions rail under ON AIR and MINI while the eyes and lamps stay on TV-D, and REG-699 gains a watchdog that times itself and dumps every thread stack when a thread spins while holding the lock the status path needs' };
+  window.D2R_BUILD = { id:'v2776', name:'v2776 - a populated world survives a lost claim', date:'2026-09-08', note:'his own console read 0 of 403 and offered only a claim button while 429 finds sat in the bare keys the whole time; a mismatched claim is now a question rather than a verdict, and the recovery re-pins to star so an install id re-mint can never hide his board again' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
