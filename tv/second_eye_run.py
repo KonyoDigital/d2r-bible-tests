@@ -125,17 +125,38 @@ def payload_for(sha):
     if out is None:
         return None, why
     body = _strip_comments(out)
+    _full_len_holder = [body]
     if len(body) < MAX_FENCE_CHARS:
         _more, _ = _sh(["git", "show", "--format=", "--unified=3", sha, "--", "*.html"],
                        timeout=90)
         if _more:
             body = body + "\n" + _strip_comments(_more)
+    _full_len_holder = [body]
     dropped = ""
     if len(body) > MAX_FENCE_CHARS:
-        dropped = ("truncated to %d of %d diff chars — the eye saw the first part only"
-                   % (MAX_FENCE_CHARS, len(body)))
-        body = body[:MAX_FENCE_CHARS]
-    return COLD_FRAMING + "\n```diff\n" + body + "\n```\n", dropped
+        # ⚠⚠ CUT ON A LINE BOUNDARY, AND SAY SO IN THE PROMPT — because a mid-statement cut
+        # MANUFACTURES FINDINGS. Measured on v2803: the payload ended at exactly `+    return `
+        # and the eye returned TWO high-severity defects — "gate_files() returns None on every
+        # execution", "the documented contract is violated" — reasoning correctly about a
+        # function whose last two characters my own cap had removed. The real line is
+        # `return out` and it returns 247 gates.
+        #
+        # The record already declared the truncation, which is the only reason it was caught. But
+        # a declaration in the LEDGER does not help the EYE: it was never told, so it treated an
+        # artefact of the transport as a defect in the code. An instrument that fabricates
+        # findings costs more than one that finds nothing, because each false one has to be
+        # chased down and refuted by hand. [[feedback-suspect-the-instrument]]
+        cut = body.rfind("\n", 0, MAX_FENCE_CHARS)
+        body = body[:cut if cut > 0 else MAX_FENCE_CHARS]
+        dropped = ("truncated to %d of %d diff chars at a line boundary — the eye saw the first "
+                   "part only" % (len(body), len(_full_len_holder[0])))
+    note = ""
+    if dropped:
+        note = ("\nNOTE: this diff is TRUNCATED — it ends mid-file at a line boundary. Do not "
+                "report a function, statement or block as incomplete, unterminated or missing a "
+                "return merely because the excerpt stops before it does. Judge only what is "
+                "fully shown.\n")
+    return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped
 
 
 def ask(prompt):

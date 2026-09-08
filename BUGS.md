@@ -24431,6 +24431,62 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-740 — the second-eye handoff manufactured two high-severity findings
+
+Not a defect in the console. A defect in the **instrument that reviews the console**, which is worse
+in one specific way: a tool that finds nothing costs a look, and a tool that invents findings costs a
+look plus the hours spent chasing each invention.
+
+**What happened.** `second_eye_run.py` caps the payload at 9,000 characters and cut v2803's diff at
+exactly:
+
+```
++            out.append((getattr(g, "name", fn), fn))
++    return 
+```
+
+The real line is `return out`. The cap removed its last two characters, mid-statement, and the eye
+came back with two findings ranked **high**:
+
+> *"gate_files() returns None instead of [(name, filename), …]. Any subsequent code fails with
+> TypeError or silent wrong results. The documented contract is violated on every execution."*
+
+It reasoned correctly about what it was shown. Measured against the real tree:
+
+```
+gate_files() -> list, len=247
+```
+
+**Both refuted in one command.** The truncation WAS declared in the ledger row — that declaration is
+the only reason it was caught rather than acted on. But a note in the LEDGER does not reach the EYE:
+it was never told the diff was cut, so it treated an artefact of the transport as a defect in the
+code.
+
+**Two fixes, and the second matters more than the first:**
+
+1. The cut now lands on a **line boundary**, so no statement is ever severed mid-token.
+2. The prompt now **says so**: *"this diff is TRUNCATED — it ends mid-file at a line boundary. Do
+   not report a function, statement or block as incomplete, unterminated or missing a return merely
+   because the excerpt stops before it does. Judge only what is fully shown."*
+
+**Measured before and after, same eye, same code:**
+
+| payload | verdict |
+|---|---|
+| cut mid-statement, no warning | 2 findings ranked HIGH, both false |
+| cut on a line boundary, warning present | *"The provided diff is correct. No concrete defects identified in the fully shown code."* |
+
+★ **The general shape, and it is the one worth carrying.** Every instrument in this tree is judged on
+whether it can go red. This one could go red **for a reason that was not in the code at all** — and
+nothing about the output distinguished that from a real finding. Severity, confidence and specificity
+were all indistinguishable from the genuine v2802 review that found the discarded `_late`
+diagnostic. The only thing that separated them was going and measuring.
+
+Recorded in the v2803 ledger row alongside the clean verdict, so the refutations survive with the
+look rather than only in this file. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+
+---
+
 ## REG-739 — Heart 2.0 shipped with three blind instruments of its own
 
 A cross-family review of the pushed `ec7c28d8..a1b86391` returned 15 findings. The layer built to
