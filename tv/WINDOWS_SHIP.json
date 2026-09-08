@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2790",
+  "ver": "v2791",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2790: thOpen awaits thLoadSession, which opened the reel route with no abort, no timeout and no catch, while the route eleven lines above it has carried all three since v2228. Live eyes refuted the shelf bug on his console, so this is a latent hazard fixed on its merits rather than a repair of a live fault. The law is narrow on purpose: 71 awaited fetches in the file, and only this chain leaves a black stage when it hangs.",
+  "note": "v2791: v2746 already grouped the shelf cards under river sections in the backend order, but it was gated behind a sort mode whose default was newest, so every open gave him a flat list while the strip above described a flow the cards did not show. The river is the landing view now, and the branch that reported an unread river actually asks for it once, because the only caller before was the menu he was no longer using.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -14777,7 +14777,7 @@ window._lockMark = function(isOpen, px, label){
      worst possible failure for a thing whose whole promise is "every recorded run".
      [[unknown-stays-unknown]] */
   var SHELF_F = { grail: false, verdict: null, day: null, pin: false, ghosts: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
-  var SHELF_S = 'newest';   // v1284 (D11) — the shelf sort key, preserved too
+  var SHELF_S = 'river';   // v1284 (D11) — the shelf sort key, preserved too
   /* v2746 — the river as the shelf sees it: {n -> {station, why, at, hops}} plus the station
      ORDER from the backend. null means NOT YET ASKED, which is not the same as an empty river,
      and the header says which. [[unknown-stays-unknown]] */
@@ -14871,7 +14871,11 @@ window._lockMark = function(isOpen, px, label){
        [[zero-needs-a-denominator]] */
     if ((SHELF_S || 'newest') === 'river'){
       if (SHELF_RIVER === false || SHELF_RIVER === null){
-        mkHead('🌊 River \u2014 ' + (SHELF_RIVER === null ? 'not read yet' : esc(SHELF_RIVER_WHY)),
+        if (SHELF_RIVER === null && !window.__shRiverAsked){
+          window.__shRiverAsked = 1;
+          try { _shRiverLoad(_shSort); } catch (_e) {}
+        }
+        mkHead('🌊 River \u2014 ' + (SHELF_RIVER === null ? 'reading the river…' : esc(SHELF_RIVER_WHY)),
                vis.length, vis[0], ' sh-rivergroup sh-riverunknown');
         return;
       }

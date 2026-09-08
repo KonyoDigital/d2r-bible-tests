@@ -24872,7 +24872,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2790",
+        "ver": "v2791",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -27049,17 +27049,43 @@ class Handler(BaseHTTPRequestHandler):
                     import river_lanes as _RL
                     _lr = _RL.lanes()
                     if _lr.get("ok"):
-                        # ⚠ COUNTS AND THE LANE'S OWN SENTENCE ONLY — never the reel arrays. The
+                        # ⚠ COUNTS AND THE LANE'S OWN SENTENCE — never the reel RECORDS. The
                         # shelf already has the sessions; shipping 40 reel records again would
                         # double the payload for a strip that draws four numbers.
+                        #
+                        # ⚠⚠ v2791 — BUT IT NOW SHIPS THE REEL IDS, AND THAT IS NOT THE SAME THING.
+                        # Konyo: *"all the reels on the bottom rendering need to be inside those
+                        # same sections.. not outside of them."* The cards cannot be put inside
+                        # their lanes unless the page is told WHICH reels are in WHICH lane, and
+                        # the strip's counts alone cannot answer that.
+                        #
+                        # A record carries reel + station + why + owes; an ID is one short string.
+                        # MEASURED on his store: 40 reels across the four lanes, ~1.6 KB of ids.
+                        # That is the middle the original note did not consider — it refused the
+                        # records, correctly, and the ids were never the expensive part.
+                        #
+                        # ⚠ STILL CAPPED. If the river ever grows to thousands, this must not
+                        # quietly become the bulk payload the note above forbids: over the cap the
+                        # ids are dropped and `idsCapped` says so, rather than a lane silently
+                        # rendering a subset as if it were the whole.
+                        _RIVER_ID_CAP = 600
+                        _lane_rows = []
+                        _capped = False
+                        for l in (_lr.get("lanes") or []):
+                            _ids = [str((x or {}).get("reel") or "")
+                                    for x in (l.get("reels") or []) if (x or {}).get("reel")]
+                            if len(_ids) > _RIVER_ID_CAP:
+                                _ids, _capped = [], True
+                            _lane_rows.append({"name": l["name"], "why": l["why"],
+                                               "stations": l["stations"], "count": l["count"],
+                                               "byStation": l["byStation"],
+                                               "reelIds": _ids})
                         _lanes = {"ok": True,
                                   "reconciles": _lr.get("reconciles"),
                                   "shelf": _lr.get("shelf"),
                                   "unknown": _lr.get("unknown"),
-                                  "lanes": [{"name": l["name"], "why": l["why"],
-                                             "stations": l["stations"], "count": l["count"],
-                                             "byStation": l["byStation"]}
-                                            for l in _lr.get("lanes") or []]}
+                                  "idsCapped": _capped,
+                                  "lanes": _lane_rows}
                     else:
                         # ⚠ A REFUSAL TRAVELS AS A REFUSAL. ok:False with its reason, never an
                         # empty list that a renderer would draw as four zeroes.

@@ -715,6 +715,24 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_shelf_lands_on_the_river",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_lands_on_the_river.py")], 120,
+         why="THE RIVER SECTIONS WERE BUILT AND HE COULD ONLY REACH THEM THROUGH A DROPDOWN. His "
+             "words: \"all the reels on the bottom rendering need to be inside those same "
+             "sections.. not outside of them\". v2746 had ALREADY built exactly that — cards "
+             "grouped under river sections, in the backend's order, empty stations printed dimmed "
+             "— from the FIRST time he asked. It was gated behind SHELF_S === 'river', a sort "
+             "mode, and the default was 'newest', so every open gave him a flat list while the "
+             "river strip above it described a flow the cards did not show. A feature behind a "
+             "control he has to find is a feature he does not have. ⚠⚠ AND FLIPPING THE DEFAULT "
+             "ALONE WOULD HAVE BROKEN IT: the river-unknown branch printed \"not read yet\" and "
+             "RETURNED, and the only caller of _shRiverLoad was the sort menu's own change "
+             "handler — so with river as the default and nobody picking it, SHELF_RIVER stays null "
+             "forever and he lands on that sentence on every open. The branch now asks, ONCE "
+             "(_shSort runs on every render, filter and pin). ⛔ Newest is still one click away, "
+             "the section order still comes from the backend's stations rather than a second list, "
+             "and an empty station is still printed rather than vanishing.",
+         ),
     Gate("test_the_theatre_open_chain_cannot_hang",
          [sys.executable, os.path.join(HERE, "test_the_theatre_open_chain_cannot_hang.py")], 120,
          why="v2228 BOUNDED ONE FETCH AND ITS SIBLING ELEVEN LINES AWAY WAS NEVER SWEPT. thOpen "

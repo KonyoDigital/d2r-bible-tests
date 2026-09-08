@@ -23328,6 +23328,58 @@ Gate: 4 new laws in `test_the_pixels_earn_the_right_to_act.py` (14 total). 4 sab
 exactly one law — disabling the cooldown guard, shrinking it to 10s, restoring the per-tick journal
 row, and dropping the `abs()`.
 
+## REG-714 — the river sections were built, and he could only reach them through a dropdown
+
+**2026-09-08 · v2791 · `tv/control_ui.html`, `tv/control_app.py` · task #35**
+
+His words: *"all the reels on the bottom rendering need to be inside those same sections.. not
+outside of them .. they need to be clickable and routable and rendering those same organized reels
+down on the bottom."*
+
+**⚠⚠ IT ALREADY EXISTED, AND THAT IS THE FINDING.** v2746 built exactly this — cards grouped under
+river sections, in the BACKEND'S order, empty stations printed dimmed rather than vanishing — from
+his words the **first** time he asked: *"THE SHELF should be synced with the backend river route …
+going down sections structured based on the title"*. It was gated behind `SHELF_S === 'river'`, a
+sort mode, and the default was `'newest'`. So every time he opened THE SHELF he got a flat list,
+while the river strip sat above it describing a flow the cards below did not show.
+
+**A feature behind a control he has to find is a feature he does not have.** He asked twice; the
+second ask was for the default. [[the-unjoined-end]] [[workflow-topology]] (recon before building —
+I was one step from rebuilding a working feature beside itself)
+
+**⚠⚠ AND FLIPPING THE DEFAULT ALONE WOULD HAVE BROKEN IT.** The river-unknown branch printed
+"River — not read yet" and **returned**. The only caller of `_shRiverLoad` was the sort menu's own
+change handler — so with `river` as the default and nobody picking it, `SHELF_RIVER` stays `null`
+forever and he lands on that sentence on **every open**. A null that never resolves because nothing
+asks. The branch now asks, and asks **once**: `_shSort` runs on every render, filter and pin, so an
+unguarded fetch there would hammer `/api/river` for the life of the panel. [[plumbing-with-no-tap]]
+
+**Also shipped: the lanes now carry their reel IDS.** `/api/river`'s lane payload deliberately
+shipped counts only — *"never the reel arrays; the shelf already has the sessions"* — which is
+correct about **records** and was blocking the join. A record carries `reel + station + why + owes`;
+an id is one short string. Measured on his store: **40 reels, 1,247 bytes**. Capped at 600 ids with
+`idsCapped` published, so this can never quietly become the bulk payload that note forbids.
+
+**⚠ WHAT THE MEASUREMENT SAID ABOUT "ALL THE REELS", because the numbers change the shape:**
+
+| | |
+|---|---|
+| reels in the four river lanes | **40** |
+| sessions on the shelf | **442** |
+| shelf sessions that ARE in a lane | **24** |
+| shelf sessions with no lane | **418** |
+| lane reels with no shelf card | **29** |
+
+The river only holds reels the router has surveyed; the shelf lists every journalled session. So a
+literal "put all 442 inside the four lanes" would have shown him **24 cards where 442 used to be**,
+with the lane headers still claiming 40 — the silent-drop this surface's own code refuses:
+*"a view that quietly drops a reel is the whole reason the router returns a report rather than a
+list."* The station grouping v2746 already uses covers every card, including the unstamped, which is
+why it is the right vehicle and a four-lane regroup was not.
+
+Gate: `test_the_shelf_lands_on_the_river.py`, 6 laws. 3 sabotages — reverting the default reds the
+landing law, removing the ask reds the resolve law, dropping the once-guard reds the pacing law.
+
 ## REG-713 — v2228 bounded one fetch; its sibling eleven lines away was never swept
 
 **2026-09-08 · v2790 · `tv/control_ui.html`**
