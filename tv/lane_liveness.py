@@ -56,10 +56,57 @@ STALE_SLACK = 3.0
 FLOWING = "FLOWING"      # ticked within its own declared period
 LATE = "LATE"            # ticked, but longer ago than its period allows
 UNTIMED = "UNTIMED"      # ticked, and it declares no period — age known, staleness not decidable
-UNKNOWN = "UNKNOWN"      # never ticked. NOT "dead": it may be switched off, or never started
+UNKNOWN = "UNKNOWN"      # never ticked, and NOBODY KNOWS WHY — the honest floor
+DORMANT = "DORMANT"      # never ticked, and the reason is KNOWN and by design
 
 _LOCK = threading.Lock()
 _TICKS = {}
+#: lanes that are deliberately not running, and the reason. A lane declares itself here rather
+#: than leaving a reader to infer it.
+_DORMANT = {}
+
+
+def dormant(lane, why):
+    """Declare that `lane` is deliberately not ticking, and say why. -> None
+
+    ⚠⚠ WHY THIS IS NOT JUST A NICER WORD FOR UNKNOWN. Measured on his console 2026-09-08: three of
+    the eight DARK supervisors reported `live: UNKNOWN, tickAgeS: None`, which reads as "nobody can
+    tell whether this is alive". The truth was three DIFFERENT and entirely knowable facts:
+
+        _mini_watchdog      EPISODIC — spawned per MINI session with (token, ends_ts); no session
+                            has run since boot, so its absence is correct
+        _orphan_watch       ANOTHER PROCESS — started inside the board window, so its stamps can
+                            never reach this reader however healthy it is
+        _orphan_exit_loop   DECLINED BY DESIGN — `if not ppid: return` before its first tick,
+                            because his primary console has no TV_PARENT_PID and must never
+                            self-exit
+
+    Reported as one word, all three send a reader looking for a fault that is not there — and,
+    worse, they make a REAL failure invisible: if `_orphan_exit_loop` ever declines on a scratch
+    console that DOES have a parent, that is a genuine defect and it currently renders identically
+    to the healthy case. Collapsing a known reason into UNKNOWN is the mirror of reporting an
+    unmeasured thing as zero, and it costs the same way.
+
+    This is the same split v2610 made one level up, where DARK stopped meaning both "nothing
+    watches this worker" and "nothing watches the watchman".
+    [[unknown-stays-unknown]] [[label-outlived-referent]]
+    """
+    lane = str(lane or "").strip()
+    if not lane:
+        raise ValueError("dormant() needs a lane name")
+    why = str(why or "").strip()
+    if not why:
+        # a reason-less dormancy IS an unknown, and must not be dressed as a decision
+        raise ValueError("dormant(%r) needs a REASON — without one this is UNKNOWN wearing a "
+                         "calmer word, which is the defect it exists to fix" % lane)
+    with _LOCK:
+        _DORMANT[lane] = why
+
+
+def waking(lane):
+    """A lane that was dormant has started. Called by whatever spawns it."""
+    with _LOCK:
+        _DORMANT.pop(str(lane or "").strip(), None)
 
 
 def tick(lane, every_s=None):
@@ -101,6 +148,14 @@ def _row(lane, row, now):
            # computed" cannot render identically.
            "boundS": (None if every is None else round(every * STALE_SLACK, 1))}
     if age is None:
+        with _LOCK:
+            _why = _DORMANT.get(lane)
+        if _why:
+            out["state"] = DORMANT
+            out["why"] = ("it has never stamped a tick, and that is BY DESIGN: %s. A known reason "
+                          "is not an unknown - and keeping them apart is what lets a lane that "
+                          "declines when it should NOT be declining still be visible." % _why)
+            return out
         out["state"] = UNKNOWN
         out["why"] = ("this lane has never stamped a tick. That is not the same as dead - it may "
                       "be switched off, or the console may never have started it. Nobody looked.")
@@ -126,6 +181,13 @@ def rows(now=None):
     now = time.monotonic() if now is None else now
     with _LOCK:
         snapshot = dict((k, dict(v)) for k, v in _TICKS.items())
+        # ⚠ A DECLARED-DORMANT LANE MUST HAVE A ROW, or `dormant()` is plumbing with no tap: the
+        # declaration would be recorded and no reader could ever see it, which is this repo's most
+        # repeated defect and the reason a lane that declines when it SHOULD be running would stay
+        # invisible. A dormant lane has never ticked, so it has no entry in _TICKS and would
+        # otherwise vanish from every report. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        for _lane in _DORMANT:
+            snapshot.setdefault(_lane, {"ticks": 0, "everyS": None, "last": None})
     return [_row(k, snapshot[k], now) for k in sorted(snapshot)]
 
 
@@ -137,7 +199,7 @@ def report(now=None):
     """
     rs = rows(now=now)
     counts = {"total": len(rs)}
-    for st in (FLOWING, LATE, UNTIMED, UNKNOWN):
+    for st in (FLOWING, LATE, UNTIMED, DORMANT, UNKNOWN):
         counts[st.lower()] = len([r for r in rs if r["state"] == st])
     if not rs:
         why = ("no lane has stamped a tick, so nothing is known about any of them. This is what a "

@@ -24431,6 +24431,77 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-742 — the eight dark supervisors, measured: one was a reporting defect, none was broken
+
+**Asked to fix the 8 DARK supervisors. Measured them first, and the honest answer is that no
+supervisor is broken.** What was broken is how three of them were described.
+
+### What the eight actually are
+
+```
+loop                  supervises  live      tickAgeS
+_bridge_prober            yes     UNTIMED      0.7
+_console_beacon_loop      yes     FLOWING    157.8
+_console_rescue_loop      yes     FLOWING      9.4
+_engine_driver             no     UNTIMED      1.6
+_kai_closer_loop           no     UNTIMED     15.3
+_mini_watchdog            yes     UNKNOWN     None      <- the three that could not be read
+_orphan_exit_loop         yes     UNKNOWN     None
+_orphan_watch             yes     UNKNOWN     None
+```
+
+The stamp store itself: **17 lanes, 14 FLOWING, 3 UNTIMED, 0 LATE, 0 UNKNOWN.** Every lane that
+reports is healthy.
+
+★ **DARK does not mean broken.** heart.py already says so, in a v2610 comment that split the word:
+six of the eight are the supervisors themselves, and *"every supervision tree has an unsupervised
+root — that is structural rather than an oversight"*. Five of the eight are stamping normally and
+their DARK is that structural fact, not a fault.
+
+### The three that read UNKNOWN, and why each is correct
+
+| lane | measured cause |
+|---|---|
+| `_mini_watchdog` | **EPISODIC** — `threading.Thread(target=_mini_watchdog, args=(token, ends))`, spawned per MINI session and alive only for it. No session had run since boot. |
+| `_orphan_watch` | **ANOTHER PROCESS** — started at control_app.py:29358 inside the board window. Its stamps go to that process's store and can never reach this reader, however healthy it is. |
+| `_orphan_exit_loop` | **DECLINES BY DESIGN** — `ppid = _orphan_watch_pid(); if not ppid: return`, before its first tick. His primary console never has a `TV_PARENT_PID`, and a console nobody claimed must never self-exit. |
+
+**So the defect is the reporting, not the loops.** Three different, entirely knowable facts rendered
+as one word that means "nobody looked".
+
+⚠⚠ **AND THE COST IS NOT ONLY A VAGUE REPORT — IT HIDES THE ONE CASE THAT IS A FAULT.** A scratch
+console started *with* `TV_PARENT_PID` that still declines at that `return` is a genuine defect, and
+today it renders identically to the healthy primary-console case. An UNKNOWN that swallows a known
+reason costs exactly what a zero with no denominator costs. [[unknown-stays-unknown]]
+
+### The fix
+
+`lane_liveness` gains **DORMANT**: never ticked, and the reason is known and by design. Four
+properties, each guarded:
+
+- a dormancy **with no reason is refused** — that would be UNKNOWN wearing a calmer word;
+- a declared lane **must produce a row**, or the declaration is recorded where no reader can see it;
+- **a lane that ticks is never reported dormant** — a declaration must never outrank a measurement;
+- **UNKNOWN survives** for the genuinely unexplained, or the split would be a downgrade.
+
+Each lane declares itself at its own site: `_orphan_exit_loop` on its decline path (a runtime fact),
+the other two at roster build (structural facts), and `mini_start` calls `waking()` when it spawns
+the watchdog.
+
+### What was deliberately NOT done
+
+**The three UNTIMED lanes were left alone.** `_bridge_prober`, `_engine_driver` and
+`_kai_closer_loop` declare no period because their sleeps are computed or branch — `_engine_driver`
+has four. lane_liveness's own docstring names that case and calls UNTIMED *"a third answer and not a
+soft version of either other one"*. Declaring a period they do not have would have manufactured
+false LATEs on healthy lanes — the mirror of the defect this whole layer exists to prevent, and the
+tempting wrong fix for this task. [[feedback-threshold-above-the-ceiling]]
+
+**Gate 249** `test_a_lane_that_declines_says_why`, proven red: dropping one declaration returns that
+lane to the undifferentiated UNKNOWN it came from.
+
+---
+
 ## REG-741 — the river strip was never photographed, and the reason was two unexported openers
 
 THE SURFACE. `#sh-lanes` is the strip he reads before deleting footage — INTAKE → … → TOMBSTONE

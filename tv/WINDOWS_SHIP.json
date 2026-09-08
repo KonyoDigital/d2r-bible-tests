@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2805",
+  "ver": "v2806",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2805: The river strip had never been photographed and the reason was a layout fact hiding behind a scripting symptom. thShelf opened the overlay correctly and every lane rect measured zero by zero at every width, because the shelf lives inside the theatre and the theatre is hidden on a fresh console. thOpen was unexported for exactly the same reason thShelf was, so v2804 fixed half a chain. Both exported now, activate proven true at 1440 and 901 and 375 over CDP, and the real harness paints 14 of 14 at every width with no clipping.",
+  "note": "v2806: Asked to fix the eight dark supervisors and measured them first. No supervisor is broken. Seventeen lanes stamp with fourteen flowing and zero late, five of the eight dark ones are healthy and their darkness is the structural fact that every supervision tree has an unsupervised root, and the three that read UNKNOWN each had a knowable reason. The mini watchdog is episodic and spawned per session, the orphan watch runs in the board window process so its stamps can never reach this reader, and the orphan exit loop declines by design because his primary console has no parent pid. Three different facts rendered as one word meaning nobody looked, which also hid the one case that is a real fault. lane_liveness gains DORMANT with a reason, a reasonless dormancy is refused, and a lane that ticks is never reported dormant.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

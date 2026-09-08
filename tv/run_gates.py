@@ -829,6 +829,25 @@ GATES = [
              "must write only its state, its proposals and its sandbox — it proposes, it never "
              "edits a guard.",
          skip_ok=()),
+    Gate("test_a_lane_that_declines_says_why",
+         [sys.executable, os.path.join(HERE, "test_a_lane_that_declines_says_why.py")], 90,
+         why="THREE KNOWABLE FACTS WERE REPORTED AS ONE UNKNOWN. Of the eight DARK supervisors on "
+             "his console, three read `live: UNKNOWN, tickAgeS: None` — 'nobody can tell whether "
+             "this is alive' — and every reason was knowable and DIFFERENT: _mini_watchdog is "
+             "EPISODIC (spawned per MINI session, alive only for that session), _orphan_watch runs "
+             "in ANOTHER PROCESS (the board window, so its stamps can never reach this reader), "
+             "and _orphan_exit_loop DECLINES BY DESIGN (`if not ppid: return`, because a console "
+             "nobody claimed must never self-exit). ★ The cost is not only a vague report: "
+             "collapsed into UNKNOWN they hide the one case that IS a fault — a scratch console "
+             "started WITH TV_PARENT_PID that still declines renders identically to the healthy "
+             "primary console. lane_liveness gains DORMANT, a dormancy with no reason is REFUSED "
+             "(that would be UNKNOWN in a calmer word), a declared lane must produce a ROW or the "
+             "declaration is plumbing with no tap, and a lane that ticks is never reported dormant "
+             "— a declaration must never outrank a measurement. ⚠ The three UNTIMED lanes were "
+             "deliberately left alone: _engine_driver has four different sleeps and lane_liveness "
+             "calls UNTIMED 'a third answer, not a soft version of either other one'. Declaring a "
+             "period they do not have would manufacture false LATEs.",
+         skip_ok=()),
     Gate("test_a_lattice_refusal_is_a_reason_not_a_crash",
          [sys.executable, os.path.join(HERE, "test_a_lattice_refusal_is_a_reason_not_a_crash.py")], 150,
          why="THE GRID READER RAISED WHERE EVERY OTHER PATH RETURNS A REASON. He was in-game saying "

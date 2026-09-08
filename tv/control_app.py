@@ -5297,7 +5297,16 @@ def _orphan_exit_loop():
     """
     ppid = _orphan_watch_pid()
     if not ppid:
+        # ⚠ SAY SO, rather than vanishing. This return is correct and it is the reason this lane
+        # shows `never ticked` on his primary console — which is indistinguishable, to every
+        # reader, from the lane having died. The distinction matters in exactly one direction: a
+        # SCRATCH console started with TV_PARENT_PID that still declines here is a real defect,
+        # and it currently renders identically to this healthy case.
+        _lane_dormant('_orphan_exit_loop',
+                      "no TV_PARENT_PID — this console was not started by another process, so it "
+                      "must never self-exit. His primary console is always in this state")
         return                      # nobody claimed us, or we ARE his console: never self-exit
+    _lane_waking('_orphan_exit_loop')
     while True:
         time.sleep(5)
         _lane_tick('_orphan_exit_loop', 5)
@@ -5313,6 +5322,16 @@ def _orphan_exit_loop():
 
 def start_background_watchers(why):
     """Start every background job that does NOT need a native window. Idempotent by name."""
+    # ⚠⚠ DECLARE THE LANES THAT ARE NOT RUNNING AND SAY WHY, at the moment the roster is built.
+    # Both of these are structurally absent from THIS process's stamp store, permanently, and
+    # neither absence is a fault — but read as UNKNOWN they are indistinguishable from a
+    # supervisor that died. [[unknown-stays-unknown]]
+    _lane_dormant('_mini_watchdog',
+                  "episodic — it is spawned per MINI session with (token, ends_ts) and lives only "
+                  "as long as that session, so between sessions there is nothing to stamp")
+    _lane_dormant('_orphan_watch',
+                  "it runs in the BOARD WINDOW process, not here — its stamps go to that "
+                  "process's store and can never reach this reader however healthy it is")
     # v2433 — started FIRST and outside the roster on purpose: it is not a lane doing work, it is
     # the thing that stops this process existing after its reason to exist has gone.
     try:
@@ -12855,6 +12874,33 @@ def _lane_liveness_payload():
                        % type(_exc).__name__}
 
 
+def _lane_dormant(lane, why):
+    """Declare a lane deliberately not running, with its reason. Never raises into a loop.
+
+    ⚠ THREE OF THE EIGHT DARK SUPERVISORS REPORTED `live: UNKNOWN, tickAgeS: None`, which reads as
+    "nobody can tell whether this is alive". Measured 2026-09-08, all three reasons were knowable:
+    _mini_watchdog is EPISODIC (spawned per MINI session), _orphan_watch runs in ANOTHER PROCESS
+    (the board window, so its stamps can never reach this reader), and _orphan_exit_loop DECLINES
+    BY DESIGN on his primary console (`if not ppid: return`, because a console nobody claimed must
+    never self-exit). One word for three facts sends a reader hunting a fault that is not there —
+    and hides the case that IS a fault, a decline on a console that really does have a parent.
+    """
+    try:
+        import lane_liveness as _ll
+        _ll.dormant(lane, why)
+    except Exception:
+        pass
+
+
+def _lane_waking(lane):
+    """A lane that was declared dormant has started."""
+    try:
+        import lane_liveness as _ll
+        _ll.waking(lane)
+    except Exception:
+        pass
+
+
 def _lane_tick(lane, every_s=None):
     """Stamp that a background loop just ran a cycle. Never raises into the loop.
 
@@ -18450,6 +18496,7 @@ def mini_start(seconds=None, test=False, focus=None):
         ends = _MINI["endsTs"]
     # ARM FIRST. If the spawn hangs past the deadline the watchdog still seals it; a timer armed
     # only on success is a timer that is absent exactly when it is needed.
+    _lane_waking('_mini_watchdog')      # episodic: it exists only for the life of this session
     threading.Thread(target=_mini_watchdog, args=(token, ends), daemon=True,
                      name="tvd-mini-watchdog").start()
     try:
@@ -25119,7 +25166,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2805",
+        "ver": "v2806",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
