@@ -43,6 +43,7 @@ import json
 import os
 import shutil
 import tempfile
+import atexit
 import subprocess
 import sys
 import time
@@ -1959,8 +1960,54 @@ def _serve_console():
     # three of them, one 15 hours old, load 5.42 -> 3.08 when they were killed. The Chrome child
     # already learned this at v2369 ("THIS IS WHERE HIS MAC GOT HOT, TWICE"); the console child
     # had not. See _orphan_exit_loop in control_app.py. [[feedback-generalize-fixes]]
+    # ⚠⚠ v2778 — ISOLATING THE PORT IS NOT ISOLATING THE WORLD, AND THIS FILE DID NOT KNOW IT.
+    # `test_button_matrix.py:58` carries that scar in as many words from v1867: *"A port is one
+    # door; the frames, the journal, the sweep memory and the sweep lock are four more."* It closes
+    # it with nine env vars. THIS harness took the private port, passed --no-open, reaped its own
+    # pid — and then handed the child HIS REAL ENVIRONMENT. With no TV_HIST,
+    # `_fixture_root_for_state()` and `_log_root()` both fall back to HERE, so every "isolated"
+    # path resolved to his live tv/. The same defect, re-shipped in a file that had not read it.
+    #
+    # ⚠ AND FULL ISOLATION WOULD BREAK THE GATE, which is why the fix is a SNAPSHOT and not an
+    # empty sandbox. These targets exist to photograph HIS surfaces: `advanced-fleet` refuses
+    # unless the fleet list is FILLED, and an empty world renders "nobody has checked in" — a
+    # target that photographs an empty page is green about nothing. So the small state is COPIED
+    # in (reads work, and they read what he actually has) and every write lands in the copy.
+    #
+    # ⛔ FRAMES ARE NEVER COPIED. tv/frames/hist is 5.6 GB. Copying tv/ is the ENOSPC incident this
+    # repo already paid for — three agents put 20.5 GB in /tmp in four minutes and every Bash call
+    # in the session then failed before it ran. TV_HIST points at an EMPTY temp dir: no rendered
+    # target needs a frame, and if one ever does it must say so rather than inherit 5.6 GB.
+    _sand = tempfile.mkdtemp(prefix="rc-world-")
+    atexit.register(shutil.rmtree, _sand, True)
+    _hist = os.path.join(_sand, "frames", "hist")
+    os.makedirs(_hist, exist_ok=True)
+    # ⚠ NAMED, NOT GLOBBED. A glob would quietly widen the day someone adds a big file beside these,
+    # and the size ceiling below is the second guard rather than the only one.
+    _COPY = ("sessions.jsonl", "chron_evidence.json", "chron_last_result.json",
+             "chronicle_swept.json", "chron_reads.json", "vault_accum.json",
+             "vault_last_result.json", "vault_swept.json", "shadow_ledger.json",
+             "chron_hunt_memory.json", "chron_autoread.json")
+    _copied, _bytes = [], 0
+    for _n in _COPY:
+        _src = os.path.join(HERE, _n)
+        if not os.path.isfile(_src):
+            continue
+        _sz = os.path.getsize(_src)
+        if _bytes + _sz > 64 * 1024 * 1024:      # ⛔ ceiling: this may never become a bulk copy
+            break
+        shutil.copy2(_src, os.path.join(_sand, _n))
+        _copied.append(_n); _bytes += _sz
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
-               TV_PARENT_PID=str(os.getpid()))
+               TV_PARENT_PID=str(os.getpid()),
+               TV_HIST=_hist,
+               TV_FRAMES_DIR=os.path.join(_sand, "frames"),
+               TV_SESSIONS=os.path.join(_sand, "sessions.jsonl"),
+               TV_CHRON_EVIDENCE=os.path.join(_sand, "chron_evidence.json"),
+               TV_CHRON_RESULT=os.path.join(_sand, "chron_last_result.json"),
+               TV_CHRON_SWEPT=os.path.join(_sand, "chronicle_swept.json"),
+               TV_CHRON_READS=os.path.join(_sand, "chron_reads.json"),
+               TV_SWEEP_LOCK=os.path.join(_sand, ".sweep.lock"))
     proc = subprocess.Popen([sys.executable, os.path.join(HERE, "control_app.py"), "--no-open"],
                             cwd=HERE, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

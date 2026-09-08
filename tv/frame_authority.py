@@ -684,7 +684,20 @@ def test_referenced_reels(repo=None):
     # [[stale-reading]], and the point of reusing the key is that there is only one rule.
     # ⚠ FAILS OPEN, ALWAYS: any read or write problem falls through to the full parse. A cache that
     # can break the answer is worse than no cache.
-    _cpath = os.path.join(HERE, ".fixture_reels_cache.json")
+    # ⚠ v2778 — v1869's RULE, WHICH THIS FILE WAS ADDED AFTER AND NEVER GOT.
+    # `_fixture_root` says it in its own docstring: "one rule, four files" — his console
+    # log, his engine state, his G5 stats and his subscription meter follow TV_HIST when a
+    # caller has said "this is not his world". This path arrived at v2147 and was written
+    # against a bare HERE, so a harness console wrote its record into his real tree.
+    # MEASURED 2026-09-08: a render run left .board_identity.json, .fixture_reels_cache.json
+    # and .chronicle_routes_cache.json changed in his tv/ — three files added after v1869,
+    # all three missing the same rule. [[feedback-fixtures-never-touch-live-data]]
+    try:
+        import tv_diablo as _tvd
+        _croot = _tvd._fixture_root(HERE)
+    except Exception:
+        _croot = HERE
+    _cpath = os.path.join(_croot, ".fixture_reels_cache.json")
     _ckey = None
     if stamp is not None:
         try:

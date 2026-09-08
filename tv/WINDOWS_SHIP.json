@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2777",
+  "ver": "v2778",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2777: his console went black while every counter said healthy; the pixel witness had been right 73 times and was never asked, so a run of BLANK reports now escalates to a relaunch, and only BLANK may act because an occluded window is not a dead one",
+  "note": "v2778: render_check took a private port and passed --no-open and then handed the child his real environment, so every isolated state path resolved to his live tv slash; three files added after v1869 never got its one rule four files rule and now follow TV_HIST, and the private console reads a snapshot so it still photographs his real surfaces",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

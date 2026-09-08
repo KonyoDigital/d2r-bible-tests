@@ -11837,7 +11837,15 @@ def chronicle_apply(proposal=None):
     return out
 
 
-_BOARD_ID_PATH = os.path.join(HERE, ".board_identity.json")
+# ⚠ v2778 — v1869's RULE, WHICH THIS FILE WAS ADDED AFTER AND NEVER GOT.
+# `_fixture_root` says it in its own docstring: "one rule, four files" — his console
+# log, his engine state, his G5 stats and his subscription meter follow TV_HIST when a
+# caller has said "this is not his world". This path arrived at v2147 and was written
+# against a bare HERE, so a harness console wrote its record into his real tree.
+# MEASURED 2026-09-08: a render run left .board_identity.json, .fixture_reels_cache.json
+# and .chronicle_routes_cache.json changed in his tv/ — three files added after v1869,
+# all three missing the same rule. [[feedback-fixtures-never-touch-live-data]]
+_BOARD_ID_PATH = os.path.join(_fixture_root_for_state(), ".board_identity.json")
 
 
 def _board_identity_of(payload):
@@ -24692,7 +24700,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2777",
+        "ver": "v2778",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

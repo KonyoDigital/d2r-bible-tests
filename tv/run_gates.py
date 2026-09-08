@@ -684,6 +684,22 @@ GATES = [
              "here'. That is the point: an unexercised route must never read OK, which is this "
              "repo's most repeated way of shipping a blind gate.",
          ),
+    Gate("test_the_harness_isolates_the_world",
+         [sys.executable, os.path.join(HERE, "test_the_harness_isolates_the_world.py")], 120,
+         why="ISOLATING THE PORT IS NOT ISOLATING THE WORLD. test_button_matrix has carried that "
+             "scar since v1867 — \"a port is one door; the frames, the journal, the sweep memory "
+             "and the sweep lock are four more\" — and render_check did all three careful things "
+             "(private port, --no-open, reaps its own pid) and then handed the child HIS REAL "
+             "ENVIRONMENT. With no TV_HIST, _fixture_root_for_state() and _log_root() fall back to "
+             "HERE, so every isolated path resolved to his live tv/. Measured: a render run changed "
+             ".board_identity.json, .chronicle_routes_cache.json, .fixture_reels_cache.json and "
+             ".tvd_beacon.json. The real defect is older than render_check — `_fixture_root` says "
+             "\"v1869: one rule, four files\" and THREE files added after that ship never got it. "
+             "⚠ The proof is STRUCTURAL, not a before/after diff: his live console writes those same "
+             "files, and attributing them to the harness is the exact mistake made earlier that "
+             "night. ⛔ The snapshot is NAMED and capped and never copies frames — tv/frames/hist is "
+             "5.6 GB and copying tv/ is the ENOSPC incident this repo has already paid for.",
+         ),
     Gate("test_a_populated_world_survives_a_lost_claim",
          [sys.executable, os.path.join(HERE, "test_a_populated_world_survives_a_lost_claim.py")], 120,
          why="HE THOUGHT HIS CHRONICLE HAD BEEN DELETED. On 2026-09-08 his own console window read "

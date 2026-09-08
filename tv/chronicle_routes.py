@@ -397,7 +397,23 @@ def corroborate(rows):
 _MEMO = {"key": None, "val": None}
 
 #: where the cold-start answer lives. Named once, so the reader and the reset cannot drift apart.
-_CACHE_PATH = os.path.join(HERE, ".chronicle_routes_cache.json")
+# ⚠ v2778 — v1869's RULE, WHICH THIS FILE WAS ADDED AFTER AND NEVER GOT.
+# `_fixture_root` says it in its own docstring: "one rule, four files" — his console
+# log, his engine state, his G5 stats and his subscription meter follow TV_HIST when a
+# caller has said "this is not his world". This path arrived at v2147 and was written
+# against a bare HERE, so a harness console wrote its record into his real tree.
+# MEASURED 2026-09-08: a render run left .board_identity.json, .fixture_reels_cache.json
+# and .chronicle_routes_cache.json changed in his tv/ — three files added after v1869,
+# all three missing the same rule. [[feedback-fixtures-never-touch-live-data]]
+def _routes_cache_root():
+    try:
+        import tv_diablo as _tvd
+        return _tvd._fixture_root(HERE)
+    except Exception:
+        return HERE
+
+
+_CACHE_PATH = os.path.join(_routes_cache_root(), ".chronicle_routes_cache.json")
 
 
 def cache_reset():
