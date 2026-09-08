@@ -1586,8 +1586,17 @@ def _fleet_reconcile_tally_with_masks(fl):
             for led in ("sets", "uniques", "runewords"):
                 m = masks.get(led)
                 if isinstance(m, str):
+                    # ⚠ v2815 — `ast` IS NOT IMPORTED IN THIS FILE. The first cut called
+                    # ast.literal_eval at module scope's mercy and two name-binding gates caught it
+                    # (test_no_function_references_a_name_that_does_not_exist,
+                    # test_no_python_file_calls_a_name_nothing_binds) before it could ship a
+                    # NameError into the fleet route. Imported locally rather than adding a
+                    # module-level import to a 1.7MB file, so the dependency is visible where it is
+                    # used. The mask is a PYTHON repr (single quotes), not JSON, so json.loads
+                    # cannot read it — literal_eval is the right tool, safely scoped.
                     try:
-                        m = ast.literal_eval(m) if m.strip().startswith("{") else None
+                        import ast as _ast
+                        m = _ast.literal_eval(m) if m.strip().startswith("{") else None
                     except Exception:
                         m = None
                 if not isinstance(m, dict) or "have" not in m:
@@ -25469,7 +25478,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2814",
+        "ver": "v2815",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

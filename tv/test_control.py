@@ -21479,20 +21479,35 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # ten-minute tick and too important to go unwatched; it runs unattended on a longer
         # cadence. Measuring it here would price a cost the every-tick path does not pay.
         _skip = set(cd.SLOW) | set(getattr(cd, "PERIODIC", ()))
-        for name, fn in cd.CHECKS:
-            if name in _skip:
-                continue
-            t0 = _t.time()
-            try:
-                fn()
-            except Exception:
-                pass
-            ms = (_t.time() - t0) * 1000
-            total += ms
-            if ms > 1.0:
-                did_work += 1
-            if ms > BUDGET_MS:
-                slow.append("%s (%.0f ms)" % (name, ms))
+        # ⚠⚠ v2815 (#50) — THIS TIMED THE BRANCH THE CONSOLE NEVER TAKES.
+        # console_doctor.run() is the ONLY caller of a check in production, and it primes three
+        # per-tick caches first. So _board_read() in production ALWAYS returns the cached value:
+        #     if _board_cache["active"]: return _board_cache["got"]      <- production, always
+        #     return _post("/api/board_ownership", ...)                  <- this gate, always
+        # Same for _health_report() and _route_read(). Roughly 9-15 of ~34 checks read through
+        # them, so this loop was pricing live fetches the every-tick path does not pay — and,
+        # worse, break the cached line and the gate could not notice, because that line is never
+        # executed under test.
+        # ★ NOT "make the gate call run()" — run()'s own comment records why: "Opened HERE and
+        # nowhere else, so a check called on its own still reads fresh — which is what every guard
+        # that stubs _post expects, and what my first cut broke eight of." Calling checks BARE is
+        # deliberate and eight guards depend on it. So the PRIMING became shareable instead, and
+        # only the gate that measures TIMING opts in. [[feedback-blind-fixture-green-gate]]
+        with cd.tick_caches():
+            for name, fn in cd.CHECKS:
+                if name in _skip:
+                    continue
+                t0 = _t.time()
+                try:
+                    fn()
+                except Exception:
+                    pass
+                ms = (_t.time() - t0) * 1000
+                total += ms
+                if ms > 1.0:
+                    did_work += 1
+                if ms > BUDGET_MS:
+                    slow.append("%s (%.0f ms)" % (name, ms))
         # ★ A CALIBRATION MAY NEVER EXCUSE A PATHOLOGICAL COST. The check this gate was built to
         # catch cost 16,585 ms of a 17,069 ms tick. No contention explains 5x the budget, and a
         # guard that skipped THAT would have deleted the only reason this file exists. So the hard

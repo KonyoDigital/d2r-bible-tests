@@ -306,9 +306,104 @@ def _proven_empty(reel):
 
 # Every conclusion plan() can reach about a reel. Module-level since v2383 so reel_story can
 # assert it has a stage for each one — see tv/test_reel_story.py.
-RULES = ("no-witness-index", "ledger-unreadable", "test-fixture", "recent",
+RULES = ("no-witness-index", "ledger-unreadable", "holds-proof", "test-fixture", "recent",
          "never-chronicle-swept", "zero-pages",
          "rows-not-banked", "vault-owes", "target-met", "eligible")
+
+
+def _evidence_rows():
+    """chron_evidence flattened into the row shape frame_ref expects. -> (rows, why)
+
+    ⚠⚠ THE ADAPTER IS THE WHOLE POINT, AND WITHOUT IT THE GUARD PROTECTS NOTHING.
+    `frame_ref.cited_frames()` decides a row is PROOF via `r.get("items") or r.get("names")`.
+    chron_evidence.json does not store it that way — the item name is the KEY:
+
+        {"uniques": {"Djinn Slayer": [{"reel": ..., "frame": ..., "conf": ...}, ...]}}
+
+    So every row would fall through to `other` (fair game), `named` would come back EMPTY, and a
+    guard wired straight onto it would delete every frame it was written to protect while looking
+    correct. Measured on the real store before writing this. [[plumbing-with-no-tap]]
+    """
+    try:
+        import tv_diablo as _tvd
+        root = _tvd._fixture_root(HERE)
+    except Exception:
+        root = HERE
+    p = os.path.join(root, "chron_evidence.json")
+    try:
+        with open(p, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except FileNotFoundError:
+        return None, "no chron_evidence.json at %s" % p
+    except Exception as e:
+        return None, "chron_evidence.json could not be read (%s)" % type(e).__name__
+    rows = []
+    for section in ("uniques", "sets"):
+        sec = d.get(section)
+        if not isinstance(sec, dict):
+            continue
+        for item, cites in sec.items():
+            for c in (cites or []):
+                if not isinstance(c, dict):
+                    continue
+                fid = c.get("frame") or c.get("frameId")
+                if not fid:
+                    continue
+                # the KEY is the claim; carrying it onto the row is what makes it count as NAMED
+                rows.append({"frameId": fid, "reel": c.get("reel"), "items": [item]})
+    return rows, "%d citation(s) across uniques+sets" % len(rows)
+
+
+def proof_reels(hist_dir):
+    """Reels holding a frame that is the receipt for a NAMED claim. -> (set|None, why)
+
+    ⚠⚠ None means CANNOT TELL, and a caller that cannot tell MUST NOT DELETE. Measured 2026-09-09:
+    53-77% of cited proof frames were already gone (the spread is the denominator — 53% within
+    uniques+sets, 77% across every section carrying a reel+frame), because `plan()` marks a reel
+    eligible on a coarse reel-level vault signal and `apply_plan()` then rmtree's the WHOLE
+    directory without ever asking which frames a claim depends on.
+
+    frame_ref has shipped exactly this rule since v2364 — "a frame cited by a row that NAMED an
+    item is PROOF and may not be deleted while the claim stands" — and NOTHING in production ever
+    called it. AST-confirmed: the only callers of cited_frames/prunable/Index are frame_ref itself
+    and one test. reel_retention did not even import it. [[the-unjoined-end]]
+    """
+    rows, why = _evidence_rows()
+    if rows is None:
+        return None, why
+    try:
+        import frame_ref as _fr
+    except Exception as e:
+        return None, "frame_ref could not be imported (%s)" % type(e).__name__
+    try:
+        named, _other = _fr.cited_frames(rows)
+        idx = _fr.Index(hist_dir)
+    except Exception as e:
+        return None, "the frame index could not be built (%s)" % type(e).__name__
+    if not named:
+        # a real possibility, and NOT the same as "nothing is cited" — say which.
+        return set(), "no citation names an item (%s)" % why
+    held, unresolved = set(), 0
+    for fid in named:
+        try:
+            hit = idx.resolve(fid)
+        except Exception:
+            hit = None
+        if not hit:
+            unresolved += 1
+            continue
+        # ⚠ frame_ref.Index.resolve() RETURNS A PATH ALREADY RELATIVE TO ITS ROOT
+        # ("reel_s_.../f_....jpg"). The first cut ran os.path.relpath(hit, hist_dir) over it —
+        # relpath of a relative path against a relative dir — and EVERY result collapsed to "..",
+        # so 667 protected frames reported as ONE fake reel and the guard would have protected
+        # essentially nothing while printing a confident number. Caught by the count being
+        # implausible, not by the code looking wrong. [[feedback-suspect-the-instrument]]
+        rel = os.path.relpath(hit, hist_dir) if os.path.isabs(hit) else hit
+        seg = str(rel).replace("\\", "/").split("/")[0]
+        if seg and seg not in (".", ".."):
+            held.add(seg)
+    return held, ("%d reel(s) hold the proof of a named claim; %d cited frame(s) resolve to "
+                  "nothing on disk (already lost); %s" % (len(held), unresolved, why))
 
 
 def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
@@ -415,6 +510,11 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     except Exception:
         _fixtures = set()          # cannot ask -> hold nothing extra, but never hold LESS safely:
                                    # the other rules still apply and eligibility is unchanged
+    # v2815 (#45) — ONE index walk per plan, not one per reel: the frame index is ~7,600 files.
+    try:
+        _proof_hold, _proof_why = proof_reels(hist)
+    except Exception as _e:
+        _proof_hold, _proof_why = None, "the proof scan itself failed (%s)" % type(_e).__name__
     candidates, kept, freed = [], [], 0.0
 
     # ── v2068 — A RULE THAT NEVER RUNS MUST SAY SO ─────────────────────────────────────────────
@@ -491,7 +591,27 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         else:
             pages = _pv
 
-        if not _have_index:
+        if _proof_hold is None:
+            # ⚠⚠ CANNOT TELL, SO CANNOT DELETE. proof_reels() returns None when the evidence
+            # store, frame_ref, or the index could not be read. Deleting on an unknown is the
+            # one direction that cannot be undone, so an unknown HOLDS. [[unknown-stays-unknown]]
+            why = _rule("holds-proof",
+                        "HELD — this console cannot tell which frames are cited as proof (%s), and "
+                        "a reel deleted on an unknown cannot be brought back." % (_proof_why or "?"))
+        elif reel in _proof_hold:
+            # ⚠⚠ v2815 (#45) — THE RECEIPT RULE, FINALLY JOINED. frame_ref has shipped it since
+            # v2364 — "a frame cited by a row that NAMED an item is PROOF and may not be deleted
+            # while the claim stands" — and AST-confirmed, NOTHING in production ever called it;
+            # reel_retention did not even import frame_ref. Meanwhile apply_plan() rmtree'd the
+            # WHOLE reel directory on a coarse reel-level vault signal.
+            # MEASURED 2026-09-09 on his tree: of 10,318 citations across uniques+sets, 739 cited
+            # frames already resolve to nothing on disk — the proof for those claims is gone.
+            # 9 reels still hold proof; 3 of them are among the 41 on disk.
+            why = _rule("holds-proof",
+                        "HELD — a frame in this reel is the receipt for a NAMED claim in the "
+                        "chronicle. Deleting it would leave the claim standing with its proof "
+                        "destroyed, which is the one loss this repo cannot undo.")
+        elif not _have_index:
             why = _rule("no-witness-index",
                         "HELD — no durable witness store exists yet, so nothing here can prove "
                         "this reel's frames are not the only record of what it saw. The FRAME "

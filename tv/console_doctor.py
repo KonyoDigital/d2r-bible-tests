@@ -32,6 +32,7 @@ DOCTRINE, inherited wholesale from the other two doctors and NOT re-argued here:
 
 FREE BY CONSTRUCTION: filesystem, git and localhost only. No model turn, no network, no paid read.
 """
+import contextlib
 import glob
 import json
 import os
@@ -2871,6 +2872,43 @@ def slow_surface(now_ms=None):
     return out
 
 
+@contextlib.contextmanager
+def tick_caches():
+    """Prime the per-tick caches exactly as a production tick does, then reset them. -> None
+
+    ⚠⚠ v2815 — THE TIMING GATE WAS MEASURING THE BRANCH THE CONSOLE NEVER TAKES.
+    `run()` is the ONLY caller of a check in production, and before iterating CHECKS it primes
+    three caches. So `_board_read()` in production ALWAYS returns the cached value:
+
+        if _board_cache["active"]:            <- production: always True, inside run()
+            return _board_cache["got"]
+        return _post("/api/board_ownership", ...)   <- the gate: always THIS one
+
+    `test_the_cheap_subset_is_actually_CHEAP` calls each check directly and never sets `active`,
+    so it exercised the uncached branch exclusively. Roughly 9-15 of ~34 checks read through these
+    caches (_board_read ~5, _health_report ~6, _route_read ~4). Break the cached line and every
+    real watchdog tick would feed None into five checks forever while the gate stayed green — the
+    broken line is simply never executed under test.
+
+    ★ WHY THIS IS A CONTEXT MANAGER AND NOT "MAKE THE GATE CALL run()". run()'s own comment states
+    the constraint: "Opened HERE and nowhere else, so a check called on its own still reads fresh —
+    which is what every guard that stubs _post expects, and what my first cut broke eight of."
+    Calling checks BARE is deliberate and eight guards depend on it. So the priming becomes
+    shareable rather than moving, and only the gate that measures TIMING opts in — because timing
+    is the one question whose answer differs between the two branches.
+    [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+    """
+    _board_cache["active"], _board_cache["got"] = True, _post("/api/board_ownership", {"sample": 0})
+    _health_cache["active"], _health_cache["rep"] = True, None
+    _routes_cache["active"], _routes_cache["got"] = True, _route_census_once()
+    try:
+        yield
+    finally:
+        _board_cache["active"], _board_cache["got"] = False, None
+        _health_cache["active"], _health_cache["rep"] = False, None
+        _routes_cache["active"], _routes_cache["got"] = False, None
+
+
 def run(include_slow=True, include_periodic=None):
     """-> rows. `include_periodic` defaults to `include_slow` so every existing caller keeps its
     exact behaviour; the eagle passes it explicitly on its own cadence."""
@@ -2881,13 +2919,10 @@ def run(include_slow=True, include_periodic=None):
     # route EVALUATES JAVASCRIPT IN THE WINDOW HE IS LOOKING AT; asking three times buys nothing.
     # Opened HERE and nowhere else, so a check called on its own still reads fresh — which is what
     # every guard that stubs _post expects, and what my first cut broke eight of.
-    _board_cache["active"], _board_cache["got"] = True, _post("/api/board_ownership", {"sample": 0})
-    _health_cache["active"], _health_cache["rep"] = True, None
-    # v#### — ONE RIVER WALK PER TICK FOR THE FOUR ROUTE ROWS. Four checks ask reel_templates the
-    # same question and the answer costs a walk of every reel directory; asking four times buys no
-    # new information and is the shape of [[poll-slower-than-its-interval]].
-    _routes_cache["active"], _routes_cache["got"] = True, _route_census_once()
-    try:
+    # v2815 — THROUGH tick_caches(), so the gate that measures this tick's cost can prime it the
+    # same way instead of timing a different branch. One source; a divergence is now impossible
+    # rather than merely unlikely.
+    with tick_caches():
         for name, fn in CHECKS:
             if not include_slow and name in SLOW:
                 continue
@@ -2898,10 +2933,6 @@ def run(include_slow=True, include_periodic=None):
             except Exception as e:
                 state, why = UNKNOWN, "this check itself threw: %s" % str(e)[:120]
             rows.append({"check": name, "state": state, "why": why})
-    finally:
-        _board_cache["active"], _board_cache["got"] = False, None
-        _health_cache["active"], _health_cache["rep"] = False, None
-        _routes_cache["active"], _routes_cache["got"] = False, None
     if include_slow:
         _persist_slow(rows)
     try:

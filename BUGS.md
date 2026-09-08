@@ -25537,3 +25537,66 @@ divides by. A rule that is right for every peer was wrong for the one machine we
 and shipping it would have re-created the defect it was written after.
 [[feedback-blind-fixture-green-gate]]
 
+## REG-756 — the receipt rule shipped in v2364 and nothing ever called it (#45)
+
+`frame_ref` states it in its own docstring: *"a frame cited by a row that NAMED an item is PROOF of
+that claim and may not be deleted while the claim stands."* **AST-confirmed 2026-09-09: the only
+callers of `cited_frames`/`prunable`/`Index` were frame_ref itself and one test.**
+`reel_retention` did not even import it — while `apply_plan()` does `shutil.rmtree()` on the WHOLE
+reel directory once any row from that reel reaches the vault ledger.
+
+**MEASURED on his tree:** of **10,318 citations** across uniques+sets, **739 cited frames already
+resolve to nothing on disk.** 9 reels still hold proof; 3 of them are among the 41 live.
+
+★★ **THE ADAPTER IS THE LOAD-BEARING HALF.** `cited_frames()` decides a row is proof via
+`r.get("items") or r.get("names")`. `chron_evidence.json` stores the item name as the **KEY**:
+
+```
+{"uniques": {"Djinn Slayer": [{"reel": ..., "frame": ...}, ...]}}
+```
+
+Wire the guard straight onto that and every row falls into "fair game", `named` returns **empty**,
+and the deleter keeps destroying proof while carrying a protection that reads correct.
+
+⚠ **AND THE FIRST INSTRUMENT WAS WRONG TOO.** `Index.resolve()` returns a path ALREADY RELATIVE to
+its root, so running `os.path.relpath` over it collapsed all 667 hits to `..` — one fake reel, 667
+frames unprotected, with a confident number printed. Caught because the count was implausible, not
+because the code looked wrong. [[feedback-suspect-the-instrument]]
+
+`holds-proof` is now a declared RULE, so it participates in plan()'s own coverage accounting:
+`coverage[holds-proof] = 3`. **CANNOT TELL holds** — an unreadable evidence store, a missing
+frame_ref or an unbuildable index returns None, and a caller that cannot tell must not delete.
+
+⚠⚠ **HEART 2.0 CAUGHT MY OWN GATE, TWICE, AND IT WAS RIGHT BOTH TIMES.** The first cut came back
+**BLIND** on both proofs:
+1. it exercised `frame_ref.cited_frames()` with hand-built rows — the LIBRARY, not the WIRING — so
+   tampering reel_retention's adapter changed nothing it observed;
+2. it asserted `held is None or held == set()`, which is true for BOTH outcomes, so the tamper
+   converting one into the other could not fail it.
+Neither is visible by reading the test. Only running it against its own defeat found them. That is
+the argument for #52 in one concrete case. [[feedback-blind-fixture-green-gate]]
+
+---
+
+## REG-757 — the timing gate priced a branch the console never takes (#50)
+
+`console_doctor.run()` is the ONLY caller of a check in production, and it primes three per-tick
+caches first. So:
+
+```
+if _board_cache["active"]: return _board_cache["got"]     <- production, ALWAYS
+return _post("/api/board_ownership", {"sample": 0})       <- the gate, ALWAYS
+```
+
+Same for `_health_report()` and `_route_read()`. Roughly **9-15 of ~34 checks** read through them.
+Two consequences: the gate priced live fetches the every-tick path does not pay, and — worse —
+break the cached line and the gate cannot notice, because that line is **never executed under
+test**. Its only assertions are on timing; it never reads `state` or `why`, so a check returning a
+well-formed WRONG answer costs identical milliseconds.
+
+★ **NOT "make the gate call run()".** run()'s own comment records the constraint: *"Opened HERE and
+nowhere else, so a check called on its own still reads fresh — which is what every guard that stubs
+_post expects, and what my first cut broke eight of."* Calling checks bare is deliberate and eight
+guards depend on it. So the **priming** became a shared `tick_caches()` context that run() and the
+timing gate both use, and the eight are untouched. [[gate-blind-to-unexercised-input]]
+

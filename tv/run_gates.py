@@ -898,6 +898,21 @@ GATES = [
              "defects found.' was recorded as verdict=findings — the ledger reporting the "
              "opposite of what the other family concluded.",
          skip_ok=()),
+    Gate("test_the_deleter_will_not_destroy_a_receipt",
+         [sys.executable,
+          os.path.join(HERE, "test_the_deleter_will_not_destroy_a_receipt.py")], 90,
+         why="frame_ref has stated the receipt rule since v2364 — a frame cited by a row that "
+             "NAMED an item is PROOF and may not be deleted while the claim stands — and "
+             "AST-confirmed, nothing in production ever called it: the only callers of "
+             "cited_frames/prunable/Index were frame_ref itself and one test, and reel_retention "
+             "did not even import it. Meanwhile apply_plan() rmtree'd the WHOLE reel directory on "
+             "a coarse reel-level vault signal. MEASURED on his tree 2026-09-09: of 10,318 "
+             "citations across uniques+sets, 739 cited frames already resolve to nothing on disk. "
+             "★ AND THE ADAPTER IS THE WHOLE FIX: cited_frames() decides a row is proof via "
+             "items/names, while chron_evidence stores the item name as the KEY — wire the guard "
+             "straight onto that and named comes back EMPTY, so the deleter keeps deleting proof "
+             "while carrying a protection that reads correct. Both halves are proven red.",
+         skip_ok=()),
     Gate("test_a_cached_absence_is_not_an_absence",
          [sys.executable,
           os.path.join(HERE, "test_a_cached_absence_is_not_an_absence.py")], 120,
