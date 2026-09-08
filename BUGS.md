@@ -23134,6 +23134,53 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-703 — the panel printed "read once" over a row that says "only 0 independent witnesses"
+
+**2026-09-08 · v2781 · `bible.html` · task #33**
+
+The inbox row already carries the measurement. His eight pending rows, read out of his own board:
+
+| item | what the ROW measured |
+|---|---|
+| Ars Tor'Baalos | `only 1 independent witness (cross-reel) — needs 2` |
+| Chromatic Ire | `only 1 independent witness (cross-frame) — needs 2` |
+| **Gheed's Wager** | **`only 0 independent witnesses (none) — needs 2`** |
+| Latent Bone Break · Ormus' Robes · Shadow Killer · Spirit Keeper · The Centurion | `only 1 independent witness (cross-frame) — needs 2` |
+
+What the panel printed over **every** one of them:
+
+> *"a real chronicle item you do not have — read once, and one sighting is not two, so it needs your eye"*
+
+A fixed sentence. **False for Gheed's Wager**, which has zero, not one. And it discards *which kind*
+of witness was found — cross-reel vs cross-frame — which is the entire question of whether a second
+sighting would be independent at all. Two frames of one reel is a weaker claim than two reels.
+
+**⚠ The engine's own comment predicted this, one surface over.** `d2rInboxEngine` says, in as many
+words: *"`code` stays null by default ON PURPOSE. Callers read `code || why`, so a default code
+would override the specific `why` of every branch that does not set one."* `roster-unconfirmed` is
+not a default — it is a real code — and it outranked `triageWhy` all the same, in a caller three
+thousand lines from where that rule was written down. The rule was right; the shape it warned about
+arrived anyway, wearing a non-default code. [[label-outlived-referent]]
+
+**Fixed:** for `roster-unconfirmed` only, the row's measured `triageWhy`/`gateWhy` wins; the generic
+code is the FALLBACK for a row nothing measured, never the other way round. Both keys are read —
+108 of his 396 logged rows carry `gateWhy` and 28 carry `triageWhy`, because the two sweeps do not
+agree on the key name. [[copy-drift]] [[unknown-stays-unknown]]
+
+**⛔ Deliberately scoped.** `misread-of:` and `reads-as-two:` are statements about the NAME, not the
+evidence count, and still outrank the row — widening the deferral to every code would silence them,
+and a law pins that.
+
+**⚠ THE FIRST SABOTAGE WAS THE INSTRUMENT'S FAULT.** Dropping `gateWhy` failed all six laws in
+**0.010s** instead of one in 0.2s. The slicer anchored on the exact line the sabotage deletes, so it
+returned None and every law died before running — a red that blames the fix for a broken fixture.
+The duration was the tell. Anchored on the stable prefix instead.
+[[sabotage-is-usually-the-wrong-one]]
+
+Gate: `test_the_panel_prints_what_the_row_measured.py` — 6 laws, decision sliced from `bible.html`
+and run in node, never grepped. 3 sabotages: restoring the old precedence reds 3 laws, widening the
+deferral reds the scope law, dropping `gateWhy` reds exactly one.
+
 ## REG-702 — eight module-level paths walked straight past the render sandbox and wrote to his live dir
 
 **2026-09-08 · v2780 · `tv/control_app.py`, `tv/render_check.py` · found by the second eye on v2778**

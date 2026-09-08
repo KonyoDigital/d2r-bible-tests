@@ -715,6 +715,22 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_panel_prints_what_the_row_measured",
+         [sys.executable, os.path.join(HERE, "test_the_panel_prints_what_the_row_measured.py")], 120,
+         why="THE PANEL PRINTED \"read once\" OVER A ROW THAT SAYS \"only 0 independent "
+             "witnesses\". The inbox row already carries the count AND the witness kind, measured "
+             "by the sweep — his eight pending rows say `only 1 independent witness (cross-frame) "
+             "- needs 2`, and Gheed's Wager says ZERO. The panel discarded all of it for a fixed "
+             "sentence that is FALSE on that row and that throws away cross-reel vs cross-frame, "
+             "which is the whole question of whether a second sighting is independent. ⚠ THE "
+             "ENGINE'S OWN COMMENT PREDICTED IT: `code stays null by default ON PURPOSE. Callers "
+             "read code || why, so a default code would override the specific why of every branch "
+             "that does not set one.` roster-unconfirmed is not a default — it is a real code — "
+             "and it outranked triageWhy anyway, in a caller three thousand lines from where that "
+             "rule was written. ⛔ SCOPED: only roster-unconfirmed defers; misread-of and "
+             "reads-as-two are statements about the NAME and must keep winning. The decision is "
+             "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
+         ),
     Gate("test_a_cold_review_must_carry_the_code",
          [sys.executable, os.path.join(HERE, "test_a_cold_review_must_carry_the_code.py")], 120,
          why="THREE \"COLD CODE REVIEWS\" WERE RECORDED AS SECOND-EYE LOOKS AND THE CODE WAS NEVER "

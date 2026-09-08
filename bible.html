@@ -49843,7 +49843,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2780', name:'v2780 - eight paths walked past the render sandbox into his live directory', date:'2026-09-08', note:'The second eye on v2778 asked what could still reach a live file and the answer was eight module-level constants, including the fault journal a render run writes to. All eight now route through the fixture root, the size ceiling skips one file instead of abandoning the rest, and the gate is a census rather than a list.' };
+  window.D2R_BUILD = { id:'v2781', name:'v2781 - the panel printed read once over a row that says zero witnesses', date:'2026-09-08', note:'The inbox row already carries the count and the witness kind; the panel discarded both for a fixed sentence that is false on one of his eight rows and that loses cross-reel vs cross-frame. The measured why now wins for roster-unconfirmed, and the generic code is the fallback for a row nothing measured.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -51329,7 +51329,26 @@ window._CH_PILL_MAP = {
              not on "Battlecage", and he can still see exactly what was read. */
           var _live = null;
           try { _live = window.d2rInboxEngine(x); } catch(e){ _live = null; }
-          var _raw = String((_live && _live.code) || x.triageWhy || '');
+          /* ⚠⚠ #33 — THE GENERIC CODE OUTRANKED THE SPECIFIC MEASUREMENT, AND THE ENGINE'S OWN
+             COMMENT PREDICTED IT. `d2rInboxEngine` says, in as many words: *"`code` stays null by
+             default ON PURPOSE. Callers read `code || why`, so a default code would override the
+             specific `why` of every branch that does not set one."* `roster-unconfirmed` is not a
+             default — it is a real code — and it outranked `triageWhy` all the same, one surface
+             over from where that rule was written down.
+
+             What it discarded: the row ALREADY carries the count and the bar, measured by the
+             sweep. His eight pending rows carry `only 1 independent witness (cross-frame) — needs
+             2`, `only 0 independent witnesses (none) — needs 2`. What the panel printed over every
+             one of them was `read once, and one sighting is not two` — a fixed sentence that is
+             FALSE for Gheed's Wager (zero, not one), and that throws away WHICH KIND of witness
+             was found, which is the whole question of whether a second one would be independent.
+
+             So the measured sentence wins where there is one, and the generic sentence is the
+             fallback for a row that was never measured — not the other way round.
+             [[unknown-stays-unknown]] [[label-outlived-referent]] */
+          var _meas = String(x.triageWhy || x.gateWhy || '').trim();
+          var _code = String((_live && _live.code) || '');
+          var _raw = (/^roster-unconfirmed/.test(_code) && _meas) ? _meas : (_code || _meas);
           var _say = _raw;
           try { if (typeof window._chSayWhy === 'function') _say = window._chSayWhy(_raw); } catch(e){}
           var why = _e(_say || 'the readers could not call this one');
