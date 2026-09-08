@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2796"   # the river fetch could hang for ever and the crest could mint a second identity
+VERSION = "v2798"   # MINI AUTO answered him perfectly into a room he was not in
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -18,7 +18,7 @@ notice afterwards.
 Each stamp is verified after writing: a silent no-op replace would leave the tree half-bumped,
 which is the exact failure this tool exists to prevent.
 """
-import datetime, io, json, os, re, sys
+import datetime, io, json, os, re, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -180,20 +180,72 @@ def atomic_write(path, text, nl=""):
     second eye. The atomicity fix and the mode loss are the same line: preserving the CONTENT while
     dropping the PERMISSION is not preserving the file. [[the-unjoined-end]]
 
-    ⚠ os.stat BEFORE the write, chmod AFTER the replace. A file that did not exist has no mode to
-    copy and correctly keeps the default.
+    ⚠⚠ v2797 — AND THE v2795 FIX LEFT A WINDOW, FOUND BY A COLD CROSS-FAMILY REVIEW OF THE
+    SHIPPED BYTES. v2795 restored the mode by chmod'ing AFTER os.replace. Between those two calls
+    the new content is already live under the TEMP FILE's mode, which is born under umask.
+    MEASURED, stopping the sequence mid-way:
+
+        target before         0o755
+        the temp file's mode  0o644   <- born under umask
+        AFTER os.replace      0o644   <- the window
+        after os.chmod        0o755
+
+    For `hooks/pre-push` that window IS THE ORIGINAL DEFECT IN MINIATURE: a push starting inside it
+    sees a non-executable hook and skips every gate. Not hypothetical here — pushes run in the
+    background while other work continues. Reproduced before being believed.
+
+    ⇒ THE MODE GOES ON THE TEMP FILE, BEFORE THE REPLACE, so the final inode appears with its
+    content and its permissions in ONE atomic step. The post-replace chmod survives only as a
+    fallback for the case where that pre-chmod itself failed.
+
+    ⚠ AND THE TEMP NAME IS UNIQUE NOW. `path + ".tmp"` is deterministic, so two writers on one path
+    silently truncate each other's temp file — bump_version writes four stamps and this session
+    routinely runs things concurrently. mkstemp in the SAME directory keeps the rename atomic; a
+    cross-filesystem rename is not.
+
+    ⚠ NOT CLAIMED: durability. The same review noted there is no fsync of the file or its parent
+    directory, so a crash after the replace can leave the entry pointing at unflushed data. That is
+    TRUE and is not fixed here — this function's contract is "no torn read", not "survives power
+    loss". Saying so beats implying otherwise. [[unknown-stays-unknown]]
+
+    A file that did not exist has no mode to copy and correctly keeps the default.
     """
     try:
         _mode = os.stat(path).st_mode
     except OSError:
         _mode = None
-    tmp = path + ".tmp"
-    with io.open(tmp, "w", encoding="utf-8", newline=nl) as fh:
-        fh.write(text)
-    os.replace(tmp, path)
-    if _mode is not None:
+    _dir = os.path.dirname(os.path.abspath(path)) or "."
+    _fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=_dir)
+    os.close(_fd)
+    try:
+        with io.open(tmp, "w", encoding="utf-8", newline=nl) as fh:
+            fh.write(text)
+        # ⛔ BEFORE the replace — the whole point of the v2797 correction.
+        # ⚠ AND THE NEW-FILE CASE CHANGED UNDER ME: mkstemp creates 0600, where the old
+        #   io.open(path,"w") produced 0666 & ~umask (0644 here). Caught by PRINTING the number
+        #   rather than assuming the swap was mode-neutral — a brand-new generated file readable
+        #   only by its owner would break anything else on this machine that reads it. So a file
+        #   with no previous mode gets the umask default it would always have had.
         try:
-            os.chmod(path, _mode & 0o7777)
+            if _mode is not None:
+                os.chmod(tmp, _mode & 0o7777)
+            else:
+                _um = os.umask(0)
+                os.umask(_um)
+                os.chmod(tmp, 0o666 & ~_um)
+        except OSError:
+            pass
+        os.replace(tmp, path)
+    except BaseException:
+        # a failed write must not leave a stray temp beside his files
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    if _mode is not None and (os.stat(path).st_mode & 0o7777) != (_mode & 0o7777):
+        try:
+            os.chmod(path, _mode & 0o7777)   # fallback: the pre-chmod did not take
         except OSError:
             pass
 

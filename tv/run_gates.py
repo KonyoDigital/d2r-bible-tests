@@ -733,6 +733,24 @@ GATES = [
              "`\"why\": None` from the river's initializer left the key in its error paths and the "
              "law stayed green. It now BLINDS each dependency and demands the answer.",
          ),
+    Gate("test_a_button_speaks_where_it_stands",
+         [sys.executable, os.path.join(HERE, "test_a_button_speaks_where_it_stands.py")], 90,
+         why="HE PRESSED MINI AUTO AND SAID \"nothing happens\", AND THE CONSOLE HAD ANSWERED HIM "
+             "PERFECTLY — into a room he was not in. Driving the endpoint got the reason in one "
+             "call: \"the newest frame is 3124s old - MINI will not hover off a stale screen\". "
+             "The handler writes to #eagle-out, and v2381 moved the CARD out of TOOLS to sit beside "
+             "MINI while the BOX stayed behind — its own comment says \"same id, same handler, same "
+             "state readout; only the seat moved\". The id was the same; the readout was left in "
+             "the other room. MEASURED: every other button in this console sits 2-46 lines from "
+             "the box it writes into; btn-miniauto sat **275**. Same fix as v2446's shelf door and "
+             "for its reason — \"a message only visible when the thing works is not an error "
+             "message\" — a toast outside the panels, with the box KEEPING its durable copy. ⚠ The "
+             "law is general: any handler answering into a box further than 80 lines away must also "
+             "speak, or the next card that moves seat repeats this exactly. ⚠⚠ AND ITS FIRST CUT "
+             "WAS WRONG — it matched the sentence anywhere in the handler, so the #eagle-out write "
+             "satisfied it and a toast stripped of `why` stayed GREEN. It now parses the toast CALL. "
+             "Both arms proven red.",
+         skip_ok=()),
     Gate("test_a_source_window_must_reach_its_subject",
          [sys.executable, os.path.join(HERE, "test_a_source_window_must_reach_its_subject.py")], 120,
          why="A FIXED-SIZE SOURCE WINDOW MEASURES MY GUESS, NOT THE FILE. test_the_river_has_a_mouth "

@@ -16628,6 +16628,27 @@ window._lockMark = function(isOpen, px, label){
       var j = await r.json();
       _miniPaint(j);
       _miniWatch(!!(j && j.running));
+      /* ⚠⚠ v2798 — THE BUTTON MOVED SEAT AND ITS VOICE DID NOT FOLLOW IT.
+         MEASURED 2026-09-08: this handler writes into #eagle-out, and after v2381 moved the card
+         out of TOOLS to sit beside MINI, the two are **275 lines apart** — every other button in
+         this console is 2 to 46 lines from its own output box, i.e. inside the same visible panel.
+         v2381's own comment says "same id, same handler, same state readout; only the seat moved".
+         The ID was the same. The READOUT was left in the other room.
+         WHAT IT COST: he pressed it, the server refused with a perfectly clear reason —
+         "the newest frame is 3124s old - MINI will not hover off a stale screen" — and he reported
+         "nothing happens", because the sentence rendered in a panel he was not looking at. The
+         console explained itself into an empty room.
+         ⛔ SAME FIX AS v2446'S SHELF DOOR, for the same reason, quoted from it: "a message only
+         visible when the thing works is not an error message". The toast lives outside the panels
+         and is visible wherever he is standing. #eagle-out KEEPS its copy — this adds a voice, it
+         does not move the record. [[the-unjoined-end]] [[zero-needs-a-denominator]] */
+      try {
+        if (j && j.ok) {
+          if (!j.running) toast('🖱 MINI AUTO — ' + (j.why || 'stopped'), 5000);
+        } else {
+          toast('🖱 MINI AUTO did not start — ' + ((j && j.why) || 'no reason given'), 8000);
+        }
+      } catch (_t) {}
       if (out){
         out.style.display = 'block';
         out.style.borderColor = (j && j.ok) ? '' : '#e9b96e';
@@ -16638,6 +16659,8 @@ window._lockMark = function(isOpen, px, label){
           + 'in that lane, and your hand on the mouse ends the sweep immediately</div>';
       }
     } catch(e){
+      /* v2798 — and an UNREACHABLE console is the case where a distant box helps least */
+      try { toast('🖱 MINI AUTO — could not ask the console (' + e.message + ')', 8000); } catch (_t) {}
       if (out){ out.style.display='block'; out.style.borderColor = '#9aa6b2';
         out.innerHTML = '<div style="color:#9aa6b2">\ud83d\uddb1 could not ask the console (' + e.message
           + ') \u2014 that is not the same as the sweep being off</div>'; }

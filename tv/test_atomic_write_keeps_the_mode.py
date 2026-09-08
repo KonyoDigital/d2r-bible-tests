@@ -67,6 +67,79 @@ class AtomicWriteKeepsTheModeAndTheHookStaysArmed(unittest.TestCase):
                          "by the commit that added a gate to it." % (before, after))
         self.assertTrue(after & stat.S_IXUSR, "the owner-execute bit is gone")
 
+    # ── ⚠⚠ v2797 — THE FIX ITSELF LEFT A WINDOW, FOUND BY A COLD CROSS-FAMILY REVIEW ────────
+    def test_the_mode_is_ON_THE_TEMP_FILE_at_the_moment_of_replace(self):
+        """★★★ THE RACE, AND IT IS THE ORIGINAL DEFECT IN MINIATURE.
+
+        v2795 restored the mode by chmod'ing AFTER os.replace. Between those two calls the new
+        content is already live under the TEMP file's mode, which is born under umask. Measured by
+        stopping the sequence mid-way:
+
+            target before         0o755
+            the temp file's mode  0o644   <- born under umask
+            AFTER os.replace      0o644   <- the window
+            after os.chmod        0o755
+
+        A push starting inside that window sees a NON-EXECUTABLE hooks/pre-push and skips every
+        gate — exactly what v2794 did, reduced to a race. Not hypothetical: pushes run in the
+        background here while other work continues.
+
+        ⚠ THIS WATCHES THE TEMP FILE, NOT THE RESULT. Asserting the final mode passes either way
+        and would have missed the whole defect; the only moment that distinguishes the two designs
+        is the instant `os.replace` is called. [[feedback-verify-not-proxy]]
+        """
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "hookish.sh")
+        io.open(p, "w").write("#!/bin/sh\necho one\n")
+        os.chmod(p, 0o755)
+        seen = {}
+        real = os.replace
+
+        def spy(src, dst):
+            seen["mode"] = os.stat(src).st_mode & 0o777
+            return real(src, dst)
+
+        os.replace = spy
+        try:
+            BV.atomic_write(p, "#!/bin/sh\necho two\n")
+        finally:
+            os.replace = real
+        self.assertIn("mode", seen, "os.replace was never called — atomic_write no longer renames "
+                                    "into place, so this law is measuring nothing")
+        self.assertEqual(
+            seen["mode"], 0o755,
+            "at the moment of os.replace the temp file was %s, so the destination is briefly %s. "
+            "For hooks/pre-push that window is a push that runs with NO gates. chmod the temp file "
+            "BEFORE the replace so content and permissions arrive in one step."
+            % (oct(seen["mode"]), oct(seen["mode"])))
+
+    def test_no_stray_temp_survives_a_FAILED_write(self):
+        """⚠ mkstemp makes the temp name unique, which fixes one hazard and creates another: a
+        failure between create and replace would leave an unpredictable file beside his data
+        forever, and `bible.html` lives in that directory."""
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "x.txt")
+        io.open(p, "w").write("before")
+
+        class Boom(Exception):
+            pass
+
+        real = os.replace
+
+        def bang(src, dst):
+            raise Boom("simulated failure between write and replace")
+
+        os.replace = bang
+        try:
+            with self.assertRaises(Boom):
+                BV.atomic_write(p, "after")
+        finally:
+            os.replace = real
+        strays = [f for f in os.listdir(d) if f != "x.txt"]
+        self.assertEqual(strays, [], "a failed write left %s behind" % strays)
+        self.assertEqual(io.open(p).read(), "before",
+                         "the original was damaged by a write that never completed")
+
     def test_a_NEW_file_still_gets_the_default(self):
         """⛔ The other half: a path that did not exist has no mode to inherit, and inventing one
         would be its own surprise."""

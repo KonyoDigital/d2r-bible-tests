@@ -24252,3 +24252,106 @@ shelf's card render, and `_shSort()` returns early with no `.sh-grid` to work on
 bound ships a permanently UNKNOWN one, and both are furniture. The working door, the diagnostics and
 the staged target block are kept so the next attempt starts from what works. **The river strip still
 has zero pixel coverage and that is stated, not hidden.**
+
+---
+
+## REG-725 — the fix for REG-718 left a race window, and a cold cross-family review of the SHIPPED bytes found it
+
+v2795 restored the executable bit by `os.chmod`-ing **after** `os.replace`. Between those two calls
+the new content is already live under the TEMP file's mode, which is born under umask. Measured by
+stopping the sequence mid-way:
+
+    target before         0o755
+    the temp file's mode  0o644   <- born under umask
+    AFTER os.replace      0o644   <- the window
+    after os.chmod        0o755
+
+**For `hooks/pre-push` that window IS REG-718 in miniature:** a push starting inside it sees a
+non-executable hook and skips every gate. Not hypothetical here — pushes run in the background
+while other work continues.
+
+⚠ **HOW IT WAS FOUND, AND THIS IS THE POINT.** The push had already landed. The review-after-ship
+pass handed `atomic_write`'s shipped body to grok-4-1-fast-reasoning **cold** — no statement of what
+it was for or whether anything was wrong. It ranked the ordering defect and named the fix:
+
+> *"Permission preservation is not atomic. Between the replace and the chmod there is a window in
+> which the new data is visible under the old permissions... The correct order for atomicity would
+> be to chmod the `.tmp` file before the replace so the final inode appears with the desired mode
+> in one step."*
+
+Reproduced before being believed, per the rule that a review earns a measurement rather than
+obedience.
+
+⇒ The mode now goes on the temp file BEFORE the replace; the post-replace chmod survives only as a
+fallback for when that pre-chmod failed. Two new laws, both proven red: one watches the TEMP FILE at
+the instant `os.replace` is called (asserting the FINAL mode passes either way and would have missed
+the entire defect), and one asserts no stray temp survives a failed write.
+
+**Two more things the same review surfaced:**
+
+- `path + ".tmp"` is deterministic, so two writers on one path silently truncate each other's temp
+  file. `bump_version` writes four stamps and this session routinely runs things concurrently. Now
+  `mkstemp` in the SAME directory — same filesystem, so the rename stays atomic.
+- **No fsync of the file or its parent directory.** TRUE, and deliberately NOT fixed: this
+  function's contract is "no torn read", not "survives power loss". Recorded in the docstring rather
+  than implied away. [[unknown-stays-unknown]]
+
+⚠ **AND THE FIX REGRESSED SOMETHING OF ITS OWN, CAUGHT BY PRINTING THE NUMBER.** `mkstemp` creates
+`0600`, where the old `io.open(path, "w")` produced `0666 & ~umask` — so a brand-new generated file
+came out readable only by its owner. Git would never notice (it stores only the exec bit); anything
+else on the machine reading a generated file would. A file with no previous mode now gets the umask
+default it always had.
+
+---
+
+## REG-726 — MINI AUTO answered him perfectly, into a room he was not in
+
+He pressed Mini · Auto and reported *"nothing happens when i click mini automatic"*. Nothing was
+broken. Driving the endpoint on his live console answered in one call:
+
+    POST /api/mini_auto {"on":true,"container":"stash"}
+      -> {"ok": false, "why": "the newest frame is 3124s old - MINI will not hover off a stale screen"}
+
+A correct refusal, with the exact reason, from a working button — and it rendered where he was not
+looking. The handler writes into `#eagle-out`, and **v2381 moved the CARD out of TOOLS to sit beside
+MINI while the BOX stayed behind.** That commit's own comment says:
+
+> *"A mode for Mini belongs next to Mini. Same id, same handler, same state readout; only the seat
+> moved."*
+
+The id was the same. The readout was left in the other room.
+
+**MEASURED — every button handler in the console and the box it answers into:**
+
+| button | box | gap |
+|---|---|---|
+| btn-ledger | #eagle-out | 8 |
+| btn-hoverchk | #eagle-out | 15 |
+| btn-farmgate | #farmgate-out | 17 |
+| btn-eagle | #eagle-out | 21 |
+| btn-repair | #restore-out | 42 |
+| …all others… | | 2–46 |
+| **btn-miniauto** | **#eagle-out** | **275** |
+
+Alone by an order of magnitude — not a systemic defect, one card that moved seat.
+
+⇒ Fixed with the toast v2446 added for the shelf door, for its stated reason: *"a message only
+visible when the thing works is not an error message."* `#eagle-out` **keeps** its durable copy —
+this adds a voice, it does not move the record.
+
+⇒ Gate `test_a_button_speaks_where_it_stands` (239), and it is **general**: any handler answering
+into a box more than 80 lines away must also speak, so the next card that moves seat cannot repeat
+this. 80 sits clear of both populations.
+
+⚠⚠ **THE LAW'S FIRST CUT WAS WRONG AND ONLY THE SABOTAGE FOUND IT.** It asserted the shape
+`did not start … j.why` ANYWHERE in the handler — and the `#eagle-out` write carries the same
+sentence, so it matched the durable record while the toast said nothing. A sabotage that stripped
+`why` from the toast stayed **GREEN**. It now parses the toast CALL. Both arms proven red.
+[[sabotage-is-usually-the-wrong-one]]
+
+⚠ **AND A CORRECTION OF MINE.** I told him MINI AUTO was self-contained and did not need ON AIR or
+Shadow Reader. Wrong: it locates the game window itself but refuses on a frame older than **10s**
+(`control_app.py:18513`), so a capture must be LIVE at the moment of the press. He had told me this
+himself before I checked and concluded the opposite. I also told him it clicks page arrows — it
+cannot: `hover_drive` only ever builds `kCGEventMouseMoved`, and page-turning is explicitly *"a
+separate job for a separate file"*. It sweeps one open tab per run.
