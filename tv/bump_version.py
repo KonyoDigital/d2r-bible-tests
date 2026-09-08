@@ -167,11 +167,35 @@ def atomic_write(path, text, nl=""):
     ⚠ THIS IS PER-FILE, NOT ACROSS THE FOUR. A crash between two stamps still leaves the set
     disagreeing; that is a different defect and this does not fix it. Saying otherwise would be
     the overclaim this repo keeps carving. [[unknown-stays-unknown]]
+
+    ⚠⚠ v2795 — THIS SILENTLY DISABLED THE ENTIRE PRE-PUSH GATE, AND THE PUSH SAID SO IN A HINT
+    NOBODY WOULD HAVE READ TWICE. `os.replace` moves the TEMP FILE's inode into place, and the temp
+    file is created with the default 0644 — so every executable this function touched came out
+    NON-EXECUTABLE. Measured 2026-09-08: `hooks/pre-push` was 100755 at v2793 and 100644 at v2794,
+    and git printed
+
+        hint: The 'hooks/pre-push' hook was ignored because it's not set as executable.
+
+    then pushed straight to origin with NO gates at all — no test_control, no render, no smoke, no
+    second eye. The atomicity fix and the mode loss are the same line: preserving the CONTENT while
+    dropping the PERMISSION is not preserving the file. [[the-unjoined-end]]
+
+    ⚠ os.stat BEFORE the write, chmod AFTER the replace. A file that did not exist has no mode to
+    copy and correctly keeps the default.
     """
+    try:
+        _mode = os.stat(path).st_mode
+    except OSError:
+        _mode = None
     tmp = path + ".tmp"
     with io.open(tmp, "w", encoding="utf-8", newline=nl) as fh:
         fh.write(text)
     os.replace(tmp, path)
+    if _mode is not None:
+        try:
+            os.chmod(path, _mode & 0o7777)
+        except OSError:
+            pass
 
 
 def _record_ship_in_tasks(ver, name, note):

@@ -577,8 +577,28 @@ class TestCF4PreRescueSnapshot(unittest.TestCase):
         import auto_scope as AS
         src = AS.file_def(os.path.join(HERE, "control_app.py"), "_console_rescue_loop")
         self.assertNotIn(src, (None, AS._STALE))
+        # ⚠⚠ v2795 — `src.index("ui_fault_record")` TOOK THE FIRST OF FIVE. MEASURED inside
+        # `_console_rescue_loop`: ui_pre_rescue_snapshot appears ONCE (at 9837) and
+        # ui_fault_record FIVE times (7264, 8954, 10013, 12306, 14744) — the earlier two belong to
+        # OTHER refusal branches of the same loop and have nothing to do with the rescue's own
+        # record. So the law compared the snapshot against an unrelated call and reported
+        # "the snapshot is taken AFTER the record" about a chain that is correctly ordered:
+        # snapshot 9837 -> its record 10013 -> beat cleared 10537 -> reload 10727.
+        #
+        # THE COUNT IS THE TELL, and `.index()` hides it by design. The rescue's record is the
+        # FIRST ONE AFTER the snapshot; asserting the counts first means a future edit that adds
+        # or removes a branch fails loudly here instead of silently re-pointing the law.
+        # [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+        self.assertEqual(src.count("ui_pre_rescue_snapshot"), 1,
+                         "the rescue snapshot is no longer taken exactly once (%d) — this law "
+                         "picks the record that follows it and cannot do that unambiguously"
+                         % src.count("ui_pre_rescue_snapshot"))
+        self.assertGreaterEqual(src.count("ui_fault_record"), 3,
+                                "the loop's fault records collapsed to %d — the branches this "
+                                "law steps around are gone, so re-point it rather than letting "
+                                "it pass over a different shape" % src.count("ui_fault_record"))
         i_snap = src.index("ui_pre_rescue_snapshot")
-        i_rec = src.index("ui_fault_record")
+        i_rec = src.index("ui_fault_record", i_snap)   # the RESCUE's own record, not an earlier branch's
         i_clear = src.index('_UI_BEAT["elsHigh"] = 0')
         i_load = src.index("load_url")
         self.assertLess(i_snap, i_rec,
@@ -646,11 +666,38 @@ class Test167EyeShowsInTheFleetWhenLive(unittest.TestCase):
         worker = io.open(os.path.join(ROOT, "functions", "api", "console.js"), encoding="utf-8").read()
         self.assertIn('"eye": _eye_for_wire()', app)
         self.assertIn("eye: (function (e)", worker)
-        self.assertIn("m.eye && m.eye.live", ui)
+        # ⚠⚠ v2795 — THE UI JOINT MOVED AND THE LAW STAYED. This asserted the literal
+        # `m.eye && m.eye.live`, which was the v2454 shape. v2766 REPLACED it, on purpose and for
+        # the better: rendering the glyph only when `m.eye.live` drew the same nothing for three
+        # different machines — no second family installed (Dean, correct), one installed and IDLE,
+        # and one installed and FAILING. Absence, rest and failure are not the same fact. The
+        # condition now lives inside `_fleetEye`, which spends provider/family/second to tell six
+        # states apart.
+        #
+        # So the law binds to the JOINT and to the INVARIANT, not to the old expression:
+        #   · the fleet row must call _fleetEye with the wire's eye field, and
+        #   · _fleetEye must refuse a MISSING eye before it reads anything off it — an absent
+        #     field draws nothing rather than an empty dot.
+        # [[the-unjoined-end]] [[unknown-stays-unknown]]
+        self.assertIn("_fleetEye(m.eye)", ui,
+                      "the fleet row no longer hands the wire's eye to _fleetEye — the joint is "
+                      "broken and the chip is fed by something else")
         self.assertIn("fleet-eye", ui)
-        # a missing eye must not paint the chip — the condition is live, not merely present
-        i = ui.index("m.eye && m.eye.live")
-        self.assertNotIn("m.eye ?", ui[i:i + 80])
+        # ⚠ ANCHORED AT BOTH ENDS, never a byte window: the function starts at its own `var` and
+        # ends at the first close of that assignment. A fixed slice would shrink every time
+        # somebody documented the six states this function exists to tell apart, and that is the
+        # defect that made the river guard grade nothing this same session.
+        _i = ui.index("var _fleetEye = function(e){")
+        _j = ui.index("\n      };", _i)
+        eye_fn = ui[_i:_j]
+        self.assertLess(len(eye_fn), 20000, "the _fleetEye slice ran away — re-point the end anchor")
+        # ⛔ THE GUARD IS THE FIRST THING IT DOES. If the refusal drifts below a read of `e`, a
+        # machine that never reported an eye starts painting a chip about a lane nobody asked.
+        self.assertIn("if (!e) return '';", eye_fn,
+                      "_fleetEye no longer refuses a MISSING eye, so an absent field would paint "
+                      "the chip — the exact thing this joint exists to prevent")
+        self.assertLess(eye_fn.index("if (!e) return '';"), eye_fn.index("e.provider"),
+                        "_fleetEye reads the eye BEFORE checking it exists")
 
 
 class TestCF2WriteDoorsStillQueueANote(unittest.TestCase):

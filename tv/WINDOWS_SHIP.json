@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2794",
+  "ver": "v2796",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2794: The blueprint is generated from the code so it cannot drift, and nothing regenerated it: last written Sep 2, with zero mentions of the river, the printer or the stripped frame sets, all of which were built after that date. It now carries those three sections and pre-push refuses a stale map rather than regenerating one, because the gate grades the working tree.",
+  "note": "v2796: REG-722 a duplicate install-id minter that ignored the cache and could show two crests on one machine, REG-723 the third unbounded fetch on this surface behind a one-shot loader, REG-724 the shelf door opener was a one-shot that missed. Plus a law holding 68 fixed-size source windows and the 25 that pass silently.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

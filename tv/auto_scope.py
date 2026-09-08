@@ -66,6 +66,19 @@ LANES = {
         "when": "on a ten-minute timer",
         "brakes": "an unmeasurable check reads UNKNOWN, never ok",
     },
+    "tvd-runaway-watch": {
+        "does": "times its own sleep against the clock and, when it starves while the process "
+                "burns CPU, dumps every thread's stack so the spinning frame is NAMED",
+        "touches": "its own dump file (runaway_dumps.txt, capped and rolled over) and the fault "
+                   "journal row that says a runaway was seen",
+        "forbids": ["delete"],
+        "never": "your reels, your frames, your ledger or your vault. It reads its own clock and "
+                 "the process CPU counter, and the only thing it writes is evidence about itself",
+        "when": "on its own short timer, continuously — a watchdog that sleeps through the event "
+                "it watches for is not a watchdog",
+        "brakes": "the dump file is size-capped with one rollover, because a watchdog that fills "
+                  "the disk while reporting a runaway has become the incident",
+    },
     "tvd-retro-triage": {
         "does": "surveys one unread reel at a time to learn, for free, which reels are worth "
                 "paying to read",
@@ -353,6 +366,7 @@ LANE_FN = {
     "tvd-shadow-watch": "_shadow_watch_loop",
     "tvd-chron-autoread": "_chron_autoread_loop",
     "tvd-retro-triage": "_retro_triage_loop",
+    "tvd-runaway-watch": "_runaway_watch_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed

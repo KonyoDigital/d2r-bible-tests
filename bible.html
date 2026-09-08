@@ -49843,7 +49843,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2794', name:'v2794 - the map said it could not go stale and had been stale for six days', date:'2026-09-08', note:'The blueprint is generated from the code so it cannot drift, and nothing regenerated it: last written Sep 2, with zero mentions of the river, the printer or the stripped frame sets, all of which were built after that date. It now carries those three sections and pre-push refuses a stale map rather than regenerating one, because the gate grades the working tree.' };
+  window.D2R_BUILD = { id:'v2796', name:'v2796 - the river fetch could hang for ever and the crest could mint a second identity', date:'2026-09-08', note:'REG-722 a duplicate install-id minter that ignored the cache and could show two crests on one machine, REG-723 the third unbounded fetch on this surface behind a one-shot loader, REG-724 the shelf door opener was a one-shot that missed. Plus a law holding 68 fixed-size source windows and the 25 that pass silently.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -54034,13 +54034,22 @@ window.tvStashAutoIntake = async function(tab, opts){
   window.D2R_SIGIL = { of: sigilFor };
 
   function localId() {
+    /* ⚠⚠ v2795 — THIS WAS A SECOND INSTALL-ID MINTER AND IT COULD DISAGREE WITH THE FIRST.
+       `window._D2R_INSTALL` has resolved this id since the owner-claim work: it reads
+       `d2r_installIdCache` FIRST, falls back to `d2r_installId`, mints only if both are missing,
+       and re-writes the cache. My cut read `d2r_installId` alone and minted when it was absent —
+       so on a machine where the CACHE survived an eviction of the raw key (the exact case the
+       block at `_D2R_INSTALL` documents), the two would hand back DIFFERENT ids.
+       The comment fifteen lines above this one says what that costs: *"if they drift, one PC shows
+       two different crests, which is worse than showing none, because the entire purpose is
+       comparing two machines."* My own function defeated its own stated purpose.
+       ⛔ AND THE FIX IS NOT A `raw-ok` WAIVER. I wrote two of those to silence the router gate,
+       which pushed the exemption count to 14 against a ceiling of 12 — and that gate's message is
+       exactly right: *"the hatch is being used as a habit. Each one is a place the router does not
+       protect."* The hatch was hiding a duplicate implementation, not protecting a special case.
+       ONE resolver, reused. [[copy-drift]] [[the-unjoined-end]] */
     try {
-      var k = 'd2r_installId', v = localStorage.getItem(k);
-      if (v) return v;
-      v = (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '')
-        : String(Date.now()) + Math.random().toString(16).slice(2);
-      localStorage.setItem(k, v);
-      return v;
+      return window._D2R_INSTALL || '';
     } catch (e) { return ''; }
   }
 

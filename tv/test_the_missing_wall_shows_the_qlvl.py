@@ -106,6 +106,17 @@ def _run_real_reader(names):
         return None
 
 
+#: ⚠ THE ELEVEN WITH NO GAME-TABLE ROW UNDER ANY SPELLING. SET_QLVL_PROVENANCE.md records why each
+#: is still 0 and refuses to map a near-spelling: the table says `Tal Rasha's Fire-Spun Cloth` where
+#: the bible says `Fine-Spun Cloth`, and it holds four Aldur's pieces with no `Aldur's Rhythm` among
+#: them. Some are probably naming errors in the bible rather than missing game data, and that wants
+#: a HUMAN ruling — guessing would be the fabrication the sourcing rule exists to forbid.
+STILL_UNKNOWN_PIECES = ("Aldur's Rhythm", "Dark Adherent", "Hwanin's Blessing",
+                        "Sander's Paragon", "Sander's Riprap", "Sander's Superstition",
+                        "Sander's Taboo", "Taebaek's Glory", "Tal Rasha's Fine-Spun Cloth",
+                        "Tal Rasha's Guardianship", "Whitstan's Guard")
+
+
 class TheMissingWallShowsTheQlvl(unittest.TestCase):
 
     # ── the guard can find its subject ───────────────────────────────────────────────────────
@@ -127,10 +138,33 @@ class TheMissingWallShowsTheQlvl(unittest.TestCase):
     def test_the_zero_sentinel_renders_NOTHING(self):
         """★ 0 is 'never recorded', and q0 under 230 rows would be a fabricated number in the one
         place nobody would check."""
-        got = _run_real_reader(["Annihilus", "Key of Hate", "Death's Guard (belt)",
-                                "Arctic Binding (belt)"])
+        # ⚠⚠ v2795 — THE OLD PROBES STOPPED BEING ZEROS. This asked about `Death's Guard (belt)`
+        # and `Arctic Binding (belt)` because, when it was written, no set piece carried a level at
+        # all. v2787 sourced 1,477 of them from the game's own SetItems.txt, so those two now
+        # answer 8 and 3 — REAL values from their OWN table rows, not substitutions, which
+        # SET_QLVL_PROVENANCE.md traces. The law was right and its FIXTURE went stale, so it
+        # reported honest data as a fabricated number.
+        #
+        # ⛔ THE PROBES NOW COME FROM THE ELEVEN THAT ARE STILL UNKNOWN — the pieces with no row in
+        # the game table under any spelling. Those are the ones where printing anything would be
+        # the fabrication, and they are re-derived from the ledger below rather than pasted, so
+        # this cannot go stale the same way twice.
+        STILL_UNKNOWN = ["Aldur's Rhythm", "Dark Adherent", "Hwanin's Blessing",
+                         "Sander's Paragon", "Sander's Riprap", "Sander's Superstition",
+                         "Sander's Taboo", "Taebaek's Glory", "Tal Rasha's Fine-Spun Cloth",
+                         "Tal Rasha's Guardianship", "Whitstan's Guard"]
+        best, _tier = _best()
+        # ⚠ BASELINE: the names must still BE zeros in the page, or the probe list is the stale
+        # thing and this law is grading its own assumption. [[feedback-blind-fixture-green-gate]]
+        not_zero = [n for n in STILL_UNKNOWN if int(best.get(n) or 0) > 0]
+        self.assertEqual(not_zero, [],
+                         "these were the pieces with NO game-table row and they now carry a "
+                         "level: %s. Either more data was sourced (update this list AND "
+                         "SET_QLVL_PROVENANCE.md) or something guessed a value." % not_zero)
+        got = _run_real_reader(["Annihilus", "Key of Hate"] + STILL_UNKNOWN)
         if got is None:
             self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertTrue(got, "the reader answered about nothing, so this law examined nothing")
         for n, v in got.items():
             self.assertIsNone(v, "%r resolved to %r. Its table row carries qlvl 0, which means no "
                                  "level was ever recorded — printing it states a fact the data "
@@ -145,20 +179,51 @@ class TheMissingWallShowsTheQlvl(unittest.TestCase):
                                 "Immortal King's Soul Cage (armor)", "Immortal King set (any)"])
         if got is None:
             self.skipTest("node unavailable — a skip is NOT a pass")
-        self.assertIsNone(got.get("Trang-Oul's Wing (shield)"),
-                          "a set PIECE picked up %r — the aggregate's level standing in for the "
-                          "piece's, which is the substitution v2299 refused"
-                          % got.get("Trang-Oul's Wing (shield)"))
-        self.assertIsNone(got.get("Immortal King's Soul Cage (armor)"))
+        # ⚠⚠ v2795 — `assertIsNone` WAS THE RIGHT LAW ONLY WHILE PIECES HAD NO DATA. Once the
+        # pieces carry their own levels, "the piece resolves to nothing" stops being evidence of
+        # anything and this law would have had to be deleted. What the docstring above actually
+        # describes is narrower and permanent: the piece must not wear the SET's number.
+        #
+        # MEASURED, and it is the proof the join is per-PIECE: Trang-Oul's aggregate is 65 and
+        # every one of its five pieces is 32; Immortal King's aggregate is 55 and its six pieces
+        # are 37; Aldur's aggregate is 59 and its pieces are 29. Across the page, 25 stems carry
+        # DIFFERING levels between their own entries — a per-set join could not produce that.
+        for piece, agg in (("Trang-Oul's Wing (shield)", "Trang-Oul set (any piece)"),
+                           ("Immortal King's Soul Cage (armor)", "Immortal King set (any)")):
+            pv, av = got.get(piece), got.get(agg)
+            self.assertIsNotNone(av, "%r lost its own level, so this law is now comparing against "
+                                     "NOTHING — an instrument failure, not a clean result" % agg)
+            self.assertIsNotNone(pv, "%r resolves to nothing. Per-piece levels shipped in v2787, "
+                                     "so this is data going missing, not the gap it used to be"
+                                     % piece)
+            self.assertNotEqual(
+                pv, av,
+                "%r and its set aggregate %r BOTH read %r — the aggregate's level standing in for "
+                "the piece's, which is the substitution v2299 refused. A piece sharing its set's "
+                "number is the exact shape of that leak." % (piece, agg, pv))
         self.assertEqual(65, got.get("Trang-Oul set (any piece)"),
                          "the aggregate itself lost its own level, so this law is now passing "
                          "because NOTHING resolves — an instrument failure, not a clean result")
 
     # ── ⚠ THE FIXTURE ASSUMPTION, PINNED ────────────────────────────────────────────────────
-    def test_the_set_piece_gap_is_still_real(self):
-        """⚠⚠ HALF HIS ASK IS BLOCKED ON DATA THIS PAGE DOES NOT HAVE, and that must not become
-        invisible. The day set-piece levels are sourced, this goes RED — which is the signal to
-        render them, not a failure."""
+    def test_the_set_piece_levels_ARRIVED_and_may_not_go_backwards(self):
+        """★★ THIS LAW'S PREDECESSOR FIRED AS DESIGNED, AND THIS IS ITS SUCCESSOR.
+
+        It was `test_the_set_piece_gap_is_still_real`, and its docstring promised: *"The day
+        set-piece levels are sourced, this goes RED — which is the signal to render them, not a
+        failure."* v2787 sourced them from the game's own SetItems.txt and it went red on
+        `Arctic Binding` exactly as designed.
+
+        ⛔ A FIRED TRIPWIRE IS REPLACED, NEVER DELETED. Deleting it would leave the coverage it
+        watched unguarded in the OTHER direction — a data change that quietly empties the wall
+        would then pass in silence, which is how the gap became invisible in the first place. So
+        the assertion inverts: the levels are here, and they may not go backwards.
+
+        MEASURED 2026-09-08: 124 of 135 roster pieces carry a real level, and the 11 that do not
+        are EXACTLY the eleven SET_QLVL_PROVENANCE.md records as having no row in the game table
+        under any spelling. Two independent extracts agree on all 132 pieces they share.
+        [[unknown-stays-unknown]] [[regression-guard]]
+        """
         best, tier = _best()
         sets = [(n, q) for n, q in best.items() if tier[n] == "set"]
         withq = [(n, q) for n, q in sets if q > 0]
@@ -174,16 +239,27 @@ class TheMissingWallShowsTheQlvl(unittest.TestCase):
                          "the set roster no longer holds 135 pieces (%d) — this law's authority "
                          "moved and it must be re-pointed before its green means anything"
                          % len(pieces))
-        bare = set(p.split(" (")[0] for p in pieces) | set(pieces)
-        for n, q in withq:
-            self.assertNotIn(n, bare,
-                             "%r is a set PIECE and it now carries a real qlvl (%d). Per-piece "
-                             "levels have arrived — render them; the sets wall is currently blank "
-                             "for 134 pieces only because nothing was there to show." % (n, q))
-        self.assertLessEqual(len(withq), 20,
-                             "%d set entries now carry a qlvl, up from the 14 known aggregates. "
-                             "Per-piece data may have landed; the sets wall should stop being blank."
-                             % len(withq))
+        bare = set(p.split(" (")[0] for p in pieces)
+        covered = sorted(p for p in bare if int(best.get(p) or 0) > 0)
+        missing = sorted(p for p in bare if int(best.get(p) or 0) == 0)
+        # ⚠ THE RATCHET. 124 is what the game data actually yielded; a drop means a load path
+        # broke or a name drifted, and the wall would simply go quiet without saying so.
+        self.assertGreaterEqual(
+            len(covered), 124,
+            "set-piece coverage FELL to %d of %d. The levels were sourced from SetItems.txt in "
+            "v2787 and rendering them is half his ask — a drop empties the sets wall and nothing "
+            "else would notice. Missing: %s" % (len(covered), len(bare), missing))
+        # ⛔ AND THE UNKNOWNS STAY UNKNOWN. The eleven have no game-table row under any spelling;
+        # SET_QLVL_PROVENANCE.md refuses to map a near-spelling because a near-spelling is not a
+        # trace. A value appearing for any of them was GUESSED — the fabrication his sourcing rule
+        # forbids — so a RISE here fails exactly as hard as a fall.
+        self.assertEqual(
+            missing, sorted(STILL_UNKNOWN_PIECES),
+            "the set of UNKNOWN pieces changed. Newly filled: %s — each needs a traceable row in "
+            "SET_QLVL_PROVENANCE.md before it may ship, because the alternative is a guessed "
+            "level nobody can audit. Newly empty: %s"
+            % (sorted(set(STILL_UNKNOWN_PIECES) - set(missing)),
+               sorted(set(missing) - set(STILL_UNKNOWN_PIECES))))
 
     def test_the_unique_coverage_has_not_collapsed(self):
         """A zero needs a denominator, and so does a fix. If a data change drops unique coverage,

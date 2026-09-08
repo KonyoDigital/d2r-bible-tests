@@ -173,9 +173,27 @@ def main(argv=None):
         # moves it from UNPROVEN to a real score and leaves it LOCKED until a second and third
         # family — live, and cross-family — have also attacked it. A single family agreeing with
         # itself is the wall of agreements this whole module exists to refuse.
+        # ⚠⚠ v2795 — `attacks` IS A COUNT OF DISTINCT ATTACKS, AND THIS PASSED A LIST OF THE
+        # ONES THAT GOT THROUGH. `self_arming.bank` stores `int(attacks)`, so the old expression
+        #
+        #     attacks=[r["name"] for r in rows if not r["refused"]] or None
+        #
+        # could NEVER record the field correctly, in either direction:
+        #   · a PERFECT run (every sabotage refused) makes the list empty, `or None` turns it into
+        #     None, and the row banks UNSTATED — which is exactly the state
+        #     test_every_lock_declares_its_attacks forbids, because a score with no attack count
+        #     cannot be told apart from one bought by looping ONE sabotage. MEASURED: the live
+        #     row was n=16 k=16 attacks=None.
+        #   · a FAILING run hands `int()` a list and raises TypeError, so the bank blows up at the
+        #     moment there is finally something to record.
+        # It also asked the wrong question — the failures are already in `rows` and in `n - k`.
+        # ⚠ DISTINCT NAMES, NOT len(rows). If two entries ever shared a name they would be one
+        # attack run twice, and counting them as two is the fake-confluence REG-598 exists for:
+        # 83/83 was 2 attacks x 40 reels, really 0.5655. MEASURED here: 16 attempts, 16 distinct
+        # names, 3 families — no repetition, so the honest count is 16.
         row = SA.bank(LOCK, "sabotage", SRC, n, k,
                       note="adversarial verdicts built from his own two measured window states",
-                      attacks=[r["name"] for r in rows if not r["refused"]] or None)
+                      attacks=len({r["name"] for r in rows}))
         print("  banked: %s\n" % {kk: row.get(kk) for kk in ("lock", "kind", "src", "n", "k")})
         ok, why = SA.may(LOCK)
         print("  may(%s) -> %s\n  %s\n" % (LOCK, ok, why[:200]))

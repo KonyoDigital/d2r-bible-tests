@@ -135,7 +135,40 @@ class TheHARNESSESAllPassIt(unittest.TestCase):
         banks under it when it drives the RUNNING console over HTTP. The evidence is real and
         re-derivable. Checking before believing my own alarm is the only reason this is a note and
         not a retraction."""
+        # ⚠⚠ v2795 — THE OLD FORM CONFLATED TWO OPPOSITE FACTS AND FAILED ON THE HARMLESS ONE.
+        # It demanded that EVERY module-less label be referenced by some harness. But PROVES is an
+        # allow-list of whose evidence WOULD COUNT, and self_arming says so where the entries are
+        # written: *"An allow-list entry is not evidence; it only says whose evidence would COUNT.
+        # Until a harness banks under one of these the lock is UNPROVEN."* Declaring the second
+        # and third family a lock needs BEFORE they exist is the mechanism working — `kinds_bar`
+        # 1.8 means one family can never open `console.pixel_rescue` alone, so the other two have
+        # to be nameable in advance.
+        #
+        # MEASURED across all six module-less labels: every one that has BANKED anything is
+        # referenced by a real harness (vault_live<-vault_wilson 21 rows, rung_accounting_live 2,
+        # rung_accounting_xfam 3, frame_release_live 1). The two that are not referenced —
+        # pixel_witness_live, pixel_witness_crossfamily — have banked **zero rows**. The old law
+        # went red on the two that carry no claim at all.
+        #
+        # ⛔ SO THE LAW BINDS ON EVIDENCE, NOT ON DECLARATION, and that is STRICTER where it
+        # matters: the moment a label banks a single row, its source must be derivable from a
+        # module in the tree. A promise costs nothing and can be checked later; a SCORE whose
+        # origin nobody can find is the untraceable evidence this guard exists for.
         labels = [s for s in SA.PROVES if not os.path.exists(os.path.join(HERE, s + ".py"))]
+        self.assertTrue(labels, "no module-less label exists, so this law is vacuous — re-point "
+                                "it rather than leaving it green over nothing")
+        # ⚠ `_rows()` RETURNS (rows, why) — a tuple, not a list. My first cut iterated the tuple
+        # and counted nothing, and the baseline assertion below is the only reason that did not
+        # become a law that passes because it read no evidence at all. [[zero-needs-a-denominator]]
+        _rows, _why = SA._rows()
+        banked = {}
+        for row in (_rows or []):
+            if isinstance(row, dict) and row.get("src"):
+                banked[row["src"]] = banked.get(row["src"], 0) + 1
+        self.assertTrue(banked,
+                        "the ledger read back EMPTY (%s), so 'has banked nothing' is true of "
+                        "everything and this law would pass over an unread file" % (_why or "no "
+                        "reason given"))
         for lab in labels:
             found = False
             for other in SA.PROVES:
@@ -145,9 +178,15 @@ class TheHARNESSESAllPassIt(unittest.TestCase):
                 if ('"%s"' % lab) in io.open(p, encoding="utf-8").read():
                     found = True
                     break
-            self.assertTrue(found,
-                            "%r is declared in PROVES, has no module, and no harness banks under "
-                            "it — that is evidence nobody can re-derive" % lab)
+            if found:
+                continue
+            self.assertEqual(
+                banked.get(lab, 0), 0,
+                "%r has banked %d row(s), has no module of its own, and no harness in the tree "
+                "names it — so its evidence cannot be re-derived by anyone, which is exactly the "
+                "untraceable score this guard exists to refuse. A label may be declared ahead of "
+                "its harness; it may not CARRY a claim nobody can trace."
+                % (lab, banked.get(lab, 0)))
 
 
 class ItDoesNotDecideHisRuling(unittest.TestCase):

@@ -24032,3 +24032,223 @@ shape **7 detections**, and the dump named the culprit frame by name.
 `kill -USR1 <pid>` prints every thread's Python stack to its log, and `lockWait.blocked` climbing (or
 not) says whether a lock is involved at all. **Do not close this as "fixed by a restart".**
 [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+## REG-718 — `atomic_write` stripped the pre-push hook's executable bit, and v2794 shipped with NO gates at all
+
+**The one-line cause.** `tv/bump_version.py:atomic_write` wrote a temp file and `os.replace`d it into
+place. A temp file is born `0644`, and `os.replace` moves that inode — so **every executable this
+function ever edited came out non-executable.** Preserving the CONTENT while dropping the PERMISSION
+is not preserving the file.
+
+| commit | `hooks/pre-push` mode |
+|---|---|
+| `24d5b6bc` v2792 | `100755` |
+| `8e9b7851` v2793 | `100755` |
+| `c7d130be` v2794 | **`100644`** |
+
+Git said so, once, in a line that scrolls past:
+
+    hint: The '…/hooks/pre-push' hook was ignored because it's not set as executable.
+
+**v2793 and v2794 went to origin in ONE push and that push ran nothing** — no `test_control`, no
+render, no Playwright smoke, no second eye, and not even the blueprint gate the commit existed to
+add. The commit that installed a gate is the commit that turned every gate off. It would have stayed
+off for every future push, silently, because a hook that is not executable does not FAIL — it is
+simply never run, and **a skip is not a pass**. [[regression-guard]]
+[[feedback-silence-is-not-evidence]]
+
+⇒ `atomic_write` now `os.stat`s the target before writing and `os.chmod`s after the replace; a path
+that did not exist has no mode to copy and correctly keeps the default. Gate
+`test_atomic_write_keeps_the_mode` holds both halves and the hook's mode **on disk AND in the git
+index** — the index mode is what a fresh clone inherits, the disk mode is what arms the machine
+actually pushing. Proven red three ways: mode stripped, hook `chmod -x`, and the index mode changed.
+
+---
+
+## REG-719 — the push gate runs 14 of 237 registered gates, and the full set had been red in CI for over a day
+
+Found while verifying what the ungated v2794 actually shipped. Running `tv/run_gates.py` over it
+returned **12 failures**, and stashing my own edits showed 11 of them were in the SHIPPED bytes.
+
+**They were never in the push path.** `hooks/pre-push` names ~14 gates one by one; `run_gates.py`
+registers **237** and the hook never invokes it. The hook's own comment records this exact defect
+from an earlier era — *"run_gates.py runs 30 gates; this hook ran three… v1830..v1838 all shipped
+over a red gate nobody was looking at"* — and the fix then was to add TWO more by name. The registry
+grew 30 → 237; the hand-list did not.
+
+**CI had the verdict and nobody read it.** `tv-tests.yml` DOES run the full set:
+
+    last SUCCESS   2026-09-07 06:12
+    since then     failure at v2786, v2789, v2792, v2793, v2794
+    last 40 runs   28 failure / 12 success
+
+So the ten red gates were not v2793/v2794 regressions — several had been red for a day or more,
+invisible to the push gate and unread in CI. [[feedback-ci-verdict-before-seal]] [[the-unjoined-end]]
+
+⇒ All twelve repaired (see REG-720). The structural half — making the push gate derive from the
+registry instead of a hand-list — is NOT done and is the standing follow-up.
+
+---
+
+## REG-720 — what the twelve red gates actually were: four real defects, eight blind instruments
+
+Worth separating, because the ratio is the finding: **most of what a long-unread gate set reports is
+its own decay, and the real defects hide among it.**
+
+**REAL, in the shipped code:**
+
+1. `tvd-runaway-watch` (v2793's watchdog) ran with **no declared scope** — a lane whose reach is
+   unknowable from the console. Now declared, including its dump file and its size cap.
+2. `_CHRON_SWEPT_PATH` became env-bound when v2793 routed it through `_fixture_root_for_state()`
+   and was never registered. Measured call-time, and documented as a patch hook rather than a
+   binding.
+3. `blueprint` reads `retro_triage.json` and `render_check` copies `vault_accum.json` /
+   `vault_swept.json` — three undeclared store touchers. Declared.
+4. **`pixel_witness_wilson` could never record its attack count.** It passed
+   `attacks=[names of sabotages that got through] or None` where `bank()` stores `int(attacks)`.
+   A PERFECT run makes that list empty → `None` → banked UNSTATED, the exact state
+   `test_every_lock_declares_its_attacks` forbids; a FAILING run hands `int()` a list and raises.
+   Wrong in both directions, so the field was never once recorded. MEASURED: 16 attempts, 16
+   distinct names, 3 families — no repetition. Re-banked as `attacks=16`; the lock **stays LOCKED**
+   (`may() → False`, Wilson 0.806 against a bar of 0.839). Correcting the attribution armed nothing.
+
+**BLIND INSTRUMENTS — the gate was wrong, not the code:**
+
+5. `test_the_river_has_a_mouth` sliced `SRC[i:i+9000]`; the `/api/river` payload had grown to
+   **+9145**. It fell 145 characters past the window, so the helper returned `None` and two real
+   laws ERRORED on it. A file-wide sweep found **80 more fixed-size source windows** — logged as
+   the open follow-up, because a short window under an `assertNotIn` passes having read nothing.
+6. `test_cf_handoff` read `src.index("ui_fault_record")` — **the first of five** — and compared the
+   rescue snapshot against an unrelated branch's record. The real chain was correctly ordered.
+7. `test_cf_handoff` also pinned the literal `m.eye && m.eye.live`, which v2766 deliberately
+   replaced with `_fleetEye` so that absent / idle / failing stopped drawing the same nothing. Now
+   bound to the joint and the invariant instead of the old expression.
+8. `test_the_river_reaches_the_heart` guarded on `r.get("carried")` when the key is **`crossed`** —
+   permanently falsy, so it asserted zero-case wording over a joint that had HEALED (258 of 14,322
+   sightings now carry `scene`). Made state-aware rather than skipped, because its own comment says
+   a skip is not a pass.
+9-11. Three `qlvl` laws written when set pieces had NO levels. v2787 sourced them, so probes chosen
+   as examples of "still zero" now answer 8 and 3. Verified against the game's own table that the
+   join is per-PIECE, not per-set: **25 stems carry differing levels, and every aggregate differs
+   from its pieces** (Trang-Oul 65 vs 32, Immortal King 55 vs 37, Aldur 59 vs 29). The fired
+   tripwire was REPLACED by a two-way ratchet — coverage may not fall below 124 of 135, and the 11
+   documented unknowns may not gain a value either, because a value there would be GUESSED.
+12. `overlap_ratchet` — see REG-721.
+
+---
+
+## REG-721 — the heart's lock fan outgrew its geometry, and I nearly carved the wrong number into the fix
+
+REG-615 sized the heart diagram's three radial tiers for **eight** locks. The fan now draws **ten**,
+and at ten the centred 3-line labels collide: `reel.route`'s "87/87 refused · 0.958 ≥ 0.958" landed
+on `console.pixel_rescue`'s "16/16 refused · 0.806 ≥ 0.839" at 1120 and 1440, and on
+`vault.sweep_start`'s "2 attacks · each run 8.0×" at 901.
+
+**Three fixes were tried and measured before the right one:**
+
+| attempt | result |
+|---|---|
+| 13px parity stagger | broke that pair, made a NEW one — 13 is exactly the line pitch, so it re-registers line 2 onto line 3 |
+| 34px stagger | **two** collisions instead of one |
+| move the third line into the tooltip above 8 locks | **0 overlaps at every width** |
+
+That is the same whack-a-mole v2650 and v2662 played with label LENGTH, both reverted, and the file
+already states the way out twice: *"the names come off the diagram and stay in the tooltip"*,
+*"present, not shouted"*. The repetition line is not lost — it is appended to the `<title>`.
+
+⚠ **AND THE NUMBER IN MY FIRST COMMENT WAS WRONG.** `self_arming.report()` lists **19** locks on this
+machine and I set the threshold from that. It did not fire, because the fan draws what the WIRE
+sends — the ten original locks, not the nine `chronicle.*` / `fleet.*` / `roster.*` rows. Measuring
+one population and legislating for another is a threshold above the ceiling it exists to catch, and
+it would have shipped as a confident comment citing a number from the wrong place.
+[[feedback-threshold-above-the-ceiling]] [[measured-true-read-wrong]]
+
+---
+
+## REG-722 — I shipped a SECOND install-id minter in v2794, and it could disagree with the first
+
+`window._D2R_INSTALL` has resolved the install id since the owner-claim work: it reads
+`d2r_installIdCache` **first**, falls back to `d2r_installId`, mints only if both are missing, and
+re-writes the cache. My v2794 crest code added `localId()`, which read `d2r_installId` alone and
+minted when it was absent — **ignoring the cache entirely**.
+
+So on any machine where the cache survived an eviction of the raw key — the exact case the
+`_D2R_INSTALL` block is written to handle — the two would hand back **different ids**. The comment
+fifteen lines above my own function says what that costs:
+
+> *"if they drift, one PC shows two different crests, which is worse than showing none, because the
+> entire purpose is comparing two machines."*
+
+My function defeated its own stated purpose, in the one case its neighbour exists for.
+
+⚠ **AND I NEARLY PAPERED OVER IT.** The router gate went red at 14 `raw-ok` exemptions against a
+ceiling of 12, because I had written two waivers to silence it. Its message was exactly right —
+*"the hatch is being used as a habit. Each one is a place the router does not protect"* — and the
+hatch was hiding a duplicate implementation, not protecting a special case. Raising the ceiling
+would have shipped the defect with a note explaining why it was fine.
+
+⇒ `localId()` now returns `window._D2R_INSTALL`. One resolver, reused. Both waivers deleted, the
+exemption count is back under its ceiling, and no ceiling was moved. [[copy-drift]]
+
+---
+
+## REG-723 — `/api/river` was fetched unbounded behind a one-shot, so "reading the river…" could be permanent
+
+REG-713's **third** sibling on the same surface. `_shRiverLoad` was a bare
+`fetch('/api/river', {cache:'no-store'})` — no AbortController, no timeout. The `.catch` beneath it
+looks like cover and is not: **a fetch that hangs never rejects**, so it never runs. `SHELF_RIVER`
+stays `null`, the strip renders `.shr-wait` — *"reading the river…"* — and because its only caller
+sets `window.__shRiverAsked = 1` *before* calling, nothing ever asks again.
+
+**A one-shot behind an unbounded call is a permanent hang wearing a slow load's clothes.**
+
+Measured while building the render target, which is the entire argument for #30:
+
+| | |
+|---|---|
+| `/api/river` over HTTP | **0.18s** |
+| `reel_router.route()` over 40 reels | 0.2s |
+| machine load | 3.92 on 10 cores |
+| what the strip showed | `shr-wait` · *"reading the river…"* past a 12.3s poll |
+
+⇒ Bounded at 12s (not the sibling's 8s — this route walks every reel's stations, and v2790 recorded
+archive routes at ~4s alone / 41.6s under contention). On failure it sets `SHELF_RIVER = false`,
+which renders a REFUSAL sentence rather than `null` (reading for ever) or `{}` (four empty stations
+drawn as if measured) — three different facts, only one of them true. **The one-shot is released on
+failure**, so a later open retries; pinning it closed would have re-created the defect.
+
+---
+
+## REG-724 — the shelf door's opener was a one-shot that missed, and #30 is still blocked for a reason nobody had measured
+
+Building the river render target exposed two things and settled a third.
+
+**The opener.** `_shelf_activate` clicked `#btn-shelf` exactly once, guarded by
+`window.__shelfAsked`, on the harness's first poll. Its own `activateWhy` — which I only added
+after refusing blind for a round, exactly as note 5 in that file predicts — said:
+
+    view=none · _toTVD=function · asked=FIRED · btnVisible=yes
+    · theatre=SHUT(display:none) · th-shelfov=present but HIDDEN · rect=0x0
+
+The button existed, was visible, and was clicked; the theatre never opened; and `#btn-shelf`'s
+handler records a `shelf-door-refused` fault when it refuses, of which there were **none**. So the
+handler did not refuse — it never ran. The click landed before its onclick was bound and the
+sentinel guaranteed no retry. Now a bounded retry that clicks only while the theatre is SHUT, so it
+stays idempotent and stops the moment the door is open. Result: `clicks=2 · theatre=open ·
+rect=1044x906`, reproducibly.
+
+**The route out.** The same function guarded `_toTVD()` on `document.body.getAttribute('data-view')`
+being truthy. A freshly served console has **no such attribute** (`view=none`), so the call was
+skipped on exactly the load it exists for. [[feedback-threshold-above-the-ceiling]]
+
+**And the real blocker for #30, which was NOT what the old note said.** That note claimed the target
+needed "a `settle_shape` that tolerates a growing document, or a shelf that stops building". It
+needs neither: nine live-console targets already declare `settles: False`, and the route and machine
+are both fast (above). The strip is simply never **asked** — `_shRiverLoad`'s caller sits behind the
+shelf's card render, and `_shSort()` returns early with no `.sh-grid` to work on.
+
+⇒ The target is **kept unregistered**, because a target the fixture cannot satisfy is
+[[feedback-blind-fixture-green-gate]]: registering it ships a permanently red gate, widening its
+bound ships a permanently UNKNOWN one, and both are furniture. The working door, the diagnostics and
+the staged target block are kept so the next attempt starts from what works. **The river strip still
+has zero pixel coverage and that is stated, not hidden.**

@@ -235,19 +235,47 @@ class TheRiverReachesTheHeart(unittest.TestCase):
         `chronicle_autoreel_tick` reports 0 reels owing a read, and a reel re-owes only when it
         GROWS or when PROMPT_VER changes. So it cannot heal by waiting.
         [[zero-needs-a-denominator]]"""
+        # ⚠⚠ v2795 — THIS GUARD READ A KEY THAT DOES NOT EXIST, AND THE JOINT HAD HEALED.
+        # It was `if r.get("carried"): skipTest(...)`. `_joint` publishes the count as **crossed**,
+        # never `carried`, so the guard was permanently falsy and the zero-case assertions ran
+        # against a NON-zero result: MEASURED 258 of 14,322 sightings now carry `scene`, state
+        # CARRIES. The gate went red announcing "the zero does not say WHY it is zero" about a
+        # sentence that is not reporting a zero at all.
+        #
+        # A missing key reading as absent is this repo's most repeated instrument fault, and it
+        # bit the guard that exists to stop a zero lying. [[unknown-stays-unknown]]
+        #
+        # ⛔ AND THE FIX IS NOT A SKIP. The old branch would have skipped once the key was right,
+        # and its own comment says a skip is NOT a pass — so the law would have stopped grading
+        # anything the moment the thing it watches started working. Both states get a real
+        # assertion instead, because both have a way of lying.
         r = RV.j_surface()
         why = str(r.get("why") or "")
-        if r.get("carried"):
-            self.skipTest("sightings now carry a surface here, so the zero-case wording is not "
-                          "exercised — a skip is NOT a pass")
+        total = len(RV._sightings() or [])
         self.assertNotIn("does not persist it", why,
                          "the joint still blames the reader for dropping a key it writes")
-        self.assertIn("PREDATES", why,
-                      "the zero does not say WHY it is zero, so it reads as a broken writer")
-        self.assertIn("cannot heal by waiting", why,
-                      "nothing says this will not fix itself on the next tick — it will not")
-        self.assertIn(str(len(RV._sightings() or [])), why,
-                      "the zero has no denominator")
+        if r.get("crossed"):
+            # ⚠ THE CARRYING CASE. The danger here is the opposite one: a bare "it carries" hides
+            # HOW FEW. 258 of 14,322 is 1.8%, and a reader who sees only CARRIES will think the
+            # cross-surface witness is available when it is available for almost nothing.
+            self.assertIn("scene", why,
+                          "the sentence no longer names WHICH key is carrying, so a future rename "
+                          "would silently change what this number counts")
+            self.assertIn("surface", why,
+                          "the older key is no longer reported beside the new one — that pair IS "
+                          "the finding; one number alone cannot show a vocabulary changing hands")
+            self.assertEqual(r.get("upstream"), total,
+                             "the joint publishes no denominator, so %r carrying reads as "
+                             "'enough'" % r.get("crossed"))
+            self.assertLessEqual(int(r.get("crossed")), total,
+                                 "more sightings carry a surface than exist — the numerator and "
+                                 "the denominator are counting different things")
+        else:
+            self.assertIn("PREDATES", why,
+                          "the zero does not say WHY it is zero, so it reads as a broken writer")
+            self.assertIn("cannot heal by waiting", why,
+                          "nothing says this will not fix itself on the next tick — it will not")
+            self.assertIn(str(total), why, "the zero has no denominator")
 
     def test_the_gate_joint_still_runs_on_his_real_store(self):
         r = RV.j_gate()

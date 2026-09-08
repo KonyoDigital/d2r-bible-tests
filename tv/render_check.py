@@ -266,8 +266,28 @@ def _shelf_activate():
     """
     return """(function(){
         try {
-          if (!window.__shelfAsked) {
-            window.__shelfAsked = 1;
+          /* ⚠⚠ v2795 — THIS WAS A ONE-SHOT AND THE ONE SHOT MISSED. It clicked exactly once,
+             guarded by `window.__shelfAsked`, on the harness's FIRST poll. MEASURED via this
+             target's own activateWhy:
+                 view=none · _toTVD=function · asked=FIRED · btnVisible=yes
+                 · theatre=SHUT(display:none) · th-shelfov=present but HIDDEN
+             The button existed and was visible, the click fired, and the theatre never opened —
+             and `#btn-shelf`'s handler records a `shelf-door-refused` fault when it refuses, of
+             which there were NONE from these runs. So the handler did not refuse; it never ran.
+             The click landed before its onclick was bound, and the sentinel guaranteed no second
+             attempt for the remaining 12s of polling.
+             ⛔ A ONE-SHOT THAT MISSES IS A PERMANENT REFUSAL WEARING A SLOW ONE'S CLOTHES, and
+             the two must not look alike — this target refused for 12.1s reporting only "could not
+             be ACTIVATED", which is the shape note 5 above warns costs a round every time.
+             ⚠ RETRY, BUT ONLY WHILE IT IS SHUT — that is what keeps it idempotent, the property
+             heart-fan's opener documents as mandatory ("the harness re-runs this every 0.4s, so it
+             must never toggle"). Once the theatre is open the click STOPS, so a repeat can never
+             toggle the door back closed. Counted, so a reader can tell one missed click from a
+             door that refuses every time. */
+          var _th0 = document.getElementById('theatre');
+          var _shut = !_th0 || getComputedStyle(_th0).display === 'none';
+          if (_shut && (window.__shelfTries || 0) < 25) {
+            window.__shelfTries = (window.__shelfTries || 0) + 1;
             /* ⚠⚠ v2785 — LEAVE THE GAMEPLAY HOME FIRST, exactly as `_adv_activate` does, and for
                the same reason. `#btn-shelf` sits in the RAIL beside `#sig-adv`, and v2775 made
                `.signal` / `#sig-adv` `display:none` under `body[data-view="sessions"]` — which is
@@ -275,8 +295,12 @@ def _shelf_activate():
                in a hidden region on every run. `window._toTVD()` is the published route out and
                is the one `_adv_activate` already uses; not calling it is why this target refused
                three times for three different-looking reasons. [[copy-drift]] */
-            try { if (document.body.getAttribute('data-view') && window._toTVD) window._toTVD(); }
-            catch(e){}
+            /* ⚠ THE GUARD READ `data-view` AND A FRESHLY SERVED CONSOLE HAS NONE — measured
+               `view=none`, so this whole call was skipped on exactly the load it exists for. The
+               attribute is a statement about WHICH view is active, not about whether leaving one
+               is possible; `_toTVD()` is safe to call regardless and is what `_adv_activate`
+               does unconditionally. [[feedback-threshold-above-the-ceiling]] */
+            try { if (window._toTVD) window._toTVD(); } catch(e){}
             /* ⚠⚠ v2785 — #th-shelf IS THE WRONG DOOR, AND IT COST THIS TARGET A ROUND.
                `#th-shelf` is the button INSIDE the theatre bar, and `#th-shelfov` lives inside
                `#theatre`, which is display:none while the theatre is shut — so clicking it opened
@@ -481,10 +505,44 @@ TARGETS = {
     #      refusal that cannot name its own cause costs a round every time.
     #      [[zero-needs-a-denominator]] [[feedback-verify-not-proxy]]
     #
-    # ⚠ `_shelf_activate()` IS KEPT ABOVE, CORRECT AND UNREGISTERED. Re-registering it needs the
-    # settle problem solved first — either a `settle_shape` that tolerates a growing document (the
-    # `page` target already declares one) or a shelf that stops building. Do not simply widen the
-    # bound: v2692 records the cost of doing that from a number taken while a game held 3.4 cores.
+    # ⚠ THE NOTE ABOVE IS ANSWERED, v2795 — AND THE ANSWER WAS PRECEDENT, NOT NEW MACHINERY.
+    # It said re-registering `_shelf_activate()` needs "a `settle_shape` that tolerates a growing
+    # document, or a shelf that stops building", and warned against simply widening the bound.
+    # Neither was required. MEASURED across this file's targets: every one of the NINE live-console
+    # surfaces — console, state-panel, heart, heart-fan, locks, advanced, advanced-shadow,
+    # advanced-fleet, console-tabs — already declares `settles: False` with a `warmup`, because
+    # "a live console never stops moving". Proving stillness is the wrong question on this page and
+    # the file already knows it.
+    # ⛔ AND `settles: False` IS NOT A WEAKER TEST HERE, because the arrival proof lives in
+    # `activate` and is stricter than a settle: it refuses until #th-shelfov is unhidden AND has a
+    # non-zero RECT (v2666's scar — the overlay reports height 0 inside a shut #theatre while
+    # holding its full text) AND the river has actually painted, accepting `.shr-bad` so a console
+    # whose river ask FAILS is still photographed rather than being unreachable. That is the exact
+    # shape the settle comment itself endorses: "a target that measures a document rather than a
+    # widget states its own arrival test in `activate`, which runs separately and CAN fail".
+    # ⚠⚠ `_shelf_activate()` STAYS UNREGISTERED — AND THE BLOCKER IS NOW MEASURED, NOT GUESSED.
+    # The old note here said it needed "a `settle_shape` that tolerates a growing document, or a
+    # shelf that stops building". That was not it. v2795 built the target, ran it, and the numbers
+    # say something else entirely:
+    #     the DOOR is fine now      clicks=2 · theatre=open · th-shelfov=present+shown · rect=1044x906
+    #     the ROUTE is fast          /api/river 0.18s over HTTP; reel_router.route() 0.2s over 40 reels
+    #     the machine is fine        load 3.92 on 10 cores
+    #     and yet                    shr-wait=YES · says: "reading the river…" past a 12.3s poll
+    # So the strip is never ASKED. `_shRiverLoad`'s caller sits behind the shelf's card render, and
+    # `_shSort()` returns early when there is no `.sh-grid` — in the harness's sandbox world the
+    # grid the river branch depends on is not there to reach. A target that cannot be satisfied by
+    # the fixture is [[feedback-blind-fixture-green-gate]]: registering it would ship a permanently
+    # red gate, and widening its bound would ship a permanently UNKNOWN one. Both are furniture.
+    # ⇒ WHAT REGISTERING IT NEEDS: a seeded shelf in the sandbox (sessions.jsonl is already in
+    #   render_check's copy list, so the reels exist — what is missing is the grid actually being
+    #   built for them), or the empty-world path resolving the strip instead of leaving it
+    #   "reading". The staged target block is kept verbatim in the v2795 notes so the next attempt
+    #   starts from the working door rather than rebuilding it.
+    # ⚠ THE WORK THAT DID LAND IS IN `_shelf_activate` ABOVE AND IS NOT REVERTED: the one-shot
+    #   click became a bounded retry (a one-shot that misses is a permanent refusal wearing a slow
+    #   one's clothes), the `_toTVD()` route-out no longer hides behind a `data-view` attribute a
+    #   freshly served console does not have, and the whole chain is now instrumented so the next
+    #   refusal names its own cause instead of costing a round.
     "taskforce": {
         "why": "the Task Force card — the mission line, the date, the DAILY PICK tag",
         "seed": """(function(){ localStorage.setItem('d2r_ownerClaim','*'); return 1; })()""",

@@ -130,6 +130,18 @@ REGISTRY = {
         "TV_CHRON_RESULT", "import-bound",
         "0 call-time readers; writes tv/chron_last_result.json (gitignored; the only backstop the "
         "evidence file had). Patch the attribute."),
+    "control_app.py:_CHRON_SWEPT_PATH": (
+        "TV_CHRON_SWEPT", "call-time",
+        "⚠ NEWLY VISIBLE TO THIS SCANNER, NOT NEWLY DANGEROUS. The constant has existed since "
+        "v1858; what changed is its default, which now reads `_fixture_root_for_state()` instead "
+        "of a bare HERE join, so `os.environ.get(...) or ...` became the module-level env read "
+        "the scanner looks for. MEASURED: `_chron_swept_path()` is the only reader on the write "
+        "path and it re-reads TV_CHRON_SWEPT at CALL TIME, then TV_HIST, and falls back to this "
+        "global last — so the import-bound value is a PATCH HOOK (the sweep tests use "
+        "mock.patch.object on it and must keep working), never the binding that decides the file. "
+        "Writes tv/chronicle_swept.json — his real memory of which reels have been read, so a "
+        "throwaway run marking a reel swept there is the v1832/v1855 class of damage. Redirect "
+        "with TV_CHRON_SWEPT (explicit beats ambient), TV_HIST, or patch the attribute."),
     "control_app.py:_CHRON_AUTOREAD_PATH": (
         "TV_CHRON_AUTOREAD", "import-bound",
         "0 call-time readers; writes tv/chron_autoread.json (gitignored). Patch the attribute."),

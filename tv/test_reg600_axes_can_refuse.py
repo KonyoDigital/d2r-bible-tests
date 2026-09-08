@@ -610,7 +610,56 @@ class NothingHereArmsAnything(unittest.TestCase):
                     name = getattr(fn, "id", None) or getattr(fn, "attr", None)
                     if name == "may":
                         hits.append("%s:%d" % (f, node.lineno))
-        self.assertEqual(hits, [], "something now CALLS may() — a badge became a gate: %s" % hits)
+        # ══ v2795 — THIS WAS A BLANKET BAN AND IT HAD TO STOP BEING ONE ═══════════════════════
+        # It read `assertEqual(hits, [])` — no module anywhere may call may(). That was a true
+        # statement of the world at v2647 and it was written as a tripwire, not as a design rule:
+        # the docstring above says so in as many words ("`may()` is still never called").
+        #
+        # ⚠⚠ BUT A LOCK NOTHING MAY EVER ASK IS NOT A LOCK, IT IS A BADGE — and his own ruling was
+        # the opposite: *"a lock until it automatically unlocks with a que for wilson score"*. The
+        # whole point of self_arming is that a lane ASKS, and is refused until the evidence is in.
+        # So a blanket ban would have permanently frozen the mechanism at "decorative", and the
+        # first lane to use it as designed (the pixel rescue, #34) reads as a violation.
+        #
+        # What the law actually protects is narrower and still absolute: NO DELETER MAY ASK.
+        # `may()` opening a lane that removes his footage is the one direction that cannot be
+        # undone, and `_PRUNE_SAFE_TO_RUN` stays his to flip by hand.
+        #
+        # ⚠ AND EVERY OTHER CALL SITE IS DECLARED, so a second one has to be argued in rather than
+        # appear — the same discipline store_owners applies to a store's writers. An undeclared
+        # call still fails this test.
+        DELETERS = ("reel_retention.py", "prune_shadow.py", "prune_wilson.py", "river.py",
+                    "reel_route_lane.py", "frame_authority.py", "disk_report_crossfamily.py")
+        DECLARED = {
+            "control_app.py": (
+                "the pixel rescue asks whether it may act on a console that its own PIXELS say is "
+                "blank. This is the designed consumer: the lock refuses until the sabotages have "
+                "been attempted and refused, and the surrounding code pairs it with a freshness "
+                "bound (a stale verdict is a memory, not a look) and a cooldown. It relaunches a "
+                "window; it removes nothing."),
+            "pixel_witness_wilson.py": (
+                "REPORTS ONLY, inside the `--bank` CLI branch: it prints what the lock says right "
+                "after banking an attempt, so the operator sees UNPROVEN/LOCKED rather than "
+                "assuming the bank opened it. It gates nothing — the return value is printed and "
+                "dropped."),
+        }
+        armed_deleter = [h for h in hits if h.split(":")[0] in DELETERS]
+        self.assertEqual(
+            armed_deleter, [],
+            "⛔ A DELETER ASKS may(). A lock that can open a path to removing his footage is the "
+            "one arming this repo does not do automatically — _PRUNE_SAFE_TO_RUN is his to flip: "
+            "%s" % armed_deleter)
+        undeclared = sorted({h for h in hits if h.split(":")[0] not in DECLARED})
+        self.assertEqual(
+            undeclared, [],
+            "a module CALLS may() and nothing declares why: %s. Add it to DECLARED with what it "
+            "gates, or route it differently — a second consumer of an arming lock should have to "
+            "be argued in, not appear." % undeclared)
+        # ⚠ AND THE DECLARATION MUST STILL DESCRIBE THE CODE. A name left here after its call went
+        # away is how the next undeclared caller slips in under a reviewed-looking entry.
+        stale = sorted(set(DECLARED) - {h.split(":")[0] for h in hits})
+        self.assertEqual(stale, [],
+                         "declared may() caller(s) that no longer call it: %s" % stale)
 
 
 if __name__ == "__main__":

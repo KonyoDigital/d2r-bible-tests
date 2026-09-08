@@ -733,6 +733,37 @@ GATES = [
              "`\"why\": None` from the river's initializer left the key in its error paths and the "
              "law stayed green. It now BLINDS each dependency and demands the answer.",
          ),
+    Gate("test_a_source_window_must_reach_its_subject",
+         [sys.executable, os.path.join(HERE, "test_a_source_window_must_reach_its_subject.py")], 120,
+         why="A FIXED-SIZE SOURCE WINDOW MEASURES MY GUESS, NOT THE FILE. test_the_river_has_a_mouth "
+             "cut SRC[i:i+9000] from the /api/river route and the success payload had grown to "
+             "**+9145** — 145 characters past the window — so the helper returned None, one law "
+             "reported the route was GONE and two more ERRORED, about a route that was perfectly "
+             "fine. Nothing had broken except the guard's REACH, which shrank a little more every "
+             "time somebody documented that handler. ⚠⚠ AND THAT WAS THE LUCKY DIRECTION: a window "
+             "that runs short under assertNotIn/assertFalse simply PASSES, reporting an absence it "
+             "never looked for — a zero with no denominator and no author. MEASURED BY AST, never "
+             "by grep: 68 windows across 23 files, and **25 of them sit under a negative "
+             "assertion**. The first count of this was a grep and said 80, because it matched the "
+             "pattern inside the comments explaining the defect — over-counted by 12, a law about "
+             "misreading source measured by misreading source. Two ratchets, because 68 sites "
+             "cannot be rewritten in one pass and a law that fails on all of them is one nobody "
+             "can ship: the total and the silent subset may FALL, never RISE.",
+         skip_ok=()),
+    Gate("test_atomic_write_keeps_the_mode",
+         [sys.executable, os.path.join(HERE, "test_atomic_write_keeps_the_mode.py")], 90,
+         why="⚠⚠ THE COMMIT THAT ADDED A GATE TURNED EVERY GATE OFF. `atomic_write` writes a temp "
+             "file and `os.replace`s it into place — and the temp file is born 0644, so every "
+             "executable it edited came out NON-EXECUTABLE. Measured: hooks/pre-push was 100755 at "
+             "v2793 and 100644 at v2794, git printed one line — \"the hook was ignored because "
+             "it is not set as executable\" — and v2794 went to origin with NO gates at all: no "
+             "test_control, no render, no smoke, no second eye, not even the blueprint check that "
+             "commit existed to add. It would have stayed disabled for every future push, silently, "
+             "because a hook that is not executable does not fail — it is simply never run, and a "
+             "SKIP IS NOT A PASS. This gate holds both halves: atomic_write preserves the mode (and "
+             "still gives a brand-new file the default), and hooks/pre-push is executable BOTH on "
+             "disk and in the git index — the index mode is what a fresh clone inherits, the disk "
+             "mode is what arms the machine actually pushing."),
     Gate("test_the_shelf_lands_on_the_river",
          [sys.executable, os.path.join(HERE, "test_the_shelf_lands_on_the_river.py")], 120,
          why="THE RIVER SECTIONS WERE BUILT AND HE COULD ONLY REACH THEM THROUGH A DROPDOWN. His "

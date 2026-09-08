@@ -84,16 +84,33 @@ def _code_of(fn_name):
 
 
 def _river_payload():
-    """The /api/river success payload, anchored at BOTH ends. [[source-reading-guard]]"""
+    """The /api/river success payload, anchored at BOTH ends. [[source-reading-guard]]
+
+    ⚠⚠ v2795 — IT SAID "ANCHORED AT BOTH ENDS" AND THE OPENING WAS A CHARACTER COUNT. The old cut
+    was `SRC[i:i + 9000]`, and the route grew: MEASURED, `self._json(200, {` now sits at **+9145**
+    from `if path == "/api/river"`. It fell 145 characters past the window, `find` returned -1,
+    and this helper returned None — so `test_the_guard_can_find_the_route_AT_ALL` failed and the
+    two real laws ERRORED on `None`. The route was perfectly fine. Nothing about the river broke;
+    the guard's REACH did, and it shrank a little more every time somebody documented the route.
+
+    That is the same defect this repo has now paid for repeatedly: a fixed-size source window
+    measures the size of my guess, not the file. The end anchor is the NEXT route's `if path ==`,
+    because that is the real boundary of this handler and it cannot drift with prose.
+    [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+    """
     i = SRC.find('if path == "/api/river"')
     if i < 0:
         return None
-    blk = SRC[i:i + 9000]
+    # ⚠ BOTH ENDS REAL. The handler ends where the next one begins; if this is the last route in
+    # the chain there is no next `if path ==`, and running to end-of-file is correct, not a
+    # fallback window.
+    end = SRC.find('\n        if path == "', i + 1)
+    blk = SRC[i:end if end > i else len(SRC)]
     k = blk.find("self._json(200, {")
     if k < 0:
         return None
     j = blk.find("except Exception", k)
-    return blk[k:j if j > k else k + 2600]
+    return blk[k:j if j > k else len(blk)]
 
 
 class TheRiverHasAMouth(unittest.TestCase):

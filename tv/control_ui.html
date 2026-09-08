@@ -11521,6 +11521,30 @@ window._lockMark = function(isOpen, px, label){
          pushing past that clips the outermost names instead of overlapping them — trading a
          measurable defect for one this gate cannot see. [[unknown-stays-unknown]] */
       var reach = [0.78, 1.06, 1.34][j % 3];
+      /* ⚠⚠ v2795 — THREE TIERS WERE TUNED FOR EIGHT LOCKS AND THERE ARE NOW NINETEEN.
+         REG-615's own arithmetic, above: three arcs put a label's nearest same-radius neighbour
+         3 steps away, which at 8 locks across 84° is ~36°. MEASURED today at 19 locks the step is
+         4.7°, so that same neighbour is **14° away** — less than half the separation the tier
+         scheme was built to guarantee. printer.stream's "87/87 refused · 0.958 ≥ 0.958" duly
+         landed on console.pixel_rescue's "16/16 refused · 0.806 ≥ 0.839" at 1120 and 1440, and on
+         its second line at 901.
+         ⚠ A FOURTH RADIAL TIER IS NOT THE ANSWER — the comment above measured that: past 1.34 the
+         outermost names CLIP, trading a defect this gate can see for one it cannot.
+         ⚠ AND SHORTENING THE TEXT IS NOT EITHER — tried at v2650 and v2662, reverted both times,
+         because "length was never the problem; distance was".
+         So the stagger moves into the axis that still has room: DOWN. Same-arc neighbours are j
+         and j+3, which always differ in parity, so a parity-keyed vertical offset separates
+         exactly the pairs that collide. Same-arc AND same-parity is j and j+6 — six steps, ~28°
+         apart — which is wider than the 24° REG-615 already found survivable. Nothing is
+         shortened and nothing moves outward. */
+      /* ⚠⚠ AND THE OFFSET MUST NOT BE A MULTIPLE OF THE LINE PITCH. My first cut used 13, which
+         is exactly the gap between these three baselines (19 -> 32 -> 44). MEASURED: it did break
+         the original pair, and replaced it with a NEW one — reel.route's "87/87 refused · 0.958"
+         landed on vault.sweep_start's THIRD line, "2 attacks · each run 8.0×", because shifting a
+         whole block by one pitch just re-registers line 2 onto line 3. A stagger that lands the
+         rows back on the same grid has not staggered anything. 20 sits between one pitch and two,
+         so no line of a shifted block shares a baseline with any line of an unshifted one. */
+      var _yst = (j % 2) ? 20 : 0;
       var gx = cx + Math.cos(la) * rx * reach, gy = cy + Math.sin(la) * ry * reach;
       var gmx = cx + Math.cos(la) * rx * reach * 0.5 - Math.sin(la) * 12;
       var gmy = cy + Math.sin(la) * ry * reach * 0.5 + Math.cos(la) * 12;
@@ -11615,7 +11639,7 @@ window._lockMark = function(isOpen, px, label){
          ⚠ ONLY THE RADIAL RENDERER. The lock LIST builder below keeps the full names: it is a
          list, its labels are not centred on a node, and it does not collide.
          `arithFull` feeds the <title>; `arith` is what the diagram paints. */
-      var arithFull = arith;
+      var arithFull = arith;   /* arith2 is appended below when the fan is too dense to paint it */
       if (_wd) {
         arithFull += ' · ' + _wd.length + ' retired as proving nothing (' + _wd.join(', ') + ')';
         /* ⚠ THE TRIM WAS TRIED AND REVERTED — it cost readability and bought almost nothing.
@@ -11647,6 +11671,31 @@ window._lockMark = function(isOpen, px, label){
          So the repetition rides the SECOND line, which is empty for most locks anyway, and the
          not-yet-declared state lives in the tooltip — present, not shouted. The diagram shows
          what the score RESTS ON only when there is something to show. */
+      /* ⚠⚠ v2795 — THE THIRD LINE COMES OFF THE DIAGRAM ONCE THE FAN PASSES THE DENSITY ITS
+         GEOMETRY WAS TUNED FOR. REG-615 sized the three radial tiers at EIGHT locks. This fan now
+         draws TEN, and at ten it collides: reel.route's "87/87 refused · 0.958 ≥ 0.958" landed on
+         console.pixel_rescue's "16/16 refused · 0.806 ≥ 0.839" at 1120 and 1440, and on
+         vault.sweep_start's "2 attacks · each run 8.0×" at 901.
+         ⚠ TEN, NOT NINETEEN — AND I NEARLY CARVED THE WRONG NUMBER HERE. `self_arming.report()`
+         lists 19 locks on this machine, and I set this threshold from that count. It did not fire.
+         The fan draws what the WIRE sends, which is the ten original locks; the nine chronicle.* /
+         fleet.* / roster.* rows are not in it. Measuring one population and legislating for
+         another is how a threshold ends up above the ceiling it is meant to catch.
+         [[feedback-threshold-above-the-ceiling]] [[measured-true-read-wrong]]
+         ⚠ A FOURTH RADIAL TIER IS NOT THE ANSWER — measured above: past reach 1.34 the outermost
+         names CLIP, trading a defect this gate can see for one it cannot.
+         ⚠ NOR IS SHORTENING THE TEXT — tried at v2650 and v2662 and reverted both times, because
+         "length was never the problem; distance was".
+         ⚠ NOR IS TUNING THE STAGGER — I tried that too. 13px is exactly the line pitch, so it
+         re-registered line 2 onto line 3 and simply moved the collision; 34px produced TWO.
+         ⛔ SO: the pattern this file already uses under this exact pressure, stated twice above —
+         "the names come off the diagram and stay in the tooltip", "present, not shouted". The
+         repetition line is the least-often-populated of the three (9 of the 10 locks carry one)
+         and it is NOT lost: it is appended to the <title> below, so the fake-confluence warning
+         survives in full for anyone who hovers.
+         ⚠ CONDITIONAL, NOT DELETED. At eight locks or fewer the diagram paints it exactly as
+         before, so a tree that prunes locks gets the third line back with nobody editing this. */
+      var _fanOver = (lk.length > 8);
       var arith2 = _blind
         ? 'the score above cannot see that axis at all'
         : (_atk !== null && _rep !== null && _rep > 1.5
@@ -11734,6 +11783,7 @@ window._lockMark = function(isOpen, px, label){
                                           + 'been declared by this harness yet — which is not the '
                                           + 'same as no repetition.'
                                         : '')
+                                   + ((_fanOver && arith2) ? '. ' + arith2 : '')
                                    + '. ' + (L.why || '')) + '</title></g>'
              + '<circle cx="' + gx.toFixed(1) + '" cy="' + gy.toFixed(1) + '" r="4.6" fill="' + lc + '"/>';
       /* CENTRED UNDER THE NODE, never anchored sideways. The first cut anchored start/end by the
@@ -11753,13 +11803,13 @@ window._lockMark = function(isOpen, px, label){
          is masked by it instead of running through it. [[visual-regression-detector]] */
       var _halo = 'paint-order:stroke;stroke:var(--surface-read,#14100c);stroke-width:3.5px;'
                 + 'stroke-linejoin:round;';
-      glabels += '<text class="hrt-fan hrt-fan-name" x="' + gx.toFixed(1) + '" y="' + (gy + 19).toFixed(1)
+      glabels += '<text class="hrt-fan hrt-fan-name" x="' + gx.toFixed(1) + '" y="' + (gy + _yst + 19).toFixed(1)
              + '" text-anchor="middle" font-size="11.5" fill="' + lc
              + '" style="' + _halo + '" font-weight="600">' + _hrtEsc(L.lock || L.surface) + '</text>'
-             + '<text class="hrt-fan hrt-fan-arith" x="' + gx.toFixed(1) + '" y="' + (gy + 32).toFixed(1)
+             + '<text class="hrt-fan hrt-fan-arith" x="' + gx.toFixed(1) + '" y="' + (gy + _yst + 32).toFixed(1)
              + '" text-anchor="middle" font-size="9.5" fill="' + lc
              + '" style="' + _halo + '" opacity=".75">' + _hrtEsc(arith) + '</text>'
-             + (arith2 ? '<text class="hrt-fan hrt-fan-arith" x="' + gx.toFixed(1) + '" y="' + (gy + 44).toFixed(1)
+             + ((arith2 && !_fanOver) ? '<text class="hrt-fan hrt-fan-arith" x="' + gx.toFixed(1) + '" y="' + (gy + _yst + 44).toFixed(1)
                  + '" text-anchor="middle" font-size="9.5" fill="' + lc
                  // ⚠ .62 WAS TOO FAINT FOR A DIGIT. The cold eye read "1.00 of 1.80" as
                  // "1.00 of 1.00" — and 1.00 of 1.00 says the confluence bar is MET, which is the
@@ -14786,7 +14836,46 @@ window._lockMark = function(isOpen, px, label){
      answered, which is NOT the same as an empty ledger and must never render as "0 finished". */
   var SHELF_MOUTH = null;
   function _shRiverLoad(then){
-    fetch('/api/river', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+    /* ⚠⚠ v2795 — THE THIRD UNBOUNDED FETCH ON THIS SURFACE, and it is REG-713's exact shape.
+       This was a bare `fetch('/api/river')`: no AbortController, no timeout. The `.catch` below
+       looks like cover and is not — a fetch that HANGS never rejects, so it never runs. With
+       SHELF_RIVER stuck at null the strip renders `.shr-wait` — "reading the river…" — and stays
+       there, and because the only caller sets `window.__shRiverAsked = 1` before calling, nothing
+       ever asks again. A one-shot behind an unbounded call is a permanent hang that looks like a
+       slow load.
+       ⚠ FOUND BY BUILDING THE RENDER TARGET, which is the whole argument for #30: the backend
+       answers in **0.2s** (measured: reel_router.route() 0.2s + river_lanes.lanes() 0.0s over 40
+       reels, load 3.92 on 10 cores) while the strip sat on "reading the river…" past a 12s poll.
+       A surface nobody photographs is a surface whose next regression he finds.
+       ⚠ 12s, NOT the sibling's 8s: /api/river walks every reel's stations, and v2790 recorded the
+       archive routes measuring ~4s alone and 41.6s under contention. The bound exists to turn a
+       hang into a SENTENCE, not to police a slow machine.
+       [[the-unjoined-end]] [[unknown-stays-unknown]] */
+    var _ac = null, _to = null;
+    try { _ac = new AbortController(); } catch (e) { _ac = null; }
+    var _done = false;
+    var _fail = function(why){
+      if (_done) return; _done = true;
+      if (_to) { clearTimeout(_to); _to = null; }
+      /* ⛔ A REFUSAL, NEVER AN EMPTY RIVER. `false` renders `.shr-bad` with this sentence; `null`
+         would leave it "reading" for ever and `{}` would draw four empty stations as though they
+         were measured. Those are three different facts and only one of them is true. */
+      SHELF_RIVER = false; SHELF_RIVER_WHY = why;
+      /* the one-shot is released so a later open can try again — a bounded failure is recoverable,
+         and pinning it closed would re-create the defect this fixes */
+      try { window.__shRiverAsked = 0; } catch (e2) {}
+      try { if (then) then(); } catch (e3) {}
+    };
+    try {
+      _to = setTimeout(function(){
+        try { if (_ac) _ac.abort(); } catch (e) {}
+        _fail('the river did not answer within 12s, so what it holds is UNKNOWN — this is not an '
+            + 'empty river. Open THE SHELF again to retry.');
+      }, 12000);
+    } catch (e) { _to = null; }
+    fetch('/api/river', { cache: 'no-store', signal: _ac && _ac.signal }).then(function(r){ return r.json(); }).then(function(d){
+      if (_done) return; _done = true;
+      if (_to) { clearTimeout(_to); _to = null; }
       if (!d || d.ok !== true){
         /* an unreadable river must not render as a river with nothing in it */
         SHELF_RIVER = false; SHELF_RIVER_WHY = String((d && d.why) || 'the river could not be read');
@@ -14804,8 +14893,7 @@ window._lockMark = function(isOpen, px, label){
       }
       try { if (then) then(); } catch (e) {}
     }).catch(function(e){
-      SHELF_RIVER = false; SHELF_RIVER_WHY = 'the river could not be reached: ' + (e && e.message || e);
-      try { if (then) then(); } catch (e2) {}
+      _fail('the river could not be reached: ' + ((e && e.message) || e));
     });
   }
   function _shStationOf(c){

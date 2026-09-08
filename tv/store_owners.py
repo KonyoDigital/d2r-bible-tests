@@ -47,6 +47,11 @@ STORES = {
         "owner": "retro_triage",
         "holds": "per-reel structural verdict: frames, panels, kinds",
         "readers": {
+            "blueprint":     "v2794 — reads `panelFrames` per reel to print the PRINTER section of\n"
+                             "                              BLUEPRINT.md: how much of the film actually carried a panel.\n"
+                             "                              READ-ONLY and it degrades honestly — absent, unreadable and\n"
+                             "                              wrong-shape each return their own `why` rather than a zero, so\n"
+                             "                              a missing store can never print as `0 panel frames`",
             "end_routes":    "reads it to DERIVE the end-route predicate from the reels that\n                              already reached it, rather than inventing one. His ruling\n                              settled the DESTINATION and named the METHOD: 'reverse\n                              engineeer it if needed the ones that are working'.\n                              READ-ONLY: it decides nothing and deletes nothing - a second\n                              prune authority over footage that has no un-delete is\n                              exactly what this file exists to refuse.",
             "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
             "verdict_provenance": "reads ONE row to ask whether it can name what produced it.\n                              41 stores swept, 21 SILENT. It writes nothing, back-fills\n                              nothing and never repairs — naming the gap is the product",
@@ -113,6 +118,13 @@ STORES = {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",
         "readers": {
+            "render_check":  "v2778 — NAMES this store as one of eleven it COPIES into a throwaway\n"
+                             "                              sandbox before rendering, so a render never reads or writes\n"
+                             "                              his live one. It reads the live file exactly once, to copy it;\n"
+                             "                              every write during the render lands in the sandbox. The copy\n"
+                             "                              list is NAMED, never globbed, and an oversized file is skipped\n"
+                             "                              rather than aborting the rest — v2780 fixed a `break` there that\n"
+                             "                              would have silently un-isolated every store after it",
             "read_names_lane":  "v2753 — REPORTS ONLY. It works out which already-read names would\n"
                                 "                              auto-tally and which fall to his hand, and never\n"
                                 "                              writes: banking a name RELEASES that reel's footage\n"
@@ -145,6 +157,13 @@ STORES = {
         "owner": "frame_authority",
         "holds": "the seal store — which sessions the vault sweep has sealed, and what it extracted",
         "readers": {
+            "render_check":  "v2778 — NAMES this store as one of eleven it COPIES into a throwaway\n"
+                             "                              sandbox before rendering, so a render never reads or writes\n"
+                             "                              his live one. It reads the live file exactly once, to copy it;\n"
+                             "                              every write during the render lands in the sandbox. The copy\n"
+                             "                              list is NAMED, never globbed, and an oversized file is skipped\n"
+                             "                              rather than aborting the rest — v2780 fixed a `break` there that\n"
+                             "                              would have silently un-isolated every store after it",
             "end_routes":    "reads it to DERIVE the end-route predicate from the reels that\n                              already reached it, rather than inventing one. His ruling\n                              settled the DESTINATION and named the METHOD: 'reverse\n                              engineeer it if needed the ones that are working'.\n                              READ-ONLY: it decides nothing and deletes nothing - a second\n                              prune authority over footage that has no un-delete is\n                              exactly what this file exists to refuse.",
             "lane_liveness":  "NOT a toucher — its DOCSTRING cites this store as an example of a\n                              lane that leaves a dated row, which is the argument for why a\n                              heartbeat was NOT built as a second copy of that fact. Prose,\n                              never a read. Declared so the mention is accounted for",
             "verdict_provenance": "reads ONE row to ask whether it can name what produced it.\n                              41 stores swept, 21 SILENT. It writes nothing, back-fills\n                              nothing and never repairs — naming the gap is the product",
