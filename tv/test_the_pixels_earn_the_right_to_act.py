@@ -288,6 +288,50 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
                       "a clock step can make the pixel verdict's age negative, which passes the "
                       "freshness test and lets a memory trigger a rescue: %r" % line.strip())
 
+    # -- v2789: THE DEDUPE THAT DEFEATED ITSELF ---------------------------------------------
+    def test_the_refusal_dedupe_key_IGNORES_the_live_countdown(self):
+        """*** FROM THE CROSS-FAMILY REVIEW OF v2786, and it is the same defect v2786 FIXED,
+        reappearing one branch over inside the code that fixed it.
+
+        The cooldown's refusal embeds a live countdown — "the pixels acted 40s ago, 860s of the
+        900s cooldown left" — and the dedupe compared the WHOLE SENTENCE. So `_lw` differed on
+        every 10s tick, the `!=` was true every time, and it would have written a journal row per
+        tick for the entire 900s cooldown. Exactly the noise v2786 was written to stop.
+
+        ⚠ IT ONLY BITES ONCE THE LOCK OPENS, which is why nothing in the shipped closed state
+        could ever have surfaced it. A review that reads code, not behaviour, is the only thing
+        that finds a defect living in a state the system has never been in."""
+        import control_app as CA
+        self.assertTrue(hasattr(CA, "_pix_say_key"), "the stable dedupe key is gone")
+        keys = {CA._pix_say_key("the pixels acted %ds ago - %ds of the 900s cooldown left"
+                                % (900 - n, n)) for n in (890, 500, 120, 3)}
+        self.assertEqual(len(keys), 1,
+                         "the dedupe key still moves with the countdown, so a refusal writes a "
+                         "journal row on every tick of the cooldown: %s" % sorted(keys))
+        self.assertNotEqual(CA._pix_say_key("the pixel verdict is 95s old (max 90s)"),
+                            keys.pop(),
+                            "the key collapses two DIFFERENT refusals into one, so a change of "
+                            "reason would go unreported")
+
+    def test_the_loop_dedupes_on_the_KEY_not_the_sentence(self):
+        """[[plumbing-with-no-tap]]. A helper nothing calls is a decoration. Parsed."""
+        # ⚠⚠ IT MUST APPEAR IN THE COMPARISON, NOT MERELY IN THE FUNCTION. The first cut of this
+        # law checked only that `_pix_say_key` was mentioned somewhere in the loop — and reverting
+        # the comparison to the raw sentence left the helper sitting in the ASSIGNMENT line one
+        # row below, so the identifier was still there and the law stayed GREEN. Third time today
+        # that a law read MENTION and could not see behaviour change.
+        # [[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
+        fn = _fn(CA_TREE, "_console_rescue_loop")
+        in_a_compare = False
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Compare) and "_pix_say_key" in _idents(n):
+                in_a_compare = True
+                break
+        self.assertTrue(in_a_compare,
+                        "the rescue loop compares the RAW SENTENCE again — the live countdown in "
+                        "it differs every tick, so the dedupe writes a journal row per tick for "
+                        "the whole cooldown")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -12509,6 +12509,22 @@ _PIXEL_ACT = {"lastActTs": 0.0, "lastSaidWhy": "", "lastSaidTs": 0.0}
 #: the whole life of a blank window. A journal that repeats itself 360 times an hour is one nobody
 #: reads, which is how the row that matters gets skimmed. [[feedback-silence-is-not-evidence]]
 _PIXEL_SAY_EVERY_S = 300.0
+
+
+def _pix_say_key(why):
+    """A STABLE dedupe key for a pixel refusal. -> str
+
+    ⚠ v2789 — the refusal sentences carry live numbers ("acted 40s ago", "%ds of the %ds cooldown
+    left", "the verdict is 95s old"). Deduping on the whole sentence therefore never matches its
+    predecessor and writes a journal row every tick — which is precisely the noise the dedupe
+    exists to stop. Everything from the first digit onward is the part that moves, so the key is
+    what comes before it.
+    """
+    t = str(why or "")
+    for i, ch in enumerate(t):
+        if ch.isdigit():
+            return t[:i].rstrip()
+    return t
 _UI_RESCUE_COOLDOWN_S = 300.0
 
 # ══ v2393 — ALIVE BUT BLANK. The fault the heartbeat cannot see ═════════════════════════════
@@ -13392,12 +13408,21 @@ def _console_rescue_loop():
                         due = True
                         why = ("the pixels say BLANK and the lock is open — %s"
                                % str(_lw)[:140])
-                    # ⚠ SAY IT ONCE PER REASON, NOT ONCE PER TICK. Same review: a row every 10s for
-                    # the life of a blank window. A changed reason is news; the same reason 360
-                    # times an hour is furniture.
-                    elif (str(_lw) != str(_PIXEL_ACT["lastSaidWhy"])
+                    # ⚠ SAY IT ONCE PER REASON, NOT ONCE PER TICK. A row every 10s for the life
+                    # of a blank window is furniture; a CHANGED reason is news.
+                    #
+                    # ⚠⚠ v2789 — AND THE FIRST CUT DEDUPED ON THE WHOLE SENTENCE, WHICH DEFEATED
+                    # ITSELF. A cross-family review of v2786 spotted it: the cooldown's reason
+                    # embeds a LIVE COUNTDOWN ("%ds of the %ds cooldown left"), so the string
+                    # differs on every 10s tick and `_lw != lastSaidWhy` is true every time. The
+                    # dedupe would have written a row per tick for the whole 900s cooldown — the
+                    # exact defect v2786 was written to fix, reappearing one branch over, in the
+                    # code that fixed it. It only bites once the lock OPENS, which is why nothing
+                    # in the closed state would ever have shown it. Dedupe on a STABLE KEY: the
+                    # reason's first clause, up to the first digit. [[label-outlived-referent]]
+                    elif (_pix_say_key(_lw) != str(_PIXEL_ACT["lastSaidWhy"])
                           or (_now - float(_PIXEL_ACT["lastSaidTs"])) > _PIXEL_SAY_EVERY_S):
-                        _PIXEL_ACT["lastSaidWhy"] = str(_lw)
+                        _PIXEL_ACT["lastSaidWhy"] = _pix_say_key(_lw)
                         _PIXEL_ACT["lastSaidTs"] = _now
                         ui_fault_record("console-blank-by-pixels-LOCKED", why=str(_lw)[:300],
                                         where="_console_rescue_loop")
@@ -24847,7 +24872,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2788",
+        "ver": "v2789",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

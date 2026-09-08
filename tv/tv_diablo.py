@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2788"   # one resolver was fixed and four copies of it were still running
+VERSION = "v2789"   # a countdown inside the message defeated the dedupe meant to stop per-tick noise
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

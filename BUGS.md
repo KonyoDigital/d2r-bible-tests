@@ -23134,6 +23134,47 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-712 — the dedupe that stops per-tick journal noise was defeated by a countdown inside its own message
+
+**2026-09-08 · v2789 · `tv/control_app.py` · found by the second eye on v2786**
+
+v2786 fixed a refusal that wrote a journal row on every 10s tick by saying it **once per reason**.
+The cross-family review of that fix found the same defect **one branch over, inside the code that
+fixed it**:
+
+    "the pixels acted 40s ago - 860s of the 900s cooldown left"
+
+The cooldown's reason embeds a **live countdown**, and the dedupe compared the whole sentence. So
+`_lw != lastSaidWhy` is true on every tick and it would have written a row per tick for the entire
+**900-second** cooldown — precisely the noise v2786 exists to prevent.
+
+**⚠ IT ONLY BITES ONCE THE LOCK OPENS.** The lock ships closed, so `_ok` is never True, so the
+cooldown branch never runs and never rewrites `_lw`. No amount of running the shipped state would
+have surfaced this. **A review that reads code rather than behaviour is the only thing that finds a
+defect living in a state the system has never been in.**
+
+**Fixed:** `_pix_say_key()` takes everything before the first digit, so
+`"the pixels acted 40s ago…"` and `"the pixels acted 700s ago…"` share one key while
+`"the pixel verdict is 95s old"` keeps its own. Measured stable across a full countdown.
+
+**⚠⚠ AND A SABOTAGE CAUGHT ME SHIPPING THE WEAKER LAW — FOR THE THIRD TIME TODAY.** The first cut of
+`test_the_loop_dedupes_on_the_KEY_not_the_sentence` asserted only that `_pix_say_key` was *mentioned*
+somewhere in the loop. Reverting the comparison to the raw sentence left the helper sitting in the
+ASSIGNMENT one line below — identifier still present, **law still green, dedupe gone**. It now
+requires the helper inside an `ast.Compare`. Same shape as REG-709's cooldown law and the mention-only
+siblings the sweep found: *a law that reads MENTION cannot see behaviour change.*
+[[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
+
+**One of the reviewer's five points was refuted by measurement.** It claimed `abs()` lets a
+future-dated timestamp pass as fresh. Measured: a timestamp 200s in the future yields
+`abs(-200000)/1000 = 200.0s > 90` → **refused as stale**. A *slightly* future stamp passing is
+correct, because it is fresh. Two more were correct observations that are not defects (the first
+firing is rightly unconditional; the lock's reason is the more useful one to show), and the
+unsynchronised `_UI_BEAT` access was declined again for the reason given on v2784.
+
+Gate: 2 new laws in `test_the_pixels_earn_the_right_to_act.py` (16 total). 2 sabotages — reverting
+the comparison reds the join law, collapsing the key reds the stability law.
+
 ## REG-711 — v2783 fixed one resolver that fell back to his live directory; four copies were still running
 
 **2026-09-08 · v2788 · `tv/control_app.py`, `tv/chronicle_routes.py`, `tv/frame_authority.py`,
