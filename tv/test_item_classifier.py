@@ -33,6 +33,9 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 ROOT = os.path.dirname(HERE)
 BIBLE = os.path.join(ROOT, "bible.html")
 
@@ -112,7 +115,12 @@ class TestTheSunderCharmsAreUniques(unittest.TestCase):
         copy that will drift the way _UNI_EXTRA did."""
         i = self.code.find("typeof SUNDER_CHARMS")
         self.assertGreater(i, 0)
-        window = self.code[i:i + 400]
+        # ⚠ v2807 — ANCHORED TO THE BLOCK. `self.code[i:i + 400]` guessed how long the
+        # sunder-charm branch is. 196 chars measured against a guessed 400, ending at the
+        # branch's own last statement — and it still contains the Latent|Renewed strip the
+        # sibling law below looks for, which is why one window serves both.
+        window = _sw.between(self.code, "typeof SUNDER_CHARMS", "r = 'unique';",
+                             include_end=True, what="the sunder-charm classifier branch")
         for name in ("Rotting Fissure", "Cold Rupture", "Flame Rift", "Bone Break"):
             self.assertNotIn(name, window,
                              "the classifier hardcodes %r instead of reading SUNDER_CHARMS. A "
@@ -133,7 +141,12 @@ class TestTheSunderCharmsAreUniques(unittest.TestCase):
         """The codex holds 'Latent Rotting Fissure'; the ledger and the bar both see bare and
         'Renewed …' forms. A lookup that does not strip the prefix recognises one form in three."""
         i = self.code.find("typeof SUNDER_CHARMS")
-        window = self.code[i:i + 400]
+        # ⚠ v2807 — ANCHORED TO THE BLOCK. `self.code[i:i + 400]` guessed how long the
+        # sunder-charm branch is. 196 chars measured against a guessed 400, ending at the
+        # branch's own last statement — and it still contains the Latent|Renewed strip the
+        # sibling law below looks for, which is why one window serves both.
+        window = _sw.between(self.code, "typeof SUNDER_CHARMS", "r = 'unique';",
+                             include_end=True, what="the sunder-charm classifier branch")
         self.assertRegex(window, r"Latent\|Renewed",
                          "the sunder lookup does not strip the Latent/Renewed prefix, so it "
                          "recognises only the bare form and the other two fall through")

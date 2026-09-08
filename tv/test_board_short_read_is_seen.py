@@ -91,8 +91,16 @@ class BoardShortReadIsSeen(unittest.TestCase):
         # to the END OF THE STATEMENT instead of guessing where it closes.
         i = blk.find("ui_fault_record(")
         self.assertGreaterEqual(i, 0, "no ui_fault_record call to grade")
-        call = blk[i:i + 800]
-        call = call[:call.find("\n\n")] if "\n\n" in call else call
+        # ⚠⚠ v2807 — THE FALLBACK WAS THE RESIDUAL DEFECT. This already tried to anchor —
+        # `call[:call.find("\n\n")]` — and fell back to the 800-char guess whenever there was no
+        # blank line. MEASURED: `_serve_block()` contains NO blank line at all, so the fallback
+        # was the only path ever taken and the anchor never ran. The comment above was describing
+        # an intention, not the behaviour. [[feedback-comments-vs-code]]
+        #
+        # `_serve_block()` is ALREADY a bounded region and holds exactly ONE ui_fault_record call
+        # (measured), so the honest window is "from the call to the end of that block" — 902
+        # chars, no upper guess of any kind, and nothing after it can match the pattern below.
+        call = blk[i:]
         self.assertNotRegex(
             call, r'path\s*=\s*[\'"]/',
             "the call passes a URL as `path=`. That argument is the FILE the recorder writes to — "

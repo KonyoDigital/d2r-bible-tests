@@ -17,6 +17,9 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
@@ -595,7 +598,11 @@ class TestTheUniquesLedgerIsAuditedNotEdited(unittest.TestCase):
         """The one line that keeps this an audit instead of an edit."""
         s = self._src()
         i = s.index("out.debris = Object.keys(fl2)")
-        seg = s[i:i + 500]
+        # ⚠ v2807 — ANCHORED to the end of the debris filter rather than 500 characters. The
+        # assertion below is negative, so a short read is exactly what makes it pass. 1,496 chars
+        # measured against a guessed 500 — the guess was SHORTER than the region it was grading.
+        seg = _sw.after(s, "out.debris = Object.keys(fl2)", "});",
+                        what="the debris filter block")
         self.assertNotIn("out.removed.push", seg,
                          "debris must never reach the removal list — that would delete grail rows "
                          "he never asked to lose")

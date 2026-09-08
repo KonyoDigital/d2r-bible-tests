@@ -36,6 +36,9 @@ import console_safe  # noqa: F401,E402 — the failure messages carry non-ASCII 
                      # instead of reporting, which is the one moment they must not.
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 REPO = os.path.dirname(HERE)
 UI = os.path.join(HERE, "control_ui.html")
 
@@ -624,7 +627,15 @@ class TestLockedVsRoutable(unittest.TestCase):
             board = fh.read()
         i = board.find("return '<div class=\"tzt-zone tzt-filler tzt-t-'")
         self.assertGreater(i, 0, "the board's filler row render moved — re-check this guard")
-        row = board[i:i + 400]
+        # ⚠ v2807 — ANCHORED. `board[i:i + 400]` guessed how long a filler row is; the
+        # assertNotIn below PASSES when the window falls short, so a row that grew an onclick
+        # past character 400 would read as clean. The return statement ends at "';" — measured
+        # 192 chars, and the assertIn for tzt-z-skip still lands inside it. A window ending at
+        # the next `return`/`}` instead spans 8,099 chars and picks up role= and onclick= from
+        # the HUNT branch, which is why the end anchor was chosen by measurement rather than by
+        # eye. [[source-reading-guard]]
+        row = _sw.after(board, "return '<div class=\"tzt-zone tzt-filler tzt-t-'", "';",
+                        what="the board's filler-row render")
         for claim in ("role=", "tabindex", "onclick"):
             self.assertNotIn(claim, row,
                              "the filler row grew %r — if the board really routes now, say so in "
@@ -648,9 +659,16 @@ class TestLockedVsRoutable(unittest.TestCase):
         self.assertIn("var s = (den / 2200) * 0.85;", ui,
                       "the console's tier formula changed shape — re-check it against the board's")
         for src, who in ((board, "board"), (ui, "console")):
-            i = src.find("(den/2200)*0.85;") if who == "board" else src.find("(den / 2200) * 0.85;")
-            self.assertNotIn("lvl - 67", src[i:i + 200], "%s reintroduced the level term" % who)
-            self.assertNotIn("lvl-67", src[i:i + 200], "%s reintroduced the level term" % who)
+            # ⚠ v2807 — ANCHORED AT BOTH ENDS. `src[i:i + 200]` asked whether the level term
+            # reappears within 200 characters of the formula; the real question is whether it
+            # reappears BETWEEN computing `s` and returning the verdict, and that region has its
+            # own end marker. Both assertions here are negative, so a short read is exactly what
+            # makes them pass.
+            _formula = "(den/2200)*0.85;" if who == "board" else "(den / 2200) * 0.85;"
+            seg = _sw.between(src, _formula, "return {",
+                              what="the %s tier formula and its return" % who)
+            self.assertNotIn("lvl - 67", seg, "%s reintroduced the level term" % who)
+            self.assertNotIn("lvl-67", seg, "%s reintroduced the level term" % who)
 
 class TestSessionsOnly(unittest.TestCase):
     """v1589 — the rotation card lives in ONE place. Konyo: "remove it completely from TV-D tab..

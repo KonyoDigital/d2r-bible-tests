@@ -39,6 +39,9 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
@@ -104,7 +107,12 @@ class TheVerdictReachesTheCard(unittest.TestCase):
         """Passing the authority's own object through is the point. Re-deriving any part of it in
         the worker creates a second opinion nobody reconciles — the copy-drift shape."""
         i = WORKER.find("ledgerVerdict")
-        seg = WORKER[i:i + 300]
+        # ⚠ v2807 — ANCHORED TO THE OBJECT BEING FORWARDED. `WORKER[i:i + 300]` guessed; the
+        # question is whether anything is RE-DERIVED inside the object the worker passes through,
+        # and that object has an end. 154 chars measured against a guessed 300. All three
+        # assertions below are negative, so a short read is exactly what makes them pass.
+        seg = _sw.between(WORKER, "ledgerVerdict", "};",
+                          what="the verdict object the worker forwards")
         for bad in ("seedSupplies", "provenance:", "SEEDED"):
             self.assertNotIn(bad, seg,
                              "the worker appears to RECOMPUTE part of the verdict (%r) instead of "

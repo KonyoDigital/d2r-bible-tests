@@ -32,6 +32,9 @@ import unittest
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
 # Never point the module globals at the LIVE console (test_control.py's v1462 courtesy —
 # control_app reads these at import time and 17772 is Konyo's running app).
@@ -268,7 +271,11 @@ class TestEveryFireSiteIsGuarded(unittest.TestCase):
     def test_kai_frame_cls_vocabulary_untouched(self):
         """OUT OF SCOPE this ship: adding a 'chronicle' class to the OCR classifier."""
         i = self.src.index("def _kai_frame_cls(")
-        body = self.src[i:i + 3000]
+        # ⚠ v2807 — ANCHORED TO THE FUNCTION, not to 3000 characters. The assertion below is
+        # negative, so a body that outgrew the guess would read as clean. `\ndef ` ends it at the
+        # next top-level definition: 1,427 chars measured, the whole function and nothing after.
+        body = _sw.after(self.src, "def _kai_frame_cls(", "\ndef ",
+                         what="the _kai_frame_cls body")
         self.assertNotIn('return "chronicle"', body,
                          "_kai_frame_cls's vocabulary must not change in v1689")
 

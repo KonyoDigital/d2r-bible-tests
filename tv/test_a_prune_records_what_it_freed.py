@@ -41,6 +41,9 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
 
 try:
@@ -95,7 +98,11 @@ class APruneRecordsWhatItFreed(unittest.TestCase):
         blk = _fn("_retention_once")
         i = blk.find("_freed = r.get")
         self.assertGreater(i, 0, "the second write is gone")
-        tail = blk[i:i + 900]
+        # ⚠ v2807 — ANCHORED. `blk[i:i + 900]` guessed; the write it is about ends at the blank
+        # line that closes the statement group — 1,929 chars measured, and the assertion below
+        # still lands inside it. A tighter anchor was tried first and measured 58 chars, which
+        # would have MISSED the very string being asserted: the end was chosen by measurement.
+        tail = _sw.after(blk, "_freed = r.get", "\n\n", what="the second disk-history write")
         self.assertIn("hist_bytes=_hist_bytes", tail,
                       "the second write does not reuse the PRE-PRUNE corpus. Measured after the "
                       "reels are gone, a real freed figure exceeds the shrunken corpus and "
