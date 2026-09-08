@@ -19,6 +19,12 @@ disagree, and BOTH are right about their own question:
 
     OVERLAP         13 sessions have BOTH a seal AND reads that yielded names.
 
+⚠ v2772 — AND "THE NAMES EXIST" IS NOT THE SAME AS "A HOLDING EXISTS". The overlap below counts
+raw names; `holding_possible()` is the law that says which of them the extraction contract can
+actually take, and on his store it removes the single loudest row on this report — 45 Chronicle
+checklist entries that were being reported as a join anyone was owed. Read that docstring before
+trusting any RECOVERABLE figure here.
+
 **For those 13 the names EXIST and the seal does not carry them.** That is a JOIN, not a capture
 problem — which matters because REG-340 ruled the missing-name case a capture change ("the reel
 must film the character panel"). REG-340 is about the CHARACTER name on the character panel; this
@@ -46,6 +52,10 @@ if HERE not in sys.path:
 RECOVERABLE = "RECOVERABLE"   # the seal lacks the name; the journal HAS it. A join.
 NO_NAMES = "NO_NAMES"         # sealed, and the reader never got a name either. Capture.
 UNSEALED = "UNSEALED"         # read (maybe named) but no seal at all yet.
+#: ⚠⚠ v2772 — THE FIFTH FACT, AND IT WAS WEARING RECOVERABLE'S CLOTHES. Sealed, names WERE read,
+#: and not one of them could ever become a holding — so there is no join owed and no footage owed
+#: either. See holding_possible() for the law and the measurement that forced it.
+NOT_A_HOLDING = "NOT_A_HOLDING"
 UNKNOWN = "UNKNOWN"           # nobody could be asked. Never a verdict.
 
 
@@ -74,6 +84,68 @@ def _session_of(reel):
 #: rather than built into a fix for a problem his shelf does not have.
 PANEL_SCENES = ("stash", "inventory")
 FLOOR_SCENES = ("gameplay", "loot", "town", "transition")
+
+
+def holding_possible(counts, names_known=True):
+    """Can the names read for this session become the holding the contract asks for? -> (bool|None, why)
+
+    ⚠⚠ v2772 — THE SCENARIO WAS COMPUTED AND THE VERDICT NEVER ASKED FOR IT, and that turned the
+    LOUDEST number on this report into a false one. v2583 built the PANEL/FLOOR/CHRONICLE taxonomy
+    forty lines above the state machine, wrote down that a Chronicle name is "a checklist of items
+    he mostly does not own, never a holding", and then the state machine decided RECOVERABLE on
+    `has_seal and n` — the raw name count, scenario unread. [[the-unjoined-end]]
+
+    MEASURED on his store the moment the two were put side by side:
+
+        reel_s_1786385768689_67392   names 45   panel 0 · floor 0 · CHRONICLE 45   -> RECOVERABLE
+        the other three sealed+named  names 10   panel 10                          -> RECOVERABLE
+
+    45 of the 55 names the report called "a JOIN to fix where the seal is written" — 82% of the
+    whole recoverable gap — are Chronicle grid entries (Amulet, Ancient Sword, Andariel's Visage,
+    Arm of King Leoric…). He owns almost none of them. Backfilling those into a possession seal
+    would not be a join; it would invent 45 holdings.
+
+    ⚠ AND A SECOND READER ALREADY DISAGREED, using this module's OWN constant. `read_names_lane`
+    filters deep rows to `EG.PANEL_SCENES` and produces evidence for 22 sessions — and
+    s_1786385768689_67392 is NOT one of them. Two checks over the same reel, opposite answers, and
+    the one that was wrong was the one on the report. [[feedback-contradiction-is-the-finding]]
+
+    THE LAW, and it is the contract's own words rather than a new rule. EXTRACTION_CONTRACT wants
+    `location` = *"WHERE it was — the container and the cell box inside it (his slot identity)"*.
+
+        PANEL      a container was open, so a cell exists          -> a holding can exist
+        FLOOR      on the ground; there is no cell to ask for      -> no location, so no holding
+        CHRONICLE  a checklist page, never a possession            -> no holding at all
+
+    So the predicate is `panel > 0`, and it is ONE predicate covering both refusals rather than two
+    that could drift. ⚠ EXERCISED BY HIS DATA ON THE CHRONICLE SIDE ONLY: of the four sealed reels
+    carrying names, 1 is chronicle-only and 0 are floor-only. The floor arm is real law and is
+    currently unwitnessed on this store — said out loud rather than left to look covered.
+    [[gate-blind-to-unexercised-input]]
+
+    ⚠ `names_known=False` returns None, never False. A venue whose journal ring cannot be read has
+    not measured zero holdings; nobody asked. [[unknown-stays-unknown]]
+    """
+    if not names_known:
+        return None, ("the journal ring could not be read, so whether any name here could become a "
+                      "holding is UNKNOWN — not zero")
+    c = counts if isinstance(counts, dict) else {}
+    panel = int(c.get("panel") or 0)
+    floor = int(c.get("floor") or 0)
+    chron = int(c.get("chronicle") or 0)
+    if panel:
+        return True, ("%d name(s) were read with a container OPEN, so a cell box exists for them "
+                      "and the contract's `location` can be satisfied" % panel)
+    if not (floor or chron):
+        return False, "no item name was read for this session, so there is nothing to make a holding of"
+    bits = []
+    if chron:
+        bits.append("%d on a Chronicle page (a checklist of items he mostly does not own)" % chron)
+    if floor:
+        bits.append("%d on the floor (no container, so no cell to name)" % floor)
+    return False, ("every name here was read with NO container open — %s. The contract wants a "
+                   "location and there is none to take, so this is not a join that anyone is "
+                   "owed." % " and ".join(bits))
 
 
 def _named_sessions():
@@ -148,6 +220,10 @@ def gap(reels=None, river=None):
         seals, swhy = {}, "frame_authority would not answer (%s)" % str(e)[:80]
 
     named, nwhy = _named_sessions()
+    #: ⚠ v2772 — DID THE JOURNAL ANSWER AT ALL. `_named_sessions` returns ({}, why) on a ring it
+    #: could not resolve, and `n` is then 0 for every reel on the shelf — indistinguishable from a
+    #: measured zero. This is the denominator the name count never carried.
+    names_known = not nwhy
     names_arg = reels
     rows, counts = [], {}
     for r in (riv.get("rows") or []):
@@ -189,6 +265,10 @@ def gap(reels=None, river=None):
                                             % (_nm["chronicle"], _also))
         else:
             scenario, s_why = "UNKNOWN", "no name was read for this reel, so no scenario applies"
+        # ⚠ v2772 — the scenario now DECIDES rather than merely riding along. One call, one law,
+        # used by the state below and published on the row, so a reader and the verdict cannot
+        # give different answers about the same reel. [[copy-drift]]
+        hold, hwhy = holding_possible(_nm, names_known)
         has_seal = sid in seals
         # ⚠⚠ v2692 — "HAS A SEAL" AND "THE SEAL CERTIFIES THE EXTRACTION" ARE TWO DIFFERENT FACTS,
         # and this file reported only the first, so every reader (including me, all session) took
@@ -230,11 +310,31 @@ def gap(reels=None, river=None):
 
         if not seals and swhy:
             state, why = UNKNOWN, swhy
-        elif has_seal and n:
+        elif has_seal and not names_known:
+            # ⚠⚠ v2772 — A DEAD JOURNAL USED TO READ AS A CLEAN CAPTURE FAILURE. `_named_sessions`
+            # returns ({}, why) when the ring cannot be resolved, and only the no-rows fallback
+            # ever looked at that why — so every sealed reel dropped to `n == 0` and printed
+            # "the reader never yielded an item name for this session either. This one IS a
+            # capture question", which is REG-340's answer to a question nobody managed to ask.
+            # On any venue without his journal (a CI runner, a fresh clone) that is 12 confident
+            # capture verdicts built on a file that would not open.
+            # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+            state = UNKNOWN
+            why = ("this session IS sealed, but %s — so whether the reader ever got a name for it "
+                   "is UNKNOWN. Not zero, and certainly not a capture problem." % nwhy)
+        elif has_seal and n and hold is True:
             state = RECOVERABLE
-            why = ("SEALED and the reader already read %d item name(s) for this session — the "
-                   "names EXIST and the seal does not carry them. A join, not a capture "
-                   "problem." % n)
+            why = ("SEALED and the reader already read %d item name(s) for this session, %d of "
+                   "them with a container OPEN — the names EXIST, a cell box exists for them, and "
+                   "the seal carries neither. A join, not a capture problem."
+                   % (n, int(_nm.get("panel") or 0)))
+        elif has_seal and n:
+            # ⚠ NOT folded into NO_NAMES, and the difference is the whole point. NO_NAMES sends
+            # the reel to REG-340 ("film the panel"). This reel's reader worked fine; there is
+            # simply no holding in what it read, so no footage is owed and no join is either.
+            state = NOT_A_HOLDING
+            why = ("SEALED, and the reader did read %d item name(s) for this session — but %s "
+                   "Nothing is owed here: it is neither a join nor a capture gap." % (n, hwhy))
         elif has_seal:
             state = NO_NAMES
             why = ("sealed, and the reader never yielded an item name for this session either. "
@@ -244,6 +344,12 @@ def gap(reels=None, river=None):
             state = UNSEALED
             why = ("%d item name(s) were read, but this session has no seal at all, so the "
                    "extraction contract was never even asked about it" % n)
+        elif not names_known:
+            # unsealed is a fact about the SEAL store and stands on its own; the name count is
+            # what went unmeasured, so the sentence may not claim one was never read.
+            state = UNSEALED
+            why = ("no seal at all, so the extraction contract was never asked about this "
+                   "session. Whether any name was read is UNKNOWN — %s" % nwhy)
         else:
             state = UNSEALED
             why = "no seal, and no item name was ever read for this session"
@@ -255,6 +361,14 @@ def gap(reels=None, river=None):
                      "sealVerdict": _verdict,
                      "why": why,
                      "scenario": scenario, "scenarioWhy": s_why,
+                     # ⚠ True / False / None, and None is a real answer here — see
+                     # holding_possible(). A reader that only knows `state` still gets the same
+                     # verdict; this is the reason underneath it, carried rather than re-derived.
+                     "holdingPossible": hold, "holdingWhy": hwhy,
+                     # v2772 — was the NAME COUNT measurable at all on this venue. Without it a
+                     # `names: 0` from a journal that would not open is indistinguishable from a
+                     # journal that opened and held nothing. [[zero-needs-a-denominator]]
+                     "namesKnown": bool(names_known),
                      # ⚠ v2588 — THE CHRONICLE COUNT WAS DROPPED. A cold review noticed the
                      # scenario is an if/elif, so a reel with BOTH panel and chronicle names
                      # reports PANEL — correct, because a slot can exist for the panel ones — and
@@ -267,17 +381,35 @@ def gap(reels=None, river=None):
         counts[state] = counts.get(state, 0) + 1
 
     rec = counts.get(RECOVERABLE, 0)
+    noth = counts.get(NOT_A_HOLDING, 0)
+    # ⚠ v2772 — THE RECOVERABLE HEADLINE NEEDS ITS OWN DENOMINATOR. "4 recoverable" was read all
+    # session as "4 reels of work owed", and 1 of the 4 held 82% of the names and owed nothing.
+    # So the sentence now says how many names sit under each verdict, split the way the contract
+    # splits them. [[zero-needs-a-denominator]]
+    _rec_names = sum(int(r.get("panelNames") or 0) for r in rows if r["state"] == RECOVERABLE)
+    _noth_names = sum(int(r.get("names") or 0) for r in rows if r["state"] == NOT_A_HOLDING)
     return {
         "ok": bool(rows), "rows": rows, "counts": counts, "walked": len(rows),
         "recoverable": rec,
+        "notAHolding": noth,
+        # the two figures the headline is about, published rather than left to be re-summed
+        "recoverablePanelNames": _rec_names,
+        "notAHoldingNames": _noth_names,
+        "namesKnown": bool(names_known),
         "state": (UNKNOWN if not rows else ("PARTIAL" if counts.get(UNKNOWN) else "MEASURED")),
-        "why": (("%d reel(s) measured. %s — **%d carry a RECOVERABLE gap**: sealed, and the "
-                 "item names the contract wants were already read into the journal. Those are a "
-                 "JOIN to fix where the seal is written, not footage he has to re-film. "
+        "why": (("%d reel(s) measured. %s — **%d carry a RECOVERABLE gap**: sealed, and %d item "
+                 "name(s) read WITH A CONTAINER OPEN are already in the journal, so a cell box "
+                 "exists for them and the seal carries neither. Those are a JOIN to fix where the "
+                 "seal is written, not footage he has to re-film.%s "
                  "⚠ Nothing here writes a seal: back-filling one would forge the certification "
                  "it stands for."
                  % (len(rows), " · ".join("%s %d" % (k, v) for k, v in sorted(counts.items())),
-                    rec))
+                    rec, _rec_names,
+                    ((" %d further reel(s) are sealed with %d name(s) that can never become a "
+                      "holding (Chronicle checklist entries, or floor items with no cell) — "
+                      "counted apart as NOT_A_HOLDING, because joining those would invent "
+                      "possessions rather than recover them." % (noth, _noth_names))
+                     if noth else "")))
                 if rows else (nwhy or "no reel reached the extract gap reader")),
     }
 

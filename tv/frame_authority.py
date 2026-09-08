@@ -307,10 +307,25 @@ def seal_releases_frames(row):
 
     Konyo's ruling was CONDITIONAL — *"as long as its ledgered and extracted properly and tallied
     where needed"* — and only `examinedEmpty` carries that condition. It is written at exactly one
-    place (control_app.py:19303) and only when the sweep OFFERED every frame to the stash gate, was
-    refused by all of them, AND proved the lane live in the same pass. A permission read as a
-    blanket is how a conditional yes becomes a deletion nobody authorised.
-    [[unknown-stays-unknown]] [[manual-tally-is-witness]]
+    place (control_app's `_examined_and_empty` branch of the vault sweep) and only when the stash
+    gate refused everything it was offered AND a deliberate uncached canary proved the lane live in
+    the same pass. A permission read as a blanket is how a conditional yes becomes a deletion
+    nobody authorised. [[unknown-stays-unknown]] [[manual-tally-is-witness]]
+
+    ⚠⚠ v2772 — THE ONE THING THIS PREDICATE STILL CANNOT SEE, said out loud rather than fixed
+    silently, because the bar for deleting his footage is HIS ruling. This paragraph used to read
+    "OFFERED every frame to the stash gate, was refused by all of them", and that is not the
+    condition at the writer: `_examined_and_empty` needs `not_stash > 0` — a single refusal — and
+    vault_retro probes ONE frame per still-run, so the counter tallies refused RUNS. MEASURED on
+    his store, 2026-09-08:
+
+        17 `examinedEmpty` seals, claiming 38 examined frames between them
+         4 of those reels still hold frames on disk: 483 · 217 · 98 · 7  = 805 frames
+        12 probes stand behind all 805, and all four seals RELEASE
+
+    A seal saying "every one of 1 frame(s) was offered to the stash gate and refused" releases 217.
+    `examinedEmpty` carries no denominator, so this function has nothing to compare against and is
+    not silently guessing one. [[zero-needs-a-denominator]]
     """
     v, why = seal_verdict(row)
     if v == COVERED:
@@ -371,11 +386,20 @@ def frame_verdict(frame_path, sealed=None, wit=None, recent=None):
     # [[the-unjoined-end]] [[join-gate-heart]]
     #
     # ⚠ EMPTY IS NOT A FREE PASS — IT IS A DIFFERENT FACT, AND ONLY THAT BRANCH WRITES IT.
-    # `examinedEmpty` is set at exactly one place (control_app.py:19303) and only when the sweep
-    # OFFERED every frame to the stash gate, was refused by all of them, AND proved the lane live
-    # in the same pass. That is his condition — ledgered, examined, tallied — already enforced at
-    # the writer. A seal that merely lacks names does NOT reach here: it lands UNEVIDENCED and
-    # still holds. [[unknown-stays-unknown]]
+    # `examinedEmpty` is set at exactly one place — control_app's `_examined_and_empty` branch of
+    # the vault sweep — and only when the stash gate refused everything it was offered AND a
+    # deliberate uncached canary proved the lane live in the same pass. A seal that merely lacks
+    # names does NOT reach here: it lands UNEVIDENCED and still holds. [[unknown-stays-unknown]]
+    # ⚠⚠ v2772 — AND "EVERYTHING IT WAS OFFERED" IS NOT "EVERY FRAME". This comment said "OFFERED
+    # every frame to the stash gate" for fifty-odd versions and that premise is not what the writer
+    # enforces: `_examined_and_empty` requires `not_stash > 0` — ONE refusal — and vault_retro
+    # probes ONE frame per still-run, so the counter tallies refused RUNS, not frames.
+    # MEASURED on his store, 2026-09-08: 17 `examinedEmpty` seals claim 38 frames examined between
+    # them, and four of those reels still hold 805 frames on disk. All four release. The worst
+    # reads "every one of 1 frame(s) was offered to the stash gate and refused" and releases 217.
+    # NOTHING IS CHANGED HERE — the bar for footage is his ruling, not mine to move — but the
+    # sentence no longer asserts a denominator nobody measured. [[zero-needs-a-denominator]]
+    # [[label-outlived-referent]] [[design-is-fine-until-he-says]]
     _ok, _why = seal_releases_frames((sealed or {}).get(sess))
     if not _ok:
         return False, ("recording %s is sealed, but %s — his rule is that everything detail-bearing "
