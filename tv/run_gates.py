@@ -715,6 +715,22 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_a_cold_review_must_carry_the_code",
+         [sys.executable, os.path.join(HERE, "test_a_cold_review_must_carry_the_code.py")], 120,
+         why="THREE \"COLD CODE REVIEWS\" WERE RECORDED AS SECOND-EYE LOOKS AND THE CODE WAS NEVER "
+             "SENT. The prompts were assembled as plain strings, so the code fence went out holding "
+             "the un-evaluated expression that was supposed to read the file. The other family got a "
+             "fence full of source-expression plus accurate prose context, and answered confidently "
+             "and specifically about code it had never seen; a sentinel probe made it say \"NO CODE "
+             "RECEIVED\". ⛔ NOTHING IN THE LANE COULD CATCH IT: every field the ledger stored "
+             "described the ANSWER — model, family, verdict, findings, answer head, even a hash of "
+             "the bytes I SAID were photographed — and not one described the QUESTION. `record()` "
+             "now takes the prompt, and a fence carrying an un-evaluated file read forces the row to "
+             "an EMPTY SEAT instead of a look. ⚠ It reads the FENCES ONLY, never the whole prompt, "
+             "or the explanation of the defect would trip the guard against it. ⚠ AND IT WAS NOT "
+             "ALL OF THEM — v2775's prompt carried its diff intact and its finding was real; the "
+             "first blanket claim that every review had gone out empty was itself unmeasured.",
+         ),
     Gate("test_the_console_notices_its_own_runaway",
          [sys.executable, os.path.join(HERE, "test_the_console_notices_its_own_runaway.py")], 120,
          why="REG-699 — HIS CONSOLE BURNED A CORE FOR TWO HOURS AND NOTHING NOTICED BUT HIM. The "

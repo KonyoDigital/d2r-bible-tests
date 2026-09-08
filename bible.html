@@ -3944,14 +3944,40 @@ window._D2R_OWNER = (function(){
                not there. Blank entries are not a world. [[zero-needs-a-denominator]] */
             var _p = JSON.parse(_raw);
             var _n = 0;
-            if (_p && _p.length != null) {
+            /* ⚠⚠ v2779 — `_p.length != null` WAS TRUE FOR A STRING, AND A STRING IS INDEXABLE.
+               A real cross-family review (the first one this session whose prompt actually carried
+               the code — see .second_eye.jsonl) found it: `JSON.parse('"abc"')` is the STRING
+               "abc", it has `.length`, so the array branch walked its CHARACTERS and counted 3.
+               Any one of these four keys holding a bare JSON string would have recovered a world
+               out of nothing but its letters. Measured in node before and after: 3 -> 0.
+               `Array.isArray` is the whole fix for that half. [[grok-second-eye]]
+
+               The second half: the element test only asked "does this stringify to something?", so
+               `[0]`, `[false]` and `[{}]` each counted 1 — `String(false)` is "false" and
+               `String({})` is "[object Object]". None of those is an item name.
+
+               ⚠ WHY THIS TIGHTENING CANNOT EMPTY HIS BOARD, which is the direction that actually
+               hurt him. Measured against his real backed-up world, not assumed:
+                   d2r_owned     list  169 · all str · 0 blank
+                   d2r_foundLog  dict  429 · all str values · 0 falsy · 0 blank keys
+                   d2r_setPieces list  125 · all str · 0 blank
+                   d2r_rwMade    dict   99 · all str values · 0 falsy · 0 blank keys
+               822 entries, every one still counted. And an object ELEMENT is still admitted on
+               having any own key, so an older `[{name:...}]` shape cannot read as empty either —
+               a false zero here is what showed him a populated board as a stranger's empty one.
+               [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+            if (Array.isArray(_p)) {
               for (var _j = 0; _j < _p.length; _j++) {
-                if (String(_p[_j] == null ? '' : _p[_j]).trim()) _n++;
+                var _el = _p[_j];
+                if (typeof _el === 'string') { if (_el.trim()) _n++; }
+                else if (_el && typeof _el === 'object') { if (Object.keys(_el).length) _n++; }
               }
             } else if (_p && typeof _p === 'object') {
               var _ks = Object.keys(_p);
               for (var _k = 0; _k < _ks.length; _k++) {
-                if (String(_ks[_k] == null ? '' : _ks[_k]).trim()) _n++;
+                /* JSON.parse defines a literal "__proto__" as an OWN property, so Object.keys
+                   lists it — one crafted key would otherwise be a whole world by itself. */
+                if (_ks[_k] !== '__proto__' && String(_ks[_k]).trim()) _n++;
               }
             }
             if (_n > 0) _hasWorld += _n;
@@ -49817,7 +49843,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2778', name:'v2778 - the harness isolates the world not just the port', date:'2026-09-08', note:'render_check took a private port and passed --no-open and then handed the child his real environment, so every isolated state path resolved to his live tv slash; three files added after v1869 never got its one rule four files rule and now follow TV_HIST, and the private console reads a snapshot so it still photographs his real surfaces' };
+  window.D2R_BUILD = { id:'v2779', name:'v2779 - the second eye was reviewing prose, and the code it never saw had a real bug', date:'2026-09-08', note:'Three cold code reviews recorded as looks sent the un-evaluated open().read() expression instead of the code; record() now takes the prompt and refuses a fence that carries no code. Redone properly, the review found a JSON string counting its CHARACTERS as entries: 3 became 0, and his 822 real entries are unchanged.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

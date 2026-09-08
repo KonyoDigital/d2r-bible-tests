@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2778",
+  "ver": "v2779",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2778: render_check took a private port and passed --no-open and then handed the child his real environment, so every isolated state path resolved to his live tv slash; three files added after v1869 never got its one rule four files rule and now follow TV_HIST, and the private console reads a snapshot so it still photographs his real surfaces",
+  "note": "v2779: Three cold code reviews recorded as looks sent the un-evaluated open().read() expression instead of the code; record() now takes the prompt and refuses a fence that carries no code. Redone properly, the review found a JSON string counting its CHARACTERS as entries: 3 became 0, and his 822 real entries are unchanged.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

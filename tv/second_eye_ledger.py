@@ -195,14 +195,76 @@ def _bytes_seen(path=None):
         return None
 
 
+# ── ⚠⚠ WAS THE CODE ACTUALLY SENT? ──────────────────────────────────────────────────────────
+# 2026-09-08. Four "cold code reviews" in one session were recorded as reached=True looks, and in
+# every one of them the code fence contained the LITERAL text
+#
+#     """ + open('/tmp/eye_cold.txt').read() + """
+#
+# because the prompt was assembled as a plain string and the concatenation was never evaluated. The
+# model received a fence full of Python source-expression and several paragraphs of careful prose
+# context — and answered CONFIDENTLY, in specific-sounding language ("the inference is unsound under
+# the documented threading model"), about code it had never seen. Nothing in the lane could tell the
+# difference, because the ledger recorded the CLAIM that a look happened and never the TRANSMISSION.
+# A sentinel probe settled it: asked to quote the first line of the snippet, the model answered
+# "NO CODE RECEIVED".
+#
+# ⚠ It was NOT all of them — v2775's prompt carried its diff intact and its finding (a redundant
+# `max-width: 100%`) was real and was acted on. That is the point: a blanket retraction would have
+# been as unmeasured as the original claim. Grep the stored prompt, count the literals, and let the
+# count decide. [[unknown-stays-unknown]] [[silence-is-not-evidence]] [[the-unjoined-end]]
+_UNSENT_MARKERS = (
+    # a file-reading expression that survived into the prompt instead of being evaluated
+    (re.compile(r"open\s*\(\s*['\"][^'\"]*['\"]\s*\)\s*\.\s*read\s*\(\s*\)"),
+     "an un-evaluated open(...).read() reached the prompt as text"),
+    # the concatenation seam either side of it
+    (re.compile(r"[\"']{3}\s*\+"), "a triple-quote/+ concatenation seam reached the prompt as text"),
+    (re.compile(r"\+\s*[\"']{3}"), "a +/triple-quote concatenation seam reached the prompt as text"),
+)
+
+_FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
+
+
+def code_was_transmitted(sent):
+    """Did the prompt actually CARRY code, or only a promise of it? -> dict
+
+    Returns {"chars": int, "fences": int, "unsent": [why, ...]}. `chars` counts characters inside
+    fenced blocks only, so prose describing code does not read as code. An empty `unsent` list with
+    `chars == 0` is a different fact from `unsent` being non-empty: the first means no fence at all
+    (maybe a pixel look, maybe a question), the second means a fence that was meant to hold code and
+    holds an expression instead.
+    """
+    t = str(sent or "")
+    fences = _FENCE_RE.findall(t)
+    chars = sum(len(f) for f in fences)
+    why = []
+    # ⚠ SEARCH THE FENCES, NOT THE WHOLE PROMPT. A prompt may legitimately DISCUSS open().read() in
+    # its prose — this very docstring would trip a whole-text search. The defect is a fence that was
+    # supposed to hold the file and holds the expression that would have read it.
+    for body in fences:
+        for rx, msg in _UNSENT_MARKERS:
+            if rx.search(body) and msg not in why:
+                why.append(msg)
+    return {"chars": int(chars), "fences": len(fences), "unsent": why}
+
+
 def record(version, model, verdict, findings=None, images=None, asked=None,
-           answer_head=None, reached=True, path=None, seen_path=None):
+           answer_head=None, reached=True, path=None, seen_path=None, sent=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
     `reached` False means the seat was empty — the row is still written, on purpose, so a run of
     failures is visible instead of looking like nobody tried.
+
+    ⚠ `sent` is the FULL PROMPT TEXT that went to the other family. Pass it whenever the look was a
+    CODE review. If its fences carry an un-evaluated file-read expression instead of the file, the
+    row is forced to reached=False and retracted here rather than being believed — see
+    `code_was_transmitted`. Omitting `sent` records None, which means NOBODY CHECKED, not "fine".
     """
+    _sent = code_was_transmitted(sent) if sent is not None else None
+    if _sent and _sent["unsent"]:
+        reached = False
+        verdict = "cannot-tell"
     row = {
         "version": norm_version(version) or str(version or "").strip(),
         "ts": int(time.time() * 1000),
@@ -239,7 +301,16 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         # Surfaced by needing to look at origin/main's bible.html, which is exactly the case the
         # field was built for. [[unknown-stays-unknown]]
         "bytes": _bytes_seen(seen_path),
+        # what the other family was actually HANDED. None = nobody passed the prompt in, which is
+        # an absence of measurement and never a pass. [[unknown-stays-unknown]]
+        "sentCode": _sent,
     }
+    if _sent and _sent["unsent"]:
+        row["retracted"] = ("the prompt's code fence carried no code — " +
+                            "; ".join(_sent["unsent"]) +
+                            ". Recorded as an EMPTY SEAT: the model answered about code it never "
+                            "received.")
+        row["claimedVerdict"] = str(verdict or "")
     p = path or LEDGER_PATH
     try:
         os.makedirs(os.path.dirname(p) or ".", exist_ok=True)

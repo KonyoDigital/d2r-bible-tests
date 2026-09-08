@@ -164,11 +164,14 @@ class APopulatedWorldSurvivesALostClaim(unittest.TestCase):
                          "ownership of itself")
 
     def test_an_array_of_BLANKS_is_not_a_world(self):
-        """⚠ FROM THE v2776 CROSS-FAMILY REVIEW. It asked what inputs make the entry count non-zero
-        without a real world behind them. Six of its seven cases already counted 0 — `[]`, `{}`,
-        `0`, `null`, non-JSON and a bare number. But `["",""]` counted 2, and that is what a
-        half-failed write leaves behind. A world of blanks is not a world, and recovering on one
-        would re-pin the claim on a store holding nothing."""
+        """⚠ ATTRIBUTION CORRECTED 2026-09-08 — the v2776 "cross-family review" this law used to
+        credit is RETRACTED: its prompt's code fence carried an un-evaluated `open(...).read()`
+        expression, so the model reviewed prose and never saw the code. The seven candidate inputs
+        it named were still TESTED here by hand, and six of them already counted 0 — `[]`, `{}`,
+        `0`, `null`, non-JSON and a bare number. `["",""]` counted 2, which is what a half-failed
+        write leaves behind, and that measurement is what this law rests on. A world of blanks is
+        not a world. The finding survives; the claim that another family found it does not.
+        [[unknown-stays-unknown]] [[inherited-claim-is-not-evidence]]"""
         st = {"d2r_ownerClaim": "an-old-id",
               "d2r_owned": json.dumps(["", "  ", None]),
               "d2r_foundLog": json.dumps({"": 1, "   ": 1})}
@@ -176,6 +179,74 @@ class APopulatedWorldSurvivesALostClaim(unittest.TestCase):
         self.assertFalse(r["owner"],
                          "an array of blank entries counted as a populated world, so a store that "
                          "holds nothing real now claims ownership of itself")
+
+    # ── ⚠⚠ v2779 — FROM THE FIRST REVIEW THIS SESSION WHOSE PROMPT ACTUALLY CARRIED THE CODE ──
+    def test_a_JSON_STRING_counts_its_CHARACTERS_and_must_not(self):
+        """★★ THE ONE THAT MATTERED, and it needed a reviewer who could see the code to find it.
+
+        `JSON.parse('"abc"')` is the STRING "abc". A string has `.length`, and a string is
+        INDEXABLE — so the old guard `if (_p && _p.length != null)` took the array branch and
+        walked the letters. Measured in node before the fix: **3**. Three characters, counted as
+        three item names, enough on their own to recover a world out of nothing.
+
+        `Array.isArray` is the fix. A string is not an array however much it quacks like one."""
+        st = {"d2r_ownerClaim": "an-old-id", "d2r_owned": json.dumps("abc")}
+        r = _run(st, install="e07a5fe1")
+        self.assertFalse(r["owner"],
+                         "a bare JSON string in a world key was counted by its CHARACTERS, so "
+                         "'abc' recovered a three-entry world that does not exist")
+
+    def test_elements_that_are_not_NAMES_are_not_entries(self):
+        """★ The same review's second real finding. The old element test only asked "does this
+        stringify to something?" — and `String(false)` is "false", `String(0)` is "0",
+        `String({})` is "[object Object]". Each counted 1. None of them is an item name."""
+        for label, payload in (("a zero", [0]), ("a false", [False]),
+                               ("an empty object", [{}]), ("an empty array", [[]])):
+            st = {"d2r_ownerClaim": "an-old-id", "d2r_owned": json.dumps(payload)}
+            r = _run(st, install="e07a5fe1")
+            self.assertFalse(r["owner"],
+                             "%s counted as an owned item, so a store holding no names at all "
+                             "claimed ownership" % label)
+
+    def test_a_crafted___proto___key_is_not_a_world(self):
+        """⚠ `JSON.parse` defines a literal "__proto__" as an OWN property, so `Object.keys` lists
+        it. Without the exclusion, `{"__proto__":1}` is a one-entry world by itself."""
+        st = {"d2r_ownerClaim": "an-old-id", "d2r_foundLog": json.dumps({"__proto__": 1})}
+        r = _run(st, install="e07a5fe1")
+        self.assertFalse(r["owner"], "a lone __proto__ key counted as a real entry")
+
+    # ── ⛔ THE DIRECTION THAT ACTUALLY HURT HIM — A TIGHTENING MUST NOT EMPTY A REAL BOARD ────
+    def test_his_REAL_STORE_SHAPES_still_recover(self):
+        """⛔⛔ THE ASYMMETRY THAT DECIDES THIS WHOLE GUARD. A false POSITIVE shows an empty board
+        to someone who has no world — annoying. A false NEGATIVE shows HIS POPULATED BOARD AS AN
+        EMPTY STRANGER'S, which is the failure he actually reported: *"all vault items and my
+        chronicles deleted"*. Every tightening above is only safe because these still count.
+
+        The shapes are measured from his real backed-up world (list-of-str, dict of str->str) and
+        reproduced here with INVENTED names — the store shape is the law, his ledger is not this
+        repo's business and this repo is PUBLIC."""
+        st = {"d2r_ownerClaim": "an-old-id",
+              "d2r_owned": json.dumps(["Fleshrender", "Gloom's Trap"]),
+              "d2r_foundLog": json.dumps({"Wormskull": "Jun 22, 2026 - 02:00"}),
+              "d2r_setPieces": json.dumps(["Aldur's Advance (boots)"]),
+              "d2r_rwMade": json.dumps({"Authority": "Jun 24, 2026 - 17:05"})}
+        r = _run(st, install="e07a5fe1")
+        self.assertTrue(r["owner"],
+                        "his own store shapes no longer recover — the tightening went too far and "
+                        "a populated board reads as an empty stranger's world")
+        self.assertEqual((r.get("recovered") or {}).get("entries"), 5,
+                         "the entry count moved; re-measure against a real world before trusting it")
+
+    def test_an_OBJECT_element_is_still_admitted(self):
+        """⚠ THE FALSE-ZERO GUARD ON THE TIGHTENING ITSELF. Requiring `typeof el === 'string'`
+        alone would have read an older `[{name: ...}]` array as empty. An object element with any
+        own key still counts; only `{}` does not."""
+        st = {"d2r_ownerClaim": "an-old-id",
+              "d2r_owned": json.dumps([{"name": "Shako", "at": 1}])}
+        r = _run(st, install="e07a5fe1")
+        self.assertTrue(r["owner"],
+                        "an array of record OBJECTS read as empty, so an older store shape would "
+                        "render his board as a stranger's")
 
     # ── ⚠ THE THREE PATHS THAT MUST BE UNCHANGED ────────────────────────────────────────────
     def test_star_still_wins(self):

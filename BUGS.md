@@ -23134,6 +23134,72 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-700 — three "cold code reviews" were recorded as second-eye looks and the code was never sent
+
+**2026-09-08 · v2779 · `tv/second_eye_ledger.py` · found while the gate refused to ship v2778**
+
+The second-eye lane holds rows for v2772, v2774 and v2776 marked `reached=True`, verdict `findings`,
+each with a specific-sounding answer head. In all three the prompt's code fence contained the
+LITERAL text of an un-evaluated `open(...).read()` concatenation, because the prompt was assembled
+as an ordinary string and the expression was never evaluated. The other family received a fence full
+of source-expression plus several paragraphs of accurate prose context, and answered confidently:
+
+> *"The inference is unsound under the documented threading model; the failure mode is the dangerous
+> one. Thread A reads counter (value N), thread B increments it..."*
+
+A sentinel probe settled it — asked to quote the snippet's first line, the model answered
+**"NO CODE RECEIVED"**.
+
+**⛔ Why nothing caught it.** Every field the ledger stored describes the ANSWER — model, family,
+verdict, findings, the head of the raw text, even a hash of the bytes I *said* were photographed.
+Not one described the QUESTION. So a fluent answer to a prompt containing no code was structurally
+indistinguishable from a real review, and stayed that way for four versions. [[the-unjoined-end]]
+
+**⚠ The first correction was itself an overclaim.** I told Konyo every cold review this session had
+gone out empty. Measured against the stored prompts, **v2775 carried its diff intact** (0 literals),
+and its finding — a redundant `max-width: 100%` on `.fleet-box` — was real and was acted on. A
+blanket retraction would have been exactly as unmeasured as the original claim, in the other
+direction. Three rows retracted, one left standing, because that is what the count says.
+[[inherited-claim-is-not-evidence]]
+
+**Fixed:** `code_was_transmitted(sent)` reads the code FENCES ONLY (never the whole prompt — a
+prompt may legitimately discuss `open().read()`, and a whole-text search goes red on the explanation
+of the defect: [[source-reading-guard]]). `record()` takes `sent=` and forces a fence carrying an
+un-evaluated file read to an EMPTY SEAT — `reached=False`, verdict `cannot-tell`, with the reason
+stored. Omitting `sent` records `None`, which is "nobody checked" and never a pass.
+Gate: `test_a_cold_review_must_carry_the_code.py` (8 laws, 3 sabotages each red on one law).
+
+**What the real v2777 review then found**, once its code was actually inlined — see REG-701.
+
+## REG-701 — a JSON string in a world key was counted by its CHARACTERS
+
+**2026-09-08 · v2779 · `bible.html` · found by the first cross-family review this session that
+actually received the code**
+
+The v2777 entry-counting guard opened with `if (_p && _p.length != null)`. A **string has `.length`
+and is indexable**, so `JSON.parse('"abc"')` took the array branch and walked its letters.
+Measured in node: **3**. Three characters counted as three item names — enough on their own to
+recover a world out of nothing and re-pin the owner claim.
+
+Two smaller siblings in the same expression: the element test only asked "does this stringify to
+something?", so `[0]`, `[false]` and `[{}]` each counted 1 (`String(false)` is `"false"`,
+`String({})` is `"[object Object]"`). And `JSON.parse` defines a literal `__proto__` as an OWN
+property, so `Object.keys` listed it and `{"__proto__":1}` was a one-entry world by itself.
+
+**⚠ Three of the reviewer's other claims were wrong** and were refuted by measurement: it said
+`[""]`, `[" "]` and `[null]` count non-zero (all count 0 — the `.trim()` already rejects them) and
+that `[[]]` yields `"[object Object]"` (`String([])` is `""`). It did not trace its own expression's
+falsiness. The finding that mattered was still one only a reader of the actual code could make.
+
+**Fixed:** `Array.isArray(_p)`; array elements count as a non-blank STRING, or as an object with any
+own key (so an older `[{name:...}]` shape cannot read as empty); `__proto__` excluded from the key
+count.
+
+**⛔ Proven not to empty a real board** — the direction that actually hurt him. Measured against his
+backed-up world: 169 owned / 429 foundLog / 125 setPieces / 99 rwMade, **822 entries before and 822
+after**. Every false positive above now counts 0. Gate: 5 new laws in
+`test_a_populated_world_survives_a_lost_claim.py` (14 total), 3 sabotages each red on one law.
+
 ## REG-699 — his console ran away at 109% CPU for two hours and every API call died with it
 
 **Found:** 2026-09-08, ~03:25, while he was away · **Not shipped as a code fix — the CAUSE is still UNKNOWN**
