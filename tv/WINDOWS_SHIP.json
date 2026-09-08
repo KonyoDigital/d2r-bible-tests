@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2771",
+  "ver": "v2773",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2771: Two role-button spans lived inside the inbox button and the parent accessible name had swallowed both their labels, so a screen reader announced one control offering three actions. They are siblings now. The second-eye lane grew a FAILING state and split not-signed-in from genuinely-absent. The sets badge shows the q level in place of the base type. The locked-lanes row stopped reporting his own throw-bar ruling as a fault.",
+  "note": "v2773: the seven engine lamps and the ADVANCED drawer move to TV-D beside the AI readers, the river heading wraps as one sentence instead of three flex columns, and every route gets its own doctor row where an unexercised route reads UNKNOWN rather than OK",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
