@@ -25388,3 +25388,41 @@ branch, name counted as a find (v1889), registration back inside the branch (v21
 each, all three RED. [[feedback-comments-vs-code]] [[source-window-shortcut]]
 [[feedback-blind-fixture-green-gate]]
 
+## REG-752 — the breakdown dropped its two most expensive producers, and hid the drop
+
+Found by the cross-family eye on the shipped v2810 diff. It reported the thread-local `sect` being
+left dirty on an exception. Reproduced before believing it — and the ordering defect underneath was
+larger than the one described:
+
+```
+reset `_STATUS_TL.sect = {}`   line 25319
+earliest _t() call             line 25206     <- 113 lines EARLIER
+```
+
+v2810 inlined the timing (correctly — see REG-750) but placed the preamble immediately above the
+return dict instead of at the top of the function. Consequence:
+
+| producer | what happened |
+|---|---|
+| `agentAlive` (`_pid_cached` → **lsof**) | timed into the PREVIOUS request's dict, then wiped |
+| `diskEyeAge` | same |
+| the other 11 | recorded normally |
+
+★ **AND `unattributedMs` COULD NOT CATCH IT.** `_t0` also started late, so `totalMs` excluded the
+very cost the sections were missing. The two figures stayed consistent with each other while both
+omitted the same work — which is precisely the failure the unclamped-gap design exists to prevent,
+occurring in the instrument that publishes it.
+
+`agentAlive` is one of the two prime suspects for the ~52s stall this measurement was built to
+attribute (REG-745). **The instrument was silently dropping the likeliest component.**
+
+⚠ The reviewer's stated scenario — contamination carried into the NEXT request — does NOT occur,
+because the reset re-initialises at the top of each call. That is incidental, not a defence, and
+not why the code was wrong. A finding earns a measurement, not obedience: taking it wholesale would
+have produced a try/finally around the wrong thing and left both producers still missing.
+
+Fixed: the preamble is the first thing the function does (reset 25217, first `_t()` 25221), all 13
+producers reach the ledger, and a new law asserts the reset precedes every timed producer — proven
+red by moving it back down. [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+[[the-unjoined-end]]
+

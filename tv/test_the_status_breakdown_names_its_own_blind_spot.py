@@ -135,6 +135,33 @@ class TestTheStatusBreakdownNamesItsOwnBlindSpot(unittest.TestCase):
                       "the unrun state does not say UNKNOWN — a 0ms breakdown from a ledger that "
                       "has never been written reads as 'fast' and is 'unmeasured'")
 
+    def test_the_reset_precedes_every_timed_producer(self):
+        """⚠ v2812 — THE PREAMBLE SAT 113 LINES TOO LOW AND ATE TWO PRODUCERS.
+
+        v2810 inlined the timing but put `_STATUS_TL.sect = {}` / `_t0` immediately above the
+        return dict instead of at the top of the function. The first two `_t()` calls therefore
+        recorded into the PREVIOUS request's dict, which the reset then wiped — so `agentAlive`
+        (which is `_pid_cached` -> lsof, a prime suspect for the 52s) and `diskEyeAge` never
+        appeared in the breakdown at all. And because `_t0` also started late, `totalMs` excluded
+        their cost, so `unattributedMs` — the field whose whole job is to expose an unmeasured gap
+        — could not reveal it either. A breakdown that drops a producer AND hides the drop.
+        [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]"""
+        fn = _fn(self.tree, "status_payload")
+        self.assertIsNotNone(fn, "status_payload is gone")
+        resets = [st.lineno for st in ast.walk(fn)
+                  if isinstance(st, ast.Assign)
+                  and "sect" in ast.dump(st)
+                  and "{}" in (ast.get_source_segment(self.src, st) or "")]
+        timed = [n.lineno for n in ast.walk(fn)
+                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_t"]
+        self.assertTrue(resets, "the per-request section dict is never reset")
+        self.assertTrue(timed, "nothing is timed at all")
+        self.assertLess(min(resets), min(timed),
+                        "the reset is at line %d but the first timed producer is at line %d — "
+                        "every _t() above the reset records into the previous request's dict and "
+                        "is then wiped, so it never reaches the breakdown"
+                        % (min(resets), min(timed)))
+
     def test_the_timing_reaches_the_wire(self):
         """Measured and never published is the [[the-unjoined-end]] shape."""
         inner = _fn(self.tree, "status_payload")
@@ -154,6 +181,13 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": '            "unattributedMs": round(_total - _sum, 1),',
         "replace": '            "unattributedMs": max(0.0, round(_total - _sum, 1)),',
+        "matches": 1,
+    },
+    {
+        "why": "moving the reset below the first producer silently drops it from the breakdown",
+        "file": "control_app.py",
+        "find": "    _STATUS_TL.sect = {}\n    _t0 = time.time()",
+        "replace": "    _t0 = time.time()",
         "matches": 1,
     },
     {

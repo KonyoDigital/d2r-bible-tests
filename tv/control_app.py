@@ -25203,6 +25203,21 @@ def status_payload():
     # v1424–v1426 live Windows proof: under D2R, /state can miss a poll while ping still works.
     # Keep last-good st for a grace window; disk-fallback eyeAgeMs + cap_target so the UI never
     # paints dark film / READS 0 / empty pin while capture is LINKED and eye.jpg is fresh.
+    # ⚠⚠ v2812 — THIS PREAMBLE MUST BE THE FIRST THING THE FUNCTION DOES, AND IT WAS NOT.
+    # v2810 inlined the timing but placed these three lines 113 lines DOWN, immediately above the
+    # return dict. So `_t("agentAlive", ...)` and `_t("diskEyeAge", ...)` — the first two
+    # producers — recorded into the PREVIOUS request's section dict, which this reset then wiped.
+    # They never reached the breakdown, and because `_t0` started late the total excluded them
+    # too, so `unattributedMs` could not reveal the hole either. The instrument built to name the
+    # slow component was silently dropping `agentAlive`, which is _pid_cached -> lsof: one of the
+    # two prime suspects for the 52s this whole measurement exists to explain.
+    # Found by a cross-family review of the shipped v2810 diff, which flagged the thread-local
+    # handling; the ordering defect underneath it was larger than the one reported.
+    # [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+    _STATUS_TL.sect = {}
+    _t0 = time.time()
+    _b0 = int((_LOCK_WAIT or {}).get("blocked") or 0)
+
     _alive = _t("agentAlive", _agent_alive)
     _now = time.time()
     bridge_now = bool(_BR_CACHE["ping"]) and (_now - _BR_CACHE["ts"]) < 8.0 and _alive
@@ -25316,14 +25331,10 @@ def status_payload():
     # running stamp went to "v?" — the exact v2155 defect those tests exist to prevent, re-created
     # by a refactor that never touched their subject. A name is an interface here.
     # [[regression-guard]] [[source-reading-guard]]
-    _STATUS_TL.sect = {}
-    _t0 = time.time()
-    _b0 = int((_LOCK_WAIT or {}).get("blocked") or 0)
-
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2811",
+        "ver": "v2812",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
