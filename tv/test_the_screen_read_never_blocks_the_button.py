@@ -40,6 +40,15 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "control_app.py")
 
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+# This file PARSES control_app rather than importing it, which is deliberate — but it also means it
+# misses the exemption every other gate here gets for free (importing control_app enables this as a
+# side effect). Its own docstring and output carry non-ASCII, so on a non-UTF-8 console it would
+# crash while REPORTING and a clean tree would exit non-zero. [[the-unjoined-end]]
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 READER = "_mini_cells_from_live_frame"
 HANDLERS = ("do_GET", "do_POST", "do_PUT", "do_DELETE")
 
