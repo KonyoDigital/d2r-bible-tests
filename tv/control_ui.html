@@ -15257,6 +15257,14 @@ window._lockMark = function(isOpen, px, label){
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
   }
   $('th-shelf').onclick = function(){ thShelf(); };
+  /* ⚠ v2804 — EXPORTED, because a panel nothing can open is a panel nothing can photograph.
+     `thShelf` lives inside this file's IIFE, exactly like `_shLanesLoad` two thousand lines up —
+     and that one is explicitly put on `window` while this one never was. Measured: a render
+     target written for the river strip ran and refused with "the panel could not be ACTIVATED
+     after 12.1s of polling" at load 1.89, because CDP evaluates in global scope and could not
+     reach the opener. The harness was working; the surface was unreachable.
+     window.thShelf exports: 0 · window._shLanesLoad exports: 2. [[console-ui-two-script-blocks]] */
+  window.thShelf = thShelf;
   // v940.5 — ⋯ MORE: the drawer for the rare controls (forensics / clip / delete)
   function thMore(force){
     var pop = $('th-more-pop'), btn = $('th-more'); if (!pop || !btn) return;
