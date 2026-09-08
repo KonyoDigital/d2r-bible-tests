@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2804",
+  "ver": "v2805",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2804: A cross-family review of the shipped Heart 2.0 returned fifteen findings and three of them were blind instruments inside the layer built to catch blind instruments. The sandbox was a claim with no code behind it because os.path.join discards its prefix for an absolute path. The law forbidding self-repair asserted nothing because it hunted bare open while heart2 uses io.open for all ten of its writes. Three of the five detector signatures could never match because the code-only pass joined tokens with newlines and deleted every string literal. Also fixed: a non-zero exit was taken as proof the law fired, the state file was clobbered by targeted runs and by the ratchet, a broken parser produced a green lock, gate 248 proof was self-fulfilling, the state path had two definitions, the stale sibling of the discarded reason, and the census reached the heart payload and was rendered nowhere.",
+  "note": "v2805: The river strip had never been photographed and the reason was a layout fact hiding behind a scripting symptom. thShelf opened the overlay correctly and every lane rect measured zero by zero at every width, because the shelf lives inside the theatre and the theatre is hidden on a fresh console. thOpen was unexported for exactly the same reason thShelf was, so v2804 fixed half a chain. Both exported now, activate proven true at 1440 and 901 and 375 over CDP, and the real harness paints 14 of 14 at every width with no clipping.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

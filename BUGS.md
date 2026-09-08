@@ -24431,6 +24431,65 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-741 — the river strip was never photographed, and the reason was two unexported openers
+
+THE SURFACE. `#sh-lanes` is the strip he reads before deleting footage — INTAKE → … → TOMBSTONE
+across 41 reels. Nothing had ever photographed it. render_check's own note said the console's
+data-driven panels "are not targets here, and it is a GAP, not a choice", because a `file://` target
+renders "Loading runs…". That stopped being true when 9 targets grew `serve: True`; the capability
+arrived and this surface was never joined to it.
+
+⚠⚠ **IT REFUSED TWICE AND BOTH REFUSALS WERE THE HARNESS BEING RIGHT.** "The panel could not be
+ACTIVATED after 12.2s of polling" at load **1.89** and **1.95** — contention ruled out both times.
+Two guesses at the cause were wrong. Four CDP evaluations against a private console settled it, and
+the answer was a **layout** fact wearing a **scripting** symptom:
+
+```
+window.thShelf   'function'        the opener was reachable (v2804 exported it)
+thShelf(true)    -> hidden=false   it DID open the overlay
+.shr-lane        4                 the river DID render its DOM
+every rect       0x0               and occupied no pixels at all
+```
+
+The ancestor walk named it in one line:
+
+```
+#sh-lanes     0x0  display=block  hidden=false
+#th-shelfov   0x0  display=block  hidden=false   <- opened correctly
+#theatre      0x0  display=none   hidden=TRUE    <- THE COLLAPSE
+#stage        0x0  display=none
+div.shell  1440x900
+```
+
+**The shelf lives inside the theatre, and the theatre is closed on a fresh console.** So the harness
+could open the panel and photograph nothing — and a bare existence check on `#sh-lanes` would have
+passed while every pixel was absent.
+
+★ **And `thOpen` was unexported for exactly the same reason `thShelf` was.** Both live in
+control_ui.html's IIFE; their sibling `_shLanesLoad` is explicitly put on `window` and they were
+not. v2804 exported one of them, which fixed half a chain and left the target still red. Fixing an
+instance is not fixing the class. [[sweep-dont-ask]] [[console-ui-two-script-blocks]]
+
+**Measured after both exports:** ACTIVATE TRUE at 1440, 901 and 375 over CDP, then the real harness:
+
+```
+1440x1000  painted 14/14 · clipped 0/28 · off 0/14
+ 901x900   painted 14/14 · clipped 0/28 · off 0/14
+ 375x800   painted 14/14 · clipped 0/28 · off 0/14
+text: the river · 41 reel(s) on the shelf 1 INTAKE 0 TRIAGE 22 STATION 0 EMPTY 2 PRINTER …
+```
+
+⚠ **The target was written and REVERTED twice before it shipped green.** This file's own history
+records that a target which can only ever be red gets switched off within a week — the deleted `tvd`
+target made exactly that mistake. A red target is not a placeholder for a fix.
+
+⚠ The activate proves from the RECT and counts `.shr-lane` children, per
+`test_activation_is_proven_from_the_RECT_not_from_the_call_returning`: a river that could not be read
+paints one `.shr-wait.shr-bad` line with a perfectly good box, so a rect check on the container alone
+would photograph the failure and call it a river.
+
+---
+
 ## REG-740 — the second-eye handoff manufactured two high-severity findings
 
 Not a defect in the console. A defect in the **instrument that reviews the console**, which is worse

@@ -15298,6 +15298,18 @@ window._lockMark = function(isOpen, px, label){
      reach the opener. The harness was working; the surface was unreachable.
      window.thShelf exports: 0 · window._shLanesLoad exports: 2. [[console-ui-two-script-blocks]] */
   window.thShelf = thShelf;
+  /* ⚠ AND ITS PARENT, which is the same defect one function along. MEASURED over CDP against a
+     private console: thShelf(true) DID un-hide #th-shelfov, and the whole subtree still measured
+     0x0 at 1440, 901 and 375 — because the shelf lives INSIDE the theatre and the theatre is
+     closed on a fresh console:
+         #sh-lanes    0x0  display=block  hidden=false
+         #th-shelfov  0x0  display=block  hidden=false   <- opened correctly
+         #theatre     0x0  display=none   hidden=TRUE    <- the collapse
+         div.shell    1440x900
+     So the render harness could open the panel and photograph nothing, and "the panel could not
+     be ACTIVATED" was hiding a layout answer, not a scripting one. Exporting the opener alone
+     fixes half a chain. [[sweep-dont-ask]] */
+  window.thOpen = thOpen;
   // v940.5 — ⋯ MORE: the drawer for the rare controls (forensics / clip / delete)
   function thMore(force){
     var pop = $('th-more-pop'), btn = $('th-more'); if (!pop || !btn) return;

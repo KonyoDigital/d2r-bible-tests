@@ -1302,6 +1302,81 @@ TARGETS = {
             }
             return true; })""" + """()""",
     },
+
+    # ══ v2805 — 🌊 THE RIVER STRIP, ON PIXELS AT LAST. The surface he reads before deleting
+    # footage, and nothing had ever photographed it.
+    #
+    # ⚠⚠ IT REFUSED TWICE FIRST, AND BOTH REFUSALS WERE THE HARNESS BEING RIGHT. "The panel could
+    # not be ACTIVATED after 12.2s" at load 1.89 and 1.95 — not contention. Two guesses at the
+    # cause were wrong; four CDP evaluations against a private console settled it, and the answer
+    # was a LAYOUT fact hiding behind a scripting symptom:
+    #
+    #     window.thShelf   'function'     the opener was reachable after v2804 exported it
+    #     thShelf(true)    -> hidden=false  it DID open the overlay
+    #     .shr-lane        4              the river DID render its DOM
+    #     every rect       0x0            and occupied no pixels whatsoever
+    #
+    #     #sh-lanes    0x0  display=block  hidden=false
+    #     #th-shelfov  0x0  display=block  hidden=false   <- opened correctly
+    #     #theatre     0x0  display=none   hidden=TRUE    <- THE COLLAPSE
+    #     div.shell    1440x900
+    #
+    # THE SHELF LIVES INSIDE THE THEATRE, and the theatre is closed on a fresh console. So the
+    # harness could open the panel and photograph nothing, and `thOpen` — the theatre's own opener
+    # — was unexported for exactly the same reason `thShelf` was. Fixing one and not the other
+    # fixes half a chain. Both exported in v2805; measured ACTIVATE TRUE at 1440, 901 and 375.
+    "river-strip": {
+        "serve": True,
+        "path": "",
+        "warmup": 14.0,
+        "settles": False,
+        "why": ("🌊 THE RIVER — the lanes painted into #sh-lanes from /api/river, and the surface "
+                "he reads before deleting footage. A failed ask paints `.shr-wait.shr-bad` in the "
+                "same box, so an empty river and an unreachable one occupy identical pixels; and "
+                "`_shLanesRender` has rendered nothing at all while every piece looked right, when "
+                "its name collided with `_shRiverLoad` and the later declaration silently won."),
+        "seed": """(function(){ return 1; })()""",
+        "sel": "#sh-lanes .shr-lbl, #sh-lanes .shr-n, #sh-lanes .shr-st",
+        "activate": r"""(function(){
+            /* ⚠ IDEMPOTENT. The harness re-runs this every 0.4s, so it must never toggle:
+               thShelf(force) with an explicit true always SHOWS, thShelf() alone flips. */
+            var ov = document.getElementById('th-shelfov');
+            if (!ov) return false;
+            /* ⚠⚠ THE THEATRE FIRST, OR THE PANEL OPENS INTO A ZERO-SIZED PARENT. Measured over
+               CDP: with #theatre hidden, every lane rect is 0x0 while the DOM is perfectly
+               correct — 4 lanes, no wait node, real content. A rect check alone would then
+               report "painted 0 of 4" and a bare existence check would have passed. */
+            var th = document.getElementById('theatre');
+            if (th && th.hidden) {
+                try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+            }
+            if (th && th.hidden) return false;
+            if (ov.hidden) {
+                try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
+            }
+            if (ov.hidden) return false;
+            var el = document.getElementById('sh-lanes');
+            if (!el) return false;
+            /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
+               since the wait node disappears the moment the strip renders */
+            if (el.querySelector('.shr-wait')) {
+                try { (window._shLanesLoad || function(){})(); } catch (e) {}
+                return false;                 /* not ready, and NOT a pass */
+            }
+            /* ⚠⚠ PROVE IT FROM THE RECT, never from the fetch resolving —
+               test_activation_is_proven_from_the_RECT_not_from_the_call_returning. A river that
+               could not be read paints ONE `.shr-wait.shr-bad` line with a perfectly good box, so
+               a bare rect check on #sh-lanes would photograph the failure and call it a river. */
+            var lanes = el.querySelectorAll('.shr-lane');
+            if (lanes.length < 2) return false;
+            var painted = 0;
+            for (var i = 0; i < lanes.length; i++) {
+                var r = lanes[i].getBoundingClientRect();
+                if (r.width > 8 && r.height > 4) painted++;
+            }
+            return painted === lanes.length;
+        })()""",
+    },
 }
 
 
