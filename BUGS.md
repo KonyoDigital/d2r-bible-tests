@@ -23133,3 +23133,51 @@ second form anchored on `(?:^|;)` and matched **nothing at all** — the real de
 by a *comment*, not a `;`, so the loop ran over an empty set and passed having checked zero
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
+
+## REG-682 — his console ran away at 109% CPU for two hours and every API call died with it
+
+**Found:** 2026-09-08, ~03:25, while he was away · **Not shipped as a code fix — the CAUSE is still UNKNOWN**
+
+His report was *"i click ON AIR and it just closes me out"*, then *"just loading on air and not
+turning on and OFF AIR is still greyed out"*. Two separate defects were behind that, and only one is
+fixed.
+
+**Fixed (v2772):** `start_agent` holds `_lock` across a 166-line block containing
+`subprocess.Popen()` and `time.sleep(0.2)`, while four functions on the `/api/status` path need that
+same lock for one `.poll()` each. Every status poll queued behind the spawn, so the button spun
+"loading" **while the recording ran perfectly**. The readers are now bounded and fall back to a
+lock-free cache. Sabotage measured: reverting them blocks a reader the full 3.005s of a 3s hold.
+
+**⚠ NOT FIXED, and this is the bigger one.** A second wedge has no established cause:
+
+| | measured |
+|---|---|
+| his console, pid 66193, uptime 1h57m | **108–109% CPU sustained**, RSS 740–875 MB (fluctuating, *not* a monotonic leak) |
+| `GET /api/status` × 3 | **HTTP 000 · 0 bytes · 25.0s timeout**, every time |
+| `GET /` during the same window | 200 · 1.6 MB · 0.69s — the static page served fine |
+| its own log | **silent for 38 minutes** while burning the core |
+| capture running | none. 0 `tv_diablo.py`, 0 frames written in 15 min |
+| its two children | `ocr_mac --worker` 0.0%, `claude -p` 0.3% — **the console process itself is the burner** |
+| `sample 66193 10` | `_PyEval_EvalFrameDefault` dominant, `_pthread_cond_wait`/`__psynch_cvwait` beneath — **pure-Python CPU work holding the GIL while other threads starve** |
+| a freshly booted console, same code | **0.0% CPU idle**, `/api/status` in 0.022s |
+
+So it is not a sweep "reading slowly" and it is not either lock: a thread waiting on a lock burns
+**0%** CPU. It is a runaway Python loop that starves every API thread through the GIL. A
+cross-family review was asked to choose between `_lock` and `_PRUNE_LOCK` and correctly answered
+**UNKNOWN**; this measurement rules out both and replaces them with a third story that is itself
+still unproven at the frame level.
+
+**Why the frame could not be named:** his console had started at 01:32 and the `faulthandler`
+SIGUSR1 dump only landed at 02:53, so the one instrument that would have printed the offending
+Python frame was not in the running process. `py-spy` is not installed and installing software on
+his machine unprompted is not on.
+
+**What was done:** the console was stopped (SIGTERM, exited in 6s) and relaunched the way he runs it.
+`/api/status` went from a 25s timeout to **0.145s, then 0.022s**; CPU 108% → 11.3%. It now carries
+`faulthandler` on SIGUSR1 **and** the new `lockWait {blocked, reads}` counter, both verified live on
+his machine (`blocked: 0 of 241 reads`).
+
+**⇒ The next occurrence is diagnosable and this entry is the standing instruction:**
+`kill -USR1 <pid>` prints every thread's Python stack to its log, and `lockWait.blocked` climbing (or
+not) says whether a lock is involved at all. **Do not close this as "fixed by a restart".**
+[[unknown-stays-unknown]] [[zero-needs-a-denominator]]
