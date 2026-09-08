@@ -898,6 +898,23 @@ GATES = [
              "defects found.' was recorded as verdict=findings — the ledger reporting the "
              "opposite of what the other family concluded.",
          skip_ok=()),
+    Gate("test_a_cached_absence_is_not_an_absence",
+         [sys.executable,
+          os.path.join(HERE, "test_a_cached_absence_is_not_an_absence.py")], 120,
+         why="Two sentences from the fleet panel minutes apart — 'the fleet is unreachable' and "
+             "'Dean has not reported which set pieces it holds yet' — with the live beacon in the "
+             "same minute showing Dean ONLINE carrying masks sets=76ch uniques=118ch. Three "
+             "defects. (1) fleet_presence caches 60s and on a timeout wrote the ERROR over the "
+             "cached roster, so one 6s timeout destroyed data the card had already rendered; "
+             "strictly worse than no cache, because without it the modal would have re-tried. "
+             "(2) the cross-reference refused on any fetch failure, treating a STALE roster as an "
+             "unreachable fleet while the card beside it showed that machine's real numbers. "
+             "(3) 'he has not reported' was concluded from that cache — a claim about ANOTHER "
+             "machine, the one kind this console cannot check by looking inward — so an absence "
+             "in a cached record was reported as an absence in the world. Serve the last good "
+             "roster WITH ITS AGE, and make a miss earn one authoritative re-read before the "
+             "sentence may be said.",
+         skip_ok=()),
     Gate("test_the_sweep_knows_whose_world_it_is",
          [sys.executable,
           os.path.join(HERE, "test_the_sweep_knows_whose_world_it_is.py")], 90,

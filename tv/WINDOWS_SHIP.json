@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2813",
+  "ver": "v2814",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2813: REG-753 - the routine that protects his board would have deleted it. Measured before touching: the record present was his console live world claim - firstSeen nine seconds before the console started, seenCount 28, still being written, owner true and previous null so board_identity_drift reads ok. A blind rm degrades ok to unknown, which that function calls deliberate and NOT ok, and the next write starts a fresh install id with previous null - the shape that makes a real board render as a strangers world at 0 of 403. Sweep is now state-driven: guest and drifted swept with a backup, a healthy claim KEPT, absent reported UNKNOWN, unparseable never deleted, and it refuses while his console runs.",
+  "note": "v2814: REG-754 three defects behind two sentences: a failed fetch overwrote the cached roster so one 6s timeout destroyed data the card had already rendered; a STALE roster was refused as an unreachable fleet; and he has not reported was concluded from that cache - a claim about another machine - now earning one authoritative forced re-read first. REG-755 one beacon record carried masks.uniques.have 0 and tally.uniques.have 249, the old seed; the mask wins because it is what the cross-reference decodes into names, and his own row is EXEMPT because the local overlay already holds the authoritative figure - the first cut corrected his 292 to 160, which is task 1 verbatim. Verified live: the sets xref returns the four pieces he asked to see.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

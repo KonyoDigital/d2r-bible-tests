@@ -1534,6 +1534,81 @@ def board_tally_save(t):
         return False
 
 
+def _fleet_reconcile_tally_with_masks(fl):
+    """One record must not hold two answers to one question. -> int rows corrected
+
+    ⚠⚠ v2814 — MEASURED ON DEAN'S OWN BEACON, one record, both numbers:
+
+        masks.uniques   b='AAAAAAAA...'  have: 0     <- the deliberate zero
+        tally.uniques                    have: 249   <- Konyo's old SEED, still published
+
+    Konyo, 2026-09-09: *"for dean we said the 249/403 for uniques was my own seed profile.. and we
+    made it 0 and worked or were suppose to work around that maybe somewhere its still
+    rendering"*. It is: the mask was zeroed on his side, the TALLY was not, and every surface that
+    reads `tally` instead of `masks` re-publishes the seed.
+
+    ★ THE MASK WINS, AND FOR A REASON THAT IS NOT PREFERENCE. `masks` is the field the
+    cross-reference actually DECODES — it is what produces the item names on screen — so a tally
+    that disagrees with it is describing a set of items nobody can enumerate. Two numbers, one of
+    which no surface can turn into a list, is not a tie.
+
+    ⚠ AND THE DISAGREEMENT IS KEPT, never smoothed away: `saidHave` holds what the beacon claimed
+    and `why` says which side won. A contradiction quietly resolved is a contradiction that will be
+    rediscovered from scratch. [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]]
+
+    ⚠ It corrects ONLY where a mask carries a usable `have`. A ledger with no mask keeps whatever
+    the beacon said — absent is not zero, and this function must never invent a number.
+    """
+    n = 0
+    if not isinstance(fl, dict):
+        return 0
+    for grp in ("online", "offline"):
+        for row in (fl.get(grp) or []):
+            if not isinstance(row, dict):
+                continue
+            masks = row.get("masks") or {}
+            tally = row.get("tally")
+            if not isinstance(masks, dict) or not isinstance(tally, dict):
+                continue
+            # ⚠⚠ HIS OWN ROW IS EXEMPT, AND TESTING ON HIS REAL BEACON IS THE ONLY REASON I KNOW.
+            # The first cut of this function applied "the mask wins" to every row and produced:
+            #     Dean   uniques  have=0   (beacon said 249)   <- right, the seed leak
+            #     Konyo  uniques  have=160 (beacon said 292)   <- WRONG, and it is task #1 verbatim
+            # `_fleet_overlay_local_tally` has already written THIS board's authoritative figure
+            # into his own row and stamped it `localRead`. That figure is read from board_tally.json
+            # — the same number his Chronicle meter divides by — and v2764's whole finding was that
+            # the mask side reads 160 where his real total is 292. So for the local row the tally is
+            # the better source, and "the mask wins" would have re-shipped the defect it was written
+            # after. A rule that is right for every peer can still be wrong for the one machine you
+            # are standing on. [[feedback-blind-fixture-green-gate]] [[copy-drift]]
+            if tally.get("localRead"):
+                continue
+            for led in ("sets", "uniques", "runewords"):
+                m = masks.get(led)
+                if isinstance(m, str):
+                    try:
+                        m = ast.literal_eval(m) if m.strip().startswith("{") else None
+                    except Exception:
+                        m = None
+                if not isinstance(m, dict) or "have" not in m:
+                    continue
+                t = tally.get(led)
+                if not isinstance(t, dict) or "have" not in t:
+                    continue
+                if int(t.get("have") or 0) == int(m.get("have") or 0):
+                    continue
+                t = dict(t)
+                t["saidHave"] = t.get("have")
+                t["have"] = int(m.get("have") or 0)
+                t["why"] = ("the beacon's tally said %s and its own %s MASK says %s. The mask is "
+                            "what the cross-reference decodes into item names, so it wins; the "
+                            "tally figure is kept as saidHave rather than discarded."
+                            % (t["saidHave"], led, t["have"]))
+                tally[led] = t
+                n += 1
+    return n
+
+
 def _fleet_overlay_local_tally(fl, me):
     """HIS OWN ROW READS THE LOCAL TALLY INSTEAD OF THE ROUND TRIP. -> how many rows changed
 
@@ -11734,7 +11809,17 @@ def set_install_nickname(name):
 
 # NOT _FLEET_CACHE — that name belongs to v1418's fleet_origin_status (git origin vs this PC), and
 # reusing it swapped the dict shape out from under it. The suite caught it on the first run.
-_FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None}
+# ⚠⚠ v2814 — `goodT`/`goodD` EXIST BECAUSE A FAILURE USED TO OVERWRITE THE ANSWER.
+# Konyo, 2026-09-09, with screenshots: THE FLEET card rendered Dean's real numbers (sets 130/135,
+# uniques 0/403, runewords 96/99, "as of 21h ago") and clicking cross-reference answered "the
+# fleet is unreachable — The read operation timed out". Both surfaces call fleet_presence(); the
+# card had rendered from a cached SUCCESS, then one 6s timeout replaced `d` with an error object
+# and the modal — reading the same cache 60 seconds wide — got the refusal.
+#
+# The data was not missing. It was DELETED by the failure to re-fetch it. A cache that discards a
+# good answer when the network hiccups is worse than no cache: without it the modal would have
+# re-tried and often succeeded. [[stale-reading]] [[unknown-stays-unknown]]
+_FLEET_PRESENCE_CACHE = {"t": 0.0, "d": None, "goodT": 0.0, "goodD": None}
 
 
 def _completed_names(applied):
@@ -24798,6 +24883,19 @@ def fleet_presence(force=False):
             out = json.loads(r.read().decode("utf-8", "replace"))
     except Exception as e:
         out = {"ok": False, "online": [], "offline": [], "error": str(e)[:120]}
+    if out.get("ok") is not False:
+        # a real answer — remember it as the last good one
+        _FLEET_PRESENCE_CACHE["goodT"] = now
+        _FLEET_PRESENCE_CACHE["goodD"] = out
+    elif _FLEET_PRESENCE_CACHE.get("goodD") is not None:
+        # ⚠ THE FETCH FAILED AND WE STILL KNOW WHO WAS THERE. Serve it, and say how old it is —
+        # a stale roster is a different fact from an unreachable fleet, and only one of them is
+        # a reason to refuse. The age travels WITH the data so no caller can mistake it for live.
+        _stale = dict(_FLEET_PRESENCE_CACHE["goodD"])
+        _stale["stale"] = True
+        _stale["staleAgeS"] = round(max(0.0, now - float(_FLEET_PRESENCE_CACHE["goodT"] or 0.0)), 1)
+        _stale["staleWhy"] = str(out.get("error") or "the fleet did not answer")[:120]
+        out = _stale
     _FLEET_PRESENCE_CACHE["t"] = now
     _FLEET_PRESENCE_CACHE["d"] = out
     return out
@@ -24874,7 +24972,13 @@ def fleet_compare(machine, ledger="sets"):
                                     "decode anybody's progress" % spec["label"]}
 
     fleet = fleet_presence()
-    if not isinstance(fleet, dict) or fleet.get("ok") is False:
+    # ⚠ v2814 — A STALE ROSTER IS NOT AN UNREACHABLE FLEET. This refused whenever the live fetch
+    # failed, even though the card beside it was rendering the same machine's real numbers from
+    # the cache. He clicked cross-reference on a board showing Dean's 130/135 and got "the fleet
+    # is unreachable". Now it proceeds on the last good roster and the answer CARRIES ITS AGE;
+    # only a fleet nobody has ever reached is a refusal. [[stale-reading]]
+    _fleet_stale = bool(isinstance(fleet, dict) and fleet.get("stale"))
+    if not isinstance(fleet, dict) or (fleet.get("ok") is False and not _fleet_stale):
         return {"ok": False, "why": "the fleet is unreachable — %s"
                                     % str((fleet or {}).get("error") or "no answer")[:80]}
     rows = list(fleet.get("online") or []) + list(fleet.get("offline") or [])
@@ -24883,6 +24987,33 @@ def fleet_compare(machine, ledger="sets"):
         return {"ok": False, "why": "no machine called %r has ever checked in" % machine[:40]}
 
     their_mask = ((them.get("masks") or {}) or {}).get(ledger)
+    # ⚠⚠ v2814 — "HE HAS NOT REPORTED" WAS BEING CONCLUDED FROM A CACHE, AND IT WAS WRONG.
+    # Konyo, 2026-09-09: the panel said "Dean has not reported which set pieces it holds yet".
+    # MEASURED against the live beacon in the same minute:
+    #     Dean  ver=v2745  online=TRUE  masks: sets=76ch, uniques=118ch
+    # He had reported BOTH. The console had simply not asked since before he published — this
+    # roster comes from a 60s cache, and a console that has been up for hours can hold a view of
+    # another machine that is arbitrarily older than that when a fetch has failed in between.
+    #
+    # ★ AN ABSENCE IN A CACHED RECORD IS NOT AN ABSENCE IN THE WORLD, and this is a claim ABOUT
+    # SOMEONE ELSE'S MACHINE — the one kind of claim this console cannot check by looking inward.
+    # So a miss earns exactly one authoritative re-read before the sentence is allowed to be said.
+    # Only if the FORCED read still has no mask is "he has not reported" a statement of fact.
+    # [[stale-reading]] [[unknown-stays-unknown]]
+    if their_mask is None:
+        try:
+            _fresh = fleet_presence(force=True)
+            if isinstance(_fresh, dict):
+                _rows2 = list(_fresh.get("online") or []) + list(_fresh.get("offline") or [])
+                _them2 = next((r for r in _rows2
+                               if str(r.get("machine") or "") == machine), None)
+                if _them2 is not None:
+                    _m2 = ((_them2.get("masks") or {}) or {}).get(ledger)
+                    if _m2:
+                        them, their_mask, fleet = _them2, _m2, _fresh
+                        _fleet_stale = bool(_fresh.get("stale"))
+        except Exception:
+            pass
     # HIS side is read LIVE from his own board rather than from his own beacon record — the beacon
     # is up to five minutes stale and he is sitting in front of this one.
     mine_mask = _mask_cached(ledger)
@@ -24892,6 +25023,10 @@ def fleet_compare(machine, ledger="sets"):
     out["ledger"] = ledger
     out["who"] = str(them.get("nickname") or them.get("machine") or "")[:40]
     out["theirAt"] = them.get("t") or them.get("ts") or None
+    # the roster's own age, so the box can say "as of 21h ago" instead of implying live
+    out["fleetStale"] = _fleet_stale
+    out["fleetStaleAgeS"] = fleet.get("staleAgeS") if _fleet_stale else None
+    out["fleetStaleWhy"] = fleet.get("staleWhy") if _fleet_stale else None
     # v2329 — THE AGE COMES FROM THIS LEDGER'S SLOT. _MASK_CACHE went from one flat dict to one
     # slot per ledger, and this reader was missed: `_MASK_CACHE["t"]` raised KeyError inside the
     # route, which returned an EMPTY BODY, which the panel rendered as "the console did not
@@ -25334,7 +25469,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2813",
+        "ver": "v2814",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -27310,6 +27445,9 @@ class Handler(BaseHTTPRequestHandler):
                     # ⚠ ONLY HIS ROW. A peer's numbers are only knowable through the beacon, and
                     # overlaying local figures onto their row would report his board as theirs.
                     _fleet_overlay_local_tally(_fl, _fl["me"])
+                    # v2814 — AFTER the local overlay, so his own row is reconciled too
+                    try: _fleet_reconcile_tally_with_masks(_fl)
+                    except Exception: pass
                     # ── v2457 — THE DENOMINATOR THE COMPARISON IS ACTUALLY DEFINED AGAINST ────
                     # Konyo, on Dean's row: "still reads for the fleet 398 instead of 403 for
                     # dean.. + the sets should read 125/135 not UNKNOWN number... something isnt

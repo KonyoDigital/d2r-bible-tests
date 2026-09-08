@@ -4322,6 +4322,37 @@ try { var _h680 = window.location.hash || ''; var _app680 = /(\?|&)app=1(&|$)/.t
   try { document.addEventListener('DOMContentLoaded', window._scRestore); } catch(e){}
 })();
 
+/* ⚠⚠ v2814 — "last found" WAS ASKING THE WRONG CLOCK, AND THE UNDO BUTTON PAID FOR IT.
+   Konyo, 2026-09-09: "last found says hobnails but i literally just tallied off deaths gaurd
+   sash". The counter had moved (128/135 pieces), so the tick landed. The BAR did not.
+
+   `_flogSort` orders by `d2r_foundLog[name]` — the FOUND date — and v2052 deliberately refuses to
+   refresh that date when one already exists ("keep the existing date; only write when there is
+   none"), because a found-date should mean when he FOUND the item, not when he ticked it. That
+   ruling is right and stays. But a piece already dated by an AI read of his reels can then be
+   ticked by hand and never become "last found", because a newer date exists elsewhere.
+
+   ★ AND THIS BAR IS NOT A LABEL — IT CARRIES AN UNDO BUTTON. Naming the wrong item means the undo
+   un-ticks the wrong item. That is a wrong WRITE, not a wrong word, and it is why this is a defect
+   rather than a cosmetic slip.
+
+   Two clocks, two questions: `d2r_foundLog` answers "when was this found"; `d2r_lastTick` answers
+   "what did he just do". Milliseconds, because `_grailStamp` below resolves only to the MINUTE and
+   two ticks inside one minute tie. [[label-outlived-referent]] [[the-unjoined-end]] */
+window._markLastTick = function(name, kind, on){
+  try {
+    if (on){
+      window.LSR.setItem('d2r_lastTick', JSON.stringify({n: String(name), k: String(kind),
+                                                         ms: Date.now()}));
+    } else {
+      var _lt = JSON.parse(window.LSR.getItem('d2r_lastTick') || 'null');
+      if (_lt && _lt.n === String(name)) window.LSR.removeItem('d2r_lastTick');
+    }
+  } catch(e){}
+};
+window._lastTick = function(){
+  try { return JSON.parse(window.LSR.getItem('d2r_lastTick') || 'null'); } catch(e){ return null; }
+};
 window._grailStamp = function(){ try { var d=new Date(); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u00b7 '+d.toTimeString().slice(0,5); } catch(e){ return ''+Date.now(); } };
 window.profileSwitch = function(p){
   p = (p==='ladder') ? 'ladder' : 'main';
@@ -22737,6 +22768,9 @@ function toggleOwned(name) {
                 window._foundEvidenceDrop(name); } catch(e){}
       }   // un-tick also clears any legacy vault entry
       else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+      /* v2814 — the same marker on the uniques door. `wasOwned` is _gFound(name) read
+         before this write, so !wasOwned is a TICK. This bar serves BOTH forges. */
+      try { window._markLastTick(name, 'uni', !wasOwned); } catch(e){}
       window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
       _gFoundDirty();
     } catch(e){}
@@ -23883,6 +23917,9 @@ function renderSetTracker() {
   try { if (window._scRestore) window._scRestore(); } catch (e) {}
 }
 function toggleSetPiece(piece) {
+  /* v2814 — BEFORE any mutation: setPieces still holds the pre-toggle state here, so this
+     is the only point that can tell a tick from an un-tick. The mutation is ~75 lines down. */
+  try { window._markLastTick(piece, 'set', !setPieces.has(piece)); } catch(e){}
   // v644 — set pieces chronicle into the same found ledger
   try { const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
     if (setPieces.has(piece)){ delete fl[piece];
@@ -42810,6 +42847,15 @@ function renderJournal(){
     });
     if(!mine.length) return '';
     mine=_flogSort(mine); var last=mine[0];
+    /* ⚠ v2814 — THE TICK OUTRANKS THE FOUND-DATE, and ONLY for choosing which name this bar is
+       about. The sort above still orders by found-date for every other purpose. If the last thing
+       he ticked belongs to this bar's ledger, that is what "last" means here — and it is what the
+       undo must target. Falls straight back to the sort when there is no marker: a fresh profile,
+       a cleared store, or a find that arrived by import rather than by his hand. */
+    try {
+      var _lt = window._lastTick && window._lastTick();
+      if (_lt && _lt.k === kind && mine.indexOf(_lt.n) >= 0) last = _lt.n;
+    } catch(e){}
     var fn=kind==='uni'?'grailFoundUni':'grailTogglePiece';
     /* ── v1575 — THE REDO I SHIPPED DEAD IN v1570 ────────────────────────────────────────────
        v1570 answered "undo but also undo the undo like forward back?" with window._FORGE_REDO and
@@ -49843,7 +49889,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2813', name:'v2813 - the sweep knows whose world it is', date:'2026-09-09', note:'REG-753 - the routine that protects his board would have deleted it. Measured before touching: the record present was his console live world claim - firstSeen nine seconds before the console started, seenCount 28, still being written, owner true and previous null so board_identity_drift reads ok. A blind rm degrades ok to unknown, which that function calls deliberate and NOT ok, and the next write starts a fresh install id with previous null - the shape that makes a real board render as a strangers world at 0 of 403. Sweep is now state-driven: guest and drifted swept with a backup, a healthy claim KEPT, absent reported UNKNOWN, unparseable never deleted, and it refuses while his console runs.' };
+  window.D2R_BUILD = { id:'v2814', name:'v2814 - the fleet said unreachable about a machine that answered', date:'2026-09-09', note:'REG-754 three defects behind two sentences: a failed fetch overwrote the cached roster so one 6s timeout destroyed data the card had already rendered; a STALE roster was refused as an unreachable fleet; and he has not reported was concluded from that cache - a claim about another machine - now earning one authoritative forced re-read first. REG-755 one beacon record carried masks.uniques.have 0 and tally.uniques.have 249, the old seed; the mask wins because it is what the cross-reference decodes into names, and his own row is EXEMPT because the local overlay already holds the authoritative figure - the first cut corrected his 292 to 160, which is task 1 verbatim. Verified live: the sets xref returns the four pieces he asked to see.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

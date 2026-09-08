@@ -25468,3 +25468,72 @@ sweeping under it can leave a half-written record that classifies as neither sta
 
 6 tests, 2 red-proofs — removing the OK guard, and dropping the live-console check — both PROVEN.
 
+## REG-754 — three defects behind two sentences, and a fourth inside one record
+
+Konyo, 2026-09-09, with screenshots. The fleet panel said, minutes apart:
+
+> *"the fleet is unreachable — The read operation timed out"*
+> *"Dean has not reported which set pieces it holds yet"*
+
+**MEASURED against the live beacon in the same minute as the second sentence:**
+
+```
+Dean   ver=v2745  online=TRUE   masks: sets=76ch, uniques=118ch
+```
+
+He had reported both ledgers. Three defects sat behind those two sentences.
+
+**1. A failed fetch DESTROYED the good answer.** `fleet_presence()` caches 60s and on a timeout did
+`_FLEET_PRESENCE_CACHE["d"] = out` where `out` is the error — so one 6s timeout replaced a roster
+the card had already rendered from. Strictly worse than no cache: without it the modal would simply
+have re-tried. Now `goodT`/`goodD` hold the last good answer and a failure serves it **marked stale
+with its age**.
+
+**2. A stale roster was treated as an unreachable fleet.** The cross-reference refused on any fetch
+failure while the card beside it showed that machine's real numbers. Only a fleet nobody has ever
+reached is a refusal now.
+
+**3. "He has not reported" was concluded FROM A CACHE.** This is a claim about *another machine* —
+the one kind this console cannot check by looking inward — made from a record that can be
+arbitrarily old when a fetch has failed in between. A miss now earns exactly one authoritative
+`fleet_presence(force=True)` re-read before the sentence may be said.
+
+★ **VERIFIED LIVE on his console** after the fix: `machine=LAPTOP-QNFL860M&ledger=sets` returns
+`theirsN 130 · mineN 128 · both 126` and names the four pieces he asked to see — Horazon's
+Dominion, Telling of Beads, Trang-Oul's Wing, Vidala's Ambush.
+
+---
+
+## REG-755 — one beacon record, two answers to one question
+
+Dean's own published record:
+
+| field | value |
+|---|---|
+| `masks.uniques.have` | **0** — the deliberate zero |
+| `tally.uniques.have` | **249** — Konyo's old SEED, still published |
+
+His words: *"for dean we said the 249/403 for uniques was my own seed profile.. and we made it 0 …
+maybe somewhere its still rendering"*. It was: the mask was zeroed, the tally was not, and every
+surface reading `tally` re-published the seed.
+
+★ **THE MASK WINS, and not by preference.** `masks` is the field the cross-reference actually
+DECODES — it is what produces item names on screen — so a tally disagreeing with it describes a set
+of items nobody can enumerate. Two numbers, one of which no surface can turn into a list, is not a
+tie. The beacon's figure is kept as `saidHave`, never discarded.
+[[feedback-contradiction-is-the-finding]]
+
+⚠⚠ **HIS OWN ROW IS EXEMPT, AND TESTING ON HIS REAL PAYLOAD IS THE ONLY REASON I KNOW.** The first
+cut applied the rule to every row and produced:
+
+```
+Dean   uniques  have=0   (beacon said 249)   <- right
+Konyo  uniques  have=160 (beacon said 292)   <- WRONG, and that is REG task #1 verbatim
+```
+
+`_fleet_overlay_local_tally` has already written this board's authoritative figure into his own row
+and stamps it `localRead` — read from `board_tally.json`, the same number his Chronicle meter
+divides by. A rule that is right for every peer was wrong for the one machine we are standing on,
+and shipping it would have re-created the defect it was written after.
+[[feedback-blind-fixture-green-gate]]
+
