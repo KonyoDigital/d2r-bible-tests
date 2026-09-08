@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2798",
+  "ver": "v2801",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2798: The button moved seat at v2381 and its readout stayed 275 lines behind in TOOLS, so a correct refusal rendered where he could not see it and the button read as dead. Toast added, box keeps its copy, and the law is general - any reply landing more than 80 lines from its button must also speak.",
+  "note": "v2801: The start POST ran a full-screen lattice and occupancy scan on the HTTP request thread, so it hung with zero bytes for 8 to 25 seconds and the button looked dead. It now answers immediately with planning true and scans on a named thread, the GET half reports planning and the last outcome, and a stop invalidates a plan still in flight. Also the frame snapshot was written before the two cheapest refusals and both of those returns skipped the unlink, so every press with the capture off would have leaked a frame-sized temp file.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

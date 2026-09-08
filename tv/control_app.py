@@ -172,8 +172,34 @@ def _hist_frame_paths(fid):
         return []
     fid = str(fid).strip()
     base = fid.split("#", 1)[0]  # strip verify suffix
+    # ⚠⚠ v2800 — THE STORE SPELLS THE REEL ID TWO WAYS AND THIS ONLY EVER TRIED ONE.
+    # MEASURED 2026-09-08 over chron_evidence.json: 4,106 witness rows carry `reel_`-prefixed ids
+    # and 4,411 carry BARE ones — a near 50/50 split of two conventions in one field. On disk the
+    # convention is the opposite of what the ids suggest: of 663 directories under frames/hist,
+    # 623 are BARE and only 40 are prefixed.
+    # So every lookup whose spelling did not match its directory reported the photo as ABSENT.
+    # Sampled over 300 witness rows:
+    #     _hist_has_frame today                29%
+    #     ...also trying the other spelling    56%
+    #     recovered by this one change         82 of 300
+    # That is not a cosmetic gap: those photos are the `provenance` leg of the extraction
+    # contract — the proof behind a banked name — and he is deciding what footage to delete.
+    # A missing-looking photo is indistinguishable from a deleted one. [[unknown-stays-unknown]]
+    # ⚠ THE ID IS NOT REWRITTEN, only the LOOKUP is widened. Nothing downstream starts seeing a
+    # spelling it did not ask for; the fix stays at the cheap end, as artUrl's apostrophe fold
+    # does for the same reason. [[copy-drift]]
+    _alts = []
+    for _st in (fid, base):
+        if not _st:
+            continue
+        _alts.append(_st)
+        _lead = _st.split("/", 1)[0]
+        if _lead.startswith("reel_"):
+            _alts.append(_st.replace(_lead, _lead[len("reel_"):], 1))
+        else:
+            _alts.append("reel_" + _st)
     out = []
-    for stem in (fid, base):
+    for stem in _alts:
         if not stem:
             continue
         if stem.endswith(".jpg"):
@@ -18489,6 +18515,18 @@ def _triage_order(dirs):
         return dirs
 
 
+# ⏳ v2801 — MINI(AUTOMATIC)'s PLANNING STATE, because the plan is not instantaneous.
+# Grok drove the endpoint on his live console and measured the start POST hanging with ZERO bytes
+# for 8s and then 25s — no JSON, no `why`, nothing for the button's `await` to resolve. That is
+# not a refusal the UI can render; it is the UI looking dead, which is exactly the words he used:
+# "nothing happens when i click mini automatic".
+# The cause is that the POST ran `_mini_cells_from_live_frame` INLINE: a lattice fit plus an
+# occupancy scan over a 1920x1080 frame, on a Mac already running the game, the console and OCR.
+# A start endpoint may not carry unbounded work. It answers, and the work runs behind it.
+_MINI_AUTO_PLAN = {"planning": False, "why": "", "startedTs": 0.0, "token": 0}
+_MINI_AUTO_PLAN_LOCK = threading.Lock()
+
+
 def _mini_cells_from_live_frame(container="stash"):
     """Which cells hold items, read off the newest live frame. -> (cells|None, why)
 
@@ -18501,31 +18539,107 @@ def _mini_cells_from_live_frame(container="stash"):
     screen" and "nobody could read the screen" are opposite facts and the UI shows different
     words for them. [[unknown-stays-unknown]]
     """
-    frame = None
+    # ⚠⚠ v2799 — THE FRAME WAS STAT-ED HERE AND OPENED SOMEWHERE ELSE, AND THE CAPTURE MOVES IT
+    # IN BETWEEN. This picked the newest EXISTING label and handed the PATH to
+    # vault_corpus.inventory_lattice(), which opens it later. The capture promotes eye.jpg by
+    # replacing it, so between the isfile() above and that open there is a window where the file
+    # is simply gone. MEASURED on his console 2026-09-08 — the refusal he saw came from the OPEN,
+    # not from this stat:
+    #     "the grid could not be located on this frame: unreadable:
+    #      [Errno 2] No such file or directory: '.../tv/frames/eye…'"
+    # which is why MINI AUTO alternates between "the newest frame is Ns old" and "the grid could
+    # not be located": two failure modes of ONE missing file, depending on whether a promote was
+    # in flight. [[unknown-stays-unknown]]
+    #
+    # ⛔ THE FIX IS TO STOP HANDING ON A PATH THAT CAN EXPIRE. Each candidate is opened HERE, once,
+    # and the BYTES are what travel. A label that vanishes between the listing and the read is
+    # skipped and the next-newest is tried, so a promote in flight costs one candidate rather than
+    # the whole attempt.
+    # ⚠ NOT A WIDER AGE BOUND. The file's ABSENCE was the event, never its age; widening the bound
+    # would have made a race look like slowness and left it unfixed. [[feedback-threshold-above-the-ceiling]]
+    cands = []
     for label in ("eye.jpg", "live.jpg", "live.png", "live.bmp"):
         fp = os.path.join(HERE, "frames", label)
-        if os.path.isfile(fp):
-            if frame is None or os.path.getmtime(fp) > os.path.getmtime(frame):
-                frame = fp
-    if not frame:
+        try:
+            mt = os.path.getmtime(fp)
+        except OSError:
+            continue                      # absent right now — not an error, just not a candidate
+        cands.append((mt, fp))
+    if not cands:
         return None, "there is no live frame to read - is the capture running?"
-    age = time.time() - os.path.getmtime(frame)
+    cands.sort(reverse=True)              # newest first
+    frame, frame_mt, raw, vanished = None, 0.0, None, []
+    for mt, fp in cands:
+        try:
+            with open(fp, "rb") as _fh:
+                raw = _fh.read()
+        except OSError as _e:
+            # the capture replaced it between the listing and this read
+            vanished.append("%s (%s)" % (os.path.basename(fp), type(_e).__name__))
+            continue
+        if not raw:
+            vanished.append("%s (empty)" % os.path.basename(fp))
+            continue
+        frame, frame_mt = fp, mt
+        break
+    if frame is None:
+        return None, ("every live frame vanished or was empty while being read (%s) - the capture "
+                      "is mid-write; try again in a moment"
+                      % (", ".join(vanished) or "no candidate survived"))
+    # ⚠⚠ AND THE BYTES MUST TRAVEL, NOT THE PATH. vault_corpus.inventory_lattice(frame_path) and
+    # inventory_occupancy(frame_path, lat) both OPEN what they are given — checked, neither takes
+    # bytes — so handing them the live path re-opens the race this function just closed. Reading
+    # the bytes here and then passing the path anyway would have been plumbing with no tap: the
+    # read would prove the file existed a moment ago and the readers would still race it.
+    # The snapshot lives in a private temp the capture cannot reach, and is removed in `finally`.
+    # ⚠⚠ v2801 — THE CHEAP REFUSAL COMES FIRST, AND THE SNAPSHOT IS ALWAYS REMOVED.
+    # This wrote an 8.6 MB snapshot and only THEN asked whether the frame was too old to use, so
+    # the commonest refusal path paid the whole copy before refusing. Worse: that `return` sat
+    # OUTSIDE the try/finally below, as did the vault_corpus import failure, so on both paths the
+    # snapshot was never unlinked — while the comment on that `finally` asserted in as many words
+    # that "EVERY return above passes through here". Two of them did not.
+    # MEASURED: 0 leaked files on his Mac, because his console is still on v2796 and this rewrite
+    # has never run there. Latent, not manifest — which is the only reason this is a note rather
+    # than a second ENOSPC. A leak found by reading beats a leak found by `df`.
+    # [[the-unjoined-end]] [[feedback-comments-vs-code]]
+    age = time.time() - frame_mt
     if age > 10:
         return None, "the newest frame is %.0fs old - MINI will not hover off a stale screen" % age
     try:
         import vault_corpus as _vc
     except Exception as e:
         return None, "the pixel lane is unavailable (%s)" % type(e).__name__
+    _snap = None
     try:
-        lat = _vc.inventory_lattice(frame)
+        import tempfile as _tf   # ⚠ NOT module-level in this file — verified, and my first check
+                                 # used ast.walk (which sees imports nested inside OTHER functions)
+                                 # and wrongly reported it available. The NameError only surfaced
+                                 # because the law exercised the path. [[feedback-suspect-the-instrument]]
+        _fd, _snap = _tf.mkstemp(prefix="minigrid.", suffix=os.path.splitext(frame)[1] or ".jpg")
+        with os.fdopen(_fd, "wb") as _sf:
+            _sf.write(raw)
+    except Exception as _e:
+        if _snap:
+            try: os.unlink(_snap)
+            except OSError: pass
+        return None, ("the live frame could not be copied for reading (%s)" % type(_e).__name__)
+    try:
+        lat = _vc.inventory_lattice(_snap)
         if not (lat and lat.get("ok")):
             return None, "the grid could not be located on this frame: %s" % (
                 (lat or {}).get("why") or "no lattice")
-        occ = _vc.inventory_occupancy(frame, lat)
+        occ = _vc.inventory_occupancy(_snap, lat)
         if not occ.get("ok"):
             return None, "occupancy could not be read: %s" % (occ.get("why") or "unknown")
     except Exception as e:
         return None, "reading the frame raised %s" % type(e).__name__
+    finally:
+        # ⚠ REACHED BY EVERY PATH THAT CREATED THE SNAPSHOT — and that is now true, not merely
+        # claimed: nothing between the mkstemp and this block can return without passing here.
+        try:
+            os.unlink(_snap)
+        except OSError:
+            pass
     grid = occ.get("grid") or []
     cells = set()
     for r, line in enumerate(grid):
@@ -24921,7 +25035,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2798",
+        "ver": "v2801",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -27427,9 +27541,25 @@ class Handler(BaseHTTPRequestHandler):
             # unreachable in exactly the way it was already unreachable.
             try:
                 import hover_mode
-                self._json(200, dict(hover_mode.status(), ok=True))
+                _st = dict(hover_mode.status(), ok=True)
+                # ⏳ v2801 — PLANNING IS A THIRD STATE, and it is not "not running". Between the
+                # press and the first pointer move there are seconds of screen-reading; reporting
+                # that window as running:false with no reason is what made the button look dead.
+                with _MINI_AUTO_PLAN_LOCK:
+                    if _MINI_AUTO_PLAN["planning"]:
+                        _st["planning"] = True
+                        _st["planningForS"] = round(
+                            time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time()), 1)
+                        _st["why"] = _MINI_AUTO_PLAN["why"] or "reading the screen"
+                    else:
+                        _st["planning"] = False
+                        # the LAST plan's outcome, so a refusal that happened off the request
+                        # thread still reaches him instead of dying in a daemon thread.
+                        if _MINI_AUTO_PLAN["why"] and not _st.get("running"):
+                            _st["why"] = _MINI_AUTO_PLAN["why"]
+                self._json(200, _st)
             except Exception as e:
-                self._json(200, {"ok": False, "running": False,
+                self._json(200, {"ok": False, "running": False, "planning": False,
                                  "why": "hover_mode could not be asked: %s" % str(e)[:120]})
             return
         if path == "/api/eagle":
@@ -27913,6 +28043,13 @@ class Handler(BaseHTTPRequestHandler):
                                  "why": "hover_mode could not be asked: %s" % str(e)[:120]})
                 return
             if not body.get("on"):
+                # ⚠ A STOP MUST INVALIDATE A PLAN STILL IN FLIGHT. Without the token bump, a plan
+                # thread that began before the stop would call hover_mode.start() AFTER it and
+                # restart the very thing he just stopped — a stop button that starts the mode.
+                with _MINI_AUTO_PLAN_LOCK:
+                    _MINI_AUTO_PLAN["token"] += 1
+                    _MINI_AUTO_PLAN["planning"] = False
+                    _MINI_AUTO_PLAN["why"] = "stopped"
                 was = hover_mode.stop()
                 self._json(200, dict(hover_mode.status(), ok=True,
                                      why="stopped" if was else "nothing was running"))
@@ -27936,20 +28073,59 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(200, {"ok": False, "running": False,
                                      "why": "occupied must be a list of [col,row] pairs"})
                     return
-            else:
-                # DERIVE IT FROM THE LIVE FRAME rather than making him supply coordinates. The
-                # pixel occupancy lane already exists (vault_corpus.inventory_occupancy returns a
-                # per-cell `grid`); it was only ever read for its COUNT. MINI hovers ITEMS, so a
-                # button that demanded cell coordinates would be a button nobody could press.
-                cells, occ_why = _mini_cells_from_live_frame(
-                    str(body.get("container") or "stash"))
-                if not cells:
-                    self._json(200, {"ok": False, "running": False,
-                                     "why": occ_why or "could not tell which cells hold items"})
+                ok, why = hover_mode.start(cells, (int(rect[2]), int(rect[3])), tuple(rect),
+                                           container=str(body.get("container") or "stash"))
+                self._json(200, dict(hover_mode.status(), ok=bool(ok), why=why))
+                return
+            # DERIVE IT FROM THE LIVE FRAME rather than making him supply coordinates. The pixel
+            # occupancy lane already exists (vault_corpus.inventory_occupancy returns a per-cell
+            # `grid`); it was only ever read for its COUNT. MINI hovers ITEMS, so a button that
+            # demanded cell coordinates would be a button nobody could press.
+            #
+            # ⏳ v2801 — AND IT RUNS BEHIND THE ANSWER, NOT IN FRONT OF IT. The scan is seconds of
+            # numpy on a full-screen frame and it has no ceiling: it costs whatever the machine
+            # has left. Held inline it produced Grok's 8s and 25s zero-byte hangs. The response
+            # goes out now with `planning: true`, and the GET half reports how it went — which is
+            # the same shape the console already uses for MINI ON AIR (arm the watchdog, then
+            # spawn) rather than a new pattern invented here. [[borrowed-surface]]
+            _container = str(body.get("container") or "stash")
+            _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)
+            with _MINI_AUTO_PLAN_LOCK:
+                if _MINI_AUTO_PLAN["planning"]:
+                    _for = time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time())
+                    self._json(200, dict(hover_mode.status(), ok=False, planning=True,
+                                         why="already reading the screen (%.0fs) - give it a moment"
+                                             % _for))
                     return
-            ok, why = hover_mode.start(cells, (int(rect[2]), int(rect[3])), tuple(rect),
-                                       container=str(body.get("container") or "stash"))
-            self._json(200, dict(hover_mode.status(), ok=bool(ok), why=why))
+                _MINI_AUTO_PLAN["token"] += 1
+                _tok = _MINI_AUTO_PLAN["token"]
+                _MINI_AUTO_PLAN.update({"planning": True, "startedTs": time.time(),
+                                        "why": "reading the screen for your items"})
+
+            def _plan(_tok=_tok, _container=_container, _wh=_wh, _rect=_rect):
+                _why = ""
+                try:
+                    cells, occ_why = _mini_cells_from_live_frame(_container)
+                    with _MINI_AUTO_PLAN_LOCK:
+                        _stale = (_MINI_AUTO_PLAN["token"] != _tok)
+                    if _stale:
+                        _why = "a newer press or a stop replaced this plan"
+                    elif not cells:
+                        _why = occ_why or "could not tell which cells hold items"
+                    else:
+                        _ok, _w = hover_mode.start(cells, _wh, _rect, container=_container)
+                        _why = _w or ("hovering %d cell(s)" % len(cells) if _ok
+                                      else "hover_mode refused without saying why")
+                except Exception as _e:
+                    _why = "planning the hover raised %s" % type(_e).__name__
+                finally:
+                    with _MINI_AUTO_PLAN_LOCK:
+                        if _MINI_AUTO_PLAN["token"] == _tok:
+                            _MINI_AUTO_PLAN.update({"planning": False, "why": _why})
+
+            threading.Thread(target=_plan, daemon=True, name="tvd-miniauto-plan").start()
+            self._json(200, dict(hover_mode.status(), ok=True, planning=True,
+                                 why="reading the screen to find your items - this panel updates"))
             return
         if path == "/api/update":
             # v2102 — THE PULL, not just the verdict. GET /api/update has reported "you are N

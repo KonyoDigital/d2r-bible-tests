@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2798"   # MINI AUTO answered him perfectly into a room he was not in
+VERSION = "v2801"   # MINI AUTO answers before it looks
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6500,7 +6500,24 @@ def main():
     print(f"   models: fast={FAST_MODEL} · genius={GENIUS_MODEL}")
     _film_on = (not LIGHT_MODE) or str(os.environ.get("TV_FILM", "0")).strip().lower() in ("1", "true", "yes", "on")
     if LIGHT_MODE:
-        print(f"   ⚡ LIGHT reader — screenshot every ~{POLL_S:.1f}s · film OFF · OCR OFF · 1 claude · plays nice with the game")
+        # ⚠⚠ v2799 — THIS LINE SAID "film OFF · OCR OFF" AND BOTH HALVES WERE HARDCODED CLAIMS,
+        # ONE OF THEM FALSE. Measured 2026-09-08 while he was reporting "its not reading anything":
+        #     OCR_ENABLED = os.environ.get("TV_OCR", "1") != "0"      <- ON by default, and it has
+        #                                                                NOTHING to do with LIGHT
+        #     ocr lane: {ocr_tag}                                     <- printed FIVE LINES BELOW,
+        #                                                                measured, and says ON
+        # So the banner announced OCR OFF and OCR ON in one breath, and I chased the wrong thing
+        # for two minutes on the strength of the false half. A reader who trusts a log is entitled
+        # to have it be true. [[label-outlived-referent]]
+        # ⚠ AND `_film_on` WAS ALREADY COMPUTED ON THE LINE ABOVE AND THROWN AWAY — a real
+        # measurement sitting unused beside a hardcoded claim about the same thing.
+        # [[plumbing-with-no-tap]]
+        _ocr_here = "ON" if (OCR_ENABLED and _OCR.available()) else (
+            "OFF (TV_OCR=0)" if not OCR_ENABLED else "OFF (the reader binary is not available)")
+        print(f"   ⚡ LIGHT reader — screenshot every ~{POLL_S:.1f}s · film {'ON' if _film_on else 'OFF'}"
+              f" · OCR {_ocr_here} · 1 claude · plays nice with the game")
+        print(f"      intake fires once per SETTLE (still for ~{PLAY_GAP_S:.1f}s) — a session spent"
+              f" clicking never settles, and reads stay 0 with nothing wrong")
         print("      (heavy cinematic capture for the SIM debugger: TV_LIGHT=0)")
     else:
         print(f"   film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · max {FILM_MAX_PX}px · q{FILM_JPEG_Q}")

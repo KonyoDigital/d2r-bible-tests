@@ -296,8 +296,26 @@ def inventory_lattice(frame_path):
         return {"ok": False, "why": "frame too small (%dx%d) to hold the panel" % (W, H)}
     g = _np.asarray(im.crop((int(INV_CROP[0] * W), int(INV_CROP[1] * H),
                              int(INV_CROP[2] * W), int(INV_CROP[3] * H))), dtype=_np.float32)
-    sc, cp, _cph, cols = _fit(_ridge(_np.median(g, axis=0)))
-    sr, rp, _rph, rows = _fit(_ridge(_np.median(g, axis=1)))
+    # ⚠⚠ v2799 — `_fit` CAN RETURN None AND BOTH OF THESE UNPACKED IT BLIND.
+    # Its only exit is `return best`, and `best` stays None when no candidate pitch clears the
+    # scoring. Measured on his live eye.jpg 2026-09-08:
+    #     TypeError: cannot unpack non-iterable NoneType object   (vault_corpus.py:300, 0.4s)
+    # Every other refusal in this function returns {"ok": False, "why": …} — that is the whole
+    # contract of the docstring above ("it says NO often… each refusal is a real failure seen on
+    # his own reel"). This one path threw instead, so MINI AUTO's caller reported the generic
+    # "reading the frame raised TypeError" and the actual fact — the ridge fit found no grid —
+    # never reached him. An exception is not a reason. [[unknown-stays-unknown]]
+    _cfit = _fit(_ridge(_np.median(g, axis=0)))
+    _rfit = _fit(_ridge(_np.median(g, axis=1)))
+    for _nm, _got in (("columns", _cfit), ("rows", _rfit)):
+        if _got is None:
+            return {"ok": False,
+                    "why": "the %s ridge fit found no candidate pitch at all on this frame — that "
+                           "is 'no grid is visible here', not 'the panel is empty'. The usual "
+                           "cause is that the container is not open, or the frame caught a "
+                           "transition." % _nm}
+    sc, cp, _cph, cols = _cfit
+    sr, rp, _rph, rows = _rfit
     for nm, pitch, score in (("columns", cp, sc), ("rows", rp, sr)):
         if abs(pitch - _LAT_LO) < 0.3 or abs(pitch - (_LAT_HI - 0.25)) < 0.3:
             return {"ok": False, "why": "%s pitch pinned to the search bound (%.2f) — the fit found "

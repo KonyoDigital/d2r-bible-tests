@@ -733,6 +733,94 @@ GATES = [
              "`\"why\": None` from the river's initializer left the key in its error paths and the "
              "law stayed green. It now BLINDS each dependency and demands the answer.",
          ),
+    Gate("test_the_proof_photo_is_found_under_either_spelling",
+         [sys.executable, os.path.join(HERE, "test_the_proof_photo_is_found_under_either_spelling.py")], 90,
+         why="HALF HIS PROOF PHOTOS WERE REPORTED MISSING BECAUSE THE ID WAS SPELLED THE OTHER WAY. "
+             "chron_evidence carries 4,106 `reel_`-prefixed witness rows and 4,411 BARE ones, while "
+             "of 663 directories under frames/hist **623 are BARE and 40 prefixed** — two "
+             "conventions in one field, and on disk the convention is the opposite of what most ids "
+             "suggest. _hist_frame_paths only tried the id as given, so every mismatched lookup "
+             "reported the photo ABSENT: 29% reachable, 56% once both spellings are tried, 82 of "
+             "300 recovered. ⚠ NOT COSMETIC — those photos are the `provenance` leg of the "
+             "extraction contract, the picture behind a banked name, and he is deciding what "
+             "footage to delete. A photo looked up wrongly is indistinguishable from one that is "
+             "gone, and after a prune the difference stops being recoverable. ⚠ Both directions are "
+             "proven red, including the tempting wrong fix: a resolver widened until EVERYTHING is "
+             "found would make the already-lost figure vanish without a single file coming back.",
+         skip_ok=()),
+    Gate("test_a_refused_frame_leaves_no_snapshot_behind",
+         [sys.executable, os.path.join(HERE, "test_a_refused_frame_leaves_no_snapshot_behind.py")], 90,
+         why="THE REFUSAL PATH WROTE AN 8.6 MB FILE AND THEN LEFT IT THERE. v2799 snapshots the live "
+             "frame so the capture cannot replace it mid-read - but the copy happened BEFORE the two "
+             "cheapest refusals in the function, and both of those `return`s sat outside the "
+             "try/finally that unlinks it, while the comment on that finally asserted 'EVERY return "
+             "above passes through here'. ⚠ THE STALE PATH IS THE COMMON PATH: Grok's drive hit "
+             "'the newest frame is 3124s old' repeatedly, so every press with the capture off would "
+             "have cost one frame-sized file, in a repo that has already paid for an ENOSPC. "
+             "★ MEASURED 0 leaked files on his Mac - latent, not manifest, because his console still "
+             "runs v2796 and this rewrite had never executed there. The law is BEHAVIOURAL: it calls "
+             "the real reader against a real tree and counts what is left in the temp dir, because a "
+             "law asserting 'the age check comes first' would pass the moment a third early return "
+             "was added below it - which is exactly how this arrived.",
+         skip_ok=()),
+    Gate("test_the_screen_read_never_blocks_the_button",
+         [sys.executable, os.path.join(HERE, "test_the_screen_read_never_blocks_the_button.py")], 90,
+         why="THE START POST DID NOT RETURN, SO THE BUTTON LOOKED DEAD. Grok drove /api/mini_auto on "
+             "his live console with the game up and fresh frames and measured the POST hanging with "
+             "ZERO bytes for 8s and then 25s - no JSON, no `why` - which is precisely 'nothing "
+             "happens when i click mini automatic'. ★ A HANG IS NOT A REFUSAL: v2798 gave this button "
+             "a refusal toast, and a POST that never returns cannot be toasted, so every fix aimed at "
+             "the REASON was aimed at the wrong half. The handler ran the lattice+occupancy scan "
+             "INLINE on the request thread, work with no ceiling that measured 0.26s here and 25s "
+             "there. ⚠ NOT a timeout and NOT a faster scan - both still block. The law PARSES: the "
+             "screen reader may never appear directly in a do_GET/do_POST body, only inside a nested "
+             "function a thread runs, because a grep for 'threading.Thread' nearby would pass on a "
+             "handler that spawns a thread and then blocks anyway.",
+         skip_ok=()),
+    Gate("test_a_lattice_refusal_is_a_reason_not_a_crash",
+         [sys.executable, os.path.join(HERE, "test_a_lattice_refusal_is_a_reason_not_a_crash.py")], 150,
+         why="THE GRID READER RAISED WHERE EVERY OTHER PATH RETURNS A REASON. He was in-game saying "
+             "MINI AUTO \"does nothing\"; handed a real live frame, inventory_lattice threw in 0.4s "
+             "— `sr, rp, _rph, rows = _fit(...)` with _fit returning None, unpacked blind at BOTH "
+             "call sites. Every other refusal there returns {ok: False, why}, which is the "
+             "function's stated contract; this one path threw, so the caller could only say "
+             "\"reading the frame raised TypeError\" and the real finding — the ridge fit saw no "
+             "grid at all — never reached him. AN EXCEPTION IS NOT A REASON, and he had already "
+             "been told \"nothing happens\" by three surfaces. ⚠ The law EXERCISES the path with a "
+             "flat frame rather than grepping for the guard, and asserts the fixture is big enough "
+             "to reach the fit (a small one would trip the SIZE refusal and go green having tested "
+             "nothing).",
+         skip_ok=()),
+    Gate("test_the_banner_may_not_claim_what_it_did_not_measure",
+         [sys.executable, os.path.join(HERE, "test_the_banner_may_not_claim_what_it_did_not_measure.py")], 90,
+         why="THE STARTUP BANNER SAID \"OCR OFF\" AND \"ocr lane: ON\" FIVE LINES APART. The first "
+             "was a hardcoded string inside `if LIGHT_MODE:`; the second is measured from "
+             "_OCR.available(). OCR_ENABLED reads TV_OCR and has NOTHING to do with LIGHT mode, so "
+             "the literal was simply false — and while he was reporting \"its not reading "
+             "anything\" I believed it and chased the wrong thing. `_film_on` was computed on the "
+             "line directly above and thrown away. ⚠⚠ THIS LAW TOOK TWO INSTRUMENT FIXES TO BITE: "
+             "the first cut pooled prints from EVERY `if LIGHT_MODE:` in the file, and the second "
+             "still walked the whole ast.If — which INCLUDES the orelse — so it counted the ELSE "
+             "branch's four interpolations and a banner replaced by a bare string stayed GREEN "
+             "twice. It now walks n.body only. All three arms proven red.",
+         skip_ok=()),
+    Gate("test_the_live_frame_cannot_be_pulled_mid_read",
+         [sys.executable, os.path.join(HERE, "test_the_live_frame_cannot_be_pulled_mid_read.py")], 90,
+         why="MINI AUTO STAT-ED THE LIVE FRAME IN ONE PLACE AND OPENED IT IN ANOTHER, AND THE "
+             "CAPTURE MOVES IT BETWEEN THE TWO. `_mini_cells_from_live_frame` picked the newest "
+             "EXISTING label with os.path.isfile and handed the PATH to vault_corpus, which opens "
+             "it later; the capture promotes eye.jpg by REPLACING it, so the open raced the "
+             "promote and returned [Errno 2]. That is why MINI AUTO alternated between \"the "
+             "newest frame is Ns old\" and \"the grid could not be located\" — two faces of ONE "
+             "missing file, decided by whether a promote was in flight. ⛔ READING THE BYTES WAS "
+             "NOT ENOUGH AND I NEARLY SHIPPED THAT: both readers OPEN what they are given and "
+             "neither takes bytes (checked), so passing the path anyway would have been plumbing "
+             "with no tap. The bytes go to a private snapshot and the SNAPSHOT travels. ⚠ NOT a "
+             "wider age bound — the file's ABSENCE was the event, never its age. ⚠ The fix also "
+             "hid a NameError (tempfile is NOT module-level in control_app; my ast.walk check saw "
+             "it nested inside another function and wrongly said it was) which only surfaced "
+             "because this law EXERCISES the path rather than reading it.",
+         skip_ok=()),
     Gate("test_a_button_speaks_where_it_stands",
          [sys.executable, os.path.join(HERE, "test_a_button_speaks_where_it_stands.py")], 90,
          why="HE PRESSED MINI AUTO AND SAID \"nothing happens\", AND THE CONSOLE HAD ANSWERED HIM "

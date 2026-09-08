@@ -2746,7 +2746,25 @@ CHECKS = [
 #
 # The SLOW set being NAMED rather than guessed was the right design and it did not save me, because
 # nobody had timed the members. A list is a claim; the guard below now MEASURES it.
-SLOW = ("the other doctors", "sweep would find")
+# v2801 — AND "engines corroborate" WAS NEVER CHEAP EITHER. The exact same defect as the line
+# above, found the same way: by timing the members rather than trusting the list. Measured
+# 2026-09-08 across fresh processes: **7,672 ms · 6,638 ms · 7,692 ms**, and 13,038 ms inside a
+# test process — against a subset budget of 3,000 ms per check. It was the largest single cost in
+# the "cheap" set every time it was the largest cost in anything.
+#
+# ⚠ THE REASON IT HID FOR SO LONG IS WORTH MORE THAN THE FIX. The cheap-subset gate names its
+# culprits, and the name it printed CHANGED EVERY RUN — 'stage shows the dom (7301 ms)' once,
+# 'armed migration (3645 ms)' and 'panels on screen (3384 ms)' the next, 141 ms each minutes later.
+# Attention went to whichever name was printed, and each of those was innocent: re-timed on the
+# spot they cost 75-146 ms. The one check that was slow in EVERY reading was rarely the one
+# accused, because a burst on a busy machine lands wherever it lands. A flapping gate does not
+# merely fail to catch a defect - it actively points away from it.
+# [[feedback-suspect-the-instrument]] [[regression-guard]]
+#
+# It stays on the roster and the full doctor run still performs it (the mirror gate
+# test_a_check_moved_to_SLOW_is_still_RUN_somewhere enforces exactly that); it simply stops
+# running on the ten-minute timer and in the boot path of every console a test spawns.
+SLOW = ("the other doctors", "sweep would find", "engines corroborate")
 
 
 def _slow_path():

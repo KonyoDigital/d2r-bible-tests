@@ -21349,15 +21349,32 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # the same defect as a gate that is always green. So it now REFUSES TO JUDGE rather than
         # judging wrongly - and says so loudly, because a skip is not a pass. [[test-venue]]
         # [[regression-guard]]
-        try:
-            _load1 = os.getloadavg()[0]
-        except Exception:
-            _load1 = 0.0
-        _cpus = os.cpu_count() or 4
-        if _load1 > _cpus * 1.5:
-            self.skipTest("load average %.1f on %d cpus - a wall-clock budget measured here would "
-                          "be measuring the machine, not the code. NOT A PASS: re-run this when "
-                          "the machine is idle." % (_load1, _cpus))
+        # ⚠⚠ v2801 — THE SKIP THRESHOLD SAT ABOVE THE CEILING, SO IT WAS AN ABSENT ONE.
+        # v2354 added this guard so the gate would refuse to judge on a saturated machine. It
+        # fires above `cpus * 1.5`, which on his 10-core Mac is **15.0** — and the load average
+        # measured during EVERY red run of 2026-09-08 was 12.82, 12.51, 10.18, 9.22, 4.45, 3.27.
+        # It has never once fired when it was needed, while /api/status was taking 52 seconds.
+        # The guard was real, correct in intent, and unreachable in practice.
+        # [[feedback-threshold-above-the-ceiling]]
+        #
+        # ⚠ LOAD AVERAGE IS ALSO THE WRONG INSTRUMENT: it is a one-minute average, so it lags
+        # precisely the burst that distorts a 13-second measurement. The tell was that the NAMED
+        # CULPRITS changed between runs on identical code — 'stage shows the dom (7301 ms)' and
+        # 'engines corroborate' one run, 'armed migration (3645 ms)' and 'panels on screen
+        # (3384 ms)' the next, then 141 ms each on a quiet machine minutes later. A property that
+        # moves between runs of the same code is not a property of the code.
+        # [[feedback-suspect-the-instrument]]
+        #
+        # CALIBRATE INSTEAD. Run a fixed amount of arithmetic and see what the machine makes of
+        # it. Measured on his Mac near-idle: 77 ms, five runs inside 6 ms of each other, so a 3x
+        # reading is unambiguous rather than a judgement call.
+        CAL_IDLE_MS = 77.0          # his Mac, near-idle, 2026-09-08 — five runs: 77 77 77 80 83
+        _cal0 = _t.time()
+        _acc = 0
+        for _i in range(2000000):
+            _acc += _i
+        _cal_ms = (_t.time() - _cal0) * 1000.0
+        _busy = _cal_ms > CAL_IDLE_MS * 3.0
         did_work = 0
         for name, fn in cd.CHECKS:
             if name in cd.SLOW:
@@ -21373,12 +21390,85 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                 did_work += 1
             if ms > BUDGET_MS:
                 slow.append("%s (%.0f ms)" % (name, ms))
+        # ★ A CALIBRATION MAY NEVER EXCUSE A PATHOLOGICAL COST. The check this gate was built to
+        # catch cost 16,585 ms of a 17,069 ms tick. No contention explains 5x the budget, and a
+        # guard that skipped THAT would have deleted the only reason this file exists. So the hard
+        # ceiling is judged ALWAYS, whatever the machine is doing. [[regression-guard]]
+        _pathological = [r for r in slow
+                         if float(r.rsplit("(", 1)[1].split(" ")[0]) > BUDGET_MS * 5]
+        self.assertEqual(_pathological, [],
+                         "no amount of machine contention explains this — a cheap check costing "
+                         "over %d ms is a defect wherever it is measured: %s"
+                         % (BUDGET_MS * 5, ", ".join(_pathological)))
+        # ⚠⚠ RETRY BEFORE ACCUSING — the calibration alone was not enough, and finding that out is
+        # what produced this block. A calibration is a POINT SAMPLE taken before the loop, while
+        # the loop itself spans eight seconds; a burst inside that window is invisible to it. It
+        # measured 43 ms against a 77 ms idle baseline — i.e. "this machine is fast" — in the same
+        # run that reported `armed migration (3339 ms)`, a check that costs 75-131 ms when timed
+        # six times in a row immediately afterwards. The probe was better than load average and
+        # still not an alibi. [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+        #
+        # So the gate re-runs whatever went over budget and keeps only what is slow TWICE. A real
+        # cost reproduces; a burst does not. This is also the only version of the check that can
+        # tell him WHICH it was, and it costs nothing on a green run because nothing is retried.
+        if slow:
+            _by_name = dict(cd.CHECKS)
+            _confirmed, _absolved = [], []
+            for _entry in slow:
+                _name = _entry.rsplit(" (", 1)[0]
+                _first = _entry.rsplit("(", 1)[1].rstrip(")")
+                _fn = _by_name.get(_name)
+                if _fn is None:                       # roster changed under us — cannot re-measure
+                    _confirmed.append(_entry)
+                    continue
+                _r0 = _t.time()
+                try:
+                    _fn()
+                except Exception:
+                    pass
+                _again = (_t.time() - _r0) * 1000
+                if _again > BUDGET_MS:
+                    _confirmed.append("%s (%s, again %.0f ms)" % (_name, _first, _again))
+                else:
+                    _absolved.append("%s (%s -> %.0f ms on retry)" % (_name, _first, _again))
+            for _a in _absolved:
+                print("   \u21bb %s — the first reading was the machine, not the code" % _a,
+                      flush=True)
+            slow = _confirmed
         self.assertEqual(slow, [],
                          "these run on the watchdog's 10-minute timer AND at every console boot, "
-                         "and they are not cheap: %s" % ", ".join(slow))
+                         "and they are not cheap (calibration %.0f ms vs %.0f ms idle, so the "
+                         "machine was not the cause): %s"
+                         % (_cal_ms, CAL_IDLE_MS, ", ".join(slow)))
+        # ⚠⚠ AND THE SAME DISCIPLINE ON THE TOTAL, for the same reason. Measured back to back on
+        # unchanged code, minutes apart: **4,132 ms and 11,105 ms**. A wall-clock figure that moves
+        # 2.7x between runs of identical code is not a property of that code, and taking the WORSE
+        # of two readings makes the gate report the machine's worst moment as the subsystem's cost.
+        #
+        # For a floor-bounded quantity the MINIMUM is the honest estimator: no run can be faster
+        # than the code allows, so noise can only ever push a reading UP. This is not leniency —
+        # a genuine 17-second tick is slow on both passes and still fails, which is the case the
+        # gate exists for. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+        if total >= BUDGET_MS * 3:
+            _t2 = 0.0
+            for _n, _f in cd.CHECKS:
+                if _n in cd.SLOW:
+                    continue
+                _r0 = _t.time()
+                try:
+                    _f()
+                except Exception:
+                    pass
+                _t2 += (_t.time() - _r0) * 1000.0
+            print("   \u21bb whole subset re-measured: %.0f ms (first pass %.0f ms, calibration "
+                  "%.0f ms vs %.0f ms idle) — taking the lower"
+                  % (_t2, total, _cal_ms, CAL_IDLE_MS), flush=True)
+            total = min(total, _t2)
         self.assertLess(total, BUDGET_MS * 3,
-                        "the whole cheap subset costs %.0f ms — it is in the boot path of every "
-                        "console a test spawns" % total)
+                        "the whole cheap subset costs %.0f ms across TWO passes — it is in the "
+                        "boot path of every console a test spawns, and a second reading confirmed "
+                        "it (calibration %.0f ms vs %.0f ms idle, machine %s)"
+                        % (total, _cal_ms, CAL_IDLE_MS, "busy" if _busy else "quiet"))
         # And say plainly when the measurement was thin, rather than reporting a pass that measured
         # nothing. This is UNMEASURED, not fine — the distinction the whole tree is built on.
         if did_work < 2:

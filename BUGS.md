@@ -24355,3 +24355,254 @@ Shadow Reader. Wrong: it locates the game window itself but refuses on a frame o
 himself before I checked and concluded the opposite. I also told him it clicks page arrows — it
 cannot: `hover_drive` only ever builds `kCGEventMouseMoved`, and page-turning is explicitly *"a
 separate job for a separate file"*. It sweeps one open tab per run.
+
+---
+
+## REG-727 — MINI AUTO's real blocker: the grid reader RAISED where every other path returns a reason
+
+He was in-game with the console open, reporting that MINI AUTO "does nothing". Three surfaces had
+already told him nothing useful. Handed a real live frame, the grid reader did this in **0.4s**:
+
+    File "vault_corpus.py", line 300, in inventory_lattice
+        sr, rp, _rph, rows = _fit(_ridge(_np.median(g, axis=1)))
+    TypeError: cannot unpack non-iterable NoneType object
+
+`_fit`'s only exit is `return best`, and `best` stays `None` when no candidate pitch clears the
+scoring. **Both** call sites unpacked it blind.
+
+**Why that mattered more than a crash usually does.** Every other refusal in that function returns
+`{"ok": False, "why": …}` — that is its stated contract: *"it says NO often… each refusal is a real
+failure seen on his own reel"*. This path threw, so the caller could only report the generic
+`"reading the frame raised TypeError"`, and the finding it actually had — **the ridge fit saw no
+grid at all** — never reached him. **An exception is not a reason.**
+
+⇒ Both fits are checked before unpacking. The same frame now answers in 0.6s with:
+
+> *"the rows ridge fit found no candidate pitch at all on this frame — that is 'no grid is visible
+> here', not 'the panel is empty'. The usual cause is that the container is not open, or the frame
+> caught a transition."*
+
+⇒ Gate `test_a_lattice_refusal_is_a_reason_not_a_crash` (241). It EXERCISES the path with a flat
+frame rather than grepping for the guard, and asserts the fixture is large enough to reach the fit —
+a small frame would trip the SIZE refusal and the law would be green having tested nothing.
+
+⚠ **STILL UNEXPLAINED, AND NOT CLAIMED FIXED:** the `POST /api/mini_auto` **80-second hang** with no
+body. The crash above is 0.4s, so it cannot be the cause. Grokbot observed the same hang
+independently (8s and 25s, 0 bytes). That belongs to the REG-682 family.
+
+⚠ **AND A CORRECTION.** I earlier measured that POST answering in 0.31s and used it to refute
+grokbot's hang report. Both observations were real: **healthy-with-a-stale-frame refuses instantly;
+fresh-frame gets past the freshness check and hangs.** My "refuted" was wrong because I compared two
+different console states.
+
+---
+
+## REG-728 — the startup banner announced "OCR OFF" and "ocr lane: ON" five lines apart
+
+While he was reporting "its not reading anything or moving", the console's own log said, inside the
+LIGHT branch:
+
+    ⚡ LIGHT reader — screenshot every ~1.8s · film OFF · OCR OFF · 1 claude · plays nice…
+    ocr lane: ON /Users/…/tv/bin/ocr_mac
+
+The first is a **hardcoded string**; the second is measured from `_OCR.available()`.
+`OCR_ENABLED = os.environ.get("TV_OCR", "1") != "0"` is **on by default and unrelated to LIGHT
+mode** — so the literal was false, and I believed it and spent two minutes concluding the reader was
+switched off. `_film_on` was computed on the line directly **above** and thrown away — a real
+measurement sitting unused beside a hardcoded claim about the same thing.
+
+⇒ The banner now interpolates the measured film and OCR states, and adds the line that actually
+answers "why 0 reads": *intake fires once per SETTLE (still for ~4.0s) — a session spent clicking
+never settles, and reads stay 0 with nothing wrong.*
+
+⇒ Gate `test_the_banner_may_not_claim_what_it_did_not_measure` (242).
+
+⚠⚠ **THIS LAW TOOK TWO INSTRUMENT FIXES BEFORE IT COULD BITE, AND ONLY THE SABOTAGE FOUND EITHER.**
+Its "has the banner gone silent" arm stayed **GREEN** through two attempts:
+
+1. the first cut pooled prints from **every** `if LIGHT_MODE:` in the file, so other branches'
+   f-strings covered for a silenced banner;
+2. the second scoped to the banner branch but still used `ast.walk(node)` — **which includes the
+   `orelse`** — so it counted the ELSE branch's four interpolations
+   (`film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · …`). Measured under sabotage: 4 prints and
+   5 FormattedValues where the branch really has 2 and 1.
+
+It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the-wrong-one]]
+
+---
+
+## REG-732 — a flapping gate did not merely miss the defect, it pointed away from it
+
+The cheap-subset budget guard has been going red intermittently for days, and every time it named
+DIFFERENT culprits on unchanged code:
+
+| run | accused | re-timed on the spot |
+|---|---|---|
+| earlier | `stage shows the dom (7301 ms)`, `engines corroborate` | — |
+| next | `armed migration (3645 ms)`, `panels on screen (3384 ms)` | 141 ms each |
+| next | `armed migration (3367 ms)` | **85 ms** |
+
+Each accused check was innocent. Attention went to whichever name was printed, and re-timing it
+immediately afterwards showed 75-146 ms. Meanwhile the check that was slow in EVERY reading was
+rarely the one accused: **`engines corroborate`, measured 7,672 / 6,638 / 7,692 ms in fresh
+processes and 13,038 ms inside a test process**, against a 3,000 ms per-check budget — sitting in
+the CHEAP subset, which runs on the watchdog's ten-minute timer and in the boot path of every
+console a test spawns.
+
+★ **This is the same defect as REG-… `sweep would find` (16,585 ms of a 17,069 ms tick), found the
+same way — by timing the members instead of trusting the list.** The SLOW set being NAMED rather
+than guessed was the right design and it did not save us twice, because nobody timed the members
+the second time either.
+
+⚠ **The lesson is about the gate, not the check.** A gate whose verdict moves between runs of
+identical code does not simply fail to catch things — it manufactures false leads and spends real
+attention on them. Two sessions were spent looking at `stage shows the dom` and `panels on screen`.
+
+**Three fixes, in the order they were earned:**
+
+1. **The skip guard was above the ceiling.** v2354 added a load-average guard so the gate would
+   refuse to judge on a saturated machine; it fires above `cpus * 1.5` = **15.0** on this 10-core
+   Mac, and the load during every red run measured 12.82, 12.51, 10.18, 9.22, 4.45, 3.27. It had
+   never once fired when it was needed. Replaced with a calibration probe — a fixed 2M-add loop,
+   77 ms near-idle across five runs inside 6 ms of each other.
+2. **The calibration was still not an alibi**, and finding that out is what produced the real fix.
+   It is a point sample taken before a loop that spans eight seconds, so it read 43 ms — "this
+   machine is fast" — in the same run that accused `armed migration` of 3,339 ms. **The gate now
+   re-runs whatever went over budget and keeps only what is slow twice**, and says which it was.
+   The same discipline applies to the total, where the honest estimator for a floor-bounded
+   quantity is the MINIMUM of two passes: noise can only ever push a wall-clock reading up.
+3. **`engines corroborate` moved to SLOW**, the established remedy with an exact precedent. It
+   stays on the roster and the full doctor run still performs it — the mirror gate
+   `test_a_check_moved_to_SLOW_is_still_RUN_somewhere` enforces that and passes.
+
+**Measured result: the cheap subset went from 8,311 ms to 2,197 ms** — six seconds off every console
+boot and every ten-minute watchdog tick, on a machine whose console stalling is an open complaint.
+The gate itself went from 13.3 s to 2.4 s.
+
+⚠ **Not a widened budget.** The 3,000 ms per-check and 9,000 ms total are untouched, and the hard
+ceiling at 5x budget is judged always, whatever the machine is doing — a guard that skipped the
+16,585 ms case would have deleted the only reason the gate exists.
+
+---
+
+## REG-730 — the start POST did not return, so the button looked dead
+
+**Found by** Grok bot, driving `/api/mini_auto` on his live console with the game running and fresh
+frames — the one thing a code reading could not have produced.
+
+```
+POST /api/mini_auto {"on":true,"container":"stash"}
+  -> hung with 0 bytes for 8s
+  -> hung with 0 bytes for 25s        (curl timed out; no JSON body, no `why`)
+GET  /api/mini_auto meanwhile:  {"running": false, "planned": 0, "moved": 0}
+```
+
+Konyo had reported this for two days as **"nothing happens when i click mini automatic"**, and both
+previous fixes aimed at the wrong half of it:
+
+| version | what it fixed | why he still saw nothing |
+|---|---|---|
+| v2798 (REG-726) | the refusal was written to a panel 275 lines away | a POST that never returns has no refusal to write |
+| v2799 (REG-728) | the frame was stat-ed here and opened there, so the open raced a promote | that fixed the ENOENT, not the wait |
+
+**A hang is not a refusal.** The UI `await`s the fetch, so a 25s POST is 25 seconds of a button that
+has visibly done nothing — indistinguishable from a dead handler.
+
+**Cause.** The handler called `_mini_cells_from_live_frame` INLINE on the HTTP request thread: a
+lattice fit plus an occupancy scan over a 1920x1080 frame, on a Mac simultaneously running the game,
+the console, an OCR worker and a screen capture. That work has no ceiling — it costs whatever the
+machine has left, which is why it measured **0.26s here and 8-25s there**. Konyo guessed the same
+cause from the outside: *"it might be related to cpu usage... both you and grok are working and my
+cpu is hard for it to do all 4 at once."* He was right about the mechanism.
+
+**Fix (v2801).** The POST answers immediately with `planning: true` and the scan runs on a named
+daemon thread; the GET half reports `planning` plus `planningForS`, and the last plan's outcome, so
+a refusal decided off the request thread still reaches him instead of dying in a daemon. A STOP
+bumps a token that invalidates a plan still in flight — without it, a plan begun before the stop
+would call `hover_mode.start()` after it, and the stop button would start the mode.
+
+⚠ **Not a timeout, and not a faster scan.** Both still block, just less. This is the shape
+`mini_start` has used since v1603 — arm the watchdog, THEN spawn — so it is the console's existing
+pattern rather than a new one invented at the point of failure.
+
+**Gate.** `test_the_screen_read_never_blocks_the_button` (245) PARSES: the screen reader may never
+appear directly in a `do_GET`/`do_POST` body, only inside a nested function a thread runs. A grep
+for `threading.Thread` nearby would pass on a handler that spawns a thread and then blocks anyway.
+Proven red by hoisting the call back inline — the failure names `do_POST` and the line.
+
+---
+
+## REG-731 — the refusal path wrote an 8.6 MB file and then left it there
+
+Found by reading the code I shipped 40 minutes earlier, not by a symptom.
+
+v2799 copies the live frame to a private temp file so the capture cannot replace it mid-read. That
+copy happened BEFORE the two cheapest refusals in the function:
+
+```
+_fd, _snap = mkstemp(...)     # 8.6 MB written
+_sf.write(raw)
+age = time.time() - frame_mt
+if age > 10:  return None, "...stale..."    <- returns, snapshot stays on disk
+try: import vault_corpus
+except:       return None, "..."            <- returns, snapshot stays on disk
+try:   ...lattice / occupancy...
+finally: os.unlink(_snap)
+```
+
+and the comment on that `finally` asserted, in as many words, **"EVERY return above passes through
+here."** Two of them did not. The prose was written about the intent; the code kept its own counsel.
+
+⚠ **The stale path is the common path**, which is what makes it expensive. Grok's drive hit
+`"the newest frame is 3124s old"` repeatedly — a button pressed while the capture is off is not an
+edge case, it is what the button does most of the time. Every such press would have cost one
+frame-sized file, permanently, in a repo that has already paid for an ENOSPC (20.5 GB in four
+minutes, 2026-09-03).
+
+★ **Measured before fixing: 0 leaked files on his Mac.** Not because the code was right — because
+his console still runs **v2796** and this rewrite had never executed there. Latent, not manifest.
+That zero is the reason this is a note rather than an incident report, and it is also why a source
+reading found it when `df` never would have.
+
+**Fix (v2801).** The two cheap refusals move above the `mkstemp`, and nothing between the copy and
+the `finally` can return without passing through it.
+
+**Gate.** `test_a_refused_frame_leaves_no_snapshot_behind` (244) is BEHAVIOURAL: it calls the real
+reader against a real temp tree and counts what is left in the system temp dir. A law asserting
+"the age check comes before the mkstemp" would pass the moment someone added a third early return
+below it — which is precisely how this defect arrived. It also carries an instrument check, because
+a leak detector that cannot see a leak makes every other assertion in the file theatre. Proven red
+against the old ordering: it fails naming the leaked file.
+
+---
+
+## REG-729 — half his proof photos were reported missing because the id was spelled the other way
+
+**MEASURED 2026-09-08, and the split is almost exactly even:**
+
+| | |
+|---|---|
+| `chron_evidence` witness rows, `reel_`-prefixed | **4,106** |
+| …BARE | **4,411** |
+| directories under `frames/hist`, BARE | **623** |
+| …`reel_`-prefixed | **40** |
+
+Two conventions in one field — and on disk the convention is the **opposite** of what most ids
+suggest. `_hist_frame_paths` only ever tried the id exactly as given, so every lookup whose spelling
+did not match its directory reported the photo as ABSENT:
+
+    _hist_has_frame over 300 sampled witnesses     29%
+    ...also trying the other spelling              56%
+    recovered by one change                        82 of 300
+
+**This is not cosmetic.** Those photos are the `provenance` leg of the extraction contract — the
+picture behind a banked name — and he is deciding which footage to delete. **A photo looked up
+wrongly is indistinguishable from one that is gone**, and after a prune that difference stops being
+recoverable. I had told him 41% of banked proof was already lost; 27 points of that was misfiling,
+not loss.
+
+⇒ The LOOKUP is widened; the id is never rewritten, so nothing downstream sees a spelling it did not
+ask for — the discipline `artUrl`'s apostrophe fold already follows. Gate
+`test_the_proof_photo_is_found_under_either_spelling` (243), both directions proven red **including
+the tempting wrong fix**: a resolver widened until everything is "found" would make the
+already-lost figure disappear without one file coming back.
