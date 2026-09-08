@@ -19,6 +19,7 @@ import inspect
 import io
 import json
 import math
+import contextlib
 import os
 import re
 import shutil
@@ -1330,8 +1331,8 @@ _PID_CACHE = {"pid": None, "ts": 0.0}
 def _pid_cached():
     """v872 — the status poll must NEVER pay an lsof subprocess. Prefer the tracked child;
     fall back to a port scan at most every 10s."""
-    with _lock:
-        if _agent_proc is not None and _agent_proc.poll() is None:
+    with _lock_briefly("pid_cached") as _got:
+        if _got and _agent_proc is not None and _agent_proc.poll() is None:
             return int(_agent_proc.pid)
     now = time.time()
     if now - _PID_CACHE["ts"] > 10.0:
@@ -2907,10 +2908,55 @@ def _port_listener_pid(port=None):
         return None
 
 
+#: v2772 — HOW LONG A STATUS READ MAY WAIT FOR `_lock` BEFORE ANSWERING FROM WHAT IT KNOWS.
+#: The readers below need the lock for microseconds (one `.poll()`), but `start_agent` holds the
+#: SAME lock across a 166-line block containing subprocess.Popen() and time.sleep(0.2). So while a
+#: recording is starting, every /api/status poll queued behind it — the UI spun "loading on air",
+#: OFF AIR stayed greyed out, AND THE RECORDING WAS RUNNING FINE THE WHOLE TIME. Konyo, 2026-09-08:
+#: *"just loading on air and not turning on and OFF AIR is still greyed out"*.
+#: 0.25s is longer than any uncontended read has ever needed and short enough that his UI never
+#: notices. [[the-unjoined-end]]
+_STATE_READ_WAIT_S = 0.25
+
+#: ⚠ THE INSTRUMENT, AND IT IS THE POINT — not a counter for its own sake.
+#: A sweep-time wedge was measured at 30-52s on /api/status with NO agent running, which
+#: `start_agent` cannot explain. Two candidate locks fit and static reading CANNOT distinguish
+#: them. This tally settles it from his own machine, for free: if these numbers climb during a
+#: sweep, the contended lock is `_lock`; if a status call is slow while `blocked` stays 0, it is
+#: NOT `_lock` and the search moves to `_PRUNE_LOCK`. A cross-family review (2026-09-08) put the
+#: question exactly this way and answered UNKNOWN on the evidence available.
+_LOCK_WAIT = {"blocked": 0, "last": None, "lastTs": 0.0, "reads": 0}
+
+
+@contextlib.contextmanager
+def _lock_briefly(what):
+    """Take `_lock` if it is free within _STATE_READ_WAIT_S; otherwise DO NOT WAIT. -> yields bool
+
+    ⚠⚠ THE YIELDED BOOL IS NOT OPTIONAL TO CHECK. It says whether the caller actually holds the
+    lock. Every caller below falls back to a source that needs no lock at all (the 10s pid cache,
+    or the OS), so a refusal degrades to a slightly older answer instead of a hung request — which
+    is the whole trade: a status poll that is 10 seconds stale is useful, one that never returns
+    is what he was looking at.
+
+    ⛔ It never swallows the release: the `finally` runs whether the body raised or returned.
+    """
+    _LOCK_WAIT["reads"] += 1
+    got = _lock.acquire(timeout=_STATE_READ_WAIT_S)
+    if not got:
+        _LOCK_WAIT["blocked"] += 1
+        _LOCK_WAIT["last"] = str(what)
+        _LOCK_WAIT["lastTs"] = time.time()
+    try:
+        yield got
+    finally:
+        if got:
+            _lock.release()
+
+
 def _agent_alive():
     global _agent_proc
-    with _lock:
-        if _agent_proc is not None and _agent_proc.poll() is None:
+    with _lock_briefly("agent_alive") as _got:
+        if _got and _agent_proc is not None and _agent_proc.poll() is None:
             return True
     return _pid_cached() is not None   # v877 (army B#1) — the fallback ran a fresh lsof PER POLL
 
@@ -2995,8 +3041,8 @@ def _pid_alive(pid):
     # succeeds on zombies, so the stop thread stared at a corpse for the full 90s farewell
     # window. poll() both answers truthfully AND reaps.
     try:
-        with _lock:
-            if _agent_proc is not None and _agent_proc.pid == pid:
+        with _lock_briefly("pid_alive") as _got:
+            if _got and _agent_proc is not None and _agent_proc.pid == pid:
                 return _agent_proc.poll() is None
     except Exception:
         pass
@@ -3111,8 +3157,8 @@ def _capture_health():
         return ""
     pid = None
     try:
-        with _lock:
-            if _capture_proc is not None and _capture_proc.poll() is None:
+        with _lock_briefly("capture_health") as _got:
+            if _got and _capture_proc is not None and _capture_proc.poll() is None:
                 return "LINKED"
         pid = _read_pid(CAP_PID_PATH)
     except Exception:
@@ -24450,6 +24496,16 @@ def status_payload():
         # v2322 — the backup generator, on a surface that can be read. `ageS` is None when no
         # console has EVER checked in, which is a different fact from "it has been silent for a
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]
+        # ⚠ v2772 — LOCK CONTENTION ON THE STATUS PATH, PUBLISHED WHERE A SUPERVISOR CAN SEE IT.
+        # `blocked` counts status reads that could not get `_lock` inside _STATE_READ_WAIT_S and
+        # answered from the pid cache instead. It is the cheapest available answer to a question
+        # static reading could not settle: a slow /api/status WITH blocked climbing means `_lock`
+        # is the contended one; slow WITH blocked flat means it is not, and the search moves on.
+        # `reads` is the denominator — `blocked: 0` means nothing without it. [[zero-needs-a-denominator]]
+        "lockWait": {"blocked": _LOCK_WAIT["blocked"], "reads": _LOCK_WAIT["reads"],
+                     "last": _LOCK_WAIT["last"],
+                     "lastAgeS": (round(time.time() - _LOCK_WAIT["lastTs"], 1)
+                                  if _LOCK_WAIT["lastTs"] else None)},
         "uiBeat": {"n": _UI_BEAT["n"], "hidden": bool(_UI_BEAT.get("hidden")),
                    "ageS": (round(ui_beat_age(), 1) if ui_beat_age() is not None else None),
                    # ⚠⚠ v2457 — PUBLISHED HERE, AND I ALMOST REPEATED THE EXACT MISTAKE THE v2435

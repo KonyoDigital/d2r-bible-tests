@@ -640,6 +640,20 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_the_status_poll_never_waits_on_a_spawn",
+         [sys.executable, os.path.join(HERE, "test_the_status_poll_never_waits_on_a_spawn.py")], 120,
+         why="ON AIR SPUN \"loading\" WHILE THE RECORDING WAS ALREADY RUNNING. `start_agent` holds "
+             "`_lock` across a 166-line block containing subprocess.Popen(), time.sleep(0.2) and "
+             "three open() calls — and four functions on the /api/status path needed that SAME lock "
+             "for one `.poll()` each. Every status poll therefore queued behind the spawn, so the "
+             "button stayed \"loading\" and OFF AIR stayed greyed while the capture ran perfectly. "
+             "The readers are now bounded (0.25s, then answer from the lock-free pid cache), proven "
+             "by holding `_lock` for 3s and measuring — the sabotage that reverts them blocks for "
+             "3.005s. ⚠ THIS DOES NOT EXPLAIN the 30-52s sweep-time wedge with no agent running; a "
+             "cross-family review answered UNKNOWN on that and the published `lockWait.blocked` "
+             "counter (with its `reads` denominator) is the instrument that will settle it from his "
+             "own machine.",
+         ),
     Gate("test_the_rescue_has_a_top_rung",
          [sys.executable, os.path.join(HERE, "test_the_rescue_has_a_top_rung.py")], 120,
          why="WHEN THE SELF-RESCUE FAILED, KONYO WAS THE FALLBACK. Over 196 hours his fault journal "
