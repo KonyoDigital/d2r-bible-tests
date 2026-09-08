@@ -133,12 +133,23 @@ def _log_root():
     This one cost a wrong diagnosis before it was found: test_button_matrix and test_roundtrip_sim
     write `—— control start … mode=sim ——` banners into control_agent.log, and I read a cluster of
     them as Konyo pressing SIM and LIVE at his keyboard. They were my own gate runs.
-    Founding rule 4 — suspect the instrument. [[feedback-suspect-the-instrument]]"""
-    try:
-        import tv_diablo as _tvd
-        return _tvd._fixture_root(HERE)
-    except Exception:
-        return HERE
+    Founding rule 4 — suspect the instrument. [[feedback-suspect-the-instrument]]
+
+    ⚠⚠ v2788 — THIS WAS A VERBATIM UNFIXED COPY OF `_fixture_root_for_state`, SEVENTY LINES ABOVE
+    IT IN THIS SAME FILE. v2783 fixed that function's except-arm (a resolver failure silently
+    returned the LIVE directory to a caller that had asked for a fixture world) and v2785 made it
+    agree with the canonical rule — and neither swept to this copy, which binds `LOG_PATH` at
+    module level. A parallel sweep found it.
+
+    ⛔ WHY IT IS THE WORST PLACE FOR THAT BUG: `LOG_PATH` is not merely read. It is APPENDED to on
+    every line of console output, and TRUNCATED outright when it passes 2 MB. So a resolver failure
+    inside a gate run would have written — and could have truncated — HIS REAL control_agent.log.
+    This docstring already records that harm happening once, from a milder cause.
+
+    ⚠ IT DELEGATES RATHER THAN REPEATING THE CORRECTED ARM A THIRD TIME. Two copies drifted; three
+    would drift again, and the next fix would land on whichever one the author happened to open.
+    One rule, one implementation. [[copy-drift]] [[the-unjoined-end]]"""
+    return _fixture_root_for_state()
 
 
 LOG_PATH = os.path.join(_log_root(), "control_agent.log")
@@ -24836,7 +24847,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2787",
+        "ver": "v2788",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

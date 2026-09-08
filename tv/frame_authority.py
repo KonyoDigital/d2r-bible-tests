@@ -692,11 +692,23 @@ def test_referenced_reels(repo=None):
     # MEASURED 2026-09-08: a render run left .board_identity.json, .fixture_reels_cache.json
     # and .chronicle_routes_cache.json changed in his tv/ — three files added after v1869,
     # all three missing the same rule. [[feedback-fixtures-never-touch-live-data]]
+    # ⚠⚠ v2788 — the except-arm handed back his LIVE directory when isolation had been asked for.
+    # Same shape as control_app's, fixed there in v2783/v2785 and never swept here. This one WRITES
+    # (.fixture_reels_cache.json), and the v2778 comment above already measured these files being
+    # left in his live tv/. [[copy-drift]]
     try:
         import tv_diablo as _tvd
         _croot = _tvd._fixture_root(HERE)
     except Exception:
         _croot = HERE
+        _h = os.environ.get("TV_HIST")
+        if _h:
+            try:
+                _r = os.path.realpath(_h)
+                if not (_r == HERE or _r.startswith(HERE + os.sep)):
+                    _croot = _r
+            except Exception:
+                pass
     _cpath = os.path.join(_croot, ".fixture_reels_cache.json")
     _ckey = None
     if stamp is not None:

@@ -406,10 +406,26 @@ _MEMO = {"key": None, "val": None}
 # and .chronicle_routes_cache.json changed in his tv/ — three files added after v1869,
 # all three missing the same rule. [[feedback-fixtures-never-touch-live-data]]
 def _routes_cache_root():
+    """⚠⚠ v2788 — THE EXCEPT-ARM RETURNED HIS LIVE DIRECTORY TO A CALLER THAT ASKED FOR A FIXTURE
+    WORLD. Third instance of the shape v2783/v2785 fixed in control_app; a parallel sweep found
+    this one and the twin in frame_authority. Both WRITE into the resolved root, and this file's
+    own v2778 comment already records these very files being left dirty in his live tv/ — the
+    comment was written, the except-arm was not fixed. If isolation was requested and cannot be
+    resolved, the raw TV_HIST value is the one thing the caller actually said; HERE is returned
+    only when nobody asked. Mirrors `_fixture_root`'s rule exactly: truthy, realpath'd, and only a
+    fixture when it lands OUTSIDE his tree. [[copy-drift]] [[unknown-stays-unknown]]"""
     try:
         import tv_diablo as _tvd
         return _tvd._fixture_root(HERE)
     except Exception:
+        _hist = os.environ.get("TV_HIST")
+        if _hist:
+            try:
+                _rp = os.path.realpath(_hist)
+                if not (_rp == HERE or _rp.startswith(HERE + os.sep)):
+                    return _rp
+            except Exception:
+                pass
         return HERE
 
 

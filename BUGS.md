@@ -23134,6 +23134,62 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-711 — v2783 fixed one resolver that fell back to his live directory; four copies were still running
+
+**2026-09-08 · v2788 · `tv/control_app.py`, `tv/chronicle_routes.py`, `tv/frame_authority.py`,
+`tv/console_healer.py`, `tv/reel_retention.py`, `tv/river_stamp.py` · found by a parallel sweep**
+
+v2783 fixed `_fixture_root_for_state()`: `except Exception: return HERE` silently handed a caller
+his real data directory when it had asked for a fixture world. v2785 made it agree with the
+canonical rule. **Neither swept to the copies.** A read-only sweep run in parallel with a push found
+four more, ranked by damage:
+
+| where | why it matters |
+|---|---|
+| `control_app._log_root()` | a **verbatim** unfixed copy of the corrected function 70 lines above it, binding `LOG_PATH` — **appended to on every line of console output and TRUNCATED at 2 MB** |
+| `chronicle_routes._routes_cache_root()` | WRITES |
+| `frame_authority` inline `_croot` | WRITES `.fixture_reels_cache.json` |
+| `console_healer` · `reel_retention` · `river_stamp` | blanket arms with decreasing reach |
+
+Both `_log_root` and `frame_authority` had **already recorded the harm in their own comments**.
+`_log_root`'s docstring says gate runs wrote `control start … mode=sim` banners into his live log
+and I read them as Konyo at his keyboard. frame_authority's v2778 note MEASURED those files being
+left dirty in his live `tv/`. The comments were written; the except-arms were not fixed.
+
+**⚠⚠ THE CODE TAUGHT ME THE DISCRIMINATOR, AND MY FIRST CENSUS WAS OVER-BROAD.** It flagged
+`shadow_ledger._ledger_path` and `retro_gate._ledger_path` — and **both are correct**. They catch
+`ImportError` **only**, and their comments say exactly why: *"If the root rule is broken that must
+surface, not resolve to his tree."* An ImportError means `tv_diablo` genuinely is not importable and
+`HERE` is then the honest answer; a blanket `except Exception` is the defect because it *also*
+swallows a runtime failure **of the rule itself**. A census that cannot tell those apart trains you
+to skim its output.
+
+**So the fix is a narrowing, not a fourth copy.** The three blanket arms became `except ImportError`
+— the template the repo had already blessed — and `_log_root` now **delegates**
+(`return _fixture_root_for_state()`) rather than repeating the corrected rule a third time. Two
+copies drifted; three would drift again, and the next fix would land on whichever one the author
+happened to open. [[copy-drift]]
+
+**⛔ THE GATE IS A CENSUS, NOT A LIST OF FOUR.** Naming them would be green the day a fifth appears
+— and a fifth is exactly how four appeared, one copy at a time. It AST-parses every module in `tv/`
+and fails on any *broad* except-handler that resolves to `HERE` without consulting `TV_HIST`.
+Grepping was never an option: every one of these fixes quotes the defective arm in a comment to
+explain it. [[source-reading-guard]]
+
+**One site is exempt, with its reason recorded** — `_chron_hunt_mem_path` derives from
+`_chron_swept_path()`, and its own v2175.2 comment records that walking `TV_HIST` directly was tried
+and was wrong: *"I had rebuilt half of an isolation that already existed, and got the half wrong."*
+A law also requires every exemption to carry a reason; an unexplained one is how a census becomes a
+list of the ones somebody got round to.
+
+Gate: `test_no_resolver_falls_back_to_his_live_world.py`, 5 laws. 3 sabotages — restoring a blanket
+handler reds the census, making `_log_root` copy the rule again reds two laws, and stripping the
+exemption's reason reds the reason law.
+
+⚠ And the first "RESTORED" run after that third sabotage was **still red**: `git checkout --` did
+nothing because the gate file is UNTRACKED. Running the check after the restore is what caught it.
+[[exit-status-of-the-block]]
+
 ## REG-710 — 1,444 set-tier drop records said qlvl 0, and a zero is a number he farms by
 
 **2026-09-08 · v2787 · `bible.html` · task #20, CLOSED**

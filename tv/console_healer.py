@@ -72,7 +72,14 @@ def _root():
         sys.path.insert(0, HERE)
         import tv_diablo as _tvd
         return _tvd._fixture_root(HERE)
-    except Exception:
+        # ⚠⚠ v2788 — NARROWED FROM `except Exception`. A blanket catch here also swallowed a
+        # runtime failure OF THE RULE ITSELF and answered HERE — his live tree — to a caller that
+        # had explicitly asked for a fixture world. `shadow_ledger._ledger_path` and
+        # `retro_gate._ledger_path` already carry the correct template and say why: *"If the root
+        # rule is broken that must surface, not resolve to his tree."* ImportError means tv_diablo
+        # genuinely is not importable and HERE is then the honest answer; anything else must
+        # propagate. Found by a census, not by hand. [[copy-drift]] [[unknown-stays-unknown]]
+    except ImportError:
         return HERE
 
 

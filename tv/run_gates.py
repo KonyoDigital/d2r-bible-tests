@@ -715,6 +715,28 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_no_resolver_falls_back_to_his_live_world",
+         [sys.executable, os.path.join(HERE, "test_no_resolver_falls_back_to_his_live_world.py")],
+         180,
+         why="v2783 FIXED ONE RESOLVER THAT FELL BACK TO HIS LIVE DIRECTORY AND FOUR MORE COPIES "
+             "WERE STILL RUNNING. A parallel read-only sweep found them. The worst was "
+             "control_app._log_root, a VERBATIM unfixed copy of the corrected function seventy "
+             "lines above it, binding LOG_PATH — which is APPENDED to on every line of console "
+             "output and TRUNCATED at 2 MB. Its own docstring already records that harm happening "
+             "once from a milder cause. chronicle_routes and frame_authority both WRITE into the "
+             "resolved root, and frame_authority's v2778 comment had already MEASURED those files "
+             "left dirty in his live tv/ — the comment was written, the arm was not fixed. ⛔ THE "
+             "LAW IS A CENSUS, NOT A LIST OF FOUR: naming them would be green the day a fifth "
+             "appears, and a fifth is exactly how four appeared, one copy at a time. ⚠⚠ THE CODE "
+             "TAUGHT THE DISCRIMINATOR: the first cut flagged shadow_ledger and retro_gate, and "
+             "BOTH ARE CORRECT — they catch ImportError ONLY, and say why: \"if the root rule is "
+             "broken that must surface, not resolve to his tree\". A blanket except Exception is "
+             "the defect because it also swallows a runtime failure OF THE RULE. So the three were "
+             "NARROWED to the blessed template rather than having the TV_HIST arm copied a fourth "
+             "time. One site is exempt WITH A REASON: _chron_hunt_mem_path already tried walking "
+             "TV_HIST and it was wrong. AST-parsed, never grepped — every fix quotes the defective "
+             "arm to explain it.",
+         ),
     Gate("test_the_set_pieces_carry_a_real_qlvl",
          [sys.executable, os.path.join(HERE, "test_the_set_pieces_carry_a_real_qlvl.py")], 120,
          why="1,444 OF 1,598 SET-TIER DROP RECORDS CARRIED qlvl 0, AND A ZERO ON A MISSING ROW IS A "
