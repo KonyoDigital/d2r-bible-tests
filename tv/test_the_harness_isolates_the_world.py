@@ -47,6 +47,9 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
 
 try:
@@ -263,7 +266,16 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
         src = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
         i = src.find("if _bytes + _sz > 64 * 1024 * 1024")
         self.assertGreater(i, 0, "the size ceiling is gone")
-        after = src[i:i + 400]
+        # ⚠⚠ v2807 — ANCHORED AT BOTH ENDS. This was `src[i:i + 400]`, which asks "is the
+        # defect within 400 characters of here?" and answers a question nobody asked. Under the
+        # assertNotIn below, a short read is INDISTINGUISHABLE from a clean one: the text simply
+        # is not there, "break" is absent, and the law goes green because it could not see.
+        # The block ends at the first structural line after it; if NONE of those anchors is
+        # found the helper RAISES, so a region that moved makes this law go RED and say so
+        # rather than reading less and reporting clean. [[source-reading-guard]]
+        after = _sw.after(src, "if _bytes + _sz > 64 * 1024 * 1024",
+                          "\n        # ", "\n        for ", "\n    def ",
+                          what="the safe_copy size ceiling branch")
         # ⚠ code only — the comment above this line explains the `break` that was wrong, so a
         # substring search over the region would read the explanation as the defect.
         after = "\n".join(l for l in after.split("\n") if not l.strip().startswith("#"))

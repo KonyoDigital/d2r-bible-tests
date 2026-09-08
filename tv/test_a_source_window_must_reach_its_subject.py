@@ -56,9 +56,9 @@ except Exception:
     pass
 
 #: MEASURED 2026-09-08. These are debt ceilings, not targets — lower them when sites are fixed.
-TOTAL_CEILING = 68
+TOTAL_CEILING = 67
 #: The windows a short read would carry SILENTLY past a negative assertion.
-SILENT_CEILING = 25
+SILENT_CEILING = 24
 
 #: assertions that PASS when the window came up short
 _NEGATIVE = ("assertNotIn", "assertFalse", "assertIsNone", "assertNotRegex", "assertNotEqual")
