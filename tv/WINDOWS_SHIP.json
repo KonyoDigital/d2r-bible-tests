@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2786",
+  "ver": "v2787",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2786: The second eye on v2784 asked what stops the pixel path firing on every iteration once the lock opens, and nothing did: setting due directly bypasses the rescue loop own pacing. A blank window would have been rescued every ten seconds on a window he is looking at. Now paced at 900s with a stamp, the locked refusal speaks once per reason, and a backwards clock can no longer make a stale verdict read as fresh.",
+  "note": "v2787: 1444 of 1598 set-tier drop records said qlvl 0, and a zero on a missing row reads as any monster level can drop this. Filled 1477 from the game own setitems table joined on the piece name, cross-checked against a second file in the same store with zero disagreements. Eleven stay unknown because they have no row under any spelling, and several look like naming errors in the bible rather than missing data.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

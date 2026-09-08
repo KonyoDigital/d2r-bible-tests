@@ -715,6 +715,25 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_set_pieces_carry_a_real_qlvl",
+         [sys.executable, os.path.join(HERE, "test_the_set_pieces_carry_a_real_qlvl.py")], 120,
+         why="1,444 OF 1,598 SET-TIER DROP RECORDS CARRIED qlvl 0, AND A ZERO ON A MISSING ROW IS A "
+             "NUMBER HE FARMS BY — it reads as \"any monster level can drop this\". The qlvl check "
+             "is one of the two filters that decide whether an item can drop at all (monster mlvl "
+             ">= item qlvl), so a wrong zero sends him to the wrong zone. Filled from the game's "
+             "OWN table, extracted from his local D2R CASC store: data/global/excel/setitems.txt, "
+             "column `lvl`, joined on column `index` (the piece name) rather than *ItemName (the "
+             "base type). CROSS-CHECKED against excel/base/setitems.txt — 132 pieces in both, ZERO "
+             "disagreements, which is the second witness his no-fabrication rule requires. ⛔ THE "
+             "GAME DATA IS BLIZZARD'S AND THIS REPO IS PUBLIC, so it is deliberately absent and "
+             "these laws pin the SHAPE instead: measured across all 35 sets, every piece of a set "
+             "carries the same qlvl with zero exceptions, and one piece appears in many drop "
+             "records so every record naming it must agree. A partial fill or a bad join breaks "
+             "that instantly with no Blizzard bytes present. ⚠ ELEVEN pieces stay 0 because they "
+             "have NO row under any spelling, and several are probably naming errors in the bible "
+             "(the table says Tal Rasha's Fire-Spun Cloth where the bible says Fine-Spun) — a "
+             "near-spelling is not a trace and guessing one is the fabrication the rule forbids.",
+         ),
     Gate("test_the_pixels_earn_the_right_to_act",
          [sys.executable, os.path.join(HERE, "test_the_pixels_earn_the_right_to_act.py")], 180,
          why="HIS RULING: \"if they are hardened and tested and prove themselves to work is this a "

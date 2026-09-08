@@ -23134,6 +23134,56 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-710 — 1,444 set-tier drop records said qlvl 0, and a zero is a number he farms by
+
+**2026-09-08 · v2787 · `bible.html` · task #20, CLOSED**
+
+The quality-level check is one of the **two filters** that decide whether an item can drop at all —
+`monster mlvl >= item qlvl` — and the bible printed **0** on 1,444 of its 1,598 set-tier drop
+records. A zero there does not read as "unknown"; it reads as *any monster level can drop this*, and
+it sends him to the wrong zone. Nobody had measured it: the 154 records that did carry a value were
+set-level aggregates, not per-piece.
+
+**⚠ MY OWN "BLOCKED" LABEL WAS WRONG, AND SO IS `RESUME_HERE.md:69`.** Both said the SetItems table
+is not on this Mac. It is. `RESUME_HERE` looked in `~/Library/Application Support/CrossOver/Bottles`
+(empty); his real bottle is **`~/CXPBottles`**, and the install sits there at 28 GB with `D2R.exe`
+and a full CASC store. A task can sit "blocked on data" for days because the wrong directory was
+checked once. [[inherited-claim-is-not-evidence]]
+
+**Filled from the game's own table.** `data\global\excel\setitems.txt`, column **`lvl`** (not
+`lvl req`, which is the character requirement), joined on column **`index`** — the piece name —
+rather than `*ItemName`, which carries the base type ("Large Shield", not "Civerb's Ward").
+**1,477 of 1,598 records now carry a real quality level.**
+
+**The two-source cross-check his rule requires.** Both `excel\setitems.txt` and
+`excel\base\setitems.txt` were extracted independently: **132 pieces in both, ZERO disagreements**.
+That is a separate file, not a second read of the same bytes. Hashes and the reproduction command
+are in `SET_QLVL_PROVENANCE.md`.
+
+**Three aliases, each a decision about WHICH ROW and never about a VALUE.** The game's own table
+misspells `Haemosu's Adament`, `Griswolds's Redemption` (double-s possessive) and
+`Cow King's Hoofs`. Each identity is unambiguous from its set and slot.
+
+**⛔ ELEVEN PIECES STAY 0, AND SEVERAL ARE PROBABLY BIBLE NAMING ERRORS.** The table says
+`Tal Rasha's Fire-Spun Cloth` where the bible says `Fine-Spun Cloth`, and it lists four Aldur's
+pieces with no `Aldur's Rhythm` among them. A near-spelling is **not** a trace; mapping one would be
+the exact fabrication the rule forbids. They want a human ruling. [[unknown-stays-unknown]]
+
+**⚠ THE GAME DATA IS NOT IN THIS REPO AND MUST NOT BE** — it is Blizzard's and this repo is public.
+So the gate pins the SHAPE rather than the values, using a property measured across all 35 sets in
+the table: **every piece of a set carries the same qlvl, zero exceptions**, and one piece appears in
+many drop records so every record naming it must agree. A partial fill or a bad join breaks that
+instantly with no Blizzard bytes present.
+
+**⚠ The extractor was a melting asset.** It lived in a `/private/tmp` scratchpad the OS sweeper had
+already started deleting — its sibling copy had lost its dylib and two-thirds of its sources. Copied
+to `~/casc-tools/` (outside the repo) before anything else. `tv/chronicle_total.py` carries the
+rebuild recipe if it is ever lost again.
+
+Gate: `test_the_set_pieces_carry_a_real_qlvl.py`, 7 laws. 4 sabotages — reverting the fill reds the
+ratchet, splitting one piece across two values reds the consistency law, guessing a value for a
+piece with no game row reds two laws, and deleting the provenance note reds the trace law.
+
 ## REG-709 — the pixel rescue would have fired every ten seconds, forever, the day it was unlocked
 
 **2026-09-08 · v2786 · `tv/control_app.py` · found by the second eye on v2784**

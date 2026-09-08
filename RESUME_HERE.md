@@ -66,7 +66,9 @@ carries `faulthandler` on SIGUSR1 and `lockWait{blocked,reads}`, both verified l
 - **#17** HIS CALL — needs the game open, the stash panel up, MINI AUTO pressed for ≥5 hovers.
 - **#20** BLOCKED ON DATA — set qlvl. The render half is done; `_qlvlOf` reads the drop-table index
   (`_etaIdx`), which structurally covers only the set pieces that appear in it. The game's own
-  SetItems table is not on this Mac (the CrossOver path is a 380K launcher stub, `Bottles/` empty).
+  ~~SetItems table is not on this Mac~~ — WRONG, corrected 2026-09-08 (REG-710). That looked in
+  `~/Library/Application Support/CrossOver/Bottles` (empty). His real bottle is `~/CXPBottles`;
+  the 28 GB install is there and the table was extracted. #20 is CLOSED.
   ⇒ Needs a source from him. Do not write 134 values from memory.
 - **#29** HIS INSTRUCTION, 2026-09-08 — after the list ships, a proper ping-pong of upgrades and
   ships with Grok MCP + grok bot + the visual harnesses, skills and workflows. **Gated on the list
