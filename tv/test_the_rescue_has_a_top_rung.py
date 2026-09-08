@@ -167,6 +167,40 @@ class TheRescueHasATopRung(unittest.TestCase):
                       "the rescue loop went back to asking `_agent_alive()` directly, so a "
                       "degraded read during a spawn again reads as 'nothing is recording'")
 
+    def test_the_relaunch_refuses_while_anything_is_IN_FLIGHT(self):
+        """⛔⛔ FOUND BY CHECKING A COMMENT I HAD WRITTEN, and the comment was wrong.
+
+        It claimed this path "uses the SAME door the manual button uses". It does not: the manual
+        `/api/relaunch` keeps a busy list and refuses while a chronicle sweep or vault sweep is
+        reading or a mini is recording — and this automatic path had NONE of it. An escalation could
+        therefore have replaced the process mid-sweep, from the one caller with nobody watching.
+
+        The flight check must be asked INSIDE the relaunch, at the point of no return, not only when
+        the decision was made — a sweep can start in the seconds between."""
+        tree = ast.parse(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+                   and n.name == "_exec_relaunch_soon"), None)
+        self.assertIsNotNone(fn, "_exec_relaunch_soon is gone")
+        called = {c.func.id for c in ast.walk(fn)
+                  if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+        self.assertIn("nothing_in_flight", called,
+                      "the automatic relaunch no longer asks what is in flight — it can tear the "
+                      "process down in the middle of a sweep, with nobody watching")
+        # ⚠⚠ AND IT MUST ABANDON ON A REFUSAL. Checked by AST, because the first version of this
+        # assertion split the function's TEXT on "nothing_in_flight" and landed in the DOCSTRING
+        # ABOVE — which names the helper while explaining the rule. Seventh time in this session a
+        # guard read prose as code. Judge code by its tree. [[source-reading-guard]]
+        inner = next((n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef)
+                      and n.name == "_go"), None)
+        self.assertIsNotNone(inner, "the relaunch worker _go is gone")
+        guarded = False
+        for node in ast.walk(inner):
+            if isinstance(node, ast.If) and any(isinstance(b, ast.Return) for b in node.body):
+                guarded = True
+        self.assertTrue(guarded,
+                        "nothing in the relaunch worker returns early — the in-flight check is "
+                        "read and then ignored, so the process is replaced anyway")
+
     # ── ⚠ THE JOIN — PARSED, NEVER GREPPED ──────────────────────────────────────────────────
     def test_the_rescue_loop_actually_CALLS_the_decision(self):
         """★★ [[plumbing-with-no-tap]] — this repo's most repeated defect, and the reason for the

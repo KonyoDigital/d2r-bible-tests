@@ -12921,12 +12921,36 @@ def _rescue_escalation_decision(futile, now, escalated_ts, recording):
 def _exec_relaunch_soon():
     """Replace this process, off the rescue thread. -> None. Never raises into the loop.
 
-    ⚠ It uses the SAME door the manual button uses rather than inventing a second path — two ways
-    to relaunch is how one of them rots. [[copy-drift]]
+    ⚠⚠ CORRECTED BEFORE SHIPPING. This first carried a comment claiming it "uses the SAME door the
+    manual button uses rather than inventing a second path". THAT WAS FALSE, and checking it is what
+    found the defect: `/api/relaunch` maintains its own busy list and REFUSES while a chronicle
+    sweep or a vault sweep is reading or a mini is recording. This path had none of that, so an
+    automatic escalation could have torn down the process in the middle of a sweep — the one caller
+    that never has a human looking at it.
+
+    ⛔ So the flight check is asked HERE, immediately before the point of no return, using
+    `nothing_in_flight()` — the shared helper, not a third copy of the list. (`/api/relaunch` keeping
+    its own is a known duplication, noted in the code; this does not add a fourth.) [[copy-drift]]
+
+    ⚠ It is asked LATE on purpose. The rescue decision may have been made seconds earlier and a
+    sweep can start in between; the only reading that matters is the one taken with the process
+    about to be replaced.
     """
     def _go():
         try:
             time.sleep(0.4)
+            try:
+                _ok, _why = nothing_in_flight("relaunch the console")
+            except Exception:
+                _ok, _why = False, "could not tell what is in flight"
+            if not _ok:
+                # ⛔ ABANDON, do not queue. The cooldown was already stamped by the caller, so this
+                # cannot spin — the next attempt is at least _RESCUE_ESCALATE_EVERY_S away, by which
+                # time the sweep has normally finished and an ordinary rescue may have fixed it.
+                ui_fault_record("console-escalation-abandoned-in-flight", why=str(_why),
+                                where="_exec_relaunch_soon")
+                print("   escalation ABANDONED - %s" % str(_why)[:150], flush=True)
+                return
             stop_agent(farewell=False)
         except Exception:
             pass
