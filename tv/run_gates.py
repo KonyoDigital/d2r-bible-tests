@@ -715,6 +715,26 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_pixels_earn_the_right_to_act",
+         [sys.executable, os.path.join(HERE, "test_the_pixels_earn_the_right_to_act.py")], 180,
+         why="HIS RULING: \"if they are hardened and tested and prove themselves to work is this a "
+             "good place for a hardening and wilson to connect to the heart of the console "
+             "specifically #34\". The pixel witness REPORTS and POST-GRADES but may not TRIGGER — "
+             "the rescue fires on a beat read from the PAGE, and a blank page can still beat, which "
+             "is exactly the state he was looking at with a black window and the hover art still "
+             "painting. `console.pixel_rescue` is now declared in self_arming at the DELETER'S BAR "
+             "(0.839 / kinds 1.8), because a wrong BLANK does not lose footage — it replaces the "
+             "window he is looking at. ⛔ IT SHIPS LOCKED: may() is False, the loop falls through to "
+             "the same continue, behaviour byte-for-byte unchanged, and it opens ITSELF only after "
+             "three independent families have attacked it. 16/16 sabotages refused is wilson 0.806 "
+             "against 0.839 — a PERFECT score from one family still refuses. ⚠ ONE LAW IS ABOUT MY "
+             "OWN ATTACKER: its boundary attacks first read `_m(0.50, PW.INK_P99_MAX, 0.001)`, "
+             "derived from the bar they exist to pin, so widening that bar moved the input with it "
+             "and all 16 attacks passed while his HEALTHY console (p99 177) read BLANK. ⚠ And the "
+             "first run of that sabotage lied: cp restored the source while python read CACHED "
+             "BYTECODE from ~/Library/Caches/com.apple.python — the tree said 80 and the "
+             "interpreter loaded 200.",
+         ),
     Gate("test_the_pixel_witness_looks_at_his_console",
          [sys.executable, os.path.join(HERE, "test_the_pixel_witness_looks_at_his_console.py")], 120,
          why="THE PIXEL WITNESS LOOKED AT ITSELF AND SAID UNKNOWN FOREVER. He sent a screenshot of "

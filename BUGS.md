@@ -23134,6 +23134,59 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-706 — the pixels could see his black window and had no right to act on it
+
+**2026-09-08 · v2784 · `tv/self_arming.py`, `tv/control_app.py`, `tv/pixel_witness_wilson.py` · task #34**
+
+His ruling: *"if they are hardened and tested and prove themselves to work is this a good place for
+a hardening and wilson to connect to the heart of the console specifically #34"*.
+
+The pixel witness REPORTS (`_pixel_blank_report` runs inside the rescue loop and writes a fault row)
+and POST-GRADES (`rescue_worked`). What it could not do is TRIGGER: the rescue fires on `due`, a
+beat read from the PAGE — **and a blank page can still beat.** That is exactly the state he was
+looking at on 2026-09-08, window black, hover art still painting, asking why nothing had noticed.
+
+**Fixed by declaring a lock, not by wiring a flag.** `console.pixel_rescue` sits in `self_arming` at
+**the deleter's bar — 0.839, kinds_bar 1.8** — because a wrong BLANK does not lose footage, it
+replaces the window he is looking at, mid-use. `_console_rescue_loop` now asks
+`may("console.pixel_rescue")` before a pixel verdict may open the gate.
+
+**⛔ IT SHIPS LOCKED, AND THAT IS THE POINT.** `may()` returns False today, so the loop falls through
+to the same `continue` it always did — behaviour byte-for-byte unchanged. It opens **itself** once
+the witness has survived three independent families of attack, and never by anyone editing a file.
+His standing rule mechanised rather than restated. A stale verdict cannot act either: older than
+`_PIXEL_VERDICT_MAX_AGE_S` (90 s, one report cycle plus slack) means the REPORTER stopped, and
+acting then is acting on a memory of a window. [[stale-reading]]
+
+**The attacker.** `pixel_witness_wilson.py` runs 16 sabotages in three families that fail
+differently — a false BLANK costs him the window, a missed BLANK leaves him the detector, and a
+wrong target is REG-704 wearing a new number. The numbers are **his**, measured, from
+`paint_witness`'s own source: blank `0.124/33/0.0041`, healthy `0.069/177/0.0394`, Terminal
+`0.628/254/0.0581`. **16 of 16 refused = Wilson lower bound 0.806 against a bar of 0.839 — still
+LOCKED.** A perfect score from one family does not open it, which is the whole doctrine.
+
+**⚠⚠ A SABOTAGE FOUND A HOLE IN MY OWN ATTACKER.** The boundary attacks first read
+`_m(0.50, PW.INK_P99_MAX, 0.001)` — the attack input **derived from the constant it exists to pin**.
+Widening `INK_P99_MAX` from 80 to 200 (which makes his HEALTHY console, p99 177, read BLANK) moved
+the input along with the bar and **all sixteen attacks still passed**. A test anchored to its own
+subject cannot see the subject move. Now literals, with a law that parses the harness and forbids
+any `_m()` argument from referencing a `paint_witness` threshold.
+
+**⚠ And the first run of that sabotage lied.** `cp` restored the source while the interpreter kept
+reading **cached bytecode** — on this Mac `sys.pycache_prefix` puts it under
+`~/Library/Caches/com.apple.python`, not beside the file — so the tree said 80 and Python loaded
+200, and "RESTORED" printed 15/16. Every sabotage here is now run with that cache cleared.
+[[python-pycache-prefix-mac]] [[feedback-suspect-the-instrument]]
+
+Gate: `test_the_pixels_earn_the_right_to_act.py`, 10 laws, AST-parsed. 4 sabotages: dropping the
+`may()` call reds two laws; **softening the bar to one family actually OPENS the lock** and reds
+three, which is the proof it is load-bearing rather than decorative; re-anchoring an attack to its
+own bar reds the harness law; widening the staleness bound reds the freshness law.
+
+**⛔ STILL UNEXPLAINED: what made his window black on 2026-09-08.** It recovered on its own between
+11:43 and 11:45. This gives the instrument a path to act once it has earned one. It does not explain
+the fault. [[unknown-stays-unknown]]
+
 ## REG-705 — the guard against writing into his world fell back to writing into his world
 
 **2026-09-08 · v2783 · `tv/control_app.py` · found by the second eye on v2780**

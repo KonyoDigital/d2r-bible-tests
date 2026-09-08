@@ -229,6 +229,32 @@ LOCKS = {
         "acts": "decides whether a frame's pixels may be released — the last check before deletion",
         "bar": 0.722, "kinds_bar": 1.3, "after": [],
     },
+    # ⚠⚠ v2784 — HIS RULING, 2026-09-08: *"if they are hardened and tested and prove themselves
+    # to work is this a good place for a hardening and wilson to connect to the heart of the
+    # console specifically #34"*. Yes — and this is the whole of #34's remaining half.
+    #
+    # THE STATE BEFORE THIS. The pixel witness REPORTS (`_pixel_blank_report` runs inside the
+    # rescue loop every 6 ticks and writes a fault row) and it POST-GRADES (`rescue_worked` says
+    # whether a rescue restored painting). What it may not do is TRIGGER: the rescue fires on
+    # `due`, a beat/time condition read from the PAGE. And a blank page can still beat — which is
+    # the exact failure mode `paint_witness`'s own docstring names, and the exact state he was
+    # looking at on 2026-09-08 when his window was black and the hover art was still painting.
+    #
+    # ⛔ THE BAR IS THE STRICTEST ONE ON THE BOARD, equal to the deleter, and deliberately so. A
+    # wrong BLANK does not lose footage — it REPLACES THE WINDOW HE IS LOOKING AT, mid-use. His
+    # standing rule is that nothing auto-heals until it has proven itself, so this ships LOCKED:
+    # `may()` returns False today, the rescue loop keeps firing on `due` exactly as it does now,
+    # and NOTHING CHANGES until the witness has survived the attacks. That is the point of
+    # declaring it rather than wiring it. [[unknown-stays-unknown]]
+    #
+    # ⚠ THREE PROVERS, because one kind can never open it (kinds_bar 1.8). The families are chosen
+    # to fail DIFFERENTLY: synthetic distributions built to fool the arithmetic, his real window
+    # through the real window server, and a different model family judging the same bitmaps. A
+    # single family agreeing with itself is the "wall of agreements" this module exists to refuse.
+    "console.pixel_rescue": {
+        "surface": "THE CONSOLE", "acts": "lets a PIXEL verdict trigger a rescue of his window",
+        "bar": 0.839, "kinds_bar": 1.8, "after": [],
+    },
     "prune.arm": {
         "surface": "THE RIVER", "acts": "deletes footage — there is no undo",
         "bar": 0.839, "kinds_bar": 1.8,
@@ -446,6 +472,12 @@ PROVES = {
     # ⚠ It is declared for prune.arm ONLY, and even a perfect record cannot open that lock:
     # kinds_bar is 1.8 and sabotage weighs 1.0. The door with no undo does not open on one kind
     # of look, which is the point of the bar rather than a gap in this harness.
+    # ⚠ v2784 — three families for console.pixel_rescue. An allow-list entry is not evidence; it
+    # only says whose evidence would COUNT. Until a harness banks under one of these the lock is
+    # UNPROVEN, which is not the same as failing and is not the same as permitted.
+    "pixel_witness_wilson": ("console.pixel_rescue",),
+    "pixel_witness_live": ("console.pixel_rescue",),
+    "pixel_witness_crossfamily": ("console.pixel_rescue",),
     "prune_wilson": ("prune.arm",),
     # v2721 — frame_release_wilson attacks `frame_authority.seal_releases_frames` in states where
     # it MUST refuse: a seal that never looked, one saying only "nothing was taken", one whose

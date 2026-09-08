@@ -12462,6 +12462,10 @@ _UI_RESCUE = {"last": 0.0, "count": 0, "why": "", "futile": 0}
 #: verified failures is a cure that does not work.
 _UI_RESCUE_FUTILE_MAX = 2
 _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
+#: v2784 — how old a pixel verdict may be before it stops being evidence. The reporter runs every
+#: 6th tick of a 10s loop, so ~60s is the freshest a reading can be; 90 leaves one missed cycle of
+#: slack and refuses anything older. An unrefreshed BLANK means the REPORTER died, not the window.
+_PIXEL_VERDICT_MAX_AGE_S = 90.0
 _UI_RESCUE_COOLDOWN_S = 300.0
 
 # ══ v2393 — ALIVE BUT BLANK. The fault the heartbeat cannot see ═════════════════════════════
@@ -13287,7 +13291,53 @@ def _console_rescue_loop():
                 #
                 # ⚠ Every 6th tick, not every tick: this costs a window-server capture, and the
                 # loop runs every 10s.
-                continue
+                #
+                # ⚠⚠ v2784 — THE PIXELS MAY ONE DAY ACT HERE. TODAY THEY MAY NOT, AND THE LOCK IS
+                # WHAT DECIDES — not a flag, not a comment, and not me.
+                #
+                # His ruling, 2026-09-08: *"if they are hardened and tested and prove themselves to
+                # work is this a good place for a hardening and wilson to connect to the heart of
+                # the console specifically #34"*. This is that join. `console.pixel_rescue` is
+                # declared in `self_arming` at the strictest bar on the board (0.839, kinds 1.8 —
+                # equal to the deleter), because a wrong BLANK does not lose footage, it REPLACES
+                # THE WINDOW HE IS LOOKING AT.
+                #
+                # ⛔ IT SHIPS LOCKED AND THAT IS THE POINT. `may()` returns False today, so this
+                # block records and falls through to the same `continue` as before — the behaviour
+                # is byte-for-byte what it was. It opens itself only when the witness has survived
+                # three independent families of attack, and never by anyone editing this file.
+                #
+                # ⚠ A STALE VERDICT IS NOT A VERDICT. The report runs every 6th tick of a 10s loop,
+                # so the freshest reading can be ~60s old; anything older than that means the
+                # reporter itself stopped, and acting on it would be acting on a memory.
+                # [[stale-reading]] [[unknown-stays-unknown]]
+                _pix = _UI_BEAT.get("pixelBlank") or {}
+                if str(_pix.get("state") or "") == "BLANK":
+                    _age = (time.time() * 1000.0 - float(_pix.get("ts") or 0)) / 1000.0
+                    if _age > _PIXEL_VERDICT_MAX_AGE_S:
+                        _ok, _lw = False, ("the pixel verdict is %ds old (max %ds) — the reporter "
+                                           "stopped, so this is a memory, not a look"
+                                           % (int(_age), int(_PIXEL_VERDICT_MAX_AGE_S)))
+                    else:
+                        try:
+                            import self_arming as _sa
+                            _ok, _lw = _sa.may("console.pixel_rescue")
+                        except Exception as _e:
+                            _ok, _lw = False, ("the lock could not be asked (%s) — an unreadable "
+                                               "lock fails CLOSED" % type(_e).__name__)
+                    _UI_BEAT["pixelMayAct"] = bool(_ok)
+                    _UI_BEAT["pixelMayActWhy"] = str(_lw)[:300]
+                    if _ok:
+                        ui_fault_record("console-blank-by-pixels-ACTING", why=str(_lw)[:300],
+                                        where="_console_rescue_loop")
+                        due = True
+                        why = ("the pixels say BLANK and the lock is open — %s"
+                               % str(_lw)[:140])
+                    else:
+                        ui_fault_record("console-blank-by-pixels-LOCKED", why=str(_lw)[:300],
+                                        where="_console_rescue_loop")
+                if not due:
+                    continue
             url = "http://127.0.0.1:%d/" % CONTROL_PORT
             # If it wandered off the console entirely (an image opened in place, a dead
             # navigation), say so — that is a different fault with the same cure.
@@ -24732,7 +24782,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2783",
+        "ver": "v2784",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
