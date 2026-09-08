@@ -13558,6 +13558,42 @@ def _console_rescue_loop():
                     why = "the window is no longer on the console (%s)" % str(cur)[:80]
             except Exception:
                 pass
+            # ⚠⚠ v2807 — ASK THE PIXELS BEFORE RELOADING UNDER HIM. `contradicts_a_blank_beat`
+            # was written for exactly this moment and had ZERO callers: measured across the whole
+            # tree, `blank_strikes` had 1, `rescue_worked` had 1, and this one had NONE. Its own
+            # docstring calls it "THE VALUABLE DIRECTION, and the one his rescue needs most ...
+            # True here should HOLD a rescue."
+            #
+            # Everything the rescue reasons from is published BY the page — blankStrikes, elsHigh,
+            # frozenBeats all come from JavaScript inside the window whose health is in question.
+            # A page can be wrong about itself in BOTH directions, and this repo has measured one
+            # of them: a window drawing 185 blank frames reporting `painting: true`. The other
+            # direction costs him more, because it is the one that ACTS — a beat that claims blank
+            # while the compositor is painting means a reload of a working window, under his hands,
+            # losing whatever he was looking at.
+            #
+            # ⚠ UNKNOWN NEVER HOLDS A RESCUE. contradicts_a_blank_beat returns False when the
+            # capture could not be taken, so an absent witness cannot veto a rescue the beat
+            # genuinely called for — silence is not evidence, in this direction either.
+            # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+            try:
+                import paint_witness as _pw_hold
+                _refutes, _rwhy = _pw_hold.contradicts_a_blank_beat(os.getpid())
+            except Exception as _phe:
+                _refutes, _rwhy = False, "the pixels could not be asked (%s)" % type(_phe).__name__
+            if _refutes:
+                _UI_BEAT["rescueHeldByPixels"] = int(_UI_BEAT.get("rescueHeldByPixels") or 0) + 1
+                _UI_BEAT["rescueHeldWhy"] = _rwhy
+                try:
+                    ui_fault_record("console-rescue-held-the-pixels-disagree",
+                                    why=("the beat asked for a rescue (%s) and the window server's "
+                                         "own bitmap refuses it: %s" % (why, _rwhy)),
+                                    where="_console_rescue_loop")
+                except Exception:
+                    pass
+                print("\u270b console rescue HELD - the page says blank and the pixels disagree: %s"
+                      % str(_rwhy)[:150], flush=True)
+                continue
             # CF-4 — SNAPSHOT FIRST. Clearing elsHigh below would make this record a healthy
             # empty page, which is the opposite of the fault. Record, then clear, then reload.
             before = ui_pre_rescue_snapshot()
@@ -18697,7 +18733,7 @@ def _mini_cells_from_live_frame(container="stash"):
             continue                      # absent right now — not an error, just not a candidate
         cands.append((mt, fp))
     if not cands:
-        return None, "there is no live frame to read - is the capture running?"
+        return None, "there is no live frame to read - is the capture running?", None
     cands.sort(reverse=True)              # newest first
     frame, frame_mt, raw, vanished = None, 0.0, None, []
     for mt, fp in cands:
@@ -18716,7 +18752,7 @@ def _mini_cells_from_live_frame(container="stash"):
     if frame is None:
         return None, ("every live frame vanished or was empty while being read (%s) - the capture "
                       "is mid-write; try again in a moment"
-                      % (", ".join(vanished) or "no candidate survived"))
+                      % (", ".join(vanished) or "no candidate survived")), None
     # ⚠⚠ AND THE BYTES MUST TRAVEL, NOT THE PATH. vault_corpus.inventory_lattice(frame_path) and
     # inventory_occupancy(frame_path, lat) both OPEN what they are given — checked, neither takes
     # bytes — so handing them the live path re-opens the race this function just closed. Reading
@@ -18735,11 +18771,11 @@ def _mini_cells_from_live_frame(container="stash"):
     # [[the-unjoined-end]] [[feedback-comments-vs-code]]
     age = time.time() - frame_mt
     if age > 10:
-        return None, "the newest frame is %.0fs old - MINI will not hover off a stale screen" % age
+        return None, "the newest frame is %.0fs old - MINI will not hover off a stale screen" % age, None
     try:
         import vault_corpus as _vc
     except Exception as e:
-        return None, "the pixel lane is unavailable (%s)" % type(e).__name__
+        return None, "the pixel lane is unavailable (%s)" % type(e).__name__, None
     _snap = None
     try:
         import tempfile as _tf   # ⚠ NOT module-level in this file — verified, and my first check
@@ -18753,17 +18789,17 @@ def _mini_cells_from_live_frame(container="stash"):
         if _snap:
             try: os.unlink(_snap)
             except OSError: pass
-        return None, ("the live frame could not be copied for reading (%s)" % type(_e).__name__)
+        return None, ("the live frame could not be copied for reading (%s)" % type(_e).__name__), None
     try:
         lat = _vc.inventory_lattice(_snap)
         if not (lat and lat.get("ok")):
             return None, "the grid could not be located on this frame: %s" % (
-                (lat or {}).get("why") or "no lattice")
+                (lat or {}).get("why") or "no lattice"), None
         occ = _vc.inventory_occupancy(_snap, lat)
         if not occ.get("ok"):
-            return None, "occupancy could not be read: %s" % (occ.get("why") or "unknown")
+            return None, "occupancy could not be read: %s" % (occ.get("why") or "unknown"), None
     except Exception as e:
-        return None, "reading the frame raised %s" % type(e).__name__
+        return None, "reading the frame raised %s" % type(e).__name__, None
     finally:
         # ⚠ REACHED BY EVERY PATH THAT CREATED THE SNAPSHOT — and that is now true, not merely
         # claimed: nothing between the mkstemp and this block can return without passing here.
@@ -18778,9 +18814,42 @@ def _mini_cells_from_live_frame(container="stash"):
             if v:
                 cells.add((c, r))
     if not cells:
-        return None, "the panel is on screen but every cell reads empty - nothing to hover"
-    return cells, "read from %s (%.1fs old): %d occupied cell(s)" % (
-        os.path.basename(frame), age, len(cells))
+        return None, "the panel is on screen but every cell reads empty - nothing to hover", None
+    # ⚠⚠ v2807 — THE CONTAINER THE CALLER NAMED WAS ACCEPTED AND DROPPED, AND THAT IS A
+    # WRONG-PANEL BUG, not merely "inventory does not qualify". Measured: this function took a
+    # `container` argument and used it exactly ONCE — in its own signature. vault_corpus's
+    # inventory_lattice/inventory_occupancy take no container at all; they find a lattice wherever
+    # one is. The cells then went to hover_mode.start(container=<the caller's guess>), which maps
+    # them through slot_identity.panel_box_for — and the two panels are nowhere near each other:
+    #
+    #     stash      x=281  y=381  w=868 h=869
+    #     inventory  x=1791 y=984  w=868 h=347
+    #
+    # So a frame showing the INVENTORY, with the button hardcoded to 'stash', produced real cells
+    # read off the inventory and hovered at STASH coordinates — the pointer sweeping empty screen
+    # while every number said it worked.
+    #
+    # ⛔ THE LATTICE ITSELF SAYS WHICH PANEL IT IS, so nothing has to guess. slot_identity.GRIDS:
+    # stash 10x10, inventory 10x4, cube 3x4 — the shapes are distinct. A shape matching none of
+    # them is REFUSED rather than assigned to the caller's guess. [[unknown-stays-unknown]]
+    _cols, _rows = int(lat.get("cols") or 0), int(lat.get("rows") or 0)
+    _seen = None
+    try:
+        import slot_identity as _si
+        for _name, _shape in (getattr(_si, "GRIDS", {}) or {}).items():
+            if tuple(_shape) == (_cols, _rows):
+                _seen = _name
+                break
+    except Exception:
+        _seen = None
+    if _seen is None:
+        _known = ", ".join("%s %dx%d" % (k, v[0], v[1])
+                           for k, v in sorted((getattr(_si, "GRIDS", None) or {}).items()))
+        return None, ("the grid on screen is %dx%d, which matches no panel this console has "
+                      "measured (known: %s) - refusing rather than hovering the wrong one"
+                      % (_cols, _rows, _known or "none")), None
+    return cells, "read from %s (%.1fs old): %d occupied cell(s) in the %s (%dx%d)" % (
+        os.path.basename(frame), age, len(cells), _seen, _cols, _rows), _seen
 
 
 def reconcile_verdict(named, occupied):
@@ -25166,7 +25235,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2806",
+        "ver": "v2807",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28268,7 +28337,7 @@ class Handler(BaseHTTPRequestHandler):
             def _plan(_tok=_tok, _container=_container, _wh=_wh, _rect=_rect):
                 _why = ""
                 try:
-                    cells, occ_why = _mini_cells_from_live_frame(_container)
+                    cells, occ_why, _saw = _mini_cells_from_live_frame(_container)
                     with _MINI_AUTO_PLAN_LOCK:
                         _stale = (_MINI_AUTO_PLAN["token"] != _tok)
                     if _stale:
@@ -28288,7 +28357,15 @@ class Handler(BaseHTTPRequestHandler):
                     elif not cells:
                         _why = occ_why or "could not tell which cells hold items"
                     else:
-                        _ok, _w = hover_mode.start(cells, _wh, _rect, container=_container)
+                        # ⚠⚠ v2807 — HOVER THE PANEL THE PIXELS SHOWED, not the one the button
+                        # named. The button hardcodes container:'stash' and the occupancy reader
+                        # is container-blind, so an INVENTORY frame produced real cells that were
+                        # then mapped onto the STASH box — 1,510px away — and the pointer swept
+                        # empty screen while every number said it worked. `_saw` is inferred from
+                        # the lattice shape (stash 10x10, inventory 10x4, cube 3x4) and refused
+                        # outright when it matches none. [[unknown-stays-unknown]]
+                        _ok, _w = hover_mode.start(cells, _wh, _rect,
+                                                   container=(_saw or _container))
                         _why = _w or ("hovering %d cell(s)" % len(cells) if _ok
                                       else "hover_mode refused without saying why")
                         # ⚠⚠ THE TOKEN CHECK ABOVE IS TOCTOU AND CANNOT BE ANYTHING ELSE: the lock

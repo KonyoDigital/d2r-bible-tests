@@ -63,10 +63,19 @@ GRIDS = {
 # Verified on the pixels on TWO frames from DIFFERENT sessions, including one with a tooltip over
 # the panel: the predicted lines sit on the game's own gridlines across the whole grid.
 #
-# ⚠ ONLY THE STASH IS CALIBRATED. The inventory is a different panel on the other side of the
-# screen and the cube is a third; neither has been measured, so both are REFUSED rather than
-# guessed from this one. A wrong cell is worse than no cell — this module says so everywhere else
-# and it would be a poor place to start guessing. [[unknown-stays-unknown]]
+# ⚠⚠ STALE UNTIL v2807 — THIS SAID "ONLY THE STASH IS CALIBRATED" while sitting TEN LINES ABOVE
+# the v2374 block that measured the inventory and added it to PANELS. Measured 2026-09-08:
+# PANELS holds BOTH, and panel_box_for(2940, 1912, container="inventory") returns
+# (1791, 984, 868.5, 347.4) — a real box, not a refusal. Anyone reading top-down learned the
+# opposite of what the code does, which is exactly how a stale comment blinds the next reader;
+# this repo has been burned by that three times in one session and carries a scar for it.
+# [[feedback-comments-vs-code]]
+#
+# THE STATE, as measured rather than remembered:
+#   stash      CALIBRATED — 281, 381, 868 x 869
+#   inventory  CALIBRATED — 1791, 984, 868.5 x 347.4  (v2374)
+#   cube       NOT measured, and REFUSED rather than guessed from either of the others. A wrong
+#              cell is worse than no cell. [[unknown-stays-unknown]]
 _PANEL_CAL_FRAME = (2940, 1912)
 _PANEL_CAL_ASPECT = _PANEL_CAL_FRAME[0] / float(_PANEL_CAL_FRAME[1])
 _PANEL_CAL_LO, _PANEL_CAL_HI = 1.45, 1.62      # the band stash_eye's own crops are locked at

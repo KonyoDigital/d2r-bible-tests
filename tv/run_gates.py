@@ -848,6 +848,40 @@ GATES = [
              "calls UNTIMED 'a third answer, not a soft version of either other one'. Declaring a "
              "period they do not have would manufacture false LATEs.",
          skip_ok=()),
+    Gate("test_a_witness_written_for_the_rescue_is_called_by_it",
+         [sys.executable, os.path.join(HERE, "test_a_witness_written_for_the_rescue_is_called_by_it.py")], 90,
+         why="A WITNESS WRITTEN FOR THE RESCUE THAT THE RESCUE NEVER ASKED. paint_witness exposes "
+             "three rescue-facing functions; measured across the tree, blank_strikes had 1 "
+             "production caller, rescue_worked had 1, and contradicts_a_blank_beat had ZERO — the "
+             "one its own docstring calls 'THE VALUABLE DIRECTION, and the one his rescue needs "
+             "most ... True here should HOLD a rescue'. ★ That direction costs more than the "
+             "other, because it is the one that ACTS: everything the rescue reasons from is "
+             "published BY the page, and a beat claiming blank while the compositor is painting "
+             "means reloading a WORKING window under his hands. The reload is the harm. ⚠ And "
+             "UNKNOWN must never hold a rescue — an unreadable capture returns False, so a broken "
+             "camera cannot become a permanently disabled self-heal; the law pins that direction "
+             "too, and that the hold CONTINUEs rather than falling through into the reload. The "
+             "law is the general shape, not one name: every public entry point whose docstring "
+             "names the rescue must have a caller outside the tests, because this is the THIRD "
+             "time a witness in this tree was built, proven and joined to nothing.",
+         skip_ok=()),
+    Gate("test_the_hover_reads_the_panel_the_pixels_show",
+         [sys.executable, os.path.join(HERE, "test_the_hover_reads_the_panel_the_pixels_show.py")], 90,
+         why="THE CONTAINER WAS ACCEPTED AND DROPPED, AND THAT IS A WRONG-PANEL BUG. "
+             "_mini_cells_from_live_frame(container) used its argument exactly ONCE — in its own "
+             "signature. vault_corpus's lattice/occupancy readers take NO container and find a "
+             "grid wherever one is, while hover_mode.start maps those cells through "
+             "slot_identity.panel_box_for(container). The panels are 1,510px apart: stash at "
+             "x=281 y=381, inventory at x=1791 y=984. So an INVENTORY frame with the button "
+             "hardcoded to 'stash' produced REAL cells read off the inventory and hovered them at "
+             "STASH coordinates — the pointer sweeping empty screen while `moved` counted up and "
+             "every number said it worked. ★ The lattice itself answers it: GRIDS holds stash "
+             "10x10, inventory 10x4, cube 3x4, three distinct shapes, so the reader infers which "
+             "panel it read and RETURNS it, the caller hovers THAT one, and a shape matching none "
+             "is REFUSED rather than assigned to whatever the button said. The law also pins that "
+             "the grids stay distinguishable (if two ever share a shape, inference becomes "
+             "guessing) and that every return path carries the container, including the refusals.",
+         skip_ok=()),
     Gate("test_a_lattice_refusal_is_a_reason_not_a_crash",
          [sys.executable, os.path.join(HERE, "test_a_lattice_refusal_is_a_reason_not_a_crash.py")], 150,
          why="THE GRID READER RAISED WHERE EVERY OTHER PATH RETURNS A REASON. He was in-game saying "

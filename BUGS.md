@@ -24431,6 +24431,90 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-743 — the hover read one panel and swept another, 1,510px away
+
+`_mini_cells_from_live_frame(container)` took the argument and used it **exactly once — in its own
+signature.** Measured on the shipped source: one occurrence, zero uses.
+
+That is not "inventory does not qualify". It is worse, because the two halves disagree:
+
+```
+vault_corpus.inventory_lattice(frame_path)     take NO container — they find a lattice
+vault_corpus.inventory_occupancy(frame, lat)   wherever one is
+hover_mode.start(cells, ..., container=X)      maps those cells through panel_box_for(X)
+```
+
+and the panels are nowhere near each other:
+
+```
+stash      x=281   y=381   w=868  h=869
+inventory  x=1791  y=984   w=868  h=347
+```
+
+So a frame showing the **inventory**, with the button hardcoded to `container: 'stash'`, produced
+**real cells read off the inventory grid** and hovered them at **stash coordinates**. The pointer
+sweeps empty screen, `moved` counts up, and every number says it worked. A silent wrong answer,
+which is the expensive kind.
+
+★ **THE LATTICE ITSELF ANSWERS IT, so nothing has to guess.** `slot_identity.GRIDS` holds stash
+10x10, inventory 10x4, cube 3x4 — three distinct shapes. The reader now infers which panel it read
+and RETURNS it, the caller hovers THAT one, and a shape matching none of them is **refused** rather
+than assigned to whatever the button happened to say. [[unknown-stays-unknown]]
+
+⚠ **AND A STALE COMMENT HAD BEEN TEACHING THE OPPOSITE.** `slot_identity.py` said *"ONLY THE STASH
+IS CALIBRATED … both are REFUSED rather than guessed"* while sitting **ten lines above** the v2374
+block that measured the inventory and added it to `PANELS`. Measured: `panel_box_for(2940, 1912,
+container="inventory")` returns `(1791, 984, 868.5, 347.4)` — a real box. Anyone reading top-down
+learned the opposite of what the code does. Corrected, with the measured state written out.
+[[feedback-comments-vs-code]]
+
+**Gate 251** `test_the_hover_reads_the_panel_the_pixels_show`, proven red. It also pins that the
+grids stay distinguishable — if two ever share a shape, inference becomes guessing — and that every
+return path carries the container, refusals included.
+
+---
+
+## REG-744 — the witness written for the rescue that the rescue never asked
+
+`paint_witness` exposes three rescue-facing functions. Production callers, measured across the whole
+tree (excluding tests, the module itself and its CLI):
+
+| function | callers |
+|---|---|
+| `blank_strikes` | 1 — joined v2627 |
+| `rescue_worked` | 1 — joined v2601 |
+| **`contradicts_a_blank_beat`** | **0** |
+
+The missing one is the one its own docstring calls **"THE VALUABLE DIRECTION, and the one his
+rescue needs most … True here should HOLD a rescue."**
+
+★ **WHY THAT DIRECTION COSTS MORE.** Everything the rescue reasons from is published BY the page —
+`blankStrikes`, `elsHigh`, `frozenBeats` all come from JavaScript inside the window whose health is
+in question. A page can be wrong about itself both ways, and this repo has measured one of them: a
+window drawing 185 blank frames while reporting `painting: true`. The other direction is worse
+**because it is the one that ACTS** — a beat claiming blank while the compositor is painting means
+reloading a working window under his hands and losing whatever he was looking at. The reload is not
+free; it is the harm.
+
+The rescue now asks the pixels before reloading, and HOLDS when they refuse the beat.
+
+⚠ **UNKNOWN NEVER HOLDS A RESCUE.** `contradicts_a_blank_beat` returns False when the capture could
+not be taken, so a broken camera cannot become a permanently disabled self-heal. The gate pins that
+direction too, and that the hold `continue`s rather than falling through into the reload.
+
+**Gate 250** `test_a_witness_written_for_the_rescue_is_called_by_it` guards the general shape, not
+one name: every public entry point whose docstring names the rescue must have a caller outside the
+tests — because this is the **third** time a witness in this tree was built, proven, and joined to
+nothing.
+
+⚠ **AND I GOT THIS WRONG FIRST.** I reported that *neither* witness had any production caller. That
+was an artifact of `| head -8` truncating a 50-line grep — a fixed-size window on my own
+measurement, in the same session spent removing exactly that defect from 23 laws. The true finding
+was one function, not two modules. Corrected by re-measuring without the truncation.
+[[feedback-suspect-the-instrument]]
+
+---
+
 ## REG-742 — the eight dark supervisors, measured: one was a reporting defect, none was broken
 
 **Asked to fix the 8 DARK supervisors. Measured them first, and the honest answer is that no

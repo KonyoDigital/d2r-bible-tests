@@ -86,7 +86,7 @@ class TestRefusedFrameLeavesNoSnapshot(unittest.TestCase):
     # ── the path Grok actually hit, thousands of seconds stale ────────────────
     def test_a_stale_frame_is_refused_without_writing_a_snapshot(self):
         self._frame("eye.jpg", b"\xff\xd8\xff" + b"\x00" * 200000, age_s=3124)
-        cells, why = CA._mini_cells_from_live_frame("stash")
+        cells, why, _saw = CA._mini_cells_from_live_frame("stash")
         self.assertIsNone(cells, "a 3124s-old frame was accepted for hovering")
         self.assertIn("old", (why or "").lower(),
                       "the refusal did not say the frame was stale: %r" % why)
@@ -96,7 +96,7 @@ class TestRefusedFrameLeavesNoSnapshot(unittest.TestCase):
     # ── the finally-block path: a frame fresh enough to read, impossible to parse ──
     def test_an_unreadable_frame_still_removes_its_snapshot(self):
         self._frame("eye.jpg", b"not an image at all" * 500, age_s=0)
-        cells, why = CA._mini_cells_from_live_frame("stash")
+        cells, why, _saw = CA._mini_cells_from_live_frame("stash")
         self.assertIsNone(cells, "garbage bytes were accepted as a readable grid")
         self.assertTrue((why or "").strip(),
                         "the frame was refused with no reason at all")
@@ -105,7 +105,7 @@ class TestRefusedFrameLeavesNoSnapshot(unittest.TestCase):
 
     # ── and the case where no snapshot should ever be created ────────────────
     def test_no_frame_at_all_is_a_reason_not_a_crash(self):
-        cells, why = CA._mini_cells_from_live_frame("stash")
+        cells, why, _saw = CA._mini_cells_from_live_frame("stash")
         self.assertIsNone(cells)
         self.assertIn("no live frame", (why or "").lower(),
                       "an absent capture was not named as such: %r" % why)
