@@ -25118,7 +25118,122 @@ def view_request(path=None, now=None):
     return out
 
 
+# ══ #28 — WHERE THE SECONDS WENT. v2320 ALREADY RULED OUT THE OBVIOUS FIX ═══════════════════
+#
+# v2319 cached the whole payload for 1s and v2320 tore it out: seven guards set a piece of state
+# and read status back expecting it to be true NOW, so a second of staleness is invisible in a poll
+# and fatal in a test. That ruling stands. The rest of it is the part that was never acted on:
+#
+#     "Measured: warm 377 ms, and 11,887 ms only because ONE component — an uncached macOS TCC
+#      preflight at 1,934 ms cold — pushed each poll past the poll interval so threads stacked.
+#      CACHE THE EXPENSIVE COMPONENTS, leave the payload honest."
+#
+# It came back — 0.024s idle against ~52s under a recording session. Same shape, and nothing here
+# can say WHICH component this time, because nothing has ever timed them. A 52 with no breakdown
+# is an UNKNOWN wearing a number. [[unknown-stays-unknown]] [[poll-slower-than-its-interval]]
+#
+# ⚠ THE UNATTRIBUTED FIGURE IS THE POINT, NOT A DETAIL. Thirteen producers are timed; the payload
+# is 243 lines of dict and the rest of it is NOT. So the total is measured separately and the gap
+# is published as `unattributedMs`. If the stall lives somewhere unwrapped, this says so instead of
+# blaming the nearest instrumented name — a breakdown that always sums to 100% of a number it only
+# partly measured is the [[zero-needs-a-denominator]] defect with the sign flipped.
+_STATUS_TL = threading.local()
+
+#: worst-since-boot per component, and the last COMPLETED request's full breakdown. Never the
+#: in-flight one: a half-filled row read mid-request would under-report every producer after the
+#: reader, which is exactly the kind of number that looks fine and is wrong.
+_STATUS_TIMING = {"worst": {}, "last": None, "lastTs": 0.0, "n": 0, "slow": 0}
+
+#: A request slower than this is worth remembering. His idle is 24 ms; the complaint was ~52,000.
+_STATUS_SLOW_MS = 750.0
+
+
+def _t(name, fn):
+    """Time one status component. Returns EXACTLY what fn() returns, including on the raise path.
+
+    Deliberately not a decorator: the producers are called from a dict literal and several are
+    shared with other endpoints, where this timing would be noise attributed to the wrong caller.
+    """
+    _t0 = time.time()
+    try:
+        return fn()
+    finally:
+        try:
+            _ms = (time.time() - _t0) * 1000.0
+            _d = getattr(_STATUS_TL, "sect", None)
+            if _d is not None:
+                _d[name] = round(float(_d.get(name) or 0.0) + _ms, 1)
+            if _ms > float(_STATUS_TIMING["worst"].get(name) or 0.0):
+                _STATUS_TIMING["worst"][name] = round(_ms, 1)
+        except Exception:
+            pass
+
+
+def _status_timing_payload():
+    """The last completed request's breakdown. UNKNOWN until one has finished. -> dict"""
+    try:
+        _last = _STATUS_TIMING.get("last")
+        if not _last:
+            return {"state": "UNKNOWN", "why": "no /api/status request has completed since boot",
+                    "totalMs": None, "sections": None, "unattributedMs": None}
+        return {
+            "state": ("SLOW" if float(_last.get("totalMs") or 0.0) >= _STATUS_SLOW_MS else "OK"),
+            "totalMs": _last.get("totalMs"),
+            "sections": _last.get("sections"),
+            "unattributedMs": _last.get("unattributedMs"),
+            "slowest": _last.get("slowest"),
+            "worstSinceBoot": dict(_STATUS_TIMING.get("worst") or {}),
+            "requests": _STATUS_TIMING.get("n"),
+            "slowRequests": _STATUS_TIMING.get("slow"),
+            "ageMs": int(max(0.0, time.time() - float(_STATUS_TIMING.get("lastTs") or 0.0)) * 1000),
+            "lockWaitDelta": _last.get("lockWaitDelta"),
+        }
+    except Exception as _e:
+        return {"state": "UNKNOWN", "why": "the timing ledger could not be read (%s)"
+                                           % type(_e).__name__,
+                "totalMs": None, "sections": None, "unattributedMs": None}
+
+
 def status_payload():
+    """Timing shell. The honest payload is _status_payload_inner(); this only measures it.
+
+    Kept as a separate function on purpose — the total cannot be computed inside a return-dict
+    literal, and every earlier attempt to make status report on itself from the inside produced a
+    figure that excluded whatever came after the line that read it.
+    """
+    _STATUS_TL.sect = {}
+    _t0 = time.time()
+    _b0 = int((_LOCK_WAIT or {}).get("blocked") or 0)
+    try:
+        return _status_payload_inner()
+    finally:
+        try:
+            _total = round((time.time() - _t0) * 1000.0, 1)
+            _sect = dict(getattr(_STATUS_TL, "sect", None) or {})
+            _sum = round(sum(_sect.values()), 1)
+            _slowest = None
+            if _sect:
+                _slowest = max(_sect.items(), key=lambda kv: kv[1])
+                _slowest = {"name": _slowest[0], "ms": _slowest[1]}
+            _STATUS_TIMING["last"] = {
+                "totalMs": _total,
+                "sections": _sect,
+                # ⚠ never clamped to 0 — a NEGATIVE gap would mean the components double-counted,
+                # and hiding that would hide a broken instrument. [[feedback-suspect-the-instrument]]
+                "unattributedMs": round(_total - _sum, 1),
+                "slowest": _slowest,
+                "lockWaitDelta": int((_LOCK_WAIT or {}).get("blocked") or 0) - _b0,
+            }
+            _STATUS_TIMING["lastTs"] = time.time()
+            _STATUS_TIMING["n"] = int(_STATUS_TIMING.get("n") or 0) + 1
+            if _total >= _STATUS_SLOW_MS:
+                _STATUS_TIMING["slow"] = int(_STATUS_TIMING.get("slow") or 0) + 1
+            _STATUS_TL.sect = None
+        except Exception:
+            pass
+
+
+def _status_payload_inner():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
     # process with a bridge seen in the last 10s stays ON; only a truly dead bridge drops it.
@@ -25127,7 +25242,7 @@ def status_payload():
     # v1424–v1426 live Windows proof: under D2R, /state can miss a poll while ping still works.
     # Keep last-good st for a grace window; disk-fallback eyeAgeMs + cap_target so the UI never
     # paints dark film / READS 0 / empty pin while capture is LINKED and eye.jpg is fresh.
-    _alive = _agent_alive()
+    _alive = _t("agentAlive", _agent_alive)
     _now = time.time()
     bridge_now = bool(_BR_CACHE["ping"]) and (_now - _BR_CACHE["ts"]) < 8.0 and _alive
     bridge = bool(_alive and (
@@ -25168,7 +25283,7 @@ def status_payload():
             }
         )
     # v1425/v1426 — disk honesty (Windows film + pin never depend solely on a slow /state)
-    _disk_eye = _disk_eye_age_ms()
+    _disk_eye = _t("diskEyeAge", _disk_eye_age_ms)
     _eye = (st or {}).get("eyeAgeMs")
     if _eye is None or (isinstance(_eye, (int, float)) and _eye < 0):
         _eye = _disk_eye
@@ -25235,7 +25350,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2807",
+        "ver": "v2809",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25247,7 +25362,8 @@ def status_payload():
         # slow ("the sub-doctors take a moment"); a lock badge that has to wait for it would be
         # blank most of the time, and a blank lock reads as an OPEN one. This is a small file read.
         # ONE source: the badge quotes this, it does not re-derive a state of its own. [[v2436]]
-        "selfArming": _self_arming_state(),
+        "timing": _status_timing_payload(),   # #28 — which component, not just how slow
+        "selfArming": _t("selfArming", _self_arming_state),
         "retention": retention_state(),   # v2080 — extract -> prune, and why nothing moved
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": ledger_backup_state(),
@@ -25278,7 +25394,7 @@ def status_payload():
         # anything", which is a different question and cannot separate a loop that ran and
         # correctly declined from one that died. Every lane stamps its own tick with its own
         # period; UNKNOWN here means nobody stamped, never "dead". See lane_liveness.
-        "lanes": _lane_liveness_payload(),
+        "lanes": _t("lanes", _lane_liveness_payload),
         "engineReady": globals().get("_ENGINE_READY"),
         "driver": {"seen": _drv.get("seen", 0), "queued": _drv.get("queued", 0),
                    "fired": _drv.get("fired", 0), "refire": _drv.get("refire", 0),
@@ -25290,16 +25406,16 @@ def status_payload():
                    "err": globals().get("_DRV_ERR"),
                    "engineDeadHard": bool(globals().get("_ENGINE_DEAD_HARD"))},
         "watchdog": globals().get("_WATCHDOG_LAST"),
-        "liveRing": _project_live_ring(),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
+        "liveRing": _t("liveRing", _project_live_ring),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
         "eyes": _eyes,
-        "engines": _engines_status(),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
-        "receipts": _receipts_stream(),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
-        "forensicsSummary": _newest_forensics_summary(),   # 🔬 lean {clean,corrected,recovered,blocked,unresolved} badge; full detail at /api/forensics
+        "engines": _t("engines", _engines_status),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
+        "receipts": _t("receipts", _receipts_stream),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
+        "forensicsSummary": _t("forensicsSummary", _newest_forensics_summary),   # 🔬 lean {clean,corrected,recovered,blocked,unresolved} badge; full detail at /api/forensics
         "fleet": _fleet,   # v1418 — {behind, latest, dirty, howTo} so Mac/Win never silently drift
         # v1597 — ADDITIVE. Whether THIS machine is actually reaching the presence tracker, or
         # has been failing silently. Never remove: it is the only difference between "never on"
         # and "on but unable to check in".
-        "beacon": _beacon_status(),
+        "beacon": _t("beacon", _beacon_status),
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
@@ -25313,7 +25429,7 @@ def status_payload():
         "agent": mode != "off" and bridge,
         "bridge": bridge,
         "stopping": bool(_stop_inflight),
-        "pid": _pid_cached(),
+        "pid": _t("pid", _pid_cached),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
         # v2399 — THE NEXT LOOK: which pane Claude has asked to be shown, so a human eye can
         # photograph the right thing without a pointer. Absent key is impossible; `None` means
@@ -25443,7 +25559,7 @@ def status_payload():
         # indistinguishable from one that had never run. That is the exact defect v1789 records
         # about the third eye: a gate whose output nobody parses is not a gate.
         # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
-        "vaultAutoread": _vault_autoread_state_cached(),
+        "vaultAutoread": _t("vaultAutoread", _vault_autoread_state_cached),
         "controlPort": CONTROL_PORT,
         "captureTarget": _cap if isinstance(_cap, dict) else {},
         "eyeAgeMs": _eye if _eye is not None else -1,
@@ -25458,7 +25574,7 @@ def status_payload():
         "stateFresh": state_fresh,
         "aiPaused": bool((st or {}).get("aiPaused") or ((st or {}).get("health") or {}).get("aiPaused")),
         "gameMsg": (st or {}).get("gameMsg") or ((st or {}).get("health") or {}).get("gameMsg") or "",
-        "captureProc": _capture_health(),
+        "captureProc": _t("captureProc", _capture_health),
         # v2316 — SAY WHETHER THE GRANT IS ACTUALLY HELD, so the stale-frame card stops naming a
         # cause this process has already measured to be false. On 2026-08-30 the card told him to
         # "Grant Screen Recording to Python / TV DIABLO" while doctor check `screen_recording`
@@ -25469,7 +25585,7 @@ def status_payload():
         "screenRecOk": screen_recording_ok_cached(),
         # v2316 — per-door Wilson: how often a reel THIS door opened actually held readable film.
         "captureDoors": capture_door_report(),
-        "bibleVer": _bible_ver(),
+        "bibleVer": _t("bibleVer", _bible_ver),
         # v2708 — what is LIVE, beside what this console is EXECUTING. None means nobody could
         # ask; liveVerAge is the age of the REF, so a stale answer reads as stale.
         "liveVer": _published_ver()[0],

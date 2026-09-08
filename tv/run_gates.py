@@ -865,6 +865,55 @@ GATES = [
              "names the rescue must have a caller outside the tests, because this is the THIRD "
              "time a witness in this tree was built, proven and joined to nothing.",
          skip_ok=()),
+    Gate("test_the_sweep_says_which_panel_it_swept",
+         [sys.executable,
+          os.path.join(HERE, "test_the_sweep_says_which_panel_it_swept.py")], 90,
+         why="v2807 taught the reader to infer which panel it actually read from the lattice "
+             "SHAPE and to hover THAT one — the frame wins over the argument. Correct, and "
+             "INVISIBLE: hover_mode._STATE carries container, status() returns it, the endpoint "
+             "spreads it onto the wire, and control_ui.html mentions 'container' 17 times of "
+             "which SIXTEEN are CSS or prose. The one functional occurrence hardcodes "
+             "container:'stash' in the request. So the server may correctly sweep the INVENTORY "
+             "while the button still says stash and the panel reports 'sweeping' either way. "
+             "This is the one case the numbers cannot cover — moved and planned count up "
+             "whichever grid got swept, which is exactly what REG-743 WAS. He recalibrates this "
+             "by hand, so the surface must name the panel, say UNKNOWN when there is none, and "
+             "SHOUT when the panel read is not the panel asked for.",
+         skip_ok=()),
+    Gate("test_the_ledger_cannot_lie_about_what_it_saw",
+         [sys.executable,
+          os.path.join(HERE, "test_the_ledger_cannot_lie_about_what_it_saw.py")], 90,
+         why="The second-eye ledger exists so a thin look can never be filed as a thorough one, "
+             "and it was failing at that THREE ways at once, each hiding the next. (1) The caller "
+             "passes sent=code_was_transmitted(prompt) — already a measurement — and record() "
+             "re-measured that DICT, giving chars 0, BYTE-IDENTICAL to sent=None, which the "
+             "docstring defines as NOBODY CHECKED. Census: 417 rows, 20 with a sentCode, 9 zero — "
+             "every look through the real path — and all 11 healthy ones written by the test, "
+             "which passes raw text. (2) The unsent seam patterns let backslash-s cross a "
+             "newline, and in a unified diff every added line starts with '+', so an added "
+             "docstring reads as a concatenation seam: 24 false hits on the v2807 payload, zero "
+             "genuine. A non-empty unsent RETRACTS the row and a version cannot ship while the "
+             "previous is retracted, so this would have deadlocked the repo shut the moment (1) "
+             "was fixed. (3) _findings_from folds an unenumerated answer into one block, so 'No "
+             "defects found.' was recorded as verdict=findings — the ledger reporting the "
+             "opposite of what the other family concluded.",
+         skip_ok=()),
+    Gate("test_the_status_breakdown_names_its_own_blind_spot",
+         [sys.executable,
+          os.path.join(HERE, "test_the_status_breakdown_names_its_own_blind_spot.py")], 90,
+         why="/api/status answers in 0.024s idle and took ~52s under a recording session. v2320 "
+             "already fought this and left the ruling in the source: a PAYLOAD-level cache was "
+             "tried at v2319 and torn out, because seven guards set state and read status back "
+             "expecting it to be true NOW. Its other half was never acted on — 'cache the "
+             "expensive COMPONENTS' — and nothing here could name WHICH component, because "
+             "nothing had ever timed them. The trap is in how: status_payload is a 243-line dict "
+             "and only thirteen producers are wrapped, so a breakdown built from those alone "
+             "always accounts for 100% of itself and therefore always blames an instrumented "
+             "name, including when the cost sits somewhere nobody wrapped. So the total is "
+             "measured separately and the gap ships as unattributedMs, UNCLAMPED — a negative gap "
+             "means the components double-counted, and an instrument that hides its own breakage "
+             "is the thing this repo keeps rediscovering.",
+         skip_ok=()),
     Gate("test_the_hover_reads_the_panel_the_pixels_show",
          [sys.executable, os.path.join(HERE, "test_the_hover_reads_the_panel_the_pixels_show.py")], 90,
          why="THE CONTAINER WAS ACCEPTED AND DROPPED, AND THAT IS A WRONG-PANEL BUG. "

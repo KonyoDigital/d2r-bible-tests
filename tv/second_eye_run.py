@@ -64,6 +64,19 @@ EYE_TIMEOUT_S = float(os.environ.get("THIRD_EYE_TIMEOUT_S") or 300)
 # runaway guard unreachable. [[feedback-threshold-above-the-ceiling]]
 MAX_FENCE_CHARS = 9000
 
+# ⚠ THAT CEILING BELONGS TO ONE TRANSPORT, NOT TO THE TRUTH. 9,000 is what the CLI can chew in an
+# INLINE fence. A file-upload transport is a different pipe with a different ceiling, and holding
+# every transport to the narrowest one is why v2806 and v2807 were both looked at through ~32% of
+# their diffs — which is how two FALSE high-severity findings got manufactured this session, each
+# reasoning correctly about a function my own cap had cut in half.
+#
+# So the cap is now an ARGUMENT with the CLI's value as its default. It is not raised blindly:
+# whatever is actually sent is measured from the bytes and recorded, so a look through a third of
+# a diff can never be filed as a look at all of it. [[unknown-stays-unknown]]
+def _cap():
+    return int(os.environ.get("SECOND_EYE_MAX_CHARS") or MAX_FENCE_CHARS)
+
+
 COLD_FRAMING = (
     "Code review. The following is a diff of source that has already shipped.\n\n"
     "List concrete defects, ranked by severity, each with the specific scenario in which it "
@@ -126,14 +139,14 @@ def payload_for(sha):
         return None, why
     body = _strip_comments(out)
     _full_len_holder = [body]
-    if len(body) < MAX_FENCE_CHARS:
+    if len(body) < _cap():
         _more, _ = _sh(["git", "show", "--format=", "--unified=3", sha, "--", "*.html"],
                        timeout=90)
         if _more:
             body = body + "\n" + _strip_comments(_more)
     _full_len_holder = [body]
     dropped = ""
-    if len(body) > MAX_FENCE_CHARS:
+    if len(body) > _cap():
         # ⚠⚠ CUT ON A LINE BOUNDARY, AND SAY SO IN THE PROMPT — because a mid-statement cut
         # MANUFACTURES FINDINGS. Measured on v2803: the payload ended at exactly `+    return `
         # and the eye returned TWO high-severity defects — "gate_files() returns None on every
@@ -146,8 +159,8 @@ def payload_for(sha):
         # artefact of the transport as a defect in the code. An instrument that fabricates
         # findings costs more than one that finds nothing, because each false one has to be
         # chased down and refuted by hand. [[feedback-suspect-the-instrument]]
-        cut = body.rfind("\n", 0, MAX_FENCE_CHARS)
-        body = body[:cut if cut > 0 else MAX_FENCE_CHARS]
+        cut = body.rfind("\n", 0, _cap())
+        body = body[:cut if cut > 0 else _cap()]
         dropped = ("truncated to %d of %d diff chars at a line boundary — the eye saw the first "
                    "part only" % (len(body), len(_full_len_holder[0])))
     note = ""
@@ -188,6 +201,30 @@ def ask(prompt):
     if len(ans) < 40:
         return ans, False, "the eye answered %d chars — too little to be a look" % len(ans)
     return ans, True, ""
+
+
+_NO_DEFECT_RX = re.compile(
+    r"\bno\s+(?:defects?|issues?|bugs?|problems?)\s+(?:were\s+)?(?:found|identified|detected)\b",
+    re.I)
+
+
+def _verdict_for(answer, findings):
+    """"clean" or "findings" — and a declaration alone can never clear an enumerated list.
+
+    ⚠ v2808 — A CLEAN LOOK WAS BEING FILED AS ONE THAT FOUND DEFECTS. `_findings_from` folds an
+    unenumerated answer into a single block, so "No defects found." came back as findings=[<the
+    whole answer>] and the row read verdict="findings". The v2807 row said the eye had found
+    something when it had said the opposite, in the ledger whose entire job is to record what
+    another family concluded. [[label-outlived-referent]]
+
+    The rule is deliberately conservative in the direction that matters: a model that declares
+    "no defects found" and then lists three stays "findings". Only an answer with NO enumerated
+    item and an explicit declaration is clean, so this can never be used to bury a real finding.
+    """
+    enumerated = len(findings) > 1
+    if not enumerated and _NO_DEFECT_RX.search(answer or ""):
+        return "clean", []
+    return ("findings" if findings else "clean"), findings
 
 
 def _findings_from(answer):
@@ -232,8 +269,9 @@ def record_answer(version, answer, sent, dropped=""):
         print("  %s: the answer was %d chars — EMPTY SEAT, not agreement" % (version, len(answer)))
         return False
     findings = _findings_from(answer)
+    _verdict, findings = _verdict_for(answer, findings)
     SEL.record(version=version, model=EYE_MODEL,
-               verdict=("findings" if findings else "clean"),
+               verdict=_verdict,
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
                answer_head=answer[:400], reached=True, path=None, seen_path=None, sent=sent)
@@ -277,8 +315,9 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None):
         print("     EMPTY SEAT — %s  (recorded as unreached, never as agreement)" % awhy)
         return False
     findings = _findings_from(answer)
+    _verdict, findings = _verdict_for(answer, findings)
     SEL.record(version=version, model=EYE_MODEL,
-               verdict=("findings" if findings else "clean"),
+               verdict=_verdict,
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
                answer_head=answer[:400], reached=True,

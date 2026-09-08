@@ -25183,3 +25183,118 @@ ask for — the discipline `artUrl`'s apostrophe fold already follows. Gate
 `test_the_proof_photo_is_found_under_either_spelling` (243), both directions proven red **including
 the tempting wrong fix**: a resolver widened until everything is "found" would make the
 already-lost figure disappear without one file coming back.
+
+## REG-745 — a status breakdown that always accounts for 100% of itself
+
+`/api/status`: **0.024s idle, ~52s under a recording session.** v2320 had already fought this and
+left the ruling in the source, where it sat unacted-on for 488 versions:
+
+> *"The cost was never 'computing the payload once'. Measured: warm 377 ms, and 11,887 ms only
+> because ONE component — an uncached macOS TCC preflight at 1,934 ms cold — pushed each poll past
+> the poll interval so threads stacked. **Cache the expensive COMPONENTS, leave the payload
+> honest.**"*
+
+That ruling forecloses the obvious fix. v2319 cached the whole payload for a second; v2320 tore it
+out because **seven guards set a piece of state and read status back expecting it to be true NOW**.
+
+Two measurements narrowed it before a line was written:
+
+| hypothesis | measurement | verdict |
+|---|---|---|
+| lock starvation | **5** `_lock_briefly` call sites x 0.25s = **1.25s ceiling** | cannot produce 52s |
+| one slow component | 13 producers touch disk/processes; none timed | the only survivor |
+
+★ **THE TRAP WAS IN HOW TO MEASURE IT.** `status_payload` is a 243-line dict literal and only
+thirteen producers are wrapped. A breakdown built from those alone would always sum to 100% of
+itself, and would therefore **always blame an instrumented name — including when the real cost
+sits somewhere nobody wrapped.** So the total is timed separately in a shell function and the gap
+ships as `unattributedMs`, deliberately **unclamped**: a negative gap means the components
+double-counted, and an instrument that hides its own breakage is the defect this repo keeps
+rediscovering. [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+
+⚠ Still UNKNOWN and stated as such: **which** component costs the 52s. This ships the instrument,
+not the answer. The next recording session names it.
+
+---
+
+## REG-746 — the panel was on the wire the whole time and no surface drew it
+
+v2807 taught the reader to infer which panel it actually read from the lattice **shape** and to
+hover that one — the frame wins over the argument. Correct, and invisible:
+
+```
+hover_mode._STATE          carries  "container"
+hover_mode.status()        returns  it
+/api/mini_auto             dict(hover_mode.status(), ok=True)   -> ON THE WIRE
+control_ui.html            17 mentions of "container" — SIXTEEN are CSS or prose
+                           the one functional line: container: 'stash'   (hardcoded)
+```
+
+So the server may correctly sweep the **INVENTORY** while the button still says stash and the
+panel under his hand reports `sweeping — press to stop` either way.
+
+★ **THIS IS THE ONE CASE THE NUMBERS CANNOT COVER.** `moved` counts up whichever grid got swept.
+So does `planned`. Every figure on that button reads as success for a sweep of the wrong panel —
+which is what REG-743 *was*. Konyo is recalibrating MINI AUTO and hover mode **by hand**, and a
+recalibration scored against numbers that cannot show which panel produced them is a coin toss
+with a readout. The sweep line now names the panel, renders **UNKNOWN** when there is none rather
+than falling back to the requested one, and when the panel read is not the panel asked for it says
+so outright: `⚠ INVENTORY (you asked for STASH)`. [[the-unjoined-end]] [[unknown-stays-unknown]]
+
+## REG-747 — the ledger measured a measurement, and got zero
+
+`second_eye_run` computes `sent = code_was_transmitted(prompt)` — already a measurement — and
+`record()` did `code_was_transmitted(sent)`, re-measuring a **dict**. A dict has no code fence, so
+it returned `{"chars": 0, "fences": 0}` — **byte-identical to what `sent=None` produces.** And
+`sent=None` is defined by the field's own docstring as *"NOBODY CHECKED, not 'fine'"*.
+
+So the two facts this field exists to separate became the same row:
+
+```
+"the entire 30,642-char diff was transmitted"   ->  {"chars": 0, "fences": 0}
+"nobody passed the prompt in at all"            ->  {"chars": 0, "fences": 0}
+```
+
+**Census of the ledger:** 417 rows · 20 carry a `sentCode` · **9 are zero — every look taken
+through the production path** — and the 11 healthy ones were **all written by the test**, which
+passes a raw fence. A gate exercising a shape production never uses.
+[[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+
+---
+
+## REG-748 — the unsent detector fired on every unified diff, and would have deadlocked the repo
+
+The seam patterns let `\s*` cross a newline. **In a unified diff every added line begins with `+`**,
+so an added docstring reads as `+"""` and a docstring above an added line reads as `"""\n+import`.
+
+Measured on the real v2807 payload: **24 hits, every one an ordinary Python docstring beside a diff
+marker, and ZERO genuine `open().read()` seams.**
+
+★ **THE CONSEQUENCE WAS NOT A NOISY FIELD.** A non-empty `unsent` **RETRACTS the row**, and the
+gate refuses to ship version N+1 while N has never been looked at. Every future code review would
+have been filed as an EMPTY SEAT, and **the repo would have been unable to ship anything, ever**.
+
+⚠ **AND IT WAS INVISIBLE UNTIL REG-747 WAS FIXED.** With `sentCode` reporting zero fences the
+detector had nothing to scan. The fix for the first defect armed the second in the same minute.
+Real patterns still trip it — verified with a genuine `""" + open(f).read() + """` seam.
+[[two-fixes-broke-each-other]] [[feedback-suspect-the-instrument]]
+
+---
+
+## REG-749 — a clean look was filed as one that found defects
+
+`_findings_from` folds an unenumerated answer into a single block, so **"No defects found."** came
+back as `findings=[<the whole answer>]` and the row recorded `verdict: "findings"` — the ledger
+stating the opposite of what the other family concluded, in the record whose only job is to report
+that conclusion. [[label-outlived-referent]]
+
+The correction is deliberately one-sided: an answer with **no enumerated item** *and* an explicit
+no-defects declaration is clean; a model that declares "no defects found" and then lists three
+stays **findings**. A rule that could clear an enumerated list would be a hole a real finding falls
+through.
+
+⚠ **The gate written for all three wrote 3 rows into the LIVE ledger on its first run** — a fixture
+mutating the evidence, inside the guard built to make that evidence trustworthy. Caught by counting
+rows afterwards; the rows were removed and the fixture now redirects `LEDGER_PATH` to a temp dir.
+[[feedback-fixtures-never-touch-live-data]]
+

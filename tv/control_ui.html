@@ -16628,6 +16628,28 @@ window._lockMark = function(isOpen, px, label){
        the stamp again, which is the defect this exists to prevent — so say so and write nothing. */
     try { console.warn('[miniauto] #miniauto-lbl-t is missing; label not repainted'); } catch (e) {}
   }
+  /* ⚠ REG-743 MADE VISIBLE. The server infers which panel it actually read from the lattice
+     SHAPE (stash 10x10, inventory 10x4, cube 3x4) and sweeps THAT one — the frame wins over the
+     argument. That fix is right and it is INVISIBLE: `container` has been on the wire the whole
+     time and no surface ever drew it, so a sweep of the inventory and a sweep of the stash look
+     identical here. He is recalibrating this by hand, and a recalibration against a number that
+     cannot show which panel produced it is not a calibration, it is a coin toss.
+     [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  var _MINI_PANEL = {stash: 'STASH', inventory: 'INVENTORY', cube: 'CUBE'};
+  function _miniPanelText(j){
+    var got = (j && j.container) || '';
+    var btn = $('btn-miniauto');
+    var asked = (btn && btn.dataset && btn.dataset.asked) || '';
+    if (!got) return ' \u2014 panel UNKNOWN';   /* never silently "stash" */
+    var name = _MINI_PANEL[got] || got.toUpperCase();
+    if (asked && got !== asked){
+      /* This is the REG-743 shape happening in front of him, and it is the ONE case where the
+         numbers cannot tell him: `moved` counts up whichever panel got swept. */
+      return ' \u2014 \u26a0 ' + name + ' (you asked for ' + (_MINI_PANEL[asked] || asked) + ')';
+    }
+    return ' \u2014 ' + name;
+  }
+
   function _miniPaint(j){
     var lbl = $('miniauto-lbl'), btn = $('btn-miniauto');
     var ic = $('miniauto-ic'), sub = $('miniauto-sub');
@@ -16663,7 +16685,8 @@ window._lockMark = function(isOpen, px, label){
       btn.classList.add('miniauto-live');
       _miniLbl('Stop \u00b7 ' + (j.moved || 0) + '/' + (j.planned || 0));
       if (ic) ic.textContent = '\u23f9';
-      if (sub) sub.textContent = 'sweeping \u2014 press to stop, or touch the mouse';
+      if (sub) sub.textContent = 'sweeping' + _miniPanelText(j)
+                                 + ' \u2014 press to stop, or touch the mouse';
     } else {
       btn.dataset.running = '';
       _miniLbl('Mini \u00b7 Auto');
@@ -16718,6 +16741,8 @@ window._lockMark = function(isOpen, px, label){
       var r = await fetch(API + '/api/mini_auto', {method:'POST',
                 headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({on: !running, container: 'stash'})});
+        /* what WE asked for — the server may legitimately read another panel and say so */
+        try { $('btn-miniauto').dataset.asked = 'stash'; } catch(e){}
       var j = await r.json();
       _miniPaint(j);
       _miniWatch(!!(j && (j.running || j.planning)));

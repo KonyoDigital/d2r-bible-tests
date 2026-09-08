@@ -217,9 +217,24 @@ _UNSENT_MARKERS = (
     # a file-reading expression that survived into the prompt instead of being evaluated
     (re.compile(r"open\s*\(\s*['\"][^'\"]*['\"]\s*\)\s*\.\s*read\s*\(\s*\)"),
      "an un-evaluated open(...).read() reached the prompt as text"),
-    # the concatenation seam either side of it
-    (re.compile(r"[\"']{3}\s*\+"), "a triple-quote/+ concatenation seam reached the prompt as text"),
-    (re.compile(r"\+\s*[\"']{3}"), "a +/triple-quote concatenation seam reached the prompt as text"),
+    # The concatenation seam either side of it.
+    #
+    # ⚠ v2808 — THESE TWO LET `\s*` CROSS A NEWLINE, AND EVERY CODE REVIEW IS A UNIFIED DIFF.
+    # In a diff every added line begins with `+`, so an added docstring renders as `+"""` and a
+    # docstring followed by an added line renders as `"""\n+import os`. Both matched. Measured on
+    # the v2807 payload: 24 hits, ALL of them ordinary Python docstrings beside a diff marker, and
+    # ZERO real open().read() seams. Because a non-empty `unsent` RETRACTS the row, this would
+    # have marked every future code review an EMPTY SEAT — and since a version cannot ship while
+    # the previous one has never been looked at, the ledger would have deadlocked the repo shut.
+    #
+    # It stayed invisible only because sentCode was measuring a dict and returning 0 fences; the
+    # moment that was fixed, this fired. Two defects where the first was hiding the second.
+    # [[two-fixes-broke-each-other]] [[feedback-suspect-the-instrument]]
+    #
+    # A REAL seam is `""" + x` or `x + """` on ONE line. `[ \t]` cannot cross a newline, and the
+    # leading `\S` refuses a `+` that begins its line — which is exactly what a diff marker is.
+    (re.compile(r"[\"']{3}[ \t]*\+"), "a triple-quote/+ concatenation seam reached the prompt as text"),
+    (re.compile(r"\S[ \t]*\+[ \t]*[\"']{3}"), "a +/triple-quote concatenation seam reached the prompt as text"),
 )
 
 _FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
@@ -261,7 +276,31 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
     row is forced to reached=False and retracted here rather than being believed — see
     `code_was_transmitted`. Omitting `sent` records None, which means NOBODY CHECKED, not "fine".
     """
-    _sent = code_was_transmitted(sent) if sent is not None else None
+    # ⚠ v2808 — THE CALLER AND THIS LINE DISAGREED ABOUT WHAT `sent` IS, AND THE FIELD READ 0
+    # FOR EVERY PRODUCTION LOOK. second_eye_run computes `sent = code_was_transmitted(prompt)` —
+    # already a measurement — and this re-measured that DICT, which carries no code fence. So it
+    # returned {"chars": 0, "fences": 0}: byte-identical to what `sent=None` produces. A row that
+    # says "nobody passed the prompt in" and a row that says "the whole diff was sent" became the
+    # same row, in the one field built to stop a thin look being filed as a thorough one.
+    #
+    # MEASURED across the ledger: 417 rows, 20 carrying a sentCode, 9 of them ZERO — every look
+    # taken through the real path — and the 11 healthy ones all written by the TEST, which passes
+    # a raw fence. The gate was green because it exercised a shape production never uses.
+    # [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+    if sent is None:
+        _sent = None
+    elif isinstance(sent, dict):
+        # already measured by the caller — trust it, but only if it has the shape
+        _sent = ({"chars": int(sent.get("chars") or 0),
+                  "fences": int(sent.get("fences") or 0),
+                  "unsent": list(sent.get("unsent") or [])}
+                 if ("chars" in sent) else None)
+    elif isinstance(sent, str):
+        _sent = code_was_transmitted(sent)
+    else:
+        # ⚠ NOT a silent zero. An unrecognised type is an absence of measurement, and absence is
+        # None here — the one value this field defines as "nobody checked". [[unknown-stays-unknown]]
+        _sent = None
     if _sent and _sent["unsent"]:
         reached = False
         verdict = "cannot-tell"
