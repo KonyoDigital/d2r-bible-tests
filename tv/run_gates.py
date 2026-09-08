@@ -715,6 +715,25 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_theatre_open_chain_cannot_hang",
+         [sys.executable, os.path.join(HERE, "test_the_theatre_open_chain_cannot_hang.py")], 120,
+         why="v2228 BOUNDED ONE FETCH AND ITS SIBLING ELEVEN LINES AWAY WAS NEVER SWEPT. thOpen "
+             "awaits thLoadSession, whose `/api/session?n=` had NO AbortController, NO timeout and "
+             "NO catch — while `/api/sessions` right above it has carried all three since v2228, "
+             "whose own comment names the failure: \"when the auto-relaunch replaces the server "
+             "process mid-fetch, the promise never settles ... and the black stays up\". And this "
+             "is the MORE expensive route: /api/session defaults to pack=debug, and this repo "
+             "measured the archive siblings at ~4s alone and 41.6s under contention — so it gets "
+             "12s, not the lighter sibling's 8s, or a merely slow read would be aborted. ⚠⚠ THIS "
+             "IS NOT WHAT HE WAS SEEING: a different model family put live eyes on his console and "
+             "THE SHELF opened, painted and stayed open past 15s — REG-708 as written is REFUTED "
+             "and this is a latent hazard fixed on its merits. ⚠ THE LAW IS DELIBERATELY NARROW: "
+             "measured 71 awaited fetches in this file, 4 bounded. Bounding all 67 others would be "
+             "a sweeping change to a hot path with no measurement behind it, and a law failing on "
+             "67 sites is furniture on day one. What makes THIS chain different is that a hang "
+             "leaves a BLACK STAGE with no account of it; every other call is a click-driven panel "
+             "whose failure is local and visible.",
+         ),
     Gate("test_no_resolver_falls_back_to_his_live_world",
          [sys.executable, os.path.join(HERE, "test_no_resolver_falls_back_to_his_live_world.py")],
          180,

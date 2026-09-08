@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2789"   # a countdown inside the message defeated the dedupe meant to stop per-tick noise
+VERSION = "v2790"   # v2228 bounded one fetch and its sibling eleven lines away was never swept
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

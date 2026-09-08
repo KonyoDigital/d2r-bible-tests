@@ -13801,7 +13801,43 @@ window._lockMark = function(isOpen, px, label){
       var alt = thNearestPlayable(n, 1);
       if (alt && alt !== n){ return thLoadSession(alt, isEntry); }
     }
-    var r = await fetch('/api/session?n=' + n); var j = await r.json();
+    /* ⚠⚠ v2790 — THE v2228 FIX, SWEPT TO ITS SIBLING ELEVEN LINES AWAY. This line read
+       `await fetch('/api/session?n=' + n)` with NO AbortController, NO timeout and NO catch, while
+       `/api/sessions` right above it has carried all three since v2228. That fix's own comment
+       states the failure exactly: *"When the auto-relaunch replaces the server process mid-fetch,
+       the promise never settles, the function never reaches the code that fills the stage, and the
+       black stays up."* Identical shape, identical consequence, never swept. [[sweep-dont-ask]]
+
+       ⚠ AND THIS ONE IS THE MORE EXPENSIVE ROUTE: /api/session defaults to `pack=debug` — "every
+       fps frame + every AI read" — and this repo has already measured the archive routes at ~4s
+       alone and 41.6s under contention. A single-session debug read is exactly the call that can
+       outlive a caller's patience.
+
+       ⚠⚠ IT IS NOT WHAT KONYO WAS SEEING. His live console was looked at by a different family on
+       2026-09-08 and THE SHELF opened, painted its reels and stayed open past 15s — REG-708 as
+       written is REFUTED. This is a latent hazard fixed on its merits, not a repair of a live
+       fault. Saying so matters: a fix sold as curing something it never caused is how the real
+       cause stops being looked for. [[unknown-stays-unknown]]
+
+       ⚠ 12s, not 8s: this route is heavier than /api/sessions, so a bound copied from the lighter
+       sibling would abort reads that were merely slow. A REJECTION here is safe — every caller
+       either awaits it inside a try or is fire-and-forget; what is not safe is a promise that
+       never settles at all. */
+    var r, j;
+    try {
+      var _sac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var _sto = setTimeout(function(){ try { _sac && _sac.abort(); } catch(e){} }, 12000);
+      r = await fetch('/api/session?n=' + n, _sac ? { signal: _sac.signal } : undefined);
+      clearTimeout(_sto);
+      j = await r.json();
+    } catch (_se) {
+      try { var _cap = $('th-caption');
+            if (_cap) _cap.textContent = '\u{1F39E} the reel did not answer in 12s \u2014 '
+                                       + 'the shelf and the rest of the console are unaffected';
+      } catch (_e2) {}
+      TH.beats = [];
+      return;
+    }
     if (gen !== TH.loadGen) return;
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
     var raw = j.beats || [];

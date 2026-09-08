@@ -23328,9 +23328,66 @@ Gate: 4 new laws in `test_the_pixels_earn_the_right_to_act.py` (14 total). 4 sab
 exactly one law — disabling the cooldown guard, shrinking it to 10s, restoring the per-tick journal
 row, and dropping the `abs()`.
 
-## REG-708 — OPEN: clicking THE SHELF opens the theatre and then shows nothing
+## REG-713 — v2228 bounded one fetch; its sibling eleven lines away was never swept
 
-**2026-09-08 · found while chasing REG-707 · NOT FIXED, cause NOT established**
+**2026-09-08 · v2790 · `tv/control_ui.html`**
+
+`thOpen()` awaits `thLoadSession()`, and that function opened `/api/session?n=` with **no
+AbortController, no timeout and no catch** — while `/api/sessions`, eleven lines above it, has
+carried all three since v2228. That fix's own comment names the failure exactly:
+
+> *"When the auto-relaunch replaces the server process mid-fetch, the promise never settles, the
+> function never reaches the code that fills the stage, and the black stays up."*
+
+Identical shape, identical consequence, never swept. And this is the **more expensive** route:
+`/api/session` defaults to `pack=debug` — "every fps frame + every AI read" — and this repo has
+already measured the archive siblings at ~4s alone and **41.6s under contention**. It gets **12s**,
+not the lighter sibling's 8s: a bound copied from the cheap route would abort reads that were only
+slow, turning a latency problem into a failure. [[sweep-dont-ask]]
+
+**⚠⚠ THIS IS NOT WHAT HE WAS SEEING.** Live eyes refuted REG-708 on his console. This is a latent
+hazard fixed on its merits. **A fix sold as curing something it never caused is how the real cause
+stops being looked for.**
+
+**⚠ THE LAW IS DELIBERATELY NARROW.** Measured across the console UI: **71 awaited fetches in code,
+4 bounded, 67 not.** Bounding all 67 would be a sweeping change to a hot path with no measurement
+behind it, and a law failing on 67 sites is furniture the day it ships. What makes this chain
+different is that a hang here leaves a **black stage with no account of it**; every other call is a
+click-driven panel load whose failure is local and visible.
+
+**⚠⚠ FIVE INSTRUMENT FAULTS ON ONE GATE, and every one of them made a correct fix look broken or a
+broken fix look correct:**
+
+1. The census counted **68** unbounded — because the fix's own comment quotes the defective line to
+   explain it and a line-wise search read the explanation. Real figure: 67. [[source-reading-guard]]
+2. `_span()` returned 1-based lines and I sliced a 0-based list, so the window missed the timeout.
+3. The regex `setTimeout\([^;]*?, N\)` **could never match** — the callback body contains
+   semicolons (`try { … } catch(e){}`), so the class excluding `;` never reached the delay.
+4. A sabotage that removed only the `signal` from the fetch call stayed **green**, because my check
+   looked for an `AbortController` *nearby* rather than wired *into the call*.
+5. A sabotage that deleted the timeout's own reporting stayed **green**, because `seg[i:i+600]` ran
+   past a short catch body into the `j.error` branch, which also writes `th-caption`.
+   [[source-window-shortcut]]
+
+Faults 4 and 5 are the same lesson as REG-709 and REG-712: **a law that reads presence cannot see
+behaviour change.** Fourth and fifth occurrence today.
+
+Gate: `test_the_theatre_open_chain_cannot_hang.py`, 5 laws. 3 sabotages — un-sweeping the fetch,
+copying the lighter 8s bound onto the heavy route, and silencing the timeout — each red on one law.
+
+## REG-708 — ~~clicking THE SHELF shows nothing~~ REFUTED on his console by live eyes
+
+**2026-09-08 · REFUTED 2026-09-08 by a cross-family LOOK at his real console**
+
+> **⛔ REFUTED. Do not act on the diagnosis below as if it described his console.** A different
+> model family put live eyes on `konyo-3` (window 1280x827) and clicked THE SHELF: the overlay
+> **painted** — "THE SHELF — your reels", the river copy, session chips, `2,567 empty runs —
+> hidden`, the pipeline survey — and **stayed open past 15 seconds**. No blank box, no self-close,
+> no refusal toast. Everything below reproduces only in a SANDBOXED console, where `TH.sessions` is
+> 0 at click time and `#th-film` has no source, so the v2322 self-heal's early-return cannot hold
+> and it rips the theatre down at 12s. That is a property of the harness world, and it belongs to
+> #30. ⚠ What DID survive is a real latent defect the investigation turned up on the way — see
+> REG-713. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
 
 Measured on a freshly served private console, driven over CDP. Click `#btn-shelf`:
 
