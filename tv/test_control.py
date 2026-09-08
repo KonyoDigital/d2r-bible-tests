@@ -13860,50 +13860,61 @@ class TestTheChronicleReceiptMatchesTheMeter(unittest.TestCase):
         The law is: `_landed` decides, and the NOT-landed side reports a vault landing rather than
         dropping the name. That is what is checked now, with the prose stripped so the comment
         explaining the branch cannot satisfy it."""
-        body = self._apply_src()
-        i = body.find("if (_landed) res.uniques.push(n);")
+        # ⚠⚠ v2811 — THE ORDER IS THE LAW: ANCHOR, STRIP COMMENTS OVER THE WHOLE REGION, THEN
+        # FIND THE FORK. The previous shape did the opposite — it cut `body[i:i + 4000]` and then
+        # stripped comments with `/*.{0,8000}?*/`. MEASURED: the cut landed INSIDE a comment (the
+        # opening `/*` at 2861 had no `*/` before 4000), so the regex could not match it and 969
+        # characters of commentary survived into what these assertions then searched. The check
+        # below for a vault landing after the fork was passing on a measurement TABLE written in
+        # that comment — "res.vaulted   all four   d2r_owned 4" — while the stripped CODE contains
+        # no res.vaulted after the fork at all. The docstring above says the prose is stripped "so
+        # the comment explaining the branch cannot satisfy it"; the window defeated its own intent.
+        # A severed comment cannot be recognised as a comment.
+        # [[feedback-comments-vs-code]] [[source-window-shortcut]]
+        code = _sw.strip_js_comments(self._apply_src())
+        i = code.find("if (_landed) res.uniques.push(n);")
         self.assertGreater(i, 0, "the receipt pushes unconditionally again")
-        tail = re.sub(r"/\*.{0,8000}?\*/", " ", body[i:i + 4000], flags=re.S)
         # ⚠ v2193 — THE LAW IS THE BRANCH, NOT THE KEYWORD. This looked for a literal `else`, and
         # this very docstring warns that pinning SHAPE rather than SEMANTICS "spends attention on a
         # non-event". v2193 took the vault door OUT of the else — because sitting there was the
         # defect: the door only ever opened for names the board does not recognise, so a real
         # unique the grail had ticked could never be recorded as physically in his stash. The
-        # not-landed case is still handled, now as `if (!_landed)`. Accept either spelling and
-        # assert what actually matters.
-        j = min([x for x in (tail.find("else"), tail.find("if (!_landed)")) if x > 0] or [-1])
+        # not-landed case is still handled, now as `if (!_landed)`. Accept either spelling.
+        j = min([x for x in (code.find("else", i), code.find("if (!_landed)", i)) if x > 0]
+                or [-1])
         self.assertGreater(j, 0, "the landed check lost its not-landed branch — a name that did "
                                  "not land is silently dropped from the receipt")
+        # The branch's EXTENT, by matching brace. Not 400 bytes: measured, the branch is 370 chars
+        # today, so the old window happened to cover it BY LUCK and would stop covering it the
+        # moment anyone added three lines. block_from RAISES on an unbalanced run rather than
+        # returning a short read that would pass this negative assertion for free.
+        branch = _sw.block_from(code, j, "the not-landed branch")
+        door = code[:j]
         # ⚠ v2265 — THE REPORT LEFT THE BRANCH, AND THAT IS THE FIX, NOT A REGRESSION.
-        # This asserted `res.vaulted` INSIDE the not-landed branch. It was there, and so was the
-        # v2193 door's own push a few lines above — both under `!_landed` — so a base was reported
-        # TWICE and a name the grail had ticked was reported NOT AT ALL. Measured on a real page:
-        # 4 bases -> res.vaulted 8; 3 found uniques -> res.vaulted 0, with d2r_owned correct at 4
-        # and 3. Reporting is now one idempotent _vaultReport(), called at the door for EVERY name,
-        # which is strictly stronger than what this line asked for: it can no longer double-count,
-        # and it can no longer go silent on the landed half.
-        self.assertIn("_vaultReport(_vr, n)", tail[:j],
+        # Reporting is one idempotent _vaultReport(), called at the door for EVERY name. It can no
+        # longer double-count (measured before the fix: 4 bases -> res.vaulted 8) and it can no
+        # longer go silent on the landed half (3 found uniques -> res.vaulted 0).
+        self.assertIn("_vaultReport(_vr, n)", door,
                       "the vault landing is no longer reported at the door, so only the not-landed "
                       "half of the fork can produce a receipt again")
-        self.assertNotIn("res.vaulted.push", tail[j:j + 400],
-                      "the not-landed branch pushes to res.vaulted again, beside the door's own "
-                      "report — that is the 8-for-4 double count v2265 measured and removed")
-        # ⚠ AND THE VAULT DOOR MUST NOT GO BACK INSIDE IT. That is the v2193 defect itself: 279 of
-        # his 281 read items never reached the vault because registration was reachable only when
-        # the grail did NOT know the name.
-        self.assertIn("tvVaultRegister", tail[:j],
+        self.assertNotIn("res.vaulted.push", branch,
+                         "the not-landed branch pushes to res.vaulted again, beside the door's own "
+                         "report — that is the 8-for-4 double count v2265 measured and removed")
+        # ⚠ AND IT MUST NOT COUNT AS A FIND. v1889: applying Shako reported uniques:5 and moved the
+        # grail counter by 4. The not-landed side records a vault landing; it never claims a find.
+        self.assertNotIn("res.uniques.push", branch,
+                         "the not-landed branch counts the name as a FIND — the exact confusion "
+                         "v1889 closed")
+        # ⚠ AND THE VAULT DOOR MUST NOT GO BACK INSIDE THE BRANCH. That is the v2193 defect itself:
+        # 279 of his 281 read items never reached the vault because registration was reachable only
+        # when the grail did NOT know the name.
+        self.assertIn("tvVaultRegister", door,
                       "the vault registration is only reachable on the not-landed branch again, "
                       "so an item the grail already knows can never be recorded as being in his "
                       "stash — that is the defect v2193 measured at 279 of 281")
-        # v2101 — the `else 10**9` already defends the RIGHT-hand marker; the LEFT one had no
-        # such guard, and a missing `res.vaulted` yields -1, which is less than anything — the
-        # pin passing precisely because the branch it checks had disappeared. [[source-reading-guard]]
-        _v = tail.find("res.vaulted", j)
-        _u = tail.find("res.uniques", j)
-        self.assertGreater(_v, -1, "the not-landed branch no longer records a vault landing at all")
-        self.assertLess(_v, _u if _u > 0 else 10 ** 9,
-                        "the not-landed branch counts it as a FIND — the exact confusion v1889 "
-                        "closed: applying Shako reported uniques:5 and moved the grail counter by 4")
+        self.assertNotIn("tvVaultRegister", branch,
+                         "vault registration moved back INSIDE the not-landed branch — v2193")
+
 
     def test_an_unreadable_ledger_does_NOT_invent_a_demotion(self):
         """If the ledger cannot be read, "he did not find it" is a claim we have not earned. The

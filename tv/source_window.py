@@ -24,7 +24,8 @@ quietly returns less than it promised is the thing being fixed. If the anchor is
 subject has moved and the law must go red and say so, not read a shorter region and call it clean.
 """
 
-__all__ = ["between", "after", "block", "WindowError"]
+__all__ = ["between", "after", "block", "block_from", "strip_js_comments",
+           "WindowError"]
 
 
 class WindowError(AssertionError):
@@ -75,6 +76,59 @@ def after(src, start, *ends, **kw):
             "of the file instead would be a fixed-size window with no number on it — the same "
             "defect wearing a different shape." % (list(ends), start, what))
     return src[a:min(hits)]
+
+
+def strip_js_comments(src):
+    """Remove /* */ and // comments. NO LENGTH BOUND, and that is the entire point. -> str
+
+    ⚠ MEASURED, v2811 — A BOUNDED STRIP PLUS A FIXED WINDOW MADE A LAW READ PROSE. A guard on
+    bible.html cut the source to `body[i:i + 4000]` and then stripped comments with
+    `/\*.{0,8000}?\*/`. The cut landed INSIDE a comment: the opening `/*` at 2861 had no closing
+    `*/` before 4000, so the regex could not match it and 969 characters of commentary survived
+    into what the law then searched. The assertion `res.vaulted appears after the fork` passed —
+    on a measurement TABLE someone had written in that comment:
+
+        apply Shako - Phase Blade - Monarch - Archon Plate
+          res.vaulted   all four        d2r_owned  4 OK
+
+    The test's own docstring said it stripped prose "so the comment explaining the branch cannot
+    satisfy it". That was the intent, and the window defeated it.
+
+    ★ SO THE ORDER IS THE LAW: anchor the region, strip comments over the WHOLE of it, and only
+    THEN find the thing. Windowing first can always sever a comment, and a severed comment cannot
+    be recognised as one. [[feedback-comments-vs-code]] [[source-window-shortcut]]
+    """
+    import re as _re
+    out = _re.sub(r"/\*.*?\*/", " ", src or "", flags=_re.S)
+    return _re.sub(r"(?m)//[^\n]*$", " ", out)
+
+
+def block_from(src, i, what="the block", opener="{", closer="}"):
+    """From INDEX `i` through its matching closing brace. -> str
+
+    `block()` takes a text marker; this takes a position, for the case where the caller already
+    located the thing (a fork that may be spelled `else` or `if (!x)`) and needs its EXTENT.
+    Raises rather than returning a truncated run, for the reason `block()` states.
+    """
+    src = src or ""
+    if not (0 <= i < len(src)):
+        raise WindowError("index %d is outside the source while reading %s" % (i, what))
+    o = src.find(opener, i)
+    if o < 0:
+        raise WindowError("no %r after index %d while reading %s" % (opener, i, what))
+    depth, k = 0, o
+    while k < len(src):
+        c = src[k]
+        if c == opener:
+            depth += 1
+        elif c == closer:
+            depth -= 1
+            if depth == 0:
+                return src[i:k + 1]
+        k += 1
+    raise WindowError(
+        "the block opened at index %d never closes while reading %s — returning what was scanned "
+        "would be a fixed-size window with no number on it." % (i, what))
 
 
 def block(src, start, what="the block", opener="{", closer="}"):

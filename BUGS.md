@@ -25329,3 +25329,62 @@ by a sentence instead of by five confusing failures. [[regression-guard]] [[sour
 ⚠ And the push log's tail showed only **2 of the 5** — the gate log had all of them. A tail is a
 window, and a window is not a census. [[zero-needs-a-denominator]]
 
+## REG-751 — the window severed a comment, and the law spent 26 versions reading prose
+
+#38's last two silent windows. A **silent** window is a fixed-size read under a NEGATIVE assertion,
+where a short read and a pass are the same result. Census across **228 test files**: 2 remain —
+and the first was hiding something larger.
+
+### The receipt fork — `test_control.py`
+
+```
+body = self._apply_src()                                   # anchored both ends. fine.
+tail = re.sub(r"/\*.{0,8000}?\*/", " ", body[i:i + 4000])  # CUT FIRST, strip second
+...
+self.assertNotIn("res.vaulted.push", tail[j:j + 400], ...)  # the silent window
+self.assertGreater(_v, -1, "the not-landed branch no longer records a vault landing at all")
+```
+
+**MEASURED.** The 4,000-char cut lands INSIDE a `/* */` comment: the opening `/*` at 2861 has no
+closing `*/` before 4000, so the regex cannot match it and **969 characters of commentary survive
+into what the law then searches.** A severed comment cannot be recognised as one.
+
+And what that surviving prose contains is a measurement table someone wrote in the comment:
+
+```
+apply Shako · Phase Blade · Monarch · Archon Plate
+  res.vaulted   all four        d2r_owned  4 ✓      muleAssign 0
+```
+
+So `_v = tail.find("res.vaulted", j)` returned **969, inside that comment**, and
+`assertGreater(_v, -1)` passed on it. With comments stripped over the whole body, `res.vaulted`
+appears **once, at 1015 — BEFORE the anchor at 1848** — and `code.find("res.vaulted", j)` is **-1**.
+
+★ **THE ASSERTION WAS STALE AND THE PROSE WAS HOLDING IT UP.** v2265 moved reporting to one
+idempotent `_vaultReport()` at the door for every name. From that version the not-landed branch
+correctly contains no `res.vaulted` — so the law had been FALSE about the code for 26 versions and
+green the whole time, because the only thing satisfying it was a comment describing the behaviour
+it used to check. The test's own docstring says it strips prose *"so the comment explaining the
+branch cannot satisfy it."* That was the intent. The window defeated it.
+
+⚠ And the 400-char window covered the branch **by luck**: the branch measures **370 chars**. Three
+more lines and it would have stopped covering it, silently.
+
+### `test_reel_router.py`
+
+`assertNotIn("STATION", RR.OWES["EMPTY"][:40])` read **40 of 796 characters — 95% unsearched**. It
+passes only because STATION appears nowhere; planted at char 100 the old window stays green and the
+full-string check goes red. Proven both ways.
+
+### The rule this leaves
+
+**ANCHOR → STRIP COMMENTS OVER THE WHOLE REGION → THEN FIND THE THING.** Windowing first can always
+sever a comment. `source_window` gained `strip_js_comments()` (no length bound, and that is the
+point) and `block_from(src, i)` (a brace-matched extent from an index, raising on an unbalanced run
+rather than returning a short read that a negative assertion would pass for free).
+
+Proven red in memory against a copy — never against his `bible.html`: vault push back inside the
+branch, name counted as a find (v1889), registration back inside the branch (v2193). One match
+each, all three RED. [[feedback-comments-vs-code]] [[source-window-shortcut]]
+[[feedback-blind-fixture-green-gate]]
+

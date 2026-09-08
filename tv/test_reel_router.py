@@ -92,7 +92,12 @@ class TheSurveyIsAStationNotAFlag(unittest.TestCase):
         self.assertTrue(RR.OWES["EMPTY"].startswith("ROUTE"),
                         "EMPTY reads as an exit again; a reel with nothing to read still owes a "
                         "route and a stamped tombstone")
-        self.assertNotIn("STATION", RR.OWES["EMPTY"][:40],
+        # ⚠ v2811 — `[:40]` READ 40 OF 796 CHARACTERS, so 95% of the sentence was never
+        # searched. It passes today only because STATION appears nowhere at all; add it at
+        # character 100 and this stays green forever. A negative assertion over a fixed window is
+        # the worst combination in this repo — a SHORT read and a PASS are the same result.
+        # The whole string is the honest haystack. [[source-window-shortcut]]
+        self.assertNotIn("STATION", RR.OWES["EMPTY"],
                          "EMPTY was routed back to the paid READ queue")
 
     def test_NEVER_TRIAGED_is_TRIAGE_and_is_NOT_the_same_as_EMPTY(self):
