@@ -134,6 +134,16 @@ def _sources():
         out["templates"], w = _safe(RTPL.templates, river=out.get("river"))
         if w:
             whys.append(w)
+        # v#### — THE FOUR-ROUTE CENSUS, OFF THE READING ALREADY IN HAND. Passing the reading in
+        # is not an optimisation, it is the join: a census that walked the river again could
+        # disagree with the very rows printed beside it, which is the shape `_sources` exists to
+        # rule out ("taken once and shared, so two stations on the same row cannot disagree").
+        # ⚠ Only asked when templates ANSWERED. Calling it with reading=None on the failure path
+        # would send it off to walk 49 reel directories a second time on the heart's hot path.
+        if out.get("templates") is not None:
+            out["routeCensus"], w = _safe(RTPL.route_census, out["templates"])
+            if w:
+                whys.append(w)
     except Exception as e:
         whys.append("reel_templates would not import (%s)" % str(e)[:60])
     try:
@@ -167,6 +177,29 @@ def _sources():
         out["reachWhy"] = _w
         whys.append(_w)
     return out, whys
+
+
+def _route_census(src):
+    """The four-route census for this snapshot, or the UNKNOWN-shaped one. -> dict
+
+    ⚠ ONE BUILDER, BOTH RETURNS — REG-546's law. `stream()` has an early UNKNOWN return and a
+    normal one, and a payload key that exists on only one of them breaks a consumer on exactly the
+    path that means nothing was established. reel_templates owns the shape; asking it for the
+    UNKNOWN one (a reading whose `rows` is None) rather than writing a literal here keeps the four
+    route keys in ONE file. A second copy of that shape is [[copy-drift]] §1.
+    """
+    cen = (src or {}).get("routeCensus") if isinstance(src, dict) else None
+    if isinstance(cen, dict) and cen.get("routes"):
+        return cen
+    try:
+        import reel_templates as RTPL
+        return RTPL.route_census(reading={
+            "rows": None,
+            "why": "reel_templates did not answer for this snapshot, so which of the four routes "
+                   "each reel took is UNKNOWN — not 'no reel took any'"})
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "order": [], "routes": {},
+                "why": "the four-route census could not be built (%s)" % str(e)[:80]}
 
 
 def _by_reel(blob, key="rows"):
@@ -241,6 +274,8 @@ def stream(reel=None):
         return {"ok": False, "state": "UNKNOWN", "rows": [], "counts": {}, "walked": 0,
                 "tombstoned": (tombstoned if tombstoned is not None
                                else _tombstone_census(None)),
+                # ⚠ REG-546 — the four routes are on EVERY return, at UNKNOWN, never absent.
+                "routes": _route_census(None),
                 "unknownStations": 0, "droppedRows": 0, "stations": list(STATIONS),
                 "owners": {k: v[0] for k, v in STATION_OWNER.items()},
                 "questions": {k: v[1] for k, v in STATION_OWNER.items()}, "why": why}
@@ -339,6 +374,21 @@ def stream(reel=None):
         # verdict — REG-547, which was written inside the fix for REG-546. [[unknown-stays-unknown]]
         stations["template"] = _station(tp, "zone", "reel_templates",
                                         extra={"template": "template",
+                                               # ⚠⚠ v#### — THE FIELD THAT REACHED NOBODY. This
+                                               # station said `zone`, and zone has THREE values,
+                                               # so a chronicle-SETS reel and a chronicle-UNIQUES
+                                               # reel arrived here as the same row. reel_templates
+                                               # had told them apart since v2709 and a grep for
+                                               # `subTemplate` across every .py/.html/.js in the
+                                               # tree returned its own definition and its own
+                                               # test — nothing else. Half a join is not a join
+                                               # (v2574, `worthReading`, this same station).
+                                               # ⚠ THE ZONE STAYS THE `say`. A finer label is not
+                                               # a different verdict, and moving `say` would
+                                               # silently re-bucket every count in `counts`.
+                                               "subTemplate": "subTemplate",
+                                               "route": "route",
+                                               "routes": "routes",
                                                "activities": "activities",
                                                # v2574 — `worthReading` was joined into
                                                # reel_templates at v2573 and STOPPED THERE: it
@@ -476,6 +526,10 @@ def stream(reel=None):
         # count reels ON DISK, so it reads as "nothing was ever closed out" when the truth
         # is "410 were, and they are gone". [[zero-needs-a-denominator]]
         "tombstoned": tomb_census,
+        # v#### — WHICH OF THE FOUR ROUTES EACH REEL TOOK, and one state per route. `counts` is
+        # keyed by STATION and every template row lands in one of three zone buckets, so nothing
+        # here could ever go red for a single route. This can. [[zero-needs-a-denominator]]
+        "routes": _route_census(src),
         "why": (("%d reel(s) followed from the door to the far end across %d station(s). %s "
                  "⚠ THE FAR END IS UNDECIDED FOR EVERY REEL BY DESIGN: A15 never says which door "
                  "decides `clean`, the two candidates disagree on this shelf, and conjoining them "
@@ -505,6 +559,14 @@ def main(argv):
         tally = " · ".join("%s %d" % (k, v) for k, v in sorted(r["counts"].get(st, {}).items()))
         print("  %-8s %-18s %s" % (st.upper(), owner, tally))
         print("           %s" % q)
+    cen = r.get("routes") or {}
+    if cen.get("order"):
+        print("\n  THE FOUR ROUTES — each one on its own\n")
+        for _n in cen["order"]:
+            _r = (cen.get("routes") or {}).get(_n) or {}
+            _m = {"OK": "\U0001F7E2", "BROKEN": "\U0001F534"}.get(_r.get("state"), "\u26aa")
+            print("  %s %-22s %-8s %s" % (_m, _n, _r.get("state"),
+                                          str(_r.get("why") or "")[:100]))
     if reel:
         print()
         for row in r["rows"]:

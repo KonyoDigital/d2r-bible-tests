@@ -61,6 +61,56 @@ ZONE_ORDER = (
 #: them, and that is not a fault: it is what most of his footage IS.
 RUN_ACTIVITIES = ("gameplay", "town", "transition")
 
+#: ══ v#### — THE FOUR ROUTES, AND WHY A ZONE IS NOT ONE ════════════════════════════════════════
+#:
+#: ⚠⚠ MEASURED 2026-09-08: `subTemplate` WAS COMPUTED AND REACHED NOTHING. v2709 taught this file
+#: to say `chronicle · uniques` and `stash · gems`, and a grep for the name across every .py, .html
+#: and .js in the tree returned its own definition on line 305 and its own test — no other reader,
+#: anywhere. printer.py built its TEMPLATE station off `zone`, so CHRONICLE stayed ONE bucket
+#: downstream and a chronicle-SETS reel and a chronicle-UNIQUES reel were indistinguishable to
+#: every supervisor that exists. The distinction was correct, and it was thrown away one line after
+#: it was made. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+#:
+#: A ZONE answers WHERE a reel goes — three of them, from ZONE_ORDER. A ROUTE is the individual
+#: logic it goes down once it is there, which is his own framing: *"changing routes individually
+#: and accordingly relevant to that specific routed reel"*. There are FOUR, because the CHRONICLE
+#: zone is read two entirely different ways.
+#:
+#: (route, zone, ledger). The third member is the LEDGER that tells two chronicle routes apart, and
+#: None where the zone alone names the route. ★ IT INVENTS NO VOCABULARY: the zones are
+#: ZONE_ORDER's, and `sets`/`uniques` are tv_diablo's own `chronicleTab` values, the ones
+#: chron_visit_flush writes onto a visit row at session close.
+ROUTES = (
+    ("stash",               "STASH",     None),
+    ("chronicle · sets",    "CHRONICLE", "sets"),
+    ("chronicle · uniques", "CHRONICLE", "uniques"),
+    ("inventory",           "INVENTORY", None),
+)
+
+
+def routes_of(row):
+    """Every one of the FOUR routes this reel exercised. -> list[str]
+
+    Usually one, and deliberately not forced to be. A session that opened BOTH chronicle ledgers
+    exercised BOTH routes and says so; picking a single winner would invent a preference nobody
+    expressed, and dropping the second would hide a route from its own supervisor.
+
+    ⚠⚠ AN EMPTY LIST IS NOT A FAULT AND MUST NEVER BE READ AS ONE. A RUN reel, an UNKNOWN reel, and
+    a CHRONICLE reel whose ledger nobody ever wrote down all return [] — and only the last of those
+    is even about the chronicle routes. "Nobody recorded which page was open" and "the router
+    dropped it" are opposite facts; `route_census` below is the one place they are told apart, and
+    it needs the raw list to do it. [[unknown-stays-unknown]]
+    """
+    zone = str((row or {}).get("zone") or "")
+    ledgers = {str(x).strip().lower() for x in ((row or {}).get("ledgers") or []) if str(x).strip()}
+    out = []
+    for name, z, disc in ROUTES:
+        if zone != z:
+            continue
+        if disc is None or disc in ledgers:
+            out.append(name)
+    return out
+
 
 def _segments_for(reel, rows_by_session):
     """-> (segments, why). Asks reel_segments; never re-derives a timeline."""
@@ -295,7 +345,7 @@ def templates(reels=None, river=None):
         # still the activity's job. Naming it here lets a reader see `stash · runes` without the
         # routing changing underneath them. An empty list means no read recorded a tab, which is
         # NOT the same as "no tab was open". [[unknown-stays-unknown]]
-        rows.append({"reel": name, "template": template, "zone": zone, "why": zwhy,
+        _row = {"reel": name, "template": template, "zone": zone, "why": zwhy,
                      "activities": acts, "segments": len(segs),
                      "tabs": tabs,
                      # v2709 — a CHRONICLE reel is refined by its LEDGER, a stash reel by its
@@ -307,7 +357,18 @@ def templates(reels=None, river=None):
                          if (template and zone == "CHRONICLE" and _ledgers)
                          else ((template + " · " + "/".join(tabs)) if (template and tabs) else template)),
                      "worthReading": worth,
-                     "pruneCandidate": candidate})
+                     "pruneCandidate": candidate}
+        # v#### — WHICH OF THE FOUR ROUTES THIS REEL TOOK, on the row itself. Derived from the
+        # STRUCTURED fields (`zone`, `ledgers`) immediately above, never by parsing the label:
+        # `subTemplate` is what a person reads and `routes` is what a supervisor joins to, and
+        # making the second depend on the spelling of the first is how a display change silently
+        # re-routes a reel. They are corroborated against each other in `route_census`, which is
+        # the only place a disagreement between them can be seen at all.
+        # ⚠ `route` IS None WHENEVER THERE IS NOT EXACTLY ONE. A reel that took two routes has not
+        # got a single answer, and printing the first would be a preference nobody expressed.
+        _row["routes"] = routes_of(_row)
+        _row["route"] = _row["routes"][0] if len(_row["routes"]) == 1 else None
+        rows.append(_row)
         counts[zone] = counts.get(zone, 0) + 1
 
     unknown = counts.get("UNKNOWN", 0)
@@ -326,10 +387,158 @@ def templates(reels=None, river=None):
     }
 
 
+def _label_agrees(row, zone, disc):
+    """Does this row's LABEL name the route its structured fields gave it? -> (bool, why)
+
+    ⚠⚠ THIS IS A CORROBORATOR, NOT A SECOND DERIVATION, and the difference is the whole reason it
+    is worth the lines. `routes_of` reads `zone` and `ledgers`; `subTemplate` is the human label
+    built beside them from the SAME facts. Two sites, one truth — so they can only ever disagree
+    through an edit that breaks one of them, and that edit is exactly the regression this file was
+    written after: v2709 taught the label to name the ledger, NOTHING consumed it, and nothing
+    anywhere would have noticed it falling back to the bare word `chronicle`. The label is the half
+    that reaches a screen; the census is the half a supervisor joins to. Where they meet is the
+    only place either one can be caught.
+    """
+    sub = row.get("subTemplate")
+    if not isinstance(sub, str) or not sub.strip():
+        return False, "carries no subTemplate at all, so nothing on a screen can name its route"
+    head, _sep, tail = sub.partition(" · ")
+    if head.strip() != zone.lower():
+        return False, ("its label starts %r, which is not the %s zone it was routed into"
+                       % (head.strip()[:30], zone))
+    if disc is None:
+        return True, ""
+    parts = {p.strip().lower() for p in tail.split("/") if p.strip()}
+    if disc not in parts:
+        return False, ("its label is %r and does not name the %s ledger it carries — the "
+                       "distinction was computed and then dropped before it reached a screen"
+                       % (sub[:40], disc))
+    return True, ""
+
+
+def route_census(reading=None, river=None):
+    """Each of the FOUR routes, ALONE. -> dict
+
+    ⚠⚠ THE DEFECT THIS EXISTS FOR: NOTHING COULD GO RED FOR ONE ROUTE. Measured 2026-09-08 across
+    console_doctor's fifty rows, the ones that touch this territory are `extraction lanes`, `vault
+    stores`, `vault proposal`, `read names lane` and `names banked` — and not one of them is
+    per-route. chronicle-sets and chronicle-uniques were indistinguishable to every supervisor in
+    the system, and inventory and stash shared one vault bucket. If exactly one route died,
+    everything stayed green. A supervisor that cannot name which of four things broke is not
+    supervising four things. [[the-unjoined-end]] [[zero-needs-a-denominator]]
+
+    THREE STATES, and only one of them is a pass:
+        OK       reel(s) came out on this route here, and every one of them is labelled to match
+        BROKEN   a reel carries this route's evidence and did NOT come out on it, or came out on
+                 it under a label that does not name it — the join dropped
+        UNKNOWN  no reel on this shelf carries this route's evidence, so NOTHING has been shown
+                 about it here
+
+    ⚠⚠ AND UNKNOWN IS THE ANSWER HIS OWN SHELF GIVES FOR HALF OF THEM. Measured the day this was
+    written, over 49 reels: STASH 11, INVENTORY 2, CHRONICLE 1 — and that single chronicle reel
+    recorded NO ledger, so `chronicle · sets` and `chronicle · uniques` are each taken by ZERO
+    reels. A row that only ever reads his live store would be green forever and prove nothing;
+    UNKNOWN says so out loud, and the gate supplies the input his footage does not.
+    [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
+
+    `reading` is a templates() answer. Passing one in is how the printer gets this for free from
+    the snapshot it already took — the river walk must not happen twice on a hot path (v2692).
+    """
+    order = [n for n, _z, _d in ROUTES]
+    if reading is None:
+        reading = templates(river=river)
+    if not isinstance(reading, dict):
+        reading = {"rows": None,
+                   "why": "the reading was a %s, not a templates() answer"
+                          % type(reading).__name__}
+    rows = reading.get("rows")
+    if rows is None:
+        # ⚠ EVERY RETURN CARRIES EVERY KEY, INCLUDING ALL FOUR ROUTES — REG-546's law. A consumer
+        # reading routes["stash"]["state"] must not raise on exactly the path that means nothing
+        # was established, and a census that SHRINKS when it fails would read as three routes.
+        why = str(reading.get("why") or "the template reading carried no rows")
+        return {"ok": False, "state": "UNKNOWN", "order": order, "walked": None,
+                "broken": [], "unproven": list(order),
+                "routes": {n: {"route": n, "zone": z, "ledger": d, "state": "UNKNOWN",
+                               "reels": None, "inZone": None, "broken": 0, "unnamed": None,
+                               "sample": [],
+                               "why": "the template reading could not be used, so nothing at all "
+                                      "is known about this route: %s" % why[:150]}
+                           for n, z, d in ROUTES},
+                "why": "the four routes are UNKNOWN, not clean — %s" % why[:200]}
+
+    out = {}
+    for name, zone, disc in ROUTES:
+        took = [r for r in rows if name in (r.get("routes") or [])]
+        in_zone = [r for r in rows if str(r.get("zone") or "") == zone]
+        broken, unnamed = [], []
+        for r in in_zone:
+            ledgers = {str(x).strip().lower() for x in (r.get("ledgers") or []) if str(x).strip()}
+            has_evidence = (disc is None) or (disc in ledgers)
+            if not has_evidence:
+                # a CHRONICLE reel whose ledger nobody wrote down. NOT this route's business and
+                # NOT a fault — it is the pre-v1689 shape, named so the zero has a denominator.
+                if disc is not None and not ledgers:
+                    unnamed.append(str(r.get("reel") or "?"))
+                continue
+            if name not in (r.get("routes") or []):
+                broken.append("%s carries the evidence for this route and was not routed onto it"
+                              % str(r.get("reel") or "?")[:40])
+                continue
+            agrees, awhy = _label_agrees(r, zone, disc)
+            if not agrees:
+                broken.append("%s %s" % (str(r.get("reel") or "?")[:40], awhy))
+        if broken:
+            state = "BROKEN"
+            why = ("%d reel(s) carry this route's evidence and did not come out on it intact: %s"
+                   % (len(broken), "; ".join(broken[:3])[:260]))
+        elif took:
+            state = "OK"
+            why = ("%d of %d reel(s) on this shelf came out on this route, and every one of them "
+                   "is labelled to match" % (len(took), len(rows)))
+        else:
+            state = "UNKNOWN"
+            if disc is None:
+                why = ("no reel on this shelf is in the %s zone, so this route is UNPROVEN here — "
+                       "unexercised, which is not the same fact as healthy. %d reel(s) were "
+                       "walked." % (zone, len(rows)))
+            else:
+                why = ("no reel on this shelf carries a %s ledger, so this route is UNPROVEN here "
+                       "— unexercised, which is not the same fact as healthy. %d reel(s) are in "
+                       "the %s zone and %d of them recorded no ledger at all (nobody wrote one "
+                       "down; that is not a broken route). A gate has to supply this input, "
+                       "because his footage does not."
+                       % (disc, len(in_zone), zone, len(unnamed)))
+        out[name] = {"route": name, "zone": zone, "ledger": disc, "state": state,
+                     "reels": len(took), "inZone": len(in_zone), "broken": len(broken),
+                     "unnamed": len(unnamed),
+                     "sample": [str(r.get("reel") or "?") for r in took[:3]],
+                     "why": why}
+
+    bad = [n for n in order if out[n]["state"] == "BROKEN"]
+    dark = [n for n in order if out[n]["state"] == "UNKNOWN"]
+    state = "BROKEN" if bad else ("PARTIAL" if dark else "OK")
+    # ⚠⚠ AN UNPROVEN ROUTE IS NOT AN `ok` ONE, and the two lists stay SEPARATE so nobody has to
+    # guess which kind of not-ok they are looking at. lane_health.report counts `unknown` as bad
+    # for the same reason and in the same territory: a supervisor that says ok while two of its
+    # four subjects were never exercised is the green that lies. On his shelf this is False today
+    # and the honest reason is `unproven`, not `broken`. [[unknown-stays-unknown]]
+    return {
+        "ok": not (bad or dark), "state": state, "order": order, "walked": len(rows),
+        "broken": bad, "unproven": dark, "routes": out,
+        "why": (("%d of %d route(s) BROKEN: %s. " % (len(bad), len(order), ", ".join(bad)))
+                if bad else ("all %d route(s) came out intact. " % len(order) if not dark else
+                             "no route is broken. "))
+               + (("%d route(s) are UNPROVEN on this shelf (%s) — unexercised, which is never the "
+                   "same as healthy." % (len(dark), ", ".join(dark))) if dark else ""),
+    }
+
+
 def main(argv):
     r = templates([a for a in argv if not a.startswith("-")] or None)
+    cen = route_census(reading=r)
     if "--json" in argv:
-        print(json.dumps(r, indent=2, sort_keys=True, default=str))
+        print(json.dumps(dict(r, routeCensus=cen), indent=2, sort_keys=True, default=str))
         return 0
     print("\nREEL TEMPLATES — what each reel IS, and the zone that follows\n")
     if not r["ok"]:
@@ -343,6 +552,13 @@ def main(argv):
     for row in r["rows"][:60]:
         print("  %-34s %-9s %-10s %s" % (row["reel"][:34], row["template"] or "-",
                                          row["zone"], ",".join(row["activities"]) or "-"))
+    print("\n  THE FOUR ROUTES — each one on its own\n")
+    for name in cen.get("order") or []:
+        row = (cen.get("routes") or {}).get(name) or {}
+        mark = {"OK": "\U0001F7E2", "BROKEN": "\U0001F534"}.get(row.get("state"), "\u26aa")
+        print("  %s %-22s %-8s %s" % (mark, name, row.get("state"),
+                                      str(row.get("why") or "")[:110]))
+    print("\n  %s" % cen.get("why"))
     print("\n  %s\n" % r["why"])
     return 0
 

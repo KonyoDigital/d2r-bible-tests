@@ -2580,6 +2580,69 @@ def _check_the_river_walk_is_walking(*_a, **_k):
                 % (age, st.get("reels"), st.get("moved"), st.get("walks")))
 
 
+#: ══ v#### — THE FOUR ROUTES GET FOUR ROWS, SO ONE CAN GO RED ALONE ════════════════════════════
+#:
+#: ⚠⚠ MEASURED 2026-09-08 over the fifty rows below: the ones that touch a reel's route are
+#: `extraction lanes`, `vault stores`, `vault proposal`, `read names lane` and `names banked`, and
+#: NOT ONE of them is per-route. `extraction lanes` watches lane_health's two SWEEP lanes
+#: (chronicle, vault) — a different axis entirely — and inventory and stash shared its single
+#: "vault" bucket. chronicle-sets and chronicle-uniques were indistinguishable to every supervisor
+#: in this file. If exactly one of the four routes died, every row here stayed green. A rail that
+#: cannot name WHICH of four things broke is not watching four things.
+#:
+#: ⚠ AND THESE FOUR SHOW UNKNOWN ON HIS OWN MACHINE, WHICH IS THE POINT AND NOT A GAP. Measured
+#: over his 49 reels: stash 11, inventory 2, chronicle 1 — and that one chronicle reel recorded no
+#: ledger, so both chronicle routes are taken by ZERO reels. A row that could only ever read his
+#: live store would be green forever and prove nothing; it reads UNKNOWN, and the gate
+#: (test_the_four_routes_go_red_alone) supplies the input his footage never has.
+#: [[gate-blind-to-unexercised-input]] [[unknown-stays-unknown]]
+_routes_cache = {"active": False, "got": None}
+
+
+def _route_census_once():
+    """The four-route census, live. -> dict. An owner that will not answer is UNKNOWN, never OK."""
+    try:
+        import reel_templates as _RT
+        return _RT.route_census()
+    except Exception as e:
+        return {"ok": False, "state": "UNKNOWN", "order": [], "routes": {},
+                "why": "reel_templates would not answer (%s), so nothing is known about any "
+                       "route" % str(e)[:90]}
+
+
+def _route_read():
+    """ONE census per tick. Four checks ask the same question and the answer walks the river.
+
+    ⚠ SCOPED TO `run()` EXACTLY LIKE `_board_read`, and for the reason written there: a
+    module-level cache with a TTL swallows a test's stub and serves the previous test's answer.
+    A check called on its own always reads fresh, which is what every caller outside the rail
+    expects. [[feedback-suspect-the-instrument]]
+    """
+    if _routes_cache["active"]:
+        return _routes_cache["got"]
+    return _route_census_once()
+
+
+def _route_health(route):
+    """One of the four reel routes, ALONE. -> (name-bound fn) -> (state, detail)"""
+    def run():
+        cen = _route_read()
+        rows = (cen or {}).get("routes") if isinstance(cen, dict) else None
+        if not isinstance(rows, dict) or not rows:
+            return UNKNOWN, ("the four-route census could not be read, so nothing is known about "
+                             "the %s route: %s" % (route, str((cen or {}).get("why"))[:110]))
+        r = rows.get(route)
+        if not isinstance(r, dict):
+            # a route that VANISHED from the census must never read as a route that passed
+            return UNKNOWN, ("reel_templates no longer reports a %r route — it declares %s. A "
+                             "route that disappeared is not a route that is well"
+                             % (route, ", ".join(sorted(rows)) or "none"))
+        st = str(r.get("state") or "")
+        return ({"OK": OK, "BROKEN": MISSING}.get(st, UNKNOWN),
+                str(r.get("why") or "the census gave no reason, so this route is UNKNOWN"))
+    return run
+
+
 CHECKS = [
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
@@ -2647,6 +2710,14 @@ CHECKS = [
     ("read names lane", _check_read_names_lane),
     ("stage shows the dom", _check_the_stage_shows_what_the_dom_claims),
     ("river walk", _check_the_river_walk_is_walking),
+    # v#### — ONE ROW PER REEL ROUTE. ⚠ THE NAMES ARE HARD-CODED ON PURPOSE, so they are
+    # greppable and so the rail cannot silently grow a row nobody argued for; the gate asserts
+    # this list covers every entry in reel_templates.ROUTES, which is where a fifth route would
+    # otherwise arrive unwatched. [[the-unjoined-end]]
+    ("route stash", _route_health("stash")),
+    ("route chronicle · sets", _route_health("chronicle · sets")),
+    ("route chronicle · uniques", _route_health("chronicle · uniques")),
+    ("route inventory", _route_health("inventory")),
     ("printer reach", _check_the_printer_can_reach_the_corpus),
     ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),
@@ -2770,6 +2841,10 @@ def run(include_slow=True):
     # every guard that stubs _post expects, and what my first cut broke eight of.
     _board_cache["active"], _board_cache["got"] = True, _post("/api/board_ownership", {"sample": 0})
     _health_cache["active"], _health_cache["rep"] = True, None
+    # v#### — ONE RIVER WALK PER TICK FOR THE FOUR ROUTE ROWS. Four checks ask reel_templates the
+    # same question and the answer costs a walk of every reel directory; asking four times buys no
+    # new information and is the shape of [[poll-slower-than-its-interval]].
+    _routes_cache["active"], _routes_cache["got"] = True, _route_census_once()
     try:
         for name, fn in CHECKS:
             if not include_slow and name in SLOW:
@@ -2782,6 +2857,7 @@ def run(include_slow=True):
     finally:
         _board_cache["active"], _board_cache["got"] = False, None
         _health_cache["active"], _health_cache["rep"] = False, None
+        _routes_cache["active"], _routes_cache["got"] = False, None
     if include_slow:
         _persist_slow(rows)
     try:
