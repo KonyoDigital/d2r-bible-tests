@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2779",
+  "ver": "v2780",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2779: Three cold code reviews recorded as looks sent the un-evaluated open().read() expression instead of the code; record() now takes the prompt and refuses a fence that carries no code. Redone properly, the review found a JSON string counting its CHARACTERS as entries: 3 became 0, and his 822 real entries are unchanged.",
+  "note": "v2780: The second eye on v2778 asked what could still reach a live file and the answer was eight module-level constants, including the fault journal a render run writes to. All eight now route through the fixture root, the size ceiling skips one file instead of abandoning the rest, and the gate is a census rather than a list.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

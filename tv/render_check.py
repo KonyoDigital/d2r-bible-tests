@@ -1988,16 +1988,33 @@ def _serve_console():
              "chronicle_swept.json", "chron_reads.json", "vault_accum.json",
              "vault_last_result.json", "vault_swept.json", "shadow_ledger.json",
              "chron_hunt_memory.json", "chron_autoread.json")
-    _copied, _bytes = [], 0
+    _copied, _skipped, _bytes = [], [], 0
     for _n in _COPY:
         _src = os.path.join(HERE, _n)
         if not os.path.isfile(_src):
             continue
         _sz = os.path.getsize(_src)
+        # ⚠ v2780 — THIS WAS `break`, AND THE CEILING IS NOT A BUDGET, IT IS A SAFETY STOP. A
+        # cross-family review found it: `break` abandons every REMAINING name the moment ONE file
+        # is oversized, and a name that is absent from the sandbox falls back to the LIVE file. So
+        # one large chronicle ledger would have quietly un-isolated the six stores after it — the
+        # ceiling protecting against a bulk copy would have caused the exact leak the sandbox
+        # exists to prevent. `continue` skips only the oversized file. [[zero-needs-a-denominator]]
         if _bytes + _sz > 64 * 1024 * 1024:      # ⛔ ceiling: this may never become a bulk copy
-            break
+            _skipped.append(_n)
+            continue
+        # ⚠ TWO DESTINATIONS, because the child resolves these two ways: five are pointed at by an
+        # explicit TV_* var set below (sandbox root), and the rest resolve through
+        # `_fixture_root_for_state()`, which is TV_HIST. Copying to only one left the others reading
+        # an EMPTY store while their copy sat unused beside it. [[plumbing-with-no-tap]]
         shutil.copy2(_src, os.path.join(_sand, _n))
+        shutil.copy2(_src, os.path.join(_hist, _n))
         _copied.append(_n); _bytes += _sz
+    # ⚠ [[unknown-stays-unknown]] — a silent skip is indistinguishable from a file that was never
+    # there. If the ceiling ever bites, the run must say so rather than render a half-live world.
+    if _skipped:
+        print("   ⚠ render sandbox SKIPPED %d file(s) over the 64 MB ceiling: %s — the child will "
+              "read the LIVE copy of these" % (len(_skipped), ", ".join(_skipped)), flush=True)
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
                TV_PARENT_PID=str(os.getpid()),
                TV_HIST=_hist,

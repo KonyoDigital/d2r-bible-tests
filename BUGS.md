@@ -23134,6 +23134,47 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-702 — eight module-level paths walked straight past the render sandbox and wrote to his live dir
+
+**2026-09-08 · v2780 · `tv/control_app.py`, `tv/render_check.py` · found by the second eye on v2778**
+
+v2778 sandboxed the render child's world: a private temp dir, `TV_HIST`, seven `TV_*` file vars, a
+named copy list with a 64 MB ceiling. It was reviewed by another family — with the code actually
+transmitted this time (REG-700) — and asked the question that settles it: *name every way the child
+can still reach and WRITE a live file.*
+
+Measured by spawning a child under v2778's own env and enumerating every module-level constant that
+still resolved under the live directory. **Eight did:**
+
+    CAPTURE_DOORS_PATH · IDENTITY_PATH · VIEW_REQUEST_PATH · _CHRON_HUNT_MEM_PATH
+    _CHRON_SWEPT_PATH · _DISK_HISTORY · _SHADOW_WATCH_PATH · _UI_FAULTS
+
+So a render gate appended to his real `ui_faults.jsonl`. And two of the eight name files that v2778
+**copies into the sandbox** — copied, then read from the live path anyway. `_CHRON_SWEPT_PATH` is
+the sharpest: `TV_CHRON_SWEPT` was being set by the harness and read by nothing, which looks exactly
+like isolation from either end. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+
+**Second finding, same review:** the 64 MB ceiling used `break`. One oversized file abandoned every
+remaining name — and a name absent from the sandbox falls back to the LIVE file. The guard against a
+bulk copy would have caused the exact leak the sandbox exists to prevent.
+
+**Fixed:** all eight route through `_fixture_root_for_state()`, which returns `HERE` unless `TV_HIST`
+is set — so his live console is byte-identical and only a fixture world moves. `break` → `continue`,
+with the skipped names printed rather than silently dropped. Copies land in both the sandbox root and
+`frames/hist`, because the child resolves these two ways.
+
+**⛔ The gate is a CENSUS, not a list.** `test_NO_module_level_path_still_resolves_to_the_LIVE_dir`
+spawns a child in a fixture world and asserts *nothing* lands under the live directory. A law naming
+the eight would have been green the day a ninth appeared — and a ninth is how this arrived, one
+`os.path.join(HERE, ...)` at a time, for 911 versions after v1867 first wrote the rule down.
+Measured 8 → 0, with all eight still live for his console. 3 sabotages, each red on one law.
+
+**⚠ Two of the reviewer's five points were not acted on and one was wrong.** `atexit` not running on
+SIGKILL is true and the leftover is an OS-reaped temp dir. "Inheriting the whole environment is
+itself the bug" is probably right in principle and would break the child's PATH/PYTHONPATH in ways
+nothing here measures — left UNKNOWN rather than changed blind. And `_bytes` is not dead code: the
+ceiling reads it on the next iteration.
+
 ## REG-700 — three "cold code reviews" were recorded as second-eye looks and the code was never sent
 
 **2026-09-08 · v2779 · `tv/second_eye_ledger.py` · found while the gate refused to ship v2778**

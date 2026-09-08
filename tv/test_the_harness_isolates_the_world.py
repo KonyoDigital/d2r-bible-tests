@@ -40,6 +40,8 @@ this repo has already paid for once.
 """
 import io
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -174,6 +176,102 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                 os.environ["TV_HIST"] = old
         self.assertNotEqual(got, HERE,
                             "_fixture_root ignores TV_HIST, so the rule it documents does nothing")
+
+    # ── ⚠⚠ v2780 — THE CENSUS, WHICH IS THE ONLY LAW HERE THAT CATCHES THE *NEXT* ONE ────────
+    def test_NO_module_level_path_still_resolves_to_the_LIVE_dir(self):
+        """★★★ v2778 SANDBOXED THE WORLD AND EIGHT PATHS WALKED STRAIGHT PAST IT.
+
+        v2778 handed the render child TV_HIST plus seven TV_* file vars and called the world
+        isolated. A cross-family review of that change asked the one question that mattered — *name
+        every way the child can still reach and WRITE a live file* — and the answer, measured by
+        spawning a child under v2778's own env and enumerating every module-level constant, was
+        **EIGHT**:
+
+            CAPTURE_DOORS_PATH · IDENTITY_PATH · VIEW_REQUEST_PATH · _CHRON_HUNT_MEM_PATH
+            _CHRON_SWEPT_PATH · _DISK_HISTORY · _SHADOW_WATCH_PATH · _UI_FAULTS
+
+        A render gate appended to his real `ui_faults.jsonl`. Two of the eight name files that
+        v2778 COPIES INTO the sandbox — copied, then read from the live path anyway, which is
+        plumbing built on both ends and never joined.
+
+        ⚠⚠ THIS LAW IS A CENSUS, NOT A LIST. It does not name the eight; it spawns a child in a
+        fixture world and asserts that NOTHING lands under the live directory. A law that named
+        them would have been green the day a ninth appeared — and a ninth is exactly how this
+        defect arrived, one careless `os.path.join(HERE, ...)` at a time, for 911 versions after
+        v1867 first wrote the rule down. [[the-unjoined-end]] [[regression-guard]]
+
+        ⚠ IT MUST BE A FRESH INTERPRETER. These are module-level constants frozen at import, so
+        setting TV_HIST inside this process proves nothing about a child that imported earlier —
+        and the child is what the render harness actually spawns."""
+        sand = tempfile.mkdtemp(prefix="census-")
+        try:
+            hist = os.path.join(sand, "frames", "hist")
+            os.makedirs(hist, exist_ok=True)
+            env = dict(os.environ, TV_STUB="1", TV_HIST=hist,
+                       TV_FRAMES_DIR=os.path.join(sand, "frames"))
+            code = (
+                "import sys, os; sys.path.insert(0, %r)\n"
+                "import control_app as CA\n"
+                "HERE = %r\n"
+                "bad = []\n"
+                "for k in dir(CA):\n"
+                "    if not k.isupper() and not k.startswith('_'): continue\n"
+                "    try: v = getattr(CA, k)\n"
+                "    except Exception: continue\n"
+                "    if isinstance(v, str) and v.startswith(HERE + os.sep) and "
+                "v.endswith(('.json', '.jsonl', '.lock')):\n"
+                "        bad.append(k + ' -> ' + os.path.relpath(v, HERE))\n"
+                "print('BAD:' + '|'.join(sorted(bad)))\n" % (HERE, HERE))
+            out = subprocess.check_output([sys.executable, "-c", code], env=env,
+                                          stderr=subprocess.STDOUT, timeout=180)
+            line = [l for l in out.decode("utf-8", "replace").splitlines()
+                    if l.startswith("BAD:")]
+            self.assertTrue(line, "the census child never reported — it is UNMEASURED, not clean")
+            bad = [b for b in line[-1][4:].split("|") if b]
+            self.assertEqual(bad, [],
+                             "%d module-level path(s) still resolve into the LIVE directory while "
+                             "TV_HIST names a fixture world, so a render or a test writes through "
+                             "them into his real data: %s" % (len(bad), ", ".join(bad)))
+        finally:
+            shutil.rmtree(sand, True)
+
+    def test_the_same_paths_STILL_point_at_his_real_files_normally(self):
+        """⛔ THE OTHER HALF, and the one that makes the fix above safe rather than merely tidy.
+        `_fixture_root_for_state()` returns HERE unless TV_HIST is set, and his console never sets
+        it. If that ever stopped being true, his live console would silently start writing its
+        identity, its fault journal and its sweep memory somewhere else — a far worse bug than the
+        one being fixed."""
+        import control_app as CA
+        for name in ("_UI_FAULTS", "CAPTURE_DOORS_PATH", "IDENTITY_PATH", "VIEW_REQUEST_PATH",
+                     "_CHRON_HUNT_MEM_PATH", "_CHRON_SWEPT_PATH", "_DISK_HISTORY",
+                     "_SHADOW_WATCH_PATH"):
+            v = getattr(CA, name, None)
+            self.assertTrue(v, "%s is gone — re-point this law rather than let it pass on nothing"
+                            % name)
+            self.assertTrue(str(v).startswith(HERE + os.sep),
+                            "%s no longer resolves to his live directory in ordinary use (%s) — "
+                            "his console would write its state somewhere he cannot find it"
+                            % (name, v))
+
+    def test_the_size_ceiling_SKIPS_one_file_and_does_not_ABANDON_the_rest(self):
+        """★ THE SECOND FINDING FROM THE SAME REVIEW. The ceiling used `break`, so ONE oversized
+        file abandoned every remaining name — and a name absent from the sandbox falls back to the
+        LIVE file. The guard against a bulk copy would have caused the exact leak the sandbox
+        exists to prevent. It must `continue`, and it must SAY what it skipped, because a silent
+        skip is indistinguishable from a file that was never there.
+        [[unknown-stays-unknown]] [[zero-needs-a-denominator]]"""
+        src = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
+        i = src.find("if _bytes + _sz > 64 * 1024 * 1024")
+        self.assertGreater(i, 0, "the size ceiling is gone")
+        after = src[i:i + 400]
+        # ⚠ code only — the comment above this line explains the `break` that was wrong, so a
+        # substring search over the region would read the explanation as the defect.
+        after = "\n".join(l for l in after.split("\n") if not l.strip().startswith("#"))
+        self.assertNotIn("break", after,
+                         "the ceiling ABANDONS the remaining files again, so one oversized store "
+                         "un-isolates every store after it")
+        self.assertIn("continue", after, "the ceiling no longer skips just the oversized file")
+        self.assertIn("_skipped", after, "a skipped file is silent again")
 
 
 if __name__ == "__main__":

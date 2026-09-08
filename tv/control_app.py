@@ -4694,7 +4694,7 @@ def _capture_doors_path():
 
 #: kept so existing readers of the module attribute still resolve; the CALLABLE is the source of
 #: truth and every read/write below goes through it.
-CAPTURE_DOORS_PATH = os.path.join(HERE, "capture_doors.json")
+CAPTURE_DOORS_PATH = os.path.join(_fixture_root_for_state(), "capture_doors.json")  # v2780 — the world, not just the port [[the-unjoined-end]]
 
 
 def _kai_missed_texts(missed):
@@ -11619,7 +11619,7 @@ def _project_live_ring():
     return out
 
 
-IDENTITY_PATH = os.path.join(HERE, ".tvd_identity.json")
+IDENTITY_PATH = os.path.join(_fixture_root_for_state(), ".tvd_identity.json")  # v2780 — the world, not just the port [[the-unjoined-end]]
 
 
 def set_install_nickname(name):
@@ -12352,7 +12352,19 @@ def _bank_manual_sighting(name, kind):
     return True
 
 
-_UI_FAULTS = os.path.join(HERE, "ui_faults.jsonl")
+# ⚠⚠ v2780 — EIGHT MODULE-LEVEL PATHS IGNORED THE FIXTURE ROOT, AND A RENDER RUN WROTE THROUGH
+# THEM INTO HIS LIVE DIRECTORY. v2778 sandboxed the render child's world by handing it TV_HIST and
+# seven TV_* file vars, and a cross-family review of that change (the first one this session whose
+# prompt actually carried the code) asked the right question: name every way the child can still
+# reach a live file. Measured by spawning a child under v2778's exact env and listing every
+# module-level constant that still resolved under HERE — EIGHT did, this one among them. A render
+# gate therefore appended to his real UI-fault journal, and `chron_hunt_memory.json` and
+# `chronicle_swept.json` were COPIED INTO the sandbox and then read from the live file anyway —
+# plumbing built on both ends and never joined.
+#
+# ⛔ WHY THIS IS SAFE FOR HIS LIVE CONSOLE: `_fixture_root_for_state()` returns HERE unless TV_HIST
+# is set, and his console never sets it. Same path, one indirection. [[plumbing-with-no-tap]]
+_UI_FAULTS = os.path.join(_fixture_root_for_state(), "ui_faults.jsonl")
 
 
 def _ui_faults_path():
@@ -13727,7 +13739,7 @@ def _disk_history_path():
 
 #: kept so existing readers of the module attribute resolve; the CALLABLE is the source
 #: of truth and every read/write goes through it.
-_DISK_HISTORY = os.path.join(HERE, "disk_history.jsonl")
+_DISK_HISTORY = os.path.join(_fixture_root_for_state(), "disk_history.jsonl")  # v2780 — the world, not just the port [[the-unjoined-end]]
 # ⚠ v2244 — THIS COMMENT WAS WRONG BY A FACTOR OF 100, AND THAT IS WHY HIS QUESTION HAD NO ANSWER.
 # It read "~90 days at the retention cadence". MEASURED on his own file: 882 samples spanning 9.0
 # hours — one every 37 SECONDS — so 2000 samples is TWENTY HOURS, not ninety days. Ninety days at
@@ -15245,7 +15257,10 @@ _CHRON_LOCK = threading.Lock()
 # v1524 — THE SWEEP'S MEMORY. The engine may never write (that is its first law), so the record of
 # what has already been read lives out here, with the rest of the console's state. A sealed reel never
 # changes: re-reading one buys nothing and costs a subscription read per still-run.
-_CHRON_SWEPT_PATH = os.path.join(HERE, "chronicle_swept.json")
+# ⚠ this one HAD a TV_ var already (render_check sets TV_CHRON_SWEPT) and the constant never read
+# it — the var was set, honoured nowhere, and looked like isolation. Honour it, then the root.
+_CHRON_SWEPT_PATH = (os.environ.get("TV_CHRON_SWEPT")
+                     or os.path.join(_fixture_root_for_state(), "chronicle_swept.json"))
 # v1835 — how many pages a sweep may hold in memory before banking them. 20 is ~45 minutes of
 # reading at his measured two-lane rate, so a death costs under an hour rather than the whole run.
 _CHRON_CKPT_PAGES = int(os.environ.get("TV_CHRON_CKPT") or 20)
@@ -19916,7 +19931,7 @@ def _shadow_watch_path():
 
 #: kept so existing readers of the module attribute resolve; the CALLABLE is the source
 #: of truth and every read/write goes through it.
-_SHADOW_WATCH_PATH = os.path.join(HERE, "shadow_watch.json")
+_SHADOW_WATCH_PATH = os.path.join(_fixture_root_for_state(), "shadow_watch.json")  # v2780 — the world, not just the port [[the-unjoined-end]]
 
 
 def shadow_watch_state():
@@ -22339,7 +22354,7 @@ def _chron_calibration(reel_dirs):
 
 
 
-_CHRON_HUNT_MEM_PATH = os.path.join(HERE, "chron_hunt_memory.json")
+_CHRON_HUNT_MEM_PATH = os.path.join(_fixture_root_for_state(), "chron_hunt_memory.json")  # v2780 — the world, not just the port [[the-unjoined-end]]
 
 
 def _chron_hunt_mem_path():
@@ -24489,7 +24504,8 @@ def install_identity():
 # ⚠ AND IT IS A REQUEST, NEVER A COMMAND. It cannot open the game, cannot arm the prune, cannot
 # apply anything. The single most it can do is change which tab is in front.
 
-VIEW_REQUEST_PATH = os.environ.get("TV_VIEW_REQUEST") or os.path.join(HERE, ".view_request.json")
+VIEW_REQUEST_PATH = (os.environ.get("TV_VIEW_REQUEST")
+                     or os.path.join(_fixture_root_for_state(), ".view_request.json"))  # v2780 — the world, not just the port [[the-unjoined-end]]
 
 #: A request older than this is STALE and must not be honored. A console that has been closed all
 #: night must not wake up and jump to a pane that mattered eight hours ago.
@@ -24700,7 +24716,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2779",
+        "ver": "v2780",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2780** | `(this commit)` | v2780 — The second eye on v2778 asked what could still reach a live file and the answer was eight module-level constants, including the fault journal a render run writes to. All eight now route through the fixture root, the size ceiling skips one file instead of abandoning the rest, and the gate is a census rather than a list. |
 | **v2779** | `(this commit)` | v2779 — Three cold code reviews recorded as looks sent the un-evaluated open().read() expression instead of the code; record() now takes the prompt and refuses a fence that carries no code. Redone properly, the review found a JSON string counting its CHARACTERS as entries: 3 became 0, and his 822 real entries are unchanged. |
 | **v2778** | `(this commit)` | v2778 — render_check took a private port and passed --no-open and then handed the child his real environment, so every isolated state path resolved to his live tv slash; three files added after v1869 never got its one rule four files rule and now follow TV_HIST, and the private console reads a snapshot so it still photographs his real surfaces |
 | **v2777** | `(this commit)` | v2777 — his console went black while every counter said healthy; the pixel witness had been right 73 times and was never asked, so a run of BLANK reports now escalates to a relaunch, and only BLANK may act because an occluded window is not a dead one |
