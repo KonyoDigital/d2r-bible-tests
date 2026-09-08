@@ -152,10 +152,17 @@ def payload_for(sha):
                    "part only" % (len(body), len(_full_len_holder[0])))
     note = ""
     if dropped:
-        note = ("\nNOTE: this diff is TRUNCATED — it ends mid-file at a line boundary. Do not "
-                "report a function, statement or block as incomplete, unterminated or missing a "
-                "return merely because the excerpt stops before it does. Judge only what is "
-                "fully shown.\n")
+        note = ("\nNOTE: this diff is TRUNCATED. It is a DIFF, not whole files, and it stops "
+                "part-way through. Two consequences, and both have already produced false "
+                "findings here:\n"
+                "  · it ends mid-file at a line boundary — do not report a function, statement or "
+                "block as incomplete, unterminated or missing a return merely because the excerpt "
+                "stops before it does;\n"
+                "  · a name used in one hunk may be ASSIGNED in a part of the same function that "
+                "is not shown — do not report a variable as unbound, undefined or unpacked-from-"
+                "nowhere unless you can see its whole scope.\n"
+                "Judge only what is fully shown, and say so when a judgement would need code that "
+                "is not here.\n")
     return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped
 
 
