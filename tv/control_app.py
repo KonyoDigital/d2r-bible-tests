@@ -25195,45 +25195,6 @@ def _status_timing_payload():
 
 
 def status_payload():
-    """Timing shell. The honest payload is _status_payload_inner(); this only measures it.
-
-    Kept as a separate function on purpose — the total cannot be computed inside a return-dict
-    literal, and every earlier attempt to make status report on itself from the inside produced a
-    figure that excluded whatever came after the line that read it.
-    """
-    _STATUS_TL.sect = {}
-    _t0 = time.time()
-    _b0 = int((_LOCK_WAIT or {}).get("blocked") or 0)
-    try:
-        return _status_payload_inner()
-    finally:
-        try:
-            _total = round((time.time() - _t0) * 1000.0, 1)
-            _sect = dict(getattr(_STATUS_TL, "sect", None) or {})
-            _sum = round(sum(_sect.values()), 1)
-            _slowest = None
-            if _sect:
-                _slowest = max(_sect.items(), key=lambda kv: kv[1])
-                _slowest = {"name": _slowest[0], "ms": _slowest[1]}
-            _STATUS_TIMING["last"] = {
-                "totalMs": _total,
-                "sections": _sect,
-                # ⚠ never clamped to 0 — a NEGATIVE gap would mean the components double-counted,
-                # and hiding that would hide a broken instrument. [[feedback-suspect-the-instrument]]
-                "unattributedMs": round(_total - _sum, 1),
-                "slowest": _slowest,
-                "lockWaitDelta": int((_LOCK_WAIT or {}).get("blocked") or 0) - _b0,
-            }
-            _STATUS_TIMING["lastTs"] = time.time()
-            _STATUS_TIMING["n"] = int(_STATUS_TIMING.get("n") or 0) + 1
-            if _total >= _STATUS_SLOW_MS:
-                _STATUS_TIMING["slow"] = int(_STATUS_TIMING.get("slow") or 0) + 1
-            _STATUS_TL.sect = None
-        except Exception:
-            pass
-
-
-def _status_payload_inner():
     # v872 (Konyo live: 'STANDBY keeps jumping at me mid session') — one slow ping under game
     # load flipped the whole console to STANDBY/IDLE for a beat. STICKY BRIDGE: a live agent
     # process with a bridge seen in the last 10s stays ON; only a truly dead bridge drops it.
@@ -25347,10 +25308,22 @@ def _status_payload_inner():
         _ident = install_identity()
     except Exception:
         _ident = {"id": "", "computer": "?", "user": "?"}
-    return {
+    # ⚠⚠ v2810 — THE TIMING LIVES *INSIDE* THIS FUNCTION, AND THE RENAME THAT SEEMED CLEANER
+    # BROKE FIVE GATES. v2809 moved this body to `_status_payload_inner` behind a timing shell.
+    # Two guards read this function's BODY by name, and three read its CODE OBJECT: `_app_ver()`
+    # recovers the running version from `status_payload.__code__.co_consts` ON PURPOSE, so a
+    # process cannot report the version sitting on DISK. A shell has no such literal, so the
+    # running stamp went to "v?" — the exact v2155 defect those tests exist to prevent, re-created
+    # by a refactor that never touched their subject. A name is an interface here.
+    # [[regression-guard]] [[source-reading-guard]]
+    _STATUS_TL.sect = {}
+    _t0 = time.time()
+    _b0 = int((_LOCK_WAIT or {}).get("blocked") or 0)
+
+    _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2809",
+        "ver": "v2810",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25592,6 +25565,33 @@ def _status_payload_inner():
         "liveVerAge": _published_ver()[1],
         "agentVer": _agent_disk_ver(),  # v1251 — triple-lamp disk stamp
     }
+    # ⚠ STATED LIMIT, NOT HIDDEN: a request that RAISES before this line is not timed. The
+    # breakdown covers requests that COMPLETED, which is what the 52s complaint was about.
+    try:
+        _total = round((time.time() - _t0) * 1000.0, 1)
+        _sect = dict(getattr(_STATUS_TL, "sect", None) or {})
+        _sum = round(sum(_sect.values()), 1)
+        _slowest = None
+        if _sect:
+            _k, _v = max(_sect.items(), key=lambda kv: kv[1])
+            _slowest = {"name": _k, "ms": _v}
+        _STATUS_TIMING["last"] = {
+            "totalMs": _total,
+            "sections": _sect,
+            # never clamped — a NEGATIVE gap means the components double-counted, and an
+            # instrument that hides its own breakage is worse than none.
+            "unattributedMs": round(_total - _sum, 1),
+            "slowest": _slowest,
+            "lockWaitDelta": int((_LOCK_WAIT or {}).get("blocked") or 0) - _b0,
+        }
+        _STATUS_TIMING["lastTs"] = time.time()
+        _STATUS_TIMING["n"] = int(_STATUS_TIMING.get("n") or 0) + 1
+        if _total >= _STATUS_SLOW_MS:
+            _STATUS_TIMING["slow"] = int(_STATUS_TIMING.get("slow") or 0) + 1
+        _STATUS_TL.sect = None
+    except Exception:
+        pass
+    return _out
 
 
 _LIVE_VER_CACHE = {"t": 0.0, "v": None, "age": None}

@@ -60,16 +60,29 @@ class TestTheStatusBreakdownNamesItsOwnBlindSpot(unittest.TestCase):
 
     def test_the_payload_is_not_cached_v2320_still_stands(self):
         """The fix for slowness must never become the fix v2320 removed."""
-        shell = _fn(self.tree, "status_payload")
-        self.assertIsNotNone(shell, "status_payload is gone")
-        # A cache would have to hold a payload across calls. Nothing in the shell may return a
-        # stored dict instead of calling the inner function.
-        calls = [n for n in ast.walk(shell)
-                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-                 and n.func.id == "_status_payload_inner"]
-        self.assertEqual(len(calls), 1,
-                         "the shell must call the real payload exactly once per request — %d "
-                         "call(s) found. v2320: status is what is true NOW." % len(calls))
+        fn = _fn(self.tree, "status_payload")
+        self.assertIsNotNone(fn, "status_payload is gone")
+        # v2320: status is what is true NOW. A cache would return a stored dict instead of
+        # building one, so the payload must be constructed fresh on every call.
+        builds = [n for n in ast.walk(fn) if isinstance(n, ast.Dict) and len(n.keys) > 20]
+        self.assertTrue(builds,
+                        "status_payload no longer builds its payload — if it now returns a "
+                        "stored one, that is the v2319 cache v2320 tore out")
+
+    def test_the_name_is_the_interface(self):
+        """⚠ v2810 — five gates broke because this body moved behind a shell.
+
+        `_app_ver()` recovers the RUNNING version from `status_payload.__code__.co_consts`, on
+        purpose, so a live process cannot report the version sitting on disk. Move the body to
+        another name and the stamp silently becomes "v?" — the exact v2155 defect, re-created by
+        a refactor that never touched its subject. [[regression-guard]]"""
+        fn = _fn(self.tree, "status_payload")
+        strings = [n.value for n in ast.walk(fn)
+                   if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+        vers = [v for v in strings if len(v) > 1 and v[0] == "v" and v[1:].isdigit()]
+        self.assertTrue(vers,
+                        "status_payload carries no vNNNN literal, so _app_ver() reading its "
+                        "co_consts will report 'v?' — the body has been moved out from under it")
 
     def test_the_gap_is_published_and_never_clamped(self):
         """unattributedMs must exist, and must not be max()'d or abs()'d into looking healthy."""
@@ -96,8 +109,8 @@ class TestTheStatusBreakdownNamesItsOwnBlindSpot(unittest.TestCase):
 
     def test_every_wrapped_producer_reaches_the_ledger(self):
         """A component timed under a name nothing publishes is a measurement nobody can read."""
-        inner = _fn(self.tree, "_status_payload_inner")
-        self.assertIsNotNone(inner, "_status_payload_inner is gone — the shell has nothing to time")
+        inner = _fn(self.tree, "status_payload")
+        self.assertIsNotNone(inner, "status_payload is gone")
         named = set()
         for n in ast.walk(inner):
             if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_t"
@@ -124,7 +137,7 @@ class TestTheStatusBreakdownNamesItsOwnBlindSpot(unittest.TestCase):
 
     def test_the_timing_reaches_the_wire(self):
         """Measured and never published is the [[the-unjoined-end]] shape."""
-        inner = _fn(self.tree, "_status_payload_inner")
+        inner = _fn(self.tree, "status_payload")
         pub = [n for n in ast.walk(inner)
                if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
                and n.func.id == "_status_timing_payload"]
@@ -139,8 +152,8 @@ RED_PROOF = [
     {
         "why": "clamping the gap at zero is the exact dishonesty this law exists to forbid",
         "file": "control_app.py",
-        "find": '                "unattributedMs": round(_total - _sum, 1),',
-        "replace": '                "unattributedMs": max(0.0, round(_total - _sum, 1)),',
+        "find": '            "unattributedMs": round(_total - _sum, 1),',
+        "replace": '            "unattributedMs": max(0.0, round(_total - _sum, 1)),',
         "matches": 1,
     },
     {

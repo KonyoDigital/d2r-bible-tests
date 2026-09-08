@@ -25298,3 +25298,34 @@ mutating the evidence, inside the guard built to make that evidence trustworthy.
 rows afterwards; the rows were removed and the fixture now redirects `LEDGER_PATH` to a temp dir.
 [[feedback-fixtures-never-touch-live-data]]
 
+## REG-750 — a rename broke five gates, and one of them was reading the code object
+
+v2809 moved `status_payload`'s body to `_status_payload_inner` behind a timing shell. The push was
+REFUSED with **5 failures**, and all five were the same act:
+
+| test | what it reads |
+|---|---|
+| `test_the_grant_probe_is_not_called_raw_in_the_payload` | the function's **body**, by name |
+| `test_app_ver_equals_ship_version` | `_app_ver()` |
+| `test_it_agrees_with_the_payload_it_MIRRORS` | `_app_ver()` |
+| `test_it_answers_from_MEMORY_when_the_file_underneath_has_MOVED` | `_app_ver()` |
+| `test_it_survives_the_file_being_UNREADABLE` | `_app_ver()` |
+
+★ **`_app_ver()` READS `status_payload.__code__.co_consts` ON PURPOSE.** v2155 fixed a defect where
+the running stamp was recovered with `inspect.getsource()` — which opens the FILE, so a live
+process began reporting the version on DISK, and a bump that moved any line above it made the slice
+land on unrelated code and report the literal `"v?"`. The compiled constant cannot be changed by an
+edit underneath a running process, which is exactly why it was chosen.
+
+A shell function has no version literal in its constants. So the refactor **re-created the precise
+v2155 defect — `_app_ver()` returned `"v?"`** — while never touching `_app_ver`, the stamp, or any
+file those tests name.
+
+**THE NAME IS AN INTERFACE HERE.** Not by convention: by two guards reading the body textually and
+three reading the code object. The timing now lives INSIDE `status_payload`, and a new law asserts
+the function still carries a `vNNNN` literal, so the next refactor that moves this body is refused
+by a sentence instead of by five confusing failures. [[regression-guard]] [[source-reading-guard]]
+
+⚠ And the push log's tail showed only **2 of the 5** — the gate log had all of them. A tail is a
+window, and a window is not a census. [[zero-needs-a-denominator]]
+
