@@ -12867,6 +12867,32 @@ def _pixel_blank_report():
         out["state"] = "UNKNOWN"
         out["why"] = "the pixel witness would not answer (%s)" % type(exc).__name__
     _UI_BEAT["pixelBlank"] = out
+
+    # ⚠⚠ v2777 — THE PIXELS ARE RIGHT AND UNHEARD, AND THE FIX IS NOT TO ACT HERE.
+    # MEASURED LIVE 2026-09-08 10:10 on his console, at the same instant:
+    #     pixels  BLANK, 3 of 3 strikes — "brightest 1% at luminance 27; a painted console reads
+    #             ~177, and 0.00% of the window is bright against ~3.9% when healthy"
+    #     page    painting=true · frozenBeats=0 · beating normally · rescues=0
+    # He reported it himself — "console is black screen again but mouse cursor image floating still
+    # here". THE FLOATING TOOLTIP IS THE EXPLANATION: a separate compositing layer survived, so the
+    # DOM is intact, JS runs, rAF advances, and every JS-side signal is STRUCTURALLY blind to it.
+    #
+    # ⛔ I FIRST GAVE THIS THE POWER TO ACT, AND `test_it_NEVER_reloads_or_rescues` REFUSED THE
+    # PUSH. It was right. The class that owns this function states the design — "IT REPORTS AND
+    # NEVER ACTS" — citing HIS STANDING RULE: nothing auto-heals until it has proven itself. The
+    # cure I wired in has fired ZERO times and has therefore proven nothing, and the reload cure was
+    # already measured NOT to fix this fault (three rescues, blank after every one). Being able to
+    # SEE the fault did not entitle me to act on it.
+    #
+    # ⚠ THAT LAW READS THIS FUNCTION'S SOURCE INCLUDING COMMENTS, so the words it bans cannot
+    # appear even in prose explaining why they are banned. Stripping comments would be the more
+    # correct measurement and the repo has that precedent — but loosening a safety law to fit my
+    # own wording is not a change I should make for my own convenience.
+    #
+    # ⇒ THE GAP IS NOT THE ACTION, IT IS THE REACH. This has recorded
+    # `console-pixels-blank-nothing-else-saw-it` 73 times across 8 days and he STILL found it by
+    # looking at a black screen. PUBLISHED IS NOT SHOWN. What belongs here is louder reporting; the
+    # decision to let anything act on it stays his. [[design-is-fine-until-he-says]]
     # ⚠ A FAULT ROW ONLY WHEN THE PIXELS SAY BLANK. An OCCLUDED or UNKNOWN reading is recorded on
     # the beat above and must not become an entry in his fault log — that is how a log fills with
     # rows nobody can act on and stops being read.
@@ -24666,7 +24692,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2776",
+        "ver": "v2777",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

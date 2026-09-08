@@ -163,6 +163,20 @@ class APopulatedWorldSurvivesALostClaim(unittest.TestCase):
                          "empty containers counted as a world, so any reset board now claims "
                          "ownership of itself")
 
+    def test_an_array_of_BLANKS_is_not_a_world(self):
+        """⚠ FROM THE v2776 CROSS-FAMILY REVIEW. It asked what inputs make the entry count non-zero
+        without a real world behind them. Six of its seven cases already counted 0 — `[]`, `{}`,
+        `0`, `null`, non-JSON and a bare number. But `["",""]` counted 2, and that is what a
+        half-failed write leaves behind. A world of blanks is not a world, and recovering on one
+        would re-pin the claim on a store holding nothing."""
+        st = {"d2r_ownerClaim": "an-old-id",
+              "d2r_owned": json.dumps(["", "  ", None]),
+              "d2r_foundLog": json.dumps({"": 1, "   ": 1})}
+        r = _run(st, install="e07a5fe1")
+        self.assertFalse(r["owner"],
+                         "an array of blank entries counted as a populated world, so a store that "
+                         "holds nothing real now claims ownership of itself")
+
     # ── ⚠ THE THREE PATHS THAT MUST BE UNCHANGED ────────────────────────────────────────────
     def test_star_still_wins(self):
         r = _run({"d2r_ownerClaim": "*"}, install="whatever")

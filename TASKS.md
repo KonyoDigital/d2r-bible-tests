@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2777** | `(this commit)` | v2777 — his console went black while every counter said healthy; the pixel witness had been right 73 times and was never asked, so a run of BLANK reports now escalates to a relaunch, and only BLANK may act because an occluded window is not a dead one |
 | **v2776** | `(this commit)` | v2776 — his own console read 0 of 403 and offered only a claim button while 429 finds sat in the bare keys the whole time; a mismatched claim is now a question rather than a verdict, and the recovery re-pins to star so an install id re-mint can never hide his board again |
 | **v2775** | `(this commit)` | v2775 — his ruling put THE FLEET back in the sessions rail under ON AIR and MINI while the eyes and lamps stay on TV-D, and REG-699 gains a watchdog that times itself and dumps every thread stack when a thread spins while holding the lock the status path needs |
 | **v2774** | `(this commit)` | v2774 — a cross-family review found the degraded-read inference compared a shared counter so another threads lock refusal read as this calls own, suppressing the rescue escalation exactly when the console is most wedged; the flag is now per-thread and a failed stop aborts the relaunch instead of orphaning a live capture |

@@ -3936,9 +3936,24 @@ window._D2R_OWNER = (function(){
           try { _raw = window.localStorage.getItem(_probe[_i]); } catch(e){}
           if (!_raw) continue;
           try {
+            /* ⚠ v2777 — COUNT ENTRIES THAT ARE ACTUALLY SOMETHING. A cross-family review asked what
+               inputs make this non-zero without a real world behind them. Measured, six of its
+               seven cases already counted 0 — `[]`, `{}`, `0`, `null`, non-JSON and a bare number
+               are all handled by the guards below. But `["",""]` counted 2: an array of blanks,
+               which is what a half-failed write leaves behind, would have recovered a world that is
+               not there. Blank entries are not a world. [[zero-needs-a-denominator]] */
             var _p = JSON.parse(_raw);
-            var _n = (_p && _p.length != null) ? _p.length
-                   : (_p && typeof _p === 'object') ? Object.keys(_p).length : 0;
+            var _n = 0;
+            if (_p && _p.length != null) {
+              for (var _j = 0; _j < _p.length; _j++) {
+                if (String(_p[_j] == null ? '' : _p[_j]).trim()) _n++;
+              }
+            } else if (_p && typeof _p === 'object') {
+              var _ks = Object.keys(_p);
+              for (var _k = 0; _k < _ks.length; _k++) {
+                if (String(_ks[_k] == null ? '' : _ks[_k]).trim()) _n++;
+              }
+            }
             if (_n > 0) _hasWorld += _n;
           } catch(e){}
         }
@@ -49802,7 +49817,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2776', name:'v2776 - a populated world survives a lost claim', date:'2026-09-08', note:'his own console read 0 of 403 and offered only a claim button while 429 finds sat in the bare keys the whole time; a mismatched claim is now a question rather than a verdict, and the recovery re-pins to star so an install id re-mint can never hide his board again' };
+  window.D2R_BUILD = { id:'v2777', name:'v2777 - the pixels reach the decider', date:'2026-09-08', note:'his console went black while every counter said healthy; the pixel witness had been right 73 times and was never asked, so a run of BLANK reports now escalates to a relaunch, and only BLANK may act because an occluded window is not a dead one' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
