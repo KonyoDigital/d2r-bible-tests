@@ -118,6 +118,55 @@ class TheRescueHasATopRung(unittest.TestCase):
             self.assertFalse(D(bad, 10_000.0, None, False)[0],
                              "an absent futile count (%r) read as grounds to relaunch" % (bad,))
 
+    # ── ⛔⛔ THE INTERACTION THAT NEARLY SHIPPED ─────────────────────────────────────────────
+    def test_a_DEGRADED_aliveness_read_counts_as_RECORDING(self):
+        """⛔⛔ TWO CORRECT FIXES BROKE EACH OTHER, and this is the law that holds them apart.
+
+        The same version made `_agent_alive()` non-blocking — refused the lock, it answers from a
+        10-second pid cache. During `start_agent` the lock IS held (across the spawn) and that cache
+        is still EMPTY, so `_agent_alive()` answers **False while a reel is starting**. The
+        escalation gates on exactly that answer. Trusting it would relaunch the process during the
+        capture it is forbidden to touch — the one outcome the gates above exist to prevent.
+
+        A refused read is UNKNOWN, and unknown fails safe toward the footage."""
+        real = CA._agent_alive
+        try:
+            # a reader that reports "not alive" while ALSO registering a refusal — precisely the
+            # state start_agent produces in the first seconds of a capture
+            def _degraded():
+                CA._LOCK_WAIT["blocked"] += 1
+                return False
+            CA._agent_alive = _degraded
+            self.assertTrue(CA._recording_or_unknown(),
+                            "a DEGRADED aliveness read is being treated as proof that nothing is "
+                            "recording — an escalation in that window kills his reel")
+        finally:
+            CA._agent_alive = real
+
+    def test_a_CONFIDENT_not_alive_read_still_permits_escalation(self):
+        """⚠ Fail-safe must not become fail-always. If the answer was confident, an idle console is
+        still eligible — otherwise the top rung silently stops existing."""
+        real = CA._agent_alive
+        try:
+            CA._agent_alive = lambda: False           # no refusal registered -> confident
+            self.assertFalse(CA._recording_or_unknown(),
+                             "a confident 'not recording' is being read as recording, so the "
+                             "escalation can never fire at all")
+        finally:
+            CA._agent_alive = real
+
+    def test_the_escalation_asks_the_FAIL_SAFE_question(self):
+        """★★ [[plumbing-with-no-tap]]. The helper above is worthless if the loop still calls
+        `_agent_alive()` directly. Parsed, because both names appear in the prose around it."""
+        tree = ast.parse(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+                   and n.name == "_console_rescue_loop"), None)
+        called = {c.func.id for c in ast.walk(fn)
+                  if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+        self.assertIn("_recording_or_unknown", called,
+                      "the rescue loop went back to asking `_agent_alive()` directly, so a "
+                      "degraded read during a spawn again reads as 'nothing is recording'")
+
     # ── ⚠ THE JOIN — PARSED, NEVER GREPPED ──────────────────────────────────────────────────
     def test_the_rescue_loop_actually_CALLS_the_decision(self):
         """★★ [[plumbing-with-no-tap]] — this repo's most repeated defect, and the reason for the

@@ -12863,6 +12863,35 @@ def _pixel_blank_report():
 _RESCUE_ESCALATE_EVERY_S = 900.0
 
 
+def _recording_or_unknown():
+    """Is a reel being recorded — treating a DEGRADED answer as YES. -> bool
+
+    ⚠⚠ THIS EXISTS BECAUSE TWO CORRECT FIXES BROKE EACH OTHER, and it was caught before shipping
+    rather than by him losing footage.
+
+    v2772 made `_agent_alive()` non-blocking: if `_lock` is busy it answers from the 10-second pid
+    cache instead of waiting. v2772 ALSO added a rescue escalation that relaunches the process when
+    the console cannot repaint — gated on `not _agent_alive()`, because a relaunch mid-capture costs
+    him a reel.
+
+    Put together they produce the exact accident the gate was written to prevent: during
+    `start_agent` the lock IS busy (it is held across the spawn), so `_agent_alive()` is refused,
+    falls through to a pid cache that is still EMPTY in the first seconds of a capture, and answers
+    **False while a reel is starting**. An escalation landing in that window would kill the capture
+    it was told never to touch.
+
+    ⛔ So a refused read is NOT evidence of "not recording". It is UNKNOWN, and unknown must fail
+    safe — towards protecting the footage, never towards restarting. Measured by watching the
+    refusal counter across the call, which is exact: if the tally moved, the answer was degraded.
+    [[two-fixes-broke-each-other]] [[unknown-stays-unknown]]
+    """
+    before = _LOCK_WAIT["blocked"]
+    alive = bool(_agent_alive())
+    if alive:
+        return True
+    return _LOCK_WAIT["blocked"] != before   # degraded -> assume recording
+
+
 def _rescue_escalation_decision(futile, now, escalated_ts, recording):
     """May the rescue loop escalate to a relaunch right now? -> (bool, why:str)
 
@@ -13038,7 +13067,7 @@ def _console_rescue_loop():
                         _now = time.time()
                         _go, _why = _rescue_escalation_decision(
                             _UI_RESCUE.get("futile"), _now,
-                            _UI_RESCUE.get("escalatedTs"), _agent_alive())
+                            _UI_RESCUE.get("escalatedTs"), _recording_or_unknown())
                         _UI_RESCUE["escalateWhy"] = _why
                         if _go:
                             _UI_RESCUE["escalatedTs"] = _now
