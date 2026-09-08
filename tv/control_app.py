@@ -13047,6 +13047,9 @@ _RUNAWAY_LATE_FACTOR = 3.0      # a 5s sleep taking >15s means this thread is no
 _RUNAWAY_CPU_BUSY = 0.80        # ~80% of one core, averaged across the tick
 _RUNAWAY_NEED = 3               # consecutive ticks; one is a hiccup, three is a state
 _RUNAWAY_DUMP_EVERY_S = 300.0   # a stack dump is ~40 threads of text; not once per tick
+#: v2793 — the dump FILE's ceiling. One rollover to .1, then overwrite; two files bound it, and a
+#: runaway that trips every 60s for a night cannot fill his disk.
+_RUNAWAY_DUMP_MAX_BYTES = 4 * 1024 * 1024
 _RUNAWAY = {"ticks": 0, "late": 0, "streak": 0, "cpu": None, "lateS": None,
             "detections": 0, "lastDumpTs": 0.0, "why": None, "since": None,
             "blockedAt": 0, "blockedDelta": 0}
@@ -13182,12 +13185,43 @@ def _runaway_watch_loop():
                 print("\u26a0\u26a0 RUNAWAY DETECTED - %s\n"
                       "   dumping every thread's stack below; the spinning frame is in here."
                       % why, flush=True)
+                # ⚠⚠ v2793 — THE DUMP WAS TAKEN SIX TIMES TODAY AND THROWN AWAY SIX TIMES.
+                # This wrote ONLY to sys.stderr. His console is launched by the .app, and its
+                # stderr goes nowhere that survives: measured 2026-09-08, `control_agent.log` was
+                # last written at 02:49 while the running console had been up 4h02m and was
+                # appending faults to ui_faults.jsonl the whole time. So the ONE FACT NOBODY HAS —
+                # which thread is spinning while holding the lock — was captured on every one of
+                # the six `console-runaway-detected` rows and discarded every time.
+                #
+                # A diagnostic whose output goes to a stream nobody keeps is not instrumentation;
+                # it is the appearance of instrumentation. [[the-unjoined-end]]
+                # [[feedback-silence-is-not-evidence]]
+                #
+                # ⚠ It still writes stderr as well — that costs nothing and helps anyone running
+                # the console from a terminal. The FILE is the part that had to exist.
                 try:
                     import faulthandler as _fh
                     _fh.dump_traceback(file=sys.stderr, all_threads=True)
                     sys.stderr.flush()
                 except Exception as _de:
                     print("   (could not dump: %s)" % type(_de).__name__, flush=True)
+                try:
+                    import faulthandler as _fh2
+                    _dp = os.path.join(_fixture_root_for_state(), "runaway_dumps.txt")
+                    # ⚠ CAP IT. A spinning thread can trip this every 60s for hours; an unbounded
+                    # dump file is a second way to fill his disk, and this repo has paid for a full
+                    # volume once already.
+                    try:
+                        if os.path.isfile(_dp) and os.path.getsize(_dp) > _RUNAWAY_DUMP_MAX_BYTES:
+                            os.replace(_dp, _dp + ".1")
+                    except Exception:
+                        pass
+                    with open(_dp, "a") as _df:
+                        _df.write("\n\n===== %s  RUNAWAY  %s =====\n"
+                                  % (time.strftime("%Y-%m-%dT%H:%M:%S"), why))
+                        _fh2.dump_traceback(file=_df, all_threads=True)
+                except Exception as _de2:
+                    print("   (could not write the dump file: %s)" % type(_de2).__name__, flush=True)
                 try:
                     ui_fault_record("console-runaway-detected", why=why,
                                     where="_runaway_watch_loop")
@@ -24887,7 +24921,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2792",
+        "ver": "v2793",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

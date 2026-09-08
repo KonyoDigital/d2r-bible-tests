@@ -23328,6 +23328,54 @@ Gate: 4 new laws in `test_the_pixels_earn_the_right_to_act.py` (14 total). 4 sab
 exactly one law — disabling the cooldown guard, shrinking it to 10s, restoring the per-tick journal
 row, and dropping the `abs()`.
 
+## REG-716 — the runaway's stack dump was taken six times today and thrown away six times
+
+**2026-09-08 · v2793 · `tv/control_app.py` · REG-682 / task #28**
+
+**REG-682 IS NO LONGER UNEXPLAINED.** The v2775 watchdog caught it, and its own words name the
+fault:
+
+> *"RUNAWAY over 9 consecutive tick(s) at 1.00 core(s): **a thread is SPINNING WHILE HOLDING the
+> lock the status path needs** (3 status read(s) refused this tick)"*
+
+Six detections in 24h, in two bursts (08:23:25–32 and 08:24:01–08), each escalating 3 → 6 → 9 ticks
+then clearing. So each episode pegs a core for ~10 seconds and releases.
+
+**⚠⚠ AND THE ONE FACT NOBODY HAS WAS CAPTURED AND DISCARDED, EVERY TIME.** The detector dumps every
+thread's stack — `faulthandler.dump_traceback(file=sys.stderr, all_threads=True)` — **to stderr
+only**. His console is launched by the .app, and that stderr goes nowhere that survives. Measured:
+
+| | |
+|---|---|
+| `control_agent.log` last written | **02:49** |
+| his console uptime at the time of measurement | **4h02m** (so it started ~10:30) |
+| `ui_faults.jsonl` newest row | 51 minutes old — the journal is live |
+| `console-runaway-detected` rows in 24h | **6** |
+| stack dumps recoverable | **0** |
+
+This console instance has never written to that log. So the traceback that would say WHICH thread is
+spinning was produced on all six detections and went into a stream nobody keeps. **A diagnostic
+whose output goes nowhere is not instrumentation; it is the appearance of instrumentation.**
+[[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+
+**Fixed:** the dump also writes to `runaway_dumps.txt`, resolved through `_fixture_root_for_state()`
+so a fixture run cannot scribble in his tree (REG-711's rule). Capped at 4 MB with one rollover to
+`.1` — a spinning thread can trip this every 60s all night, and an unbounded dump file is a second
+way to fill a disk this repo has already filled once. stderr is still written, because it costs
+nothing and helps anyone running the console from a terminal.
+
+**⚠ MY OWN READER WAS THE REASON I CALLED THIS UNKNOWN ALL SESSION.** I reported "no recurrence,
+UNKNOWN" repeatedly while counting faults with the wrong field — the journal's timestamp key is
+`at`, not `ts`, so every row fell outside my 24h window and I read **0** where the Eagle Eye read
+**93**. His question — *"make sure its synced and not stale"* — is what sent me back to check, and
+the journal was perfectly fresh. The instrument was mine.
+[[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+
+⚠ **NOT CLAIMED FIXED: the cause.** This makes the next runaway legible. It does not explain the
+one that already happened — those six dumps are gone. Gate:
+`test_the_console_notices_its_own_runaway.py` (18 laws). 3 sabotages — sending the dump to
+`os.devnull`, removing the cap, and dropping stderr — each red on one law.
+
 ## REG-715 — the dedupe key silenced the one message worth reading
 
 **2026-09-08 · v2792 · `tv/control_app.py` · found by the second eye on v2789**

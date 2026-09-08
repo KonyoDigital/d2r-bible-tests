@@ -48,6 +48,7 @@ that asked for the lock and were refused.
     1 thread spinning WHILE HOLDING the lock  ->  7 detections
     and the dump named it: `line 18 in spin_holding_lock`, 12 thread headers captured.
 """
+import ast
 import io
 import os
 import sys
@@ -68,6 +69,31 @@ import control_app as CA  # noqa: E402
 
 V = CA._runaway_verdict
 TICK = CA._RUNAWAY_TICK_S
+
+
+def _idents(fn):
+    """Every identifier a function mentions, INCLUDING dict-key and path string constants."""
+    out = set()
+    if fn is None:
+        return out
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Name):
+            out.add(n.id)
+        elif isinstance(n, ast.Attribute):
+            out.add(n.attr)
+        elif isinstance(n, ast.Constant) and isinstance(n.value, str):
+            out.add(n.value)
+    return out
+
+
+def _fn(name):
+    # ⚠ this file reads control_app.py per-test rather than into a module-level SRC; the helper
+    # must read it too rather than assume a global that does not exist here.
+    _src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+    for n in ast.walk(ast.parse(_src)):
+        if isinstance(n, ast.FunctionDef) and n.name == name:
+            return n
+    return None
 
 
 class TheConsoleNoticesItsOwnRunaway(unittest.TestCase):
@@ -269,6 +295,48 @@ class TheConsoleNoticesItsOwnRunaway(unittest.TestCase):
                       "occurrence is as unexplainable as the last two")
         self.assertIn("all_threads=True", code,
                       "the dump is not all-threads, so it cannot name the spinning one")
+
+    # -- v2793: THE DUMP MUST SURVIVE THE PROCESS -------------------------------------------
+    def test_the_stack_dump_goes_to_a_FILE_not_only_stderr(self):
+        """*** IT WAS TAKEN SIX TIMES TODAY AND THROWN AWAY SIX TIMES.
+
+        The detector wrote its traceback ONLY to `sys.stderr`. His console is launched by the
+        .app, and that stderr goes nowhere that survives — measured 2026-09-08:
+        `control_agent.log` last written 02:49, while the running console had been up 4h02m and was
+        appending to `ui_faults.jsonl` throughout. The journal carried six
+        `console-runaway-detected` rows, each naming the same thing —
+
+            "a thread is SPINNING WHILE HOLDING the lock the status path needs"
+
+        — and the stack that would say WHICH thread was dumped into a stream nobody keeps, every
+        time. A diagnostic whose output goes nowhere is not instrumentation; it is the appearance
+        of instrumentation. [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]"""
+        fn = _fn("_runaway_watch_loop")
+        self.assertIsNotNone(fn, "the runaway watch loop is gone")
+        names = _idents(fn)
+        self.assertIn("runaway_dumps.txt", names,
+                      "the stack dump has no durable destination again, so the one fact nobody has "
+                      "is captured and discarded on every detection")
+
+    def test_the_dump_file_is_CAPPED(self):
+        """⚠ A spinning thread can trip this every 60s for a night. An unbounded dump file is a
+        second way to fill his disk, and this repo has paid for a full volume once already."""
+        import control_app as CA
+        self.assertTrue(hasattr(CA, "_RUNAWAY_DUMP_MAX_BYTES"),
+                        "the dump file has no ceiling")
+        self.assertLessEqual(CA._RUNAWAY_DUMP_MAX_BYTES, 32 * 1024 * 1024,
+                             "the dump ceiling is %d bytes — large enough to matter on a full "
+                             "disk" % CA._RUNAWAY_DUMP_MAX_BYTES)
+        fn = _fn("_runaway_watch_loop")
+        self.assertIn("_RUNAWAY_DUMP_MAX_BYTES", _idents(fn),
+                      "the ceiling is declared and never consulted")
+
+    def test_stderr_is_STILL_written(self):
+        """⛔ The file is the part that had to exist; stderr costs nothing and helps anyone running
+        the console from a terminal. Removing it would be a regression for that reader."""
+        fn = _fn("_runaway_watch_loop")
+        self.assertIn("stderr", _idents(fn),
+                      "the stderr dump was removed — a terminal-run console now says nothing")
 
 
 if __name__ == "__main__":
