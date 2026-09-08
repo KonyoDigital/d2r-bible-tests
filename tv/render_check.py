@@ -236,7 +236,7 @@ def _find_chrome():
 CHROME = _find_chrome()
 
 # A target says: how to set the board up, what to click, and what element IS the thing.
-def _shelf_activate():   # PARKED — see task #30; not registered in TARGETS yet
+def _shelf_activate():
     """Open the THEATRE, then force THE SHELF open, and refuse until the river has RENDERED.
 
     ⚠⚠ THE RIVER STRIP HAD NO PIXEL COVERAGE AT ALL until this target. v2773 fixed its heading at
@@ -268,14 +268,57 @@ def _shelf_activate():   # PARKED — see task #30; not registered in TARGETS ye
         try {
           if (!window.__shelfAsked) {
             window.__shelfAsked = 1;
-            var b = document.getElementById('th-shelf');
+            /* ⚠⚠ v2785 — LEAVE THE GAMEPLAY HOME FIRST, exactly as `_adv_activate` does, and for
+               the same reason. `#btn-shelf` sits in the RAIL beside `#sig-adv`, and v2775 made
+               `.signal` / `#sig-adv` `display:none` under `body[data-view="sessions"]` — which is
+               the console's HOMEPAGE, the view a freshly served console lands in. So the door was
+               in a hidden region on every run. `window._toTVD()` is the published route out and
+               is the one `_adv_activate` already uses; not calling it is why this target refused
+               three times for three different-looking reasons. [[copy-drift]] */
+            try { if (document.body.getAttribute('data-view') && window._toTVD) window._toTVD(); }
+            catch(e){}
+            /* ⚠⚠ v2785 — #th-shelf IS THE WRONG DOOR, AND IT COST THIS TARGET A ROUND.
+               `#th-shelf` is the button INSIDE the theatre bar, and `#th-shelfov` lives inside
+               `#theatre`, which is display:none while the theatre is shut — so clicking it opened
+               an overlay inside a collapsed box and the target refused for its whole 12s window.
+               `#btn-shelf` is the door a person actually uses: its handler awaits `thOpen()`
+               FIRST and only then `thShelf(true)`, and v2446 wrote it exactly because the shelf
+               was "swallowed" without that ordering. Neither `thOpen` nor `thShelf` is on
+               `window`, so clicking the real control is the only way in. */
+            var b = document.getElementById('btn-shelf')
+                 || document.getElementById('th-shelf');
             if (b && b.click) b.click();
           }
         } catch(e){}
         var ov = document.getElementById('th-shelfov');
         if (!ov || ov.hidden) return false;
-        if (!ov.querySelector('.shr-lane')) return false;
-        if (!ov.querySelector('.shr-head')) return false;
+        /* ⚠⚠ PROVE IT FROM THE RECT, NOT THE FLAG — this file's own v2666 scar, verbatim:
+           "`hidden === false` IS NOT 'HE CAN SEE IT', AND THAT IS THE HOLE HE FELL IN ... the
+           overlay reported height 0 with the full refusal text inside it", because #th-shelfov
+           lives inside #theatre and that is display:none while the theatre is shut. A target that
+           trusted the flag would photograph a zero-height box and call the surface covered. */
+        var _r = ov.getBoundingClientRect();
+        if (!(_r.width > 0 && _r.height > 0)) return false;
+        /* ⚠⚠ v2785 — THE LANES ARE ONE OF FOUR THINGS THE RIVER CAN SAY, AND THE FIRST CUT OF THIS
+           TARGET WOULD ONLY EVER ACCEPT THE HAPPY ONE. `_shLanesRender` renders `.shr-head` +
+           `.shr-lane` when the ask succeeds, and a `.shr-bad` sentence in the three other cases:
+           the console was asked and did not answer (UNKNOWN, not an empty river), the river
+           refused with a reason, or it reported no lanes at all.
+
+           Requiring `.shr-lane` meant a console whose river ask fails could never be photographed
+           — the target would refuse for its full 12s window and report "could not be ACTIVATED"
+           while the page was perfectly healthy and RENDERING THE VERY SENTENCE a reader needs to
+           see. Those three refusal surfaces have never been photographed either, and they are the
+           ones that appear when something is wrong, which is when pixels matter most.
+
+           So: EITHER the lanes OR a rendered refusal counts as painted, and `__shelfSaw` records
+           WHICH — a green run that photographed a refusal must not read as a green river.
+           Only the loading placeholder is still refused, because that one really is "not yet".
+           [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+        var lanes = ov.querySelector('.shr-lane') && ov.querySelector('.shr-head');
+        var bad = ov.querySelector('.shr-bad');
+        if (!lanes && !bad) return false;
+        try { window.__shelfSaw = lanes ? 'lanes' : 'refusal'; } catch(e){}
         return true;
       })()"""
 
@@ -397,6 +440,51 @@ TARGETS = {
     #      an unconditional tab click TOGGLES, so each poll undid the last and the answer came down
     #      to parity. Any future target here must check before it acts.
     #
+    # ⚠⚠⚠ v2785 — A `shelf` TARGET WAS WRITTEN AND WITHDRAWN, AND SAYING SO IS THE POINT.
+    # Task #30 is real and stays open: THE RIVER STRIP HAS NO PIXEL COVERAGE. v2773 fixed its
+    # heading at 375px — three anonymous flex items each wrapping into its own column, the FIFO
+    # qualifier crushed into a 61px column three lines tall — and the only thing guarding that fix
+    # is a unit test reading computed style. A surface nobody photographs is a surface whose next
+    # regression is found by Konyo. That gap is NAMED here rather than hidden, exactly as the
+    # `locks` target above is. [[visual-regression-detector]] [[unknown-stays-unknown]]
+    #
+    # WHY IT WAS PULLED — the last refusal, which is a fact about the SURFACE and not the target:
+    #
+    #     🔴 shelf  the page never settled in 25s — readyState/size kept moving
+    #
+    # Opening the shelf keeps the document assembling past the settle bound. That is the same
+    # shape as task #15 ("THE SHELF builds ~72,700 DOM elements in one open and stops the whole
+    # window painting"); v2760 narrowed the build to what is shown, and it still churns enough
+    # that `settled` never latches. A target that always refuses is furniture in the same way one
+    # that always passes is — ship it and we learn to skim its refusal, and then the real one goes
+    # with it. Konyo's call, 2026-09-08: *"withdraw the target if it refuses again"*.
+    #
+    # ⚠ FIVE THINGS IT FOUND BEFORE IT WAS PULLED, ALL KEPT AND ALL REAL:
+    #   1. `spec["seed"]` RAISED rather than skipped, so adding any target with nothing to seed
+    #      printed `🔴 the GATE ITSELF raised (KeyError: 'seed')` and lost the surface. Now
+    #      `spec.get("seed")`. That one is shipped and is a fix to the harness for every future
+    #      target, not just this one.
+    #   2. `serve: True` is what separates a CONSOLE target from a bible.html one. Without it the
+    #      shelf was being driven against the public page, where `#th-shelfov`, `#btn-shelf`,
+    #      `_toTVD` and even `data-view` simply do not exist. Four rounds of my inference chased
+    #      symptoms on the wrong document. [[copy-drift]]
+    #   3. `#btn-shelf` is the door, NOT `#th-shelf`: the latter lives inside the theatre bar and
+    #      `#th-shelfov` is inside `#theatre`, which is display:none while shut. v2446 wrote
+    #      `#btn-shelf` precisely because the shelf was "swallowed" without `await thOpen()` first.
+    #   4. PROVE IT FROM THE RECT, NOT THE FLAG — v2666's scar, which applies here verbatim:
+    #      "`hidden === false` IS NOT 'HE CAN SEE IT' ... the overlay reported height 0 with the
+    #      full refusal text inside it".
+    #   5. `activateWhy` IS NOT OPTIONAL FOR A NEW TARGET. Four refusals in a row each said only
+    #      "could not be ACTIVATED"; I inferred a cause, fixed something genuinely broken, and got
+    #      the same sentence back. The first run WITH `activateWhy` printed
+    #      `view=null · _toTVD=undefined · btnShelf=NO · ov=ABSENT` and settled it instantly. A
+    #      refusal that cannot name its own cause costs a round every time.
+    #      [[zero-needs-a-denominator]] [[feedback-verify-not-proxy]]
+    #
+    # ⚠ `_shelf_activate()` IS KEPT ABOVE, CORRECT AND UNREGISTERED. Re-registering it needs the
+    # settle problem solved first — either a `settle_shape` that tolerates a growing document (the
+    # `page` target already declares one) or a shelf that stops building. Do not simply widen the
+    # bound: v2692 records the cost of doing that from a number taken while a game held 3.4 cores.
     "taskforce": {
         "why": "the Task Force card — the mission line, the date, the DAILY PICK tag",
         "seed": """(function(){ localStorage.setItem('d2r_ownerClaim','*'); return 1; })()""",
@@ -2092,7 +2180,13 @@ def check(name, spec, shots=True):
             out["ok"] = False
             out["refusals"].append(why)
             return out
-        tab.ev(spec["seed"])
+        # ⚠ v2785 — `spec["seed"]` RAISED AND TOOK THE WHOLE TARGET WITH IT. Adding a target
+        # that has nothing to seed produced `🔴 shelf  the GATE ITSELF raised (KeyError: 'seed')`,
+        # which the harness correctly labelled a bug in itself rather than in the page — and then
+        # still lost the surface. Not every surface needs seeding; a missing seed is a shape, not a
+        # fault. [[unknown-stays-unknown]]
+        if spec.get("seed"):
+            tab.ev(spec["seed"])
         # ⚠ v2404 — A FIXED SLEEP HERE BLOCKED A LEGITIMATE PUSH. This was `time.sleep(0.6)`, and
         # on the v2403 pre-push the `inbox` target refused with "the panel could not be ACTIVATED"
         # while the SAME tree rendered all six targets green minutes later on a quiet machine.

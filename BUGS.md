@@ -23134,6 +23134,98 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-708 — OPEN: clicking THE SHELF opens the theatre and then shows nothing
+
+**2026-09-08 · found while chasing REG-707 · NOT FIXED, cause NOT established**
+
+Measured on a freshly served private console, driven over CDP. Click `#btn-shelf`:
+
+| fact | measured |
+|---|---|
+| `#btn-shelf` | exists, 320x75, `onclick` is a function |
+| `_toTVD()` | works — `data-view` goes `sessions` -> `null` |
+| after the click | **`theatre-open` becomes true** — so `thOpen()` ran |
+| `#th-shelfov` | **stays `hidden:true`, 0 elements, innerHTML length 0** for 10s+ |
+| `TH.sessions` | 0 at click, **442** two seconds later — the fetch works fine |
+| forcing `hidden=false` by hand | a 1044x906 box containing **nothing** |
+| t+12s | the theatre **closes itself** again |
+
+**Neither branch of `thShelf()` ran.** With `TH.sessions` empty at click time the `else` branch
+should have set `ov.hidden = false` and written "Loading runs…"; `innerLen` stayed 0, so it did
+not. And because `ov.hidden` was still true, the later `if (!ov.hidden) _paintShelf()` on the fetch
+callback skipped too — the shelf had its 442 sessions and painted none of them.
+
+This is the symptom Konyo has reported twice in his own words — *"now the theatre mode/shelf mode
+is swallowed i cant see it rendering when i click on it"* (v2446) and *"when i click on the shelf
+it doesnt render anything anymore"* (v2666). Both fixes addressed `thOpen()` **rejecting**; this
+state looks like `await thOpen()` never settling, which neither guard covers.
+
+**⛔ NOT CLAIMED FIXED, AND THE CAUSE IS UNKNOWN.** `thOpen` and `thShelf` are closure-local and
+not on `window`, so an injected probe cannot instrument them — the click path is the only way in
+and it is the thing under suspicion. What is established is the reproduction and the state; what
+is not established is why. [[unknown-stays-unknown]]
+
+## REG-707 — a refusal that cannot name its own cause costs a round every time
+
+**2026-09-08 · v2785 · `tv/render_check.py`, `tv/control_app.py` · task #30, withdrawn**
+
+A `shelf` render target was written for the river strip and **withdrawn after six runs**. Task #30
+stays open and the gap is named rather than hidden, exactly as the `locks` target above is.
+
+**Why it was pulled** — the final refusal read:
+
+    🔴 shelf  the page never settled in 25s — readyState/size kept moving
+
+**⚠ I WROTE THAT UP AS "the shelf never stops assembling" AND MY OWN MEASUREMENT REFUTED IT.**
+Sampling the live document every 2s while the shelf opens:
+
+    els 12223 -> 12222 -> 12223   (±1, stable)      readyState: complete throughout
+    outerHTML 2797108 -> 2797233 -> 2797218          (±125 bytes, then flat)
+
+The page settles **structurally**. What moves is the byte length, because the header carries a
+**ticking clock** — so a settle rule keyed on `outerHTML.length` can never latch on this console.
+`settle_shape` exists for exactly that and the target did not declare one. That is a fact about my
+target, not about the surface, and the first write-up had it backwards. [[unknown-stays-unknown]]
+
+Konyo's call: *"withdraw the target if it refuses again"*. A gate that always refuses is furniture
+in the same way one that always passes is.
+
+**⛔ AND THE REAL FIND IS A CONSOLE BUG, NOT A HARNESS ONE — SEE REG-708.** Chasing the refusal
+turned up a reproducible swallowed shelf.
+
+**⚠⚠ THE LESSON, AND IT IS THE EXPENSIVE ONE.** Four consecutive runs said only *"the panel could
+not be ACTIVATED"*. Each time I inferred a cause, fixed something genuinely broken, and got the
+same sentence back. The first run that declared `activateWhy` — an expression the harness evaluates
+ONLY on failure, which already existed for exactly this — printed:
+
+    view=null · _toTVD=undefined · btnShelf=NO · ov=ABSENT · theatreOpen=false
+
+and settled it in one shot: the target had no `serve: True`, so it was being driven against
+`bible.html`, where none of the console UI exists. **Four rounds chasing symptoms on the wrong
+document, because the refusal reported a zero with no denominator.** The instrument to prevent that
+was in the file the whole time. [[zero-needs-a-denominator]] [[feedback-verify-not-proxy]]
+
+**Five findings kept, all real:**
+
+1. **Shipped fix to the harness itself:** `spec["seed"]` RAISED instead of skipping, so adding any
+   target with nothing to seed printed `🔴 the GATE ITSELF raised (KeyError: 'seed')` and lost the
+   surface. Now `spec.get("seed")` — this helps every future target, not just this one.
+2. `serve: True` separates a CONSOLE target from a `bible.html` one. `vault`/`inbox`/`taskforce`
+   are page surfaces; `state-panel`/`advanced`/`heart`/`console-tabs` are console ones. I copied
+   the shape of the wrong neighbours. [[copy-drift]]
+3. `#btn-shelf` is the door, **not** `#th-shelf` — the latter is inside the theatre bar, and
+   `#th-shelfov` lives inside `#theatre`, which is `display:none` while shut. v2446 wrote
+   `#btn-shelf` precisely because the shelf was "swallowed" without `await thOpen()` first.
+4. Prove it from the RECT, never the flag — v2666's scar applies verbatim.
+5. `#btn-shelf` sits in the rail beside `#sig-adv`, which **v2775 (my own change)** hid under
+   `body[data-view="sessions"]` — the console's homepage. `window._toTVD()` is the published route
+   out, and `_adv_activate` already uses it.
+
+`_shelf_activate()` is kept, correct and unregistered. Re-registering needs the settle problem
+solved first — a `settle_shape` that tolerates a growing document, or a shelf that stops building.
+**Do not simply widen the bound:** v2692 records what that cost when done from a number taken while
+a game held 3.4 cores.
+
 ## REG-706 — the pixels could see his black window and had no right to act on it
 
 **2026-09-08 · v2784 · `tv/self_arming.py`, `tv/control_app.py`, `tv/pixel_witness_wilson.py` · task #34**

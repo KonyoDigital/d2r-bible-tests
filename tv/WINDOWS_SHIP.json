@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2784",
+  "ver": "v2785",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2784: The pixel witness reported and post-graded but could never trigger, because the rescue fires on a beat read from the page and a blank page can still beat. A lock now sits between the verdict and the action at the deleter bar, and it ships LOCKED: 16 of 16 sabotages refused is a wilson lower bound of 0.806 against 0.839, so a perfect score from one family still refuses and nothing changes until three families have attacked it.",
+  "note": "v2785: Four render runs said only that the panel could not be activated; each round I inferred a cause and fixed something genuinely broken and got the same sentence back. The first run declaring activateWhy named it instantly: the target had no serve key so it was driven against the public page where no console UI exists. The shelf target is withdrawn because the surface never settles, and the gap is named rather than hidden.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

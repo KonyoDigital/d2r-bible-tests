@@ -341,6 +341,49 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                          "with nothing asking for a fixture world, his own console no longer "
                          "resolves its state to the live directory")
 
+    # ── ⚠⚠ v2785 — THE FALLBACK AND THE RULE IT REPLACES MUST GIVE THE SAME ANSWER ───────────
+    def test_the_fallback_AGREES_with_the_rule_it_stands_in_for(self):
+        """★★★ FROM THE CROSS-FAMILY REVIEW OF v2783. It asked what a caller could set and still
+        land on HERE, and the answer sent me to measure `_fixture_root` itself. The two DISAGREED:
+
+            TV_HIST value        _fixture_root      v2783's fallback
+            "   " (whitespace)   HERE               "   "            <- a broken path
+            "relative/path"      HERE               "relative/path"  <- resolves INTO his tree
+            a path UNDER HERE    HERE               that path        <- honoured, not refused
+
+        The canonical rule is three things, not one: truthy, REALPATH'd, and only a fixture when it
+        lands OUTSIDE his tree — *"a caller that repoints TV_HIST outside this module has said this
+        is not his world"*. A fallback that honours a TV_HIST pointing INSIDE his tree is not a
+        safer fallback; it is a second opinion about what isolation means, and two opinions is how
+        one of them quietly becomes wrong. [[copy-drift]] [[the-unjoined-end]]
+
+        ⚠ The fallback is exercised by breaking `import tv_diablo` in a FRESH child, which is the
+        only state in which that arm runs at all."""
+        cases = ["", "   ", "relative/path", "/nope/does/not/exist", "/tmp"]
+        for val in cases:
+            env = dict(os.environ, TV_STUB="1", TV_HIST=val)
+            code = (
+                "import sys, os, builtins; sys.path.insert(0, %r)\n"
+                "import control_app as CA, tv_diablo as T\n"
+                "canon = T._fixture_root(CA.HERE)\n"
+                "_real = builtins.__import__\n"
+                "def _boom(n, *a, **k):\n"
+                "    if n == 'tv_diablo': raise RuntimeError('resolver down')\n"
+                "    return _real(n, *a, **k)\n"
+                "builtins.__import__ = _boom\n"
+                "fb = CA._fixture_root_for_state()\n"
+                "print('PAIR:' + canon + '|' + fb)\n" % (HERE,))
+            out = subprocess.check_output([sys.executable, "-c", code], env=env,
+                                          stderr=subprocess.STDOUT, timeout=180)
+            line = [l for l in out.decode("utf-8", "replace").splitlines()
+                    if l.startswith("PAIR:")]
+            self.assertTrue(line, "the child never reported for TV_HIST=%r — UNMEASURED" % val)
+            canon, fb = line[-1][5:].split("|", 1)
+            self.assertEqual(canon, fb,
+                             "for TV_HIST=%r the fallback answers %r while the rule it stands in "
+                             "for answers %r — two opinions about which directory is his world"
+                             % (val, fb, canon))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

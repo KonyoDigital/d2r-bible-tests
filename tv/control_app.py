@@ -76,9 +76,29 @@ def _fixture_root_for_state():
         import tv_diablo as _tvd
         return _tvd._fixture_root(HERE)
     except Exception:
+        # ⚠⚠ v2785 — THE FALLBACK MUST OBEY THE SAME RULE AS THE THING IT REPLACES, and v2783's
+        # did not. A cross-family review asked what a caller could set and still land on HERE; the
+        # answer sent me to measure `_fixture_root` itself, and the two DISAGREED in three ways:
+        #
+        #   TV_HIST value        _fixture_root      v2783's fallback
+        #   "   " (whitespace)   HERE               "   "          <- a broken path
+        #   "relative/path"      HERE               "relative/path" <- resolves INTO his tree
+        #   a path UNDER HERE    HERE               that path       <- honoured, not refused
+        #
+        # The canonical rule is three things, not one: truthy, REALPATH'd, and only a fixture when
+        # it lands OUTSIDE his tree — "a caller that repoints TV_HIST outside this module has said
+        # this is not his world". A fallback that honours a TV_HIST pointing INSIDE his tree is not
+        # a safer fallback, it is a second opinion about what isolation means. Replicated here
+        # rather than re-invented, because this arm exists precisely when that module is
+        # unreachable. A law pins the two to the same answers. [[copy-drift]] [[the-unjoined-end]]
         _hist = os.environ.get("TV_HIST")
         if _hist:
-            return _hist
+            try:
+                _rp = os.path.realpath(_hist)
+                if not (_rp == HERE or _rp.startswith(HERE + os.sep)):
+                    return _rp
+            except Exception:
+                pass
         return HERE
 REPO = os.path.dirname(HERE)
 
@@ -24782,7 +24802,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2784",
+        "ver": "v2785",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
