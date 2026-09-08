@@ -12486,6 +12486,18 @@ _UI_BEAT_SILENCE_S = 60.0      # a healthy page beats every 5s
 #: 6th tick of a 10s loop, so ~60s is the freshest a reading can be; 90 leaves one missed cycle of
 #: slack and refuses anything older. An unrefreshed BLANK means the REPORTER died, not the window.
 _PIXEL_VERDICT_MAX_AGE_S = 90.0
+#: v2786 — HOW OFTEN THE PIXEL PATH MAY ACT AT ALL. A cross-family review of v2784 asked what stops
+#: it firing every tick once the lock opens, and the answer was NOTHING: the branch sets `due = True`
+#: directly, which BYPASSES `ui_rescue_due`'s own pacing. A blank window would then be rescued every
+#: 10 seconds, forever — and the whole file already knows that a reload does not cure this fault
+#: (REG-585's futile counter). "Repeated process replacements while he is looking at the window" is
+#: worse than the blank window it is trying to cure. 900s matches the escalation cooldown.
+_PIXEL_ACT_EVERY_S = 900.0
+_PIXEL_ACT = {"lastActTs": 0.0, "lastSaidWhy": "", "lastSaidTs": 0.0}
+#: how often the LOCKED refusal may write a journal row. Same review: it recorded one every 10s for
+#: the whole life of a blank window. A journal that repeats itself 360 times an hour is one nobody
+#: reads, which is how the row that matters gets skimmed. [[feedback-silence-is-not-evidence]]
+_PIXEL_SAY_EVERY_S = 300.0
 _UI_RESCUE_COOLDOWN_S = 300.0
 
 # ══ v2393 — ALIVE BUT BLANK. The fault the heartbeat cannot see ═════════════════════════════
@@ -13333,7 +13345,10 @@ def _console_rescue_loop():
                 # [[stale-reading]] [[unknown-stays-unknown]]
                 _pix = _UI_BEAT.get("pixelBlank") or {}
                 if str(_pix.get("state") or "") == "BLANK":
-                    _age = (time.time() * 1000.0 - float(_pix.get("ts") or 0)) / 1000.0
+                    # ⚠ abs(): a wall-clock STEP (NTP, sleep/wake) can make this NEGATIVE, and a
+                    # negative age sails through the freshness test — the permissive direction, on
+                    # the one guard whose whole job is to refuse a stale look. Same review.
+                    _age = abs(time.time() * 1000.0 - float(_pix.get("ts") or 0)) / 1000.0
                     if _age > _PIXEL_VERDICT_MAX_AGE_S:
                         _ok, _lw = False, ("the pixel verdict is %ds old (max %ds) — the reporter "
                                            "stopped, so this is a memory, not a look"
@@ -13345,15 +13360,34 @@ def _console_rescue_loop():
                         except Exception as _e:
                             _ok, _lw = False, ("the lock could not be asked (%s) — an unreadable "
                                                "lock fails CLOSED" % type(_e).__name__)
+                    # ⚠⚠ v2786 — PACE IT, because setting `due` here SKIPS `ui_rescue_due`'s
+                    # own pacing entirely. Without this the first tick after the lock opens is
+                    # followed by another every 10s for as long as the window stays blank.
+                    _now = time.time()
+                    if _ok and (_now - float(_PIXEL_ACT["lastActTs"])) < _PIXEL_ACT_EVERY_S:
+                        _left = _PIXEL_ACT_EVERY_S - (_now - float(_PIXEL_ACT["lastActTs"]))
+                        _ok, _lw = False, ("the pixels acted %ds ago — %ds of the %ds cooldown "
+                                           "left. A reload does not cure this fault, so repeating "
+                                           "it every tick would only hammer a window he is looking "
+                                           "at" % (int(_now - float(_PIXEL_ACT["lastActTs"])),
+                                                   int(_left), int(_PIXEL_ACT_EVERY_S)))
                     _UI_BEAT["pixelMayAct"] = bool(_ok)
                     _UI_BEAT["pixelMayActWhy"] = str(_lw)[:300]
+                    _UI_BEAT["pixelMayActAt"] = int(_now * 1000)
                     if _ok:
+                        _PIXEL_ACT["lastActTs"] = _now
                         ui_fault_record("console-blank-by-pixels-ACTING", why=str(_lw)[:300],
                                         where="_console_rescue_loop")
                         due = True
                         why = ("the pixels say BLANK and the lock is open — %s"
                                % str(_lw)[:140])
-                    else:
+                    # ⚠ SAY IT ONCE PER REASON, NOT ONCE PER TICK. Same review: a row every 10s for
+                    # the life of a blank window. A changed reason is news; the same reason 360
+                    # times an hour is furniture.
+                    elif (str(_lw) != str(_PIXEL_ACT["lastSaidWhy"])
+                          or (_now - float(_PIXEL_ACT["lastSaidTs"])) > _PIXEL_SAY_EVERY_S):
+                        _PIXEL_ACT["lastSaidWhy"] = str(_lw)
+                        _PIXEL_ACT["lastSaidTs"] = _now
                         ui_fault_record("console-blank-by-pixels-LOCKED", why=str(_lw)[:300],
                                         where="_console_rescue_loop")
                 if not due:
@@ -24802,7 +24836,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2785",
+        "ver": "v2786",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

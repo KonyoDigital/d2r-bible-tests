@@ -61,6 +61,25 @@ def _fn(tree, name):
     return None
 
 
+def _idents(fn):
+    """Every identifier a function mentions, INCLUDING dict-key string constants. -> set
+
+    ⚠ A dict key is not a Name. `_PIXEL_ACT["lastActTs"]` walks as a Subscript whose slice is an
+    ast.Constant, so a walk that collected only Name/Attribute reported the key as absent and the
+    law went red on correct code."""
+    out = set()
+    if fn is None:
+        return out
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Name):
+            out.add(n.id)
+        elif isinstance(n, ast.Attribute):
+            out.add(n.attr)
+        elif isinstance(n, ast.Constant) and isinstance(n.value, str):
+            out.add(n.value)
+    return out
+
+
 class ThePixelsEarnTheRightToAct(unittest.TestCase):
 
     # -- THE DECLARATION ---------------------------------------------------------------------
@@ -195,6 +214,79 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
         self.assertEqual(PW.verdict(healthy)[0], PW.PAINTED,
                          "his measured HEALTHY console reads BLANK - a rescue would replace the "
                          "window he is working in")
+
+    # -- v2786: WHAT HAPPENS THE DAY IT OPENS ------------------------------------------------
+    def test_the_pixel_path_is_PACED_once_the_lock_opens(self):
+        """*** FROM THE CROSS-FAMILY REVIEW OF v2784, and it is the finding that matters most
+        because it only bites AFTER the lock earns its way open.
+
+        The branch sets `due = True` directly, which BYPASSES `ui_rescue_due`'s own pacing. The
+        reviewer asked what stops it firing on every subsequent tick while the window stays blank,
+        and the answer was nothing: a rescue every 10 seconds, forever, on a window he is looking
+        at. This file already knows a reload does NOT cure this fault (REG-585's futile counter),
+        so repeating it is pure hammering."""
+        import control_app as CA
+        self.assertTrue(hasattr(CA, "_PIXEL_ACT_EVERY_S"),
+                        "the pixel path has no cooldown, so the day the lock opens it fires every "
+                        "10s for as long as the window stays blank")
+        self.assertGreaterEqual(CA._PIXEL_ACT_EVERY_S, 300.0,
+                                "the cooldown is short enough to hammer his window")
+        self.assertTrue(hasattr(CA, "_PIXEL_ACT") and "lastActTs" in CA._PIXEL_ACT,
+                        "nothing remembers when the pixels last acted, so the cooldown cannot bind")
+
+    def test_the_cooldown_is_actually_CONSULTED(self):
+        """[[plumbing-with-no-tap]]. A constant nothing reads is a decoration. Parsed from the
+        AST of the loop, never grepped."""
+        # ⚠ COLLECT STRING CONSTANTS TOO. The first cut walked only Name and Attribute, and
+        # `_PIXEL_ACT["lastActTs"]` is a SUBSCRIPT — the key is an ast.Constant. The law went red
+        # on correct code and I nearly went looking in control_app.
+        # [[sabotage-is-usually-the-wrong-one]] [[feedback-suspect-the-instrument]]
+        # ⚠⚠ MENTIONED IS NOT CONSULTED, AND A SABOTAGE CAUGHT ME SHIPPING THE WEAKER LAW.
+        # The first cut asserted only that `_PIXEL_ACT_EVERY_S` appears somewhere in the function.
+        # Replacing the guard with `if False:` left the constant sitting in now-unreachable code,
+        # the law stayed GREEN, and the pacing was gone. A law that reads MENTION cannot see a
+        # branch stop running. So: the cooldown must appear in the TEST of an `if`, which is the
+        # only place it can actually bind. [[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
+        fn = _fn(CA_TREE, "_console_rescue_loop")
+        names = _idents(fn)
+        self.assertIn("lastActTs", names,
+                      "the loop never reads or stamps when the pixels last acted")
+        in_a_condition = False
+        for n in ast.walk(fn):
+            if isinstance(n, ast.If) and "_PIXEL_ACT_EVERY_S" in _idents(n.test):
+                in_a_condition = True
+                break
+        self.assertTrue(in_a_condition,
+                        "the pixel cooldown is never part of an `if` test, so it cannot stop "
+                        "anything — the day the lock opens, a blank window is rescued every tick")
+
+    def test_the_LOCKED_refusal_does_not_write_a_row_every_tick(self):
+        """⚠ Same review: `ui_fault_record` fired every 10s for the whole life of a blank window.
+        A journal that repeats itself 360 times an hour is one nobody reads, and that is how the
+        row that matters gets skimmed past. Say it once per REASON."""
+        import control_app as CA
+        self.assertTrue(hasattr(CA, "_PIXEL_SAY_EVERY_S"),
+                        "the locked refusal has no rate limit again")
+        names = _idents(_fn(CA_TREE, "_console_rescue_loop"))
+        self.assertIn("lastSaidWhy", names,
+                      "nothing remembers the last reason, so every tick writes a fresh row")
+
+    def test_a_BACKWARDS_clock_cannot_make_a_stale_verdict_look_fresh(self):
+        """⚠ Same review. `time.time()` can STEP — NTP, sleep/wake — and a negative age sails
+        straight through `_age > MAX`. That is the permissive direction on the one guard whose
+        whole job is to refuse a look that is really a memory. `abs()` closes it."""
+        # ⚠ ANCHOR IT TO ITS OWN CONTEXT. `src.find("_age = ")` grabs the first match in a
+        # 25,000-line file, which is somewhere else entirely — a window shortcut reading my guess
+        # rather than the code. [[source-window-shortcut]]
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.find('_pix.get("ts")')
+        self.assertGreater(i, 0, "the pixel-verdict age computation is gone")
+        j = src.rfind("_age", max(0, i - 400), i)
+        self.assertGreater(j, 0, "could not find the age assignment beside the ts read")
+        line = src[j:src.find("\n", i)]
+        self.assertIn("abs(", line,
+                      "a clock step can make the pixel verdict's age negative, which passes the "
+                      "freshness test and lets a memory trigger a rescue: %r" % line.strip())
 
 
 if __name__ == "__main__":

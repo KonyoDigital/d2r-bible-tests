@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2785",
+  "ver": "v2786",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2785: Four render runs said only that the panel could not be activated; each round I inferred a cause and fixed something genuinely broken and got the same sentence back. The first run declaring activateWhy named it instantly: the target had no serve key so it was driven against the public page where no console UI exists. The shelf target is withdrawn because the surface never settles, and the gap is named rather than hidden.",
+  "note": "v2786: The second eye on v2784 asked what stops the pixel path firing on every iteration once the lock opens, and nothing did: setting due directly bypasses the rescue loop own pacing. A blank window would have been rescued every ten seconds on a window he is looking at. Now paced at 900s with a stamp, the locked refusal speaks once per reason, and a backwards clock can no longer make a stale verdict read as fresh.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

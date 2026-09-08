@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2785"   # a refusal that cannot name its own cause costs a round every time
+VERSION = "v2786"   # the pixel rescue would have fired every ten seconds forever the day it was unlocked
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

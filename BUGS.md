@@ -23134,6 +23134,53 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-709 — the pixel rescue would have fired every ten seconds, forever, the day it was unlocked
+
+**2026-09-08 · v2786 · `tv/control_app.py` · found by the second eye on v2784**
+
+v2784 put a self-arming lock between a pixel BLANK verdict and a rescue. A cross-family review
+asked the one question that only bites **after** the lock earns its way open:
+
+> *"What stops this from firing on EVERY subsequent iteration while the window stays blank?"*
+
+Nothing did. The branch sets `due = True` directly, which **bypasses `ui_rescue_due`'s own pacing**.
+So the first tick after the lock opened would have been followed by another every 10 seconds, for
+as long as the window stayed blank — on a window he is looking at, and with this file already
+knowing that **a reload does not cure this fault** (REG-585's futile counter). Repeated process
+replacements are worse than the blank window they are trying to cure.
+
+**Three more from the same review, all acted on:**
+
+- `ui_fault_record` fired on **every 10s tick** while blank — ~360 identical rows an hour. A journal
+  that repeats itself is one nobody reads, which is how the row that matters gets skimmed past. Now
+  written once per *reason*, or every 300s.
+- `_age` could go **negative** on a wall-clock step (NTP, sleep/wake), and a negative age sails
+  straight through `_age > MAX` — the permissive direction on the one guard whose whole job is to
+  refuse a memory. Now `abs()`.
+- `pixelMayAct` was written only inside the BLANK branch, so a reader saw a stale verdict with no
+  sign it was old. Now stamped with `pixelMayActAt`.
+
+**Two weighed and not taken.** Before the reporter has ever run, `_pix` is `{}` and the branch is
+skipped — that is correct, absence is "never asked" and not a verdict. And unsynchronised `_UI_BEAT`
+access across threads is real and pre-existing across the whole design; changing it here would be a
+wide refactor on a hot path with no measurement behind it. UNKNOWN, deliberately not changed blind.
+
+**⚠⚠ A SABOTAGE CAUGHT ME SHIPPING THE WEAKER LAW.** `test_the_cooldown_is_actually_CONSULTED`
+first asserted only that `_PIXEL_ACT_EVERY_S` appears somewhere in the function. Replacing the guard
+with `if False:` left the constant sitting in unreachable code, **the law stayed green, and the
+pacing was gone.** A law that reads MENTION cannot see a branch stop running. It now requires the
+cooldown to appear in the TEST of an `if`, which is the only place it can bind.
+[[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
+
+⚠ And two of the four new laws were red on correct code at first: `_PIXEL_ACT["lastActTs"]` walks
+as an `ast.Constant` subscript, not a `Name`, and `src.find("_age = ")` grabbed the first match in a
+25,000-line file rather than the line under test. Both were my instruments, not the code.
+[[feedback-suspect-the-instrument]] [[source-window-shortcut]]
+
+Gate: 4 new laws in `test_the_pixels_earn_the_right_to_act.py` (14 total). 4 sabotages, each red on
+exactly one law — disabling the cooldown guard, shrinking it to 10s, restoring the per-tick journal
+row, and dropping the `abs()`.
+
 ## REG-708 — OPEN: clicking THE SHELF opens the theatre and then shows nothing
 
 **2026-09-08 · found while chasing REG-707 · NOT FIXED, cause NOT established**
