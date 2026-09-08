@@ -5276,7 +5276,19 @@
   #theatre:not([hidden]) { animation: shellFade .22s ease-out; }
   .hd-taskforce:not([hidden]), .hd-lastsession:not([hidden]) { animation: shellReveal .24s ease-out; }
   /* v1496 · THE FLEET — one row per console, online first, each with when it was last seen. */
-  .fleet-box { margin-top: 8px; border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; }
+  /* ⚠⚠ v2775 — `box-sizing` IS LOAD-BEARING HERE, AND MEASURING IS WHAT FOUND IT.
+     Moving this box out of #sig-adv changed its containing block: inside the drawer it sat within
+     that padding, out here it is the rail's full 320px PLUS its own 18px padding and 2px border.
+     MEASURED: `aside.rail` scrollWidth 341 vs clientWidth 320 — the rail itself became the clipped
+     element, at EVERY width, and the render gate caught it as "1 MORE than the declared floor".
+     A/B against HEAD settled it in one run: HEAD 1 clipped element, this tree 2.
+     [[ab-against-head-before-blaming-the-room]] */
+  /* ⚠ `max-width: 100%` WAS HERE AND DID NOTHING — a cross-family review pointed it out and it is
+     right: a non-replaced block-level element already resolves to the width of its containing
+     block, so the cap can never bind. `box-sizing` is the line that matters, and keeping a
+     decorative neighbour beside it teaches the next reader that both were needed. */
+  .fleet-box { margin-top: 8px; border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px;
+    box-sizing: border-box; }
   .fleet-head { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--gold-dim); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .fleet-refresh { margin-left: auto; padding: 2px 7px; }
@@ -7407,9 +7419,28 @@ body[data-origin="shadow"] #stage::after {
                "a tracker for whose logged in and when, like we have for the website"; /console has
                answered that in a browser tab since v875, and this is the same answer inside the console
                he already has open. Opening the panel fetches it (60s cached server-side). -->
-          <div class="fleet-box">
+          
+        </details>
+
+                    <!-- ⚠⚠ v2775 — THE FLEET LIVES IN THE RAIL, NOT IN THE DRAWER.
+                         Konyo, 2026-09-08: "maybe just the FLEET it can be in sessions tab still where it
+                         was located under on air and mini sections.. instead of the advanced that is not in
+                         TV-D, so the FLEET put in sessions".
+
+                         v2773 moved the whole engine room to TV·D and he could not find it. The eyes and
+                         the lamps belong there — they are the AI readers' own status. THE FLEET is a
+                         different kind of thing: who is playing and what they have found, which is a
+                         SESSIONS fact, and it used to sit under ON AIR and MINI where he went looking.
+
+                         ⚠ MOVED, NOT COPIED. A second fleet block on TV·D would be two things that must
+                         stay in step and eventually will not. [[copy-drift]]
+
+                         ⚠ IT IS NOW A SIBLING OF #sig-adv, AND THAT IS THE MECHANISM: the Sessions hide
+                         rule names `.signal` and `#sig-adv`, so anything still inside that drawer is hidden
+                         with it. Out here it needs no rule of its own to stay visible in every view. -->
+<div class="fleet-box">
             <div class="fleet-head">🖥 THE FLEET <button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
-            <div id="fleet-list"><div class="fleet-none">open ⚙ advanced to check the fleet…</div></div>
+            <div id="fleet-list"><div class="fleet-none">checking who is online…</div></div>
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
             <div id="fleet-xref" class="fleet-xref" hidden></div>
@@ -7425,7 +7456,6 @@ body[data-origin="shadow"] #stage::after {
              window's design rather than a second thing that resembles it. [[copy-drift]] -->
         
           </div>
-        </details>
         <!-- ⚠ v2400 — THIS OVERLAY MUST NOT LIVE INSIDE <details id="sig-adv">, AND IT DID.
              A collapsed <details> does not render its children AT ALL, and `position:fixed` does not
              escape a subtree that is not being drawn. #sig-adv REMEMBERS his choice: its ontoggle

@@ -23177,6 +23177,30 @@ his machine unprompted is not on.
 `faulthandler` on SIGUSR1 **and** the new `lockWait {blocked, reads}` counter, both verified live on
 his machine (`blocked: 0 of 241 reads`).
 
+**⚠⚠ 2026-09-08, LATER — THE SHAPE IS NOW KNOWN, AND A FAILED PROOF IS WHAT NAMED IT.**
+A watchdog was built on `late tick AND busy`. Proving it with 12 pure-Python burner threads gave
+**cpu 1.01 core(s) with a 1.1s tick — not late at all** — and it detected nothing: pure-Python loops
+release the GIL every ~5ms, so other threads keep being scheduled and "late tick" cannot see a
+Python-level spin.
+
+That failure reconciled the three measurements above, which no earlier story did:
+
+| observed | what it rules out |
+|---|---|
+| `/` served in 0.69s | NOT global starvation — the server was scheduling fine |
+| `/api/status` dead at 25s+ | something specific to THAT path was blocked |
+| 108% CPU | something was spinning |
+
+A thread **waiting** on a lock burns 0% CPU — which is why "no lock is involved" looked right — but
+the **holder** can be spinning. **One thread spinning while holding `_lock`** explains all three at
+once and is the only shape that does. The earlier conclusion in this entry ("this refutes BOTH lock
+hypotheses") is therefore **too strong and is corrected here**: it refutes a *waiting* lock, not a
+*held* one.
+
+⇒ The detector now fires on **busy + lock-refusal growth** (and still on busy + late, for a genuine
+C-level GIL hold). Proven end to end: idle **0**, a legitimate sweep at a full core **0**, the real
+shape **7 detections**, and the dump named the culprit frame by name.
+
 **⇒ The next occurrence is diagnosable and this entry is the standing instruction:**
 `kill -USR1 <pid>` prints every thread's Python stack to its log, and `lockWait.blocked` climbing (or
 not) says whether a lock is involved at all. **Do not close this as "fixed by a restart".**

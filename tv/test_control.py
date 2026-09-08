@@ -21009,7 +21009,9 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         ca = self._ca()
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("TV_AUTO_RELAUNCH", None)
-            with mock.patch.object(ca, "auto_relaunch_setting", lambda: None):
+            with mock.patch.object(ca, "board_identity_drift",
+                                   lambda: {"state": "ok", "why": "world pinned by the test"}), \
+                 mock.patch.object(ca, "auto_relaunch_setting", lambda: None):
                 ok, why = ca.drift_may_relaunch()
         self.assertNotIn("opt-in", (why or ""),
                          "auto-relaunch is still refusing as opt-in with nothing chosen, which is "
@@ -21021,7 +21023,9 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         # beat a stored value — which is exactly why the stored value had to stop being consulted.
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("TV_AUTO_RELAUNCH", None)
-            with mock.patch.object(ca, "auto_relaunch_setting", lambda: False):
+            with mock.patch.object(ca, "board_identity_drift",
+                                   lambda: {"state": "ok", "why": "world pinned by the test"}), \
+                 mock.patch.object(ca, "auto_relaunch_setting", lambda: False):
                 ok2, why2 = ca.drift_may_relaunch()
         self.assertTrue(ok2, "a stored 'off' is stopping an update again — updates are not "
                              "optional and there is no longer a button for this")
@@ -21054,6 +21058,8 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         # (a) ON AIR
         for mode in ("live", "sim"):
             with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "world pinned by the test"}), \
                  mock.patch.object(ca, "_agent_mode", mode), \
                  mock.patch.object(ca, "_agent_alive", lambda: True), \
                  mock.patch.object(ca, "mini_state", lambda: {"running": False}):
@@ -21067,6 +21073,8 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         import tempfile as _tf
         _hist = _tf.mkdtemp()
         with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "world pinned by the test"}), \
              mock.patch.object(ca, "_agent_mode", "off"), \
              mock.patch.object(ca, "_agent_alive", lambda: True), \
              mock.patch.object(ca, "HIST_DIR", _hist), \
@@ -21098,6 +21106,8 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         ca = self._ca()
         for job, label in (("_CHRON_JOB", "chronicle"), ("_VAULT_JOB", "vault")):
             with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "world pinned by the test"}), \
                  mock.patch.object(ca, job, {"running": True}), \
                  mock.patch.object(ca, "_agent_alive", lambda: False), \
                  mock.patch.object(ca, "mini_state", lambda: {"running": False}):
@@ -21113,6 +21123,8 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
             raise RuntimeError("cannot tell")
 
         with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "world pinned by the test"}), \
              mock.patch.object(ca, "_agent_alive", boom):
             ok, why = ca.drift_may_relaunch()
         self.assertFalse(ok, "it acted on a state it could not read")
@@ -21123,6 +21135,8 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
         import unittest.mock as mock
         ca = self._ca()
         with mock.patch.dict(os.environ, {"TV_AUTO_RELAUNCH": "1"}), \
+             mock.patch.object(ca, "board_identity_drift",
+                               lambda: {"state": "ok", "why": "world pinned by the test"}), \
              mock.patch.object(ca, "_CHRON_JOB", {"running": False}), \
              mock.patch.object(ca, "_VAULT_JOB", {"running": False}), \
              mock.patch.object(ca, "_agent_alive", lambda: False), \

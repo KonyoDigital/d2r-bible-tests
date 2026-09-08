@@ -2960,7 +2960,15 @@ def _lock_briefly(what):
         _LOCK_WAIT["blocked"] += 1
         _LOCK_WAIT["last"] = str(what)
         _LOCK_WAIT["lastTs"] = time.time()
-        _LOCK_TL.degraded = True          # ⚠ THIS thread was refused — see the note at _LOCK_TL
+        # ⚠⚠ SET HERE, CLEARED ONLY BY THE READER, AND THAT ASYMMETRY IS DELIBERATE — but it is
+        # also a trap a review caught: HTTP request threads are REUSED, so a flag set on one
+        # request survives into the next on the same OS thread. It is safe today because there is
+        # exactly ONE reader (`_recording_or_unknown`) and it clears before it looks, so the flag
+        # can only ever describe the window it opened. A law pins that there is still only one.
+        # ⛔ IT MUST NOT BE CLEARED HERE. `_agent_alive` falls through to `_pid_cached`, so one
+        # logical read enters this helper TWICE; clearing on entry would let the second call erase
+        # the first call's refusal and report a degraded read as confident.
+        _LOCK_TL.degraded = True
     try:
         yield got
     finally:
@@ -5278,6 +5286,7 @@ def start_background_watchers(why):
         # It deletes ONLY reels
         # the plan calls eligible, ONLY as much as it needs, and never while anything is in flight.
         ("tvd-retention", _retention_loop),
+        ("tvd-runaway-watch", _runaway_watch_loop),
     ]
     live = set(t.name for t in threading.enumerate())
     harness = bool(os.environ.get("TV_STUB"))
@@ -12870,6 +12879,182 @@ def _pixel_blank_report():
         print("\u26a0\u26a0 the console's PIXELS are blank and every beat counter reads healthy - %s"
               % str(out.get("why"))[:160], flush=True)
     return out
+
+
+#: ── ⚡ THE RUNAWAY WATCH (REG-699) ──────────────────────────────────────────────────────────
+#: 2026-09-08: his console was found pinned at 108-109% CPU for ~2 hours with /api/status returning
+#: 0 bytes at a 25s timeout, its log silent for 38 minutes, NO capture running and both children
+#: idle. `/` still served in 0.69s, so the server was alive — one thread was burning a core and
+#: every other thread was starving behind the GIL. A freshly booted console on the same code idles
+#: at 0.0%. THE CAUSE IS STILL UNKNOWN and this does not claim to fix it.
+#:
+#: ⛔ WHAT IT FIXES IS THE PART THAT ACTUALLY BIT HIM: nothing noticed. He was the detector, twice.
+#: The frame could not be named afterwards because the console had started BEFORE the faulthandler
+#: shipped, so the one instrument that would have printed it was not in the running process.
+#:
+#: ⚠⚠ IT MEASURES STARVATION DIRECTLY, NOT OVER HTTP. A watchdog that polls its own API would be
+#: the [[poll-slower-than-its-interval]] trap — the thing it is watching for is precisely what
+#: would make that poll slow, and a poll slower than its interval saturates the machine further.
+#: Instead this thread times ITSELF: it sleeps a known interval and measures how long the sleep
+#: actually took. A loop that asks for 5s and gets 40s IS the starvation, measured at the source,
+#: and it needs no socket, no lock and no cooperation from the wedged thread.
+#:
+#: ⚠ AND IT NEEDS BOTH SIGNALS. A late tick alone happens when the Mac sleeps or swaps — that is
+#: not a runaway and must never be reported as one. CPU alone happens during a legitimate sweep.
+#: Only LATE **and** BURNING, for several ticks running, is the shape that was measured.
+_RUNAWAY_TICK_S = 5.0
+_RUNAWAY_LATE_FACTOR = 3.0      # a 5s sleep taking >15s means this thread is not being scheduled
+_RUNAWAY_CPU_BUSY = 0.80        # ~80% of one core, averaged across the tick
+_RUNAWAY_NEED = 3               # consecutive ticks; one is a hiccup, three is a state
+_RUNAWAY_DUMP_EVERY_S = 300.0   # a stack dump is ~40 threads of text; not once per tick
+_RUNAWAY = {"ticks": 0, "late": 0, "streak": 0, "cpu": None, "lateS": None,
+            "detections": 0, "lastDumpTs": 0.0, "why": None, "since": None,
+            "blockedAt": 0, "blockedDelta": 0}
+
+
+def _runaway_verdict(late_s, tick_s, cpu_frac, streak, blocked_delta=None):
+    """Is this process in a runaway? -> (runaway:bool, streak:int, why:str)
+
+    PURE, so a gate can drive every state instead of grepping the loop. [[source-reading-guard]]
+
+    ⚠ `cpu_frac` is CPU-seconds burned per wall-second across the tick — 1.0 means one core fully
+    busy. It is NOT a percentage of all cores, and on his 8-core Mac a runaway reads ~1.05, not
+    ~0.13. A threshold set against the wrong denominator is a branch that never runs.
+    [[feedback-threshold-above-the-ceiling]]
+
+    ⚠ UNKNOWN IS NOT A RUNAWAY. If either measurement is missing the streak RESETS — a watchdog
+    that escalates on absent evidence is worse than one that sleeps through it.
+    """
+    if late_s is None or cpu_frac is None:
+        return False, 0, "not measured this tick"
+    late = late_s > (tick_s * _RUNAWAY_LATE_FACTOR)
+    busy = cpu_frac >= _RUNAWAY_CPU_BUSY
+    # ⚠⚠ THE SECOND SIGNAL, AND MEASURING PROVED IT IS THE NECESSARY ONE.
+    # The first cut of this fired only on `late AND busy`. A proof run with 12 pure-Python burner
+    # threads produced cpu=1.01 core(s) and a tick of 1.1s — NOT LATE AT ALL — so it detected
+    # nothing. Pure-Python loops release the GIL every switch interval (~5ms), so other threads
+    # keep being scheduled; "late tick" cannot see a Python-level spin.
+    #
+    # And that failure reconciles his measurements, which the old story could not:
+    #     `/` served in 0.69s          -> the server was NOT globally starved
+    #     `/api/status` died at 25s+   -> something specific to THAT path was blocked
+    #     the process burned 108% CPU  -> something was spinning
+    # A waiter on a lock burns 0% CPU, which is why "no lock is involved" looked right — but the
+    # HOLDER can be spinning. One thread spinning WHILE HOLDING `_lock` explains all three at once,
+    # and it is the only story that does.
+    #
+    # `blocked_delta` is the growth in `_LOCK_WAIT["blocked"]` across this tick: status reads that
+    # asked for `_lock` and were refused. Busy AND refusing IS that shape, measured directly.
+    starved = (blocked_delta is not None and blocked_delta > 0)
+    if not (busy and (late or starved)):
+        # ⚠ EACH BRANCH FORMATS ITSELF. Written first as one chained conditional with a single
+        # trailing `%`, which binds to the LAST branch only — the other two printed their raw
+        # "%.1fs" specifiers into his fault log. A message that shows its own format string is a
+        # message nobody can act on. [[label-outlived-referent]]
+        if late and not busy:
+            why = ("late but idle (%.1fs for a %.1fs tick, cpu %.2f core(s)) - the machine slept "
+                   "or swapped; that is not a runaway" % (late_s, tick_s, cpu_frac))
+        elif busy:
+            why = ("busy but nothing is being refused (cpu %.2f core(s), tick %.1fs, %s refusals) "
+                   "- a chronicle sweep looks exactly like this and is legitimate work"
+                   % (cpu_frac, late_s,
+                      "0" if blocked_delta == 0 else "un-measured"))
+        else:
+            why = "healthy - tick %.1fs of %.1fs, cpu %.2f core(s)" % (late_s, tick_s, cpu_frac)
+        return False, 0, why
+    streak = int(streak or 0) + 1
+    if streak < _RUNAWAY_NEED:
+        return False, streak, ("late AND burning (%.1fs late, cpu %.2f) - %d of %d ticks"
+                               % (late_s, cpu_frac, streak, _RUNAWAY_NEED))
+    shape = ("a thread is SPINNING WHILE HOLDING the lock the status path needs (%d status "
+             "read(s) refused this tick)" % (blocked_delta or 0)) if starved else \
+            ("every thread is starving - this tick took %.1fs instead of %.1fs" % (late_s, tick_s))
+    return True, streak, ("RUNAWAY over %d consecutive tick(s) at %.2f core(s): %s"
+                          % (streak, cpu_frac, shape))
+
+
+def _cpu_seconds():
+    """CPU seconds this process has burned, or None. -> float|None"""
+    try:
+        import resource
+        r = resource.getrusage(resource.RUSAGE_SELF)
+        return float(r.ru_utime) + float(r.ru_stime)
+    except Exception:
+        return None
+
+
+def _runaway_watch_loop():
+    """Time this thread against the clock; when it starves while the process burns, SAY SO LOUDLY.
+
+    ⛔ IT DUMPS BEFORE IT DOES ANYTHING ELSE. The dump is the whole point — it names the Python
+    frame that is spinning, which is the one fact nobody has had for REG-699. Recovery without that
+    evidence is how this stayed unexplained through two occurrences.
+    """
+    # ⚠⚠ MONOTONIC, NOT time.time(). A cross-family review named this: `time.time()` can step —
+    # NTP correction, or a laptop resuming from suspend — and this loop's whole signal is "how long
+    # did my sleep ACTUALLY take". A backward step yields a negative elapsed (guarded below, but it
+    # would silently lose a tick); a forward step yields a huge one. `monotonic()` cannot step and
+    # is the correct base for measuring an interval. The reviewer also predicted the suspend case
+    # ends in the right verdict by luck — it does (cpu stays flat, so it reads "late but idle"),
+    # and relying on luck is not the same as being right. [[stale-reading]]
+    last_wall = time.monotonic()
+    last_cpu = _cpu_seconds()
+    while True:
+        time.sleep(_RUNAWAY_TICK_S)
+        now = time.monotonic()
+        cpu = _cpu_seconds()
+        elapsed = now - last_wall
+        frac = None
+        if cpu is not None and last_cpu is not None and elapsed > 0:
+            frac = (cpu - last_cpu) / elapsed
+        last_wall, last_cpu = now, cpu
+        # ⚠⚠ STAMP FIRST, EVERY TICK. The census names every loop that lives here and requires it
+        # to say "I ran"; a loop that never stamps is indistinguishable from a dead one, and this
+        # loop's whole job is telling a live console from a wedged one. Shipping a WATCHDOG that
+        # is itself unwatched is the exact shape of [[build-the-heart-and-census-everywhere]] —
+        # and the gate refused the push over it, correctly.
+        try:
+            _lane_tick('_runaway_watch_loop', _RUNAWAY_TICK_S)
+        except Exception:
+            pass
+        _RUNAWAY["ticks"] += 1
+        _RUNAWAY["lateS"] = round(elapsed, 1)
+        _RUNAWAY["cpu"] = (round(frac, 2) if frac is not None else None)
+        try:
+            _bnow = int(_LOCK_WAIT.get("blocked") or 0)
+            _bdelta = _bnow - int(_RUNAWAY.get("blockedAt") or 0)
+            _RUNAWAY["blockedAt"] = _bnow
+            _RUNAWAY["blockedDelta"] = _bdelta
+            hit, streak, why = _runaway_verdict(elapsed, _RUNAWAY_TICK_S, frac,
+                                                _RUNAWAY["streak"], _bdelta)
+            _RUNAWAY["streak"] = streak
+            _RUNAWAY["why"] = why
+            if not hit:
+                continue
+            _RUNAWAY["detections"] += 1
+            if not _RUNAWAY.get("since"):
+                # ⚠ WALL time on purpose: this one is published as an AGE a human reads, and
+                # monotonic has no relationship to the clock on his wall. The TICK measurement
+                # above is monotonic; this stamp is not. Two clocks, two different questions.
+                _RUNAWAY["since"] = time.time()
+            if now - float(_RUNAWAY.get("lastDumpTs") or 0.0) >= _RUNAWAY_DUMP_EVERY_S:
+                _RUNAWAY["lastDumpTs"] = now
+                print("\u26a0\u26a0 RUNAWAY DETECTED - %s\n"
+                      "   dumping every thread's stack below; the spinning frame is in here."
+                      % why, flush=True)
+                try:
+                    import faulthandler as _fh
+                    _fh.dump_traceback(file=sys.stderr, all_threads=True)
+                    sys.stderr.flush()
+                except Exception as _de:
+                    print("   (could not dump: %s)" % type(_de).__name__, flush=True)
+                try:
+                    ui_fault_record("console-runaway-detected", why=why,
+                                    where="_runaway_watch_loop")
+                except Exception:
+                    pass
+        except Exception as _we:
+            print("   (runaway watch tick failed: %s)" % type(_we).__name__, flush=True)
 
 
 #: v2772 — at most ONE escalation per this window, whatever happens. A blank window is bad; a
@@ -24481,7 +24666,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2774",
+        "ver": "v2775",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -24581,6 +24766,14 @@ def status_payload():
         # static reading could not settle: a slow /api/status WITH blocked climbing means `_lock`
         # is the contended one; slow WITH blocked flat means it is not, and the search moves on.
         # `reads` is the denominator — `blocked: 0` means nothing without it. [[zero-needs-a-denominator]]
+        # ⚡ REG-699 — the runaway watch, published so a supervisor sees it without reading a log.
+        # `ticks` is the denominator: detections 0 out of 0 ticks means the watcher is DEAD, which
+        # reads identically to "all clear" without it. [[zero-needs-a-denominator]]
+        "runaway": {"ticks": _RUNAWAY["ticks"], "detections": _RUNAWAY["detections"],
+                    "streak": _RUNAWAY["streak"], "cpu": _RUNAWAY["cpu"],
+                    "lastTickS": _RUNAWAY["lateS"], "why": _RUNAWAY["why"],
+                    "sinceAgeS": (round(time.time() - _RUNAWAY["since"], 1)
+                                  if _RUNAWAY.get("since") else None)},
         "lockWait": {"blocked": _LOCK_WAIT["blocked"], "reads": _LOCK_WAIT["reads"],
                      "last": _LOCK_WAIT["last"],
                      "lastAgeS": (round(time.time() - _LOCK_WAIT["lastTs"], 1)

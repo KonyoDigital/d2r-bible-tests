@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2774",
+  "ver": "v2775",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2774: a cross-family review found the degraded-read inference compared a shared counter so another threads lock refusal read as this calls own, suppressing the rescue escalation exactly when the console is most wedged; the flag is now per-thread and a failed stop aborts the relaunch instead of orphaning a live capture",
+  "note": "v2775: his ruling put THE FLEET back in the sessions rail under ON AIR and MINI while the eyes and lamps stay on TV-D, and REG-699 gains a watchdog that times itself and dumps every thread stack when a thread spins while holding the lock the status path needs",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

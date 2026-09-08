@@ -235,6 +235,50 @@ def _find_chrome():
 CHROME = _find_chrome()
 
 # A target says: how to set the board up, what to click, and what element IS the thing.
+def _shelf_activate():   # PARKED — see task #30; not registered in TARGETS yet
+    """Open the THEATRE, then force THE SHELF open, and refuse until the river has RENDERED.
+
+    ⚠⚠ THE RIVER STRIP HAD NO PIXEL COVERAGE AT ALL until this target. v2773 fixed its heading at
+    375px — three anonymous flex items each wrapping in its own column, the FIFO qualifier crushed
+    into a 61px column three lines tall — and the only thing guarding that fix was a unit test
+    reading computed style. A surface nobody photographs is a surface whose next regression is
+    found by Konyo. [[visual-regression-detector]]
+
+    ⚠⚠ `thShelf(true)` IS CALLED EXACTLY ONCE, VIA A SENTINEL — NOT GUARDED ON `ov.hidden`, AND
+    THIS COST A ROUND. The obvious guard is "call it while the overlay is still hidden", and it is
+    WRONG: the shelf unhides ASYNCHRONOUSLY, so the overlay is still hidden on the next poll, so it
+    is called again, so the load restarts — once per second, for the full 12s window, and the
+    target dies with "could not be ACTIVATED" while the page is perfectly healthy. MEASURED: with
+    the hidden-guard it never activated; with the sentinel it does. `_adv_activate` carries a note
+    about exactly this shape and I reproduced it anyway.
+
+    `thOpen()` may stay guarded on `theatre-open` because thOpen sets that class SYNCHRONOUSLY —
+    the guard is true on the very next statement. A guard is only safe when the thing it tests is
+    set before the poll can come round again.
+
+    ⚠ AND IT REFUSES UNTIL A LANE EXISTS, not merely until the overlay is visible. The lanes are
+    filled by an async load; the overlay unhides FIRST. Photographing it in between would give a
+    permanently green target measuring an empty box — the exact false green `require_filled` was
+    written for on #fleet-list.
+
+    ⚠ `thOpen()` already routes Sessions -> TV·D itself (v1627), so this does not repeat that.
+    """
+    return """(function(){
+        try {
+          if (!window.__shelfAsked) {
+            window.__shelfAsked = 1;
+            var b = document.getElementById('th-shelf');
+            if (b && b.click) b.click();
+          }
+        } catch(e){}
+        var ov = document.getElementById('th-shelfov');
+        if (!ov || ov.hidden) return false;
+        if (!ov.querySelector('.shr-lane')) return false;
+        if (!ov.querySelector('.shr-head')) return false;
+        return true;
+      })()"""
+
+
 def _adv_activate(el_id, require_filled=False):
     """Open the ⚙ ADVANCED drawer and scroll `el_id` to the top of the rail scroller.
 

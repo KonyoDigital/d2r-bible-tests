@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2775** | `(this commit)` | v2775 — his ruling put THE FLEET back in the sessions rail under ON AIR and MINI while the eyes and lamps stay on TV-D, and REG-699 gains a watchdog that times itself and dumps every thread stack when a thread spins while holding the lock the status path needs |
 | **v2774** | `(this commit)` | v2774 — a cross-family review found the degraded-read inference compared a shared counter so another threads lock refusal read as this calls own, suppressing the rescue escalation exactly when the console is most wedged; the flag is now per-thread and a failed stop aborts the relaunch instead of orphaning a live capture |
 | **v2773** | `(this commit)` | v2773 — the seven engine lamps and the ADVANCED drawer move to TV-D beside the AI readers, the river heading wraps as one sentence instead of three flex columns, and every route gets its own doctor row where an unexercised route reads UNKNOWN rather than OK |
 | **v2772** | `(this commit)` | v2772 — start_agent held _lock across Popen and sleep while the four status readers needed it, so ON AIR spun loading while the recording ran; readers now bounded with a lock-free fallback, plus a gated top rung for the self-rescue and lockWait published with its denominator |

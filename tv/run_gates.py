@@ -684,6 +684,20 @@ GATES = [
              "here'. That is the point: an unexercised route must never read OK, which is this "
              "repo's most repeated way of shipping a blind gate.",
          ),
+    Gate("test_the_console_notices_its_own_runaway",
+         [sys.executable, os.path.join(HERE, "test_the_console_notices_its_own_runaway.py")], 120,
+         why="REG-699 — HIS CONSOLE BURNED A CORE FOR TWO HOURS AND NOTHING NOTICED BUT HIM. The "
+             "cause is STILL unknown; what this fixes is that he was the detector. A watchdog now "
+             "times ITSELF (never polls its own API — that is the poll-slower-than-its-interval "
+             "trap) and dumps every thread's Python stack on detection, which is the one fact "
+             "nobody had. ⚠ THE FIRST DESIGN WAS REFUTED BY ITS OWN PROOF RUN: `late AND busy` "
+             "detected NOTHING under 12 burner threads (cpu 1.01, tick 1.1s) because pure-Python "
+             "loops release the GIL every ~5ms. That failure reconciled his measurements — `/` fast, "
+             "`/api/status` dead, 108% CPU — which only fit ONE shape: a thread SPINNING WHILE "
+             "HOLDING the lock the status path needs. So the real signal is lock-refusal growth. "
+             "Proven end to end: idle 0 detections, a sweep at a full core 0 detections, his shape "
+             "7 detections, and the dump named `spin_holding_lock`.",
+         ),
     Gate("test_the_status_poll_never_waits_on_a_spawn",
          [sys.executable, os.path.join(HERE, "test_the_status_poll_never_waits_on_a_spawn.py")], 120,
          why="ON AIR SPUN \"loading\" WHILE THE RECORDING WAS ALREADY RUNNING. `start_agent` holds "

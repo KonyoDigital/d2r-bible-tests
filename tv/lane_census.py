@@ -103,6 +103,9 @@ _SUPERVISORS = {
     "_orphan_watch": "which pid this console should die with",
     "_console_beacon_loop": "the liveness beacon",
     "_bridge_prober": "probes the bridge so STANDBY does not surprise him mid-session",
+    "_runaway_watch_loop": ("times its own sleep against a monotonic clock and, when the process "
+                            "burns a core WHILE refusing status reads, dumps every thread's stack "
+                            "so the spinning frame can be named (REG-699)"),
 }
 
 

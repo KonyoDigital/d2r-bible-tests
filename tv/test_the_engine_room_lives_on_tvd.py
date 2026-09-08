@@ -8,8 +8,16 @@ WHAT MOVED, AND WHY EACH IS BACKEND RATHER THAN GAMEPLAY:
     .signal    the seven engine lamps — Live Eye · Second Eye · Kai · Router · Watchdog ·
                Agent Mind · Master Brain — plus the KAI accuracy gate. Which model families are
                awake is the AI readers' own status.
-    #sig-adv   ⚙ ADVANCED: "engines · eyes · fleet", the 👁 WHICH EYES READ three-way provider
-               switch, the util strip, the repair box and the fleet list. The engine room itself.
+    #sig-adv   ⚙ ADVANCED: the 👁 WHICH EYES READ three-way provider switch, the util strip and
+               the repair box. The engine room itself.
+
+    ⚠⚠ v2775 — THE FLEET IS NO LONGER PART OF IT, and that is HIS correction, not a refactor.
+    v2773 moved the whole drawer and he came back with: *"i cant seee advanced seetings. in
+    sessions"*, then *"maybe just the FLEET it can be in sessions tab still where it was located
+    under on air and mini sections.. instead of the advanced that is not in TV-D, so the FLEET put
+    in sessions"*. So `.fleet-box` was MOVED OUT of the drawer to be a sibling of it in the rail.
+    The eyes and lamps are the AI readers' own status and belong on TV·D; the fleet is who is
+    playing and what they have found, which is a Sessions fact.
 
 === MEASURED, BEFORE AND AFTER, AT 1440x900 AND AT HIS OWN 1120x660 ===
                                       before      after
@@ -222,6 +230,80 @@ class EngineRoomLaws(unittest.TestCase):
                re.search(r"display\s*:\s*none", decl2):
                 self.fail("a rule hides .rail-secondary on the gameplay home: %r — that kills "
                           "#heart-ov, which the footer's ♥ chip opens" % sel2.strip()[:120])
+
+
+    # ── ⚠⚠ HIS CORRECTION, 2026-09-08 — THE FLEET STAYS REACHABLE FROM SESSIONS ──────────────
+    def test_the_fleet_is_NOT_inside_the_advanced_drawer(self):
+        """★★ The mechanism, and it is structural rather than a rule. The Sessions hide names
+        `.signal` and `#sig-adv`, so ANYTHING left inside that drawer is hidden with it. The fleet
+        is only reachable on Sessions because it was moved OUT to be a sibling — no extra CSS keeps
+        it visible, and none should be added. Parsed, because `fleet` appears in the drawer's own
+        prose and a substring search would be satisfied by the note explaining this move."""
+        from html.parser import HTMLParser
+        html = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8",
+                       errors="replace").read()
+        body = re.sub(r"<!--.*?-->", " ", re.sub(r"<(script|style)\b.*?</\1>", " ", html,
+                                                 flags=re.S | re.I), flags=re.S)
+        void = {"br", "img", "input", "hr", "meta", "link", "source", "use", "path", "circle",
+                "rect", "area", "col"}
+        chain = {}
+
+        class _P(HTMLParser):
+            def __init__(self):
+                HTMLParser.__init__(self, convert_charrefs=True)
+                self.stack = []
+
+            def handle_starttag(self, tag, attrs):
+                d = dict(attrs)
+                if tag not in void:
+                    self.stack.append((tag, d.get("id"), d.get("class")))
+                if d.get("id") == "fleet-list":
+                    chain["fleet"] = list(self.stack)
+
+            def handle_endtag(self, tag):
+                for k in range(len(self.stack) - 1, -1, -1):
+                    if self.stack[k][0] == tag:
+                        del self.stack[k:]
+                        break
+
+        p = _P()
+        p.feed(body)
+        self.assertIn("fleet", chain, "#fleet-list is gone from control_ui.html entirely")
+        ids = [i for _, i, _ in chain["fleet"]]
+        self.assertNotIn("sig-adv", ids,
+                         "THE FLEET is back inside the ADVANCED drawer, so the Sessions hide takes "
+                         "it with them and he cannot see it from Sessions again — that is the exact "
+                         "thing he asked to be undone on 2026-09-08")
+        self.assertTrue(any(c and "rail" in c for _, _, c in chain["fleet"]),
+                        "the fleet left the rail altogether; it is supposed to sit under ON AIR and "
+                        "MINI where he goes looking for it")
+
+    def test_the_fleet_is_MOVED_not_COPIED(self):
+        """⛔ Two fleet blocks would be two things that must stay in step and eventually will not.
+        [[copy-drift]]"""
+        html = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8",
+                       errors="replace").read()
+        body = re.sub(r"<!--.*?-->", " ", html, flags=re.S)
+        self.assertEqual(1, body.count('class="fleet-box"'),
+                         "there is more than one fleet block in the markup")
+        self.assertEqual(1, body.count('id="fleet-list"'),
+                         "there is more than one #fleet-list")
+
+    def test_the_hide_rule_still_names_only_the_engine_room(self):
+        """⚠ THE FIXTURE FOR THE LAW ABOVE. Being a sibling only helps while the hide names
+        `#sig-adv` and `.signal` specifically. If it ever widens to the rail or to
+        `.rail-secondary` with `display:none`, the fleet goes dark again and the structural
+        argument silently stops holding."""
+        html = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8",
+                       errors="replace").read()
+        css = re.sub(r"/\*.*?\*/", " ", html, flags=re.S)
+        self.assertIn('body[data-view="sessions"] aside.rail #sig-adv', css,
+                      "the Sessions hide no longer names #sig-adv")
+        self.assertNotIn('body[data-view="sessions"] aside.rail .fleet-box', css,
+                         "a rule now hides the fleet on Sessions by name")
+        self.assertNotIn('body[data-view="sessions"] aside.rail { display: none',
+                         css.replace("\n", " "),
+                         "the whole rail is hidden on Sessions, which takes the fleet with it")
 
 
 if __name__ == "__main__":
