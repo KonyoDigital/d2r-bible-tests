@@ -134,7 +134,7 @@ class TheRescueHasATopRung(unittest.TestCase):
             # a reader that reports "not alive" while ALSO registering a refusal — precisely the
             # state start_agent produces in the first seconds of a capture
             def _degraded():
-                CA._LOCK_WAIT["blocked"] += 1
+                CA._LOCK_TL.degraded = True
                 return False
             CA._agent_alive = _degraded
             self.assertTrue(CA._recording_or_unknown(),
@@ -154,6 +154,48 @@ class TheRescueHasATopRung(unittest.TestCase):
                              "escalation can never fire at all")
         finally:
             CA._agent_alive = real
+
+    def test_ANOTHER_THREADS_refusal_does_not_read_as_MINE(self):
+        """⛔⛔ FOUND BY A CROSS-FAMILY REVIEW (2026-09-08), on code that had already shipped in this
+        session. The first version asked "was my read degraded?" by comparing the SHARED counter
+        `_LOCK_WAIT["blocked"]` before and after the call. The interleaving it named:
+
+            this thread reads N  ->  two OTHER threads are refused the lock  ->  this thread reads
+            N+2  ->  concludes ITS OWN read was degraded, when it was not
+
+        On a busy console that is not a rare race, it is the normal case — and it fails towards
+        "something is recording", which SUPPRESSES the escalation exactly when the console is most
+        wedged. That is the fail-always failure the sibling law above forbids, arriving by a route
+        that law could not see. A thread-local is exact: only this thread can set it."""
+        real = CA._agent_alive
+        try:
+            CA._agent_alive = lambda: False                 # confident: THIS thread was not refused
+            CA._LOCK_TL.degraded = False
+            CA._LOCK_WAIT["blocked"] += 7                   # seven OTHER threads refused meanwhile
+            self.assertFalse(CA._recording_or_unknown(),
+                             "another thread's lock refusal is being read as this call's own "
+                             "degradation — on a busy console the top rung would never fire")
+        finally:
+            CA._agent_alive = real
+
+    def test_the_relaunch_ABORTS_if_the_agent_cannot_be_stopped(self):
+        """⛔ ALSO FROM THAT REVIEW. A failed `stop_agent` used to be swallowed and the exec ran
+        anyway — replacing the console while a capture process was still alive and writing frames,
+        an ORPHAN with no parent to seal its reel. Parsed, not grepped: the handler must RETURN."""
+        tree = ast.parse(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
+                   and n.name == "_exec_relaunch_soon"), None)
+        inner = next((n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef)
+                      and n.name == "_go"), None)
+        self.assertIsNotNone(inner, "the relaunch worker is gone")
+        ok = False
+        for h in ast.walk(inner):
+            if isinstance(h, ast.ExceptHandler) and any(
+                    isinstance(b, ast.Return) for b in ast.walk(h)):
+                ok = True
+        self.assertTrue(ok,
+                        "no except handler in the relaunch worker returns — a failed stop_agent is "
+                        "swallowed and os.execv runs anyway, orphaning a live capture")
 
     def test_the_escalation_asks_the_FAIL_SAFE_question(self):
         """★★ [[plumbing-with-no-tap]]. The helper above is worthless if the loop still calls

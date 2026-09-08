@@ -2927,6 +2927,20 @@ _STATE_READ_WAIT_S = 0.25
 #: question exactly this way and answered UNKNOWN on the evidence available.
 _LOCK_WAIT = {"blocked": 0, "last": None, "lastTs": 0.0, "reads": 0}
 
+#: ⚠⚠ v2774 — PER-THREAD, BECAUSE THE SHARED COUNTER COULD NOT ANSWER THE QUESTION ASKED OF IT.
+#: `_recording_or_unknown` originally inferred "was MY read degraded?" by comparing _LOCK_WAIT
+#: ["blocked"] before and after a call. A cross-family review named the interleaving: thread A
+#: reads N, threads B and C each refuse the lock, A reads N+2 and concludes ITS OWN read was
+#: degraded when it was not. On a busy console that is not rare — it is the normal case, and it
+#: would have suppressed the rescue escalation exactly when the console is most wedged, which is
+#: the fail-always failure its own gate was written to forbid.
+#: A thread-local is exact: only this thread's refusals can set it.
+#: ⚠ The counters above stay SHARED and stay approximate — `+= 1` on a dict value is a
+#: read-modify-write and is not atomic, so a concurrent increment can be lost. That is acceptable
+#: for telemetry and is NOT acceptable for a decision, which is precisely why the decision moved
+#: here. Read `lockWait.blocked` as a floor, never as an exact count. [[unknown-stays-unknown]]
+_LOCK_TL = threading.local()
+
 
 @contextlib.contextmanager
 def _lock_briefly(what):
@@ -2946,6 +2960,7 @@ def _lock_briefly(what):
         _LOCK_WAIT["blocked"] += 1
         _LOCK_WAIT["last"] = str(what)
         _LOCK_WAIT["lastTs"] = time.time()
+        _LOCK_TL.degraded = True          # ⚠ THIS thread was refused — see the note at _LOCK_TL
     try:
         yield got
     finally:
@@ -12885,11 +12900,11 @@ def _recording_or_unknown():
     refusal counter across the call, which is exact: if the tally moved, the answer was degraded.
     [[two-fixes-broke-each-other]] [[unknown-stays-unknown]]
     """
-    before = _LOCK_WAIT["blocked"]
+    _LOCK_TL.degraded = False               # clear before, so only THIS call can set it
     alive = bool(_agent_alive())
     if alive:
         return True
-    return _LOCK_WAIT["blocked"] != before   # degraded -> assume recording
+    return bool(getattr(_LOCK_TL, "degraded", False))   # degraded -> assume recording
 
 
 def _rescue_escalation_decision(futile, now, escalated_ts, recording):
@@ -12952,8 +12967,19 @@ def _exec_relaunch_soon():
                 print("   escalation ABANDONED - %s" % str(_why)[:150], flush=True)
                 return
             stop_agent(farewell=False)
-        except Exception:
-            pass
+        except Exception as _se:
+            # ⛔⛔ v2774 — A FAILED STOP ABORTS THE RELAUNCH. This used to swallow the exception and
+            # exec anyway, which would replace the console while a capture process was still alive
+            # and writing frames — an ORPHAN with no parent to seal its reel. A blank window is a
+            # refresh; an orphaned capture quietly ruins footage. Named by a cross-family review,
+            # which argued both sides and picked abort; the orphan is the reason it is right.
+            # The cooldown is already stamped, so this cannot spin.
+            ui_fault_record("console-escalation-abandoned-stop-failed",
+                            why="stop_agent raised %s" % type(_se).__name__,
+                            where="_exec_relaunch_soon")
+            print("   escalation ABANDONED - could not stop the agent (%s)"
+                  % type(_se).__name__, flush=True)
+            return
         try:
             os.execv(sys.executable, [sys.executable] + sys.argv)
         except Exception as e:
@@ -24455,7 +24481,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2773",
+        "ver": "v2774",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

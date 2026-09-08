@@ -42,11 +42,11 @@ those as defects.
 - **#26** a sealed reel with unmeasurable names is UNKNOWN, not REG-340. 8 of 8 sabotages red.
 - **#16** per-route doctor rows; inventory 2/46 OK, stash 11/46 OK, both chronicle routes UNKNOWN
   ("no reel on this shelf carries a sets ledger") — unexercised must never read OK.
-- **REG-682** in `BUGS.md`.
+- **REG-699** in `BUGS.md`.
 
 **222 gates registered.**
 
-## ⚠ REG-682 — the real open question
+## ⚠ REG-699 — the real open question
 His console was found at **108–109% CPU for ~2 hours**, `/api/status` returning 0 bytes at a 25s
 timeout, its log silent 38 minutes, **no capture running**, both children idle, while `/` still
 served in 0.69s. `sample` shows `_PyEval_EvalFrameDefault` dominant — a runaway Python loop starving

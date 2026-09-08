@@ -23134,7 +23134,7 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
-## REG-682 — his console ran away at 109% CPU for two hours and every API call died with it
+## REG-699 — his console ran away at 109% CPU for two hours and every API call died with it
 
 **Found:** 2026-09-08, ~03:25, while he was away · **Not shipped as a code fix — the CAUSE is still UNKNOWN**
 

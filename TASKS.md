@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2774** | `(this commit)` | v2774 — a cross-family review found the degraded-read inference compared a shared counter so another threads lock refusal read as this calls own, suppressing the rescue escalation exactly when the console is most wedged; the flag is now per-thread and a failed stop aborts the relaunch instead of orphaning a live capture |
 | **v2773** | `(this commit)` | v2773 — the seven engine lamps and the ADVANCED drawer move to TV-D beside the AI readers, the river heading wraps as one sentence instead of three flex columns, and every route gets its own doctor row where an unexercised route reads UNKNOWN rather than OK |
 | **v2772** | `(this commit)` | v2772 — start_agent held _lock across Popen and sleep while the four status readers needed it, so ON AIR spun loading while the recording ran; readers now bounded with a lock-free fallback, plus a gated top rung for the self-rescue and lockWait published with its denominator |
 | **v2771** | `(this commit)` | v2771 — Two role-button spans lived inside the inbox button and the parent accessible name had swallowed both their labels, so a screen reader announced one control offering three actions. They are siblings now. The second-eye lane grew a FAILING state and split not-signed-in from genuinely-absent. The sets badge shows the q level in place of the base type. The locked-lanes row stopped reporting his own throw-bar ruling as a fault. |
