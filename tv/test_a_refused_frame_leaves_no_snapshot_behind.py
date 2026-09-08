@@ -125,5 +125,21 @@ class TestRefusedFrameLeavesNoSnapshot(unittest.TestCase):
             os.unlink(p)
 
 
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
+# Heart 2.0 re-runs this in a sandbox and DISTRUSTS the law if it stays green. The hand-proof that
+# produced this gate lives in the docstring above and cannot be re-run; this can.
+RED_PROOF = [{
+    "why": "the finally that removes the snapshot is the whole fix — break it and the leak returns",
+    "file": "control_app.py",
+    "find": """    finally:
+        # \u26a0 REACHED BY EVERY PATH THAT CREATED THE SNAPSHOT""",
+    "replace": """    finally:
+        pass
+    if False:
+        # \u26a0 REACHED BY EVERY PATH THAT CREATED THE SNAPSHOT""",
+    "matches": 1,
+}]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

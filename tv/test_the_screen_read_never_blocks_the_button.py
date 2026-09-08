@@ -138,5 +138,20 @@ class TestScreenReadNeverBlocksTheButton(unittest.TestCase):
                       "nothing invalidates an in-flight plan, so STOP can be overtaken by it")
 
 
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
+# The tamper is the defect verbatim: read the screen on the request thread, which is what made the
+# POST hang with zero bytes for 8-25s.
+RED_PROOF = [{
+    "why": "hoisting the screen read back onto the request thread is the original hang",
+    "file": "control_app.py",
+    "find": """            _container = str(body.get("container") or "stash")
+            _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)""",
+    "replace": """            _container = str(body.get("container") or "stash")
+            _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)
+            cells, occ_why = _mini_cells_from_live_frame(_container)""",
+    "matches": 1,
+}]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

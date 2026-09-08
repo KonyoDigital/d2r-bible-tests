@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2802",
+  "ver": "v2803",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2802: The v2801 MINI AUTO fix answered instantly with planning true and control_ui.html read only running, so the panel painted the idle label and the poller never started and the plan outcome was fetched by nobody. The panel now has a third state and the poller survives it. Moving engines corroborate into SLOW deleted a supervision loop because the eagle passes include_slow false, so a PERIODIC tier now runs it unattended on a longer cadence with the first tick after a restart carrying it. The calibration probe decided nothing and is deleted. A wedged plan can no longer strand the button, a stop can no longer be overtaken by a plan still starting, and the last reason now expires and ships with its age.",
+  "note": "v2803: Heart 2.0. Heart v1 asks whether the system is healthy; v2 asks whether the gates that answer that question can still go red. Measured: the heart was green while 12 of 238 gates were red and 8 were blind. 247 gates and zero executable red-proofs before this, because each was proven red once by hand and that proof survived only as prose. heart2.py now tampers each guard in a safe_copy sandbox, requires a clean run first, requires an exact match count, requires the gate to turn red, and restores. A gate that survives its own defeat is BLIND. It proposes into a file and never edits a guard. The heart carries the result, so an absent measurement reads UNKNOWN and never healthy.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

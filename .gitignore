@@ -161,6 +161,12 @@ tv/*.corrupt
 
 # runtime record of which shipped versions a DIFFERENT model family actually looked at
 tv/.second_eye.jsonl
+# ♥ HEART 2.0 runtime records. Same rule as .console_scars.json and .second_eye.jsonl above: these
+# are a record of what was MEASURED on one machine at one moment, not source. Committing them would
+# make one Mac's census read as the repo's truth, and a stale row would then be indistinguishable
+# from a fresh one — a supervision layer's worst failure mode.
+tv/.heart2.json
+tv/.heart2_proposals.md
 
 # v2228 — faults the console reports about ITSELF. Runtime, per-machine, never committed.
 tv/ui_faults.jsonl

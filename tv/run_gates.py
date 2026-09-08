@@ -810,6 +810,25 @@ GATES = [
              "number of ticks, on the first tick after a restart, with run() driven rather than "
              "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
          skip_ok=()),
+    Gate("test_the_heart_can_see_its_own_instruments",
+         [sys.executable, os.path.join(HERE, "test_the_heart_can_see_its_own_instruments.py")], 120,
+         why="\u2665 HEART 2.0 — v1 asks whether the SYSTEM is healthy; this asks whether the "
+             "INSTRUMENTS that answer that question can still go red. MEASURED 2026-09-08: the "
+             "heart was GREEN while 12 of 238 gates were red, 8 of those blind, and CI had been "
+             "failing since 06:12 the previous morning — 28 of the last 40 runs. Every check the "
+             "heart made was working; nothing was checking the checkers. Three of the eight were "
+             "laws that had silently STOPPED MEASURING what they claimed while staying green. "
+             "\u2605 246 gates and, before this arc, ZERO executable red-proofs: each was proven "
+             "red once by hand and that proof survives only as prose, so the number that can still "
+             "go red was UNKNOWN. This law guards the LAYER, not the count: the census must count "
+             "something (a 0 here is a broken parser wearing a measurement's clothes — which "
+             "happened: the field is `argv`, the first cut read `cmd`, and it printed 0.0%); every "
+             "declared RED_PROOF must be well formed with its `find` matching the exact number of "
+             "times it claims; the heart must CARRY the result or the proving loop is plumbing "
+             "with no tap; an absent state file must read UNKNOWN and never healthy; and heart2 "
+             "must write only its state, its proposals and its sandbox — it proposes, it never "
+             "edits a guard.",
+         skip_ok=()),
     Gate("test_a_lattice_refusal_is_a_reason_not_a_crash",
          [sys.executable, os.path.join(HERE, "test_a_lattice_refusal_is_a_reason_not_a_crash.py")], 150,
          why="THE GRID READER RAISED WHERE EVERY OTHER PATH RETURNS A REASON. He was in-game saying "

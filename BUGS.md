@@ -24431,6 +24431,81 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-738 — ♥ HEART 2.0: nothing was checking the checkers
+
+**The measurement that is the whole argument.** On 2026-09-08 the heart was **GREEN** while:
+
+| | |
+|---|---|
+| gates red | **12 of 238** |
+| of those, BLIND instruments | **8** |
+| CI failing since 2026-09-07 06:12 | **28 of the last 40 runs** |
+
+Every check the heart made was working. Nothing was checking the checkers, so nobody knew. Three of
+the eight were laws that had silently **stopped measuring what they claimed** while staying green —
+q-level probes written when set pieces had no data, still passing, grading nothing.
+
+    heart v1   is the SYSTEM healthy?    — lanes, routes, stores, the console
+    heart v2   are my own INSTRUMENTS    — the gates and locks themselves
+               still able to go red?
+
+★ **The number that settles "isn't it basically built?"** — 247 gates registered, and **0** with an
+executable red-proof. Every one was proven red exactly once, by hand, in a shell, and that proof
+survives only as prose in a docstring. It cannot be re-run. **So the count of gates that could still
+go red was UNKNOWN.** Not zero, not fine. Unknown.
+
+**THE PROTOCOL.** A gate declares `RED_PROOF = [{why, file, find, replace, matches}]` beside itself,
+and `heart2.py --prove` does four things per proof, in this order, because each catches a different
+lie:
+
+1. **Clean run in the sandbox** — the gate must PASS untampered. If it fails clean, the sandbox is
+   wrong and everything after it is meaningless: reported UNPROVABLE, never BLIND.
+2. **Match count** — `find` must occur exactly `matches` times. A sabotage matching 0 times changes
+   nothing and the gate stays green for the most boring reason there is.
+3. **Tamper and re-run** — it must now FAIL.
+4. **Restore.**
+
+A gate that survives its own defeat is **BLIND**. ⚠ And that detector is itself proven: fed a
+deliberately useless tamper that edits only a comment, it returned BLIND while passing the real
+proof in the same run. A detector that has never detected is theatre.
+
+**Measured after building it:** 247 gates · 5 declare proofs · **6 proofs, all PROVEN** · 242
+UNPROVEN, which is UNKNOWN and says so.
+
+⚠⚠ **THREE OF MY OWN MISTAKES ARE RECORDED IN THE FILE, because each produced a confident wrong
+answer rather than an error:**
+
+- **`gate_files()` read `g.cmd`; the field is `g.argv`.** It printed *"gates: 0 · red-proofs: 0
+  (0.0%)"* — a zero produced by my own parser, wearing the clothes of a measurement.
+  [[zero-needs-a-denominator]]
+- **`safe_copy.copy()` refuses when the destination exists**, and `tempfile.mkdtemp()` creates it —
+  so it was handed a path it is designed to reject, every time. **And its return code was ignored**,
+  so a refusal read as success and five gates were reported UNPROVABLE "because control_app.py is
+  not in the sandbox": true, and about a sandbox that did not exist. [[exit-status-of-the-block]]
+  ★ The protocol is what saved it — requiring a clean run BEFORE any tamper meant an empty sandbox
+  came out UNPROVABLE and never as PROVEN or BLIND.
+- **The detector grepped raw text** and returned ten hits, every one PROSE: it flagged
+  `safe_copy.py` for "cp -R of the repo" (that phrase is in the docstring explaining why it exists)
+  and flagged heart2.py twice for its own warning comments. Now it tokenises and drops comments and
+  string literals: **10 prose hits → 2 real code hits**, both `fixed-size source window`.
+  [[source-reading-guard]]
+
+**THE JOIN.** `heart_state()` carries `"instruments": _heart2_census()`, so the heart reports
+whether its own instruments can still go red. An absent state file reads **UNKNOWN**, never healthy
+— the commonest lie a supervision layer tells is that never-measured means fine.
+
+⛔ **It proposes into `.heart2_proposals.md`; it never edits a guard.** Achilles' reason stands
+verbatim: *"In one night working this tree I introduced three defects while fixing others, and I can
+read a diff."* A tool that repairs its own instruments can talk itself into anything.
+
+⚠ **A ratchet, not a ban.** 242 gates cannot grow proofs in one pass. Mandatory for every new gate;
+the backlog burns down.
+
+**Gate 248** `test_the_heart_can_see_its_own_instruments` guards the LAYER, not the count — and
+carries its own red-proof, because the law that demands re-runnable proofs must have one.
+
+---
+
 ## REG-733 — the fix answered instantly and the panel still showed nothing
 
 **Found by a cross-family review of the PUSHED diff, not by any gate here.**

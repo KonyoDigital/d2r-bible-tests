@@ -17154,6 +17154,40 @@ _HEART_MEMO = {"t": 0.0, "v": None}
 _HEART_TTL = 45.0
 
 
+def _heart2_census():
+    """What Heart 2.0 last measured about the gates themselves. -> dict
+
+    Reads the state file `tv/heart2.py` writes; it never runs the proving loop itself, because
+    tampering and re-running 247 gates is a minutes-long job and this function answers an HTTP
+    request. An absent file is UNKNOWN and says so — it is not "all proven".
+    """
+    try:
+        _p = os.path.join(HERE, ".heart2.json")
+        if not os.path.isfile(_p):
+            return {"state": "UNKNOWN", "why": "heart2 has never run here — run "
+                                               "`python3 tv/heart2.py --prove`",
+                    "proved": None, "unproven": None, "blind": None}
+        with io.open(_p, encoding="utf-8") as _fh:
+            _d = json.load(_fh)
+        _blind = list(_d.get("blind") or [])
+        _proved = _d.get("proved")
+        _unproven = _d.get("unproven")
+        return {
+            "state": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),
+            "proved": _proved,
+            "unproven": _unproven,
+            "blind": _blind,
+            "ageMs": int(max(0.0, time.time() - os.path.getmtime(_p)) * 1000),
+            "why": ("%d gate(s) survived their own defeat" % len(_blind)) if _blind
+                   else ("%s gate(s) can still go red; %s carry no executable proof and are "
+                         "UNKNOWN" % (_proved, _unproven)),
+        }
+    except Exception as _e:
+        return {"state": "UNKNOWN", "why": "the instrument census could not be read (%s)"
+                                           % type(_e).__name__,
+                "proved": None, "unproven": None, "blind": None}
+
+
 def heart_state(force=False):
     """The heart, derived on every read. -> dict
 
@@ -17273,6 +17307,14 @@ def heart_state(force=False):
         # A21c — THE ROSTER ROUTES. Grok built tv/roster_routes.py; the gate is registered;
         # this join was the unjoined end. Same four words, same corroborator, live tally.
         "rosters": roster_route_state(),
+        # ♥♥ v2803 — HEART 2.0, JOINED. v1 asks whether the SYSTEM is healthy; every key
+        # above is one of its answers. This key asks the other question: are the INSTRUMENTS that
+        # produce those answers still able to go red? MEASURED 2026-09-08 — the heart was GREEN
+        # while 12 of 238 gates were red and 8 of those were blind, because nothing was checking
+        # the checkers. A supervision layer that cannot see its own blindness is the most
+        # expensive kind of green. Written by `tv/heart2.py --prove`; UNKNOWN until it has run,
+        # never an implied zero. [[heart-v2-instruments-watch-themselves]] [[unknown-stays-unknown]]
+        "instruments": _heart2_census(),
         "vocab": {"FLOWING": getattr(_h, "FLOWING", "FLOWING"),
                   "WATCHED": getattr(_h, "WATCHED", "WATCHED"),
                   "DARK": getattr(_h, "DARK", "DARK"),
@@ -25066,7 +25108,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2802",
+        "ver": "v2803",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

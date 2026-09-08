@@ -152,5 +152,26 @@ class TestEveryMiniStateIsRead(unittest.TestCase):
                       "idle label while the console is working")
 
 
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
+# Two tampers, because the law has two halves and either alone would let the panel go silent again:
+# the paint branch, and the poller that has to survive the planning window.
+RED_PROOF = [
+    {
+        "why": "removing the planning branch is exactly what shipped in v2801 and showed nothing",
+        "file": "control_ui.html",
+        "find": "    if (j.planning){",
+        "replace": "    if (false && j.planning){",
+        "matches": 1,
+    },
+    {
+        "why": "arming the poller on `running` alone ends the watch during the plan it reports on",
+        "file": "control_ui.html",
+        "find": "      _miniWatch(!!(j && (j.running || j.planning)));",
+        "replace": "      _miniWatch(!!(j && j.running));",
+        "matches": 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

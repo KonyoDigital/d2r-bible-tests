@@ -127,5 +127,16 @@ class TestPeriodicIsStillWatched(unittest.TestCase):
         del seen
 
 
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
+# A constant False is the same "never" the tier exists to undo, wearing a keyword.
+RED_PROOF = [{
+    "why": "include_periodic=False returns the corroborator to never-runs-unattended",
+    "file": "control_app.py",
+    "find": "        rows = _cd.run(include_slow=_include_slow, include_periodic=_include_periodic)",
+    "replace": "        rows = _cd.run(include_slow=_include_slow, include_periodic=False)",
+    "matches": 1,
+}]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
