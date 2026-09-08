@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2782",
+  "ver": "v2783",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2782: He sent a screenshot of a black console window; the one hand-run instrument for that question answered UNKNOWN about a pid that did not exist, because with no argument it looked at the interpreter running it. Pointed at his real console it found window 37043 and measured it PAINTED. What made the window black is still unexplained.",
+  "note": "v2783: The second eye on v2780 asked under what conditions the except arm fires while TV_HIST is set. Any resolver failure silently returned the live directory to a caller that had asked for a fixture world, binding all eight state paths to his real data with nothing raised. A request for isolation that cannot be honoured must not degrade to no isolation.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

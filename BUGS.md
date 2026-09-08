@@ -23134,6 +23134,46 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-705 — the guard against writing into his world fell back to writing into his world
+
+**2026-09-08 · v2783 · `tv/control_app.py` · found by the second eye on v2780**
+
+v2780 routed eight module-level paths through `_fixture_root_for_state()` so a sandboxed child
+could not write into his live directory. The function was:
+
+    def _fixture_root_for_state():
+        try:
+            import tv_diablo as _tvd
+            return _tvd._fixture_root(HERE)
+        except Exception:
+            return HERE          # <- the LIVE directory
+
+A cross-family review asked the one question I had not: *under what conditions does the except arm
+fire while `TV_HIST` IS set?* Answer — **any** failure inside the resolver: an import error, a
+renamed symbol, a runtime error in it. In every one of those the caller had explicitly asked for a
+fixture world and silently received his real one, and all eight paths then bind to his live data
+with nothing raised and nothing logged.
+
+**⛔ A request for isolation that cannot be honoured must not degrade to "no isolation".** Falling
+back to `HERE` is not a degraded answer, it is the wrong one — the guard against writing into his
+world would itself have been the thing that wrote into it.
+
+**Fixed:** when `TV_HIST` is set and resolution fails, the raw `TV_HIST` value is used — it is the
+one thing the caller actually said. `HERE` is returned only when nobody asked, which is his own
+console and is unchanged. Proven by sabotaging `import tv_diablo` inside a fresh child: before,
+the root resolved to the live dir; after, to the sandbox.
+
+**⚠ Three of the reviewer's other points were weighed and not taken.** Import-time binding does
+prevent a test from redirecting after import — which is precisely why the census gate spawns a
+FRESH interpreter, so it is deliberate rather than overlooked. The two-conventions mismatch
+(`TV_HIST` at `<sandbox>/frames/hist` vs dedicated vars at `<sandbox>/`) is real and is already why
+v2780 copies each file to both destinations. Eight calls to the resolver is eight `sys.modules`
+lookups, already cached — not worth memoising.
+
+Gate: two new laws in `test_the_harness_isolates_the_world.py` (10 total). 2 sabotages — restoring
+the silent live fallback reds the isolation law, and always preferring `TV_HIST` reds the law that
+his own console still gets `HERE`.
+
 ## REG-704 — the pixel witness looked at ITSELF, and said UNKNOWN forever
 
 **2026-09-08 · v2782 · `tv/paint_witness.py` · found while his console was actually black**

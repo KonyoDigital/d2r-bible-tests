@@ -58,11 +58,27 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _fixture_root_for_state():
-    """HERE, unless TV_HIST says this is a fixture's world — the v1867/v1869 rule, one call."""
+    """HERE, unless TV_HIST says this is a fixture's world — the v1867/v1869 rule, one call.
+
+    ⚠⚠ v2783 — THE EXCEPT ARM FELL BACK TO THE LIVE DIRECTORY, WHICH IS THE HARM THIS FUNCTION
+    EXISTS TO PREVENT. A cross-family review of v2780 asked under what conditions the fallback
+    fires *while TV_HIST is set*, and the answer was: any exception inside `_fixture_root` — an
+    import failure, a renamed symbol, a runtime error in it. In every one of those the caller had
+    ASKED for a fixture world and silently got his real one, and eight module-level paths would
+    then write into his live data with nothing raised and nothing logged.
+
+    ⛔ A REQUEST FOR ISOLATION THAT CANNOT BE HONOURED MUST NOT DEGRADE TO "NO ISOLATION". So when
+    TV_HIST is set and the resolver failed, the raw TV_HIST value is used — it is the one thing the
+    caller actually said. HERE is returned only when nobody asked for anything, which is his own
+    console and is unchanged. [[unknown-stays-unknown]] [[feedback-threshold-above-the-ceiling]]
+    """
     try:
         import tv_diablo as _tvd
         return _tvd._fixture_root(HERE)
     except Exception:
+        _hist = os.environ.get("TV_HIST")
+        if _hist:
+            return _hist
         return HERE
 REPO = os.path.dirname(HERE)
 
@@ -24716,7 +24732,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2782",
+        "ver": "v2783",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

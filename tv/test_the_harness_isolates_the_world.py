@@ -273,6 +273,74 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
         self.assertIn("continue", after, "the ceiling no longer skips just the oversized file")
         self.assertIn("_skipped", after, "a skipped file is silent again")
 
+    # ── ⚠⚠ v2783 — A REQUEST FOR ISOLATION MUST NOT DEGRADE TO "NO ISOLATION" ────────────────
+    def test_a_BROKEN_resolver_does_not_fall_back_to_his_LIVE_dir(self):
+        """★★★ FROM THE CROSS-FAMILY REVIEW OF v2780, which asked the one question I had not:
+        under what conditions does the except arm fire *while TV_HIST is set*?
+
+        `_fixture_root_for_state()` was `try: return _tvd._fixture_root(HERE) / except Exception:
+        return HERE`. Any failure inside the resolver — an import error, a renamed symbol, a
+        runtime error — silently returned the LIVE directory to a caller that had explicitly asked
+        for a fixture world. Eight module-level paths then bind to his real data with nothing
+        raised and nothing logged. The guard against writing into his world would itself have been
+        the thing that wrote into it.
+
+        ⛔ The asymmetry is the whole point: if isolation was requested and cannot be resolved, the
+        raw TV_HIST value is the one thing the caller actually said. Falling back to HERE is not a
+        degraded answer, it is the wrong one. [[unknown-stays-unknown]]
+
+        ⚠ The resolver is broken by sabotaging `import tv_diablo` INSIDE a fresh child, because
+        these constants bind at import."""
+        sand = tempfile.mkdtemp(prefix="broken-resolver-")
+        try:
+            hist = os.path.join(sand, "frames", "hist")
+            os.makedirs(hist, exist_ok=True)
+            env = dict(os.environ, TV_STUB="1", TV_HIST=hist)
+            code = (
+                "import sys, os, builtins; sys.path.insert(0, %r)\n"
+                "_real = builtins.__import__\n"
+                "def _boom(name, *a, **k):\n"
+                "    if name == 'tv_diablo': raise RuntimeError('resolver is broken')\n"
+                "    return _real(name, *a, **k)\n"
+                "builtins.__import__ = _boom\n"
+                "import control_app as CA\n"
+                "print('ROOT:' + str(CA._fixture_root_for_state()))\n" % (HERE,))
+            out = subprocess.check_output([sys.executable, "-c", code], env=env,
+                                          stderr=subprocess.STDOUT, timeout=180)
+            line = [l for l in out.decode("utf-8", "replace").splitlines()
+                    if l.startswith("ROOT:")]
+            self.assertTrue(line, "the child never reported — UNMEASURED, not clean")
+            root = line[-1][5:]
+            self.assertFalse(root.startswith(HERE),
+                             "a broken resolver fell back to his LIVE directory (%s) while TV_HIST "
+                             "asked for a fixture world, so every state path binds to his real "
+                             "data with nothing raised" % root)
+        finally:
+            shutil.rmtree(sand, True)
+
+    def test_a_broken_resolver_with_NO_request_still_gives_him_HERE(self):
+        """⛔ THE OTHER HALF. With nobody asking for a fixture world, a broken resolver must still
+        answer HERE — his console depends on it, and a fix that made it answer anything else would
+        move his live state somewhere he cannot find it."""
+        env = dict(os.environ, TV_STUB="1")
+        env.pop("TV_HIST", None)
+        code = (
+            "import sys, os, builtins; sys.path.insert(0, %r)\n"
+            "_real = builtins.__import__\n"
+            "def _boom(name, *a, **k):\n"
+            "    if name == 'tv_diablo': raise RuntimeError('resolver is broken')\n"
+            "    return _real(name, *a, **k)\n"
+            "builtins.__import__ = _boom\n"
+            "import control_app as CA\n"
+            "print('ROOT:' + str(CA._fixture_root_for_state()))\n" % (HERE,))
+        out = subprocess.check_output([sys.executable, "-c", code], env=env,
+                                      stderr=subprocess.STDOUT, timeout=180)
+        line = [l for l in out.decode("utf-8", "replace").splitlines() if l.startswith("ROOT:")]
+        self.assertTrue(line, "the child never reported — UNMEASURED, not clean")
+        self.assertEqual(line[-1][5:], HERE,
+                         "with nothing asking for a fixture world, his own console no longer "
+                         "resolves its state to the live directory")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
