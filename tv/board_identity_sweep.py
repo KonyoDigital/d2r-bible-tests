@@ -40,6 +40,15 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+# ⚠ FOURTH INSTANCE OF ONE BUG (REG-044, REG-054, REG-077). His console is Hebrew (cp1255) and
+# cannot encode the marks this file prints. The failure always lands in the dangerous direction: a
+# CORRECT tree reports FAILURE while dying inside its own success message, which teaches people to
+# ignore the tool — and then the next real failure is ignored too.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 
 #: Backups go OUTSIDE the repo, because the whole point is that this file is recoverable.
 BACKUP_DIR = os.path.expanduser("~/d2r_board_backups")
