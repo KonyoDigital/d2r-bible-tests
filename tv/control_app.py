@@ -12517,14 +12517,29 @@ def _pix_say_key(why):
     ⚠ v2789 — the refusal sentences carry live numbers ("acted 40s ago", "%ds of the %ds cooldown
     left", "the verdict is 95s old"). Deduping on the whole sentence therefore never matches its
     predecessor and writes a journal row every tick — which is precisely the noise the dedupe
-    exists to stop. Everything from the first digit onward is the part that moves, so the key is
-    what comes before it.
+    exists to stop.
+
+    ⚠⚠ v2792 — TRUNCATING AT THE FIRST DIGIT SUPPRESSED THE MOST INFORMATIVE REFUSAL ENTIRELY.
+    A cross-family review of v2789 walked the real strings and found that
+
+        "16 of 16 sabotages were refused; the Wilson lower bound is 0.806 against a bar of 0.839"
+
+    BEGINS with a digit, so `t[:0].rstrip()` is `""` — which equals the initial `lastSaidWhy` and
+    equals the key of every other leading-digit reason. That refusal would never have been written
+    to the journal, ever, and it is the one carrying the score. It also collides any two reasons
+    sharing their text up to the first digit.
+
+    So: blank the DIGIT RUNS and keep the sentence. "acted 40s ago - 860s of 900s left" and
+    "acted 700s ago - 200s of 900s left" both become "acted #s ago - #s of #s left" — stable while
+    the numbers move, still distinct from every other reason, and never empty.
+    [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
     """
+    import re as _re
     t = str(why or "")
-    for i, ch in enumerate(t):
-        if ch.isdigit():
-            return t[:i].rstrip()
-    return t
+    # ⚠ \d, not str.isdigit(): isdigit() is true for Unicode Nd (Arabic-Indic, Devanagari, …).
+    # None appear in these strings today, and a key that changes if one ever does is not stable.
+    k = _re.sub(r"\d+", "#", t).strip()
+    return k or t.strip() or "(no reason given)"
 _UI_RESCUE_COOLDOWN_S = 300.0
 
 # ══ v2393 — ALIVE BUT BLANK. The fault the heartbeat cannot see ═════════════════════════════
@@ -24872,7 +24887,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2791",
+        "ver": "v2792",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

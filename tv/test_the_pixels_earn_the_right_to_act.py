@@ -332,6 +332,45 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
                         "it differs every tick, so the dedupe writes a journal row per tick for "
                         "the whole cooldown")
 
+    # -- v2792: THE KEY THAT SILENCED THE ONE MESSAGE WORTH READING --------------------------
+    def test_a_reason_STARTING_with_a_digit_is_not_silenced(self):
+        """*** FROM THE CROSS-FAMILY REVIEW OF v2789. It walked the REAL refusal strings and found
+        that the most informative one begins with a digit:
+
+            "16 of 16 sabotages were refused; the Wilson lower bound is 0.806 against a bar of 0.839"
+
+        Truncating at the first digit made its key the EMPTY STRING — which equals the initial
+        `lastSaidWhy` and equals the key of every other leading-digit reason. That row would never
+        have reached the journal, ever, and it is the one carrying the score. A dedupe that
+        silences its most informative message is worse than no dedupe."""
+        import control_app as CA
+        k = CA._pix_say_key("16 of 16 sabotages were refused; the Wilson lower bound is 0.806 "
+                            "against a bar of 0.839")
+        self.assertTrue(k.strip(),
+                        "a refusal beginning with a digit keys to empty, so it collides with the "
+                        "initial state and is never written")
+        self.assertNotEqual(k, CA._pix_say_key("the pixel verdict is 95s old (max 90s)"),
+                            "two unrelated refusals share one key, so one of them is silenced")
+
+    def test_no_refusal_can_ever_key_to_EMPTY(self):
+        """⛔ The initial `lastSaidWhy` is "". Any reason keying to "" is therefore born already
+        'said' and can never be reported. [[zero-needs-a-denominator]]"""
+        import control_app as CA
+        for why in ("16 of 16 sabotages refused", "0.806 against 0.839", "", None, "12345",
+                    "   ", "900s left"):
+            self.assertTrue(str(CA._pix_say_key(why)).strip(),
+                            "the reason %r keys to empty and is silenced forever" % (why,))
+
+    def test_the_key_still_ignores_the_numbers_that_MOVE(self):
+        """⛔ The point of the key survives the fix: a countdown must not make every tick look like
+        a new reason. Blanking digit RUNS keeps the sentence and drops the moving parts."""
+        import control_app as CA
+        keys = {CA._pix_say_key("the pixels acted %ds ago - %ds of the 900s cooldown left"
+                                % (900 - n, n)) for n in (890, 500, 120, 3)}
+        self.assertEqual(len(keys), 1,
+                         "the countdown moves the key again, so the cooldown writes a row per "
+                         "tick: %s" % sorted(keys))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

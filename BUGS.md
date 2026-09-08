@@ -23328,6 +23328,41 @@ Gate: 4 new laws in `test_the_pixels_earn_the_right_to_act.py` (14 total). 4 sab
 exactly one law — disabling the cooldown guard, shrinking it to 10s, restoring the per-tick journal
 row, and dropping the `abs()`.
 
+## REG-715 — the dedupe key silenced the one message worth reading
+
+**2026-09-08 · v2792 · `tv/control_app.py` · found by the second eye on v2789**
+
+v2789 keyed refusals by "everything before the first digit" so a live countdown could not make every
+tick look like a new reason. The review of that fix walked the **real** refusal strings and found
+the one that begins with a digit:
+
+    "16 of 16 sabotages were refused; the Wilson lower bound is 0.806 against a bar of 0.839"
+
+`t[:0].rstrip()` is `""` — which equals the initial `lastSaidWhy` **and** the key of every other
+leading-digit reason. **That row could never reach the journal. Ever.** And it is the one carrying
+the score. A dedupe that permanently silences its most informative message is worse than no dedupe.
+
+**Fixed:** blank the digit RUNS and keep the sentence.
+`"acted 40s ago - 860s of 900s left"` and `"acted 700s ago - 200s of 900s left"` both become
+`"acted #s ago - #s of #s left"` — stable while the numbers move, still distinct from every other
+reason, and never empty. A floor returns `(no reason given)` rather than `""`, because the initial
+state is `""` and anything keying to it is born already "said".
+
+Two more from the same review, both taken: prefix truncation also collided for any two reasons
+sharing text up to their first digit, and `str.isdigit()` is True for Unicode Nd (Arabic-Indic,
+Devanagari). It correctly said none appear today rather than claiming they do — the fix uses an
+explicit digit class anyway, because a key that changes the day one appears is not a stable key.
+
+**⚠ THE PATTERN, THIRD TIME IN THREE VERSIONS.** v2786 fixed a per-tick journal row; v2789's fix for
+it introduced a countdown-defeated dedupe; v2792 fixes that dedupe silencing a whole class. Each was
+found only because the NEXT version was handed to a different family with the code actually
+attached. None of the three would have been caught by running the shipped code, because all three
+live in the branch that only executes once the pixel lock opens — a state the system has never been
+in. [[unknown-stays-unknown]]
+
+Gate: 3 new laws in `test_the_pixels_earn_the_right_to_act.py` (19 total). 1 sabotage — restoring
+the truncate-at-first-digit rule reds two laws.
+
 ## REG-714 — the river sections were built, and he could only reach them through a dropdown
 
 **2026-09-08 · v2791 · `tv/control_ui.html`, `tv/control_app.py` · task #35**
