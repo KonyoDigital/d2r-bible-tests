@@ -28236,6 +28236,22 @@ class Handler(BaseHTTPRequestHandler):
                             except Exception:
                                 pass
                             _why = "a stop arrived while this plan was starting - stopped again"
+                            # ⚠ v2803 — AND IT MUST BE RECORDED SOMEWHERE THAT SURVIVES. A cold
+                            # cross-family review of v2802 found that this message is computed and
+                            # then thrown away: the `finally` below only persists `_why` when the
+                            # token still matches, and `_late` means by definition that it does
+                            # not. Dropping it from the PANEL is right — a newer press or a stop
+                            # owns that state and should not be overwritten by a plan that lost
+                            # the race. But the EVENT is the rarest and most confusing thing this
+                            # code can do (the pointer moves for an instant after Stop), and
+                            # discarding the only evidence of it means the next person to see it
+                            # has nothing to read. A fault row is not the panel; it is the
+                            # journal. [[feedback-silence-is-not-evidence]]
+                            try:
+                                ui_fault_record("miniauto-stop-overtook-a-starting-plan",
+                                                why=_why, where="_plan")
+                            except Exception:
+                                pass
                 except Exception as _e:
                     _why = "planning the hover raised %s" % type(_e).__name__
                 finally:
