@@ -250,6 +250,24 @@ except Exception:
     fi
     echo "pre-push: ✅ the second eye looked at $_prev_ver."
   fi
+  # ⚠⚠ v2794 — THE MAP GOES STALE SILENTLY, AND IT DID: measured 2026-09-08, BLUEPRINT.md had not
+  # been regenerated since Sep 2 and knew nothing of the river or the printer — `station` 0
+  # mentions, `INTAKE` 0, `TOMBSTONE` 0, `printer` 0. Both were built after that date. The file's
+  # own header says "GENERATED ... so it cannot go stale"; nothing regenerated it, so it did.
+  #
+  # ⛔ THIS REFUSES, IT DOES NOT REGENERATE. The gate grades the WORKING TREE — a hook that rewrote
+  # BLUEPRINT.md here would dirty the tree it is grading AND leave the stale file inside the commit
+  # actually being pushed. Refuse, let a human run the generator, push again. Same shape as the
+  # second-eye gate above. [[d2r-push-grades-the-working-tree]]
+  if ! gate_run "blueprint" "python3 tv/blueprint.py --check" 60 -- \
+       python3 "$REPO/tv/blueprint.py" --check; then
+    echo "pre-push: ❌ BLUEPRINT.md no longer matches the code."
+    echo "          The map is generated so it cannot go stale — but only if it is regenerated."
+    echo "              python3 tv/blueprint.py     (then commit it and push again)"
+    echo "          (deliberate exception: git push --no-verify)"
+    exit 1
+  fi
+  echo "pre-push: ✅ the blueprint matches the code."
   # ⚠ KNOWN AND DELIBERATE LIMIT: a batched push crossing several version stamps is judged on the
   # BOUNDARY version only — the one that was actually live and therefore actually lookable. The
   # intermediate stamps never shipped on their own, so nothing ever displayed them to a second eye.

@@ -715,6 +715,24 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_blueprint_cannot_go_stale",
+         [sys.executable, os.path.join(HERE, "test_the_blueprint_cannot_go_stale.py")], 180,
+         why="THE MAP SAID IT COULD NOT GO STALE AND HAD BEEN STALE FOR SIX DAYS. blueprint.py's "
+             "own header reads \"GENERATED FROM THE CODE SO IT CANNOT GO STALE\" — the right idea, "
+             "inherited from ~/achilles-revival with the reverse-blueprint rule — and NOTHING "
+             "regenerated it. Measured 2026-09-08: last written Sep 2, and `station` 0 mentions, "
+             "`INTAKE` 0, `TOMBSTONE` 0, `printer` 0, `panelFrames` 0. The river and the printer "
+             "were both built after that date, so the one surface meant to show the wiring from "
+             "above did not know they existed. His question: \"shouldnt this be a connected and "
+             "communicating system thats easily seen wired from a macro view\" — it was the MAP "
+             "that was missing, not the wiring. ⛔ THE GATE REFUSES, IT DOES NOT REGENERATE: the "
+             "pre-push hook grades the WORKING TREE, so a hook that rewrote BLUEPRINT.md would "
+             "dirty the tree it is grading and leave the stale file in the commit being pushed. "
+             "⚠ THE TIMESTAMP LINE IS EXCLUDED or the gate is red forever and becomes furniture in "
+             "a day. ⚠⚠ AND ITS OWN UNKNOWN LAW READ TEXT AND A SABOTAGE WALKED PAST IT — deleting "
+             "`\"why\": None` from the river's initializer left the key in its error paths and the "
+             "law stayed green. It now BLINDS each dependency and demands the answer.",
+         ),
     Gate("test_the_shelf_lands_on_the_river",
          [sys.executable, os.path.join(HERE, "test_the_shelf_lands_on_the_river.py")], 120,
          why="THE RIVER SECTIONS WERE BUILT AND HE COULD ONLY REACH THEM THROUGH A DROPDOWN. His "

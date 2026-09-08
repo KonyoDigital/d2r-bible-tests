@@ -203,6 +203,110 @@ def gate_count():
     return len(re.findall(r"\n    Gate\(", src)) if src else None
 
 
+def river():
+    """The stations a reel passes through, and where his reels actually sit. -> dict|None
+
+    ⚠⚠ ADDED v2794 BECAUSE THE MAP DID NOT KNOW THE RIVER EXISTED. Measured 2026-09-08 against the
+    BLUEPRINT.md then on disk: `station` 0 mentions, `INTAKE` 0, `TOMBSTONE` 0, `printer` 0. The
+    river and the printer were both built AFTER the map was last generated, and nothing regenerates
+    it — so the one surface meant to show the wiring from above stopped at the day it was written.
+
+    Konyo: *"shouldnt this be a connected and communicating system thats easily seen wired from a
+    macro view"*. It should, and it was the map that was missing, not the wiring.
+
+    ⚠ COUNTED FROM THE TREE, NEVER ASSERTED. reel_router owns the stations; this quotes them. If
+    the router will not answer, this says so rather than printing an empty river — "0 reels at
+    INTAKE" and "I could not ask" are opposite facts. [[unknown-stays-unknown]]
+    """
+    try:
+        import reel_router as _rr
+    except Exception as e:
+        return {"why": "reel_router is not importable (%s)" % type(e).__name__}
+    stations = list(getattr(_rr, "STATIONS", ()) or ())
+    out = {"stations": stations, "why": None, "at": {}, "owes": {}, "walked": None}
+    try:
+        d = _rr.route()
+    except Exception as e:
+        out["why"] = "the router raised %s, so where his reels SIT is UNKNOWN" % type(e).__name__
+        return out
+    if not isinstance(d, dict) or not d.get("ok"):
+        out["why"] = (d or {}).get("why") or "the router did not answer"
+        return out
+    rows = [r for r in (d.get("reels") or []) if isinstance(r, dict)]
+    out["walked"] = len(rows)
+    for r in rows:
+        st = r.get("station") or "?"
+        out["at"][st] = out["at"].get(st, 0) + 1
+        if r.get("owes"):
+            out["owes"][st] = out["owes"].get(st, 0) + 1
+    try:
+        import river_lanes as _rl
+        lr = _rl.lanes()
+        if lr.get("ok"):
+            out["lanes"] = [(l["name"], l.get("count", 0)) for l in (lr.get("lanes") or [])]
+            out["reconciles"] = lr.get("reconciles")
+    except Exception:
+        pass
+    return out
+
+
+def printer_stream():
+    """THE 3D/4D PRINTER — one door, one stream, and what it may act on. -> dict|None
+
+    ⚠ The printer QUOTES seven modules and re-derives nothing; this quotes the printer and
+    re-derives nothing either. Two maps of one truth is how a badge and a diagram come to disagree.
+    [[copy-drift]]
+    """
+    try:
+        import printer as _p
+    except Exception as e:
+        return {"why": "printer is not importable (%s)" % type(e).__name__}
+    try:
+        st = _p.stream()
+    except Exception as e:
+        return {"why": "printer.stream() raised %s" % type(e).__name__}
+    if not isinstance(st, dict):
+        return {"why": "printer.stream() did not return a report"}
+    return {"why": None, "walked": st.get("walked"), "state": st.get("state"),
+            "stations": list(st.get("stations") or []),
+            "counts": dict(st.get("counts") or {}),
+            "tombstoned": st.get("tombstoned"),
+            "owners": list((st.get("owners") or {}).keys())
+                      if isinstance(st.get("owners"), dict) else list(st.get("owners") or [])}
+
+
+def stripped_sets():
+    """The GROSS reel vs the STRIPPED set — how many frames actually carry a panel. -> dict|None
+
+    His words, 2026-09-08: *"the reels and sessions should have like a gross full lengthed all
+    screenshots before the filtering of them ... and then the stripped version of it, with the
+    garbage stripped out"*.
+
+    ⚠⚠ IT ALREADY EXISTS AND HAD NO READER. retro_triage records `panelFrames` per reel — the
+    frames that CARRY a panel — and measured 2026-09-08 the only references to it in the whole tree
+    were river.py counting HOW MANY reels have one, and a census writer. 736 pre-selected frames
+    across 30 stuck reels, unread, while the reader walked 4,522 gross frames and found nothing.
+    A map that cannot show that gap is a map worth fixing. [[the-unjoined-end]]
+    """
+    import json as _json
+    p = os.path.join(HERE, "retro_triage.json")
+    if not os.path.isfile(p):
+        return {"why": "retro_triage.json is absent, so nothing is known about panel frames"}
+    try:
+        d = _json.load(io.open(p, encoding="utf-8"))
+    except Exception as e:
+        return {"why": "retro_triage.json is unreadable (%s)" % type(e).__name__}
+    if not isinstance(d, dict):
+        return {"why": "retro_triage.json is not the expected shape"}
+    reels = len(d)
+    withpf = {k: len(v.get("panelFrames") or {}) for k, v in d.items()
+              if isinstance(v, dict) and v.get("panelFrames")}
+    gross = sum(int((v or {}).get("frames") or 0) for v in d.values() if isinstance(v, dict))
+    panels = sum(int((v or {}).get("panels") or 0) for v in d.values() if isinstance(v, dict))
+    return {"why": None, "reels": reels, "withStripped": len(withpf),
+            "strippedFrames": sum(withpf.values()), "grossFrames": gross, "panelFrames": panels}
+
+
 def render():
     L = []
     A = L.append
@@ -316,6 +420,70 @@ def render():
         for q in rl[f]:
             A('        "%s"' % q)
     A("")
+    # ── ⚠⚠ v2794 — THE MAP DID NOT KNOW THE RIVER OR THE PRINTER EXISTED ────────────────────
+    # Measured 2026-09-08 against the BLUEPRINT.md then on disk: `station` 0 mentions, `INTAKE` 0,
+    # `TOMBSTONE` 0, `printer` 0, `panelFrames` 0 — and the file had not been regenerated since
+    # Sep 2. Both subsystems were built after that date. So the one surface meant to show the
+    # wiring from above stopped at the day someone last ran the generator by hand.
+    # Konyo: *"shouldnt this be a connected and communicating system thats easily seen wired from
+    # a macro view"*. [[the-unjoined-end]]
+    rv = river()
+    A("## THE RIVER — every reel from the door to the far end")
+    A("")
+    if not rv or rv.get("why"):
+        A("⚠ UNKNOWN — %s" % ((rv or {}).get("why") or "the river could not be read"))
+    else:
+        A("Stations, in `reel_router.STATIONS` order (the router owns them; this quotes it):")
+        A("")
+        A("    %s" % " → ".join(rv.get("stations") or []))
+        A("")
+        A("Where his %s reel(s) sit right now:" % rv.get("walked"))
+        A("")
+        A("| station | reels | of those, owing work |")
+        A("|---|---|---|")
+        for st in (rv.get("stations") or []):
+            n = (rv.get("at") or {}).get(st, 0)
+            o = (rv.get("owes") or {}).get(st, 0)
+            if n or o:
+                A("| %s | %d | %s |" % (st, n, o or "—"))
+        if rv.get("lanes"):
+            A("")
+            A("Grouped into the four lanes `river_lanes` publishes: %s%s"
+              % (" · ".join("%s %d" % (n, c) for n, c in rv["lanes"]),
+                 "" if rv.get("reconciles") else "  ⚠ THE LANES AND THE SHELF DISAGREE"))
+    A("")
+    pr = printer_stream()
+    A("## THE PRINTER — one door, one stream, out the other end")
+    A("")
+    if not pr or pr.get("why"):
+        A("⚠ UNKNOWN — %s" % ((pr or {}).get("why") or "the printer could not be read"))
+    else:
+        A("`tv/printer.py` follows every reel through the stations and QUOTES each owner; it")
+        A("re-derives nothing, and it **prints nothing and deletes nothing** — it is a report.")
+        A("")
+        A("    walked %s reel(s) · state %s" % (pr.get("walked"), pr.get("state")))
+        if pr.get("counts"):
+            A("")
+            for k, v in sorted((pr.get("counts") or {}).items()):
+                A("    %-22s %s" % (k, v))
+    A("")
+    ss = stripped_sets()
+    A("## GROSS vs STRIPPED — how much of the footage actually carries a panel")
+    A("")
+    if not ss or ss.get("why"):
+        A("⚠ UNKNOWN — %s" % ((ss or {}).get("why") or "the triage store could not be read"))
+    else:
+        A("`retro_triage` records, per reel, which frames CARRY a panel (`panelFrames`). That is the")
+        A("stripped set; the reel folder is the gross one.")
+        A("")
+        A("    reels surveyed          %s" % ss.get("reels"))
+        A("    with a stripped set     %s" % ss.get("withStripped"))
+        A("    frames in those sets    %s" % ss.get("strippedFrames"))
+        A("    gross frames surveyed   %s" % ss.get("grossFrames"))
+        A("")
+        A("⚠ Measured 2026-09-08: the ONLY readers of `panelFrames` were `river.py` counting how")
+        A("many reels have one, and a census writer. The stripped sets are recorded and unread.")
+    A("")
     A("## GATES")
     A("")
     g = gate_count()
@@ -335,6 +503,30 @@ def main(argv=None):
     if "--print" in argv:
         print(txt)
         return 0
+    if "--check" in argv:
+        # ⚠⚠ v2794 — THE GATE REFUSES, IT DOES NOT REGENERATE. The pre-push hook grades the
+        # WORKING TREE, so a hook that rewrote BLUEPRINT.md mid-push would dirty the tree it is
+        # grading AND leave the stale file in the commit actually being pushed. Refuse, let a human
+        # run the generator, push again — the same shape the second-eye gate uses.
+        # [[d2r-push-grades-the-working-tree]]
+        #
+        # ⚠ THE TIMESTAMP LINE IS EXCLUDED, AND WITHOUT THAT THIS GATE IS FURNITURE ON DAY ONE.
+        # render() stamps `generated YYYY-MM-DD HH:MM`, which changes every minute — a naive diff
+        # would be red forever and nobody would read it. Compare the MAP, not the clock.
+        try:
+            have = io.open(OUT, encoding="utf-8").read()
+        except Exception as e:
+            print("BLUEPRINT.md could not be read (%s) — regenerate it: python3 tv/blueprint.py"
+                  % type(e).__name__)
+            return 1
+        strip = lambda t: "\n".join(l for l in t.split("\n")
+                                    if not l.strip().startswith("generated "))
+        if strip(have) == strip(txt):
+            print("BLUEPRINT.md is current.")
+            return 0
+        print("BLUEPRINT.md is STALE — the map no longer matches the code.")
+        print("   regenerate it:  python3 tv/blueprint.py")
+        return 1
     with io.open(OUT, "w", encoding="utf-8") as fh:
         fh.write(txt)
     print("wrote %s (%d lines)" % (OUT, txt.count("\n")))

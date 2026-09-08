@@ -23328,6 +23328,57 @@ Gate: 4 new laws in `test_the_pixels_earn_the_right_to_act.py` (14 total). 4 sab
 exactly one law — disabling the cooldown guard, shrinking it to 10s, restoring the per-tick journal
 row, and dropping the `abs()`.
 
+## REG-717 — the map said it could not go stale, and it had been stale for six days
+
+**2026-09-08 · v2794 · `tv/blueprint.py`, `hooks/pre-push` · his question about the macro view**
+
+`blueprint.py`'s own header: *"THE MAP OF THIS SYSTEM, GENERATED FROM THE CODE SO IT CANNOT GO
+STALE"* — the right idea, inherited from `~/achilles-revival` together with the reverse-blueprint
+rule (*"NEVER guess. ALWAYS trace."*). **Nothing regenerated it.** Measured against the
+`BLUEPRINT.md` then on disk:
+
+| | |
+|---|---|
+| last written | **Sep 2 — six days** |
+| `station` mentions | **0** |
+| `INTAKE` / `TOMBSTONE` | **0** |
+| `printer` | **0** |
+| `panelFrames` | **0** |
+
+The river and the printer were both built after that date. So the one surface meant to show the
+wiring from above simply did not know they existed — which is exactly why this session spent hours
+discovering the river, the printer and the stripped sets by hand, one grep at a time.
+
+Konyo: *"shouldnt this be a connected and communicating system thats easily seen wired from a macro
+view"*. It should. **It was the MAP that was missing, not the wiring.** [[the-unjoined-end]]
+
+**Added:** `river()` (stations quoted from `reel_router.STATIONS`, plus where his reels sit and what
+each station owes), `printer_stream()` (quoting `printer.stream()`, which itself quotes seven
+modules and re-derives nothing), and `stripped_sets()` (gross frames vs the `panelFrames` each reel
+actually carries). All three counted from the tree at the moment they run.
+
+**⛔ THE GATE REFUSES; IT DOES NOT REGENERATE.** The obvious move is to have pre-push rebuild the
+file, and it is wrong here for a reason this repo has already paid for: **the gate grades the
+WORKING TREE.** A hook that rewrote `BLUEPRINT.md` mid-push would dirty the tree it is grading, and
+the commit actually being pushed would still carry the stale map. So `--check` refuses, a human runs
+the generator, and the push is retried — the same shape as the second-eye gate.
+[[d2r-push-grades-the-working-tree]]
+
+**⚠ THE TIMESTAMP LINE IS EXCLUDED FROM THE COMPARISON.** `render()` stamps
+`generated YYYY-MM-DD HH:MM`, which changes every minute; a naive byte-compare would be RED forever,
+everyone would learn to skim it, and the real staleness would go with it. Compare the map, not the
+clock.
+
+**⚠⚠ AND ITS OWN UNKNOWN LAW READ TEXT — A SABOTAGE WALKED STRAIGHT PAST IT.** The first cut
+asserted the string `"why"` appeared somewhere in each new function. Deleting `"why": None` from the
+river's initializer left the key present in its error-path assignments, so the law stayed **green**
+while the success path stopped carrying the channel. **Fourth time in one day that a law read
+MENTION instead of behaviour.** It now BLINDS each dependency — `reel_router`, `printer`, the triage
+store — and demands a non-empty `why` back. [[sabotage-is-usually-the-wrong-one]]
+
+Gate: `test_the_blueprint_cannot_go_stale.py`, 7 laws. 3 sabotages — drifting a heading, comparing
+the timestamp, and dropping the `why` channel — each red on one law.
+
 ## REG-716 — the runaway's stack dump was taken six times today and thrown away six times
 
 **2026-09-08 · v2793 · `tv/control_app.py` · REG-682 / task #28**
