@@ -17499,7 +17499,15 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
         bib = os.path.join(os.path.dirname(HERE), "bible.html")
         with open(bib, encoding="utf-8") as fh:
             text = fh.read()
-        body = text[start:start + 9000]
+        # ⚠⚠ v2807 — THIS CLOSED OVER A `start` FROM ITS ENCLOSING TEST, and when that line was
+        # replaced by an anchored window the name vanished and this helper read a variable bound
+        # NOWHERE. The gate for exactly that caught it — "inside a try/except that is silent
+        # forever and the code looks wired" — which is why it is worth having: a NameError here
+        # would have been swallowed and this guard would have graded an empty string forever.
+        # It now anchors its own window, so it depends on nothing outside itself, and the 9,000
+        # guess (against a function measuring 10,475) goes with it.
+        body = _sw.between(text, "window.tvVaultRegister = function(name){", "\n  };",
+                           what="the tvVaultRegister body")
         body = re.sub(r"/\*.{0,4000}?\*/", " ", body, flags=re.S)
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
         return body
