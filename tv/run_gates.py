@@ -640,6 +640,50 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_the_engine_room_lives_on_tvd",
+         [sys.executable, os.path.join(HERE, "test_the_engine_room_lives_on_tvd.py")], 120,
+         why="THE GAMEPLAY HOME IS FOR PLAYING — the seven engine lamps and the whole \u2699 ADVANCED "
+             "drawer (engines \u00b7 eyes \u00b7 fleet) now live on TV\u00b7D beside the AI readers, "
+             "his same ask that moved the AI READS ticker at v2763. The laws pin BOTH negatives, "
+             "because either alone is wrong: only Sessions carries data-view=\"sessions\" while "
+             "_toTVD() and every board tab REMOVE it, so \"not sessions\" alone would still leave "
+             "these under Runewords, Crafts, Uniques, Sets, Tools and Vault. They also pin that the "
+             "hide targets #sig-adv and NOT .rail-secondary — that container also holds #ver-xref "
+             "and #heart-ov, two position:fixed overlays, and hiding an ancestor hides a fixed "
+             "descendant, which would have left the footer's heart chip opening nothing at all.",
+         ),
+    Gate("test_the_river_strip_reads_as_a_river",
+         [sys.executable, os.path.join(HERE, "test_the_river_strip_reads_as_a_river.py")], 120,
+         why="THE RIVER HEADING WAS A FLEX ROW OF BARE TEXT NODES. A run of text directly inside a "
+             "flex container becomes its own anonymous flex item, so \"the river \u00b7\", \"49\" and "
+             "\"reel(s) on the shelf\" were THREE items, each wrapping its own words in its own "
+             "column. Measured at 375px: three ragged columns with the FIFO qualifier crushed into a "
+             "61px column three lines tall. Heights 16px at >=561, 31px at 480-560, 47px at <=414 — "
+             "all invisible to a check that only reads the wide viewport. The strip also carries the "
+             "printer spine's ordinal at EVERY width, because below 700px the connectors are hidden "
+             "and four tiles with no direction read as a scoreboard rather than a river.",
+         ),
+    Gate("test_extract_gap_holding",
+         [sys.executable, os.path.join(HERE, "test_extract_gap_holding.py")], 180,
+         why="THE SEAL WRITER DROPPED NAMES IT ALREADY HAD. Four sealed reels carry a recoverable "
+             "extraction gap, and the row that reported them could not tell 'we looked and there "
+             "was nothing' from 'nobody could look' — an unreadable journal answered False where "
+             "only None is honest. The laws pin: a sealed reel with unmeasurable names is UNKNOWN "
+             "and not REG-340; a chronicle or floor name is not a container; the recoverable "
+             "headline counts PANEL names only; and every row publishes `holdingPossible` with its "
+             "reason. Proven by tv/sabotage_extract_gap_holding.py — 8 of 8 sabotages RED, each "
+             "anchor counted twice (once with comments blanked, so no law can be satisfied by "
+             "prose) and the file restored by SHA-256 rather than by re-editing.",
+         ),
+    Gate("test_the_four_routes_go_red_alone",
+         [sys.executable, os.path.join(HERE, "test_the_four_routes_go_red_alone.py")], 120,
+         why="EVERY ROUTE NOW HAS ITS OWN DOCTOR ROW, AND EACH CAN GO RED ALONE — one aggregate row "
+             "let three healthy routes hide a fourth. Measured on his shelf: inventory 2 of 46 and "
+             "stash 11 of 46 read OK with their denominators, and BOTH chronicle routes read "
+             "UNKNOWN — 'no reel on this shelf carries a sets ledger, so this route is UNPROVEN "
+             "here'. That is the point: an unexercised route must never read OK, which is this "
+             "repo's most repeated way of shipping a blind gate.",
+         ),
     Gate("test_the_status_poll_never_waits_on_a_spawn",
          [sys.executable, os.path.join(HERE, "test_the_status_poll_never_waits_on_a_spawn.py")], 120,
          why="ON AIR SPUN \"loading\" WHILE THE RECORDING WAS ALREADY RUNNING. `start_agent` holds "

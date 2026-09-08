@@ -1776,11 +1776,29 @@
   #th-shelfov .sh-lanes { margin: 0 0 12px; padding: 11px 13px; padding-right: 48px;
     border: 1px solid var(--edge);
     border-radius: 10px; background: rgba(255,255,255,.022); }
+  /* ⚠⚠ v2773 — THE HEADING WAS A FLEX ROW OF BARE TEXT NODES, AND THAT IS WHAT BROKE IT.
+     A run of text sitting directly inside a flex container becomes its own anonymous flex item,
+     so `the river · ` / `49` / ` reel(s) on the shelf` were THREE items, each free to shrink and
+     wrap its own words in its own column. MEASURED at 375: the heading rendered as three ragged
+     columns —
+         THE     49 REEL(S)  oldest
+         RIVER   ON THE      first ·
+     — with the FIFO qualifier squeezed into a 61px column three lines tall, and the middot
+     stranded at the end of a line with nothing after it. Heights: 16px at >=561, 31px at 480-560,
+     47px at <=414, all of it invisible to a check that only reads the wide viewport.
+     THE FIX IS THE SENTENCE, NOT THE SIZE: the label is now ONE element (.shr-lbl) so it wraps
+     as prose, the qualifier never breaks (`white-space: nowrap`), and the row is allowed to wrap
+     so the qualifier drops to its own line instead of being crushed into a column.
+     ⚠ `min-width` on the label does NOT decide the wrap — flex breaks lines on the item's
+     hypothetical size (its flex-basis/content width), so the label's full measure is what pushes
+     the qualifier onto line 2. The min-width only stops it shrinking below a readable measure
+     once it is alone on its line. [[visual-regression-detector]] */
   #th-shelfov .shr-head { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono);
     letter-spacing: var(--ls-wide); text-transform: uppercase; color: #d6c8a6; margin-bottom: 9px;
-    display: flex; align-items: baseline; gap: 8px; }
-  #th-shelfov .shr-fifo { margin-left: auto; opacity: .6; text-transform: none;
-    letter-spacing: var(--ls-tight); }
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 8px; }
+  #th-shelfov .shr-lbl { flex: 1 1 auto; min-width: 17ch; }
+  #th-shelfov .shr-fifo { margin-left: auto; flex: 0 0 auto; white-space: nowrap;
+    opacity: .6; text-transform: none; letter-spacing: var(--ls-tight); }
   #th-shelfov .shr-flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
   /* ⚠⚠ v2772 — THE BASIS IS 104px, NOT 120px, AND THE 16px IS A MEASURED DEFECT NOT A TASTE CALL.
      Found by an independent visual audit, and confirmed by a COLD CROSS-FAMILY READ, which is the
@@ -1804,13 +1822,47 @@
   /* an empty lane is DIMMED, never hidden — a stage nothing reaches is the actionable half */
   #th-shelfov .shr-lane.shr-empty { opacity: .5; border-color: var(--edge);
     background: rgba(255,255,255,.02); }
+  /* ⚠⚠ v2773 — THE ORDINAL IS WHAT CARRIES THE ORDER WHEN THE ARROWS CANNOT.
+     Below 700px the connectors are hidden (they have nowhere to sit once the lanes go 2+2) and
+     NOTHING replaced them: four tiles in a block, no direction, reads as a scoreboard — four
+     independent tallies — rather than one river with a first and a last. That is the same
+     meaning-loss the 901px wrap caused, arriving by a different route.
+     THE STRIP NOW BORROWS THE BOARD 12px BELOW IT, which has numbered its stations 1-7 since
+     v2587 (`.shp-st b u`). Same glyph, same weight, same dimmed gold, same 5px gap — so the two
+     boards read as one engine instead of two idioms stacked. The numeral is present at EVERY
+     width, not only where the arrows vanish: an ordinal that appears only under a breakpoint is
+     a second idiom, not a fallback. */
   #th-shelfov .shr-n { font: var(--fw-bold) var(--fs-2xs)/var(--lh-tight) var(--mono);
-    letter-spacing: var(--ls-wide); color: #e8cf96; }
+    letter-spacing: var(--ls-wide); color: #e8cf96;
+    display: flex; align-items: baseline; gap: 5px; }
+  #th-shelfov .shr-n u { text-decoration: none; color: rgba(200,180,120,.45);
+    font-variant-numeric: tabular-nums; font-weight: var(--fw-normal); }
   #th-shelfov .shr-c { font: var(--fw-bold) var(--fs-lg)/1.05 var(--serif); color: #fff;
     font-variant-numeric: tabular-nums; margin: 2px 0 4px; }
-  #th-shelfov .shr-sts { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+  /* ⚠⚠ v2773 — TWO STATION TALLIES SIDE BY SIDE PARSED AS ONE PHRASE, AND THE OBVIOUS FIX WAS
+     THE WRONG ONE. The chips were separated by nothing but an 8px gap — at this size barely
+     wider than the word space INSIDE a chip — so `CAPTURE 12 JOIN 4` read as one four-word run
+     and `INTAKE 0 TRIAGE 14` as another.
+     ⚠ THE FIRST CUT PUT THE BOARD'S MIDDOT BETWEEN THEM, riding on the FOLLOWING chip so it
+     could never dangle at the end of a wrapped line. I looked at the render and it was still
+     wrong, in the mirror image: at 1440 the INTAKE tile printed `INTAKE 0 · TRIAGE 14` and then
+     `· STATION 7 · EMPTY 0` — a middot ALONE at the start of the second line, and TOMBSTONE
+     printed a bare `· TOMBSTONE 0` under `ROUTED 1`. A separator that wraps is orphaned at one
+     end or the other; choosing which end is not a fix.
+     THIS FILE ALREADY SOLVED EXACTLY THIS, twelve pixels below: the printer spine dropped its
+     '›' glyphs for a GRID after they dangled at 939px, on the reasoning that "a grid cannot
+     orphan a separator". Same answer here — alignment separates the tallies, so there is no
+     glyph to strand. auto-fit collapses to a single column when a lane gets narrow, which is
+     what happens below ~900px, and the tallies stay in tidy columns above it.
+     ⚠ `white-space: nowrap` stays: it stops a chip splitting between its label and its number,
+     which is how `STASH` and `11` ended up on different lines in the spine.
+     [[visual-regression-detector]] — I looked at the pixels, twice, and the second look is the
+     one that changed this. */
+  #th-shelfov .shr-sts { display: grid; gap: 3px 10px;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
   #th-shelfov .shr-st { font: var(--fw-medium) var(--fs-2xs)/var(--lh-tight) var(--mono);
-    color: #b9ad92; letter-spacing: var(--ls-tight); font-variant-numeric: tabular-nums; }
+    color: #b9ad92; letter-spacing: var(--ls-tight); font-variant-numeric: tabular-nums;
+    white-space: nowrap; min-width: 0; }
   #th-shelfov .shr-st b { color: #e0d0a8; }
   #th-shelfov .shr-st0 { opacity: .45; }
   #th-shelfov .shr-arrow { align-self: center; color: rgba(240,192,96,.5); flex: none;
@@ -6009,6 +6061,64 @@
   .b-on { min-height: 72px; }
   #btn-shelf { margin-top: auto !important; padding: 14px 12px; justify-content: center; }   /* anchored to the rail floor */
   aside.rail .signal { flex: 1 1 auto !important; display: flex; flex-direction: column; justify-content: space-evenly; }   /* v889 — the health card FILLS; rows breathe evenly */
+  /* ══ v2773 — THE ENGINE ROOM LEAVES THE GAMEPLAY HOME ══════════════════════════════════════
+     Konyo's ask, same one that moved the AI READS ticker in v2763: the gameplay home is for
+     PLAYING, and the backend/telemetry surfaces belong on TV·D beside the AI readers.
+
+     WHAT MOVES, AND WHY EACH ONE IS BACKEND RATHER THAN GAMEPLAY:
+       .signal    seven engine lamps — Live Eye, Second Eye, Kai, Router, Watchdog, Agent Mind,
+                  Master Brain — plus the KAI accuracy gate. Which model families are awake is
+                  the AI readers' own status, which is precisely what TV·D is for.
+       #sig-adv   ⚙ ADVANCED: "engines · eyes · fleet", the 👁 WHICH EYES READ three-way provider
+                  switch, the util strip, the repair box and the fleet list. The engine room.
+
+     ⚠ IT IS #sig-adv, NOT `.rail-secondary`, AND THAT IS NOT A DETAIL. `.rail-secondary` also
+     holds `#ver-xref` and `#heart-ov` — two `position: fixed` full-screen overlays, and #heart-ov
+     is what the FOOTER's ♥ heart chip opens. `display: none` on an ancestor hides a fixed
+     descendant too, so hiding the container would have left a live button on the gameplay home
+     opening nothing at all: both ends built, the middle quietly cut. [[the-unjoined-end]]
+
+     ⚠ WHAT THIS COSTS, SAID OUT LOUD: in the resting state `.signal` carries a ::before reading
+     "🧠 THE SCANNER · asleep — press ON to wake the engines", so the gameplay home loses that
+     prompt. The ▶ ON AIR button sits ~60px above it and is the actual door, so the action
+     survives; the sentence does not. One rule, one meaning, rather than a hide that depends on
+     data-state — a state-dependent hide would be a second idiom for one decision.
+
+     ⚠ THE SCOPE IS THE SAME TWO NEGATIVES v2763 ESTABLISHED, and both are needed: only Sessions
+     carries `data-view="sessions"`, while `_toTVD()` and every board tab REMOVE it, so "not
+     sessions" alone would still leave these under Runewords, Crafts, Uniques, Sets, Tools and
+     Vault. `body.shell-open` marks a board tab. TV·D is the one state that is neither.
+     ⚠ AND THE SELECTOR CARRIES `aside.rail` ON PURPOSE. `aside.rail .signal` directly above is
+     (0,2,1) and sets `display: flex`; a bare `body[data-view="sessions"] .signal` is (0,2,1) too,
+     so the LATER rule would have won and the hide would have done nothing while reading as
+     correct — the CSS form of this file's most repeated defect. Matched specificity AND placed
+     after it. [[console-ui-two-script-blocks]]
+     ⚠ DISPLAY, NEVER VISIBILITY: these are flex items in the rail; hiding them any other way
+     leaves their boxes and their gaps behind and re-opens the blank-band class of defect. */
+  body[data-view="sessions"] aside.rail .signal,
+  body.shell-open aside.rail .signal,
+  body[data-view="sessions"] aside.rail #sig-adv,
+  body.shell-open aside.rail #sig-adv { display: none; }
+  /* ⚠ AND THE RAIL MUST NOT KEEP A GAP FOR WHAT IT NO LONGER SHOWS. `.rail-secondary` survives on
+     Sessions purely as the host of those two fixed overlays; with #sig-adv hidden it is a
+     zero-height flex item, and `aside.rail` has `gap: 10px`, so an empty item still spends one
+     gap. Ten pixels of nothing is how the last blank band on this home was built. */
+  body[data-view="sessions"] aside.rail .rail-secondary,
+  body.shell-open aside.rail .rail-secondary { display: contents; }
+  /* ⚠⚠ AND A HAIRLINE "GROUPING" RULE WAS TRIED HERE AND REMOVED, BECAUSE THE PIXELS REFUSED IT.
+     The intent was to bind .signal and ⚙ ADVANCED into one engine block on TV·D with a rule above
+     them and a tighter rhythm. MEASURED, it did two wrong things and one nothing:
+       · `border-top: 1px solid` landed on a card that is `border: 1px dashed` in the resting
+         state, so THE SCANNER rendered with one solid edge and three dashed ones — measured
+         borderTopStyle solid, right/bottom/left dashed. A box with mismatched edges reads as a
+         rendering fault, not as a group.
+       · `margin-top: 4px` never applied at all: `aside.rail > * { margin-top: 0 !important }`
+         eleven lines above outranks it, so half the rule was decorative and I would have
+         reported a rhythm that does not exist.
+     What actually makes the destination one surface is the relocation itself — these cards stop
+     being a strip that follows him onto every tab and become the thing TV·D is FOR. A decorative
+     rule that fights the card treatment already in the file is not design, it is noise.
+     [[visual-regression-detector]] [[design-is-fine-until-he-says]] */
   .head-tabs .ht { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.35);
     color: var(--gold-dim); font: var(--fw-medium) var(--fs-xs)/1 var(--mono); letter-spacing: var(--ls-normal);
     padding: 9px 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; }   /* v2100 — folded up from the retired !important layer */
@@ -10810,7 +10920,11 @@ window._lockMark = function(isOpen, px, label){
     }
     var rows = L.lanes || [];
     if (!rows.length) { el.innerHTML = '<div class="shr-wait shr-bad">the river reported no lanes</div>'; return; }
-    var H = ['<div class="shr-head">the river · <b>' + (L.shelf || 0) + '</b> reel(s) on the shelf'
+    /* ⚠ v2773 — THE LABEL IS WRAPPED IN ITS OWN ELEMENT ON PURPOSE. Left bare it was three
+       anonymous flex items (`the river · `, `<b>49</b>`, ` reel(s) on the shelf`) that each
+       wrapped in their own column; see the note beside `.shr-lbl`. One element = one sentence. */
+    var H = ['<div class="shr-head"><span class="shr-lbl">the river · <b>' + (L.shelf || 0)
+             + '</b> reel(s) on the shelf</span>'
              + '<span class="shr-fifo">oldest first · FIFO</span></div>',
              '<div class="shr-flow">'];
     rows.forEach(function(l, i){
@@ -10818,8 +10932,13 @@ window._lockMark = function(isOpen, px, label){
         var n = (l.byStation || {})[sn] || 0;
         return '<span class="shr-st' + (n ? '' : ' shr-st0') + '">' + esc(sn) + ' <b>' + n + '</b></span>';
       }).join('');
+      /* ⚠ v2773 — THE ORDINAL, AND THE SPACE AFTER `</u>` IS DELIBERATE. It is the printer
+         spine's own `<u>n</u>NAME` shape (v2587) so the two boards read as one engine; the space
+         is invisible because a whitespace-only run between flex items is not rendered, and it
+         keeps the extracted text "1 INTAKE" rather than "1INTAKE" for anything reading this by
+         its words rather than its pixels. */
       H.push('<div class="shr-lane' + (l.count ? '' : ' shr-empty') + '" title="' + esc(l.why || '') + '">'
-             + '<div class="shr-n">' + esc(l.name) + '</div>'
+             + '<div class="shr-n"><u>' + (i + 1) + '</u> ' + esc(l.name) + '</div>'
              + '<div class="shr-c">' + (l.count || 0) + '</div>'
              + '<div class="shr-sts">' + bits + '</div></div>');
       if (i < rows.length - 1) H.push('<div class="shr-arrow">\u25B8</div>');

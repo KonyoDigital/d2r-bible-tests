@@ -247,8 +247,29 @@ def _adv_activate(el_id, require_filled=False):
     `require_filled` additionally refuses while #fleet-list still shows the copy that means "nobody
     has asked the route yet" — a section can be laid out perfectly and carry nothing. That is the
     whole defect this target exists for, so photographing it green would be the false green.
+
+    ⚠⚠ v2773 — IT MUST LEAVE THE GAMEPLAY HOME FIRST, AND THAT IS A RETARGET, NOT A RELAXATION.
+    The drawer moved: `.signal` and `#sig-adv` are now `display: none` under `data-view="sessions"`
+    and under `body.shell-open`, because the engine room belongs on TV·D beside the AI readers.
+    And Sessions is the console's HOMEPAGE (v1596, his own ruling — `showSessions()` fires on
+    DOMContentLoaded), so a freshly served console lands in the one view that no longer owns this
+    drawer. MEASURED: activate returned false and all three targets failed with "the panel could
+    not be ACTIVATED after 12.1-12.3s", plus three COVERAGE refusals — 11 green / 8 red against
+    15 green / 0 red on the previous shape of the file.
+
+    That is [[regression-guard]] GATE_MOVES_WITH_PRODUCT to the letter: *a ship that moves a
+    surface owns the gates that describe it*, and its first named way to get the retarget wrong is
+    "retarget to a room that has not rendered — the retarget itself would have looked like the
+    defect. OPEN THE ROOM THAT OWNS THE THING." So this opens TV·D. It does NOT touch the
+    assertions: same element, same 5 widths, same `require_filled` refusal on #fleet-list. Relaxing
+    those is that document's failure mode #2 and it is not what this is.
+
+    ⚠ GUARDED ON `data-view` BEING PRESENT, because this expression is POLLED for ~12s. An
+    unguarded `_toTVD()` would re-run `shellHome()` on every poll and reset the scroll this
+    function performs three lines below — a fix that fights itself once per tick.
     """
     return """(function(){
+        try { if (document.body.getAttribute('data-view') && window._toTVD) window._toTVD(); } catch(e){}
         var d = document.getElementById('sig-adv');
         if (!d) return false;
         if (!d.open) d.open = true;
