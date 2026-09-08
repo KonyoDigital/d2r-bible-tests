@@ -24431,6 +24431,107 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-739 — Heart 2.0 shipped with three blind instruments of its own
+
+A cross-family review of the pushed `ec7c28d8..a1b86391` returned 15 findings. The layer built to
+catch blind instruments had three, and each produced a **confident green** rather than an error.
+Every one below was reproduced before it was believed.
+
+### 1. The sandbox was a claim with no code behind it
+
+`os.path.join(sandbox, tgt_rel)` **discards its prefix when the second argument is absolute**, and
+normalises `..` straight out of the tree. Measured:
+
+```
+join(sandbox, "control_app.py")             -> <sandbox>/control_app.py
+join(sandbox, "/Users/.../control_app.py")  -> /Users/.../control_app.py     ESCAPED
+join(sandbox, "../../BUGS.md")              -> /tmp/BUGS.md                  ESCAPED
+```
+
+One RED_PROOF written with an absolute path — a natural copy-paste out of an error message — and
+`_prove_one` truncates and rewrites a file in his **real tree**. The restore lives in a `finally`;
+a SIGKILL or the 10-minute push ceiling (three recorded kills in this repo) would leave the defect
+in place, and his console execs the working tree, so it would be live on screen. The docstring said
+*"the ORIGINAL tree must never be touched"* and nothing enforced it. Now `realpath` + `commonpath`,
+refusing as INVALID, with a law that rejects any absolute or escaping `file`.
+
+### 2. The law forbidding self-repair asserted nothing
+
+`test_it_proposes_and_never_edits_a_guard` hunted `ast.Name` calls named `open`. **heart2.py uses
+`io.open` for every one of its writes, which parses as `ast.Attribute`.**
+
+| | |
+|---|---|
+| `ast.Name` open() calls found | **0** |
+| `io.open()` calls actually present | **10** |
+
+The assertion loop iterated zero times and the test passed having asserted nothing — and it was the
+**only** executable check on "it proposes, it never edits a guard". A blind instrument inside the
+layer built to catch blind instruments. It now finds both call shapes and, first, asserts that it
+found any at all: a law that cannot locate its own subject must fail loudly, not pass quietly.
+
+### 3. Three of the five detector signatures could never match
+
+`_code_only` rebuilt source by joining tokens with `"\n"` and dropped every STRING. Measured against
+a file containing a real `open(p, "w").write(g())`:
+
+```
+raw text                 the open-for-write signature matches 1
+after the token rebuild  matches 0
+```
+
+because the source became `open\n(\np\n,\n)\n.\nwrite\n(` — adjacency destroyed — and the `"w"`
+literal deleted outright. `pkill -f` and `cp -R …` live in string literals or argv lists too, so
+**3 of 5 signatures were structurally dead** and *"no uncovered signature found — a measurement over
+5 signature(s)"* was a green produced by the instrument. The exact failure this file exists to
+catch, inside the file that catches it.
+
+Now it **blanks comment and docstring spans in place** (spaces, newlines kept) so every other byte
+stays where it was: adjacency holds, string literals survive, prose still cannot match.
+
+⚠ **And fixing it exposed a fourth defect the review did not reach:** `pkill\s+-f` matches the shell
+string and misses `subprocess.run(["pkill", "-f", x])` — the argv form, which is how this repo
+actually spawns things. A signature that knows one spelling reports a clean file and means "I looked
+for the other one". Both forms now. **Detector hits: 2 → 8**, all real code.
+
+### Also fixed from the same review
+
+- **A non-zero exit was taken as proof the law fired.** A SyntaxError the tamper introduced would be
+  credited as "the law caught the defect". The tampered file must now still parse.
+- **The state file was clobbered.** `--prove NAME` rewrote the global `blind` list from one gate's
+  result, so checking a single fix deleted every blind instrument the last full run found; and
+  `--ratchet` wrote a two-key dict that dropped `blind` entirely, flipping a DARK heart back to
+  WATCHED. Merges now, and marks itself `partial`.
+- **A broken parser produced a green ratchet.** With `run_gates` unimportable the census reads
+  total=0, which sailed past the lock AND wrote a baseline of 0 that every honest run afterwards
+  would fail forever — so the fix would look like the regression. Refuses under 100 gates.
+- **Gate 248's own proof was self-fulfilling.** Its tamper also broke
+  `test_every_declared_red_proof_is_well_formed` in the same file, because that test recounts every
+  proof's `find` and this proof's own `find` then matched 0. The file reddened through its own
+  bookkeeping, so PROVEN was not evidence the join law worked. It now tampers the census's return
+  shape, which no other assertion reads.
+- **Two definitions of one filename.** `_heart2_census()` computed its own `.heart2.json` literal
+  while heart2.py defined `STATE`. The visible cost: a law could not redirect the census to a temp
+  path, so its first cut **renamed his live file** to `.heart2.json.lawtest` — a path `.gitignore`
+  does not cover — inside a hook that gets killed at the ceiling.
+- **REG-737's fix was applied at one site instead of to the class.** `_late` got its journal row;
+  its sibling `_stale` drops its reason exactly the same way, and `_stale` fires on **any** second
+  press, so it is the one that will actually be seen.
+
+### ★ And the one that defeats the purpose
+
+**`grep -c instruments control_ui.html` was 0.** The census reached `heart_state()` and stopped
+there, so `--prove` could report a gate that survived its own defeat and the console would show
+exactly what it showed before. The gate asserted only that the key appears in `control_app.py` —
+the payload, never the surface.
+
+This repo carries the identical scar **forty lines from the join site**, about `d.rosters`: *"THE
+THIRD COLUMN WAS COMPUTED AND RENDERED NOWHERE."* A repeat, not a first. There is now an
+`_hrtInstruments` section that names a BLIND gate on screen, and the gate asserts the renderer
+exists, is CALLED, and can say the word.
+
+---
+
 ## REG-738 — ♥ HEART 2.0: nothing was checking the checkers
 
 **The measurement that is the whole argument.** On 2026-09-08 the heart was **GREEN** while:

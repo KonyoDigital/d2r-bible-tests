@@ -116,15 +116,53 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                       "the census reported an unknown state word: %r" % got.get("state"))
         print("   heart carries: %s — %s" % (got.get("state"), str(got.get("why"))[:70]))
 
+    def test_the_console_actually_RENDERS_the_instrument_census(self):
+        """⚠⚠ THE JOIN STOPPED ONE LAYER SHORT AND THE GATE DID NOT NOTICE. The census reached
+        heart_state() and went no further: `grep -c instruments control_ui.html` was **0**, so
+        --prove could report a gate that survived its own defeat and the console would show
+        exactly what it showed before. The earlier version of this law asserted only that
+        `"instruments": _heart2_census()` appears in control_app.py — the payload, never the
+        surface. A finding nobody can see is a finding nobody has.
+
+        This repo has the identical scar forty lines from the join site, about d.rosters:
+        "THE THIRD COLUMN WAS COMPUTED AND RENDERED NOWHERE". A repeat, not a first.
+        [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
+        ui = os.path.join(HERE, "control_ui.html")
+        with io.open(ui, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn("d.instruments", src,
+                      "control_ui.html never reads d.instruments — the heart carries the census "
+                      "and no human ever sees it")
+        self.assertIn("function _hrtInstruments(", src,
+                      "there is no renderer for the instrument census")
+        # reading it is not rendering it: the renderer has to be CALLED from the panel builder
+        self.assertIn("_hrtInstruments(d.instruments)", src,
+                      "_hrtInstruments exists but the heart panel never calls it — a renderer "
+                      "with no caller is the same silence with more code")
+        # and a BLIND gate must be nameable on screen, not merely counted
+        self.assertIn("BLIND", src,
+                      "the panel cannot say the word BLIND, so a gate that survived its own "
+                      "defeat would render as an ordinary number")
+
     def test_an_absent_state_file_reads_UNKNOWN_not_clean(self):
-        """The commonest lie a supervision layer tells is that never-measured means fine."""
+        """The commonest lie a supervision layer tells is that never-measured means fine.
+
+        ⚠ IT POINTS heart2.STATE AT A TEMP PATH; IT DOES NOT RENAME HIS LIVE FILE. The first cut
+        renamed `tv/.heart2.json` to `tv/.heart2.json.lawtest` and renamed it back in a `finally`.
+        Two problems, both found by a cross-family review: `.gitignore` matches the exact path
+        `tv/.heart2.json` and NOT the suffixed one, so the temporary file was untracked-and-visible
+        and a later `git add -A` would commit one machine's runtime census into a public repo; and
+        this gate runs in pre-push, which in this repo is routinely killed at the 10-minute
+        foreground ceiling — three recorded kills — so an interrupt between the rename and the
+        `finally` would leave the real census renamed and the heart reading UNKNOWN for ever.
+        A law that can damage the thing it measures is not worth the reading. [[borrowed-surface]]
+        """
         import control_app as CA
+        import tempfile
         real = heart2.STATE
-        moved = real + ".lawtest"
-        had = os.path.exists(real)
-        if had:
-            os.rename(real, moved)
+        d = tempfile.mkdtemp(prefix="heart2law.")
         try:
+            heart2.STATE = os.path.join(d, "absent.json")
             got = CA._heart2_census()
             self.assertEqual(got.get("state"), "UNKNOWN",
                              "with no state file the heart reported %r — never-measured must "
@@ -132,44 +170,97 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
             self.assertIsNone(got.get("proved"),
                               "an absent measurement produced a number: %r" % got.get("proved"))
         finally:
-            if had:
-                os.rename(moved, real)
+            heart2.STATE = real
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
 
     def test_it_proposes_and_never_edits_a_guard(self):
         """Achilles' reason, verbatim: 'In one night working this tree I introduced three defects
         while fixing others, and I can read a diff.' A repairer of its own instruments is a tool
-        that can talk itself into anything."""
+        that can talk itself into anything.
+
+        ⚠⚠ THIS LAW WAS VACUOUSLY GREEN AND IT WAS THE ONLY ONE ENFORCING THAT PROPERTY. It hunted
+        `ast.Name` calls named `open` — and heart2.py uses `io.open` for every one of its writes,
+        which parses as `ast.Attribute`. MEASURED: ast.Name open() calls **0**, io.open() calls
+        **10**. The assertion loop iterated zero times and the test passed having asserted nothing.
+        A blind instrument inside the layer built to catch blind instruments, found by a
+        cross-family review rather than by the tree. The instrument check below is the fix: a law
+        that cannot find its own subject must fail loudly instead of passing quietly.
+        [[zero-needs-a-denominator]] [[feedback-blind-fixture-green-gate]]
+        """
         with io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8") as fh:
-            tree = ast.parse(fh.read())
+            src = fh.read()
+        tree = ast.parse(src)
+        lines = src.splitlines()
         writes = []
         for n in ast.walk(tree):
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "open":
-                mode = ""
-                if len(n.args) > 1 and isinstance(n.args[1], ast.Constant):
-                    mode = str(n.args[1].value)
-                for kw in n.keywords:
-                    if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
-                        mode = str(kw.value.value)
-                if "w" in mode or "a" in mode:
-                    writes.append(n.lineno)
-        # every write must be to the state file, the proposals file, or inside the sandbox
-        with io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8") as fh:
-            lines = fh.read().splitlines()
+            if not isinstance(n, ast.Call):
+                continue
+            f = n.func
+            is_open = ((isinstance(f, ast.Name) and f.id == "open")
+                       or (isinstance(f, ast.Attribute) and f.attr == "open"))
+            if not is_open:
+                continue
+            mode = ""
+            if len(n.args) > 1 and isinstance(n.args[1], ast.Constant):
+                mode = str(n.args[1].value)
+            for kw in n.keywords:
+                if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+                    mode = str(kw.value.value)
+            if "w" in mode or "a" in mode or "+" in mode:
+                writes.append(n.lineno)
+
+        # THE INSTRUMENT FIRST — this is the assertion the old version was missing entirely.
+        self.assertTrue(
+            writes,
+            "this law found ZERO write-mode opens in heart2.py. heart2 demonstrably writes its "
+            "state file, its proposals file and its sandbox targets, so finding none means the "
+            "FINDER is broken and every assertion below passes over an empty list — which is "
+            "exactly how this law shipped green while enforcing nothing.")
+        print("\n   write-mode opens found in heart2.py: %d" % len(writes))
+
         for ln in writes:
-            ctx = "\n".join(lines[max(0, ln - 6):ln + 1])
-            self.assertTrue(("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx),
+            ctx = "\n".join(lines[max(0, ln - 8):ln + 1])
+            ok = ("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx)
+            self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))
+
+    def test_a_proof_may_not_tamper_outside_the_sandbox(self):
+        """⚠⚠ THE SANDBOX WAS A CLAIM WITH NO CODE BEHIND IT. os.path.join DISCARDS its prefix
+        when the second argument is absolute, so a RED_PROOF declaring an absolute `file` — a
+        natural copy-paste out of an error message — resolved to his REAL tree, where _prove_one
+        truncates and rewrites. The restore is a `finally`; a SIGKILL or the push ceiling would
+        leave the defect live, and his console execs the working tree."""
+        for name, fn in heart2.gate_files():
+            for i, pr in enumerate(heart2.red_proofs_in(fn) or []):
+                rel = str(pr.get("file") or "")
+                self.assertFalse(os.path.isabs(rel),
+                                 "%s[%d] declares an ABSOLUTE file %r — os.path.join would drop "
+                                 "the sandbox and tamper the real tree" % (name, i, rel))
+                joined = os.path.normpath(os.path.join("/sandbox", rel))
+                self.assertTrue(joined.startswith("/sandbox" + os.sep),
+                                "%s[%d] escapes the sandbox via %r -> %r" % (name, i, rel, joined))
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 # The law that demands re-runnable proofs carries one. Cutting the join is the defect: the proving
 # loop would keep measuring perfectly and the heart would never carry a word of it.
+# ⚠⚠ THE FIRST PROOF HERE WAS SELF-FULFILLING, and a cross-family review caught it. It tampered
+# the string `"instruments": _heart2_census(),` — which DID break the join assertion, and ALSO
+# broke test_every_declared_red_proof_is_well_formed in this same file, because that test recounts
+# every proof's `find` against the tree and this proof's own `find` then matched 0 instead of 1.
+# So the file exited non-zero even with the join assertion deleted outright: --prove would report
+# PROVEN without that being evidence the join law works. The one gate meant to demonstrate the
+# protocol had a proof that could not tell the law from its own bookkeeping.
+# This tamper breaks the census's RETURN SHAPE instead: no proof's `find` is disturbed, the
+# well-formed test stays green, and only the join assertion can fail.
+# [[sabotage-is-usually-the-wrong-one]]
 RED_PROOF = [{
-    "why": "unjoining the census from heart_state makes the whole proving loop plumbing with no tap",
+    "why": "a census that returns no `state` leaves the heart unable to say anything about its instruments",
     "file": "control_app.py",
-    "find": '        "instruments": _heart2_census(),',
-    "replace": '        "instrumentsUNJOINED": _heart2_census(),',
+    "find": '            "state": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',
+    "replace": '            "stateMISSING": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',
     "matches": 1,
 }]
 

@@ -17162,7 +17162,18 @@ def _heart2_census():
     request. An absent file is UNKNOWN and says so — it is not "all proven".
     """
     try:
-        _p = os.path.join(HERE, ".heart2.json")
+        # ⚠ ONE NAME FOR THE PATH. This computed its own `.heart2.json` literal while heart2.py
+        # defined STATE for the same file — two definitions of one filename, which is copy-drift
+        # waiting to happen and which already had a visible cost: a law could not redirect the
+        # census to a temp path to prove that an absent measurement reads UNKNOWN, so its first
+        # cut RENAMED his live file instead, into a path .gitignore does not cover, inside a hook
+        # that gets killed at the 10-minute ceiling. Ask heart2 where its state lives.
+        # [[copy-drift]]
+        try:
+            import heart2 as _h2
+            _p = _h2.STATE
+        except Exception:
+            _p = os.path.join(HERE, ".heart2.json")
         if not os.path.isfile(_p):
             return {"state": "UNKNOWN", "why": "heart2 has never run here — run "
                                                "`python3 tv/heart2.py --prove`",
@@ -25108,7 +25119,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2803",
+        "ver": "v2804",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28215,6 +28226,18 @@ class Handler(BaseHTTPRequestHandler):
                         _stale = (_MINI_AUTO_PLAN["token"] != _tok)
                     if _stale:
                         _why = "a newer press or a stop replaced this plan"
+                        # ⚠ v2804 — THE SIBLING OF THE SAME HOLE, and the COMMON one. a1b86391
+                        # fixed `_late` — a reason computed under a token mismatch that the
+                        # `finally` then discards, because it persists `_why` only when the token
+                        # still matches. This branch is reached for exactly the same reason
+                        # (`_MINI_AUTO_PLAN["token"] != _tok`) and its reason is dropped exactly
+                        # the same way — and unlike `_late` it fires on ANY second press, so it is
+                        # the one that will actually be seen. The fix was applied at one site
+                        # instead of to the class. [[sweep-dont-ask]]
+                        try:
+                            ui_fault_record("miniauto-plan-replaced", why=_why, where="_plan")
+                        except Exception:
+                            pass
                     elif not cells:
                         _why = occ_why or "could not tell which cells hold items"
                     else:

@@ -266,13 +266,24 @@ def _write_state(results):
                 prior = json.load(fh)
         except Exception:
             prior = {}
+    # ⚠⚠ MERGE, NEVER CLOBBER — and say when the run was PARTIAL. Two ways this erased real
+    # findings: `--prove NAME` produced a one-gate `results` and rewrote the global `blind` list
+    # from it, so checking one fix deleted every blind instrument the last full run found; and
+    # `--ratchet` wrote a two-key dict that dropped `blind` entirely, flipping a DARK heart back
+    # to WATCHED. A supervision layer that forgets its own findings is worse than one that never
+    # made them. Partial runs now keep the prior blind list and mark themselves.
+    _partial = bool(results) and len(results) < len(have)
     out = dict(prior)
+    if _partial:
+        _keep = [b for b in (prior.get("blind") or []) if b not in (results or {})]
+        blind = sorted(set(blind) | set(_keep))
     out.update({
         "proved": len([n for n, v in (results or {}).items() if v == PROVEN]),
         "declared": len(have),
         "unproven": len(gates) - len(have),
         "total": len(gates),
         "blind": blind,
+        "partial": _partial,
         "ranAt": int(__import__("time").time() * 1000),
     })
     with io.open(STATE, "w", encoding="utf-8") as fh:
@@ -282,6 +293,28 @@ def _write_state(results):
 def _prove_one(sandbox, name, filename, pr, idx, say):
     tgt_rel = str(pr.get("file") or "")
     tgt = os.path.join(sandbox, tgt_rel)
+    # ⚠⚠⚠ THE SANDBOX WAS A CLAIM, NOT A FACT. os.path.join DISCARDS its prefix when the second
+    # argument is absolute, and normalises `..` straight out of the tree:
+    #     join(sandbox, "control_app.py")           -> <sandbox>/control_app.py
+    #     join(sandbox, "/Users/.../control_app.py")-> /Users/.../control_app.py   ESCAPED
+    #     join(sandbox, "../../BUGS.md")            -> /tmp/BUGS.md                ESCAPED
+    # So one RED_PROOF written with an absolute path — a natural copy-paste out of an error
+    # message — and this function TRUNCATES AND REWRITES a file in his real tree. The restore
+    # lives in a `finally`; a SIGKILL or the 10-minute push ceiling (three recorded kills in this
+    # repo) would leave the defect in place, and his console execs the working tree, so it would
+    # be live on screen. The docstring said "the ORIGINAL tree must never be touched" and nothing
+    # enforced it. Found by a cross-family review of the shipped bytes.
+    # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+    try:
+        _root = os.path.realpath(sandbox)
+        _real = os.path.realpath(tgt)
+        _contained = (os.path.commonpath([_root, _real]) == _root)
+    except Exception:
+        _contained = False
+    if not _contained:
+        say("     %-52s %s — %r resolves OUTSIDE the sandbox (%s). REFUSED: a proof may only "
+            "tamper inside the copy." % ("%s[%d]" % (name, idx), INVALID, tgt_rel, _real))
+        return INVALID
     find, repl = str(pr.get("find") or ""), str(pr.get("replace") or "")
     want = int(pr.get("matches") or 1)
     label = "%s[%d]" % (name, idx)
@@ -310,8 +343,23 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
         return INVALID
 
     # 2. TAMPER
+    _tampered = original.replace(find, repl, want)
+    # ⚠⚠ A NON-ZERO EXIT IS NOT PROOF THE LAW FIRED. `_run_gate` reduces the tampered run to
+    # `returncode == 0`, so a SyntaxError or ImportError the tamper introduced would be credited
+    # as "the law caught the defect" — the gate would be praised for a crash it never inspected.
+    # A tamper that does not even parse cannot be evidence about anything. Checked for python
+    # only; html has no cheap equivalent and is left as a known limit rather than a false claim.
+    if tgt_rel.endswith(".py"):
+        import ast as _ast
+        try:
+            _ast.parse(_tampered)
+        except SyntaxError as _se:
+            say("     %-52s %s — the tamper does not parse (%s). A gate reddened by a "
+                "SyntaxError proves nothing about the law."
+                % ("%s[%d]" % (name, idx), INVALID, str(_se)[:60]))
+            return INVALID
     with io.open(tgt, "w", encoding="utf-8") as fh:
-        fh.write(original.replace(find, repl, want))
+        fh.write(_tampered)
     try:
         ok_tampered, tail2 = _run_gate(sandbox, filename)
     finally:
@@ -365,40 +413,92 @@ SIGNATURES = [
     ("open for write before the value exists",
      re.compile(r"open\(([^)]+),\s*[\"']w[\"']\)\.write\("),
      "open(p,'w').write(f()) empties p BEFORE f() runs"),
+    # ⚠ BOTH FORMS, OR THE SIGNATURE ONLY SEES HALF THE REPO. Written first as `pkill\s+-f`,
+    # which matches the shell string `pkill -f x` and MISSES `subprocess.run(["pkill", "-f", x])`
+    # — and the argv list is how this repo actually spawns things. A signature that only knows one
+    # spelling reports a clean file and means "I looked for the other one".
     ("cp -R of the repo or tv/",
-     re.compile(r"cp\s+-R\s+.*\b(tv|repo)\b"),
+     re.compile(r"""\bcp\b[^\n]{0,14}-R\b[^\n]{0,40}\b(tv|repo)\b"""),
      "tv/ holds 5.8 GB of footage; this caused an ENOSPC"),
     ("pkill by pattern",
-     re.compile(r"pkill\s+-f"),
+     re.compile(r"""\bpkill\b[^\n]{0,14}-f\b"""),
      "cannot tell his process from mine — kill by port or PID"),
 ]
 
 
 def _code_only(src):
-    """Source with comments and string literals removed. -> str
+    """Source with comments and DOCSTRINGS blanked out, everything else byte-for-byte. -> str
 
-    ⚠⚠ THE FIRST CUT GREPPED RAW TEXT AND REPORTED TEN HITS, EVERY ONE OF THEM PROSE. It flagged
-    `safe_copy.py` for "cp -R of the repo" — that phrase is in the docstring explaining why it
-    exists — and it flagged THIS FILE twice, for the comments warning against the very patterns it
-    was looking for. A detector whose findings are its own warnings is pure noise, and noise is how
-    a real finding gets scrolled past.
-    This repo has paid for that mistake in the other direction too: a grep once claimed 80
-    fixed-size windows where an AST found 68, because it had matched the comments EXPLAINING the
-    defect. Comments describe intent; only code has behaviour.
-    [[source-reading-guard]] [[feedback-comments-vs-code]]
+    ⚠⚠ THIS FUNCTION HAS BEEN WRONG TWICE, IN OPPOSITE DIRECTIONS, AND BOTH TIMES IT PRODUCED A
+    CONFIDENT GREEN.
+
+    First cut GREPPED RAW TEXT and returned ten hits, every one prose — it flagged safe_copy.py for
+    "cp -R of the repo", a phrase that only appears in the docstring explaining why cp -R is
+    forbidden, and it flagged THIS FILE twice for the comments warning against the very patterns it
+    hunts. A detector whose findings are its own warnings is pure noise.
+
+    Second cut over-corrected: it rebuilt the source by joining tokens with "\n" and dropped every
+    STRING. That broke the detector in a way its own output could not show. MEASURED against a file
+    containing a real `open(p, "w").write(g())`:
+
+        raw text                    the open-for-write signature matches 1
+        after the token rebuild     matches 0
+
+    because the source became `open\n(\np\n,\n)\n.\nwrite\n(` — adjacency destroyed, and the
+    `"w"` literal deleted outright. THREE of the five signatures were structurally dead:
+    `open(...,'w').write(`, `pkill -f` and `cp -R ...` all live inside string literals or
+    subprocess argument lists, which is precisely what it was deleting. So "no uncovered signature
+    found — a measurement over 5 signature(s)" was a green produced by the instrument, not by the
+    code: the exact failure this file exists to catch, inside the file that catches it.
+
+    THE FIX IS TO BLANK, NOT TO REBUILD. Comment and docstring spans are overwritten with spaces
+    (newlines kept), so every other byte stays where it was: adjacency holds, string literals
+    survive, and prose still cannot match. [[source-reading-guard]] [[feedback-comments-vs-code]]
     """
     import tokenize
-    out = []
+    import ast as _ast
     try:
+        lines = src.splitlines(keepends=True)
+        offsets, run = [], 0
+        for ln in lines:
+            offsets.append(run)
+            run += len(ln)
+
+        def _pos(row, col):
+            return offsets[row - 1] + col if 0 < row <= len(offsets) else None
+
+        spans = []
         for tok in tokenize.generate_tokens(io.StringIO(src).readline):
-            if tok.type in (tokenize.COMMENT, tokenize.STRING):
+            if tok.type == tokenize.COMMENT:
+                a, b = _pos(*tok.start), _pos(*tok.end)
+                if a is not None and b is not None:
+                    spans.append((a, b))
+        # docstrings: a bare string expression at the head of a module, class or function
+        tree = _ast.parse(src)
+        for node in _ast.walk(tree):
+            if not isinstance(node, (_ast.Module, _ast.ClassDef,
+                                     _ast.FunctionDef, _ast.AsyncFunctionDef)):
                 continue
-            out.append(tok.string)
+            body = getattr(node, "body", None) or []
+            if not body:
+                continue
+            first = body[0]
+            if isinstance(first, _ast.Expr) and isinstance(first.value, _ast.Constant) \
+               and isinstance(first.value.value, str):
+                a = _pos(first.lineno, first.col_offset)
+                b = _pos(first.end_lineno, first.end_col_offset)
+                if a is not None and b is not None:
+                    spans.append((a, b))
     except Exception:
-        # a file that will not tokenize is UNKNOWN, not clean — return nothing rather than
-        # letting raw prose through and calling the hits a measurement
+        # a file that will not tokenise or parse is UNKNOWN, not clean — return nothing rather
+        # than letting raw prose through and calling the hits a measurement
         return ""
-    return "\n".join(out)
+    out = list(src)
+    for a, b in spans:
+        for i in range(max(0, a), min(len(out), b)):
+            if out[i] != "\n":
+                out[i] = " "
+    return "".join(out)
 
 
 def detect(say=print):
@@ -493,6 +593,17 @@ def main(argv):
                     prev = json.load(fh)
             except Exception:
                 prev = {}
+        # ⚠⚠ A BROKEN PARSER MUST NOT PRODUCE A GREEN LOCK. If run_gates will not import,
+        # gate_files() returns [] and the census reads total=0, unproven=0 — which sails past the
+        # ratchet AND writes a baseline of 0 that every honest run afterwards fails forever, so
+        # the fix would look like the regression. This is the same zero-with-no-denominator the
+        # file already recorded making once, one function along. [[zero-needs-a-denominator]]
+        if int(census.get("total") or 0) < 100:
+            print("\n  ✗ RATCHET REFUSED: the census found %s gate(s). run_gates registers "
+                  "hundreds, so this is the parser failing, not a clean tree. UNKNOWN is not a "
+                  "pass, and a baseline written from it would poison every later run."
+                  % census.get("total"))
+            return 1
         base = int(prev.get("unproven", 10 ** 9))
         now = int(census.get("unproven", 0))
         if now > base:

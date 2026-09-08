@@ -12003,6 +12003,38 @@ window._lockMark = function(isOpen, px, label){
      anywhere said so. It was found by READING A LINE, which is a detector that fires once against
      a field that had been dead for 410 deletions. The console asks on every heart read now.
      Reports, refuses nothing — a field can be legitimately null for a long time. */
+  /* ♥♥ v2804 — HEART 2.0 ON THE PANEL. The census reached heart_state() and STOPPED there:
+     `grep -c instruments control_ui.html` was **0**, so `--prove` could report a gate that
+     survived its own defeat and this console would show exactly what it showed before. The gate
+     only asserted that `"instruments": _heart2_census()` appears in control_app.py — one layer
+     short of the surface, which is the same defect the comment forty lines below records for
+     d.rosters: "THE THIRD COLUMN WAS COMPUTED AND RENDERED NOWHERE". A repeat, not a first.
+     Found by a cross-family review of the shipped bytes. [[the-unjoined-end]] */
+  function _hrtInstruments(d){
+    if (!d) return '';
+    var st = d.state || 'UNKNOWN';
+    var cls = st === 'DARK' ? 'st-DARK' : (st === 'WATCHED' ? 'st-WATCHED' : 'st-UNKNOWN');
+    var blind = d.blind || [];
+    var head = 'Can my own instruments still go red?';
+    /* ⚠ UNKNOWN IS A THIRD ANSWER, NOT A BAD ONE. A console that has never run the proving loop
+       must say so rather than imply a clean bill — the commonest lie a supervision layer tells. */
+    var line = (st === 'UNKNOWN')
+      ? 'never measured here — run `python3 tv/heart2.py --prove`'
+      : ((d.proved == null ? '?' : d.proved) + ' proven · '
+         + (d.unproven == null ? '?' : d.unproven) + ' carry no executable proof (UNKNOWN)');
+    var h = '<div class="hrt-sec"><div class="hrt-h">' + head + ' · ' + _hrtEsc(line) + '</div>';
+    h += '<div class="hrt-row"><span class="hrt-k">the gates</span>'
+      + '<span class="hrt-s ' + cls + '">' + _hrtEsc(st) + '</span>'
+      + '<span class="hrt-w">' + _hrtEsc(d.why || '') + '</span></div>';
+    for (var i = 0; i < blind.length; i++){
+      h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(blind[i]) + '</span>'
+        + '<span class="hrt-s st-DARK">BLIND</span>'
+        + '<span class="hrt-w">it stayed GREEN through its own defeat — the tamper reintroduced '
+        + 'the defect and this law did not notice</span></div>';
+    }
+    return h + '</div>';
+  }
+
   function _hrtDead(d){
     if (!d) return '';
     var st = (d.stores || []);
@@ -12283,6 +12315,7 @@ window._lockMark = function(isOpen, px, label){
          [[the-unjoined-end]] */
       + _hrtChron(d.rosters, 'The roster routes', ' in the chronicle')
       + _hrtReach(d.reach)
+      + _hrtInstruments(d.instruments)
       + _hrtJoins(d.joins)
       + _hrtPrinter(d.printer)
       + _hrtDead(d.deadFields)

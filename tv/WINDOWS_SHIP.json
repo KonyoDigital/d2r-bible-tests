@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2803",
+  "ver": "v2804",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2803: Heart 2.0. Heart v1 asks whether the system is healthy; v2 asks whether the gates that answer that question can still go red. Measured: the heart was green while 12 of 238 gates were red and 8 were blind. 247 gates and zero executable red-proofs before this, because each was proven red once by hand and that proof survived only as prose. heart2.py now tampers each guard in a safe_copy sandbox, requires a clean run first, requires an exact match count, requires the gate to turn red, and restores. A gate that survives its own defeat is BLIND. It proposes into a file and never edits a guard. The heart carries the result, so an absent measurement reads UNKNOWN and never healthy.",
+  "note": "v2804: A cross-family review of the shipped Heart 2.0 returned fifteen findings and three of them were blind instruments inside the layer built to catch blind instruments. The sandbox was a claim with no code behind it because os.path.join discards its prefix for an absolute path. The law forbidding self-repair asserted nothing because it hunted bare open while heart2 uses io.open for all ten of its writes. Three of the five detector signatures could never match because the code-only pass joined tokens with newlines and deleted every string literal. Also fixed: a non-zero exit was taken as proof the law fired, the state file was clobbered by targeted runs and by the ratchet, a broken parser produced a green lock, gate 248 proof was self-fulfilling, the state path had two definitions, the stale sibling of the discarded reason, and the census reached the heart payload and was rendered nowhere.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
