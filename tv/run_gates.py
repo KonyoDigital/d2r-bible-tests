@@ -715,6 +715,21 @@ GATES = [
              "prior ownership and the fix can never hand one ledger to another. The decision is "
              "SLICED FROM bible.html AND RUN IN NODE, never grepped.",
          ),
+    Gate("test_the_pixel_witness_looks_at_his_console",
+         [sys.executable, os.path.join(HERE, "test_the_pixel_witness_looks_at_his_console.py")], 120,
+         why="THE PIXEL WITNESS LOOKED AT ITSELF AND SAID UNKNOWN FOREVER. He sent a screenshot of "
+             "a BLACK TV DIABLO window; running the one hand-run instrument for exactly that "
+             "question answered `UNKNOWN - pid 60574 owns no on-screen window`, and pid 60574 did "
+             "not exist. The line was `pid = int(next((a for a in argv if a.isdigit()), "
+             "os.getpid()))` - with no argument it looked at the interpreter running the witness, "
+             "which owns no window, so the answer was UNKNOWN every time by construction. Its own "
+             "usage line says `look at his console once` and it had never once done so. ⚠ THE PORT "
+             "HAS MORE THAN ONE OWNER: :17772 was held by the console AND by a WebKit XPC renderer "
+             "service with no window, so taking the first pid lsof prints reproduces the bug with a "
+             "different wrong number - console_pid() takes the owner that HAS a window. ⚠ THE LAWS "
+             "PARSE, THEY DO NOT GREP: the fix's comment names os.getpid() to explain it, and a "
+             "substring law would go red on the explanation.",
+         ),
     Gate("test_the_panel_prints_what_the_row_measured",
          [sys.executable, os.path.join(HERE, "test_the_panel_prints_what_the_row_measured.py")], 120,
          why="THE PANEL PRINTED \"read once\" OVER A ROW THAT SAYS \"only 0 independent "

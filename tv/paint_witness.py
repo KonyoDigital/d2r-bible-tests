@@ -50,6 +50,7 @@ should act. [[regression-guard]]
 """
 import json
 import os
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -439,8 +440,57 @@ def rescue_worked(pid, quartz=None, sleep=None, settle=2.5):
         "instead of by the machine. %s" % r["why"])}
 
 
+def console_pid(port=None):
+    """The pid actually LISTENING on his console port. -> int or None
+
+    ⚠ None is UNKNOWN — "nobody is serving that port", never "his console is fine".
+    """
+    try:
+        port = int(port or os.environ.get("TV_CONTROL_PORT") or 17772)
+    except Exception:
+        port = 17772
+    try:
+        out = subprocess.check_output(["lsof", "-ti", "tcp:%d" % port],
+                                      stderr=subprocess.DEVNULL, timeout=10)
+    except Exception:
+        return None
+    for line in out.decode("utf-8", "replace").split():
+        try:
+            pid = int(line)
+        except Exception:
+            continue
+        # ⚠ THE PORT HAS MORE THAN ONE OWNER. Measured 2026-09-08: :17772 was held by the console
+        # (14222) AND by a WebKit XPC renderer service (60423) that serves no window of its own.
+        # Take the one that owns a window; a renderer helper answers `window_for` with None.
+        wid, _why = window_for(pid)
+        if wid is not None:
+            return pid
+    return None
+
+
 def main(argv):
-    pid = int(next((a for a in argv if a.isdigit()), os.getpid()))
+    # ⚠⚠ IT USED TO DEFAULT TO `os.getpid()` — ITS OWN PROCESS. This module's own usage line says
+    # `python3 tv/paint_witness.py   # look at his console once`, and with no argument it looked at
+    # the interpreter running the witness, which owns no window. So it answered
+    #
+    #     UNKNOWN - pid <self> owns no on-screen window big enough to be his console
+    #
+    # every single time, forever. Caught 2026-09-08 while he was looking at a BLACK console window
+    # and asking why nothing had noticed: the one hand-run instrument for "is his console blank"
+    # had never once been pointed at his console. A default that measures the asker is not a
+    # measurement. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+    # [[label-outlived-referent]]
+    explicit = next((a for a in argv if a.isdigit()), None)
+    pid = int(explicit) if explicit else console_pid()
+    if pid is None:
+        msg = ("UNKNOWN - nothing is listening on his console port, so there is no window to look "
+               "at. That is not a blank console and not a healthy one.")
+        if "--json" in argv:
+            print(json.dumps({"state": UNKNOWN, "why": msg, "pid": None, "windowId": None},
+                             indent=2, sort_keys=True))
+        else:
+            print("\n  %s\n" % msg)
+        return 0
     r = look(pid)
     if "--json" in argv:
         print(json.dumps(r, indent=2, sort_keys=True, default=str))

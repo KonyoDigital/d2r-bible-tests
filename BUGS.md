@@ -23134,6 +23134,57 @@ by a *comment*, not a `;`, so the loop ran over an empty set and passed having c
 candidates. **A control that goes red is telling you about your guard; a sabotage that stays green
 is telling you the same thing.**
 
+## REG-704 — the pixel witness looked at ITSELF, and said UNKNOWN forever
+
+**2026-09-08 · v2782 · `tv/paint_witness.py` · found while his console was actually black**
+
+He sent a screenshot of a fully black `TV DIABLO` window: *"the same bug with the black screen"*.
+Running the one hand-run instrument built for exactly that question:
+
+    $ python3 tv/paint_witness.py --json
+    {"state": "UNKNOWN", "pid": 60574,
+     "why": "pid 60574 owns no on-screen window big enough to be his console"}
+
+**pid 60574 did not exist.** The line was:
+
+    pid = int(next((a for a in argv if a.isdigit()), os.getpid()))
+
+With no argument it looked at **the interpreter running the witness**. That process owns no window,
+so the answer was UNKNOWN — every time, forever, by construction. The module's own usage line says
+`python3 tv/paint_witness.py   # look at his console once`, and it had never once looked at his
+console. A default that measures the asker is not a measurement, and a usage line describing what
+the code does not do is a label that outlived its referent. [[label-outlived-referent]]
+
+**⚠ Why it mattered that day.** His window was black *and the page was still alive* — his own
+report was that the hover art still painted. That is the exact state where asking the PAGE cannot
+help and only the PIXELS can answer, and the pixel instrument was pointed at nothing. Pointed at
+his real console after the fix, it found window 37043 and measured `modalShare 0.108 across 142
+distinct luminances` = PAINTED. Independently confirmed by capturing the window: 3,794 distinct
+colours, commonest 4.7%.
+
+**⚠ The port has more than one owner.** Measured the same day: `:17772` was held by the console
+(pid 14222) **and** by a WebKit XPC renderer service (pid 60423) that owns no window of its own.
+Taking the first pid `lsof` prints would reproduce the original bug wearing a different wrong
+number, so `console_pid()` takes the owner that actually has a window.
+
+**⚠ Two other things I got wrong here, corrected by measurement rather than left standing.** I first
+blamed my own non-atomic write of `bible.html` (his console execs the working tree, and a plain
+`'w'` open truncates before it writes — a real hazard, now fixed to use `atomic_write`, but NOT this
+cause: a half-written file has no tooltip code, and his tooltips were painting). And I reported
+`pid: null` as a witness defect when it was my own extraction — `blank_strikes` returns the pid
+inside its `looks` list, not at the top level.
+
+**Fixed:** `console_pid(port)` discovers the listener that owns a window; `main()` uses an explicit
+argument if given, else that, and prints an explicit UNKNOWN when nothing is listening — never a
+fallback pid. Gate: `test_the_pixel_witness_looks_at_his_console.py`, 6 laws, **parsed with AST and
+never grepped** because the fix's own comment names `os.getpid()` to explain it. 3 sabotages:
+restoring the self-pid default reds two laws, taking the first port owner reds the window law,
+guessing a pid when nothing listens reds the UNKNOWN law.
+
+**⛔ STILL UNEXPLAINED, AND NOT CLAIMED FIXED: what made his window black.** The window recovered on
+its own between 11:43 and 11:45. This entry fixes the instrument that should have been able to tell
+us and could not. It does not explain the fault. [[unknown-stays-unknown]]
+
 ## REG-703 — the panel printed "read once" over a row that says "only 0 independent witnesses"
 
 **2026-09-08 · v2781 · `bible.html` · task #33**
