@@ -16758,7 +16758,8 @@ def _drift_loop():
 # about two minutes, which is fine for a button and not fine every ten. It ANNOUNCES ONCE per
 # distinct problem, because a watchdog that repeats itself is one he learns to scroll past, and it
 # clears that memory when the problem goes, so a RETURNING fault is said again. It fixes nothing.
-_EAGLE = {"checked": None, "needsYou": None, "unknown": None, "rows": [], "say": "not measured yet"}
+_EAGLE = {"checked": None, "needsYou": None, "unknown": None, "rows": [], "say": "not measured yet",
+          "ticks": 0}   # v2802 — declared, not conjured by .get() on first use
 _EAGLE_EVERY_S = float(os.environ.get("TV_EAGLE_EVERY_S", "600") or 600)
 
 
@@ -16778,7 +16779,23 @@ def _eagle_once():
         # persist even did `bool(_EAGLE.get("slow"))`, which would have coerced a forgotten key to
         # false — the benign answer, from an absent one. [[copy-drift]]
         _include_slow = False
-        rows = _cd.run(include_slow=_include_slow)
+        # ⚠⚠ v2802 — AND THE PERIODIC TIER, ON ITS OWN CADENCE. v2801 moved `engines corroborate`
+        # into SLOW because it measured 6.6-13s in the every-tick set. The cost was real; the move
+        # silently deleted a supervision loop, because SLOW here does not mean "less often" — this
+        # call passes include_slow=False, so it means NEVER, unattended. That check is the sole
+        # caller of corroborate.verdict(), which holds every cross-engine invariant the console
+        # has. A cross-family review of the pushed diff caught it; the mirror gate could not,
+        # because "the full run still performs it" is true and is not the question.
+        # PERIODIC runs it every PERIODIC_EVERY ticks (~hourly at a 10-minute sleep) instead of
+        # never. [[build-the-heart-and-census-everywhere]] [[the-unjoined-end]]
+        _tick = int(_EAGLE.get("ticks") or 0) + 1
+        _EAGLE["ticks"] = _tick
+        _every = int(getattr(_cd, "PERIODIC_EVERY", 6) or 6)
+        # the FIRST tick carries it too — a console that is restarted more often than the cadence
+        # would otherwise never reach a periodic tick at all, which is the same "never" wearing a
+        # different number. [[feedback-threshold-above-the-ceiling]]
+        _include_periodic = (_tick == 1) or (_tick % _every == 0)
+        rows = _cd.run(include_slow=_include_slow, include_periodic=_include_periodic)
     except Exception as e:
         with _PRUNE_LOCK:
             _EAGLE.update({"checked": int(time.time() * 1000), "needsYou": None, "unknown": None,
@@ -16832,6 +16849,9 @@ def _eagle_once():
             # only ever runs the cheap subset. Persist what you knew at the moment you knew it.
             # [[heart-first]] rule 6
             "slow": _include_slow,  # the ARGUMENT actually passed, never a restated literal
+            "periodic": _include_periodic,   # v2802 — same rule: the argument, not a literal
+            "periodicEvery": _every,
+            "tick": _tick,
             # CF-12 — the two SLOW checks live here, not inside `rows`. Mixing them into a cheap
             # pass makes eagle-ran-every-check 34 vs 32, permanently red. Last-known or NEVER.
             "slowRows": getattr(_cd, "slow_surface", lambda: [])(),
@@ -18523,8 +18543,19 @@ def _triage_order(dirs):
 # The cause is that the POST ran `_mini_cells_from_live_frame` INLINE: a lattice fit plus an
 # occupancy scan over a 1920x1080 frame, on a Mac already running the game, the console and OCR.
 # A start endpoint may not carry unbounded work. It answers, and the work runs behind it.
-_MINI_AUTO_PLAN = {"planning": False, "why": "", "startedTs": 0.0, "token": 0}
+_MINI_AUTO_PLAN = {"planning": False, "why": "", "startedTs": 0.0, "token": 0, "whyTs": 0.0}
 _MINI_AUTO_PLAN_LOCK = threading.Lock()
+# ⚠⚠ v2802 — A PLAN MUST BE ABLE TO EXPIRE, or v2801's fix becomes a worse version of the bug it
+# fixed. The work moved off the request thread is the same unbounded numpy scan; nothing bounds it
+# in its new home either. If it wedges — a huge frame, an FS stall, hover_drive blocking in
+# preflight — the `finally` never runs, `planning` stays True, and EVERY later press is refused
+# with "already reading the screen (4821s)". The button would be permanently dead instead of
+# briefly unresponsive. A cross-family review of the shipped diff named this; `startedTs` was
+# already recorded and published as planningForS, and nothing ever read it to decide anything.
+# [[feedback-threshold-above-the-ceiling]] [[stale-reading]]
+_MINI_PLAN_MAX_S = 90.0     # a real scan is ~0.3-25s; 90 is far outside it and still finite
+# and the last plan's REASON is a fact with an age, not a standing claim
+_MINI_WHY_MAX_S = 120.0
 
 
 def _mini_cells_from_live_frame(container="stash"):
@@ -25035,7 +25066,7 @@ def status_payload():
     return {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2801",
+        "ver": "v2802",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -27555,8 +27586,15 @@ class Handler(BaseHTTPRequestHandler):
                         _st["planning"] = False
                         # the LAST plan's outcome, so a refusal that happened off the request
                         # thread still reaches him instead of dying in a daemon thread.
-                        if _MINI_AUTO_PLAN["why"] and not _st.get("running"):
+                        # ⚠ WITH AN AGE. Without it, a plan that succeeded left "hovering 12
+                        # cell(s)" as the answer to every later GET where running is false — a
+                        # claim that it is hovering, rendered while nothing is, for the life of
+                        # the console. A reason is a fact about a moment. [[stale-reading]]
+                        _wage = time.time() - (_MINI_AUTO_PLAN.get("whyTs") or 0.0)
+                        if (_MINI_AUTO_PLAN["why"] and not _st.get("running")
+                                and _wage < _MINI_WHY_MAX_S):
                             _st["why"] = _MINI_AUTO_PLAN["why"]
+                            _st["whyAgeS"] = round(_wage, 1)
                 self._json(200, _st)
             except Exception as e:
                 self._json(200, {"ok": False, "running": False, "planning": False,
@@ -28091,12 +28129,19 @@ class Handler(BaseHTTPRequestHandler):
             _container = str(body.get("container") or "stash")
             _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)
             with _MINI_AUTO_PLAN_LOCK:
-                if _MINI_AUTO_PLAN["planning"]:
-                    _for = time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time())
+                _for = time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time())
+                if _MINI_AUTO_PLAN["planning"] and _for < _MINI_PLAN_MAX_S:
                     self._json(200, dict(hover_mode.status(), ok=False, planning=True,
                                          why="already reading the screen (%.0fs) - give it a moment"
                                              % _for))
                     return
+                if _MINI_AUTO_PLAN["planning"]:
+                    # past the bound: the previous plan is not coming back. Bumping the token below
+                    # orphans it, so if it ever does finish it cannot write over this one.
+                    _MINI_AUTO_PLAN["planning"] = False
+                    _MINI_AUTO_PLAN["why"] = ("the previous read gave up after %.0fs and was "
+                                              "abandoned" % _for)
+                    _MINI_AUTO_PLAN["whyTs"] = time.time()
                 _MINI_AUTO_PLAN["token"] += 1
                 _tok = _MINI_AUTO_PLAN["token"]
                 _MINI_AUTO_PLAN.update({"planning": True, "startedTs": time.time(),
@@ -28116,12 +28161,28 @@ class Handler(BaseHTTPRequestHandler):
                         _ok, _w = hover_mode.start(cells, _wh, _rect, container=_container)
                         _why = _w or ("hovering %d cell(s)" % len(cells) if _ok
                                       else "hover_mode refused without saying why")
+                        # ⚠⚠ THE TOKEN CHECK ABOVE IS TOCTOU AND CANNOT BE ANYTHING ELSE: the lock
+                        # is released before this call, because start() is not something to hold a
+                        # lock across. So a STOP landing in that window would have been overtaken
+                        # — hover_mode.stop() sets _STOP, then start() CLEARS it and sweeps, and
+                        # his cursor moves right after he pressed Stop. The comment on the token
+                        # bump claimed to prevent exactly that and did not. Re-read AFTER starting
+                        # and undo it: start-then-stop is recoverable, never-stop is not.
+                        with _MINI_AUTO_PLAN_LOCK:
+                            _late = (_MINI_AUTO_PLAN["token"] != _tok)
+                        if _late:
+                            try:
+                                hover_mode.stop()
+                            except Exception:
+                                pass
+                            _why = "a stop arrived while this plan was starting - stopped again"
                 except Exception as _e:
                     _why = "planning the hover raised %s" % type(_e).__name__
                 finally:
                     with _MINI_AUTO_PLAN_LOCK:
                         if _MINI_AUTO_PLAN["token"] == _tok:
-                            _MINI_AUTO_PLAN.update({"planning": False, "why": _why})
+                            _MINI_AUTO_PLAN.update({"planning": False, "why": _why,
+                                                    "whyTs": time.time()})
 
             threading.Thread(target=_plan, daemon=True, name="tvd-miniauto-plan").start()
             self._json(200, dict(hover_mode.status(), ok=True, planning=True,

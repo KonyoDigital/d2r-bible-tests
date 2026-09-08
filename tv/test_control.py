@@ -21368,16 +21368,33 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # CALIBRATE INSTEAD. Run a fixed amount of arithmetic and see what the machine makes of
         # it. Measured on his Mac near-idle: 77 ms, five runs inside 6 ms of each other, so a 3x
         # reading is unambiguous rather than a judgement call.
-        CAL_IDLE_MS = 77.0          # his Mac, near-idle, 2026-09-08 — five runs: 77 77 77 80 83
-        _cal0 = _t.time()
-        _acc = 0
-        for _i in range(2000000):
-            _acc += _i
-        _cal_ms = (_t.time() - _cal0) * 1000.0
-        _busy = _cal_ms > CAL_IDLE_MS * 3.0
+        # ⚠⚠ v2802 — THE CALIBRATION PROBE IS GONE, AND REMOVING IT IS THE FIX.
+        # It replaced a load-average threshold that never fired (cpus*1.5 = 15.0 against measured
+        # loads of 12.82 and below). That diagnosis was right. What shipped was a 2,000,000-add
+        # loop whose result was then referenced ONLY inside two failure-message strings — no
+        # branch, no threshold, no skip depended on it. A cross-family review of the pushed diff
+        # put it plainly: the commit replaced a threshold that never fired with a measurement that
+        # never gates, at 80-300 ms of CPU burned on every run of this suite. Its constant was also
+        # pinned to his 10-core Mac, so on the CI runners where [[test-venue]] says this suite
+        # belongs it would have reported "busy" on essentially every run while changing no verdict.
+        # A number on screen that nobody acts on is not instrumentation. [[plumbing-with-no-tap]]
+        #
+        # The retry below is what actually decides, and it needs no calibration: it re-measures the
+        # thing it is about to accuse and keeps only what is slow twice.
+        #
+        # ⚠ KNOWN AND STATED, not hidden: re-running in-process measures a WARM cost. Import,
+        # first-touch and page-cache effects — precisely what a console pays at BOOT, and precisely
+        # what the 16,585 ms scar was — are absolved by a retry. That is a real limit of this
+        # instrument, it is why the 5x hard ceiling below is judged with no retry at all, and the
+        # cold-boot figure needs its own measurement rather than being read out of this one.
         did_work = 0
+        # v2802 — the EVERY-TICK set is what this budget is about, and that is now SLOW *and*
+        # PERIODIC removed. PERIODIC exists because `engines corroborate` was too costly for a
+        # ten-minute tick and too important to go unwatched; it runs unattended on a longer
+        # cadence. Measuring it here would price a cost the every-tick path does not pay.
+        _skip = set(cd.SLOW) | set(getattr(cd, "PERIODIC", ()))
         for name, fn in cd.CHECKS:
-            if name in cd.SLOW:
+            if name in _skip:
                 continue
             t0 = _t.time()
             try:
@@ -21437,9 +21454,8 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
             slow = _confirmed
         self.assertEqual(slow, [],
                          "these run on the watchdog's 10-minute timer AND at every console boot, "
-                         "and they are not cheap (calibration %.0f ms vs %.0f ms idle, so the "
-                         "machine was not the cause): %s"
-                         % (_cal_ms, CAL_IDLE_MS, ", ".join(slow)))
+                         "and they are not cheap — each was re-measured and slow BOTH times, "
+                         "so a passing burst is not the cause: %s" % ", ".join(slow))
         # ⚠⚠ AND THE SAME DISCIPLINE ON THE TOTAL, for the same reason. Measured back to back on
         # unchanged code, minutes apart: **4,132 ms and 11,105 ms**. A wall-clock figure that moves
         # 2.7x between runs of identical code is not a property of that code, and taking the WORSE
@@ -21460,15 +21476,13 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                 except Exception:
                     pass
                 _t2 += (_t.time() - _r0) * 1000.0
-            print("   \u21bb whole subset re-measured: %.0f ms (first pass %.0f ms, calibration "
-                  "%.0f ms vs %.0f ms idle) — taking the lower"
-                  % (_t2, total, _cal_ms, CAL_IDLE_MS), flush=True)
+            print("   \u21bb whole subset re-measured: %.0f ms (first pass %.0f ms) "
+                  "— taking the lower of the two" % (_t2, total), flush=True)
             total = min(total, _t2)
         self.assertLess(total, BUDGET_MS * 3,
                         "the whole cheap subset costs %.0f ms across TWO passes — it is in the "
                         "boot path of every console a test spawns, and a second reading confirmed "
-                        "it (calibration %.0f ms vs %.0f ms idle, machine %s)"
-                        % (total, _cal_ms, CAL_IDLE_MS, "busy" if _busy else "quiet"))
+                        "it across two passes)" % total)
         # And say plainly when the measurement was thin, rather than reporting a pass that measured
         # nothing. This is UNMEASURED, not fine — the distinction the whole tree is built on.
         if did_work < 2:

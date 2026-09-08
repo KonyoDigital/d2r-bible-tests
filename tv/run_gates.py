@@ -777,6 +777,39 @@ GATES = [
              "function a thread runs, because a grep for 'threading.Thread' nearby would pass on a "
              "handler that spawns a thread and then blocks anyway.",
          skip_ok=()),
+    Gate("test_every_state_the_mini_button_reports_is_read_by_the_panel",
+         [sys.executable, os.path.join(HERE, "test_every_state_the_mini_button_reports_is_read_by_the_panel.py")], 90,
+         why="THE SERVER GREW A THIRD STATE AND THE PANEL STILL HAD TWO. v2801 correctly moved the "
+             "screen read off the request thread so the POST answers at once with planning:true, "
+             "running:false - and control_ui.html reads j.running and nothing else, so _miniPaint "
+             "painted the IDLE label and _miniWatch(!!j.running) never started the 900ms poller. "
+             "The plan's outcome - 'the newest frame is 3124s old', the exact sentence v2798 was "
+             "written to surface - was computed and never fetched by anything. Measured on the "
+             "SHIPPED bytes: grep -c planning control_ui.html = 0. The button promised 'this panel "
+             "updates' and did not: a failure that makes a claim is worse than a silent one. "
+             "★ NO GATE CAUGHT IT - both laws shipped that day were about the SERVER, and asserting "
+             "the sender sends is not asserting the receiver reads. A cross-family review of the "
+             "pushed diff found it. The law is the GENERAL shape: every state key the mini_auto "
+             "branches put on the wire (read from the AST of the real _json calls, scoped to the "
+             "branch, not the whole dispatcher) must be read by the panel. It has already earned "
+             "itself once - it caught whyAgeS the same hour it was written.",
+         skip_ok=()),
+    Gate("test_a_periodic_check_is_still_watched_unattended",
+         [sys.executable, os.path.join(HERE, "test_a_periodic_check_is_still_watched_unattended.py")], 90,
+         why="'RUNS SOMEWHERE' AND 'RUNS UNWATCHED' ARE DIFFERENT PROPERTIES AND ONLY ONE WAS "
+             "GUARDED. v2801 measured `engines corroborate` at 6,638-13,038 ms in the every-tick "
+             "subset and moved it to SLOW. The cost was real; the move deleted a supervision loop, "
+             "because _eagle_once passes include_slow=False - so SLOW does not mean 'less often' "
+             "there, it means NEVER. That check is the sole caller of corroborate.verdict(), which "
+             "holds every cross-engine invariant the console has, so a 19-vs-2 or 1263-vs-403 "
+             "disagreement would only have been found by him pressing the eagle button. "
+             "⚠ The existing mirror gate was green throughout: 'the full run still performs it' is "
+             "TRUE and is not the question. v2802 adds a PERIODIC tier - too costly for a "
+             "ten-minute tick, too important to go unwatched - and this law guards the PROPERTY, "
+             "not the membership: whatever is periodic must be reached unattended within a bounded "
+             "number of ticks, on the first tick after a restart, with run() driven rather than "
+             "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
+         skip_ok=()),
     Gate("test_a_lattice_refusal_is_a_reason_not_a_crash",
          [sys.executable, os.path.join(HERE, "test_a_lattice_refusal_is_a_reason_not_a_crash.py")], 150,
          why="THE GRID READER RAISED WHERE EVERY OTHER PATH RETURNS A REASON. He was in-game saying "

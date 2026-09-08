@@ -24431,6 +24431,137 @@ It now walks `n.body` only. All three arms proven red. [[sabotage-is-usually-the
 
 ---
 
+## REG-733 — the fix answered instantly and the panel still showed nothing
+
+**Found by a cross-family review of the PUSHED diff, not by any gate here.**
+
+v2801 was right about the cause: `/api/mini_auto` ran a full-screen lattice scan on the HTTP
+request thread, so the POST hung with zero bytes for 8-25s. It now answers at once with
+`planning: true, running: false`. And `control_ui.html` reads `j.running` and nothing else:
+
+```
+_miniPaint(j)                     -> running false -> paints the IDLE label
+_miniWatch(!!(j && j.running))    -> false         -> the 900ms poller never starts
+```
+
+Measured on the shipped bytes: **`grep -c planning control_ui.html` = 0.** So the plan's outcome —
+`"the newest frame is 3124s old"`, the exact sentence v2798 existed to surface — was computed in a
+daemon thread and fetched by nobody. The button now promised *"this panel updates"* and then did
+not. **A silent failure is bad; a failure that makes a claim is worse.**
+
+★ **No gate caught it, and the reason matters.** Two laws shipped in that same commit — one
+behavioural, one AST — and both were about the SERVER.
+`test_the_screen_read_never_blocks_the_button` proves the handler does not block: true, and
+insufficient. It asserts the sender sends and never that the receiver reads. [[the-unjoined-end]]
+
+**Fix (v2802).** `_miniPaint` gains a third branch (⏳ Reading…, with `why` and `planningForS`);
+the poller arms on `running || planning` at both sites and stops only when both are false.
+
+**Gate 246** `test_every_state_the_mini_button_reports_is_read_by_the_panel` — the GENERAL shape,
+never this one field: every state key the mini_auto branches put on the wire, read out of the AST
+of the real `_json` calls, must appear in the panel. It is scoped to the branch rather than the
+dispatcher — the first cut walked all of `do_GET`/`do_POST`, harvested 91 keys from every route in
+the console, and reported `unparsed` and `rowMeta` as unread by the mini button. **It has already
+earned itself once**: it caught `whyAgeS`, a field added by REG-737 in the same hour.
+
+---
+
+## REG-734 — moving a check to SLOW deleted a supervision loop
+
+v2801 measured `engines corroborate` at **6,638 / 7,672 / 7,692 ms** cold and **13,038 ms** in a
+test process, inside the subset that runs at every console boot, and moved it into `SLOW`. The
+measurement was right and the move was wrong:
+
+```
+_eagle_once():  rows = _cd.run(include_slow=False)
+```
+
+In the unattended path **SLOW does not mean "less often", it means never.** That check is the sole
+caller of `corroborate.verdict()`, which holds every cross-engine invariant there is —
+owned-is-contained, chronicle-owed, swept-split-adds-up, evidence-survived-its-sweep. After that
+commit a 19-vs-2 or 1263-vs-403 disagreement could only be found by Konyo pressing the eagle button.
+
+⚠ **The existing mirror gate was green the whole time.**
+`test_a_check_moved_to_SLOW_is_still_RUN_somewhere` asks whether the full run still performs it. It
+does. That is true, and it is not the question — the property removed was whether anything performs
+it *with nobody watching*, and no law asked that. [[build-the-heart-and-census-everywhere]]
+
+**Fix (v2802): a third tier.** `SLOW` keeps its meaning (on demand, ~2 minutes, a human is
+waiting). `PERIODIC` is for a check too expensive for a ten-minute tick and too important to go
+unwatched — it runs unattended on a longer cadence instead of not at all.
+`PERIODIC = ("engines corroborate",)`, `PERIODIC_EVERY = 6` (~hourly), **and the first tick after a
+restart carries it**, or a console restarted more often than the cadence never reaches one — the
+same "never" wearing a different number.
+
+Measured after: every-tick set **1,982 ms across 51 checks** (minimum of 3 passes), worst single
+check 306 ms.
+
+**Gate 247** `test_a_periodic_check_is_still_watched_unattended` guards the PROPERTY, not the
+membership: the tiers must be disjoint (SLOW is skipped first, so a name in both is silently never
+periodic), the eagle must pass a real argument and not a constant `False`, the cadence must include
+the first tick, and `run()` is DRIVEN with a stubbed roster rather than read. Proven red both ways.
+
+---
+
+## REG-735 — a stray scratch file was committed to the PUBLIC repo
+
+`tv/7w0sr24o` — 4 bytes, containing `blat`. An 8-character `tempfile._RandomNameSequence` name with
+no prefix or suffix: leftover from the `atomic_write`/`mkstemp` work in ec931574, tracked and
+shipped in a repo that is public and deployed by `deploy.sh`. Removed. The same mkstemp pattern can
+produce more, and nothing watches for them.
+
+---
+
+## REG-736 — the guard that replaced a threshold that never fired with a measurement that never gates
+
+v2801 correctly diagnosed the cheap-subset skip guard: it fired above `cpus * 1.5` = **15.0** on a
+10-core Mac while every measured red run sat at 12.82 or below, so it had never once fired. What
+shipped in its place was a 2,000,000-iteration calibration loop whose result was referenced **only
+inside two failure-message strings** — no branch, no threshold, no skip depended on `_cal_ms` or
+`_busy`. Its constant `CAL_IDLE_MS = 77.0` was pinned to his Mac, so on the CI runners where the
+suite actually belongs it would have reported "busy" on essentially every run while changing no
+verdict, at 80-300 ms of CPU per run. [[plumbing-with-no-tap]]
+
+**Fix (v2802).** The probe is deleted. The retry — re-measure what you are about to accuse, keep
+only what is slow twice — is what actually decides, and it needs no calibration.
+
+⚠ **Stated rather than hidden:** re-running in-process measures a **warm** cost. Import, first-touch
+and page-cache effects — precisely what a console pays at BOOT, and precisely what the 16,585 ms
+scar was — are absolved by a retry. That is a real limit of this instrument. It is why the 5x hard
+ceiling is judged with no retry at all, and why the cold-boot figure needs its own measurement
+rather than being read out of this one.
+
+---
+
+## REG-737 — three ways the new plan thread could still strand the button
+
+All three found in the same review, all in v2801's own code.
+
+1. **`planning` could never expire.** The work moved off the request thread is the same unbounded
+   numpy scan and nothing bounds it in its new home either. A wedged plan leaves `planning` True
+   forever, and every later press is refused with `"already reading the screen (4821s)"` — the
+   button permanently dead instead of briefly unresponsive, a worse form of the symptom being
+   fixed. `startedTs` was recorded and published and never read to decide anything.
+   **Fix:** `_MINI_PLAN_MAX_S = 90.0`; past the bound the plan is abandoned and the token bumped so
+   a late finisher cannot write over the new one.
+
+2. **The stop-invalidates-a-plan token check is TOCTOU**, and cannot be otherwise: the lock is
+   released before `hover_mode.start()`, which is not something to hold a lock across. A STOP
+   landing in that window was overtaken — `stop()` sets `_STOP`, then `start()` clears it and
+   sweeps, so his cursor moves right after he pressed Stop. The comment claimed to prevent exactly
+   that. **Fix:** re-read the token AFTER starting and stop again if it moved. Start-then-stop is
+   recoverable; never-stop is not.
+
+3. **The plan's `why` never expired.** After a success, `"hovering 12 cell(s)"` became the answer to
+   every later GET where `running` is false — a claim that it is hovering, rendered while nothing
+   is, for the life of the console. **Fix:** `whyTs` + `_MINI_WHY_MAX_S = 120.0`, and the age ships
+   as `whyAgeS` so the panel renders a fact about a moment rather than a standing claim.
+
+★ And this is where **REG-726 finally lands**: the refusal sentence now renders under the button he
+pressed, with its age — not in `#eagle-out` 275 lines away, and not in a daemon thread nobody polls.
+
+---
+
 ## REG-732 — a flapping gate did not merely miss the defect, it pointed away from it
 
 The cheap-subset budget guard has been going red intermittently for days, and every time it named

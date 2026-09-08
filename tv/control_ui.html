@@ -16590,7 +16590,22 @@ window._lockMark = function(isOpen, px, label){
       if (sub) sub.textContent = 'state unknown \u2014 the console did not answer';
       return;
     }
-    if (j.running){
+    if (j.planning){
+      /* ⚠⚠ v2802 — PLANNING IS A THIRD STATE AND THE PANEL HAD ONLY TWO. v2801 moved the screen
+         read off the request thread so the POST answers at once — correct, and it left this
+         function reading `j.running` alone, which is FALSE during the whole plan. So the press
+         painted the idle label, _miniWatch(false) never started the poller, and the outcome the
+         plan thread computed — "the newest frame is 3124s old", the exact sentence v2798 existed
+         to surface — was never fetched by anyone. The button promised "this panel updates" and
+         then did not update: a worse failure than the hang it replaced, because it also lies.
+         Caught by a cross-family review of the shipped diff, not by any gate. [[the-unjoined-end]] */
+      btn.dataset.running = '';
+      btn.classList.add('miniauto-live');
+      _miniLbl('Reading\u2026');
+      if (ic) ic.textContent = '\u23f3';
+      if (sub) sub.textContent = (j.why || 'reading the screen for your items')
+                                 + (j.planningForS ? ' (' + j.planningForS + 's)' : '');
+    } else if (j.running){
       btn.dataset.running = '1';
       btn.classList.add('miniauto-live');
       _miniLbl('Stop \u00b7 ' + (j.moved || 0) + '/' + (j.planned || 0));
@@ -16600,9 +16615,21 @@ window._lockMark = function(isOpen, px, label){
       btn.dataset.running = '';
       _miniLbl('Mini \u00b7 Auto');
       if (ic) ic.textContent = '\ud83d\uddb1';
-      if (sub) sub.textContent = j.stopped
-        ? ('last run: ' + j.stopped + ' \u00b7 ' + (j.moved||0) + '/' + (j.planned||0))
-        : 'stash \u00b7 hovers each item, films it';
+      if (sub) {
+        /* ⚠ v2802 — THE LAST PLAN'S REASON, RIGHT HERE, WITH ITS AGE. This is where REG-726
+           finally lands: the sentence the console computed ("the newest frame is 3124s old")
+           is now rendered under the button he pressed, instead of in #eagle-out 275 lines away
+           or in a daemon thread nobody fetches. The server only serves it while it is fresh
+           (whyAgeS), and showing the age is what keeps a fact about a MOMENT from reading as a
+           standing claim. [[stale-reading]] [[label-outlived-referent]] */
+        if (j.why && j.whyAgeS != null) {
+          sub.textContent = j.why + ' (' + j.whyAgeS + 's ago)';
+        } else if (j.stopped) {
+          sub.textContent = 'last run: ' + j.stopped + ' \u00b7 ' + (j.moved||0) + '/' + (j.planned||0);
+        } else {
+          sub.textContent = 'stash \u00b7 hovers each item, films it';
+        }
+      }
     }
   }
   function _miniWatch(on){
@@ -16612,7 +16639,9 @@ window._lockMark = function(isOpen, px, label){
       try {
         var j = await (await fetch(API + '/api/mini_auto')).json();
         _miniPaint(j);
-        if (!j || !j.running) _miniWatch(false);
+        /* v2802 — a plan in flight is a live state; stopping the poll on !running alone
+           ended the watch during the very window it exists to report. */
+        if (!j || !(j.running || j.planning)) _miniWatch(false);
       } catch(e){ _miniWatch(false); }
     }, 900);
   }
@@ -16627,7 +16656,7 @@ window._lockMark = function(isOpen, px, label){
                 body: JSON.stringify({on: !running, container: 'stash'})});
       var j = await r.json();
       _miniPaint(j);
-      _miniWatch(!!(j && j.running));
+      _miniWatch(!!(j && (j.running || j.planning)));
       /* ⚠⚠ v2798 — THE BUTTON MOVED SEAT AND ITS VOICE DID NOT FOLLOW IT.
          MEASURED 2026-09-08: this handler writes into #eagle-out, and after v2381 moved the card
          out of TOOLS to sit beside MINI, the two are **275 lines apart** — every other button in
@@ -16669,7 +16698,7 @@ window._lockMark = function(isOpen, px, label){
   /* if a sweep is already running when the console opens, say so rather than showing idle */
   (async function(){ try {
       var j = await (await fetch(API + '/api/mini_auto')).json();
-      _miniPaint(j); _miniWatch(!!(j && j.running));
+      _miniPaint(j); _miniWatch(!!(j && (j.running || j.planning)));
     } catch(e){} })();
   $('btn-eagle').onclick = async function(){
     var out = $('eagle-out'); if (!out) return;

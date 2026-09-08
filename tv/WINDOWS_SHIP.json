@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2801",
+  "ver": "v2802",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2801: The start POST ran a full-screen lattice and occupancy scan on the HTTP request thread, so it hung with zero bytes for 8 to 25 seconds and the button looked dead. It now answers immediately with planning true and scans on a named thread, the GET half reports planning and the last outcome, and a stop invalidates a plan still in flight. Also the frame snapshot was written before the two cheapest refusals and both of those returns skipped the unlink, so every press with the capture off would have leaked a frame-sized temp file.",
+  "note": "v2802: The v2801 MINI AUTO fix answered instantly with planning true and control_ui.html read only running, so the panel painted the idle label and the poller never started and the plan outcome was fetched by nobody. The panel now has a third state and the poller survives it. Moving engines corroborate into SLOW deleted a supervision loop because the eagle passes include_slow false, so a PERIODIC tier now runs it unattended on a longer cadence with the first tick after a restart carrying it. The calibration probe decided nothing and is deleted. A wedged plan can no longer strand the button, a stop can no longer be overtaken by a plan still starting, and the last reason now expires and ships with its age.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

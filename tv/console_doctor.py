@@ -2764,7 +2764,27 @@ CHECKS = [
 # It stays on the roster and the full doctor run still performs it (the mirror gate
 # test_a_check_moved_to_SLOW_is_still_RUN_somewhere enforces exactly that); it simply stops
 # running on the ten-minute timer and in the boot path of every console a test spawns.
-SLOW = ("the other doctors", "sweep would find", "engines corroborate")
+SLOW = ("the other doctors", "sweep would find")
+
+# ══ v2802 — A THIRD TIER, AND THE REASON IS A REGRESSION I SHIPPED YESTERDAY ══════════════════
+# v2801 measured `engines corroborate` at 6,638-13,038 ms in the CHEAP subset and moved it into
+# SLOW. The cost was real and the move was wrong, and a cross-family review of the pushed diff is
+# what said so: `_eagle_once` calls `run(include_slow=False)`, so SLOW does not mean "runs less
+# often" — it means **NEVER RUNS UNATTENDED**. That check is the sole caller of
+# `corroborate.verdict()`, which holds every cross-engine invariant there is: owned-is-contained,
+# chronicle-owed, swept-split-adds-up, evidence-survived-its-sweep. A 19-vs-2 or 1263-vs-403
+# disagreement would have stopped being detected by anything except him pressing the eagle button.
+#
+# ⚠ THE MIRROR GATE PASSED THE WHOLE TIME. `test_a_check_moved_to_SLOW_is_still_RUN_somewhere`
+# asks whether the FULL run still performs it — it does — and that question cannot see the thing
+# that was removed, which is the SUPERVISION LOOP. "Runs somewhere" and "runs unwatched" are
+# different properties and only one of them was guarded. [[build-the-heart-and-census-everywhere]]
+#
+# So: SLOW keeps its meaning (on demand only, ~2 minutes, a human is waiting). PERIODIC is the
+# honest tier for a check that is too expensive for every ten-minute tick and too important to go
+# unwatched — it runs unattended on a longer cadence instead of not at all.
+PERIODIC = ("engines corroborate",)
+PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
 def _slow_path():
@@ -2851,7 +2871,11 @@ def slow_surface(now_ms=None):
     return out
 
 
-def run(include_slow=True):
+def run(include_slow=True, include_periodic=None):
+    """-> rows. `include_periodic` defaults to `include_slow` so every existing caller keeps its
+    exact behaviour; the eagle passes it explicitly on its own cadence."""
+    if include_periodic is None:
+        include_periodic = include_slow
     rows = []
     # v2277 — ONE TICK, ONE READ OF HIS BOARD. Three checks need /api/board_ownership and that
     # route EVALUATES JAVASCRIPT IN THE WINDOW HE IS LOOKING AT; asking three times buys nothing.
@@ -2866,6 +2890,8 @@ def run(include_slow=True):
     try:
         for name, fn in CHECKS:
             if not include_slow and name in SLOW:
+                continue
+            if not include_periodic and name in PERIODIC:
                 continue
             try:
                 state, why = fn()
