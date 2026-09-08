@@ -24,7 +24,7 @@ quietly returns less than it promised is the thing being fixed. If the anchor is
 subject has moved and the law must go red and say so, not read a shorter region and call it clean.
 """
 
-__all__ = ["between", "after", "WindowError"]
+__all__ = ["between", "after", "block", "WindowError"]
 
 
 class WindowError(AssertionError):
@@ -75,3 +75,36 @@ def after(src, start, *ends, **kw):
             "of the file instead would be a fixed-size window with no number on it — the same "
             "defect wearing a different shape." % (list(ends), start, what))
     return src[a:min(hits)]
+
+
+def block(src, start, what="the block", opener="{", closer="}"):
+    """From `start` through its MATCHING closing brace. -> str
+
+    The only honest window for a brace-delimited body. A character count cannot express "this
+    block" — measured in this tree, guesses ran from 9,000 against a 10,475-char function to 400
+    against a branch nobody had counted — and a textual end marker cannot either, because the same
+    closer appears at every nesting depth inside.
+
+    ⚠ It counts braces inside STRINGS and COMMENTS too, which is a real limitation and is stated
+    rather than hidden: for the JS this repo greps it has been correct, and a body whose string
+    literals carry unbalanced braces would need a parser, not a counter. Raising on an unbalanced
+    run is the safe half — it can be wrong by refusing, never by silently returning less.
+    """
+    src = src or ""
+    a = _need(src, start, 0, what, "start")
+    o = src.find(opener, a)
+    if o < 0:
+        raise WindowError("no %r after %r while reading %s" % (opener, start, what))
+    depth, i = 0, o
+    while i < len(src):
+        c = src[i]
+        if c == opener:
+            depth += 1
+        elif c == closer:
+            depth -= 1
+            if depth == 0:
+                return src[a:i + 1]
+        i += 1
+    raise WindowError(
+        "the block opened at %r never closes while reading %s — returning what was scanned would "
+        "be a fixed-size window with no number on it." % (start, what))

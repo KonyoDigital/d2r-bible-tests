@@ -22,6 +22,9 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
 # v1462 — never point the module globals at a LIVE console. The suite boots its own Handler
 # on an ephemeral port, so nothing here binds 17772 today; but control_app reads these at
@@ -597,7 +600,14 @@ class TestStopDiscipline(unittest.TestCase):
             # slice until next path key
             i = src.find(key)
             self.assertGreater(i, 0, key)
-            chunk = src[i:i + 400]
+            # ⚠⚠ v2807 — THE GUESS COVERED 9% OF ITS SUBJECT. Measured branch sizes in
+            # do_POST: "/api/on" 4,508 chars, "/api/off" 688, "/api/sim" 459, "/api/restart"
+            # 346 — against a window of 400. An open_board( call anywhere past character 400 of
+            # the /api/on branch was simply not there, and assertNotIn reads absent as clean.
+            # The comment two lines up already said "slice until next path key"; it described
+            # the intention and the code did something else. [[feedback-comments-vs-code]]
+            chunk = _sw.after(src, key, "\n        if path ==",
+                              what="the %s branch of do_POST" % key)
             self.assertNotIn("open_board(", chunk, f"{key} must not call open_board")
 
     def test_api_board_default_is_nav_not_spawn(self):
@@ -8293,7 +8303,8 @@ class TestV1506EveryVerdictSaysHowSure(unittest.TestCase):
         ui = self._ui()
         i = ui.find(".rcpt-guess {")
         self.assertGreater(i, 0)
-        rule = ui[i:i + 260]
+        # ⚠ v2807 — ANCHORED to the rule's own closing brace: 194 chars, was a guessed 260.
+        rule = _sw.between(ui, ".rcpt-guess {", "}", what="the .rcpt-guess CSS rule")
         self.assertNotIn("--st-good", rule,
                          "an unchecked guess must not borrow the GOOD state's colour — that is the "
                          "exact confusion this change exists to remove")
@@ -9092,17 +9103,34 @@ class TestV1785TheVaultReaderSeam(unittest.TestCase):
                         "the vault reader does not exist — vault_retro can never ground a row")
         # there are TWO _vr.sweep( call sites — the free-pass COST QUOTE and the real sweep — so
         # anchor on the reader definition itself, not on whichever sweep appears first
-        src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = src.find("def _reader(p, surface):")
-        self.assertGreater(i, 0, "the vault sweep's reader was renamed — this test is now blind")
-        body = src[i:i + 900]
-        self.assertIn("claude_vault_read", body,
+        # ⚠⚠ v2807 — NO WINDOW AT ALL. This asked both questions of `src[i:i + 900]`, which is
+        # a guess about how long `_reader` is; and `_reader` is a NESTED def whose next sibling
+        # `def` is 41,081 characters away, so there is no cheap textual end to anchor to either.
+        # The questions are "does _reader CALL claude_vault_read" and "does it still call
+        # claude_chronicle_read", and the AST answers both exactly — no length to guess and no
+        # comments to strip, which is what the note below had to work around.
+        # [[source-reading-guard]]
+        import ast as _ast
+        _src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        _reader = None
+        for _n in _ast.walk(_ast.parse(_src)):
+            if isinstance(_n, _ast.FunctionDef) and _n.name == "_reader":
+                _reader = _n
+                break
+        self.assertIsNotNone(_reader,
+                             "the vault sweep's reader was renamed — this test is now blind")
+        _calls = set()
+        for _n in _ast.walk(_reader):
+            if isinstance(_n, _ast.Call):
+                _f = _n.func
+                _calls.add(getattr(_f, "id", None) or getattr(_f, "attr", None))
+        self.assertIn("claude_vault_read", _calls,
                       "the vault sweep is still wired to a reader whose answer has no items key")
-        # STRIP COMMENTS FIRST. The v1785 note inside this function explains the defect by naming
-        # claude_chronicle_read, and the first version of this assertion matched that prose — the
-        # documented scar of a comment blinding a grep-based guard, reproduced immediately.
-        code = "\n".join(l for l in body.split("\n") if not l.strip().startswith("#"))
-        self.assertNotIn("claude_chronicle_read", code,
+        # ⚠ THE OLD VERSION OF THIS MATCHED A COMMENT. The v1785 note inside this very function
+        # explains the defect by NAMING claude_chronicle_read, and the first text-based cut read
+        # that prose as the call — the documented scar, reproduced immediately. A call set cannot
+        # contain a comment. [[feedback-comments-vs-code]]
+        self.assertNotIn("claude_chronicle_read", _calls,
                          "the vault sweep still CALLS the chronicle reader")
 
     def test_a_throttled_vault_read_refuses_instead_of_answering_an_empty_shelf(self):
@@ -11505,7 +11533,10 @@ class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
         item not two.. confusing"."""
         i = self.ui.find("var _setChip = setName")
         self.assertGreater(i, 0, "the set chip is gone — re-check this guard")
-        chip = self.ui[i:i + 1400]
+        # ⚠ v2807 — ANCHORED to the statement's own end. 1,154 chars measured against a
+        # guessed 1,400; the assertNotIn below passes when the window falls short.
+        chip = _sw.between(self.ui, "var _setChip = setName", "host.className",
+                           what="the set chip statement")
         self.assertNotIn("_itipAttr(", chip,
                          "the set chip grew a second art card back: one row, one hunt, one card")
         self.assertIn("aria-label=", chip, "the set chip lost its spoken label")
@@ -11526,7 +11557,11 @@ class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
         code = _re_mod.sub(r"/\*.*?\*/", "", self.ui, flags=_re_mod.S)
         i = code.find("var _setChip = setName")
         self.assertGreater(i, 0)
-        code = code[i:i + 3000]
+        # ⚠ v2807 — ANCHORED. The guess was 3,000 where the statement measures 786, so this
+        # window read roughly four times past its subject: a `_pieceBase` in the NEXT statement
+        # would have failed this law on code it is not about. Too WIDE is its own defect.
+        code = _sw.between(code, "var _setChip = setName", "host.className",
+                           what="the set chip statement")
         self.assertNotIn("_pieceBase", code,
                          "the slot-as-base fact is back; the bridge already carries the real base")
         self.assertNotIn("['base'", code, "a second `base` answer reappeared on the card")
@@ -11538,10 +11573,14 @@ class TestV1800TheConsoleRowsSayOneThing(unittest.TestCase):
         code = _re_mod.sub(r"/\*.*?\*/", "", self.ui, flags=_re_mod.S)
         i = code.find("var _setChip = setName")
         self.assertGreater(i, 0)
-        code = code[i:i + 3000]
-        k = code.find("title=")
-        self.assertGreater(k, 0, "the set chip lost its title")
-        seg = code[k:k + 260]
+        # ⚠ v2807 — ANCHORED. The guess was 3,000 where the statement measures 786, so this
+        # window read roughly four times past its subject: a `_pieceBase` in the NEXT statement
+        # would have failed this law on code it is not about. Too WIDE is its own defect.
+        code = _sw.between(code, "var _setChip = setName", "host.className",
+                           what="the set chip statement")
+        self.assertIn("title=", code, "the set chip lost its title")
+        # ⚠ v2807 — ANCHORED to the next attribute. 176 chars measured against a guessed 260.
+        seg = _sw.between(code, "title=", "onclick=", what="the set chip title attribute")
         self.assertNotIn("+ meta.left +", seg,
                          "meta.left is concatenated into an HTML attribute unescaped")
         self.assertIn("esc(String(meta.left))", seg,
@@ -11647,7 +11686,10 @@ class TestV1801TheLedgerFailureReachesAReader(unittest.TestCase):
         src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         i = src.find("def _chron_result_save")
         self.assertGreater(i, 0)
-        body = src[i:i + 1800]
+        # ⚠ v2807 — THE GUESS WAS SHORTER THAN THE FUNCTION. `src[i:i + 1800]` against a body
+        # that measures 2,097 chars: a `default=str` in the last ~300 was simply not there, and
+        # the assertNotIn below reads absent as clean.
+        body = _sw.after(src, "def _chron_result_save", "\ndef ", what="the result writer")
         code = _re_mod.sub(r"#.*", "", body)
         self.assertNotIn("default=str", code,
                          "default=str is back: an unserializable value is written as its repr and "
@@ -12009,8 +12051,12 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         """
         claude, grok = self._prompts()
         for lane, src in (("claude", claude), ("grok", grok)):
-            i = src.index("CHRONICLE_READ_PROMPT" if lane == "claude" else "CHRONICLE_VISION_PROMPT")
-            body = src[i:i + 4000]
+            # ⚠⚠ v2807 — THE WINDOW READ 47% OF THE PROMPT. CHRONICLE_READ_PROMPT measures
+            # 8,489 chars and the guess was 4,000, so a `"sort":""` anywhere in the second half
+            # was invisible — and this assertion is negative, which means invisible reads as
+            # clean. The prompt ends at its own closing triple quote.
+            _name = "CHRONICLE_READ_PROMPT" if lane == "claude" else "CHRONICLE_VISION_PROMPT"
+            body = _sw.between(src, _name, '"""', what="the %s prompt" % lane)
             self.assertNotIn('"sort":""', body, "the %s lane still asks for sort" % lane)
 
     def test_both_lanes_know_a_First_Found_line_IS_the_found_state(self):
@@ -12330,9 +12376,19 @@ class TestV1832OneLiveSessionRuleInBothSweepers(unittest.TestCase):
         hits = [n for n, ln in enumerate(lines) if "_agent_alive()" in ln]
         self.assertTrue(hits, "the live check vanished entirely — the growing reel is now unprotected")
         for n in hits:
-            branch = [ln.strip() for ln in lines[n:n + 4]]
             if not lines[n].strip().startswith("if "):
                 continue      # an assignment (live = ...) is the v1832 shape and refuses nothing
+            # ⚠ v2807 — THE BRANCH ENDS WHERE THE INDENT RETURNS, not after four lines. `lines[n:n
+            # + 4]` guessed the body's height; a `return 1` on the fifth line was outside the
+            # window, and the assertion below is negative, so outside reads as clean. Python
+            # states its own block boundary — take lines while they are indented deeper than the
+            # `if`, which is the branch by definition and cannot be off by one.
+            _base = len(lines[n]) - len(lines[n].lstrip())
+            branch = [lines[n].strip()]
+            for _l in lines[n + 1:]:
+                if _l.strip() and (len(_l) - len(_l.lstrip())) <= _base:
+                    break
+                branch.append(_l.strip())
             self.assertNotIn("return 1", branch,
                              "line %d aborts the whole run on a live session; v1823 skips only "
                              "the reel still recording" % (n + 1))
@@ -17443,7 +17499,6 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
         bib = os.path.join(os.path.dirname(HERE), "bible.html")
         with open(bib, encoding="utf-8") as fh:
             text = fh.read()
-        start = text.index("window.tvVaultRegister = function(name){")
         body = text[start:start + 9000]
         body = re.sub(r"/\*.{0,4000}?\*/", " ", body, flags=re.S)
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
@@ -17762,7 +17817,11 @@ class TestV2025OneLaneSwitchMeansTheSameThingEverywhere(unittest.TestCase):
         with open(bib, encoding="utf-8") as fh:
             text = fh.read()
         start = text.index("window.tvVaultRegister = function(name){")
-        reg = text[start:start + 9000]
+        # ⚠ v2807 — THE FUNCTION IS LONGER THAN THE GUESS. tvVaultRegister measures 10,475
+        # chars and the window was 9,000, so the last ~1,475 were never read — and a
+        # `_miniOnAirOn` living there would have been invisible to the negative assertion below.
+        reg = _sw.between(text, "window.tvVaultRegister = function(name){", "\n  };",
+                          what="the tvVaultRegister body")
         reg = re.sub(r"/\*.{0,6000}?\*/", " ", reg, flags=re.S)
         reg = re.sub(r"(?m)//[^\n]*$", " ", reg)
         self.assertNotIn("_miniOnAirOn", reg,
@@ -18226,7 +18285,11 @@ class TestV2031TheDeclaredFocusChainIsJoinedAtEVERYLink(unittest.TestCase):
         self.assertNotEqual(i_focus, -1, "link 4: the focus is never stamped into index.json")
         head = src[:i_focus]
         last_if = head.rfind("if ")
-        guard = head[last_if:last_if + 40] if last_if != -1 else ""
+        # ⚠ v2807 — THE SUBJECT IS A CONDITION, AND A CONDITION ENDS AT ITS COLON. 40 characters
+        # was a guess about how long an `if` line is; a guard that grew past it would drop
+        # MINI_MODE out of view, and the assertion below is negative — out of view reads as clean.
+        guard = (_sw.after(head[last_if:], "if ", ":", what="the guard on the stamp")
+                 if last_if != -1 else "")
         self.assertNotIn("MINI_MODE", guard,
                          "link 4: the focus stamp is gated on MINI_MODE, so a full session parses "
                          "the flag and never writes it down - the reel is what the sweep reads")
@@ -18241,7 +18304,11 @@ class TestV2031TheDeclaredFocusChainIsJoinedAtEVERYLink(unittest.TestCase):
         self.assertNotEqual(i_fc, -1, "focusChosen is never stamped")
         head = src[:i_fc]
         last_if = head.rfind("if ")
-        guard = head[last_if:last_if + 40] if last_if != -1 else ""
+        # ⚠ v2807 — THE SUBJECT IS A CONDITION, AND A CONDITION ENDS AT ITS COLON. 40 characters
+        # was a guess about how long an `if` line is; a guard that grew past it would drop
+        # MINI_MODE out of view, and the assertion below is negative — out of view reads as clean.
+        guard = (_sw.after(head[last_if:], "if ", ":", what="the guard on the stamp")
+                 if last_if != -1 else "")
         self.assertNotIn("MINI_MODE", guard,
                          "focusChosen must be written wherever the focus is, or a declared focus "
                          "arrives with no statement of whether he chose it")
