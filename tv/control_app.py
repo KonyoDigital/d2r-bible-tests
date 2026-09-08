@@ -28111,6 +28111,24 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(200, {"ok": False, "running": False,
                                      "why": "occupied must be a list of [col,row] pairs"})
                     return
+                # ⚠⚠ v2802 — THIS PATH DID NOT PARTICIPATE IN THE PLAN AT ALL, and a cold
+                # cross-family review of the shipped v2801 ranked it second: a caller supplying
+                # `occupied` calls hover_mode.start() straight away, while a background planner
+                # for a DIFFERENT request may already be inside _mini_cells_from_live_frame and
+                # about to call start() itself. Two concurrent starts, different cells and rect,
+                # no mutual exclusion — the fix for the hang had quietly opened a second door into
+                # the same room. Claude's own review missed it; this is the whole reason the eye
+                # is a different family. [[the-unjoined-end]]
+                with _MINI_AUTO_PLAN_LOCK:
+                    _busy_for = time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time())
+                    if _MINI_AUTO_PLAN["planning"] and _busy_for < _MINI_PLAN_MAX_S:
+                        self._json(200, dict(hover_mode.status(), ok=False, planning=True,
+                                             why="a screen read is already in flight (%.0fs) - "
+                                                 "supplied cells would race it" % _busy_for))
+                        return
+                    # claim the token so a plan that finishes after this cannot start over us
+                    _MINI_AUTO_PLAN["token"] += 1
+                    _MINI_AUTO_PLAN["planning"] = False
                 ok, why = hover_mode.start(cells, (int(rect[2]), int(rect[3])), tuple(rect),
                                            container=str(body.get("container") or "stash"))
                 self._json(200, dict(hover_mode.status(), ok=bool(ok), why=why))

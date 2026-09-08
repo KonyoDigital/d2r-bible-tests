@@ -16635,14 +16635,25 @@ window._lockMark = function(isOpen, px, label){
   function _miniWatch(on){
     if (_miniPoll){ clearInterval(_miniPoll); _miniPoll = null; }
     if (!on) return;
+    /* ⚠⚠ v2802 — ONE GLITCH USED TO END THE WATCH FOR GOOD. A cold cross-family review of the
+       shipped v2801 caught it: `catch(e){ _miniWatch(false); }` killed the 900ms poller on ANY
+       transient failure — a momentary network error, one 500, hover_mode.status() raising once —
+       while the server carried on working. The panel then sat frozen on whatever it last painted
+       with nothing left to correct it, which is the same silence this whole arc has been about.
+       A transient failure is UNKNOWN, not "it stopped". Three consecutive misses is a state.
+       [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]] */
+    var _miniMiss = 0;
     _miniPoll = setInterval(async function(){
       try {
         var j = await (await fetch(API + '/api/mini_auto')).json();
+        _miniMiss = 0;
         _miniPaint(j);
         /* v2802 — a plan in flight is a live state; stopping the poll on !running alone
            ended the watch during the very window it exists to report. */
         if (!j || !(j.running || j.planning)) _miniWatch(false);
-      } catch(e){ _miniWatch(false); }
+      } catch(e){
+        if (++_miniMiss >= 3) { _miniPaint(null); _miniWatch(false); }
+      }
     }, 900);
   }
   $('btn-miniauto').onclick = async function(){
