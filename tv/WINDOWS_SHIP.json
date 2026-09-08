@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2812",
+  "ver": "v2813",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2812: REG-752 - the second eye flagged the thread-local reset on the v2810 diff and the measurement found worse: the timing preamble sat 113 lines below the first _t() call, so agentAlive (pid_cached to lsof) and diskEyeAge were timed into the previous request and wiped, never reaching the breakdown - and because _t0 started late the total excluded them too, so unattributedMs could not expose the hole. The instrument built to name the slow component was dropping the likeliest one. Preamble moved to the top, new law asserts the reset precedes every timed producer, proven red.",
+  "note": "v2813: REG-753 - the routine that protects his board would have deleted it. Measured before touching: the record present was his console live world claim - firstSeen nine seconds before the console started, seenCount 28, still being written, owner true and previous null so board_identity_drift reads ok. A blind rm degrades ok to unknown, which that function calls deliberate and NOT ok, and the next write starts a fresh install id with previous null - the shape that makes a real board render as a strangers world at 0 of 403. Sweep is now state-driven: guest and drifted swept with a backup, a healthy claim KEPT, absent reported UNKNOWN, unparseable never deleted, and it refuses while his console runs.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

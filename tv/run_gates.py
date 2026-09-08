@@ -898,6 +898,25 @@ GATES = [
              "defects found.' was recorded as verdict=findings — the ledger reporting the "
              "opposite of what the other family concluded.",
          skip_ok=()),
+    Gate("test_the_sweep_knows_whose_world_it_is",
+         [sys.executable,
+          os.path.join(HERE, "test_the_sweep_knows_whose_world_it_is.py")], 90,
+         why="The routine said: after any render/CDP session, rm -f tv/.board_identity.json before "
+             "pushing, because a CDP load can leave a GUEST record and five TestV2072 assertions "
+             "then fail with a drift reason naming none of it. Real scar, right removal FOR THAT "
+             "RECORD. MEASURED 2026-09-09 on the record actually present: firstSeen 01:04:20, his "
+             "console started 01:04:29 — NINE SECONDS LATER — lastSeen 01:25:14 with seenCount 28 "
+             "and still being written, owner=True pfx='' previous=None, i.e. "
+             "board_identity_drift() == ok. That was his console's LIVE world record. Removing it "
+             "degrades a healthy ok into unknown, which that function's own docstring calls "
+             "deliberate and NOT ok, and the next write starts a fresh install id with "
+             "previous=None — the exact shape that makes a real board render as a stranger's "
+             "world at 0/403. So the rule is the record's STATE, not the ritual: guest and "
+             "drifted are swept (backed up first), a healthy owner claim is KEPT, an absent one "
+             "is UNKNOWN rather than a clean sweep, an unparseable one is never deleted, and the "
+             "whole thing REFUSES while his console is running, because a live writer owns that "
+             "file and sweeping under it leaves a record that reads as neither state.",
+         skip_ok=()),
     Gate("test_the_status_breakdown_names_its_own_blind_spot",
          [sys.executable,
           os.path.join(HERE, "test_the_status_breakdown_names_its_own_blind_spot.py")], 90,

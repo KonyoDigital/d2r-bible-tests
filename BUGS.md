@@ -25426,3 +25426,45 @@ producers reach the ledger, and a new law asserts the reset precedes every timed
 red by moving it back down. [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
 [[the-unjoined-end]]
 
+## REG-753 — the routine that protects his board would have deleted it
+
+The standing tick said: *after any render/CDP session, `rm -f tv/.board_identity.json` before
+pushing.* The reason is real — a CDP load can leave a GUEST record, and five `TestV2072` assertions
+then fail with a drift reason that names none of it.
+
+**MEASURED on the record actually sitting there, before touching it:**
+
+```
+firstSeen             2026-09-09 01:04:20
+his console started              01:04:29     <- NINE SECONDS LATER
+lastSeen                         01:25:14   seenCount 28   <- still being written
+owner=True   pfx=''   previous=None          -> board_identity_drift() == "ok"
+```
+
+**That was his console's live world record**, not a harness leftover. Two things follow, and both
+are worse than "a stray file removed":
+
+1. `board_identity_drift()`'s own docstring says an absent record is `unknown` and deliberately
+   **not** `ok` — *"a world nobody has seen cannot be shown to be the same one."* So removing a
+   healthy record **degrades** the signal rather than clearing noise.
+2. The next write starts a fresh install id with `previous: None` — **the exact shape that makes a
+   real board render as an empty stranger's world at 0/403.**
+
+★ **THE RULE IS THE RECORD'S STATE, NOT THE RITUAL.** A routine that always removes cannot
+distinguish the world it protects from the world it destroys. `board_identity_sweep.py` now reads
+the record and acts on what it finds:
+
+| state | action |
+|---|---|
+| `previous` set → **DRIFTED** | swept, backed up first |
+| `not owner` and `pfx` → **GUEST** (the CDP case the scar is about) | swept, backed up first |
+| owner, no pfx, no previous → **OK** | **KEPT** |
+| no file → **ABSENT** | nothing, reported as UNKNOWN not as a clean sweep |
+| unparseable → **UNREADABLE** | never deleted — a file that cannot be read is not one proven bad |
+
+⚠ **And it refuses entirely while his console is running.** A live writer owns that file;
+sweeping under it can leave a half-written record that classifies as neither state.
+[[borrowed-surface]] [[board-claim-pinned-to-a-mutable-id]] [[unknown-stays-unknown]]
+
+6 tests, 2 red-proofs — removing the OK guard, and dropping the live-console check — both PROVEN.
+
