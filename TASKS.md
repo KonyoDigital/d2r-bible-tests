@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2825** | `(this commit)` | v2825 — REG-778 — the second-eye transmission guard matched its own comment inside a diff of itself: 2 hits, one line, zero real seams. Comment lines now excluded; all four real seam shapes still caught and the skip is not a hole |
 | **v2824** | `(this commit)` | v2824 — REG-775..776 — a newline in a banked name threw SyntaxError while building the row (6 of 7 inputs parsed, newline did not); the second-eye transmission guard matched any three quote chars, so JS concatenating a quote retracted every review of a diff with a JS surface |
 | **v2823** | `(this commit)` | v2823 — REG-771..774 — 19 techniques named, 8 MINI-only gaps, 7 unasked; the door stamp covers 0.6% so UNKNOWN stays UNKNOWN; a 60s-old fleet roster now carries its age; a red-proof re-anchored after a refactor moved it |
 | **v2822** | `(this commit)` | v2822 — REG-765..770 — 41 on disk + 428 closed = 469 lifetimes; TOMBSTONE assignable; shelf held unmoved by AST; the render target could not see its own new elements; SKIP WAS PASS in a node gate; proving one gate erased twenty |

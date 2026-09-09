@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2824",
+  "ver": "v2825",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2824: REG-775..776 — a newline in a banked name threw SyntaxError while building the row (6 of 7 inputs parsed, newline did not); the second-eye transmission guard matched any three quote chars, so JS concatenating a quote retracted every review of a diff with a JS surface",
+  "note": "v2825: REG-778 — the second-eye transmission guard matched its own comment inside a diff of itself: 2 hits, one line, zero real seams. Comment lines now excluded; all four real seam shapes still caught and the skip is not a hole",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

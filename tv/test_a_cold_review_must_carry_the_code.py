@@ -197,9 +197,51 @@ class ARealDiffMustNotRetractItsOwnReview(unittest.TestCase):
                             "%s is a REAL un-evaluated seam and the guard let it through — a "
                             "review of a promise would file as a review of the code" % label)
 
+    def test_a_comment_describing_the_pattern_is_not_the_pattern(self):
+        """v2825 — THE GUARD MATCHED ITS OWN DOCUMENTATION, INSIDE A DIFF OF ITSELF.
+
+        second_eye_ledger's comment beside _UNSENT_MARKERS spells out what a real seam looks like.
+        When a review diff includes that file, the sentence is inside the fence and BOTH markers
+        fire on it, so the row is retracted, the look files as an empty seat, and the next push is
+        refused. Measured on the v2824 payload: two hits, both on that one comment line, zero real
+        seams.
+
+        The docstring of code_was_transmitted already names this defect one level up — prose may
+        legitimately DISCUSS the expression, which is why it searches fences and not the whole
+        prompt. When the fence holds a real file whose PROSE discusses the pattern, the same
+        problem returns inside it. [[feedback-comments-vs-code]]
+        """
+        _d = chr(34) * 3
+        cases = (
+            ("a bare comment", "# A REAL seam is " + _d + " + x or x + " + _d + " on ONE line."),
+            ("an added diff line", "+    # the seam is " + _d + " + x here"),
+            ("a context diff line", "     # or x + " + _d + " on one line"),
+        )
+        for label, body in cases:
+            got = L.code_was_transmitted("```python\n%s\n```" % body)
+            self.assertEqual([], got["unsent"],
+                             "%s retracts a review row — a sentence describing the rule is not "
+                             "the rule, and a diff of this very file would deadlock the ledger: %s"
+                             % (label, got["unsent"]))
+
+    def test_a_seam_on_a_real_code_line_survives_the_comment_skip(self):
+        """The skip must not become a hole: only COMMENT lines are exempt."""
+        _d = chr(34) * 3
+        body = "# describing it here\nmsg = head + " + _d + "tail" + _d
+        got = L.code_was_transmitted("```python\n%s\n```" % body)
+        self.assertTrue(got["unsent"],
+                        "a real seam on a code line was skipped because a comment sat above it — "
+                        "the exemption swallowed the law")
 
 # ══ THE EXECUTABLE RED-PROOF ═══════════════════════════════════════════════════════════════════
 RED_PROOF = [
+    {
+        "why": "removing the comment skip makes the guard match its own documentation, so a\n               review diff that touches this very file retracts its own row and the next push\n               is refused",
+        "file": "second_eye_ledger.py",
+        "find": '        _code = "\\n".join(ln for ln in body.split("\\n")\n                          if not _COMMENT_LINE.match(ln))',
+        "replace": '        _code = body',
+        "matches": 1,
+    },
     {
         "why": "restoring the any-three-quotes class is the deadlock verbatim: JS concatenating a "
                "quote reads as a Python triple-quote seam and retracts every review of a diff "
@@ -213,7 +255,11 @@ RED_PROOF = [
         "why": "dropping the seam markers entirely lets a review of a PROMISE file as a review of "
                "the code — the defect the whole transmission check exists for",
         "file": "second_eye_ledger.py",
-        "find": "            if rx.search(body) and msg not in why:",
+        # ⚠ RE-ANCHORED at v2825: the comment-skip change moved this line (body -> _code).
+        # heart2 said so at once — INVALID, the tamper matched 0 times — which is the
+        # correct diagnosis and the second time tonight a refactor of mine moved a proof's
+        # target. The LAW is unchanged. [[sabotage-is-usually-the-wrong-one]]
+        "find": '            if rx.search(_code) and msg not in why:',
         "replace": "            if False:",
         "matches": 1,
     },

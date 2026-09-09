@@ -26053,3 +26053,28 @@ _console_safe_enable()`) above the first project import. The law re-run in isola
 red-proofs across the two files re-proven after the edit, each `1 match(es) tampered → red` —
 prepending two lines does not move a string anchor, but that is exactly the assumption that came
 back INVALID earlier tonight, so it was measured rather than assumed.
+
+## REG-778 — the transmission guard matched its own documentation, inside a diff of itself
+**v2825 · 2026-09-09 · second_eye_ledger.py**
+
+Recording the v2824 look was retracted to `reached=False` with BOTH seam markers firing. Measured
+on the payload: **two hits, both on one line, zero real seams** — and the line was
+`second_eye_ledger.py`'s own comment describing what a seam looks like, carried inside the fence
+because the review diff included that file.
+
+★ **`code_was_transmitted`'s docstring already names this defect one level up:** *"a prompt may
+legitimately DISCUSS `open().read()` in its prose — this very docstring would trip a whole-text
+search. The defect is a FENCE that was supposed to hold the file and holds the expression."* The fix
+then was to search fences rather than the whole prompt. When the fence holds a real file whose PROSE
+discusses the pattern, the same problem returns one level down. **A rule and a sentence describing
+the rule are different things at every depth.** [[feedback-comments-vs-code]] [[source-reading-guard]]
+
+Fixed: comment lines are excluded from the seam scan (`^[-+ ]?\s*#` — the optional marker is the
+unified-diff prefix, since inside a diff a comment reads as `+    # …`). Verified both ways: all four
+real seam shapes still caught, and a bare comment, a `+`-prefixed diff comment, a context-line
+comment and the JS quote-concat all clean. **The skip is not a hole** — a real seam on a code line
+below a comment is still caught, and that case is its own test. Three tampers PROVEN red.
+
+⚠ The third tamper came back **INVALID — "matched 0 times, the SABOTAGE is wrong, not the law"**,
+because this very change moved its anchor (`body` → `_code`). Second time tonight a refactor of mine
+moved a proof's target, and both times heart2 said so immediately rather than filing a false BLIND.

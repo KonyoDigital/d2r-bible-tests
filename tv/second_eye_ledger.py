@@ -253,6 +253,10 @@ _UNSENT_MARKERS = (
 
 _FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
 
+#: A Python comment line, with an optional unified-diff marker in front of it. Prose about a rule
+#: is not the rule — the distinction this repo has paid for more than once.
+_COMMENT_LINE = re.compile(r"^[-+ ]?\s*#")
+
 
 def code_was_transmitted(sent):
     """Did the prompt actually CARRY code, or only a promise of it? -> dict
@@ -271,8 +275,26 @@ def code_was_transmitted(sent):
     # its prose — this very docstring would trip a whole-text search. The defect is a fence that was
     # supposed to hold the file and holds the expression that would have read it.
     for body in fences:
+        # ⚠⚠ v2825 — SKIP COMMENT LINES, BECAUSE THE GUARD MATCHED ITS OWN DOCUMENTATION.
+        # The comment beside `_UNSENT_MARKERS` reads: "A REAL seam is `\"\"\" + x` or `x + \"\"\"`
+        # on ONE line" — and when a review diff includes second_eye_ledger.py ITSELF, that sentence
+        # is inside the fence and BOTH markers fire on it. The row is retracted, the look files as
+        # an empty seat, and the next push is refused. Measured on the v2824 payload: two hits,
+        # both on that one comment line, zero real seams.
+        #
+        # ★ THE DOCSTRING ABOVE ALREADY NAMES THIS DEFECT ONE LEVEL UP — "a prompt may legitimately
+        # DISCUSS open().read() in its prose... the defect is a FENCE that was supposed to hold the
+        # file and holds the expression instead" — and the fix was to search fences not prose. When
+        # the fence holds a real file whose PROSE discusses the pattern, the same problem returns
+        # inside it. A rule and a sentence describing the rule are different things at every depth.
+        # [[feedback-comments-vs-code]] [[source-reading-guard]]
+        #
+        # ⚠ The leading `[-+ ]?` is the diff marker: inside a unified diff a comment line reads as
+        # `+    # ...` or `     # ...`, so the `#` is not the first non-space character.
+        _code = "\n".join(ln for ln in body.split("\n")
+                          if not _COMMENT_LINE.match(ln))
         for rx, msg in _UNSENT_MARKERS:
-            if rx.search(body) and msg not in why:
+            if rx.search(_code) and msg not in why:
                 why.append(msg)
     return {"chars": int(chars), "fences": len(fences), "unsent": why}
 
