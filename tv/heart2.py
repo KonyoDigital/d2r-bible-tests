@@ -157,10 +157,20 @@ def gates_fingerprint(gates=None):
     CONTENT survives copying. This is what "the instruments have not changed since they were proved"
     actually means. [[stale-reading]] [[the-harness-isolates-the-port-not-the-world]]
     """
+    # ⚠⚠ v2869 — READ IT WHERE IT LIVES, NOT WHERE THE PROCESS HAPPENS TO STAND. `gate_files()`
+    # returns BARE BASENAMES (it checks existence against HERE, so it is cwd-independent) and this
+    # loop passed one straight to `_read_text`, which opens relative to the CURRENT DIRECTORY.
+    # MEASURED: from the repo root, 273 of 273 gates read as UNREADABLE and the digest came out
+    # 4d640d7d instead of 55330cec — so `_heart_says_watched()` called a freshly written census
+    # STALE and `may()` refused EVERY lock, permanently, for any caller not standing in tv/.
+    # The v2864 sentinel is what made it visible rather than silent, and it is exactly the class
+    # v2862 replaced mtime to escape: a rule that only holds where it was run.
+    # ⚠ The SENTINEL keeps the bare name on purpose — an absolute path differs per machine and
+    # would undo the portability the content digest exists for. [[stale-reading]] [[copy-drift]]
     h = hashlib.sha256()
     for n, f in sorted(gates if gates is not None else gate_files()):
         h.update(n.encode("utf-8"))
-        src = _read_text(f)
+        src = _read_text(f if os.path.isabs(f) else os.path.join(HERE, f))
         if src is None:
             # ⚠ v2864 — UNREADABLE IS NOT EMPTY, and a cross-family review caught the collapse:
             # hashing None as "" made every unreadable file digest identically to every empty one,
@@ -209,7 +219,11 @@ def pixel_gates(gates=None, unclassified=None):
     out = set()
     _unk = unclassified if unclassified is not None else []
     for n, f in (gates if gates is not None else gate_files()):
-        src = _read_text(f)
+        # ⚠ v2869 — SAME BARE-NAME BUG AS gates_fingerprint, same cause: gate_files() hands back
+        # basenames and _read_text opens relative to cwd. From the repo root this made every gate
+        # UNREADABLE, so pixelTotal would read 0 and pixelUnclassified 273 — a census that answers
+        # "how much of this is pixels" with a number produced by the reader's working directory.
+        src = _read_text(f if os.path.isabs(f) else os.path.join(HERE, f))
         if src is None:
             _unk.append(n)                # UNREADABLE is not "backend"
             continue

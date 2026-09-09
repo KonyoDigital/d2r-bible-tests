@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2868",
+  "ver": "v2869",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2868: a cross-family review found three ways the fail-closed lock stopped being tested on CI",
+  "note": "v2869: the heart fingerprint read gates relative to the caller cwd, so the lock refused every surface from the repo root",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

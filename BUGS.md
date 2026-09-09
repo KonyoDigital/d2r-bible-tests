@@ -97,6 +97,42 @@ within 300.0s (recorded as unreached, never as agreement)`. The same payload at
 the blocker — and a seat that times out looks exactly like a seat with nothing to say.
 [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
 
+### REG-840 — the lock refused every surface for any caller not standing in tv/
+
+**v2869.** CI's swallow ratchet went red on v2868 — `tv/test_the_lock_derives_from_the_heart.py
+0 -> 1`, RANK 1, *a failed read handed back as DATA*. Correct: my new census fixture seeded itself
+from the live `.heart2.json` and swallowed a parse failure into `{}`. There was never a reason to
+read one — the helper builds every key `_heart_says_watched` consults. Now it reads nothing.
+Measured with CI's own command: `baseline 74 now 74 ✅ held`.
+
+**Chasing that turned up the larger one.** Checking the lock from the repo root instead of `tv/`:
+
+    from tv/       instruments watched: 145 of 273 gates proved, 0 blind, census current
+    from repo root the heart census is STALE (4d640d7d != 55330cec) — re-run --prove
+
+A census written twenty-one seconds earlier. `gate_files()` returns BARE BASENAMES — it checks
+existence against `HERE`, so it is cwd-independent — and `gates_fingerprint()` passed one straight
+to `_read_text`, which opens relative to the **process's working directory**. From the repo root
+**273 of 273 gate files read as UNREADABLE**, each hashing to the v2864 sentinel, so the digest
+moved and `may()` refused **every lock, permanently and silently**, for any caller not standing in
+`tv/`. `pixel_gates` had the same line: `pixelTotal` would have read 0 and `pixelUnclassified` 273 —
+the number that answers *"is 100% also a visual pass"*, produced by the reader's cwd.
+
+Not a staleness annoyance. A total refusal decided by where the caller happened to stand, and the
+third time this family has shipped: v1867's port, v2862's mtime, now the working directory. **A rule
+that only holds in the tree — or the directory — it was run from is not a rule.**
+
+**Fixed** in both readers (`os.path.join(HERE, f)`, sentinel still on the bare name so the digest
+stays portable across machines). Measured after: `ff5274d3a029 · pixel 10 · unclassified 0` from
+both directories, identical. New law
+`test_the_fingerprint_does_not_depend_on_the_CALLERS_DIRECTORY` chdirs to a temp dir and requires
+the digest AND the pixel split to be unchanged; proven red by restoring the bare read. The lock gate
+now carries 11 laws and 4 red-proofs, all PROVEN.
+
+⚠ The v2864 sentinel is what made this visible instead of silent — hashing unreadable files
+distinctly is what let the digest move at all. [[stale-reading]] [[copy-drift]]
+[[the-harness-isolates-the-port-not-the-world]]
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

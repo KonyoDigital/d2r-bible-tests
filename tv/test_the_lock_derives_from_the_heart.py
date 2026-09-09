@@ -98,6 +98,15 @@ RED_PROOF = [
         "replace": "    if False and _have != _want:",
         "matches": 1,
     },
+    {
+        "why": "v2869's defect: reading a gate by its BARE basename, which resolves against the "
+               "caller's cwd. From the repo root every gate read as UNREADABLE, the digest moved, "
+               "and may() called a seconds-old census STALE and refused every lock permanently",
+        "file": "heart2.py",
+        "find": '        src = _read_text(f if os.path.isabs(f) else os.path.join(HERE, f))\n        if src is None:\n            # \u26a0 v2864',
+        "replace": '        src = _read_text(f)\n        if src is None:\n            # \u26a0 v2864',
+        "matches": 1,
+    },
 ]
 
 
@@ -125,19 +134,21 @@ def _census_the_heart_would_call_CURRENT():
     construction, and a machine that has never run the heart no longer opts out. What is under test
     is `_heart_says_watched`'s `blind` branch, and that branch needs only these two keys.
     [[feedback-blind-fixture-green-gate]] [[the-unjoined-end]]
+
+    ⚠ IT READS NOTHING. The first cut seeded itself from the live census and swallowed a parse
+    failure into `{}` — RANK 1 on the swallow ratchet, "a failed read handed back as DATA",
+    `tv/test_the_lock_derives_from_the_heart.py 0 -> 1`, caught by CI within the hour and correctly:
+    an unreadable census would have produced a fixture that LOOKED built. There was never a reason
+    to read. `_heart_says_watched` consults exactly these keys, and a fixture that borrows a
+    machine-local file is a fixture whose subject can change without anyone editing it.
+    [[feedback-fixtures-never-touch-live-data]] [[unknown-stays-unknown]]
     """
-    st = {}
-    real = _real_census()
-    if real:
-        try:
-            st = json.loads(real)
-        except Exception:
-            st = {}
-    st["gatesFingerprint"] = H.gates_fingerprint()
-    st.setdefault("blind", [])
-    st.setdefault("proved", 0)
-    st.setdefault("total", 0)
-    return st
+    return {
+        "gatesFingerprint": H.gates_fingerprint(),
+        "blind": [],
+        "proved": 0,
+        "total": 0,
+    }
 
 
 class TheLockDerivesFromTheHeart(unittest.TestCase):
@@ -155,6 +166,44 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         self.assertFalse(ok, "a lock armed itself while an instrument was BLIND — the Wilson score "
                              "proved the surface and nothing was left to prove the proof")
         self.assertIn("BLIND", why)
+
+    def test_the_fingerprint_does_not_depend_on_the_CALLERS_DIRECTORY(self):
+        """★★ v2869 — THE LOCK WAS DEAD-CLOSED FOR EVERY CALLER NOT STANDING IN tv/.
+
+        `gate_files()` returns BARE BASENAMES; `gates_fingerprint()` handed one to `_read_text`,
+        which opens relative to the process's cwd. MEASURED from the repo root: 273 of 273 gates
+        UNREADABLE, digest 4d640d7d instead of 55330cec, so a census written seconds earlier read
+        as STALE and `may()` refused every surface. Not a staleness annoyance — a permanent,
+        silent, total refusal decided by where the caller happened to stand.
+
+        Same family as v2862's mtime and v1867's port: a rule that only holds in the tree — or the
+        directory — it was run from. [[stale-reading]] [[copy-drift]]"""
+        here = os.getcwd()
+        tmp = tempfile.mkdtemp(prefix="cwd-")
+        try:
+            mine = H.gates_fingerprint()
+            unk_a = []
+            px_a = H.pixel_gates(None, unk_a)
+            os.chdir(tmp)
+            theirs = H.gates_fingerprint()
+            unk_b = []
+            px_b = H.pixel_gates(None, unk_b)
+        finally:
+            os.chdir(here)
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(
+            mine, theirs,
+            "the gate fingerprint changed with the working directory (%s here, %s from %r). Every "
+            "caller outside tv/ would read a fresh census as STALE and the lock would refuse every "
+            "surface for ever." % (mine[:12], theirs[:12], tmp))
+        self.assertEqual(
+            (len(px_a), len(unk_a)), (len(px_b), len(unk_b)),
+            "the pixel/backend split changed with the working directory: %d pixel / %d unclassified "
+            "here vs %d / %d elsewhere. That number answers 'is 100%% also a visual pass', and it "
+            "must not be produced by the reader's cwd."
+            % (len(px_a), len(unk_a), len(px_b), len(unk_b)))
+        self.assertEqual([], unk_a,
+                         "%d gate(s) are unclassifiable even from tv/: %s" % (len(unk_a), unk_a[:4]))
 
     def test_an_UNREADABLE_census_fails_CLOSED(self):
         """★★ Matching _rows(): UNKNOWN never arms anything.
