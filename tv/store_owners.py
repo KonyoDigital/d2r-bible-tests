@@ -81,6 +81,15 @@ STORES = {
         "owner": "reel_retention",
         "holds": "reels that were pruned, and when — the record that a reel existed",
         "readers": {
+            # v2844 — the render harness WRITES this, and that is deliberate rather than a second
+            # authority: the TOMBSTONE lane on the river strip has nothing to draw unless closed-out
+            # rows exist, so the target seeds a synthetic ledger. ⚠ IT WRITES INTO THE RENDER
+            # SANDBOX (`_hist`), never tv/ — the isolation v1867 was carved for. It appeared here as
+            # an undeclared toucher only once the scan stopped counting comments, which is the scan
+            # working: this is a real write and it should have been argued in, not discovered.
+            "render_check":  "SEEDS a synthetic tombstone ledger inside the render sandbox so the\n"
+                             "                              TOMBSTONE lane has rows to photograph. Writes to <hist>,\n"
+                             "                              never to tv/, and reads nothing back from his real store",
             "end_routes":    "reads it to DERIVE the end-route predicate from the reels that\n                              already reached it, rather than inventing one. His ruling\n                              settled the DESTINATION and named the METHOD: 'reverse\n                              engineeer it if needed the ones that are working'.\n                              READ-ONLY: it decides nothing and deletes nothing - a second\n                              prune authority over footage that has no un-delete is\n                              exactly what this file exists to refuse.",
             "tv_diablo":     "NOT a toucher — a v2639 comment explains that the recorder's\n                              emergency reaper is deliberately NOT a second writer of this\n                              store; reel_retention._tombstone stays the one writer, and the\n                              recorder records to its own reel_reaps.jsonl instead. Prose",
             "run_gates":     "NOT a toucher — a gate DESCRIPTION names this file while saying\n                              the reaper is not a second writer of it. Prose in a `why` string",
@@ -230,6 +239,16 @@ def _modules():
     return out
 
 
+def _code_only(src):
+    """`src` with whole-line comments removed. -> str
+
+    Only `#`-leading lines are dropped: a store named inside a string literal on a code line is a
+    real reference and must keep counting. This is deliberately not a tokeniser — it answers the
+    one question that was being got wrong, which is whether a mention is executable at all.
+    """
+    return "\n".join(l for l in src.split("\n") if not l.lstrip().startswith("#"))
+
+
 def audit():
     """-> {"ok", "rows", "why"}. Undeclared couplings are the finding."""
     mods = _modules()
@@ -240,12 +259,37 @@ def audit():
     for store, spec in sorted(STORES.items()):
         owner = spec["owner"]
         declared = set(spec["readers"]) | {owner}
-        touching = {m for m, src in mods.items() if store in src}
+        # ⚠⚠ v2844 — CODE, NOT COMMENTS. This was a plain `store in src` over the whole file, so
+        # a module that merely NAMES a store while explaining something became an undeclared
+        # toucher. Measured: `reel_router` was reported as touching reel_tombstones.json on the
+        # strength of one comment at line 512 describing a bug — it opens nothing. A coupling
+        # graph built from prose reports couplings that do not exist, and the fix is to make it
+        # read what runs. [[source-reading-guard]] [[feedback-comments-vs-code]]
+        touching = {m for m, src in mods.items() if store in _code_only(src)}
         undeclared = sorted(touching - declared)
+        # ⚠⚠ THE TWO QUESTIONS ARE NOT THE SAME QUESTION, AND ONE SCAN CANNOT ANSWER BOTH.
+        # v2844, measured: making the scan comment-free (correctly) stopped four DECLARED readers
+        # from matching — dead_field, reel_retention, one_funnel, vault_retro — and the `stale`
+        # check called them dead allowances. They are not. Each resolves its path through the
+        # module's path authority, so the literal filename survives only in the comment recording
+        # that the hardcoded version was REMOVED (`THE FIRST CUT HARDCODED "reel_tombstones.json"`).
+        # This file's own docstring already said a literal-name scan under-reports writers by
+        # construction; the `stale` half had simply been passing on that prose.
+        #
+        # So they are asked differently, on purpose:
+        #   · UNDECLARED — does EXECUTABLE code in a module nobody declared name this store? Strict
+        #     and comment-free, because this is the safety-critical direction: a second writer
+        #     appearing unannounced is the defect the registry exists to catch.
+        #   · STALE — does the declared module still refer to this store AT ALL, prose included?
+        #     Deliberately weaker. A strict answer is not available while paths are threaded
+        #     through helpers, and a strict scan would report every indirection-using owner as
+        #     stale — 4 of them here — which is a false alarm that would train him to ignore it.
+        # [[unknown-stays-unknown]] [[source-reading-guard]]
+        mentions = {m for m, src in mods.items() if store in src}
+        stale = sorted(declared - mentions)
         # ⚠ A DECLARED READER THAT NO LONGER TOUCHES THE STORE IS ALSO A FINDING — the list stops
         # describing the code, and a stale allowance is how the next undeclared module slips in
         # under a name nobody re-checked.
-        stale = sorted(declared - touching)
         rows.append({
             "store": store, "owner": owner, "holds": spec["holds"],
             "ownerMentionsIt": owner in touching,

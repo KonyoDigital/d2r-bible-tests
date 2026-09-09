@@ -25569,7 +25569,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2842",
+        "ver": "v2845",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25847,7 +25847,14 @@ def status_payload():
             _rec = {
                 "totalMs": _total,
                 "sections": _sect,
-                "unattributedMs": round(_total - _sum, 1),
+                # ⚠ QUOTED FROM THE ONE DERIVATION ABOVE, NOT RECOMPUTED. v2844 — a second
+                # `round(_total - _sum, 1)` here gave the arithmetic TWO homes, and
+                # test_the_status_breakdown_covers_what_it_bills went red saying so: its law finds
+                # the computing line by `"unattributedMs"` + `_total` + `_sum` and refuses when
+                # there is more than one, because from then on it would be inspecting whichever it
+                # happened to find first. Two copies of a subtraction is also how a clamp gets
+                # added to one of them later and nobody notices. [[copy-drift]]
+                "unattributedMs": _STATUS_TIMING["last"]["unattributedMs"],
                 "slowest": _slowest,
                 "lockWaitDelta": int((_LOCK_WAIT or {}).get("blocked") or 0) - _b0,
                 "atMs": int(time.time() * 1000),
@@ -27677,6 +27684,38 @@ class Handler(BaseHTTPRequestHandler):
                     _fl["publishedVer"] = _os_.get("publishedVer")
                     _fl = fleet_drop_non_machines(_fl)   # v2297 — his probe was not a PC
                     _fl = fleet_annotate_lag(_fl)        # v2296 — see fleet_annotate_lag
+            except Exception:
+                pass
+            # ── v2843 — THE ROSTER THE PANEL ALREADY HAD AND WAS NEVER GIVEN ──────────────────
+            # His screenshot, 2026-09-09 11:07: the card read `fleet unreachable — <urlopen error
+            # _ssl.c:1112: The handshake operation timed out>`. MEASURED: this console was holding
+            # a three-machine roster from minutes earlier, and `grep -c lastGood control_ui.html`
+            # was **0**. fleet_presence_last_good() was built in v2815 for exactly this moment —
+            # "who did we last see, and when" kept as a SEPARATE question from "did the fetch
+            # work" — and then no consumer was ever joined to it. Built on both ends, never
+            # joined. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+            #
+            # ⚠⚠ DISTINCT KEYS. `ok`, `online` and `offline` ARE NOT TOUCHED. v2814 folded the
+            # last-good roster into the failure payload, which flipped `ok` to True and filled
+            # `online` — and test_fleet_presence_is_honest_when_it_cannot_reach_the_site went red,
+            # correctly, because an unreachable console must never claim machines ARE online. The
+            # panel gets the stale roster as its OWN field, with its OWN age, and decides to render
+            # it as STALE. Two questions, two answers, two key sets. [[unknown-stays-unknown]]
+            #
+            # ⚠ ALWAYS ATTACHED, SUCCESS OR FAILURE. Only-on-error would make an ABSENT key mean
+            # both "the fetch worked" and "this build predates the field" — the same conflation
+            # the v2822 fromCache stamp was added to end.
+            try:
+                if isinstance(_fl, dict):
+                    _lg, _lgAge = fleet_presence_last_good()
+                    _fl["lastGood"] = _lg
+                    _fl["lastGoodAgeS"] = _lgAge
+                    _fl["lastGoodWhy"] = (
+                        "the last roster this console actually received, and its age. It is NOT a "
+                        "claim that these machines are online now — `ok` answers the fetch and this "
+                        "answers the memory. Null means nothing was ever received, which is the one "
+                        "case with nothing honest to show."
+                    )
             except Exception:
                 pass
             self._json(200, _fl)

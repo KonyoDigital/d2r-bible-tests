@@ -5760,6 +5760,14 @@
      wraps instead, and `margin-left:auto` still right-aligns the meta on whichever line it lands. */
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
+  /* v2843 — the remembered roster, visibly not-live: dimmer than a real row, never a link. */
+  .fleet-dead { font-style: normal; color: #c06a4a; letter-spacing: .04em; }
+  .fleet-was { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(125,118,99,.16); }
+  .fleet-stale { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+  .fleet-stale-m { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); color: #7d7663;
+                   background: rgba(125,118,99,.10); border: 1px solid rgba(125,118,99,.22);
+                   border-radius: 3px; padding: 1px 5px; opacity: .82; }
+  .fleet-stale-m i { font-style: normal; color: #635d4e; }
 
   /* ⚠⚠ v2473 — AN OUTPUT PANE MAY NOT PUSH THE PANEL IT LIVES IN PAST THE HORIZON.
      Measured on his console: one click on 📒 ledger rendered a 3224px block into a rail whose
@@ -20851,6 +20859,31 @@ function escC(s) {
     if (h < 24) return h + 'h ago';
     return Math.round(h / 24) + 'd ago';
   };
+  /* v2843 — WHICH SIDE, AND HOW OLD. Both defined HERE, beside _fleetSince, inside the same
+     script block as _fleetRefresh: a helper declared in the other block is not in scope at call
+     time and the render dies silently. That has cost four regressions. [[console-ui-two-script-blocks]] */
+  var _fleetBlame = function (raw) {
+    var s = String(raw || '').toLowerCase();
+    /* ⚠ A TIMEOUT DOES NOT NAME A SIDE, AND SAYING IT DOES WOULD BE INVENTED. From this console
+       an unreachable network and an unresponsive site are the same silence. Say so.
+       [[unknown-stays-unknown]] */
+    if (s.indexOf('handshake') >= 0) return 'TLS handshake timed out \u2014 which side is UNKNOWN from here';
+    if (s.indexOf('timed out') >= 0 || s.indexOf('timeout') >= 0) return 'the request timed out \u2014 which side is UNKNOWN from here';
+    if (s.indexOf('getaddrinfo') >= 0 || s.indexOf('name or service') >= 0 || s.indexOf('nodename') >= 0) return 'the site name did not resolve \u2014 DNS, on this machine';
+    if (s.indexOf('refused') >= 0) return 'the connection was refused \u2014 something answered and said no';
+    if (s.indexOf('401') >= 0 || s.indexOf('403') >= 0) return 'the site refused this console\u2019s credentials';
+    if (s.indexOf('certificate') >= 0 || s.indexOf('ssl') >= 0) return 'TLS failed before any answer came back';
+    return String(raw || 'no answer');
+  };
+  var _fleetAgo = function (sec) {
+    if (sec === null || sec === undefined || !isFinite(sec)) return 'an unknown time ago';
+    var s = Math.max(0, Math.round(sec));
+    if (s < 60) return s + 's ago';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + 'm ago';
+    var h = Math.round(m / 60);
+    return (h < 24) ? h + 'h ago' : Math.round(h / 24) + 'd ago';
+  };
   window._fleetRefresh = async function () {
     var box = document.getElementById('fleet-list');
     if (!box) return;
@@ -20858,8 +20891,38 @@ function escC(s) {
       var r = await fetch('/api/fleet', { cache: 'no-store' });
       var j = await r.json();
       if (!j || j.ok === false) {
-        // honest-absent: say the fleet could not be reached, never imply "nobody is online"
-        box.innerHTML = '<div class="fleet-none">fleet unreachable — ' + escC((j && j.error) || 'no answer') + '</div>';
+        /* ── v2843 — UNREACHABLE IS NOT THE SAME AS NOTHING TO SHOW ─────────────────────────
+           His screenshot, 2026-09-09 11:07: this card printed
+           `fleet unreachable — <urlopen error _ssl.c:1112: The handshake operation timed out>`
+           while the console was holding a three-machine roster from minutes earlier and the
+           heart’s footer said 8 dark, none of them the fleet. `_ssl.c:1112` is a C source
+           location; it answers none of the three questions he actually has — which side, who
+           did we last see, and is anything watching this. The raw string is KEPT, on the title
+           attribute, because a humanised sentence that loses the original is a worse trade.
+           [[the-unjoined-end]] [[unknown-stays-unknown]] */
+        var _raw = (j && j.error) || 'no answer';
+        var _lg  = j && j.lastGood;
+        var _on  = (_lg && _lg.online)  || [];
+        var _off = (_lg && _lg.offline) || [];
+        var _all = _on.concat(_off);
+        var _h = '<div class="fleet-none" title="' + escC(_raw) + '">'
+               + '<b class="fleet-dead">fleet unreachable</b> — ' + escC(_fleetBlame(_raw)) + '</div>';
+        if (_all.length) {
+          /* honest-absent, still: these are REMEMBERED, never re-asserted as live. `ok` stays
+             false and `online` stays empty on the wire — this list is drawn from lastGood,
+             which is a different question with a different key. */
+          _h += '<div class="fleet-none fleet-was">last seen ' + escC(_fleetAgo(j && j.lastGoodAgeS))
+              + ' — ' + _on.length + ' on, ' + _off.length + ' off, '
+              + _all.length + ' known then. Remembered, not live:</div>'
+              + '<div class="fleet-stale">' + _all.map(function (m) {
+                  return '<span class="fleet-stale-m">' + escC(m.nickname || m.machine || '?')
+                       + (m.ver ? ' <i>' + escC(m.ver) + '</i>' : '') + '</span>';
+                }).join('') + '</div>';
+        } else {
+          _h += '<div class="fleet-none fleet-was">no roster was ever received here — nothing to '
+              + 'show, not even a count. This is the one case with no honest fallback.</div>';
+        }
+        box.innerHTML = _h;
         return;
       }
       /* ── v2157 — WHAT EACH PERSON HAS, ON HOVER. ─────────────────────────────────────────

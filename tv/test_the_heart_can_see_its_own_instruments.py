@@ -37,6 +37,8 @@ import io
 import sys
 import unittest
 
+import heart2 as _H2   # noqa: E402  (the ONE resolver for a proof's target file)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
@@ -81,7 +83,11 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                 for k in ("why", "file", "find", "replace", "matches"):
                     if k not in pr:
                         bad.append("%s has no %r" % (label, k))
-                tgt = os.path.join(HERE, str(pr.get("file") or ""))
+                # ⚠ THROUGH heart2's OWN RESOLVER, NOT A SECOND os.path.join. This joined against
+                # tv/ alone, so every proof naming the repo-root `bible.html` was reported malformed
+                # while heart2 applied it without trouble — 8 of them, and the law was the wrong one.
+                # [[copy-drift]]
+                tgt = _H2.resolve_proof_target(HERE, str(pr.get("file") or ""))
                 if not os.path.isfile(tgt):
                     bad.append("%s names a file that does not exist: %r" % (label, pr.get("file")))
                     continue

@@ -26801,3 +26801,174 @@ fired on a machine where the registry was unreachable.
 ⚠ And for the third time tonight, a refactor of mine moved a red-proof's anchor — heart2 reported
 `INVALID — the tamper matched 0 time(s). The SABOTAGE is wrong, not the law` within seconds each
 time. That is the loop doing precisely what it exists for.
+
+## REG-806 — the fleet failed on his screen and the heart had never heard the word
+
+**v2843.** Konyo, 2026-09-09 11:07, with a photograph of his own console: *"FLEET unreachable...
+connect it to the heart of the console regression and doctor and watchdoggs and eagle eyr all are
+suppose to catch this."*
+
+**MEASURED at that moment — three defects, one shape.**
+
+**1. The lane had no supervision, not failing supervision.**
+
+    grep -c fleet tv/heart.py            ->  0
+    grep -c fleet tv/lane_census.py      ->  0
+    a fleet row in console_doctor.CHECKS ->  none
+
+The card read `fleet unreachable — <urlopen error _ssl.c:1112: The handshake operation timed out>`
+while the heart's own footer two inches below said `♥ 8 dark` — and not one of those 8 was the
+fleet. The heart was not wrong about its 8; the fleet was outside the vocabulary it supervises.
+That is the registered-vs-existing gap (21 threads, 11 registered) with a name on it, and the first
+of the unregistered ten to fail where he could see it.
+
+**2. The panel already held the answer and was never given it.** `fleet_presence_last_good()` was
+built in v2815 for exactly this moment — "who did we last see, and when" kept SEPARATE from "did
+the fetch work", because v2814 folded them together, flipped `ok` to True and made an unreachable
+console claim machines were online. MEASURED: `grep -c lastGood control_ui.html` -> **0**. One
+producer, no consumer. The console was holding **Dean v2745 · Konyo v2745 · Wife PC v2101** from
+minutes earlier and rendered a C source location instead. [[plumbing-with-no-tap]]
+
+**3. `_ssl.c:1112` was the user-facing copy.** It answers none of the three questions he has:
+which side, who did we last see, is anything watching this.
+
+**FIXED —** a `("fleet reachable", …)` row in `console_doctor.CHECKS` reading the SAME cache the
+panel paints from, so the row and the card cannot disagree the way they did; `lastGood` +
+`lastGoodAgeS` shipped from `/api/fleet` under DISTINCT keys (`ok`/`online`/`offline` untouched, so
+v2815's honesty law still holds); and the panel degrades to a **STALE roster** with a hairline rule
+and dimmed chips instead of a blank.
+
+⚠ **THE CHECK READS THE CACHE AND NEVER FETCHES.** `fleet_presence()` spends up to 6s against an
+unreachable site — the exact condition this row exists to notice — so calling it would add a
+six-second stall to every doctor pass precisely when the console is already degraded.
+
+⚠ **FOUR OUTCOMES, NOT TWO.** never-asked (UNMEASURED) · reachable (OK) · unreachable-with-a-roster
+(MISSING, can still render) · unreachable-with-nothing (MISSING, the only case with no fallback).
+Collapsing them would grade a cold console as broken and hide the unrecoverable one.
+
+**★ AND THE GATE'S OWN RED-PROOF CAUGHT ME BUILDING THE SAME DEFECT ONE LEVEL UP.** The first cut
+guarded both ENDS — Law 3 on the producer function, Law 4 on the consumer page — and heart2 renamed
+the single assignment in the HTTP handler that carries the value between them:
+
+    test_the_fleet_lane_reaches_the_heart[2]  BLIND ← stayed GREEN through its own defeat (1 match)
+
+A guarded producer and a guarded consumer with an **unguarded wire between them** is precisely the
+shape this task was opened about. Law 5 was added to close it, and it PARSES (`ast`) rather than
+greps, because `lastGood` also appears in the comment above the assignment, in `lastGoodWhy`, and
+in the gate's own docstrings — a text search would have gone green with the wire cut.
+[[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] [[source-reading-guard]]
+
+**Now 4/4 PROVEN**, each tampering exactly 1 match. Gate:
+`test_the_fleet_lane_reaches_the_heart` (registry 269).
+
+**Rendered and looked at before shipping.** The first copy was honest and too long — the card ran
+~200px against the ~110px it occupies in his sidebar, which would have pushed THE SHELF below the
+fold, and the two lines read as one italic paragraph. Tightened to one-line causes with the raw
+exception kept on the `title` attribute, and separated with a hairline. Re-measured: **9 elements
+at each of 260/300/340/420px, 0 clipped or overflowing.**
+
+
+## REG-807 — the new render target went green photographing the state it was named against
+
+**v2844.** Closing REG-806 left a hole the harness could not see: `advanced-fleet` serves the real
+console, so it can only ever photograph a **reachable** fleet — and every defect REG-806 fixed lives
+on the UNREACHABLE path. A surface the harness cannot reach regresses unseen, which is how a raw
+`_ssl.c:1112` sat on his card for as long as it did. [[gate-blind-to-unexercised-input]]
+
+Added `advanced-fleet-down`, which stubs `/api/fleet` with a failure payload carrying a remembered
+roster. **It passed on the first run, and the pass was false.** MEASURED:
+
+    🟢 advanced-fleet-down ... text: konyo-3👁?idle · v2843 · unpublished · just now
+
+That is the SUCCESS card, under a target named "when it cannot be reached". Two causes, both mine:
+
+1. **The seed runs after the page has settled.** The harness loads, waits for quiescence, THEN
+   evaluates `seed` — so `_fleetRefresh` had already fetched and painted the healthy card. Installing
+   a `window.fetch` stub at that point changes nothing that has already happened.
+2. **`require_filled` cannot tell the two apart.** Both states fill `#fleet-list`. It saw the stale
+   healthy fill and passed instantly.
+
+FIXED: the seed now clears the box, installs the stub, and re-calls `_fleetRefresh`; and `activate`
+refuses until the DEGRADED markup exists rather than until the box is merely full.
+
+**★ AND THE REPAIR SURFACED A SECOND, TRUER FACT — through a contradiction I nearly wrote off.**
+After the fix, three widths rendered the remembered-roster branch and two rendered the
+never-received branch, from ONE payload and ONE page load (widths are `setDeviceMetricsOverride`
+only — there is no reload between them). Same stub, two renders, which cannot both be right.
+
+The cause: **the render harness's isolated server genuinely cannot reach bull-4-u.com**, so the
+page's own first fetch already returns `ok:false` with no memory — the never-received branch, live
+and unstubbed. `activate` fired the moment `.fleet-dead` appeared, which was sometimes that real
+early render and sometimes the stubbed one. A race, not a layout difference.
+
+Tightened `activate` to require the three remembered chips. All five widths now agree:
+**6/6 painted · 19 measured · 0 clipped · 0 covered**, at 375/901/1120x628/1120x900/1440.
+
+⚠ **AND IT MEANS BRANCH B IS FREE.** The unreachable-with-nothing state is the harness's NATURAL
+condition and needs no stub at all — worth a second target, not yet written.
+[[feedback-contradiction-is-the-finding]] [[feedback-blind-fixture-green-gate]]
+
+
+## REG-808 — five gates were red on CI for versions, and I only found them by finally reading CI
+
+**v2845.** After REG-800 I said the tick would end with CI rather than with the ref. It did, and
+CI was carrying **19 red gates** on v2842 — `run_gates.py` runs there, while the pre-push runs only
+`test_agent` and `test_control`. Five reproduce on this Mac, so they are real defects and not
+runner artifacts, and every one of the five is mine from the last few versions:
+
+**1. `test_the_status_breakdown_covers_what_it_bills` — two defects.**
+`unattributedMs` was COMPUTED on two lines: the `_STATUS_TIMING["last"]` payload and the new
+`worstRequest` record. The law demands one, because from then on it inspects whichever it finds
+first, and two copies of a subtraction is how a clamp gets added to one of them later. The record
+now QUOTES the single derivation. And `_status_worst_load`/`_status_worst_save` were untimed
+producers — now EXEMPT, with the true reason: they run in the timing **epilogue** after `_total`
+is taken, so their cost cannot land in this request's `unattributedMs`. ⚠ Not "free" — deferred to
+the next request, where it is attributed normally. Writing "free" would have been the easy lie.
+
+**2. My own comment then failed the law I had just fixed.** The comment explaining the rule named
+`"unattributedMs"`, `_total` and `_sum` in one sentence — so it counted as a second computing line.
+The law was reading prose as code. Fixed in the LAW, not by rewording the comment.
+[[feedback-comments-vs-code]] [[source-reading-guard]]
+
+**3. `test_store_owners` — the coupling graph was built from prose.** `touching = {m for m, src in
+mods.items() if store in src}` matched anywhere, comments included. `reel_router` was reported as an
+undeclared toucher of `reel_tombstones.json` on the strength of ONE comment describing a bug; it
+opens nothing.
+
+**★ AND MAKING IT CODE-ONLY IMMEDIATELY EXPOSED THAT THE OTHER HALF HAD BEEN PASSING ON PROSE.**
+Four DECLARED readers — `dead_field`, `reel_retention`, `one_funnel`, `vault_retro` — stopped
+matching, and the `stale` check called them dead allowances. They are not: each resolves its path
+through the module's path authority, so the literal filename survives only in the comment recording
+that the hardcoded version was REMOVED. This file's own docstring already said a literal-name scan
+under-reports writers by construction. The two questions are now asked separately and the asymmetry
+is documented: **undeclared** is strict and comment-free (a second writer appearing unannounced is
+the defect the registry exists for); **stale** is deliberately weaker, prose included, because a
+strict answer is unavailable while paths are threaded through helpers and would false-alarm on all
+four. [[unknown-stays-unknown]]
+
+`render_check` was the one real undeclared toucher and is now declared — it seeds a synthetic
+tombstone ledger inside the render sandbox so the TOMBSTONE lane has rows to photograph. It writes
+to `<hist>`, never `tv/`.
+
+**4. `test_the_heart_can_see_its_own_instruments` — TWO RESOLVERS FOR ONE QUESTION, ONE FIXED.**
+Eight red-proofs were reported "names a file that does not exist: 'bible.html'". The file exists —
+at the repo ROOT. **v2821 had already fixed exactly this inside heart2** (`RESOLVE AGAINST tv/
+FIRST, THEN THE REPO COPY'S ROOT`, measured then as "59 of 259 gates read bible.html, so 23% of the
+suite could never prove itself"), and left the well-formedness law joining against `tv/` only. So
+the engine could apply a proof its own law called malformed. Extracted
+`heart2.resolve_proof_target()`; both now call it. [[copy-drift]]
+
+**★ AND ONE BUG WAS HIDING ANOTHER.** With the file finally found, the law ran the check behind it
+and caught a real one: `test_the_ledger_cannot_lie_about_what_it_saw[1]` declared 1 match and
+**matched 0** — its anchor quoted a pattern I had since tightened from a character class
+`["']{3}` to an explicit alternation. A declared proof that changes nothing. Re-anchored, intent
+unchanged, and now **PROVEN (1 match tampered → red)**. [[sabotage-is-usually-the-wrong-one]]
+
+**5. `test_the_blueprint_cannot_go_stale`** — BLUEPRINT.md had not been regenerated. My own rule
+says it is the LAST step before a push and I had skipped it. Regenerated, 306 lines.
+
+⚠ **THE REST OF THE 19 ARE NOT CLOSED.** The remaining ~14 do NOT reproduce here, and several name
+their cause outright — `no module named 'numpy'`, `no journal at sessions.jsonl`, `no reels on
+disk`. Those are gates whose fixture is the HOST: they pass on a machine holding his data and fail
+on a bare runner, which makes them un-actionable signal on CI rather than proof of anything.
+Un-diagnosed and still red — counted, not fixed. [[feedback-blind-fixture-green-gate]]

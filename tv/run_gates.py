@@ -1566,6 +1566,22 @@ GATES = [
              "oscillate for ever, appending a transition row to an append-only store on every "
              "walk. It reads ACTOR rows only. Proven live: walk 1 moved 6, walk 2 moved 0.",
          ),
+    Gate("test_the_fleet_lane_reaches_the_heart",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_lane_reaches_the_heart.py")], 120,
+         why="THE FLEET FAILED ON HIS SCREEN AND THE HEART HAD NEVER HEARD THE WORD. 2026-09-09 "
+             "11:07, photographed: the card read `fleet unreachable — <urlopen error _ssl.c:1112: "
+             "The handshake operation timed out>` while the heart's own footer two inches below "
+             "said 8 dark, and not one of those 8 was the fleet. MEASURED: `grep -c fleet` was 0 "
+             "in BOTH heart.py and lane_census.py, and CHECKS carried no fleet row — the lane was "
+             "not failing its supervision, it HAD none. ⚠ AND THE PANEL ALREADY HELD THE ANSWER: "
+             "fleet_presence_last_good() was built in v2815 to keep 'who did we last see' separate "
+             "from 'did the fetch work', and `grep -c lastGood control_ui.html` was 0 — one "
+             "producer, no consumer, so a console holding a three-machine roster rendered a C "
+             "source location instead. ⚠⚠ THE SCRIPT-BLOCK HALF IS PART OF THE LAW: control_ui "
+             "has two blocks and a call across them throws at call time and paints nothing, which "
+             "has shipped four times — a fix declaring the helper in the wrong block would restore "
+             "the exact blank card and pass every hand-check, so colocation is asserted.",
+         ),
     Gate("test_the_river_reaches_the_heart",
          [sys.executable, os.path.join(HERE, "test_the_river_reaches_the_heart.py")], 180,
          why="THE RIVER MEASURED ITSELF FOR NOBODY. `tv/river.py` walks ELEVEN joints, grades each "

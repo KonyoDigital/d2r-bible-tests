@@ -346,6 +346,28 @@ def _write_state(results):
         json.dump(out, fh, indent=1, sort_keys=True)
 
 
+def resolve_proof_target(base, rel):
+    """Where a RED_PROOF's `file` actually lives. -> str
+
+    tv/ first, then the repo root one level up — because 59 of 259 gates name `bible.html`, which
+    sits at the root, and resolving it only against tv/ made 23% of the suite UNPROVABLE for want
+    of a path (v2821).
+
+    ⚠⚠ IT IS A FUNCTION BECAUSE THE SECOND COPY OF THIS RULE WENT STALE. v2821 fixed the resolution
+    inside `_prove_one` and left `test_the_heart_can_see_its_own_instruments` joining against tv/
+    only — so the engine could apply a proof that its own well-formedness law called malformed.
+    MEASURED on CI: 8 red-proofs reported as "names a file that does not exist: 'bible.html'",
+    every one of them applyable and correct. Two resolvers for one question, one of them fixed.
+    [[copy-drift]] [[feedback-contradiction-is-the-finding]]
+    """
+    tgt = os.path.join(base, rel)
+    if rel and not os.path.exists(tgt):
+        alt = os.path.join(os.path.dirname(os.path.abspath(base)), rel)
+        if os.path.exists(alt):
+            return alt
+    return tgt
+
+
 def _prove_one(sandbox, name, filename, pr, idx, say):
     tgt_rel = str(pr.get("file") or "")
     # ⚠⚠ v2821 — RESOLVE AGAINST tv/ FIRST, THEN THE REPO COPY'S ROOT.
@@ -359,11 +381,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     # tv/ is inside the repo copy, so every previously-legal target stays legal and nothing new is
     # reachable except files the copy itself contains.
     _repo_copy = os.path.dirname(os.path.abspath(sandbox))
-    tgt = os.path.join(sandbox, tgt_rel)
-    if tgt_rel and not os.path.exists(tgt):
-        _alt = os.path.join(_repo_copy, tgt_rel)
-        if os.path.exists(_alt):
-            tgt = _alt
+    tgt = resolve_proof_target(sandbox, tgt_rel)
     # ⚠⚠⚠ THE SANDBOX WAS A CLAIM, NOT A FACT. os.path.join DISCARDS its prefix when the second
     # argument is absolute, and normalises `..` straight out of the tree:
     #     join(sandbox, "control_app.py")           -> <sandbox>/control_app.py

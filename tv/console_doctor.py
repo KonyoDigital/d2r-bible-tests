@@ -2644,7 +2644,80 @@ def _route_health(route):
     return run
 
 
+def _check_the_fleet_lane_is_reachable():
+    """★ THE FLEET WENT UNREACHABLE ON HIS SCREEN AND NOTHING IN THE HEART KNEW THE WORD.
+
+    2026-09-09 11:07, photographed from his own console: the FLEET card read
+    `fleet unreachable — <urlopen error _ssl.c:1112: The handshake operation timed out>` while the
+    heart's own footer two inches below said `♥ 8 dark` — and not one of those 8 was the fleet.
+    Measured at the time: `grep -c fleet` was **0** in heart.py AND in lane_census.py, and CHECKS
+    carried no fleet row. The lane was not failing its supervision; it HAD none. That is the
+    registered-vs-existing gap (21 threads, 11 registered) with a name on it, and it is the first
+    of the unregistered ten to fail somewhere he could see. [[the-unjoined-end]]
+
+    ⚠⚠ IT READS THE CACHE AND NEVER FETCHES. fleet_presence() spends up to 6 SECONDS against an
+    unreachable site, and that is the exact condition this row exists to notice — so a check that
+    called it would add its own six-second stall to every doctor pass at precisely the moment the
+    console is already degraded. Same rule _heart2_census() follows: read what the producer last
+    wrote; never re-run the producer inside a request. [[poll-slower-than-its-interval]]
+
+    ⚠⚠ IT IS DERIVED FROM THE SAME STATE THE CARD PAINTS, ON PURPOSE. His complaint was not that
+    the fleet was down — it was that the SCREEN and the HEART disagreed while sitting two inches
+    apart. A row computed from a second source could reproduce that disagreement in a new place, so
+    this one reads `_FLEET_PRESENCE_CACHE`, which is what `/api/fleet` serves the panel from.
+
+    ⚠ FOUR OUTCOMES, NOT TWO. "Never asked" is not "reachable"; and "unreachable holding a roster"
+    is not "unreachable holding nothing" — the first still has something honest to put on the card,
+    the second leaves him with a blank and is the only unrecoverable one. Collapsing them would
+    grade a cold console as a broken one and hide the case that actually cannot be rendered.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    import time as _t
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, "control_app will not import (%s), so the fleet lane is unmeasured" % str(e)[:60]
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s) — a cache that "
+                         "vanished is not a fleet that is well" % type(e).__name__)
+    last = cache.get("d")
+    good, good_t = cache.get("goodD"), float(cache.get("goodT") or 0.0)
+    now = _t.time()
+
+    if last is None:
+        # ⚠ NOT OK. A console that has never asked knows nothing about the fleet, and saying "ok"
+        # here would mean the row reads green for the entire window in which it is most blind.
+        return UNMEASURED, ("this console has not asked the site for the roster yet, so whether the "
+                            "fleet is reachable is UNKNOWN — it is not 'reachable'")
+
+    if last.get("ok") is not False:
+        on = len(last.get("online") or [])
+        off = len(last.get("offline") or [])
+        age = round(max(0.0, now - float(cache.get("t") or 0.0)), 1)
+        return OK, ("the site answered %ss ago — %d online, %d offline, %d machine(s) known"
+                    % (age, on, off, on + off))
+
+    why = str(last.get("error") or "no reason given")[:90]
+    if good is None:
+        return MISSING, ("the fleet is UNREACHABLE and this console has never received a roster, so "
+                         "the panel has nothing honest to show at all — not a stale list, not a "
+                         "count. Reason: %s" % why)
+    g_on = len(good.get("online") or [])
+    g_off = len(good.get("offline") or [])
+    dur = round(max(0.0, now - good_t), 1) if good_t else None
+    return MISSING, ("the fleet is UNREACHABLE%s, but a roster from that last contact is still in "
+                     "hand — %d online, %d offline, %d machine(s) — so the panel can degrade to a "
+                     "STALE list instead of a blank. Reason: %s"
+                     % (("" if dur is None else " and has been for %ss" % dur),
+                        g_on, g_off, g_on + g_off, why))
+
+
 CHECKS = [
+    # v2843 — THE FLEET, WHICH THE HEART HAD NEVER HEARD OF. `grep -c fleet` was 0 across
+    # heart.py and lane_census.py while his card sat on "unreachable" and the footer said 8 dark.
+    ("fleet reachable", _check_the_fleet_lane_is_reachable),
     # v2277 — four questions nobody was asking. Each was found BY HAND this session, and each was
     # silent by construction: an armed one-shot that would have dropped 273 of his 280 owned names,
     # a lane that had said nothing for 137h, a console asking ITSELF for the board, and my own

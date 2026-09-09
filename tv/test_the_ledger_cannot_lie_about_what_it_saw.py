@@ -144,8 +144,16 @@ RED_PROOF = [
     {
         "why": "letting the seam pattern cross a newline re-arms the diff false positive",
         "file": "second_eye_ledger.py",
-        "find": '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*[\\"\']{3}"), "a +/triple-quote concatenation seam reached the prompt as text"),',
-        "replace": '    (re.compile(r"\\+\\s*[\\"\']{3}"), "a +/triple-quote concatenation seam reached the prompt as text"),',
+        # ⚠ v2844 — RE-ANCHORED. The law\'s own pattern was tightened from a character class
+        # `[\"\']{3}` (which also matches mixed quotes like `"\'"`) to an explicit alternation, and
+        # this sabotage kept quoting the old text — so it matched 0 times and proved nothing while
+        # reporting itself as a declared proof. It only became visible once the resolver fix let
+        # the well-formedness law find the file at all: one bug was hiding the other.
+        # The TAMPER IS UNCHANGED IN INTENT — loosen `[ \\t]` to `\\s` so the seam may cross a
+        # newline, which is exactly the false positive the strict form exists to prevent.
+        # [[sabotage-is-usually-the-wrong-one]]
+        "find": '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
+        "replace": '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
         "matches": 1,
     },
     {

@@ -59,6 +59,15 @@ EXEMPT = {
     "_intake_lease_status":     "in-memory lease dict",
     "getsize":                  "a single os.path.getsize stat() call, microseconds",
     "isfile":                   "a single os.path.isfile stat() call, microseconds",
+    # ⚠ v2844 — EXEMPT FOR A REASON THAT IS TRUE, NOT BECAUSE THEY ARE FREE. Both touch disk.
+    # They are exempt because they run in the timing EPILOGUE, after `_total` has already been
+    # taken, so their cost cannot land in this request's `unattributedMs` — which is the only
+    # thing this law is protecting. Each is also guarded: the load runs at most once per boot
+    # (`_STATUS_TIMING["worstRequest"] or ...`), the save only when a NEW worst is recorded.
+    # ⚠⚠ THE COST IS NOT ZERO, IT IS DEFERRED — it lands on the NEXT request's total, where it is
+    # attributed like any other work. Writing "free" here would have been the convenient lie.
+    "_status_worst_load":       "epilogue-only, after _total is taken; at most once per boot",
+    "_status_worst_save":       "epilogue-only, after _total is taken; only on a new worst",
 }
 
 
@@ -149,8 +158,15 @@ class TheBreakdownIsHonestAboutItself(unittest.TestCase):
         """
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         # the COMPUTED one — the only occurrence that subtracts. Anchored on both ends.
+        # ⚠⚠ v2844 — COMMENT LINES ARE NOT CODE, AND THIS LAW COUNTED THEM. A comment added
+        # directly above the assignment — explaining this very rule, and naming
+        # `"unattributedMs"`, `_total` and `_sum` in one sentence to do so — was counted as a
+        # SECOND computing line, and the gate went red on prose. A law that reads source text must
+        # decide what is source: judge CODE by code and ignore what the comments say about it.
+        # [[feedback-comments-vs-code]] [[source-reading-guard]]
         lines = [l for l in src.split("\n")
-                 if '"unattributedMs"' in l and "_total" in l and "_sum" in l]
+                 if '"unattributedMs"' in l and "_total" in l and "_sum" in l
+                 and not l.lstrip().startswith("#")]
         self.assertEqual(1, len(lines),
                          "expected exactly one line that COMPUTES unattributedMs, found %d — this "
                          "law has lost its target and would inspect the wrong one: %s"

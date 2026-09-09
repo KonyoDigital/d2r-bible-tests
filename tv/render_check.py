@@ -1144,6 +1144,65 @@ TARGETS = {
         "settles": False,
         "warmup": 10.0,
     },
+    # ── v2843 (#55) — THE STATE THE CARD WAS ACTUALLY IN WHEN HE PHOTOGRAPHED IT ────────────
+    # `advanced-fleet` above serves the real console, so it can only ever photograph a REACHABLE
+    # fleet — and every regression this task fixed lives on the UNREACHABLE path. A surface the
+    # harness cannot reach is a surface that regresses unseen, which is how the raw `_ssl.c:1112`
+    # string sat on his card in the first place. [[gate-blind-to-unexercised-input]]
+    #
+    # ⚠ THE STUB IS THE POINT, AND ITS LIMIT IS NAMED. This target intercepts /api/fleet and
+    # answers with a failure payload carrying a lastGood roster, because the live site will not go
+    # down on request. It therefore proves the MARKUP AND LAYOUT of the degraded render — never
+    # that the server actually produces that payload. That second half is a different question and
+    # is guarded by test_the_fleet_lane_reaches_the_heart Law 5, which parses the handler.
+    # [[feedback-blind-fixture-green-gate]] [[the-unjoined-end]]
+    "advanced-fleet-down": {
+        "serve": True,
+        "why": "THE FLEET WHEN IT CANNOT BE REACHED — the state in his 2026-09-09 11:07 "
+               "screenshot, where the card printed a raw <urlopen error _ssl.c:1112> while the "
+               "console was holding a three-machine roster it never showed. Photographs the "
+               "degraded path: humanised cause, hairline rule, and the remembered roster as "
+               "dimmed chips. The payload is stubbed, so this proves the RENDER, not the wire",
+        # ⚠⚠ CLEAR, STUB, THEN RE-ASK — AND THE FIRST CUT DID ONLY THE MIDDLE ONE, WHICH IS WHY
+        # IT WENT GREEN PHOTOGRAPHING THE WRONG STATE. The harness loads the page and waits for it
+        # to settle BEFORE running the seed, so `_fleetRefresh` has already fetched and painted the
+        # REACHABLE card by the time this runs; installing a stub at that point changes nothing,
+        # and `require_filled` then saw the stale healthy fill and passed instantly. Measured: the
+        # target reported 🟢 with text `konyo-3 · v2843 · unpublished` — the success path, under a
+        # name that says "when it cannot be reached". A fixture that cannot reach its own subject
+        # is worse than no target: it occupies the slot and reports coverage.
+        # [[feedback-blind-fixture-green-gate]] [[sabotage-is-usually-the-wrong-one]]
+        "seed": """(function(){
+            try { localStorage.setItem('d2r_advOpen','1'); } catch(e){}
+            var _f = window.fetch;
+            window.fetch = function(u, o){
+              if (String(u).indexOf('/api/fleet') === 0) {
+                return Promise.resolve(new Response(JSON.stringify({
+                  ok: false, online: [], offline: [],
+                  error: "<urlopen error _ssl.c:1112: The handshake operation timed out>",
+                  lastGood: { online: [{machine:'Dean', ver:'v2745'}, {machine:'Konyo', ver:'v2745'}],
+                              offline: [{machine:'Wife PC', ver:'v2101'}] },
+                  lastGoodAgeS: 412
+                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+              }
+              return _f.apply(this, arguments);
+            };
+            var _b = document.getElementById('fleet-list');
+            if (_b) _b.innerHTML = '';
+            if (window._fleetRefresh) { try { window._fleetRefresh(); } catch(e){} }
+            return 1;
+          })()""",
+        # ⚠ AND THE GATE IS THE DEGRADED MARKUP ITSELF, NOT "is the box full". `require_filled`
+        # cannot tell the healthy card from the unreachable one — both fill the box. This refuses
+        # until `.fleet-dead` exists, so the target can only ever pass on the state it is named for.
+        "activate": ("(function(){ var _b = (%s); if (!_b) return false; "
+                     "return !!document.querySelector('#fleet-list .fleet-dead') "
+                     "&& document.querySelectorAll('#fleet-list .fleet-stale-m').length === 3; })()"
+                     % _adv_activate("fleet-list")),
+        "sel": "#fleet-list, .fleet-dead, .fleet-was, .fleet-stale-m",
+        "settles": False,
+        "warmup": 10.0,
+    },
 
     "inbox": {
         "why": "the chronicle inbox — the rows he answers",

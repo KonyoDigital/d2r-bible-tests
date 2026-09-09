@@ -1669,6 +1669,9 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2845** | `(this commit)` | v2845 — five gates were red on CI for versions and only reading CI found them |
+| **v2844** | `(this commit)` | v2844 — a new render target went green on the state it was named against |
+| **v2843** | `(this commit)` | v2843 — the fleet failed on his screen and the heart had never heard the word |
 | **v2842** | `(this commit)` | v2842 — REG-804..805 — a character floor let a prose-padded promise through at 2409 chars with one code line; the floor is now code lines, measured 1 versus 55-69. Plus realpath over abspath and a fallback that finally says it degraded |
 | **v2841** | `(this commit)` | v2841 — REG-803 — heart2 swallowed a parse failure into prior={} and the merge would have erased provedGates and the blind list, writing the wipe over the only copy; a corrupt ledger now refuses the write, proven by exit 2 with the file left byte-for-byte intact. The swallow ratchet is back to 74/74 |
 | **v2840** | `(this commit)` | v2840 — REG-801 — infrastructure() measured a share over 242 globbed files while the gate registry holds 266; the registry is now the corpus, scoped to the directory asked about. Three of the same review four other claims did not survive measurement and were not acted on |

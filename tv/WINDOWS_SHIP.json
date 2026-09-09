@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2842",
+  "ver": "v2845",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2842: REG-804..805 — a character floor let a prose-padded promise through at 2409 chars with one code line; the floor is now code lines, measured 1 versus 55-69. Plus realpath over abspath and a fallback that finally says it degraded",
+  "note": "v2845: five gates were red on CI for versions and only reading CI found them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
