@@ -4236,6 +4236,25 @@
   .ftt-seed-rows .ftts-unsynced .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
   /* v2850 — the fleet card states a verdict, not three figures */
   .ftt-row.ftt-sync { display: flex; align-items: baseline; gap: 8px; }
+  /* v2875 — numbers on one line, one verdict word beside the name */
+  .ftt-counts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; margin-top: 4px; }
+  .ftt-counts .ftt-c { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+  .ftt-counts .ftt-cl { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono);
+                        letter-spacing: var(--ls-wide); text-transform: uppercase;
+                        color: var(--muted, #8b8071); }
+  .ftt-counts .ftt-cv { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);
+                        font-variant-numeric: tabular-nums; color: #e8cf96; }
+  .ftt-counts .ftt-sep { color: var(--muted, #8b8071); opacity: .55; font-style: normal; }
+  .ftt-h .ftt-w { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+                  letter-spacing: .04em; text-transform: lowercase; margin-left: 6px; }
+  .ftt-h .ftt-w.ftts-synced   { color: var(--mint, #8fe6a0); }
+  .ftt-h .ftt-w.ftts-unsynced { color: var(--warn, var(--gold-dim)); }
+  .ftt-h .ftt-w.ftts-unknown  { color: var(--muted, #8b8071); font-style: italic; }
+  /* v2875 — the row says one word, and the detail it replaced is one hover away */
+  .fleet-meta.fleet-word { font-weight: var(--fw-semibold); letter-spacing: .03em; }
+  .fleet-meta.fleet-word.ftts-synced   { color: var(--mint, #8fe6a0); }
+  .fleet-meta.fleet-word.ftts-unsynced { color: var(--warn, var(--gold-dim)); }
+  .fleet-meta.fleet-word.ftts-unknown  { color: var(--muted, #8b8071); font-style: italic; }
   .ftt-row.ftt-sync .ftt-v { font-weight: var(--fw-semibold); letter-spacing: .02em; }
   .ftt-row.ftt-sync .ftts-synced   { color: var(--mint, #8fe6a0); }
   .ftt-row.ftt-sync .ftts-unsynced { color: var(--warn, var(--gold-dim)); }
@@ -20902,6 +20921,24 @@ function escC(s) {
              + 'empty rather than drawn full. ' + (d.why || ''));
         var _mine = (_MINE && _MINE[lab] && typeof _MINE[lab].have === 'number')
                     ? _MINE[lab].have : null;
+        /* ⚠⚠ v2875 — THE NUMBERS COME BACK, AND THE VERDICT BECOMES ONE WORD PER MACHINE.
+           Konyo, reading this card on 2026-09-10: *"the numbers are hiddden within fleet.. 99/99
+           128/135 300/403 for me"* and *"and for my cuzin too / 96/99 130/135 0/403"* —
+           *"should be rendering this"*. v2850 answered an earlier ask ("just keep next to uniques
+           and sets and runewords sycned or unsynced") by replacing the arithmetic with a word and
+           moving the figures into the hover title. On HIS OWN row that produced `this console`
+           three times over, which tells him nothing at all, and Dean's 0/403 — the single most
+           important number on the card — was invisible.
+           MEASURED on his live /api/fleet the moment he asked, and his figures were exact:
+               konyo-3           sets 128/135  uniques 300/403  runewords 99/99
+               LAPTOP-QNFL860M   sets 130/135  uniques   0/403  runewords 96/99
+               AdiJusid          no tally at all
+           His ruling on the shape: numbers only on the ledgers, ONE word beside the name.
+           ⚠ THE WORD IS STILL NOT BINARY. Three machines, four outcomes: the reference row, a row
+           with nothing to compare against, a row that reported nothing, and agree/disagree. A
+           machine that never reported is not "unsynced" — nothing was compared. That distinction
+           is the one this card has already had to ship twice.
+           [[unknown-stays-unknown]] [[label-outlived-referent]] [[zero-needs-a-denominator]] */
           var _word, _cls, _why;
           if (isMe) {
             /* ⚠ THE REFERENCE ROW CANNOT BE "SYNCED WITH ITSELF". It compared nothing, and a
@@ -20923,24 +20960,61 @@ function escC(s) {
             _why  = 'this machine reports ' + p.have + ', this console has ' + _mine
                   + ' \u2014 a difference of ' + Math.abs(p.have - _mine) + '. ';
           }
-          return '<div class="ftt-row ftt-sync" title="'
-            + escC(_why + (val ? '(' + val + ' ' + (unit || '') + ') ' : '') + (ttl || '')) + '">'
-            + '<span class="ftt-l">' + escC(lab) + '</span>'
-            + '<span class="ftt-v ' + _cls + '">' + escC(_word)
+          /* the NUMBER is what renders; `_word`/`_why` are carried into the hover so the
+             per-ledger verdict is hidden, not deleted — the same trade v2850 made in reverse. */
+          return '<span class="ftt-c" title="'
+            + escC(_word + ' \u2014 ' + _why + (ttl || '')) + '">'
+            + '<span class="ftt-cl">' + escC(String(lab).toUpperCase()) + '</span> '
+            + '<span class="ftt-cv ' + _cls + '">' + escC(val) + '</span>'
             + (drift ? '<i class="ftt-drift" title="that machine is on a different roster">\u26a0</i>' : '')
-            + '</span></div>';
+            + '</span>';
+      };
+      /* ONE WORD FOR THE MACHINE. `synced` only when every ledger it reports agrees with this
+         console — the numbers beside it say which one differs, so the word does not have to. */
+      var _machineWord = function (t, isMe) {
+        if (isMe) return {w: 'this console', c: 'ftts-unknown',
+                          t: 'the machine you are reading the card ON \u2014 the reference the '
+                           + 'others are compared against, so it has nothing to agree with'};
+        if (!_MINE) return {w: 'no reference', c: 'ftts-unknown',
+                            t: 'this console\u2019s own row is not in the roster, so there is '
+                             + 'nothing to compare against \u2014 not the same as disagreeing'};
+        var seen = 0, same = 0;
+        ['sets', 'uniques', 'runewords'].forEach(function (k) {
+          var p = t && t[k], mine = _MINE && _MINE[k];
+          if (!p || typeof p.have !== 'number') return;
+          if (!mine || typeof mine.have !== 'number') return;
+          seen++; if (p.have === mine.have) same++;
+        });
+        if (!seen) return {w: 'no report', c: 'ftts-unknown',
+                           t: 'this machine reported no ledger this console can compare \u2014 '
+                            + 'UNMEASURED, which is not the same as disagreeing'};
+        if (same === seen) return {w: 'synced', c: 'ftts-synced',
+                                   t: 'every one of the ' + seen + ' ledger(s) it reports agrees '
+                                    + 'with this console'};
+        return {w: 'unsynced', c: 'ftts-unsynced',
+                t: (seen - same) + ' of ' + seen + ' ledger(s) disagree with this console \u2014 '
+                 + 'the figures beside the name say which'};
       };
       var _tip = function (m) {
         var t = m.tally;
         if (!t || !t.ok) {
+          /* ⚠ v2875 — A MACHINE THAT REPORTED NOTHING IS `no report`, NEVER `unsynced`.
+             Nothing was compared. This card has shipped the opposite defect once already
+             ("UNIQUES SYNCED over 0/403"). [[unknown-stays-unknown]] */
           return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
-            + '</div><div class="ftt-none">no counts reported yet'
+            + ' <span class="ftt-w ftts-unknown" title="this machine has sent no counts, so '
+            + 'there is nothing to compare \u2014 UNMEASURED, not disagreement">no report</span>'
+            + '</div><div class="ftt-none">nothing recorded'
             + (t && t.why ? (' — ' + escC(String(t.why).slice(0, 90))) : '')
             + '</div></div>';
         }
         var _isMe = !!(m && m.machine && j && j.me && m.machine === j.me);
-        var bars = _bar('sets', t.sets, _isMe) + _bar('uniques', t.uniques, _isMe)
-                 + _bar('runewords', t.runewords, _isMe);
+        var _cs = [_bar('sets', t.sets, _isMe), _bar('uniques', t.uniques, _isMe),
+                   _bar('runewords', t.runewords, _isMe)].filter(function (s) { return !!s; });
+        var bars = _cs.length
+          ? '<div class="ftt-counts">' + _cs.join('<i class="ftt-sep">\u00b7</i>') + '</div>'
+          : '';
+        var _mw = _machineWord(t, _isMe);
         /* ⚠⚠ v2739 — SAY WHEN A ROW'S PROGRESS WAS INHERITED RATHER THAN EARNED.
            Konyo, reading Dean's card: "it should be rendering for him 0 meaning its not and has
            not been sycned yet based on his profile and ledgers".
@@ -20988,7 +21062,8 @@ function escC(s) {
             + '</div>'
           : '';
         return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
-          + '</div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
+          + ' <span class="ftt-w ' + _mw.c + '" title="' + escC(_mw.t) + '">' + escC(_mw.w)
+          + '</span></div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
           + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
           + '</div></div>';
       };
@@ -21176,7 +21251,24 @@ function escC(s) {
           + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
           + '<b>' + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
-          + '<span class="fleet-meta">' + meta + '</span>'
+          /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
+             next to our names ... should just say synced/unsynced without the rest of the
+             information"*. The row carried `idle · v2874 · unpublished · just now`, and
+             `roster refused its beacon · presence UNKNOWN, not offline · 771 behind · last
+             recorded 8d ago` — every word of it true, and none of it the question he opens
+             this panel to ask, which is whether that machine agrees with his.
+             ⚠ HIDDEN, NOT DELETED, and that is not a nicety: v2249, v2283 and v2296 each
+             shipped because a machine that was dark READ AS HEALTHY. `unpublished`,
+             `not pulling`, `presence UNKNOWN` and how far behind are the signals that
+             caught those, so they move to the row's hover with the markup stripped rather
+             than out of the console. [[unknown-stays-unknown]] [[label-outlived-referent]] */
+          + (function () {
+              var w = _machineWord(m.tally, !!(m && m.machine && j && j.me && m.machine === j.me));
+              var plain = String(meta || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+              return '<span class="fleet-meta fleet-word ' + w.c + '" title="'
+                + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
+                + escC(w.w) + '</span>';
+            })()
           + _tip(m) + '</div>';
       };
       var rows = (j.online || []).map(function (m) { return _row(m, true); })

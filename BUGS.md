@@ -313,6 +313,107 @@ The behavioural law now prints `OK` from `atexit` — the shape that actually st
 arms had to be re-pointed because the rewrite moved their anchors; both showed **0 matches** first,
 found by printing the count, not by the prover. Six arms, twelve laws, all PROVEN.
 
+### REG-846 — the lane that knows what is owed is not the lane that runs
+
+**v2875.** Konyo, 2026-09-10, on THE SHELF: *"why has it not each been extracted its been there for
+days... make sure they do and continue on the river stream to get deleted"*. Measured on his real
+footage, and the answer is neither "the footage is empty" nor "the reader is bad":
+
+    _chron_owed_count()      ->  41    the chronicle lane: every reel on disk owes a read
+    vaultAutoread.owed       ->   0    the lane that is ON, ticking every 45s
+    vaultAutoread.reads      ->   0    it has never performed a single read
+    vaultAutoread.lastTs     ->  null
+
+Two counters, one question, opposite answers — and the one that is wired to a timer is the one
+that says there is nothing to do. [[feedback-contradiction-is-the-finding]] [[the-unjoined-end]]
+
+**What that leaves on disk.** 41 reels, 6.0 GB, all swept at `promptVer p1839`, 38 sealed with
+`pages: 0`. The sweep record carries a `looked` flag, and it separates the two cases the retention
+rule cannot:
+
+    36 of 38   looked=False,  why=None                                    ← NEVER READ
+     2 of 38   looked=True,   why="read and found no chronicle page —
+                                   measured zero, not unread"             ← genuinely empty
+
+`reel_retention` reads `pages: 0` as *"sealed with 0 pages — this reader found nothing"* for all 38.
+So **an unread reel wears a measured zero's clothes**, is called "not done", and is kept forever —
+while the thing that would make it done never runs. The v2202 note in `control_app.py` already
+draws this distinction for re-reads (*"A RECORDED LOOK THAT FOUND NOTHING IS NOT AN UNREAD REEL"*)
+and the retention rule never learned it. [[unknown-stays-unknown]]
+
+⚠ **A CORRECTION I OWE, IN THE SAME BREATH.** I first reported this as *"6,769 frames on disk, 439
+classified = 6.49% — the reader barely looked"*. **That inference was wrong.** `classified` counts
+PAID classify calls, one per RUN of near-identical frames, not frames examined; `chronicle_retro`
+measures the tradeoff explicitly — `coarse tol=28: 55 classifies` vs `fine tol=4: 289 classifies`,
+*"identical coverage, 68% more spend"*. A low classified/frames ratio is that design working. The
+number was real and the conclusion drawn from it was not. [[measured-true-read-wrong]]
+
+**Also this ship, on his instruction** *"okay make it last 8"*: `KEEP_RECENT` 5 → 8 in BOTH
+`reel_retention.py` and `frame_authority.py`, with `test_the_two_keep_floors_agree` (4 laws, 2
+red-proofs, both PROVEN) pinning them together — one guards reels from deletion, the other the
+frames inside them, and a frame floor below the reel floor empties a reel the retention rule swore
+never to touch. The extraction precondition STAYS, per his ruling *"reswept and then delete and
+retired"*. `_PRUNE_SAFE_TO_RUN` remains False.
+
+### REG-847 — a chronicle verdict held stash footage, and lifting it exposed a seal with nothing behind it
+
+**v2875.** Konyo: *"all of the reels get extracted with information thats needed.. whatever doesn
+have information on the reels get filtered anyways and go to tombstone"*. Two rules, each other's
+safety.
+
+**1 · `zero-pages` held reels for an event that cannot happen.** Its sentence — *"the engine
+reopens these when the prompt improves"* — is right for footage containing a Chronicle screen the
+reader failed to read, and meaningless for footage that has none.
+
+    held as   zero-pages 25 · test-fixture 8 · recent 8      (vault-owes NEVER reached)
+    2,437 panel frames, 36% of all footage
+    stash 1855 · shared 407 · personal 121 · materials 40 · runes 10 · gems 4
+    chronicle: ZERO — and across all 454 surveyed reels in his store, never once
+
+`retro_triage.PANEL_KINDS` carries `'chronicle'`, so the survey CAN say it and never has. 25 reels
+of stash footage were held by a chronicle verdict while `vault-owes` — the rule that would claim
+them — was never reached, because `zero-pages` matched first. `reel_retention` predicted it in its
+own comment: *"the vault-owes tag genuinely never fires on his tree because earlier rules match
+first... a LATENT defect the day a reel legitimately reaches it."*
+
+**2 · And lifting it exposed eleven reels the chain called finished.** They came back as *"sealed by
+BOTH lanes — it has given up its information"*:
+
+    reel_s_1787508759592_46621   73 panels in  80 frames   148 MB
+    reel_s_1787512325134_62795   64 panels in  67 frames   124 MB
+    reel_s_1788105158696_89699   49 panels in  49 frames    88 MB
+
+A vault SEAL existed for each with **zero rows behind it**, and the vault lane has never run.
+`rows-not-banked` could not catch them: it fires only when rows EXIST and are not durable, never
+when the count is zero and the panels are real. **A seal is not an extraction.** `panels-never-banked`
+is that missing case, ordered before `rows-not-banked` because it is the same lane at a different
+count.
+
+    MEASURED after both:  41 on disk · 34 kept · 7 candidates (3,565 MB)
+    held: test-fixture 8 · panels-never-banked 18 · recent 8
+    all 7 survivors: panels on film AND rows durable — genuinely extracted
+
+⚠ **THE WIRING GATE CAUGHT THE GAP BEFORE I DID.** Adding a rule to `RULES` turned
+`test_reel_story` red: *"Lists differ: ['panels-never-banked'] != []"* — a verdict `plan()` can emit
+with no stage in the river draws the reel nowhere. Stage added at `banked`, not `swept`: the reel
+HAS been swept and surveyed; what has not happened is the extraction.
+
+⚠ **AND `KEEP_RECENT` 5 → 8 BROKE A FIXTURE, CORRECTLY.**
+`test_the_two_deleters_share_one_window` built exactly 8 reels — `KEEP_RECENT+3` when the constant
+was 5 — so the whole fixture fell inside the shield and the law went red on a correct tree. Its own
+message said so: *"the oldest reel is inside the shield, so nothing is ever prunable"*. Now sized
+from the constant. A fixture tied to a constant must be DERIVED from it.
+[[feedback-blind-fixture-green-gate]]
+
+⚠ **AND THE NEW GATE WAS BLIND FIRST, FOR THE REASON REG-844 NAMED.** Reading `frames/hist`
+directly, it skipped in the sandbox — `safe_copy` carries the JSON stores and leaves the 6 GB of
+film behind. heart2's own v2874 wording diagnosed it on sight: *"3 of 5 law(s) SKIPPED, but the
+other 2 DID run and stayed green — so the law IS weak, and separately some laws opted out."* Rebuilt
+on an isolated shelf (TV_HIST redirects the survey store; v2750 made `plan()` read the caller's
+ledgers), both arms now PROVEN.
+
+`_PRUNE_SAFE_TO_RUN` remains **False**. Nothing has been deleted.
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

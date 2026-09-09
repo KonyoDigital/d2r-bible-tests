@@ -44,7 +44,14 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-KEEP_RECENT = 5          # never touch the newest five, whatever the ledgers say
+KEEP_RECENT = 8          # never touch the newest EIGHT, whatever the ledgers say
+#: ⚠⚠ v2875 — 5 -> 8 ON HIS INSTRUCTION, 2026-09-10: *"okay make it last 8"*, after he
+#: asked whether the prune was working and the measurement said it never had. He also ruled
+#: that the extraction precondition STAYS (*"reswept and then delete and retired"*), so this
+#: is a widened floor, not a loosened rule.
+#: ⚠ THE SAME NUMBER LIVES IN frame_authority.py. Two copies of one constant is how a floor
+#: silently stops being a floor, so test_the_two_keep_floors_agree pins them together.
+#: [[copy-drift]]
 MIN_PAGES = 1            # "evidence banked" means at least one page was actually read
 
 
@@ -257,6 +264,91 @@ def _vault_lane_owes(reel_path):
 _TRIAGE_CACHE = {"at": None, "store": None}
 
 
+def _panels_never_banked(reel):
+    """A full survey saw panels here, and the vault ledger holds nothing from this reel. -> bool
+
+    ⚠ UNKNOWN KEEPS THE REEL, as everywhere in this file: no survey, a sampled pass, an unreadable
+    store or any exception returns False only when we can positively say the panels were banked;
+    every other not-knowing returns True and HOLDS. The cost of being wrong is footage with no
+    un-delete. [[unknown-stays-unknown]]
+    """
+    try:
+        import os as _os
+        import retro_triage as _rt
+        p = _rt._store_path()
+        key = (p, _os.path.getmtime(p))
+        if _TRIAGE_CACHE["at"] != key:
+            store, ok = _rt.load()
+            if not ok:
+                return False              # cannot read the survey -> other rules decide
+            _TRIAGE_CACHE["store"] = store
+            _TRIAGE_CACHE["at"] = key
+        rec = (_TRIAGE_CACHE["store"] or {}).get(reel)
+        if not isinstance(rec, dict) or not rec.get("full"):
+            return False                  # not surveyed -> _proven_empty/never-swept rules apply
+        if int(rec.get("panels") or 0) <= 0:
+            return False                  # genuinely no panels -> nothing to bank -> may retire
+        return _reel_ts_key(reel) not in _DURABLE
+    except Exception:
+        return False
+
+
+def _no_chronicle_to_find(reel):
+    """Did a FULL survey of this reel find no chronicle panel at all? -> bool
+
+    ⚠⚠ v2875 — THE `zero-pages` RULE HOLDS REELS FOR AN EVENT THAT CANNOT HAPPEN.
+
+    Konyo, 2026-09-10: *"whatever doesn have information on the reels get filtered anyways and go
+    to tombstone eventually within the filtering system and process"*.
+
+    `zero-pages` says "sealed with 0 pages — the engine reopens these when the prompt improves".
+    That is exactly right for footage that CONTAINS a Chronicle screen the reader failed to read.
+    It is meaningless for footage that has none: no future prompt can find a page in a reel where
+    the Chronicle was never on screen, so the reel is held for ever by a verdict from a lane that
+    was never the right one for it.
+
+    MEASURED on his tree, 2026-09-10:
+        41 reels on disk, retention holding them as   zero-pages 25 · test-fixture 8 · recent 8
+        2,437 panel frames across those reels (36% of all footage)
+        kinds: stash 1855 · shared 407 · personal 121 · materials 40 · runes 10 · gems 4
+        chronicle: ZERO — and across ALL 454 surveyed reels in his store, never once
+    `retro_triage.PANEL_KINDS` carries 'chronicle', so the survey CAN say it and never has. Those
+    25 reels are stash footage, and their stash rows are the VAULT lane's work — which the chain
+    never reaches, because `zero-pages` matches first. The file predicted this: "the vault-owes tag
+    genuinely never fires on his tree because earlier rules match first... a LATENT defect the day
+    a reel legitimately reaches it."
+
+    ⚠ THIS DOES NOT DELETE ANYTHING. It only stops a chronicle verdict from being the reason, so
+    the reel falls through to the rules that actually apply to it — rows-not-banked, vault-owes,
+    the receipt hold. Every one of those can still keep it.
+
+    ⚠ NOT SURVEYED IS NOT "NO CHRONICLE". A missing store, an unreadable one, a reel absent from
+    it, a SAMPLED pass, or any exception all return False — which KEEPS the chronicle hold. Same
+    doctrine as _proven_empty, for the same reason: the cost of being wrong is footage with no
+    un-delete. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    """
+    try:
+        import os as _os
+        import retro_triage as _rt
+        p = _rt._store_path()
+        key = (p, _os.path.getmtime(p))
+        if _TRIAGE_CACHE["at"] != key:
+            store, ok = _rt.load()
+            if not ok:
+                return False
+            _TRIAGE_CACHE["store"] = store
+            _TRIAGE_CACHE["at"] = key
+        rec = (_TRIAGE_CACHE["store"] or {}).get(reel)
+        if not isinstance(rec, dict) or not rec.get("full"):
+            return False                      # never surveyed, or sampled -> UNKNOWN -> keep
+        kinds = rec.get("kinds")
+        if not isinstance(kinds, dict):
+            return False                      # no kind breakdown -> cannot say -> keep
+        return int(kinds.get("chronicle") or 0) == 0
+    except Exception:
+        return False
+
+
 def _proven_empty(reel):
     """Has the FREE pass fully surveyed this reel and found no panel at all? -> bool
 
@@ -308,6 +400,11 @@ def _proven_empty(reel):
 # assert it has a stage for each one — see tv/test_reel_story.py.
 RULES = ("no-witness-index", "ledger-unreadable", "holds-proof", "test-fixture", "recent",
          "never-chronicle-swept", "zero-pages",
+         # v2875 — panels on film with NOTHING in the ledger. Ordered BEFORE rows-not-banked
+         # because that rule fires only when rows exist and are not durable; this one is the case
+         # where the count is ZERO and the panels are real, which is the state a seal-with-no-rows
+         # leaves behind. It is the safety half of _no_chronicle_to_find.
+         "panels-never-banked",
          "rows-not-banked", "vault-owes", "target-met", "eligible")
 
 
@@ -650,10 +747,30 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         elif ce is None and not _proven_empty(reel):
             why = _rule("never-chronicle-swept",
                         "never chronicle-swept — it has not been read even once")
-        elif pages < MIN_PAGES and not _proven_empty(reel):
+        elif pages < MIN_PAGES and not _proven_empty(reel) and not _no_chronicle_to_find(reel):
             why = _rule("zero-pages",
                         "sealed with 0 pages — that is 'this reader found nothing', not 'done'; "
                         "the engine reopens these when the prompt improves")
+        elif _panels_never_banked(reel):
+            # ⚠⚠⚠ v2875 — THE SAFETY HALF OF _no_chronicle_to_find, AND IT IS NOT OPTIONAL.
+            # Lifting the chronicle hold exposed eleven reels the chain then called
+            # "sealed by BOTH lanes — it has given up its information". MEASURED, they had not:
+            #     reel_s_1787508759592_46621   73 panels in  80 frames   148 MB
+            #     reel_s_1787512325134_62795   64 panels in  67 frames   124 MB
+            #     reel_s_1788105158696_89699   49 panels in  49 frames    88 MB
+            # A vault SEAL existed for each, with ZERO rows behind it — the same "a seal that
+            # records nothing" defect as the chronicle side, and the vault lane has never run
+            # (reads: 0). `rows-not-banked` below could not catch them: it fires only when rows
+            # EXIST and are not durable, never when the count is zero and the panels are real.
+            #
+            # Konyo's rule is the order, not just the outcome: *"all of the reels get extracted
+            # with information thats needed"* BEFORE the tombstone. Panels on film with nothing in
+            # the ledger is unextracted information, whatever any seal says.
+            # [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
+            why = _rule("panels-never-banked",
+                        "a FULL survey found panel frames here and the vault ledger holds NO row "
+                        "from this reel — its stash rows have never been extracted, so deleting it "
+                        "destroys the only copy. A seal is not an extraction.")
         elif (ve or {}).get("rows") and _reel_ts_key(reel) not in _DURABLE:
             # v2056 — READ IS NOT BANKED. This reel produced rows and none of them reached a store
             # that outlives the frames, so deleting it destroys the only record of those witnesses.

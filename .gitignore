@@ -238,3 +238,6 @@ tv/.fixture_reels_cache.json
 # v2692 — derived route analysis, keyed on the sources' newest mtime + file count (the SAME key
 # chronicle_routes._MEMO already trusts). Runtime artifact; rebuilt from the tree in ~10s.
 tv/.chronicle_routes_cache.json
+
+# v2875 — the driver's own heartbeat: a runtime RECORD, like .heart2.json and reel_tombstones.
+tv/.shelf_driver.json

@@ -147,7 +147,15 @@ class TheTwoDeletersShareOneWindow(unittest.TestCase):
         v2750 host-dependency) it cannot come out differently on CI than it does here."""
         tmp = tempfile.mkdtemp(prefix="keeprecent_")
         try:
-            names = ["reel_s_17870000000%02d_100" % i for i in range(8)]
+            # ⚠ v2875 — SIZED FROM THE CONSTANT, NOT FROM A LITERAL. This built exactly 8 reels,
+            # which was KEEP_RECENT+3 when KEEP_RECENT was 5. Konyo raised the floor to 8 and the
+            # whole fixture fell inside the shield, so the law asserting "the oldest is prunable"
+            # went red on a correct tree — the test's own message said it: "the oldest reel is
+            # inside the shield, so nothing is ever prunable". A fixture whose size is tied to a
+            # constant must be DERIVED from it, or the guard breaks the day the constant moves.
+            # [[feedback-blind-fixture-green-gate]] [[label-outlived-referent]]
+            _n = FA.KEEP_RECENT + 3
+            names = ["reel_s_17870000%04d_100" % i for i in range(_n)]
             for n in names:
                 os.makedirs(os.path.join(tmp, n))
             held = FA.recent_reels(tmp)

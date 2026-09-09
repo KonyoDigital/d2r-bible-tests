@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2875** | `(this commit)` | v2875 — the sweep never stamped the branch that read, a chronicle verdict held stash footage, and lifting it exposed a seal with nothing behind it |
 | **v2874** | `(this commit)` | v2874 — hunting the unittest result backwards let any later result-shaped line steal it, and the fixture printed the wrong kind of noise to notice |
 | **v2873** | `(this commit)` | v2873 — a law read two states where the river grades three, and the sandbox carries every live store while CI carries none |
 | **v2872** | `(this commit)` | v2872 — the skip count was still taken from whatever printed last, and the proposal file kept the binary framing |

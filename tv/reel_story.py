@@ -44,6 +44,14 @@ TAG_STAGE = {
     "ledger-unreadable":  "triaged",     # our picture of what is banked is unknown, for every reel
     "never-chronicle-swept": "swept",
     "zero-pages":         "swept",       # swept, and the sweep found nothing to read
+    # ⚠ v2875 — STUCK BEFORE `banked`, NOT BEFORE `swept`. A reel wearing this HAS been swept and
+    # HAS been surveyed: the survey is what found the panels. What has not happened is the
+    # extraction — the vault ledger holds no row from it, so its stash rows live only in the
+    # frames. Drawing it as stuck at `swept` would say the reader never got there; it did, and the
+    # information simply never reached a store. Sits beside rows-not-banked because it is the same
+    # lane at a different count: that one fires when rows exist and are not durable, this one when
+    # the count is ZERO and the panels are real. [[label-outlived-referent]]
+    "panels-never-banked": "banked",
     "rows-not-banked":    "banked",
     "vault-owes":         "vault-done",
     # v2848 — TAUGHT, not guessed. `holds-proof` (reel_retention v2815) fires from the LAST

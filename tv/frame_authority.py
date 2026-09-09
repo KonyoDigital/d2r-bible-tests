@@ -49,7 +49,11 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-KEEP_RECENT = 5            # never touch the newest five reels, whatever any ledger says
+KEEP_RECENT = 8            # never touch the newest EIGHT reels, whatever any ledger says
+#: ⚠ v2875 — 5 -> 8 with reel_retention.KEEP_RECENT, on his instruction. These two MUST
+#: agree: one guards reels, the other the frames inside them, and a frame floor lower than
+#: the reel floor would empty a reel the retention rule swore never to touch.
+#: test_the_two_keep_floors_agree holds them together. [[copy-drift]]
 DURABLE_STORES = ("vault_accum.json", "vault_seen.json")
 SEAL_STORE = "vault_swept.json"
 

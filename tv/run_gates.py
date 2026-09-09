@@ -833,6 +833,29 @@ GATES = [
              "text-scanned and answered 18, because prose naming the harness counted as looking at "
              "pixels. Both laws parse rather than grep.",
          skip_ok=()),
+    Gate("test_a_seal_is_not_an_extraction",
+         [sys.executable, os.path.join(HERE, "test_a_seal_is_not_an_extraction.py")], 120,
+         why="v2875 — `zero-pages` held 25 stash reels waiting for a chronicle page that was never "
+             "filmed (2,437 panel frames, chronicle kind ZERO across all 454 surveyed reels), so "
+             "vault-owes was never reached. Lifting it exposed 11 reels the chain called finished "
+             "on the strength of a vault seal with zero rows behind it — `panels-never-banked` is "
+             "that missing case. Proven red both ways: the hold restored, and the safety removed.",
+         skip_ok=()),
+    Gate("test_every_walk_is_stamped",
+         [sys.executable, os.path.join(HERE, "test_every_walk_is_stamped.py")], 120,
+         why="v2875 — the sweep writer has three exits and only two stamped the look. The branch "
+             "that fires when the reader DID work wrote no `looked` key, so every genuinely-read "
+             "reel that banked no page re-owed a read for ever and could never be tombstoned: the "
+             "v2202 deadlock, one branch over. Measured on his 41 reels: 36 records carry no "
+             "stamp, agentVers v1868..v2350. Proven red both ways, each branch un-stamped alone.",
+         skip_ok=()),
+    Gate("test_the_two_keep_floors_agree",
+         [sys.executable, os.path.join(HERE, "test_the_two_keep_floors_agree.py")], 60,
+         why="v2875 — KEEP_RECENT is one promise written in two files: reel_retention guards the "
+             "newest N REELS from deletion, frame_authority guards the FRAMES inside them. A frame "
+             "floor below the reel floor empties a reel the retention rule swore never to touch. "
+             "Raised 5 -> 8 on his instruction; proven red both ways, each floor moved alone.",
+         skip_ok=()),
     Gate("test_a_blind_verdict_names_the_skip",
          [sys.executable, os.path.join(HERE, "test_a_blind_verdict_names_the_skip.py")], 60,
          why="v2866 — the prover printed \"stayed GREEN through its own defeat\" about a law that "

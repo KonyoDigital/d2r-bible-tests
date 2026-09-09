@@ -24565,34 +24565,63 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             _looked = "blankRuns" in st
             if not did_read and not _looked:
                 continue
+            # ⚠⚠⚠ v2875 — THE STAMP BELONGS ON EVERY BRANCH THAT WALKED, AND IT WAS ON TWO OF
+            # THREE. Konyo, 2026-09-10: *"make sure it gets processed through the printer ... and
+            # gets stamped and verified that it was so it can go on the river flow to get
+            # tombstoned"*.
+            #
+            # v2202 broke the deadlock for `not did_read` — the reel the walk opened and found
+            # nothing in — and left the branch BELOW it untouched. That branch fires when the
+            # reader DID work (classified > 0) and still banked no page, and it wrote a record
+            # with NO `looked` key at all. `_chron_reel_owes_a_read` reads a missing key as "never
+            # looked", so every genuinely-read reel that yielded nothing RE-OWES A READ FOR EVER.
+            # The exact deadlock v2202 exists to break, surviving in the one branch it did not touch.
+            #
+            # MEASURED on his 41 reels before the fix:
+            #     _chron_owed_count()  -> 41   every reel on disk owes a read
+            #     records carrying `looked`     2   (v2203, v2397)
+            #     records with NO `looked` key 36   agentVers v1868 .. v2350, up to 09-08
+            # Not legacy: v2314/v2319/v2350 all post-date v2203 and still omit it. And it is why
+            # reel_retention reads their pages:0 as "sealed with 0 pages, the reader found nothing"
+            # and keeps them for ever — an UNSTAMPED read wearing an unread reel's clothes.
+            #
+            # ONE writer for the stamp, because two copies is how this drifted in the first place.
+            # [[unknown-stays-unknown]] [[copy-drift]] [[the-unjoined-end]]
+            def _look_stamp(_reel, _why):
+                try:
+                    import glob as _g2
+                    _rd = os.path.join(hist_dir or HIST_DIR, "reel_" + str(_reel))
+                    _fn = len(_g2.glob(os.path.join(_rd, "f_*.jpg")))
+                except Exception:
+                    _rd, _fn = None, -1
+                try:
+                    _dmt = os.stat(_rd).st_mtime if _rd else None
+                except Exception:
+                    _dmt = None
+                return {"looked": True, "framesAtLook": _fn, "dirMtimeAtLook": _dmt, "why": _why}
+
             if not did_read:
                 # measured zero. Keyed on the evidence that would make a re-read worth paying for —
                 # the frame count — so a reel that GROWS is looked at again, exactly like the hunt
                 # memory's level rule. A reel that does not grow is never re-bought.
-                try:
-                    import glob as _g2
-                    _rd = os.path.join(hist_dir or HIST_DIR, "reel_" + str(st["reel"]))
-                    _fn = len(_g2.glob(os.path.join(_rd, "f_*.jpg")))
-                except Exception:
-                    _fn = -1
-                try:
-                    _dmt = os.stat(_rd).st_mtime
-                except Exception:
-                    _dmt = None
-                swept["reel_" + str(st["reel"])] = {
-                    "ts": int(time.time() * 1000), "classified": 0, "pages": 0,
-                    "looked": True, "framesAtLook": _fn, "dirMtimeAtLook": _dmt,
-                    "why": "read and found no chronicle page — measured zero, not unread",
-                    "promptVer": _tv.PROMPT_VER, "agentVer": getattr(_tv, "VERSION", "")}
+                _row = {"ts": int(time.time() * 1000), "classified": 0, "pages": 0,
+                        "promptVer": _tv.PROMPT_VER, "agentVer": getattr(_tv, "VERSION", "")}
+                _row.update(_look_stamp(
+                    st["reel"], "read and found no chronicle page — measured zero, not unread"))
+                swept["reel_" + str(st["reel"])] = _row
                 continue
-            swept["reel_" + str(st["reel"])] = {"ts": int(time.time() * 1000),
-                                                "classified": st.get("classified") or 0,
-                                                "pages": st.get("pages") or 0,
-                                                # v1830 — WHICH READER SAID SO. Without this a
-                                                # "nothing here" verdict outlives every fix to the
-                                                # thing that produced it (see _chron_seal_stands).
-                                                "promptVer": _tv.PROMPT_VER,
-                                                "agentVer": getattr(_tv, "VERSION", "")}
+            _row = {"ts": int(time.time() * 1000),
+                    "classified": st.get("classified") or 0,
+                    "pages": st.get("pages") or 0,
+                    # v1830 — WHICH READER SAID SO. Without this a "nothing here" verdict outlives
+                    # every fix to the thing that produced it (see _chron_seal_stands).
+                    "promptVer": _tv.PROMPT_VER,
+                    "agentVer": getattr(_tv, "VERSION", "")}
+            _row.update(_look_stamp(
+                st["reel"],
+                "walked and read: %d run(s) classified, %d page(s) banked"
+                % (st.get("classified") or 0, st.get("pages") or 0)))
+            swept["reel_" + str(st["reel"])] = _row
         _chron_swept_save(swept)
         prop = res["proposal"]
         # v1859 — REPORTED HERE, AFTER THE SWEEP, because that is when the counter has a value.
@@ -25618,7 +25647,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2874",
+        "ver": "v2875",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
