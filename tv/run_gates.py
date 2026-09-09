@@ -943,6 +943,26 @@ GATES = [
              "changed by a refactor. The ledger is published BESIDE the walk with its own "
              "denominator and source. An unreadable ledger is UNKNOWN, never a confident 0.",
          skip_ok=()),
+    Gate("test_a_covered_label_is_still_in_the_picture",
+         [sys.executable,
+          os.path.join(HERE, "test_a_covered_label_is_still_in_the_picture.py")], 90,
+         why="#54, and it is the root cause of the whole heartov2 family. leaves() ends with a hit "
+             "test — elementFromPoint at each element's centre, dropped if something else answers "
+             "— which is right for 'what is visible' and which pxCount (the overlap ratchet) "
+             "depends on. It is exactly wrong as the input to a solver whose job is to separate "
+             "OVERLAPPING labels: for a covered label something else always answers, so the one "
+             "label the fit pass most needs is the one it never receives. MEASURED on a live "
+             "render: of 20 authored fan labels, vault.sweep_start was dropped because the point "
+             "at its centre returned an hrt-fan-arith label lying on top of it. It entered no "
+             "items, so the solver read 1 collision where there were 2; it entered no stack, so "
+             "when that stack moved dx=-16 the NAME stayed behind; and pxCount calls the same "
+             "leaves(), so the ratchet could not see it either — four instruments, invisible to "
+             "all at once, which is why the panel read clean while his screenshot showed labels "
+             "running through each other. After taking the fan from the authored NodeList: "
+             "painted 19->20, collisions seen 1->2, moves 3->4, final 0. ⚠ leaves() is UNCHANGED "
+             "and still the obstacle set — the fix is not 'delete the hit test', and this gate "
+             "holds that too. Three tampers proven red.",
+         skip_ok=()),
     Gate("test_the_fan_keeps_its_own_verdict",
          [sys.executable,
           os.path.join(HERE, "test_the_fan_keeps_its_own_verdict.py")], 90,

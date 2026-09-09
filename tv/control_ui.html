@@ -12655,15 +12655,57 @@ window._lockMark = function(isOpen, px, label){
        (client - origin) / scale an exact map into the geometry the labels are authored in. */
     /* the denominator: every fan label the renderer AUTHORED, painted or not */
     var authored = svg.querySelectorAll('text.hrt-fan').length;
-    var els = leaves(), items = [], byX = {}, stacks = [];
+    /* ⚠⚠ v2831 (#54) — THE FAN LABELS COME FROM THE SVG, NOT FROM leaves(), AND THAT IS THE ROOT
+       CAUSE OF THIS WHOLE FAMILY. `leaves()` ends with a hit test: it asks
+       `document.elementFromPoint` at each element's centre and DROPS the element if something else
+       answers. For a label that is OVERLAPPED, something else always answers — so the one label
+       the fit pass most needs to place is the one it never sees.
+
+       MEASURED 2026-09-09 on a live render: of 20 authored fan labels, `vault.sweep_start` was
+       dropped because the point at its centre returned `56/64 refused · 0.772 ≥ 0.…`, an
+       `hrt-fan-arith` label lying on top of it. The consequences compound:
+         · it entered no `items`, so its collision was invisible and the solver undercounted;
+         · it entered no stack, so when the stack at x=417.7 moved dx=-16 the NAME stayed behind
+           and drifted 16 units from its own arithmetic line;
+         · `pxCount()` — the ratchet — calls the same `leaves()`, so it could not see it either.
+       Four instruments, and the covered label is invisible to all of them at once. That is why
+       this panel reads clean while the screenshot shows labels running through each other.
+
+       ⚠ `leaves()` IS STILL THE OBSTACLE SET, unchanged. The hit test is right for "what is
+       actually visible on the page" — the vessel names, the chrome — and `pxCount()` keeps it. Only
+       the FAN's own labels are taken from the authored NodeList, because a fan label that is
+       covered is a fan label that must be MOVED, not one that has gone away.
+       [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]] */
+    var _lv = leaves(), _fan = svg.querySelectorAll('text.hrt-fan'), els = _lv.slice(0);
+    for (var _fi = 0; _fi < _fan.length; _fi++) {
+      if (els.indexOf(_fan[_fi]) < 0) els.push(_fan[_fi]);
+    }
+    var items = [], byX = {}, stacks = [], unpainted = [];
     for (var i = 0; i < els.length; i++) {
       var e = els[i], rs = e.getClientRects(), boxes = [];
       for (var k = 0; k < rs.length; k++) {
         boxes.push({ l: (rs[k].left - sr.left) / scale, r: (rs[k].right - sr.left) / scale,
                      t: (rs[k].top - sr.top) / scale, b: (rs[k].bottom - sr.top) / scale });
       }
-      if (!boxes.length) continue;
+      /* ⚠⚠ v2831 (#54) — CLASSIFY BEFORE SKIPPING, SO AN UNPAINTED FAN LABEL CAN BE NAMED.
+         This `continue` used to fire before `isFan` was computed, so an element with no client
+         rects left the loop unclassified and unrecorded. `painted 19 of 20 authored` was the only
+         trace it left — a count with no name attached, on an element that is invisible to every
+         instrument at once: with no rect it contributes no collision, so the fit pass cannot place
+         it and the overlap ratchet cannot see it either. An element that VANISHED reads exactly
+         like one that is fine. [[unknown-stays-unknown]] */
       var isFan = e.getAttribute && /(^|\s)hrt-fan(\s|$)/.test(e.getAttribute('class') || '');
+      if (!boxes.length) {
+        if (isFan) {
+          unpainted.push({
+            x: e.getAttribute('x'),
+            y: e.getAttribute('y'),
+            cls: (e.getAttribute('class') || '').replace('hrt-fan ', ''),
+            text: String(e.textContent || '').slice(0, 40)
+          });
+        }
+        continue;
+      }
       var it = { boxes: boxes, dx: 0, dy: 0, stack: null };
       items.push(it);
       if (!isFan) continue;
@@ -12687,9 +12729,39 @@ window._lockMark = function(isOpen, px, label){
        [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
     var painted = 0;
     for (var pf = 0; pf < stacks.length; pf++) painted += stacks[pf].items.length;
+    /* ⚠⚠ v2831 (#54) — NAME THE GAP AT ITS REAL EDGE, WHICH IS NOT WHERE I FIRST LOOKED.
+       The first instrument recorded fan labels skipped for having no client rects, and measured
+       `unpainted: []` while `painted 19 of 20 authored` — so the missing label was never skipped;
+       it never entered the loop. `authored` counts `text.hrt-fan` in the SVG, `painted` counts
+       what reached a STACK, and everything between those two — not returned by leaves(), no `x`
+       attribute to group on, no rects — falls out silently.
+       So the difference is taken against the AUTHORED NodeList itself, which covers every cause at
+       once instead of the one I guessed. A label in this list is invisible to BOTH instruments:
+       with no stack it cannot be placed, and with no rect it cannot collide, so the ratchet reads
+       clean over an element that has gone missing. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+    var _seen = [];
+    for (var sf = 0; sf < stacks.length; sf++) {
+      for (var se = 0; se < stacks[sf].els.length; se++) _seen.push(stacks[sf].els[se]);
+    }
+    var _auth = svg.querySelectorAll('text.hrt-fan');
+    for (var ai = 0; ai < _auth.length; ai++) {
+      if (_seen.indexOf(_auth[ai]) >= 0) continue;
+      var _ae = _auth[ai], _ar = _ae.getClientRects();
+      unpainted.push({
+        x: _ae.getAttribute('x'),
+        y: _ae.getAttribute('y'),
+        cls: (_ae.getAttribute('class') || '').replace('hrt-fan ', ''),
+        rects: _ar ? _ar.length : 0,
+        /* WHY it fell out — the three causes are different defects and must not read the same */
+        why: (!_ar || !_ar.length) ? 'no client rect (not painted)'
+             : (_ae.getAttribute('x') == null ? 'no x attribute to group a stack on'
+                                              : 'painted, but leaves() did not return it'),
+        text: String(_ae.textContent || '').slice(0, 40)
+      });
+    }
     if (!stacks.length || painted < 2) {
       return { ok: false, why: 'nothing of the fan is painted here', painted: painted,
-               authored: authored, scale: +scale.toFixed(4) };
+               authored: authored, unpainted: unpainted, scale: +scale.toFixed(4) };
     }
     stacks.sort(function (p, q) { return p.x - q.x; });
 
@@ -12793,13 +12865,13 @@ window._lockMark = function(isOpen, px, label){
         for (var y2 = 0; y2 < stacks[z].els.length; y2++) stacks[z].els[y2].removeAttribute('transform');
       }
       return { ok: true, reverted: true, before: pxBefore, after: pxBefore, wouldHaveBeen: pxAfter,
-               painted: painted, authored: authored,
+               painted: painted, authored: authored, unpainted: unpainted,
                solve: { from: startState, to: endState, passes: passes },
                why: 'the placement did not measure better, so none of it landed',
                scale: +scale.toFixed(4), moves: applied };
     }
     return { ok: true, reverted: false, before: pxBefore, after: pxAfter,
-             painted: painted, authored: authored,
+             painted: painted, authored: authored, unpainted: unpainted,
              solve: { from: startState, to: endState, passes: passes },
              scale: +scale.toFixed(4), moves: applied };
   }

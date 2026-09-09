@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2830",
+  "ver": "v2831",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2830: REG-789 — the alias set only ever grew, so a name rebound to something else still counted; and every dict carrying the key was searched, so a nested lookalike satisfied the law while the payload value had become None. Eleven cases verified. One of the same review findings was refuted by measurement",
+  "note": "v2831: REG-790..791 — leaves() hit-tests each element and drops it when something else answers, so a covered fan label was invisible to the fit pass AND the ratchet at once: the solver read 1 collision where there were 2, and a moved stack left its own name behind. Measured, named, fixed: painted 19 to 20, collisions seen 1 to 2, final 0",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

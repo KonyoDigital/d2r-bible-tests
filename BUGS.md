@@ -26352,3 +26352,55 @@ cannot find its subject must refuse, not report a clean result over nothing.
 Eleven cases now verified: six shapes that genuinely reach the producer are True; a rebound alias,
 a nested-dict lookalike, a dead `if False:`, a genuinely absent producer and a nested function are
 all False.
+
+## REG-790 — the label that is overlapped was the one the solver could not see
+**#54, and the root cause of the whole heartov2 family · v2831 · 2026-09-09 · control_ui.html**
+
+`leaves()` ends with a hit test: `document.elementFromPoint` at each element's centre, dropped if
+something else answers. That is correct for *"what is actually visible"*, and `pxCount()` — the
+overlap ratchet's own arithmetic — depends on it.
+
+**It is exactly wrong as the input to a solver whose job is to separate overlapping labels**, because
+for a covered label something else always answers. The one label the fit pass most needs to place is
+the one it never receives.
+
+MEASURED on a live headless render at scale 1.074, of 20 authored fan labels:
+
+    vault.sweep_start  DROPPED — elementFromPoint at its centre returned
+                       "56/64 refused · 0.772 ≥ 0…", an hrt-fan-arith label lying on top of it
+
+Three consequences, each measured:
+  · it entered no `items`, so the solver read **1 collision where there were 2**
+  · it entered no stack, so when that stack (x=417.7) moved `dx=-16` the **NAME stayed behind** and
+    drifted 16 units from its own arithmetic line
+  · `pxCount()` calls the same `leaves()`, so the **ratchet could not see it either**
+
+Four instruments, and the covered label was invisible to all of them at once — which is why this
+panel reported clean while his screenshot showed labels running through each other.
+
+**Fixed:** the fan's own labels are taken from `svg.querySelectorAll('text.hrt-fan')` and unioned
+with `leaves()`. Result: `painted 19 → 20 of 20`, `unpainted []`, **collisions seen 1 → 2**,
+moves 3 → 4, final still 0 collisions / 0 adjacent. Rendered green at 1120/1440/901/375, clipped
+0/1993.
+
+⚠ **`leaves()` IS UNCHANGED and is still the obstacle set.** The fix is not "delete the hit test" —
+that would start counting elements nobody can see, a different lie in the same panel — and the gate
+holds that half too.
+
+## REG-791 — I found it by instrumenting the wrong edge first
+**#54 · v2831 · 2026-09-09 · control_ui.html**
+
+The first instrument recorded fan labels skipped for having **no client rects**, on the reasonable
+guess that "unpainted" meant "no rect". It measured `unpainted: []` while `painted 19 of 20` — the
+missing label had never been skipped there; it never entered the loop at all.
+
+So the difference is now taken against the **authored NodeList** itself, which covers every cause
+at once instead of the one I guessed, and each entry carries WHICH of the three it was: no client
+rect / no `x` attribute to group on / painted but `leaves()` did not return it. A count with no name
+attached needed a bespoke probe to resolve; the next occurrence will name itself.
+
+⚠ And the gate's own first draft was **BLIND**: it asserted the bare phrase `"no client rect"`, which
+also appears in the explanatory COMMENT a few lines above the code, so tampering the real string
+left the law satisfied by prose describing it. It now requires the quoted literal. Fourth time this
+session that a law was satisfied by something other than the code it names, and it happened inside
+the very gate whose subject is an instrument that could not see itself. [[feedback-comments-vs-code]]
