@@ -26998,3 +26998,142 @@ testing a number that no longer means anything. [[label-outlived-referent]] [[co
 
 The eye was right about what it was asked; it was asked about behaviour, and this is a defect of
 naming that only shows up against the file's history. Both passes were needed.
+
+
+## REG-810 — I nearly killed his console, and the guard written to stop me would have agreed
+
+**v2847.** He said his Mac was hot and asked me to find the cause and kill it if it was background.
+One `ps -r` sample returned:
+
+    69557   1  108.4%  17:15:30  python3 .../tv/control_app.py --open
+
+Orphaned to ppid 1, over a full core, seventeen hours. I said *"Found it — and it's mine"* and was
+one command from killing it. **It is his console, holding :17772** — the process this entire session
+is executed out of. He caught it, as he caught the 28-hour core-burner before it.
+
+**TWO independent defects had to line up.**
+
+**1. THE OWNERSHIP GUARD NEVER ASKED ABOUT HIS PORTS.** `tv/my_orphans.py` declares at the top:
+
+    #: Ports that are HIS by definition. A process holding one of these is never "mine",
+    #: whatever else matches — his console, his Chrome, TradingView, his desktop app.
+    HIS_PORTS = (17772, 17781, 17955, 9222, 9223, 8848)
+
+MEASURED: **`grep -c HIS_PORTS` -> 1.** Its own definition. `_attribute()` promised three positive
+witnesses in its docstring, implemented two, and closed its refusal with the words *"holds none of
+our ports"* — an assertion about a check that was never run. Asked about his live console it
+answered `ours=None`, "busy and old, and nothing can say whose it is": the exact shape this tool
+reports as a suspect. The constant that would have saved his console was dead.
+[[plumbing-with-no-tap]] [[the-unjoined-end]]
+
+**2. ONE `ps` SAMPLE IS A DECAYING AVERAGE, NOT A LOAD.** The same pid, three reads seconds apart:
+**108.4%, then 9.0%, then 5.6%.** Nothing changed but the sampling. I acted on the first.
+[[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+
+**★ AND MY FIRST FIX WAS WRONG IN A WAY THAT WOULD HAVE BEEN WORSE THAN THE BUG.** `lsof` ORs its
+selectors. With `-p PID -iTCP` and no `-a` it returns EVERY process's listening sockets, so the new
+check was really asking "does anything on this machine listen on one of his ports" — always true
+while his console runs. **Every process would have been declared NEVER MINE**, and the guard could
+never catch the runaway it exists for: safe for his console, structurally blind to me. Caught by the
+label being wrong — the task viewer, really on :17955, came back :17772. A right verdict for the
+wrong reason is still the wrong instrument.
+
+**FIXED, and each half measured:**
+- `holds_his_port()` implemented, and asked **FIRST** — ownership is not a majority vote. His
+  console's command line *names this tree*, so if the positive witnesses ran first, "names this
+  tree" would hand me his console.
+- **His process TREE, not just his listener.** He holds :17772 on one pid and runs helpers beside
+  it that hold nothing; killing a child breaks the console just as surely. A bounded ancestry walk
+  covers them — verified live on pids 67161/70032/70479.
+- **Two CPU samples**, judged on the minimum, so a burst cannot promote itself into a verdict.
+- **The OS is excused by PATH, not by name.** The first live run flagged `coreaudiod` (22.8% and
+  23.5%, seven days old) because he was on a call. ⚠ `/usr/local` and CommandLineTools are
+  deliberately NOT excused — those are node and the interpreter this sweep runs under, and excusing
+  them would make the tool unable to see its own author.
+- **The clean line carries its denominator**: "N process(es) scanned, TWO CPU samples each, bar
+  20% sustained and 20 min old", instead of a bare "nothing busy and old".
+
+**The gate:** `test_his_console_is_never_mine_to_kill`, 6 laws, **5/5 red-proofs PROVEN, 1 match
+each**. Its stubs do not depend on his console being up, so it is not vacuous on CI.
+
+⚠ **THE HEART JOIN ALREADY EXISTED AND RECON FOUND IT.** `health_engine.check_orphans()` imports
+`my_orphans` and feeds the doctor's `stray processes` row, so every fix above propagates without a
+new row. I nearly added a duplicate.
+
+⚠⚠ **AND THE REAL LESSON IS NOT THE CODE.** `my_orphans.py` existed, knew about :17772, and was
+written for exactly this moment. **It did not save me because I never ran it.** A carved tool that
+is not invoked is a tool that did not apply. [[carved-skill-unloaded-is-unapplied]]
+
+---
+
+## REG-811 — a blind verdict outlived the defect it described, and nothing recorded that
+
+**v2847.** Reporting on Heart 2.0 I said "4 blind gates" because `tv/.heart2.json` said
+`blind: 4`. Re-proving all four returned **three of them PROVEN** — their verdicts had been carried
+forward across partial runs since before the fixes that closed them.
+
+The merge was already careful: a partial run deliberately keeps a prior blind entry it did not
+re-test. What was missing is that **a kept verdict carried no age.** The file holds ONE `ranAt` for
+the whole run, which dates the fetch and not the thing.
+
+FIXED: `verdictAt` stamps every gate a run actually tested, `blindUnchecked` names the ones it did
+not, and `_heart2_census()` now says so in the sentence he reads — *"1 gate survived its own defeat
+— but 1 of them was NOT re-tested in the last run and may be stale"*. Kept entries keep their old
+stamp, which is the point. [[stale-reading]] [[inherited-claim-is-not-evidence]]
+
+The one genuinely blind gate was `test_a_cached_absence_is_not_an_absence[0]`, and it guards
+something live: its law read `assertIn('"goodD"', self.src)` over the WHOLE of control_app.py, while
+the tamper strips both slots from the INITIALIZER — the only place their absence matters. The names
+go on appearing by design in `fleet_presence()` and `fleet_presence_last_good()`, so the substring
+was found and the law passed with the slot gone. **v2843 built the fleet panel's stale-roster
+fallback on exactly those two slots.** Now parsed from the AST.
+`assertIn` where a STRUCTURE was needed — the sixth law in this repo caught in that shape.
+[[source-reading-guard]] [[feedback-blind-fixture-green-gate]]
+
+
+## REG-812 — a 20-agent fleet on the 16 red CI gates: 8 fixed, 8 diagnosed, 0 laws weakened
+
+**v2848.** His instruction: *"spawn an army of agents to optimze all the others"*. Recon first, and
+it changed the brief: of the 16 gates red on CI, **8 reproduce on this Mac** (real defects) and
+**8 pass here and fail only on the runner** (the host is the fixture). Those are different jobs, so
+they got different briefs — repair for the first, read-only diagnosis for the second.
+
+⚠ **THE RECON THAT MATTERED MOST WAS ABOUT DISK.** 8 worktrees would have been catastrophic if
+`tv/frames` were tracked. MEASURED before launching: `tv/frames` is gitignored, **0 tracked files**,
+and the whole tracked repo is **119 MB** — so 8 worktrees cost ~1 GB, not 48 GB, against 39 GB free.
+The ENOSPC of 2026-09-03 was three agents copying 5.8 GB of footage each.
+
+**RESULT: 8/8 fixed, and 8/8 cleared an adversarial skeptic with `assertionsRemoved=0,
+thresholdsMoved=0`.** The skeptics' only question was *"did it repair the defect or silence the
+detector?"*, told to count deleted assertions, loosened comparisons and narrowed scopes, and to
+default to SILENCED when unsure. None fired.
+
+Five were CODE, three were LAWS whose anchors drifted when v2814-v2815 refactored beneath them:
+`test_the_four_routes_go_red_alone` had been red since the tick-cache moved into a context manager —
+the mechanism was intact the whole time and the law was searching `run()`'s own body for it.
+
+**★ ONE OF THE CODE DEFECTS WAS MINE, AND ITS GATE CAUGHT IT THE DAY IT LANDED.**
+`_STATUS_WORST_PATH = os.path.join(HERE, ".status_worst.json")` — from the /api/status work — used a
+bare `HERE` instead of `_fixture_root_for_state()`, making it the **ninth module-level path writing
+into his LIVE tv/ while TV_HIST names a fixture world.** A render run or a suite would have dropped
+its own timing record over the slow request he is keeping as evidence.
+`test_the_harness_isolates_the_world` is a deliberate CENSUS — it names none of the eight, it
+enumerates — so it went red the moment a ninth appeared. That is the gate working exactly as built.
+
+⚠ **THE MERGE HAD A TRAP.** 7 of 8 patches applied clean; the eighth failed as `corrupt patch at
+line 147` — the agent's diff was **TRUNCATED IN TRANSIT**, not conflicting. Reconstructing it by
+hand would have been guesswork, so the file was taken from the agent's worktree instead. Then every
+worktree was diffed against my tree before removal: 8 files byte-identical, and for the two
+`control_app.py` copies that legitimately differ (my tree carries later work), **all 35 agent-added
+lines were verified present** rather than assumed. Nothing was destroyed unverified.
+
+**All 8 re-run GREEN in the MERGED tree** — the agents each verified in isolation, which is a
+different claim.
+
+**The runner-only 8 were reproduced, not reasoned about**: numpy blocked at import, a fake `lsof` on
+PATH, a tracked-files-only checkout, TV_SESSIONS pointed at nothing. Verdict: 7 are `yes-code` — the
+gate should report UNKNOWN when its input is absent, because **an absent input is not a failed
+law** — and 1 is `yes-workflow-config` (CI should install numpy). None recommends lowering what a
+gate checks. Diagnosed, not yet fixed.
+
+Cost: 20 agents, 0 errors, 28 minutes, 1.78M subagent tokens.

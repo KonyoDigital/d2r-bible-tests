@@ -89,6 +89,27 @@ REGISTRY = {
         "the evidence file and disarmed hooks/pre-push's second-eye gate with no --no-verify and "
         "no trace. `--gate`, which the hook passes, re-pins the canonical path for exactly that "
         "reason. Do not make this call-time to 'fix' the gate — that would restore the hole."),
+    # ---- v2847: THE EYE'S OWN BINARY. Registered after this gate caught it unregistered — it
+    # arrived with the fix that stopped welding this lane to one vendor, and a constant that
+    # decides WHICH PROGRAM gets run over the diff belongs in the map as much as one that
+    # decides which file gets written.
+    "second_eye_run.py:EYE_CLI": (
+        "THIRD_EYE_CLI", "import-bound",
+        "MEASURED v2847 by running it rather than reading it: set THIRD_EYE_CLI AFTER importing "
+        "second_eye_run and EYE_CLI does not move — a later os.environ[...] is a silent no-op. "
+        "0 functions re-read THIRD_EYE_CLI at call time (the literal appears exactly ONCE in the "
+        "module, at module level — parsed, not grepped), and there is exactly 1 call-time reader "
+        "of the ATTRIBUTE: ask(), which both os.path.exists() it and execs it (3 loads, all "
+        "inside ask). So mock.patch.object(second_eye_run, 'EYE_CLI', fake) is the redirect that "
+        "takes, and setting the env inside a test body redirects nothing. ⚠ THIS ONE IS EXECUTED, "
+        "NEVER WRITTEN, so it is not the data-loss class the other entries warn about — the "
+        "hazard runs the other way. Whatever binary it names is RUN over the diff and its answer "
+        "is recorded into the second-eye EVIDENCE ledger, so a redirect to a stub manufactures "
+        "testimony no other model family ever gave; import-bound is deliberate here for the same "
+        "reason it is on second_eye_ledger.py:LEDGER_PATH above. ⚠ IN PRACTICE NO FIXTURE NEEDS "
+        "THE REDIRECT AND THAT IS THE POINT: every unit test over this module exercises the pure "
+        "helpers (_verdict_for, _findings_from) and ask() is reached only from the CLI, so a "
+        "suite run makes no paid call. [[paid-work-with-no-memory]]"),
     # ---- v2395: the human-eyes ledger — what Grok Bot LOOKED at, and what it could not see.
     "human_eyes_ledger.py:LEDGER_PATH": (
         "TV_HUMAN_EYES_LEDGER", "import-bound",

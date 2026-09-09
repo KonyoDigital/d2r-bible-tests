@@ -46,6 +46,13 @@ TAG_STAGE = {
     "zero-pages":         "swept",       # swept, and the sweep found nothing to read
     "rows-not-banked":    "banked",
     "vault-owes":         "vault-done",
+    # v2848 — TAUGHT, not guessed. `holds-proof` (reel_retention v2815) fires from the LAST
+    # position in plan()'s chain, after vault-owes and immediately before eligible, so a reel
+    # wearing it has already passed every lane: swept, banked, vault-done. It is finished and
+    # held — like `recent` and `test-fixture` — because its frames are the receipt for a named
+    # chronicle claim, or because the receipt store could not be read at all. Mapping it any
+    # earlier would draw a completed reel as stuck in a lane plan() says it cleared.
+    "holds-proof":        "releasable",
     "recent":             "releasable",  # finished, held only by the age floor
     "test-fixture":       "releasable",  # finished, held because the suite opens it
     "target-met":         "releasable",  # finished and eligible; the run simply stopped early

@@ -1566,6 +1566,22 @@ GATES = [
              "oscillate for ever, appending a transition row to an append-only store on every "
              "walk. It reads ACTOR rows only. Proven live: walk 1 moved 6, walk 2 moved 0.",
          ),
+    Gate("test_his_console_is_never_mine_to_kill",
+         [sys.executable, os.path.join(HERE, "test_his_console_is_never_mine_to_kill.py")], 120,
+         why="I NEARLY KILLED HIS CONSOLE AND THE GUARD WRITTEN TO STOP ME WOULD HAVE AGREED. He "
+             "said his Mac was hot; one `ps -r` sample showed pid 69557 at 108.4%% CPU, 17h "
+             "uptime, orphaned to ppid 1 — and I said 'found it, it is mine'. It is his console on "
+             ":17772, which executes this whole tree. TWO defects had to line up. (1) "
+             "`my_orphans.HIS_PORTS` — the constant whose own comment says a process holding one "
+             "of these is NEVER mine — had exactly ONE reference: its definition. `_attribute` "
+             "promised three witnesses, implemented two, and ended its refusal with 'holds none of "
+             "our ports', an assertion about a check nobody ran; asked about his console it "
+             "answered 'nothing can say whose it is'. (2) One `ps` %%CPU is a DECAYING AVERAGE: "
+             "the same pid read 108.4%%, then 9.0%%, then 5.6%% seconds apart. ⚠ AND THE FIRST FIX "
+             "WAS WORSE — lsof ORs its selectors, so without `-a` the check asked 'does ANYTHING "
+             "listen on his ports', always true, declaring every process NEVER MINE and making the "
+             "guard incapable of catching the runaway it exists for.",
+         ),
     Gate("test_the_fleet_lane_reaches_the_heart",
          [sys.executable, os.path.join(HERE, "test_the_fleet_lane_reaches_the_heart.py")], 120,
          why="THE FLEET FAILED ON HIS SCREEN AND THE HEART HAD NEVER HEARD THE WORD. 2026-09-09 "

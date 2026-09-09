@@ -30,11 +30,14 @@ The obvious "fix" is to relax the 10s freshness rule. That would be treating a r
 file's ABSENCE was the event, never its age, and widening the bound would have hidden it for good.
 [[feedback-threshold-above-the-ceiling]]
 """
+import ast
+import inspect
 import io
 import os
 import shutil
 import sys
 import tempfile
+import textwrap
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,14 +73,65 @@ class TheLiveFrameCannotBePulledMidRead(unittest.TestCase):
         io.open(p, "wb").write(data)
         return p
 
+    # ── ⚠ THE LAW MUST NOT BE PINNED TO A LITERAL ARITY ─────────────────────────────────────
+    # v2807 gave the subject a THIRD return value (the panel the pixels actually showed, so the
+    # hover stops sweeping the panel the button NAMED). Its sibling law
+    # `test_a_refused_frame_leaves_no_snapshot_behind.py` was re-anchored in that same commit;
+    # this one was not, so every `cells, why = ...(...)` here died with "too many values to
+    # unpack" and the race law above graded NOTHING for two ships. The fix at one site instead of
+    # to the class. [[sweep-dont-ask]] [[regression-guard]]
+    # So: read the arity off the FUNCTION (parsed, never grepped), demand every return path agree,
+    # and name only the first two positions — which are this law's actual subject.
+    def _subject_arity(self):
+        fn = getattr(CA, FN)
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+        body = tree.body[0]
+        inner = {id(n) for d in ast.walk(body)
+                 if isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)) and d is not body
+                 for n in ast.walk(d)}
+        arities, bare = set(), 0
+        for n in ast.walk(body):
+            if not isinstance(n, ast.Return) or id(n) in inner:
+                continue
+            if isinstance(n.value, ast.Tuple):
+                arities.add(len(n.value.elts))
+            else:
+                bare += 1
+        self.assertTrue(arities or bare,
+                        "%s has no return statements at all — re-point this law" % FN)
+        self.assertEqual(bare, 0,
+                         "%s has %d return(s) that are not tuples — a caller unpacking them "
+                         "would crash" % (FN, bare))
+        self.assertEqual(len(arities), 1,
+                         "%s returns tuples of DIFFERENT lengths %s — whichever path a caller "
+                         "does not exercise will raise ValueError in front of him"
+                         % (FN, sorted(arities)))
+        n = arities.pop()
+        self.assertGreaterEqual(n, 2, "%s no longer returns (cells, why, ...)" % FN)
+        return n
+
+    def _call(self, *a, **kw):
+        """Call the subject, prove it returned the shape its own source promises, hand back
+        (cells, why) — the two positions this law is about."""
+        res = getattr(CA, FN)(*a, **kw)
+        want = self._subject_arity()
+        self.assertIsInstance(res, tuple, "%s returned %r, not a tuple" % (FN, type(res).__name__))
+        self.assertEqual(len(res), want,
+                         "%s returned %d value(s) but its source returns %d — a caller unpacking "
+                         "this crashes" % (FN, len(res), want))
+        return res[0], res[1]
+
     # ── the instrument first ────────────────────────────────────────────────────────────────
     def test_the_function_is_still_here(self):
         """⚠ A law that cannot find its subject passes having examined nothing."""
         self.assertTrue(hasattr(CA, FN), "%s is gone or renamed — re-point this law" % FN)
+        self.assertGreaterEqual(
+            self._subject_arity(), 2,
+            "%s no longer returns (cells, why, ...) — every unpack in this law is aimed at air" % FN)
 
     def test_no_frame_at_all_is_UNKNOWN_not_empty(self):
         """⛔ 'no items are on screen' and 'nobody could read the screen' are opposite facts."""
-        cells, why = getattr(CA, FN)()
+        cells, why = self._call()
         self.assertIsNone(cells, "it returned cells with no frame on disk")
         self.assertIn("capture", (why or "").lower(),
                       "the refusal does not point at the capture: %r" % why)
@@ -103,7 +157,7 @@ class TheLiveFrameCannotBePulledMidRead(unittest.TestCase):
         real = sys.modules.get("vault_corpus")
         sys.modules["vault_corpus"] = _FakeVC
         try:
-            getattr(CA, FN)()
+            self._call()
         finally:
             if real is not None:
                 sys.modules["vault_corpus"] = real
@@ -126,7 +180,7 @@ class TheLiveFrameCannotBePulledMidRead(unittest.TestCase):
         io.open(gone, "wb").write(b"x")
         os.utime(gone, None)          # newest, so it is tried FIRST
         os.unlink(gone)               # ...and is gone by the time it is read
-        cells, why = getattr(CA, FN)()
+        cells, why = self._call()
         # live.jpg survives, so it must get past the vanish and refuse on AGE or on the lattice —
         # never on "no live frame", which would mean the survivor was discarded too
         self.assertNotIn("there is no live frame", (why or ""),
@@ -138,7 +192,7 @@ class TheLiveFrameCannotBePulledMidRead(unittest.TestCase):
         self._write("eye.jpg")
         before = set(f for f in os.listdir(tempfile.gettempdir()) if f.startswith("minigrid."))
         for _ in range(3):
-            getattr(CA, FN)()
+            self._call()
         after = set(f for f in os.listdir(tempfile.gettempdir()) if f.startswith("minigrid."))
         self.assertEqual(after - before, set(),
                          "snapshots survived the call: %s" % sorted(after - before))

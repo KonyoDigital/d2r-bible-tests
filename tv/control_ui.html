@@ -5762,6 +5762,8 @@
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
   /* v2843 — the remembered roster, visibly not-live: dimmer than a real row, never a link. */
   .fleet-dead { font-style: normal; color: #c06a4a; letter-spacing: .04em; }
+  /* v2848 — a dead agent port must not wear the same badge as a live one */
+  .fp-ag.fp-down { color: #b0603f; opacity: .95; }
   .fleet-was { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(125,118,99,.16); }
   .fleet-stale { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
   .fleet-stale-m { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); color: #7d7663;
@@ -9864,7 +9866,21 @@ window._lockMark = function(isOpen, px, label){
           + (_bv ? (' board=' + _bv) : ''));
       }
     } catch (e) {}
-    $('foot-ports').innerHTML = ':' + (st.controlPort||17772) + '<span class="dot">·</span>agent :' + (st.agentPort||17771)
+    /* ⚠⚠ v2848 — THE FOOTER NAMED A PORT THAT WAS DOWN, AND THE PAYLOAD ALREADY KNEW.
+       Grok Bot, looking at his live window 2026-09-09: the footer read `AGENT :17771` while
+       `GET :17771/state` was connection-refused. MEASURED here: HTTP 000, no listener, and
+       `/api/status` carries **`agent: false`** in the very object this line reads. The paint never
+       asked. A port number printed unconditionally is a label that cannot be wrong and therefore
+       cannot be right — it says the same thing whether the bridge is answering or has been dead
+       for eighteen hours. That is the third time this console has shipped a figure whose referent
+       stopped being true. [[label-outlived-referent]] [[the-unjoined-end]] */
+    var _agUp = !!(st && st.agent);
+    $('foot-ports').innerHTML = ':' + (st.controlPort||17772) + '<span class="dot">·</span>'
+      + '<span class="fp-ag' + (_agUp ? '' : ' fp-down') + '" title="'
+      + (_agUp ? 'the agent bridge is answering on this port'
+               : 'NOTHING IS LISTENING on this port. The agent bridge is down — this is the port it '
+                 + 'WOULD use, not a port that is serving.')
+      + '">agent :' + (st.agentPort||17771) + (_agUp ? '' : ' ✕') + '</span>'
       + (st.capture ? '<span class="dot">·</span>capture' : '');
 
     if (window.__mindMode === 'log') return;
@@ -12865,18 +12881,79 @@ window._lockMark = function(isOpen, px, label){
        visible rather than being traded for damage nobody measured, which is how the previous
        attempt went 4 -> 5. */
     var pxAfter = applied.length ? pxCount() : pxBefore;
+
+    /* ⚠⚠ v2848 (#53) — BACK OFF ONE STACK AT A TIME; DO NOT THROW THE WHOLE SOLVE AWAY.
+       The guard above is right that a placement which does not measure better must not land. What
+       it did with that verdict was all-or-nothing: ONE stack dragged the arrangement over the line
+       and every other stack's move — including the ones that removed real overlaps — was discarded
+       with it. The panel then sat on the debt it had already computed the fix for.
+
+       So the revert is now INCREMENTAL. Withdraw the most-displaced stack, re-measure all three
+       conditions, and stop the moment the arrangement is no longer worse. Whatever still carries a
+       transform at that point has been measured as an improvement in its own right.
+
+       ⚠ IT CANNOT END UP WORSE THAN THE OLD BEHAVIOUR. If every stack is withdrawn the fan is
+       byte-for-byte where it started, which is exactly what the old branch produced — so the
+       floor here is the previous outcome and the ceiling is a partial solve. It also cannot land
+       an unmeasured arrangement: the loop only stops on a re-measured verdict, never on a guess.
+
+       ⚠ THE THREE CONDITIONS ARE RE-ASKED, NOT REUSED. `endState` and `objBefore` describe the
+       FULL placement; after a withdrawal they describe a placement that no longer exists. Reusing
+       them would grade the arrangement that was rejected. [[stale-reading]] */
+    var kept = [], dropped = [];
+    for (var t2 = 0; t2 < stacks.length; t2++) {
+      if (stacks[t2].dx || stacks[t2].dy) kept.push(t2);
+    }
     var worse = (endState.collisions > startState.collisions)
              || (applied.length && !(objective() < objBefore))
              || (pxAfter > pxBefore);
-    if (worse) {
+    var pxNow = pxAfter, endNow = endState;
+    if (worse && kept.length) {
+      /* most-displaced first: the largest move is the likeliest to have caused the regression */
+      var order = kept.slice().sort(function (a, b) {
+        return (Math.abs(stacks[b].dx) + Math.abs(stacks[b].dy))
+             - (Math.abs(stacks[a].dx) + Math.abs(stacks[a].dy));
+      });
+      for (var oi = 0; oi < order.length && worse; oi++) {
+        var k = order[oi];
+        for (var e3 = 0; e3 < stacks[k].els.length; e3++) {
+          stacks[k].els[e3].removeAttribute('transform');
+        }
+        stacks[k].dx = 0; stacks[k].dy = 0;
+        dropped.push(k);
+        kept = kept.filter(function (i) { return i !== k; });
+        endNow = objective(true);
+        pxNow = kept.length ? pxCount() : pxBefore;
+        worse = (endNow.collisions > startState.collisions)
+             || (kept.length && !(objective() < objBefore))
+             || (pxNow > pxBefore);
+      }
+    }
+    if (worse || !kept.length) {
       for (var z = 0; z < stacks.length; z++) {
         for (var y2 = 0; y2 < stacks[z].els.length; y2++) stacks[z].els[y2].removeAttribute('transform');
       }
       return { ok: true, reverted: true, before: pxBefore, after: pxBefore, wouldHaveBeen: pxAfter,
                painted: painted, authored: authored, unpainted: unpainted,
+               keptStacks: 0, droppedStacks: dropped.length,
                solve: { from: startState, to: endState, passes: passes },
-               why: 'the placement did not measure better, so none of it landed',
+               why: ('the placement did not measure better, so none of it landed'
+                     + (dropped.length ? ' — and withdrawing ' + dropped.length
+                        + ' stack(s) one at a time did not rescue any of it either' : '')),
                scale: +scale.toFixed(4), moves: applied };
+    }
+    if (dropped.length) {
+      /* a PARTIAL solve: some stacks were withdrawn, the rest measured better and stayed. */
+      var landed = applied.filter(function (m, mi) { return dropped.indexOf(mi) < 0; });
+      return { ok: true, reverted: false, partial: true,
+               before: pxBefore, after: pxNow, wouldHaveBeen: pxAfter,
+               painted: painted, authored: authored, unpainted: unpainted,
+               keptStacks: kept.length, droppedStacks: dropped.length,
+               solve: { from: startState, to: endNow, passes: passes },
+               why: ('the whole placement measured worse, so ' + dropped.length
+                     + ' stack(s) were withdrawn one at a time; the remaining ' + kept.length
+                     + ' measured better than not moving and landed'),
+               scale: +scale.toFixed(4), moves: landed };
     }
     return { ok: true, reverted: false, before: pxBefore, after: pxAfter,
              painted: painted, authored: authored, unpainted: unpainted,

@@ -327,7 +327,18 @@ def _evidence_rows():
     try:
         import tv_diablo as _tvd
         root = _tvd._fixture_root(HERE)
-    except Exception:
+        # ⚠⚠ NARROWED FROM `except Exception`, AND THE CORRECTED TEMPLATE WAS ALREADY IN THIS FILE.
+        # `_tombstone_path()` five hundred lines below carries the v2788 fix verbatim; this arm
+        # arrived at v2814 as a fresh copy of the shape that fix removed, and the census in
+        # test_no_resolver_falls_back_to_his_live_world.py caught it — which is the whole reason
+        # that law is a census and not a list of three. A blanket catch also swallows a runtime
+        # failure OF THE RULE ITSELF and answers HERE — his live tree — to a caller that had
+        # explicitly asked for a fixture world. That is the worst possible answer here: `root`
+        # picks the chron_evidence.json that decides which of his reels hold PROOF, and the prune
+        # deletes what it does not. ImportError means tv_diablo genuinely is not importable and
+        # HERE is then the honest answer; anything else must surface, not resolve to his tree.
+        # [[copy-drift]] [[unknown-stays-unknown]] [[the-unjoined-end]]
+    except ImportError:
         root = HERE
     p = os.path.join(root, "chron_evidence.json")
     try:

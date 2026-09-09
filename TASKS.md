@@ -1669,6 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2848** | `(this commit)` | v2848 — a fleet fixed eight CI gates and every one cleared the skeptic |
+| **v2847** | `(this commit)` | v2847 — the guard written to stop me killing his console would have agreed with me |
 | **v2846** | `(this commit)` | v2846 — a constant outlived the rule it was named for |
 | **v2845** | `(this commit)` | v2845 — five gates were red on CI for versions and only reading CI found them |
 | **v2844** | `(this commit)` | v2844 — a new render target went green on the state it was named against |

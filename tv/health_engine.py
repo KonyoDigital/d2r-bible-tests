@@ -397,7 +397,23 @@ def check_orphans():
         return _row("orphans", UNKNOWN, "the orphan sweep could not be loaded — %s" % e)
     rows = MO.suspects()
     if not rows:
-        return _row("orphans", OK, "nothing busy and old that is not a known system process")
+        # ⚠ v2847 — THE ZERO CARRIES ITS DENOMINATOR. "Nothing busy and old" was a clean-looking 0
+        # with nothing behind it: it could not be told from a sweep that scanned nothing, used a
+        # bar nothing could clear, or asked once and caught a quiet moment. This line is what he
+        # reads when he wants to know the machine is clear, and on 2026-09-09 he asked exactly that
+        # while a single CPU sample had me about to kill his console. Say what was measured.
+        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        try:
+            _n = len(MO._cpu_sample())
+        except Exception:
+            _n = None
+        return _row("orphans", OK,
+                    "nothing busy and old that is not a known system process — %s process(es) "
+                    "scanned, TWO CPU samples each, bar %.0f%% sustained and %d min old. "
+                    "Processes on his ports (%s) and their children are excluded by name, never "
+                    "counted as mine."
+                    % ("UNKNOWN" if _n is None else _n, MO.BUSY_PCT, MO.OLD_MIN,
+                       ", ".join(":%d" % p for p in MO.HIS_PORTS)))
 
     # ⚠⚠ v2744 — TWO ANSWERS, NOT ONE, AND THE OLD ONE CLAIMED SOMETHING IT NEVER TESTED.
     # This row said "nothing of OURS is both busy and old" while `my_orphans` had no ownership test

@@ -338,8 +338,20 @@ def main(argv):
     ap.add_argument("--answer-in", help="record this answer against the measured payload")
     a = ap.parse_args(argv)
     if a.backlog:
-        owed = [v for v, st in SEL.audit(None) if st == "OWED"] \
-            if callable(getattr(SEL, "audit", None)) else []
+        # ⚠⚠ v2848 — THE BACKLOG COMMAND HAS BEEN CRASHING, SO NOTHING REPORTED THE QUEUE.
+        # `SEL.audit(None)` returns a list of DICTS — {version, attempts, empty, author, looks,
+        # bound, unbound} — and this unpacked each row into `v, st`. Iterating a dict yields its
+        # KEYS, and seven keys will not unpack into two, so every invocation died with
+        # `ValueError: too many values to unpack (expected 2)`. The one command whose entire job is
+        # "show me what is stacking up" answered nothing but a traceback, which is why the second
+        # eye backlog was only ever discovered by a push being REFUSED at the gate.
+        # ⚠ A version OWES a look when it has ZERO real looks. `empty` (a seat that was offered and
+        # came back dark) and `author` (a look by the same family that wrote the code) are NOT
+        # looks — counting them would clear the queue without anyone having looked.
+        # [[the-unjoined-end]] [[unknown-stays-unknown]]
+        _rows = SEL.audit(None) if callable(getattr(SEL, "audit", None)) else []
+        owed = [r.get("version") for r in _rows
+                if isinstance(r, dict) and not int(r.get("looks") or 0)]
         if not owed:
             print("  nothing owes a look.")
             return 0

@@ -67,11 +67,47 @@ class TestACachedAbsenceIsNotAnAbsence(unittest.TestCase):
         self.tree = ast.parse(self.src)
 
     def test_the_cache_keeps_a_slot_for_the_last_good_answer(self):
-        """Without goodD there is nowhere for a good roster to survive a failed fetch."""
-        for key in ('"goodD"', '"goodT"'):
-            self.assertIn(key, self.src,
-                          "the presence cache has no %s slot, so a failed fetch overwrites the "
-                          "last good roster and the panel loses data it already had" % key)
+        """Without goodD there is nowhere for a good roster to survive a failed fetch.
+
+        ⚠⚠ v2847 — THIS LAW WAS BLIND, AND ITS OWN RED-PROOF SAID SO FOR AS LONG AS IT EXISTED.
+        It read `assertIn('"goodD"', self.src)` over the WHOLE of control_app.py. The proof strips
+        both slots from the INITIALIZER — the only place their absence matters — and the names go
+        on appearing by design in `fleet_presence()` (`_FLEET_PRESENCE_CACHE["goodT"] = now`) and in
+        `fleet_presence_last_good()` (`.get("goodD")`). So the substring was found, the law passed,
+        and the slot it exists to guard was gone:
+
+            test_a_cached_absence_is_not_an_absence[0]  BLIND ← stayed GREEN through its own
+                                                        defeat (1 match(es))
+
+        `assertIn` where a COUNT or a STRUCTURE was needed — the same shape five other laws in this
+        repo have been caught in, each staying green through its own defeat because the literal
+        occurs more than once on purpose.
+
+        ⚠ AND IT GUARDS SOMETHING LIVE: v2843 built the panel's stale-roster fallback on exactly
+        these two slots. A law that cannot see them removed is a law that would have let that
+        fallback be deleted silently. [[source-reading-guard]] [[feedback-blind-fixture-green-gate]]
+        """
+        tree = ast.parse(self.src)
+        inits = [n.value for n in ast.walk(tree)
+                 if isinstance(n, ast.Assign)
+                 and any(isinstance(t, ast.Name) and t.id == "_FLEET_PRESENCE_CACHE"
+                         for t in n.targets)]
+        self.assertEqual(
+            len(inits), 1,
+            "expected exactly one assignment binding _FLEET_PRESENCE_CACHE to its literal; found "
+            "%d. With none this law has lost its subject; with several it would grade whichever it "
+            "met first." % len(inits))
+        self.assertIsInstance(
+            inits[0], ast.Dict,
+            "_FLEET_PRESENCE_CACHE is no longer bound to a dict literal, so its slots cannot be "
+            "read here and this law would be asserting nothing")
+        keys = [k.value for k in inits[0].keys if isinstance(k, ast.Constant)]
+        for key in ("goodD", "goodT"):
+            self.assertIn(
+                key, keys,
+                "the presence cache INITIALIZER has no %r slot — it declares %r. A failed fetch "
+                "then overwrites the last good roster and the panel loses data it already had, "
+                "which is the blank card this whole gate exists to prevent." % (key, keys))
 
     def test_a_failed_fetch_does_not_replace_the_good_answer(self):
         """The error must not be written over the roster."""

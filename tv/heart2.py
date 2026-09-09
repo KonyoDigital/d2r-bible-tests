@@ -332,6 +332,23 @@ def _write_state(results):
         else:
             _proved.discard(_n)          # BLIND/INVALID/UNPROVABLE revokes a standing proof
     _proved &= _known                    # a gate that no longer exists is not proven
+    # ⚠⚠ v2847 — EVERY VERDICT CARRIES ITS OWN AGE, BECAUSE ONE `ranAt` FOR THE WHOLE FILE IS A
+    # DATE ON THE FETCH AND NOT ON THE THING. The merge above deliberately keeps a prior blind
+    # entry the current run did not re-test — correct, and until now indistinguishable from one
+    # measured seconds ago. MEASURED 2026-09-09: the file said `blind: 4` and `partial: true`, I
+    # reported four blind instruments, and a re-prove returned **three of them PROVEN**. Their
+    # verdicts had been carried forward across partial runs since before the fixes that closed
+    # them, and nothing in the record could say so.
+    #
+    # `verdictAt` stamps each gate the run actually tested, so a reader can subtract: a blind name
+    # with a fresh stamp is a live defect, a blind name with an old one is a claim nobody has
+    # rechecked. Kept entries simply keep their old stamp — which is the point.
+    # [[stale-reading]] [[inherited-claim-is-not-evidence]] [[unknown-stays-unknown]]
+    _now_ms = int(__import__("time").time() * 1000)
+    _seen = dict(prior.get("verdictAt") or {})
+    for _n in (results or {}):
+        _seen[_n] = _now_ms
+    _seen = {k: v for k, v in _seen.items() if k in _known}   # a gate that is gone keeps no stamp
     out.update({
         "proved": len(_proved),
         "provedGates": sorted(_proved),
@@ -339,8 +356,10 @@ def _write_state(results):
         "unproven": len(gates) - len(have),
         "total": len(gates),
         "blind": blind,
+        "blindUnchecked": sorted(b for b in blind if b not in (results or {})),
         "partial": _partial,
-        "ranAt": int(__import__("time").time() * 1000),
+        "verdictAt": _seen,
+        "ranAt": _now_ms,
     })
     with io.open(STATE, "w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=1, sort_keys=True)

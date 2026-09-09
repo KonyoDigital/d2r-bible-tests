@@ -385,14 +385,27 @@ class TheDoctorWatchesEachOne(unittest.TestCase):
         import ast
         import inspect
         tree = ast.parse(inspect.getsource(D))
-        fn = next((n for n in tree.body
-                   if isinstance(n, ast.FunctionDef) and n.name == "run"), None)
+        top = {n.name: n for n in tree.body
+               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        fn = top.get("run")
         self.assertIsNotNone(fn, "console_doctor has no run()")
+        # ⚠⚠ v2815 MOVED THE TWO LINES ONE HOP OUT OF run(), AND THIS LAW LOST ITS SUBJECT.
+        # They now live in the `tick_caches()` context manager that run() enters — the mechanism
+        # is intact, but a search of run()'s own body returned 0 and the gate had been red since,
+        # for code that is correct. So the law FOLLOWS the tick instead of assuming it is inline:
+        # run(), plus every module-level function run() calls by bare name — which is exactly what
+        # `with tick_caches():` is, a Call in a withitem. The bite is unchanged in both directions:
+        # delete either line from tick_caches and the count falls to 1; delete `with tick_caches()`
+        # from run() and the reach empties to 0. One hop only, so a cache opened by some function
+        # this tick never enters still cannot satisfy it. [[label-outlived-referent]]
+        reached = [fn] + [top[n.func.id] for n in ast.walk(fn)
+                          if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                          and n.func.id in top]
         # ⚠⚠ COUNT ASSIGNMENT *STATEMENTS*, NOT NAME OCCURRENCES — the first cut counted Names,
         # and the close line alone mentions `_routes_cache` twice, so deleting the OPEN left the
         # count at 2 and the sabotage came back GREEN. A law satisfied by a single statement it
         # was written to require two of. [[sabotage-is-usually-the-wrong-one]]
-        sets = [n for n in ast.walk(fn)
+        sets = [n for body in reached for n in ast.walk(body)
                 if isinstance(n, ast.Assign)
                 and any(isinstance(t, ast.Name) and t.id == "_routes_cache"
                         for t in ast.walk(n))]

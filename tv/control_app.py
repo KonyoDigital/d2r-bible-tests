@@ -17349,7 +17349,19 @@ def _heart2_census():
             import heart2 as _h2
             _p = _h2.STATE
         except Exception:
-            _p = os.path.join(HERE, ".heart2.json")
+            # ⚠⚠ AND THE FALLBACK RESOLVED TO HIS LIVE DIRECTORY. This arm arrived at v2803, after
+            # the census in test_no_resolver_falls_back_to_his_live_world.py was carved at v2788,
+            # and the census caught it — a request for isolation that cannot be honoured must not
+            # degrade to NO isolation. With heart2 unimportable inside an isolated run this read
+            # HIS `.heart2.json` and reported HIS gate census as the fixture world's measurement,
+            # which is the same class of lie as the sim/live banners that once made me diagnose my
+            # own gate runs as Konyo at his keyboard.
+            #
+            # ⚠ IT DELEGATES RATHER THAN RESTATING THE RULE A THIRD TIME — `_fixture_root_for_state`
+            # is the one implementation of the isolation rule in this file and the one `_log_root`
+            # already quotes. Two copies drifted once; three would drift again.
+            # [[copy-drift]] [[unknown-stays-unknown]]
+            _p = os.path.join(_fixture_root_for_state(), ".heart2.json")
         if not os.path.isfile(_p):
             return {"state": "UNKNOWN", "why": "heart2 has never run here — run "
                                                "`python3 tv/heart2.py --prove`",
@@ -17357,6 +17369,7 @@ def _heart2_census():
         with io.open(_p, encoding="utf-8") as _fh:
             _d = json.load(_fh)
         _blind = list(_d.get("blind") or [])
+        _unchecked = list(_d.get("blindUnchecked") or [])
         _proved = _d.get("proved")
         _unproven = _d.get("unproven")
         return {
@@ -17369,12 +17382,26 @@ def _heart2_census():
             # and without reading it this sentence states one batch's result as the whole
             # picture. [[zero-needs-a-denominator]] [[stale-reading]]
             "partial": bool(_d.get("partial")),
-            "why": ("%d gate(s) survived their own defeat" % len(_blind)) if _blind
+            # ⚠⚠ v2847 — A BLIND NAME NOBODY RE-TESTED IS NOT THE SAME CLAIM AS ONE MEASURED
+            # JUST NOW. heart2 keeps a prior blind entry across a partial run on purpose, and the
+            # record could not tell the two apart: the file said `blind: 4`, this line reported
+            # four blind instruments, and a re-prove returned THREE of them PROVEN — verdicts
+            # carried forward since before the fixes that closed them. `verdictAt` now stamps each
+            # gate the run actually tested, and the unchecked ones are named here, so the sentence
+            # he reads separates a live defect from an inherited claim.
+            # [[stale-reading]] [[inherited-claim-is-not-evidence]]
+            "blindUnchecked": list(_d.get("blindUnchecked") or []),
+            "why": (("%d gate(s) survived their own defeat%s"
+                     % (len(_blind),
+                        ("" if not _unchecked else
+                         " — but %d of them %s NOT re-tested in the last run and may be stale, "
+                         "so re-prove before acting on them"
+                         % (len(_unchecked), "was" if len(_unchecked) == 1 else "were")))) if _blind
                    else ("%s of %s gate(s) can still go red; %s carry no executable proof and "
                          "are UNKNOWN%s"
                          % (_proved, _d.get("declared"), _unproven,
                             " (last run covered only part of the suite)"
-                            if _d.get("partial") else "")),
+                            if _d.get("partial") else ""))),
         }
     except Exception as _e:
         return {"state": "UNKNOWN", "why": "the instrument census could not be read (%s)"
@@ -25332,8 +25359,29 @@ _STATUS_TL = threading.local()
 _STATUS_TIMING = {"worst": {}, "last": None, "lastTs": 0.0, "n": 0, "slow": 0,
                   "worstRequest": None}
 
-#: Where the slowest request's WHOLE breakdown is kept across restarts.
-_STATUS_WORST_PATH = os.path.join(HERE, ".status_worst.json")
+
+def _status_worst_path():
+    """Where the slowest request's WHOLE breakdown is kept across restarts.
+
+    ⚠⚠ THE NINTH PATH, AND IT ARRIVED EXACTLY THE WAY THE CENSUS SAID THE NEXT ONE WOULD.
+    This was `os.path.join(HERE, ".status_worst.json")`, built from a bare HERE at import, so it
+    ignored `_fixture_root_for_state()` entirely — the v1867/v1869 rule that every one of its
+    siblings already follows. `_status_worst_save()` WRITES this file, so a render gate or a suite
+    running in a fixture world dropped its own timing record into his live tv/ and overwrote the
+    slow request he is keeping as evidence. `test_the_harness_isolates_the_world` is a CENSUS, not
+    a list of the eight, precisely so a ninth cannot arrive unseen; it went red the moment this
+    constant landed. [[the-unjoined-end]] [[regression-guard]]
+
+    Resolved at CALL time, like `_disk_history_path()` and `_shadow_watch_path()` — an env honoured
+    only at import is a redirect that silently does not take. In production TV_HIST is unset and
+    this is exactly HERE, so nothing about his console's own record changes.
+    """
+    return os.path.join(_fixture_root_for_state(), ".status_worst.json")
+
+
+#: kept so existing readers of the module attribute resolve; the CALLABLE is the source
+#: of truth and every read/write goes through it.
+_STATUS_WORST_PATH = os.path.join(_fixture_root_for_state(), ".status_worst.json")
 
 
 def _status_worst_load():
@@ -25352,7 +25400,7 @@ def _status_worst_load():
     instead of another anecdote.
     """
     try:
-        with io.open(_STATUS_WORST_PATH, encoding="utf-8") as fh:
+        with io.open(_status_worst_path(), encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else None
     except FileNotFoundError:
@@ -25364,10 +25412,11 @@ def _status_worst_load():
 def _status_worst_save(rec):
     """Persist the slowest request. Never raises into the request path."""
     try:
-        tmp = _STATUS_WORST_PATH + ".tmp"
+        dest = _status_worst_path()
+        tmp = dest + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as fh:
             json.dump(rec, fh, indent=1, sort_keys=True)
-        os.replace(tmp, _STATUS_WORST_PATH)
+        os.replace(tmp, dest)
     except Exception:
         pass
 
@@ -25569,7 +25618,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2846",
+        "ver": "v2848",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

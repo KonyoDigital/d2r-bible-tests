@@ -35,6 +35,7 @@ function called". It is wrong here: a DOM id is a string, it cannot be reached i
 live cross-file reference, and the whole failure mode is that the string exists on one side only.
 """
 
+import ast
 import os
 import re
 import sys
@@ -364,6 +365,50 @@ class TestTheKnownOffendersStayFixed(unittest.TestCase):
                       "board overlay and the console closes out from under an open lightbox")
 
 
+def names_handed_to_a_runner(src):
+    """-> {names passed BY REFERENCE as an argument to a call}, parsed, never grepped.
+
+    ⚠ v2847 — A CALLABLE HANDED TO A RUNNER IS A CALLER, and this scanner could not see it.
+
+    v2826 wrapped every producer in `status_payload`'s dict literal in a timing shell:
+
+        "prune": prune_stats(),          →   "prune": _t("prune", prune_stats),
+
+    `_t(name, fn)` returns EXACTLY `fn()` — the function is called on every /api/status poll, from
+    the busiest door in the console. But the caller-scan below counted only the text `name(` (plus
+    `target=name` since v2309), and the wrap deleted the parentheses at every call site. Four live
+    functions — prune_stats, warden_state, view_request, screen_recording_ok_cached — read as dead
+    code from that moment, and this gate sat red pointing at four healthy things. That is the same
+    defect as v2309 wearing different clothes: **the scanner did not model the codebase's own call
+    shape**, and a gate that names live wiring as dead sends the next person to delete it.
+
+    Measured before widening, so the new reach is known rather than hoped for: 8 orphans under the
+    old scan, 4 of them the ALLOWED entries with ZERO references of this shape and 4 of them the
+    _t() producers with EXACTLY ONE each, at the _t() line. The allowlist keeps every entry, so the
+    "does the allowlist outlive its entries" half stays honest.
+
+    DELIBERATELY NARROW, and PARSED rather than grepped:
+      · only a bare `Name` in a call's argument list (positional or keyword) — the "handed to a
+        runner" shape. An assignment (`h = prune_stats`) or a dict value is NOT counted, so the
+        gate keeps its bite and a genuinely new shape fails loudly instead of passing silently.
+      · because it is an AST, a mention in a COMMENT or a STRING cannot count. The surrounding text
+        scan has that blind spot on record; this half must not add to it.
+    [[source-reading-guard]] [[the-unjoined-end]]
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return set()
+    out = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        for arg in list(node.args) + [kw.value for kw in node.keywords]:
+            if isinstance(arg, ast.Name) and isinstance(arg.ctx, ast.Load):
+                out.add(arg.id)
+    return out
+
+
 class TestLaw19ForPythonToo(unittest.TestCase):
     """v2005 — LAW19 says "every symbol a change adds must have a caller AND a writer", and this
     file has enforced it for DOM ids and `typeof` guards only. The SAME shape in Python was
@@ -450,6 +495,12 @@ class TestLaw19ForPythonToo(unittest.TestCase):
                     text[extra] = fh.read()
             except OSError:
                 pass
+        # v2847 — the PARSED half. A name handed to a runner (`_t("prune", prune_stats)`) is
+        # called, and the text scan below cannot see it because the wrap took the parentheses away.
+        # Python files only: this is an AST, so it is blind to comments and strings by construction.
+        handed = set()
+        for f in prod:
+            handed |= names_handed_to_a_runner(text.get(f, ""))
         found = []
         for f in self.WATCH:
             if f not in text:
@@ -470,7 +521,7 @@ class TestLaw19ForPythonToo(unittest.TestCase):
                     # A gate that cannot see the codebase's own dominant call shape sends the next
                     # person to delete live wiring. [[source-reading-guard]]
                     calls += len(re.findall(r"target\s*=\s*%s\b" % node.name, t))
-                if calls == 0:
+                if calls == 0 and node.name not in handed:
                     found.append("%s:%s" % (f, node.name))
         return found
 
@@ -497,6 +548,61 @@ class TestLaw19ForPythonToo(unittest.TestCase):
             self.assertGreater(len(why), 60, "%s has a token reason, not a real one" % k)
             self.assertNotIn("might need it later", why.lower(),
                              "%s: that is the reason all four defects already had" % k)
+
+
+class TestTheHandedReferenceScannerCanFail(unittest.TestCase):
+    """v2847 — the widening has to be seen BOTH ways round, or it is just a hole with a comment.
+
+    A reach that only ever says yes would un-orphan everything and this gate would go permanently
+    green — the exact thing it exists to prevent. So: it must SEE the shape that made it red, and
+    it must NOT see a mention that is merely prose.
+    """
+
+    def test_it_sees_a_callable_handed_to_a_runner(self):
+        src = ('def _t(name, fn):\n    return fn()\n'
+               'def prune_stats():\n    return {}\n'
+               'def payload():\n    return {"prune": _t("prune", prune_stats)}\n')
+        self.assertIn("prune_stats", names_handed_to_a_runner(src),
+                      "the _t() wrap is how every status producer is now reached; not seeing it is "
+                      "what named four live functions dead")
+
+    def test_it_sees_a_keyword_target(self):
+        """threading.Thread(target=lane) — the v2309 shape, now covered by the parse as well."""
+        src = 'import threading\ndef lane():\n    pass\nthreading.Thread(target=lane).start()\n'
+        self.assertIn("lane", names_handed_to_a_runner(src))
+
+    def test_a_mention_in_a_COMMENT_or_a_STRING_is_not_a_caller(self):
+        """The whole reason this half is an AST. A grep would count both of these."""
+        src = ('# see _t("prune", ghost_fn) for the shape\n'
+               'NOTE = "_t(\'prune\', ghost_fn)"\n'
+               'def real():\n    pass\n')
+        got = names_handed_to_a_runner(src)
+        self.assertNotIn("ghost_fn", got,
+                         "prose that quotes the wiring is documentation, not wiring")
+
+    def test_a_plain_uncalled_def_is_still_invisible_to_it(self):
+        """It must not un-orphan a function nobody ever hands anywhere."""
+        src = 'def lonely():\n    pass\ndef other():\n    return 1\n'
+        self.assertNotIn("lonely", names_handed_to_a_runner(src))
+
+    def test_an_unparseable_file_reaches_nothing_rather_than_everything(self):
+        """A SyntaxError must return the EMPTY set. Returning "everything" would silently disarm
+        the whole orphan check on the day someone leaves a file mid-edit. [[unknown-stays-unknown]]"""
+        self.assertEqual(names_handed_to_a_runner("def broken(:\n"), set())
+
+    def test_the_widening_did_not_swallow_the_allowlist(self):
+        """MEASURED, not assumed: the four ALLOWED entries must still be orphans after the
+        widening, or `test_the_allowlist_does_not_outlive_its_entries` would be passing because the
+        reach got sloppy rather than because the excuses are still true."""
+        # ⚠ name a REAL method: `TestCase()` with no args only became legal in 3.11, and this suite
+        # runs on whatever python3 the machine has.
+        probe = TestLaw19ForPythonToo("test_every_public_helper_has_a_caller_or_a_justified_reason")
+        orphans = set(probe._orphans())
+        missing = [k for k in TestLaw19ForPythonToo.ALLOWED if k not in orphans]
+        self.assertEqual(missing, [],
+                         "the handed-reference widening un-orphaned allowlisted names (%d of %d): "
+                         "%s — that is reach, not repair"
+                         % (len(missing), len(TestLaw19ForPythonToo.ALLOWED), ", ".join(missing)))
 
 
 class TestLaw19ForThePayloadContract(unittest.TestCase):

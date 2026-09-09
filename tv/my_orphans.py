@@ -14,6 +14,7 @@ import io
 import json
 import os
 import subprocess
+import time
 import sys
 
 # Long-lived and busy by design; not mine and not news.
@@ -40,6 +41,12 @@ OLD_MIN = int(os.environ.get("TV_ORPHAN_MIN") or 20)
 #: Ports that are HIS by definition. A process holding one of these is never "mine", whatever else
 #: matches — his console, his Chrome, TradingView, his desktop app.
 HIS_PORTS = (17772, 17781, 17955, 9222, 9223, 8848)
+
+#: Executable prefixes that belong to macOS itself. A process running out of one of these is the
+#: operating system, whatever it is doing. ⚠ `/usr/local` is NOT here (node, his tools) and neither
+#: is /Library/Developer/CommandLineTools (the python I run under) — excusing those would make the
+#: sweep unable to see its own author.
+SYSTEM_PATHS = ("/System/", "/usr/sbin/", "/usr/libexec/", "/sbin/", "/Library/Apple/")
 
 #: Where `claude-owns` records what it started. ⚠ INCOMPLETE BY NATURE: 53 rows, last written a day
 #: before this was needed, and today's 52-minute runaway was never in it. Registration is a claim
@@ -72,6 +79,98 @@ def _registered_pids():
     return out
 
 
+def _parent_of(pid):
+    """ppid of `pid`, as a string, or None. Bounded and failure-tolerant by design."""
+    try:
+        r = subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)],
+                           capture_output=True, text=True, timeout=5)
+        v = (r.stdout or "").strip()
+        return v or None
+    except Exception:
+        return None
+
+
+def _listening_ports(pid):
+    """Ports `pid` itself LISTENS on. -> (set, why)
+
+    ⚠ `-a` ANDs the selectors. Without it lsof ORs them and hands back the whole machine.
+    """
+    try:
+        r = subprocess.run(["lsof", "-nP", "-a", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],
+                           capture_output=True, text=True, timeout=10)
+    except Exception as e:
+        return set(), "lsof could not be asked (%s)" % type(e).__name__
+    out = set()
+    for line in (r.stdout or "").splitlines()[1:]:
+        parts = line.split()
+        if len(parts) < 2 or "(LISTEN)" not in line:
+            continue
+        name = parts[-2]
+        if ":" not in name:
+            continue
+        try:
+            out.add(int(name.rsplit(":", 1)[1]))
+        except ValueError:
+            continue
+    return out, "read %d listening socket(s)" % len(out)
+
+
+def holds_his_port(pid):
+    """Is this process listening on one of HIS ports? -> (int|None, why)
+
+    ★ THIS FUNCTION IS THE WHOLE POINT OF THIS FILE AND IT DID NOT EXIST.
+    `HIS_PORTS` was declared at the top with the comment "a process holding one of these is never
+    'mine', whatever else matches" — and MEASURED 2026-09-09: `grep -c HIS_PORTS` was **1**, its
+    own definition. Nothing consulted it. `_attribute` promised three positive witnesses in its
+    docstring, implemented two, and closed its refusal sentence with the words "holds none of our
+    ports" — an assertion about a check that was never run.
+
+    What that cost, the same day: his live console (`control_app.py --open`, holding :17772) came
+    back from `_attribute` as `ours=None` — "busy and old, and nothing can say whose it is" — which
+    is the shape this tool reports as a suspect. I had separately read one `ps` sample showing it
+    at 108% CPU and 17h uptime and was one command from killing it. The guard written to prevent
+    exactly that would have agreed with me.
+
+    ⚠ IT FAILS CLOSED. If lsof cannot answer, the port is UNKNOWN and the caller must treat the
+    process as NOT-MINE, because the cost of a wrong "mine" is his console and the cost of a wrong
+    "not mine" is a process that lives five more minutes.
+    [[plumbing-with-no-tap]] [[i-own-everything-i-start]] [[unknown-stays-unknown]]
+    """
+    # ⚠⚠ THROUGH `_listening_ports`, NOT A SECOND lsof OF ITS OWN. The first cut of this fix
+    # inlined the call here AND kept the helper for the ancestry walk — two implementations of one
+    # question, which is the drift that produced the stale path resolver earlier the same day. The
+    # gate caught it immediately: a test that stubs `_listening_ports` could not move this branch.
+    # [[copy-drift]]
+    found, why = _listening_ports(pid)
+    if not found and "could not be asked" in why:
+        # ⚠ FAILS CLOSED. An unanswerable lsof means the port is UNKNOWN, and the caller must treat
+        # the process as NOT-MINE: a wrong "mine" costs his console, a wrong "not mine" costs a
+        # process five more minutes. [[unknown-stays-unknown]]
+        return None, "%s — the port is UNKNOWN, so this is NOT mine" % why
+    for port in HIS_PORTS:
+        if port in found:
+            return port, "listening on :%d, which is HIS by definition" % port
+    # ⚠⚠ AND HIS PROCESS TREE, NOT JUST HIS LISTENER. MEASURED 2026-09-09: his console holds
+    # :17772 on ONE pid and runs helpers beside it that hold nothing — pid 67244 came back port=0
+    # while its parent was the console. Killing a child of his console breaks his console just as
+    # surely as killing the listener, so the protection has to cover the tree the port anchors.
+    # The walk is bounded and stops at pid 1; a cycle or a vanished parent ends it.
+    _seen, _p = set(), pid
+    for _ in range(12):
+        _pp = _parent_of(_p)
+        if not _pp or _pp in ("0", "1") or _pp in _seen:
+            break
+        _seen.add(_pp)
+        _up, _upWhy = _listening_ports(_pp)
+        for port in HIS_PORTS:
+            if port in _up:
+                return port, ("its ancestor pid %s listens on :%d — killing a child of his "
+                              "console breaks his console" % (_pp, port))
+        _p = _pp
+    return 0, ("listens on none of his ports (found %s)"
+               % (", ".join(":%d" % p for p in sorted(found)) or "no listening socket"))
+
+
 def _attribute(pid, cmd):
     """Whose process is this? -> (True|False|None, why)
 
@@ -82,6 +181,13 @@ def _attribute(pid, cmd):
             path, and held no port. A rule that only reported POSITIVE ownership would have said
             nothing about it at all. [[unknown-stays-unknown]]
     """
+    # ⚠⚠ HIS PORTS ARE ASKED FIRST, AND THE ANSWER IS FINAL. Ownership is not a majority vote:
+    # a process on :17772 is his console even if it names this tree, even if a stale ledger row
+    # claims it, even if it is burning a core. Putting this after the positive witnesses would let
+    # "names this tree" win — and his console's command line IS this tree.
+    _hp, _hpWhy = holds_his_port(pid)
+    if _hp is None or _hp:
+        return False, ("NEVER MINE — %s" % _hpWhy)
     if str(pid) in _registered_pids():
         return True, "registered by claude-owns at spawn"
     _here = os.path.dirname(os.path.abspath(__file__))
@@ -89,7 +195,7 @@ def _attribute(pid, cmd):
     if _here in cmd or _root in cmd:
         return True, "names this tree on its command line"
     return None, ("busy and old, and nothing can say whose it is — not in the spawn ledger, does "
-                  "not name this tree, holds none of our ports")
+                  "not name this tree, and %s" % _hpWhy)
 
 
 def _elapsed_minutes(et):
@@ -106,9 +212,41 @@ def _elapsed_minutes(et):
     return days * 1440 + h * 60 + m + (s / 60.0)
 
 
-def suspects(busy=BUSY_PCT, old_min=OLD_MIN):
-    """Processes that are BOTH busy and old — the shape a runaway has. -> list of dicts"""
+def _cpu_sample():
+    """{pid: pcpu} from one ps. -> dict"""
+    try:
+        raw = subprocess.run(["ps", "-Ao", "pid,pcpu"],
+                             capture_output=True, text=True, timeout=20).stdout
+    except Exception:
+        return {}
+    out = {}
+    for line in raw.splitlines()[1:]:
+        p = line.split()
+        if len(p) >= 2:
+            try:
+                out[p[0]] = float(p[1])
+            except ValueError:
+                pass
+    return out
+
+
+def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=4.0):
+    """Processes that are BOTH busy and old — the shape a runaway has. -> list of dicts
+
+    ⚠⚠ TWO CPU SAMPLES, NOT ONE, AND THAT IS THE HALF THAT NEARLY COST HIS CONSOLE.
+    `ps` %CPU is a DECAYING AVERAGE, not an instantaneous load. MEASURED 2026-09-09 on his console:
+    **108.4%**, then 9.0%, then 5.6% — three reads seconds apart, one process, nothing changed. I
+    acted on the first, called it "an unbounded process pinning a core for 17 hours", and was one
+    command from killing :17772.
+
+    A runaway is busy in BOTH samples. A burst is busy in one. The row now carries both figures and
+    `cpu` is the MINIMUM, so a spike cannot promote itself into a verdict.
+    [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+    """
     out = []
+    _first = _cpu_sample()
+    if settle and _first:
+        time.sleep(settle)
     try:
         raw = subprocess.run(["ps", "-Ao", "pid,ppid,pcpu,etime,command"],
                              capture_output=True, text=True, timeout=20).stdout
@@ -124,15 +262,33 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN):
             mins = _elapsed_minutes(et)
         except (TypeError, ValueError):
             continue
+        # BOTH samples must clear the bar. An absent first sample means the process is younger
+        # than this call, which cannot be a 20-minute runaway.
+        cpu0 = _first.get(pid)
+        cpu = min(cpu, cpu0) if cpu0 is not None else 0.0
         if cpu < busy or mins < old_min:
             continue
         if any(k in cmd for k in KNOWN):
+            continue
+        # ⚠⚠ v2847 — AN OS DAEMON IS NEVER MINE, AND A NAME LIST WOULD NOT HAVE COVERED IT.
+        # MEASURED the first time this ran: `coreaudiod` — 22.8% and 23.5% across BOTH samples,
+        # seven days old — was reported as "busy and old, and nothing can say whose it is". It is
+        # busy because he is on a call. It also sits right at the 20% bar, so consecutive runs
+        # disagreed about it, which is exactly how a watcher teaches him to ignore it.
+        # A PATH RULE, not another name in KNOWN: anything executing out of the OS's own
+        # directories belongs to macOS. `/usr/local` is deliberately NOT here — node and his own
+        # tools live there — and neither is the CommandLineTools python I run under, so this
+        # excuses the system without excusing me. [[unknown-stays-unknown]] [[label-outlived-referent]]
+        _bin = cmd.split(None, 1)[0] if cmd else ""
+        if _bin.startswith(SYSTEM_PATHS):
             continue
         # ⚠⚠ WHOSE IS IT? Until now this dict was labelled "ours" having tested nothing — `ppid` was
         # parsed on the line above and never read, and the only filter was a substring list that
         # flagged PID 1. Three POSITIVE witnesses are asked, and the answer travels with the row.
         _own, _ownWhy = _attribute(pid, cmd)
-        out.append({"pid": pid, "ppid": ppid, "cpu": cpu, "minutes": round(mins, 1),
+        out.append({"pid": pid, "ppid": ppid, "cpu": cpu,
+                    "cpuFirst": cpu0, "cpuSecond": float(pcpu), "samples": 2,
+                    "minutes": round(mins, 1),
                     "cmd": cmd[:150], "ours": _own, "whose": _ownWhy})
     return out
 

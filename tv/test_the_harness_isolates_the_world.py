@@ -247,7 +247,12 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
         import control_app as CA
         for name in ("_UI_FAULTS", "CAPTURE_DOORS_PATH", "IDENTITY_PATH", "VIEW_REQUEST_PATH",
                      "_CHRON_HUNT_MEM_PATH", "_CHRON_SWEPT_PATH", "_DISK_HISTORY",
-                     "_SHADOW_WATCH_PATH"):
+                     "_SHADOW_WATCH_PATH",
+                     # The NINTH, added by the status timing ledger and caught by the
+                     # census above the day it landed. Named here too so the other half of the
+                     # rule holds for it: his own console must still keep this record where he
+                     # can find it.
+                     "_STATUS_WORST_PATH"):
             v = getattr(CA, name, None)
             self.assertTrue(v, "%s is gone — re-point this law rather than let it pass on nothing"
                             % name)
