@@ -26669,3 +26669,58 @@ deploy check is the [[stale-reading]] shape exactly.
 
 **The tick now ends with CI, not with the ref.** REG-799 is the first thing that came out of
 actually reading it.
+
+## REG-801 — the threshold's own denominator was wrong
+**#52 · v2840 · 2026-09-09 · heart2_candidates.py · found by the cross-family look at v2837**
+
+`infrastructure()` computed a module's share over `glob("test_*.py")`. The reviewer asked whether
+that is the same set `run_gates` registers. MEASURED: **242 globbed vs 266 registered** — twenty-four
+gates are not named `test_` at all (`chronicle_doctor.py`, `corroborate.py`, `comment_count_gate.py`,
+`crest_loudness.py`, `disk_report_wilson.py`, …). **A share over the wrong denominator is exactly
+what this threshold exists to prevent, appearing inside the threshold.** [[zero-needs-a-denominator]]
+
+⚠ **It did not change the answer** — `console_safe` is excluded either way — and that is worth
+saying plainly rather than dressing a correctness fix as a rescue.
+
+The registry is consulted lazily (heart2 imports this module, so a top-level import is circular) and
+**scoped to the directory asked about**: my first cut used the global registry for any `here`, which
+broke my own `test_a_tiny_corpus_excludes_nothing` law — a temp directory got this repo's answer.
+That law going red on the change that introduced it is the loop working.
+
+**Three of the same review's four other claims did not survive measurement, and I did not act on
+them:**
+  · **(a)** a "cluster" module at 30-40% would supposedly slip past — the arithmetic is backwards
+    (30% > 25% IS excluded), and measured, the contested 15-40% band holds exactly **one** module:
+    `control_app` at 20%. There is no cluster here.
+  · **(d)** a fixed fraction "breaks as the corpus grows" — possible in principle, unmeasurable
+    here, and the current gap (95% vs 20%) is wide. Recorded as a limit, not treated as a defect.
+  · **(c)** `_INFRA_CACHE` is never invalidated — true, and immaterial: the deriver runs as a batch
+    within one process against a static tree.
+
+⚠ The review also ended with **"No defects found"** after listing four findings. The contradiction
+is the reason each was measured rather than counted.
+
+## REG-802 — the transmission guard retracted a real look for the third time
+**v2840 · 2026-09-09 · second_eye_ledger.py**
+
+Recording the v2837 look was retracted to `reached=False`: the guard matched
+`open("control_app.py").read()` — inside a **string literal that is test fixture data**, in
+**14,777 characters** of genuinely transmitted diff.
+
+Third time these markers have filed a real look as an empty seat, and each one blocks the repo,
+because a version cannot ship while the previous one has never been looked at:
+
+    v2808  matched `+"""` diff markers on every added docstring line
+    v2825  matched this file's OWN COMMENT describing what a seam looks like
+    v2840  matched a fixture string inside 14.7 KB of real diff
+
+Each fix narrowed WHERE the pattern may match. **None asked whether the fence could still plausibly
+BE the promise** — which is the only condition under which the marker means anything. The guard
+exists to catch a fence holding an un-evaluated expression *instead of* the file; a fence carrying
+thousands of characters of diff manifestly holds the file, whatever its text also says.
+
+**Fixed:** a size floor. Measured — a real promise is **24-29 chars**; real review payloads this
+session ran **4,538-37,973**. `_PROMISE_MAX_CHARS = 2000` sits far above every bare expression and
+far below every genuine payload. All three real promise shapes still caught; a 4,113-char diff
+quoting one is clean. Four tampers PROVEN red, and the gate holds that the floor sits below the
+smallest real payload so it cannot become an escape hatch. [[zero-needs-a-denominator]]

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2839",
+  "ver": "v2840",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2839: REG-799..800 — js_syntax_gate concatenated the DOM dump with the console and grepped for SyntaxError, so bible.html failed itself on a COMMENT quoting one; invisible locally because the browser path skips on his Mac. And I verified 34 ships by the ref while 23 of 57 CI runs were failing",
+  "note": "v2840: REG-801 — infrastructure() measured a share over 242 globbed files while the gate registry holds 266; the registry is now the corpus, scoped to the directory asked about. Three of the same review four other claims did not survive measurement and were not acted on",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

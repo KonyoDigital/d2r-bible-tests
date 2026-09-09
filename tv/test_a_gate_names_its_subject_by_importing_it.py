@@ -114,6 +114,46 @@ class InfrastructureIsNotASubject(unittest.TestCase):
             import shutil
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_the_corpus_is_the_registry_not_a_glob(self):
+        """v2840 — THE THRESHOLD'S OWN DENOMINATOR WAS WRONG, which is the defect it exists to stop.
+
+        `infrastructure()` computed a module's share over `glob("test_*.py")`. MEASURED after a
+        cross-family review asked whether those are the same set: the glob finds **242** files while
+        `run_gates` registers **266** — twenty-four gates are not named `test_` at all
+        (chronicle_doctor.py, corroborate.py, comment_count_gate.py, crest_loudness.py,
+        disk_report_wilson.py, …). A share over the wrong denominator is exactly what this
+        threshold exists to prevent, appearing inside the threshold. [[zero-needs-a-denominator]]
+
+        ⚠ It did not change the ANSWER today — console_safe is excluded either way — and that is
+        worth saying plainly rather than dressing a correctness fix as a rescue.
+        """
+        src = io.open(os.path.join(HERE, "heart2_candidates.py"), encoding="utf-8").read()
+        i = src.find("def infrastructure(")
+        self.assertGreater(i, 0, "infrastructure() is gone")
+        blk = src[i:src.find("\ndef ", i + 10)]
+        self.assertIn("gate_files()", blk,
+                      "the corpus is not taken from the gate REGISTRY, so the share is measured "
+                      "over whatever happens to match a filename pattern")
+        self.assertIn("except Exception", blk,
+                      "the registry import is not guarded — heart2 imports this module, so an "
+                      "unguarded import is circular and would take the deriver down with it")
+        self.assertIn("_glob.glob", blk,
+                      "there is no fallback when the registry cannot be reached; a wider "
+                      "denominator is better than no answer, and the degradation must be stated")
+
+    def test_the_two_corpora_are_measured_not_assumed(self):
+        """The mismatch is a fact about this repo, so it is asserted as one."""
+        import glob as _g
+        import heart2 as _h2
+        globbed = {os.path.basename(f) for f in _g.glob(os.path.join(HERE, "test_*.py"))}
+        registered = {os.path.basename(f) for _n, f in _h2.gate_files()}
+        self.assertEqual(set(), globbed - registered,
+                         "a file matching test_*.py is not a registered gate: %s"
+                         % sorted(globbed - registered)[:6])
+        self.assertTrue(registered - globbed,
+                        "every registered gate now matches test_*.py, so the glob and the registry "
+                        "agree — if that is genuinely true this law can go, but check it rather "
+                        "than assume the mismatch healed itself")
 
 class TheGateIsStillNotItsOwnSubject(unittest.TestCase):
     """The pre-existing rule that a gate may not tamper ITSELF must survive the widening."""
@@ -127,6 +167,15 @@ class TheGateIsStillNotItsOwnSubject(unittest.TestCase):
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 RED_PROOF = [
+    {
+        "why": "computing the share over a filename glob measures 242 files while the gate\n               registry holds 266 — a threshold whose own denominator is wrong",
+        "file": "heart2_candidates.py",
+        # ⚠ RE-ANCHORED: scoping the registry to `here` rewrote this line, and heart2 said so
+        # at once — INVALID, matched 0 times. The LAW did not change.
+        "find": '        files = [f for _n, f in _h2.gate_files()\n                 if os.path.abspath(os.path.dirname(f)) == _abs]',
+        "replace": "        files = None",
+        "matches": 1,
+    },
     {
         "why": "dropping the infrastructure exclusion lets a subject resolve to console_safe, "
                "whose tamper reddens every gate that imports it — coverage recorded, nothing proven",

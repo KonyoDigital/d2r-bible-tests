@@ -253,6 +253,12 @@ _UNSENT_MARKERS = (
 
 _FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
 
+#: A fence at least this large has manifestly TRANSMITTED code, so an un-evaluated-expression
+#: marker inside it is a coincidence of text rather than a promise standing in for a file.
+#: Measured: real review payloads carry 4,538-37,973 chars of fence; an un-evaluated seam is a
+#: line or two. The floor sits far below every real payload and far above any bare expression.
+_PROMISE_MAX_CHARS = 2000
+
 #: A Python comment line, with an optional unified-diff marker in front of it. Prose about a rule
 #: is not the rule — the distinction this repo has paid for more than once.
 _COMMENT_LINE = re.compile(r"^[-+ ]?\s*#")
@@ -293,6 +299,22 @@ def code_was_transmitted(sent):
         # `+    # ...` or `     # ...`, so the `#` is not the first non-space character.
         _code = "\n".join(ln for ln in body.split("\n")
                           if not _COMMENT_LINE.match(ln))
+        # ⚠⚠ v2840 — A MARKER ONLY MEANS SOMETHING WHILE THE FENCE COULD *BE* THE PROMISE.
+        # These markers exist to catch a prompt whose fence holds an un-evaluated expression
+        # INSTEAD OF the file. A fence carrying thousands of characters of real diff manifestly
+        # holds the code, and a stray textual match inside it is noise — twice now it has retracted
+        # a genuine look:
+        #   v2825  matched this file's own COMMENT describing what a seam looks like
+        #   v2840  matched `open("control_app.py").read()` inside a STRING LITERAL that is test
+        #          fixture data — in 14,777 characters of transmitted diff
+        # Each retraction files the look as an EMPTY SEAT, and a version cannot ship while the
+        # previous one has never been looked at, so each one blocks the repo.
+        #
+        # The size IS the evidence. Below the floor the expression could plausibly be the whole
+        # payload; above it the code is present whatever the text also happens to say.
+        # [[feedback-comments-vs-code]] [[zero-needs-a-denominator]]
+        if len(body) >= _PROMISE_MAX_CHARS:
+            continue
         for rx, msg in _UNSENT_MARKERS:
             if rx.search(_code) and msg not in why:
                 why.append(msg)

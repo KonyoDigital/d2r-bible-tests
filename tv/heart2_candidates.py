@@ -78,8 +78,31 @@ def infrastructure(here):
     """
     if here in _INFRA_CACHE:
         return _INFRA_CACHE[here]
-    import glob as _glob
-    files = _glob.glob(os.path.join(here, "test_*.py"))
+    # ⚠⚠ v2840 — THE CORPUS IS WHAT run_gates REGISTERS, NOT WHAT MATCHES test_*.py. MEASURED
+    # 2026-09-09 by a cross-family review's question: the glob finds 242 files while run_gates
+    # registers 266 — twenty-four gates are not named `test_` at all (chronicle_doctor.py,
+    # corroborate.py, comment_count_gate.py, crest_loudness.py, disk_report_wilson.py, …). A share
+    # computed over the wrong denominator is the defect this whole threshold exists to avoid, in
+    # the threshold itself. [[zero-needs-a-denominator]]
+    #
+    # ⚠ Imported LAZILY and with a fallback: heart2 imports this module, so a top-level import
+    # would be circular. If the registry cannot be reached the glob still answers — a wider
+    # denominator is better than none — and that is a stated degradation, not a silent one.
+    # ⚠ THE REGISTRY ONLY DESCRIBES ONE TREE. `infrastructure(here)` answers about the corpus AT
+    # `here`, so the registry is used only for files that actually live there — otherwise a caller
+    # asking about a temp directory gets this repo's answer, which is how my own
+    # `test_a_tiny_corpus_excludes_nothing` law went red on the change that introduced it.
+    files = None
+    try:
+        import heart2 as _h2
+        _abs = os.path.abspath(here)
+        files = [f for _n, f in _h2.gate_files()
+                 if os.path.abspath(os.path.dirname(f)) == _abs]
+    except Exception:
+        files = None
+    if not files:
+        import glob as _glob
+        files = _glob.glob(os.path.join(here, "test_*.py"))
     counts, total = {}, 0
     for f in files:
         src = _read(f)
