@@ -300,7 +300,11 @@ class ARealDiffMustNotRetractItsOwnReview(unittest.TestCase):
         pad = "# explanatory prose that carries no code whatsoever, repeated to pad the fence\n" * 30
         promise = "```python\n" + pad + 'prompt = open("control_app.py").read()\n```'
         body = L._FENCE_RE.findall(promise)[0]
-        self.assertGreater(len(body), 2000,
+        # ⚠ THE CONSTANT, NOT A LITERAL 2000. The floor it names is retired, and that is exactly
+        # why this reads it by name: if someone changes the retired value the fixture follows, and
+        # if someone deletes it this law fails loudly instead of silently testing a number that no
+        # longer means anything. [[copy-drift]]
+        self.assertGreater(len(body), L._RETIRED_CHAR_FLOOR,
                            "the fixture no longer exceeds the OLD character floor, so it stopped "
                            "testing the hole it was written for")
         self.assertLess(L._code_lines(body), L._PROMISE_MIN_CODE_LINES,

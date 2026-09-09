@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2845",
+  "ver": "v2846",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2845: five gates were red on CI for versions and only reading CI found them",
+  "note": "v2846: a constant outlived the rule it was named for",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

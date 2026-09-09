@@ -26972,3 +26972,29 @@ their cause outright — `no module named 'numpy'`, `no journal at sessions.json
 disk`. Those are gates whose fixture is the HOST: they pass on a machine holding his data and fail
 on a bare runner, which makes them un-actionable signal on CI rather than proof of anything.
 Un-diagnosed and still red — counted, not fixed. [[feedback-blind-fixture-green-gate]]
+
+
+## REG-809 — the push was REFUSED, and the cold eye's clean bill still left one thing
+
+**v2846.** The v2843-v2845 push came back **exit 0 and the ref had not moved.** The second-eye gate
+refused it: *"v2845 may not ship while v2842 has never been looked at by a different model family."*
+Correct, and the reason the exit code is worthless: a background wrapper reports its own status, not
+the push's. [[exit-status-of-the-block]]
+
+Ran the cold look — `second_eye_run.py v2842`, payload 7,312 chars in 4 fences, handed to
+grok-4-1-fast-reasoning with no hint of what it should find. **Verdict: no concrete defects**, and
+it named its own reach ("judged only what is fully shown"). Recorded: v2842 LOOKED.
+
+⚠ **AND A CLEAN REVIEW IS NOT THE END OF THE REVIEW.** Checking the diff myself afterwards:
+`_PROMISE_MAX_CHARS = 2000` survived the change that retired it. MEASURED — **1 reference across
+every .py in tv/, and that reference is its own definition.** Dead, and worse than dead: the name
+still claims a character floor this module stopped applying at v2842, so the next reader meets a
+right number under a word that stopped being true. Meanwhile the law that DOES still need the old
+figure compared against a bare literal `2000`.
+
+Renamed to `_RETIRED_CHAR_FLOOR`, documented as retired, and the law now reads it BY NAME — so if
+the value moves the fixture follows, and if it is deleted the law fails loudly instead of quietly
+testing a number that no longer means anything. [[label-outlived-referent]] [[copy-drift]]
+
+The eye was right about what it was asked; it was asked about behaviour, and this is a defect of
+naming that only shows up against the file's history. Both passes were needed.

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2846** | `(this commit)` | v2846 — a constant outlived the rule it was named for |
 | **v2845** | `(this commit)` | v2845 — five gates were red on CI for versions and only reading CI found them |
 | **v2844** | `(this commit)` | v2844 — a new render target went green on the state it was named against |
 | **v2843** | `(this commit)` | v2843 — the fleet failed on his screen and the heart had never heard the word |

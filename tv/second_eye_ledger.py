@@ -265,7 +265,14 @@ _FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
 _PROMISE_MIN_CODE_LINES = 8
 
 #: Kept only for the `chars` field the ledger reports. It is NOT the test any more.
-_PROMISE_MAX_CHARS = 2000
+#: ⚠ THE RETIRED CHARACTER FLOOR. v2842 replaced it with `_PROMISE_MIN_CODE_LINES` because a fence
+#: padded with thirty lines of prose clears any character floor while carrying ONE line of code.
+#: It is kept — and RENAMED from `_PROMISE_MAX_CHARS` — because a law still asserts that its
+#: counter-example fixture clears the old floor, which is what makes that fixture a proof that the
+#: hole was real rather than a fixture that merely passes. Nothing in this module reads it.
+#: The old name claimed a rule this file no longer applies; a right number under a word that
+#: stopped being true is the defect caught here more than any other. [[label-outlived-referent]]
+_RETIRED_CHAR_FLOOR = 2000
 
 
 def _code_lines(body):
