@@ -67,6 +67,12 @@ LANES = (
 )
 
 
+#: How many CLOSED reels a lane hands to the page. The count is always the whole ledger; this caps
+#: only the rows drawn. His ledger holds 428 and #15 is the standing precedent for what happens
+#: when a surface hands the DOM everything it has.
+SHOW_CLOSED = 24
+
+
 def assert_partitions():
     """Every router station belongs to exactly one lane. -> (ok, findings)
 
@@ -157,6 +163,39 @@ def lanes(rep=None):
     by = {}
     for r in (rep.get("reels") or []):
         by.setdefault(r.get("station"), []).append(r)
+
+    # ⚠⚠ THE CLOSURE HALF, AND IT IS STILL NOT A SECOND PIPELINE. `reel_router.roster()` assigns
+    # the TOMBSTONE station; this only asks for its answer and hands the rows to whichever lane
+    # the map says covers that station. Nothing here decides where a reel is.
+    #
+    # ⚠⚠ WHY IT HAD TO BE ADDED, MEASURED 2026-09-09 (#36). The TOMBSTONE lane is labelled
+    # "closed out — the extraction contract is satisfied", and until now it could only ever hold
+    # ROUTED-but-still-on-disk reels: a reel that had ACTUALLY closed out leaves the disk, so it
+    # was absent from every walk feeding this file. 41 reels were drawable and 428 closed ones
+    # were not — the lane could never show the one thing its own label promises.
+    # [[label-outlived-referent]] [[plumbing-with-no-tap]]
+    #
+    # ⚠ `count` AND `reconciles` ARE NOT TOUCHED BY THIS. They are about the SHELF — reels on
+    # disk — and folding 428 closed reels into them would move a number he reads without a word
+    # on screen saying why. The closure rows ride beside, with their own count, their own
+    # denominator and their own named source. [[zero-needs-a-denominator]]
+    closed_by_station, closed_why, closed_n = {}, "", None
+    try:
+        import reel_router as _rr2
+        _ro = _rr2.roster(rep=rep)
+        closed_why = str(_ro.get("closedWhy") or "")
+        if _ro.get("closedReadable"):
+            closed_n = _ro.get("closed")
+            for _r in (_ro.get("rows") or []):
+                if not _r.get("onDisk"):
+                    closed_by_station.setdefault(_r.get("station"), []).append(_r)
+        else:
+            closed_by_station = None
+    except Exception as _exc:
+        closed_by_station = None
+        closed_why = ("the closure roster raised %s, so how many reels have closed out is "
+                      "UNKNOWN — it is NOT none" % type(_exc).__name__)
+
     total = 0
     for name, stations, why in LANES:
         # ⚠ FIFO INHERITED: `rep["reels"]` is already oldest-first, so walking it once per lane
@@ -164,15 +203,35 @@ def lanes(rep=None):
         # order by station first and clock second.
         reels = [r for r in (rep.get("reels") or []) if r.get("station") in stations]
         total += len(reels)
-        out["lanes"].append({
+        # ⚠ FIFO INHERITED HERE TOO — `_ro["rows"]` is already ordered by the router's one clock
+        # rule (oldest capture first, no-clock LAST), so slicing preserves it. `SHOW_CLOSED` caps
+        # what is HANDED TO THE PAGE, never what is counted: `closedCount` is the whole ledger and
+        # `closedShown` says how much of it is drawn, so a reader can never mistake the sample for
+        # the total. #15 is the precedent — one open built ~72,700 DOM nodes and stopped the
+        # window painting. [[zero-needs-a-denominator]]
+        _cl = None if closed_by_station is None else [
+            r for st in stations for r in (closed_by_station.get(st) or [])]
+        _lane = {
             "name": name,
             "why": why,
             "stations": list(stations),
             "count": len(reels),
             "byStation": {s: len(by.get(s) or []) for s in stations},
             "reels": reels,
-        })
+            # None is UNKNOWN — the ledger could not be read — and is never rendered as 0.
+            "closedCount": (None if _cl is None else len(_cl)),
+            "closedShown": (None if _cl is None else min(len(_cl), SHOW_CLOSED)),
+            "closedReels": (None if _cl is None else _cl[:SHOW_CLOSED]),
+            "closedWhy": closed_why,
+        }
+        out["lanes"].append(_lane)
     out["shelf"] = rep.get("shelf") or 0
+    # ⚠ TWO DIFFERENT DENOMINATORS, BOTH NAMED. `shelf` is reels ON DISK and is what `reconciles`
+    # is about; `closed` is reels that have LEFT it. Publishing only one of them is how the
+    # per-reel surfaces came to cover 41 of 469 lifetimes with nothing saying so.
+    out["closed"] = closed_n
+    out["closedWhy"] = closed_why
+    out["lifetime"] = (None if closed_n is None else (rep.get("shelf") or 0) + int(closed_n))
     out["unknown"] = rep.get("unknown") or 0
     out["reconciles"] = (total + out["unknown"]) == out["shelf"]
     out["ok"] = True

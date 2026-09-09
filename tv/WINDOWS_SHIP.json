@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2821",
+  "ver": "v2823",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2821: REG-763 the banked name was inert text - the only route to the proof was a small icon opening a raw JPEG in a new tab, and only on the console. A real full-screen lightbox has existed in the same file since v741 and the ledger never called it; both halves shipped and never met. It is clickable off-console too because the lightbox has its own bridge-archive-missing chain and 739 of 10318 cited frames no longer resolve. The first cut called jsq, which is not in that scope - a ReferenceError while BUILDING the row would have taken down the whole ledger. REG-764 every bible-reading law reported UNPROVABLE for two path defects: safe_copy copies tv only while bible.html is in the repo root, and the tamper resolver joined against tv. Measured 59 of 259 gates read bible.html - 23 percent of the suite could not prove itself, and none of those proofs were wrong. Containment was widened to the repo copy and verified, not assumed: absolute paths and every climb are still refused.",
+  "note": "v2823: REG-771..774 — 19 techniques named, 8 MINI-only gaps, 7 unasked; the door stamp covers 0.6% so UNKNOWN stays UNKNOWN; a 60s-old fleet roster now carries its age; a red-proof re-anchored after a refactor moved it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

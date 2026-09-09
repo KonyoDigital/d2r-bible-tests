@@ -1870,6 +1870,43 @@
   #th-shelfov .shr-wait { font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
     color: #9a8f7a; }
   #th-shelfov .shr-bad { color: #e0a06a; }
+  /* ⚠⚠ v2822 (#36) — THE SECOND DENOMINATOR, DELIBERATELY QUIETER THAN THE FIRST. `shelf` is
+     the figure he acts on; `closed out · lifetimes` is the context that stops 41 reading as the
+     whole river. Same mono family and 2xs size as every other tally in this strip, one step
+     down in colour so the head still has one emphasis and not three. */
+  /* ⚠ `flex: 0 0 auto` + nowrap = an item that wraps WHOLE or not at all. That is the property
+     that stops a separator being orphaned, and it is why these are siblings of `.shr-lbl` rather
+     than text inside it. */
+  /* `flex: 0 1 auto` + an inner wrapping flex: the GROUP moves as one, and only if the group
+     itself cannot fit does it break between its two figures. */
+  #th-shelfov .shr-lifes { flex: 0 1 auto; display: flex; flex-wrap: wrap; gap: 2px 8px;
+    align-items: baseline; min-width: 0; }
+  #th-shelfov .shr-life { flex: 0 0 auto; white-space: nowrap; color: #8d836f;
+    font-weight: var(--fw-medium); }
+  #th-shelfov .shr-life b { color: #b9ad92; font-variant-numeric: tabular-nums; }
+  /* The lane's closure figure. It sits UNDER the station tallies because it is a different
+     source with a different denominator — a reader must not scan it as another station. */
+  /* ⚠⚠ NO `white-space: nowrap` HERE, AND THE FIRST CUT HAD IT. Measured on the render at 901px:
+     `+7 closed out` ran THROUGH the TOMBSTONE card's right border — the lanes are flex children
+     that narrow as the strip narrows, so a nowrap chip inside one is an overflow waiting for the
+     right viewport. The station chips above CAN use nowrap because they sit in an auto-fit grid
+     that collapses to one column; this sits in the card's own flow with nothing to give.
+     ⚠ `min-width: 0` because a flex child's default `min-width: auto` refuses to shrink below its
+     content — the same reason `.shr-st` carries it twelve lines up. [[visual-regression-detector]] */
+  /* ⚠ THE SOURCE LABEL IS THE POINT, not decoration. It is the only thing standing between a
+     reader and reading this number as more of the station count above it. */
+  #th-shelfov .shr-cl i { display: block; font-style: normal; text-transform: uppercase;
+    letter-spacing: var(--ls-wide); color: rgba(200,180,120,.5);
+    font-weight: var(--fw-normal); margin-bottom: 1px; }
+  #th-shelfov .shr-cl b { color: #e0d0a8; }
+  #th-shelfov .shr-cl { margin-top: 6px; padding-top: 6px; min-width: 0;
+    border-top: 1px dashed rgba(200,180,120,.22);
+    font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono);
+    color: #c8b98f; letter-spacing: var(--ls-tight); font-variant-numeric: tabular-nums;
+    overflow-wrap: break-word; }
+  /* ⚠ UNKNOWN IS NOT STYLED LIKE A NUMBER. An unreadable ledger must not sit in the same
+     confident type as a measured one. [[unknown-stays-unknown]] */
+  #th-shelfov .shr-unk { color: #9a8f7a; font-style: italic; letter-spacing: var(--ls-tight); }
   #th-shelfov .shr-warn { margin-top: 8px; font: var(--fw-semibold) var(--fs-2xs)/var(--lh-snug) var(--mono);
     color: #e05545; }
   #th-shelfov .shr-note { margin-top: 8px; font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono);
@@ -10978,8 +11015,39 @@ window._lockMark = function(isOpen, px, label){
        fleet tooltip) and neither of these used it. Measured: 3 "as of" hits in the whole file,
        NONE in the shelf code. So each strip now names its own source, and the reader can tell
        which engine a number came from. [[stale-reading]] [[unknown-stays-unknown]] */
+    /* ⚠⚠ v2822 (#36) — TWO DENOMINATORS, BOTH NAMED, BECAUSE ONE OF THEM COVERED 8.7%.
+       Every walk feeding this strip enumerates reels ON DISK. A reel that actually closes out is
+       deleted and vanishes from all of them — measured 2026-09-09: 41 walkable, 428 in the
+       closure ledger, ZERO overlap. So `shelf` was 41 out of 469 lifetimes and the strip said
+       only "41 reel(s) on the shelf", which reads as the whole river.
+       ⚠ `closed` null is UNKNOWN — the ledger could not be read — and gets NO figure rather
+       than a 0. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+    /* ⚠⚠ EACH FIGURE IS ITS OWN FLEX ITEM, AND THE FIRST CUT WAS NOT — I PUT THEM INSIDE
+       `.shr-lbl` WITH MIDDOTS BETWEEN THEM AND RE-BROKE A DEFECT THIS FILE HAS ALREADY SOLVED
+       TWICE. Measured on the render: at 901 the head printed
+           `THE RIVER · 41 REEL(S) ON THE SHELF · 7 CLOSED OUT ·`  /  `48 LIFETIMES`
+       — a middot alone at the end of a line — and at 375 it split the phrase itself,
+           `... · 7 CLOSED`  /  `OUT · 48 LIFETIMES`.
+       The note beside `.shr-sts` says it outright: *"a separator that wraps is orphaned at one end
+       or the other; choosing which end is not a fix."* `.shr-head` is already a wrapping flex row
+       with an 8px gap, and `.shr-src` / `.shr-fifo` are already separate items for exactly this
+       reason. So each figure becomes a sibling item that wraps whole, with no glyph to strand.
+       [[visual-regression-detector]] — the pixels said this, not the code. */
+    var _cl = (L.closed === 0 || L.closed) ? L.closed : null;
+    var _lifeTxt = (_cl === null)
+      ? '<span class="shr-life shr-unk" title="' + esc(String(L.closedWhy || 'the closure ledger '
+        + 'could not be read')) + '">closed out unknown</span>'
+      : '<span class="shr-life" title="' + esc(String(L.closedWhy || '')) + '"><b>' + _cl
+        + '</b> closed out</span>'
+        + '<span class="shr-life" title="the shelf plus the closure ledger — a reel\u2019s whole '
+        + 'life, not just the part still on disk"><b>' + (L.lifetime || 0) + '</b> lifetimes</span>';
+    /* ⚠ THE TWO FIGURES ARE ONE GROUP, because separate siblings let the wrap split them either
+       side of `SOURCE · THE ROUTER`. The same eye: *"48 LIFETIMES sits on the same horizontal
+       line as SOURCE · THE ROUTER... the eye can attach the 48 to the router line."* Measured at
+       901: it did exactly that. A group wraps whole and keeps the three denominators together;
+       inside it they may still break, which is what stops the 375 mid-phrase split. */
     var H = ['<div class="shr-head"><span class="shr-lbl">the river · <b>' + (L.shelf || 0)
-             + '</b> reel(s) on the shelf</span>'
+             + '</b> reel(s) on the shelf</span><span class="shr-lifes">' + _lifeTxt + '</span>'
              + '<span class="shr-src" title="4 lanes over reel_router\u2019s 9 stations, from /api/river">'
              + 'source · the router</span>'
              + '<span class="shr-fifo">oldest first · FIFO</span></div>',
@@ -10994,10 +11062,36 @@ window._lockMark = function(isOpen, px, label){
          is invisible because a whitespace-only run between flex items is not rendered, and it
          keeps the extracted text "1 INTAKE" rather than "1INTAKE" for anything reading this by
          its words rather than its pixels. */
-      H.push('<div class="shr-lane' + (l.count ? '' : ' shr-empty') + '" title="' + esc(l.why || '') + '">'
+      /* ⚠⚠ v2822 (#36) — THE CLOSED REELS ARE DRAWN BESIDE THE COUNT, NEVER FOLDED INTO IT.
+         `count` is reels on the shelf and is what `reconciles` is about; adding 428 closed reels
+         to it would make the lane totals stop matching `shelf` and move a number he reads. This
+         is a SECOND figure with its own word, on the only lane whose stations include one the
+         ledger can fill. A lane with no closures gets nothing — an empty chip on every lane
+         would be four labels for one fact. */
+      /* ⚠⚠ IT SAID `+7` AND A CROSS-FAMILY EYE READ IT AS ARITHMETIC ON THE `0` ABOVE IT:
+         *"a reader can easily read the lane total as 0 + 7 = 7 reels"*. That is the ONE thing
+         this figure must never do — it is a different source with a different denominator, not
+         an addend to the station count. So the plus sign is gone and the chip NAMES ITS SOURCE
+         on its own line instead. The word `ledger` is the whole fix: a reader who sees a source
+         label cannot mistake the number for more of what is above it.
+         ⚠ It also removes the awkward `+7 closed / out` wrap the same review flagged — the label
+         line takes the break that the phrase was taking. [[grok-second-eye]] */
+      var _lc = (l.closedCount === 0 || l.closedCount) ? l.closedCount : null;
+      var _closedBit = '';
+      if (_lc === null && (l.stations || []).indexOf('TOMBSTONE') >= 0) {
+        _closedBit = '<div class="shr-cl shr-unk" title="'
+                   + esc(String(l.closedWhy || 'the closure ledger could not be read'))
+                   + '"><i>the ledger</i>could not be read</div>';
+      } else if (_lc) {
+        _closedBit = '<div class="shr-cl" title="' + esc(String(l.closedWhy || ''))
+                   + ' — ' + esc(String(l.closedShown || 0)) + ' of ' + _lc
+                   + ' drawn on the shelf below"><i>the ledger</i><b>' + _lc
+                   + '</b> closed out</div>';
+      }
+      H.push('<div class="shr-lane' + ((l.count || _lc) ? '' : ' shr-empty') + '" title="' + esc(l.why || '') + '">'
              + '<div class="shr-n"><u>' + (i + 1) + '</u> ' + esc(l.name) + '</div>'
              + '<div class="shr-c">' + (l.count || 0) + '</div>'
-             + '<div class="shr-sts">' + bits + '</div></div>');
+             + '<div class="shr-sts">' + bits + '</div>' + _closedBit + '</div>');
       if (i < rows.length - 1) H.push('<div class="shr-arrow">\u25B8</div>');
     });
     H.push('</div>');
@@ -11006,11 +11100,39 @@ window._lockMark = function(isOpen, px, label){
       H.push('<div class="shr-warn">\u26A0 the lanes and the shelf disagree — reels are missing '
              + 'from this picture</div>');
     }
+    /* ⚠⚠ v2822 (#36) — THIS FOOTNOTE WAS TRUE AND IS NOW STALE, WHICH IS WHY IT IS REWRITTEN
+       RATHER THAN DELETED. It explained a permanent 0 by naming the reason: closed reels leave
+       the shelf. That reason still holds for the STATION count — and the ledger they leave for
+       is now read, so the lane finally shows them. Leaving the old sentence would have the strip
+       explaining away a figure sitting two inches to its left. [[label-outlived-referent]] */
     var tomb = rows[rows.length - 1] || {};
-    if (((tomb.byStation || {}).TOMBSTONE || 0) === 0) {
-      H.push('<div class="shr-note">TOMBSTONE reads 0 because a released reel leaves the shelf '
-             + 'entirely — the ledger holds the ones already gone. What sits here is ROUTED: '
-             + 'finished with the river, waiting on a release that stays locked.</div>');
+    var _tn = (tomb.byStation || {}).TOMBSTONE || 0;
+    var _tc = (tomb.closedCount === 0 || tomb.closedCount) ? tomb.closedCount : null;
+    if (_tn === 0) {
+      /* ⚠⚠ THE FIRST HALF IS THE SAME IN ALL THREE BRANCHES AND I HAD DROPPED IT FROM TWO —
+         caught by test_the_shelf_shows_the_four_lanes, whose law is that a zero TOMBSTONE must
+         carry the reason it is zero. The reason ("a closed reel leaves the shelf") is a fact
+         about the WALK and holds whatever the ledger says; only the second sentence depends on
+         whether the ledger could be read. Splitting them is what let a rewrite lose one.
+         ⚠ AND `_tc === 0` HAD NO BRANCH AT ALL — a readable ledger holding nothing produced no
+         note whatsoever, so the last lane went back to reading dead with nothing saying why.
+         That is the exact defect the note exists to prevent, reintroduced by the fix for it.
+         [[label-outlived-referent]] [[zero-needs-a-denominator]] */
+      var _why = 'the TOMBSTONE <i>station</i> reads 0 because a closed reel leaves the shelf '
+               + 'entirely, so no walk of the disk can place one there. ';
+      if (_tc === null) {
+        _why += 'And the closure ledger could not be read, so how many reels have ever closed '
+              + 'out is UNKNOWN — not none.';
+      } else if (_tc === 0) {
+        _why += 'The closure ledger was read and names none either, so nothing has closed out '
+              + 'here yet — a measured zero, not an unasked question.';
+      } else {
+        _why += 'The <b>' + _tc + ' closed out</b> under THE LEDGER beside it comes from the '
+              + 'closure ledger instead — a different source with its own denominator, not part '
+              + 'of the ' + (L.shelf || 0) + '. What sits at ROUTED is finished with the river '
+              + 'and waiting on a release that stays locked.';
+      }
+      H.push('<div class="shr-note">' + _why + '</div>');
     }
     el.innerHTML = H.join('');
   }

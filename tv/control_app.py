@@ -17365,9 +17365,16 @@ def _heart2_census():
             "unproven": _unproven,
             "blind": _blind,
             "ageMs": int(max(0.0, time.time() - os.path.getmtime(_p)) * 1000),
+            # ⚠ A PARTIAL RUN IS NAMED AS ONE. heart2 marks a subset `--prove` with `partial`,
+            # and without reading it this sentence states one batch's result as the whole
+            # picture. [[zero-needs-a-denominator]] [[stale-reading]]
+            "partial": bool(_d.get("partial")),
             "why": ("%d gate(s) survived their own defeat" % len(_blind)) if _blind
-                   else ("%s gate(s) can still go red; %s carry no executable proof and are "
-                         "UNKNOWN" % (_proved, _unproven)),
+                   else ("%s of %s gate(s) can still go red; %s carry no executable proof and "
+                         "are UNKNOWN%s"
+                         % (_proved, _d.get("declared"), _unproven,
+                            " (last run covered only part of the suite)"
+                            if _d.get("partial") else "")),
         }
     except Exception as _e:
         return {"state": "UNKNOWN", "why": "the instrument census could not be read (%s)"
@@ -24880,7 +24887,19 @@ def fleet_presence(force=False):
     slow the status poll or hammer the site."""
     now = time.time()
     if not force and _FLEET_PRESENCE_CACHE["d"] is not None and (now - _FLEET_PRESENCE_CACHE["t"]) < 60:
-        return _FLEET_PRESENCE_CACHE["d"]
+        # ⚠⚠ v2822 — A CACHED ROSTER CARRIES ITS AGE, AND IT DID NOT. Caught red by
+        # test_a_cached_absence_is_not_an_absence: this returned the 60-second-old payload
+        # BYTE-IDENTICAL to a live one, so nothing downstream could tell "we just asked the site"
+        # from "we asked up to a minute ago and are repeating the answer". A freshness badge, a
+        # fleet card and an eye-status line all read this. [[stale-reading]]
+        #
+        # ⚠ A COPY, NOT THE CACHED OBJECT. Stamping the stored dict would make the age part of the
+        # cached value and every subsequent serve would repeat the FIRST serve's age — a staleness
+        # figure that freezes is worse than none, because it looks measured.
+        _cached = dict(_FLEET_PRESENCE_CACHE["d"])
+        _cached["fromCache"] = True
+        _cached["staleAgeS"] = round(now - _FLEET_PRESENCE_CACHE["t"], 1)
+        return _cached
     out = {"ok": False, "online": [], "offline": [], "error": "not fetched"}
     try:
         import base64 as _b64
@@ -24907,7 +24926,13 @@ def fleet_presence(force=False):
     # by name and takes the age with it. Two questions, two answers. [[unknown-stays-unknown]]
     _FLEET_PRESENCE_CACHE["t"] = now
     _FLEET_PRESENCE_CACHE["d"] = out
-    return out
+    # ⚠ A LIVE ANSWER SAYS SO EXPLICITLY. With only the cached branch stamped, an ABSENT
+    # `fromCache` would mean both "this is fresh" and "this came from a build that predates the
+    # stamp" — the same conflation the stamp exists to end. [[unknown-stays-unknown]]
+    _live = dict(out)
+    _live["fromCache"] = False
+    _live["staleAgeS"] = 0.0
+    return _live
 
 
 def fleet_presence_last_good():
@@ -25496,7 +25521,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2821",
+        "ver": "v2823",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -27731,13 +27756,37 @@ class Handler(BaseHTTPRequestHandler):
                                     for x in (l.get("reels") or []) if (x or {}).get("reel")]
                             if len(_ids) > _RIVER_ID_CAP:
                                 _ids, _capped = [], True
+                            # ⚠⚠ v2822 (#36) — THE CLOSED HALF TRAVELS TOO, OR THE JOIN STOPS
+                            # HERE. `river_lanes` was taught to hand each lane the reels that
+                            # actually closed out; this whitelist is the last place that fact can
+                            # be dropped, and dropping it would leave the TOMBSTONE lane drawing
+                            # the same ROUTED-only picture it drew before — a fix that exists in
+                            # two files and reaches no screen. [[the-unjoined-end]]
+                            # ⚠ `closedCount` is the WHOLE ledger; `closedIds` is the capped
+                            # sample river_lanes drew; `closedShown` says how many that is. None
+                            # is UNKNOWN — an unreadable ledger — and never 0.
+                            _cr = l.get("closedReels")
                             _lane_rows.append({"name": l["name"], "why": l["why"],
                                                "stations": l["stations"], "count": l["count"],
                                                "byStation": l["byStation"],
-                                               "reelIds": _ids})
+                                               "reelIds": _ids,
+                                               "closedCount": l.get("closedCount"),
+                                               "closedShown": l.get("closedShown"),
+                                               "closedWhy": l.get("closedWhy"),
+                                               "closedIds": (None if _cr is None else
+                                                             [str((x or {}).get("reel") or "")
+                                                              for x in _cr])})
                         _lanes = {"ok": True,
                                   "reconciles": _lr.get("reconciles"),
                                   "shelf": _lr.get("shelf"),
+                                  # ⚠ TWO DENOMINATORS, BOTH SHIPPED. `shelf` is reels on disk
+                                  # (what `reconciles` is about); `closed` is reels that have left
+                                  # it; `lifetime` is the union. Shipping only the first is how
+                                  # the per-reel surfaces came to cover 41 of 469 lifetimes with
+                                  # nothing on screen saying so. [[zero-needs-a-denominator]]
+                                  "closed": _lr.get("closed"),
+                                  "lifetime": _lr.get("lifetime"),
+                                  "closedWhy": _lr.get("closedWhy"),
                                   "unknown": _lr.get("unknown"),
                                   "idsCapped": _capped,
                                   "lanes": _lane_rows}

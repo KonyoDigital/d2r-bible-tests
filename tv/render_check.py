@@ -1336,7 +1336,15 @@ TARGETS = {
                 "`_shLanesRender` has rendered nothing at all while every piece looked right, when "
                 "its name collided with `_shRiverLoad` and the later declaration silently won."),
         "seed": """(function(){ return 1; })()""",
-        "sel": "#sh-lanes .shr-lbl, #sh-lanes .shr-n, #sh-lanes .shr-st",
+        # ⚠⚠ v2822 (#36) — `.shr-life` AND `.shr-cl` ADDED, BECAUSE A SELECTOR LIST IS A
+        # COVERAGE DECISION AND MINE SILENTLY EXCLUDED THE NEW ELEMENTS. The run right after the
+        # closure figures shipped reported `clipped 0/28` and its extracted text did not contain
+        # them at all — a green render over a surface the harness was not looking at. The pixels
+        # showed `+7 closed out` running THROUGH the TOMBSTONE card's right border at 901px while
+        # the harness called the target clean. A target that measures three of five classes is a
+        # gate blind to what changed. [[gate-blind-to-unexercised-input]] [[the-unjoined-end]]
+        "sel": ("#sh-lanes .shr-lbl, #sh-lanes .shr-n, #sh-lanes .shr-st, "
+                "#sh-lanes .shr-life, #sh-lanes .shr-cl"),
         "activate": r"""(function(){
             /* ⚠ IDEMPOTENT. The harness re-runs this every 0.4s, so it must never toggle:
                thShelf(force) with an explicit true always SHOWS, thShelf() alone flips. */
@@ -2236,6 +2244,26 @@ def _serve_console():
     if _skipped:
         print("   ⚠ render sandbox SKIPPED %d file(s) over the 64 MB ceiling: %s — the child will "
               "read the LIVE copy of these" % (len(_skipped), ", ".join(_skipped)), flush=True)
+    # ⚠⚠ v2822 (#36) — A SYNTHETIC CLOSURE LEDGER, BECAUSE OTHERWISE THIS TARGET IS BLIND TO THE
+    # ONE BRANCH IT NOW EXISTS TO PHOTOGRAPH. The river strip draws a second figure — "+N closed
+    # out" on the TOMBSTONE lane — sourced from `reel_tombstones.json`, which resolves through
+    # TV_HIST and is therefore ABSENT in this deliberately empty world. So the first render after
+    # the feature shipped painted "0 closed out · 41 lifetimes", correctly for the fixture and
+    # uselessly for the gate: a surface photographed only in the state where the new element does
+    # not appear. [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+    #
+    # ⚠ SYNTHETIC AND NOT COPIED. His real ledger holds 428 rows and 127 KB of session ids; copying
+    # it would make these pixels depend on one machine's history and render nothing at all on CI,
+    # where the file does not exist. Seven obviously-fake rows exercise the same branch everywhere.
+    # ⚠ It is written into the SANDBOX only — `_tombstone_path()` resolves through TV_HIST, and
+    # the sandbox is removed at exit. Nothing here can reach his tree.
+    # [[feedback-fixtures-never-touch-live-data]]
+    io.open(os.path.join(_hist, "reel_tombstones.json"), "w", encoding="utf-8").write(
+        json.dumps({"updatedTs": 1700000000000, "reels": [
+            {"reel": "reel_fixture_%d" % i, "session": "fixture_%d" % i, "mb": 1.5,
+             "pages": 0, "frames": 8, "focus": None, "startedTs": 1700000000000 + i,
+             "deletedTs": 1700000100000 + i,
+             "why": "render fixture — not a real closure"} for i in range(7)]}))
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
                TV_PARENT_PID=str(os.getpid()),
                TV_HIST=_hist,

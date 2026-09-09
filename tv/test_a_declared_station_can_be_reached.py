@@ -147,10 +147,16 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # ⚠ RE-ANCHORED at v2822. The old tamper targeted `_closed_ledger`'s own try/except, which
+        # #36 replaced with a single reader (`_closed_rows`) that the census now asks. heart2
+        # caught it immediately — INVALID, *"the tamper matched 0 time(s)... the SABOTAGE is wrong,
+        # not the law"* — which is exactly the diagnosis it should make and exactly why a proof is
+        # re-run rather than trusted. The LAW is unchanged; only where it lives moved.
+        # [[sabotage-is-usually-the-wrong-one]]
         "why": "turning an unreadable ledger into a confident 0 is the zero-with-no-denominator defect",
         "file": "reel_router.py",
-        "find": '        return {"n": None, "readable": False,\n                "why": "the closure ledger could not be read (%s)" % type(e).__name__}',
-        "replace": '        return {"n": 0, "readable": True,\n                "why": "the closure ledger could not be read (%s)" % type(e).__name__}',
+        "find": '        return None, "the closure ledger could not be read (%s)" % type(e).__name__',
+        "replace": '        return [], "the closure ledger could not be read (%s)" % type(e).__name__',
         "matches": 1,
     },
 ]

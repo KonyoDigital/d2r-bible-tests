@@ -25824,3 +25824,171 @@ control_app.py            INSIDE    (tv file, still allowed)
 
 A proof may still only tamper inside the throwaway copy.
 
+
+## REG-765 — a reel's whole life was 8.7% visible, and the far station could not be assigned
+**#36 · v2822 · 2026-09-09 · reel_router.py · river_lanes.py · control_app.py · control_ui.html**
+
+Every source feeding `reel_router.route()` walks what is **currently on disk**. The moment
+`reel_retention.apply_plan()` removes a reel's directory, that reel is written into
+`reel_tombstones.json` and vanishes from every list the printer/router chain touches. Measured on
+his stores:
+
+    live per-reel work-list           41
+    closure ledger                   428   (all distinct — ZERO overlap with the 41)
+    one roster spanning a life       469
+    covered by the per-reel surfaces  41/469 = 8.7%   |  invisible: 428/469 = 91.3%
+
+`STATIONS` has declared `TOMBSTONE` since the module was written and **no code path in
+`_station_of()` or `route()` could ever assign it** — `counts["TOMBSTONE"]` was structurally 0 and
+`route()["unreached"]` named it on EVERY run, the module reporting its own gap to nobody. So
+`river_lanes`' TOMBSTONE lane, labelled *"closed out — the extraction contract is satisfied"*,
+could only ever draw ROUTED-but-still-present reels. It could never show the one thing its label
+promises. v2817 published the ledger's TOTAL beside the walk; the per-reel half was still missing.
+
+**Fixed:** `reel_router.roster()` assigns TOMBSTONE and returns the union — 41 on disk + 428 closed
+= 469 lifetimes, `reconciles True`. `_closed_rows()` is the single reader; `_closed_ledger()` is a
+census over it. `river_lanes` hands each lane its closure rows; `/api/river` ships them; the strip
+draws `THE LEDGER / N closed out` on the TOMBSTONE lane and `N closed out · M lifetimes` in the
+head. **`route()["shelf"]` is held unmoved by AST** — folding the ledger into `reels` would turn 41
+into 469 on a figure he reads with nothing on screen saying why.
+
+★ **A reel in BOTH records is a contradiction, not a duplicate** — counted once, flagged
+`alsoClosed`, named in `both`, matched under either of the ledger's two key conventions. Zero
+overlap today is luck; nothing enforced it, which is what opened #36.
+
+Gate: `test_a_reels_whole_life_is_one_work_list` (20 tests, 5 tampers PROVEN red).
+
+## REG-766 — the render target was blind to the element it existed to photograph
+**#36 · v2822 · 2026-09-09 · render_check.py**
+
+The first render after REG-765 shipped reported `clipped 0/28` and its extracted text did not
+contain the new figures at all — a green run over elements the harness was not looking at. The
+target's `sel` listed `.shr-lbl, .shr-n, .shr-st` and the feature added `.shr-life` and `.shr-cl`.
+The pixels showed `+7 closed out` running **through** the TOMBSTONE card's right border at 901px
+while the harness called the target clean. Also: the render world is deliberately empty, so
+`reel_tombstones.json` was absent and the strip painted `0 closed out` — correct for the fixture,
+useless for the gate, a surface photographed only in the state where the new element does not
+appear. **Fixed:** selector widened (now 17/17 painted, 33 measured) and a synthetic 7-row closure
+ledger seeded into the sandbox so every machine exercises the branch. [[gate-blind-to-unexercised-input]]
+
+## REG-767 — `+7` under a `0` read as arithmetic, and a stranded middot came back
+**#36 · v2822 · 2026-09-09 · control_ui.html**
+
+Found on the pixels, not in the code. Two defects and one refutation:
+
+1. **The header re-broke a rule this file documents twice.** Putting the new figures inside
+   `.shr-lbl` with middots between them produced, at 901px, `... · 7 CLOSED OUT ·` / `48 LIFETIMES`
+   — a separator alone at a line end — and at 375px it split the phrase itself. The note beside
+   `.shr-sts` already says *"a separator that wraps is orphaned at one end or the other; choosing
+   which end is not a fix."* Fixed by making each figure its own flex item in a group, the idiom
+   `.shr-src` / `.shr-fifo` already use.
+2. **A cross-family eye read `+7` as `0 + 7 = 7 reels in the lane`** — the exact conflation the
+   whole change exists to prevent. The plus is gone; the chip names its source (`THE LEDGER`)
+   instead, which is what distinguishes it from the station count above it.
+3. **Two of the same review's findings were REFUTED by measurement** — a claimed paragraph overflow
+   (the render reports `clipped 0/35` at five widths and the text ends 20px inside its border) and
+   a claimed stranded `FIFO` (one nowrap item, unchanged for 50 versions). A review earns a
+   measurement, not obedience.
+
+## REG-768 — three closure states, two branches, and a readable-empty ledger fell through
+**#36 · v2822 · 2026-09-09 · control_ui.html**
+
+Caught by `test_the_shelf_shows_the_four_lanes`, whose law is that a zero TOMBSTONE must carry the
+reason it is zero. Rewriting the footnote for the new figure dropped *"leaves the shelf"* from the
+UNKNOWN branch, and `closedCount === 0` — a ledger read successfully that names nothing — had **no
+branch at all**, so the last lane went back to reading dead with nothing saying why. That is the
+defect the note exists to prevent, reintroduced by the change that improved it. All three states
+now carry the reason, and all three are exercised on the SHIPPED renderer in node.
+
+## REG-769 — SKIP WAS PASS: a renderer that would not parse exited the gate green
+**#36 · v2822 · 2026-09-09 · test_a_reels_whole_life_is_one_work_list.py**
+
+The node-based render helper returned `None` on every failure and the caller turned that into
+`skipTest`. Heart 2.0 proved it: a tamper that introduced a JS syntax error left the gate **GREEN
+through its own defeat** — reported BLIND. "node is absent" and "the shipped renderer is broken"
+are opposite facts and only one is a legitimate skip. Now only `FileNotFoundError` on the `node`
+binary skips; a non-zero exit, unparseable output, or a missing target all FAIL with the stderr
+attached.
+
+★ And the first fix for it was **also** blind: the law asserted `assertNotIn(">+7")`, which a
+tamper spelling the plus as `</i>+<b>7` sails straight through. A guard pinned to one SPELLING of
+a defect is pinned to the spelling, not the law. Now the whole chip body is checked for a plus.
+[[regression-guard]] — PIN THE LAW, NOT THE NUMBER.
+
+## REG-770 — proving one gate erased the record of the other twenty
+**#52 · v2822 · 2026-09-09 · heart2.py · control_app.py**
+
+`_write_state` carries a comment reading **"MERGE, NEVER CLOBBER"** — and then recomputed `proved`
+from the current run's results alone. So `--prove ONE_GATE` rewrote the census from `proved: 20` to
+`proved: 1`. #52 is worked batch-by-batch by design, so the one number he watches walked backwards
+every single time progress was made. Measured 2026-09-09.
+
+**Fixed:** `proved` is derived from a merged set of NAMES (`provedGates`) — partial runs accumulate,
+a gate that comes back BLIND/INVALID loses its standing proof, and a gate whose file is gone is
+dropped. A count cannot express any of that. `_heart2_census()` now also reads `partial` and says
+so in its sentence, instead of stating one batch's result as the whole picture.
+
+## REG-771 — "harness every technique first" had no instrument, so it could only be remembered
+**#44 · v2823 · 2026-09-09 · unify_census.py (new)**
+
+His 2026-09-08 order: *"first make sure to harness every single technique and every single template
+and every single thing related so no gaps are missing when you finally leave and unify the ON AIR
+and MINI."* There was nothing that could answer it. **Now `unify_census.py` derives the roster on
+every run** — templates from `reel_templates.ROUTES`, scenarios from `extract_gap`'s own
+`PANEL_SCENES`/`FLOOR_SCENES`, read-paths from an AST call-graph over the shipped `control_app.py`
+— so a technique added without teaching ON AIR about it turns up without anyone remembering to look.
+
+MEASURED 2026-09-09 — **19 techniques: 4 reproduced, 8 MINI-only gaps, 7 unasked.**
+
+    READ-PATH  _mini_bounds · _mini_cells_from_live_frame · _mini_clamp · _mini_focus ·
+               _mini_seal · _mini_watchdog · _reel_index_frames · mini_start
+               — reachable from a MINI entry point and from NO ON AIR entry point
+    TEMPLATE   stash · chronicle·sets · chronicle·uniques · inventory       UNKNOWN
+    SCENARIO   PANEL · FLOOR · CHRONICLE                                    UNKNOWN
+
+★ **UNKNOWN blocks as hard as a known gap**, and a census that could not run REFUSES rather than
+permits — an instrument failure must never become permission. `may_unify()` is False today with
+both causes named. Gate: `test_no_technique_is_lost_when_mini_goes` (12 tests, 4 tampers PROVEN).
+
+## REG-772 — the census's first draft asserted an absence it had not looked for
+**#44 · v2823 · 2026-09-09 · unify_census.py**
+
+The template and scenario rows said *"no ON AIR session has been recorded against this template"*.
+**It had been recorded.** `_journal()` has stamped `door` on every row since v2687 for exactly this
+purpose, and the journal holds 23 `onair` rows and 2 `mini`. The claim was written from memory and
+would have shipped wearing the clothes of a measurement. [[feedback-silence-is-not-evidence]]
+
+The census now measures — and the measurement is worse than the guess in a way that matters:
+**`door` covers 25 of 3,926 rows (0.6%)**, and 19 of the 23 ON AIR rows are `session_end` system
+rows carrying 2 names between them. So the verdict stays UNKNOWN, but for a stated reason with a
+denominator: over that population a per-scenario count cannot tell *"ON AIR never reaches
+CHRONICLE"* from *"ON AIR has barely run"* — **both read 0**. `MIN_ROWS_TO_JUDGE = 30` is the floor
+below which the census refuses to call a gap, and `doorCoverage` is published on the report so
+every verdict below it is visibly bounded. Raising that 0.6% is the first thing that has to happen
+before any UNKNOWN here can close. [[zero-needs-a-denominator]]
+
+## REG-773 — a 60-second-old fleet roster was byte-identical to a live one
+**v2823 · 2026-09-09 · control_app.py**
+
+Caught RED by `test_a_cached_absence_is_not_an_absence` on the real tree. `fleet_presence()` serves
+a 60s cache and returned the stored payload unchanged, so nothing downstream could tell *"we just
+asked the site"* from *"we asked up to a minute ago and are repeating the answer"* — and a
+freshness badge, a fleet card and an eye-status line all read it. **Fixed:** a cached serve carries
+`fromCache: True` and `staleAgeS`; a live one carries `False` and `0.0`, because with only the
+cached branch stamped an ABSENT `fromCache` would mean both "fresh" and "built before the stamp".
+
+⚠ **The age is stamped on a COPY.** Writing it into the cached dict would make it part of the
+cached value, so every later serve would repeat the FIRST serve's age — a staleness figure that
+freezes is worse than none, because it looks measured. [[stale-reading]]
+
+## REG-774 — a red-proof anchored on code that a refactor moved
+**#52 · v2823 · 2026-09-09 · test_a_declared_station_can_be_reached.py**
+
+REG-765 replaced `_closed_ledger()`'s own try/except with a single reader (`_closed_rows`). The
+sibling gate's second tamper still pointed at the old body, and the full `--prove` run reported it
+**INVALID — "the tamper matched 0 time(s), expected 1. The SABOTAGE is wrong, not the law."** That
+is the correct diagnosis and the reason a proof is re-run rather than trusted: the LAW never
+changed, only where it lives. Re-anchored on `_closed_rows`' exception branch.
+
+★ Census after the full run: **18 of 21 declared gates proven, 1 blind, 239 carrying no executable
+proof** — 6.9% of 260. [[sabotage-is-usually-the-wrong-one]]

@@ -295,8 +295,25 @@ def _write_state(results):
     if _partial:
         _keep = [b for b in (prior.get("blind") or []) if b not in (results or {})]
         blind = sorted(set(blind) | set(_keep))
+    # ⚠⚠ `proved` IS DERIVED FROM A NAMED SET, NOT COUNTED PER RUN — AND THE MERGE ABOVE DID NOT
+    # COVER IT. The comment beside it says "MERGE, NEVER CLOBBER" and then `proved` was recomputed
+    # from THIS run's results alone, so `--prove ONE_GATE` rewrote the total from 20 to 1.
+    # Measured 2026-09-09: proving a single new gate dropped the census to `proved: 1` while 20
+    # gates were standing proven, and #52 is worked in exactly that batch-by-batch way — so the
+    # one number he watches would have walked backwards every time progress was made.
+    # A set of NAMES is the right model: partial runs accumulate, a gate that goes BLIND leaves,
+    # and a gate whose file is gone leaves too. A COUNT cannot express any of that.
+    _known = {n for n, _f in gates}
+    _proved = set(prior.get("provedGates") or []) if _partial else set()
+    for _n, _v in (results or {}).items():
+        if _v == PROVEN:
+            _proved.add(_n)
+        else:
+            _proved.discard(_n)          # BLIND/INVALID/UNPROVABLE revokes a standing proof
+    _proved &= _known                    # a gate that no longer exists is not proven
     out.update({
-        "proved": len([n for n, v in (results or {}).items() if v == PROVEN]),
+        "proved": len(_proved),
+        "provedGates": sorted(_proved),
         "declared": len(have),
         "unproven": len(gates) - len(have),
         "total": len(gates),

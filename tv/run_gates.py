@@ -943,6 +943,40 @@ GATES = [
              "changed by a refactor. The ledger is published BESIDE the walk with its own "
              "denominator and source. An unreadable ledger is UNKNOWN, never a confident 0.",
          skip_ok=()),
+    Gate("test_no_technique_is_lost_when_mini_goes",
+         [sys.executable,
+          os.path.join(HERE, "test_no_technique_is_lost_when_mini_goes.py")], 120,
+         why="#44 — his 2026-09-08 order: harness every technique BEFORE ON AIR and MINI unify, "
+             "because removing MINI first would drop read-paths and the loss would surface as "
+             "reels that stop yielding names with nothing saying why. unify_census.py DERIVES the "
+             "roster every run — templates from reel_templates.ROUTES, scenarios from "
+             "extract_gap's own constants, read-paths from an AST call-graph over control_app — "
+             "so a technique added without teaching ON AIR about it turns up without anyone "
+             "remembering to look. MEASURED 2026-09-09: 19 techniques, 4 reproduced, 8 MINI-only "
+             "gaps, 7 unasked; the stream stamp `door` covers 25 of 3,926 journal rows (0.6%) and "
+             "19 of the 23 ON AIR rows are session_end carrying 2 names, so a per-scenario tally "
+             "cannot tell 'never reaches it' from 'has barely run'. ★ UNKNOWN BLOCKS AS HARD AS A "
+             "KNOWN GAP, and a census that could not run REFUSES rather than permits — an "
+             "instrument failure must never become permission. Four tampers proven red. MINI AUTO "
+             "(hover) is deliberately out of scope: his ruling, #17/#41.",
+         skip_ok=()),
+    Gate("test_a_reels_whole_life_is_one_work_list",
+         [sys.executable,
+          os.path.join(HERE, "test_a_reels_whole_life_is_one_work_list.py")], 120,
+         why="#36's second half. v2817 published the closure ledger BESIDE the walk; the station "
+             "was still unassignable and the TOMBSTONE lane still could not draw a single reel "
+             "that had actually closed out. reel_router.roster() now assigns TOMBSTONE and spans "
+             "a reel's whole life — MEASURED on his stores 2026-09-09: 41 on disk + 428 closed = "
+             "469 lifetimes, so the per-reel surfaces covered 8.7% and 91.3% were visible only as "
+             "one aggregate sentence attached to rows about OTHER reels. ★ route()['shelf'] is "
+             "held UNMOVED by AST — if the closure rows ever reach `reels`, 41 becomes 469 on a "
+             "figure he acts on with nothing on screen saying why. Also held: exactly ONE reader "
+             "of the ledger (two readers is how three walks came to agree at 41 by luck); a reel "
+             "in BOTH records counted ONCE and named as a contradiction under either of the "
+             "ledger's two key conventions; an unreadable ledger UNKNOWN and never 0 at the "
+             "roster, the lane, the endpoint and the renderer; the drawn sample never passing "
+             "for the total. Three tampers proven red.",
+         skip_ok=()),
     Gate("test_the_deleter_will_not_destroy_a_receipt",
          [sys.executable,
           os.path.join(HERE, "test_the_deleter_will_not_destroy_a_receipt.py")], 90,
