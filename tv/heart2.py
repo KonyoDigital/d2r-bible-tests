@@ -419,14 +419,28 @@ def _run_gate(sandbox_tv, filename, timeout=180):
     # cross-family review of v2868: five laws skipping while three run and stay green is a WEAK
     # LAW, and blind_reason was instructing the reader to go delete skips instead.
     # [[zero-needs-a-denominator]]
+    # ⚠⚠ v2872 — AND THE RESULT LINE IS NOT ALWAYS LAST EITHER. v2870 fixed the DENOMINATOR by
+    # hunting backwards for `Ran N tests` and then kept taking `skipped=K` from whatever printed
+    # last — the same last-line bug, applied to the half it was written to interpret. A cross-family
+    # review of v2870: one `atexit` print, a DeprecationWarning on stderr (merged here via
+    # stderr=STDOUT), any shutdown line, and `OK (skipped=5)` is no longer last. `n_skipped` reads 0
+    # and a WHOLE-FILE skip reports as a weak law. Both lines are hunted now, and whatever really
+    # printed last is kept beside them, because it may be the actual news.
     _lines = (r.stdout or b"").decode("utf-8", "replace").strip().splitlines()
     _last = _lines[-1].strip() if _lines else ""
-    _ran = ""
+    _ran, _res = "", ""
     for _l in reversed(_lines):
-        if _l.startswith("Ran ") and " test" in _l:
-            _ran = _l.strip()
+        _s = _l.strip()
+        if not _res and (_s == "OK" or _s.startswith("OK (") or _s.startswith("FAILED")):
+            _res = _s
+        if not _ran and _s.startswith("Ran ") and " test" in _s:
+            _ran = _s
+        if _ran and _res:
             break
-    return r.returncode == 0, ("%s | %s" % (_ran, _last) if _ran and _ran != _last else _last)
+    _parts = [_p for _p in (_ran, _res) if _p]
+    if _last and _last not in _parts:
+        _parts.append(_last)
+    return r.returncode == 0, (" | ".join(_parts) if _parts else _last)
 
 
 # ── the proving loop ─────────────────────────────────────────────────────────────────────────
@@ -883,9 +897,16 @@ def propose(results, census, hits):
         # said the other about the same verdict — two writers, opposite jobs. It cannot re-run the
         # gate, so it names BOTH causes in the order the reader should check them, and points at
         # the line that already knows which. [[copy-drift]] [[the-unjoined-end]]
-        lines += ["- `%s` — the tamper reintroduced the defect and the gate stayed GREEN. Check "
-                  "the `--prove` line for this gate first: if it reports SKIPPED laws, the laws "
-                  "opted out and the skip is the job. Otherwise the law reads prose instead of "
+        # ⚠⚠ v2872 — THREE STATES, NOT TWO. v2870 stopped this contradicting the prove output and
+        # then wrote an EXCLUSIVE sentence — "if it reports SKIPPED, the skip is the job,
+        # OTHERWISE the law reads prose" — which is false for the case blind_reason exists to name:
+        # five laws skipping while three RUN and stay green is BOTH jobs. The reader saw the word
+        # SKIPPED and stopped at "fix the skip", which is the v2868 misdirection this was supposed
+        # to close, left standing in the writer that cannot re-run the gate. [[copy-drift]]
+        lines += ["- `%s` — the tamper reintroduced the defect and the gate stayed GREEN. Read the "
+                  "`--prove` line for this gate; it reports one of three states. ALL laws skipped: "
+                  "the tamper was never judged, fix the SKIP. SOME skipped: the laws that ran are "
+                  "weak AND others opted out — both jobs. No skips: the law reads prose instead of "
                   "code, or asserts something the tamper does not touch." % n for n in blind] + [""]
     if invalid:
         lines += ["## INVALID PROOF — the sabotage, not the law", ""]

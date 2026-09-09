@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2871",
+  "ver": "v2872",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2871: the surfaces law read this Mac own render verdict and failed on CI where that verdict reported nothing",
+  "note": "v2872: the skip count was still taken from whatever printed last, and the proposal file kept the binary framing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

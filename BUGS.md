@@ -200,6 +200,39 @@ is green here and UNKNOWN everywhere else, and "runner-only" is a label that has
 of a measurement. [[inherited-claim-is-not-evidence]] [[feedback-fixtures-never-touch-live-data]]
 [[feedback-contradiction-is-the-finding]]
 
+### REG-843 — the same last-line bug, in the half the fix was written to interpret
+
+**v2872.** A cross-family review of v2870 — the ship that gave the skip warning a denominator —
+found the fix half-applied, twice.
+
+**1. HIGH · `propose()` kept the binary framing.** v2870 stopped it contradicting the prove output
+and then wrote an EXCLUSIVE sentence: *"if it reports SKIPPED laws, the laws opted out and the skip
+is the job. Otherwise the law reads prose instead of code."* False for the one case `blind_reason`
+exists to name — five laws skipping while three RUN and stay green is **both** jobs. The reader of
+`.heart2_proposals.md` sees the word SKIPPED and stops at "fix the skip", which is precisely the
+v2868 misdirection v2870 claimed to close, left standing in the writer that cannot re-run the gate.
+It now names three states in the order to check them.
+
+**2. MEDIUM · `_run_gate` hunted only `Ran`.** v2870 scanned backwards for `Ran N tests` and then
+kept taking `skipped=K` from **whatever printed last** — the original defect, applied to the half
+the change existed for. One `atexit` print, a `DeprecationWarning` on stderr (merged via
+`stderr=STDOUT`), any shutdown line, and the result line is no longer last:
+
+    tail  'Ran 5 tests in 0.1s | DeprecationWarning: ...'   ->  n_skipped 0
+    verdict: "stayed GREEN through its own defeat"          ->  a WHOLE-FILE skip read as a weak law
+
+v2870's own behavioural law could not catch it: its fixture exits cleanly, so the result line IS
+last. Both lines are hunted now, and whatever really printed last is kept beside them because it may
+be the actual news. Reproduced with an `atexit` fixture before and after:
+`'Ran 2 tests in 0.000s | OK (skipped=2) | DeprecationWarning: trailing shutdown noise'` → **ALL 2
+law(s) SKIPPED**.
+
+⚠ **And the gate caught its own proof going stale.** Rewriting `_run_gate` moved the anchor of the
+red-proof arm that had been aimed at it, so that arm silently dropped to **0 matches** — a sabotage
+that changes nothing proves nothing. Printing the match count found it before `--prove` ran. Six
+arms now, all PROVEN, twelve laws. [[sabotage-is-usually-the-wrong-one]]
+[[feedback-generalize-fixes]] [[copy-drift]]
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

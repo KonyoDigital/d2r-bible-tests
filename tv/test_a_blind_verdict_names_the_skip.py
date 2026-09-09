@@ -73,8 +73,25 @@ RED_PROOF = [
                "the helper cannot tell a whole-file skip from a partial one, and every skip reads "
                "as 'never judged'",
         "file": "heart2.py",
-        "find": '        if _l.startswith("Ran ") and " test" in _l:',
-        "replace": '        if False and _l.startswith("Ran ") and " test" in _l:',
+        "find": '        if not _ran and _s.startswith("Ran ") and " test" in _s:',
+        "replace": '        if False and _s.startswith("Ran ") and " test" in _s:',
+        "matches": 1,
+    },
+    {
+        "why": "v2872's defect: taking the RESULT line from whatever printed last. One atexit "
+               "print or a merged DeprecationWarning and `OK (skipped=5)` is gone, n_skipped "
+               "reads 0, and a whole-file skip is reported as a weak law",
+        "file": "heart2.py",
+        "find": '        if not _res and (_s == "OK" or _s.startswith("OK (") or _s.startswith("FAILED")):',
+        "replace": '        if not _res and False:',
+        "matches": 1,
+    },
+    {
+        "why": "returning the proposal file to the EXCLUSIVE sentence, where the word SKIPPED "
+               "sends the reader to delete skips even when the laws that ran are the weak ones",
+        "file": "heart2.py",
+        "find": '"weak AND others opted out \u2014 both jobs. No skips: the law reads prose instead of "',
+        "replace": '"weak. Otherwise the law reads prose instead of "',
         "matches": 1,
     },
 ]
@@ -171,6 +188,58 @@ class ABlindVerdictNamesTheSkip(unittest.TestCase):
                          "_run_gate discarded unittest's `Ran N tests` line, so blind_reason has "
                          "no denominator however well it divides: %r" % tail)
         self.assertIn("skipped=1", tail, "the skip count did not survive either: %r" % tail)
+
+    def test_a_SHUTDOWN_line_after_the_result_does_not_hide_the_skip(self):
+        """★★ v2872 — THE OTHER HALF OF THE LAST-LINE BUG. v2870 hunted backwards for `Ran N
+        tests` and kept taking `skipped=K` from whatever printed LAST. A cross-family review of
+        v2870: one atexit print, a DeprecationWarning on stderr (merged via stderr=STDOUT), any
+        shutdown line, and `OK (skipped=5)` is no longer last — `n_skipped` reads 0 and a
+        WHOLE-FILE skip reports as a weak law. The v2870 behavioural test could not catch it,
+        because its fixture exits cleanly and the result line IS last.
+        [[feedback-generalize-fixes]] [[feedback-blind-fixture-green-gate]]"""
+        d = tempfile.mkdtemp(prefix="noise-")
+        try:
+            io.open(os.path.join(d, "t_n.py"), "w", encoding="utf-8").write(
+                "import atexit, unittest\n"
+                "atexit.register(lambda: print('DeprecationWarning: trailing shutdown noise'))\n"
+                "class T(unittest.TestCase):\n"
+                "    def test_a(self): self.skipTest('x')\n"
+                "    def test_b(self): self.skipTest('y')\n"
+                "unittest.main()\n")
+            ok, tail = H._run_gate(d, "t_n.py", timeout=60)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertTrue(ok, "the fixture gate did not pass: %r" % tail)
+        self.assertIn("skipped=2", tail,
+                      "a line printed AFTER unittest's result swallowed the skip count: %r" % tail)
+        self.assertRegex(tail, r"Ran \d+ test", "the denominator went with it: %r" % tail)
+        self.assertIn("ALL 2", H.blind_reason("w", 1, tail),
+                      "a whole-file skip reported as a weak law because of one trailing line")
+
+    def test_the_PROPOSAL_names_all_THREE_states(self):
+        """★★ [[copy-drift]] — the writer that cannot re-run the gate must not simplify. v2870
+        stopped propose() contradicting the prove output and then wrote an EXCLUSIVE sentence:
+        'if it reports SKIPPED, the skip is the job, OTHERWISE the law reads prose'. False for the
+        one case blind_reason exists to name — five skipping while three run and stay green is
+        BOTH jobs — so the reader saw SKIPPED and stopped at 'fix the skip', which is the exact
+        misdirection v2870 claimed to close."""
+        d = tempfile.mkdtemp(prefix="prop-")
+        real = H.PROPOSALS
+        try:
+            H.PROPOSALS = os.path.join(d, "p.md")
+            H.propose({"a_gate": H.BLIND}, {}, [])
+            body = io.open(H.PROPOSALS, encoding="utf-8").read()
+        finally:
+            H.PROPOSALS = real
+            shutil.rmtree(d, ignore_errors=True)
+        low = body.lower()
+        self.assertIn("all laws skipped", low,
+                      "the proposal does not name the whole-file-skip state")
+        self.assertIn("some skipped", low,
+                      "the proposal does not name the MIXED state — the one where the law is weak "
+                      "AND laws opted out, which is where 'fix the skip' misdirects")
+        self.assertIn("no skips", low,
+                      "the proposal does not name the state where the law itself is the problem")
 
     # ── the join: a reason nobody prints is not a reason ─────────────────────────────────────
     def test_the_PROVER_actually_calls_it(self):
