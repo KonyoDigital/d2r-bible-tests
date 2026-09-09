@@ -943,6 +943,25 @@ GATES = [
              "changed by a refactor. The ledger is published BESIDE the walk with its own "
              "denominator and source. An unreadable ledger is UNKNOWN, never a confident 0.",
          skip_ok=()),
+    Gate("test_a_gate_names_its_subject_by_importing_it",
+         [sys.executable,
+          os.path.join(HERE, "test_a_gate_names_its_subject_by_importing_it.py")], 120,
+         why="#52. heart2_candidates resolved a gate's subject only from filename string literals, "
+             "which left 94 of the 238 unproven gates with NO resolvable subject at all — the "
+             "single largest refusal bucket — and every one of those 94 imports a local module. A "
+             "gate that says `import reel_router as RR` and asserts on RR has named its subject; it "
+             "just does not spell it with a .py. After resolving from imports: no-target-file 94 -> "
+             "5, derivable 78 -> 104. ★ AND THE TRAP: 95% of gates import console_safe, the stdout "
+             "encoding helper. Resolving a subject to it would derive a tamper that DOES redden the "
+             "gate while proving nothing — every gate importing it goes red together, the most "
+             "convincing kind of green that means nothing. So infrastructure is excluded and the "
+             "threshold is COMPUTED, not hardcoded: measured over 264 gates the distribution is "
+             "console_safe 95%, then a cliff to control_app 21%, so INFRA_SHARE 0.25 sits in the "
+             "gap and a module that becomes ubiquitous later is excluded without anyone noticing. "
+             "Also held: filename resolution still works, stdlib resolves to nothing, a corpus "
+             "under 20 files excludes NOTHING (a share over 3 files is noise), real subjects are "
+             "not swept up, and a gate is still never its own subject. Three tampers proven red.",
+         skip_ok=()),
     Gate("test_a_covered_label_is_still_in_the_picture",
          [sys.executable,
           os.path.join(HERE, "test_a_covered_label_is_still_in_the_picture.py")], 90,

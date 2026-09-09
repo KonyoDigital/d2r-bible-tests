@@ -44,11 +44,74 @@ def _read(p):
         return None
 
 
+#: Modules imported by more than this fraction of the gate corpus are INFRASTRUCTURE, not any one
+#: gate's subject. Measured 2026-09-09 over 264 gates: `console_safe` 95%, then a cliff to
+#: `control_app` 21% and down. The threshold sits in the gap, and it is computed rather than
+#: hardcoded so a module that becomes ubiquitous later is excluded without anyone noticing it did.
+INFRA_SHARE = 0.25
+
+_INFRA_CACHE = {}
+
+
+def _module_imports(tree):
+    """Top-level module names this file imports. -> [str]"""
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                out.append(a.name.split(".")[0])
+        elif isinstance(n, ast.ImportFrom) and n.module and not n.level:
+            out.append(n.module.split(".")[0])
+    return out
+
+
+def infrastructure(here):
+    """Local modules too widely imported to be any single gate's subject. -> set
+
+    ⚠⚠ WITHOUT THIS, IMPORT RESOLUTION IS WORSE THAN NO RESOLUTION. 95% of gates import
+    `console_safe` — the stdout encoding helper. Resolving a gate's subject to it would derive a
+    tamper against `console_safe.py`, that tamper WOULD turn the gate red, and the proof would be
+    recorded as coverage while demonstrating nothing whatsoever about the law: every gate that
+    imports it goes red together. A proof that reddens for a reason unrelated to its own subject is
+    the most convincing kind of green that means nothing.
+    [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+    """
+    if here in _INFRA_CACHE:
+        return _INFRA_CACHE[here]
+    import glob as _glob
+    files = _glob.glob(os.path.join(here, "test_*.py"))
+    counts, total = {}, 0
+    for f in files:
+        src = _read(f)
+        if src is None:
+            continue
+        try:
+            t = ast.parse(src)
+        except SyntaxError:
+            continue
+        total += 1
+        for m in set(_module_imports(t)):
+            if os.path.isfile(os.path.join(here, m + ".py")):
+                counts[m] = counts.get(m, 0) + 1
+    # ⚠ A CORPUS TOO SMALL TO RANK IS NOT A CORPUS WITH NO INFRASTRUCTURE. Below 20 gates the
+    # share is noise, so nothing is excluded and every candidate has to survive --prove anyway.
+    infra = set() if total < 20 else {m for m, k in counts.items() if k > total * INFRA_SHARE}
+    _INFRA_CACHE[here] = infra
+    return infra
+
+
 def target_files(tree, here):
     """Which source files does this gate READ? -> [abs path]
 
-    Resolved from the filenames the gate itself names. A gate that reads a file it never names is
-    not resolvable this way, and that is reported as UNKNOWN rather than guessed at.
+    Resolved first from the filenames the gate itself names, then — v2836 — from the LOCAL MODULES
+    IT IMPORTS. The filename-only rule left 94 of the 238 unproven gates with no resolvable subject
+    at all, the single largest refusal bucket, and every one of those 94 imports a local module.
+    A gate that says `import reel_router as RR` and then asserts on RR's behaviour names its subject
+    perfectly well; it just does not spell it with a `.py`.
+
+    ⚠ Widely-imported infrastructure is excluded — see `infrastructure()`. Resolving a subject to
+    `console_safe` would produce a tamper that reddens the gate for a reason that has nothing to do
+    with its law.
     """
     names = []
     for n in ast.walk(tree):
@@ -56,6 +119,13 @@ def target_files(tree, here):
             v = n.value
             if v.endswith((".py", ".html", ".mjs", ".sh")) and "/" not in v and len(v) > 4:
                 names.append(v)
+    # v2836 — the modules it IMPORTS are subjects too, minus the infrastructure everything imports
+    _infra = infrastructure(here)
+    for m in _module_imports(tree):
+        if m in _infra:
+            continue
+        if os.path.isfile(os.path.join(here, m + ".py")):
+            names.append(m + ".py")
     out, seen = [], set()
     for v in names:
         if v in seen:

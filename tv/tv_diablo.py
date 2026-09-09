@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2835"   # a nested def, a nested class, and a global reaching out of one
+VERSION = "v2837"   # twenty-one more proofs, and the yield jumped because the subjects got real
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

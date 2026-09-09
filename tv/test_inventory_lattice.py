@@ -273,5 +273,27 @@ class TestV1995TheRoomBeforeTheNames(unittest.TestCase):
         self.assertIn("not 'nothing moved'", m.get("say", ""))
 
 
+
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
+# PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
+# measured against the target file (each anchor occurs exactly once). Review it: the
+# question is whether deleting this text is the defect the law exists to catch.
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in vault_corpus.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'vault_corpus.py',
+        "find": 'different grids',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in vault_corpus.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'vault_corpus.py',
+        "find": "not 'nothing moved'",
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

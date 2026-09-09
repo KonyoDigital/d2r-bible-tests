@@ -26529,3 +26529,53 @@ there is noise. Per the stated intent, noise is the price of never guessing.
 
 Eleven cases verified, including one that guards against over-refusing: a nested helper with an
 UNRELATED name still answers True.
+
+## REG-796 — a gate that IMPORTS its subject had named it, and the deriver could not hear that
+**#52 · v2836 · 2026-09-09 · heart2_candidates.py**
+
+`target_files` resolved a gate's subject only from filename string literals (`"control_app.py"`).
+MEASURED: that left **94 of the 238 unproven gates with no resolvable subject at all** — the single
+largest refusal bucket — and **every one of those 94 imports a local module**. A gate that says
+`import reel_router as RR` and then asserts on RR's behaviour has named its subject perfectly well;
+it just does not spell it with a `.py`.
+
+    no-target-file   94 -> 5        derivable   78 -> 104
+
+★ **AND THE TRAP THAT WOULD MAKE THIS WORSE THAN NO RESOLUTION.** **95% of gates import
+`console_safe`** — the stdout encoding helper. Resolving a subject to it would derive a tamper
+against `console_safe.py`; that tamper **would** turn the gate red; and the proof would be recorded
+as coverage while demonstrating nothing about the law, because every gate importing it goes red
+together. A proof that reddens for a reason unrelated to its own subject is the most convincing kind
+of green that means nothing. [[feedback-blind-fixture-green-gate]]
+
+So infrastructure is excluded, and **the threshold is computed, not hardcoded**: over 264 gates the
+distribution is `console_safe` 95%, then a cliff to `control_app` 21% and down, so `INFRA_SHARE =
+0.25` sits in the measured gap and a module that becomes ubiquitous later is excluded without anyone
+noticing it did. Below 20 gates nothing is excluded at all — a share over three files is noise, not
+a finding. [[zero-needs-a-denominator]]
+
+Gate: `test_a_gate_names_its_subject_by_importing_it`, 3 tampers PROVEN red. It also holds that
+filename resolution still works, stdlib resolves to nothing, real subjects are not swept up, and a
+gate is still never its own subject.
+
+## REG-797 — #52 third batch, and the yield jumped because the subjects got real
+**#52 · v2837 · 2026-09-09**
+
+Twenty-four candidates across 12 gates; **21 survived — 83%**, against 59% and 57% in the two
+earlier batches. The difference is REG-796: resolving from imports points the deriver at the module
+a gate actually guards, so its anchors are the law's own vocabulary rather than whatever filename
+happened to appear in a string.
+
+Newly provable subjects that were **completely unreachable** before: `dead_field`, `printer_reach`,
+`paint_witness`, `vault_retro`, `vault_corpus`, `extract_gap`, `console_doctor`.
+
+    PROVEN      21
+    INVALID      1   test_render_gate_sees_the_page[0] — the tamper would not parse
+    UNPROVABLE   2   test_the_river_has_an_outlet — already red untampered in the sandbox
+
+⚠ Checked on the real tree before dismissing, as every time: `test_the_river_has_an_outlet` is
+**OK** there. Its block was removed and the INVALID entry dropped, keeping only what went red.
+All twelve touched gates verified still green untampered afterwards.
+
+Census after three batches, MEASURED: **48 of 265 (18.1%)**, from 4.7% at the start of the
+session — 214 gates still carry no executable proof.

@@ -1669,6 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2837** | `(this commit)` | v2837 — REG-797 — 24 candidates, 21 survived at 83 percent against 59 and 57 in the earlier batches; newly provable subjects dead_field, printer_reach, paint_witness, vault_retro, vault_corpus and extract_gap were unreachable before |
+| **v2836** | `(this commit)` | v2836 — REG-796 — the deriver resolved a subject only from filename literals, leaving 94 of 238 unproven gates with no subject at all; all 94 import a local module. Resolving from imports takes no-target-file from 94 to 5 and derivable from 78 to 104, with widely-imported infrastructure excluded by a computed threshold |
 | **v2835** | `(this commit)` | v2835 — REG-795 — a nested def or class binds its name in the ENCLOSING scope and shadowed the producer, and a global inside an excluded body reached out to rebind it; all three returned True. The def node itself is no longer marked nested, and global/nonlocal is checked even inside one |
 | **v2834** | `(this commit)` | v2834 — REG-794 — 21 derived candidates in, 12 survived across 6 gates; the six whose proofs went BLIND, INVALID or UNPROVABLE had their blocks removed rather than kept. All five UNPROVABLE gates were checked on the real tree first and are green there |
 | **v2833** | `(this commit)` | v2833 — REG-793 — a for target, a comprehension target, with-as, except-as and import-as each silently rebound a tracked name and each returned True while the payload called something else. Five instances, one defect: the helper now enumerates every binding form the language has and refuses on any that touches a tracked name |

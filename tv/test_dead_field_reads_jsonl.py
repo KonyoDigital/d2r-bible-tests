@@ -385,6 +385,35 @@ class ItWouldHaveCaughtItAndItSelfClears(unittest.TestCase):
                            "only %d rows reached the detector" % len(rows or []))
 
 
+
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
+# PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
+# measured against the target file (each anchor occurs exactly once). Review it: the
+# question is whether deleting this text is the defect the law exists to catch.
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in dead_field.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'dead_field.py',
+        "find": 'none parsed',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in dead_field.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'dead_field.py',
+        "find": 'holds no list',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in dead_field.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'dead_field.py',
+        "find": 'intersection rule cannot judge',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

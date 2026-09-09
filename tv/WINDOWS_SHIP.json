@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2835",
+  "ver": "v2837",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2835: REG-795 — a nested def or class binds its name in the ENCLOSING scope and shadowed the producer, and a global inside an excluded body reached out to rebind it; all three returned True. The def node itself is no longer marked nested, and global/nonlocal is checked even inside one",
+  "note": "v2837: REG-797 — 24 candidates, 21 survived at 83 percent against 59 and 57 in the earlier batches; newly provable subjects dead_field, printer_reach, paint_witness, vault_retro, vault_corpus and extract_gap were unreachable before",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

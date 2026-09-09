@@ -280,6 +280,35 @@ class TheHighWaterKeyIsChosenNotStumbledOn(unittest.TestCase):
         self.assertIn('if not key:', src)
 
 
+
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
+# PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
+# measured against the target file (each anchor occurs exactly once). Review it: the
+# question is whether deleting this text is the defect the law exists to catch.
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'BELOW its own high-water mark',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'd.get("route") == key',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'str(w.get("id") or "") == _own',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     try:
         from console_safe import enable
