@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2832** | `(this commit)` | v2832 — REG-792 — rebinding the producer own name was exempted from the alias discard, and a nested helper dict counted as the payload; both were false GREENs. Everything unmodelled now refuses with a reason instead of answering. Twelve cases verified, and two of the review directions were the opposite of what was measured |
 | **v2831** | `(this commit)` | v2831 — REG-790..791 — leaves() hit-tests each element and drops it when something else answers, so a covered fan label was invisible to the fit pass AND the ratchet at once: the solver read 1 collision where there were 2, and a moved stack left its own name behind. Measured, named, fixed: painted 19 to 20, collisions seen 1 to 2, final 0 |
 | **v2830** | `(this commit)` | v2830 — REG-789 — the alias set only ever grew, so a name rebound to something else still counted; and every dict carrying the key was searched, so a nested lookalike satisfied the law while the payload value had become None. Eleven cases verified. One of the same review findings was refuted by measurement |
 | **v2829** | `(this commit)` | v2829 — REG-787 — 22 derived candidates in, 13 survived; the five gates whose proofs went BLIND or INVALID had their blocks REMOVED rather than kept, because a proof that survives its own defeat is counted as coverage and that is the lie this task exists to end |

@@ -26404,3 +26404,39 @@ also appears in the explanatory COMMENT a few lines above the code, so tampering
 left the law satisfied by prose describing it. It now requires the quoted literal. Fourth time this
 session that a law was satisfied by something other than the code it names, and it happened inside
 the very gate whose subject is an instrument that could not see itself. [[feedback-comments-vs-code]]
+
+## REG-792 — two more false GREENs, and the decision to stop modelling Python
+**#28 · v2832 · 2026-09-09 · test_control.py · found by the cross-family look at v2830**
+
+Five cases were asked for; **all five reproduced, and two of the reviewer's DIRECTIONS were wrong.**
+The direction is what decides whether a finding is dangerous:
+
+    (a) rebinding the producer's own name   claimed GREEN   measured FALSE GREEN   dangerous
+    (b) dead-branch rebinding               claimed GREEN   measured false RED     fails closed
+    (c1) {**{...}} spread                   claimed RED     measured false RED     fails closed
+    (c2) a nested helper's dict             claimed GREEN   measured FALSE GREEN   dangerous
+    (d) tuple unpacking                     —               measured false RED     fails closed
+
+**(a) fixed.** `_status_producer` exempted the producer's own name from the alias discard, so
+`drift_state = other_fn` left it in the set and the law went green over a call to something else.
+The exemption is gone.
+
+**(c2) fixed.** A dict returned by a function DEFINED INSIDE `status_payload` was treated as the
+payload's own — `def h(): return {"drift": producer()}` counted while the payload had no such key.
+Nodes belonging to a nested def/lambda are now excluded from the dict search and the alias walk.
+
+★ **AND THE DECISION THAT ENDED THE CHASE.** Three rounds of review have each found the helper
+modelling too little Python, and each fix modelled a little more. That is a losing game for a helper
+whose entire subject is ONE function. **Anything it does not model is now an explicit REFUSAL with a
+reason** — augmented assignment, walrus, tuple/starred targets, `del`, `global`/`nonlocal`, and `**`
+spread, whenever they touch a name it is tracking. A false RED that fails closed is noise; a false
+GREEN hides a regression; a refusal is neither, and it names what to teach it.
+[[unknown-stays-unknown]]
+
+⚠ The tuple guard was wrong on its first cut and only running the case showed it: it checked the
+TARGET names, which are not aliases yet at `a, b = producer, other`, so it fired on nothing and
+answered False. It now checks both sides.
+
+Twelve cases verified: six shapes that genuinely reach the producer are True; rebound alias,
+shadowed producer, nested dict and dead `if False:` are False; nested helper, `**` spread, tuple
+unpack and `del` all REFUSE; a genuinely absent producer is False.

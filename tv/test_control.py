@@ -351,30 +351,33 @@ def tearDownModule():
 # it, and that what comes back is big enough to be the thing you meant. Every new source guard
 # should use it. [[source-reading-guard]]
 def _status_producer(case, src, name, key=None):
-    """Is `name` reached by status_payload — directly, through `_t`, or through a local alias?
+    """Is `name` reached by status_payload for `key`? -> bool, or a REFUSAL.
 
-    v2826 — THREE LAWS PINNED A CALL'S SPELLING AND WENT RED WHEN ONLY THE SPELLING CHANGED.
-    #28 wrapped sixteen producers as `_t("section", producer)` so their cost lands in a named
-    section instead of `unattributedMs`. Behaviour identical; the text `"drift": drift_state()` is
-    gone, and three assertIn checks over the source failed. Every one of them meant "this producer
-    still runs and its answer is still published", as true after as before. A guard that pins the
-    SPELLING of a call is pinned to the spelling. [[source-reading-guard]]
+    Three laws in this file used to assert on the literal source text of a call, and broke when
+    #28 wrapped sixteen producers as `_t("section", producer)` — behaviour identical, spelling
+    gone. Each of them meant "this producer still runs and its answer is still published", which
+    was as true after as before. A guard that pins the SPELLING of a call is pinned to the
+    spelling. [[source-reading-guard]]
 
-    v2827 — AND THE FIRST VERSION HAD A FALSE GREEN, FOUND BY A CROSS-FAMILY REVIEW AND
-    REPRODUCED. It walked the WHOLE function for any call to `name`, so:
+    ⚠⚠ THIS HELPER HAS BEEN WRONG THREE TIMES AND A CROSS-FAMILY REVIEW FOUND EACH ONE. Every fix
+    below is a reproduced false answer, not a hypothetical:
 
-        def status_payload():
-            if False:
-                drift_state()          # unreachable, and nothing else calls it
-            return {"drift": None}     # the producer is GONE from the payload
+      v2827  a dead `if False: producer()` satisfied it — it searched the whole function.
+             Fixed by scoping the search to the KEY'S VALUE.
+      v2830  a REBOUND alias still counted (`p = producer; p = other`), and a NESTED dict reusing
+             the key counted. Fixed by walking assignments in source order and excluding dicts
+             inside another dict's value.
+      v2831  rebinding the PRODUCER'S OWN name was exempted from the discard, so
+             `producer = other_fn` left it in the alias set — a false GREEN. And a dict returned
+             by a NESTED HELPER was treated as the payload, so
+             `def h(): return {"drift": producer()}` counted while the payload had no such key.
 
-    returned True. A dead call kept the law green while the answer had stopped being produced —
-    exactly the regression the law exists to catch. When `key` is given, the producer must now be
-    reached INSIDE THAT KEY'S VALUE, which no dead branch elsewhere can satisfy.
-
-    The same review's other case was a false RED — `p = drift_state` then `_t("drift", p)` — which
-    fails CLOSED and so is merely noisy. Local aliases are resolved anyway, because a guard that
-    cries wolf at a legal refactor gets edited out. [[feedback-blind-fixture-green-gate]]
+    ★ AND THE LESSON THAT ENDED THE CHASE: the first two rounds tried to model more and more
+    Python. That is a losing game for a helper whose only subject is ONE function. So anything it
+    does not model is now a REFUSAL with a reason, not a guess — an augmented assignment, a
+    walrus, a tuple unpack, a `del`, a `global`/`nonlocal`, or a `**` spread, when it touches a
+    name this is tracking. A false RED that fails closed is noise; a false GREEN hides a
+    regression; an explicit refusal is neither. [[unknown-stays-unknown]]
     """
     import ast as _ast
     fns = [n for n in _ast.walk(_ast.parse(src))
@@ -384,22 +387,69 @@ def _status_producer(case, src, name, key=None):
                      "nothing — an instrument failure, not a clean result")
     fn = fns[0]
 
-    # `p = producer` — a local alias is still the producer. ⚠ IN SOURCE ORDER, AND A REBINDING
-    # REVOKES IT. v2829: a cross-family review found and I REPRODUCED a false GREEN —
-    # `p = producer` then `p = something_else` then `_t("s", p)` left `p` in the alias set, so the
-    # law passed while the payload called something else entirely. Order matters and the set must
-    # shrink as well as grow. [[label-outlived-referent]]
+    #: Nodes belonging to a function DEFINED INSIDE status_payload. A helper's body is not the
+    #: payload: `def h(): return {"drift": producer()}` used to count as the payload's own dict.
+    _nested = set()
+    for n in _ast.walk(fn):
+        if n is not fn and isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.Lambda)):
+            for sub in _ast.walk(n):
+                _nested.add(id(sub))
+
+    # ── aliases: `p = producer`, in SOURCE ORDER, and a rebinding revokes ────────────────────
     aliases = {name}
-    for n in sorted((x for x in _ast.walk(fn) if isinstance(x, _ast.Assign)),
+    for n in sorted((x for x in _ast.walk(fn)
+                     if isinstance(x, _ast.Assign) and id(x) not in _nested),
                     key=lambda x: (x.lineno, x.col_offset)):
         _is_alias = isinstance(n.value, _ast.Name) and n.value.id in aliases
         for t in n.targets:
-            if not isinstance(t, _ast.Name):
-                continue
-            if _is_alias:
-                aliases.add(t.id)
-            elif t.id != name:
-                aliases.discard(t.id)     # rebound to something else — it is no longer the producer
+            if isinstance(t, _ast.Name):
+                if _is_alias:
+                    aliases.add(t.id)
+                else:
+                    # ⚠ NO EXEMPTION FOR THE PRODUCER'S OWN NAME. v2831: `producer = other_fn`
+                    # used to be skipped here, so the shadowed name stayed an alias and the law
+                    # went green over a call to something else entirely.
+                    aliases.discard(t.id)
+            else:
+                # A tuple/starred/subscript target — not modelled. ⚠ REFUSE IF EITHER SIDE TOUCHES
+                # A TRACKED NAME, and the VALUE side is the one that matters: in
+                # `a, b = producer, other` the targets are not aliases YET, so checking only the
+                # targets fired on nothing and the helper answered False — a false RED it should
+                # have refused. Found by running the case rather than reading the branch.
+                _touch = None
+                for sub in _ast.walk(t):
+                    if isinstance(sub, _ast.Name) and sub.id in aliases:
+                        _touch = sub.id
+                for sub in _ast.walk(n.value):
+                    if isinstance(sub, _ast.Name) and sub.id in aliases:
+                        _touch = _touch or sub.id
+                if _touch:
+                    case.fail("status_payload binds %r through a target shape this law does not "
+                              "model (line %d). It refuses rather than guess: teach it the shape "
+                              "or assert the call directly." % (_touch, n.lineno))
+
+    # ── constructs that can rebind a tracked name and are NOT modelled ───────────────────────
+    for n in _ast.walk(fn):
+        if id(n) in _nested:
+            continue
+        _hit = None
+        if isinstance(n, _ast.AugAssign) and isinstance(n.target, _ast.Name):
+            _hit = ("an augmented assignment", n.target.id)
+        elif hasattr(_ast, "NamedExpr") and isinstance(n, getattr(_ast, "NamedExpr")) \
+                and isinstance(n.target, _ast.Name):
+            _hit = ("a walrus binding", n.target.id)
+        elif isinstance(n, _ast.Delete):
+            for t in n.targets:
+                if isinstance(t, _ast.Name) and t.id in aliases:
+                    _hit = ("a del", t.id)
+        elif isinstance(n, (_ast.Global, _ast.Nonlocal)):
+            for nm in n.names:
+                if nm in aliases:
+                    _hit = ("a global/nonlocal declaration", nm)
+        if _hit and _hit[1] in aliases:
+            case.fail("status_payload uses %s on %r, which this law does not model (line %d). It "
+                      "refuses rather than answer over a construct it cannot follow."
+                      % (_hit[0], _hit[1], getattr(n, "lineno", -1)))
 
     def _reaches(node):
         for n in _ast.walk(node):
@@ -419,13 +469,7 @@ def _status_producer(case, src, name, key=None):
     if key is None:
         return _reaches(fn)
 
-    # ⚠ SCOPED TO THE KEY'S VALUE. This is the half that closes the false GREEN: a call anywhere
-    # else in the function — dead branch, unrelated section, a comment-free `if False` — cannot
-    # satisfy it. Publication and invocation are checked as ONE fact, at the point they meet.
-    # ⚠⚠ THE PAYLOAD DICT, NOT ANY DICT. Same review, also reproduced: with
-    # `{"other": {"drift": producer()}, "drift": None}` every Dict node carrying the key was
-    # searched, so a NESTED dict that happens to reuse the key name satisfied the law while the
-    # payload's own value had become None. A dict inside another dict's value is not the payload.
+    # ── the PAYLOAD dict: outermost, and not inside a nested function ────────────────────────
     _inner = set()
     for d in _ast.walk(fn):
         if isinstance(d, _ast.Dict):
@@ -433,9 +477,14 @@ def _status_producer(case, src, name, key=None):
                 for sub in _ast.walk(v):
                     if isinstance(sub, _ast.Dict):
                         _inner.add(id(sub))
-    values = [v for d in _ast.walk(fn)
-              if isinstance(d, _ast.Dict) and id(d) not in _inner
-              for k, v in zip(d.keys, d.values)
+    _dicts = [d for d in _ast.walk(fn)
+              if isinstance(d, _ast.Dict) and id(d) not in _inner and id(d) not in _nested]
+    for d in _dicts:
+        if any(k is None for k in d.keys):
+            case.fail("the payload dict uses ** unpacking (line %d), so which value wins for a key "
+                      "is not decidable from the tree. This law refuses rather than pick one."
+                      % d.lineno)
+    values = [v for d in _dicts for k, v in zip(d.keys, d.values)
               if isinstance(k, _ast.Constant) and k.value == key]
     case.assertTrue(values,
                     "status_payload no longer publishes the %r key at all, so whatever reads it "
