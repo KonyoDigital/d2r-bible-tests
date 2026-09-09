@@ -26038,3 +26038,18 @@ both JS shapes clean. Two tampers PROVEN red in
 ⚠ And the first red-proof written for it came back **INVALID — "the tamper does not parse... a gate
 reddened by a SyntaxError proves nothing about the law"**. The find/replace literals are now built
 from the file's own bytes with `repr()` rather than hand-escaped.
+
+## REG-777 — two new gates would have crashed WHILE REPORTING on his Windows machine
+**v2824 · 2026-09-09 · test_a_reels_whole_life_is_one_work_list.py · test_no_technique_is_lost_when_mini_goes.py**
+
+The pre-push suite refused the push: `test_every_cli_that_prints_non_ascii_is_encoding_safe` named
+both files I wrote this session. They print `⚠ ★ ✅` in docstrings and assertion messages and never
+call `console_safe.enable()`, so on a non-UTF-8 console — his Windows box, where Python stdout is
+**cp1255** — they crash while REPORTING and a clean tree exits non-zero. A guard that cannot print
+its own verdict is a guard that reads as a failure on a healthy repo.
+
+Fixed with the repo's own idiom (`from console_safe import enable as _console_safe_enable;
+_console_safe_enable()`) above the first project import. The law re-run in isolation: PASS. All nine
+red-proofs across the two files re-proven after the edit, each `1 match(es) tampered → red` —
+prepending two lines does not move a string anchor, but that is exactly the assumption that came
+back INVALID earlier tonight, so it was measured rather than assumed.
