@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2869",
+  "ver": "v2870",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2869: the heart fingerprint read gates relative to the caller cwd, so the lock refused every surface from the repo root",
+  "note": "v2870: the skip warning could not tell a whole-file skip from a partial one, and two writers gave the same verdict opposite jobs",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

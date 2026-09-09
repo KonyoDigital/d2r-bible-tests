@@ -383,12 +383,22 @@ def blind_reason(why, matches, tail):
     [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
     """
     _base = ("stayed GREEN through its own defeat (%d match(es)): %s" % (matches, str(why)[:70]))
-    _m = re.search(r"skipped=(\d+)", tail or "")
-    if _m and int(_m.group(1)):
-        return (_base + "  ⚠ but %s law(s) SKIPPED in the sandbox (%s) — the tamper may never have "
-                        "been judged at all. Fix the SKIP before calling the law weak."
-                % (_m.group(1), (tail or "").strip()[:60]))
-    return _base
+    _sk = re.search(r"skipped=(\d+)", tail or "")
+    _rn = re.search(r"Ran (\d+) test", tail or "")
+    n_skipped = int(_sk.group(1)) if _sk else 0
+    if not n_skipped:
+        return _base
+    if _rn is None:
+        return (_base + "  ⚠ %d law(s) SKIPPED and the run did not say how many it ran (%s), so "
+                        "whether the tamper was judged AT ALL is UNKNOWN."
+                % (n_skipped, (tail or "").strip()[:60]))
+    n_ran = int(_rn.group(1))
+    if n_skipped >= n_ran:
+        return (_base + "  ⚠ ALL %d law(s) SKIPPED in the sandbox — the tamper was never judged. "
+                        "Fix the SKIP; the law itself has not been tested." % n_ran)
+    return (_base + "  ⚠ %d of %d law(s) SKIPPED, but the other %d DID run and stayed green — so "
+                    "the law IS weak, and separately some laws opted out. Both jobs, not one."
+            % (n_skipped, n_ran, n_ran - n_skipped))
 
 
 def _run_gate(sandbox_tv, filename, timeout=180):
@@ -403,8 +413,20 @@ def _run_gate(sandbox_tv, filename, timeout=180):
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
-    tail = (r.stdout or b"").decode("utf-8", "replace").strip().splitlines()
-    return r.returncode == 0, (tail[-1] if tail else "")
+    # ⚠⚠ v2870 — THE LAST LINE ALONE IS A NUMERATOR WITH NO DENOMINATOR. unittest prints
+    # "Ran 10 tests in 0.1s", a blank, then "OK (skipped=4)" — and keeping only the last line threw
+    # away the one number that says whether a skip covered the WHOLE file or part of it. A
+    # cross-family review of v2868: five laws skipping while three run and stay green is a WEAK
+    # LAW, and blind_reason was instructing the reader to go delete skips instead.
+    # [[zero-needs-a-denominator]]
+    _lines = (r.stdout or b"").decode("utf-8", "replace").strip().splitlines()
+    _last = _lines[-1].strip() if _lines else ""
+    _ran = ""
+    for _l in reversed(_lines):
+        if _l.startswith("Ran ") and " test" in _l:
+            _ran = _l.strip()
+            break
+    return r.returncode == 0, ("%s | %s" % (_ran, _last) if _ran and _ran != _last else _last)
 
 
 # ── the proving loop ─────────────────────────────────────────────────────────────────────────
@@ -856,9 +878,15 @@ def propose(results, census, hits):
     invalid = [n for n, v in (results or {}).items() if v == INVALID]
     if blind:
         lines += ["## BLIND — survived its own defeat", ""]
-        lines += ["- `%s` — the tamper reintroduced the defect and the gate stayed GREEN. "
-                  "Either the law reads prose instead of code, or it asserts something the "
-                  "tamper does not touch." % n for n in blind] + [""]
+        # ⚠ v2870 — AND IT MUST NOT CONTRADICT THE PROVE OUTPUT. Same review: after blind_reason
+        # split "the law is weak" from "the laws never ran", stdout said one thing and this file
+        # said the other about the same verdict — two writers, opposite jobs. It cannot re-run the
+        # gate, so it names BOTH causes in the order the reader should check them, and points at
+        # the line that already knows which. [[copy-drift]] [[the-unjoined-end]]
+        lines += ["- `%s` — the tamper reintroduced the defect and the gate stayed GREEN. Check "
+                  "the `--prove` line for this gate first: if it reports SKIPPED laws, the laws "
+                  "opted out and the skip is the job. Otherwise the law reads prose instead of "
+                  "code, or asserts something the tamper does not touch." % n for n in blind] + [""]
     if invalid:
         lines += ["## INVALID PROOF — the sabotage, not the law", ""]
         lines += ["- `%s` — the tamper did not match the expected count. A sabotage that changes "

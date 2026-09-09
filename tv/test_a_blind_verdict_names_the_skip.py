@@ -26,7 +26,9 @@ MEASURED after the fix:
 import ast
 import io
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -41,12 +43,12 @@ import heart2 as H  # noqa: E402
 
 RED_PROOF = [
     {
-        "why": "switching off the skip branch returns the BLIND line to one sentence for two "
-               "opposite states — a law that was never run reads exactly like a law that was run "
-               "and survived, which is how v2865 shipped blind:1 without anyone knowing why",
+        "why": "switching off the skip branch returns the BLIND line to one sentence for opposite "
+               "states — a law that was never run reads exactly like a law that was run and "
+               "survived, which is how v2865 shipped blind:1 without anyone knowing why",
         "file": "heart2.py",
-        "find": "    if _m and int(_m.group(1)):",
-        "replace": "    if False and _m and int(_m.group(1)):",
+        "find": "    if not n_skipped:\n        return _base",
+        "replace": "    if True:\n        return _base",
         "matches": 1,
     },
     {
@@ -55,6 +57,24 @@ RED_PROOF = [
         "file": "heart2.py",
         "find": 'say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2)))',
         "replace": 'say("     %-52s %s ← stayed GREEN" % (label, BLIND))',
+        "matches": 1,
+    },
+    {
+        "why": "v2870's defect: collapsing a MIXED run into a total one. Five laws skipping while "
+               "three run and stay green is a WEAK LAW, and this branch would send the reader to "
+               "delete skips while the three that judged the tamper stay blind",
+        "file": "heart2.py",
+        "find": "    if n_skipped >= n_ran:",
+        "replace": "    if True:",
+        "matches": 1,
+    },
+    {
+        "why": "throwing away the DENOMINATOR at the source: without unittest's `Ran N tests` line "
+               "the helper cannot tell a whole-file skip from a partial one, and every skip reads "
+               "as 'never judged'",
+        "file": "heart2.py",
+        "find": '        if _l.startswith("Ran ") and " test" in _l:',
+        "replace": '        if False and _l.startswith("Ran ") and " test" in _l:',
         "matches": 1,
     },
 ]
@@ -101,6 +121,56 @@ class ABlindVerdictNamesTheSkip(unittest.TestCase):
         out = H.blind_reason("the why text", 3, "OK")
         self.assertIn("3 match(es)", out)
         self.assertIn("the why text", out)
+
+    def test_a_TOTAL_skip_says_the_tamper_was_never_judged(self):
+        """★★ skipped == ran: nothing judged anything. The skip is the whole job."""
+        out = H.blind_reason("some why", 2, "Ran 5 tests in 0.1s | OK (skipped=5)")
+        self.assertIn("ALL 5", out)
+        self.assertIn("never judged", out)
+
+    def test_a_MIXED_run_says_the_law_is_WEAK_TOO(self):
+        """★★ v2870 — THE DENOMINATOR. A cross-family review of v2868: five laws skipping while
+        three RUN and stay green is a weak law, and the old sentence — 'the tamper may never have
+        been judged at all, fix the SKIP before calling the law weak' — sent the reader to delete
+        skips while the three laws that actually judged the tamper stayed blind. A numerator with
+        no denominator, shipped inside the fix for exactly that scar.
+        [[zero-needs-a-denominator]]"""
+        out = H.blind_reason("some why", 2, "Ran 8 tests in 0.1s | OK (skipped=5)")
+        self.assertIn("5 of 8", out, "the skip count is printed without the total that makes it "
+                                     "mean anything")
+        self.assertIn("3 DID run", out,
+                      "a mixed run does not say that laws ran and survived — so it reads as "
+                      "'nothing was judged' when the law is genuinely weak")
+        self.assertNotIn("never judged", out,
+                         "a mixed run is told the tamper was never judged, which is false for the "
+                         "laws that ran")
+
+    def test_a_tail_with_NO_denominator_says_UNKNOWN(self):
+        """★ No `Ran N` line: whether the tamper was judged is UNKNOWN, not 'never'."""
+        out = H.blind_reason("some why", 2, "OK (skipped=5)")
+        self.assertIn("UNKNOWN", out)
+        self.assertNotIn("ALL 5", out)
+
+    def test_the_RUNNER_actually_carries_the_denominator(self):
+        """★★ [[the-unjoined-end]] — behavioural, not a string check: run a real gate file through
+        `_run_gate` and require unittest's `Ran N tests` line to survive into the tail. The helper
+        can divide perfectly and still be handed nothing to divide by."""
+        d = tempfile.mkdtemp(prefix="ranline-")
+        try:
+            io.open(os.path.join(d, "t_x.py"), "w", encoding="utf-8").write(
+                "import unittest\n"
+                "class T(unittest.TestCase):\n"
+                "    def test_a(self): pass\n"
+                "    def test_b(self): self.skipTest('deliberate')\n"
+                "unittest.main()\n")
+            ok, tail = H._run_gate(d, "t_x.py", timeout=60)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertTrue(ok, "the fixture gate did not pass: %r" % tail)
+        self.assertRegex(tail, r"Ran \d+ test",
+                         "_run_gate discarded unittest's `Ran N tests` line, so blind_reason has "
+                         "no denominator however well it divides: %r" % tail)
+        self.assertIn("skipped=1", tail, "the skip count did not survive either: %r" % tail)
 
     # ── the join: a reason nobody prints is not a reason ─────────────────────────────────────
     def test_the_PROVER_actually_calls_it(self):

@@ -133,6 +133,38 @@ now carries 11 laws and 4 red-proofs, all PROVEN.
 distinctly is what let the digest move at all. [[stale-reading]] [[copy-drift]]
 [[the-harness-isolates-the-port-not-the-world]]
 
+### REG-841 — the skip warning was a numerator with no denominator, inside the fix for that scar
+
+**v2870.** A cross-family review of v2868 (grok-4-1-fast-reasoning, 12 findings) on REG-837's own
+fix. `_run_gate` keeps only unittest's LAST line, so `blind_reason` saw `OK (skipped=5)` and never
+`Ran N tests`. Any non-zero skip therefore printed *"the tamper may never have been judged at all.
+Fix the SKIP before calling the law weak."*
+
+Its scenario: a gate file with eight laws, five skipping on a missing sandbox fixture and **three
+that run and encode the RED_PROOF**. The tamper leaves those three green. That is a WEAK LAW — and
+the reader was sent to go delete skips while the three laws that actually judged the tamper stayed
+blind. The docstring cites `[[zero-needs-a-denominator]]` and then ships a numerator with no
+denominator. Fail-closed held (`return BLIND`), so it was a wrong diagnosis, never a silent pass.
+
+**Fixed at the source and at the reader.** `_run_gate` now carries unittest's `Ran N tests` line
+into the tail alongside the verdict, and `blind_reason` divides:
+
+    Ran 5  | OK (skipped=5)  -> ALL 5 law(s) SKIPPED — the tamper was never judged
+    Ran 8  | OK (skipped=5)  -> 5 of 8 SKIPPED, the other 3 DID run and stayed green
+                                — the law IS weak, and separately some laws opted out
+    Ran 8  | OK              -> the plain sentence
+    (no Ran line)            -> N SKIPPED and the run did not say how many it ran — UNKNOWN
+
+**And the second writer, same review.** `propose()` was untouched by the split, so `--prove` stdout
+could say "fix the skip" while `.heart2_proposals.md` said "the law reads prose instead of code" —
+one verdict, two opposite jobs, the exact copy that had just been extracted left standing at the
+other end. It cannot re-run the gate, so it now names both causes in the order to check them and
+points at the `--prove` line that already knows which. [[copy-drift]] [[the-unjoined-end]]
+
+Four laws added, all four arms PROVEN — including a behavioural one that runs a real two-test
+fixture through `_run_gate` and requires `Ran N tests` to survive into the tail, because the helper
+can divide perfectly and still be handed nothing to divide by.
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

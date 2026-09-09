@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2870** | `(this commit)` | v2870 — the skip warning could not tell a whole-file skip from a partial one, and two writers gave the same verdict opposite jobs |
 | **v2869** | `(this commit)` | v2869 — the heart fingerprint read gates relative to the caller cwd, so the lock refused every surface from the repo root |
 | **v2868** | `(this commit)` | v2868 — a cross-family review found three ways the fail-closed lock stopped being tested on CI |
 | **v2867** | `(this commit)` | v2867 — red-proofs for the render coverage ratchet and the store-owner registry, one of them re-aimed after a green sabotage |
