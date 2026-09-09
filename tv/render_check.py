@@ -766,7 +766,11 @@ TARGETS = {
         # [[regression-guard]] [[feedback-blind-fixture-green-gate]]
         "seed": """(function(){ localStorage.setItem('d2r_ownerClaim','*'); return 1; })()""",
         "activate": """(function(){
-            var b = document.getElementById('btn-miniauto');
+            /* v2856 — WAS btn-miniauto, REMOVED BY HIS RULING (REG-823). This target is "the
+               buttons he actually reaches for", and anchoring it on a button that no longer
+               exists made the whole surface UNMEASURED — which the coverage ratchet refused
+               rather than passing quietly, exactly as it should. */
+            var b = document.getElementById('btn-on');
             if (!b) return false;
             // it must not be inside a COLLAPSED details — that is how it hid for three rounds
             for (var q = b.parentElement; q; q = q.parentElement){
@@ -774,7 +778,7 @@ TARGETS = {
             }
             var r = b.getBoundingClientRect();
             return !!(r.width > 2 && r.height > 2); })()""",
-        "sel": "#btn-mini, #btn-miniauto",
+        "sel": "#btn-on, #btn-mini",
         "settles": False,   # a live console never stops moving; see the note at the settle call
     },
     "state-panel": {
@@ -996,7 +1000,7 @@ TARGETS = {
     # markup and all four are trivially present. The defect only exists once the polls run.
     "locks": {
         "serve": True,
-        "why": "the FOUR lock chips — vault tab, vault accumulator, mini-auto and the prune. A "
+        "why": "the THREE lock chips — vault tab, vault accumulator and the prune. A "
                "chip with NO state renders as `locked`, never as absent, because a missing badge "
                "reads as an OPEN lock and that is the one direction this must never fail in. This "
                "target exists because one of them was destroyed on every poll and nothing saw it",
@@ -1030,7 +1034,11 @@ TARGETS = {
                a missing badge as `locked`, so an absent state reads as a LOCK THAT IS OPEN.
                [[unknown-stays-unknown]] */
             var all = document.querySelectorAll('.lockchip');
-            if (all.length < 4) return false;          /* one was destroyed by a poll */
+            /* v2856 — WAS 4. mini-auto's chip went with MINI(AUTOMATIC), REG-823. Measured after
+               the removal: lock-vault, lock-vault-tab, lock-prune. The guard still does its job —
+               it catches a chip DESTROYED by a poll, the v2443 defect this target exists for;
+               only the denominator moved. [[zero-needs-a-denominator]] */
+            if (all.length < 3) return false;          /* one was destroyed by a poll */
             var onscreen = 0;
             for (var i = 0; i < all.length; i++){
                 var e = all[i];
@@ -1054,9 +1062,9 @@ TARGETS = {
         # instead of deciding, so the two cannot drift into disagreeing about the same DOM.
         "activateWhy": """(function(){
             var all = document.querySelectorAll('.lockchip');
-            if (all.length < 4) {
+            if (all.length < 3) {
                 var seen = [].slice.call(all).map(function(e){ return e.id || '?'; });
-                return 'DESTROYED: the markup declares 4 lock chips and only ' + all.length
+                return 'DESTROYED: the markup declares 3 lock chips and only ' + all.length
                      + ' survive in the DOM. Survivors: ' + (seen.join(', ') || 'none')
                      + ' — whichever declared chip is absent from that list is the one a poll ate. '
                      + 'This is the v2443 defect: a poll rewrote a label with textContent and took '
