@@ -279,6 +279,40 @@ sandbox. It does. The lock law's skip there was `_skip_if_stale`, not absence. T
 in place. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
 [[feedback-fixtures-never-touch-live-data]]
 
+### REG-845 — the result line was whatever printed last that LOOKED like one (third round)
+
+**v2874.** The cross-family eye on v2872 found the same class a third time, in the parser written to
+close it. v2872 hunted **backwards** for a result-shaped line, so anything printed afterwards that
+resembles a result **steals** it and unittest's real one is dropped from the tail entirely.
+MEASURED on the shipped parser, a two-test whole-file skip that must read ALL 2:
+
+    atexit print('DeprecationWarning: ...')  ->  'Ran 2 | OK (skipped=2) | Deprecation…'   ALL 2      ✔
+    atexit print('OK')                       ->  'Ran 2 | OK'                              no warning ✘
+    atexit print('FAILED to cleanup')        ->  'Ran 2 | FAILED to cleanup'                no warning ✘
+
+**v2872's own behavioural law could not catch it**, and the reason is the one that commit quoted
+while shipping it: its fixture printed a WARNING-shaped line, which the predicate never matches, so
+`_res` still found the real result. v2870's fixture exited cleanly; v2872's printed the wrong kind
+of noise. Three rounds, three fixtures that could not see the defect they were written for.
+[[feedback-blind-fixture-green-gate]]
+
+The matchers were also asymmetric: `OK` was exact-or-`OK (`, while `FAILED` was a bare **prefix** —
+so `FAILED to cleanup` could steal where `OK to cleanup` could not. The comment claiming it handled
+"any shutdown line" was false.
+
+**Fixed by taking unittest's own ordering.** It prints `Ran N tests`, a blank, then the result; noise
+comes after. So find `Ran` and take the next result line going FORWARD, with both matchers exact-or-
+parenthesised. All four cases now keep the real result:
+
+    warning-shaped            -> 'Ran 2 tests in 0.000s | OK (skipped=2) | DeprecationWarning: noise'  ALL 2
+    print('OK')               -> 'Ran 2 tests in 0.000s | OK (skipped=2) | OK'                         ALL 2
+    print('FAILED to cleanup')-> 'Ran 2 tests in 0.000s | OK (skipped=2) | FAILED to cleanup'          ALL 2
+    no noise                  -> 'Ran 2 tests in 0.000s | OK (skipped=2)'                              ALL 2
+
+The behavioural law now prints `OK` from `atexit` — the shape that actually steals. Two red-proof
+arms had to be re-pointed because the rewrite moved their anchors; both showed **0 matches** first,
+found by printing the count, not by the prover. Six arms, twelve laws, all PROVEN.
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

@@ -73,17 +73,17 @@ RED_PROOF = [
                "the helper cannot tell a whole-file skip from a partial one, and every skip reads "
                "as 'never judged'",
         "file": "heart2.py",
-        "find": '        if not _ran and _s.startswith("Ran ") and " test" in _s:',
-        "replace": '        if False and _s.startswith("Ran ") and " test" in _s:',
+        "find": '        if _s.startswith("Ran ") and " test" in _s:\n            _ran, _ran_i = _s, _i',
+        "replace": '        if False:\n            _ran, _ran_i = _s, _i',
         "matches": 1,
     },
     {
-        "why": "v2872's defect: taking the RESULT line from whatever printed last. One atexit "
-               "print or a merged DeprecationWarning and `OK (skipped=5)` is gone, n_skipped "
-               "reads 0, and a whole-file skip is reported as a weak law",
+        "why": "v2874's defect: hunting the RESULT line BACKWARDS, so anything printed after "
+               "unittest that looks like a result steals it and the real `OK (skipped=K)` is "
+               "dropped from the tail entirely — a whole-file skip reported as a weak law",
         "file": "heart2.py",
-        "find": '        if not _res and (_s == "OK" or _s.startswith("OK (") or _s.startswith("FAILED")):',
-        "replace": '        if not _res and False:',
+        "find": '        for _l in _lines[_ran_i + 1:]:',
+        "replace": '        for _l in reversed(_lines):',
         "matches": 1,
     },
     {
@@ -201,7 +201,7 @@ class ABlindVerdictNamesTheSkip(unittest.TestCase):
         try:
             io.open(os.path.join(d, "t_n.py"), "w", encoding="utf-8").write(
                 "import atexit, unittest\n"
-                "atexit.register(lambda: print('DeprecationWarning: trailing shutdown noise'))\n"
+                "atexit.register(lambda: print('OK'))\n"
                 "class T(unittest.TestCase):\n"
                 "    def test_a(self): self.skipTest('x')\n"
                 "    def test_b(self): self.skipTest('y')\n"
@@ -211,7 +211,9 @@ class ABlindVerdictNamesTheSkip(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
         self.assertTrue(ok, "the fixture gate did not pass: %r" % tail)
         self.assertIn("skipped=2", tail,
-                      "a line printed AFTER unittest's result swallowed the skip count: %r" % tail)
+                      "a RESULT-SHAPED line printed after unittest stole its result: %r. v2872's fixture "
+                      "printed a WARNING-shaped line, which the predicate never matched, so the law "
+                      "could not see the defect it was written for: %r" % (tail, tail))
         self.assertRegex(tail, r"Ran \d+ test", "the denominator went with it: %r" % tail)
         self.assertIn("ALL 2", H.blind_reason("w", 1, tail),
                       "a whole-file skip reported as a weak law because of one trailing line")

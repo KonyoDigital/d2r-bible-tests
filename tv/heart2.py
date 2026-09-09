@@ -426,17 +426,37 @@ def _run_gate(sandbox_tv, filename, timeout=180):
     # stderr=STDOUT), any shutdown line, and `OK (skipped=5)` is no longer last. `n_skipped` reads 0
     # and a WHOLE-FILE skip reports as a weak law. Both lines are hunted now, and whatever really
     # printed last is kept beside them, because it may be the actual news.
+    # ⚠⚠⚠ v2874 — AND THE RESULT IS THE ONE THAT FOLLOWS `Ran`, NOT THE LAST ONE THAT LOOKS LIKE
+    # IT. Third round of this same class, each caught by the cross-family eye and not by me. v2872
+    # hunted BACKWARDS for a result-shaped line, so anything printed afterwards that happens to look
+    # like a result STEALS it and unittest's real one is dropped from the tail entirely. MEASURED on
+    # the v2872 parser, a two-test whole-file skip that should read ALL 2:
+    #     atexit print('DeprecationWarning: ...')  -> 'Ran 2 tests | OK (skipped=2) | Deprecation…'  ALL 2   ✔
+    #     atexit print('OK')                       -> 'Ran 2 tests | OK'                             no warning ✘
+    #     atexit print('FAILED to cleanup')        -> 'Ran 2 tests | FAILED to cleanup'              no warning ✘
+    # v2872's own behavioural law could not catch it because its fixture printed a WARNING-shaped
+    # line, which the predicate does not match — the blind-fixture shape that commit quoted while
+    # shipping it. unittest prints `Ran N tests`, a blank, then the result; noise comes after. So
+    # find `Ran` and take the NEXT result line going FORWARD.
+    # ⚠ And the two matchers are now symmetric. `FAILED` was a PREFIX while `OK` was exact-or-`OK (`,
+    # so `FAILED to cleanup` could steal where `OK to cleanup` could not.
+    # [[feedback-generalize-fixes]] [[feedback-blind-fixture-green-gate]]
+    def _is_result(s):
+        return s in ("OK", "FAILED") or s.startswith("OK (") or s.startswith("FAILED (")
     _lines = (r.stdout or b"").decode("utf-8", "replace").strip().splitlines()
     _last = _lines[-1].strip() if _lines else ""
-    _ran, _res = "", ""
-    for _l in reversed(_lines):
-        _s = _l.strip()
-        if not _res and (_s == "OK" or _s.startswith("OK (") or _s.startswith("FAILED")):
-            _res = _s
-        if not _ran and _s.startswith("Ran ") and " test" in _s:
-            _ran = _s
-        if _ran and _res:
+    _ran, _res, _ran_i = "", "", -1
+    for _i in range(len(_lines) - 1, -1, -1):
+        _s = _lines[_i].strip()
+        if _s.startswith("Ran ") and " test" in _s:
+            _ran, _ran_i = _s, _i
             break
+    if _ran_i >= 0:
+        for _l in _lines[_ran_i + 1:]:
+            _s = _l.strip()
+            if _is_result(_s):
+                _res = _s
+                break
     _parts = [_p for _p in (_ran, _res) if _p]
     if _last and _last not in _parts:
         _parts.append(_last)
