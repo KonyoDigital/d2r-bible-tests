@@ -166,6 +166,12 @@ tv/.second_eye.jsonl
 # make one Mac's census read as the repo's truth, and a stale row would then be indistinguishable
 # from a fresh one — a supervision layer's worst failure mode.
 tv/.heart2.json
+# v2861 — THE RENDER VERDICT IS A READING, NOT A CONTRACT. I shipped it TRACKED in v2859
+# and that is a stale-reading hazard with a passport: this Mac's "16/16 reported OK"
+# would travel to CI and to the Windows machine, where nothing rendered, and the heart
+# there would read state OK from a run that never happened on it. render_coverage.json
+# stays TRACKED on purpose — a FLOOR is a shared contract; a verdict is a local fact.
+tv/.render_verdict.json
 tv/.heart2_proposals.md
 
 # v2228 — faults the console reports about ITSELF. Runtime, per-machine, never committed.

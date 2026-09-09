@@ -800,6 +800,18 @@ GATES = [
          "could not see it; I trusted it and the push was refused. After the fix: 249 shipped "
          "versions examined, 111 never looked at, against the 3 it used to report.",
          skip_ok=()),
+    Gate("test_the_lock_derives_from_the_heart",
+         [sys.executable, os.path.join(HERE, "test_the_lock_derives_from_the_heart.py")], 90,
+         why="v2861 — THE LOCK AND THE HEART WERE TWO SYSTEMS THAT NEVER SPOKE. Konyo: 'the lock and "
+             "everything still derives from the heart and visually seen'. Measured when he asked: "
+             "self_arming.py and hover_wilson.py held ZERO references to heart2, so a surface could "
+             "reach its Wilson bar and ARM ITSELF while the gates that would catch its failure were "
+             "blind. A Wilson score says this refused every attack we made; it cannot say and we "
+             "would have noticed if it had not. may() now asks the heart in the same precondition "
+             "chain as the upstream check, and fails CLOSED on a blind, unreadable or absent census. "
+             "It gates on BLIND and deliberately not on partial, which has never been False and would "
+             "lock every surface for ever — a gate that can only say no is furniture.",
+         skip_ok=()),
     Gate("test_the_heart_can_see_the_surfaces",
          [sys.executable, os.path.join(HERE, "test_the_heart_can_see_the_surfaces.py")], 90,
          why="v2859 — THE RENDER VERDICT WAS NOT DURABLE ANYWHERE. render_check wrote PNGs and, only "

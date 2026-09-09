@@ -1061,6 +1061,53 @@ def _hardening_gap(w, conf, kinds, n, k, unit="sabotage(s)"):
     return out
 
 
+def _heart_says_watched():
+    """Can the instruments that watch this system still go red? -> (bool, why)
+
+    ⚠⚠ v2861 — THE LOCK AND THE HEART WERE TWO SYSTEMS THAT NEVER SPOKE. Konyo, 2026-09-09:
+    *"the lock and everything still derives from the heart and visually seen"*. MEASURED when he
+    asked: `self_arming.py` and `hover_wilson.py` held ZERO references to heart2. So a surface could
+    reach its Wilson bar and ARM ITSELF while the gates that would catch its failure were blind —
+    the lock proving the surface works, with nothing left able to prove the PROOF works.
+
+    A Wilson score says "this refused every attack we made". It cannot say "and we would have
+    noticed if it had not". That second question is the heart's, and it belongs in the same
+    precondition chain as the upstream check: `may()` already refuses when a prerequisite is not
+    OPEN, because proving a surface in isolation proves nothing about what feeds it. An instrument
+    that cannot go red is exactly that kind of missing prerequisite.
+
+    ⚠ IT FAILS CLOSED, matching `_rows()`: an unreadable census is UNKNOWN, and UNKNOWN never arms
+    anything. [[unknown-stays-unknown]] [[the-unjoined-end]]
+
+    ⚠ AND IT DOES NOT GATE ON `partial`. That flag has been True on every run this file has ever
+    seen, so refusing on it would lock every surface for ever — a gate that can only say no is not
+    a gate, it is furniture. Blind instruments are the honest bar: today there are 0, so this joins
+    the two systems without bricking the lock. [[feedback-blind-fixture-green-gate]]
+    """
+    try:
+        import heart2 as _h2
+        _p = os.path.join(_h2.HERE, ".heart2.json")
+    except Exception as _e:
+        return False, ("the heart could not be imported (%s), so nothing can say whether the gates "
+                       "watching this surface still work. UNKNOWN fails CLOSED." % type(_e).__name__)
+    if not os.path.exists(_p):
+        return False, ("the heart has never run here, so nothing has shown that the gates watching "
+                       "this surface can still go red. Run `python3 tv/heart2.py --prove`. "
+                       "UNKNOWN fails CLOSED.")
+    try:
+        with io.open(_p, encoding="utf-8") as _fh:
+            _st = json.load(_fh)
+    except Exception as _e:
+        return False, ("the heart census would not parse (%s) — UNKNOWN fails CLOSED."
+                       % type(_e).__name__)
+    _blind = list(_st.get("blind") or [])
+    if _blind:
+        return False, ("%d instrument(s) are BLIND (%s) — a surface may not arm itself while the "
+                       "gates that would catch its failure cannot go red."
+                       % (len(_blind), ", ".join(sorted(_blind)[:3])))
+    return True, ""
+
+
 def may(lock):
     """May this surface act right now? -> (bool, why)
 
@@ -1074,6 +1121,10 @@ def may(lock):
     rows, why = _rows()
     if rows is None:
         return False, "UNKNOWN: %s. An unreadable proof queue fails CLOSED." % why
+    # v2861 — AND THE HEART, in the same chain and for the same reason. See _heart_says_watched().
+    _hok, _hwhy = _heart_says_watched()
+    if not _hok:
+        return False, _hwhy
     for pre in spec["after"]:
         s = score(pre, rows)
         if s.get("state") not in (OPEN, HARDENED):

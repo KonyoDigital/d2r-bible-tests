@@ -27651,3 +27651,43 @@ so the docstring now states plainly that pixelTotal is a FLOOR: at best this goo
 never better. The bias flatters the exact answer this number exists to give, which is why it is
 written down instead of left implicit. [[unknown-stays-unknown]]
 
+## REG-830 — the Wilson lock and the heart were two systems that never spoke
+
+Konyo, 2026-09-09: *"the lock and everything still derives from the heart and visually seen"*.
+MEASURED when he asked: self_arming.py and hover_wilson.py held ZERO references to heart2.
+
+So a surface could reach its Wilson bar and ARM ITSELF while the gates that would catch its failure
+were blind. A Wilson score says "this refused every attack we made". It cannot say "and we would
+have noticed if it had not". That second question is the heart's.
+
+FIXED: may() asks _heart_says_watched() in the SAME precondition chain as the upstream check — the
+chain that already refuses when a prerequisite is not OPEN, because proving a surface in isolation
+proves nothing about what feeds it. An instrument that cannot go red is that kind of missing
+prerequisite. It fails CLOSED on blind, unreadable or absent, matching _rows().
+
+MEASURED on the real lock, all four directions:
+    1 BLIND instrument -> may(printer.stream) False, reason names the blind gate
+    unreadable census  -> False, "UNKNOWN fails CLOSED"
+    absent census      -> False
+    restored           -> True          <- so it is a gate, not furniture
+
+⚠ IT GATES ON BLIND AND NOT ON `partial`. That flag has been True on every run this file has seen;
+refusing on it would lock every surface for ever. A gate that can only say no gets switched off
+within a week, which is the same defect as one that is green for ever.
+[[feedback-blind-fixture-green-gate]]
+
+GATE: `test_the_lock_derives_from_the_heart` — 5 laws, 2 red-proofs, both PROVEN (1 match each).
+One law exists purely to prove it is NOT furniture: with a healthy heart, at least one declared
+surface must still be able to act.
+
+## REG-831 — I shipped the render verdict TRACKED, and a reading must not travel
+
+My own defect from v2859. tv/.render_verdict.json was committed. .heart2.json and
+.board_identity.json are gitignored because they are READINGS; render_coverage.json is tracked
+because it is a FLOOR — a shared contract. I put a reading in the contract's category.
+
+The hazard is a stale reading with a passport: this Mac's "16/16 reported OK" travels to CI and to
+the Windows machine, where nothing rendered, and the heart there reads state OK from a run that
+never happened on it. Untracked and added to .gitignore, with the floor deliberately left tracked.
+[[stale-reading]] [[copy-drift]]
+
