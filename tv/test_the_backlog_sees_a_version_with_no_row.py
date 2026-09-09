@@ -17,7 +17,13 @@ shipped versions in 400 commits: 111 had never been looked at, against the 3 it 
 import ast
 import io
 import os
+import sys
 import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import console_safe  # noqa: E402  — this file prints ★ ⚠ ♥; on a non-UTF-8
+console_safe.enable()  # console it would crash while REPORTING and a clean tree would
+                       # exit non-zero. [[unknown-stays-unknown]]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()

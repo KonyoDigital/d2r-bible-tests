@@ -17,7 +17,13 @@ repo has paid for prose-reading nine times this session alone. [[source-reading-
 import ast
 import io
 import os
+import sys
 import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import console_safe  # noqa: E402  — this file prints ★ ⚠ ♥; on a non-UTF-8
+console_safe.enable()  # console it would crash while REPORTING and a clean tree would
+                       # exit non-zero. [[unknown-stays-unknown]]
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8").read()

@@ -812,14 +812,14 @@ GATES = [
          skip_ok=()),
     Gate("test_the_backlog_sees_a_version_with_no_row",
          [sys.executable, os.path.join(HERE, "test_the_backlog_sees_a_version_with_no_row.py")], 60,
-         "v2854 — --backlog built its answer from the ledger, and audit() covers only versions "
+         why="v2854 — --backlog built its answer from the ledger, and audit() covers only versions "
          "the ledger already mentions. v2852 had no row, so the command whose job is the queue "
          "could not see it; I trusted it and the push was refused. After the fix: 249 shipped "
          "versions examined, 111 never looked at, against the 3 it used to report.",
          skip_ok=()),
     Gate("test_the_ratchet_cannot_erase_the_census",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
-         "v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "
+         why="v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "
          "sandbox: keys 10->2, provedGates 97->0, verdictAt 45->0, and `proved` 97->98 as the "
          "DECLARATION count replaced the verified one. One ratchet erased every banked proof. "
          "Both laws parse rather than grep.",
