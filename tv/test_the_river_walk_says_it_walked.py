@@ -148,9 +148,39 @@ class TheRiverWalkSaysItWalked(unittest.TestCase):
         nothing to the surface a supervisor reads'."""
         blk = _fn("status_payload")
         self.assertIsNotNone(blk, "status_payload is gone")
-        self.assertIn('"riverWalk": river_walk_state()', blk,
-                      "the river walk heartbeat is recorded but never published, so no supervisor "
-                      "and no view can read it")
+        # ⚠⚠ v2839 — THIS PINNED THE CALL'S SPELLING AND I BROKE IT MYSELF ON v2826. REG-779
+        # wrapped sixteen producers as `_t("section", producer)` so their cost lands in a named
+        # section instead of `unattributedMs`; behaviour identical, and the text
+        # `"riverWalk": river_walk_state()` is gone. REG-783 fixed three laws of exactly this shape
+        # and I did not SWEEP for the rest, so this one sat RED on his tree for thirteen versions.
+        # The law never changed: the walk's heartbeat must still be PUBLISHED. So it now asks the
+        # parsed tree whether the producer is reached for that key, which survives wrapping,
+        # aliasing and renaming a section while a DELETED producer still turns it red.
+        # [[source-reading-guard]] [[sweep-dont-ask]]
+        import ast as _ast
+        _src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        _fns = [n for n in _ast.walk(_ast.parse(_src))
+                if isinstance(n, _ast.FunctionDef) and n.name == "status_payload"]
+        self.assertEqual(1, len(_fns), "status_payload is not a single top-level function")
+        _reached = False
+        for _d in _ast.walk(_fns[0]):
+            if not isinstance(_d, _ast.Dict):
+                continue
+            for _k, _v in zip(_d.keys, _d.values):
+                if not (isinstance(_k, _ast.Constant) and _k.value == "riverWalk"):
+                    continue
+                for _c in _ast.walk(_v):
+                    if isinstance(_c, _ast.Call):
+                        _f = _c.func
+                        if isinstance(_f, _ast.Name) and _f.id == "river_walk_state":
+                            _reached = True
+                        if isinstance(_f, _ast.Name) and _f.id == "_t":
+                            for _a in _c.args[1:]:
+                                if isinstance(_a, _ast.Name) and _a.id == "river_walk_state":
+                                    _reached = True
+        self.assertTrue(_reached,
+                        "the river walk heartbeat is recorded but never published under the "
+                        "`riverWalk` key, so no supervisor and no view can read it")
 
     def test_the_state_reports_its_own_age(self):
         d = CA.river_walk_state()
@@ -197,6 +227,7 @@ class TheRiverWalkSaysItWalked(unittest.TestCase):
 
     def test_it_still_parses(self):
         ast.parse(SRC)
+
 
 
 if __name__ == "__main__":

@@ -264,5 +264,6 @@ class TheWitnessCanSeeHalfAWindow(unittest.TestCase):
                              "the rescue decides. [[borrowed-surface]]" % bad)
 
 
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -25329,7 +25329,47 @@ _STATUS_TL = threading.local()
 #: worst-since-boot per component, and the last COMPLETED request's full breakdown. Never the
 #: in-flight one: a half-filled row read mid-request would under-report every producer after the
 #: reader, which is exactly the kind of number that looks fine and is wrong.
-_STATUS_TIMING = {"worst": {}, "last": None, "lastTs": 0.0, "n": 0, "slow": 0}
+_STATUS_TIMING = {"worst": {}, "last": None, "lastTs": 0.0, "n": 0, "slow": 0,
+                  "worstRequest": None}
+
+#: Where the slowest request's WHOLE breakdown is kept across restarts.
+_STATUS_WORST_PATH = os.path.join(HERE, ".status_worst.json")
+
+
+def _status_worst_load():
+    """The slowest request ever recorded here. -> dict | None
+
+    ⚠⚠ #28 — `worstSinceBoot` IS A REQUEST THAT NEVER HAPPENED. It is the per-section MAXIMUM, each
+    taken from a DIFFERENT request, so it sums to a total no single call ever spent. Measured on his
+    live console: the maxima sum to 3,031 ms while the last request took 244 ms and the slowest ever
+    seen is not stored at all. A reader chasing a 52-second event against that table is chasing a
+    composite. [[zero-needs-a-denominator]]
+
+    Worse, his console had ALREADY SEEN 6 requests over the 750 ms bar and every one of their
+    breakdowns was gone — `last` holds only the most recent, so each slow request was overwritten by
+    the next ordinary one. The event #28 exists to explain has happened repeatedly and left no
+    record. This keeps the whole thing, and keeps it across a restart, so the NEXT one is evidence
+    instead of another anecdote.
+    """
+    try:
+        with io.open(_STATUS_WORST_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def _status_worst_save(rec):
+    """Persist the slowest request. Never raises into the request path."""
+    try:
+        tmp = _STATUS_WORST_PATH + ".tmp"
+        with io.open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh, indent=1, sort_keys=True)
+        os.replace(tmp, _STATUS_WORST_PATH)
+    except Exception:
+        pass
 
 #: A request slower than this is worth remembering. His idle is 24 ms; the complaint was ~52,000.
 _STATUS_SLOW_MS = 750.0
@@ -25369,7 +25409,14 @@ def _status_timing_payload():
             "sections": _last.get("sections"),
             "unattributedMs": _last.get("unattributedMs"),
             "slowest": _last.get("slowest"),
+            # ⚠ NAMED FOR WHAT IT IS. These are per-section MAXIMA from DIFFERENT requests; they
+            # sum to a total no single call ever spent. `worstRequest` below is a real one.
             "worstSinceBoot": dict(_STATUS_TIMING.get("worst") or {}),
+            "worstSinceBootIsComposite": True,
+            # ⚠ THE SLOWEST REQUEST THAT ACTUALLY HAPPENED, whole, and surviving a restart. None
+            # means no request has crossed the bar here — not that the console is fast.
+            "worstRequest": (_STATUS_TIMING.get("worstRequest") or _status_worst_load()),
+            "slowBarMs": _STATUS_SLOW_MS,
             "requests": _STATUS_TIMING.get("n"),
             "slowRequests": _STATUS_TIMING.get("slow"),
             "ageMs": int(max(0.0, time.time() - float(_STATUS_TIMING.get("lastTs") or 0.0)) * 1000),
@@ -25522,7 +25569,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2837",
+        "ver": "v2839",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -25789,6 +25836,29 @@ def status_payload():
         _STATUS_TIMING["n"] = int(_STATUS_TIMING.get("n") or 0) + 1
         if _total >= _STATUS_SLOW_MS:
             _STATUS_TIMING["slow"] = int(_STATUS_TIMING.get("slow") or 0) + 1
+        # ⚠⚠ #28 — KEEP THE SLOWEST REQUEST WHOLE, AND SAY WHETHER A SESSION WAS RECORDING.
+        # The whole question is "what does /api/status spend 52 seconds on WHILE ON AIR FILMS", and
+        # a breakdown that cannot say whether the capture was running answers half of it. `capture`,
+        # `mode` and `agent` are read from the payload this request just built, so they describe the
+        # SAME moment the sections were measured — not the moment somebody later reads the file.
+        # [[stale-reading]]
+        _prev = _STATUS_TIMING.get("worstRequest") or _status_worst_load()
+        if _total >= _STATUS_SLOW_MS and _total > float((_prev or {}).get("totalMs") or 0.0):
+            _rec = {
+                "totalMs": _total,
+                "sections": _sect,
+                "unattributedMs": round(_total - _sum, 1),
+                "slowest": _slowest,
+                "lockWaitDelta": int((_LOCK_WAIT or {}).get("blocked") or 0) - _b0,
+                "atMs": int(time.time() * 1000),
+                "ver": _out.get("ver"),
+                # the context that makes it answerable
+                "capture": _out.get("capture"),
+                "mode": _out.get("mode"),
+                "agent": _out.get("agent"),
+            }
+            _STATUS_TIMING["worstRequest"] = _rec
+            _status_worst_save(_rec)
         _STATUS_TL.sect = None
     except Exception:
         pass

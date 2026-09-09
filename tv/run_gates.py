@@ -1001,6 +1001,47 @@ GATES = [
              "for a CDP probe, data-fanfit for the render harness which cannot reach a JS global. "
              "Neither is visible to him. Three tampers proven red.",
          skip_ok=()),
+    Gate("test_the_page_is_not_its_own_console",
+         [sys.executable,
+          os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,
+         why="THE JS SYNTAX GATE READ ITS OWN DOCUMENT'S PROSE AS A BROWSER ERROR, AND IT COST SIX "
+             "PUBLICATIONS. Its browser path runs Chrome with --dump-dom AND --enable-logging="
+             "stderr: stdout is the WHOLE rendered document, stderr is the console. It concatenated "
+             "them and grepped for SyntaxError:, so any page that merely QUOTES an error message "
+             "reports itself as broken. MEASURED 2026-09-09: bible.html contains exactly ONE match "
+             "and it is a code COMMENT from v2824 explaining a bug — 'a NEWLINE throws SyntaxError: "
+             "Invalid or unexpected token, taking the whole routing ledger down'. The file parses "
+             "perfectly under node --check and under the browser once it stops reading the body. "
+             "★ IT WAS INVISIBLE ON THE MACHINE THAT WRITES THE CODE: --dump-dom never answers over "
+             "loopback on his Mac (v1490), so the NODE parser runs locally and a parser does not "
+             "grep prose. Green where it is written, red where it ships — Publish failed on v2825, "
+             "v2828, v2830, v2832, v2833 and v2835-v2837 while the page was fine. This file already "
+             "carries the same shape one layer up (v1808: a timeout is not a syntax verdict). Now "
+             "stdout and stderr are kept apart, the error scan and its context window both read the "
+             "CONSOLE, and the crashed-renderer check asks the console rather than the page. Three "
+             "tampers proven red.",
+         skip_ok=()),
+    Gate("test_the_slow_request_is_kept_whole",
+         [sys.executable,
+          os.path.join(HERE, "test_the_slow_request_is_kept_whole.py")], 90,
+         why="#28. /api/status once took 52 SECONDS while ON AIR was recording, against ~24ms idle, "
+             "and two things stopped that ever being answerable. (1) worstSinceBoot is a request "
+             "that NEVER HAPPENED — per-section maxima from DIFFERENT calls, summing to 3,031ms on "
+             "his console while the last request took 244ms, so a reader chasing the event against "
+             "it is chasing a composite. (2) Every slow request was overwritten by the next "
+             "ordinary one: `last` holds only the most recent, and his console had ALREADY logged "
+             "6 requests over the 750ms bar with not one breakdown surviving. The event had "
+             "happened repeatedly and left no record. Now the slowest request is kept ENTIRE — "
+             "sections, unattributed remainder, slowest component — persisted across a restart and "
+             "stamped with capture/mode/agent read from the SAME payload the sections were measured "
+             "in, because a breakdown that cannot say whether the capture was running answers half "
+             "the question. FIRST CATCH on wiring: 4,449.3ms with vaultAutoread at 3,426.8ms (77%) "
+             "and capture=False — so a multi-second status request happens with NO session at all, "
+             "which narrows #28 before he ever presses record. Also held: only a STRICTLY slower "
+             "request replaces the record (the defect that lost the first six), only above the bar "
+             "(or a 1Hz poll writes a file per second), an unreadable record is None and not a fast "
+             "console, and saving never raises into the request path. Four tampers proven red.",
+         skip_ok=()),
     Gate("test_the_status_breakdown_covers_what_it_bills",
          [sys.executable,
           os.path.join(HERE, "test_the_status_breakdown_covers_what_it_bills.py")], 120,

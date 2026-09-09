@@ -407,13 +407,38 @@ def check(targets=None, timeout=90):
                     continue
                 except OSError as e:
                     return [], f"browser failed to start ({e})"
-                blob = (r.stderr or "") + (r.stdout or "")
+                # ⚠⚠ v2840 — THE CONSOLE IS stderr. stdout IS THE PAGE, AND SCANNING IT MADE THIS
+                # GATE READ ITS OWN DOCUMENT'S PROSE AS A BROWSER ERROR.
+                #
+                # `--dump-dom` writes the WHOLE rendered document to stdout; `--enable-logging=
+                # stderr` puts console messages on stderr. Concatenating them and grepping for
+                # `SyntaxError:` means any page that merely QUOTES an error message reports itself
+                # as broken.
+                #
+                # MEASURED 2026-09-09: bible.html contains exactly ONE match, and it is a code
+                # COMMENT written in v2824 explaining a bug — "a NEWLINE throws `SyntaxError:
+                # Invalid or unexpected token`, taking the whole routing ledger down". The file
+                # parses perfectly: node --check passes every block, and the browser path passes
+                # too once it stops reading the body.
+                #
+                # ★ IT COST SIX PUBLICATIONS. `Publish — gates, review, then deploy` failed on
+                # v2825, v2828, v2830, v2832, v2833, v2835-v2837 while the page was fine. It was
+                # invisible on his Mac because `--dump-dom` never answers over loopback here, so
+                # the NODE parser runs locally — and a parser does not grep prose. Green on the
+                # machine that writes the code, red on the machine that ships it.
+                #
+                # This is the same defect the file already carries a scar for one layer up (v1808:
+                # "a timeout is not a syntax verdict"), and the same one this repo keeps paying
+                # for: a sentence describing a rule read as the rule.
+                # [[feedback-comments-vs-code]] [[source-reading-guard]]
+                _console = r.stderr or ""
+                _dom = r.stdout or ""
                 # a crashed renderer is not a syntax verdict — say so rather than pass
-                if r.returncode not in (0, None) and "CONSOLE" not in blob:
+                if r.returncode not in (0, None) and "CONSOLE" not in _console:
                     return [], f"browser exited {r.returncode} without console output"
-                for m in _ERR.finditer(blob):
+                for m in _ERR.finditer(_console):
                     line = ""
-                    ctx = blob[max(0, m.start() - 200):m.start() + 300]
+                    ctx = _console[max(0, m.start() - 200):m.start() + 300]
                     lm = re.search(r"\((\d+)\)", ctx)
                     if lm:
                         line = f":{lm.group(1)}"

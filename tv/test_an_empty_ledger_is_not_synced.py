@@ -117,5 +117,20 @@ class AnEmptyLedgerIsNotSynced(unittest.TestCase):
         self.assertEqual(5, len(LA.PROVENANCE), "PROVENANCE no longer holds five answers")
 
 
+
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
+# PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
+# measured against the target file (each anchor occurs exactly once). Review it: the
+# question is whether deleting this text is the defect the law exists to catch.
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": '.ftts-unsynced',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

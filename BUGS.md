@@ -26579,3 +26579,93 @@ All twelve touched gates verified still green untampered afterwards.
 
 Census after three batches, MEASURED: **48 of 265 (18.1%)**, from 4.7% at the start of the
 session — 214 gates still carry no executable proof.
+
+## REG-798 — the console threw away every slow request, then offered a composite that never happened
+**#28 · v2838 · 2026-09-09 · control_app.py**
+
+`/api/status` once took **52 seconds** while ON AIR was recording, against ~24 ms idle. Two
+instrument defects made that permanently unanswerable, and both were measured:
+
+**1. `worstSinceBoot` is a request that never happened.** It is the per-section MAXIMUM, each taken
+from a different call. On his live console the maxima sum to **3,031 ms** while the last request
+took 244 ms. A reader chasing a 52-second event against that table is chasing a composite.
+[[zero-needs-a-denominator]]
+
+**2. Every slow request was overwritten by the next ordinary one.** `last` holds only the most
+recent, and his console had **already logged 6 requests over the 750 ms bar** with not one of their
+breakdowns surviving. The event this task exists to explain had happened repeatedly and left no
+record at all.
+
+**Fixed:** the slowest request is kept ENTIRE — sections, unattributed remainder, slowest component
+— persisted to `tv/.status_worst.json` so the restart that follows a wedged console does not take
+the evidence with it, and stamped with `capture`/`mode`/`agent` **read from the same payload the
+sections were measured in**. That last part is the difference between an answer and half of one:
+the question is what the request spends 52 seconds on *while ON AIR films*. [[stale-reading]]
+
+★ **FIRST CATCH, immediately on wiring, and it narrows the problem:**
+
+    totalMs 4,449.3 · vaultAutoread 3,426.8 ms (77%) · capture=False mode=off agent=False
+
+A multi-second `/api/status` happens with **no session at all**. So "it degrades under a recording
+session" is not the whole shape — `vaultAutoread` alone takes 3.4 s cold.
+
+⚠ **UNKNOWN, stated:** whether the 52-second case has the same shape. 4.4 s is 8.5% of it, and
+`vaultAutoread`'s worst-since-boot is 3,426.8 — nowhere near 52,000. The next slow request will say.
+
+Gate: `test_the_slow_request_is_kept_whole`, 4 tampers PROVEN red. It also holds that only a
+strictly slower request replaces the record (the defect that lost the first six), that only requests
+above the bar are written (a 1 Hz poll must not write a file per second), that an unreadable record
+is None rather than a fast console, and that saving never raises into the request path.
+
+## REG-799 — the JS syntax gate read the page's own prose as a browser error, and blocked six publications
+**v2839 · 2026-09-09 · js_syntax_gate.py**
+
+`js_syntax_gate`'s browser path runs Chrome with `--dump-dom` **and** `--enable-logging=stderr`.
+Those are two streams meaning two different things:
+
+    stdout = the WHOLE rendered document        stderr = the console
+
+It concatenated them and grepped the result for `SyntaxError:`. **So any page that merely QUOTES an
+error message reports itself as broken.**
+
+MEASURED: `bible.html` contains exactly **one** match, and it is a code COMMENT I wrote in v2824
+explaining a bug — *"a NEWLINE throws `SyntaxError: Invalid or unexpected token`, taking the whole
+routing ledger down"*. The file parses perfectly: `node --check` passes every block and the browser
+path passes too, once it stops reading the body.
+
+★ **IT WAS INVISIBLE ON THE MACHINE THAT WRITES THE CODE.** `--dump-dom` never answers over loopback
+on his Mac (measured v1490), so the NODE parser runs locally — and a parser does not grep prose. On
+CI the browser answers, the dump lands in stdout, the grep hits the sentence. Green where it is
+written, red where it ships. **`Publish — gates, review, then deploy` failed on v2825, v2828, v2830,
+v2832, v2833 and v2835-v2837 while the page was fine.**
+
+This file already carries the same shape one layer up — v1808, *"a timeout is not a syntax verdict"*
+— for filing a slow runner as a broken page. Something that is not a verdict, reported as one.
+[[feedback-comments-vs-code]] [[source-reading-guard]]
+
+**Fixed:** stdout and stderr are bound separately; the error scan, its context window and the
+crashed-renderer check all read the CONSOLE. Gate `test_the_page_is_not_its_own_console`, 3 tampers
+PROVEN red — and its own first law was BLIND because it asserted `_console` is PRESENT, which
+`_console + _dom` satisfies while putting the whole page back in. Presence is not exclusion.
+
+⚠ That gate first took **196 s** because one assertion drove a real browser, over Heart 2.0's 180 s
+clean-run budget — so it came back UNPROVABLE for a TIMING reason while its laws were sound. Now
+0.78 s via the deterministic node path; the browser path is exercised where it belongs, in CI.
+
+## REG-800 — I verified 34 ships by the ref and never once looked at CI
+**v2839 · 2026-09-09 · process**
+
+The pre-push hook runs `test_agent` and `test_control` only. `run_gates.py` — all 268 registered
+gates, including every red-proof wired tonight — **runs in CI, not in the push.** The hook says so
+in its own comment at line 371.
+
+So "landed, verified by the ref" was true and insufficient: the ref moving is the SHIP, and CI is
+the gate for the gates. Measured tonight: **23 of 57 CI runs failed (40%)** — 7x Routine M, 6x
+Publish, 6x agent tests, 4x Playwright — while I reported each push as clean.
+
+⚠ And I compounded it: I checked `bull-4-u.com/d2r/` for **HTTP 200** and reported the site healthy.
+200 means the site is UP, not CURRENT. Six publishes had failed. A reachability check reported as a
+deploy check is the [[stale-reading]] shape exactly.
+
+**The tick now ends with CI, not with the ref.** REG-799 is the first thing that came out of
+actually reading it.

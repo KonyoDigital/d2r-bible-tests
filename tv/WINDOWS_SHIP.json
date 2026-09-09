@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2837",
+  "ver": "v2839",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2837: REG-797 — 24 candidates, 21 survived at 83 percent against 59 and 57 in the earlier batches; newly provable subjects dead_field, printer_reach, paint_witness, vault_retro, vault_corpus and extract_gap were unreachable before",
+  "note": "v2839: REG-799..800 — js_syntax_gate concatenated the DOM dump with the console and grepped for SyntaxError, so bible.html failed itself on a COMMENT quoting one; invisible locally because the browser path skips on his Mac. And I verified 34 ships by the ref while 23 of 57 CI runs were failing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
