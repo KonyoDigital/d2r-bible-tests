@@ -26236,3 +26236,37 @@ a tampered `>+7` (one spelling of many).
 
 **The rule this keeps re-teaching: when a law's subject appears more than once by design, the law
 must COUNT.** Both now assert exactly 2, and both are PROVEN red.
+
+## REG-786 — the AST helper had a FALSE GREEN: a dead call kept it satisfied
+**#28 · v2827 · 2026-09-09 · test_control.py · found by the cross-family look at v2826**
+
+`_status_producer` (REG-783) walked the WHOLE of `status_payload` for any call to the producer.
+The reviewer gave a concrete refactor and it REPRODUCED exactly:
+
+    def status_payload():
+        if False:
+            drift_state()          # unreachable, and nothing else calls it
+        return {"drift": None}     # the producer is GONE from the payload
+
+    -> helper returned True
+
+A dead call kept the law green while the answer had stopped being produced — precisely the
+regression the law exists to catch, and the `key=` check did not save it because the key was still
+*present*, just no longer *produced*.
+
+**Fixed:** when `key` is given the producer must be reached **inside that key's value expression**,
+so no call elsewhere — dead branch, unrelated section — can satisfy it. Publication and invocation
+are now checked as one fact, at the point where they meet.
+
+The same review's other case was a **false RED**: `p = drift_state` then `_t("drift", p)` returned
+False. That direction fails closed and is merely noisy, but a guard that cries wolf at a legal
+refactor gets edited out, so local aliases are resolved too.
+
+Six cases now correct: timed, direct, lambda-wrapped and aliased all True; dead-call-with-value-gone
+and genuinely-absent both False.
+
+⚠ **Stated limit, from the same review:** this gate is a static coverage census. `len(timed) >= 25`
+and the EXEMPT list would still pass if `_t` itself were broken, because they measure AST shape and
+not runtime behaviour. The runtime half is the live measurement (attribution 7% → 97%); a gate that
+called `status_payload()` for real would take ~4.5s cold and read his stores, which Heart 2.0 would
+correctly call UNPROVABLE in a sandbox. Named here rather than left implicit.

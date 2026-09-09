@@ -351,21 +351,30 @@ def tearDownModule():
 # it, and that what comes back is big enough to be the thing you meant. Every new source guard
 # should use it. [[source-reading-guard]]
 def _status_producer(case, src, name, key=None):
-    """Is `name` called inside status_payload — directly, or through the `_t` timer? -> bool
+    """Is `name` reached by status_payload — directly, through `_t`, or through a local alias?
 
     v2826 — THREE LAWS PINNED A CALL'S SPELLING AND WENT RED WHEN ONLY THE SPELLING CHANGED.
     #28 wrapped sixteen producers as `_t("section", producer)` so their cost lands in a named
-    section instead of `unattributedMs`. Behaviour identical; the text `"drift": drift_state()`
-    is gone. Three assertIn checks over the source failed — and every one of them meant to say
-    "this producer still runs and its answer is still published", which is exactly as true after
-    the change as before.
+    section instead of `unattributedMs`. Behaviour identical; the text `"drift": drift_state()` is
+    gone, and three assertIn checks over the source failed. Every one of them meant "this producer
+    still runs and its answer is still published", as true after as before. A guard that pins the
+    SPELLING of a call is pinned to the spelling. [[source-reading-guard]]
 
-    A guard that pins the SPELLING of a call is pinned to the spelling. This asks the parsed tree
-    whether the producer is reached, so wrapping, renaming a section, or hoisting to a local all
-    keep it green while DELETING the producer still turns it red. [[source-reading-guard]]
+    v2827 — AND THE FIRST VERSION HAD A FALSE GREEN, FOUND BY A CROSS-FAMILY REVIEW AND
+    REPRODUCED. It walked the WHOLE function for any call to `name`, so:
 
-    When `key` is given it also requires that key to be present in the payload — publication and
-    invocation are two different facts and a law that wants both should say both.
+        def status_payload():
+            if False:
+                drift_state()          # unreachable, and nothing else calls it
+            return {"drift": None}     # the producer is GONE from the payload
+
+    returned True. A dead call kept the law green while the answer had stopped being produced —
+    exactly the regression the law exists to catch. When `key` is given, the producer must now be
+    reached INSIDE THAT KEY'S VALUE, which no dead branch elsewhere can satisfy.
+
+    The same review's other case was a false RED — `p = drift_state` then `_t("drift", p)` — which
+    fails CLOSED and so is merely noisy. Local aliases are resolved anyway, because a guard that
+    cries wolf at a legal refactor gets edited out. [[feedback-blind-fixture-green-gate]]
     """
     import ast as _ast
     fns = [n for n in _ast.walk(_ast.parse(src))
@@ -374,32 +383,43 @@ def _status_producer(case, src, name, key=None):
                      "status_payload is not a single top-level function, so this law inspected "
                      "nothing — an instrument failure, not a clean result")
     fn = fns[0]
-    called = False
-    for n in _ast.walk(fn):
-        if not isinstance(n, _ast.Call):
-            continue
-        f = n.func
-        # a direct call: producer(...)
-        if isinstance(f, _ast.Name) and f.id == name:
-            called = True
-        # a timed call: _t("section", producer)  — the producer is an ARG, not the callee
-        if isinstance(f, _ast.Name) and f.id == "_t":
-            for a in n.args[1:]:
-                if isinstance(a, _ast.Name) and a.id == name:
-                    called = True
-                # _t("section", lambda: producer(...)) — the lambda body still calls it
-                if isinstance(a, _ast.Lambda):
-                    for sub in _ast.walk(a):
-                        if isinstance(sub, _ast.Call) and isinstance(sub.func, _ast.Name) \
-                                and sub.func.id == name:
-                            called = True
-    if key is not None:
-        found_key = any(isinstance(n, _ast.Constant) and n.value == key for n in _ast.walk(fn))
-        case.assertTrue(found_key,
-                        "status_payload no longer publishes the %r key, so whatever reads it "
-                        "downstream gets nothing" % key)
-    return called
 
+    # `p = producer` — a local alias is still the producer.
+    aliases = {name}
+    for n in _ast.walk(fn):
+        if isinstance(n, _ast.Assign) and isinstance(n.value, _ast.Name) and n.value.id in aliases:
+            for t in n.targets:
+                if isinstance(t, _ast.Name):
+                    aliases.add(t.id)
+
+    def _reaches(node):
+        for n in _ast.walk(node):
+            if not isinstance(n, _ast.Call):
+                continue
+            f = n.func
+            if isinstance(f, _ast.Name) and f.id in aliases:
+                return True                       # producer(...)
+            if isinstance(f, _ast.Name) and f.id == "_t":
+                for a in n.args[1:]:
+                    if isinstance(a, _ast.Name) and a.id in aliases:
+                        return True               # _t("section", producer)
+                    if isinstance(a, _ast.Lambda) and _reaches(a):
+                        return True               # _t("section", lambda: producer(...))
+        return False
+
+    if key is None:
+        return _reaches(fn)
+
+    # ⚠ SCOPED TO THE KEY'S VALUE. This is the half that closes the false GREEN: a call anywhere
+    # else in the function — dead branch, unrelated section, a comment-free `if False` — cannot
+    # satisfy it. Publication and invocation are checked as ONE fact, at the point they meet.
+    values = [v for d in _ast.walk(fn) if isinstance(d, _ast.Dict)
+              for k, v in zip(d.keys, d.values)
+              if isinstance(k, _ast.Constant) and k.value == key]
+    case.assertTrue(values,
+                    "status_payload no longer publishes the %r key at all, so whatever reads it "
+                    "downstream gets nothing" % key)
+    return any(_reaches(v) for v in values)
 
 def _between(case, src, start, end, min_len=40, what="slice"):
     """src between `start` and the next `end` after it — or a failure that says which anchor moved."""

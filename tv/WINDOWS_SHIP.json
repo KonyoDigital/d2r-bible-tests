@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2827",
+  "ver": "v2828",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2827: REG-784..785 — one line discarded reverted, from-to, passes and moves, so did-it-revert was unanswerable; measured once kept: reverted FALSE, 1 collision to 0, 3 stacks kept, which refutes the premise in the render world. Two laws came back BLIND because the literal is written twice by design",
+  "note": "v2828: REG-786 — a dead if-False producer call kept the AST law green while the payload no longer produced the value; the key check is now scoped to that key value expression, and local aliases resolve so a legal refactor does not cry wolf. Six cases verified.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
