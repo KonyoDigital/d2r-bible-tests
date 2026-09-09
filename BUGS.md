@@ -25711,3 +25711,29 @@ Census: **4.7% → 7.0%** (18 of 257). Small, and every point of it has been see
 anchor (>1 occurrence — the single most common way a sabotage in this repo has been wrong), 31
 assert only ABSENCE and cannot be sabotaged by deletion at all.
 
+## REG-761 — two flow strips, two engines, and neither said which (#43)
+
+THE SHELF stacks two "flow" strips in one overlay, **deliberately styled to read as one engine**.
+Measured, they are drawn from different modules counting in different vocabularies:
+
+| strip | render | source | vocabulary |
+|---|---|---|---|
+| `#sh-lanes` | `_shLanesRender` | `/api/river` → `river_lanes` + `reel_router` | 4 lanes over **9** stations |
+| `.shp-spine` | `_shStoryRender` | `/api/reel_story` → `printer.stream()` | **7** stations, other names |
+
+Both say the word **PRINTER** and mean different things: in the first it is ONE router station
+holding N reels; in the second it is a seven-step internal pipeline. The join happens at the
+endpoint layer, for display only — so a reel's router-station and its printer-station can diverge
+and neither surface flags it. Same seam as REG-759 (#36), seen from the UI side.
+
+⚠ **AND THE HOUSE ALREADY HAD THE CONVENTION.** `.ftt-age "as of …"` labels freshness on the fleet
+tooltip in this very file. Measured: **3 "as of" hits in the whole file, NONE in the shelf code** —
+proven by denominator, not by a grep miss. The pattern existed; these two surfaces simply never
+used it. Each now names its own engine, quietly, without competing with the counts.
+
+★★ **THE LAW IS THE JOIN, NOT THE STRING, AND THE FIRST CUT PROVED WHY.** I built `_srcTag` and
+never rendered it — a source label living in a variable is exactly as useful as no label. Caught
+before shipping only because I went looking for the join, which is why the gate asserts the tag is
+USED rather than merely present, and that assertion is one of the two red-proofs.
+[[the-unjoined-end]] [[stale-reading]]
+

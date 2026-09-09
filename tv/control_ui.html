@@ -5572,6 +5572,13 @@
     #heart-ov .hrt-core, #heart-ov .hrt-glow { animation: none; }
   }
   #heart-ov .hrt-svgwrap { overflow-x: auto; margin: 14px 0 4px; }
+  /* v2819 (#43) — the source tag. Deliberately quiet: it answers "which engine is this?" for a
+     reader who asks, and never competes with the counts for attention. */
+  .shr-src, .shp-head .shr-src {
+    font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+    opacity: .55; margin-left: auto; padding-left: 10px; white-space: nowrap;
+  }
+  .shp-head { display: flex; justify-content: flex-end; margin: 2px 0 -2px; }
   #heart-ov svg.hrt { display: block; width: 100%; min-width: 640px; height: auto; }
   #heart-ov .hrt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 2px;
     font-size: var(--fs-2xs); letter-spacing: var(--ls-label); text-transform: uppercase; }
@@ -10953,8 +10960,24 @@ window._lockMark = function(isOpen, px, label){
     /* ⚠ v2773 — THE LABEL IS WRAPPED IN ITS OWN ELEMENT ON PURPOSE. Left bare it was three
        anonymous flex items (`the river · `, `<b>49</b>`, ` reel(s) on the shelf`) that each
        wrapped in their own column; see the note beside `.shr-lbl`. One element = one sentence. */
+    /* ⚠⚠ v2819 (#43) — TWO SURFACES, TWO SOURCES, AND NEITHER SAID WHICH.
+       This strip and the printer spine below it are stacked in the same overlay and deliberately
+       styled to "read as one engine" — and they are drawn from DIFFERENT MODULES with DIFFERENT
+       station vocabularies:
+           this one   /api/river       river_lanes + reel_router   4 lanes over 9 stations
+           the spine  /api/reel_story  printer.stream()            7 stations, other names
+       Both say the word PRINTER and mean different things: here it is ONE router station holding
+       N reels; there it is a seven-step internal pipeline. The join happens at the endpoint, for
+       display — so a reel's router-station and its printer-station can diverge and neither surface
+       flags it.
+       ⚠ The freshness convention already exists in this very file (`.ftt-age "as of …"` on the
+       fleet tooltip) and neither of these used it. Measured: 3 "as of" hits in the whole file,
+       NONE in the shelf code. So each strip now names its own source, and the reader can tell
+       which engine a number came from. [[stale-reading]] [[unknown-stays-unknown]] */
     var H = ['<div class="shr-head"><span class="shr-lbl">the river · <b>' + (L.shelf || 0)
              + '</b> reel(s) on the shelf</span>'
+             + '<span class="shr-src" title="4 lanes over reel_router\u2019s 9 stations, from /api/river">'
+             + 'source · the router</span>'
              + '<span class="shr-fifo">oldest first · FIFO</span></div>',
              '<div class="shr-flow">'];
     rows.forEach(function(l, i){
@@ -11011,6 +11034,8 @@ window._lockMark = function(isOpen, px, label){
        engines because nothing carried one into the other.
        ⚠ The spine is ADDITIVE and never blocks: reel_story answers in 0.02s, the join costs ~0.3s,
        and if the printer could not be walked this says so instead of drawing a blank spine. */
+    /* v2819 (#43) — and the spine names ITS source, for the reason above: it is a different
+       module counting in a different vocabulary, drawn to look like the same axis. */
     var _spine = '';
     if (st.printerStations && st.printerStations.length){
       var pc = st.printerCounts || {};
@@ -11021,13 +11046,21 @@ window._lockMark = function(isOpen, px, label){
          carried by an ordinal and a left rule on every cell, so it reads the same on one row or
          three. [[visual-regression-detector]] — I looked at the pixels and this is what they
          showed. */
+      var _srcTag = '<span class="shr-src" title="printer.stream()\u2019s own 7 stations, from '
+                  + '/api/reel_story \u2014 a different vocabulary from the router lanes above">'
+                  + 'source \u00b7 the printer</span>';
       var cells = st.printerStations.map(function(k, ix){
         var c = pc[k] || {}, parts = [];
         Object.keys(c).sort().forEach(function(v){ parts.push(esc(v) + ' ' + c[v]); });
         return '<span class="shp-st"><b><u>' + (ix + 1) + '</u>' + esc(k.toUpperCase()) + '</b>'
              + '<i>' + (parts.join(' · ') || '—') + '</i></span>';
       });
-      _spine = '<div class="shp-spine" role="img" aria-label="the printer, station by station">'
+      /* ⚠ _srcTag IS RENDERED HERE, and the first cut of v2819 BUILT IT AND NEVER USED IT —
+         the plumbing-with-no-tap shape, caught before it shipped only because I went looking for
+         the join. A source label that exists in a variable and not on the screen is the same
+         thing as no source label. [[the-unjoined-end]] */
+      _spine = '<div class="shp-head">' + _srcTag + '</div>'
+             + '<div class="shp-spine" role="img" aria-label="the printer, station by station">'
              + cells.join('') + '</div>'
              + '<div class="shp-why">' + esc(st.printerWhy || '') + '</div>';
     } else if (st.printerWhy){

@@ -898,6 +898,20 @@ GATES = [
              "defects found.' was recorded as verdict=findings — the ledger reporting the "
              "opposite of what the other family concluded.",
          skip_ok=()),
+    Gate("test_each_flow_strip_names_its_own_engine",
+         [sys.executable,
+          os.path.join(HERE, "test_each_flow_strip_names_its_own_engine.py")], 90,
+         why="THE SHELF stacks two flow strips in one overlay, deliberately styled to read as one "
+             "engine, and they are drawn from DIFFERENT modules with DIFFERENT vocabularies: "
+             "#sh-lanes from /api/river (river_lanes + reel_router, 4 lanes over 9 stations) and "
+             ".shp-spine from /api/reel_story (printer.stream, 7 stations). Both say PRINTER and "
+             "mean different things — one router station holding N reels versus a seven-step "
+             "internal pipeline — and the join happens at the endpoint for display only, so the "
+             "two can diverge with neither surface flagging it. The freshness convention already "
+             "existed in the same file (.ftt-age) and measured 3 hits, NONE in the shelf code. "
+             "★ The law is the JOIN, not the string: the first cut BUILT _srcTag and never "
+             "rendered it, which is the same as no label at all, so this asserts the tag is USED.",
+         skip_ok=()),
     Gate("test_a_declared_station_can_be_reached",
          [sys.executable,
           os.path.join(HERE, "test_a_declared_station_can_be_reached.py")], 120,
