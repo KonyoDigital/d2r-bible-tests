@@ -25633,3 +25633,45 @@ other side — it would claim machines ARE online when the console had reached n
 is placed.** None was a logic error — each was correct code inserted where it changed something
 else's meaning. Only the existing gates could see that, and all three were found in one run.
 
+## REG-759 — a declared station no code path could ever reach (#36)
+
+`reel_router.STATIONS` declares nine stations including TOMBSTONE. **Nothing in
+`_station_of()`/`route()` ever assigns it**, so `counts["TOMBSTONE"]` was structurally 0 and
+`route()["unreached"]` named it on **every run** — the module reporting its own gap to nobody.
+
+Meanwhile `tv/reel_tombstones.json` held **428 closed-out reels**, zero overlap with the 41 on
+disk. So `river_lanes`' TOMBSTONE lane — labelled *"closed out — the extraction contract is
+satisfied"* — could only ever display ROUTED-but-still-present reels. It could never show a reel
+that had actually closed, which is the one thing it exists to show.
+
+| | |
+|---|---|
+| live per-reel walk | **41** |
+| closure ledger | **428** |
+| one roster spanning a reel's life | 469 |
+| visible to the per-reel surfaces | **41/469 = 8.7%** |
+
+★ **THE WALK IS DELIBERATELY NOT WIDENED.** Every source feeding the router walks what is on disk;
+a reel whose directory is gone has no row to derive. Folding 428 entries into `rows` would silently
+move `shelf` from 41 to 469 — **a number he reads, changed by a refactor.** The ledger is published
+BESIDE the walk with its own denominator and source named, and `shelf` is gate-pinned to the reels
+the walk actually saw. An unreadable ledger is UNKNOWN (`n: None`), never a confident 0.
+
+⚠ **THREE CORRECTIONS THE GATES AND THE CODE FORCED, IN ORDER:**
+
+1. **The router refused my fixture, correctly.** `route(hist=...)` answered: *"refusing to mix
+   shelves: hist=X was passed, but printer.stream() reads Y and takes no shelf argument. Set
+   TV_HIST instead — answering anyway would join this fixture's clocks to the live shelf's
+   evidence."* I obeyed it rather than working around it.
+2. **My first gate was UNPROVABLE** — it read his live tree (41 reels, 428 tombstones), and the
+   heart2 sandbox has no footage, so it was ALREADY RED untampered. A law that can only pass on one
+   machine's data can never prove itself. Rebuilt on a world it constructs.
+3. **One assertion was passing VACUOUSLY.** On an UNKNOWN walk, `rep.get("unreached") or []` is
+   `[]`, so `assertNotIn("TOMBSTONE", ...)` succeeded without testing anything. The rule is now a
+   pure function, `unreached_stations(counts, closed_n)`, that route() and the gate both call —
+   the same "make the priming shareable" move as REG-757. [[gate-blind-to-unexercised-input]]
+
+And `closed` is published on BOTH return paths: the closure count does not depend on the walk, and
+a consumer asking "what closed?" while the walk is UNKNOWN was getting no key at all — which reads
+as "nothing", the exact conflation this change exists to end.
+

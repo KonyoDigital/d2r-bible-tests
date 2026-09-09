@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2816",
+  "ver": "v2817",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2816: REG-758 the v2815 push was refused with 5 failures, all mine and each one the gate being right. I put holds-proof FIRST in a chain whose own comment says an earlier rule hides every later one, making three cases structurally unreachable - it now sits last, before eligibility, so every more specific reason still reports first. An ABSENT evidence store is not an UNKNOWN one: failing closed on a missing chronicle held every reel in an isolated world and made the prune untestable, so CANNOT TELL is now reserved for a store that exists and will not parse. And I broke a working honesty law by folding the last-good roster into the fleet_presence ERROR payload, flipping ok to True and filling online - the failure return is untouched again and a consumer asks fleet_presence_last_good by name, taking the age with it.",
+  "note": "v2817: REG-759 reel_router declared TOMBSTONE and no code path ever assigned it, so counts was structurally 0 and unreached named it every run while 428 closed-out reels sat in a ledger no lane consumer reads - the TOMBSTONE lane could never show a reel that had actually closed, which is its whole purpose. The per-reel walk is deliberately NOT widened: folding 428 entries into the rows would move shelf from 41 to 469, a number he reads. The ledger is published beside the walk with its own denominator, on BOTH return paths, and an unreadable ledger is UNKNOWN not zero. Three corrections forced along the way: the router refused a mismatched fixture and was right, my first gate was UNPROVABLE because it read his live tree, and one assertion passed vacuously against an empty list - the rule is now a shared pure function both the router and the gate call.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

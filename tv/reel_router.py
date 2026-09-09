@@ -323,6 +323,54 @@ def _routed_by_a_lane(path=None):
     return {k: v for k, v in last.items() if v.get("station") == "ROUTED"}, ""
 
 
+def unreached_stations(counts, closed_n):
+    """Which declared stations nothing reaches. -> [station]
+
+    A pure function on purpose: route()'s full walk needs a working printer, an evidence store and
+    real footage, so a gate that could only assert this through route() could only run on his
+    machine — and Heart 2.0 correctly calls such a law UNPROVABLE. The RULE is separable from the
+    WALK, so it is separated, and both the router and its gate exercise this same code.
+
+    TOMBSTONE is the exception with a reason: it is reached by the closure LEDGER, a source this
+    walk does not own. Every genuinely empty station still says so — silencing a real emptiness
+    would trade one lie for another. [[gate-blind-to-unexercised-input]]
+    """
+    counts = counts or {}
+    n = int(closed_n or 0)
+    return [st for st in STATIONS
+            if counts.get(st, 0) == 0 and not (st == "TOMBSTONE" and n > 0)]
+
+
+def _closed_ledger():
+    """The reels that actually closed out. -> {"n", "why", "readable"}
+
+    Read through reel_retention's own path authority rather than a second os.path.join of its own,
+    so an isolated world resolves the same file the writer used. A ledger that cannot be read is
+    UNKNOWN — `readable` False with n None — never a confident 0, because "nothing has closed" and
+    "I could not tell what closed" are opposite facts and only one of them is good news.
+    [[unknown-stays-unknown]]
+    """
+    try:
+        import json as _json
+        import reel_retention as _rr
+        p = _rr._tombstone_path()
+        with open(p, encoding="utf-8") as fh:
+            d = _json.load(fh)
+        reels = (d or {}).get("reels")
+        if not isinstance(reels, (list, dict)):
+            return {"n": None, "readable": False,
+                    "why": "the closure ledger has no `reels` collection"}
+        return {"n": len(reels), "readable": True,
+                "why": "%d reel(s) have closed out and left the disk; they are not in the walk "
+                       "above, which only sees what is still present" % len(reels)}
+    except FileNotFoundError:
+        return {"n": 0, "readable": True,
+                "why": "no closure ledger yet — nothing has ever been tombstoned here"}
+    except Exception as e:
+        return {"n": None, "readable": False,
+                "why": "the closure ledger could not be read (%s)" % type(e).__name__}
+
+
 def route(hist=None, path=None):
     """Every reel on the shelf, with exactly one station each. -> dict
 
@@ -334,6 +382,13 @@ def route(hist=None, path=None):
            "reels": [], "counts": {}, "unknown": 0, "shelf": 0, "why": why}
     if ev is None:
         rep["why"] = "UNKNOWN, not an empty shelf — %s" % why
+        # ⚠ v2817 — THE CLOSURE COUNT DOES NOT DEPEND ON THE WALK, so it is published here too.
+        # The first cut attached `closed` only to the success path, and a consumer that asked
+        # "what has closed out?" while the walk was UNKNOWN got no key at all — which reads as
+        # "nothing", the exact conflation this whole change exists to end. The ledger is a
+        # separate source; an unreadable WALK says nothing about it either way.
+        rep["closed"] = _closed_ledger()
+        rep["unreached"] = unreached_stations({}, (rep["closed"] or {}).get("n"))
         return rep
     # ⚠⚠ v2770 — `path` IS THREADED, and it was not. Found by the post-ship review: route()
     # called the overlay with NO path, so the helper's own `path` parameter was unreachable and
@@ -429,7 +484,24 @@ def route(hist=None, path=None):
     # A router that silently publishes zeros for its own far end has reproduced the defect it was
     # built to expose. ROUTED and TOMBSTONE are unreached TODAY — nothing routes or tombstones
     # yet (that is gh #210) — and this says so rather than letting a 0 read as "none waiting".
-    rep["unreached"] = [st for st in STATIONS if counts.get(st, 0) == 0]
+    # ⚠⚠ v2817 (#36) — TOMBSTONE WAS A DECLARED STATION NO CODE PATH COULD EVER ASSIGN.
+    # MEASURED 2026-09-09: STATIONS declares TOMBSTONE, nothing in _station_of()/route() assigns
+    # it, counts["TOMBSTONE"] is structurally 0, and `unreached` named it EVERY RUN — the module
+    # reporting its own gap to nobody. Meanwhile tv/reel_tombstones.json held 428 closed-out
+    # reels with ZERO overlap with the 41 on disk. So river_lanes' TOMBSTONE lane ("closed out —
+    # the extraction contract is satisfied") could only ever show ROUTED-but-still-present reels:
+    # it could never show a reel that had actually closed out, which is its entire purpose.
+    #
+    # ★ THE PER-REEL WALK IS NOT WIDENED, AND THAT IS DELIBERATE. Every source feeding this router
+    # walks what is on disk; a reel whose directory is gone has no row to derive. Folding 428
+    # ledger entries into `rows` would silently change `shelf` from 41 to 469 — a count he reads,
+    # moved by a refactor. The closure ledger is published BESIDE the walk, with its own
+    # denominator and its own source named, so the lane can show what closed without any number
+    # quietly meaning something new. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+    rep["closed"] = _closed_ledger()
+    # A station backed by 428 records is not "unreached" — it is reached by a source this walk
+    # does not own. Anything genuinely empty still says so.
+    rep["unreached"] = unreached_stations(counts, (rep["closed"] or {}).get("n"))
     # ⚠⚠ AN UNREADABLE STAMP STORE MUST NOT RENDER AS "NOTHING IS ROUTED". `_routed_by_a_lane`
     # returns None when it could not read, and the loop above then derives every reel — producing
     # a confident ROUTED 0 that is actually UNKNOWN. This is the field that separates them, and

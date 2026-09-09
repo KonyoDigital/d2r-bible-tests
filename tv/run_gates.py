@@ -898,6 +898,21 @@ GATES = [
              "defects found.' was recorded as verdict=findings — the ledger reporting the "
              "opposite of what the other family concluded.",
          skip_ok=()),
+    Gate("test_a_declared_station_can_be_reached",
+         [sys.executable,
+          os.path.join(HERE, "test_a_declared_station_can_be_reached.py")], 120,
+         why="reel_router.STATIONS declares TOMBSTONE and nothing in _station_of()/route() ever "
+             "assigns it, so counts[TOMBSTONE] was structurally 0 and route()[unreached] named it "
+             "on EVERY run — the module reporting its own gap to nobody for months. Meanwhile "
+             "reel_tombstones.json held 428 closed-out reels with ZERO overlap against the 41 on "
+             "disk, so river_lanes TOMBSTONE lane — labelled closed out, the extraction contract "
+             "is satisfied — could only ever display ROUTED-but-still-present reels and could "
+             "never show a reel that had actually closed. ★ The per-reel walk is deliberately NOT "
+             "widened: every source feeding it walks what is on disk, and folding 428 ledger "
+             "entries into the rows would silently move shelf from 41 to 469 — a number he reads, "
+             "changed by a refactor. The ledger is published BESIDE the walk with its own "
+             "denominator and source. An unreadable ledger is UNKNOWN, never a confident 0.",
+         skip_ok=()),
     Gate("test_the_deleter_will_not_destroy_a_receipt",
          [sys.executable,
           os.path.join(HERE, "test_the_deleter_will_not_destroy_a_receipt.py")], 90,
