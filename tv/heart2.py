@@ -277,13 +277,24 @@ def _write_state(results):
     gates = gate_files()
     have = [n for n, f in gates if red_proofs_in(f)]
     blind = sorted(n for n, v in (results or {}).items() if v in (BLIND, INVALID))
+    # ⚠⚠ AN UNREADABLE STATE FILE IS NOT AN EMPTY ONE, AND THE DIFFERENCE IS THE WHOLE CENSUS.
+    # This used to swallow a parse failure into `prior = {}`, which the merge below then treats as
+    # "nothing was ever proven" — silently erasing `provedGates` and the `blind` list and writing
+    # the wipe back over the only copy. Caught by tv/swallow_census.py (RANK 1: a failed read
+    # handed back as DATA), which is this repo's own unknown-stays-unknown law mechanised.
+    # A file that will not parse is a REFUSAL to write: the accumulated record survives, and the
+    # next run says why. Losing the ledger is far worse than not updating it.
+    # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
     prior = {}
     if os.path.exists(STATE):
         try:
             with io.open(STATE, encoding="utf-8") as fh:
                 prior = json.load(fh)
-        except Exception:
-            prior = {}
+        except Exception as _e:
+            print("  ⚠ %s exists but would not parse (%s) — REFUSING to write, because merging "
+                  "from an empty prior would erase every standing proof. Fix or remove the file."
+                  % (os.path.basename(STATE), type(_e).__name__))
+            return
     # ⚠⚠ MERGE, NEVER CLOBBER — and say when the run was PARTIAL. Two ways this erased real
     # findings: `--prove NAME` produced a one-gate `results` and rewrote the global `blind` list
     # from it, so checking one fix deleted every blind instrument the last full run found; and
@@ -370,6 +381,11 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
         _real = os.path.realpath(tgt)
         _contained = (os.path.commonpath([_root, _real]) == _root)
     except Exception:
+        # ⚠ THE DEFAULT *IS* THE FAILURE HERE, DELIBERATELY — and swallow_census asks that such a
+        # site say so in a comment rather than be silently exempt. If the path cannot be resolved
+        # at all, the honest answer is "not proven to be inside the sandbox", and the only safe
+        # action on that is to REFUSE this one tamper. Raising would abort the whole proving run
+        # over a single unresolvable target. [[unknown-stays-unknown]]
         _contained = False
     if not _contained:
         say("     %-52s %s — %r resolves OUTSIDE the sandbox (%s). REFUSED: a proof may only "
@@ -550,9 +566,14 @@ def _code_only(src):
                 if a is not None and b is not None:
                     spans.append((a, b))
     except Exception:
-        # a file that will not tokenise or parse is UNKNOWN, not clean — return nothing rather
-        # than letting raw prose through and calling the hits a measurement
-        return ""
+        # ⚠⚠ None, NOT "". The comment below was right and the VALUE contradicted it. Caught by
+        # tv/swallow_census.py (RANK 1: a failed read handed back as DATA) — this repo's own
+        # unknown-stays-unknown law mechanised, catching it in the DETECTOR.
+        # The caller does `src = _code_only(src)` and runs the signature regexes over the result.
+        # An empty string yields ZERO hits, so a file that will not parse reads as a CLEAN file:
+        # the exact defect this scanner exists to find, inside the scanner.
+        # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+        return None
     out = list(src)
     for a, b in spans:
         for i in range(max(0, a), min(len(out), b)):
@@ -566,6 +587,7 @@ def detect(say=print):
     for n, f in gate_files():
         covered.add(f)
     hits = []
+    unscanned = []
     for fn in sorted(os.listdir(HERE)):
         if not fn.endswith(".py") or fn in covered:
             continue
@@ -576,11 +598,17 @@ def detect(say=print):
         except Exception:
             continue
         src = _code_only(src)
+        if src is None:
+            unscanned.append(fn)          # UNSCANNED is not CLEAN
+            continue
         for label, rx, why in SIGNATURES:
             n_hits = len(rx.findall(src))
             if n_hits:
                 hits.append((fn, label, n_hits, why))
     say("  scanned %d file(s) outside the gate set" % (len(os.listdir(HERE))))
+    if unscanned:
+        say("  ⚠ %d file(s) could not be parsed and were NOT scanned — UNKNOWN, not clean: %s"
+            % (len(unscanned), ", ".join(sorted(unscanned)[:6])))
     if not hits:
         say("  no uncovered signature found. That is a measurement over %d signature(s), "
             "not a claim that nothing is wrong." % len(SIGNATURES))
@@ -679,13 +707,19 @@ def main(argv):
         print("\n  proposals written to %s (it never edits a guard)" % os.path.relpath(p, REPO))
 
     if a.ratchet:
+        # ⚠ SAME RULE AS _write_state: an unreadable ledger is UNKNOWN, not an empty one. The
+        # ratchet compares against `prev`; reading a broken file as {} would make every gate look
+        # newly proven and the comparison meaningless. [[unknown-stays-unknown]]
         prev = {}
         if os.path.exists(STATE):
             try:
                 with io.open(STATE, encoding="utf-8") as fh:
                     prev = json.load(fh)
-            except Exception:
-                prev = {}
+            except Exception as _e:
+                print("  ⚠ %s exists but would not parse (%s) — the ratchet has nothing to compare "
+                      "against, so it reports UNKNOWN rather than a clean run."
+                      % (os.path.basename(STATE), type(_e).__name__))
+                return 2
         # ⚠⚠ A BROKEN PARSER MUST NOT PRODUCE A GREEN LOCK. If run_gates will not import,
         # gate_files() returns [] and the census reads total=0, unproven=0 — which sails past the
         # ratchet AND writes a baseline of 0 that every honest run afterwards fails forever, so

@@ -26724,3 +26724,39 @@ session ran **4,538-37,973**. `_PROMISE_MAX_CHARS = 2000` sits far above every b
 far below every genuine payload. All three real promise shapes still caught; a 4,113-char diff
 quoting one is clean. Four tampers PROVEN red, and the gate holds that the floor sits below the
 smallest real payload so it cannot become an escape hatch. [[zero-needs-a-denominator]]
+
+## REG-803 — an unreadable ledger read as an empty one, and would have erased the whole census
+**#52 · v2841 · 2026-09-09 · heart2.py · found by tv/swallow_census.py**
+
+`Routine M — swallowed-exception ratchet` has failed **7× tonight**, more than any other workflow,
+and I had not looked at it once. It counts sites where a failed read is handed back as
+`0 / {} / [] / ''` — this repo's own `unknown-stays-unknown` law, mechanised. `tv/heart2.py` went
+**0 → 2**, and both were mine.
+
+**The real one:** `_write_state` did
+
+    prior = {}
+    if os.path.exists(STATE):
+        try:    prior = json.load(fh)
+        except: prior = {}          # <-- an unreadable ledger reads as a fresh one
+
+The merge below then treats that as *"nothing was ever proven"* — **silently erasing `provedGates`
+and the `blind` list, and writing the wipe back over the only copy.** I had just built the
+`provedGates` accumulation on top of it (REG-770), so a single corrupt write would have taken the
+entire #52 census with it.
+
+**Fixed:** a file that will not parse is a **refusal to write**. Proven, not assumed — with a
+corrupt `.heart2.json`, `--ratchet` exits **2**, names `JSONDecodeError`, and the ledger is left
+**byte-for-byte intact**. Losing the record is far worse than not updating it.
+
+**The second one was a false positive of my own making** — `_code_only()` returned `""` for a file
+that would not parse, and its caller ran the signature regexes over it: an empty string yields ZERO
+hits, so an **unparseable file read as a clean file**. The detector's own defect, of exactly the
+class the detector looks for. Now returns `None` and the caller reports the file as UNSCANNED.
+
+⚠ A third site, `_contained = False` in the sandbox containment check, is **deliberate and now says
+so at the site** — the census explicitly allows that when the default *is* the failure. `False` and
+`None` are not in `LIES_AS_DATA` anyway, which I established by reading the rule after guessing
+wrong twice.
+
+Ratchet after: **baseline 74, now 74 — held.**
