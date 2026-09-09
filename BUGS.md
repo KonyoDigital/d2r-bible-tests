@@ -26270,3 +26270,48 @@ and the EXEMPT list would still pass if `_t` itself were broken, because they me
 not runtime behaviour. The runtime half is the live measurement (attribution 7% → 97%); a gate that
 called `status_payload()` for real would take ~4.5s cold and read his stores, which Heart 2.0 would
 correctly call UNPROVABLE in a sandbox. Named here rather than left implicit.
+
+## REG-787 — #52: seven more gates can now be proven red, and five candidates were REFUSED
+**#52 · v2829 · 2026-09-09**
+
+The deriver offers candidates for 78 of the 238 gates carrying no executable proof. A batch of 12
+was applied and put through `--prove`. **22 candidate proofs went in; 13 survived.**
+
+    PROVEN      13   across 7 gates
+    BLIND        4   test_routes, test_fleet_mask x2, test_board_short_read_is_seen
+    INVALID      4   the tamper would not parse — "a gate reddened by a SyntaxError
+                     proves nothing about the law"
+    UNPROVABLE   1   test_tasks_ships_are_recorded — ALREADY RED untampered in the sandbox
+
+★ **The five gates whose proofs did not survive had their blocks REMOVED, not kept.** A recorded
+proof that stays green through its own defeat is worse than no proof, because the census counts it
+as coverage — which is the exact lie #52 exists to end. Two more gates kept only the surviving
+subset (1 of 3, and 2 of 3).
+
+⚠ **The UNPROVABLE one was chased before being dismissed.** `test_tasks_ships_are_recorded` is red
+in the sandbox and **green on the real tree** — so it reads something the sandbox does not carry,
+not a live failure. heart2's refusal to call that a proof is correct: a gate that is already red
+cannot demonstrate anything by being tampered.
+
+Newly proven: `test_unseed_is_reversible`, `test_frames_respect_evidence_holds` (2),
+`test_a_prune_records_what_it_freed`, `test_a_seal_is_per_session` (2),
+`test_the_art_resolver_folds_the_apostrophe` (2), `test_the_stash_watcher_only_seals_a_lane` (3),
+`test_no_control_is_buried_in_another_control` (2). All twelve touched gates verified still green
+untampered afterwards.
+
+## REG-788 — a BLIND name never left the census when its proof was deleted
+**#52 · v2829 · 2026-09-09 · heart2.py**
+
+REG-787's workflow deletes a `RED_PROOF` block whose tampers came back BLIND, because a proof that
+survives its own defeat is counted as coverage. `_write_state`'s merge then kept those names in
+`blind` forever: it preserves a prior blind entry the current run did not re-test — right for a
+partial run — but never asked whether the gate still **declares** a proof at all.
+
+Measured: `blind: 5`, and every one was a block that had just been removed. The heart reported DARK
+over five instruments that no longer claim anything.
+
+★ **The same defect `provedGates` had, in the neighbouring key, fixed one version apart.** Both are
+"a name that outlived the thing it referred to". Now intersected with the gates that still declare a
+proof: **5 → 2**, and the two survivors are genuine —
+`test_a_cached_absence_is_not_an_absence` and `test_the_ledger_cannot_lie_about_what_it_saw`.
+[[label-outlived-referent]]

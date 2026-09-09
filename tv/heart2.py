@@ -295,6 +295,16 @@ def _write_state(results):
     if _partial:
         _keep = [b for b in (prior.get("blind") or []) if b not in (results or {})]
         blind = sorted(set(blind) | set(_keep))
+    # ⚠⚠ v2829 — A BLIND NAME MUST LEAVE WHEN ITS PROOF DOES, and it did not. The merge above keeps
+    # a prior blind entry that this run did not re-test, which is right for a partial run — but it
+    # never asked whether the gate still DECLARES a proof at all. #52's own workflow deletes a
+    # RED_PROOF block whose tampers came back BLIND, precisely because a proof that survives its
+    # own defeat is counted as coverage. Those five gates then sat in `blind` forever, so the heart
+    # reported DARK over instruments that no longer claim anything. Measured 2026-09-09: blind 5,
+    # every one a block that had just been removed.
+    # This is the same defect `provedGates` had and was fixed for, in the neighbouring key.
+    # [[label-outlived-referent]] [[the-unjoined-end]]
+    blind = sorted(set(blind) & set(have))
     # ⚠⚠ `proved` IS DERIVED FROM A NAMED SET, NOT COUNTED PER RUN — AND THE MERGE ABOVE DID NOT
     # COVER IT. The comment beside it says "MERGE, NEVER CLOBBER" and then `proved` was recomputed
     # from THIS run's results alone, so `--prove ONE_GATE` rewrote the total from 20 to 1.

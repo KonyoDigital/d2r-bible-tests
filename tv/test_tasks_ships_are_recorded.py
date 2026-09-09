@@ -165,6 +165,7 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
 
 
+
 if __name__ == "__main__":
     # ⚠ HIS CONSOLE IS HEBREW (cp1255) AND CANNOT ENCODE THE CHARACTERS THIS FILE PRINTS. Without
     # this, a CORRECT tree reports FAILURE because the script dies while REPORTING — which teaches
