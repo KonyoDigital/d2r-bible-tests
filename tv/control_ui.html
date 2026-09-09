@@ -5574,8 +5574,12 @@
   #heart-ov .hrt-svgwrap { overflow-x: auto; margin: 14px 0 4px; }
   /* v2819 (#43) — the source tag. Deliberately quiet: it answers "which engine is this?" for a
      reader who asks, and never competes with the counts for attention. */
+  /* ⚠ var(--fs-2xs), NOT a raw 10px — the visual-lock gate refused the push over exactly that,
+     and it was right: a raw size is invisible to the type system, so the next global scale change
+     would leave this label behind while every other size moved. --fs-2xs is the smallest token in
+     the scale, which is what this label wants. [[regression-guard]] */
   .shr-src, .shp-head .shr-src {
-    font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+    font-size: var(--fs-2xs); letter-spacing: .04em; text-transform: uppercase;
     opacity: .55; margin-left: auto; padding-left: 10px; white-space: nowrap;
   }
   .shp-head { display: flex; justify-content: flex-end; margin: 2px 0 -2px; }
