@@ -2172,7 +2172,7 @@ def verdict(key, m, sel, known=None):
     return _tag(out, _notes)
 
 
-def _selector_ready(tab, sel, budget=20.0):
+def _selector_ready(tab, sel, budget=20.0, spec=None, token=None, reprepare=None):
     """Wait until the TARGET'S OWN selector matches something painted. Returns why, or None.
 
     ⚠ v2330 — _settled() ABOVE IS A GLOBAL SETTLE, AND THAT IS NOT THE SAME QUESTION.
@@ -2211,6 +2211,30 @@ def _selector_ready(tab, sel, budget=20.0):
         except Exception:
             pass
         time.sleep(0.4)
+    # ⚠ BEFORE ACCUSING THE PAGE, ASK WHETHER IT IS STILL THE PAGE WE PREPARED.
+    if token and callable(reprepare):
+        try:
+            _same = tab.ev("window.__rcPrepared === %s" % json.dumps(token))
+        except Exception:
+            _same = True                      # cannot ask -> do not invent a navigation
+        if not _same:
+            print("   \u21bb the page NAVIGATED after it was prepared (the seed marker is gone) — "
+                  "re-preparing and measuring again rather than reporting a red about a world "
+                  "this harness never built", flush=True)
+            if reprepare():
+                _t2 = time.time()
+                while time.time() - _t2 < budget:
+                    try:
+                        if tab.ev(js % json.dumps(sel)):
+                            return None
+                    except Exception:
+                        pass
+                    time.sleep(0.4)
+                return ("%r never matched a painted element in %.0fs, and again after the page was "
+                        "re-prepared following a navigation — so this is the surface, not the "
+                        "harness" % (sel, budget))
+            return ("%r could not be measured: the page navigated after preparation and the "
+                    "harness could not re-prepare it. UNKNOWN, not absent." % (sel,))
     return ("%r never matched a painted element in %.0fs after the panel was activated — either "
             "the surface is genuinely absent, or this machine was too loaded to build it, and "
             "the difference is exactly what this bound exists to state rather than guess"
@@ -2405,8 +2429,18 @@ def check(name, spec, shots=True):
         # which the harness correctly labelled a bug in itself rather than in the page — and then
         # still lost the surface. Not every surface needs seeding; a missing seed is a shape, not a
         # fault. [[unknown-stays-unknown]]
+        # ⚠⚠ v2851 (#56) — STAMP THE PAGE WE PREPARED, SO WE CAN TELL IF WE ARE JUDGING IT.
+        # MEASURED: a failing `river-strip` run reported `window.__thSeed` UNDEFINED and a viewport
+        # of 1440x1213 — the DEFAULT size, none of the five this target sets — on a page whose
+        # shelf overlay was OPEN. Both elements start `hidden` in the markup, so that is not a
+        # fresh load; it is a page `activate` reached and the SEED never did. The harness had
+        # navigated (or the console relaunched under it) and then measured a page it never set up,
+        # reporting "the surface never painted" about a world it had not built.
+        # A red from an unprepared page is not a finding about the page. [[unknown-stays-unknown]]
+        _rc_token = "rc%d" % int(time.time() * 1000)
         if spec.get("seed"):
             tab.ev(spec["seed"])
+        tab.ev("window.__rcPrepared = %s;" % json.dumps(_rc_token))
         # ⚠ v2404 — A FIXED SLEEP HERE BLOCKED A LEGITIMATE PUSH. This was `time.sleep(0.6)`, and
         # on the v2403 pre-push the `inbox` target refused with "the panel could not be ACTIVATED"
         # while the SAME tree rendered all six targets green minutes later on a quiet machine.
@@ -2478,7 +2512,26 @@ def check(name, spec, shots=True):
             return out
         # v2330 — was `time.sleep(1.4)`. See _selector_ready: a fixed sleep here is the same
         # defect _settled() was written to remove, and under load it measured empty panels.
-        why = _selector_ready(tab, spec["sel"])
+        # ⚠ v2851 (#56) — the closure that puts the page back the way it was prepared. Used ONLY
+        # when the seed marker is gone (a navigation), never on a plain slow paint.
+        def _reprepare(_w=None, _h=None):
+            try:
+                if _w:
+                    tab.send("Emulation.setDeviceMetricsOverride", width=_w, height=_h,
+                             deviceScaleFactor=1, mobile=False)
+                if spec.get("seed"):
+                    tab.ev(spec["seed"])
+                tab.ev("window.__rcPrepared = %s;" % json.dumps(_rc_token))
+                _d2 = time.time() + 12.0
+                while time.time() < _d2:
+                    if tab.ev(spec["activate"]):
+                        return True
+                    time.sleep(0.4)
+            except Exception:
+                return False
+            return False
+        why = _selector_ready(tab, spec["sel"], spec=spec, token=_rc_token,
+                              reprepare=_reprepare)
         if why:
             out["ok"] = False
             out["refusals"].append(why)
@@ -2496,7 +2549,9 @@ def check(name, spec, shots=True):
             # One fixed sleep replaced, its sibling two lines below left in place. That is the
             # same defect surviving in the same function, which is the whole of
             # [[feedback-generalize-fixes]]: fix the CLASS, not the site that happened to fail.
-            why_w = _selector_ready(tab, spec["sel"], budget=12.0)
+            why_w = _selector_ready(tab, spec["sel"], budget=12.0, spec=spec,
+                                    token=_rc_token,
+                                    reprepare=(lambda _w=w, _h=h: _reprepare(_w, _h)))
             if why_w:
                 out["ok"] = False
                 out["refusals"].append("%dx%d: %s" % (w, h, why_w))

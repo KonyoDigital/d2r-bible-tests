@@ -20967,6 +20967,38 @@ function escC(s) {
     var h = Math.round(m / 60);
     return (h < 24) ? h + 'h ago' : Math.round(h / 24) + 'd ago';
   };
+  /* ── v2851 — A TRANSIENT FAILURE MUST NOT BECOME A PERMANENT CARD ────────────────────────
+     MEASURED on his console 2026-09-09 15:14, screenshot in hand: the card read "fleet
+     unreachable — TLS handshake timed out" and "no roster was ever received here", while at the
+     same moment `/api/fleet` answered **ok:true, 1 online / 2 offline, lastGood 1.3s old**, and a
+     direct GET of the site returned **200 in 0.46s**. The fleet was fine. The CARD was stale.
+
+     Cause: `_fleetRefresh` runs on the drawer fill and on the ↻ button, and NOWHERE ELSE. His
+     console had just relaunched, so the presence cache was cold; the first fetch failed; the card
+     painted the honest never-received state — and then nothing ever asked again. A true sentence
+     about one instant, left standing as if it were the present tense.
+
+     ⚠ BOUNDED AND VISIBLE. Six attempts with exponential backoff to a 60s ceiling, and the card
+     SAYS it is re-asking with the attempt number — a silent retry would replace one wrong
+     impression with another. A success resets the counter, so a later failure gets a full ladder.
+     [[stale-reading]] [[unknown-stays-unknown]] */
+  var _flRetry = { n: 0, t: null, max: 6 };
+  var _fleetRetryReset = function () {
+    _flRetry.n = 0;
+    if (_flRetry.t) { clearTimeout(_flRetry.t); _flRetry.t = null; }
+  };
+  var _fleetRetryWaitMs = function () {
+    return Math.min(60000, 4000 * Math.pow(2, _flRetry.n));
+  };
+  var _fleetRetrySoon = function () {
+    if (_flRetry.t || _flRetry.n >= _flRetry.max) return;
+    var wait = _fleetRetryWaitMs();
+    _flRetry.n++;
+    _flRetry.t = setTimeout(function () {
+      _flRetry.t = null;
+      try { window._fleetRefresh(); } catch (e) {}
+    }, wait);
+  };
   window._fleetRefresh = async function () {
     var box = document.getElementById('fleet-list');
     if (!box) return;
@@ -21005,9 +21037,21 @@ function escC(s) {
           _h += '<div class="fleet-none fleet-was">no roster was ever received here — nothing to '
               + 'show, not even a count. This is the one case with no honest fallback.</div>';
         }
+        /* say that another ask is coming, and when — an unattended card that has given up
+           looks identical to one that is still trying */
+        if (_flRetry.n < _flRetry.max) {
+          _h += '<div class="fleet-none fleet-was">re-asking in '
+              + Math.round(_fleetRetryWaitMs() / 1000) + 's \u00b7 attempt '
+              + (_flRetry.n + 1) + ' of ' + _flRetry.max + '</div>';
+        } else {
+          _h += '<div class="fleet-none fleet-was">stopped re-asking after ' + _flRetry.max
+              + ' attempts \u2014 press \u21bb to try again</div>';
+        }
         box.innerHTML = _h;
+        _fleetRetrySoon();
         return;
       }
+      _fleetRetryReset();
       /* ── v2157 — WHAT EACH PERSON HAS, ON HOVER. ─────────────────────────────────────────
          Konyo: "for my cuzin and me and my wife is there a way for it to render our live
          chronicle feed numbers .. im at 120/135 sets 278/403 uniques .. 99/99 runewords .. my

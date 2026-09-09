@@ -213,12 +213,20 @@ def _elapsed_minutes(et):
 
 
 def _cpu_sample():
-    """{pid: pcpu} from one ps. -> dict"""
+    """{pid: pcpu} from one ps, or None if ps could not be asked. -> dict|None
+
+    ⚠⚠ NONE, NOT `{}`. The swallow ratchet caught this the day it shipped — RANK 1, "a failed read
+    handed back as DATA", baseline 74 -> 75, `tv/my_orphans.py 0 -> 1`. An empty dict from a failed
+    `ps` is indistinguishable from a real sample of a machine with no processes, and this feeds the
+    runaway sweep: a caller comparing against `{}` finds nothing busy and reports a clean machine.
+    That is the exact shape of the defect this sweep exists to catch, inside the sweep itself.
+    [[unknown-stays-unknown]]
+    """
     try:
         raw = subprocess.run(["ps", "-Ao", "pid,pcpu"],
                              capture_output=True, text=True, timeout=20).stdout
     except Exception:
-        return {}
+        return None
     out = {}
     for line in raw.splitlines()[1:]:
         p = line.split()
@@ -257,6 +265,12 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=0.0):
     _now = time.time()
     _prev, _prevAt = _LAST_SAMPLE.get("cpu") or {}, float(_LAST_SAMPLE.get("at") or 0.0)
     _cur = _cpu_sample()
+    if _cur is None:
+        # the instrument could not be read — that is UNKNOWN, and the previous sample is NOT
+        # replaced with an absence that would then look like a quiet machine next time.
+        return [{"pid": None, "ours": None,
+                 "why": "`ps` could not be asked for a CPU sample, so nothing can be judged about "
+                        "runaways right now. This is UNMEASURED, not clean."}]
     _LAST_SAMPLE["cpu"], _LAST_SAMPLE["at"] = _cur, _now
     # ⚠ `settle` REMAINS, so a caller that genuinely wants an immediate second reading can ask for
     # one — but it is OFF by default, because the timer path must stay cheap.

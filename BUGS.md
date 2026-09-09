@@ -27220,3 +27220,69 @@ sandbox cannot reach the site, so a rendered check could only ever exercise the 
 
 ⚠ The first render did confirm the wiring end to end on real pixels before the self-comparison fix:
 `konyo-3 sets synced uniques synced runewords synced`, painted 1/1 at all five widths.
+
+
+## REG-815 — the fleet card was stale, the harness judged a page it never prepared, and I put a RANK-1 swallow in the sweep
+
+**v2851.** Three findings, one from his screen, one from #56, one from CI.
+
+### 1. THE FLEET CARD WAS STALE, AND IT WAS SAYING SOMETHING TRUE ABOUT A MOMENT THAT HAD PASSED
+
+His screenshot, 2026-09-09 15:14: the card read *"fleet unreachable — TLS handshake timed out"* and
+*"no roster was ever received here — nothing to show, not even a count."* MEASURED at that moment:
+
+    /api/fleet                 ok:TRUE · 1 online / 2 offline · lastGood present, 1.3s old
+    GET bull-4-u.com/api/console   HTTP 200 in 0.46s
+
+The fleet was fine. `_fleetRefresh` runs on the drawer fill and the ↻ button **and nowhere else**,
+so a cold-boot failure — his console had just relaunched, the presence cache was empty — painted the
+honest never-received state and then nothing ever asked again. A true sentence about one instant,
+left standing in the present tense. [[stale-reading]]
+
+FIXED: a failed fetch schedules a bounded retry, six attempts with exponential backoff to 60s, and
+**the card says so** — `re-asking in 8s · attempt 2 of 6`, or `stopped re-asking after 6 attempts —
+press ↻`. ⚠ A silent retry would only replace one wrong impression with another. A success resets
+the ladder, so a later failure gets a full one.
+
+### 2. #56 — THE RENDER HARNESS WAS JUDGING A PAGE IT NEVER PREPARED
+
+`river-strip` refused two pushes at `painted 0/17`, intermittently, at varying widths. FOUR of my
+own explanations died by measurement: machine load (failed at load 3, PASSED at 8.99); a 628px
+layout fault (a CDP probe of his LIVE console at exactly 1120x628 returned **17/17 painted**); a
+marginal 12s budget (a re-measure pass failed BOTH times — that change was reverted); and
+height-specificity (one run failed at all four widths).
+
+The evidence was in the failing dump all along: `window.__thSeed` **UNDEFINED**, viewport
+**1440x1213** — the default, none of the five this target sets — and the shelf overlay OPEN over a
+hidden theatre. Both elements start `hidden` in the markup, so that is not a fresh load; it is a
+page `activate` reached and **the SEED never did**. The console relaunches under the harness, and it
+then reports "the surface never painted" about a world it did not build.
+
+FIXED at the class: `render_check` stamps `window.__rcPrepared` when it prepares a page, and before
+accusing anything it checks the marker. If it is gone it SAYS so — *"the page NAVIGATED after it was
+prepared"* — re-applies seed, metrics and activate, and measures again. Only a second failure
+accuses the surface, so a genuinely absent panel still fails twice and the case the gate exists for
+is untouched.
+
+⚠ **AND ONE OF MY PROBES MEASURED ITSELF.** An earlier hook came back with an empty log, which I
+nearly read as "nothing happened" — it meant "nothing was listening": `thClose` is a LOCAL function
+inside an IIFE and my wrapper never attached. The next probe was made to record its own
+installation (`attached: true`) before I trusted a word of it.
+[[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+
+### 3. ★ I PUT A RANK-1 SWALLOW INSIDE THE RUNAWAY SWEEP, AND CI CAUGHT IT THE SAME DAY
+
+    swallow ratchet — RANK 1 (a failed read handed back as DATA)
+       baseline 74   now 75
+       tv/my_orphans.py    0 -> 1  (+1)
+
+`_cpu_sample()` returned `{}` when `ps` could not be asked. An empty dict is indistinguishable from
+a real sample of a machine with no processes — and this feeds the runaway sweep, so a caller
+comparing against it finds nothing busy and reports a **clean machine**. That is the exact defect
+the sweep exists to catch, sitting inside the sweep. It now returns `None`, `suspects()` reports
+UNMEASURED rather than clean, and `health_engine` no longer prints a length for an absent reading.
+**Ratchet back to 74/74, held.** [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+
+⚠ **UNPROVEN, and named as such:** the #56 guard has NOT been exercised against a real navigation —
+three verification runs were all green, so the re-prepare path never fired. It is a guard for a
+condition I measured once and cannot reproduce on demand.

@@ -418,7 +418,8 @@ def check_orphans():
         # while a single CPU sample had me about to kill his console. Say what was measured.
         # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
         try:
-            _n = len(MO._cpu_sample())
+            _s = MO._cpu_sample()
+            _n = None if _s is None else len(_s)     # None = ps unreadable, not "zero processes"
         except Exception:
             _n = None
         return _row("orphans", OK,

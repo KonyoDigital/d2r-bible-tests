@@ -163,19 +163,27 @@ def payload_for(sha):
         body = body[:cut if cut > 0 else _cap()]
         dropped = ("truncated to %d of %d diff chars at a line boundary — the eye saw the first "
                    "part only" % (len(body), len(_full_len_holder[0])))
-    note = ""
+    # ⚠⚠ v2851 — THE SCOPE WARNING BELONGS ON EVERY DIFF, NOT ONLY A TRUNCATED ONE.
+    # It used to live entirely inside `if dropped:`. But a diff is ALWAYS partial — it shows
+    # HUNKS, never whole functions — so a complete, untruncated diff invites the same false
+    # finding, and got one. MEASURED on the v2850 look: the reviewer reported at HIGH severity
+    # that `drift` was "referenced but never declared" in a function it had seen three hunks of.
+    # `var drift = ...` is declared once and referenced four times, above the first changed line
+    # — unchanged context, therefore absent from the diff BY CONSTRUCTION. The reviewer
+    # reasoned correctly from what it was shown; the PAYLOAD misled it. A false finding at high
+    # severity costs more than a missed one, because it has to be chased and refuted by hand.
+    # [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+    note = ("\nNOTE: this is a DIFF, not whole files. A name used in one hunk may be DECLARED "
+            "or ASSIGNED in a part of the same function the diff does not show, because "
+            "unchanged context is omitted by construction. Do not report a variable as "
+            "unbound, undefined, undeclared or unpacked-from-nowhere unless you can see its "
+            "whole scope here. Judge only what is fully shown, and say so when a judgement "
+            "would need code that is not in front of you.\n")
     if dropped:
-        note = ("\nNOTE: this diff is TRUNCATED. It is a DIFF, not whole files, and it stops "
-                "part-way through. Two consequences, and both have already produced false "
-                "findings here:\n"
-                "  · it ends mid-file at a line boundary — do not report a function, statement or "
-                "block as incomplete, unterminated or missing a return merely because the excerpt "
-                "stops before it does;\n"
-                "  · a name used in one hunk may be ASSIGNED in a part of the same function that "
-                "is not shown — do not report a variable as unbound, undefined or unpacked-from-"
-                "nowhere unless you can see its whole scope.\n"
-                "Judge only what is fully shown, and say so when a judgement would need code that "
-                "is not here.\n")
+        note += ("\nAND IT IS ALSO TRUNCATED — it stops part-way through, mid-file at a line "
+                 "boundary. Do not report a function, statement or block as incomplete, "
+                 "unterminated or missing a return merely because the excerpt stops before it "
+                 "does.\n")
     return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped
 
 
