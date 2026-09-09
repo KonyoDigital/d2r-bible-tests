@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2848",
+  "ver": "v2849",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2848: a fleet fixed eight CI gates and every one cleared the skeptic",
+  "note": "v2849: the gate refused the ship and the better catch was my own sleep",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

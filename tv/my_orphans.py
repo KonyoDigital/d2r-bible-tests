@@ -230,7 +230,17 @@ def _cpu_sample():
     return out
 
 
-def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=4.0):
+#: The previous CPU sample and when it was taken. ⚠ THE SECOND SAMPLE COMES FROM THE PREVIOUS
+#: CALL, NOT FROM A SLEEP. The first cut slept 4 s inside this function to get its second reading —
+#: and `suspects()` runs on the watchdog's TEN-MINUTE TIMER and at every console boot, so the
+#: pre-push gate refused the ship with `armed migration (4359 ms, again 4324 ms)`. A supervisor
+#: that costs four seconds every ten minutes to answer "is anything running away" is itself the
+#: kind of cost it exists to find. Consecutive calls are separated by real time — far more than a
+#: sleep would buy — so the samples are better AND free. [[poll-slower-than-its-interval]]
+_LAST_SAMPLE = {"at": 0.0, "cpu": {}}
+
+
+def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=0.0):
     """Processes that are BOTH busy and old — the shape a runaway has. -> list of dicts
 
     ⚠⚠ TWO CPU SAMPLES, NOT ONE, AND THAT IS THE HALF THAT NEARLY COST HIS CONSOLE.
@@ -244,9 +254,27 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=4.0):
     [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
     """
     out = []
-    _first = _cpu_sample()
-    if settle and _first:
+    _now = time.time()
+    _prev, _prevAt = _LAST_SAMPLE.get("cpu") or {}, float(_LAST_SAMPLE.get("at") or 0.0)
+    _cur = _cpu_sample()
+    _LAST_SAMPLE["cpu"], _LAST_SAMPLE["at"] = _cur, _now
+    # ⚠ `settle` REMAINS, so a caller that genuinely wants an immediate second reading can ask for
+    # one — but it is OFF by default, because the timer path must stay cheap.
+    if settle:
         time.sleep(settle)
+        _prev, _prevAt = _cpu_sample(), _now
+    _gap = _now - _prevAt
+    # ⚠⚠ NO PRIOR SAMPLE IS *UNKNOWN*, NOT "NOTHING IS WRONG". On the first call of a process there
+    # is nothing to compare against, and a single decaying average is exactly what nearly cost his
+    # console. So the pass reports that it could not judge rather than returning a confident empty
+    # list. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    if not _prev or _gap < 1.0:
+        return [{"pid": None, "ours": None,
+                 "why": ("only ONE cpu sample is available%s — a single `ps` %%CPU is a decaying "
+                         "average, not a load, so no runaway verdict is possible yet. Ask again in "
+                         "a moment and this becomes measurable."
+                         % ("" if not _prev else " (the previous one is %.1fs old)" % _gap))}]
+    _first = _prev
     try:
         raw = subprocess.run(["ps", "-Ao", "pid,ppid,pcpu,etime,command"],
                              capture_output=True, text=True, timeout=20).stdout

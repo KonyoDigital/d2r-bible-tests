@@ -42,6 +42,19 @@ import os
 import sys
 import unittest
 
+# ⚠⚠ THIS FILE PRINTS NON-ASCII (⚠ ★ ✕ →) AND MUST MAKE ITS OWN STDOUT SAFE. Caught by
+# test_every_cli_that_prints_non_ascii_is_encoding_safe on the v2848 push, which REFUSED the ship:
+# a CLI that inherits its safety from the operator's shell dies on a non-UTF-8 console — Windows
+# python stdout is cp1255 here — and then a CORRECT tree reports FAILURE. `tv/test_button_matrix.py`
+# is the precedent: it died on encoding, and hidden underneath was a version assertion that had
+# been wrong since v900. A tool that crashes while REPORTING teaches people to ignore it.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if _stream is not None and hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)

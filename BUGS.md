@@ -27137,3 +27137,54 @@ law** — and 1 is `yes-workflow-config` (CI should install numpy). None recomme
 gate checks. Diagnosed, not yet fixed.
 
 Cost: 20 agents, 0 errors, 28 minutes, 1.78M subagent tokens.
+
+
+## REG-813 — the push was refused twice over, and the better catch was a 4-second sleep
+
+**v2849.** The v2848 push returned **exit 0 with the ref unmoved** — third time this session that
+the exit code lied. `test_control` ran 2,232 tests in 773 s and came back `FAILED (failures=2)`.
+Both were mine.
+
+**1. A GUARD THAT CRASHES WHILE REPORTING.** `test_his_console_is_never_mine_to_kill.py` prints
+non-ASCII (⚠ ★ ✕) and never made its own stdout encoding-safe, so on a non-UTF-8 console — Windows
+python stdout is cp1255 here — it dies while REPORTING and a CORRECT tree exits non-zero.
+`tv/test_button_matrix.py` is the precedent: it died on encoding, and hidden underneath was a
+version assertion that had been wrong since v900. Fixed with the repo's own `reconfigure` idiom.
+
+**★ 2. I PUT A FOUR-SECOND SLEEP IN THE WATCHDOG'S PATH.** The two-CPU-sample fix from REG-810 got
+its second reading by sleeping 4 s inside `my_orphans.suspects()` — and that function runs on the
+watchdog's **TEN-MINUTE TIMER and at every console boot**. The gate named it exactly:
+
+    armed migration (4359 ms, again 4324 ms)
+
+re-measured and slow BOTH times, so a passing burst was ruled out before it accused anything. A
+supervisor that costs four seconds every ten minutes to answer "is anything running away" has
+become the kind of cost it exists to find. [[poll-slower-than-its-interval]]
+
+FIXED without giving up the second sample: `_LAST_SAMPLE` remembers the previous reading, so
+consecutive calls are separated by REAL time — minutes on the timer path, far more than a sleep
+would buy — and the samples are better AND free. **4359 ms → 14 ms.**
+
+⚠ **AND THE FIRST CALL NOW SAYS SO.** With no prior sample there is nothing to compare against, and
+a single decaying average is precisely what nearly cost his console. `suspects()` returns a row
+saying it cannot judge yet rather than a confident empty list.
+
+⚠⚠ **WHICH IMMEDIATELY EXPOSED A CONSUMER BUG.** `health_engine.check_orphans` counted that
+pid-less row as a process and reported *"1 process(es) busy and old, and nothing can say whose they
+are"* — a confident sentence about a process that does not exist. UNMEASURED and UNATTRIBUTED are
+different answers. Now separated. [[unknown-stays-unknown]]
+
+### ⚠ STILL OPEN, and it is NOT mine: the cheap subset has no margin
+
+With both failures fixed, the per-check assertion passes and the TOTAL assertion fires instead — it
+had been masked. MEASURED across three runs of the same code: **11,547 ms · 10,207 ms · 8,331 ms**
+against a **9,000 ms** budget. It crosses the line depending on machine load, and it passed only
+once this Mac was quiet.
+
+My two checks are **206 ms of it (2.5%)** — `fleet reachable` 29 ms, `stray processes` 177 ms.
+**Removing them entirely leaves 8,125 ms**, so this is pre-existing headroom, not something I
+introduced. The cost is spread: `engines corroborate` 2,597 ms, `names banked` 1,728 ms, `the
+river` 971 ms, four route checks ~2,100 ms together.
+
+Re-tiering someone's supervision cadence to buy margin is a real decision about how often things
+get watched, and I am not making it silently. Reported, not fixed. [[feedback-blind-fixture-green-gate]]

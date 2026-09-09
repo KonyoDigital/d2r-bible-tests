@@ -396,6 +396,20 @@ def check_orphans():
     except Exception as e:
         return _row("orphans", UNKNOWN, "the orphan sweep could not be loaded — %s" % e)
     rows = MO.suspects()
+    # ⚠⚠ A ROW WITH NO PID IS NOT A PROCESS — IT IS THE SWEEP SAYING IT COULD NOT JUDGE.
+    # `suspects()` uses that shape for "ps could not be asked" and, since v2848, for "only one CPU
+    # sample exists so far" (the second now comes from the PREVIOUS call instead of a 4-second
+    # sleep, because this runs on the watchdog's ten-minute timer). Counting those as suspects
+    # produced `1 process(es) busy and old, and nothing can say whose they are` on a machine where
+    # the sweep had simply not measured twice yet — a confident sentence about a process that does
+    # not exist. UNMEASURED and UNATTRIBUTED are different answers.
+    # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    _unmeasured = [r for r in rows if not r.get("pid")]
+    rows = [r for r in rows if r.get("pid")]
+    if _unmeasured and not rows:
+        return _row("orphans", UNKNOWN,
+                    "the sweep could not judge yet — %s"
+                    % str(_unmeasured[0].get("why"))[:170])
     if not rows:
         # ⚠ v2847 — THE ZERO CARRIES ITS DENOMINATOR. "Nothing busy and old" was a clean-looking 0
         # with nothing behind it: it could not be told from a sweep that scanned nothing, used a
