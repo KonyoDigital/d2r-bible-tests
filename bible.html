@@ -38962,8 +38962,23 @@ window.renderRoutingLedger = function(){
        ledger down, not just this one link. Caught by asking where the name was bound rather than
        assuming a helper I had used elsewhere was global. `esc` genuinely is in scope here; jsq
        never was. [[the-unjoined-end]] */
+    /* ⚠⚠ LINE TERMINATORS TOO, AND THE FIRST CUT HAD ONLY \\ AND '. Found by a cross-family
+       review of the SHIPPED v2821 bytes and then REPRODUCED: of seven inputs run through this
+       escaper, HTML-decoded as a browser decodes an attribute, and handed to `new Function`, six
+       parse — apostrophe, double quote, backslash, angle brackets, ampersand, U+2028 — and a
+       NEWLINE throws `SyntaxError: Invalid or unexpected token`, taking the whole routing ledger
+       down with it, not just this link. Item names come from OCR, and a two-line read is not
+       exotic. Exposure at the time of the fix was 0 of 16 evidence names, which is why this is a
+       latent defect rather than a live one — and why it was worth 20 lines rather than an issue.
+       ⚠ THE SAME REVIEW'S SECOND CLAIM WAS REFUTED BY THE SAME MEASUREMENT: it said `_q`-then-
+       `esc` puts HTML entities literally into the JS source. It does not — the browser decodes an
+       attribute value BEFORE parsing it as JS, so `esc` last is the correct order, and every
+       decoded case above parsed. A review earns a measurement, not obedience. */
     var _q = function(x){
-      return String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return String(x == null ? '' : x)
+        .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
     };
     var call = "window._tvdOpenFrame && window._tvdOpenFrame('" + _q(r.frameId)
              + "', {title: '" + _q(r.name || '?') + "'})";
@@ -49925,7 +49940,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2823', name:'v2823 - the census that has to pass before MINI can be removed', date:'2026-09-09', note:'REG-771..774 — 19 techniques named, 8 MINI-only gaps, 7 unasked; the door stamp covers 0.6% so UNKNOWN stays UNKNOWN; a 60s-old fleet roster now carries its age; a red-proof re-anchored after a refactor moved it' };
+  window.D2R_BUILD = { id:'v2824', name:'v2824 - the escaper that would have dropped the ledger, and the guard that would have shut the repo', date:'2026-09-09', note:'REG-775..776 — a newline in a banked name threw SyntaxError while building the row (6 of 7 inputs parsed, newline did not); the second-eye transmission guard matched any three quote chars, so JS concatenating a quote retracted every review of a diff with a JS surface' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

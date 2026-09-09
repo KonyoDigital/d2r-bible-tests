@@ -233,8 +233,22 @@ _UNSENT_MARKERS = (
     #
     # A REAL seam is `""" + x` or `x + """` on ONE line. `[ \t]` cannot cross a newline, and the
     # leading `\S` refuses a `+` that begins its line — which is exactly what a diff marker is.
-    (re.compile(r"[\"']{3}[ \t]*\+"), "a triple-quote/+ concatenation seam reached the prompt as text"),
-    (re.compile(r"\S[ \t]*\+[ \t]*[\"']{3}"), "a +/triple-quote concatenation seam reached the prompt as text"),
+    #
+    # ⚠⚠ v2824 — AND THE QUOTES MUST BE THE **SAME** QUOTE THREE TIMES. `["\']{3}` matches any
+    # three quote CHARACTERS, so ordinary JavaScript string concatenation of a quote —
+    # `esc(call) + \'"\'` — read as a Python triple-quote seam. Measured on the v2821 review
+    # payload: ONE hit, and it was `+ \'"\'` in a diff of bible.html. Because a non-empty `unsent`
+    # RETRACTS the row, every future review of a diff touching control_ui.html or bible.html would
+    # have filed as an EMPTY SEAT — and a version cannot ship while the previous one has never
+    # been looked at, so the ledger would have deadlocked the repo shut.
+    #
+    # ★ THAT IS THE SAME DEADLOCK v2808 FIXED, IN A DIFFERENT SPELLING. The note above says it in
+    # as many words. The narrowing was applied to WHERE the pattern may match (not across a
+    # newline, not on a diff marker) and never to WHAT a triple quote actually is. A guard hardened
+    # against one spelling of its own false positive is hardened against that spelling only.
+    # [[feedback-suspect-the-instrument]] [[sabotage-is-usually-the-wrong-one]]
+    (re.compile(r"(?:\'{3}|\"{3})[ \t]*\+"), "a triple-quote/+ concatenation seam reached the prompt as text"),
+    (re.compile(r"\S[ \t]*\+[ \t]*(?:\'{3}|\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),
 )
 
 _FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)

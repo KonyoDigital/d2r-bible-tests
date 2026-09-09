@@ -150,5 +150,74 @@ class AColdReviewMustCarryTheCode(unittest.TestCase):
                          "a retracted prose-only review is claiming to be a look again")
 
 
+class ARealDiffMustNotRetractItsOwnReview(unittest.TestCase):
+    """v2824 — THE FALSE POSITIVE THAT WOULD HAVE DEADLOCKED THE REPO SHUT, TWICE.
+
+    `_UNSENT_MARKERS` matched a class of ANY three quote CHARACTERS, so ordinary JavaScript
+    concatenating a quote — `esc(call) + '"'` — read as a Python triple-quote seam. A non-empty
+    `unsent` RETRACTS the row to `reached=False`, and a version may not ship while the previous one
+    has never been looked at. So every review of a diff touching control_ui.html or bible.html —
+    which is most of them — would have filed as an EMPTY SEAT and nothing could ever ship again.
+
+    MEASURED on the real v2821 review payload: exactly ONE hit, in a bible.html hunk.
+
+    THIS IS THE SAME DEADLOCK v2808 FIXED, IN A DIFFERENT SPELLING. That fix narrowed WHERE the
+    pattern may match — not across a newline, not on a diff marker — and never WHAT a triple quote
+    actually is. A guard hardened against one spelling of its own false positive is hardened
+    against that spelling only. [[feedback-suspect-the-instrument]]
+    """
+
+    JS_CASES = (
+        ("a double quote in JS", "out = esc(call) + " + chr(39) + chr(34) + chr(39) + " + tail;"),
+        ("a single quote in JS", "out = a + " + chr(34) + chr(39) + chr(34) + " + b;"),
+        ("a quote before the +", "out = " + chr(39) + chr(34) + chr(39) + " + tail;"),
+    )
+
+    def test_javascript_concatenating_a_quote_is_not_a_python_seam(self):
+        for label, body in self.JS_CASES:
+            got = L.code_was_transmitted("```js\n%s\n```" % body)
+            self.assertEqual([], got["unsent"],
+                             "%s retracts a review row — the ledger would refuse every diff that "
+                             "touches a JS surface, and nothing could ship: %s"
+                             % (label, got["unsent"]))
+            self.assertGreater(got["chars"], 0, "the fence was not even counted as code")
+
+    def test_a_real_python_seam_is_still_caught(self):
+        """[[feedback-blind-fixture-green-gate]] — a guard that can only pass measures nothing."""
+        _d, _s = chr(34) * 3, chr(39) * 3
+        cases = (
+            ("triple-quote then +", "print(" + _d + "head" + _d + " + body)"),
+            ("+ then triple-quote", "msg = head + " + _d + "tail" + _d),
+            ("single-quoted triple", "msg = head + " + _s + "tail" + _s),
+            ("an un-evaluated read", "prompt = open(" + chr(34) + "f.py" + chr(34) + ").read()"),
+        )
+        for label, body in cases:
+            got = L.code_was_transmitted("```python\n%s\n```" % body)
+            self.assertTrue(got["unsent"],
+                            "%s is a REAL un-evaluated seam and the guard let it through — a "
+                            "review of a promise would file as a review of the code" % label)
+
+
+# ══ THE EXECUTABLE RED-PROOF ═══════════════════════════════════════════════════════════════════
+RED_PROOF = [
+    {
+        "why": "restoring the any-three-quotes class is the deadlock verbatim: JS concatenating a "
+               "quote reads as a Python triple-quote seam and retracts every review of a diff "
+               "carrying a JS surface",
+        "file": "second_eye_ledger.py",
+        "find": '(re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})")',
+        "replace": '(re.compile(r"\\S[ \\t]*\\+[ \\t]*[\\"\']{3}")',
+        "matches": 1,
+    },
+    {
+        "why": "dropping the seam markers entirely lets a review of a PROMISE file as a review of "
+               "the code — the defect the whole transmission check exists for",
+        "file": "second_eye_ledger.py",
+        "find": "            if rx.search(body) and msg not in why:",
+        "replace": "            if False:",
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

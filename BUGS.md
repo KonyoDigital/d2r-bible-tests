@@ -25992,3 +25992,49 @@ changed, only where it lives. Re-anchored on `_closed_rows`' exception branch.
 
 ★ Census after the full run: **18 of 21 declared gates proven, 1 blind, 239 carrying no executable
 proof** — 6.9% of 260. [[sabotage-is-usually-the-wrong-one]]
+
+## REG-775 — a newline in a banked item name would take the whole routing ledger down
+**v2824 · 2026-09-09 · bible.html · found by a cross-family review of the SHIPPED v2821 bytes**
+
+`_bankedName`'s local escaper `_q` replaced only `\` and `'`. The value goes into a single-quoted JS
+string literal inside an `onclick` attribute, so a **newline** ends the literal and throws
+`SyntaxError` while the row is being BUILT — not a broken link, the whole ledger.
+
+REPRODUCED before believing it. Seven inputs through `_q`, HTML-decoded the way a browser decodes an
+attribute, handed to `new Function`:
+
+    apostrophe PARSES · double quote PARSES · backslash PARSES · U+2028 PARSES
+    angle brackets PARSES · ampersand PARSES · NEWLINE SyntaxError
+
+Exposure at the time: **0 of 16 evidence names** carry a line break — latent, not live — but item
+names come from OCR and a two-line read is not exotic. `_q` now escapes `\n \r U+2028 U+2029`; all
+eight cases parse.
+
+★ **The same review's second claim was REFUTED by the same measurement.** It said `_q`-then-`esc`
+puts HTML entities literally into the JS source. It does not: a browser HTML-decodes an attribute
+value BEFORE parsing it as JS, so `esc` last is the correct order, and every decoded case parsed.
+A review earns a measurement, not obedience.
+
+## REG-776 — the second-eye ledger would have deadlocked the repo shut, for the second time
+**v2824 · 2026-09-09 · second_eye_ledger.py**
+
+Recording the v2821 look was RETRACTED to `reached=False` by the ledger's own transmission guard,
+which reported *"a +/triple-quote concatenation seam reached the prompt as text"*. It was a false
+positive: `_UNSENT_MARKERS` matched a character class of **any three quote CHARACTERS**, so ordinary
+JavaScript concatenating a quote — `esc(call) + '"'` — is three quote chars in a row and reads as a
+Python triple-quote seam. Measured on the real payload: exactly **one** hit, in a bible.html hunk.
+
+Because a non-empty `unsent` retracts the row, and a version may not ship while the previous one has
+never been looked at, **every review of a diff touching `control_ui.html` or `bible.html` — which is
+most of them — would have filed as an empty seat and nothing could ever have shipped again.**
+
+★ **This is the same deadlock v2808 fixed, in a different spelling.** That fix narrowed WHERE the
+pattern may match (not across a newline, not on a diff marker) and never WHAT a triple quote
+actually is. A guard hardened against one spelling of its own false positive is hardened against
+that spelling only. Now requires three IDENTICAL quotes; all three real seam shapes still caught,
+both JS shapes clean. Two tampers PROVEN red in
+`test_a_cold_review_must_carry_the_code`. [[feedback-suspect-the-instrument]]
+
+⚠ And the first red-proof written for it came back **INVALID — "the tamper does not parse... a gate
+reddened by a SyntaxError proves nothing about the law"**. The find/replace literals are now built
+from the file's own bytes with `repr()` rather than hand-escaped.
