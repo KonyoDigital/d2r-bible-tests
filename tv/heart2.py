@@ -79,6 +79,7 @@ that repairs its own instruments can talk itself into anything.
 them is one nobody can ship. Mandatory for every NEW gate; the backlog burns down.
 """
 import argparse
+import ast
 import io
 import json
 import os
@@ -106,6 +107,52 @@ PROVEN, BLIND, UNPROVEN, UNPROVABLE, INVALID = "PROVEN", "BLIND", "UNPROVEN", "U
 
 
 # ── finding the gates ────────────────────────────────────────────────────────────────────────
+def pixel_gates(gates=None):
+    """The gates that actually LOOK AT PIXELS, by their IMPORTS. -> set[str]
+
+    ⚠⚠ v2858 — ONE NUMBER WAS HIDING A 93/7 SPLIT. Konyo asked the right question: "when we hit
+    100% on heart 2.0 its also a VISUAL PASS right? like its not just backend". MEASURED on the
+    live registry the moment he asked: 269 gates, and only TEN import render_check or playwright.
+    So a census reading "132 of 269" is overwhelmingly code proving code, and at 100% it would
+    still be ~96% backend — a number that would read as whole-system and mean almost nothing about
+    what he actually sees. The count was true and the LABEL was doing the lying.
+    [[label-outlived-referent]] [[zero-needs-a-denominator]]
+
+    ⚠ IMPORTS, NOT A TEXT SCAN. My first cut of this number grepped the source for 'render_check',
+    'playwright', '.render_shots' and friends, and answered 18 — because prose and comments
+    mentioning the harness counted as looking at pixels. Parsing the imports answers 10, and 3 more
+    only NAME the machinery. A classifier for a number he reads has to parse. [[source-reading-guard]]
+    """
+    out = set()
+    for n, f in (gates if gates is not None else gate_files()):
+        src = _read_text(f)
+        if src is None:
+            continue
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        mods = set()
+        for x in ast.walk(tree):
+            if isinstance(x, ast.Import):
+                for a in x.names:
+                    mods.add(a.name.split(".")[0])
+            elif isinstance(x, ast.ImportFrom):
+                if x.module:
+                    mods.add(x.module.split(".")[0])
+        if mods & {"render_check", "playwright"}:
+            out.add(n)
+    return out
+
+
+def _read_text(path):
+    try:
+        with io.open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except Exception:
+        return None
+
+
 def gate_files():
     """Every registered gate that is a python test file here. -> [(name, filename)]"""
     out = []
@@ -332,6 +379,7 @@ def _write_state(results):
         else:
             _proved.discard(_n)          # BLIND/INVALID/UNPROVABLE revokes a standing proof
     _proved &= _known                    # a gate that no longer exists is not proven
+    _pixel = pixel_gates(gates)          # v2858 — the visual share, by imports not by grep
     # ⚠⚠ v2847 — EVERY VERDICT CARRIES ITS OWN AGE, BECAUSE ONE `ranAt` FOR THE WHOLE FILE IS A
     # DATE ON THE FETCH AND NOT ON THE THING. The merge above deliberately keeps a prior blind
     # entry the current run did not re-test — correct, and until now indistinguishable from one
@@ -352,6 +400,11 @@ def _write_state(results):
     out.update({
         "proved": len(_proved),
         "provedGates": sorted(_proved),
+        # v2858 — THE SPLIT, because one number hid a 93/7 one. See pixel_gates().
+        "pixelTotal": len(_pixel),
+        "pixelProved": len(_proved & _pixel),
+        "backendTotal": len(gates) - len(_pixel),
+        "backendProved": len(_proved - _pixel),
         "declared": len(have),
         "unproven": len(gates) - len(have),
         "total": len(gates),

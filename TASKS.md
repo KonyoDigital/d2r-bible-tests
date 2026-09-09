@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2858** | `(this commit)` | v2858 — one number was hiding a 93 to 7 split |
 | **v2857** | `(this commit)` | v2857 — hand-written proofs that restore real historical defects |
 | **v2856** | `(this commit)` | v2856 — his ruling removed the automatic sweep and End Session finally returns to On Air |
 | **v2855** | `(this commit)` | v2855 — and five more that cannot, which is the finding |

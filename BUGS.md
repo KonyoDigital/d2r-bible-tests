@@ -27554,3 +27554,40 @@ for the MINI AUTO planning machinery. Those four are retired. The FIFTH — test
 _reads_the_screen_on_its_own_thread — is about EVERY handler and stays; retiring the class to silence
 four stale laws would have discarded the only law there still guarding something.
 
+## REG-827 — the heart reported one number over two very different populations
+
+Konyo, 2026-09-09: *"when we hit 100% on heart 2.0 its also a VISUAL PASS right? like its not just
+backend"*. It is not, and the census could not say so.
+
+MEASURED on the live registry the moment he asked:
+
+    269 gates · 10 import render_check or playwright · 259 never look at a pixel
+    overall 132/269 = 49.1%    backend 130/259 = 50.2%    PIXEL 2/10 = 20.0%
+    at 100% overall, ~96% of it would still be backend BY GATE COUNT
+
+The count was never wrong; the LABEL was. `_write_state` now carries pixelTotal, pixelProved,
+backendTotal and backendProved, so the visual share cannot hide inside the total.
+
+⚠ THE CLASSIFIER PARSES, AND MY FIRST CUT DID NOT. Text-scanning the source for 'render_check',
+'playwright', '.render_shots' answered EIGHTEEN, because prose and comments naming the harness
+counted as looking at pixels. Parsing imports answers TEN. A number he reads may not come from a
+grep. [[source-reading-guard]]
+
+⚠ AND I SHIPPED A GREEN I HAD NOT EARNED, briefly. The first run after the change printed PROVEN and
+I relayed it — underneath was `NameError: name 'ast' is not defined`: heart2.py never imported ast,
+so the run proved the gate and then CRASHED BEFORE WRITING THE STATE. The census sat 22 minutes
+stale while I reported it as current. Caught only by checking the file's mtime instead of trusting
+the line I had already printed. [[exit-status-of-the-block]]
+
+GATE: `test_the_census_says_how_much_of_it_is_pixels` — 3 laws, 2 red-proofs, both PROVEN (1 match
+each). Its second arm came back BLIND on the first attempt and THAT WAS THE LAW'S FAULT: it asserted
+only that pixel_gates() CONTAINS an AST walk, and the tamper left the walk in place while swapping
+the deciding `if` for a substring test. A law that checks machinery is present is not a law that the
+machinery is used. The law now forbids the decision from comparing against the raw source text.
+[[the-unjoined-end]]
+
+STILL UNJOINED, and named here so it is not mistaken for done: the render COVERAGE RATCHET is a
+separate instrument with its own floor file, and the heart does not read it — I hand-lowered that
+floor 3 -> 2 earlier today and the heart's number did not move. And `self_arming.py` / `hover_wilson.py`
+contain ZERO references to heart2, so the Wilson lock does not derive from the heart either.
+

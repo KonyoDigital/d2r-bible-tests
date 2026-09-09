@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2857",
+  "ver": "v2858",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2857: hand-written proofs that restore real historical defects",
+  "note": "v2858: one number was hiding a 93 to 7 split",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

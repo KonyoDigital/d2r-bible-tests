@@ -800,6 +800,16 @@ GATES = [
          "could not see it; I trusted it and the push was refused. After the fix: 249 shipped "
          "versions examined, 111 never looked at, against the 3 it used to report.",
          skip_ok=()),
+    Gate("test_the_census_says_how_much_of_it_is_pixels",
+         [sys.executable, os.path.join(HERE, "test_the_census_says_how_much_of_it_is_pixels.py")], 90,
+         why="v2858 — ONE NUMBER HID A 93/7 SPLIT. Konyo: 'when we hit 100% on heart 2.0 its also "
+             "a VISUAL PASS right? like its not just backend'. It is not: 269 gates, only TEN import "
+             "render_check or playwright, so 100% on the old single number would be ~96% backend by "
+             "gate count — true as a count and a lie as a label. The census now carries "
+             "pixelTotal/pixelProved/backendTotal/backendProved. The classifier PARSES: the first cut "
+             "text-scanned and answered 18, because prose naming the harness counted as looking at "
+             "pixels. Both laws parse rather than grep.",
+         skip_ok=()),
     Gate("test_the_ratchet_cannot_erase_the_census",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
          why="v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "
