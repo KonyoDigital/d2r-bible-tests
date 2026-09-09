@@ -25774,3 +25774,53 @@ means nothing. **A gate may not be its own subject**; self-targets are excluded.
 
 Yield: 84 → 78 of 239 gates. The six lost were wrong.
 
+## REG-763 — the banked name was inert, and the lightbox it needed was already in the file (#45)
+
+The ticket, verbatim: *"click a banked name, see the actual frame full-screen."* The **name** was
+inert text. The only route to the proof was a 15px icon beside it that opened the raw JPEG in a NEW
+BROWSER TAB, and only when the page was served from the console — off-console it rendered dimmed
+and did nothing at all.
+
+Meanwhile a real full-screen lightbox has existed in this same file since **v741** —
+`#tvd-frame-lb` / `window._tvdOpenFrame`, built for "the last frame the AI read" in Session History
+— and nothing in the routing ledger ever called it. Both halves shipped. They never met.
+
+★ **AND IT IS CLICKABLE OFF-CONSOLE, DELIBERATELY.** `_tvdOpenFrame` carries its own honest chain:
+bridge → archived file → a plain "missing" message. Measured 2026-09-09, **739 of 10,318 cited
+frames no longer resolve to a file**. A reader is far better served by a lightbox that SAYS the
+proof is gone than by a dimmed icon that silently does nothing.
+
+⚠ **THE FIRST CUT CALLED `jsq()`** — the forge IIFE's escaper — which is not in that scope at all
+(measured: 0 definitions before the function). That is a ReferenceError thrown while BUILDING the
+row, which would have taken down the **whole routing ledger**, not one link. `esc` genuinely is in
+scope; `jsq` never was.
+
+---
+
+## REG-764 — 23% of the suite could not prove itself, for want of a path (#52)
+
+`heart2 --prove` reported every bible-reading law **UNPROVABLE — "bible.html is not in the
+sandbox."** Two path defects, one after the other:
+
+1. **`safe_copy` copies `tv/` only**, and `bible.html` lives in the repo ROOT — so it genuinely was
+   not there. Fixed by placing that one named file beside the copy. ⚠ ONE FILE, BY NAME — never
+   `cp -R` of the repo or of `tv/`, which holds ~5.8 GB of footage and caused an ENOSPC once.
+2. **The tamper resolver joined against `tv/`**, so `"bible.html"` resolved to
+   `<sandbox>/tv/bible.html`. Fixed by resolving from `tv/` first and then the repo copy's root.
+
+**MEASURED: 59 of 259 gates read bible.html.** Nearly a quarter of the suite was structurally
+unable to demonstrate it could go red — and not one of those proofs was wrong. They were looking in
+the wrong directory.
+
+⚠ **THE CONTAINMENT CHECK WAS WIDENED, NOT WEAKENED,** and that was verified rather than assumed:
+
+```
+bible.html                INSIDE    (repo-root file, now allowed)
+control_app.py            INSIDE    (tv file, still allowed)
+../../BUGS.md             REFUSED
+/etc/hosts                REFUSED
+../repo/../../escape.py   REFUSED
+```
+
+A proof may still only tamper inside the throwaway copy.
+

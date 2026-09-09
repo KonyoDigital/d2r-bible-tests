@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2820",
+  "ver": "v2821",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2820: REG-762 a cross-family review of v2818 found two defects in heart2_candidates, both reproduced. target_files was never tied to the assertion container and the loop took the FIRST file holding the literal once - measured, 40 of 40 anchors in test_control resolve in more than one named file, and stop_agent chose tv_diablo with 1 occurrence over control_app with 31, which is exactly the BLIND verdict test_agent returned in the v2818 batch. The review explained my measured failure rate rather than predicting it. The n>1 rejection also did not break, so an ambiguous anchor could still yield a proof for the wrong file. Now an anchor is accepted only when exactly one named file holds it exactly once. And the fix exposed a third the review missed: test_agent began proposing tampers against its own fixture strings, which would pass prove while proving nothing - a gate may not be its own subject.",
+  "note": "v2821: REG-763 the banked name was inert text - the only route to the proof was a small icon opening a raw JPEG in a new tab, and only on the console. A real full-screen lightbox has existed in the same file since v741 and the ledger never called it; both halves shipped and never met. It is clickable off-console too because the lightbox has its own bridge-archive-missing chain and 739 of 10318 cited frames no longer resolve. The first cut called jsq, which is not in that scope - a ReferenceError while BUILDING the row would have taken down the whole ledger. REG-764 every bible-reading law reported UNPROVABLE for two path defects: safe_copy copies tv only while bible.html is in the repo root, and the tamper resolver joined against tv. Measured 59 of 259 gates read bible.html - 23 percent of the suite could not prove itself, and none of those proofs were wrong. Containment was widened to the repo copy and verified, not assumed: absolute paths and every climb are still refused.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

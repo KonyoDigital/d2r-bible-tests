@@ -38938,6 +38938,42 @@ window.renderRoutingLedger = function(){
     /* v2137 — the only one of six to-sum headers with no expand cue, so the ledger read as a
        dead banner while it is a <details> he can open. Same chevron as its five siblings. */
     + '<span class="to-rule"></span><span class="to-chev">\u25be</span></summary><div style="margin-top:8px">'];
+  /* ⚠⚠ v2821 (#45) — "CLICK A BANKED NAME, SEE THE ACTUAL FRAME FULL-SCREEN." That is the ticket,
+     verbatim, and until now the NAME was inert text. The only way to the proof was a 15px 🖼 icon
+     beside it that opened the raw JPEG in a new browser tab, and only when the page was served
+     from the console (:17772/:17771) — off-console it rendered dimmed and did nothing at all.
+
+     Meanwhile a real full-screen lightbox has existed in this same file since v741
+     (`#tvd-frame-lb` / `window._tvdOpenFrame`), built for "the last frame the AI read" in Session
+     History, and NOTHING in the ledger ever called it. Both halves shipped; they never met.
+     [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+     ⚠ AND IT IS CLICKABLE OFF-CONSOLE TOO, deliberately. _tvdOpenFrame carries its own honest
+     fallback chain — bridge, then the archived file, then a plain "missing" message — so a name
+     whose proof retention has already deleted SAYS SO in the lightbox. That is worth far more than
+     a dimmed icon that silently does nothing: measured 2026-09-09, 739 of 10,318 cited frames no
+     longer resolve to a file, and a reader deserves to be told which. [[unknown-stays-unknown]] */
+  function _bankedName(r){
+    var nm = esc(r.name || '?');
+    if (!r.frameId) return '<b>' + nm + '</b>';
+    /* ⚠ A LOCAL ESCAPER, BECAUSE `jsq` IS NOT IN THIS SCOPE. The first cut called jsq() — the
+       forge IIFE's helper — and it is not defined anywhere before this function. That is a
+       ReferenceError thrown while BUILDING the row, which would have taken the whole routing
+       ledger down, not just this one link. Caught by asking where the name was bound rather than
+       assuming a helper I had used elsewhere was global. `esc` genuinely is in scope here; jsq
+       never was. [[the-unjoined-end]] */
+    var _q = function(x){
+      return String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    };
+    var call = "window._tvdOpenFrame && window._tvdOpenFrame('" + _q(r.frameId)
+             + "', {title: '" + _q(r.name || '?') + "'})";
+    return '<b class="rl-proof" role="button" tabindex="0" style="cursor:zoom-in"'
+         + ' title="see the frame this name was read from"'
+         + ' onclick="' + esc(call) + '"'
+         + ' onkeydown="if(event.key===&quot;Enter&quot;){event.preventDefault();this.click();}"'
+         + '>' + nm + '</b>';
+  }
+
   sorted.forEach(function(r){
     var p = PILL[r.status] || [String(r.status || 'read'), 'var(--text-dim,#8a7d64)'];
     var tgt = r.target ? (' \u2192 <b>' + esc(r.target) + '</b>') : (r.store ? (' \u2192 ' + esc(r.store)) : '');
@@ -38959,7 +38995,7 @@ window.renderRoutingLedger = function(){
     H.push('<div style="display:flex;gap:8px;align-items:baseline;padding:3px 0;'
       + 'border-top:1px solid rgba(255,255,255,.05)">'
       + '<span style="flex:0 0 auto;color:' + p[1] + '">' + esc(p[0]) + '</span>'
-      + '<span style="flex:1 1 auto;min-width:0"><b>' + esc(r.name || '?') + '</b>' + tgt + frame + crop
+      + '<span style="flex:1 1 auto;min-width:0">' + _bankedName(r) + tgt + frame + crop
       + (r.why ? ('<span style="display:block;opacity:.7">' + esc(r.why) + '</span>') : '')
       + '</span>'
       + '<span style="flex:0 0 auto;opacity:.55">' + esc(when(r.lastTs || r.firstTs)) + '</span>'
@@ -49889,7 +49925,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2820', name:'v2820 - the deriver named the wrong file, and my own data had said so', date:'2026-09-09', note:'REG-762 a cross-family review of v2818 found two defects in heart2_candidates, both reproduced. target_files was never tied to the assertion container and the loop took the FIRST file holding the literal once - measured, 40 of 40 anchors in test_control resolve in more than one named file, and stop_agent chose tv_diablo with 1 occurrence over control_app with 31, which is exactly the BLIND verdict test_agent returned in the v2818 batch. The review explained my measured failure rate rather than predicting it. The n>1 rejection also did not break, so an ambiguous anchor could still yield a proof for the wrong file. Now an anchor is accepted only when exactly one named file holds it exactly once. And the fix exposed a third the review missed: test_agent began proposing tampers against its own fixture strings, which would pass prove while proving nothing - a gate may not be its own subject.' };
+  window.D2R_BUILD = { id:'v2821', name:'v2821 - the proof is one click, and 23 percent of the suite can prove itself again', date:'2026-09-09', note:'REG-763 the banked name was inert text - the only route to the proof was a small icon opening a raw JPEG in a new tab, and only on the console. A real full-screen lightbox has existed in the same file since v741 and the ledger never called it; both halves shipped and never met. It is clickable off-console too because the lightbox has its own bridge-archive-missing chain and 739 of 10318 cited frames no longer resolve. The first cut called jsq, which is not in that scope - a ReferenceError while BUILDING the row would have taken down the whole ledger. REG-764 every bible-reading law reported UNPROVABLE for two path defects: safe_copy copies tv only while bible.html is in the repo root, and the tamper resolver joined against tv. Measured 59 of 259 gates read bible.html - 23 percent of the suite could not prove itself, and none of those proofs were wrong. Containment was widened to the repo copy and verified, not assumed: absolute paths and every climb are still refused.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -194,6 +194,24 @@ def make_sandbox(say=print):
             "proven. That is UNKNOWN, not clean." % rc)
         shutil.rmtree(root, ignore_errors=True)
         return None, None
+    # ⚠⚠ v2821 — SAFE_COPY COPIES `tv/` ONLY, AND 59 OF 259 GATES READ `bible.html`.
+    # That file lives in the repo ROOT, so every law about the bible came back UNPROVABLE with
+    # "bible.html is not in the sandbox" — 23% of the suite structurally unable to prove itself,
+    # for want of one 6.1 MB file. Measured, not estimated: 59 gates name it.
+    #
+    # ⚠ ONE FILE, BY NAME. NEVER `cp -R` of the repo or of tv/ — tv/ holds ~5.8 GB of footage and
+    # copying it caused an ENOSPC once already. safe_copy exists precisely to avoid that, and this
+    # adds a single named file beside its output rather than widening what it copies.
+    for _root_file in ("bible.html",):
+        _srcf = os.path.join(REPO, _root_file)
+        if os.path.isfile(_srcf):
+            try:
+                shutil.copy2(_srcf, os.path.join(dest, _root_file))
+            except Exception as _e:
+                # not fatal: the bible-reading gates will simply report UNPROVABLE as before,
+                # which is the honest outcome. It must never silently look like a pass.
+                say("  could not place %s in the sandbox (%s) — gates that read it stay UNPROVABLE"
+                    % (_root_file, type(_e).__name__))
     tv = os.path.join(dest, "tv")
     if not os.path.isfile(os.path.join(tv, "control_app.py")):
         say("  the sandbox is missing control_app.py — refusing to report verdicts about it")
@@ -292,7 +310,22 @@ def _write_state(results):
 
 def _prove_one(sandbox, name, filename, pr, idx, say):
     tgt_rel = str(pr.get("file") or "")
+    # ⚠⚠ v2821 — RESOLVE AGAINST tv/ FIRST, THEN THE REPO COPY'S ROOT.
+    # `sandbox` is the copied tv/ directory, so a proof naming "bible.html" resolved to
+    # <sandbox>/tv/bible.html and came back UNPROVABLE — while the file sits one level up at the
+    # repo root. MEASURED: 59 of 259 gates read bible.html, so 23% of the suite could never prove
+    # itself for want of a path.
+    #
+    # ⚠ THE CONTAINMENT CHECK IS WIDENED TO THE REPO COPY, NOT WEAKENED. It still refuses anything
+    # resolving outside the throwaway copy — an absolute path, or ../.. climbing to the real tree.
+    # tv/ is inside the repo copy, so every previously-legal target stays legal and nothing new is
+    # reachable except files the copy itself contains.
+    _repo_copy = os.path.dirname(os.path.abspath(sandbox))
     tgt = os.path.join(sandbox, tgt_rel)
+    if tgt_rel and not os.path.exists(tgt):
+        _alt = os.path.join(_repo_copy, tgt_rel)
+        if os.path.exists(_alt):
+            tgt = _alt
     # ⚠⚠⚠ THE SANDBOX WAS A CLAIM, NOT A FACT. os.path.join DISCARDS its prefix when the second
     # argument is absolute, and normalises `..` straight out of the tree:
     #     join(sandbox, "control_app.py")           -> <sandbox>/control_app.py
@@ -306,7 +339,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     # enforced it. Found by a cross-family review of the shipped bytes.
     # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
     try:
-        _root = os.path.realpath(sandbox)
+        _root = os.path.realpath(_repo_copy)
         _real = os.path.realpath(tgt)
         _contained = (os.path.commonpath([_root, _real]) == _root)
     except Exception:

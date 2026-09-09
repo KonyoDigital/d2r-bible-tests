@@ -898,6 +898,22 @@ GATES = [
              "defects found.' was recorded as verdict=findings — the ledger reporting the "
              "opposite of what the other family concluded.",
          skip_ok=()),
+    Gate("test_a_banked_name_opens_its_proof",
+         [sys.executable,
+          os.path.join(HERE, "test_a_banked_name_opens_its_proof.py")], 90,
+         why="The ticket verbatim: click a banked name, see the actual frame full-screen. The NAME "
+             "was inert text; the only route to the proof was a 15px icon opening a raw JPEG in a "
+             "new tab, and only when served from the console — off-console it rendered dimmed and "
+             "did nothing. Meanwhile a real full-screen lightbox has existed in the same file "
+             "since v741 (#tvd-frame-lb / _tvdOpenFrame) and the routing ledger never called it: "
+             "both halves shipped, never met. It is clickable off-console too, deliberately, "
+             "because _tvdOpenFrame carries its own bridge/archive/missing chain and 739 of "
+             "10,318 cited frames no longer resolve — a reader is better served by a lightbox "
+             "that SAYS the proof is gone than a dimmed icon that silently does nothing. ⚠ The "
+             "first cut called jsq(), the forge IIFE's escaper, which is not in this scope: a "
+             "ReferenceError thrown while BUILDING the row would have taken the whole ledger "
+             "down, so one law pins that the escaper it uses is actually in scope.",
+         skip_ok=()),
     Gate("test_each_flow_strip_names_its_own_engine",
          [sys.executable,
           os.path.join(HERE, "test_each_flow_strip_names_its_own_engine.py")], 90,
