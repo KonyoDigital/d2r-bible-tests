@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2833",
+  "ver": "v2834",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2833: REG-793 — a for target, a comprehension target, with-as, except-as and import-as each silently rebound a tracked name and each returned True while the payload called something else. Five instances, one defect: the helper now enumerates every binding form the language has and refuses on any that touches a tracked name",
+  "note": "v2834: REG-794 — 21 derived candidates in, 12 survived across 6 gates; the six whose proofs went BLIND, INVALID or UNPROVABLE had their blocks removed rather than kept. All five UNPROVABLE gates were checked on the real tree first and are green there",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

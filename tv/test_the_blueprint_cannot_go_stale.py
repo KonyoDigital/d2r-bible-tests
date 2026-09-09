@@ -151,5 +151,6 @@ class TheBlueprintCannotGoStaleSilently(unittest.TestCase):
                       "not read would be drawn as a river with nothing in it")
 
 
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

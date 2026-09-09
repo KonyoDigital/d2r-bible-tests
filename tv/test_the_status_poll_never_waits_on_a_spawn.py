@@ -176,5 +176,6 @@ class TheStatusPollNeverWaitsOnASpawn(unittest.TestCase):
                            "useful either way" % widest)
 
 
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

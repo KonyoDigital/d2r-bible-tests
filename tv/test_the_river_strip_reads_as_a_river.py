@@ -272,5 +272,27 @@ class RiverStripLaws(unittest.TestCase):
             "was tried and refuted on pixels — see L5 in this file's docstring" % (len(bad), bad))
 
 
+
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
+# PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
+# measured against the target file (each anchor occurs exactly once). Review it: the
+# question is whether deleting this text is the defect the law exists to catch.
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": 'class="shr-lbl"',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": 'class="shr-n"><u>',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

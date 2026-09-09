@@ -309,5 +309,6 @@ class TheShelfShowsTheFourLanes(unittest.TestCase):
                          "KNOWN_DUPES with the measurement showing the scopes are separate." % new)
 
 
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -26472,3 +26472,31 @@ absent producer answer False; a nested helper's dict REFUSES.
 ⚠ The reviewer's checks (c), (d) and (e) came back clean and I did not manufacture work from them:
 no legitimate payload construct is wrongly excluded by the nested-scope rule, discarding the
 producer's own name opens no gap, and every exit is a bool or an AssertionError.
+
+## REG-794 — #52 second batch: six more gates can prove they still bite
+**#52 · v2834 · 2026-09-09**
+
+Twenty-one candidate proofs went in across 12 gates; **12 survived across 6 gates.**
+
+    PROVEN      12   engine_room_lives_on_tvd (2) · river_strip_reads_as_a_river (2) ·
+                     shelf_lands_on_the_river (2) · console_notices_its_own_runaway (2) ·
+                     rescue_has_a_top_rung (1) · vault_proposal_is_watched (3)
+    BLIND        2   panel_prints_what_the_row_measured · eye_says_which_family_looked
+    INVALID      2   the tamper would not parse
+    UNPROVABLE   5   already RED untampered in the sandbox
+
+★ **The six gates whose proofs did not survive had their blocks REMOVED**, and one kept only 2 of 3.
+Same rule as REG-787: a proof that stays green through its own defeat is counted as coverage.
+
+⚠ **The five UNPROVABLE ones were checked on the real tree before being dismissed**, not assumed to
+be sandbox noise: `test_the_river_has_a_driver` **OK**, `test_the_shelf_shows_the_four_lanes` **OK**,
+`test_the_blueprint_cannot_go_stale` reports *"BLUEPRINT.md is current."* All three read stores or a
+generated file the sandbox does not carry. heart2's refusal is right — a gate that is already red
+cannot demonstrate anything by being tampered.
+
+Census after both batches, MEASURED not derived: **36 of 264 (13.6%)**, up from 4.7% at the
+start of the session. ⚠ I first wrote 42/15.9% here by adding 30 + 12 — but the census counts
+GATES that hold a proven proof, and these 12 proofs live in 6 gates. A number reached by
+arithmetic over the wrong unit is exactly the class of defect this task exists to catch, and
+it was caught by reading the census instead of trusting the sum. [[feedback-suspect-the-instrument]]
+All twelve touched gates verified still green untampered.
