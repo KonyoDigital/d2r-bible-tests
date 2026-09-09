@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2860** | `(this commit)` | v2860 — a cross-family review found the swallow inside the measure of the heart |
 | **v2859** | `(this commit)` | v2859 — the render verdict was durable nowhere so nothing could supervise it |
 | **v2858** | `(this commit)` | v2858 — one number was hiding a 93 to 7 split |
 | **v2857** | `(this commit)` | v2857 — hand-written proofs that restore real historical defects |

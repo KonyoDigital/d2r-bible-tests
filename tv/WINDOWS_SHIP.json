@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2859",
+  "ver": "v2860",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2859: the render verdict was durable nowhere so nothing could supervise it",
+  "note": "v2860: a cross-family review found the swallow inside the measure of the heart",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

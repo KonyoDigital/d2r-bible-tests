@@ -63,6 +63,14 @@ RED_PROOF = [
         "replace": '        if "render_check" in src or "playwright" in src:',
         "matches": 1,
     },
+    {
+        "why": "putting the bare `continue` back makes an unreadable gate vanish into the BACKEND "
+               "count — the swallow a cross-family review found in v2858",
+        "file": "heart2.py",
+        "find": "            _unk.append(n)                # UNPARSEABLE is not \"backend\" either\n            continue",
+        "replace": "            continue",
+        "matches": 1,
+    },
 ]
 
 
@@ -126,6 +134,28 @@ class TheCensusSaysHowMuchOfItIsPixels(unittest.TestCase):
             "18-vs-10 miscount — a comment naming the harness counts as a gate that looks at "
             "pixels. The decision has to read the parsed imports." % bad)
 
+
+    def test_an_UNREADABLE_gate_is_not_silently_BACKEND(self):
+        """★★ v2860 — a cross-family review found this one. Both the unreadable case and the
+        SyntaxError case did a bare `continue`, so a gate that really imports render_check but was
+        momentarily unparseable left the pixel set and landed in the BACKEND count. An inflated
+        backend share, and a later 100% quietly covering a visual gate nobody classified.
+        [[unknown-stays-unknown]]"""
+        import tempfile
+        d = tempfile.mkdtemp(prefix="unclassifiable.")
+        p = os.path.join(d, "test_broken_gate.py")
+        io.open(p, "w", encoding="utf-8").write("import render_check\ndef (:  # not python\n")
+        try:
+            unk = []
+            px = H.pixel_gates([("test_broken_gate", p)], unk)
+        finally:
+            os.unlink(p); os.rmdir(d)
+        self.assertEqual(set(), px, "an unparseable file was classified as a pixel gate")
+        self.assertEqual(
+            ["test_broken_gate"], unk,
+            "a gate that could not be parsed was SWALLOWED — it left the pixel set silently and "
+            "would be counted as backend, which is a failed read handed back as data inside the "
+            "thing that measures the heart: %r" % unk)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

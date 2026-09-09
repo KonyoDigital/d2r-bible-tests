@@ -27627,3 +27627,27 @@ the hole in the law, and a gate nobody sabotages is a gate nobody has read.
 STILL UNJOINED: self_arming.py / hover_wilson.py hold ZERO references to heart2, so the Wilson lock
 does not derive from the heart. That is the last of the three pieces.
 
+## REG-829 — pixel_gates swallowed the gates it could not read
+
+A cross-family review of v2858 (grok, cold) found it, and it is the swallow ratchet's own defect
+class sitting inside the thing that measures the heart.
+
+pixel_gates() did a bare `continue` on BOTH an unreadable file and a SyntaxError. A gate that really
+does import render_check but is momentarily unreadable — permissions, a half-written checkout, a
+syntax error the day the census runs — left the pixel set silently and landed in the BACKEND count.
+The owner reads an inflated backend share, and a later 100% quietly covers a visual gate nobody
+classified. A failed read handed back as data. [[unknown-stays-unknown]]
+
+FIXED: pixel_gates(gates, unclassified) collects what it cannot classify; _write_state writes
+`pixelUnclassified` and SUBTRACTS it from backendTotal, so those gates are UNKNOWN, not backend.
+MEASURED after: 10 pixel, 0 unclassified.
+GATE: test_an_UNREADABLE_gate_is_not_silently_BACKEND, red-proved by restoring the bare continue.
+
+SECOND FINDING RECORDED RATHER THAN FIXED, and the reason matters. The same review noted the
+classifier reads only top-level Import/ImportFrom, so it misses importlib, __import__, exec/compile
+and any gate reaching the renderer through a helper — meaning pixelTotal is too SMALL and the visual
+share looks BETTER than it is. Widening it is guesswork that could over-count as easily as under-,
+so the docstring now states plainly that pixelTotal is a FLOOR: at best this good, possibly worse,
+never better. The bias flatters the exact answer this number exists to give, which is why it is
+written down instead of left implicit. [[unknown-stays-unknown]]
+

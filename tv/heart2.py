@@ -143,30 +143,44 @@ def surface_verdict(path=None):
             "renderFailures": int(v.get("renderFailures") or 0)}
 
 
-def pixel_gates(gates=None):
+def pixel_gates(gates=None, unclassified=None):
     """The gates that actually LOOK AT PIXELS, by their IMPORTS. -> set[str]
 
-    ⚠⚠ v2858 — ONE NUMBER WAS HIDING A 93/7 SPLIT. Konyo asked the right question: "when we hit
-    100% on heart 2.0 its also a VISUAL PASS right? like its not just backend". MEASURED on the
-    live registry the moment he asked: 269 gates, and only TEN import render_check or playwright.
-    So a census reading "132 of 269" is overwhelmingly code proving code, and at 100% it would
-    still be ~96% backend — a number that would read as whole-system and mean almost nothing about
-    what he actually sees. The count was true and the LABEL was doing the lying.
-    [[label-outlived-referent]] [[zero-needs-a-denominator]]
+    v2858 — ONE NUMBER WAS HIDING A 93/7 SPLIT. Konyo: "when we hit 100% on heart 2.0 its also a
+    VISUAL PASS right? like its not just backend". MEASURED the moment he asked: 269 gates, only TEN
+    import render_check or playwright, so 100% on the single number would be ~96% backend — true as
+    a count and a lie as a label. [[label-outlived-referent]]
 
-    ⚠ IMPORTS, NOT A TEXT SCAN. My first cut of this number grepped the source for 'render_check',
-    'playwright', '.render_shots' and friends, and answered 18 — because prose and comments
-    mentioning the harness counted as looking at pixels. Parsing the imports answers 10, and 3 more
-    only NAME the machinery. A classifier for a number he reads has to parse. [[source-reading-guard]]
+    ⚠ IMPORTS, NOT A TEXT SCAN. The first cut grepped for 'render_check' / 'playwright' /
+    '.render_shots' and answered 18, because prose and comments naming the harness counted as
+    looking at pixels. Parsing answers 10. [[source-reading-guard]]
+
+    ⚠⚠ v2860 — IT SWALLOWED THE GATES IT COULD NOT READ, and a cross-family review caught it. Both
+    the unreadable case and the SyntaxError case did a bare `continue`, so a gate that really does
+    import render_check but was momentarily unreadable — permissions, a half-written checkout, a
+    syntax error the day the census ran — silently left the pixel set and landed in the BACKEND
+    count. The owner would read an inflated backend share, and a later "100%" would quietly include
+    a visual gate nobody classified. A failed read handed back as data, inside the thing that
+    measures the heart. `unclassified` collects those names so the census can SAY so.
+    [[unknown-stays-unknown]]
+
+    ⚠ AND IT UNDER-COUNTS, IN THE DANGEROUS DIRECTION. Same review: top-level Import/ImportFrom
+    names miss importlib, __import__, exec/compile, and any gate that reaches the renderer through
+    a helper instead of importing it. So pixelTotal is a FLOOR — the visual share is at best this
+    good and possibly worse, never better. Recorded because this number answers "is 100% also a
+    visual pass", and a bias that flatters that answer is the one bias that must not go unsaid.
     """
     out = set()
+    _unk = unclassified if unclassified is not None else []
     for n, f in (gates if gates is not None else gate_files()):
         src = _read_text(f)
         if src is None:
+            _unk.append(n)                # UNREADABLE is not "backend"
             continue
         try:
             tree = ast.parse(src)
         except SyntaxError:
+            _unk.append(n)                # UNPARSEABLE is not "backend" either
             continue
         mods = set()
         for x in ast.walk(tree):
@@ -415,7 +429,8 @@ def _write_state(results):
         else:
             _proved.discard(_n)          # BLIND/INVALID/UNPROVABLE revokes a standing proof
     _proved &= _known                    # a gate that no longer exists is not proven
-    _pixel = pixel_gates(gates)          # v2858 — the visual share, by imports not by grep
+    _pixel_unk = []
+    _pixel = pixel_gates(gates, _pixel_unk)   # v2858 — by imports, not by grep
     # ⚠⚠ v2847 — EVERY VERDICT CARRIES ITS OWN AGE, BECAUSE ONE `ranAt` FOR THE WHOLE FILE IS A
     # DATE ON THE FETCH AND NOT ON THE THING. The merge above deliberately keeps a prior blind
     # entry the current run did not re-test — correct, and until now indistinguishable from one
@@ -439,7 +454,8 @@ def _write_state(results):
         # v2858 — THE SPLIT, because one number hid a 93/7 one. See pixel_gates().
         "pixelTotal": len(_pixel),
         "pixelProved": len(_proved & _pixel),
-        "backendTotal": len(gates) - len(_pixel),
+        "pixelUnclassified": sorted(_pixel_unk),   # v2860 — NOT silently counted as backend
+        "backendTotal": len(gates) - len(_pixel) - len(_pixel_unk),
         "backendProved": len(_proved - _pixel),
         "surfaces": surface_verdict(),   # v2859 — the PIXEL side, from the render run itself
         "declared": len(have),
