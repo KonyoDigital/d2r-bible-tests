@@ -24896,18 +24896,30 @@ def fleet_presence(force=False):
         # a real answer — remember it as the last good one
         _FLEET_PRESENCE_CACHE["goodT"] = now
         _FLEET_PRESENCE_CACHE["goodD"] = out
-    elif _FLEET_PRESENCE_CACHE.get("goodD") is not None:
-        # ⚠ THE FETCH FAILED AND WE STILL KNOW WHO WAS THERE. Serve it, and say how old it is —
-        # a stale roster is a different fact from an unreachable fleet, and only one of them is
-        # a reason to refuse. The age travels WITH the data so no caller can mistake it for live.
-        _stale = dict(_FLEET_PRESENCE_CACHE["goodD"])
-        _stale["stale"] = True
-        _stale["staleAgeS"] = round(max(0.0, now - float(_FLEET_PRESENCE_CACHE["goodT"] or 0.0)), 1)
-        _stale["staleWhy"] = str(out.get("error") or "the fleet did not answer")[:120]
-        out = _stale
+    # ⚠⚠ v2815 — THE FAILURE PAYLOAD IS LEFT EXACTLY AS IT WAS, AND A GATE TAUGHT ME THAT.
+    # v2814 folded the last-good roster INTO the error payload, which flipped `ok` to True and
+    # filled `online` — and test_fleet_presence_is_honest_when_it_cannot_reach_the_site went red,
+    # correctly: its law is "offline must read as UNREACHABLE, never as an empty fleet — an empty
+    # list would say 'no machine is online', which is a claim this function did not make." Making
+    # the error payload carry data breaks that law from the other side: it would say machines ARE
+    # online when the console has not reached anyone.
+    # So `ok` keeps meaning THE FETCH, and a consumer that wants the last known roster asks for it
+    # by name and takes the age with it. Two questions, two answers. [[unknown-stays-unknown]]
     _FLEET_PRESENCE_CACHE["t"] = now
     _FLEET_PRESENCE_CACHE["d"] = out
     return out
+
+
+def fleet_presence_last_good():
+    """The last roster this console actually received, and how old it is. -> (payload|None, ageS)
+
+    Separate from fleet_presence() on purpose. `ok` there answers "did the fetch work"; this
+    answers "who did we last see, and when". Conflating them is what broke the honesty law above.
+    """
+    d = _FLEET_PRESENCE_CACHE.get("goodD")
+    if d is None:
+        return None, None
+    return d, round(max(0.0, time.time() - float(_FLEET_PRESENCE_CACHE.get("goodT") or 0.0)), 1)
 
 
 def _fleet_show_total(ledger):
@@ -24986,7 +24998,12 @@ def fleet_compare(machine, ledger="sets"):
     # the cache. He clicked cross-reference on a board showing Dean's 130/135 and got "the fleet
     # is unreachable". Now it proceeds on the last good roster and the answer CARRIES ITS AGE;
     # only a fleet nobody has ever reached is a refusal. [[stale-reading]]
-    _fleet_stale = bool(isinstance(fleet, dict) and fleet.get("stale"))
+    _fleet_stale, _fleet_age = False, None
+    if isinstance(fleet, dict) and fleet.get("ok") is False:
+        # the fetch failed — ask for the last roster we really did receive, and carry its age
+        _lg, _age = fleet_presence_last_good()
+        if _lg is not None:
+            fleet, _fleet_stale, _fleet_age = _lg, True, _age
     if not isinstance(fleet, dict) or (fleet.get("ok") is False and not _fleet_stale):
         return {"ok": False, "why": "the fleet is unreachable — %s"
                                     % str((fleet or {}).get("error") or "no answer")[:80]}
@@ -25034,8 +25051,9 @@ def fleet_compare(machine, ledger="sets"):
     out["theirAt"] = them.get("t") or them.get("ts") or None
     # the roster's own age, so the box can say "as of 21h ago" instead of implying live
     out["fleetStale"] = _fleet_stale
-    out["fleetStaleAgeS"] = fleet.get("staleAgeS") if _fleet_stale else None
-    out["fleetStaleWhy"] = fleet.get("staleWhy") if _fleet_stale else None
+    out["fleetStaleAgeS"] = _fleet_age if _fleet_stale else None
+    out["fleetStaleWhy"] = ("the fleet did not answer just now; this is the last roster this "
+                            "console received") if _fleet_stale else None
     # v2329 — THE AGE COMES FROM THIS LEDGER'S SLOT. _MASK_CACHE went from one flat dict to one
     # slot per ledger, and this reader was missed: `_MASK_CACHE["t"]` raised KeyError inside the
     # route, which returned an EMPTY BODY, which the panel rendered as "the console did not
@@ -25478,7 +25496,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2815",
+        "ver": "v2816",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -25600,3 +25600,36 @@ _post expects, and what my first cut broke eight of."* Calling checks bare is de
 guards depend on it. So the **priming** became a shared `tick_caches()` context that run() and the
 timing gate both use, and the eight are untouched. [[gate-blind-to-unexercised-input]]
 
+## REG-758 — three corrections the gates forced on my own #45/#50 fixes, in one push
+
+v2814-v2815 was REFUSED with 5 failures, all mine, and each one was the gate being right.
+
+**1. I put `holds-proof` FIRST in a chain whose own comment warns against exactly that.**
+`plan()`'s rule chain says: *"Every reason below is a REASON NOT TO DELETE, and they are checked in
+order, so an earlier one hides every later one."* I inserted the new rule at the top, which hid
+`test-fixture`, the unreadable-ledger branch and the prune-cycle cases — making three of them
+structurally unreachable. Four gates went red naming precisely that.
+★ It belongs as the LAST hold before a reel can become eligible: every more SPECIFIC reason still
+reports first (a fixture is a fixture, recent is recent), and this only catches reels that would
+otherwise have been deleted.
+
+**2. An ABSENT evidence store is not an UNKNOWN one.** My fail-closed default returned CANNOT TELL
+when `chron_evidence.json` did not exist — which HOLDS every reel. In an isolated fixture world,
+which has no chronicle at all, that held everything and made the prune untestable. A world with no
+chronicle has no CLAIMS, so it has no receipts to protect: that is an **empty** answer.
+CANNOT TELL is now reserved for a store that EXISTS and will not parse — the case where something
+may be cited and we cannot see it. [[zero-needs-a-denominator]]
+
+**3. I broke a working honesty law by folding data into an error payload.** v2814 served the
+last-good roster INSIDE `fleet_presence()`'s failure return, flipping `ok` to True and filling
+`online`. `test_fleet_presence_is_honest_when_it_cannot_reach_the_site` went red, correctly: its
+law is *"offline must read as UNREACHABLE, never as an empty fleet — an empty list would say 'no
+machine is online', which is a claim this function did not make."* My change broke it from the
+other side — it would claim machines ARE online when the console had reached nobody.
+★ `ok` keeps meaning THE FETCH. A consumer that wants the last known roster now calls
+`fleet_presence_last_good()` by name and takes the age with it. Two questions, two answers.
+
+⚠ The pattern across all three: **a fix that is right in isolation can be wrong in the position it
+is placed.** None was a logic error — each was correct code inserted where it changed something
+else's meaning. Only the existing gates could see that, and all three were found in one run.
+

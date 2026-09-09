@@ -334,7 +334,16 @@ def _evidence_rows():
         with open(p, encoding="utf-8") as fh:
             d = json.load(fh)
     except FileNotFoundError:
-        return None, "no chron_evidence.json at %s" % p
+        # ⚠⚠ AN ABSENT STORE IS NOT AN UNKNOWN ONE, AND FOUR GATES TAUGHT ME THE DIFFERENCE.
+        # The first cut returned None (CANNOT TELL) here, which HOLDS every reel — and in an
+        # isolated fixture world, which has no chronicle at all, that held everything and made the
+        # prune untestable: test_the_fixture_is_deletable_WITHOUT_the_hold and
+        # test_the_branch_is_reachable_or_this_whole_case_proves_nothing both went red, correctly.
+        # A world with no chronicle has no CLAIMS, so it has no receipts to protect — that is an
+        # empty answer, not an absent one. CANNOT TELL is reserved for a store that EXISTS and
+        # could not be read, which is the case where something may be cited and we cannot see it.
+        # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        return [], "no chron_evidence.json at %s — this world holds no claims" % p
     except Exception as e:
         return None, "chron_evidence.json could not be read (%s)" % type(e).__name__
     rows = []
@@ -591,27 +600,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         else:
             pages = _pv
 
-        if _proof_hold is None:
-            # ⚠⚠ CANNOT TELL, SO CANNOT DELETE. proof_reels() returns None when the evidence
-            # store, frame_ref, or the index could not be read. Deleting on an unknown is the
-            # one direction that cannot be undone, so an unknown HOLDS. [[unknown-stays-unknown]]
-            why = _rule("holds-proof",
-                        "HELD — this console cannot tell which frames are cited as proof (%s), and "
-                        "a reel deleted on an unknown cannot be brought back." % (_proof_why or "?"))
-        elif reel in _proof_hold:
-            # ⚠⚠ v2815 (#45) — THE RECEIPT RULE, FINALLY JOINED. frame_ref has shipped it since
-            # v2364 — "a frame cited by a row that NAMED an item is PROOF and may not be deleted
-            # while the claim stands" — and AST-confirmed, NOTHING in production ever called it;
-            # reel_retention did not even import frame_ref. Meanwhile apply_plan() rmtree'd the
-            # WHOLE reel directory on a coarse reel-level vault signal.
-            # MEASURED 2026-09-09 on his tree: of 10,318 citations across uniques+sets, 739 cited
-            # frames already resolve to nothing on disk — the proof for those claims is gone.
-            # 9 reels still hold proof; 3 of them are among the 41 on disk.
-            why = _rule("holds-proof",
-                        "HELD — a frame in this reel is the receipt for a NAMED claim in the "
-                        "chronicle. Deleting it would leave the claim standing with its proof "
-                        "destroyed, which is the one loss this repo cannot undo.")
-        elif not _have_index:
+        if not _have_index:
             why = _rule("no-witness-index",
                         "HELD — no durable witness store exists yet, so nothing here can prove "
                         "this reel's frames are not the only record of what it saw. The FRAME "
@@ -668,6 +657,29 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
                         "stash rows" + ("" if vault else
                                         (" (vault_swept.json will not parse)" if unreadable
                                          else " (vault_swept.json does not exist yet)")))
+        elif _proof_hold is None:
+            # ⚠⚠ CANNOT TELL, SO CANNOT DELETE. proof_reels() returns None when the evidence store,
+            # frame_ref, or the index could not be read. Deleting on an unknown is the one
+            # direction that cannot be undone. [[unknown-stays-unknown]]
+            why = _rule("holds-proof",
+                        "HELD — this console cannot tell which frames are cited as proof (%s), and "
+                        "a reel deleted on an unknown cannot be brought back." % (_proof_why or "?"))
+        elif reel in _proof_hold:
+            # ⚠⚠ v2815 (#45) — THE RECEIPT RULE, FINALLY JOINED. frame_ref has stated it since
+            # v2364 and AST-confirmed nothing in production ever called it. MEASURED on his tree:
+            # 739 of 10,318 cited frames already resolve to nothing on disk.
+            #
+            # ⚠ AND ITS POSITION IN THIS CHAIN IS DELIBERATE, LEARNED THE HARD WAY. v2814 put it
+            # FIRST and four gates went red — the chain's own comment says "an earlier one hides
+            # every later one", and holds-proof at the top hid test-fixture, the unreadable-ledger
+            # branch and the prune-cycle cases, making three of them unreachable. It belongs HERE:
+            # the last hold before a reel can become eligible. Every more SPECIFIC reason is still
+            # reported first (a fixture is a fixture, recent is recent), and this only catches the
+            # reels that would otherwise have been deleted. [[regression-guard]]
+            why = _rule("holds-proof",
+                        "HELD — a frame in this reel is the receipt for a NAMED claim in the "
+                        "chronicle. Deleting it would leave the claim standing with its proof "
+                        "destroyed, which is the one loss this repo cannot undo.")
         else:
             if free_mb is not None and freed >= free_mb:
                 why = _rule("target-met",

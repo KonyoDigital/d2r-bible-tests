@@ -121,11 +121,23 @@ class TestTheDeleterWillNotDestroyAReceipt(unittest.TestCase):
         cited, delete freely"; None means "I could not find out". Conflating them is the whole
         defect. [[unknown-stays-unknown]]
         """
-        os.environ["TV_HIST"] = os.path.join(self.root, "no-such-world")
+        # ⚠ THE STORE MUST EXIST AND BE UNREADABLE. An ABSENT store is a world with no claims —
+        # an empty answer, not an unknown one — and treating it as unknown held every reel in an
+        # isolated fixture and made the prune untestable (four gates said so). The genuine unknown
+        # is a chronicle that IS there and will not parse: something may be cited and we cannot see
+        # it. That is the case this law is about.
+        os.environ["TV_HIST"] = self.root
         try:
-            held, why = RR.proof_reels(os.path.join(self.root, "does-not-exist"))
+            with io.open(os.path.join(self.root, "chron_evidence.json"), "w",
+                         encoding="utf-8") as fh:
+                fh.write("{not json at all")
+            held, why = RR.proof_reels(self.hist)
         finally:
             os.environ.pop("TV_HIST", None)
+            try:
+                os.remove(os.path.join(self.root, "chron_evidence.json"))
+            except OSError:
+                pass
         self.assertIsNone(held,
                           "an unreadable world returned %r instead of None — an empty set reads "
                           "as 'nothing is cited, delete freely'" % (held,))
