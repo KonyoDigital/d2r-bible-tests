@@ -26440,3 +26440,35 @@ answered False. It now checks both sides.
 Twelve cases verified: six shapes that genuinely reach the producer are True; rebound alias,
 shadowed producer, nested dict and dead `if False:` are False; nested helper, `**` spread, tuple
 unpack and `del` all REFUSE; a genuinely absent producer is False.
+
+## REG-793 — five more false GREENs, all one defect: every other way Python binds a name
+**#28 · v2833 · 2026-09-09 · test_control.py · found by the cross-family look at v2832**
+
+Five sources were given and **all five reproduced as false GREENs** — the helper returned True while
+the payload called something else entirely:
+
+    for drift_state in [other_fn]: ...     ->  True
+    z = [x for drift_state in seq]         ->  True
+    with open(f) as drift_state: ...       ->  True
+    except E as drift_state: ...           ->  True
+    import other as drift_state            ->  True
+
+Each silently rebinds a tracked name through a construct the helper never walked.
+
+★ **Patching five node types would have been a FIFTH round of the same game.** Three earlier
+reviews each found this helper modelling too little Python, and each fix modelled a little more.
+So this enumerates **every binding form the language has** — `AugAssign`, walrus, `for`/`async for`
+targets, comprehension targets, `with … as`, `except … as`, `import`/`from … import … as`, `del`,
+`global`/`nonlocal` — and refuses on any of them that touches a tracked name, instead of listing the
+ones somebody happened to think of.
+
+A binding it cannot follow is not a licence to guess: an extra refusal costs one sentence naming
+what to teach it; a false GREEN hides a regression. [[unknown-stays-unknown]]
+
+Twelve cases verified: six binding forms REFUSE; an unrelated `for` loop, `with`, and `import`
+sitting beside the payload still answer True; the alias chain answers True; a rebound alias and an
+absent producer answer False; a nested helper's dict REFUSES.
+
+⚠ The reviewer's checks (c), (d) and (e) came back clean and I did not manufacture work from them:
+no legitimate payload construct is wrongly excluded by the nested-scope rule, discarding the
+producer's own name opens no gap, and every exit is a bool or an AssertionError.

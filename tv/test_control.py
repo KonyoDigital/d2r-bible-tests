@@ -428,28 +428,57 @@ def _status_producer(case, src, name, key=None):
                               "model (line %d). It refuses rather than guess: teach it the shape "
                               "or assert the call directly." % (_touch, n.lineno))
 
-    # ── constructs that can rebind a tracked name and are NOT modelled ───────────────────────
+    # ── EVERY OTHER WAY PYTHON BINDS A NAME — and the class, not the instances ──────────────
+    # ⚠⚠ v2833 — THE FOURTH REVIEW FOUND FIVE MORE FALSE GREENS AND THEY WERE ALL ONE DEFECT.
+    # `for drift_state in [other]`, a comprehension target, `with ... as`, `except ... as`, and
+    # `import other as drift_state` each silently rebind a tracked name, and each returned True
+    # while the payload called something else. Patching five node types would have been a fifth
+    # round of the same game — three earlier reviews each found this helper modelling too little
+    # Python. So this enumerates EVERY binding form the language has and refuses on any of them
+    # that touches a tracked name, instead of listing the ones somebody happened to think of.
+    #
+    # A binding this cannot follow is not a licence to guess: an extra REFUSAL costs a sentence
+    # telling the next person what to teach it, and a false GREEN hides a regression.
+    # [[unknown-stays-unknown]]
+    def _bound_names(node):
+        """Every Name this construct BINDS. -> [(what, id, lineno)]"""
+        out = []
+        def _tnames(t, what):
+            for sub in _ast.walk(t):
+                if isinstance(sub, _ast.Name):
+                    out.append((what, sub.id, getattr(sub, "lineno", -1)))
+        if isinstance(node, _ast.AugAssign):
+            _tnames(node.target, "an augmented assignment")
+        elif hasattr(_ast, "NamedExpr") and isinstance(node, getattr(_ast, "NamedExpr")):
+            _tnames(node.target, "a walrus binding")
+        elif isinstance(node, (_ast.For, getattr(_ast, "AsyncFor", _ast.For))):
+            _tnames(node.target, "a for-loop target")
+        elif isinstance(node, _ast.comprehension):
+            _tnames(node.target, "a comprehension target")
+        elif isinstance(node, _ast.withitem) and node.optional_vars is not None:
+            _tnames(node.optional_vars, "a with ... as binding")
+        elif isinstance(node, _ast.ExceptHandler) and node.name:
+            out.append(("an except ... as binding", node.name, node.lineno))
+        elif isinstance(node, (_ast.Import, _ast.ImportFrom)):
+            for a in node.names:
+                out.append(("an import binding", a.asname or a.name.split(".")[0], node.lineno))
+        elif isinstance(node, _ast.Delete):
+            for t in node.targets:
+                _tnames(t, "a del")
+        elif isinstance(node, (_ast.Global, _ast.Nonlocal)):
+            for nm in node.names:
+                out.append(("a global/nonlocal declaration", nm, node.lineno))
+        return out
+
     for n in _ast.walk(fn):
         if id(n) in _nested:
             continue
-        _hit = None
-        if isinstance(n, _ast.AugAssign) and isinstance(n.target, _ast.Name):
-            _hit = ("an augmented assignment", n.target.id)
-        elif hasattr(_ast, "NamedExpr") and isinstance(n, getattr(_ast, "NamedExpr")) \
-                and isinstance(n.target, _ast.Name):
-            _hit = ("a walrus binding", n.target.id)
-        elif isinstance(n, _ast.Delete):
-            for t in n.targets:
-                if isinstance(t, _ast.Name) and t.id in aliases:
-                    _hit = ("a del", t.id)
-        elif isinstance(n, (_ast.Global, _ast.Nonlocal)):
-            for nm in n.names:
-                if nm in aliases:
-                    _hit = ("a global/nonlocal declaration", nm)
-        if _hit and _hit[1] in aliases:
-            case.fail("status_payload uses %s on %r, which this law does not model (line %d). It "
-                      "refuses rather than answer over a construct it cannot follow."
-                      % (_hit[0], _hit[1], getattr(n, "lineno", -1)))
+        for what, nm, lineno in _bound_names(n):
+            if nm in aliases:
+                case.fail("status_payload rebinds %r through %s (line %d), which this law does not "
+                          "model. It refuses rather than answer over a construct it cannot follow "
+                          "— an extra refusal is noise, a wrong green hides a regression."
+                          % (nm, what, lineno))
 
     def _reaches(node):
         for n in _ast.walk(node):

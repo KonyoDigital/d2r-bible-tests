@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2832",
+  "ver": "v2833",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2832: REG-792 — rebinding the producer own name was exempted from the alias discard, and a nested helper dict counted as the payload; both were false GREENs. Everything unmodelled now refuses with a reason instead of answering. Twelve cases verified, and two of the review directions were the opposite of what was measured",
+  "note": "v2833: REG-793 — a for target, a comprehension target, with-as, except-as and import-as each silently rebound a tracked name and each returned True while the payload called something else. Five instances, one defect: the helper now enumerates every binding form the language has and refuses on any that touches a tracked name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
