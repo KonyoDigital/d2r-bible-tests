@@ -353,6 +353,30 @@ def make_sandbox(say=print):
     return tv, root
 
 
+def blind_reason(why, matches, tail):
+    """The sentence a BLIND verdict prints. -> str
+
+    ⚠⚠ v2866 — A SKIP IS NOT A PASS, AND THE BLIND LINE COULD NOT TELL THEM APART.
+    `test_the_lock_derives_from_the_heart[1]` came back BLIND and shipped that way in v2865's own
+    census. The cause was not a weak law: the law called `self.skipTest()` because `.heart2.json` is
+    gitignored and therefore absent from every sandbox, so the tampered run printed
+    `OK (skipped=5)` — green, because nothing ran. "stayed GREEN through its own defeat" is exactly
+    wrong about that: it never reached its own defeat.
+
+    The two cases need different work — a real BLIND needs a stronger law, a skipped one needs the
+    law to stop opting out — and the line that reports them said the same thing about both. It cost
+    a shipped `blind: 1` and a deduction that the tail had been carrying the answer all along.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    _base = ("stayed GREEN through its own defeat (%d match(es)): %s" % (matches, str(why)[:70]))
+    _m = re.search(r"skipped=(\d+)", tail or "")
+    if _m and int(_m.group(1)):
+        return (_base + "  ⚠ but %s law(s) SKIPPED in the sandbox (%s) — the tamper may never have "
+                        "been judged at all. Fix the SKIP before calling the law weak."
+                % (_m.group(1), (tail or "").strip()[:60]))
+    return _base
+
+
 def _run_gate(sandbox_tv, filename, timeout=180):
     """-> (passed: bool, tail: str)"""
     p = os.path.join(sandbox_tv, filename)
@@ -631,8 +655,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
         say("     %-52s %s — tampered run: %s" % (label, UNPROVABLE, tail2))
         return UNPROVABLE
     if ok_tampered:
-        say("     %-52s %s ← stayed GREEN through its own defeat (%d match(es)): %s"
-            % (label, BLIND, got, str(pr.get("why"))[:70]))
+        say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2)))
         return BLIND
     say("     %-52s %s (%d match(es) tampered → red)" % (label, PROVEN, got))
     return PROVEN

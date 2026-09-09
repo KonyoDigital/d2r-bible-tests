@@ -55,6 +55,29 @@ def _specs():
     )
 
 
+RED_PROOF = [
+    {
+        "why": "v1710's defect: with no 'slow' project the six-way shard splits by FILE COUNT "
+               "alone, the every-item simulations pile into one shard, and Routine I times out on "
+               "that shard while five others sit idle — a red CI run caused by arithmetic, not "
+               "by the code under test",
+        "file": "playwright.config.ts",
+        "find": "          name: 'slow',",
+        "replace": "          name: 'sloooow',",
+        "matches": 1,
+    },
+    {
+        "why": "the workflow stops running the slow project at all. Every simulation silently "
+               "stops being executed and CI goes green FASTER, which is the most dangerous shape "
+               "a shard bug can take",
+        "file": ".github/workflows/routine-i-playwright.yml",
+        "find": "--project=slow",
+        "replace": "--project=chromium",
+        "matches": 1,
+    },
+]
+
+
 class TestSlowProjectExists(unittest.TestCase):
     def test_config_declares_a_slow_project(self):
         cfg = open(CFG, encoding="utf-8").read()

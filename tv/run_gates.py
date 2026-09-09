@@ -833,6 +833,14 @@ GATES = [
              "text-scanned and answered 18, because prose naming the harness counted as looking at "
              "pixels. Both laws parse rather than grep.",
          skip_ok=()),
+    Gate("test_a_blind_verdict_names_the_skip",
+         [sys.executable, os.path.join(HERE, "test_a_blind_verdict_names_the_skip.py")], 60,
+         why="v2866 — the prover printed \"stayed GREEN through its own defeat\" about a law that "
+             "SKIPPED in the sandbox and never reached its defeat. v2865 shipped blind:1 for that "
+             "reason and the tail saying so (OK (skipped=5)) was in the function's hands and "
+             "discarded. Proven red both ways: the skip branch off, and the helper un-joined from "
+             "its only call site.",
+         skip_ok=()),
     Gate("test_the_ratchet_cannot_erase_the_census",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
          why="v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "

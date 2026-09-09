@@ -92,20 +92,30 @@ class TestTheStatusBreakdownNamesItsOwnBlindSpot(unittest.TestCase):
         self.assertIn("unattributedMs", keys,
                       "the shell computes no unattributedMs — a breakdown with no denominator")
 
-        # find the assignment and prove it is a bare subtraction, not a clamped one
-        gap = None
+        # find EVERY assignment and prove each is a bare subtraction, not a clamped one.
+        # ⚠⚠ v2866 — THIS KEPT ONLY THE LAST MATCH, AND THERE ARE TWO. `status_payload` assigns
+        # `unattributedMs` twice: the computation `round(_total - _sum, 1)`, and a read-back of
+        # `_STATUS_TIMING["last"]["unattributedMs"]` twenty-six lines later. The read-back is a
+        # bare subscript and can never contain a max(), so `gap` always pointed at the innocent
+        # one — clamping the REAL subtraction sailed straight through. heart2 reported this gate
+        # BLIND for exactly that arm, and the law had looked correct for as long as it existed.
+        # A law that inspects "the assignment" of a name assigned more than once is measuring
+        # whichever one the walk happened to reach last.
+        # [[sabotage-is-usually-the-wrong-one]] [[zero-needs-a-denominator]]
+        gaps = []
         for n in ast.walk(shell):
             if isinstance(n, ast.Dict):
                 for k, v in zip(n.keys, n.values):
                     if isinstance(k, ast.Constant) and k.value == "unattributedMs":
-                        gap = v
-        self.assertIsNotNone(gap, "unattributedMs is named but never assigned a value")
-        clamps = [c.func.id for c in ast.walk(gap)
+                        gaps.append(v)
+        self.assertTrue(gaps, "unattributedMs is named but never assigned a value")
+        clamps = [(getattr(g, "lineno", "?"), c.func.id) for g in gaps for c in ast.walk(g)
                   if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)
                   and c.func.id in ("max", "abs")]
         self.assertEqual(clamps, [],
-                         "unattributedMs is clamped with %s — a NEGATIVE gap means the components "
-                         "double-counted, and hiding that hides a broken instrument" % clamps)
+                         "unattributedMs is clamped with %s — checked %d assignment(s) of it in "
+                         "status_payload. A NEGATIVE gap means the components double-counted, and "
+                         "hiding that hides a broken instrument" % (clamps, len(gaps)))
 
     def test_every_wrapped_producer_reaches_the_ledger(self):
         """A component timed under a name nothing publishes is a measurement nobody can read."""

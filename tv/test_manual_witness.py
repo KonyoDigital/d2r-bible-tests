@@ -26,6 +26,29 @@ import chronicle_retro as CR
 import control_app as CA
 
 
+RED_PROOF = [
+    {
+        "why": "the pre-v2462 world, restored: his hand was the ONE lane that earned no tag, so "
+               "his own testimony was the single signal this function could not count while an "
+               "OCR read of a blurry row counted twice. His ruling was 'manual anything is enough "
+               "witness obivously'",
+        "file": "chronicle_retro.py",
+        "find": '    if any((s.get("lane") == "manual") for s in (sightings or [])):\n        tags.add("hand")',
+        "replace": '    if False and any((s.get("lane") == "manual") for s in (sightings or [])):\n        tags.add("hand")',
+        "matches": 1,
+    },
+    {
+        "why": "the synonym defect the function's own comment forbids: `hand` masquerading as "
+               "`cross-reel`. A reader asking WHY a name is grounded would be told 'two reels "
+               "agree' when the answer is 'he says so' — a different fact, weighed differently",
+        "file": "chronicle_retro.py",
+        "find": '        tags.add("hand")',
+        "replace": '        tags.add("cross-reel")',
+        "matches": 1,
+    },
+]
+
+
 class HisHandEarnsItsOwnTag(unittest.TestCase):
 
     def test_a_manual_sighting_is_a_witness_on_its_own(self):

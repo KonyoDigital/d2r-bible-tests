@@ -65,6 +65,28 @@ def _code_only(s):
     return re.sub(r"(?m)//.*$", " ", s)
 
 
+RED_PROOF = [
+    {
+        "why": "v2716's own defect, put back: the render site prints the number as a LITERAL "
+               "beside the zone's real per-zone alvl, so it reads as derived from it. Two "
+               "independent cold reads reported exactly this",
+        "file": "control_ui.html",
+        "find": '\' <b class="tzz-terr">&rarr; \' + TZ_TERROR_MLVL + \' terrorized</b>\'',
+        "replace": '\' <b class="tzz-terr">&rarr; 96 terrorized</b>\'',
+        "matches": 1,
+    },
+    {
+        "why": "drifting the constant off HIS researched number. bible.html states 'mlvl 96 "
+               "terror' in ten independently researched zones; a console that says 95 has "
+               "quietly disagreed with its own evidence",
+        "file": "control_ui.html",
+        "find": "var TZ_TERROR_MLVL = 96;",
+        "replace": "var TZ_TERROR_MLVL = 95;",
+        "matches": 1,
+    },
+]
+
+
 class OneTerrorLevel(unittest.TestCase):
 
     def setUp(self):

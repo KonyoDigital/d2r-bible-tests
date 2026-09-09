@@ -26,6 +26,28 @@ if HERE not in sys.path:
 import store_owners as SO   # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": "a declaration naming a module that has never heard of the file — 'worse than no "
+               "declaration', in the law's own words. The registry keeps looking authoritative "
+               "while pointing at the wrong owner",
+        "file": "store_owners.py",
+        "find": '        "owner": "retro_triage",',
+        "replace": '        "owner": "reel_retention",',
+        "matches": 1,
+    },
+    {
+        "why": "the registry itself touching a store it merely declares. It EXCLUDES itself from "
+               "the coupling count, so the moment it opens one that exclusion hides a real "
+               "coupling — the exclusion is only honest while this is false",
+        "file": "store_owners.py",
+        "find": "STORES = {",
+        "replace": "_LEAK_ONLY_A_TAMPER = io.open('retro_triage.json')\nSTORES = {",
+        "matches": 1,
+    },
+]
+
+
 class TheDeclarationMustDescribeTheCode(unittest.TestCase):
 
     def test_every_module_touching_a_store_is_declared(self):

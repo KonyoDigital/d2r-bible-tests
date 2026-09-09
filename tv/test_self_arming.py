@@ -51,7 +51,10 @@ def setUpModule():
     """
     global _HEART_REAL
     _HEART_REAL = SA._heart_says_watched
-    SA._heart_says_watched = lambda: (True, "stubbed: the heart is proved by its own gate")
+    # ⚠ v2867 — `**_k`, NOT a bare lambda. This repo already carries that scar (v2041,
+    # `lambda sample=0:`): a stub with the wrong arity turns a future signature change into
+    # ERRORS instead of failures, and an error says nothing about the law.
+    SA._heart_says_watched = lambda **_k: (True, "stubbed: the heart is proved by its own gate")
 
 
 def tearDownModule():

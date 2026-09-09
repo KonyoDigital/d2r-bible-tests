@@ -1669,6 +1669,9 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2868** | `(this commit)` | v2868 — a cross-family review found three ways the fail-closed lock stopped being tested on CI |
+| **v2867** | `(this commit)` | v2867 — red-proofs for the render coverage ratchet and the store-owner registry, one of them re-aimed after a green sabotage |
+| **v2866** | `(this commit)` | v2866 — a law that never ran was reported as a law that survived, and a clamp check watched the wrong assignment |
 | **v2865** | `(this commit)` | v2865 — four gates, four causes, and a census the runner never has |
 | **v2864** | `(this commit)` | v2864 — the fingerprint could not tell a dark instrument from an empty one |
 | **v2863** | `(this commit)` | v2863 — past half, and each proof exposed a gap in the gate it proved |

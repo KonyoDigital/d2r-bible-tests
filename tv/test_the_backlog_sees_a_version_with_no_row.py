@@ -86,16 +86,23 @@ class TheBacklogSeesAVersionWithNoRow(unittest.TestCase):
         # v2862's second pattern (_VER_TOKEN, which splits a leading RUN like "v2859+v2860") turned
         # this law red on CI — a law broken by a change it was not about. Name the SUBJECT pattern
         # by its variable instead of counting look-alikes. [[label-outlived-referent]]
-        pats = [ast.unparse(n.value.args[0])
+        # ⚠ v2867 — AND IT MUST READ THE PATTERN, NOT ITS repr. A cross-family review: the fix
+        # above swapped `.value` for `ast.unparse(...)`, which emits a QUOTED form, so the check
+        # had to hunt for "^" inside the first six characters of `'^(v\\d{4}…`. A LITERAL caret —
+        # `re.compile(r"\\^(v\\d{4}…)")`, matching a commit subject that starts with the character
+        # "^" and anchoring nothing — passes that test and fails the real one. Read the Constant.
+        pats = [n.value.args[0].value
                 for n in ast.walk(TREE)
                 if isinstance(n, ast.Assign)
                 and any(getattr(t, "id", "") == "_VER_LEADING_RUN" for t in n.targets)
-                and isinstance(n.value, ast.Call) and n.value.args]
+                and isinstance(n.value, ast.Call) and n.value.args
+                and isinstance(n.value.args[0], ast.Constant)
+                and isinstance(n.value.args[0].value, str)]
         self.assertEqual(1, len(pats),
-                         "expected exactly one _VER_LEADING_RUN assignment; found %d — UNKNOWN, "
-                         "not a pass" % len(pats))
+                         "expected exactly one _VER_LEADING_RUN assigned a literal pattern; found "
+                         "%d — UNKNOWN, not a pass" % len(pats))
         self.assertTrue(
-            "^" in pats[0][:6],
+            pats[0].startswith("^"),
             "the version pattern %r is not anchored, so any commit that MENTIONS a version counts "
             "it as shipped. Measured over 400 subjects: 252 stamp a ship, 19 only refer back, and "
             "the loose form reported v1554 as a shipped version owing a look." % pats[0])

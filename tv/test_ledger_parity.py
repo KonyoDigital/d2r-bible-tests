@@ -45,6 +45,27 @@ def _worker_ledgers():
                [a or b for a, b in re.findall(r"'([a-z]+)'|\"([a-z]+)\"", m.group(1))])
 
 
+RED_PROOF = [
+    {
+        "why": "v2460's defect exactly: the worker stores fewer ledgers than the console can "
+               "publish, so a uniques mask is DISCARDED on arrival and every surface downstream "
+               "says 'we have not heard from that machine' however correct its board is",
+        "file": "functions/api/console.js",
+        "find": "const LEDGERS = ['sets', 'uniques'];",
+        "replace": "const LEDGERS = ['sets'];",
+        "matches": 1,
+    },
+    {
+        "why": "the reverse direction — a key the console can never produce, which reads in the "
+               "schema as a feature that exists and will never carry data",
+        "file": "functions/api/console.js",
+        "find": "const LEDGERS = ['sets', 'uniques'];",
+        "replace": "const LEDGERS = ['sets', 'uniques', 'runewords'];",
+        "matches": 1,
+    },
+]
+
+
 class TheTwoEndsCarryTheSameLedgers(unittest.TestCase):
 
     def test_the_worker_declares_a_ledger_list_at_all(self):

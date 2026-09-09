@@ -57,7 +57,8 @@ class _Census(object):
             if os.path.exists(STATE):
                 os.unlink(STATE)
         else:
-            io.open(STATE, "w", encoding="utf-8").write(self.payload)
+            with io.open(STATE, "w", encoding="utf-8") as fh:
+                fh.write(self.payload)
         return self
 
     def __exit__(self, *a):
@@ -110,16 +111,44 @@ def _skip_if_stale(case):
         case.skipTest("live census is stale (gates changed since the last prove) — re-prove first")
 
 
+def _census_the_heart_would_call_CURRENT():
+    """A census this machine accepts as current, so the only variable a law changes is its own.
+
+    ⚠⚠ v2866 — THIS LAW SHIPPED BLIND, AND THE SKIP IS WHY. `--prove` runs each arm in a
+    sandbox built by safe_copy, and `.heart2.json` is gitignored, so the copy has NO census. The law
+    then called `self.skipTest("no census on this machine")` — and a skip is not a red. heart2
+    recorded arm [1] (`if _blind:` → `if False and _blind:`) as BLIND, and v2865 shipped with
+    `blind: 1` in its own census. An instrument that cannot go red in the sandbox is exactly the
+    thing this whole file exists to refuse, sitting inside the file that refuses it.
+
+    Building the census here removes BOTH skips at once: the fingerprint is current by
+    construction, and a machine that has never run the heart no longer opts out. What is under test
+    is `_heart_says_watched`'s `blind` branch, and that branch needs only these two keys.
+    [[feedback-blind-fixture-green-gate]] [[the-unjoined-end]]
+    """
+    st = {}
+    real = _real_census()
+    if real:
+        try:
+            st = json.loads(real)
+        except Exception:
+            st = {}
+    st["gatesFingerprint"] = H.gates_fingerprint()
+    st.setdefault("blind", [])
+    st.setdefault("proved", 0)
+    st.setdefault("total", 0)
+    return st
+
+
 class TheLockDerivesFromTheHeart(unittest.TestCase):
 
     # ── ⚠⚠ THE LAW ──────────────────────────────────────────────────────────────────────────
     def test_a_BLIND_instrument_closes_the_lock(self):
-        """★★ The whole join. A dark gate is a missing prerequisite, not a detail."""
-        _skip_if_stale(self)
-        real = _real_census()
-        if real is None:
-            self.skipTest("no census on this machine — UNMEASURED, not a failure")
-        st = json.loads(real)
+        """★★ The whole join. A dark gate is a missing prerequisite, not a detail.
+
+        ⚠ NO SKIP HERE, DELIBERATELY. See _census_the_heart_would_call_CURRENT: the two skips
+        this law used to carry are what made it BLIND in its own prover."""
+        st = _census_the_heart_would_call_CURRENT()
         st["blind"] = ["test_an_instrument_that_cannot_go_red"]
         with _Census(json.dumps(st)):
             ok, why = SA.may("printer.stream")
@@ -128,18 +157,28 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         self.assertIn("BLIND", why)
 
     def test_an_UNREADABLE_census_fails_CLOSED(self):
-        """★★ Matching _rows(): UNKNOWN never arms anything."""
-        if _real_census() is None:
-            self.skipTest("no census on this machine")
+        """★★ Matching _rows(): UNKNOWN never arms anything.
+
+        ⚠ NO SKIP. `_Census` writes the garbage whether or not a real census was there to back
+        up, so requiring one only meant this law stopped running exactly where it matters."""
         with _Census("{ this is not json"):
             ok, why = SA.may("printer.stream")
         self.assertFalse(ok, "an unreadable heart census permitted a lock to act")
         self.assertIn("CLOSED", why)
 
     def test_an_ABSENT_census_fails_CLOSED(self):
-        """★ Never run here is not the same as nothing wrong here."""
-        if _real_census() is None:
-            self.skipTest("no census on this machine")
+        """★ Never run here is not the same as nothing wrong here.
+
+        ⚠⚠ v2867 — THIS SKIPPED ON THE ONE CONDITION IT EXISTS TO TEST. A cross-family review of
+        v2865: on a runner with no `.heart2.json` — CI, and every heart2 sandbox, because the file
+        is gitignored — this law skipped, `test_an_UNREADABLE_census_fails_CLOSED` skipped, and
+        v2865's `setUpModule` in test_self_arming stubbed `_heart_says_watched` to (True, …). So
+        NOTHING on that runner asserted that `may()` fails closed when the heart has never run. A
+        fail-open edit — dropping `if not _hok: return False, _hwhy` — was invisible in one suite
+        and skipped in the suite whose comment names it as the owner.
+        REPRODUCED before fixing: with `.heart2.json` moved aside, `OK (skipped=7)` and both
+        fail-closed laws among them. `_Census(None)` removes the file whether or not one was there,
+        so the guard bought nothing. [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]"""
         with _Census(None):
             ok, why = SA.may("printer.stream")
         self.assertFalse(ok, "a missing heart census permitted a lock to act")

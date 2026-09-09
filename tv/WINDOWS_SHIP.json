@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2865",
+  "ver": "v2868",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2865: four gates, four causes, and a census the runner never has",
+  "note": "v2868: a cross-family review found three ways the fail-closed lock stopped being tested on CI",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

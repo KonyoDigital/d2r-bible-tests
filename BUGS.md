@@ -7,6 +7,96 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-837 — a law that SKIPPED was recorded as BLIND, and v2865 shipped that verdict
+
+**v2866.** `heart2.py --prove` reported `test_the_lock_derives_from_the_heart[1] BLIND ← stayed
+GREEN through its own defeat`, and v2865's own census went to origin carrying `blind: 1`.
+
+**The law was not weak — it never ran.** `.heart2.json` is gitignored, so `safe_copy` never puts a
+census in a sandbox, so the law called `self.skipTest("no census on this machine")` and the tampered
+run printed `OK (skipped=5)`. Green because nothing was judged. The verdict line said "stayed GREEN
+through its own defeat" about a law that never reached its defeat.
+
+    tampered run tail:  OK (skipped=5)      <- the answer, in the function's hands, discarded
+    verdict printed:    BLIND ← stayed GREEN through its own defeat
+
+Two states needing opposite work — a real BLIND wants a stronger law, a skipped one wants the law
+to stop opting out — reported in the same words. This is [[zero-needs-a-denominator]] applied to a
+VERDICT instead of a number: green with nothing behind it is the same defect as a `0` with no
+denominator.
+
+**Fixed twice over.** (1) `_census_the_heart_would_call_CURRENT()` builds the census the law needs,
+with a fingerprint current by construction, so neither skip path survives — the law now runs in
+every sandbox and all three arms are PROVEN. (2) `blind_reason()` parses `skipped=N` out of the
+tampered run's tail and appends *"⚠ but N law(s) SKIPPED in the sandbox — the tamper may never have
+been judged at all"*, so the next one names itself instead of being deduced.
+
+New gate `test_a_blind_verdict_names_the_skip` — 6 laws, proven red both ways: the skip branch
+switched off, and the helper un-joined from its only call site. Measured: 65 of 247 gate files call
+`skipTest`, so this was never one gate's problem.
+
+### REG-838 — a law read "the assignment" of a name that is assigned twice, and kept the innocent one
+
+**v2866.** The first full 273-gate prove after REG-837 returned exactly one BLIND:
+`test_the_status_breakdown_names_its_own_blind_spot[0]` — the arm that puts
+`max(0.0, round(_total - _sum, 1))` back on `unattributedMs`, the field whose entire job is to
+expose a NEGATIVE gap meaning the components double-counted.
+
+The law walked `status_payload` for a dict key `"unattributedMs"` and wrote `gap = v` on each hit,
+so it kept the LAST. Measured:
+
+    unattributedMs assignments inside status_payload: 2
+      line 25880:  round(_total - _sum, 1)                      <- the computation, tampered
+      line 25906:  _STATUS_TIMING["last"]["unattributedMs"]     <- a bare subscript, always clean
+
+A subscript can never contain a `max()`, so the clamp check was pointed at the one expression that
+could never fail it. The law had looked correct since the day it was written and would have passed a
+review; only the tamper found it.
+
+**Fixed:** collect EVERY assignment, check clamps across all of them, and print the count checked in
+the failure message so the denominator is visible. All three arms now PROVEN.
+
+⚠ The general shape, and it is not confined to this file: **a law that inspects "the assignment" of
+a name assigned more than once is measuring whichever one the AST walk happened to reach last.**
+[[sabotage-is-usually-the-wrong-one]] [[zero-needs-a-denominator]]
+
+### REG-839 — nothing on CI asserted that the lock fails closed when the heart has never run
+
+**v2868.** A cross-family review of v2865 (grok-4-1-fast-reasoning, 12 findings) named a hole three
+of my own changes had opened between them. REPRODUCED before believing it, by moving `.heart2.json`
+aside — CI's exact condition, since the file is gitignored:
+
+    OK (skipped=7)
+      test_an_ABSENT_census_fails_CLOSED      skipped 'no census on this machine'
+      test_an_UNREADABLE_census_fails_CLOSED  skipped 'no census on this machine'
+
+and v2865's own `setUpModule` in `test_self_arming.py` stubs `_heart_says_watched` to `(True, …)`
+for that whole suite — correctly, because that file's subject is the ORDER and the Wilson
+arithmetic, not the heart. So on CI and inside every heart2 sandbox: one suite could not see a
+missing census, the suite whose comment is cited as the owner skipped the two laws about it, and a
+fail-open edit — dropping `if not _hok: return False, _hwhy` from `may()` — was invisible to both.
+
+Both skips bought nothing: `_Census(None)` removes the file whether or not one was there, and
+`_Census("{ this is not json")` writes garbage regardless. Removed. Measured after: `skipped=7 → 5`
+with no census, both fail-closed laws now running and passing there. `test_it_is_a_GATE_not_furniture`
+still skips without a census and should — it asserts a lock CAN act on the REAL data.
+
+**Same review, two more, both fixed:**
+
+- `test_the_subject_pattern_is_ANCHORED` had been switched from `.value` to `ast.unparse(...)`,
+  which emits a QUOTED form — so `"^" in pats[0][:6]` was searching inside `'^(v\d{4}…`. A literal
+  caret, `re.compile(r"\^(v\d{4}…)")`, anchors nothing and passes that check. Reads the Constant
+  again.
+- The heart stub was a bare `lambda:`. This tree already carries that scar (v2041, `lambda sample=0:`):
+  a stub with the wrong arity turns a future signature change into ERRORS, not failures, and an
+  error says nothing about the law. Now `lambda **_k:`.
+
+⚠ **And the eye nearly did not speak.** The first run returned `EMPTY SEAT — the eye did not answer
+within 300.0s (recorded as unreached, never as agreement)`. The same payload at
+`THIRD_EYE_TIMEOUT_S=600` came back with all twelve findings. The default budget, not the eye, was
+the blocker — and a seat that times out looks exactly like a seat with nothing to say.
+[[the-unjoined-end]] [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

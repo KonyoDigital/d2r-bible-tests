@@ -44,6 +44,37 @@ def _run(**widths):
             "widths": {k: {"found": v, "painted": v} for k, v in widths.items()}}
 
 
+RED_PROOF = [
+    {
+        "why": "the ratchet stops refusing a SHRINK — a target measuring fewer nodes than its "
+               "floor sails through, which is the whole defect this file exists to catch: a "
+               "surface quietly losing pieces inside a green run",
+        "file": "render_check.py",
+        "find": "            elif is_ < was:",
+        "replace": "            elif False and is_ < was:",
+        "matches": 1,
+    },
+    {
+        "why": "a target that stops reporting ENTIRELY is accepted. A surface nobody photographs "
+               "any more reads exactly like a surface that is fine — unmeasured wearing clean, "
+               "and the render gate's most expensive failure mode",
+        "file": "render_check.py",
+        "find": "        if name not in now:",
+        "replace": "        if False and name not in now:",
+        "matches": 1,
+    },
+    {
+        "why": "one WIDTH silently disappearing is accepted. 375 is where layout dies and it is "
+               "the width most likely to be dropped by a harness change; losing it alone leaves "
+               "four green readings and no sign the narrow one stopped happening",
+        "file": "render_check.py",
+        "find": "            if is_ is None:",
+        "replace": "            if False and is_ is None:",
+        "matches": 1,
+    },
+]
+
+
 class TheRatchetIsActuallyJOINEDToTheVerdict(unittest.TestCase):
     """⚠⚠ EVERY OTHER TEST IN THIS FILE CALLS `_coverage_check` DIRECTLY, SO NOTHING GUARDED THE
     JOIN. The ratchet could be correct in every case and never consulted by the run that decides
