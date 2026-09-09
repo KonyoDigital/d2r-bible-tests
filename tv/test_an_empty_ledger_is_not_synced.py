@@ -105,8 +105,21 @@ class AnEmptyLedgerIsNotSynced(unittest.TestCase):
         rule falls through to the default, so the one row that most needs to stand out would render
         exactly like the rows that are fine."""
         ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-        self.assertIn(".ftts-unsynced", ui,
-                      "no CSS rule for .ftts-unsynced — the new provenance renders unstyled")
+        # ⚠⚠ THE SEED-ROW RULE, NOT THE BARE CLASS NAME — AND v2850 IS WHY.
+        # This asserted `.ftts-unsynced` appeared ANYWHERE in the file. That was sufficient while
+        # exactly one rule styled the class. v2850 added a SECOND — `.ftt-row.ftt-sync
+        # .ftts-unsynced`, for the fleet card's synced/unsynced verdict — and that rule styles a
+        # different surface: the verdict row, not the seed row this law is about. From that moment
+        # the seed-row rule could have been deleted and this law would still have passed, satisfied
+        # by a rule that does not reach the pill it exists to keep visible.
+        # PROVEN, not argued: heart2 tampered the seed-row rule away and the gate stayed GREEN —
+        # "test_an_empty_ledger_is_not_synced[0] BLIND ← stayed GREEN through its own defeat".
+        # A law that names a CLASS is satisfied by any rule mentioning it; a law that names the
+        # RULE is satisfied only by that rule. [[label-outlived-referent]] [[the-unjoined-end]]
+        self.assertIn(".ftt-seed-rows .ftts-unsynced", ui,
+                      "no CSS rule styles .ftts-unsynced INSIDE .ftt-seed-rows — the new "
+                      "provenance renders unstyled on the seed rows, whatever other rules "
+                      "elsewhere happen to mention the class")
 
     # ── the comment must not outlive its referent ─────────────────────────────────────────────
     def test_the_constants_block_no_longer_claims_there_are_four(self):
@@ -126,7 +139,14 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'control_ui.html',
-        "find": '.ftts-unsynced',
+        # ⚠⚠ NARROWED FROM the bare `.ftts-unsynced`, which v2850 made AMBIGUOUS. The fleet card
+        # gained `.ftt-row.ftt-sync .ftts-unsynced` for its synced/unsynced verdict, so the
+        # substring occurs TWICE and the gate refused: "the tamper matches 2 time(s), it
+        # declares 1". A sabotage that hits two rules deletes more than the law is about, and
+        # heart2 is right to refuse it rather than let it pass on the first hit. This anchors
+        # the SEED-ROW provenance rule, which is what this law actually guards.
+        # [[sabotage-is-usually-the-wrong-one]] [[label-outlived-referent]]
+        "find": '.ftt-seed-rows .ftts-unsynced .ftts-pv',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

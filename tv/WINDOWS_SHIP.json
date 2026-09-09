@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2851",
+  "ver": "v2852",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2851: the fleet card never re-asked, the harness judged a page it never prepared, and I hid a failed read",
+  "note": "v2852: three gates I broke, and one guard I weakened without noticing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

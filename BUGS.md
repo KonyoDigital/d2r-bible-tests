@@ -27286,3 +27286,54 @@ UNMEASURED rather than clean, and `health_engine` no longer prints a length for 
 ⚠ **UNPROVEN, and named as such:** the #56 guard has NOT been exercised against a real navigation —
 three verification runs were all green, so the re-prepare path never fired. It is a guard for a
 condition I measured once and cannot reproduce on demand.
+
+
+## REG-816 — a comment that named the words it may not say, and a fix that disarmed its own proof
+
+**v2852.** CI on v2850 showed the gate set at **11 red (19 -> 16 -> 11)**. Three of those were mine
+and new, and each was a different way of being wrong.
+
+### 1. THE COMMENT THAT SPOKE THE FORBIDDEN VOCABULARY — TWICE
+
+`test_health_engine.test_the_module_writes_nothing` scans that module for the names of
+process-ending and file-destroying calls, because health_engine REPORTS and never REPAIRS: an
+auto-healer turns one fault into two, unattended. My v2851 comment described nearly ending his
+console, and used the word. Fair catch — the scan is a CAPABILITY check and is right to be blunt.
+
+⚠⚠ **AND MY FIRST FIX FAILED THE SAME LAW A SECOND WAY.** Rewriting the comment to EXPLAIN the ban,
+I spelled out three more of the forbidden tokens, and the gate refused again naming a different one.
+A note about a forbidden vocabulary must not speak it. Describe the capability; never name the call.
+All seven substrings now measure **0**. [[feedback-comments-vs-code]]
+
+### 2. ★ MY OWN FIX DISARMED MY OWN PROOF, AND THE OBVIOUS RE-ANCHOR WOULD HAVE PROVEN NOTHING
+
+The v2851 swallow fix renamed `_first = _cpu_sample()` to `_cur = _cpu_sample()` — and that line
+**was** the anchor of `test_his_console_is_never_mine_to_kill[3]`. The gate said it exactly:
+*"the tamper matches 0 time(s), it declares 1 — a sabotage that changes nothing proves nothing."*
+Third time in one session that a refactor of mine moved a sabotage.
+
+⚠ The obvious repair — point it at the new `_cur = _cpu_sample()` — looks right and is **useless**:
+the law asserts `suspects()` CALLS `_cpu_sample` and `min`, and there are now TWO `_cpu_sample()`
+calls, so deleting one leaves the set intact and the gate green. A tamper must defeat the LAW'S
+SUBJECT, not merely edit a line the law once sat near. It now removes the **minimum** — the single
+thing that makes two samples a judgement rather than a pair of readings.
+**5/5 PROVEN, 1 match each.** [[sabotage-is-usually-the-wrong-one]]
+
+### 3. ★★ AND CHASING THAT EXPOSED A GUARD I HAD WEAKENED WITHOUT NOTICING
+
+`test_an_empty_ledger_is_not_synced` asserted that `.ftts-unsynced` appeared ANYWHERE in
+control_ui.html. Sufficient while exactly one rule styled the class. **v2850 added a second** —
+`.ftt-row.ftt-sync .ftts-unsynced`, for the fleet card's verdict — and that rule styles a DIFFERENT
+surface: the verdict row, not the seed row this law is about.
+
+From that moment the seed-row rule could have been deleted and the law would still have passed,
+satisfied by a rule that does not reach the pill it exists to keep visible. Not argued — MEASURED:
+heart2 tampered the seed-row rule away and the gate stayed GREEN,
+`test_an_empty_ledger_is_not_synced[0] BLIND ← stayed GREEN through its own defeat`.
+
+A law that names a CLASS is satisfied by any rule mentioning it; a law that names the RULE is
+satisfied only by that rule. Now `.ftt-seed-rows .ftts-unsynced`, and **PROVEN**.
+[[label-outlived-referent]] [[the-unjoined-end]]
+
+⚠ The lesson across all three: I added a feature, and it silently loosened a guard two files away
+that nobody was looking at. Only the red-proof loop found it.

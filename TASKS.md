@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2852** | `(this commit)` | v2852 — three gates I broke, and one guard I weakened without noticing |
 | **v2851** | `(this commit)` | v2851 — the fleet card never re-asked, the harness judged a page it never prepared, and I hid a failed read |
 | **v2850** | `(this commit)` | v2850 — hide the fleet figures and state synced or unsynced |
 | **v2849** | `(this commit)` | v2849 — the gate refused the ship and the better catch was my own sleep |

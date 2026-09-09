@@ -415,7 +415,18 @@ def check_orphans():
         # with nothing behind it: it could not be told from a sweep that scanned nothing, used a
         # bar nothing could clear, or asked once and caught a quiet moment. This line is what he
         # reads when he wants to know the machine is clear, and on 2026-09-09 he asked exactly that
-        # while a single CPU sample had me about to kill his console. Say what was measured.
+        # while a single CPU sample had me about to end his console. Say what was measured.
+        #
+        # ⚠⚠ EVERY WORD HERE IS CHOSEN TO AVOID A LIST THIS MODULE MAY NOT CONTAIN.
+        # `test_health_engine.test_the_module_writes_nothing` scans this file for the names of
+        # process-ending and file-destroying calls, because health_engine REPORTS and never
+        # REPAIRS — his rule, and the reason is that an auto-healer turns one fault into two
+        # unattended. The scan is a CAPABILITY check and is right to be blunt.
+        #
+        # ⚠ AND MY FIRST FIX FOR IT FAILED THE SAME LAW A SECOND WAY: rewriting this comment to
+        # explain the ban, I spelled out the very tokens the ban lists, and the gate refused again
+        # naming a different one. A note about a forbidden vocabulary must not speak it.
+        # Describe the capability; never name the call. [[feedback-comments-vs-code]]
         # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
         try:
             _s = MO._cpu_sample()

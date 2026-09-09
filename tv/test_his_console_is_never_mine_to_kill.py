@@ -238,11 +238,25 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "going back to one CPU sample restores the decaying average that reported 108% for "
-               "a process sitting at 5.6%",
+        # ⚠⚠ RE-ANCHORED, AND THE REASON IS THE SCAR ITSELF. The v2851 swallow fix renamed
+        # `_first = _cpu_sample()` to `_cur = _cpu_sample()` — and that line WAS this sabotage's
+        # anchor, so my own fix silently disarmed my own proof. The gate said so exactly:
+        # "the tamper matches 0 time(s), it declares 1 — a sabotage that changes nothing proves
+        # nothing". Third time in one session that a refactor of mine moved a sabotage.
+        #
+        # ⚠ AND THE OBVIOUS RE-ANCHOR WOULD ALSO HAVE PROVEN NOTHING. Pointing it at the new
+        # `_cur = _cpu_sample()` looks right and is useless: the law asserts that `suspects()`
+        # CALLS `_cpu_sample` and `min`, and there are now TWO `_cpu_sample()` calls, so deleting
+        # one leaves the set intact and the gate green. The tamper has to defeat the LAW's subject,
+        # not merely edit a line the law once happened to sit near.
+        # This one removes the MINIMUM — the single thing that makes two samples a judgement rather
+        # than a pair of readings — which is precisely "going back to one sample".
+        # [[sabotage-is-usually-the-wrong-one]]
+        "why": "dropping the minimum-of-two-samples restores the single decaying average that "
+               "reported 108% for a process sitting at 5.6%",
         "file": "my_orphans.py",
-        "find": "    _first = _cpu_sample()",
-        "replace": "    _first = {}",
+        "find": "        cpu = min(cpu, cpu0) if cpu0 is not None else 0.0",
+        "replace": "        cpu = cpu if cpu0 is not None else 0.0",
         "matches": 1,
     },
     {
