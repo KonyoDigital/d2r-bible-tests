@@ -351,6 +351,7 @@ class TheRulingIsStillHonoured(unittest.TestCase):
         self.assertEqual(clean, [], "it accused a fixture-driven case, which must stay asserted")
 
 
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

@@ -50,6 +50,29 @@ class FleetXrefUsesTheBoardResolver(unittest.TestCase):
         self.assertIn("name: n", blk)
 
 
+
+
+# ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
+# PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
+# measured against the target file (each anchor occurs exactly once). Review it: the
+# question is whether deleting this text is the defect the law exists to catch.
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": '_artRarity(n)',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'the law requires this text in control_ui.html; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": '_pieceLabel(n)',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

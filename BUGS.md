@@ -25675,3 +25675,39 @@ And `closed` is published on BOTH return paths: the closure count does not depen
 a consumer asking "what closed?" while the walk is UNKNOWN was getting no key at all — which reads
 as "nothing", the exact conflation this change exists to end.
 
+## REG-760 — the proposal engine was half-built, and the proving loop is why that mattered (#52)
+
+`heart2.propose()` wrote **a list of names** — *"these 242 gates declare no red-proof"* — and called
+it proposing. A name is a backlog item. Every one of the 242 still needed a person to re-derive by
+hand the sabotage the gate's OWN assertions already state: a law that says
+`assertIn("X", src_of_Y)` **is** the sabotage — remove X from Y and it must go red. That derivation
+is mechanical, and leaving it manual is the entire reason the number sat still while the engine
+around it worked.
+
+`tv/heart2_candidates.py` now derives a PRE-MEASURED candidate per gate and `propose()` emits
+paste-ready blocks. Yield, with the denominator published rather than only the wins:
+
+```
+ok=84   no-target-file=93   ambiguous-anchor=33   no-usable-anchor=31   anchor-absent=1
+```
+
+★★ **AND THEN THE PROVING LOOP EARNED ITS KEEP.** First batch: 18 derived proofs across 10 gates.
+
+| verdict | n | meaning |
+|---|---|---|
+| **PROVEN** | **4** | the tamper actually turned the gate red |
+| BLIND | 7 | the gate stayed GREEN through its own defeat |
+| INVALID | 2 | the tamper matched 2 times, expected 1 — the sabotage was wrong, not the law |
+| UNPROVABLE | 5 | `bible.html` absent from the sandbox (4); already red untampered (1) |
+
+**Only 4 of 18 survived — 22%.** Applying all 84 candidates unproven would have claimed ~35%
+coverage of which roughly three-quarters was fiction: precisely the green-that-lies this system
+exists to end. Everything that did not prove was REVERTED, because a BLIND proof is worse than no
+proof — it inflates the census with coverage that does not exist.
+
+Census: **4.7% → 7.0%** (18 of 257). Small, and every point of it has been seen red.
+
+⚠ The refusals are also the roadmap: 93 gates name no resolvable source file, 33 have an ambiguous
+anchor (>1 occurrence — the single most common way a sabotage in this repo has been wrong), 31
+assert only ABSENCE and cannot be sabotaged by deletion at all.
+

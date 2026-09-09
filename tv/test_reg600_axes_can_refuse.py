@@ -662,6 +662,7 @@ class NothingHereArmsAnything(unittest.TestCase):
                          "declared may() caller(s) that no longer call it: %s" % stale)
 
 
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

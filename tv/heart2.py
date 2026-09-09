@@ -549,11 +549,44 @@ def propose(results, census, hits):
         lines += ["## UNPROVEN — the backlog (UNKNOWN, not clean)", "",
                   "%d gate(s) declare no executable red-proof. Each was proven red once, by hand, "
                   "and that proof survives only as prose." % census["unproven"], ""]
-        for n in census.get("unprovenNames", [])[:40]:
-            lines.append("- `%s`" % n)
-        if census.get("unproven", 0) > 40:
-            lines.append("- … and %d more" % (census["unproven"] - 40))
-        lines.append("")
+        # ⚠⚠ v2818 — A LIST OF NAMES IS A BACKLOG, NOT A PROPOSAL, AND THAT IS WHY 242 NEVER MOVED.
+        # This wrote "these 242 gates declare no red-proof" and called it proposing. Every one of
+        # them still required a person to re-derive by hand the sabotage the gate's OWN assertions
+        # already state: a law that says assertIn("X", src_of_Y) IS the sabotage — remove X from Y
+        # and it must go red. That derivation is mechanical, and leaving it manual is the whole
+        # reason the number sat still while the engine around it worked.
+        #
+        # It still PROPOSES and never applies. What changed is that a proposal is now something a
+        # person can paste, PRE-MEASURED: the anchor is counted in the real target file and only
+        # an unambiguous one (exactly one occurrence) is offered. [[achilles-self-carving-system]]
+        try:
+            import heart2_candidates as _hc
+        except Exception as _e:
+            _hc = None
+            lines += ["_(the candidate deriver could not be imported: %s)_" % type(_e).__name__, ""]
+        _yield, _why_counts = 0, {}
+        for n in census.get("unprovenNames", []):
+            _f = None
+            for _gn, _gf in gate_files():
+                if _gn == n:
+                    _f = _gf
+                    break
+            if _hc is None or not _f:
+                lines.append("- `%s`" % n)
+                continue
+            _p, _status, _note = _hc.candidates_for(os.path.join(HERE, _f))
+            _why_counts[_status] = _why_counts.get(_status, 0) + 1
+            if _p:
+                _yield += 1
+                lines += ["", "### `%s`" % n, "", "```python", _hc.render_block(n, _p).strip(),
+                          "```", ""]
+            else:
+                lines.append("- `%s` — no candidate: %s" % (n, _note))
+        # ⚠ THE DENOMINATOR, ALWAYS. A proposals file that lists only what it managed to derive
+        # would read as "this is the work", when the undeliverable remainder is also the work.
+        lines += ["", "**%d of %d unproven gates yielded a pre-measured candidate.** The rest are "
+                  "named above with the reason: %s" % (_yield, census.get("unproven"),
+                  ", ".join("%s=%d" % kv for kv in sorted(_why_counts.items()))), ""]
     if hits:
         lines += ["## UNCOVERED SIGNATURES", ""]
         lines += ["- `%s` — %s x%d — %s" % (f, l, n, w) for f, l, n, w in hits] + [""]
