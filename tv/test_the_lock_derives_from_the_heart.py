@@ -245,6 +245,16 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         try:
             empty = H.gates_fingerprint([("g", a), ("h", b)])
             os.chmod(a, 0); os.chmod(b, 0)
+            # ⚠⚠ chmod 0 DOES NOT MAKE A FILE UNREADABLE FOR ROOT, for a uid with
+            # CAP_DAC_OVERRIDE, or on a filesystem that ignores mode bits — a cross-family review
+            # raised it and it is right: the UNREADABLE branch would never be taken, src would be
+            # "" not None, and this law would FAIL on such a machine while proving nothing on any
+            # other. Measure whether the premise actually holds before asserting on it.
+            # [[zero-needs-a-denominator]]
+            if H._read_text(a) is not None:
+                self.skipTest("chmod 0 did not make the file unreadable here (root, or a "
+                              "filesystem that ignores mode bits) — the case this law is about "
+                              "cannot be produced on this machine. UNMEASURED, not passing.")
             unread = H.gates_fingerprint([("g", a), ("h", b)])
             swapped = H.gates_fingerprint([("g", b), ("h", a)])
         finally:
@@ -261,17 +271,36 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         """★★ Same review: the digest covered gate FILES only, so a change to gate_files(), to how
         the sabotage is injected, or to any decision heart2 makes about RED left it identical — and
         the lock would still call that proof current. A proof is only as true as the thing that
-        produced it. [[the-unjoined-end]]"""
-        src = io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8").read()
-        fn = next(n for n in ast.walk(ast.parse(src))
-                  if isinstance(n, ast.FunctionDef) and n.name == "gates_fingerprint")
-        body = ast.unparse(fn)
-        self.assertIn(
-            "heart2.py", body,
-            "gates_fingerprint() does not fold in heart2.py itself, so changing the prover — how "
-            "gates are found, how the tamper is applied, what counts as RED — leaves the digest "
-            "unchanged and a stale proof reads as current")
+        produced it. [[the-unjoined-end]]
 
+        ⚠⚠ THIS ASSERTED THE STRING "heart2.py" APPEARED IN THE FUNCTION SOURCE, and the same
+        reviewer called it: that passes even if the fold is deleted, commented out, or put behind a
+        flag nobody sets. The FIFTH time this session I wrote a law that checks a name instead of an
+        act. It now changes what the prover READS and requires the digest to move.
+        [[sabotage-is-usually-the-wrong-one]]"""
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="pv.")
+        g = os.path.join(d, "g.py")
+        io.open(g, "w", encoding="utf-8").write("# a gate\n")
+        gates = [("g", g)]
+        real = H._read_text
+        try:
+            before = H.gates_fingerprint(gates)
+            # make ONLY the prover's own source read differently; the gate list is untouched
+            def _fake(path):
+                if os.path.basename(path) == "heart2.py":
+                    return (real(path) or "") + "\n# the prover changed\n"
+                return real(path)
+            H._read_text = _fake
+            after = H.gates_fingerprint(gates)
+        finally:
+            H._read_text = real
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertNotEqual(
+            before, after,
+            "changing heart2.py's OWN source left the fingerprint identical (%s), so a change to "
+            "the prover — how gates are found, how the tamper is applied, what counts as RED — "
+            "does not invalidate the census and a stale proof reads as current" % before[:12])
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

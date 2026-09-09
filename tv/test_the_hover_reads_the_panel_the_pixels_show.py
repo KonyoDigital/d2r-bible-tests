@@ -96,13 +96,12 @@ class TestTheHoverReadsThePanelThePixelsShow(unittest.TestCase):
                              % (r.lineno, len(r.value.elts)))
         print("   %d return path(s), all 3-tuples" % len(rets))
 
-    def test_the_hover_uses_what_was_SEEN_not_what_was_ASKED(self):
-        """The join. Inferring the panel and then hovering the caller's guess would be the same
-        bug with more code."""
-        src = _app()
-        self.assertIn("container=(_saw or _container)", src,
-                      "hover_mode.start is still given the caller's container rather than the one "
-                      "the pixels showed — the wrong-panel bug is back")
+    # ══ v2865 — LAW RETIRED: ITS SUBJECT WAS DELETED BY RULING ═══════════════════════════════
+    #   test_the_hover_uses_what_was_SEEN_not_what_was_ASKED
+    # It asserted `container=(_saw or _container)` in control_app.py — the MINI(AUTOMATIC) call
+    # site v2857 removed. `_saw` now appears NOWHERE in the tree. The law outlived its referent and
+    # was red on CI. The four laws below read slot_identity and are untouched.
+    # [[label-outlived-referent]]
 
     def test_an_unknown_grid_is_refused_not_assigned(self):
         """A shape matching no measured panel must not fall back to the caller's name."""
@@ -115,13 +114,26 @@ class TestTheHoverReadsThePanelThePixelsShow(unittest.TestCase):
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 # Handing the caller's guess back to the hover planner IS the wrong-panel bug: real cells read off
 # one grid, swept across the coordinates of another 1,510px away.
-RED_PROOF = [{
-    "why": "hovering the container the button NAMED instead of the one the pixels SHOWED",
-    "file": "control_app.py",
-    "find": "                                                   container=(_saw or _container))",
-    "replace": "                                                   container=_container)",
-    "matches": 1,
-}]
+RED_PROOF = [
+    {
+        "why": "RE-POINTED v2865. The block here tampered `container=(_saw or _container)` in "
+               "control_app.py — deleted with MINI(AUTOMATIC) in v2857, so it matched 0 times and "
+               "turned CI red on the well-formedness law: a sabotage that changes nothing proves "
+               "nothing. The surviving laws read slot_identity, so the proof reads it too. Removing "
+               "the inventory grid indistinguishable from the stash grid is the defect those laws "
+               "exist for: two panels with the same shape cannot be told apart from the lattice, so "
+               "a read of one is assigned to the other and a wrong cell is worse than no cell. "
+               "MEASURED: 1 match, RED, breaking test_the_known_grids_are_distinguishable.\n"
+               "⚠ MY FIRST RE-POINT WAS A NO-OP AND CAME BACK BLIND: `GRIDS = {}` or `{...}` "
+               "evaluates to the original dict, because an empty dict is falsy. I authored it "
+               "WITHOUT sandbox-verifying first — my own rule, skipped, and the engine caught it. "
+               "[[sabotage-is-usually-the-wrong-one]]",
+        "file": "slot_identity.py",
+        "find": '"inventory": (10, 4)',
+        "replace": '"inventory": (10, 10)',
+        "matches": 1,
+    },
+]
 
 
 if __name__ == "__main__":

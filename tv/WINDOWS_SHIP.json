@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2864",
+  "ver": "v2865",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2864: the fingerprint could not tell a dark instrument from an empty one",
+  "note": "v2865: four gates, four causes, and a census the runner never has",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

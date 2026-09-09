@@ -27783,3 +27783,72 @@ LAWS: test_an_UNREADABLE_gate_does_not_hash_like_an_EMPTY_one and
 test_the_fingerprint_covers_the_PROVER_too. test_the_lock_derives_from_the_heart now has 10 laws
 and 3 red-proofs, all PROVEN.
 
+## REG-835 — CI caught a regression my Mac could not, and four gates broke for four reasons
+
+The v2864 CI run went red: 14 gates failed, FOUR of them mine from this session. The pre-push could
+not have caught any of them — it runs only test_agent + test_control, while the full 272-gate
+registry runs on the runner. This is the gap CI exists to cover, and it covered it.
+
+⚠ THE SHARED CAUSE FOR ONE OF THEM IS A BLIND FIXTURE IN THE MOST LITERAL SENSE. `.heart2.json` is
+gitignored — correctly, it is a READING — so THERE IS NO CENSUS ON CI. v2861 joined may() to the
+heart, and an absent census is UNKNOWN which fails CLOSED, so may() returned the heart's refusal
+instead of the upstream/Wilson reason test_self_arming asserts. My machine had a census; the runner
+does not. [[feedback-blind-fixture-green-gate]]
+
+FOUR CAUSES, NOT ONE — checked rather than assumed:
+
+  test_self_arming            v2861's join, no census on CI. FIXED with a MODULE-LEVEL stub: this
+                              file's subject is the ORDER and the ARITHMETIC; the heart precondition
+                              has its own gate (test_the_lock_derives_from_the_heart, 10 laws, 3
+                              red-proofs). Stubbing what you are not testing is not weakening a law;
+                              letting a machine-local file decide an assertion about Wilson scores is.
+  test_the_backlog_...        v2862 added a SECOND regex (_VER_TOKEN) and this gate's own law counted
+                              every pattern containing d{4} and demanded exactly one. A law broken by
+                              a change it was not about. FIXED: name the pattern by its VARIABLE.
+                              Its arm [1] also still targeted the renamed _VER_IN_SUBJECT — re-pointed.
+  test_the_screen_read_...    its proof tampered the MINI(AUTOMATIC) planner v2857 DELETED. 0 matches:
+                              "a sabotage that changes nothing proves nothing". BLOCK REMOVED, not
+                              re-pointed — the one surviving law asserts an ABSENCE (no handler reads
+                              the screen on its own thread) and nothing can be DELETED to make an
+                              absence false. The gate is now honestly UNPROVEN. A stale proof is worse
+                              than none: it reports coverage while proving nothing.
+  test_the_hover_...          same deleted code, in BOTH a law and its proof. `_saw` appears nowhere
+                              in the tree now. Law retired; proof re-pointed at slot_identity.
+
+⚠ TWO MISTAKES OF MINE INSIDE THE FIX, both caught before shipping:
+  · the first re-point was a NO-OP — `GRIDS = {} or {...}` evaluates to the original dict because an
+    empty dict is falsy — and came back BLIND. I authored it WITHOUT sandbox-verifying first, which
+    is my own rule. [[sabotage-is-usually-the-wrong-one]]
+  · the first test_self_arming fix added a setUp to classes that INHERIT one, overriding the base
+    that builds self.p and turning 3 failures into 6 errors. A fixture that breaks the fixtures.
+    Reverted and redone at module level.
+
+VERIFIED under CI's exact condition (census moved aside): all 8 affected gates rc=0, 0 failing.
+
+Also in this ship: test_classify_corroborator gains 2 hand-written arms on TWO DIFFERENT grades —
+the RULED_OUT holders guard and the INHERITED span window — so a fix to one cannot satisfy the
+proof. Both PROVEN, 1 match each.
+
+## REG-836 — a law that checks a NAME instead of an ACT, for the fifth time this session
+
+Cross-family review of v2864, payload sent VERBATIM this time (REG-834 records why that matters).
+
+HIGH, FIXED — test_an_UNREADABLE_gate_does_not_hash_like_an_EMPTY_one assumed chmod 0 makes a file
+unreadable. It does not for root, for CAP_DAC_OVERRIDE, or on a filesystem that ignores mode bits:
+_read_text succeeds, src is empty rather than None, the UNREADABLE branch is never taken and the law
+FAILS while proving nothing. It now MEASURES ITS OWN PREMISE — asks _read_text whether the file is
+genuinely unreadable and skips with a reason if not. UNMEASURED is not passing.
+
+MEDIUM, FIXED, AND IT IS THE RECURRING ONE — test_the_fingerprint_covers_the_PROVER_too asserted the
+string heart2.py appeared in the function source. That passes if the fold is deleted, commented out,
+or put behind a flag nobody sets. FIFTH instance this session of a law checking a NAME instead of an
+ACT (pixel_gates contains an ast walk; render_check names the verdict file; backendProved recomputed
+locally; and now this). It is behavioural now: stub _read_text so ONLY heart2.py reads differently,
+leave the gate list untouched, require the digest to MOVE. VERIFIED — deleting the fold turns the
+gate RED, where the string check stayed green.
+
+⚠ THE PATTERN IS WORTH NAMING ON ITS OWN. Every one of the five was caught by its own red-proof or
+by a reviewer, never by reading. When a law is about a mechanism, assert the mechanism ACTS: change
+what it consumes and require the output to change. Asserting that the machinery is PRESENT is the
+cheap version and it is always green.
+

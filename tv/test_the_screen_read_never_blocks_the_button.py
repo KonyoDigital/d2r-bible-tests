@@ -108,16 +108,18 @@ class TestScreenReadNeverBlocksTheButton(unittest.TestCase):
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 # The tamper is the defect verbatim: read the screen on the request thread, which is what made the
 # POST hang with zero bytes for 8-25s.
-RED_PROOF = [{
-    "why": "hoisting the screen read back onto the request thread is the original hang",
-    "file": "control_app.py",
-    "find": """            _container = str(body.get("container") or "stash")
-            _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)""",
-    "replace": """            _container = str(body.get("container") or "stash")
-            _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)
-            cells, occ_why = _mini_cells_from_live_frame(_container)""",
-    "matches": 1,
-}]
+# ⚠⚠ v2865 — NO RED_PROOF, DELIBERATELY, AND THIS IS THE HONEST STATE.
+# The block that stood here tampered the MINI(AUTOMATIC) planner in control_app.py — code v2857
+# DELETED outright by his ruling. It matched 0 times and turned CI red on
+# test_every_declared_red_proof_is_well_formed: "a sabotage that changes nothing proves nothing".
+# A stale proof is worse than none: it reports coverage while proving nothing at all, and it took a
+# CI run to say so because the pre-push suite runs only test_agent + test_control while the full
+# registry runs on the runner. [[regression-guard]]
+#
+# The one surviving law asserts an ABSENCE — no request handler may call the screen reader on its
+# own thread. Nothing can be DELETED to make an absence false; the sabotage would have to INSERT a
+# call inside a handler, which this engine's find/replace cannot express. So this gate is UNPROVEN
+# rather than falsely proved, and the census counts it that way. [[unknown-stays-unknown]]
 
 
     # ══ v2857 — FOUR LAWS RETIRED, THEIR SUBJECT WAS DELETED BY RULING (REG-823) ═══════════════

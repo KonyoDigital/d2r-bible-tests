@@ -50,8 +50,8 @@ RED_PROOF = [
         "why": "un-anchoring the subject pattern re-admits versions a commit merely MENTIONS, "
                "which counted v1554 as a ship",
         "file": "second_eye_run.py",
-        "find": '_VER_IN_SUBJECT = re.compile(r"^v(\\d{4})\\b")',
-        "replace": '_VER_IN_SUBJECT = re.compile(r"\\bv(\\d{4})\\b")',
+        "find": '_VER_LEADING_RUN = re.compile(r"^(v\\d{4}(?:\\s*[+,&]\\s*v\\d{4})*)\\b")',
+        "replace": '_VER_LEADING_RUN = re.compile(r"(v\\d{4}(?:\\s*[+,&]\\s*v\\d{4})*)\\b")',
         "matches": 1,
     },
 ]
@@ -82,16 +82,20 @@ class TheBacklogSeesAVersionWithNoRow(unittest.TestCase):
 
     def test_the_subject_pattern_is_ANCHORED(self):
         """★★ 'v2853 — ...' stamps a ship; 'fix: the v2804 row ...' merely mentions one."""
-        pats = [n.args[0].value for n in ast.walk(TREE)
-                if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                and n.func.attr == "compile" and n.args
-                and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)
-                and "d{4}" in n.args[0].value]
+        # ⚠⚠ v2865 — THIS COUNTED EVERY PATTERN CONTAINING d{4} AND DEMANDED EXACTLY ONE, so
+        # v2862's second pattern (_VER_TOKEN, which splits a leading RUN like "v2859+v2860") turned
+        # this law red on CI — a law broken by a change it was not about. Name the SUBJECT pattern
+        # by its variable instead of counting look-alikes. [[label-outlived-referent]]
+        pats = [ast.unparse(n.value.args[0])
+                for n in ast.walk(TREE)
+                if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", "") == "_VER_LEADING_RUN" for t in n.targets)
+                and isinstance(n.value, ast.Call) and n.value.args]
         self.assertEqual(1, len(pats),
-                         "expected exactly one version-subject pattern; found %d — UNKNOWN, not a "
-                         "pass" % len(pats))
+                         "expected exactly one _VER_LEADING_RUN assignment; found %d — UNKNOWN, "
+                         "not a pass" % len(pats))
         self.assertTrue(
-            pats[0].startswith("^"),
+            "^" in pats[0][:6],
             "the version pattern %r is not anchored, so any commit that MENTIONS a version counts "
             "it as shipped. Measured over 400 subjects: 252 stamp a ship, 19 only refer back, and "
             "the loose form reported v1554 as a shipped version owing a look." % pats[0])

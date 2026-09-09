@@ -69,6 +69,33 @@ _PROBE = r"""(function(){
 })()"""
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, sandbox-verified. This law asserts a GRADE, so no string deletion can "
+               "sabotage it. Removing the holders guard destroys RULED_OUT: a reel that never "
+               "opened a stash or an inventory anywhere stops being ruled out and falls through to "
+               "a softer grade, so a moment that could not possibly be a possession reads as merely "
+               "unknown. MEASURED: 1 match, RED, breaking "
+               "test_a_reel_that_never_opened_a_container_is_RULED_OUT_not_unknown.",
+        "file": "reel_segments.py",
+        "find": "    if not holders:",
+        "replace": "    if False and not holders:",
+        "matches": 1,
+    },
+    {
+        "why": "THE SECOND ARM, breaking a DIFFERENT law. The span window is what separates "
+               "INHERITED from CONTAINED: without it an uncontained moment inside a container's "
+               "span is no longer inherited, and the grade that says 'the template can speak for "
+               "this' collapses into one that cannot. Two arms on two grades, so a fix to one "
+               "cannot satisfy the whole proof. MEASURED: 1 match, RED, breaking "
+               "test_an_uncontained_moment_inside_a_container_span_is_INHERITED_not_CONTAINED.",
+        "file": "reel_segments.py",
+        "find": "            if hi1 <= int(ts) <= lo2 and (lo2 - hi1) <= SEG_GAP_MS:",
+        "replace": "            if False and hi1 <= int(ts) <= lo2 and (lo2 - hi1) <= SEG_GAP_MS:",
+        "matches": 1,
+    },
+]
+
 def _classify():
     import render_check as rc
     if not rc._chrome_up():

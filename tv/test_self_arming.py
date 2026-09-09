@@ -30,6 +30,35 @@ RED_PROOF = [
     },
 ]
 
+_HEART_REAL = None
+
+
+def setUpModule():
+    """v2865 — v2861 joined may() to the heart: a surface may not arm itself while its instruments
+    are blind, and an ABSENT census is UNKNOWN, which fails CLOSED. Correct — and it turned this
+    file red on CI, where `.heart2.json` is gitignored so there IS no census: may() then returns the
+    heart's refusal instead of the upstream/Wilson reason these laws assert. My machine had a
+    census; the runner does not. [[feedback-blind-fixture-green-gate]]
+
+    The precondition has its OWN gate — test_the_lock_derives_from_the_heart, 10 laws, 3 red-proofs.
+    THIS file's subject is the ORDER and the ARITHMETIC, so it stubs the heart exactly as it already
+    stubs SA.LEDGER. Stubbing what you are not testing is not weakening a law; letting a
+    machine-local file decide an assertion about Wilson scores is.
+
+    ⚠ MODULE level on purpose. My first cut added a setUp to each class that calls may() — and
+    OVERRODE the inherited setUp that builds `self.p`, turning 3 failures into 6 errors. A fixture
+    that breaks the fixtures is not a fixture.
+    """
+    global _HEART_REAL
+    _HEART_REAL = SA._heart_says_watched
+    SA._heart_says_watched = lambda: (True, "stubbed: the heart is proved by its own gate")
+
+
+def tearDownModule():
+    if _HEART_REAL is not None:
+        SA._heart_says_watched = _HEART_REAL
+
+
 class _Ledger(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="arm-")
