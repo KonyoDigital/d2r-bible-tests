@@ -20107,9 +20107,28 @@ def _vault_owed_reels(hist=None):
     # That is a LATENT defect the day a reel legitimately reaches it, and it is worth fixing — but
     # it is not what fills his disk. That is 6.2 GB of test fixtures, one 3 GB reel pinned by a
     # COMMENT. [[feedback-suspect-the-instrument]] [[sabotage-is-usually-the-wrong-one]]
+    # ⚠⚠⚠ v2876 — SELECT ON THE LANE, NOT ON ONE TAG STRING, AND I LEARNED IT THE HARD WAY.
+    # v2875 added `panels-never-banked` and placed it BEFORE `vault-owes` in retention's
+    # chain, so it shadowed the only consumer that filtered on the old tag. MEASURED the
+    # same night: retention held 18 reels for the vault lane and this returned 0, with the
+    # live lamp reading owed=0 reads=0 lastTs=None. The reels were correctly held and the
+    # lane that clears them could no longer see them — a new tag is a new way for one
+    # authority to stop hearing another.
+    #
+    # `shelf_driver.OWED_BY` is the ONE tag->lane map; both `vault-owes` and
+    # `panels-never-banked` mean the vault owes this reel. Reading it here keeps the panel
+    # and the sweeper on one definition, which is the whole reason this function exists.
+    # ⚠ An unreadable map is UNKNOWN, never []. [[copy-drift]] [[the-unjoined-end]]
+    try:
+        import shelf_driver as _sd
+        _vault_tags = frozenset(t for t, lane in _sd.OWED_BY.items() if lane == "vault")
+    except Exception:
+        return None
+    if not _vault_tags:
+        return None
     return [os.path.join(h_abs, os.path.basename(str(k.get("reel"))))
             for k in (p.get("kept") or [])
-            if k.get("tag") == "vault-owes"]
+            if k.get("tag") in _vault_tags]
 
 _TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "skips": {}}
 _TRIAGE_EVERY_S = int(os.environ.get("TV_TRIAGE_EVERY_S") or 90)
@@ -25647,7 +25666,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2875",
+        "ver": "v2876",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

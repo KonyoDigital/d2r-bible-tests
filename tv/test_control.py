@@ -20065,8 +20065,15 @@ class TestV2062OneDeletionAuthority(unittest.TestCase):
         return frame_authority
 
     # six reels so KEEP_RECENT=5 still leaves one old reel to reason about
-    _REELS = {"s_1000_1": ["f_1.jpg", "f_2.jpg"], "s_2000_2": ["f_3.jpg"], "s_3000_3": ["f_4.jpg"],
-              "s_4000_4": ["f_5.jpg"], "s_5000_5": ["f_6.jpg"], "s_6000_6": ["f_7.jpg"]}
+    # ⚠⚠ v2876 — SIZED FROM KEEP_RECENT. This was six reels, chosen when the shield held five
+    # so that exactly ONE fell outside it. Konyo raised the shield to 8 and all six went
+    # inside, so "only the oldest may be offered" got an empty set and two laws went red on a
+    # correct tree. The oldest keeps TWO frames because the witness law needs one frame that
+    # witnessed and one that did not. [[feedback-blind-fixture-green-gate]]
+    import reel_retention as _rr_keep
+    _REELS = dict([("s_1000_1", ["f_1.jpg", "f_2.jpg"])] +
+                  [("s_%d_%d" % ((i + 2) * 1000, i + 2), ["f_%d.jpg" % (i + 3)])
+                   for i in range(_rr_keep.KEEP_RECENT)])
 
     def test_a_witness_frame_in_a_sealed_reel_is_never_prunable(self):
         """The row survives extraction — but the frame is the only way to ever SHOW him why the row
@@ -20896,8 +20903,12 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         self.addCleanup(shutil.rmtree, root, True)
         hist = os.path.join(root, "frames", "hist")
         os.makedirs(hist)
-        # oldest first; KEEP_RECENT protects the newest 5, so build 7 and target the oldest
-        names = ["reel_s_178400000000%d_1" % i for i in range(7)]
+        # oldest first; KEEP_RECENT protects the newest N, so build N+2 and target the oldest.
+        # ⚠ v2876 — DERIVED, NOT 7. The comment named the constant and the code hard-coded it,
+        # so raising KEEP_RECENT 5 -> 8 swallowed the whole fixture and this law went red on a
+        # correct tree. [[feedback-blind-fixture-green-gate]]
+        import reel_retention as _rr_keep
+        names = ["reel_s_17840000%04d_1" % i for i in range(_rr_keep.KEEP_RECENT + 2)]
         for n in names:
             d = os.path.join(hist, n)
             os.makedirs(d)
@@ -21930,7 +21941,15 @@ class TestV2079AnUnreadableLedgerHoldsTheFootage(unittest.TestCase):
     that declared a chronicle focus — into `else:` and out as ELIGIBLE, reported as "sealed by BOTH
     lanes"."""
 
-    def _tree(self, n=6):
+    def _tree(self, n=None):
+        """⚠ v2876 — SIZED FROM KEEP_RECENT, NOT FROM A LITERAL. Konyo raised the shield
+        from 5 to 8; this fixture built exactly 6 reels, so the WHOLE shelf fell inside it
+        and eleven laws went red on a correct tree ("8 not less than 8"). A fixture whose
+        size is tied to a constant must be DERIVED from it. [[feedback-blind-fixture-green-gate]]
+        """
+        import reel_retention as _rr_keep
+        if n is None:
+            n = _rr_keep.KEEP_RECENT + 3
         import json as _j
         root = tempfile.mkdtemp(prefix="reelledger_")
         self.addCleanup(shutil.rmtree, root, True)
@@ -22286,7 +22305,15 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
 
     The ORDER is the safety. Every case here is a REFUSAL except two."""
 
-    def _tree(self, n=8, mb_each=1.2):
+    def _tree(self, n=None, mb_each=1.2):
+        """⚠ v2876 — SIZED FROM KEEP_RECENT, NOT FROM A LITERAL. Konyo raised the shield
+        from 5 to 8; this fixture built exactly 8 reels, so the WHOLE shelf fell inside it
+        and eleven laws went red on a correct tree ("8 not less than 8"). A fixture whose
+        size is tied to a constant must be DERIVED from it. [[feedback-blind-fixture-green-gate]]
+        """
+        import reel_retention as _rr_keep
+        if n is None:
+            n = _rr_keep.KEEP_RECENT + 3
         import json as _j
         root = tempfile.mkdtemp(prefix="prunecycle_")
         self.addCleanup(shutil.rmtree, root, True)
@@ -22777,7 +22804,15 @@ class TestV2080TheFixtureHoldIsCheckedWHEREVERTheSuiteRUNS(unittest.TestCase):
     observation about his actual footage, which is a different and also useful thing.
     [[regression-guard]] [[feedback-blind-fixture-green-gate]]"""
 
-    def _tree(self, n=8):
+    def _tree(self, n=None):
+        """⚠ v2876 — SIZED FROM KEEP_RECENT, NOT FROM A LITERAL. Konyo raised the shield
+        from 5 to 8; this fixture built exactly 8 reels, so the WHOLE shelf fell inside it
+        and eleven laws went red on a correct tree ("8 not less than 8"). A fixture whose
+        size is tied to a constant must be DERIVED from it. [[feedback-blind-fixture-green-gate]]
+        """
+        import reel_retention as _rr_keep
+        if n is None:
+            n = _rr_keep.KEEP_RECENT + 3
         import json as _j
         root = tempfile.mkdtemp(prefix="fixhold_")
         self.addCleanup(shutil.rmtree, root, True)
@@ -22995,7 +23030,10 @@ class TestV2080TheReviewFindings(unittest.TestCase):
         self.addCleanup(shutil.rmtree, root, True)
         hist = os.path.join(root, "hist")
         os.makedirs(hist)
-        for i in range(7):
+        # ⚠ v2876 — derived from the shield, not 7. See the _REELS note in
+        # TestV2062OneDeletionAuthority: a fixture sized against a constant must move with it.
+        import reel_retention as _rr_keep
+        for i in range(_rr_keep.KEEP_RECENT + 2):
             sid = "s_17000000000%02d_1" % i
             d = os.path.join(hist, "reel_" + sid)
             os.makedirs(d)
@@ -23060,7 +23098,9 @@ class TestV2080TheReviewFindings(unittest.TestCase):
         hist = os.path.join(root, "hist")
         os.makedirs(hist)
         chron = {}
-        for i in range(6):
+        # ⚠ v2876 — derived from the shield, not 6. See the _REELS note above.
+        import reel_retention as _rr_keep
+        for i in range(_rr_keep.KEEP_RECENT + 2):
             sid = "s_150000000%04d" % i
             d = os.path.join(hist, "reel_" + sid)
             os.makedirs(d)
@@ -38315,7 +38355,12 @@ class TestV2370AProvenEmptyReelStopsBeingUndeletable(unittest.TestCase):
         # most of the range: the newest 5 are held as "recent" (so the subject must be low), and
         # v2069 holds any reel a test file NAMES (indices 0-5 are each spelled out by other cases
         # in this file — index 0 three times). Index 6 of twelve is outside both.
-        root, hist = _fixture_hist(self, reels=12, sealed=False)
+        # ⚠ v2876 — THE INDEX IS DERIVED. With KEEP_RECENT at 5, index 6 of twelve sat outside
+        # the shield; at 8 it sits inside it and this law reported "one of the 8 most recent"
+        # about a reel it had chosen precisely because it was NOT recent.
+        import reel_retention as _rr_keep
+        _n = _rr_keep.KEEP_RECENT + 7
+        root, hist = _fixture_hist(self, reels=_n, sealed=False)
         oldest = "reel_s_15000000000%02d_1" % 6
         # ⚠ A DURABLE WITNESS STORE MUST EXIST, or a hold that outranks every rule below catches
         # every reel: "no durable witness store exists yet, so nothing here can prove this reel's
@@ -39005,8 +39050,41 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
         return "\n".join(out)
 
     def test_it_matches_the_tag(self):
-        self.assertIn('k.get("tag") == "vault-owes"', self._body(),
-                      "the worklist is not matching the machine-readable tag")
+        """⚠⚠ v2876 — THIS PINNED ONE EXPRESSION, NOT THE RULE. It asserted the literal
+        `k.get("tag") == "vault-owes"`, so the day the worklist learned a SECOND vault tag —
+        `panels-never-banked`, which retention now matches first — the guard went red on a change
+        that made the code MORE correct. The subject of this class is "key on the tag, not on an
+        English sentence", and that is what belongs here. [[feedback-comments-vs-code]]"""
+        self.assertIn('k.get("tag")', self._body(),
+                      "the worklist is not keying on the machine-readable tag at all")
+
+    def test_EVERY_tag_that_means_the_vault_owes_a_read_is_in_the_worklist(self):
+        """★★ v2876 — THE BEHAVIOURAL HALF, AND THE ONE THAT WOULD HAVE CAUGHT THE REGRESSION.
+        A source guard cannot see a tag that was never added to the filter. MEASURED on his tree
+        the day `panels-never-banked` shipped: retention held 18 reels for the vault lane and
+        `_vault_owed_reels` returned 0, with the live lamp reading owed=0 reads=0 lastTs=None.
+        Drives the real function over a stubbed plan, one tag at a time.
+        [[the-unjoined-end]] [[source-reading-guard]]"""
+        import unittest.mock as mock
+        import shelf_driver as sd
+        import control_app as ca
+        import reel_retention as rr
+        vault_tags = sorted(t for t, lane in sd.OWED_BY.items() if lane == "vault")
+        self.assertTrue(vault_tags, "shelf_driver.OWED_BY names no vault tag — this law is vacuous")
+        missed = []
+        for tag in vault_tags:
+            plan = {"ok": True, "kept": [{"reel": "reel_s_1_1", "tag": tag, "why": "x", "mb": 1}],
+                    "candidates": [], "onDisk": 1}
+            with mock.patch.object(rr, "plan", return_value=plan):
+                got = ca._vault_owed_reels(hist="/tmp/nowhere-shelf")
+            if not got or not any("reel_s_1_1" in str(g) for g in got):
+                missed.append(tag)
+        self.assertEqual(
+            [], missed,
+            "retention can hold a reel with tag(s) %r meaning the VAULT owes it a read, and the "
+            "worklist that feeds the sweeper does not return them. The reels are held correctly "
+            "and the lane that would clear them cannot see them — two authorities, one question."
+            % missed)
 
     def test_it_no_longer_greps_an_english_sentence(self):
         needle = "VAULT lane has " + "never swept"     # assembled: cannot match its own text

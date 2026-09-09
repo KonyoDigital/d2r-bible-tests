@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2875",
+  "ver": "v2876",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2875: the sweep never stamped the branch that read, a chronicle verdict held stash footage, and lifting it exposed a seal with nothing behind it",
+  "note": "v2876: a new retention tag shadowed the only consumer that filtered on the old one, and eleven fixtures were sized against the constant I moved",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
