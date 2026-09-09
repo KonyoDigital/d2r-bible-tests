@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2841",
+  "ver": "v2842",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2841: REG-803 — heart2 swallowed a parse failure into prior={} and the merge would have erased provedGates and the blind list, writing the wipe over the only copy; a corrupt ledger now refuses the write, proven by exit 2 with the file left byte-for-byte intact. The swallow ratchet is back to 74/74",
+  "note": "v2842: REG-804..805 — a character floor let a prose-padded promise through at 2409 chars with one code line; the floor is now code lines, measured 1 versus 55-69. Plus realpath over abspath and a fallback that finally says it degraded",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

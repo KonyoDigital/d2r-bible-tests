@@ -270,58 +270,75 @@ class ARealDiffMustNotRetractItsOwnReview(unittest.TestCase):
                          "because the last time this scan reached into prose the ledger refused "
                          "every push: %s" % got["unsent"])
     def test_a_marker_inside_a_real_payload_is_noise(self):
-        """v2840 — A MARKER ONLY MEANS SOMETHING WHILE THE FENCE COULD *BE* THE PROMISE.
+        """A fence that genuinely carries code is not retracted by a marker inside it.
 
-        These markers catch a prompt whose fence holds an un-evaluated expression INSTEAD OF the
-        file. A fence carrying thousands of characters of real diff manifestly holds the code, and
-        a stray textual match inside it is a coincidence of text. Twice it retracted a genuine look
-        and blocked the repo, because a retracted row is an EMPTY SEAT and a version cannot ship
-        while the previous one has never been looked at:
+        v2842 — THE FLOOR IS CODE LINES, NOT CHARACTERS, AND A CROSS-FAMILY REVIEW BROKE THE
+        CHARACTER VERSION IN ONE TRY. Padding a fence with thirty lines of prose puts it over any
+        character floor while it still carries ONE line of code. I built that counter-example and
+        measured it: 2,409 chars, slipped straight through. Size is not the property — whether the
+        fence carries code is, and prose adds none. Measured on the same pair: the padded promise
+        has 1 code line, a real review payload has 55-69.
 
-            v2825  matched second_eye_ledger's OWN COMMENT describing what a seam looks like
-            v2840  matched `open("control_app.py").read()` inside a STRING LITERAL that is test
-                   fixture data — inside 14,777 characters of transmitted diff
-
-        The size is the evidence. [[zero-needs-a-denominator]]
+        ⚠ THIS TEST'S OWN FIXTURE USED TO BE THE COUNTER-EXAMPLE. It padded with COMMENT lines and
+        asserted the payload was accepted — under the correct rule that fixture is a padded promise
+        and must be retracted. The fixture now pads with real code.
         """
-        big = "```diff\n" + ("+ # padding to make this a genuine payload\n" * 90) + \
+        big = "```diff\n" + "".join("+ x%d = compute(%d)\n" % (i, i) for i in range(40)) + \
               "+        src = 'def t():\\n    open(\"control_app.py\").read()\\n'\n```"
+        body = L._FENCE_RE.findall(big)[0]
+        self.assertGreaterEqual(L._code_lines(body), L._PROMISE_MIN_CODE_LINES,
+                                "this fixture is meant to carry real code; it does not, so the "
+                                "assertion below would prove nothing")
         got = L.code_was_transmitted(big)
-        self.assertGreater(got["chars"], L._PROMISE_MAX_CHARS,
-                           "this fixture is meant to exceed the floor; it does not, so the test "
-                           "below would prove nothing")
         self.assertEqual([], got["unsent"],
-                         "a %d-character payload was retracted over a marker inside it — that is "
-                         "an empty seat filed against a real look, and it blocks the next push: %s"
-                         % (got["chars"], got["unsent"]))
+                         "a payload carrying %d lines of code was retracted over a marker inside "
+                         "it — that is an empty seat filed against a real look, and it blocks the "
+                         "next push: %s" % (L._code_lines(body), got["unsent"]))
+
+    def test_prose_padding_does_not_buy_a_pass(self):
+        """★ The reviewer's counter-example, kept as a law so it cannot come back."""
+        pad = "# explanatory prose that carries no code whatsoever, repeated to pad the fence\n" * 30
+        promise = "```python\n" + pad + 'prompt = open("control_app.py").read()\n```'
+        body = L._FENCE_RE.findall(promise)[0]
+        self.assertGreater(len(body), 2000,
+                           "the fixture no longer exceeds the OLD character floor, so it stopped "
+                           "testing the hole it was written for")
+        self.assertLess(L._code_lines(body), L._PROMISE_MIN_CODE_LINES,
+                        "prose padding is being counted as code")
+        self.assertTrue(L.code_was_transmitted(promise)["unsent"],
+                        "a promise padded past the character floor was accepted — the guard is an "
+                        "escape hatch, which is exactly what the character floor made it")
 
     def test_a_bare_promise_is_still_caught(self):
         """[[feedback-blind-fixture-green-gate]] — the floor must not become an escape hatch."""
+        _d = chr(34) * 3
         for label, body in (("a bare open().read()", 'prompt = open("f.py").read()'),
-                            ("a + triple-quote seam", 'msg = head + ' + chr(34) * 3 + 'tail' + chr(34) * 3),
-                            ("a triple-quote + seam", 'print(' + chr(34) * 3 + 'head' + chr(34) * 3 + ' + body)')):
+                            ("a + triple-quote seam", 'msg = head + ' + _d + 'tail' + _d),
+                            ("a triple-quote + seam", 'print(' + _d + 'head' + _d + ' + body)')):
             got = L.code_was_transmitted("```python\n%s\n```" % body)
-            self.assertLess(got["chars"], L._PROMISE_MAX_CHARS,
-                            "%s is no longer under the floor, so this case stopped testing the "
-                            "thing it names" % label)
             self.assertTrue(got["unsent"],
                             "%s is a REAL promise standing in for the code and it was let "
-                            "through — the floor became an escape hatch" % label)
+                            "through" % label)
 
     def test_the_floor_sits_below_every_real_payload(self):
-        """A floor above a real review payload would disable the guard entirely."""
-        self.assertLess(L._PROMISE_MAX_CHARS, 4000,
-                        "the floor is at or above the smallest real payload measured (4,538 "
-                        "chars), so no genuine look would ever be checked at all")
-        self.assertGreater(L._PROMISE_MAX_CHARS, 200,
-                           "the floor is low enough that a padded promise slips under it")
+        """A floor above a real payload would disable the guard entirely."""
+        self.assertLess(L._PROMISE_MIN_CODE_LINES, 50,
+                        "the floor is at or above the smallest real payload measured (55 code "
+                        "lines), so no genuine look would ever be accepted")
+        self.assertGreater(L._PROMISE_MIN_CODE_LINES, 2,
+                           "the floor is low enough that a two-line promise slips under it")
+
+    def test_a_diff_marker_is_not_a_comment(self):
+        """`+ x = 1` is a CODE line; `+ # note` is not. Getting that backwards flips every count."""
+        self.assertEqual(2, L._code_lines("+ x = 1\n- y = 2\n+ # a note\n\n  # another"),
+                         "diff-prefixed code lines are miscounted, so every payload's size is wrong")
 
 # ══ THE EXECUTABLE RED-PROOF ═══════════════════════════════════════════════════════════════════
 RED_PROOF = [
     {
         "why": "removing the size floor restores the retraction that filed two genuine looks\n               as empty seats and blocked the repo each time",
         "file": "second_eye_ledger.py",
-        "find": "        if len(body) >= _PROMISE_MAX_CHARS:\n            continue",
+        "find": "        if _code_lines(body) >= _PROMISE_MIN_CODE_LINES:\n            continue",
         "replace": "        if False:\n            continue",
         "matches": 1,
     },

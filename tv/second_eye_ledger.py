@@ -253,11 +253,36 @@ _UNSENT_MARKERS = (
 
 _FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
 
-#: A fence at least this large has manifestly TRANSMITTED code, so an un-evaluated-expression
-#: marker inside it is a coincidence of text rather than a promise standing in for a file.
-#: Measured: real review payloads carry 4,538-37,973 chars of fence; an un-evaluated seam is a
-#: line or two. The floor sits far below every real payload and far above any bare expression.
+#: How many LINES OF CODE a fence must carry before an un-evaluated-expression marker inside it is
+#: treated as a coincidence of text rather than a promise standing in for a file.
+#:
+#: ⚠⚠ v2842 — THIS WAS A CHARACTER COUNT AND A CROSS-FAMILY REVIEW BROKE IT IN ONE TRY. Padding a
+#: fence with 30 lines of prose puts it over any character floor while it still carries ONE line of
+#: code — I built the counter-example and measured it: 2,409 chars, SLIPPED THROUGH. Size is not
+#: the property; the property is whether the fence actually carries code, and prose does not add
+#: code lines. Measured on the same pair: the padded promise has 1 code line, a real review payload
+#: has 69. [[zero-needs-a-denominator]]
+_PROMISE_MIN_CODE_LINES = 8
+
+#: Kept only for the `chars` field the ledger reports. It is NOT the test any more.
 _PROMISE_MAX_CHARS = 2000
+
+
+def _code_lines(body):
+    """Lines in a fence that are neither blank nor a comment. -> int
+
+    The discriminator between a payload and a padded promise: prose and blank lines are free to add
+    and add nothing here.
+    """
+    n = 0
+    for line in str(body or "").split("\n"):
+        t = line.strip()
+        # a unified diff prefixes every line; strip it before asking whether it is a comment
+        if t[:1] in "+-" and len(t) > 1:
+            t = t[1:].strip()
+        if t and not t.startswith("#"):
+            n += 1
+    return n
 
 #: A Python comment line, with an optional unified-diff marker in front of it. Prose about a rule
 #: is not the rule — the distinction this repo has paid for more than once.
@@ -313,7 +338,7 @@ def code_was_transmitted(sent):
         # The size IS the evidence. Below the floor the expression could plausibly be the whole
         # payload; above it the code is present whatever the text also happens to say.
         # [[feedback-comments-vs-code]] [[zero-needs-a-denominator]]
-        if len(body) >= _PROMISE_MAX_CHARS:
+        if _code_lines(body) >= _PROMISE_MIN_CODE_LINES:
             continue
         for rx, msg in _UNSENT_MARKERS:
             if rx.search(_code) and msg not in why:

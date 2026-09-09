@@ -172,7 +172,7 @@ RED_PROOF = [
         "file": "heart2_candidates.py",
         # ⚠ RE-ANCHORED: scoping the registry to `here` rewrote this line, and heart2 said so
         # at once — INVALID, matched 0 times. The LAW did not change.
-        "find": '        files = [f for _n, f in _h2.gate_files()\n                 if os.path.abspath(os.path.dirname(f)) == _abs]',
+        "find": '        files = [f for _n, f in _h2.gate_files()\n                 if os.path.realpath(os.path.dirname(f)) == _real]',
         "replace": "        files = None",
         "matches": 1,
     },

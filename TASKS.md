@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2842** | `(this commit)` | v2842 — REG-804..805 — a character floor let a prose-padded promise through at 2409 chars with one code line; the floor is now code lines, measured 1 versus 55-69. Plus realpath over abspath and a fallback that finally says it degraded |
 | **v2841** | `(this commit)` | v2841 — REG-803 — heart2 swallowed a parse failure into prior={} and the merge would have erased provedGates and the blind list, writing the wipe over the only copy; a corrupt ledger now refuses the write, proven by exit 2 with the file left byte-for-byte intact. The swallow ratchet is back to 74/74 |
 | **v2840** | `(this commit)` | v2840 — REG-801 — infrastructure() measured a share over 242 globbed files while the gate registry holds 266; the registry is now the corpus, scoped to the directory asked about. Three of the same review four other claims did not survive measurement and were not acted on |
 | **v2839** | `(this commit)` | v2839 — REG-799..800 — js_syntax_gate concatenated the DOM dump with the console and grepped for SyntaxError, so bible.html failed itself on a COMMENT quoting one; invisible locally because the browser path skips on his Mac. And I verified 34 ships by the ref while 23 of 57 CI runs were failing |

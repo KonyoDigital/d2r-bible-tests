@@ -27,6 +27,7 @@ It NEVER writes to a guard, and it never writes to a target file. It returns tex
 import ast
 import io
 import os
+import sys
 
 #: An anchor shorter than this is too generic to tamper safely.
 MIN_ANCHOR = 8
@@ -92,17 +93,31 @@ def infrastructure(here):
     # `here`, so the registry is used only for files that actually live there — otherwise a caller
     # asking about a temp directory gets this repo's answer, which is how my own
     # `test_a_tiny_corpus_excludes_nothing` law went red on the change that introduced it.
-    files = None
+    # ⚠ realpath, NOT abspath — abspath does not resolve symlinks, so a symlinked checkout would
+    # match nothing, return [], and fall through to the glob while looking like a registry read.
+    # Raised by a cross-family review; measured here as not currently biting (tv/ is not a symlink
+    # and abspath == realpath today) and fixed anyway, because the failure would be silent.
+    files, _why = None, ""
     try:
         import heart2 as _h2
-        _abs = os.path.abspath(here)
+        _real = os.path.realpath(here)
         files = [f for _n, f in _h2.gate_files()
-                 if os.path.abspath(os.path.dirname(f)) == _abs]
-    except Exception:
-        files = None
+                 if os.path.realpath(os.path.dirname(f)) == _real]
+    except Exception as _e:
+        files, _why = None, "the gate registry could not be imported (%s)" % type(_e).__name__
     if not files:
+        # ⚠⚠ A DEGRADATION MUST SAY SO. The comment claimed this fallback was "stated, not silent"
+        # and nothing actually stated it — an empty registry for this directory downgraded to a
+        # filename glob with no word anywhere. Same review, same reading: a claim in a comment is
+        # not the behaviour. [[feedback-comments-vs-code]]
         import glob as _glob
         files = _glob.glob(os.path.join(here, "test_*.py"))
+        if not _INFRA_CACHE.get("_warned"):
+            _INFRA_CACHE["_warned"] = True
+            sys.stderr.write(
+                "heart2_candidates: %s — falling back to glob('test_*.py') for the infrastructure "
+                "share, which is a WIDER denominator than the gate registry.\n"
+                % (_why or "no registered gate lives in %s" % here))
     counts, total = {}, 0
     for f in files:
         src = _read(f)

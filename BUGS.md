@@ -26760,3 +26760,44 @@ so at the site** — the census explicitly allows that when the default *is* the
 wrong twice.
 
 Ratchet after: **baseline 74, now 74 — held.**
+
+## REG-804 — the size floor was the wrong shape, and a cross-family review broke it in one try
+**v2842 · 2026-09-09 · second_eye_ledger.py · found by the look at v2840**
+
+v2840 stopped the transmission guard retracting real reviews by adding a **character** floor. The
+reviewer's first counter-example defeated it, and I built and measured it rather than arguing:
+
+    30 lines of prose + one `open("control_app.py").read()`
+    -> 2,409 chars, ABOVE the floor, SLIPPED THROUGH
+
+**Size is not the property.** Whether the fence carries CODE is — and prose adds none. Measured on
+that exact pair: the padded promise has **1 code line**, a real review payload has **55-69**. The
+floor is now `_PROMISE_MIN_CODE_LINES = 8`, counting lines that are neither blank nor comments,
+with the unified-diff prefix stripped first so `+ x = 1` counts and `+ # note` does not.
+
+★ **My own test fixture WAS the counter-example.** It padded with COMMENT lines and asserted the
+payload was accepted — under the correct rule that fixture is a padded promise and must be
+retracted, which is exactly how the change announced itself. The fixture now pads with real code,
+and the reviewer's example is kept as its own law so the hole cannot reopen.
+
+## REG-805 — two smaller findings from the same look, both measured before acting
+**v2842 · 2026-09-09 · heart2_candidates.py**
+
+**(c) `abspath` does not resolve symlinks.** The registry was filtered with
+`abspath(dirname(f)) == abspath(here)`, so a symlinked checkout would match nothing, return `[]`,
+and fall through to the glob while looking like a registry read. **Measured as not currently biting**
+— `tv/` is not a symlink and `abspath == realpath` today, and all 267 gates live in one flat
+directory — and fixed anyway, because that failure would be silent.
+
+**(d) the fallback was silent.** The comment claimed the degradation was "stated, not silent" and
+**nothing actually stated it**. A claim in a comment is not the behaviour — the same shape as
+REG-799 one file over. It now writes to stderr, once, naming why and that the glob is a WIDER
+denominator. Verified on a temp tree: the message appears and the tiny corpus still excludes nothing.
+
+⚠ Adding that message crashed the fallback path on `NameError: sys` — the module never imported it.
+Caught immediately because the tiny-tree case exercises that path; it would otherwise only have
+fired on a machine where the registry was unreachable.
+
+⚠ And for the third time tonight, a refactor of mine moved a red-proof's anchor — heart2 reported
+`INVALID — the tamper matched 0 time(s). The SABOTAGE is wrong, not the law` within seconds each
+time. That is the loop doing precisely what it exists for.
