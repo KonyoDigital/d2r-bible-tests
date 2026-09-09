@@ -350,6 +350,57 @@ def tearDownModule():
 # So the helper refuses instead: it insists the start anchor is found, that the end anchor is after
 # it, and that what comes back is big enough to be the thing you meant. Every new source guard
 # should use it. [[source-reading-guard]]
+def _status_producer(case, src, name, key=None):
+    """Is `name` called inside status_payload — directly, or through the `_t` timer? -> bool
+
+    v2826 — THREE LAWS PINNED A CALL'S SPELLING AND WENT RED WHEN ONLY THE SPELLING CHANGED.
+    #28 wrapped sixteen producers as `_t("section", producer)` so their cost lands in a named
+    section instead of `unattributedMs`. Behaviour identical; the text `"drift": drift_state()`
+    is gone. Three assertIn checks over the source failed — and every one of them meant to say
+    "this producer still runs and its answer is still published", which is exactly as true after
+    the change as before.
+
+    A guard that pins the SPELLING of a call is pinned to the spelling. This asks the parsed tree
+    whether the producer is reached, so wrapping, renaming a section, or hoisting to a local all
+    keep it green while DELETING the producer still turns it red. [[source-reading-guard]]
+
+    When `key` is given it also requires that key to be present in the payload — publication and
+    invocation are two different facts and a law that wants both should say both.
+    """
+    import ast as _ast
+    fns = [n for n in _ast.walk(_ast.parse(src))
+           if isinstance(n, _ast.FunctionDef) and n.name == "status_payload"]
+    case.assertEqual(1, len(fns),
+                     "status_payload is not a single top-level function, so this law inspected "
+                     "nothing — an instrument failure, not a clean result")
+    fn = fns[0]
+    called = False
+    for n in _ast.walk(fn):
+        if not isinstance(n, _ast.Call):
+            continue
+        f = n.func
+        # a direct call: producer(...)
+        if isinstance(f, _ast.Name) and f.id == name:
+            called = True
+        # a timed call: _t("section", producer)  — the producer is an ARG, not the callee
+        if isinstance(f, _ast.Name) and f.id == "_t":
+            for a in n.args[1:]:
+                if isinstance(a, _ast.Name) and a.id == name:
+                    called = True
+                # _t("section", lambda: producer(...)) — the lambda body still calls it
+                if isinstance(a, _ast.Lambda):
+                    for sub in _ast.walk(a):
+                        if isinstance(sub, _ast.Call) and isinstance(sub.func, _ast.Name) \
+                                and sub.func.id == name:
+                            called = True
+    if key is not None:
+        found_key = any(isinstance(n, _ast.Constant) and n.value == key for n in _ast.walk(fn))
+        case.assertTrue(found_key,
+                        "status_payload no longer publishes the %r key, so whatever reads it "
+                        "downstream gets nothing" % key)
+    return called
+
+
 def _between(case, src, start, end, min_len=40, what="slice"):
     """src between `start` and the next `end` after it — or a failure that says which anchor moved."""
     i = src.find(start)
@@ -5301,7 +5352,7 @@ class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
         body = _between(self, src, "def status_payload(", "\ndef ", what="the status payload")
         self.assertNotIn("_screen_recording_ok_quick()", body,
                          "the raw TCC preflight is back in the polled payload")
-        self.assertIn("screen_recording_ok_cached()", body,
+        self.assertTrue(_status_producer(self, src, "screen_recording_ok_cached"),
                       "the payload stopped reading the cached grant")
 
     def test_the_grant_cache_actually_caches(self):
@@ -24741,7 +24792,7 @@ class TestV2110UpToDateIsNotTheSameAsRunningIt(unittest.TestCase):
     def test_the_measurement_it_depends_on_still_exists(self):
         self.assertIn("def drift_state", self.app,
                       "drift_state() is gone — the banner would silently stop noticing stale runs")
-        self.assertIn('"drift": drift_state()', self.app,
+        self.assertTrue(_status_producer(self, self.app, "drift_state", key="drift"),
                       "drift is no longer published on /api/status, so the banner cannot read it")
 
 
@@ -40827,8 +40878,10 @@ class TestV2399TheNextLookIsAREQUESTNotACommand(unittest.TestCase):
                          "a refused request must not paint a warning banner on HIS console — it is "
                          "published on /api/status for the eye, and that is the only place it goes")
         # and it must still be PUBLISHED — silence on his screen is not silence in the payload
-        self.assertIn('"viewRequest": view_request()',
-                      io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read(),
+        self.assertTrue(_status_producer(
+                          self,
+                          io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read(),
+                          "view_request", key="viewRequest"),
                       "the eye reads the refused states off the payload; they must stay published")
 
     def test_the_restore_path_uses_the_consoles_OWN_close_routine(self):

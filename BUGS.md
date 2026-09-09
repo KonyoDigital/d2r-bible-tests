@@ -26162,3 +26162,29 @@ rejoining the fence body changes no offset the intra-line markers depend on.
 ⚠ **UNKNOWN, stated:** its fifth check — whether the two seam regexes cover all four shapes —
 could not be answered, because my payload carried the call sites and not the regex definitions.
 That is a gap in what I sent, not a clean result. [[zero-needs-a-denominator]]
+
+## REG-783 — three laws pinned a call's SPELLING and went red when only the spelling changed
+**#28 · v2826 · 2026-09-09 · test_control.py**
+
+The pre-push suite refused REG-779 with three failures, and all three were the same shape:
+
+    test_the_measurement_it_depends_on_still_exists        assertIn('"drift": drift_state()')
+    test_the_grant_probe_is_not_called_raw_in_the_payload  assertIn("screen_recording_ok_cached()")
+    test_a_REFUSED_request_paints_NOTHING_on_his_console   assertIn('"viewRequest": view_request()')
+
+Wrapping a producer as `_t("section", producer)` so its cost lands in a named section instead of
+`unattributedMs` keeps the behaviour identical and deletes the text those three were matching. Every
+one of them meant *"this producer still runs and its answer is still published"*, which is exactly
+as true after the change as before. **A guard that pins the spelling of a call is pinned to the
+spelling.** [[source-reading-guard]]
+
+Replaced with `_status_producer(case, src, name, key=None)` — an AST walk over `status_payload` that
+returns True when the producer is reached **directly, as a `_t` argument, or inside a `_t` lambda**,
+and separately asserts the payload key when one is named (invocation and publication are two facts).
+It refuses outright if `status_payload` is not a single function, rather than reporting a clean
+result over nothing.
+
+Proven in three directions rather than assumed: deleting the real call (`"drift": _t("drift",
+drift_state),` — **1 match**) makes it False; the real source keeps it True; a producer that was
+never there is False. ⚠ My first red-check printed BLIND — and the match count printed beside it was
+**0**, so the sabotage was wrong, not the law. That is the whole reason the count is printed.
