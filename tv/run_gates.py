@@ -800,6 +800,17 @@ GATES = [
          "could not see it; I trusted it and the push was refused. After the fix: 249 shipped "
          "versions examined, 111 never looked at, against the 3 it used to report.",
          skip_ok=()),
+    Gate("test_the_heart_can_see_the_surfaces",
+         [sys.executable, os.path.join(HERE, "test_the_heart_can_see_the_surfaces.py")], 90,
+         why="v2859 — THE RENDER VERDICT WAS NOT DURABLE ANYWHERE. render_check wrote PNGs and, only "
+             "on --bless, a coverage floor; WHICH targets reported on a run lived in the push log and "
+             "the terminal alone. .render_shots cannot stand in — gitignored, 425 files mixing the 16 "
+             "live targets with ad-hoc shots back to v2262. So the heart could not say anything about "
+             "pixels because nothing recorded it. render_check now writes .render_verdict.json and "
+             "heart2.surface_verdict() reads it with three honest states: OK, PARTIAL (a subset run "
+             "cannot speak for the rest) and UNMEASURED. An absent or unparseable verdict is "
+             "UNMEASURED, NEVER OK — a surface nobody photographed must not report as one that passed.",
+         skip_ok=()),
     Gate("test_the_census_says_how_much_of_it_is_pixels",
          [sys.executable, os.path.join(HERE, "test_the_census_says_how_much_of_it_is_pixels.py")], 90,
          why="v2858 — ONE NUMBER HID A 93/7 SPLIT. Konyo: 'when we hit 100% on heart 2.0 its also "

@@ -83,6 +83,7 @@ import ast
 import io
 import json
 import os
+import time
 import re
 import shutil
 import subprocess
@@ -107,6 +108,41 @@ PROVEN, BLIND, UNPROVEN, UNPROVABLE, INVALID = "PROVEN", "BLIND", "UNPROVEN", "U
 
 
 # ── finding the gates ────────────────────────────────────────────────────────────────────────
+def surface_verdict(path=None):
+    """What the LAST render run actually reported. -> dict
+
+    v2859 — the heart counted GATES and never the SURFACES. render_check now records which targets
+    reported; this reads that record and refuses to guess when it is absent or stale.
+    `state` is one of: OK (a full run reported every target), PARTIAL (a subset run — cannot speak
+    for the rest), UNMEASURED (no record, or unreadable). UNMEASURED IS NOT ZERO. [[stale-reading]]
+    """
+    # ⚠ `path` EXISTS SO A LAW CAN ASK THE REAL QUESTION. Without it the only way to test
+    # "an absent verdict reads UNMEASURED" is to move the real file out from under a live
+    # console, or to assert on the SHAPE of this function instead of its behaviour — and a
+    # law that reads source instead of running the code is the weaker kind this repo keeps
+    # having to strengthen. [[feedback-blind-fixture-green-gate]]
+    p = path or os.path.join(HERE, ".render_verdict.json")
+    if not os.path.exists(p):
+        return {"state": "UNMEASURED", "why": "render_check has never written a verdict here — "
+                                              "run `python3 tv/render_check.py`"}
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            v = json.load(fh)
+    except Exception as e:
+        return {"state": "UNMEASURED", "why": "the render verdict would not parse (%s)"
+                                              % type(e).__name__}
+    rep = list(v.get("reported") or [])
+    tot = int(v.get("totalTargets") or 0)
+    age = None
+    if v.get("ranAt"):
+        age = int((time.time() * 1000 - float(v["ranAt"])) / 1000)
+    return {"state": ("OK" if (v.get("full") and tot and len(rep) >= tot) else
+                      "PARTIAL" if rep else "UNMEASURED"),
+            "reported": len(rep), "totalTargets": tot, "ageS": age,
+            "coverageMissing": int(v.get("coverageMissing") or 0),
+            "renderFailures": int(v.get("renderFailures") or 0)}
+
+
 def pixel_gates(gates=None):
     """The gates that actually LOOK AT PIXELS, by their IMPORTS. -> set[str]
 
@@ -405,6 +441,7 @@ def _write_state(results):
         "pixelProved": len(_proved & _pixel),
         "backendTotal": len(gates) - len(_pixel),
         "backendProved": len(_proved - _pixel),
+        "surfaces": surface_verdict(),   # v2859 — the PIXEL side, from the render run itself
         "declared": len(have),
         "unproven": len(gates) - len(have),
         "total": len(gates),

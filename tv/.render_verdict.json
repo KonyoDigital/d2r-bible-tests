@@ -1,0 +1,26 @@
+{
+  "_why": "which render targets REPORTED on the last run. heart2 reads this to say how much of the heart is pixels rather than code. A target missing from `targets` was not measured — which is UNKNOWN, not clean.",
+  "coverageMissing": 0,
+  "full": true,
+  "ranAt": 1788973778321,
+  "renderFailures": 0,
+  "reported": [
+    "advanced",
+    "advanced-fleet",
+    "advanced-fleet-down",
+    "advanced-shadow",
+    "console",
+    "console-tabs",
+    "heart",
+    "heart-fan",
+    "inbox",
+    "locks",
+    "page",
+    "river-strip",
+    "state-panel",
+    "taskforce",
+    "vault",
+    "vault-full"
+  ],
+  "totalTargets": 16
+}

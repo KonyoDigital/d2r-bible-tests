@@ -27591,3 +27591,39 @@ separate instrument with its own floor file, and the heart does not read it — 
 floor 3 -> 2 earlier today and the heart's number did not move. And `self_arming.py` / `hover_wilson.py`
 contain ZERO references to heart2, so the Wilson lock does not derive from the heart either.
 
+## REG-828 — the render verdict was durable NOWHERE, so the heart could not see the surfaces
+
+The other half of REG-827. v2858 made the census admit that 269 gates hold only TEN that import
+render_check, so 100% would be ~96% backend. This is WHY the visual share could not even be measured.
+
+MEASURED before the fix:
+  · render_check wrote PNGs, and a coverage FLOOR only on --bless. WHICH targets reported on a run
+    existed nowhere but the push log and the terminal.
+  · .render_shots cannot stand in: gitignored, 425 files, mixing the 16 live targets with ad-hoc
+    shots going back to v2262. It cannot answer "did `locks` report this run?"
+A verdict nobody records is a verdict nobody can supervise. [[the-unjoined-end]]
+
+FIXED. render_check writes tv/.render_verdict.json where it computes the coverage result — ranAt,
+full, totalTargets, reported[], coverageMissing, renderFailures — wrapped so a bookkeeping failure
+can never fail the gate, and saying so out loud if it cannot write. heart2.surface_verdict(path=None)
+reads it with three honest states: OK, PARTIAL (a subset run cannot speak for the rest) and
+UNMEASURED. It carries ageS, because a verdict is a fact about a moment. [[stale-reading]]
+
+MEASURED after, on a full clean run: 16 of 16 targets reported, coverageMissing 0, renderFailures 0,
+surface_verdict() -> state OK at age 8s. Absent file -> UNMEASURED. Unparseable file -> UNMEASURED.
+
+GATE: `test_the_heart_can_see_the_surfaces` — 5 laws, 2 red-proofs, both PROVEN (1 match each).
+
+⚠ THE SAME WEAK-LAW MISTAKE, TWICE IN TWO GATES, AND BOTH TIMES THE PROOF CAUGHT IT:
+  · v2858's census law asserted pixel_gates() CONTAINS an ast walk; the tamper left the walk unused
+    and swapped the deciding `if`. BLIND.
+  · this gate's law asserted render_check NAMES ".render_verdict.json"; the tamper replaced the
+    write with `pass` and left the filename constant sitting there. BLIND.
+Both are the same shape: a law that checks machinery is PRESENT is not a law that the machinery
+ACTS. Both now reach the act — the decision must consume the parsed imports; the `with` that opens
+the verdict file must contain a write call. This is exactly what #52 is for: the proof is what found
+the hole in the law, and a gate nobody sabotages is a gate nobody has read.
+
+STILL UNJOINED: self_arming.py / hover_wilson.py hold ZERO references to heart2, so the Wilson lock
+does not derive from the heart. That is the last of the three pieces.
+

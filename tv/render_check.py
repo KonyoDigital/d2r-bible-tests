@@ -3012,6 +3012,28 @@ def main(argv):
              "cannot tell a deliberate filter from a surface that vanished."
              % (len(targets), len(TARGETS)))
 
+    # ⚠⚠ v2859 — THE RENDER VERDICT WAS NOT DURABLE ANYWHERE, so the heart could not read it.
+    # Konyo asked whether 100% on HEART 2.0 is also a VISUAL pass. It is not, and the reason it
+    # could not even be MEASURED is here: this harness wrote PNGs and a coverage FLOOR, and nothing
+    # else. Which surfaces actually reported on the last run existed only in the push log and the
+    # terminal. `.render_shots` is gitignored and holds 425 files mixing today's 16 targets with
+    # ad-hoc shots going back to v2262, so it cannot answer "did `locks` report this run?" either.
+    # A verdict nobody records is a verdict nobody can supervise. [[the-unjoined-end]]
+    try:
+        _v = {"_why": "which render targets REPORTED on the last run. heart2 reads this to say how "
+                      "much of the heart is pixels rather than code. A target missing from "
+                      "`targets` was not measured — which is UNKNOWN, not clean.",
+              "ranAt": int(time.time() * 1000),
+              "full": bool(_full),
+              "totalTargets": len(TARGETS),
+              "reported": sorted(results.keys()),
+              "coverageMissing": int(cov_missing),
+              "renderFailures": int(bad)}
+        with io.open(os.path.join(HERE, ".render_verdict.json"), "w", encoding="utf-8") as _fh:
+            _fh.write(json.dumps(_v, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+    except Exception as _e:                     # a bookkeeping failure must never fail the gate
+        _say("     \u26a0 could not write .render_verdict.json (%s) — the heart will read this run "
+             "as UNMEASURED rather than clean." % type(_e).__name__)
     _say("shots: %s" % os.path.relpath(SHOTS, REPO))
     if cov_missing:
         _say("🔴 %d surface(s) the ratchet expected were never reported — a COVERAGE refusal, "
