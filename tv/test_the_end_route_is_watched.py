@@ -47,6 +47,16 @@ except Exception:
 import console_doctor as D  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'end routes reachable',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _verdict(payload):
     """Force any report through the real check without touching his shelf."""
     import end_routes as ER

@@ -25,6 +25,16 @@ console_safe.enable()
 import vault_doctor as vd  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in vault_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'vault_doctor.py',
+        "find": 'record one',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestTheDoctorCanReachEachAnswer(unittest.TestCase):
 
     def setUp(self):

@@ -16,6 +16,16 @@ import slot_identity as S
 BOX = (100.0, 200.0, 500.0, 500.0)          # a 500x500 stash grid at (100,200) -> 50px cells
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in slot_identity.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'slot_identity.py',
+        "find": 'none of them placed it',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestTheCellIsArithmeticOnPixels(unittest.TestCase):
     def test_corners_and_middle_land_where_a_person_would_say(self):
         self.assertEqual(S.cell_of((100, 200), BOX, "stash")[0], (0, 0))     # top-left

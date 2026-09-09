@@ -39,6 +39,16 @@ except Exception:
 import console_doctor as D  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'printer reach',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _verdict(payload):
     import printer_reach as PR
     fn = dict(D.CHECKS)["printer reach"]

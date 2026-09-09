@@ -37,6 +37,16 @@ enable()
 import safe_copy as SC  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in safe_copy.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'safe_copy.py',
+        "find": 'force=a.force',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _code_only(path):
     """A file's CODE, with every comment and string literal blanked out.
 

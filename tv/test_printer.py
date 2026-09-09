@@ -47,6 +47,16 @@ import printer as P   # noqa: E402
 FIXTURE_REELS = ("reel_s_1_1", "reel_s_1_2")
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in printer.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'printer.py',
+        "find": 'The unanswered stations are:',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _planted_door(reels=FIXTURE_REELS):
     """`one_start_point`'s reading, in its shape, for a shelf that need not exist on disk."""
     return {"ok": True, "state": "ONE_DOOR", "walked": len(reels), "notADirectory": 0,

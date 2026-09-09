@@ -80,6 +80,16 @@ _WRITE_PATTERNS = [
 ]
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": '#tvd-frame-lb:not([hidden])',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def ids_read(src):
     out = {}
     for pat in _READ_PATTERNS:

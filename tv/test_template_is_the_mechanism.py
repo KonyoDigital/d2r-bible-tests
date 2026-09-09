@@ -27,6 +27,16 @@ import chronicle_template as CT   # noqa: E402
 LIT = (CT._TAB_MARKER_MIN + CT._TAB_MARKER_MAX) / 2.0
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in chronicle_template.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'chronicle_template.py',
+        "find": 'NO TEMPLATE BAND',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class OnlyATabWithATemplateMayBeNamed(unittest.TestCase):
 
     def test_a_tab_with_no_template_band_is_never_named(self):

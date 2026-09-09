@@ -28,6 +28,16 @@ if HERE not in sys.path:
 import reel_river as RR   # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in reel_river.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'reel_river.py',
+        "find": 'rule is unavailable',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class AGapIsOnlyASameQuestionDisagreement(unittest.TestCase):
 
     def _run(self, story_rows, seals, covers=None):

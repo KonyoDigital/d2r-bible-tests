@@ -25,6 +25,16 @@ if HERE not in sys.path:
 import overlap_ratchet as OR  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in overlap_ratchet.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'overlap_ratchet.py',
+        "find": 'baseline venue mismatch',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _counts(**kw):
     """A measurement in the shape `measure()` returns."""
     return {k: {"count": v, "leaves": 50, "sample": []} for k, v in kw.items()}

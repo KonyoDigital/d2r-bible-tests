@@ -27,6 +27,16 @@ if HERE not in sys.path:
 import retro_gate as G
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in retro_gate.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'retro_gate.py',
+        "find": 'earning its cost',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestTheThreeDimensionsFailSEPARATELY(unittest.TestCase):
 
     def test_his_real_defect_is_caught_on_all_three(self):

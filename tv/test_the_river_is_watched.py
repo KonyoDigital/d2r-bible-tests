@@ -59,6 +59,16 @@ import corroborate as C  # noqa: E402
 DOC = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in corroborate.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'corroborate.py',
+        "find": 'router-and-shelf-agree',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Router(object):
     """Stands in for reel_router.route() so every verdict can be forced without his shelf."""
 

@@ -50,6 +50,16 @@ import control_app as CA  # noqa: E402
 SRC = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_app.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_app.py',
+        "find": '_RIVER_WALK["ok"] = False',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _fn(name, src=None):
     s = src if src is not None else SRC
     i = s.find("def %s(" % name)

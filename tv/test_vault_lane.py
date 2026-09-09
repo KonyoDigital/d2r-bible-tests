@@ -17,6 +17,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in lane_lock.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'lane_lock.py',
+        "find": 'AMBIGUOUS',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _missing_fixture_reels():
     """Which reels the SCENARIOS need that are not on disk. -> sorted list
 

@@ -31,6 +31,16 @@ import sets_base_index as sbi  # noqa: E402
 import chronicle_resolve as _res  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in bible.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'bible.html',
+        "find": 'window._chSetPiecesOnBase = function',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _embedded():
     with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
         s = fh.read()

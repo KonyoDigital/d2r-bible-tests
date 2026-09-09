@@ -22,6 +22,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import control_app as ca
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_app.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_app.py',
+        "find": 'no frame has been drawn',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _beat(raf=None, els=11707):
     st = {"els": els, "hidden": True, "view": "sessions"}
     if raf is not None:

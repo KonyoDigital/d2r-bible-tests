@@ -56,6 +56,16 @@ UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
 WORKER = io.open(os.path.join(ROOT, "functions", "api", "console.js"), encoding="utf-8").read()
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": 't.ledgerVerdict',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _code_only(blk):
     """Strip comments. A law that matches its own prose about a bug grades nothing.
     [[measured-true-read-wrong]]"""

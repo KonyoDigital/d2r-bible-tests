@@ -47,6 +47,16 @@ except Exception:
 import console_doctor as D  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'no paid read is owed',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _verdict(rows, stations, panel=110):
     """Force the row's verdict without touching his shelf."""
     import printer as P, reel_router as RR, extract_gap as EG

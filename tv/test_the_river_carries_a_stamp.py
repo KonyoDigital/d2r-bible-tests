@@ -62,6 +62,16 @@ TREE = ast.parse(SRC)
 LANE = "tvd-retro-triage"
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in river_stamp.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'river_stamp.py',
+        "find": 'is not a station',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _fn(name):
     """The FunctionDef node, by AST. A name that is gone must fail loudly, not be searched for."""
     for n in ast.walk(TREE):

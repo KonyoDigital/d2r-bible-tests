@@ -30,6 +30,16 @@ console_safe.enable()
 import reel_retention as rr  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in reel_retention.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'reel_retention.py',
+        "find": 'never chronicle-swept',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestRetentionSelectsAndRefuses(unittest.TestCase):
 
     def setUp(self):

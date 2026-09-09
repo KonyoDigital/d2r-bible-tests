@@ -27422,3 +27422,24 @@ counted the review's descriptive bullet points as findings. The verbatim answer 
 and the gate is honest about WHO looked, so this does not fabricate a look — but the finding COUNT
 is wrong, and a count is what a reader scans. NOT YET FIXED; recorded so it is not discovered twice.
 
+## REG-822 — five more gates are BLIND: green through the destruction of what they name
+
+Second authoring batch for #52. Each had its anchor destroyed in a sandbox with a confirmed match
+count of 1, and stayed GREEN — so the law does not read what it appears to be about:
+
+    test_routes                                  'super-judge'                  (control_app.py)
+    test_the_panel_prints_what_the_row_measured  '0 independent witnesses'      (bible.html)   [2nd time]
+    test_vault_retro                             'Ral Rune'                     (vault_retro.py)
+    test_pixel_witness                           'no pixel'                     (paint_witness.py)
+    test_reel_router                             'does not carry'               (reel_router.py)
+
+Their RED_PROOF blocks were REMOVED, not kept — a proof that survives its own defeat is counted as
+coverage, which is worse than none. The gates themselves are untouched and still green; what is
+recorded here is that their coverage is UNKNOWN. With REG-819 that makes NINE known-blind gates.
+
+`test_the_panel_prints_what_the_row_measured` has now come back BLIND on two independent runs with
+two different authors of the same anchor, so this is a fact about the gate, not about the anchor.
+
+BATCH RESULT: 40 derivable, 33 authored (7 had no syntax-safe single-match candidate), 28 PROVEN,
+5 BLIND. Heart 2.0: 99/271 (36.5%) -> 127/271 (46.9%), 0 blind.
+

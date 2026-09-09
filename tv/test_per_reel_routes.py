@@ -23,6 +23,16 @@ if HERE not in sys.path:
 import per_reel_routes as PRR   # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in per_reel_routes.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'per_reel_routes.py',
+        "find": 'not a defect',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class ARouteCountsOnlyWhenTheCONTENTEarnedIt(unittest.TestCase):
 
     def _r(self, reel, tag, stage):

@@ -45,6 +45,16 @@ if HERE not in sys.path:
 import tv_diablo as T  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in tv_diablo.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'tv_diablo.py',
+        "find": '_reel_capture_ms(_r) == 0',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TheLedgerQuestionIsAskedHonestly(unittest.TestCase):
 
     def setUp(self):

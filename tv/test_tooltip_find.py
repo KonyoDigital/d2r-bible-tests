@@ -29,6 +29,16 @@ if HERE not in sys.path:
 import tooltip_find as TF
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in tooltip_find.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'tooltip_find.py',
+        "find": 'no frame',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _frame(tmp, w=1200, h=900):
     """A real image file. density() opens the frame before it ever calls the reader, so a .py
     path stands in for nothing — it fails on the OPEN and the tile logic is never exercised.

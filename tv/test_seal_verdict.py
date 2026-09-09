@@ -50,6 +50,16 @@ except Exception:
 import frame_authority as FA
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in frame_authority.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'frame_authority.py',
+        "find": 'MEASUREMENT',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class SealVerdictSaysWhichKindOfNo(unittest.TestCase):
 
     def test_the_three_words_exist_and_are_distinct(self):

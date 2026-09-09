@@ -27,6 +27,16 @@ import console_safe  # noqa: F401,E402
 import stash_eye as se  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in stash_eye.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'stash_eye.py',
+        "find": 'DERIVED, NOT YET MEASURED',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestKonyosMacIsUntouched(unittest.TestCase):
     def test_the_locked_band_comes_back_BYTE_IDENTICAL_on_his_film(self):
         # ★ 2940×1912 is the actual film every band was measured on

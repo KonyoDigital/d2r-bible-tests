@@ -20,6 +20,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import self_arming as SA
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in self_arming.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'self_arming.py',
+        "find": 'too alike',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Ledger(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="arm-")

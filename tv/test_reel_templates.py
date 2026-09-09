@@ -21,6 +21,16 @@ if HERE not in sys.path:
 import reel_templates as RT  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in reel_templates.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'reel_templates.py',
+        "find": 'NONE on the deep lane',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Swap(unittest.TestCase):
     """Feed `templates()` a journal and a river of our own."""
 
