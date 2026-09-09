@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2873** | `(this commit)` | v2873 — a law read two states where the river grades three, and the sandbox carries every live store while CI carries none |
 | **v2872** | `(this commit)` | v2872 — the skip count was still taken from whatever printed last, and the proposal file kept the binary framing |
 | **v2871** | `(this commit)` | v2871 — the surfaces law read this Mac own render verdict and failed on CI where that verdict reported nothing |
 | **v2870** | `(this commit)` | v2870 — the skip warning could not tell a whole-file skip from a partial one, and two writers gave the same verdict opposite jobs |

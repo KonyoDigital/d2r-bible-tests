@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2872",
+  "ver": "v2873",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2872: the skip count was still taken from whatever printed last, and the proposal file kept the binary framing",
+  "note": "v2873: a law read two states where the river grades three, and the sandbox carries every live store while CI carries none",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

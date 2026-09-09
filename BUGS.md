@@ -12,10 +12,18 @@
 **v2866.** `heart2.py --prove` reported `test_the_lock_derives_from_the_heart[1] BLIND ← stayed
 GREEN through its own defeat`, and v2865's own census went to origin carrying `blind: 1`.
 
-**The law was not weak — it never ran.** `.heart2.json` is gitignored, so `safe_copy` never puts a
-census in a sandbox, so the law called `self.skipTest("no census on this machine")` and the tampered
-run printed `OK (skipped=5)`. Green because nothing was judged. The verdict line said "stayed GREEN
-through its own defeat" about a law that never reached its defeat.
+**The law was not weak — it never ran.** The tampered run printed `OK (skipped=5)`: green because
+nothing was judged. The verdict line said "stayed GREEN through its own defeat" about a law that
+never reached its defeat.
+
+⚠ **CORRECTED 2026-09-10 (v2873).** This entry first said the cause was that `.heart2.json` is
+gitignored *"so `safe_copy` never puts a census in a sandbox"*. **That is false, and measured:** a
+fresh sandbox carries `chron_evidence.json` (2,210,457 bytes), `.heart2.json` (12,816) and
+`.render_verdict.json` (628) — `safe_copy` copies working-tree files, ignored or not. The real cause
+is the OTHER skip on that law: `_skip_if_stale`. Tampering a gate file changes the fingerprint, the
+copied census reads STALE, and the law opted out. The fix shipped was right for both — it builds its
+own current census and drops both skips — but the cause recorded was not, and a wrong cause in this
+log is worse than no entry. [[feedback-suspect-the-instrument]]
 
     tampered run tail:  OK (skipped=5)      <- the answer, in the function's hands, discarded
     verdict printed:    BLIND ← stayed GREEN through its own defeat
@@ -232,6 +240,44 @@ red-proof arm that had been aimed at it, so that arm silently dropped to **0 mat
 that changes nothing proves nothing. Printing the match count found it before `--prove` ran. Six
 arms now, all PROVEN, twelve laws. [[sabotage-is-usually-the-wrong-one]]
 [[feedback-generalize-fixes]] [[copy-drift]]
+
+### REG-844 — the prover and the runner disagree about what exists, and a law was graded by whichever it landed on
+
+**v2873.** `test_the_river_reaches_the_heart::test_a_zero_here_does_NOT_blame_the_writer` has been
+red on the CI gate-runner with a reason that named none of it:
+
+    AssertionError: 'REDATES' not found in 'chron_evidence.json absent or unreadable'
+
+`river.py` grades **three** states — `_joint` returns UNKNOWN whenever either side is None, and its
+docstring says exactly why: *"None is never silently turned into 0 — that substitution is the defect
+this module exists to find."* The law read **two**: carrying, or zero. On a machine with no
+`chron_evidence.json` the joint is UNKNOWN, and the law sent it down the ZERO branch and demanded
+the word PREDATES of a sentence reporting that the store could not be read. An unmeasured joint
+graded as a measured zero — the substitution the module exists to catch, in the gate watching it.
+
+Fixed: the law now branches on `RV.UNKNOWN` first and requires the sentence to SAY the store was
+unreadable, with `crossed` and `upstream` both still None. Reproduced under CI's condition before
+and after: `FAILED` → `OK`, 15 laws, and unchanged with the real 2.2 MB store present.
+
+⚠⚠ **THE STRUCTURAL FINDING, MEASURED.** The red-proof for that branch came back **BLIND with no
+skips** — the tamper was real, the sandbox simply never took the branch. Because:
+
+    a fresh heart2 sandbox contains
+      chron_evidence.json    2,210,457 bytes
+      .heart2.json              12,816 bytes
+      .render_verdict.json         628 bytes
+
+`safe_copy` copies working-tree files whether git ignores them or not. **The prover runs in a world
+with every live store; CI runs in a world with none.** So a gate can be PROVEN in the sandbox and
+red on the runner, and — worse — a law that only fires when a store is ABSENT can never be proven at
+all, because the sandbox always has it. Answered here by asking `_joint` directly, which holds in
+both worlds. The general rule: **a law that depends on the ambient filesystem is graded by whichever
+machine it lands on, and neither the census nor CI alone can tell you it is sound.**
+
+⚠ **And this corrects REG-837**, whose stated cause was that `safe_copy` never puts a census in a
+sandbox. It does. The lock law's skip there was `_skip_if_stale`, not absence. The entry is amended
+in place. [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+[[feedback-fixtures-never-touch-live-data]]
 
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 

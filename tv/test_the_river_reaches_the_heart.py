@@ -254,6 +254,26 @@ class TheRiverReachesTheHeart(unittest.TestCase):
         total = len(RV._sightings() or [])
         self.assertNotIn("does not persist it", why,
                          "the joint still blames the reader for dropping a key it writes")
+        # ⚠⚠ v2873 — river.py GRADES THREE STATES AND THIS LAW READ TWO. `_joint` returns UNKNOWN
+        # whenever either side is None, and its own docstring says why: "None is never silently
+        # turned into 0 — that substitution is the defect this module exists to find." On any
+        # machine without `chron_evidence.json` — CI, and every heart2 sandbox, because the store
+        # is gitignored — `j_surface()` returns UNKNOWN, and this law sent it down the ZERO branch
+        # and demanded the word PREDATES of a sentence that reads "chron_evidence.json absent or
+        # unreadable". Red on the runner for as long as it has existed, and the reason named none
+        # of it. An unmeasured joint graded as a measured zero is exactly the substitution above.
+        # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        if r.get("state") == RV.UNKNOWN:
+            self.assertIn("unreadable", why.lower(),
+                          "the joint is UNKNOWN and its sentence does not say the store could not "
+                          "be read, so an unmeasured joint reads like a measured one: %r" % why)
+            self.assertIsNone(r.get("crossed"),
+                              "an UNKNOWN joint published a NUMBER (%r) — that is the None-to-zero "
+                              "substitution river.py exists to catch" % r.get("crossed"))
+            self.assertIsNone(r.get("upstream"),
+                              "an UNKNOWN joint published a denominator (%r) it never measured"
+                              % r.get("upstream"))
+            return
         if r.get("crossed"):
             # ⚠ THE CARRYING CASE. The danger here is the opposite one: a bare "it carries" hides
             # HOW FEW. 258 of 14,322 is 1.8%, and a reader who sees only CARRIES will think the
@@ -276,6 +296,28 @@ class TheRiverReachesTheHeart(unittest.TestCase):
             self.assertIn("cannot heal by waiting", why,
                           "nothing says this will not fix itself on the next tick — it will not")
             self.assertIn(str(total), why, "the zero has no denominator")
+
+    def test_an_UNMEASURED_joint_is_UNKNOWN_and_never_a_ZERO(self):
+        """★★ v2873 — DETERMINISTIC, BECAUSE THE AMBIENT STORE CANNOT BE TRUSTED TO BE ABSENT.
+        The law above grades the UNKNOWN state, but it can only reach it on a machine with no
+        `chron_evidence.json` — and MEASURED, a heart2 sandbox carries the live one (2,210,457
+        bytes; `safe_copy` copies working-tree files, ignored or not). So the red-proof that
+        restores the None-to-zero substitution came back BLIND: the tamper was real, the sandbox
+        simply never took that branch. The prover and the CI runner disagree about what exists,
+        and a law that depends on the ambient filesystem is graded by whichever one it lands on.
+        This asks `_joint` directly, so it holds on both. [[feedback-fixtures-never-touch-live-data]]"""
+        r = RV._joint("x", "things", None, None, "the store is absent or unreadable")
+        self.assertEqual(RV.UNKNOWN, r.get("state"),
+                         "a joint with nothing measured on either side graded %r — river.py's own "
+                         "docstring calls turning None into 0 'the defect this module exists to "
+                         "find'" % r.get("state"))
+        self.assertIsNone(r.get("crossed"), "an UNKNOWN joint published a numerator")
+        self.assertIsNone(r.get("upstream"), "an UNKNOWN joint published a denominator")
+        half = RV._joint("x", "things", 0, None, "the denominator could not be read")
+        self.assertEqual(RV.UNKNOWN, half.get("state"),
+                         "a known ZERO over an UNMEASURED denominator graded %r — 0 of unknown is "
+                         "not a dry river, it is an unread one [[zero-needs-a-denominator]]"
+                         % half.get("state"))
 
     def test_the_gate_joint_still_runs_on_his_real_store(self):
         r = RV.j_gate()
@@ -312,6 +354,15 @@ RED_PROOF = [
         "file": 'river.py',
         "find": 'd.get("wouldAdd")',
         "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": "the None-to-zero substitution river.py names in its own docstring as the defect it "
+               "exists to find: an UNKNOWN joint — the store absent or unreadable — published as a "
+               "measured zero, so a reader is sent to fix a dry river that was never measured",
+        "file": "river.py",
+        "find": "    if n is None or upstream is None:\n        state = UNKNOWN",
+        "replace": "    n, upstream = (n or 0), (upstream or 0)\n    if False:\n        state = UNKNOWN",
         "matches": 1,
     },
 ]
