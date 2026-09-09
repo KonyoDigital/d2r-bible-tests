@@ -19,7 +19,7 @@ import chronicle_routes as CR
 
 RED_PROOF = [
     {
-        "why": 'the law requires this text in build_runeword_roster.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the ga',
+        "why": 'the law requires this text in build_runeword_roster.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'build_runeword_roster.py',
         "find": 'hand-edited',
         "replace": '_HEART2_TAMPERED_',

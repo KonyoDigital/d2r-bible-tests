@@ -35,7 +35,7 @@ SRC = os.path.join(HERE, "frame_release_wilson.py")
 
 RED_PROOF = [
     {
-        "why": 'the law requires this text in frame_release_wilson.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gat',
+        "why": 'the law requires this text in frame_release_wilson.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'frame_release_wilson.py',
         "find": 'sealed_sessions',
         "replace": '_HEART2_TAMPERED_',

@@ -32,7 +32,7 @@ REELS = {
 
 RED_PROOF = [
     {
-        "why": 'the law requires this text in chronicle_calibrate.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate',
+        "why": 'the law requires this text in chronicle_calibrate.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'chronicle_calibrate.py',
         "find": 'not the same as',
         "replace": '_HEART2_TAMPERED_',

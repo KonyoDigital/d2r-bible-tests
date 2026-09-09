@@ -48,7 +48,7 @@ DAY_MS = 86400.0 * 1000.0
 
 RED_PROOF = [
     {
-        "why": 'the law requires this text in intake_grok_sub.mjs, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate re',
+        "why": 'the law requires this text in intake_grok_sub.mjs, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'intake_grok_sub.mjs',
         "find": 'const MS_FLOOR = 1e11',
         "replace": '_HEART2_TAMPERED_',

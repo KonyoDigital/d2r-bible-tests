@@ -810,6 +810,13 @@ GATES = [
              "number of ticks, on the first tick after a restart, with run() driven rather than "
              "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
          skip_ok=()),
+    Gate("test_the_backlog_sees_a_version_with_no_row",
+         [sys.executable, os.path.join(HERE, "test_the_backlog_sees_a_version_with_no_row.py")], 60,
+         "v2854 — --backlog built its answer from the ledger, and audit() covers only versions "
+         "the ledger already mentions. v2852 had no row, so the command whose job is the queue "
+         "could not see it; I trusted it and the push was refused. After the fix: 249 shipped "
+         "versions examined, 111 never looked at, against the 3 it used to report.",
+         skip_ok=()),
     Gate("test_the_ratchet_cannot_erase_the_census",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
          "v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "

@@ -98,6 +98,39 @@ def _sh(args, timeout=60):
     return out.decode("utf-8", "replace"), ""
 
 
+# ⚠ ANCHORED AT THE START, because the repo stamps a ship as "v2853 — ..." while a follow-up
+# says "fix: the v2804 row narrated the catcher". MEASURED over 400 subjects: 252 start with
+# a version, 19 merely mention one. The loose form counted v1554 as a ship because a later
+# commit talked about it. [[label-outlived-referent]]
+_VER_IN_SUBJECT = re.compile(r"^v(\d{4})\b")
+
+
+def versions_in_history(n=400):
+    """Every version stamped by a commit subject, newest first. -> ([version], why)
+
+    ⚠⚠ v2854 — `--backlog` READ THE LEDGER, AND A VERSION WITH NO ROW HAS NOTHING TO READ.
+    audit()'s own docstring says its scope out loud: "Every version mentioned in the ledger". A
+    version that shipped and was never looked at produces NO row, so the one command whose job is
+    "what is stacking up" could not see the single case that matters most — the newest unlooked
+    version, which is exactly the one that blocks the next push.
+
+    MEASURED 2026-09-09: `--backlog` reported "3 version(s) owe a look: v2772, v2774, v2776" and did
+    not name v2852. I trusted it, pushed v2853, and the gate refused with "v2852 OWES A LOOK —
+    nothing was ever recorded for it". Two checks disagreed and the quiet one was wrong.
+    [[silence-is-not-evidence]] [[zero-needs-a-denominator]]
+    """
+    out, why = _sh(["git", "log", "--format=%s", "-%d" % int(n)])
+    if out is None:
+        return [], why
+    seen, vs = set(), []
+    for line in out.splitlines():
+        m = _VER_IN_SUBJECT.search(line)
+        if m and m.group(0) not in seen:
+            seen.add(m.group(0))
+            vs.append(m.group(0))
+    return vs, ""
+
+
 def commit_for(version):
     """The commit whose subject stamps this version. -> sha | None"""
     out, why = _sh(["git", "log", "--format=%H %s", "-400"])
@@ -358,12 +391,24 @@ def main(argv):
         # looks — counting them would clear the queue without anyone having looked.
         # [[the-unjoined-end]] [[unknown-stays-unknown]]
         _rows = SEL.audit(None) if callable(getattr(SEL, "audit", None)) else []
+        _known = {r.get("version") for r in _rows if isinstance(r, dict)}
         owed = [r.get("version") for r in _rows
                 if isinstance(r, dict) and not int(r.get("looks") or 0)]
+        # ⚠⚠ AND THE VERSIONS THE LEDGER HAS NEVER HEARD OF. See versions_in_history(): a shipped
+        # version with no row is the STRONGEST case of owing a look, and it was the only one this
+        # command could not report. Ask the same predicate the gate asks.
+        _shipped, _why = versions_in_history()
+        for _v in _shipped:
+            if _v not in _known and SEL.owes_a_look(_v):
+                owed.append(_v)
+        owed = sorted(set(owed), key=lambda x: -int(x[1:]) if x[1:].isdigit() else 0)
         if not owed:
-            print("  nothing owes a look.")
+            # ⚠ a zero carries its denominator, or it is UNKNOWN rather than clean.
+            print("  nothing owes a look — %d ledger row(s), %d shipped version(s) examined.%s"
+                  % (len(_rows), len(_shipped), (" (%s)" % _why) if _why else ""))
             return 0
-        print("  %d version(s) owe a look: %s" % (len(owed), ", ".join(owed)))
+        print("  %d version(s) owe a look: %s     [%d ledger row(s), %d shipped version(s) examined]"
+              % (len(owed), ", ".join(owed), len(_rows), len(_shipped)))
         ok = all(run_one(v) for v in owed)
         return 0 if ok else 1
     if not a.version:

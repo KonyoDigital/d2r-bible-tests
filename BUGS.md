@@ -27386,3 +27386,39 @@ sandbox, and stayed GREEN — so the law does not read what it appears to be abo
 Their RED_PROOF blocks were REMOVED rather than kept — a proof that survives its own defeat is
 counted as coverage, which is worse than none. The gates themselves are untouched and still green;
 what is recorded here is that their coverage is UNKNOWN, not that they are broken.
+
+## REG-820 — `--backlog` could not see a version the ledger had never heard of
+
+`tv/second_eye_run.py` built the backlog from `SEL.audit(None)`. audit()'s own docstring states the
+scope: "Every version mentioned in the ledger". A version that shipped and was never looked at
+produces NO row, so the single command whose job is "what is stacking up" was blind to the case that
+matters most — the newest unlooked version, which is exactly the one the pre-push gate blocks on.
+
+MEASURED 2026-09-09, the contradiction in both directions:
+    --backlog             "3 version(s) owe a look: v2772, v2774, v2776"    (v2852 ABSENT)
+    --check v2852 --gate  "v2852 OWES A LOOK — nothing was ever recorded for it"
+I read --backlog before pushing v2853, believed it, and the gate refused the push. A quiet check and
+a loud one disagreed, and the quiet one was wrong. [[silence-is-not-evidence]]
+
+AFTER THE FIX, over 249 shipped versions in 400 commits: 111 had never been looked at — against the
+3 it used to report.
+
+Two parts:
+  · enumerate SHIPPED versions from commit subjects, then ask `owes_a_look` — the same predicate the
+    gate asks — for any version with no ledger row.
+  · the subject pattern is ANCHORED (`^v\d{4}`). Loose, it counted any version a commit MENTIONED:
+    252 of 400 subjects stamp a ship, 19 only refer back ("fix: the v2804 row narrated the catcher"),
+    and the loose form reported v1554 as a shipped version owing a look. [[label-outlived-referent]]
+  · a clean verdict now carries its denominator — "nothing owes a look" over an unsized candidate set
+    is UNKNOWN, not clean. [[zero-needs-a-denominator]]
+
+GATE: `test_the_backlog_sees_a_version_with_no_row` — 4 laws, 2 red-proofs, both PROVEN (1 match each).
+
+## REG-821 — the second-eye ledger counted 5 findings in a review that found none
+
+Recording the v2852 look, `second_eye_run.py --answer-in` reported "v2852: LOOKED — 5 finding(s)
+recorded" for an answer whose first line is "**No concrete defects visible.**". `_findings_from()`
+counted the review's descriptive bullet points as findings. The verbatim answer is stored correctly
+and the gate is honest about WHO looked, so this does not fabricate a look — but the finding COUNT
+is wrong, and a count is what a reader scans. NOT YET FIXED; recorded so it is not discovered twice.
+
