@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2834",
+  "ver": "v2835",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2834: REG-794 — 21 derived candidates in, 12 survived across 6 gates; the six whose proofs went BLIND, INVALID or UNPROVABLE had their blocks removed rather than kept. All five UNPROVABLE gates were checked on the real tree first and are green there",
+  "note": "v2835: REG-795 — a nested def or class binds its name in the ENCLOSING scope and shadowed the producer, and a global inside an excluded body reached out to rebind it; all three returned True. The def node itself is no longer marked nested, and global/nonlocal is checked even inside one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

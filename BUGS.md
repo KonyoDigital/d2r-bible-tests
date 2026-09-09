@@ -26500,3 +26500,32 @@ GATES that hold a proven proof, and these 12 proofs live in 6 gates. A number re
 arithmetic over the wrong unit is exactly the class of defect this task exists to catch, and
 it was caught by reading the census instead of trusting the sum. [[feedback-suspect-the-instrument]]
 All twelve touched gates verified still green untampered.
+
+## REG-795 — a nested def, a nested class, and a global reaching out of one
+**#28 · v2835 · 2026-09-09 · test_control.py · found by the cross-family look at v2833**
+
+v2833 enumerated every binding form *inside* the function. It missed the ones that bind a name while
+sitting in, or reaching out of, a nested scope. Three sources, all reproduced as **false GREENs**:
+
+    def status_payload():
+        def drift_state(): ...          ->  True    a nested def BINDS that name in the enclosing scope
+        class drift_state: ...          ->  True    so does a nested class
+        def inner(): global drift_state ->  True    and a global reaches OUT of the excluded body
+
+The cause was one line: `_nested` marked the def node **itself** as nested, so its `.name` — which
+binds outside it — was invisible. `_nested` now collects only the CHILDREN, keeping the body
+excluded (a helper's dict is still not the payload) while leaving the name binding checkable.
+`global`/`nonlocal` is the one form checked even inside an excluded body, because it is the one that
+reaches out. Match-case captures (`MatchAs`/`MatchStar`/`MatchMapping`) added while there.
+
+⚠ **Its check (b) was again the opposite direction**: it claimed a binding before an alias exists
+escapes, and measured as a REFUSAL — noise, not a green. Third review running where a claimed false
+GREEN measured as a false RED. **The direction is the whole finding**, and it only comes from
+running the case.
+
+⚠ **Its check (c) — that a subscript/attribute target refuses on the base name — is a real false
+refusal, and it is ACCEPTED, not fixed.** `d["k"] = x` mutates, it does not rebind, so refusing
+there is noise. Per the stated intent, noise is the price of never guessing.
+
+Eleven cases verified, including one that guards against over-refusing: a nested helper with an
+UNRELATED name still answers True.

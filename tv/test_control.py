@@ -389,11 +389,18 @@ def _status_producer(case, src, name, key=None):
 
     #: Nodes belonging to a function DEFINED INSIDE status_payload. A helper's body is not the
     #: payload: `def h(): return {"drift": producer()}` used to count as the payload's own dict.
+    # ⚠⚠ v2835 — THE DEF NODE ITSELF IS *NOT* NESTED, ONLY ITS BODY. A nested `def drift_state():`
+    # or `class drift_state:` BINDS THAT NAME IN THE ENCLOSING SCOPE, so it shadows the producer —
+    # and marking the def node as nested made the binding invisible. Measured: both returned True
+    # while the payload called the shadow. Adding only the CHILDREN keeps the body excluded (a
+    # helper's dict is still not the payload) while leaving the name binding checkable.
     _nested = set()
     for n in _ast.walk(fn):
-        if n is not fn and isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.Lambda)):
+        if n is not fn and isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.Lambda,
+                                          _ast.ClassDef)):
             for sub in _ast.walk(n):
-                _nested.add(id(sub))
+                if sub is not n:
+                    _nested.add(id(sub))
 
     # ── aliases: `p = producer`, in SOURCE ORDER, and a rebinding revokes ────────────────────
     aliases = {name}
@@ -468,10 +475,26 @@ def _status_producer(case, src, name, key=None):
         elif isinstance(node, (_ast.Global, _ast.Nonlocal)):
             for nm in node.names:
                 out.append(("a global/nonlocal declaration", nm, node.lineno))
+        elif isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+            # ⚠ the DEFINED NAME binds in the enclosing scope — `def drift_state():` shadows the
+            # producer for every line after it, and returned True before v2835.
+            out.append(("a nested def/class of the same name", node.name, node.lineno))
+        elif hasattr(_ast, "MatchAs") and isinstance(node, getattr(_ast, "MatchAs")) and node.name:
+            out.append(("a match-case capture", node.name, node.lineno))
+        elif hasattr(_ast, "MatchStar") and isinstance(node, getattr(_ast, "MatchStar")) \
+                and node.name:
+            out.append(("a match-case star capture", node.name, node.lineno))
+        elif hasattr(_ast, "MatchMapping") and isinstance(node, getattr(_ast, "MatchMapping")) \
+                and node.rest:
+            out.append(("a match-case rest capture", node.rest, node.lineno))
         return out
 
     for n in _ast.walk(fn):
-        if id(n) in _nested:
+        # ⚠ A `global`/`nonlocal` INSIDE a nested def still rebinds the OUTER name, so it is the
+        # one binding form that must be checked even where the body is excluded. Measured: it
+        # returned True while an inner function reassigned the producer's module-level name.
+        _reaches_out = isinstance(n, (_ast.Global, _ast.Nonlocal))
+        if id(n) in _nested and not _reaches_out:
             continue
         for what, nm, lineno in _bound_names(n):
             if nm in aliases:

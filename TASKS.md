@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2835** | `(this commit)` | v2835 — REG-795 — a nested def or class binds its name in the ENCLOSING scope and shadowed the producer, and a global inside an excluded body reached out to rebind it; all three returned True. The def node itself is no longer marked nested, and global/nonlocal is checked even inside one |
 | **v2834** | `(this commit)` | v2834 — REG-794 — 21 derived candidates in, 12 survived across 6 gates; the six whose proofs went BLIND, INVALID or UNPROVABLE had their blocks removed rather than kept. All five UNPROVABLE gates were checked on the real tree first and are green there |
 | **v2833** | `(this commit)` | v2833 — REG-793 — a for target, a comprehension target, with-as, except-as and import-as each silently rebound a tracked name and each returned True while the payload called something else. Five instances, one defect: the helper now enumerates every binding form the language has and refuses on any that touches a tracked name |
 | **v2832** | `(this commit)` | v2832 — REG-792 — rebinding the producer own name was exempted from the alias discard, and a nested helper dict counted as the payload; both were false GREENs. Everything unmodelled now refuses with a reason instead of answering. Twelve cases verified, and two of the review directions were the opposite of what was measured |
