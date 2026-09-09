@@ -115,6 +115,14 @@ def candidates_for(gate_path, here=None):
     except SyntaxError as e:
         return [], NO_TARGET, "the gate does not parse (%s)" % type(e).__name__
     targets = target_files(tree, here)
+    # ⚠ A GATE MAY NOT BE ITS OWN SUBJECT. After the cross-file fix, test_agent began proposing
+    # tampers against test_agent.py itself — anchors like 'leaving Durance of Hate Level 2', which
+    # are its own FIXTURE DATA. Deleting those does turn the gate red, so it would pass --prove and
+    # count as coverage, while proving nothing whatsoever about the code the law is meant to guard.
+    # A proof that only demonstrates a test can break its own fixture is the most convincing kind
+    # of green that means nothing. [[feedback-blind-fixture-green-gate]]
+    _self = os.path.basename(os.path.abspath(gate_path))
+    targets = [t for t in targets if os.path.basename(t) != _self]
     if not targets:
         return [], NO_TARGET, ("the gate names no source file it reads — its subject cannot be "
                                "resolved from the text, so no tamper can be derived")
@@ -125,21 +133,46 @@ def candidates_for(gate_path, here=None):
                                % MIN_ANCHOR)
     proofs, rejected = [], []
     for a in anchors:
+        # ⚠⚠ v2820 — THE ANCHOR MUST BE UNAMBIGUOUS ACROSS *EVERY* NAMED FILE, NOT THE FIRST FILE
+        # THAT HAPPENS TO HOLD IT ONCE. A cross-family review of v2818 found this and my own batch
+        # data had already proved it without my noticing:
+        #
+        #   'stop_agent' -> control_app.py:31  tv_diablo.py:1  run_gates.py:1  test_control.py:13
+        #
+        # The old loop took the FIRST target with exactly one occurrence — tv_diablo.py — while the
+        # gate's real subject held 31. Tampering an unrelated file leaves the gate green, which is
+        # exactly the BLIND verdict `test_agent[0]` returned when I applied it. MEASURED on
+        # test_control.py: 40 of 40 anchors resolve in MORE THAN ONE named file.
+        #
+        # And the old loop could not even refuse properly: `n > 1` recorded a rejection but did NOT
+        # break, so an anchor appearing twice in the right file and once in an incidental one still
+        # produced a proof — for the wrong file.
+        #
+        # `target_files` collects every source filename the gate MENTIONS; it does not know which
+        # one any given assertion actually reads. Until an anchor can be tied to its container by
+        # dataflow, the only honest rule is: exactly one named file may contain it, exactly once.
+        # This refuses far more than it accepts, and every refusal is a candidate that would have
+        # been wrong. [[sabotage-is-usually-the-wrong-one]] [[unknown-stays-unknown]]
+        hits = []
         for t in targets:
-            body = _read(t) or ""
-            n = body.count(a)
-            if n == 1:
-                proofs.append({
-                    "why": "the law requires this text in %s; deleting it must turn the gate red"
-                           % os.path.basename(t),
-                    "file": os.path.basename(t),
-                    "find": a,
-                    "replace": _mutate(a),
-                    "matches": 1,
-                })
-                break
-            if n > 1:
-                rejected.append("%r x%d in %s (ambiguous)" % (a[:40], n, os.path.basename(t)))
+            n = (_read(t) or "").count(a)
+            if n:
+                hits.append((t, n))
+        if len(hits) == 1 and hits[0][1] == 1:
+            t = hits[0][0]
+            proofs.append({
+                "why": "the law requires this text in %s, where it occurs exactly once and in no "
+                       "other file the gate names; deleting it must turn the gate red"
+                       % os.path.basename(t),
+                "file": os.path.basename(t),
+                "find": a,
+                "replace": _mutate(a),
+                "matches": 1,
+            })
+        elif hits:
+            rejected.append("%r in %s (ambiguous — a tamper could not name one subject)"
+                            % (a[:40], ", ".join("%s x%d" % (os.path.basename(t), n)
+                                                 for t, n in hits[:4])))
     if not proofs:
         return [], (AMBIGUOUS if rejected else ABSENT), (
             "; ".join(rejected[:3]) or

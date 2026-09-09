@@ -25737,3 +25737,40 @@ before shipping only because I went looking for the join, which is why the gate 
 USED rather than merely present, and that assertion is one of the two red-proofs.
 [[the-unjoined-end]] [[stale-reading]]
 
+## REG-762 — the deriver proposed tampers against the wrong file, and my own data had already said so
+
+A cross-family review of v2818 found two defects in `heart2_candidates.py`. Both REPRODUCED.
+
+**1. The target file was never tied to the assertion.** `target_files()` collects every source
+filename a gate MENTIONS; the anchor loop then took the FIRST target holding the literal exactly
+once. Measured on `test_control.py`: **40 of 40 anchors resolve in more than one named file.** The
+clearest case is one I had already applied and shipped:
+
+```
+'stop_agent' -> control_app.py:31  tv_diablo.py:1  run_gates.py:1  test_control.py:13
+```
+
+The deriver chose `tv_diablo.py` — the first with a count of one — while the gate's real subject
+held 31. Tampering an unrelated file leaves the gate green, which is **exactly the BLIND verdict
+`test_agent[0]` returned** in the v2818 batch. The review did not predict my failure rate; it
+explained it. I had the evidence and had not read it.
+
+**2. The rejection could be bypassed.** `n > 1` appended to `rejected` but did NOT break, so an
+anchor occurring twice in the right file and once in an incidental one still produced a proof — for
+the wrong file.
+
+★ **FIXED BY THE ONLY HONEST RULE AVAILABLE WITHOUT DATAFLOW:** an anchor is accepted only when
+**exactly one named file contains it, exactly once.** Anything else is refused with the per-file
+counts named. This refuses far more than it accepts, and every refusal is a candidate that would
+have been wrong.
+
+⚠⚠ **AND THE FIX EXPOSED A THIRD THE REVIEW DID NOT RAISE.** With cross-file ambiguity closed,
+`test_agent` began proposing tampers against **`test_agent.py` itself** — its own fixture strings
+(`'leaving Durance of Hate Level 2'`). Deleting those DOES turn the gate red, so such a proof would
+pass `--prove` and be counted as coverage while proving nothing about the code the law guards. A
+proof that only shows a test can break its own fixture is the most convincing kind of green that
+means nothing. **A gate may not be its own subject**; self-targets are excluded.
+[[feedback-blind-fixture-green-gate]] [[sabotage-is-usually-the-wrong-one]]
+
+Yield: 84 → 78 of 239 gates. The six lost were wrong.
+
