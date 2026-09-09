@@ -20033,6 +20033,61 @@ except Exception:
     EXTRACTION_CONTRACT_FACTS = ("name", "location", "provenance")
 
 
+#: Retention tags whose reels the SHELF does not render. They stay on disk, stay held, stay
+#: openable by the 14 test files that name them — only the console subtracts them.
+SHELF_HIDDEN_TAGS = ("test-fixture",)
+
+
+def _shelf_visible(story):
+    """The shelf as HE sees it: the same story, minus the reels he has no reason to look at.
+
+    ⚠⚠ v2877 — Konyo, 2026-09-10, on the 8 reels the test suite opens by name: *"what do i need
+    to see them for?? hide them.. i want it clean without it. surgically remove them visaully leave
+    them backend obivosuly so nothing regresses"* — and on the count: *"just do -8... its a hidden
+    minus 8 .. no need to even mention those 8 anywhere visually on the console."*
+
+    ⚠ ONE FILTER, AND EVERY FIGURE MOVES WITH IT. Dropping rows while `onDisk`, `stages` or `yield`
+    still counted them would put a number on his screen describing a world he cannot see — the same
+    defect this whole arc has been about, in a new costume. MEASURED on his shelf:
+
+        backend   onDisk 35 · releasable 16 · frames 4037 · panels 2181 · useful 54.0%
+        console   onDisk 27 · releasable  8 · frames 2895 · panels 2071 · useful 71.5%
+
+    ⚠ AND IT IS A FUNCTION, NOT A BLOCK IN THE HANDLER. The first cut lived inline at the endpoint,
+    where no law could reach it — logic a gate cannot call is logic nothing can prove.
+    [[zero-needs-a-denominator]] [[the-unjoined-end]] [[label-outlived-referent]]
+    """
+    if not isinstance(story, dict):
+        return story
+    rows = list(story.get("reels") or [])
+    keep = [r for r in rows if (r or {}).get("tag") not in SHELF_HIDDEN_TAGS]
+    if len(keep) == len(rows):
+        return story
+    out = dict(story)
+    out["reels"] = keep
+    out["onDisk"] = len(keep)
+    stages = story.get("stages")
+    if isinstance(stages, dict):
+        st = dict((s, 0) for s in stages)
+        for r in keep:
+            s = r.get("stage")
+            if s in st:
+                st[s] += 1
+        out["stages"] = st
+    y = story.get("yield")
+    if isinstance(y, dict) and y:
+        y = dict(y)
+        fr = sum(int(r.get("frames") or 0) for r in keep)
+        pa = sum(int(r.get("panels") or 0) for r in keep)
+        y["frames"], y["panels"] = fr, pa
+        y["reelsMeasured"] = sum(1 for r in keep if r.get("frames"))
+        # ⚠ a percentage over ZERO frames is UNKNOWN, never 0.0 [[zero-needs-a-denominator]]
+        y["usefulPct"] = round(100.0 * pa / fr, 1) if fr else None
+        y["emptyPct"] = round(100.0 - (100.0 * pa / fr), 1) if fr else None
+        out["yield"] = y
+    return out
+
+
 def _vault_owed_reels(hist=None):
     """The reels the VAULT lane owes a read: it OWNS them, and has not sealed them yet.
 
@@ -25666,7 +25721,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2876",
+        "ver": "v2877",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28061,6 +28116,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 import reel_story as _RS
                 _story = _RS.story()
+                _story = _shelf_visible(_story)
                 # ⚠⚠ v2587 — TWO SIX-STEP STORYLINES OVER THE SAME 40 REELS, NEITHER REFERENCING
                 # THE OTHER. His ask: "make this engine work as a whole. and also look like one."
                 #

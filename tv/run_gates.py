@@ -833,6 +833,14 @@ GATES = [
              "text-scanned and answered 18, because prose naming the harness counted as looking at "
              "pixels. Both laws parse rather than grep.",
          skip_ok=()),
+    Gate("test_the_shelf_subtracts_the_fixtures",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_subtracts_the_fixtures.py")], 60,
+         why="v2877 — his ruling: hide the 8 test-fixture reels from THE SHELF, 'just do -8', no "
+             "mention of them anywhere on the console. Hiding rows is the easy half; a total that "
+             "still counts them is 27 rows under the word 35. One filter, and onDisk, the stage "
+             "tallies and the yield percentages all move with it. Proven red three ways: the count "
+             "left unsubtracted, the stages left unsubtracted, and the hide list emptied.",
+         skip_ok=()),
     Gate("test_a_seal_is_not_an_extraction",
          [sys.executable, os.path.join(HERE, "test_a_seal_is_not_an_extraction.py")], 120,
          why="v2875 — `zero-pages` held 25 stash reels waiting for a chronicle page that was never "
