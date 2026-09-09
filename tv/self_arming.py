@@ -1100,12 +1100,47 @@ def _heart_says_watched():
     except Exception as _e:
         return False, ("the heart census would not parse (%s) — UNKNOWN fails CLOSED."
                        % type(_e).__name__)
+    # ⚠⚠ v2862 — AND IT MUST NOT BE STALE. A cross-family review: "the file still exists with
+    # blind=[], so may() returns true and a surface can arm itself even though no live supervision
+    # has run since." Correct, and it is my own scar — surface_verdict() was given an `ageS` field
+    # for exactly this an hour earlier and the lock did not get the same rule. [[stale-reading]]
+    #
+    # THE BAR IS MEASURED, NOT INVENTED. No arbitrary "24 hours": the census is stale when a GATE
+    # FILE HAS CHANGED SINCE IT RAN. That is the precise condition under which the last proof no
+    # longer speaks for the instruments now on disk, and it needs no number chosen by hand.
+    # ⚠⚠ v2862 — CONTENT, NOT MTIME. The first cut compared each gate file's mtime against the
+    # census `ranAt`. Right on the machine that proved them, wrong everywhere else: safe_copy, a git
+    # checkout, CI and the Windows machine all stamp fresh mtimes, so every gate reads as newer, the
+    # lock closes on every surface, and the sandbox reported this gate UNPROVABLE because it was
+    # already red in its own copy. A rule that only holds in the tree that wrote it is not a rule.
+    # A digest of the gate CONTENTS survives copying and says the thing actually meant: have the
+    # instruments changed since they were proved? [[stale-reading]]
+    _want = _st.get("gatesFingerprint")
+    if not _want:
+        return False, ("the heart census carries no gate fingerprint, so nothing can say whether it "
+                       "still describes the instruments on disk. UNKNOWN fails CLOSED.")
+    try:
+        _have = _h2.gates_fingerprint()
+    except Exception as _e:
+        return False, ("the gate fingerprint could not be computed (%s) — UNKNOWN fails CLOSED."
+                       % type(_e).__name__)
+    if _have != _want:
+        return False, ("the heart census is STALE: the gate files have changed since it ran "
+                       "(%s != %s). The last proof does not speak for the instruments now on disk "
+                       "— re-run `python3 tv/heart2.py --prove`." % (_have[:8], str(_want)[:8]))
     _blind = list(_st.get("blind") or [])
     if _blind:
         return False, ("%d instrument(s) are BLIND (%s) — a surface may not arm itself while the "
                        "gates that would catch its failure cannot go red."
                        % (len(_blind), ", ".join(sorted(_blind)[:3])))
-    return True, ""
+    # ⚠ COVERAGE IS REPORTED, NOT GATED. Same review: blind=[] with proved 12 of 47 means almost
+    # nothing was exercised. True — and the honest response is to SAY the number, not to invent a
+    # ratio bar. `partial` has been True on every run this file has seen, so gating on it locks
+    # everything for ever; gating on a proved/total threshold would mean picking a figure out of
+    # the air and calling it a law. The reason string now carries the coverage so it can never be
+    # invisible to whoever reads the permit. [[zero-needs-a-denominator]]
+    return True, ("instruments watched: %s of %s gates proved, 0 blind, census current"
+                  % (_st.get("proved"), _st.get("total")))
 
 
 def may(lock):

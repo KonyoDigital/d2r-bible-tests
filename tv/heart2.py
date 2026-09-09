@@ -80,6 +80,7 @@ them is one nobody can ship. Mandatory for every NEW gate; the backlog burns dow
 """
 import argparse
 import ast
+import hashlib
 import io
 import json
 import os
@@ -141,6 +142,27 @@ def surface_verdict(path=None):
             "reported": len(rep), "totalTargets": tot, "ageS": age,
             "coverageMissing": int(v.get("coverageMissing") or 0),
             "renderFailures": int(v.get("renderFailures") or 0)}
+
+
+def gates_fingerprint(gates=None):
+    """A content digest of every gate file. -> str
+
+    ⚠⚠ v2862 — MTIME IS NOT A PORTABLE STALENESS SIGNAL, and the sandbox proved it. The first cut
+    of the lock's staleness rule compared each gate file's mtime against the census `ranAt`. Correct
+    on the machine that ran the prove — and WRONG everywhere else: safe_copy, a git checkout, CI and
+    the Windows machine all stamp fresh mtimes, so every gate looks newer than the census, the lock
+    closes on every surface, and `--prove` reported the lock gate UNPROVABLE because it was already
+    red in its own sandbox. A rule that only holds in the tree that wrote it is not a rule.
+
+    CONTENT survives copying. This is what "the instruments have not changed since they were proved"
+    actually means. [[stale-reading]] [[the-harness-isolates-the-port-not-the-world]]
+    """
+    h = hashlib.sha256()
+    for n, f in sorted(gates if gates is not None else gate_files()):
+        h.update(n.encode("utf-8"))
+        src = _read_text(f)
+        h.update(hashlib.sha256((src or "").encode("utf-8", "replace")).digest())
+    return h.hexdigest()[:32]
 
 
 def pixel_gates(gates=None, unclassified=None):
@@ -455,8 +477,14 @@ def _write_state(results):
         "pixelTotal": len(_pixel),
         "pixelProved": len(_proved & _pixel),
         "pixelUnclassified": sorted(_pixel_unk),   # v2860 — NOT silently counted as backend
+        "gatesFingerprint": gates_fingerprint(gates),   # v2862 — content, not mtime
         "backendTotal": len(gates) - len(_pixel) - len(_pixel_unk),
-        "backendProved": len(_proved - _pixel),
+        # ⚠⚠ v2862 — MINUS THE UNCLASSIFIED TOO, or these two disagree. A cross-family review
+        # found it: a gate that is PROVED and is now unreadable leaves backendTotal (which
+        # subtracts _pixel_unk) but stays in backendProved (which did not), so backendProved
+        # could exceed backendTotal. Zero unclassified today, so it has never fired — a
+        # latent inconsistency in the one number he reads is exactly the kind that ships.
+        "backendProved": len(_proved - _pixel - set(_pixel_unk)),
         "surfaces": surface_verdict(),   # v2859 — the PIXEL side, from the render run itself
         "declared": len(have),
         "unproven": len(gates) - len(have),

@@ -88,7 +88,25 @@ RED_PROOF = [
         "replace": "    if False and _blind:",
         "matches": 1,
     },
+    {
+        "why": "removing the staleness refusal lets a census from before the gates changed read as "
+               "authoritative — a proof that no longer speaks for the instruments on disk",
+        "file": "self_arming.py",
+        "find": "    if _have != _want:",
+        "replace": "    if False and _have != _want:",
+        "matches": 1,
+    },
 ]
+
+
+def _skip_if_stale(case):
+    """Editing ANY gate file changes the fingerprint and makes the live census stale — including
+    edits to THIS file, which is itself a gate. That refusal is CORRECT and has its own law below;
+    it must not make every other law here fail. Measured: saving this file turned 3 laws red for no
+    reason but the save. [[feedback-blind-fixture-green-gate]]"""
+    ok, why = SA._heart_says_watched()
+    if not ok and "STALE" in (why or ""):
+        case.skipTest("live census is stale (gates changed since the last prove) — re-prove first")
 
 
 class TheLockDerivesFromTheHeart(unittest.TestCase):
@@ -96,6 +114,7 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
     # ── ⚠⚠ THE LAW ──────────────────────────────────────────────────────────────────────────
     def test_a_BLIND_instrument_closes_the_lock(self):
         """★★ The whole join. A dark gate is a missing prerequisite, not a detail."""
+        _skip_if_stale(self)
         real = _real_census()
         if real is None:
             self.skipTest("no census on this machine — UNMEASURED, not a failure")
@@ -131,6 +150,11 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         act, or this law has proved nothing except that it can refuse. [[feedback-blind-fixture-green-gate]]"""
         if _real_census() is None:
             self.skipTest("no census on this machine")
+        # ⚠ STALENESS IS A DIFFERENT, CORRECT REFUSAL. Editing ANY gate file makes the census stale
+        # and closes every lock until a re-prove — including edits to THIS file, which is itself a
+        # gate. That is the rule working, not furniture, so skip rather than fail: measured when
+        # this law first ran and reported 3 failures purely because I had just saved it.
+        _skip_if_stale(self)
         opened = [k for k in list(SA.LOCKS) + list(SA.ROUTES) if SA.may(k)[0]]
         self.assertTrue(
             opened,
@@ -139,6 +163,7 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
 
     def test_the_heart_check_runs_BEFORE_the_score(self):
         """★ Order matters: a blind instrument must be reported as the reason, not a Wilson number."""
+        _skip_if_stale(self)
         real = _real_census()
         if real is None:
             self.skipTest("no census on this machine")
@@ -150,6 +175,61 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
                       "a blind heart was masked by another refusal — he would read the downstream "
                       "reason and never learn the instruments were dark: %r" % why)
 
+
+    def test_a_STALE_census_closes_the_lock(self):
+        """★★ v2862 — a cross-family review: "the file still exists with blind=[], so may() returns
+        true and a surface can arm itself even though no live supervision has run since".
+
+        ⚠⚠ AND THE FIRST CUT OF THIS RULE USED MTIME, WHICH THE SANDBOX REFUTED. safe_copy, a git
+        checkout, CI and the Windows machine all stamp fresh mtimes, so every gate read as newer
+        than the census, every lock closed, and --prove reported this very gate UNPROVABLE because
+        it was already red in its own copy. A rule that only holds in the tree that wrote it is not
+        a rule. The bar is a CONTENT fingerprint, which survives copying. [[stale-reading]]"""
+        real = _real_census()
+        if real is None:
+            self.skipTest("no census on this machine")
+        st = json.loads(real)
+        st["gatesFingerprint"] = "0" * 32          # a census proved against DIFFERENT instruments
+        with _Census(json.dumps(st)):
+            ok, why = SA._heart_says_watched()
+            locked, lwhy = SA.may("printer.stream")
+        self.assertFalse(ok, "a census whose fingerprint does not match the gates on disk still "
+                             "read as authoritative")
+        self.assertIn("STALE", why)
+        self.assertFalse(locked, "the lock armed on a stale census")
+        self.assertIn("STALE", lwhy)
+
+    def test_the_staleness_bar_is_CONTENT_not_mtime(self):
+        """★★ The portability law. Touching a gate file must NOT make the census stale; changing
+        one MUST. Copying a repo resets mtimes, so an mtime rule closes every lock on every fresh
+        checkout — which is how the sandbox caught it."""
+        _skip_if_stale(self)
+        import time
+        gates = H.gate_files()
+        if not gates or _real_census() is None:
+            self.skipTest("no gates or no census on this machine")
+        name, path = gates[0]
+        st = os.stat(path)
+        os.utime(path, (st.st_atime, time.time() + 5))     # mtime only, content untouched
+        try:
+            ok, why = SA._heart_says_watched()
+        finally:
+            os.utime(path, (st.st_atime, st.st_mtime))
+        self.assertTrue(
+            ok, "a TOUCHED gate file (mtime moved, content identical) made the census read as "
+                "stale: %r. That rule closes every lock on any copied tree — safe_copy, CI, a "
+                "fresh checkout — and it is why the sandbox reported this gate UNPROVABLE." % why)
+
+    def test_the_permit_reason_carries_the_COVERAGE(self):
+        """★ blind=[] with 12 of 47 proved means almost nothing was exercised. That is not gated —
+        picking a ratio bar would be inventing a law — but it must never be INVISIBLE."""
+        _skip_if_stale(self)
+        ok, why = SA._heart_says_watched()
+        if not ok:
+            self.skipTest("the heart is not currently permitting — nothing to read")
+        self.assertIn("proved", why,
+                      "the permit says the instruments are watched and does not say how much was "
+                      "actually proved: %r" % why)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

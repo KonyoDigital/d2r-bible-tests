@@ -27691,3 +27691,45 @@ the Windows machine, where nothing rendered, and the heart there reads state OK 
 never happened on it. Untracked and added to .gitignore, with the floor deliberately left tracked.
 [[stale-reading]] [[copy-drift]]
 
+## REG-832 — backendProved could exceed backendTotal, and my staleness rule was not portable
+
+Two findings from a cross-family review of v2860, plus one the SANDBOX found on my fix for them.
+
+(1) HIGH — backendProved > backendTotal. A gate that is PROVED and is now unreadable goes into
+`_pixel_unk`; backendTotal subtracts it, backendProved did not. REPRODUCED with a fixture — one gate
+both proved and unparseable — MEASURED backendTotal 1, backendProved 2 BEFORE, 1 AFTER. Zero
+unclassified today, so it had never fired: a latent inconsistency in the one number he reads.
+FIXED: `len(_proved - _pixel - set(_pixel_unk))`.
+
+(2) REFUTED BY MEASUREMENT — the review rated "reads the census file on every may() call" HIGH,
+assuming a hot path. Measured: `may()` has exactly TWO non-test call sites, neither in a loop. No
+cache added; a cache is itself a way to serve a stale read, and optimising an unmeasured cost is
+how one gets introduced. [[feedback-suspect-the-instrument]]
+
+(3) HIGH AND CORRECT — a census with blind=[] read as authoritative regardless of age. My own scar:
+surface_verdict() was given an `ageS` field for exactly this an hour earlier and the lock did not
+get the same rule.
+FIRST FIX WAS WRONG AND THE SANDBOX PROVED IT. I compared each gate file's MTIME against the census
+`ranAt`. Right on the machine that proved them, wrong everywhere else — safe_copy, a git checkout,
+CI and the Windows machine all stamp fresh mtimes, so every gate reads as newer, every lock closes,
+and `--prove` reported the lock gate UNPROVABLE because it was already red in its own copy. A rule
+that only holds in the tree that wrote it is not a rule.
+FIXED PROPERLY: heart2.gates_fingerprint() digests gate CONTENT; the census carries it; the lock
+compares. Content survives copying, and it says the thing actually meant — have the instruments
+changed since they were proved.
+
+(4) COVERAGE IS REPORTED, NOT GATED. The review noted blind=[] with 12 of 47 proved means almost
+nothing was exercised. True — and picking a ratio bar would be inventing a law. `partial` has been
+True on every run, so gating on it locks everything for ever. The permit reason now carries
+"instruments watched: N of M gates proved, 0 blind, census current" so the coverage can never be
+invisible to whoever reads it. [[zero-needs-a-denominator]]
+
+⚠ AND THE SELF-REFERENCE, worth writing down: every gate edit changes the fingerprint, so the live
+census goes stale until a re-prove — including edits to the lock gate itself. That refusal is
+correct and has its own law; it must not turn every other law red for no reason but a save. The
+laws that lean on the LIVE census now skip on STALE, and the staleness law uses a SYNTHETIC census
+so it never depends on the tree being freshly proved.
+
+GATE: `test_the_lock_derives_from_the_heart` — 8 laws, 3 red-proofs, all PROVEN (1 match each),
+including one that fails if the staleness bar goes back to mtime.
+

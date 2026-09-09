@@ -71,6 +71,14 @@ RED_PROOF = [
         "replace": "            continue",
         "matches": 1,
     },
+    {
+        "why": "putting backendProved back to `- _pixel` alone lets a proved-but-unclassified gate "
+               "be counted in the numerator and excluded from the denominator",
+        "file": "heart2.py",
+        "find": '"backendProved": len(_proved - _pixel - set(_pixel_unk)),',
+        "replace": '"backendProved": len(_proved - _pixel),',
+        "matches": 1,
+    },
 ]
 
 
@@ -156,6 +164,53 @@ class TheCensusSaysHowMuchOfItIsPixels(unittest.TestCase):
             "a gate that could not be parsed was SWALLOWED — it left the pixel set silently and "
             "would be counted as backend, which is a failed read handed back as data inside the "
             "thing that measures the heart: %r" % unk)
+
+    def test_backendProved_can_never_exceed_backendTotal(self):
+        """★★ v2862 — a cross-family review found this, and it reproduces exactly.
+        backendTotal subtracts the unclassified; backendProved did not. A gate that is PROVED and
+        is now unreadable left the total but stayed in the proved count, so the pair could report
+        2 proved out of 1. Zero unclassified today, so it had never fired — a latent inconsistency
+        in the one number he reads. [[zero-needs-a-denominator]]"""
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="inv.")
+        bad = os.path.join(d, "test_proved_but_broken.py")
+        io.open(bad, "w", encoding="utf-8").write("import render_check\ndef (:  # unparseable\n")
+        try:
+            unk = []
+            gates = [("test_proved_but_broken", bad), ("test_plain", __file__)]
+            px = H.pixel_gates(gates, unk)
+            proved = {"test_proved_but_broken", "test_plain"}
+            backend_total = len(gates) - len(px) - len(unk)
+            backend_proved = len(proved - px - set(unk))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertTrue(unk, "the fixture did not produce an unclassifiable gate, so this law "
+                             "would prove nothing")
+        self.assertLessEqual(
+            backend_proved, backend_total,
+            "backendProved (%d) exceeds backendTotal (%d): a gate that is proved AND unclassified "
+            "is being counted in one and excluded from the other."
+            % (backend_proved, backend_total))
+        # ⚠⚠ AND THE LAW MUST READ THE REAL EXPRESSION, NOT ITS OWN ARITHMETIC. The lines above
+        # recompute the sum locally, so tampering _write_state left them untouched and the proof
+        # came back BLIND — the FOURTH time in this session that a law checked a property it had
+        # reproduced instead of the code that ships it. Read what _write_state actually writes.
+        # [[the-unjoined-end]] [[sabotage-is-usually-the-wrong-one]]
+        src = io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8").read()
+        ws = next(n for n in ast.walk(ast.parse(src))
+                  if isinstance(n, ast.FunctionDef) and n.name == "_write_state")
+        expr = None
+        for n in ast.walk(ws):
+            if isinstance(n, ast.Dict):
+                for k, v in zip(n.keys, n.values):
+                    if isinstance(k, ast.Constant) and k.value == "backendProved":
+                        expr = ast.unparse(v)
+        self.assertIsNotNone(expr, "_write_state no longer writes backendProved at all")
+        self.assertIn(
+            "_pixel_unk", expr,
+            "_write_state computes backendProved as %r — it does not subtract the unclassified, so "
+            "a gate that is proved AND unreadable is counted in the numerator while backendTotal "
+            "excludes it from the denominator." % expr)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

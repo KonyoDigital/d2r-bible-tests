@@ -102,7 +102,17 @@ def _sh(args, timeout=60):
 # says "fix: the v2804 row narrated the catcher". MEASURED over 400 subjects: 252 start with
 # a version, 19 merely mention one. The loose form counted v1554 as a ship because a later
 # commit talked about it. [[label-outlived-referent]]
-_VER_IN_SUBJECT = re.compile(r"^v(\d{4})\b")
+# ⚠⚠ v2862 — AND A COMMIT MAY SHIP MORE THAN ONE VERSION. The v2854 anchor was right to
+# reject "fix: the v2804 row narrated the catcher" — but it took only the FIRST token, so a
+# subject reading "v2859+v2860 — ..." registered v2859 and made v2860 INVISIBLE to the queue.
+# MEASURED 2026-09-09: the pre-push gate refused with "v2860 OWES A LOOK" while --backlog
+# listed v2861 and v2859 and could not see v2860 at all. Two checks disagreed and the quiet
+# one was wrong again, for a NEW reason. [[feedback-contradiction-is-the-finding]]
+#
+# The LEADING RUN only: v2859+v2860 both count, and a version mentioned later in the same
+# subject still does not — which is the protection the anchor was added for.
+_VER_LEADING_RUN = re.compile(r"^(v\d{4}(?:\s*[+,&]\s*v\d{4})*)\b")
+_VER_TOKEN = re.compile(r"v\d{4}")
 
 
 def versions_in_history(n=400):
@@ -124,10 +134,13 @@ def versions_in_history(n=400):
         return [], why
     seen, vs = set(), []
     for line in out.splitlines():
-        m = _VER_IN_SUBJECT.search(line)
-        if m and m.group(0) not in seen:
-            seen.add(m.group(0))
-            vs.append(m.group(0))
+        m = _VER_LEADING_RUN.match(line)
+        if not m:
+            continue
+        for tok in _VER_TOKEN.findall(m.group(1)):
+            if tok not in seen:
+                seen.add(tok)
+                vs.append(tok)
     return vs, ""
 
 
