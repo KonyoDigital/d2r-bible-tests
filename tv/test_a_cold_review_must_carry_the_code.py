@@ -225,13 +225,50 @@ class ARealDiffMustNotRetractItsOwnReview(unittest.TestCase):
                              % (label, got["unsent"]))
 
     def test_a_seam_on_a_real_code_line_survives_the_comment_skip(self):
-        """The skip must not become a hole: only COMMENT lines are exempt."""
+        """The skip must be LINE-scoped, not fence-scoped.
+
+        v2826 — THE FIRST VERSION OF THIS TEST WAS VACUOUS AND A CROSS-FAMILY REVIEW SAID SO. It
+        asserted only that a body of `comment + code-with-seam` still fires — which is true whether
+        the scan skips comment lines or reads the whole fence, so it passed identically before and
+        after the change it was written to guard. REPRODUCED by running the pre-fix code path
+        beside the post-fix one: both returned the same finding.
+
+        The discriminating shape is the PAIR. Only a line-scoped skip can make the comment-only
+        body clean AND the comment+code body fire; a fence-scoped skip clears both, and no skip at
+        all fires on both. [[feedback-blind-fixture-green-gate]]
+        """
         _d = chr(34) * 3
-        body = "# describing it here\nmsg = head + " + _d + "tail" + _d
-        got = L.code_was_transmitted("```python\n%s\n```" % body)
-        self.assertTrue(got["unsent"],
-                        "a real seam on a code line was skipped because a comment sat above it — "
-                        "the exemption swallowed the law")
+        seam = "msg = head + " + _d + "tail" + _d
+        note = "# describing it here: " + _d + " + x"
+        only_comment = L.code_was_transmitted("```python\n%s\n```" % note)
+        with_code = L.code_was_transmitted("```python\n%s\n%s\n```" % (note, seam))
+        self.assertEqual([], only_comment["unsent"],
+                         "a fence holding ONLY a comment about the pattern fires — the deadlock is "
+                         "back: %s" % only_comment["unsent"])
+        self.assertTrue(with_code["unsent"],
+                        "a real seam on a code line beneath that same comment did NOT fire, so the "
+                        "skip is fence-scoped rather than line-scoped and swallowed the law")
+
+    def test_the_limit_of_the_comment_skip_is_stated_not_hidden(self):
+        """A seam written INSIDE a comment is not detected, and that is the accepted trade.
+
+        Raised by the cross-family review with a concrete string. It is real: the scan drops
+        comment lines, so a marker sitting on one is invisible. It is not fixed, because fixing it
+        is what caused the deadlock this whole change undoes — and it costs little, since the guard
+        exists to catch a prompt that carries a PROMISE INSTEAD OF the code. A seam quoted inside a
+        comment means a real fence was transmitted around it.
+
+        A stated limit is not a defect; an unstated one is. This test exists so the limit cannot
+        quietly change without somebody reading this paragraph. [[unknown-stays-unknown]]
+        """
+        _d = chr(34) * 3
+        hidden = "+    # msg = head + " + _d + " + tail" + _d
+        got = L.code_was_transmitted("```python\n%s\n```" % hidden)
+        self.assertEqual([], got["unsent"],
+                         "the comment skip no longer covers this shape. That may be an improvement "
+                         "— but re-read the deadlock note in second_eye_ledger before keeping it, "
+                         "because the last time this scan reached into prose the ledger refused "
+                         "every push: %s" % got["unsent"])
 
 # ══ THE EXECUTABLE RED-PROOF ═══════════════════════════════════════════════════════════════════
 RED_PROOF = [

@@ -26128,3 +26128,37 @@ Heart 2.0 reported both on the first run:
 
 ★ Usually a green sabotage is the sabotage's fault. **These two were the law's**, and only running
 the proof told them apart. Both PROVEN red after the fix.
+
+## REG-781 — a test named after a property it did not test
+**v2826 · 2026-09-09 · test_a_cold_review_must_carry_the_code.py · found by the cross-family look at v2825**
+
+`test_a_seam_on_a_real_code_line_survives_the_comment_skip` asserted only that a body of
+`comment + code-with-seam` still fires. That is true whether the scan skips comment LINES or reads
+the whole fence, so it passed identically before and after the change it existed to guard.
+
+REPRODUCED before believing it, by running the pre-fix code path beside the post-fix one on the
+same input: **both returned the same finding.** Vacuous, exactly as reported.
+
+Replaced with the discriminating PAIR — a fence holding only the comment must be CLEAN *and* the
+same comment with a seam on a code line beneath it must FIRE. Only a line-scoped skip satisfies
+both: a fence-scoped skip clears both, no skip at all fires on both.
+
+## REG-782 — a real limit of the comment skip, stated rather than fixed
+**v2826 · 2026-09-09 · second_eye_ledger.py**
+
+Same review, with a concrete string: a seam written INSIDE a comment (`+    # msg = head + """ + tail"""`)
+is not detected. Reproduced — it is real.
+
+**Not fixed, deliberately.** Reaching back into prose is precisely what deadlocked the ledger
+(REG-778), and the guard exists to catch a prompt carrying a PROMISE INSTEAD OF the code — a seam
+quoted inside a comment means a real fence was transmitted around it. A stated limit is not a
+defect; an unstated one is. Pinned by `test_the_limit_of_the_comment_skip_is_stated_not_hidden`, so
+the limit cannot change without somebody reading the paragraph explaining why it is there.
+
+**Confirmed sound by the same review:** the `^[-+ ]?\s*#` anchor is right for context, added and
+removed diff lines and does not match a string whose CONTENT begins with `#`; and splitting and
+rejoining the fence body changes no offset the intra-line markers depend on.
+
+⚠ **UNKNOWN, stated:** its fifth check — whether the two seam regexes cover all four shapes —
+could not be answered, because my payload carried the call sites and not the regex definitions.
+That is a gap in what I sent, not a clean result. [[zero-needs-a-denominator]]
