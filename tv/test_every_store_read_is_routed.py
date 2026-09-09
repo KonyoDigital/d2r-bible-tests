@@ -64,6 +64,16 @@ POINTERS = {
 }
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in bible.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'bible.html',
+        "find": 'window.LSR = (function(){',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _scan():
     """-> (routed, bare_waived, bare_unwaived, [(line, keys, text), ...])"""
     routed = waived = 0

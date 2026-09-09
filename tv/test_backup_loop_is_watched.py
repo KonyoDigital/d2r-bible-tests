@@ -37,6 +37,16 @@ import console_doctor as D  # noqa: E402
 SRC = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'console_doctor.py',
+        "find": 'not the same as healthy',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Answer(object):
     """Stands in for /api/status so every verdict can be forced without a live console."""
 

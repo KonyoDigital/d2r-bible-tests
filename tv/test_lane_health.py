@@ -15,6 +15,16 @@ import lane_health as LH
 HOUR = 3600000.0
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in lane_health.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'lane_health.py',
+        "find": 'unanswerable',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Tree(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="lane-")

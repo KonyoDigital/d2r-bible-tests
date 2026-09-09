@@ -30,6 +30,16 @@ REELS = {
 }
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in chronicle_calibrate.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate',
+        "file": 'chronicle_calibrate.py',
+        "find": 'not the same as',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _frames(reel, cap=40):
     return sorted(glob.glob(os.path.join(HERE, "frames", "hist", reel, "f_*.jpg")))[:cap]
 

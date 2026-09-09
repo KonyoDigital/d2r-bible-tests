@@ -21,6 +21,16 @@ if HERE not in sys.path:
 import main_character as MC
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in main_character.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'main_character.py',
+        "find": 'never seen',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestALockIsEARNED(unittest.TestCase):
 
     def setUp(self):

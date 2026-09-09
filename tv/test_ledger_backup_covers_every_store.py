@@ -50,6 +50,16 @@ except Exception:
 SRC = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_app.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_app.py',
+        "find": 'led["gameFound"] = got["gameFound"]',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _between(src, start, end, whence=0):
     """Anchored at BOTH ends — never a fixed window. [[source-reading-guard]]"""
     i = src.find(start, whence)

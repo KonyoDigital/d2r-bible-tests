@@ -47,6 +47,16 @@ import coldread as C  # noqa: E402
 ROOT = os.path.dirname(HERE)
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in coldread.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'coldread.py',
+        "find": 'skipped.append(why)',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _between(src, start, end, whence=0):
     """A window anchored at BOTH ends — never `src[i:i+N]`. [[source-reading-guard]]"""
     i = src.find(start, whence)

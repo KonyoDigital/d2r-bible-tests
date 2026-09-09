@@ -34,6 +34,16 @@ import code_staleness as CS  # noqa: E402
 import self_arming as SA  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in code_staleness.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'code_staleness.py',
+        "find": 'never established',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class ItKnowsWhetherItIsRunningTheFileOnDisk(unittest.TestCase):
 
     def setUp(self):

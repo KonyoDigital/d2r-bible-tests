@@ -20,6 +20,16 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": "r.state === 'missing' ? 'warn' : ''",
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _code_only(src):
     return "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
 

@@ -38,6 +38,16 @@ import counter_ledger as cl  # noqa: E402
 import chronicle_resolve as _res  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in counter_ledger.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'counter_ledger.py',
+        "find": 'unaccounted',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _reading(tmp, names, ms=1787307553811, name="sets_test.json"):
     os.makedirs(tmp, exist_ok=True)
     with open(os.path.join(tmp, name), "w", encoding="utf-8") as fh:

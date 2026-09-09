@@ -19,6 +19,16 @@ UI = os.path.join(HERE, "control_ui.html")
 APP = os.path.join(HERE, "control_app.py")
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_ui.html',
+        "find": 'window._heartRender',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestABorrowedShellBringsItsLayout(unittest.TestCase):
     """★ THE ONE THAT ACTUALLY BIT, TWICE IN THIS FILE'S HISTORY.
 

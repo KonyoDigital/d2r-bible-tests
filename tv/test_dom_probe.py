@@ -17,6 +17,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dom_probe as DP
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in dom_probe.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'dom_probe.py',
+        "find": 'parentElement',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _run_leaf_text(html):
     """Run __leafText over a stub document and return what it considers screen text. -> str
 

@@ -27337,3 +27337,52 @@ satisfied only by that rule. Now `.ftt-seed-rows .ftts-unsynced`, and **PROVEN**
 
 ⚠ The lesson across all three: I added a feature, and it silently loosened a guard two files away
 that nobody was looking at. Only the red-proof loop found it.
+
+## REG-817 — `--ratchet` wrote a two-key dict over the whole census and erased 97 banked proofs
+
+`tv/heart2.py` main(), ratchet branch: `json.dump({"unproven": now, "proved": census.get("proved", 0)}, fh)`
+straight over `STATE` = `tv/.heart2.json`, the file carrying every proof name the heart has verified.
+
+MEASURED 2026-09-09 in a sandbox, with a prior baseline loose enough for the ratchet to PASS (the
+first attempt proved nothing because the ratchet refused at `unproven 168 -> 171` and returned
+before reaching the write — a guard firing first is not the same as a guard being absent):
+
+    keys        10 -> 2      (only 'proved', 'unproven' survive)
+    provedGates 97 -> 0      every banked proof name destroyed
+    verdictAt   45 -> 0      every per-gate timestamp destroyed
+    blind/blindUnchecked/declared/partial/total/ranAt  -> gone
+    proved      97 -> 98     the VERIFIED count replaced by the DECLARATION count
+
+The scar was ALREADY WRITTEN in this same file — "`--ratchet` wrote a two-key dict that dropped
+`blind` entirely, flipping a DARK heart back to WATCHED" — and had been fixed in the prove path
+only. The ratchet path was never joined to it. [[the-unjoined-end]]
+
+FIX: merge into `prev` (already read, with correct UNKNOWN handling) and never write `proved` from
+the census at all. Verified on the identical experiment: keys 10->10, provedGates 97->97,
+verdictAt 45->45, proved stays 97, unproven still updated 250->171, nothing destroyed.
+GATE: `test_the_ratchet_cannot_erase_the_census` — 2 laws, both PROVEN red (1 match each).
+
+## REG-818 — report() returned the DECLARATION count under the key `proved`
+
+`tv/heart2.py` report(): `return {"total": total, "proved": len(have), ...}` where `have` is the
+list of gates that DECLARE a RED_PROOF. A gate can declare a proof that has never been executed, or
+one that came back BLIND; this key called all of them proven. The printed line beside it has always
+read "declare an executable red-proof" — the key disagreed with the text next to it.
+
+MEASURED: report() said 98 while 97 gates had actually been tampered red. That number then flowed
+into REG-817's write as the verified count. Key renamed to `declared`; `propose()` was checked and
+uses only `unproven`/`unprovenNames`, so nothing else read it. [[label-outlived-referent]]
+
+## REG-819 — four gates are BLIND: green through the destruction of what they name
+
+Found while wiring #52. Each had its anchor destroyed with a confirmed match count of 1, in a
+sandbox, and stayed GREEN — so the law does not read what it appears to be about:
+
+    test_board_short_read_is_seen          'board-served-short'   (twice, independently)
+    test_console_fleet                     'lastseen:'
+    test_export_scopes_to_one_world        'd2r_activeTab'
+    test_ledger_authority                  'Not On Any Roster At All'
+
+Their RED_PROOF blocks were REMOVED rather than kept — a proof that survives its own defeat is
+counted as coverage, which is worse than none. The gates themselves are untouched and still green;
+what is recorded here is that their coverage is UNKNOWN, not that they are broken.

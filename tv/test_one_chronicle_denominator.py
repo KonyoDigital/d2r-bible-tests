@@ -56,6 +56,16 @@ BIBLE = os.path.join(ROOT, "bible.html")
 DELIBERATE = ("_darkN", "_uniLeft")
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in bible.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'bible.html',
+        "find": 'chronTotal:403',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _src():
     return io.open(BIBLE, encoding="utf-8").read()
 

@@ -508,7 +508,15 @@ def report(say=print):
         say("  proofs declared by:")
         for n, f in have:
             say("    · %s" % n)
-    return {"total": total, "proved": len(have), "unproven": len(missing),
+    # ⚠⚠ v2853 — `len(have)` IS "DECLARES A PROOF", AND IT WAS RETURNED UNDER THE KEY `proved`.
+    # Those are different questions and the whole of #52 is the gap between them: a gate can declare
+    # a RED_PROOF that has never been executed, or one that came back BLIND, and this key called
+    # both of them proven. MEASURED 2026-09-09: report() said proved=98 while 97 gates had actually
+    # been tampered red — and `--ratchet` wrote that 98 into the census as the verified count.
+    # The printed line above has always said "declare an executable red-proof". The KEY now agrees
+    # with it. A verified count lives in `.heart2.json` under `provedGates`, written only by prove().
+    # [[label-outlived-referent]] [[the-unjoined-end]]
+    return {"total": total, "declared": len(have), "unproven": len(missing),
             "unprovenNames": [n for n, _ in missing]}
 
 
@@ -774,8 +782,19 @@ def main(argv):
             print("\n  ✗ RATCHET: unproven went %d → %d. A new gate must arrive with its proof."
                   % (base, now))
             return 1
+        # ⚠⚠ v2853 — THIS WROTE A TWO-KEY DICT OVER THE WHOLE CENSUS, AND THE SCAR ABOVE SAYS SO
+        # ALREADY: "`--ratchet` wrote a two-key dict that dropped `blind` entirely, flipping a DARK
+        # heart back to WATCHED". That was fixed in the prove path and left standing HERE.
+        # MEASURED 2026-09-09 in a sandbox, with a baseline loose enough for the ratchet to pass:
+        #     keys 10 -> 2 · provedGates 97 -> 0 · verdictAt 45 -> 0 · blind/declared/partial gone
+        #     proved 97 -> 98, the verified count replaced by the DECLARATION count
+        # One --ratchet erased every proof the heart had ever banked. MERGE, NEVER CLOBBER — and do
+        # not write `proved` from the census at all, because report() counts declarations.
+        # [[the-unjoined-end]] [[label-outlived-referent]]
+        _out = dict(prev)
+        _out["unproven"] = now
         with io.open(STATE, "w", encoding="utf-8") as fh:
-            json.dump({"unproven": now, "proved": census.get("proved", 0)}, fh)
+            json.dump(_out, fh)
         print("\n  ✓ RATCHET: unproven %d (was %s)" % (now, base if base < 10 ** 9 else "unset"))
     if results and BLIND in results.values():
         return 1

@@ -29,6 +29,16 @@ if HERE not in sys.path:
 import one_start_point as OSP   # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in one_start_point.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'one_start_point.py',
+        "find": 'could not be listed',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class OneStartPointIsAskedOfTheShelf(unittest.TestCase):
 
     def _shelf(self, reels):

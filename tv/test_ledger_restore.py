@@ -45,6 +45,16 @@ import ledger_restore as LR  # noqa: E402
 ROUTE = {"id": "77f64154aaaa", "p": "main"}
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in ledger_restore.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'ledger_restore.py',
+        "find": 'inBackup',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _dir_with(*blobs):
     d = tempfile.mkdtemp()
     for i, b in enumerate(blobs):

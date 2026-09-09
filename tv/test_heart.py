@@ -11,6 +11,16 @@ if HERE not in sys.path:
 import heart as H  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in heart.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'heart.py',
+        "find": 'NOTHING watches it',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Fake(object):
     """A stand-in for lane_census, so these cases never depend on his real console."""
     def __init__(self, rows):

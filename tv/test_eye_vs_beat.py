@@ -30,6 +30,16 @@ LIVE = {"advanced": {"state": "shown", "h": 1309, "top": 232, "vh": 628},
 FIXTURE = {"taskforce": "shown", "taskforceH": 502, "taskforceTop": 40}
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in eye_vs_beat.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'eye_vs_beat.py',
+        "find": 'absence of evidence',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class ItReadsTheShapeTheConsoleActuallySends(unittest.TestCase):
 
     def test_the_LIVE_nested_shape_is_read(self):

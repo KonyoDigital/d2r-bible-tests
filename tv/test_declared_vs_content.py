@@ -28,6 +28,16 @@ if HERE not in sys.path:
 import declared_vs_content as DVC   # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in declared_vs_content.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate',
+        "file": 'declared_vs_content.py',
+        "find": 'UNKNOWN, not agreement',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class AZeroMustEarnTheWordAgrees(unittest.TestCase):
 
     def setUp(self):

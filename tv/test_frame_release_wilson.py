@@ -33,6 +33,16 @@ import frame_release_wilson as FRW
 SRC = os.path.join(HERE, "frame_release_wilson.py")
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in frame_release_wilson.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gat',
+        "file": 'frame_release_wilson.py',
+        "find": 'sealed_sessions',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _code():
     s = io.open(SRC, encoding="utf-8").read()
     s = re.sub(r'"""(?:.|\n)*?"""', " ", s)      # judge the CODE, not the prose about it

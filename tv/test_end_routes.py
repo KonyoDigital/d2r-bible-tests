@@ -151,6 +151,16 @@ LEDGER = {"reels": [
 ], "updatedTs": 1788262484840}
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in end_routes.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'end_routes.py',
+        "find": 'a structural survey',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _fixture_dir(retro=None, chron=None, vault=None, ledger=None, omit=()):
     d = tempfile.mkdtemp(prefix="end_routes_fix_")
     for nm, blob in (("retro_triage.json", RETRO if retro is None else retro),

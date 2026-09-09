@@ -52,6 +52,16 @@ import chronicle_rebuild as CR  # noqa: E402
 SRC = io.open(os.path.join(HERE, "chronicle_rebuild.py"), encoding="utf-8").read()
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in control_app.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'control_app.py',
+        "find": '"/api/chronicle_rebuild"',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class ChronicleRebuildIsHonest(unittest.TestCase):
 
     # ── it cannot write ───────────────────────────────────────────────────────────────────────

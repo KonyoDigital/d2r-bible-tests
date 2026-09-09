@@ -27,6 +27,16 @@ import console_safe  # noqa: F401,E402  — non-ASCII failure text must survive 
 import chronicle_retro as cr  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in chronicle_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate re',
+        "file": 'chronicle_doctor.py',
+        "find": 'the check itself failed',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _pillow():
     try:
         from PIL import Image  # noqa: F401

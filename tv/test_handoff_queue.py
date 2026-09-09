@@ -24,6 +24,16 @@ START = "var _hoRaw = window.LSR.getItem('d2r_chronicleHandoff');"
 END = "  /* ══════════════════════════════════════════════════════════════════════════════════════════════\n     v1540 — CHRONICLE PHOTO INTAKE"
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in bible.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'bible.html',
+        "find": "getItem('d2r_chronicleHandoff')",
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _extract_drain():
     """The SHIPPED drain block, not a copy. A copy is a second thing that can drift."""
     with io.open(BIBLE, encoding="utf-8") as fh:

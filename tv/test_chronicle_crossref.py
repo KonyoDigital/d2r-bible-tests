@@ -12,6 +12,16 @@ import chronicle_crossref as X
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in chronicle_crossref.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate ',
+        "file": 'chronicle_crossref.py',
+        "find": 'not yet checked',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestUnreadableIsNotZeroAndNotEverything(unittest.TestCase):
     """⚠ THE LAW. "I could not ask" must never render as a number. 347 printed after no ledger read
     is the same lie as 0. [[unknown-stays-unknown]]"""

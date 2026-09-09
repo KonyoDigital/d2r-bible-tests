@@ -17,6 +17,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import chronicle_routes as CR
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in build_runeword_roster.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the ga',
+        "file": 'build_runeword_roster.py',
+        "find": 'hand-edited',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _route(key, **lanes):
     """A synthetic route. The corroborator is a pure function of shape, so it can be exercised
     without a repo — which is the only way to keep these tests off today's defect."""

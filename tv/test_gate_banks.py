@@ -27,6 +27,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in run_gates.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'run_gates.py',
+        "find": 'HW.score()',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TheGateBanksWhatItScores(unittest.TestCase):
 
     def test_the_verdict_script_feeds_the_proof_queue(self):

@@ -60,6 +60,16 @@ except Exception:
 BIBLE = os.path.join(ROOT, "bible.html")
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in bible.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'bible.html',
+        "find": '_chLsSet(_CH_LOG_KEY, (log || []).slice(-400));',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _slice(src, start, end, inclusive=True):
     """Anchored at BOTH ends. Never `src[i:i+N]` — a fixed window past the region reads as
     ABSENT, which is how four false findings were published in this repo. [[source-reading-guard]]

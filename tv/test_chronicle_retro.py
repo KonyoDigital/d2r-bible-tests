@@ -19,6 +19,16 @@ import console_safe  # noqa: F401,E402  — non-ASCII in the failure messages mu
 import chronicle_retro as cr  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in chronicle_sweep_now.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate',
+        "file": 'chronicle_sweep_now.py',
+        "find": 'not-found (audit only)',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 def _sl():
     import shadow_ledger
     return shadow_ledger

@@ -9,6 +9,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import health_engine as HE
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in health_engine.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'health_engine.py',
+        "find": 'from confidence import wilson_lower',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestItReportsAndNeverRepairs(unittest.TestCase):
     """His rule, and the reason for it: an auto-healer can turn one fault into two, unattended."""
 

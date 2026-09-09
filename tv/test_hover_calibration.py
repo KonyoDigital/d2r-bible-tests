@@ -27,6 +27,16 @@ if HERE not in sys.path:
 import hover_calibration as HC  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in hover_calibration.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate r',
+        "file": 'hover_calibration.py',
+        "find": 'has not run',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class _Base(unittest.TestCase):
 
     def setUp(self):

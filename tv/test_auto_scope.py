@@ -11,6 +11,16 @@ sys.path.insert(0, HERE)
 import auto_scope as AS  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in auto_scope.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'auto_scope.py',
+        "find": 'reachability, not behaviour',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestEveryAutomATICLaneIsDeclared(unittest.TestCase):
     """★ A lane nobody declared is a lane he cannot be told about — and the whole point is that he
     was told CANNOT TELL when a different model family was asked what these things touch."""

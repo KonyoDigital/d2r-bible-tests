@@ -26,6 +26,16 @@ if HERE not in sys.path:
 import one_funnel as OF   # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in one_funnel.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'one_funnel.py',
+        "find": 'COULD NOT BE READ',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TheLadderAndThePassageAreTwoAnswers(unittest.TestCase):
 
     def _run(self, rows, rungs=("filmed", "triaged", "swept", "banked", "vault-done", "releasable"),

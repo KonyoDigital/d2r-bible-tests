@@ -810,6 +810,13 @@ GATES = [
              "number of ticks, on the first tick after a restart, with run() driven rather than "
              "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
          skip_ok=()),
+    Gate("test_the_ratchet_cannot_erase_the_census",
+         [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
+         "v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "
+         "sandbox: keys 10->2, provedGates 97->0, verdictAt 45->0, and `proved` 97->98 as the "
+         "DECLARATION count replaced the verified one. One ratchet erased every banked proof. "
+         "Both laws parse rather than grep.",
+         skip_ok=()),
     Gate("test_the_heart_can_see_its_own_instruments",
          [sys.executable, os.path.join(HERE, "test_the_heart_can_see_its_own_instruments.py")], 120,
          why="\u2665 HEART 2.0 — v1 asks whether the SYSTEM is healthy; this asks whether the "

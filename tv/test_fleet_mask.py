@@ -25,6 +25,16 @@ import console_safe  # noqa: F401,E402
 import fleet_mask as fm  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'the law requires this text in fleet_mask.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "file": 'fleet_mask.py',
+        "find": 'does not say which roster',
+        "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+]
+
 class TestTheMaskRoundTrips(unittest.TestCase):
 
     def setUp(self):
