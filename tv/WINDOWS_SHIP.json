@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2825",
+  "ver": "v2826",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2825: REG-778 — the second-eye transmission guard matched its own comment inside a diff of itself: 2 hits, one line, zero real seams. Comment lines now excluded; all four real seam shapes still caught and the skip is not a hole",
+  "note": "v2826: REG-779..780 — 13 producers timed and 31 not, so unattributedMs was 33.7 of 36.4 ms; wrapping 16 more took attribution from 7 to 97 percent and named fleetOrigin at 619ms, 54 percent of the request, invisible until today. Two of my own laws came back BLIND and the sabotages were right",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -25452,7 +25452,7 @@ def status_payload():
         _eye = _disk_eye
     _cap = (st or {}).get("captureTarget") or {}
     if not _cap and IS_WIN:
-        _cap = _disk_cap_target()
+        _cap = _t("diskCapTarget", _disk_cap_target)
     _reads = (st or {}).get("readCount")
     if _reads is None:
         _reads = len((st or {}).get("reads") or [])
@@ -25499,15 +25499,15 @@ def status_payload():
                 "err": "journal unread"}
     # 🔌 ENGINE-EXPOSURE — the eyes object gets a FRESH liveAgeMs (the primary eye's "now" age,
     # computed per-poll so it isn't frozen in _eyes_pulse's mtime cache). null when no read yet.
-    _eyes = _eyes_pulse()
+    _eyes = _t("eyesPulse", _eyes_pulse)
     _eyes = dict(_eyes, liveAgeMs=(int(time.time() * 1000) - _eyes["liveTs"]) if _eyes.get("liveTs") else None)
     # v1418 — fleet channel truth (cached; never blocks status on a cold git fetch)
     try:
-        _fleet = fleet_origin_status(force_fetch=False)
+        _fleet = _t("fleetOrigin", lambda: fleet_origin_status(force_fetch=False))
     except Exception:
         _fleet = {"ok": False, "behind": 0, "howTo": ""}
     try:
-        _ident = install_identity()
+        _ident = _t("installIdentity", install_identity)
     except Exception:
         _ident = {"id": "", "computer": "?", "user": "?"}
     # ⚠⚠ v2810 — THE TIMING LIVES *INSIDE* THIS FUNCTION, AND THE RENAME THAT SEEMED CLEANER
@@ -25518,28 +25518,29 @@ def status_payload():
     # running stamp went to "v?" — the exact v2155 defect those tests exist to prevent, re-created
     # by a refactor that never touched their subject. A name is an interface here.
     # [[regression-guard]] [[source-reading-guard]]
+    _pubver = _t("publishedVer", _published_ver) or (None, None)
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2825",
+        "ver": "v2826",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
-        "prune": prune_stats(),
-        "drift": drift_state(),   # v2072 — running vs disk, so a five-ship-behind window says so
-        "eagle": eagle_state(),   # v2078 — the watchdog's last look at the running system
+        "prune": _t("prune", prune_stats),
+        "drift": _t("drift", drift_state),   # v2072 — running vs disk, so a five-ship-behind window says so
+        "eagle": _t("eagle", eagle_state),   # v2078 — the watchdog's last look at the running system
         # v2438 — THE LOCKS, ON THE SURFACE THE CONSOLE ALREADY POLLS. The eagle is on-demand and
         # slow ("the sub-doctors take a moment"); a lock badge that has to wait for it would be
         # blank most of the time, and a blank lock reads as an OPEN one. This is a small file read.
         # ONE source: the badge quotes this, it does not re-derive a state of its own. [[v2436]]
         "timing": _status_timing_payload(),   # #28 — which component, not just how slow
         "selfArming": _t("selfArming", _self_arming_state),
-        "retention": retention_state(),   # v2080 — extract -> prune, and why nothing moved
+        "retention": _t("retention", retention_state),   # v2080 — extract -> prune, and why nothing moved
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
-        "ledgerBackup": ledger_backup_state(),
+        "ledgerBackup": _t("ledgerBackup", ledger_backup_state),
         # v2053 — what the space warden has reclaimed, so the disk is a number he can see.
-        "warden": warden_state(),
+        "warden": _t("warden", warden_state),
         # v1870 — "IS THIS CONSOLE READING FOR REAL?", answerable at a glance.
         #
         # Tonight that question took an hour and three wrong turns. His reel s_1787244002054_15361
@@ -25606,13 +25607,13 @@ def status_payload():
         # photograph the right thing without a pointer. Absent key is impossible; `None` means
         # nobody has asked, and every non-None value carries its own `state` so a request that was
         # REFUSED (stale, unknown pane, mid-capture) is visible rather than silently skipped.
-        "viewRequest": view_request(),
+        "viewRequest": _t("viewRequest", view_request),
         # ⚠ THE RIVER WALK'S HEARTBEAT, published where a supervisor can read it. Recording it in
         # a module global and never putting it on a surface is the exact defect the v2457 note
         # below is about — "I recorded the paint witness ... and shipped nothing to the surface a
         # supervisor reads". `at: null` means the walk has never completed a tick in THIS process,
         # which is a different fact from a still river and is never shown as a zero.
-        "riverWalk": river_walk_state(),
+        "riverWalk": _t("riverWalk", river_walk_state),
         # v2322 — the backup generator, on a surface that can be read. `ageS` is None when no
         # console has EVER checked in, which is a different fact from "it has been silent for a
         # long time" and must not be shown as a big number. [[unknown-stays-unknown]]
@@ -25753,15 +25754,17 @@ def status_payload():
         # is static and near-black BY DESIGN (tv_diablo.py:6614). A fault that asserts an
         # unmeasured cause sends him to System Settings to fix nothing.
         # [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
-        "screenRecOk": screen_recording_ok_cached(),
+        "screenRecOk": _t("screenRecOk", screen_recording_ok_cached),
         # v2316 — per-door Wilson: how often a reel THIS door opened actually held readable film.
-        "captureDoors": capture_door_report(),
+        "captureDoors": _t("captureDoors", capture_door_report),
         "bibleVer": _t("bibleVer", _bible_ver),
         # v2708 — what is LIVE, beside what this console is EXECUTING. None means nobody could
         # ask; liveVerAge is the age of the REF, so a stale answer reads as stale.
-        "liveVer": _published_ver()[0],
-        "liveVerAge": _published_ver()[1],
-        "agentVer": _agent_disk_ver(),  # v1251 — triple-lamp disk stamp
+        # ⚠ HOISTED: this was called TWICE for one answer, so the cost was paid twice and would
+        # have been attributed twice. One call, one timing, both fields off it.
+        "liveVer": _pubver[0],
+        "liveVerAge": _pubver[1],
+        "agentVer": _t("agentDiskVer", _agent_disk_ver),  # v1251 — triple-lamp disk stamp
     }
     # ⚠ STATED LIMIT, NOT HIDDEN: a request that RAISES before this line is not timed. The
     # breakdown covers requests that COMPLETED, which is what the 52s complaint was about.

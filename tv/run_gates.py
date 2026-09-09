@@ -943,6 +943,24 @@ GATES = [
              "changed by a refactor. The ledger is published BESIDE the walk with its own "
              "denominator and source. An unreadable ledger is UNKNOWN, never a confident 0.",
          skip_ok=()),
+    Gate("test_the_status_breakdown_covers_what_it_bills",
+         [sys.executable,
+          os.path.join(HERE, "test_the_status_breakdown_covers_what_it_bills.py")], 120,
+         why="#28. MEASURED on his live console 2026-09-09 (947 requests, 6 slow): totalMs 36.4, "
+             "sections sum 2.7, unattributedMs 33.7 — the breakdown billed 7% of the request it "
+             "was measuring, because 13 producers were wrapped in _t() and 31 were not. #28's own "
+             "next step was 'reproduce with a live recording session and read the breakdown', and "
+             "that reproduction would have returned 96% UNKNOWN: every instrumented section at its "
+             "worst-since-boot sums to 2,192 ms against a 52,360 ms event. After wrapping 16 more: "
+             "attributed 1104.0 of 1141.5 ms (97%), and the top cost was one of the invisible ones "
+             "— fleetOrigin at 619.3 ms, 54% of the request, with screenRecOk at 79.8 ms behind "
+             "it. ★ The law is AST, not text: every producer call inside status_payload is either "
+             "inside a _t(...) node or named in EXEMPT with a reason, so a producer added later is "
+             "RED until somebody decides which it is. Also held: no duplicate section name (_t "
+             "ACCUMULATES, so two producers would merge into one unfindable line), no ghost "
+             "exemptions, the gap published UNCLAMPED, and UNKNOWN-not-zero before the first "
+             "completed request. Three tampers proven red.",
+         skip_ok=()),
     Gate("test_no_technique_is_lost_when_mini_goes",
          [sys.executable,
           os.path.join(HERE, "test_no_technique_is_lost_when_mini_goes.py")], 120,

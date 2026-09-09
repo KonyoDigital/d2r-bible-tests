@@ -26078,3 +26078,53 @@ below a comment is still caught, and that case is its own test. Three tampers PR
 ⚠ The third tamper came back **INVALID — "matched 0 times, the SABOTAGE is wrong, not the law"**,
 because this very change moved its anchor (`body` → `_code`). Second time tonight a refactor of mine
 moved a proof's target, and both times heart2 said so immediately rather than filing a false BLIND.
+
+## REG-779 — the status breakdown billed 7% of the request it was measuring
+**#28 · v2826 · 2026-09-09 · control_app.py**
+
+MEASURED on his live console (947 requests since boot, 6 slow):
+
+    totalMs 36.4 · sections sum 2.7 · unattributedMs 33.7   ->  93% UNEXPLAINED
+
+Thirteen producers inside `status_payload` were wrapped in `_t()` and **thirty-one were not**, so
+the per-section breakdown attributed 7% of the time it measured. #28's own stated next step was
+*"reproduce with ON AIR actually recording, then time the status path with a per-section
+breakdown"* — and that reproduction would have returned a breakdown reading **96% UNKNOWN**: every
+instrumented section at its worst-since-boot sums to **2,192 ms against the 52,360 ms event**, i.e.
+4%. **An instrument that explains 4% of the thing it exists to explain sends the reader looking in
+the wrong place**, so widening it is the prerequisite, not the session.
+
+**Fixed:** sixteen more producers wrapped. Attribution **7% → 97%** (attributed 1104.0 of 1141.5 ms;
+`unattributedMs` 37.5). And the dominant cost was one of the previously invisible ones:
+
+    fleetOrigin      619.3 ms   <- 54% of the request, in NO section before today
+    forensicsSummary 207.6 ms
+    vaultAutoread    109.6 ms
+    screenRecOk       79.8 ms   <- also invisible before today
+
+`_published_ver()` was additionally called **twice for one answer**, so its cost was paid twice and
+would have been attributed twice; hoisted to one call.
+
+Gate: `test_the_status_breakdown_covers_what_it_bills` — AST, not text: every producer call inside
+`status_payload` is either inside a `_t(...)` node or named in `EXEMPT` with a reason, so a producer
+added later is RED until somebody decides which. Also held: no duplicate section name (`_t`
+ACCUMULATES into one key, so two producers would merge into one unfindable line), no ghost
+exemptions, the gap published UNCLAMPED, UNKNOWN-not-zero before the first completed request.
+
+## REG-780 — two of my own laws were BLIND, and the sabotages were right
+**#28 · v2826 · 2026-09-09 · test_the_status_breakdown_covers_what_it_bills.py**
+
+Heart 2.0 reported both on the first run:
+
+1. **The unclamped-gap law read the wrong line.** It did `src.find('"unattributedMs"')`, and the
+   FIRST occurrence in `control_app.py` is `_status_timing_payload`'s UNKNOWN branch — four hundred
+   lines above the epilogue that actually computes the gap. The tamper clamped the real line while
+   the law inspected a different one. A first-match search is a guess about which occurrence
+   matters. Now anchored on the line that *subtracts* (`_total` and `_sum`), and it refuses if
+   there is not exactly one. [[source-window-shortcut]]
+2. **The UNKNOWN-not-zero law used membership where it needed a count.** `_status_timing_payload`
+   has TWO unknown returns — no-request-yet and the exception path — carrying the same literal, so
+   `assertIn` was satisfied by whichever one the tamper had not touched. Now asserts both.
+
+★ Usually a green sabotage is the sabotage's fault. **These two were the law's**, and only running
+the proof told them apart. Both PROVEN red after the fix.
