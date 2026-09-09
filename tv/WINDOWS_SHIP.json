@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2862",
+  "ver": "v2864",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2862: content not mtime, and the sandbox is what proved it",
+  "note": "v2864: the fingerprint could not tell a dark instrument from an empty one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

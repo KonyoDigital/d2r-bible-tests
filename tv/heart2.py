@@ -161,7 +161,21 @@ def gates_fingerprint(gates=None):
     for n, f in sorted(gates if gates is not None else gate_files()):
         h.update(n.encode("utf-8"))
         src = _read_text(f)
-        h.update(hashlib.sha256((src or "").encode("utf-8", "replace")).digest())
+        if src is None:
+            # ⚠ v2864 — UNREADABLE IS NOT EMPTY, and a cross-family review caught the collapse:
+            # hashing None as "" made every unreadable file digest identically to every empty one,
+            # so the set of readable gates could change while the fingerprint held still. The path
+            # goes into the sentinel so two different unreadable files differ. [[unknown-stays-unknown]]
+            h.update(b"\x00UNREADABLE\x00" + f.encode("utf-8", "replace"))
+            continue
+        h.update(hashlib.sha256(src.encode("utf-8", "replace")).digest())
+    # ⚠⚠ AND THE PROVER ITSELF. Same review: the digest covered gate FILES only, so a change to
+    # gate_files(), to how the sabotage is injected, or to any decision heart2 makes about RED would
+    # leave the fingerprint identical and the lock would still call a stale proof current. The proof
+    # is only as true as the thing that produced it, so this file is folded in too.
+    # [[the-unjoined-end]]
+    _self = _read_text(os.path.join(HERE, "heart2.py"))
+    h.update(hashlib.sha256((_self or "").encode("utf-8", "replace")).digest())
     return h.hexdigest()[:32]
 
 

@@ -20,6 +20,7 @@ MEASURED after the join, on the real lock:
     absent census        -> False
     restored             -> True    (so it is a gate, not furniture)
 """
+import ast
 import io
 import json
 import os
@@ -230,6 +231,47 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         self.assertIn("proved", why,
                       "the permit says the instruments are watched and does not say how much was "
                       "actually proved: %r" % why)
+
+    def test_an_UNREADABLE_gate_does_not_hash_like_an_EMPTY_one(self):
+        """★★ v2864 — a cross-family review found the collapse: _read_text returns None for an
+        unreadable file and the digest folded that in as "", so EVERY unreadable file hashed
+        identically to every empty one. The set of readable gates could change while the
+        fingerprint held still, and the lock would call a stale proof current.
+        [[unknown-stays-unknown]]"""
+        import tempfile, shutil
+        d = tempfile.mkdtemp(prefix="fp.")
+        a = os.path.join(d, "a.py"); b = os.path.join(d, "b.py")
+        io.open(a, "w").write(""); io.open(b, "w").write("")
+        try:
+            empty = H.gates_fingerprint([("g", a), ("h", b)])
+            os.chmod(a, 0); os.chmod(b, 0)
+            unread = H.gates_fingerprint([("g", a), ("h", b)])
+            swapped = H.gates_fingerprint([("g", b), ("h", a)])
+        finally:
+            os.chmod(a, 0o644); os.chmod(b, 0o644); shutil.rmtree(d, ignore_errors=True)
+        self.assertNotEqual(empty, unread,
+                            "two UNREADABLE gate files hash the same as two EMPTY ones — the "
+                            "fingerprint cannot tell 'I could not read it' from 'there was nothing "
+                            "in it'")
+        self.assertNotEqual(unread, swapped,
+                            "two DIFFERENT unreadable files hash identically — the path is not in "
+                            "the sentinel, so which instrument went dark is invisible")
+
+    def test_the_fingerprint_covers_the_PROVER_too(self):
+        """★★ Same review: the digest covered gate FILES only, so a change to gate_files(), to how
+        the sabotage is injected, or to any decision heart2 makes about RED left it identical — and
+        the lock would still call that proof current. A proof is only as true as the thing that
+        produced it. [[the-unjoined-end]]"""
+        src = io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8").read()
+        fn = next(n for n in ast.walk(ast.parse(src))
+                  if isinstance(n, ast.FunctionDef) and n.name == "gates_fingerprint")
+        body = ast.unparse(fn)
+        self.assertIn(
+            "heart2.py", body,
+            "gates_fingerprint() does not fold in heart2.py itself, so changing the prover — how "
+            "gates are found, how the tamper is applied, what counts as RED — leaves the digest "
+            "unchanged and a stale proof reads as current")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

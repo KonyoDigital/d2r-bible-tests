@@ -1669,6 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2864** | `(this commit)` | v2864 — the fingerprint could not tell a dark instrument from an empty one |
+| **v2863** | `(this commit)` | v2863 — past half, and each proof exposed a gap in the gate it proved |
 | **v2862** | `(this commit)` | v2862 — content not mtime, and the sandbox is what proved it |
 | **v2861** | `(this commit)` | v2861 — a surface may not arm itself while its instruments are blind |
 | **v2860** | `(this commit)` | v2860 — a cross-family review found the swallow inside the measure of the heart |

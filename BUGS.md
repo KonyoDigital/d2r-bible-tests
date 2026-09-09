@@ -27733,3 +27733,53 @@ so it never depends on the tree being freshly proved.
 GATE: `test_the_lock_derives_from_the_heart` — 8 laws, 3 red-proofs, all PROVEN (1 match each),
 including one that fails if the staleness bar goes back to mtime.
 
+## REG-833 — two more hand-written proofs, and a coverage gap each one exposed
+
+test_chronicle_traffic (11 laws) — the sabotage disables the WITNESS MINIMUM in
+_gate_verdict_live, which is the corroboration rule this whole project rests on: with it gone a
+name seen ONCE, by one lane on one frame, passes the gate and moves his grail. 1 match, RED,
+breaking test_one_lane_on_one_frame_is_HELD and test_every_held_verdict_still_says_why.
+
+    ⚠ THE CONFIDENCE FLOOR HAS NO ARM, AND THAT WAS MEASURED. The identical tamper on the sibling
+    guard `if best < conf_floor:` (1 match) left the gate GREEN — its fixtures never produce a
+    reading below the floor, so that guard is UNEXERCISED there. Recorded in the proof rather than
+    papered over with an arm that proves nothing. [[feedback-blind-fixture-green-gate]]
+
+test_inbox_engine (9 laws) — a COPY-DRIFT law: the board's JS fold and chronicle_resolve's Python
+fold must be the same fold. No single deletion sabotages it; the sabotage has to make them DRIFT.
+Both directions are proved separately, because a drift law that only catches one side is half a
+law — and the board is a file:// page he opens on his phone mid-game and can never call the
+Python, so the JS is the copy most likely to move alone.
+    py side: NEAR_CUTOFF 0.86 -> 0.80   1 match, RED
+    js side: same constant in bible.html 1 match, RED
+Both break test_every_name_in_the_corpus_folds_the_same_way. This is v1789's own warning made
+executable: "writing a second, differently-behaved matcher on the board is how two answers to one
+question start disagreeing quietly."
+
+HEART 2.0: 135/272 -> 137/272 = 50.4%, 0 blind. Past half.
+
+## REG-834 — the fingerprint could not tell UNREADABLE from EMPTY, and did not cover the prover
+
+Cross-family review of v2862. Two real findings, and one I manufactured myself.
+
+MEDIUM, FIXED — gates_fingerprint hashed an unreadable file (_read_text -> None) as the empty
+string, so EVERY unreadable gate digested identically to every empty one. The set of readable gates
+could change while the fingerprint held still, and the lock would call a stale proof current. None
+now hashes as a sentinel WITH THE PATH. MEASURED: empty-pair 2ea280b3, unreadable-pair 6f31d67d,
+swapped decf3c27 — three distinct digests.
+
+LOW BY ITS RATING, SHARPER IN FACT, FIXED — the digest covered gate FILES only. A change to
+gate_files(), to how the tamper is injected, or to what counts as RED left it identical, so the lock
+would still treat that proof as current. A proof is only as true as the thing that produced it, so
+heart2.py is folded into its own digest. Verified: editing heart2.py moved it 2e362871 -> 546543c8.
+
+⚠ AND ONE FINDING WAS MINE, NOT THE REVIEWER'S. It reported HIGH that an exception message was not
+interpolated. The shipped code interpolates on the continuation line. I HAND-ABBREVIATED THE DIFF
+when writing the prompt instead of pasting the --prompt-out payload, and truncated that line myself
+— a false finding I manufactured by paraphrasing my own diff, which also spent the reviewers
+attention on nothing. Send the payload verbatim. [[inherited-claim-is-not-evidence]]
+
+LAWS: test_an_UNREADABLE_gate_does_not_hash_like_an_EMPTY_one and
+test_the_fingerprint_covers_the_PROVER_too. test_the_lock_derives_from_the_heart now has 10 laws
+and 3 red-proofs, all PROVEN.
+

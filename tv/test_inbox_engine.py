@@ -76,6 +76,31 @@ REAL_DEBRIS = [
 ]
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, sandbox-verified. This law asserts two INDEPENDENT implementations "
+               "agree, so no single deletion sabotages it — the sabotage has to make them DRIFT. "
+               "Moving the Python cutoff alone is the v1789 warning made real: 'writing a second, "
+               "differently-behaved matcher on the board is how two answers to one question start "
+               "disagreeing quietly'. MEASURED: 1 match, RED, breaking "
+               "test_every_name_in_the_corpus_folds_the_same_way.",
+        "file": "chronicle_resolve.py",
+        "find": "NEAR_CUTOFF = 0.86",
+        "replace": "NEAR_CUTOFF = 0.80",
+        "matches": 1,
+    },
+    {
+        "why": "THE OTHER DIRECTION, and it must be proved separately. A drift law that only catches "
+               "one side is half a law: the board is a file:// page he opens on his phone mid-game "
+               "and can never call the Python, so the JS is exactly the copy most likely to move "
+               "alone. MEASURED: 1 match in bible.html, RED, same laws.",
+        "file": "bible.html",
+        "find": "var NEAR_CUTOFF = 0.86;",
+        "replace": "var NEAR_CUTOFF = 0.80;",
+        "matches": 1,
+    },
+]
+
 def _extract_block(path=BIBLE):
     """The shipped source between the two markers. Refuses on anything but exactly one pair."""
     with open(path, "r", encoding="utf-8") as fh:

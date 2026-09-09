@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2862"   # the-staleness-rule-only-held-in-the-tree-that-wrote-it
+VERSION = "v2864"   # unreadable-is-not-empty-and-the-prover-counts
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

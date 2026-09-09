@@ -36,6 +36,25 @@ import chronicle_retro as cr          # noqa: E402
 import chronicle_resolve as res       # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, sandbox-verified. This law walks all 533 names through the chronicle "
+               "chain, so no string deletion can sabotage it. Disabling the witness minimum is the "
+               "corroboration rule itself: a name seen once, by one lane on one frame, would pass "
+               "the gate and move his grail. MEASURED: 1 match, RED, breaking "
+               "test_one_lane_on_one_frame_is_HELD and test_every_held_verdict_still_says_why.\n"
+               "⚠ THE CONFIDENCE FLOOR HAS NO ARM, AND I MEASURED THAT RATHER THAN ASSUMING IT. The "
+               "same tamper on `if best < conf_floor:` (1 match) left this gate GREEN — its fixtures "
+               "never produce a reading below the floor, so that guard is unexercised here. Recorded "
+               "instead of papered over with a second arm that proves nothing. "
+               "[[feedback-blind-fixture-green-gate]]",
+        "file": "chronicle_retro.py",
+        "find": "    if len(w) < min_witnesses:",
+        "replace": "    if False and len(w) < min_witnesses:",
+        "matches": 1,
+    },
+]
+
 def _pages(names, ledger="uniques", reel="s_sim", frames=2, lanes=("claude", "grok")):
     """The shape sweep_frames hands to proposal_from_pages: one entry per frame per lane."""
     out = []
