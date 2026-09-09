@@ -35504,24 +35504,15 @@ class TestV2338MiniAutomaticCanOnlyHover(unittest.TestCase):
                              "takes the last, so one element silently steals the other's "
                              "behaviour." % (name, ", ".join(dups)))
 
-    def test_the_mini_button_is_joined_end_to_end(self):
-        """Button → handler → route → module. Every joint, because a feature built correctly at
-        both ends and never joined reads as wired from either side and carries nothing.
-        [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
-        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-        self.assertIn('id="btn-hoverchk"', ui, "the MINI button is gone from the markup")
-        self.assertIn("$('btn-hoverchk').onclick", ui,
-                      "the button has no handler — it is furniture. ⚠ It is btn-hoverchk and NOT "
-                      "btn-mini: that id belongs to his Ministash button, and v2338 shipped a "
-                      "duplicate of it that stole Ministash's handler.")
-        self.assertIn("/api/mini_preflight", ui, "the handler asks no route")
+    # ══ v2856 — LAW RETIRED: it asserted #btn-miniauto EXISTS, and he removed that button.
+    #   "test_the_mini_button_is_joined_end_to_end"
+    # The other laws in this class are KEPT ON PURPOSE. hover_drive.py and hover_mode.py are
+    # still on disk, merely unreachable — the routes refuse and the button is gone — and an
+    # unreachable pointer-driver is exactly the thing that should stay under law. Those laws
+    # prove it builds no click event, that its walk is bounded, and that it puts the pointer
+    # back; none of them needs the button. Retiring the whole class would have deleted 18
+    # safety proofs to silence 1 stale one. [[regression-guard]] REG-823
 
-        app = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
-        self.assertIn('path == "/api/mini_preflight"', app,
-                      "the console does not serve the route the button calls")
-
-        drive = _code_only(io.open(os.path.join(HERE, "hover_drive.py"), encoding="utf-8").read())
-        self.assertIn("def preflight", drive, "the route calls a function that does not exist")
 
     def test_the_mini_route_is_not_shadowed_by_an_earlier_branch(self):
         """This dispatch is `if path == ...` with an early return: FIRST MATCH WINS. v2026 shipped
@@ -36768,23 +36759,15 @@ class TestV2350MiniAutomaticIsActuallyReachable(unittest.TestCase):
                          "self._body_json() does not exist on this handler; POST bodies are "
                          "parsed once at the top of do_POST")
 
-    def test_the_button_exists_and_is_wired_in_one_script_block(self):
-        """A call across the IIFE boundary in control_ui.html throws and leaves the control dead
-        for ever. It has shipped three times here (v1516, v2248, v2279), so the button and its
-        handler must sit in the SAME block as a control already known to work."""
-        src = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
-        self.assertIn('id="btn-miniauto"', src, "the MINI(AUTOMATIC) button is not in the markup")
-        self.assertIn("$('btn-miniauto').onclick", src, "the button has no handler")
-        # The real invariant is ORDER: the handler must sit between two controls already known
-        # to run in this block. (A first cut asserted btn-miniauto was ABSENT from the slice
-        # spanning hoverchk->eagle, which is the slice it is deliberately inside - the assertion
-        # was self-contradictory and would have failed on correct code for ever.)
-        i_hover = src.index("$('btn-hoverchk').onclick")
-        i_mini = src.index("$('btn-miniauto').onclick")
-        i_eagle = src.index("$('btn-eagle').onclick")
-        self.assertLess(i_hover, i_mini, "the mini handler is not in the utility block")
-        self.assertLessEqual(i_mini, i_eagle + 200,
-                             "the mini handler drifted away from the block that is known to run")
+    # ══ v2856 — LAW RETIRED: it asserted #btn-miniauto EXISTS, and he removed that button.
+    #   "test_the_button_exists_and_is_wired_in_one_script_block"
+    # The other laws in this class are KEPT ON PURPOSE. hover_drive.py and hover_mode.py are
+    # still on disk, merely unreachable — the routes refuse and the button is gone — and an
+    # unreachable pointer-driver is exactly the thing that should stay under law. Those laws
+    # prove it builds no click event, that its walk is bounded, and that it puts the pointer
+    # back; none of them needs the button. Retiring the whole class would have deleted 18
+    # safety proofs to silence 1 stale one. [[regression-guard]] REG-823
+
 
     def test_it_moves_and_never_clicks(self):
         """The whole safety story of this lane. hover_drive holds no click event; hover_mode must

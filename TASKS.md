@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2856** | `(this commit)` | v2856 — his ruling removed the automatic sweep and End Session finally returns to On Air |
 | **v2855** | `(this commit)` | v2855 — and five more that cannot, which is the finding |
 | **v2854** | `(this commit)` | v2854 — a quiet check and a loud one disagreed and the quiet one was wrong |
 | **v2853** | `(this commit)` | v2853 — one --ratchet flattened the census to two keys and lost 97 proof names |

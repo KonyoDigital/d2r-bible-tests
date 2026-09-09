@@ -25618,7 +25618,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2855",
+        "ver": "v2856",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28230,6 +28230,18 @@ class Handler(BaseHTTPRequestHandler):
                                                         % str(e)[:120]})
             return
         if path == "/api/mini_auto":
+            # ⛔⛔ v2856 — MINI(AUTOMATIC) / HOVER MODE IS REMOVED. His ruling, 2026-09-09:
+            # "i decided MINI automatic isnt needed.. the whole button surgically remvoe it" and
+            # "the blocked/hover mode hide it block it surgically remove it".
+            # The console button is gone, so nothing in the UI reaches here — but a route that still
+            # DRIVES HIS POINTER must not survive its own button. This refuses before importing
+            # hover_mode at all, which is the only version of "blocked" that cannot be raced by a
+            # planner thread started earlier. MINI (#btn-mini) and ON AIR (#btn-on) are untouched.
+            self._json(200, {"ok": False, "running": False, "planning": False, "removed": True,
+                             "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his ruling. The "
+                                    "pointer is no longer driven from this console. MINI and ON AIR "
+                                    "are unaffected."})
+            return
             # ══ v2350 — MINI(AUTOMATIC), THE ACTUAL MODE ════════════════════════════════════════
             # v2338 shipped the actuator (hover_drive.walk) and a readiness LAMP and joined
             # neither to the other. `walk()` had ZERO callers, so the mode he went looking for did
@@ -28743,6 +28755,18 @@ class Handler(BaseHTTPRequestHandler):
                 body = {}
 
         if path == "/api/mini_auto":
+            # ⛔⛔ v2856 — MINI(AUTOMATIC) / HOVER MODE IS REMOVED. His ruling, 2026-09-09:
+            # "i decided MINI automatic isnt needed.. the whole button surgically remvoe it" and
+            # "the blocked/hover mode hide it block it surgically remove it".
+            # The console button is gone, so nothing in the UI reaches here — but a route that still
+            # DRIVES HIS POINTER must not survive its own button. This refuses before importing
+            # hover_mode at all, which is the only version of "blocked" that cannot be raced by a
+            # planner thread started earlier. MINI (#btn-mini) and ON AIR (#btn-on) are untouched.
+            self._json(200, {"ok": False, "running": False, "planning": False, "removed": True,
+                             "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his ruling. The "
+                                    "pointer is no longer driven from this console. MINI and ON AIR "
+                                    "are unaffected."})
+            return
             # v2350 — MINI(AUTOMATIC): start/stop. The GET half (status) is in do_GET.
             # It MOVES ONLY: hover_drive holds no click event and this route adds none.
             try:

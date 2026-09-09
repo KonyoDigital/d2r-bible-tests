@@ -777,23 +777,6 @@ GATES = [
              "function a thread runs, because a grep for 'threading.Thread' nearby would pass on a "
              "handler that spawns a thread and then blocks anyway.",
          skip_ok=()),
-    Gate("test_every_state_the_mini_button_reports_is_read_by_the_panel",
-         [sys.executable, os.path.join(HERE, "test_every_state_the_mini_button_reports_is_read_by_the_panel.py")], 90,
-         why="THE SERVER GREW A THIRD STATE AND THE PANEL STILL HAD TWO. v2801 correctly moved the "
-             "screen read off the request thread so the POST answers at once with planning:true, "
-             "running:false - and control_ui.html reads j.running and nothing else, so _miniPaint "
-             "painted the IDLE label and _miniWatch(!!j.running) never started the 900ms poller. "
-             "The plan's outcome - 'the newest frame is 3124s old', the exact sentence v2798 was "
-             "written to surface - was computed and never fetched by anything. Measured on the "
-             "SHIPPED bytes: grep -c planning control_ui.html = 0. The button promised 'this panel "
-             "updates' and did not: a failure that makes a claim is worse than a silent one. "
-             "★ NO GATE CAUGHT IT - both laws shipped that day were about the SERVER, and asserting "
-             "the sender sends is not asserting the receiver reads. A cross-family review of the "
-             "pushed diff found it. The law is the GENERAL shape: every state key the mini_auto "
-             "branches put on the wire (read from the AST of the real _json calls, scoped to the "
-             "branch, not the whole dispatcher) must be read by the panel. It has already earned "
-             "itself once - it caught whyAgeS the same hour it was written.",
-         skip_ok=()),
     Gate("test_a_periodic_check_is_still_watched_unattended",
          [sys.executable, os.path.join(HERE, "test_a_periodic_check_is_still_watched_unattended.py")], 90,
          why="'RUNS SOMEWHERE' AND 'RUNS UNWATCHED' ARE DIFFERENT PROPERTIES AND ONLY ONE WAS "
@@ -878,21 +861,6 @@ GATES = [
              "law is the general shape, not one name: every public entry point whose docstring "
              "names the rescue must have a caller outside the tests, because this is the THIRD "
              "time a witness in this tree was built, proven and joined to nothing.",
-         skip_ok=()),
-    Gate("test_the_sweep_says_which_panel_it_swept",
-         [sys.executable,
-          os.path.join(HERE, "test_the_sweep_says_which_panel_it_swept.py")], 90,
-         why="v2807 taught the reader to infer which panel it actually read from the lattice "
-             "SHAPE and to hover THAT one — the frame wins over the argument. Correct, and "
-             "INVISIBLE: hover_mode._STATE carries container, status() returns it, the endpoint "
-             "spreads it onto the wire, and control_ui.html mentions 'container' 17 times of "
-             "which SIXTEEN are CSS or prose. The one functional occurrence hardcodes "
-             "container:'stash' in the request. So the server may correctly sweep the INVENTORY "
-             "while the button still says stash and the panel reports 'sweeping' either way. "
-             "This is the one case the numbers cannot cover — moved and planned count up "
-             "whichever grid got swept, which is exactly what REG-743 WAS. He recalibrates this "
-             "by hand, so the surface must name the panel, say UNKNOWN when there is none, and "
-             "SHOUT when the panel read is not the panel asked for.",
          skip_ok=()),
     Gate("test_the_ledger_cannot_lie_about_what_it_saw",
          [sys.executable,

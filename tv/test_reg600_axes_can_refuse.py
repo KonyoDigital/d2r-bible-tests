@@ -57,6 +57,16 @@ import reel_router_wilson as RRW  # noqa: E402
 import self_arming as SA  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": 'resolved BY EXPERIMENT, not inference: this anchor occurs once in control_app.py and once in disk_report_crossfamily.py; tampering each separately in a sandbox turned the gate RED only for control_app.py, so that is its real subject',
+        "file": 'control_app.py',
+        "find": 'UNCLOSED',
+        "replace": "_HEART2_TAMPERED_",
+        "matches": 1,
+    },
+]
+
 class TheDiskRowNowHasARefusalPath(unittest.TestCase):
     """★ Part 1. The thing `prune.reports` was always supposed to be about."""
 

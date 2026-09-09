@@ -3314,28 +3314,6 @@
        because both sides are clamp() tokens that change with the viewport. */
     .hd-tz .tz-slot .tzz-den { min-height: calc(1.3em + 1.22 * var(--fs-md)); }
   }
-  /* v2381 — MINI(AUTOMATIC)'s own accent. Info blue, deliberately NOT ON AIR's mint and NOT
-     MINI's gold: this is the only control on the column that takes the pointer out of his hand,
-     and a mode that drives the mouse must not be one glance away from a manual one. The running
-     state is a CLASS, not an inline style written by the poller — the old code set
-     btn.style.borderColor directly, which wins over every rule here and made the card
-     unstylable from CSS. [[d2r-css-last-rule-wins]] */
-  .act.b-miniauto { border-color: rgba(126,200,255,.34); color: var(--info, #7ec8ff);
-    background: linear-gradient(180deg, rgba(18,32,46,.9), rgba(8,12,17,.95)); }
-  .act.b-miniauto .ic { color: var(--info, #7ec8ff); }
-  .act.b-miniauto:hover { box-shadow: inset 0 1px 0 rgba(126,200,255,.14),
-    0 0 24px rgba(126,200,255,.2), 0 10px 26px rgba(0,0,0,.42); }
-  .act.b-miniauto.miniauto-live { border-color: rgba(126,200,255,.7); }
-  .act.b-miniauto.miniauto-live .ic { animation: miniPulse 1s ease-in-out infinite; }
-  /* the pointer is MOVING — a travelling rail along the bottom edge, so "it has my mouse" is
-     legible from across the room and not only from the count in the title. */
-  .act.b-miniauto.miniauto-live::after {
-    content: ""; position: absolute; left: 0; bottom: 0; height: 2px; z-index: 2;
-    width: 38%; border-radius: 2px;
-    background: linear-gradient(90deg, transparent, var(--info, #7ec8ff), transparent);
-    animation: workBar 1.05s ease-in-out infinite; }
-  .act.b-miniauto.miniauto-unknown { border-color: rgba(154,166,178,.45); color: #9aa6b2; }
-  .act.b-miniauto.miniauto-unknown .ic { color: #9aa6b2; }
   .act.b-mini .ic { color: var(--gold, #f0c060); }
   .act.b-mini.mini-live { border-color: rgba(240,192,96,.55); }
   .act.b-mini.mini-live .ic { animation: miniPulse 1s ease-in-out infinite; }
@@ -7140,21 +7118,6 @@ body[data-origin="shadow"] #stage::after {
              is the densest evidence in the archive: the panel is held still and every frame is a
              clean look at what he owns. -->
         <button class="act b-mini" id="btn-mini" type="button"><span class="ic">⏱</span><span class="lab"><b>Mini</b><span id="mini-sub">stash &middot; 120s, stops itself</span></span></button>
-        <!-- v2379 — MINI(AUTOMATIC) LIVES BESIDE MINI NOW. Konyo, twice: "where is the
-             Mini AUTOMATIC?" and then "where is my toggle for HOVER MODE automatic MINI?
-             remember we made you were suppose to wire the button in too. i cant seem to
-             find it anywhere". It WAS wired — buried inside <details id="sig-adv">, the
-             collapsed ⚙ ADVANCED panel. A mode for Mini belongs next to Mini. Same id,
-             same handler, same state readout; only the seat moved. -->
-        <!-- v2381 — IT WAS A util-btn SITTING UNDER TWO CARDS. Konyo, off his own screenshot:
-             "fix the MINI AUTOMATIC BUTTON to match the HDART console". ON AIR and MINI are
-             `.act` cards — icon, uppercase title, one line of subtitle saying what it does —
-             and this was a bare pill with a label and nothing else, so the third thing in the
-             column read as half-built next to the two above it. Same card, and its OWN accent
-             (info blue, not ON AIR's mint or MINI's gold) because this is the one that takes
-             the mouse out of his hand: at a glance it must not be mistakable for either
-             manual button. [[visual-regression-detector]] -->
-        <button class="act b-miniauto" id="btn-miniauto" type="button" title="MINI(AUTOMATIC) — hover each item in the open panel so the game draws its TOOLTIP, and film it. Moves the pointer only; never clicks. Your hand on the mouse stops it instantly."><span class="ic" id="miniauto-ic">🖱</span><span class="lab"><b id="miniauto-lbl"><span id="miniauto-lbl-t">Mini &middot; Auto</span><span class="lockchip lc-inline" id="lock-miniauto" data-state="locked" title="MINI AUTO — no lock state has been read yet, so it is LOCKED. This is a stamp, not a gate: it does not block the button.">🔒</span></b><span id="miniauto-sub">stash &middot; hovers each item, films it</span></span></button>
         <!-- v1603 — WHAT AM I LOOKING AT? Konyo: "is this finally focused and understanding of the
              fact that it is reading stash/runes/gems/materials and to look out specifically for
              this" — and then "for chronicles too.. a button for it so its focused specifically for
@@ -7409,12 +7372,6 @@ body[data-origin="shadow"] #stage::after {
             <button class="util-btn" id="btn-restart" type="button" hidden style="display:none" title="cycle the bridge (hiccups)">↻ bridge</button>
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">🦅 eagle</button>
-            <!-- v2338 — MINI(AUTOMATIC): asks whether the pointer can be driven right now, and
-                 over which window. It MOVES NOTHING that stays moved — the readiness proof is a
-                 1px twitch that undoes itself, because CGEventPost fails silently without
-                 Accessibility and a lamp built on "can I read the cursor" answers READY for ever
-                 while moving nothing. -->
-            <button class="util-btn" id="btn-hoverchk" type="button" title="MINI(AUTOMATIC) — can the hover sweep drive the pointer right now? Proves it with a 1px move it undoes. Hovers only; it can never click.">🖱 ready?</button>
             <!-- v2350c — the lamp above was labelled "mini" and this one "MINI": two controls
                  differing only in CASE, side by side in the same strip, one of which drives his
                  pointer. Renamed the lamp to "ready?" - it asks a question, and this one does a
@@ -9727,7 +9684,6 @@ window._lockMark = function(isOpen, px, label){
       /* the SAME lock, quoted twice, never derived twice — one place decides and every
          surface reads it. The tab variant renders the padlock alone. */
       _paintChip('lock-vault-tab', 'vault.', 'the vault acts on your ledger');
-      _paintChip('lock-miniauto', 'miniauto.', 'MINI AUTO moves the pointer over your stash and films what the game draws');
       _paintChip('lock-prune', 'prune.', 'the deleter removes footage, and there is no undo');
     } catch (e) { /* a paint that throws must not take the rest of the status render with it */ }
 
@@ -16379,7 +16335,17 @@ window._lockMark = function(isOpen, px, label){
       setBusy(false);
       if (lab) {
         var stNow = document.body.getAttribute('data-state');
-        lab.textContent = (stNow === 'on') ? 'End Session' : (old && old !== 'ending…' && old !== 'closing…' ? old : 'On Air');
+        /* ⚠⚠ v2856 — THIS RESTORED `old`, AND `old` WAS CAPTURED WHILE THE SESSION WAS LIVE.
+           cutFeed reads `var old = lab.textContent` on entry, which during a session is
+           literally 'End Session'. The guard excluded 'ending…' and 'closing…' but not the
+           one label that is always there when this function runs, so ending a session put
+           'End Session' straight back and the button never returned to On Air.
+           MEASURED: state='off', old='End Session' -> 'End Session'.
+           The state is the only thing that decides this. Same table the poll-driven painter
+           uses, so the two can no longer disagree. [[label-outlived-referent]] */
+        lab.textContent = (stNow === 'on') ? 'End Session'
+                        : (stNow === 'stopping') ? 'Sealing…'
+                        : 'On Air';
       }
     }
   }
@@ -16904,249 +16870,15 @@ window._lockMark = function(isOpen, px, label){
     if (window._ledgerView) window._ledgerView(this);
   };
 
-  /* ══ v2338 — MINI(AUTOMATIC) READINESS ═════════════════════════════════════════════════
-     Three answers, never two. READY means the pointer was actually driven and came back; NOT
-     READY names the one condition that failed; and "could not ask" is neither — a console that
-     could not reach the route knows nothing about the pointer and must not imply it does.
-     [[unknown-stays-unknown]] */
-  $('btn-hoverchk').onclick = async function(){
-    var out = $('eagle-out'); if (!out) return;
-    out.style.display = 'block'; out.style.borderColor = '';
-    out.innerHTML = '🖱 asking whether the pointer can be driven…';
-    this.disabled = true;
-    try {
-      var r = await fetch(API + '/api/mini_preflight');
-      var j = await r.json();
-      if (!j){ out.innerHTML = '<div style="color:#9aa6b2">🖱 no answer — nothing is known about the pointer</div>'; return; }
-      var w = j.window, obeys = j.pointerObeys;
-      var lines = [];
-      lines.push('<div style="color:' + (j.ready ? '#8fd0a0' : '#e9b96e') + ';font-weight:var(--fw-medium)">'
-        + (j.ready ? '🖱 READY — the pointer obeys and the game window is on screen'
-                   : '🖱 NOT READY — ' + (j.why || 'no reason given')) + '</div>');
-      lines.push('<div style="opacity:.75;margin-top:4px">pointer obeys: '
-        + (obeys === true ? 'yes (proved by a 1px move it put back)'
-           : obeys === false ? 'NO — macOS is dropping the event; grant Accessibility'
-           : 'not established') + '</div>');
-      lines.push('<div style="opacity:.75">game window: '
-        + (w ? (Math.round(w[2]) + '\u00d7' + Math.round(w[3]) + ' at ' + Math.round(w[0]) + ',' + Math.round(w[1]))
-             : 'none on screen') + '</div>');
-      lines.push('<div style="opacity:.55;margin-top:5px">it can only ever move the pointer \u2014 '
-        + 'there is no click in that file, so a sweep cannot pick an item up</div>');
-      out.innerHTML = lines.join('');
-      if (!j.ready) out.style.borderColor = '#e9b96e';
-    } catch(e){
-      out.style.borderColor = '#9aa6b2';
-      out.innerHTML = '<div style="color:#9aa6b2">🖱 could not ask the console (' + e.message
-        + ') \u2014 that is not the same as the pointer being unavailable</div>';
-    } finally { this.disabled = false; }
-  };
-  /* ══ v2350 — MINI(AUTOMATIC), THE MODE ══════════════════════════════════════════════════
-     Deliberately in the SAME script block as btn-hoverchk: a call across the IIFE boundary in
-     this file throws and leaves the control dead for ever, and it has shipped three times
-     (v1516, v2248, v2279). [[console-ui-two-script-blocks]]
-     The label IS the state. Four things it can be: idle, sweeping n/N, stopped-with-a-reason,
-     or unreachable — and "could not ask" never renders as "off". */
-  /* v2350b - MEASURED, NOT ASSUMED. At his 1120px window the first label wrapped to two
-     lines (45px vs the strip's 28px) and, because .util-strip is a flex row, it dragged
-     btn-farmgate up to 45px with it. A control that silently resizes its NEIGHBOURS is the
-     asymmetry he has reported before. Short label + nowrap makes that structural rather than a
-     property of whichever string happens to be showing. */
-  /* v2381 — THE nowrap IS GONE, AND IT WAS MINE. It was written for the old util-btn pill
-     (one-line label, no card). Moved onto the card's TITLE it did this, at 901px, on the render
-     I took one minute later: the title printed "MINI \u00b7 AUTC" — the O sliced off by the
-     card's own overflow:hidden — while the render gate scored `clipped 0`. Nothing needs to
-     hold the title on one line: it only breaks at spaces, so a running "Stop \u00b7 12/40"
-     keeps its count whole either way. [[visual-regression-detector]] */
-  var _miniPoll = null;
-  /* v2381 — THE STOP BUTTON COULD NOT STOP. The click handler decided whether a sweep was
-     running with `/STOP/.test(miniauto-lbl.textContent)` — and this function never wrote the
-     word STOP anywhere. It wrote '\u23f9 12/40', a glyph and two numbers. So the test was
-     ALWAYS false, and pressing the card while the pointer was being driven re-sent {on:true}
-     instead of stopping it. On the one control that takes the mouse out of his hand, the kill
-     switch was wired to a string that does not exist. Running-ness is now the SERVER's answer,
-     carried on the element as data-running, and the label is free to say whatever reads best.
-     [[the-unjoined-end]] [[feedback-verify-not-proxy]] */
-  /* ⚠⚠ v2445 — THE STAMP MUST SURVIVE THE REPAINT, AND IT DID NOT.
-     v2443 moved the mini-auto padlock INSIDE <b id="miniauto-lbl"> so it would sit inline with the
-     words instead of stretching to 147px on its own row. That put it inside the one element this
-     function rewrites with `lbl.textContent = ...` on EVERY POLL — so the padlock existed for a
-     fraction of a second at page load and was then destroyed for ever. On his console the stamp
-     was simply absent, on the one surface whose whole purpose is making the lock KNOWN.
-
-     My own probe had already said so — it found THREE .lockchip elements where the markup declares
-     four — and I read past it. A cold cross-family look at the real pixels is what named it.
-     [[feedback-suspect-the-instrument]] [[grok-second-eye]]
-
-     The label now owns a text node of its own (#miniauto-lbl-t) and the stamp is its sibling, so a
-     repaint touches the words and nothing else. */
-  function _miniLbl(text){
-    var t = $('miniauto-lbl-t');
-    if (t) { t.textContent = text; return; }
-    /* no text node means the markup changed under this function. Writing the parent would delete
-       the stamp again, which is the defect this exists to prevent — so say so and write nothing. */
-    try { console.warn('[miniauto] #miniauto-lbl-t is missing; label not repainted'); } catch (e) {}
-  }
-  /* ⚠ REG-743 MADE VISIBLE. The server infers which panel it actually read from the lattice
-     SHAPE (stash 10x10, inventory 10x4, cube 3x4) and sweeps THAT one — the frame wins over the
-     argument. That fix is right and it is INVISIBLE: `container` has been on the wire the whole
-     time and no surface ever drew it, so a sweep of the inventory and a sweep of the stash look
-     identical here. He is recalibrating this by hand, and a recalibration against a number that
-     cannot show which panel produced it is not a calibration, it is a coin toss.
-     [[the-unjoined-end]] [[unknown-stays-unknown]] */
-  var _MINI_PANEL = {stash: 'STASH', inventory: 'INVENTORY', cube: 'CUBE'};
-  function _miniPanelText(j){
-    var got = (j && j.container) || '';
-    var btn = $('btn-miniauto');
-    var asked = (btn && btn.dataset && btn.dataset.asked) || '';
-    if (!got) return ' \u2014 panel UNKNOWN';   /* never silently "stash" */
-    var name = _MINI_PANEL[got] || got.toUpperCase();
-    if (asked && got !== asked){
-      /* This is the REG-743 shape happening in front of him, and it is the ONE case where the
-         numbers cannot tell him: `moved` counts up whichever panel got swept. */
-      return ' \u2014 \u26a0 ' + name + ' (you asked for ' + (_MINI_PANEL[asked] || asked) + ')';
-    }
-    return ' \u2014 ' + name;
-  }
-
-  function _miniPaint(j){
-    var lbl = $('miniauto-lbl'), btn = $('btn-miniauto');
-    var ic = $('miniauto-ic'), sub = $('miniauto-sub');
-    if (!lbl || !btn) return;
-    btn.classList.remove('miniauto-live', 'miniauto-unknown');
-    if (!j){
-      /* the console could not be asked — that is UNKNOWN, and it must not read as idle-and-fine
-         or as running. [[unknown-stays-unknown]] */
-      btn.dataset.running = '';
-      btn.classList.add('miniauto-unknown');
-      _miniLbl('Mini \u00b7 Auto');
-      if (ic) ic.textContent = '\u2753';
-      if (sub) sub.textContent = 'state unknown \u2014 the console did not answer';
-      return;
-    }
-    if (j.planning){
-      /* ⚠⚠ v2802 — PLANNING IS A THIRD STATE AND THE PANEL HAD ONLY TWO. v2801 moved the screen
-         read off the request thread so the POST answers at once — correct, and it left this
-         function reading `j.running` alone, which is FALSE during the whole plan. So the press
-         painted the idle label, _miniWatch(false) never started the poller, and the outcome the
-         plan thread computed — "the newest frame is 3124s old", the exact sentence v2798 existed
-         to surface — was never fetched by anyone. The button promised "this panel updates" and
-         then did not update: a worse failure than the hang it replaced, because it also lies.
-         Caught by a cross-family review of the shipped diff, not by any gate. [[the-unjoined-end]] */
-      btn.dataset.running = '';
-      btn.classList.add('miniauto-live');
-      _miniLbl('Reading\u2026');
-      if (ic) ic.textContent = '\u23f3';
-      if (sub) sub.textContent = (j.why || 'reading the screen for your items')
-                                 + (j.planningForS ? ' (' + j.planningForS + 's)' : '');
-    } else if (j.running){
-      btn.dataset.running = '1';
-      btn.classList.add('miniauto-live');
-      _miniLbl('Stop \u00b7 ' + (j.moved || 0) + '/' + (j.planned || 0));
-      if (ic) ic.textContent = '\u23f9';
-      if (sub) sub.textContent = 'sweeping' + _miniPanelText(j)
-                                 + ' \u2014 press to stop, or touch the mouse';
-    } else {
-      btn.dataset.running = '';
-      _miniLbl('Mini \u00b7 Auto');
-      if (ic) ic.textContent = '\ud83d\uddb1';
-      if (sub) {
-        /* ⚠ v2802 — THE LAST PLAN'S REASON, RIGHT HERE, WITH ITS AGE. This is where REG-726
-           finally lands: the sentence the console computed ("the newest frame is 3124s old")
-           is now rendered under the button he pressed, instead of in #eagle-out 275 lines away
-           or in a daemon thread nobody fetches. The server only serves it while it is fresh
-           (whyAgeS), and showing the age is what keeps a fact about a MOMENT from reading as a
-           standing claim. [[stale-reading]] [[label-outlived-referent]] */
-        if (j.why && j.whyAgeS != null) {
-          sub.textContent = j.why + ' (' + j.whyAgeS + 's ago)';
-        } else if (j.stopped) {
-          sub.textContent = 'last run: ' + j.stopped + ' \u00b7 ' + (j.moved||0) + '/' + (j.planned||0);
-        } else {
-          sub.textContent = 'stash \u00b7 hovers each item, films it';
-        }
-      }
-    }
-  }
-  function _miniWatch(on){
-    if (_miniPoll){ clearInterval(_miniPoll); _miniPoll = null; }
-    if (!on) return;
-    /* ⚠⚠ v2802 — ONE GLITCH USED TO END THE WATCH FOR GOOD. A cold cross-family review of the
-       shipped v2801 caught it: `catch(e){ _miniWatch(false); }` killed the 900ms poller on ANY
-       transient failure — a momentary network error, one 500, hover_mode.status() raising once —
-       while the server carried on working. The panel then sat frozen on whatever it last painted
-       with nothing left to correct it, which is the same silence this whole arc has been about.
-       A transient failure is UNKNOWN, not "it stopped". Three consecutive misses is a state.
-       [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]] */
-    var _miniMiss = 0;
-    _miniPoll = setInterval(async function(){
-      try {
-        var j = await (await fetch(API + '/api/mini_auto')).json();
-        _miniMiss = 0;
-        _miniPaint(j);
-        /* v2802 — a plan in flight is a live state; stopping the poll on !running alone
-           ended the watch during the very window it exists to report. */
-        if (!j || !(j.running || j.planning)) _miniWatch(false);
-      } catch(e){
-        if (++_miniMiss >= 3) { _miniPaint(null); _miniWatch(false); }
-      }
-    }, 900);
-  }
-  $('btn-miniauto').onclick = async function(){
-    var out = $('eagle-out');
-    /* v2381 — was /STOP/ against a label that never contained it (see _miniPaint). */
-    var running = this.dataset.running === '1';
-    this.disabled = true;
-    try {
-      var r = await fetch(API + '/api/mini_auto', {method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({on: !running, container: 'stash'})});
-        /* what WE asked for — the server may legitimately read another panel and say so */
-        try { $('btn-miniauto').dataset.asked = 'stash'; } catch(e){}
-      var j = await r.json();
-      _miniPaint(j);
-      _miniWatch(!!(j && (j.running || j.planning)));
-      /* ⚠⚠ v2798 — THE BUTTON MOVED SEAT AND ITS VOICE DID NOT FOLLOW IT.
-         MEASURED 2026-09-08: this handler writes into #eagle-out, and after v2381 moved the card
-         out of TOOLS to sit beside MINI, the two are **275 lines apart** — every other button in
-         this console is 2 to 46 lines from its own output box, i.e. inside the same visible panel.
-         v2381's own comment says "same id, same handler, same state readout; only the seat moved".
-         The ID was the same. The READOUT was left in the other room.
-         WHAT IT COST: he pressed it, the server refused with a perfectly clear reason —
-         "the newest frame is 3124s old - MINI will not hover off a stale screen" — and he reported
-         "nothing happens", because the sentence rendered in a panel he was not looking at. The
-         console explained itself into an empty room.
-         ⛔ SAME FIX AS v2446'S SHELF DOOR, for the same reason, quoted from it: "a message only
-         visible when the thing works is not an error message". The toast lives outside the panels
-         and is visible wherever he is standing. #eagle-out KEEPS its copy — this adds a voice, it
-         does not move the record. [[the-unjoined-end]] [[zero-needs-a-denominator]] */
-      try {
-        if (j && j.ok) {
-          if (!j.running) toast('🖱 MINI AUTO — ' + (j.why || 'stopped'), 5000);
-        } else {
-          toast('🖱 MINI AUTO did not start — ' + ((j && j.why) || 'no reason given'), 8000);
-        }
-      } catch (_t) {}
-      if (out){
-        out.style.display = 'block';
-        out.style.borderColor = (j && j.ok) ? '' : '#e9b96e';
-        out.innerHTML = '<div style="color:' + ((j && j.ok) ? '#8fd0a0' : '#e9b96e') + ';font-weight:var(--fw-medium)">'
-          + ((j && j.ok) ? (j.running ? '\ud83d\uddb1 SWEEPING — ' : '\ud83d\uddb1 ') + (j.why || '')
-                         : '\ud83d\uddb1 did not start — ' + ((j && j.why) || 'no reason given')) + '</div>'
-          + '<div style="opacity:.55;margin-top:5px">it moves the pointer only \u2014 there is no click '
-          + 'in that lane, and your hand on the mouse ends the sweep immediately</div>';
-      }
-    } catch(e){
-      /* v2798 — and an UNREACHABLE console is the case where a distant box helps least */
-      try { toast('🖱 MINI AUTO — could not ask the console (' + e.message + ')', 8000); } catch (_t) {}
-      if (out){ out.style.display='block'; out.style.borderColor = '#9aa6b2';
-        out.innerHTML = '<div style="color:#9aa6b2">\ud83d\uddb1 could not ask the console (' + e.message
-          + ') \u2014 that is not the same as the sweep being off</div>'; }
-    } finally { this.disabled = false; }
-  };
-  /* if a sweep is already running when the console opens, say so rather than showing idle */
-  (async function(){ try {
-      var j = await (await fetch(API + '/api/mini_auto')).json();
-      _miniPaint(j); _miniWatch(!!(j && (j.running || j.planning)));
-    } catch(e){} })();
+  /* ══ v2856 — MINI(AUTOMATIC) / HOVER MODE REMOVED, his ruling 2026-09-09: "i decided MINI
+     automatic isnt needed.. the whole button surgically remvoe it" and "the blocked/hover mode
+     hide it block it surgically remove it". The button, its readiness lamp (#btn-hoverchk), its
+     mode block, its accent CSS and its consent chip are gone from this file. Plain MINI
+     (#btn-mini) is untouched — a different control, and he named only the AUTOMATIC one.
+     ⚠ unify_census.may_unify() reports 8 techniques that ran under MINI AUTO and nothing else
+     (_mini_bounds, _mini_cells_from_live_frame, _mini_clamp, _mini_focus, _mini_seal,
+     _mini_watchdog, _reel_index_frames, mini_start). Losing them is the INTENT here, not an
+     accident — that lock was written to block an unnoticed loss during UNIFICATION. */
   $('btn-eagle').onclick = async function(){
     var out = $('eagle-out'); if (!out) return;
     out.style.display = 'block';

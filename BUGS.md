@@ -27443,3 +27443,56 @@ two different authors of the same anchor, so this is a fact about the gate, not 
 BATCH RESULT: 40 derivable, 33 authored (7 had no syntax-safe single-match candidate), 28 PROVEN,
 5 BLIND. Heart 2.0: 99/271 (36.5%) -> 127/271 (46.9%), 0 blind.
 
+## REG-823 — MINI(AUTOMATIC) / hover mode removed by ruling
+
+Konyo, 2026-09-09: *"i decided MINI automatic isnt needed.. the whole button surgically remvoe it"*,
+then *"the blocked/hover mode hide it block it surgically remove it"*, then *"MINI and ON AIR STAYS"*.
+
+SCOPE. This console has THREE controls that were easy to confuse, and he named exactly one:
+    #btn-on       ON AIR             — UNTOUCHED
+    #btn-mini     MINI (stash, 120s) — UNTOUCHED
+    #btn-miniauto MINI(AUTOMATIC)    — REMOVED, with its hover mode
+Verified after the cut: `btn-on` 11 references and its handler intact; `btn-mini` markup, `.b-mini`
+CSS, `mini-sub` and its onclick intact; `btn-miniauto` / `b-miniauto` / `miniauto-lbl` /
+`lock-miniauto` / `_miniPaint` / `_miniWatch` all at ZERO.
+
+REMOVED from `tv/control_ui.html` (278 lines): the button and its comment block, the readiness lamp
+`#btn-hoverchk`, the whole MINI(AUTOMATIC) READINESS + MODE JS region (16917-17159), the `.b-miniauto`
+accent CSS, and the `lock-miniauto` consent chip. Both remaining <script> blocks re-parsed with
+`node --check` — a dangling `$('btn-miniauto').onclick` would have killed an entire block, which is
+the defect this console has shipped four times. [[console-ui-two-script-blocks]]
+
+BLOCKED in `tv/control_app.py`: BOTH `/api/mini_auto` routes (GET and POST) now refuse before
+`import hover_mode` — verified by offset, refusal at +767 and return at +1054 against the import at
++1269. A route that DRIVES HIS POINTER must not outlive its button, and refusing before the import
+is the only version that cannot be raced by a planner thread started earlier.
+
+GATES. Two were entirely about the removed subject and are RETIRED from the registry rather than
+left red or left skipping (a skip is not a pass):
+    test_every_state_the_mini_button_reports_is_read_by_the_panel   (all 4 laws on the mini_auto wire)
+    test_the_sweep_says_which_panel_it_swept                        (all 5 laws, REG-743's panel naming)
+Registry 271 -> 269. A third, `test_a_button_speaks_where_it_stands`, is a GENERAL principle with
+MINI AUTO baked into 3 of its 4 laws: its scanner spot-check was re-pointed to `#btn-on`, and the two
+laws written specifically about the AUTOMATIC sweep's refusal path were deleted rather than aimed at
+`#btn-mini` — re-pointing would keep the name while changing what is proven. [[label-outlived-referent]]
+
+⚠ WHAT GOES WITH IT, ON THE RECORD. `unify_census.may_unify()` reports 8 techniques that ran under
+MINI AUTO and nothing else: `_mini_bounds`, `_mini_cells_from_live_frame`, `_mini_clamp`,
+`_mini_focus`, `_mini_seal`, `_mini_watchdog`, `_reel_index_frames`, `mini_start`. That lock exists
+to block an UNNOTICED loss during unification; here the loss is the intent, not an accident.
+
+## REG-824 — the End Session button never returned to On Air (#48)
+
+`tv/control_ui.html`, cutFeed's `finally`:
+
+    lab.textContent = (stNow === 'on') ? 'End Session'
+                    : (old && old !== 'ending…' && old !== 'closing…' ? old : 'On Air');
+
+`old` is captured on ENTRY to cutFeed — during a live session that is literally 'End Session'. The
+guard excluded 'ending…' and 'closing…' but not the one label always present when this runs, so
+ending a session put 'End Session' straight back.
+
+MEASURED by evaluating the expression: state='off', old='End Session' -> 'End Session'. Also wrong
+for state='sim'. The label now derives from state alone, using the same table as the poll-driven
+painter so the two can no longer disagree: on -> End Session, stopping -> Sealing…, else -> On Air.
+

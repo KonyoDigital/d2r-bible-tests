@@ -35,6 +35,16 @@ _G5_SANDBOX = tempfile.mkdtemp(prefix="g5-tests-")
 _G5_KEEP_STATS = os.environ.get("G5_STATS_PATH")
 
 
+RED_PROOF = [
+    {
+        "why": 'resolved BY EXPERIMENT: the anchor occurs once in g5_grok_eyes.py and once in intake_grok_sub.mjs; only the former turned the gate red when tampered',
+        "file": 'g5_grok_eyes.py',
+        "find": 'G5_XAI_KEY',
+        "replace": "_HEART2_TAMPERED_",
+        "matches": 1,
+    },
+]
+
 def setUpModule():
     os.environ["G5_STATS_PATH"] = os.path.join(_G5_SANDBOX, "g5_stats.json")
 

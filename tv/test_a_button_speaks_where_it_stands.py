@@ -82,8 +82,12 @@ class AButtonSpeaksWhereItStands(unittest.TestCase):
         self.assertGreaterEqual(len(hs), 10,
                                 "only %d button handlers found; there were 19 on 2026-09-08. "
                                 "Suspect the instrument before the console." % len(hs))
-        self.assertIn("btn-miniauto", [h[0] for h in hs],
-                      "the button this law exists for is gone or renamed — re-point it")
+        # v2856 — WAS `btn-miniauto`, REMOVED BY HIS RULING. The law is "the scanner really finds
+        # handlers"; it needs a button that certainly exists, and re-pointing it to the primary
+        # control keeps that meaning instead of quietly asserting about a different subject.
+        self.assertIn("btn-on", [h[0] for h in hs],
+                      "the scanner cannot even find the primary ON AIR handler — suspect the "
+                      "instrument before the console")
 
     # ── ⚠⚠ THE LAW ──────────────────────────────────────────────────────────────────────────
     def test_a_reply_that_lands_far_away_is_ALSO_spoken(self):
@@ -113,36 +117,21 @@ class AButtonSpeaksWhereItStands(unittest.TestCase):
             "a refusal renders in a panel he is not looking at and the button reads as dead: %s. "
             "Add a toast — the box keeps its copy, this adds a voice." % (MAX_QUIET_GAP, bad))
 
-    def test_MINI_AUTO_speaks_on_the_path_that_actually_refused(self):
-        """⛔ NOT MERELY 'a toast exists somewhere in the handler'. The refusal he hit was the
-        `ok: false` branch; a toast on the success path only would have changed nothing for him."""
-        body = dict(_handlers(_src())).get("btn-miniauto")
-        self.assertIsNotNone(body, "the MINI AUTO handler is gone — re-point this law")
-        self.assertIn("toast(", body, "MINI AUTO never speaks out loud")
-        # ⚠⚠ LOOK INSIDE THE TOAST CALL, NOT THE WHOLE BODY. My first cut asserted the shape
-        # `did not start ... j.why` anywhere in the handler — and the #eagle-out write carries the
-        # SAME sentence, so the assertion matched the durable record while the toast said nothing.
-        # A sabotage that stripped `why` from the toast stayed GREEN. Caught only because the
-        # sabotage was run; a law proved red on one arm and never on the other is half a law.
-        # [[sabotage-is-usually-the-wrong-one]] [[feedback-suspect-the-instrument]]
-        toasts = re.findall(r"toast\(([^;]{0,400}?)\)\s*;", body.replace("\n", " "))
-        self.assertTrue(toasts, "no toast call could be parsed out of the handler")
-        fail_toasts = [t for t in toasts if "did not start" in t]
-        self.assertTrue(fail_toasts,
-                        "no toast covers the did-not-start branch — the arm he actually hit")
-        self.assertTrue(
-            any("j.why" in t for t in fail_toasts),
-            "the did-not-start TOAST does not carry the server's own reason (%r). A toast that "
-            "omits `why` reproduces the defect with better manners — he still cannot tell a stale "
-            "frame from a missing game window." % fail_toasts)
 
-    def test_the_record_is_not_MOVED_only_joined(self):
-        """⚠ The box must KEEP its copy. Replacing the written record with a toast that vanishes
-        after a few seconds would trade one invisibility for another."""
-        body = dict(_handlers(_src())).get("btn-miniauto") or ""
-        self.assertIn("eagle-out", body,
-                      "MINI AUTO stopped writing its durable record — a toast disappears, and then "
-                      "there is nowhere to look afterwards")
+
+
+    # ══ v2856 — TWO LAWS RETIRED, THEIR SUBJECT WAS REMOVED BY RULING ══════════════════════
+    # Konyo, 2026-09-09: "i decided MINI automatic isnt needed.. the whole button surgically
+    # remvoe it" / "the blocked/hover mode hide it block it surgically remove it".
+    #   test_MINI_AUTO_speaks_on_the_path_that_actually_refused
+    #   test_the_record_is_not_MOVED_only_joined
+    # Both read `_handlers(_src())["btn-miniauto"]`, and that handler no longer exists. They are
+    # DELETED rather than re-pointed at #btn-mini: those two laws were written about the refusal
+    # path of the AUTOMATIC sweep specifically (REG-46x, "nothing happens" written 275 lines away),
+    # and aiming them at a different button would keep the name while changing what is proven —
+    # the exact defect this repo calls a label outliving its referent.
+    # The surviving laws still cover the principle for every button that remains.
+    # [[label-outlived-referent]] [[the-unjoined-end]]
 
 
 if __name__ == "__main__":
