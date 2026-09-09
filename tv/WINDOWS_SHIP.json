@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2826",
+  "ver": "v2827",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2826: REG-779..780 — 13 producers timed and 31 not, so unattributedMs was 33.7 of 36.4 ms; wrapping 16 more took attribution from 7 to 97 percent and named fleetOrigin at 619ms, 54 percent of the request, invisible until today. Two of my own laws came back BLIND and the sabotages were right",
+  "note": "v2827: REG-784..785 — one line discarded reverted, from-to, passes and moves, so did-it-revert was unanswerable; measured once kept: reverted FALSE, 1 collision to 0, 3 stacks kept, which refutes the premise in the render world. Two laws came back BLIND because the literal is written twice by design",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

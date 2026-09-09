@@ -943,6 +943,25 @@ GATES = [
              "changed by a refactor. The ledger is published BESIDE the walk with its own "
              "denominator and source. An unreadable ledger is UNKNOWN, never a confident 0.",
          skip_ok=()),
+    Gate("test_the_fan_keeps_its_own_verdict",
+         [sys.executable,
+          os.path.join(HERE, "test_the_fan_keeps_its_own_verdict.py")], 90,
+         why="#53. _hrtFanFit returns the whole record of what it tried — reverted, solve.from -> "
+             "solve.to, passes, moves, before/after/wouldHaveBeen — and its ONLY caller was "
+             "`try { _hrtFanFit(ov); } catch (e) {}`, which discarded all of it INCLUDING the "
+             "exception. That one line is why #53's central question was UNKNOWN: a probe measured "
+             "withTransform 0, which is consistent with the solver finding no move AND with it "
+             "finding one and the all-or-nothing revert putting it back — opposite causes with "
+             "different fixes, and three distinct root causes are already on record for this "
+             "symptom. MEASURED once the report was kept, over a live headless render at scale "
+             "1.074: reverted FALSE, solve from {collisions 1, adjacent 2} to {0, 0}, ratchet "
+             "before 1 after 0, 3 stacks kept, 5 of 20 labels transformed — so in the render world "
+             "the solver WORKS and keeps its solution. ⚠ NOT a verdict on his console: that is the "
+             "fixture world and his lock set differs; what changed is the question is now one "
+             "attribute read away. Two surfaces because they have two readers — window._hrtFanLast "
+             "for a CDP probe, data-fanfit for the render harness which cannot reach a JS global. "
+             "Neither is visible to him. Three tampers proven red.",
+         skip_ok=()),
     Gate("test_the_status_breakdown_covers_what_it_bills",
          [sys.executable,
           os.path.join(HERE, "test_the_status_breakdown_covers_what_it_bills.py")], 120,

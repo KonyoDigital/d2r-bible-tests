@@ -26188,3 +26188,51 @@ Proven in three directions rather than assumed: deleting the real call (`"drift"
 drift_state),` — **1 match**) makes it False; the real source keeps it True; a producer that was
 never there is False. ⚠ My first red-check printed BLIND — and the match count printed beside it was
 **0**, so the sabotage was wrong, not the law. That is the whole reason the count is printed.
+
+## REG-784 — the fan solver's whole verdict was computed and thrown away
+**#53 · v2827 · 2026-09-09 · control_ui.html**
+
+`_hrtFanFit` returns `reverted`, `solve.from` → `solve.to`, `passes`, `moves`,
+`before`/`after`/`wouldHaveBeen` — the complete record of what it tried. Its only caller was:
+
+    try { _hrtFanFit(ov); } catch (e) {}
+
+All of it discarded, **including the exception**. That one line is why #53's central question was
+UNKNOWN: a probe measured `withTransform: 0`, which is equally consistent with *"the solver found no
+improving move"* and *"it found one and the all-or-nothing revert put it back"* — opposite causes
+with different fixes, on a symptom that already has three distinct root causes on record. A fourth
+guess was the likeliest outcome of not measuring. [[plumbing-with-no-tap]] [[unknown-stays-unknown]]
+
+**Fixed:** the report is retained on two surfaces, because it has two readers —
+`window._hrtFanLast` for a CDP probe, and `data-fanfit` on the overlay for the render harness,
+which photographs the DOM and cannot reach a JS global. A throw is now recorded as a throw on both.
+Neither is visible to him; no pixel changes.
+
+★ **MEASURED over a live headless render at scale 1.074, and it REFUTES the task's premise:**
+
+    reverted   FALSE                       the revert did NOT fire
+    solve      {collisions 1, adjacent 2} -> {collisions 0, adjacent 0}
+    ratchet    before 1 -> after 0
+    moves      3 stacks kept · 5 of 20 labels transformed
+    painted    19 of 20 authored           <- one authored label never painted (NEW, separate)
+
+The solver works and keeps its solution there, so the old fix direction (keep best-so-far, loosen
+the accept test) must **not** be applied on this evidence. ⚠ Stated limit: this is the fixture
+world; his lock set differs and his screenshot showed real collisions. UNKNOWN for his console —
+but now one attribute read away instead of unanswerable.
+
+⚠ My first probe read `getElementById('heartov')` and the element is `heart-ov`, so it reported
+"NO OVERLAY" and a DOM count of None. The retention was fine; the reader was wrong. Pinned by a
+test so the next probe cannot repeat it.
+
+## REG-785 — three laws in a row used membership where the literal appears twice by design
+**#53 · v2827 · 2026-09-09 · test_the_fan_keeps_its_own_verdict.py**
+
+Heart 2.0 called two of this gate's laws BLIND on the first run, and it is the third time tonight
+for the same shape: `data-fanfit` and `threw` are each written **twice on purpose** — once on the
+success path, once in the catch — so `assertIn` was satisfied by whichever copy the tamper had not
+touched. Earlier tonight the same shape hid a tampered `"totalMs": None` (two unknown returns) and
+a tampered `>+7` (one spelling of many).
+
+**The rule this keeps re-teaching: when a law's subject appears more than once by design, the law
+must COUNT.** Both now assert exactly 2, and both are PROVEN red.

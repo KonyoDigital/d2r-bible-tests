@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2827** | `(this commit)` | v2827 — REG-784..785 — one line discarded reverted, from-to, passes and moves, so did-it-revert was unanswerable; measured once kept: reverted FALSE, 1 collision to 0, 3 stacks kept, which refutes the premise in the render world. Two laws came back BLIND because the literal is written twice by design |
 | **v2826** | `(this commit)` | v2826 — REG-779..780 — 13 producers timed and 31 not, so unattributedMs was 33.7 of 36.4 ms; wrapping 16 more took attribution from 7 to 97 percent and named fleetOrigin at 619ms, 54 percent of the request, invisible until today. Two of my own laws came back BLIND and the sabotages were right |
 | **v2825** | `(this commit)` | v2825 — REG-778 — the second-eye transmission guard matched its own comment inside a diff of itself: 2 hits, one line, zero real seams. Comment lines now excluded; all four real seam shapes still caught and the skip is not a hole |
 | **v2824** | `(this commit)` | v2824 — REG-775..776 — a newline in a banked name threw SyntaxError while building the row (6 of 7 inputs parsed, newline did not); the second-eye transmission guard matched any three quote chars, so JS concatenating a quote retracted every review of a diff with a JS surface |

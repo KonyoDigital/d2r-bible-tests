@@ -12845,7 +12845,43 @@ window._lockMark = function(isOpen, px, label){
          width does not exist until the browser has laid that string out, which is the reason every
          previous attempt placed by INDEX — the index is the only thing available before layout.
          Wrapped, because a fan that cannot be re-placed must still render. [[heartov2]] */
-      try { _hrtFanFit(ov); } catch (e) {}
+      /* ⚠⚠ v2827 (#53) — THE REPORT IS KEPT. `_hrtFanFit` returns `reverted`, `solve.from` ->
+         `solve.to`, `passes`, `moves` and `wouldHaveBeen` — the entire record of what it tried —
+         and this line threw ALL of it away. That is why #53's central question is UNKNOWN: on his
+         screenshot the labels still collide and `withTransform` measured 0, which is consistent
+         with TWO opposite causes — the solver found no improving move at all, or it found one and
+         the all-or-nothing revert put everything back. The fix differs between them, so guessing
+         at the solver would be a fourth guess after three prior root causes on this symptom.
+         An instrument that computes the answer and discards it is the same defect as one that was
+         never built. [[plumbing-with-no-tap]] [[unknown-stays-unknown]]
+
+         ⚠ TWO SURFACES BECAUSE THEY HAVE DIFFERENT READERS. `window._hrtFanLast` is for a CDP
+         probe; the `data-fanfit` attribute is for the render harness, which photographs the DOM
+         and cannot reach a JS global. Neither is visible to him — this changes no pixel.
+         ⚠ AND A THROW IS RECORDED AS A THROW. The old `catch` swallowed the error silently, so a
+         fan that CRASHED and a fan that declined to move were the same empty result. */
+      try {
+        var _ff = _hrtFanFit(ov);
+        window._hrtFanLast = _ff;
+        try {
+          ov.setAttribute('data-fanfit', JSON.stringify({
+            ok: !!(_ff && _ff.ok),
+            reverted: (_ff && _ff.reverted) || false,
+            from: (_ff && _ff.solve && _ff.solve.from) || null,
+            to: (_ff && _ff.solve && _ff.solve.to) || null,
+            passes: (_ff && _ff.solve && _ff.solve.passes),
+            moves: (_ff && _ff.moves) ? _ff.moves.length : 0,
+            before: _ff && _ff.before,
+            after: _ff && _ff.after,
+            wouldHaveBeen: _ff && _ff.wouldHaveBeen,
+            why: (_ff && _ff.why) || ''
+          }));
+        } catch (e2) {}
+      } catch (e) {
+        window._hrtFanLast = { ok: false, threw: String((e && e.message) || e) };
+        try { ov.setAttribute('data-fanfit',
+                JSON.stringify({ ok: false, threw: String((e && e.message) || e) })); } catch (e3) {}
+      }
       _heartChipPaint(d);
     })['catch'](function(e){
       /* a failed fetch is not an empty heart — say which it was */
