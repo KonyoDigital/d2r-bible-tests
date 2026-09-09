@@ -165,6 +165,41 @@ Four laws added, all four arms PROVEN — including a behavioural one that runs 
 fixture through `_run_gate` and requires `Ran N tests` to survive into the tail, because the helper
 can divide perfectly and still be handed nothing to divide by.
 
+### REG-842 — "a file exists" is not "a full clean run", and CI said so for four ships
+
+**v2871.** `test_the_heart_can_see_the_surfaces::test_a_full_clean_run_reads_OK_and_carries_its_AGE`
+has been red on the CI gate-runner since it shipped:
+
+    AssertionError: 'UNMEASURED' not found in ('OK', 'PARTIAL') : a verdict exists but reads 'UNMEASURED'
+
+Two readers disagreeing about one file, which is itself the finding. The law skipped only when
+`.render_verdict.json` was **absent**; on the runner it is **present** and its `reported` list is
+**empty**, because Chrome never came up. `surface_verdict()` graded that UNMEASURED — exactly right
+— and the law failed for it. The precondition ("a file exists") and the assertion ("a full clean
+run") were about different things, so the law could only pass on a machine that had just rendered.
+
+**Fixed by grading a fixture instead of the machine.** `surface_verdict(path=...)` exists for
+precisely this and says so in its own comment. Three deterministic laws now: a full run reads OK
+with an age derived from `ranAt`; a run that **reported nothing** reads UNMEASURED, never OK; a
+2-of-6 subset reads PARTIAL. The live reading keeps a fourth law of its own, which skips when there
+is genuinely nothing to say — and now counts *present-but-empty* as nothing to say, rather than as
+a failure of the grader. Reproduced under CI's exact condition before and after: `FAILED` → `OK
+(skipped=1)`, and `8/8` with a real verdict. Two more red-proofs added (four total, all PROVEN),
+one of them pinning the empty-reported case that CI was actually in.
+
+⚠ **And the size of the class, measured rather than inherited.** I had been calling these "about ten
+known runner-only reds" on the strength of my own earlier note. Parsed across the registry:
+
+    gate files naming a .json/.jsonl store : 74
+    distinct stores named                  : 142
+    of those, GITIGNORED (absent on CI)    : 34
+    GATES that name at least one           : 38   of 274
+
+Eleven are red today; **38 carry the exposure**. A gate whose fixture reads a live, gitignored store
+is green here and UNKNOWN everywhere else, and "runner-only" is a label that has been doing the work
+of a measurement. [[inherited-claim-is-not-evidence]] [[feedback-fixtures-never-touch-live-data]]
+[[feedback-contradiction-is-the-finding]]
+
 ### REG-698 — the line meant to COMPLETE his ledger backup is what killed it, for a whole day
 
 **v2735.** v2731 shipped `rwMadeFull:(dump?rwFull:null)` into the board read. **There is no JS

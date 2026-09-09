@@ -18,6 +18,7 @@ renderFailures 0, and heart2.surface_verdict() reads state OK at an age of 8s.
 """
 import ast
 import io
+import time
 import json
 import os
 import sys
@@ -51,6 +52,23 @@ RED_PROOF = [
         "file": "heart2.py",
         "find": '        return {"state": "UNMEASURED", "why": "render_check has never written a verdict here — "',
         "replace": '        return {"state": "OK", "why": "render_check has never written a verdict here — "',
+        "matches": 1,
+    },
+    {
+        "why": "v2871's CI condition made permanent: a render that reported ZERO targets grades "
+               "PARTIAL instead of UNMEASURED. An empty container returning a clean-looking "
+               "verdict is the exact shape CI was in for four ships while nobody could say why",
+        "file": "heart2.py",
+        "find": '                      "PARTIAL" if rep else "UNMEASURED"),',
+        "replace": '                      "PARTIAL"),',
+        "matches": 1,
+    },
+    {
+        "why": "dropping the count comparison lets a 2-of-6 SUBSET run grade OK — a partial "
+               "render speaking for the four surfaces it never looked at",
+        "file": "heart2.py",
+        "find": '    return {"state": ("OK" if (v.get("full") and tot and len(rep) >= tot) else',
+        "replace": '    return {"state": ("OK" if (v.get("full") and tot) else',
         "matches": 1,
     },
 ]
@@ -122,15 +140,75 @@ class TheHeartCanSeeTheSurfaces(unittest.TestCase):
                       "and then dropped on the floor")
 
     def test_a_full_clean_run_reads_OK_and_carries_its_AGE(self):
-        """★ A verdict is a fact about a MOMENT — an OK with no age cannot be told from a stale one."""
-        p = os.path.join(HERE, ".render_verdict.json")
-        if not os.path.exists(p):
-            self.skipTest("no render verdict on this machine — UNMEASURED, not a failure")
-        got = H.surface_verdict()
-        self.assertIn(got.get("state"), ("OK", "PARTIAL"),
-                      "a verdict exists but reads %r" % got.get("state"))
+        """★ A verdict is a fact about a MOMENT — an OK with no age cannot be told from a stale one.
+
+        ⚠⚠ v2871 — THIS FAILED ON CI FOR FOUR SHIPS, AND THE LAW WAS THE WRONG ONE. It read the
+        MACHINE'S OWN `.render_verdict.json` and skipped only when that file was ABSENT. On the
+        runner the file is present — the CI render step writes one — and its `reported` list is
+        EMPTY, because Chrome never came up. `surface_verdict()` graded that UNMEASURED, exactly
+        right, and this law failed with "a verdict exists but reads 'UNMEASURED'".
+
+        A file existing is not a full clean run. The precondition and the assertion were about
+        different things, so the law could only pass on a machine that had just rendered.
+        `surface_verdict(path=...)` exists for precisely this — its own comment says so — and a
+        law that grades a fixture it built is deterministic everywhere, which is what a law is for.
+        The live file gets its own, separate law below.
+        [[feedback-fixtures-never-touch-live-data]] [[feedback-blind-fixture-green-gate]]"""
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ranAt": time.time() * 1000 - 8000, "full": True, "totalTargets": 3,
+                       "reported": ["console", "inbox", "locks"],
+                       "coverageMissing": 0, "renderFailures": 0}, f)
+            _p = f.name
+        try:
+            got = H.surface_verdict(_p)
+        finally:
+            os.unlink(_p)
+        self.assertEqual("OK", got.get("state"),
+                         "a full run reporting every one of its targets did not read OK: %r" % got)
         self.assertIsNotNone(got.get("ageS"), "the verdict carries no age, so a reading from last "
                                               "week is indistinguishable from one from this minute")
+        self.assertGreaterEqual(got.get("ageS") or 0, 7,
+                                "the age is not derived from ranAt: 8s in, %r out" % got.get("ageS"))
+
+    def test_a_run_that_REPORTED_NOTHING_is_UNMEASURED_not_OK(self):
+        """★★ The state CI was actually in, made into a law instead of a mystery. A verdict file
+        written by a render that measured nothing must never grade as a clean run."""
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ranAt": time.time() * 1000, "full": True, "totalTargets": 3,
+                       "reported": [], "coverageMissing": 0, "renderFailures": 0}, f)
+            _p = f.name
+        try:
+            got = H.surface_verdict(_p)
+        finally:
+            os.unlink(_p)
+        self.assertEqual("UNMEASURED", got.get("state"),
+                         "a run that reported ZERO targets graded %r — an empty container "
+                         "returning a clean-looking verdict [[zero-needs-a-denominator]]" % got)
+
+    def test_a_PARTIAL_run_cannot_speak_for_the_rest(self):
+        """★ A subset run is not a clean bill of health for the targets it skipped."""
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ranAt": time.time() * 1000, "full": False, "totalTargets": 6,
+                       "reported": ["console", "inbox"],
+                       "coverageMissing": 0, "renderFailures": 0}, f)
+            _p = f.name
+        try:
+            got = H.surface_verdict(_p)
+        finally:
+            os.unlink(_p)
+        self.assertEqual("PARTIAL", got.get("state"),
+                         "a 2-of-6 subset run graded %r" % got)
+
+    def test_THIS_machines_verdict_if_it_has_one(self):
+        """★ The live reading, kept separate. It skips when there is genuinely nothing to say —
+        and, unlike the law this replaced, a PRESENT-but-empty verdict counts as nothing to say
+        rather than as a failure of the grader."""
+        got = H.surface_verdict()
+        if got.get("state") == "UNMEASURED":
+            self.skipTest("no usable render verdict here (%s) — UNMEASURED, not a failure"
+                          % str(got.get("why") or "reported nothing")[:60])
+        self.assertIn(got.get("state"), ("OK", "PARTIAL"))
+        self.assertIsNotNone(got.get("ageS"))
 
 
 def H_write_state_node():
