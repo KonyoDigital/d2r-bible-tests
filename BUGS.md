@@ -27496,3 +27496,61 @@ MEASURED by evaluating the expression: state='off', old='End Session' -> 'End Se
 for state='sim'. The label now derives from state alone, using the same table as the poll-driven
 painter so the two can no longer disagree: on -> End Session, stopping -> Sealing…, else -> On Air.
 
+## REG-825 — five gates given HAND-WRITTEN red-proofs, each restoring a real historical defect
+
+#52's mechanical batch is exhausted: every gate the deriver could anchor by deleting a string now
+has a proof or a recorded BLIND verdict. The remainder assert STRUCTURE, COUNTS or AGREEMENT, where
+no deletion can sabotage them. These are written by hand, and each tamper restores a defect this
+repo actually paid for. Every arm was VERIFIED RED IN A SANDBOX BEFORE THE BLOCK WAS AUTHORED.
+
+    test_one_item_has_one_key   2 arms  chronicle_retro.py
+        un-fold (v2760: curly/straight spellings stop meeting, cross-reel can never fire)
+        drop the exactness guard (near-twins Bone Break / Latent Bone Break could fuzzily merge)
+    test_freed_is_measured      1 arm   reel_retention.py
+        freedMb becomes the PLAN'S HOPE again (v2642) — breaks FOUR laws
+    test_route_totals           2 arms  route_totals.py
+        an unreadable producer answers 0 instead of None · aliases stop folding
+    test_free_pass_quote        1 arm   control_app.py
+        the chronicle classify probe returns None (v1596) — the quote under-charges itself
+    test_tab_vocabulary         2 arms  chronicle_template.py
+        alias map dropped (v2480) · the ledger lookup bypasses canonical_tab
+
+Where a gate has two arms they break DIFFERENT laws on purpose, so one lazy fix cannot satisfy the
+whole proof.
+
+⚠ TWO BLIND ARMS WERE FOUND AND NOT AUTHORED, which is the point of verifying first:
+  · test_free_pass_quote — making either scan-cost cache ignore its reel-set signature left the
+    gate GREEN. The gate never exercises the cache path.
+  · test_free_pass_quote — the gate's own docstring says "Restore `return None` in the probe and
+    this is what fails". That holds for the CHRONICLE probe and NOT the vault one: the identical
+    tamper on the vault probe (anchored across two lines, since `return "stash"` occurs 9 times)
+    left the gate green. One of the two lanes this gate prices is unguarded. Recorded in the proof's
+    `why` rather than papered over with an arm that proves nothing.
+    [[feedback-blind-fixture-green-gate]]
+
+HEART 2.0: 127/269 (47.2%) -> 132/269 (49.1%), 0 blind. (I first wrote 133/49.4% here from a
+count in my head; the census says 132. Measured wins. [[inherited-claim-is-not-evidence]])
+
+## REG-826 — the removed handler body was left unreachable, and it drives his mouse
+
+v2856 blocked both /api/mini_auto routes by putting a refusal ABOVE the original handler and leaving
+the body in place. A cross-family review (grok-4-1-fast-reasoning, cold) raised two findings and both
+are fixed here:
+
+  1. HTTP 200 with {ok:false, removed:true} — a client that checks only status_code reads that as a
+     successful status query and never takes its feature-removed path. Now 410 GONE on both routes,
+     body kept so anything that does look still gets a reason.
+
+  2. The unreachable body. Rated Low by the reviewer; it is not low HERE. That code physically drives
+     his mouse pointer, so "comes back live if someone moves the guard" is a failure mode that must
+     be impossible rather than unlikely. DELETED — 237 lines across both branches. Measured after:
+     each branch body is exactly [Expr, Return], and the string 'import hover_mode' appears ZERO
+     times in
+     control_app.py.
+
+CONSEQUENCE, caught by running the suite rather than by assuming: deleting the body turned
+test_the_screen_read_never_blocks_the_button red on 4 of its 5 laws, all of which read control_app
+for the MINI AUTO planning machinery. Those four are retired. The FIFTH — test_no_request_handler
+_reads_the_screen_on_its_own_thread — is about EVERY handler and stays; retiring the class to silence
+four stale laws would have discarded the only law there still guarding something.
+

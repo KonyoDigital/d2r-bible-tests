@@ -41,6 +41,31 @@ import chronicle_retro as CR  # noqa: E402
 import chronicle_template as CT  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, sandbox-verified. This law asserts two RESOLVERS AGREE, so there is "
+               "no string whose deletion could sabotage it. Dropping the alias map restores the "
+               "v2480 defect exactly: 'unique' and 'uniques' stop canonicalising together and each "
+               "resolver understands only its own spelling. MEASURED: 1 match, RED, breaking "
+               "test_the_two_spellings_of_unique_agree and test_an_unknown_word_is_None_in_both",
+        "file": "chronicle_template.py",
+        "find": "    return TAB_ALIASES.get(str(tab).strip().lower())",
+        "replace": "    return str(tab).strip().lower()",
+        "matches": 1,
+    },
+    {
+        "why": "THE SECOND ARM, breaking a DIFFERENT law. The ledger lookup must go THROUGH "
+               "canonical_tab — that is the whole join. Reading the raw word instead leaves "
+               "canonical_tab correct while the ledger side still disagrees, which is the subtler "
+               "half of the same defect and would survive a fix to the first arm alone. MEASURED: "
+               "1 match, RED, breaking test_every_alias_resolves_the_same_in_both",
+        "file": "chronicle_template.py",
+        "find": '    return _LEDGER_KIND_BY_TAB.get(canonical_tab(tab) or "")',
+        "replace": '    return _LEDGER_KIND_BY_TAB.get(str(tab).strip().lower())',
+        "matches": 1,
+    },
+]
+
 class BothResolversAgree(unittest.TestCase):
 
     def _ck(self, tab):

@@ -56,6 +56,29 @@ import vault_retro as vr  # noqa: E402
 import control_app as ca  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, sandbox-verified, and the LAW NAMED ITS OWN SABOTAGE: "
+               "test_the_reader_lane_is_actually_charged_for says \"Restore `return None` in the "
+               "probe and this is what fails\". This does exactly that to the CHRONICLE probe, "
+               "restoring the v1596 defect where a classify stub answering None makes sweep() skip "
+               "the read stage, so pagesRead is structurally pinned at 0 and the quote bills only "
+               "the classify lane — it under-charges itself and calls that a bound. MEASURED: 1 "
+               "match, RED, breaking test_the_quote_is_never_below_the_real_spend and "
+               "test_the_reader_lane_is_actually_charged_for.\n"
+               "⚠ THE VAULT PROBE IS NOT COVERED, AND I MEASURED THAT RATHER THAN ASSUMING IT. The "
+               "same tamper applied to the vault probe (`return \"stash\"` -> None, anchored on the "
+               "preceding line because the literal occurs 9 times) left the gate GREEN. So the "
+               "docstring's claim holds for one of the two lanes this file prices, not both. That "
+               "is a coverage gap in the gate, recorded here rather than papered over with a "
+               "second arm that proves nothing. [[feedback-blind-fixture-green-gate]]",
+        "file": "control_app.py",
+        "find": '        return "chronicle-uniques"',
+        "replace": "        return None",
+        "matches": 1,
+    },
+]
+
 def _reel(root, sid, frames=6, scrolled=2):
     """One sealed reel of REAL jpegs: a held panel that then scrolls.
 

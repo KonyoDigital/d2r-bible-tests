@@ -88,13 +88,6 @@ class TestScreenReadNeverBlocksTheButton(unittest.TestCase):
                 out.append(n)
         return out
 
-    def test_the_reader_is_called_at_all(self):
-        """THE INSTRUMENT FIRST. If the name is ever renamed, every assertion below
-        passes over an empty list and this file becomes decoration."""
-        calls = self._reader_calls()
-        self.assertTrue(calls,
-                        "%s is never called anywhere — this law is measuring nothing" % READER)
-        print("\n   reader call sites: %d" % len(calls))
 
     def test_no_request_handler_reads_the_screen_on_its_own_thread(self):
         for call in self._reader_calls():
@@ -108,34 +101,8 @@ class TestScreenReadNeverBlocksTheButton(unittest.TestCase):
             print("   line %-6d inside def %s()  -> off the request thread"
                   % (call.lineno, fn.name))
 
-    def test_the_plan_runs_on_a_named_thread(self):
-        names = []
-        for n in ast.walk(self.tree):
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
-               and n.func.attr == "Thread":
-                for kw in n.keywords:
-                    if kw.arg == "name" and isinstance(kw.value, ast.Constant):
-                        names.append(kw.value.value)
-        self.assertIn("tvd-miniauto-plan", names,
-                      "no thread carries the plan — found: %s" % sorted(set(names))[:12])
 
-    def test_planning_is_reported_as_its_own_state(self):
-        """running:false during a 25s screen read is not false, it is UNKNOWN-shaped.
-        The GET half must be able to say 'planning' or the UI has nothing to render."""
-        with io.open(SRC, encoding="utf-8") as _fh:
-            src = _fh.read()
-        self.assertIn('_st["planning"] = True', src,
-                      "the GET half never reports a plan in flight")
-        self.assertIn("_MINI_AUTO_PLAN", src,
-                      "there is no plan state for the GET half to read")
 
-    def test_a_stop_invalidates_a_plan_still_in_flight(self):
-        """Without this, a plan that began before STOP calls hover_mode.start() after it —
-        a stop button that starts the mode."""
-        with io.open(SRC, encoding="utf-8") as _fh:
-            src = _fh.read()
-        self.assertIn('_MINI_AUTO_PLAN["token"] += 1', src,
-                      "nothing invalidates an in-flight plan, so STOP can be overtaken by it")
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
@@ -151,6 +118,22 @@ RED_PROOF = [{
             cells, occ_why = _mini_cells_from_live_frame(_container)""",
     "matches": 1,
 }]
+
+
+    # ══ v2857 — FOUR LAWS RETIRED, THEIR SUBJECT WAS DELETED BY RULING (REG-823) ═══════════════
+    #   test_the_reader_is_called_at_all
+    #   test_the_plan_runs_on_a_named_thread
+    #   test_planning_is_reported_as_its_own_state
+    #   test_a_stop_invalidates_a_plan_still_in_flight
+    # All four read control_app.py for the MINI(AUTOMATIC) planning machinery — the named plan
+    # thread, _MINI_AUTO_PLAN's token, the planning state on the wire. v2857 DELETED that handler
+    # body outright (237 lines) after a cross-family review pointed out that leaving mouse-driving
+    # code unreachable-but-present brings it back live the moment anyone moves the guard above it.
+    #
+    # ★ THE FIFTH LAW STAYS, AND IT IS THE ONE WORTH KEEPING. test_no_request_handler_reads_the
+    # _screen_on_its_own_thread is about EVERY handler, not this one — the general shape of the
+    # v2801 defect. Retiring the whole class to silence four stale laws would have thrown away the
+    # only law here that still guards something. [[regression-guard]]
 
 
 if __name__ == "__main__":

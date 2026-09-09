@@ -25618,7 +25618,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2856",
+        "ver": "v2857",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28230,58 +28230,20 @@ class Handler(BaseHTTPRequestHandler):
                                                         % str(e)[:120]})
             return
         if path == "/api/mini_auto":
-            # ⛔⛔ v2856 — MINI(AUTOMATIC) / HOVER MODE IS REMOVED. His ruling, 2026-09-09:
-            # "i decided MINI automatic isnt needed.. the whole button surgically remvoe it" and
-            # "the blocked/hover mode hide it block it surgically remove it".
-            # The console button is gone, so nothing in the UI reaches here — but a route that still
-            # DRIVES HIS POINTER must not survive its own button. This refuses before importing
-            # hover_mode at all, which is the only version of "blocked" that cannot be raced by a
-            # planner thread started earlier. MINI (#btn-mini) and ON AIR (#btn-on) are untouched.
-            self._json(200, {"ok": False, "running": False, "planning": False, "removed": True,
-                             "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his ruling. The "
-                                    "pointer is no longer driven from this console. MINI and ON AIR "
-                                    "are unaffected."})
-            return
-            # ══ v2350 — MINI(AUTOMATIC), THE ACTUAL MODE ════════════════════════════════════════
-            # v2338 shipped the actuator (hover_drive.walk) and a readiness LAMP and joined
-            # neither to the other. `walk()` had ZERO callers, so the mode he went looking for did
-            # not exist: "MINI automatic HOVER mode i dont see the button rendering anywhere
-            # either you said you shipped this?" He was right, and the backend being finished is
-            # not the job being finished. [[the-unjoined-end]] [[plumbing-with-no-tap]]
-            #
-            # THIS IS THE GET HALF - what it is doing. Start/stop is a POST and lives in do_POST,
-            # the only handler that reads a body. The first cut of this route put both here and
-            # invented a `self._body_json()` that does not exist, which would have left the mode
-            # unreachable in exactly the way it was already unreachable.
-            try:
-                import hover_mode
-                _st = dict(hover_mode.status(), ok=True)
-                # ⏳ v2801 — PLANNING IS A THIRD STATE, and it is not "not running". Between the
-                # press and the first pointer move there are seconds of screen-reading; reporting
-                # that window as running:false with no reason is what made the button look dead.
-                with _MINI_AUTO_PLAN_LOCK:
-                    if _MINI_AUTO_PLAN["planning"]:
-                        _st["planning"] = True
-                        _st["planningForS"] = round(
-                            time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time()), 1)
-                        _st["why"] = _MINI_AUTO_PLAN["why"] or "reading the screen"
-                    else:
-                        _st["planning"] = False
-                        # the LAST plan's outcome, so a refusal that happened off the request
-                        # thread still reaches him instead of dying in a daemon thread.
-                        # ⚠ WITH AN AGE. Without it, a plan that succeeded left "hovering 12
-                        # cell(s)" as the answer to every later GET where running is false — a
-                        # claim that it is hovering, rendered while nothing is, for the life of
-                        # the console. A reason is a fact about a moment. [[stale-reading]]
-                        _wage = time.time() - (_MINI_AUTO_PLAN.get("whyTs") or 0.0)
-                        if (_MINI_AUTO_PLAN["why"] and not _st.get("running")
-                                and _wage < _MINI_WHY_MAX_S):
-                            _st["why"] = _MINI_AUTO_PLAN["why"]
-                            _st["whyAgeS"] = round(_wage, 1)
-                self._json(200, _st)
-            except Exception as e:
-                self._json(200, {"ok": False, "running": False, "planning": False,
-                                 "why": "hover_mode could not be asked: %s" % str(e)[:120]})
+            # ⛔⛔ v2857 — MINI(AUTOMATIC) IS GONE AND SO IS ITS HANDLER BODY. REG-823.
+            # v2856 put this refusal ABOVE the original body and left the body in place,
+            # unreachable. A cross-family review called that out and it is right in the one
+            # way that matters here: the code below drove HIS PHYSICAL MOUSE POINTER, and
+            # dead code behind a single `return` comes back LIVE the moment anyone moves or
+            # deletes that guard — with no button, no gate and nothing watching. Deleted.
+            # ⚠ 410 GONE, not 200. The same review: a client that only checks status_code
+            # reads 200-with-ok-false as a successful status query and never takes its
+            # feature-removed path. The body still carries a reason for anything that looks.
+            self._json(410, {"ok": False, "running": False, "planning": False,
+                             "removed": True,
+                             "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his "
+                                    "ruling. The pointer is no longer driven from this "
+                                    "console. MINI and ON AIR are unaffected."})
             return
         if path == "/api/eagle":
             # v2026 — 🦅 THE EAGLE EYE, reachable from the app.
@@ -28755,187 +28717,20 @@ class Handler(BaseHTTPRequestHandler):
                 body = {}
 
         if path == "/api/mini_auto":
-            # ⛔⛔ v2856 — MINI(AUTOMATIC) / HOVER MODE IS REMOVED. His ruling, 2026-09-09:
-            # "i decided MINI automatic isnt needed.. the whole button surgically remvoe it" and
-            # "the blocked/hover mode hide it block it surgically remove it".
-            # The console button is gone, so nothing in the UI reaches here — but a route that still
-            # DRIVES HIS POINTER must not survive its own button. This refuses before importing
-            # hover_mode at all, which is the only version of "blocked" that cannot be raced by a
-            # planner thread started earlier. MINI (#btn-mini) and ON AIR (#btn-on) are untouched.
-            self._json(200, {"ok": False, "running": False, "planning": False, "removed": True,
-                             "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his ruling. The "
-                                    "pointer is no longer driven from this console. MINI and ON AIR "
-                                    "are unaffected."})
-            return
-            # v2350 — MINI(AUTOMATIC): start/stop. The GET half (status) is in do_GET.
-            # It MOVES ONLY: hover_drive holds no click event and this route adds none.
-            try:
-                import hover_mode
-            except Exception as e:
-                self._json(200, {"ok": False, "running": False,
-                                 "why": "hover_mode could not be asked: %s" % str(e)[:120]})
-                return
-            if not body.get("on"):
-                # ⚠ A STOP MUST INVALIDATE A PLAN STILL IN FLIGHT. Without the token bump, a plan
-                # thread that began before the stop would call hover_mode.start() AFTER it and
-                # restart the very thing he just stopped — a stop button that starts the mode.
-                with _MINI_AUTO_PLAN_LOCK:
-                    _MINI_AUTO_PLAN["token"] += 1
-                    _MINI_AUTO_PLAN["planning"] = False
-                    _MINI_AUTO_PLAN["why"] = "stopped"
-                was = hover_mode.stop()
-                self._json(200, dict(hover_mode.status(), ok=True,
-                                     why="stopped" if was else "nothing was running"))
-                return
-            try:
-                import hover_drive
-                rect, rwhy = hover_drive.d2r_window_rect()
-            except Exception as e:
-                rect, rwhy = None, "the window could not be located (%s)" % type(e).__name__
-            if not rect:
-                self._json(200, {"ok": False, "running": False,
-                                 "why": "the game window is not on screen: %s" % (rwhy or "unknown")})
-                return
-            occ = body.get("occupied")
-            cells, occ_why = None, None
-            if occ:
-                try:
-                    cells = set((int(c[0]), int(c[1])) for c in occ)
-                    occ_why = "supplied by the caller"
-                except Exception:
-                    self._json(200, {"ok": False, "running": False,
-                                     "why": "occupied must be a list of [col,row] pairs"})
-                    return
-                # ⚠⚠ v2802 — THIS PATH DID NOT PARTICIPATE IN THE PLAN AT ALL, and a cold
-                # cross-family review of the shipped v2801 ranked it second: a caller supplying
-                # `occupied` calls hover_mode.start() straight away, while a background planner
-                # for a DIFFERENT request may already be inside _mini_cells_from_live_frame and
-                # about to call start() itself. Two concurrent starts, different cells and rect,
-                # no mutual exclusion — the fix for the hang had quietly opened a second door into
-                # the same room. Claude's own review missed it; this is the whole reason the eye
-                # is a different family. [[the-unjoined-end]]
-                with _MINI_AUTO_PLAN_LOCK:
-                    _busy_for = time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time())
-                    if _MINI_AUTO_PLAN["planning"] and _busy_for < _MINI_PLAN_MAX_S:
-                        self._json(200, dict(hover_mode.status(), ok=False, planning=True,
-                                             why="a screen read is already in flight (%.0fs) - "
-                                                 "supplied cells would race it" % _busy_for))
-                        return
-                    # claim the token so a plan that finishes after this cannot start over us
-                    _MINI_AUTO_PLAN["token"] += 1
-                    _MINI_AUTO_PLAN["planning"] = False
-                ok, why = hover_mode.start(cells, (int(rect[2]), int(rect[3])), tuple(rect),
-                                           container=str(body.get("container") or "stash"))
-                self._json(200, dict(hover_mode.status(), ok=bool(ok), why=why))
-                return
-            # DERIVE IT FROM THE LIVE FRAME rather than making him supply coordinates. The pixel
-            # occupancy lane already exists (vault_corpus.inventory_occupancy returns a per-cell
-            # `grid`); it was only ever read for its COUNT. MINI hovers ITEMS, so a button that
-            # demanded cell coordinates would be a button nobody could press.
-            #
-            # ⏳ v2801 — AND IT RUNS BEHIND THE ANSWER, NOT IN FRONT OF IT. The scan is seconds of
-            # numpy on a full-screen frame and it has no ceiling: it costs whatever the machine
-            # has left. Held inline it produced Grok's 8s and 25s zero-byte hangs. The response
-            # goes out now with `planning: true`, and the GET half reports how it went — which is
-            # the same shape the console already uses for MINI ON AIR (arm the watchdog, then
-            # spawn) rather than a new pattern invented here. [[borrowed-surface]]
-            _container = str(body.get("container") or "stash")
-            _wh, _rect = (int(rect[2]), int(rect[3])), tuple(rect)
-            with _MINI_AUTO_PLAN_LOCK:
-                _for = time.time() - (_MINI_AUTO_PLAN["startedTs"] or time.time())
-                if _MINI_AUTO_PLAN["planning"] and _for < _MINI_PLAN_MAX_S:
-                    self._json(200, dict(hover_mode.status(), ok=False, planning=True,
-                                         why="already reading the screen (%.0fs) - give it a moment"
-                                             % _for))
-                    return
-                if _MINI_AUTO_PLAN["planning"]:
-                    # past the bound: the previous plan is not coming back. Bumping the token below
-                    # orphans it, so if it ever does finish it cannot write over this one.
-                    _MINI_AUTO_PLAN["planning"] = False
-                    _MINI_AUTO_PLAN["why"] = ("the previous read gave up after %.0fs and was "
-                                              "abandoned" % _for)
-                    _MINI_AUTO_PLAN["whyTs"] = time.time()
-                _MINI_AUTO_PLAN["token"] += 1
-                _tok = _MINI_AUTO_PLAN["token"]
-                _MINI_AUTO_PLAN.update({"planning": True, "startedTs": time.time(),
-                                        "why": "reading the screen for your items"})
-
-            def _plan(_tok=_tok, _container=_container, _wh=_wh, _rect=_rect):
-                _why = ""
-                try:
-                    cells, occ_why, _saw = _mini_cells_from_live_frame(_container)
-                    with _MINI_AUTO_PLAN_LOCK:
-                        _stale = (_MINI_AUTO_PLAN["token"] != _tok)
-                    if _stale:
-                        _why = "a newer press or a stop replaced this plan"
-                        # ⚠ v2804 — THE SIBLING OF THE SAME HOLE, and the COMMON one. a1b86391
-                        # fixed `_late` — a reason computed under a token mismatch that the
-                        # `finally` then discards, because it persists `_why` only when the token
-                        # still matches. This branch is reached for exactly the same reason
-                        # (`_MINI_AUTO_PLAN["token"] != _tok`) and its reason is dropped exactly
-                        # the same way — and unlike `_late` it fires on ANY second press, so it is
-                        # the one that will actually be seen. The fix was applied at one site
-                        # instead of to the class. [[sweep-dont-ask]]
-                        try:
-                            ui_fault_record("miniauto-plan-replaced", why=_why, where="_plan")
-                        except Exception:
-                            pass
-                    elif not cells:
-                        _why = occ_why or "could not tell which cells hold items"
-                    else:
-                        # ⚠⚠ v2807 — HOVER THE PANEL THE PIXELS SHOWED, not the one the button
-                        # named. The button hardcodes container:'stash' and the occupancy reader
-                        # is container-blind, so an INVENTORY frame produced real cells that were
-                        # then mapped onto the STASH box — 1,510px away — and the pointer swept
-                        # empty screen while every number said it worked. `_saw` is inferred from
-                        # the lattice shape (stash 10x10, inventory 10x4, cube 3x4) and refused
-                        # outright when it matches none. [[unknown-stays-unknown]]
-                        _ok, _w = hover_mode.start(cells, _wh, _rect,
-                                                   container=(_saw or _container))
-                        _why = _w or ("hovering %d cell(s)" % len(cells) if _ok
-                                      else "hover_mode refused without saying why")
-                        # ⚠⚠ THE TOKEN CHECK ABOVE IS TOCTOU AND CANNOT BE ANYTHING ELSE: the lock
-                        # is released before this call, because start() is not something to hold a
-                        # lock across. So a STOP landing in that window would have been overtaken
-                        # — hover_mode.stop() sets _STOP, then start() CLEARS it and sweeps, and
-                        # his cursor moves right after he pressed Stop. The comment on the token
-                        # bump claimed to prevent exactly that and did not. Re-read AFTER starting
-                        # and undo it: start-then-stop is recoverable, never-stop is not.
-                        with _MINI_AUTO_PLAN_LOCK:
-                            _late = (_MINI_AUTO_PLAN["token"] != _tok)
-                        if _late:
-                            try:
-                                hover_mode.stop()
-                            except Exception:
-                                pass
-                            _why = "a stop arrived while this plan was starting - stopped again"
-                            # ⚠ v2803 — AND IT MUST BE RECORDED SOMEWHERE THAT SURVIVES. A cold
-                            # cross-family review of v2802 found that this message is computed and
-                            # then thrown away: the `finally` below only persists `_why` when the
-                            # token still matches, and `_late` means by definition that it does
-                            # not. Dropping it from the PANEL is right — a newer press or a stop
-                            # owns that state and should not be overwritten by a plan that lost
-                            # the race. But the EVENT is the rarest and most confusing thing this
-                            # code can do (the pointer moves for an instant after Stop), and
-                            # discarding the only evidence of it means the next person to see it
-                            # has nothing to read. A fault row is not the panel; it is the
-                            # journal. [[feedback-silence-is-not-evidence]]
-                            try:
-                                ui_fault_record("miniauto-stop-overtook-a-starting-plan",
-                                                why=_why, where="_plan")
-                            except Exception:
-                                pass
-                except Exception as _e:
-                    _why = "planning the hover raised %s" % type(_e).__name__
-                finally:
-                    with _MINI_AUTO_PLAN_LOCK:
-                        if _MINI_AUTO_PLAN["token"] == _tok:
-                            _MINI_AUTO_PLAN.update({"planning": False, "why": _why,
-                                                    "whyTs": time.time()})
-
-            threading.Thread(target=_plan, daemon=True, name="tvd-miniauto-plan").start()
-            self._json(200, dict(hover_mode.status(), ok=True, planning=True,
-                                 why="reading the screen to find your items - this panel updates"))
+            # ⛔⛔ v2857 — MINI(AUTOMATIC) IS GONE AND SO IS ITS HANDLER BODY. REG-823.
+            # v2856 put this refusal ABOVE the original body and left the body in place,
+            # unreachable. A cross-family review called that out and it is right in the one
+            # way that matters here: the code below drove HIS PHYSICAL MOUSE POINTER, and
+            # dead code behind a single `return` comes back LIVE the moment anyone moves or
+            # deletes that guard — with no button, no gate and nothing watching. Deleted.
+            # ⚠ 410 GONE, not 200. The same review: a client that only checks status_code
+            # reads 200-with-ok-false as a successful status query and never takes its
+            # feature-removed path. The body still carries a reason for anything that looks.
+            self._json(410, {"ok": False, "running": False, "planning": False,
+                             "removed": True,
+                             "why": "MINI(AUTOMATIC) was removed on 2026-09-09 by his "
+                                    "ruling. The pointer is no longer driven from this "
+                                    "console. MINI and ON AIR are unaffected."})
             return
         if path == "/api/update":
             # v2102 — THE PULL, not just the verdict. GET /api/update has reported "you are N

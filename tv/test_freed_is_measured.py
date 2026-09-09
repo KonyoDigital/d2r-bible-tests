@@ -55,6 +55,26 @@ import control_app as ca  # noqa: E402
 import reel_retention as rr  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, verified in a sandbox. This law asserts a NUMBER IS MEASURED rather "
+               "than any text being present, so no deletion could sabotage it. The tamper restores "
+               "the v2642 fabrication exactly: `freedMb` becomes the PLAN'S HOPE again instead of a "
+               "sum over the reels that actually went, which is how a figure nobody measured reached "
+               "his screen. MEASURED: 1 match, gate RED, breaking FOUR laws — "
+               "test_NOTHING_removed_reports_ZERO_not_the_plans_hope, "
+               "test_it_sums_ONLY_the_reels_that_actually_went, "
+               "test_a_candidate_with_no_mb_adds_NOTHING_rather_than_defaulting, and "
+               "test_the_sentence_his_console_prints_can_no_longer_disagree_with_itself",
+        "file": "reel_retention.py",
+        "find": '            "freedMb": sum(float(c.get("mb") or 0)\n'
+                '                           for c in (p.get("candidates") or [])\n'
+                '                           if c.get("reel") in _removed_set),',
+        "replace": '            "freedMb": p.get("freeMb", 0),',
+        "matches": 1,
+    },
+]
+
 class AFreedFigureNamesWhatWasActuallyRemoved(unittest.TestCase):
 
     def setUp(self):

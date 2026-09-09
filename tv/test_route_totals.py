@@ -37,6 +37,30 @@ import route_totals as RT  # noqa: E402
 KEYS = ("runeword", "set", "unique")
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, sandbox-verified. This law asserts a number AGREES across surfaces, "
+               "so there is no string to delete. The tamper makes an unreadable producer answer 0 "
+               "instead of None — the exact thing total()'s own docstring forbids, because a zero "
+               "nobody measured is indistinguishable from a real zero. MEASURED: 1 match, RED, "
+               "breaking test_an_unreadable_producer_is_UNKNOWN_not_zero",
+        "file": "route_totals.py",
+        "find": "    if s is None:\n        return None",
+        "replace": "    if s is None:\n        return 0",
+        "matches": 1,
+    },
+    {
+        "why": "THE SECOND ARM, breaking a DIFFERENT law. Dropping the alias table means each "
+               "surface answers on its own spelling, which is how one tab came to print two "
+               "different numbers. MEASURED: 1 match, RED, breaking "
+               "test_the_unit_word_is_the_same_on_every_surface",
+        "file": "route_totals.py",
+        "find": "    return _ALIASES.get(str(key).strip().lower())",
+        "replace": "    return str(key).strip().lower()",
+        "matches": 1,
+    },
+]
+
 def _rows(mod, tally=None):
     """Every route set's rows, whichever signature it takes. -> [dict]
 

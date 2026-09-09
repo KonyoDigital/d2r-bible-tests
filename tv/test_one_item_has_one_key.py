@@ -53,6 +53,33 @@ except Exception:
 import chronicle_retro as CR  # noqa: E402
 
 
+RED_PROOF = [
+    {
+        "why": "HAND-WRITTEN, and verified in a sandbox before it was declared. This law has no "
+               "positive string anchor — it asserts that two SPELLINGS reach one key — so deletion "
+               "of a literal cannot sabotage it. Un-folding is the v2760 defect itself: the curly "
+               "and straight forms of Atma's Scarab stop meeting, and cross-reel corroboration can "
+               "never fire. MEASURED: 1 match, gate RED, breaking "
+               "test_both_apostrophe_forms_reach_ONE_key and test_a_spacing_variant_reaches_the_SAME_key",
+        "file": "chronicle_retro.py",
+        "find": "    return hit",
+        "replace": "    return name",
+        "matches": 1,
+    },
+    {
+        "why": "THE SECOND ARM, and it breaks a DIFFERENT law — which is the point of writing two. "
+               "The fold's whole safety argument is that it is EXACT: dropping the tightness check "
+               "lets a qualifier rename slip through, and the roster deliberately holds near-twins "
+               "(Bone Break / Latent Bone Break) where a fuzzy key is a coin flip between two of "
+               "his items. MEASURED: 1 match, gate RED, breaking "
+               "test_a_QUALIFIER_is_not_a_spelling_difference",
+        "file": "chronicle_retro.py",
+        "find": "    if _tight(hit) != _tight(name):",
+        "replace": "    if False and _tight(hit) != _tight(name):",
+        "matches": 1,
+    },
+]
+
 class OneItemHasOneKey(unittest.TestCase):
 
     def setUp(self):
