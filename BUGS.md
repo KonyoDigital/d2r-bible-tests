@@ -27188,3 +27188,35 @@ river` 971 ms, four route checks ~2,100 ms together.
 
 Re-tiering someone's supervision cadence to buy margin is a real decision about how often things
 get watched, and I am not making it silently. Reported, not fixed. [[feedback-blind-fixture-green-gate]]
+
+
+## REG-814 — the fleet card said three numbers where he wanted one word
+
+**v2850.** Konyo: *"for the fleet hide the information. just keep next to uniques and sets and
+runewords sycned or unsynced"*.
+
+Each machine's card carried three figures, three units and three progress bars — `sets 128 / 135
+pieces`, `uniques 300 / 403 found`, `runewords 99 / 99 made`. What he reads the card FOR is whether
+that machine agrees with his. So the row states the VERDICT and the arithmetic moves to the title:
+hidden, not deleted, because the numbers are what make the verdict checkable.
+
+⚠⚠ **FOUR OUTCOMES, NOT TWO.** A machine that reported no tally renders NOTHING rather than a word;
+a machine whose figure cannot be compared says `no reference`; and — caught on the first render —
+**his own row was reading `synced`**, which is a comparison with itself printed in the same green as
+a real agreement. That is a tautology wearing the clothes of a measurement, and it is the shape this
+very card has been corrected for before: *"UNIQUES SYNCED over 0/403 — an empty store cannot have
+been synced"* (#4). The reference row now says `this console`.
+[[label-outlived-referent]] [[unknown-stays-unknown]]
+
+**MEASURED by extracting `_bar` and running it in node against fabricated payloads** — the live
+sandbox cannot reach the site, so a rendered check could only ever exercise the unreachable path:
+
+    mine=128 · theirs=128    -> synced          [ftts-synced]
+    mine=128 · theirs=123    -> unsynced        [ftts-unsynced]
+    mine=128 · theirs=0      -> unsynced        [ftts-unsynced]   <- never "synced"
+    the reference row        -> this console    [ftts-unknown]
+    no own row in the roster -> no reference    [ftts-unknown]
+    a machine with no tally  -> renders nothing
+
+⚠ The first render did confirm the wiring end to end on real pixels before the self-comparison fix:
+`konyo-3 sets synced uniques synced runewords synced`, painted 1/1 at all five widths.

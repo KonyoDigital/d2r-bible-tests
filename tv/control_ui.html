@@ -4256,6 +4256,12 @@
      board is fine, it simply holds nothing yet. Without this rule the class falls through
      to the default and the one row that most needs to stand out reads like the rest. */
   .ftt-seed-rows .ftts-unsynced .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
+  /* v2850 — the fleet card states a verdict, not three figures */
+  .ftt-row.ftt-sync { display: flex; align-items: baseline; gap: 8px; }
+  .ftt-row.ftt-sync .ftt-v { font-weight: var(--fw-semibold); letter-spacing: .02em; }
+  .ftt-row.ftt-sync .ftts-synced   { color: var(--mint, #8fe6a0); }
+  .ftt-row.ftt-sync .ftts-unsynced { color: var(--warn, var(--gold-dim)); }
+  .ftt-row.ftt-sync .ftts-unknown  { color: var(--muted,#8b8071); font-style: italic; }
   .shg-lab { font: var(--fw-bold) var(--fs-md)/1 var(--serif); letter-spacing: var(--ls-wide); color: #e8cf96; }
   .shg-n { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-normal); text-transform: uppercase; color: #8a7e68; }
   /* v1286 (D12) — history activity sparkline: runs-per-day bars, gold on grail days, today highlighted */
@@ -21066,7 +21072,31 @@ function escC(s) {
          silently replaced. Hiding that would be the actual fabrication.
          [[unknown-stays-unknown]] [[copy-drift]] */
       var _ROSTERS = (j && j.rosters) || null;
-      var _bar = function (lab, p) {
+      /* ── v2850 — HIS RULING: HIDE THE FIGURES, SAY SYNCED OR UNSYNCED ────────────────────
+         Konyo: "for the fleet hide the information. just keep next to uniques and sets and
+         runewords sycned or unsynced". The card carried three numbers, three units and three
+         progress bars per machine; what he reads it FOR is whether that machine agrees with his.
+         The row now states the VERDICT and the arithmetic moves to the title — hidden, not
+         deleted, because the numbers are what make the verdict checkable.
+
+         ⚠⚠ THE REFERENCE IS HIS OWN ROW, AND THERE ARE THREE OUTCOMES, NOT TWO. A machine that
+         reported nothing is not "unsynced" — nothing was compared. And if his own row is missing
+         from the roster there is no reference at all, a different unknown again. Both say so
+         rather than collapsing into the tidier word: this card has already shipped the opposite
+         defect once — "UNIQUES SYNCED over 0/403 — an empty store cannot have been synced".
+         [[unknown-stays-unknown]] [[label-outlived-referent]] */
+      var _MINE = (function () {
+        try {
+          var all = ((j && j.online) || []).concat((j && j.offline) || []);
+          for (var i = 0; i < all.length; i++) {
+            if (all[i] && all[i].machine && j.me && all[i].machine === j.me) {
+              return (all[i].tally && all[i].tally.ok) ? all[i].tally : null;
+            }
+          }
+        } catch (e) {}
+        return null;
+      })();
+      var _bar = function (lab, p, isMe) {
         if (!p || typeof p.have !== 'number') return '';
         var own = (typeof p.total === 'number' && p.total > 0) ? p.total : null;
         var shared = (_ROSTERS && typeof _ROSTERS[lab] === 'number' && _ROSTERS[lab] > 0)
@@ -21094,16 +21124,35 @@ function escC(s) {
           : ('this machine reported ' + p.have + ' and nothing could say what to measure it '
              + 'against \u2014 not even this console\u2019s own roster \u2014 so the bar is left '
              + 'empty rather than drawn full. ' + (d.why || ''));
-        return '<div class="ftt-row"' + (ttl ? ' title="' + escC(ttl) + '"' : '') + '>'
-          + '<span class="ftt-l">' + escC(lab) + '</span>'
-          + '<span class="ftt-n">' + val
-          + (drift ? '<i class="ftt-drift" title="that machine is on a different roster">\u26a0</i>' : '')
-          + '</span>'
-          + '<span class="ftt-u">' + escC(unit) + '</span>'
-          /* an unknown draws EMPTY, never full. A 100%-wide bar under a number with no
-             denominator is the one reading nobody should take from this card. */
-          + '<span class="ftt-bar' + (pct === null ? ' ftt-unk' : '') + '"><i style="width:'
-          + (pct === null ? 0 : pct.toFixed(1)) + '%"></i></span></div>';
+        var _mine = (_MINE && _MINE[lab] && typeof _MINE[lab].have === 'number')
+                    ? _MINE[lab].have : null;
+          var _word, _cls, _why;
+          if (isMe) {
+            /* ⚠ THE REFERENCE ROW CANNOT BE "SYNCED WITH ITSELF". It compared nothing, and a
+               tautology printed in the same green as a real agreement is a measurement that is
+               not one — the exact shape of every label this console has had to correct.
+               [[label-outlived-referent]] */
+            _word = 'this console'; _cls = 'ftts-unknown';
+            _why  = 'this is the machine you are reading the card ON \u2014 it is the reference '
+                  + 'the others are compared against, so it has nothing to agree with. ';
+          } else if (_mine === null) {
+            _word = 'no reference'; _cls = 'ftts-unknown';
+            _why  = 'this console\u2019s own row is not in the roster, so there is nothing to '
+                  + 'compare against \u2014 that is not the same as disagreeing. ';
+          } else if (p.have === _mine) {
+            _word = 'synced'; _cls = 'ftts-synced';
+            _why  = 'agrees with this console: ' + p.have + ' on both. ';
+          } else {
+            _word = 'unsynced'; _cls = 'ftts-unsynced';
+            _why  = 'this machine reports ' + p.have + ', this console has ' + _mine
+                  + ' \u2014 a difference of ' + Math.abs(p.have - _mine) + '. ';
+          }
+          return '<div class="ftt-row ftt-sync" title="'
+            + escC(_why + (val ? '(' + val + ' ' + (unit || '') + ') ' : '') + (ttl || '')) + '">'
+            + '<span class="ftt-l">' + escC(lab) + '</span>'
+            + '<span class="ftt-v ' + _cls + '">' + escC(_word)
+            + (drift ? '<i class="ftt-drift" title="that machine is on a different roster">\u26a0</i>' : '')
+            + '</span></div>';
       };
       var _tip = function (m) {
         var t = m.tally;
@@ -21113,8 +21162,9 @@ function escC(s) {
             + (t && t.why ? (' — ' + escC(String(t.why).slice(0, 90))) : '')
             + '</div></div>';
         }
-        var bars = _bar('sets', t.sets) + _bar('uniques', t.uniques)
-                 + _bar('runewords', t.runewords);
+        var _isMe = !!(m && m.machine && j && j.me && m.machine === j.me);
+        var bars = _bar('sets', t.sets, _isMe) + _bar('uniques', t.uniques, _isMe)
+                 + _bar('runewords', t.runewords, _isMe);
         /* ⚠⚠ v2739 — SAY WHEN A ROW'S PROGRESS WAS INHERITED RATHER THAN EARNED.
            Konyo, reading Dean's card: "it should be rendering for him 0 meaning its not and has
            not been sycned yet based on his profile and ledgers".

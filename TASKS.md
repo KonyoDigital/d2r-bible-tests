@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2850** | `(this commit)` | v2850 — hide the fleet figures and state synced or unsynced |
 | **v2849** | `(this commit)` | v2849 — the gate refused the ship and the better catch was my own sleep |
 | **v2848** | `(this commit)` | v2848 — a fleet fixed eight CI gates and every one cleared the skeptic |
 | **v2847** | `(this commit)` | v2847 — the guard written to stop me killing his console would have agreed with me |
