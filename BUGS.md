@@ -26315,3 +26315,40 @@ over five instruments that no longer claim anything.
 proof: **5 → 2**, and the two survivors are genuine —
 `test_a_cached_absence_is_not_an_absence` and `test_the_ledger_cannot_lie_about_what_it_saw`.
 [[label-outlived-referent]]
+
+## REG-789 — two more false GREENs in the AST helper: a rebound alias, and a nested dict
+**#28 · v2830 · 2026-09-09 · test_control.py · found by the cross-family look at v2828**
+
+Five checks were asked; **two findings reproduced, one was refuted, two were clean.**
+
+**REPRODUCED — rebound alias.** The alias walk only ever grew the set:
+
+    p = drift_state
+    p = something_else
+    return {"drift": _t("d", p)}        -> helper returned True
+
+`p` stayed in the alias set after being rebound, so the law passed while the payload called
+something else entirely. Fixed: assignments are walked in source order and a rebinding to a
+non-alias **discards** the name.
+
+**REPRODUCED — nested dict reusing the key.**
+
+    return {"other": {"drift": drift_state()}, "drift": None}   -> helper returned True
+
+Every Dict node carrying the key was searched, so a nested dict that happens to reuse the name
+satisfied the law while the payload's own value had become None. Fixed: a dict inside another
+dict's value is not the payload and is excluded.
+
+**REFUTED — its claim (a)**, that an alias used inside a `_t` lambda returns False. It returns True;
+the reasoning about the code path was wrong. Measured, not argued.
+
+**CLEAN, confirmed:** the `if False:` false GREEN from REG-786 stays closed, and a call inside a
+nested function under the key's value correctly does not count.
+
+**ACCEPTED AS DESIGNED, not fixed:** it also noted the helper asserts rather than returning a bool
+if `status_payload` is not exactly one top-level function. That is the stated contract — a law that
+cannot find its subject must refuse, not report a clean result over nothing.
+
+Eleven cases now verified: six shapes that genuinely reach the producer are True; a rebound alias,
+a nested-dict lookalike, a dead `if False:`, a genuinely absent producer and a nested function are
+all False.

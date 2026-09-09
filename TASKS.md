@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2830** | `(this commit)` | v2830 — REG-789 — the alias set only ever grew, so a name rebound to something else still counted; and every dict carrying the key was searched, so a nested lookalike satisfied the law while the payload value had become None. Eleven cases verified. One of the same review findings was refuted by measurement |
 | **v2829** | `(this commit)` | v2829 — REG-787 — 22 derived candidates in, 13 survived; the five gates whose proofs went BLIND or INVALID had their blocks REMOVED rather than kept, because a proof that survives its own defeat is counted as coverage and that is the lie this task exists to end |
 | **v2828** | `(this commit)` | v2828 — REG-786 — a dead if-False producer call kept the AST law green while the payload no longer produced the value; the key check is now scoped to that key value expression, and local aliases resolve so a legal refactor does not cry wolf. Six cases verified. |
 | **v2827** | `(this commit)` | v2827 — REG-784..785 — one line discarded reverted, from-to, passes and moves, so did-it-revert was unanswerable; measured once kept: reverted FALSE, 1 collision to 0, 3 stacks kept, which refutes the premise in the render world. Two laws came back BLIND because the literal is written twice by design |

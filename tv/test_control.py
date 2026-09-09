@@ -384,13 +384,22 @@ def _status_producer(case, src, name, key=None):
                      "nothing — an instrument failure, not a clean result")
     fn = fns[0]
 
-    # `p = producer` — a local alias is still the producer.
+    # `p = producer` — a local alias is still the producer. ⚠ IN SOURCE ORDER, AND A REBINDING
+    # REVOKES IT. v2829: a cross-family review found and I REPRODUCED a false GREEN —
+    # `p = producer` then `p = something_else` then `_t("s", p)` left `p` in the alias set, so the
+    # law passed while the payload called something else entirely. Order matters and the set must
+    # shrink as well as grow. [[label-outlived-referent]]
     aliases = {name}
-    for n in _ast.walk(fn):
-        if isinstance(n, _ast.Assign) and isinstance(n.value, _ast.Name) and n.value.id in aliases:
-            for t in n.targets:
-                if isinstance(t, _ast.Name):
-                    aliases.add(t.id)
+    for n in sorted((x for x in _ast.walk(fn) if isinstance(x, _ast.Assign)),
+                    key=lambda x: (x.lineno, x.col_offset)):
+        _is_alias = isinstance(n.value, _ast.Name) and n.value.id in aliases
+        for t in n.targets:
+            if not isinstance(t, _ast.Name):
+                continue
+            if _is_alias:
+                aliases.add(t.id)
+            elif t.id != name:
+                aliases.discard(t.id)     # rebound to something else — it is no longer the producer
 
     def _reaches(node):
         for n in _ast.walk(node):
@@ -413,7 +422,19 @@ def _status_producer(case, src, name, key=None):
     # ⚠ SCOPED TO THE KEY'S VALUE. This is the half that closes the false GREEN: a call anywhere
     # else in the function — dead branch, unrelated section, a comment-free `if False` — cannot
     # satisfy it. Publication and invocation are checked as ONE fact, at the point they meet.
-    values = [v for d in _ast.walk(fn) if isinstance(d, _ast.Dict)
+    # ⚠⚠ THE PAYLOAD DICT, NOT ANY DICT. Same review, also reproduced: with
+    # `{"other": {"drift": producer()}, "drift": None}` every Dict node carrying the key was
+    # searched, so a NESTED dict that happens to reuse the key name satisfied the law while the
+    # payload's own value had become None. A dict inside another dict's value is not the payload.
+    _inner = set()
+    for d in _ast.walk(fn):
+        if isinstance(d, _ast.Dict):
+            for v in d.values:
+                for sub in _ast.walk(v):
+                    if isinstance(sub, _ast.Dict):
+                        _inner.add(id(sub))
+    values = [v for d in _ast.walk(fn)
+              if isinstance(d, _ast.Dict) and id(d) not in _inner
               for k, v in zip(d.keys, d.values)
               if isinstance(k, _ast.Constant) and k.value == key]
     case.assertTrue(values,
