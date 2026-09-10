@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2917",
+  "ver": "v2918",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2917: thirty nodes of slack on disk and zero consumers, while four places said the heart was watching",
+  "note": "v2918: owner is asked first now, in code, because a rule that needs care at 2am gets followed carelessly once",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

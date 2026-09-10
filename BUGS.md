@@ -29587,6 +29587,82 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-922 — the law that fixed an unjoined end graded the machine's own file
+
+**v2918.** Caught by the cross-family eye on v2917, in the law I had just written to close REG-920.
+
+`test_the_HEART_carries_the_slack_and_says_what_it_means` called `heart2.surface_verdict()` with
+**no path**, so it read the live, gitignored `tv/.render_verdict.json` — while the bench wrote its
+fixture to `self.tmp/.render_verdict.json`. The two never met.
+
+**MEASURED both scenarios:**
+
+    file ABSENT (fresh clone, CI, or a prove sandbox)
+      surface_verdict() returns only ['state', 'why']
+      -> the law is RED UNTAMPERED, and `_prove_one` then marks the WHOLE gate UNPROVABLE,
+         the eight original ratchet laws included
+
+    file PRESENT (this Mac, after a render)
+      green against whatever that file happens to say — it never saw the 24-node fixture
+
+It passed only because this machine had rendered. That is **v2871's scar in the sibling file**,
+repeated verbatim: *a law that grades the machine's own verdict can only pass on a machine that just
+ran*. `path=` exists precisely so a law can ask the real question without touching his files.
+
+⚠ **AND THE ASSERTIONS COULD NOT SEE THE DEFECT THEY NAMED.** The law claimed the heart must carry
+*the number* and *say what it means*, then checked only that two KEYS existed —
+`assertIn("coverageStaleNodes", v)` passes on a `None`, and `len(say) > 20` passes on any sentence,
+including one saying the slack is UNKNOWN. Both are true of a verdict that measured nothing.
+
+Now: the law runs `_stale_run()` and reads the BENCH file, asserts `coverageStaleNodes` equals the
+fixture's own **24** (derived as `sum(GROWN - STALE)` from the bench constants, so it cannot drift
+from the fixture — and it matches what the sibling law pins independently), asserts the sentence
+NAMES that number, and asserts it does NOT say UNKNOWN about a slack that was measured.
+
+**Proven both ways:** with the live verdict file moved aside, all 10 laws stay green — the scenario
+that was previously red-untampered. And 11 of 11 red-proofs still PROVEN at 1 match each after the
+change. [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+
+## REG-921 — I followed the board-identity rule exactly, and it deleted his claim
+
+**v2918.** The rule read, in full: *"AFTER ANY RENDER/CDP SESSION: `rm -f tv/.board_identity.json`
+before pushing — a CDP load writes a GUEST record and five TestV2072 tests then fail with a drift
+reason that names none of it."* **Every word of that is true, and it is missing its condition.**
+
+After a clean render I ran it and deleted a record reading:
+
+    owner: true · id e07a5fe180a8414287f30dcc2589c52d · seenCount 1458
+
+That is HIS CLAIM, not a guest record. `tv/.board_identity.json` is gitignored (`.gitignore:68`), so
+`git checkout` could not bring it back. It survived on **two accidents**: a file in
+`~/d2r_board_backups/` that happened to carry the same id, and my having PRINTED the id before
+removing it out of habit. ⚠ **That backup was STALE BY 677 SIGHTINGS** — seenCount 781 against the
+live 1458. Lose the claim for real and his board renders as an empty stranger's world: 0 of 403, with
+a claim button that imports nothing.
+
+**The condition now lives in code**, because a rule whose safety depends on the reader being careful
+at 2am will be followed carelessly once. `board_claim_guard.py` asks OWNER FIRST and reuses the three
+states `control_app.board_identity_drift()` already names, so the tool and the console describe one
+world in one vocabulary:
+
+    owner is True   ->  ok       HIS CLAIM. Nothing is removed, ever.
+    owner is False  ->  drift    the CDP-minted guest record. Fresh backup, THEN removed.
+    anything else   ->  unknown  unreadable, malformed or absent. Nothing is removed.
+
+⚠ **The backup is taken at REMOVAL TIME, not trusted from the past** — the one that rescued me was
+677 sightings old, and a net that is only sometimes current has a hole in it. ⚠ **A record it cannot
+COPY is a record it does not REMOVE**: if the backup write fails, nothing is deleted, because a
+removal whose undo failed is a removal with no undo.
+
+Nine laws, four red-proofs, all PROVEN at 1 match. ⚠ One came back **BLIND** first: my sabotage
+edited the refusal MESSAGE and left the early `return` intact, so the guard still refused and the
+suite stayed green — a sabotage that changes prose defeats nothing. It now drops the `return`. And
+rebuilding that entry exposed a second trap: two chained `json.dumps` substitutions collided, leaving
+a NEW `find` beside an OLD `replace`, so the tamper produced code that would not parse. The whole
+RED_PROOF list is now rewritten as a literal rather than patched by string substitution.
+[[board-claim-pinned-to-a-mutable-id]] [[unknown-stays-unknown]] [[stale-reading]]
+[[sabotage-is-usually-the-wrong-one]]
+
 ## REG-920 — the heart claimed to supervise the ratchet's blind spot and never read it
 
 **v2917.** #72. Found by the cross-family eye **twenty minutes after v2916 shipped**, and it is the

@@ -301,6 +301,12 @@ class AStaleFloorIsALoudFactNotASilentPass(_Bench):
     STALE = {"w%02d" % i: i for i in range(1, 13)}          # floor 1..12
     GROWN = {"w%02d" % i: i + 2 for i in range(1, 13)}      # measured floor+2 -> 24 nodes of slack
 
+    #: what `_stale_run` actually leaves on the floor: one target, every width, GROWN - STALE.
+    #: Derived from the bench's own constants so the law can never drift from the fixture.
+    @property
+    def STALE_NODES(self):
+        return sum(max(0, self.GROWN[k] - self.STALE[k]) for k in self.STALE)
+
     def _stale_run(self):
         t = self.a_real_target()
         self.floor({t: dict(self.STALE)})
@@ -364,17 +370,35 @@ class AStaleFloorIsALoudFactNotASilentPass(_Bench):
         """⚠ THE CONSUMER, NOT THE WRITER. `heart2.surface_verdict()` is what an automated
         supervisor reads. If the slack is not in ITS answer, then 30 watched nodes can vanish and
         every supervisor still reads clean — which is the state v2916 shipped while claiming the
-        opposite in four places."""
+        opposite in four places.
+
+        ⚠⚠ v2919 — AND THIS LAW READ THE MACHINE'S OWN FILE, NOT THE FIXTURE. Caught by the
+        cross-family eye on v2917. It called `surface_verdict()` with NO path, so it read the live
+        gitignored `tv/.render_verdict.json` while the bench wrote its 24-node fixture to
+        `self.tmp`. The two never met. MEASURED: on an absent file `surface_verdict()` returns only
+        ['state', 'why'], so the law is RED UNTAMPERED on a fresh clone, in CI, or inside a prove
+        sandbox — which marks the WHOLE gate UNPROVABLE, the eight original ratchet laws included.
+        It passed here solely because this Mac had rendered. That is v2871's scar in the sibling
+        file, repeated: a law that grades the machine's own verdict can only pass on a machine that
+        just ran. `path=` exists so a law can ask the real question without touching his files.
+        [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+        """
         import heart2
-        v = heart2.surface_verdict()
-        self.assertIn("coverageStaleNodes", v,
-                      "the heart's own verdict does not carry the ratchet's slack, so nothing "
-                      "automated can see it: %s" % sorted(v))
-        self.assertIn("coverageStaleSay", v,
-                      "a bare integer is a number nobody acts on — the heart must say what the "
-                      "slack MEANS: %s" % sorted(v))
+        t, rc, text = self._stale_run()
+        v = heart2.surface_verdict(os.path.join(self.tmp, ".render_verdict.json"))
+        # ⚠ THE VALUE, NOT THE KEY. `assertIn("coverageStaleNodes", v)` passes on a None, and any
+        # sentence over 20 characters satisfied the old check — including a sentence saying the
+        # slack is UNKNOWN. Both were true of a verdict that measured nothing.
+        self.assertEqual(v.get("coverageStaleNodes"), self.STALE_NODES,
+                         "the heart must carry the MEASURED slack (%d), not %r — a key whose value "
+                         "is None is a number nobody can act on"
+                         % (self.STALE_NODES, v.get("coverageStaleNodes")))
         say = str(v.get("coverageStaleSay") or "")
-        self.assertGreater(len(say), 20, "the slack sentence is empty: %r" % say)
+        self.assertIn(str(self.STALE_NODES), say,
+                      "the sentence must name the number it is about: %r" % say)
+        self.assertNotIn("UNKNOWN", say,
+                         "the slack was MEASURED here, so the heart must not report it unknown: %r"
+                         % say)
 
     def test_an_older_verdict_reads_UNKNOWN_and_never_a_quiet_zero(self):
         """⚠ ABSENT IS NOT ZERO. A render verdict written before v2916 has no slack field at all.
