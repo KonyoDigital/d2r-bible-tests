@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2877",
+  "ver": "v2878",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2877: the shelf subtracts the eight fixture reels once at the seam, and every figure moves with them",
+  "note": "v2878: the panel and the sweeper were still two readers of one plan, and a read cannot clear a reel whose rows were already made",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -50,6 +50,20 @@ OWED_BY = {
     "vault-owes":            "vault",
 }
 
+#: ⚠⚠ v2878 — OF THOSE, THE ONES A PAID RE-READ CAN ACTUALLY CLEAR.
+#: A cross-family review of v2876: `OWED_BY` maps three tags to the vault lane, and v2876 queued
+#: all three for a re-read. `rows-not-banked` is not a read — the sweep ALREADY ran and produced
+#: rows; what is missing is a durable BANK. Queuing it spends up to _VAULT_AUTOREAD_MAX_TRIES paid
+#: reads, the hold does not clear, and the reel is retired as "still owed" without ever banking.
+#: Latent on his tree today (0 such reels) and the same over-queue shape as the 2026-08-28 incident,
+#: aimed at the wrong verb.
+#:
+#: So the two questions are kept apart, because they are different questions:
+#:     OWED_BY      -> WHICH LANE owns this reel   (what the panel reports as waiting)
+#:     READ_CLEARS  -> can a READ clear it         (what the sweeper is allowed to pay for)
+#: [[label-outlived-referent]] [[feedback-contradiction-is-the-finding]]
+READ_CLEARS = ("never-chronicle-swept", "zero-pages", "panels-never-banked", "vault-owes")
+
 #: Tags that mean the reel is finished and held for a reason no lane can clear.
 HELD = ("recent", "test-fixture", "holds-proof", "target-met",
         "no-witness-index", "ledger-unreadable")

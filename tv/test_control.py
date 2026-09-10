@@ -30895,6 +30895,19 @@ class TestTheVaultLaneHasAWatchdog(unittest.TestCase):
          "why": "one of the 5 most recent"},
         {"reel": "reel_E", "tag": "vault-owes",
          "why": "the VAULT lane has never swept it — it still owes the vault manager its stash rows"},
+        # ⚠⚠ v2878 — THE FIXTURE COULD NOT SEE THE REGRESSION IT EXISTS TO CATCH.
+        # A cross-family review of v2876: this PLAN had no `panels-never-banked` row, so every case
+        # below stayed green while `_vault_owed_reels` and `_w_vault` disagreed about 18 real reels
+        # on his tree. A watchdog fixture that omits a tag production emits certifies the OLD
+        # contract. `reel_F` is read-clearable (the vault owes it a READ); `reel_G` is the vault's
+        # too but a read cannot clear it — the sweep already ran and the bank is what is missing —
+        # so it must be REPORTED as waiting and never QUEUED for a paid re-read.
+        # [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+        {"reel": "reel_F", "tag": "panels-never-banked",
+         "why": "a FULL survey found panel frames here and the vault ledger holds NO row from this "
+                "reel — its stash rows have never been extracted"},
+        {"reel": "reel_G", "tag": "rows-not-banked",
+         "why": "the sweep read rows here and NONE of them are in the ledger yet"},
     ]}
 
     def test_its_work_list_IS_retentions_list_not_a_second_opinion(self):
@@ -30904,8 +30917,16 @@ class TestTheVaultLaneHasAWatchdog(unittest.TestCase):
             mine = {os.path.basename(x) for x in (self.ca._vault_owed_reels("/tmp/h") or [])}
         # v2392 — the panel side reads the TAG now, same as the watchdog. Both still come from
         # ONE record so they cannot drift, which is the lesson; only the field moved.
+        # ⚠⚠ v2878 — AND THE TAG IS NOT ONE LITERAL. This pinned "vault-owes", so the day the
+        # worklist learned `panels-never-banked` the law went red on a CORRECT worklist — it was
+        # certifying the pre-v2876 contract. The lesson is "one record, one map", not "one string".
+        # ⚠ The sweeper pays only for READ_CLEARS; this compares against exactly that set, because
+        # `rows-not-banked` is the vault's but a read cannot clear it. [[label-outlived-referent]]
+        import shelf_driver as _sd
+        _payable = {t for t, lane in _sd.OWED_BY.items()
+                    if lane == "vault" and t in _sd.READ_CLEARS}
         panel = {os.path.basename(str(k["reel"])) for k in self.PLAN["kept"]
-                 if k.get("tag") == "vault-owes"}
+                 if k.get("tag") in _payable}
         self.assertEqual(mine, panel,
                          "the watchdog and the panel disagree about which reels owe the vault "
                          "lane. That is #167 reappearing: whichever surface he reads is wrong "
@@ -30935,8 +30956,15 @@ class TestTheVaultLaneHasAWatchdog(unittest.TestCase):
         import reel_retention as rr
         with mock.patch.object(rr, "plan", lambda *a, **k: self.PLAN):
             mine = {os.path.basename(x) for x in (self.ca._vault_owed_reels("/tmp/h") or [])}
+        # ⚠⚠ v2878 — IT GREPPED AN ENGLISH SENTENCE OUT OF `why` TO DECIDE WHOSE REEL IT IS.
+        # That is the exact prose-matching v2392 removed from production, still living in the guard
+        # that watches it — so a reel tagged `panels-never-banked` read as "held for another
+        # reason" and the law failed on a correct worklist. Ask the map. [[feedback-comments-vs-code]]
+        import shelf_driver as _sd
+        _payable = {t for t, lane in _sd.OWED_BY.items()
+                    if lane == "vault" and t in _sd.READ_CLEARS}
         for k in self.PLAN["kept"]:
-            if "VAULT lane has never swept" in k["why"]:
+            if k.get("tag") in _payable:
                 continue
             rid = os.path.basename(str(k["reel"]))
             self.assertNotIn(rid, mine,
@@ -39069,8 +39097,14 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
         import shelf_driver as sd
         import control_app as ca
         import reel_retention as rr
-        vault_tags = sorted(t for t, lane in sd.OWED_BY.items() if lane == "vault")
-        self.assertTrue(vault_tags, "shelf_driver.OWED_BY names no vault tag — this law is vacuous")
+        # ⚠⚠ v2878 — LANE **AND** VERB. This asked for every tag the vault OWNS; a cross-family
+        # review of v2876 showed that over-queues: `rows-not-banked` means the sweep ALREADY ran and
+        # produced rows, and what is missing is a durable BANK, so a paid re-read clears nothing and
+        # the reel is retired as "still owed". READ_CLEARS is the subset a read can fix, and the
+        # exclusion gets a law of its own below rather than being a silent gap.
+        vault_tags = sorted(t for t, lane in sd.OWED_BY.items()
+                            if lane == "vault" and t in sd.READ_CLEARS)
+        self.assertTrue(vault_tags, "no read-clearable vault tag — this law is vacuous")
         missed = []
         for tag in vault_tags:
             plan = {"ok": True, "kept": [{"reel": "reel_s_1_1", "tag": tag, "why": "x", "mb": 1}],
@@ -39085,6 +39119,34 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
             "worklist that feeds the sweeper does not return them. The reels are held correctly "
             "and the lane that would clear them cannot see them — two authorities, one question."
             % missed)
+
+    def test_a_tag_a_READ_cannot_clear_is_never_QUEUED(self):
+        """★★ v2878 — THE OTHER DIRECTION, AND IT COSTS REAL MONEY. `rows-not-banked` is the
+        vault's reel, so the PANEL must report it as waiting — but the sweep already ran and made
+        rows, and what is missing is a durable bank. Queuing it spends up to
+        _VAULT_AUTOREAD_MAX_TRIES paid re-reads, the hold does not clear, and the reel retires as
+        "still owed" without ever banking. Same over-queue shape as the 2026-08-28 incident, aimed
+        at the wrong verb. [[label-outlived-referent]]"""
+        import unittest.mock as mock
+        import shelf_driver as sd
+        import control_app as ca
+        import reel_retention as rr
+        never = sorted(t for t, lane in sd.OWED_BY.items()
+                       if lane == "vault" and t not in sd.READ_CLEARS)
+        self.assertTrue(never, "no vault tag is excluded from READ_CLEARS — this law is vacuous, "
+                               "and the over-queue it guards against cannot be demonstrated")
+        queued = []
+        for tag in never:
+            plan = {"ok": True, "kept": [{"reel": "reel_s_9_9", "tag": tag, "why": "x", "mb": 1}],
+                    "candidates": [], "onDisk": 1}
+            with mock.patch.object(rr, "plan", return_value=plan):
+                got = ca._vault_owed_reels(hist="/tmp/nowhere-shelf") or []
+            if any("reel_s_9_9" in str(g) for g in got):
+                queued.append(tag)
+        self.assertEqual(
+            [], queued,
+            "the sweeper would pay for a re-read on tag(s) %r, which a read cannot clear — the "
+            "money is spent, the hold stays, and the reel is retired as still owed." % queued)
 
     def test_it_no_longer_greps_an_english_sentence(self):
         needle = "VAULT lane has " + "never swept"     # assembled: cannot match its own text

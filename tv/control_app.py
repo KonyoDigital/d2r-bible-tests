@@ -18030,7 +18030,20 @@ def _retention_once():
     # matching the tag is the same reels by the same rule — it simply stops breaking the day
     # somebody improves the wording.
     _w_chron = [k for k in (p.get("kept") or []) if k.get("tag") == "never-chronicle-swept"]
-    _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") == "vault-owes"]
+    # ⚠⚠ v2878 — THE SECOND READER OF plan()["kept"], AND v2876 MOVED ONLY THE FIRST.
+    # A cross-family review caught it: `_vault_owed_reels` learned `panels-never-banked`
+    # and this did not, so the sweeper saw 18 owed while this sentence still said 0 were
+    # waiting on the vault lane. v2876's own comment claimed the panel and the sweeper
+    # cannot drift apart — they still could, because only one of the two readers moved.
+    # Same split as the 2026-08-28 incident, inverted: the sweeper right, the explanation
+    # wrong. Reports everything the LANE owns (all three tags), where the sweeper pays only
+    # for READ_CLEARS — different questions, one map. [[copy-drift]] [[the-unjoined-end]]
+    try:
+        import shelf_driver as _sd_lane
+        _vault_lane_tags = frozenset(t for t, l in _sd_lane.OWED_BY.items() if l == "vault")
+    except Exception:
+        _vault_lane_tags = frozenset(("vault-owes",))
+    _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") in _vault_lane_tags]
     waiting = _w_chron + _w_vault
     waiting_mb = round(sum(k.get("mb") or 0 for k in waiting), 1)
     _chron_mb = round(sum(k.get("mb") or 0 for k in _w_chron), 1)
@@ -20176,7 +20189,12 @@ def _vault_owed_reels(hist=None):
     # ⚠ An unreadable map is UNKNOWN, never []. [[copy-drift]] [[the-unjoined-end]]
     try:
         import shelf_driver as _sd
-        _vault_tags = frozenset(t for t, lane in _sd.OWED_BY.items() if lane == "vault")
+        # ⚠ v2878 — LANE **AND** VERB. A cross-family review of v2876: this queued all three
+        # vault tags, and `rows-not-banked` is not a read — the sweep already ran and made
+        # rows; the missing thing is a durable BANK, so a re-read spends and clears nothing,
+        # then retires the reel as "still owed". READ_CLEARS is the subset a read can fix.
+        _vault_tags = frozenset(t for t, lane in _sd.OWED_BY.items()
+                                if lane == "vault" and t in _sd.READ_CLEARS)
     except Exception:
         return None
     if not _vault_tags:
@@ -25721,7 +25739,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2877",
+        "ver": "v2878",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

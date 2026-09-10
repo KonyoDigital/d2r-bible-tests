@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2878** | `(this commit)` | v2878 — the panel and the sweeper were still two readers of one plan, and a read cannot clear a reel whose rows were already made |
 | **v2877** | `(this commit)` | v2877 — the shelf subtracts the eight fixture reels once at the seam, and every figure moves with them |
 | **v2876** | `(this commit)` | v2876 — a new retention tag shadowed the only consumer that filtered on the old one, and eleven fixtures were sized against the constant I moved |
 | **v2875** | `(this commit)` | v2875 — the sweep never stamped the branch that read, a chronicle verdict held stash footage, and lifting it exposed a seal with nothing behind it |
