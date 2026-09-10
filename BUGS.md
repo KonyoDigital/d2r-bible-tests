@@ -29258,3 +29258,60 @@ AFTER  the view fix   view=tvd        #sig-adv display=block   box=73.875
 for a measurement I could have taken in ninety seconds with the CDP harness I already had. Walking
 the computed styles found in one probe what a plausible story had got wrong.
 [[feedback-suspect-the-instrument]] [[ab-against-head-before-blaming-the-room]]
+
+## REG-900 — the vault lane had 14 write sites and 0 persistence sites
+
+**v2901 (#60).** `control_app._VAULT_AUTOREAD` is where the vault lane keeps everything it has
+learned. MEASURED by parse: **14 sites write it, ZERO save or load it.** No json, no dump, no open.
+It lived and died with the process — and his console was **replaced twice in one hour** the same
+evening (#67).
+
+```
+reads    how many sweeps completed      tries    how many attempts each reel has cost
+lastTs   when the last one finished     retired  reels the lane STOPPED PAYING FOR
+```
+
+⚠ **`retired` is the expensive one.** A retirement is the lane's decision not to buy a reel again.
+Losing it does not merely forget — it makes the lane pay a second time. That is the "and re-spends
+for it" in #60's title, and it was a property of the code rather than a suspicion.
+
+### It had also been lying to the corroborator
+
+`corroborate.py`'s `vault-lane-has-worked` reads `lastTs or reads > 0`, under the comment:
+
+> *"lastTs is the durable tell — `reads` is a process-local counter and resets on every restart."*
+
+**Both were process-local. There was no durable tell.** That false distinction is why the invariant
+fired on a RESTART and reported "this lane has never swept" — a very different accusation from
+"this process is new". The comment is corrected in the same change, and is true now that it is
+backed by a store.
+
+### The fix
+
+`.vault_autoread.json`, written `tmp` + `os.replace`, path resolved at CALL time through
+`_fixture_root_for_state()` so a suite or a render gate cannot land in his live `tv/`. Saved after a
+completed read and after a retirement — the two moments that change what the lane will do next.
+
+⚠ **Three outcomes on load, not two.** `True` restored · `False` no store yet, a genuine fresh start
+· **`None` a store exists and could not be read** — and an empty `retired` is then a CLAIM that
+nothing was retired, which costs money to act on. The state carries `storeReadable`/`storeWhy` so
+UNKNOWN travels.
+
+MEASURED across a simulated restart:
+
+```
+saved            reads=3 lastTs=1788999999000 retired=['reel_x']
+after 'restart'  reads=0 lastTs=0             retired=[]
+after load       reads=3 lastTs=1788999999000 retired=['reel_x']
+store path       under TV_HIST, NOT his live tv/
+```
+
+⚠ **The corroborator pair is still RED and this does not claim otherwise.** On his live tree the
+store does not exist yet, because the lane has not completed a read since the fix landed — so
+`0 >= 1` still fails. A fix cannot retroactively create a `lastTs` that never happened. What changed
+is that the NEXT sweep survives a restart, and that the state now distinguishes "never swept" from
+"just restarted" instead of reporting both as `reads=0 lastTs=None`.
+
+Gate `test_the_vault_lane_remembers_across_a_restart` — 6 laws, no footage, TV_HIST pointed at a
+temp dir so it cannot touch his store. Proven red 3 ways, 1 match each: drop the restore · report an
+unreadable store as fresh · write in place instead of `os.replace`. 285 gates.

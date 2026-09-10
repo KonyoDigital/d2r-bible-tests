@@ -334,5 +334,38 @@ def _drop_stale_bytecode(paths):
     return removed
 
 
+def _regen_blueprint():
+    """BLUEPRINT.md is GENERATED from the code, so a version bump must regenerate it.
+
+    ⚠⚠ MEASURED 2026-09-10: the pre-push gate refused THREE separate pushes in one session with
+    "BLUEPRINT.md no longer matches the code" — every time because a version had added or removed a
+    gate and the generated map still carried the old count. Each refusal cost a full push cycle:
+    the second eye, the blueprint check, the suites, all re-run from the top.
+
+    The gate is RIGHT to refuse and must not regenerate the map itself — the pre-push grades the
+    WORKING TREE, so a hook that edits the tree mid-run is grading bytes it just changed. The place
+    to do it is HERE, at the bump, where the tree is already being written on purpose.
+
+    ⚠ A FAILURE HERE MUST NEVER FAIL THE BUMP. The four stamps are the ship; the map is a
+    convenience. If it cannot regenerate, say so and let the pre-push refuse — that is the gate
+    doing its job, not a reason to lose a version stamp.
+    """
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        r = subprocess.run([sys.executable, os.path.join(here, "blueprint.py")],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode == 0:
+            print("   regenerated BLUEPRINT.md")
+            return True
+        print("   ⚠ BLUEPRINT.md could NOT be regenerated (exit %s) — the pre-push will refuse "
+              "until it is: python3 tv/blueprint.py" % r.returncode)
+    except Exception as exc:
+        print("   ⚠ BLUEPRINT.md regeneration raised %s — run python3 tv/blueprint.py by hand"
+              % type(exc).__name__)
+    return False
+
+
 if __name__ == "__main__":
     bump(sys.argv[1], sys.argv[2], " ".join(sys.argv[3:]))
+    _regen_blueprint()

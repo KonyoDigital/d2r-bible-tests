@@ -20134,6 +20134,87 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
                    # to assert a cause it had never measured; now it can quote one.
                    "lastWhy": {}}
 
+#: ⚠⚠⚠ v2901 (#60) — WHAT THE LANE LEARNS MUST SURVIVE THE PROCESS. MEASURED 2026-09-10: the dict
+#: above had **14 write sites and ZERO persistence sites** — no save, no load, no json anywhere.
+#: Every restart wiped it, and his console was REPLACED TWICE in one hour (#67).
+#:
+#: `retired` is the expensive one. A retirement is the lane's decision to STOP PAYING for a reel.
+#: Losing it does not merely forget — it makes the lane buy that reel again. That is the "and
+#: re-spends for it" in #60's title, and it was a property of the code, not a suspicion.
+#:
+#: ⚠ AND IT HAD BEEN LYING TO THE CORROBORATOR. `vault-lane-has-worked` reads `lastTs or reads > 0`
+#: under the comment "lastTs is the durable tell — `reads` is a process-local counter". BOTH were
+#: process-local. That false distinction is why a RESTART read as "this lane has never swept",
+#: which is a very different accusation. [[label-outlived-referent]]
+#:
+#: ⚠ PATH RESOLVED AT CALL TIME, like its siblings — an env honoured only at import is a redirect
+#: that silently does not take, and this file WRITES, so a suite running in a fixture world must
+#: not land in his live tv/. [[feedback-fixtures-never-touch-live-data]]
+_VAULT_AUTOREAD_STORE = {"tried": False, "readable": None}
+
+
+def _vault_autoread_path():
+    return os.path.join(_fixture_root_for_state(), ".vault_autoread.json")
+
+
+def _vault_autoread_load():
+    """Restore what the lane learned. -> True restored · False no store yet · None UNREADABLE
+
+    ⚠⚠ THREE OUTCOMES, NOT TWO, AND THE THIRD IS THE ONE THAT COSTS MONEY.
+      True   a store was read; `retired` means what it says
+      False  no store exists yet — a genuine fresh start, and an empty `retired` is TRUE
+      None   a store exists and could not be read. An empty `retired` is then a CLAIM that nothing
+             was retired, and acting on that claim re-buys every reel the lane had already ruled
+             out. UNKNOWN must travel. [[unknown-stays-unknown]]
+    """
+    st = _VAULT_AUTOREAD_STORE
+    if st["tried"]:
+        return st["readable"]
+    st["tried"] = True
+    try:
+        with io.open(_vault_autoread_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+    except FileNotFoundError:
+        st["readable"] = False
+        return False
+    except Exception:
+        st["readable"] = None            # ⚠ NOT False — "unreadable" is not "fresh"
+        return None
+    if not isinstance(d, dict):
+        st["readable"] = None
+        return None
+    for k in ("reads", "lastTs"):
+        if isinstance(d.get(k), int):
+            _VAULT_AUTOREAD[k] = d[k]
+    for k in ("retired", "tries", "lastWhy"):
+        if isinstance(d.get(k), dict):
+            _VAULT_AUTOREAD[k] = dict(d[k])
+    st["readable"] = True
+    return True
+
+
+def _vault_autoread_save():
+    """Persist the durable half. tmp + os.replace, so a reader never sees a torn file.
+
+    ⚠ `skipped` is deliberately NOT persisted — it is this pass's diagnostics and is rebuilt every
+    tick. Everything here changes what the lane WILL DO next: what it has read, when, how many
+    attempts each reel has already cost, and which reels it has stopped paying for.
+    """
+    try:
+        dest = _vault_autoread_path()
+        tmp = dest + ".tmp"
+        rec = {"reads": int(_VAULT_AUTOREAD.get("reads") or 0),
+               "lastTs": int(_VAULT_AUTOREAD.get("lastTs") or 0),
+               "retired": _VAULT_AUTOREAD.get("retired") or {},
+               "tries": _VAULT_AUTOREAD.get("tries") or {},
+               "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {}}
+        with io.open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh, indent=1, sort_keys=True)
+        os.replace(tmp, dest)
+        return True
+    except Exception:
+        return False
+
 
 
 def _seal_extracted(rows, examined_empty=False):
@@ -20718,9 +20799,22 @@ def _retro_triage_loop():
 def _vault_autoread_state():
     """What the vault watchdog has actually done. Reports UNKNOWN rather than a confident zero."""
     try:
+        # ⚠ v2901 (#60) — RESTORE BEFORE REPORTING, or every restart reports a lane that has never
+        # worked. Idempotent: the first call reads the store, the rest are a flag check.
+        _st_readable = _vault_autoread_load()
         d = _VAULT_AUTOREAD
         owed = _vault_owed_reels()
         return {"on": bool(_VAULT_AUTOREEL_ON),
+                # ⚠⚠ THE STORE'S OWN STATE TRAVELS WITH THE ANSWER. True = restored · False = no
+                # store yet, a genuine fresh start · None = a store exists and could NOT be read,
+                # so an empty `retired` here is a CLAIM nobody measured, and acting on it re-buys
+                # every reel the lane had ruled out. [[unknown-stays-unknown]]
+                "storeReadable": _st_readable,
+                "storeWhy": (None if _st_readable is not False and _st_readable is not None
+                             else ("no store yet — this lane has genuinely never recorded a read"
+                                   if _st_readable is False else
+                                   "the store exists and could NOT be read, so what this lane had "
+                                   "retired is UNKNOWN — treat an empty retired list as unmeasured")),
                 "everySeconds": _VAULT_AUTOREAD_EVERY_S,
                 "reads": int(d.get("reads") or 0),
                 "lastTs": d.get("lastTs") or None,
@@ -20778,6 +20872,7 @@ def vault_autoreel_tick():
             _VAULT_AUTOREAD["retired"][rid] = {
                 "why": _said, "lastWhy": _last,
                 "tries": tries - 1, "at": int(time.time() * 1000)}
+            _vault_autoread_save()        # ⚠ a retirement not persisted is a reel re-bought
             return {"ok": False, "retired": rid, "owed": owed, "why": _said}
         # ⚠ v2225 — AIM IT. `vault_sweep_start(limit=1)` was UNTARGETED: the work list decided only
         # WHETHER a tick fired, then the sweeper re-derived its own list and picked whatever it
@@ -20802,6 +20897,7 @@ def vault_autoreel_tick():
         _VAULT_AUTOREAD["tries"][rid] = tries
         _VAULT_AUTOREAD["reads"] += 1
         _VAULT_AUTOREAD["lastTs"] = int(time.time() * 1000)
+        _vault_autoread_save()            # ⚠ lastTs is what "has this lane ever worked" reads
         return {"ok": True, "started": rid, "owed": owed}
     return {"ok": True, "read": None, "owed": owed,
             "why": "no reel owes the vault lane a read" if not owed else
@@ -25910,7 +26006,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2900",
+        "ver": "v2901",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

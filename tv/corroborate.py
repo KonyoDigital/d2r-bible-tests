@@ -167,8 +167,14 @@ def _inv_a_lane_that_is_ON_has_either_worked_or_says_why_not():
     import control_app as ca
 
     def left():
-        # 1 if the lane has ever completed a read, else 0. lastTs is the durable tell — `reads`
-        # is a process-local counter and resets on every restart.
+        # 1 if the lane has ever completed a read, else 0.
+        # ⚠⚠ v2901 — THIS COMMENT USED TO SAY "lastTs is the durable tell — `reads` is a
+        # process-local counter and resets on every restart". BOTH were process-local: measured
+        # 2026-09-10, `_VAULT_AUTOREAD` had 14 write sites and ZERO persistence sites, so there
+        # was no durable tell at all. The false distinction is why this invariant fired on a
+        # RESTART and read as "this lane has never swept" — a very different accusation from
+        # "this process is new". `lastTs` IS durable now (control_app persists it); the comment
+        # is true as of #60 and was a lie before it. [[label-outlived-referent]]
         try:
             st = ca._vault_autoread_state() or {}
         except Exception:

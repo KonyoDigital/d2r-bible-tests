@@ -918,6 +918,16 @@ GATES = [
          "at a time, UNKNOWN until it lands, and carries its age. Measured after: worst handler "
          "cost 0.1ms against a 6,000ms survey, 1 invocation across 9 polls. Proven red 3 ways.",
          skip_ok=()),
+    Gate("test_the_vault_lane_remembers_across_a_restart",
+         [sys.executable, os.path.join(HERE, "test_the_vault_lane_remembers_across_a_restart.py")], 90,
+         why="v2901 (#60, REG-900) — _VAULT_AUTOREAD had 14 write sites and ZERO persistence "
+         "sites, so every restart wiped what the lane had RETIRED and it paid for those reels "
+         "again. His console was replaced twice in one hour. It also made corroborate.py's "
+         "vault-lane-has-worked fire on a new process while its own comment called lastTs 'the "
+         "durable tell' — both fields were process-local. Now persisted atomically under the "
+         "fixture root, with unreadable reported as UNKNOWN rather than as a fresh start. Proven "
+         "red 3 ways.",
+         skip_ok=()),
     Gate("test_two_surfaces_one_shelf",
          [sys.executable, os.path.join(HERE, "test_two_surfaces_one_shelf.py")], 60,
          why="v2893 (#58) — the shelf subtracted the 8 fixture reels from /api/reel_story at v2877 and "
