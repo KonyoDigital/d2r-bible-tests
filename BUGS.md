@@ -29547,13 +29547,75 @@ missed it and why the pixel path is the only one that can see it.
 ## REG-907 — a store must be able to name what produced it, and must never invent a name it does not have
 
 **v2908.** #69 was filed as "37 of 43 stores cannot say what produced them". Measured on this tree
-2026-09-10: **44 stores — ANSWERS 6 · PARTIAL 4 · SILENT 16 · REFERENCE 17 · UNKNOWN 1**. Both numbers
+2026-09-10: **44 stores — ANSWERS 6 · PARTIAL 4 · SILENT 16 · REFERENCE 17 · UNKNOWN 1**.
+
+⚠ **AMENDED v2911 — `ANSWERS 6` IS A FLOOR, NOT A COUNT.** `_sample_row` merges a store's
+SUB-DICTS and then never examines the top level, so three stores carrying a producer field at
+TOP level grade REFERENCE: `WINDOWS_SHIP.json` (`ver`), `set_roster.json` (`sourceHash`),
+`g5_second_lane_v1789.json` (`lane`). All three values read as real and non-null. The honest
+figure is **6–9 of 43**, and the census's own blind spot is why it cannot yet be narrowed.
+Reported as a range rather than a number. [[unknown-stays-unknown]] Both numbers
 are right about different questions: `verdict_provenance.py` counts 43 because it excludes its own
 baseline from its own census, and `37` is `43 − 6`, arithmetically true and **three classes wide**.
 A REFERENCE file has no producer to name, so counting it as a gap manufactures 17 defects that do not
 exist; a SILENT one is a real gap; a PARTIAL one is a half-answer that must not be rounded up.
 `provenance.py` keeps the four classes apart and refuses to synthesise a producer it cannot evidence.
 Ten red-proofs, all PROVEN at 1 match each. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+## REG-910 — more stamps than the census counted, and the panel said "covers all"
+
+**v2911.** Measured on his LIVE console 2026-09-10, `GET /api/heart`:
+
+    instruments.proved        = 285      ->  _iCensus  = 285
+    instruments.unproven      = 0
+    instruments.provenAtCount = 289      ->  _iStamped = 289
+                                              _iGap    = -4   ->  `_iGap > 0` is FALSE
+
+`_iDenom` had two arms below UNKNOWN: a FLOOR arm for `_iGap > 0`, and an else that read
+`· and it covers all N gate(s) that carry a proof stamp`. With four MORE stamps than the census
+counted, the negative gap fell into the else and the panel **asserted completeness over the larger
+number**, three lines under a header saying `285 proven`.
+
+**The two figures age independently, which is why this is ordinary and not a freak state.** `proved`
+moves only on a FULL census run; `provenAtCount` is the size of the per-gate `verdictAt` map and
+grows on every TARGETED `--prove`. Four targeted proves in one evening added four stamps without
+moving the census. Any session that proves a handful of gates reproduces it.
+
+A negative gap is now its own sentence: the census is OLDER than the stamps. A gap of exactly 0
+keeps its old words, because it genuinely does cover all. Three red-proofs, all PROVEN at 1 match —
+including one that sets the threshold to `-1000`, an arm that can never be reached, because a
+condition no real value can meet is an absent branch wearing a guard.
+[[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
+
+## REG-911 — the weld gate parsed its own comment, and passed because the prose happened to agree
+
+**v2911.** Found by the cross-family eye reviewing v2910, twenty minutes after that version shipped.
+It did not assert this — it MEASURED it: *"head 2/2 matches start in the comment; tail 2/2 matches
+start in the comment; only the guard is unique and in code."*
+
+REG-909's gate reads three numbers out of `_weld` and checks `guard >= head + tail - 1`. But
+`_weld_source()` returned the helper **with its comment**, and that comment names `slice(0,2)` and
+`slice(-2)` while explaining the overlap — earlier in the body than the statements. `re.search` took
+the first hit every time. The law passed only because comment and code happened to agree.
+
+**The truth table, measured on a deliberately drifted copy** (live window widened to `slice(0, 3)`,
+comment left saying `slice(0,2)`):
+
+    ORIGINAL pattern   comments kept       reads 2  <- THE COMMENT.  guard 3 >= 3 PASSES, drift MISSED
+    ORIGINAL pattern   comments stripped   reads 3  <- the code.     guard 3 >= 4 REFUSES
+    FIXED pattern      comments kept       reads 3  <- the code.     guard 3 >= 4 REFUSES
+
+So a four-word clause would have repeated a word while the gate stayed green — **the exact drift the
+gate's own docstring says a grep would miss, missed for the same reason.** Fixed three ways, any one
+of which suffices: comments stripped before the regex, patterns anchored on `w.slice(` rather than a
+bare `slice(`, and every pattern's match count pinned to exactly 1 instead of search-and-take-first.
+The reach check also counted `slice` as 2 and the real number is 3 (head, tail, and the free middle
+`slice(2,-2)`) — a reach check with the wrong count is decoration.
+
+⚠ This is the **tenth** prose-read this session, and it shipped inside a gate written to prevent
+prose-reads. The rule is not "remember to strip comments" — it is **PARSE, and PIN THE COUNT**, so
+that reading the wrong thing fails loudly instead of agreeing by coincidence.
+[[source-reading-guard]] [[measured-true-read-wrong]] [[sabotage-is-usually-the-wrong-one]]
 
 ## REG-909 — a weld joined a figure to its noun by showing a word twice
 

@@ -90,33 +90,70 @@ def _body_row(colour, painted_shift=None, base=None):
     return left + mid + right
 
 
-def capture_bytes(kind, nonce=0):
+#: the three traffic lights. macOS paints them RED/YELLOW/GREEN on a key window and flat grey on
+#: one that is not — which is the only per-capture record of key state a saved frame carries.
+LIGHTS_KEY = ((255, 95, 86), (255, 189, 46), (39, 201, 63))
+LIGHTS_GREY = ((190, 190, 190),) * 3
+
+
+def _stamp_lights(rows, key):
+    """Paint the traffic lights into the titlebar of an already-built frame."""
+    x0 = WIN[0]
+    y = WIN[1] + int((WIN[3] - WIN[1]) * 0.025)
+    colours = LIGHTS_KEY if key else LIGHTS_GREY
+    for yy in range(y, y + 14):
+        r = bytearray(rows[yy])
+        for i, c in enumerate(colours):
+            for xx in range(x0 + 8 + i * 14, x0 + 20 + i * 14):
+                o = xx * 4
+                r[o:o + 3] = bytes(c)
+        rows[yy] = bytes(r)
+
+
+def capture_bytes(kind, nonce=0, key=False, chrome=True):
     """A whole fake capture of his window. -> bytes
 
-    kind: "white" / "dark" -> a blank body under a titlebar; "painted" -> content everywhere.
+    kind: "white" / "dark" -> a blank body under a titlebar; "painted" -> content everywhere;
+    "dim" -> content everywhere but every luminance under the ink bar, which is the shape of his
+    VISUAL1-after.png — a COMPLETE console in his dark theme that paint_witness's ink arm calls
+    blank. key: draw the traffic lights coloured (a frontmost window) or grey (a background one).
+    chrome=False drops the drop shadow AND the titlebar, i.e. not a capture of one window.
     nonce changes ONE body pixel, so two captures of the same kind differ in bytes while showing
     the same thing — which is how the pixel finding is proven independent of the hash finding.
     """
     x0, x1 = WIN[0], WIN[2]
     width = x1 - x0
-    base = b"".join(bytes(((x * 5) % 256,) * 3 + (255,)) for x in range(width))
+    span = 256 if kind != "dim" else 50
+    base = b"".join(bytes(((x * 5) % span,) * 3 + (255,)) for x in range(width))
     shadow = _shadow_row()
-    chrome = _body_row(CHROME)
+    chrome_row = _body_row(CHROME)
     edge = _body_row(CHROME_EDGE)
+    wide = b"".join(bytes(((x * 5) % span,) * 3 + (255,)) for x in range(IMG_W))
+    flat = bytes(tuple(WHITE if kind == "white" else DARK) + (255,)) * IMG_W
     rows = []
     for y in range(IMG_H):
+        if not chrome:
+            # no shadow, no titlebar: a full-bleed grab, not a capture of one window
+            if kind in ("white", "dark"):
+                rows.append(flat)
+            else:
+                s = ((y * 11) % IMG_W) * 4
+                rows.append(wide[s:] + wide[:s])
+            continue
         if y < WIN[1] or y >= WIN[3]:
             rows.append(shadow)
         elif y < WIN[1] + CHROME_H - 3:
-            rows.append(chrome)
+            rows.append(chrome_row)
         elif y < WIN[1] + CHROME_H:
             rows.append(edge)
-        elif kind == "painted":
+        elif kind in ("painted", "dim"):
             rows.append(_body_row(None, painted_shift=y * 11, base=base))
         else:
             rows.append(_body_row(WHITE if kind == "white" else DARK))
+    if chrome:
+        _stamp_lights(rows, key)
     if nonce:
-        y = WIN[1] + CHROME_H + 5
+        y = WIN[1] + CHROME_H + 5 if chrome else IMG_H // 2
         r = bytearray(rows[y])
         o = (x0 + 7) * 4
         r[o:o + 3] = bytes(((nonce * 37) % 256,) * 3)
@@ -205,9 +242,10 @@ class FrozenFramesReadsThePixelsAndTheBytes(unittest.TestCase):
         rep = self._feed([self.dark] * 5)
         self.assertEqual(rep["frozen"]["state"], FF.FROZEN, rep["verdict"])
         self.assertEqual(rep["blank"]["state"], FF.BLANK, rep["verdict"])
-        self.assertEqual(len(rep["findings"]), 2)
+        self.assertEqual(len(rep["findings"]), 3)
         self.assertTrue(rep["findings"][0].startswith("FEED"))
         self.assertTrue(rep["findings"][1].startswith("PIXEL"))
+        self.assertTrue(rep["findings"][2].startswith("CAUSE"))
 
     # ── the crop is load-bearing, and the white window is the case that proves it ────────────────
     def test_a_white_blank_window_under_its_titlebar_reads_blank(self):
@@ -343,6 +381,82 @@ class FrozenFramesReadsThePixelsAndTheBytes(unittest.TestCase):
         fresh = FF.scan(self.shelf.dir, newest=16, decode=4, now=NOW + 5)
         self.assertEqual(fresh["frozen"]["freshness"], "FRESH", fresh["verdict"])
 
+    # ── WEDGED vs THROTTLED: the question the console said in its own words it could not answer ──
+    def test_a_frozen_FRONTMOST_window_is_a_wedge(self):
+        """A window that is on top and still draws nothing is not being throttled."""
+        rep = self._feed([capture_bytes("dark", key=True)] * 4)
+        self.assertEqual(rep["frozen"]["state"], FF.FROZEN, rep["verdict"])
+        self.assertEqual(rep["wedge"]["keyState"], FF.KEY, rep["wedge"]["keyWhy"])
+        self.assertEqual(rep["wedge"]["state"], FF.WEDGED, rep["wedge"]["why"])
+
+    def test_a_frozen_BACKGROUND_window_that_is_still_painted_is_throttling(self):
+        """The harmless reading, and it must stay available or every background window alarms."""
+        rep = self._feed([capture_bytes("painted", key=False)] * 4)
+        self.assertEqual(rep["wedge"]["keyState"], FF.NOT_KEY, rep["wedge"]["keyWhy"])
+        self.assertEqual(rep["blank"]["state"], FF.PAINTED, rep["blank"]["why"])
+        self.assertEqual(rep["wedge"]["state"], FF.THROTTLED, rep["wedge"]["why"])
+
+    def test_a_BLANK_background_window_is_UNKNOWN_and_is_not_filed_as_harmless(self):
+        """His three big runs. Throttling holds the last painted frame; it does not empty a
+        window — so the two readings contradict, and the contradiction IS the finding."""
+        rep = self._feed([capture_bytes("white", key=False)] * 4)
+        self.assertEqual(rep["wedge"]["keyState"], FF.NOT_KEY, rep["wedge"]["keyWhy"])
+        self.assertEqual(rep["blank"]["state"], FF.BLANK, rep["blank"]["why"])
+        self.assertEqual(rep["wedge"]["state"], FF.UNKNOWN,
+                         "a blank background window was filed as harmless throttling: %s"
+                         % rep["wedge"]["why"])
+        self.assertIn("CONTRADICT", rep["wedge"]["why"])
+
+    def test_a_moving_feed_has_nothing_to_disambiguate(self):
+        rep = self._feed([capture_bytes("painted", nonce=i, key=True) for i in (1, 2, 3, 4)])
+        self.assertEqual(rep["wedge"]["state"], FF.UNKNOWN)
+        self.assertIn("no frozen frame", rep["wedge"]["why"])
+
+    def test_a_capture_with_no_window_chrome_cannot_be_asked_about_key_state(self):
+        """A full-bleed grab has no titlebar to read, so the answer is UNKNOWN — never a reading
+        of whatever page content happens to sit in that corner."""
+        p = self.shelf.put(capture_bytes("painted", chrome=False), NOW)
+        ks = FF.key_state(p)
+        self.assertEqual(ks["state"], FF.UNKNOWN, ks["why"])
+        self.assertIn("no window chrome", ks["why"])
+
+    def test_what_is_frontmost_NOW_never_decides_a_verdict_about_an_old_frame(self):
+        """It is reported as context and nothing else — a frame from this morning cannot be
+        explained by what is on top at this second."""
+        self._feed([capture_bytes("dark", key=True)] * 4, end=NOW)
+        stale = FF.scan(self.shelf.dir, newest=16, decode=4, now=NOW + FF.STALE_SEC + 60)
+        self.assertEqual(stale["wedge"]["state"], FF.WEDGED,
+                         "the verdict changed with age instead of being read from the pixels")
+        self.assertIsNone(stale["wedge"]["frontmostAppNow"],
+                          "the live front application was consulted about a stale frame")
+        self.assertIn("says nothing about what was frontmost then", stale["wedge"]["frontmostWhy"])
+
+    # ── the two blank arms are not equally trustworthy ───────────────────────────────────────────
+    def test_the_arm_that_said_blank_is_reported_on_every_frame(self):
+        """MEASURED on his shelf: the INK arm called VISUAL1-after.png blank, and opening it shows
+        a COMPLETE console — MY HUNT, the TZ tracker, THE FLEET — in his dark theme. The
+        single-colour arm cannot make that mistake. A caller about to reload his window under him
+        needs to know which one fired. [[visual-regression-detector]]"""
+        one = self._feed([self.white])
+        self.assertEqual(one["blank"]["frames"][0]["arm"], FF.ARM_SINGLE_COLOUR)
+        self.assertEqual(one["blank"]["bySingleColour"], 1)
+        self.assertEqual(one["blank"]["byInk"], 0)
+
+        self.shelf.close(); self.shelf = _Shelf()
+        dim = self._feed([capture_bytes("dim", key=False)])
+        self.assertEqual(dim["blank"]["state"], FF.BLANK,
+                         "the dim-console fixture no longer reproduces the ink arm: %s"
+                         % dim["blank"]["why"])
+        self.assertEqual(dim["blank"]["frames"][0]["arm"], FF.ARM_INK,
+                         "a dim but fully painted console was attributed to the single-colour "
+                         "test, which cannot produce that verdict")
+        self.assertEqual(dim["blank"]["byInk"], 1)
+        self.assertIn("INK test", dim["blank"]["why"])
+
+    def test_a_painted_frame_carries_no_arm(self):
+        rep = self._feed([capture_bytes("painted", key=True)])
+        self.assertIsNone(rep["blank"]["frames"][0]["arm"])
+
     # ── the fixture may never reach his shelf ────────────────────────────────────────────────────
     def test_this_suite_reads_only_its_own_temp_directory(self):
         rep = self._feed([self.painted])
@@ -363,8 +477,8 @@ RED_PROOF = [
     {
         'why': 'deleting the drop-shadow trim: a file on the shelf carries a soft alpha ramp around the window that paint_witness never sees, because it reads live windows with kCGWindowImageBoundsIgnoreFraming. With the shadow inside the measured region a blank window is no longer one colour and reads PAINTED',
         'file': 'frozen_frames.py',
-        'find': '    x0, y0, x1, y1 = window_rect(w, h, ch, rows)',
-        'replace': '    x0, y0, x1, y1 = 0, 0, w, h',
+        'find': '    w, h, ch, rows = png_rows(path)\n    x0, y0, x1, y1 = window_rect(w, h, ch, rows)\n    win_w, win_h = x1 - x0, y1 - y0',
+        'replace': '    w, h, ch, rows = png_rows(path)\n    x0, y0, x1, y1 = 0, 0, w, h\n    win_w, win_h = x1 - x0, y1 - y0',
         'matches': 1,
     },
     {
@@ -384,8 +498,8 @@ RED_PROOF = [
     {
         'why': 'giving a file whose pixels would not decode a verdict about his screen. UNKNOWN is not PAINTED: an unread frame is the one state that must never read clean',
         'file': 'frozen_frames.py',
-        'find': '    except Unreadable as e:\n        out["why"] = "the pixels could not be read: %s" % e\n        return out',
-        'replace': '    except Unreadable as e:\n        out["state"] = PAINTED\n        out["why"] = "the pixels could not be read: %s" % e\n        return out',
+        'find': '    except Unreadable as e:\n        out["why"] = "the pixels could not be read: %s" % e\n        return out\n    except Exception as e:',
+        'replace': '    except Unreadable as e:\n        out["state"] = PAINTED\n        out["why"] = "the pixels could not be read: %s" % e\n        return out\n    except Exception as e:',
         'matches': 1,
     },
     {
@@ -400,6 +514,34 @@ RED_PROOF = [
         'file': 'frozen_frames.py',
         'find': '    if run_len >= FROZEN_RUN:',
         'replace': '    if run_len >= FROZEN_RUN + 99:',
+        'matches': 1,
+    },
+    {
+        'why': 'COLLAPSING THE CONTRADICTION INTO "HARMLESS" — filing a BLANK background window as ordinary WebKit throttling. Throttling holds the LAST PAINTED FRAME; it does not empty a window, so a blank one is not explained by it. 74 of his shelf\'s captures are exactly this shape, and under this edit every one of them would read THROTTLED — the console\'s own paintWhy names "normal and harmless" as one of the two readings, and this is the edit that picks it without evidence',
+        'file': 'frozen_frames.py',
+        'find': '    elif ks["state"] == NOT_KEY and b.get("state") == PAINTED:',
+        'replace': '    elif ks["state"] == NOT_KEY:',
+        'matches': 1,
+    },
+    {
+        'why': 'reading the traffic lights out of a capture that has no titlebar in it. A full-bleed grab has no window chrome, so that corner holds page content — and a console that draws anything coloured near its top-left would then be reported as a FRONTMOST window, which is the evidence the WEDGED verdict rests on',
+        'file': 'frozen_frames.py',
+        'find': '    if (x0, y0, x1, y1) == (0, 0, w, h):',
+        'replace': '    if False:',
+        'matches': 1,
+    },
+    {
+        'why': 'attributing every BLANK to the single-colour test. MEASURED: the INK arm called VISUAL1-after.png blank and that file is a COMPLETE console in his dark theme — his 20:22 window, fully painted. The single-colour arm cannot produce that verdict, so a caller about to reload his window under him must be told which one fired. Erasing the distinction hides paint_witness Family A, "a wrong BLANK replaces the window he is looking at, mid-use"',
+        'file': 'frozen_frames.py',
+        'find': '        out["arm"] = (ARM_SINGLE_COLOUR if (m.get("modalShare") or 0) >= PW.BLANK_MODAL_SHARE\n                      else ARM_INK)',
+        'replace': '        out["arm"] = ARM_SINGLE_COLOUR',
+        'matches': 1,
+    },
+    {
+        'why': 'asking what is frontmost NOW about a frame from hours ago. His frozen runs are 8-14 hours long; the live front application is a fact about this second and says nothing about 08:59. It is context, never evidence, and consulting it on a stale frame is how a reading gets the age of the FETCH instead of the age of the THING',
+        'file': 'frozen_frames.py',
+        'find': '    if f.get("freshness") == "FRESH":\n        name, why = frontmost_app()',
+        'replace': '    if True:\n        name, why = frontmost_app()',
         'matches': 1,
     },
     {

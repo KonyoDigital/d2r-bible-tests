@@ -12385,8 +12385,23 @@ window._lockMark = function(isOpen, px, label){
           /* the same words as the FLOOR branch six lines up — 'and it covers only X of Y'
              against 'and it covers all N' — because the two are alternatives of ONE
              sentence and a reader should not have to notice which arm they got. */
-          : (_iCensus ? (' · and it covers all ' + _iStamped
-                         + ' gate(s) that carry a proof stamp') : ''));
+          /* ⚠⚠ v2911 (#68) — A NEGATIVE GAP IS ITS OWN STATE, AND IT WAS FALLING INTO
+             "COVERS ALL". MEASURED ON HIS LIVE CONSOLE 2026-09-10 via /api/heart: proved 285,
+             unproven 0, provenAtCount 289 — so _iGap is -4, `_iGap > 0` is FALSE, and the reader
+             got 'and it covers all 289 gate(s)' three lines under a header saying '285 proven'.
+             Two numbers about gates, and the copy asserted completeness over the LARGER one.
+             The two figures AGE INDEPENDENTLY: `proved` moves only on a FULL census run, while
+             `provenAtCount` is the size of the per-gate verdictAt map and grows on every TARGETED
+             --prove. Four targeted proves tonight added four stamps without moving the census and
+             the subtraction went negative. That is not 'covers all' — it is the census being
+             OLDER than the stamps, and it is the one arm of this sentence that reports a STALE
+             reading rather than a complete one. A gap of exactly 0 keeps its old words.
+             [[stale-reading]] [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+          : (_iGap < 0
+              ? (' · and ' + _iStamped + ' gate(s) carry a proof stamp, ' + (-_iGap)
+                 + ' more than this census counted — the census is OLDER than the stamps')
+              : (_iCensus ? (' · and it covers all ' + _iStamped
+                             + ' gate(s) that carry a proof stamp') : '')));
     /* ⚠ AN ID, BECAUSE A TARGET THAT CANNOT NAME ITS SUBJECT PHOTOGRAPHS WHATEVER IS THERE.
        The heart-stored render target selected `.hrt-sec .hrt-k/.hrt-s/.hrt-w` — EVERY section — so
        it reported 241/241 in frame while the shot was scrolled to THE CHRONICLE ROUTES and this

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2911** | `(this commit)` | v2911 — the eye found the second one twenty minutes after v2910 shipped |
 | **v2910** | `(this commit)` | v2910 — latent: no clause is three words today, so every render was green |
 | **v2909** | `(this commit)` | v2909 — vaultAutoread sat at reads 0 for weeks with work owed and nothing said so |
 | **v2908** | `(this commit)` | v2908 — 44 stores: 6 answer, 4 partial, 16 silent, 17 reference, 1 unknown |

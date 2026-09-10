@@ -3610,6 +3610,18 @@ GATES = [
              "PARTIAL, 16 SILENT, 17 REFERENCE, 1 UNKNOWN. `37 of 43` was arithmetically true and "
              "three classes wide, which is why the fix had to separate them. #69.",
          skip_ok=()),
+    Gate("test_a_negative_gap_is_not_covers_all",
+         [sys.executable, os.path.join(HERE, "test_a_negative_gap_is_not_covers_all.py")], 120,
+         needs_app=False,
+         why="more stamps than the census counted means the census is STALE, never that it covers "
+             "everything. Measured on his live console 2026-09-10 via /api/heart: proved 285, "
+             "provenAtCount 289, so _iGap is -4, `_iGap > 0` is false, and the panel asserted "
+             "\u2018covers all 289 gate(s)\u2019 three lines under a header saying 285 proven. The "
+             "two figures age independently \u2014 `proved` moves on a FULL census, "
+             "`provenAtCount` on every TARGETED --prove \u2014 so any session proving a handful of "
+             "gates reproduces it. Behavioural: the real expression is run under node against all "
+             "four states.",
+         skip_ok=()),
     Gate("test_a_weld_never_repeats_a_word",
          [sys.executable, os.path.join(HERE, "test_a_weld_never_repeats_a_word.py")], 120,
          needs_app=False,

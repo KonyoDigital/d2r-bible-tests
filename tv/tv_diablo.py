@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2910"   # a weld that joined a figure to its noun by saying a word twice
+VERSION = "v2911"   # a negative gap that read as covers all, and a gate that graded its own comment
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

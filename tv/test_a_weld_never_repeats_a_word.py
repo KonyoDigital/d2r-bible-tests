@@ -52,9 +52,27 @@ def _between(src, start, end):
     return src[i:j + len(end)]
 
 
-def _weld_source():
+def _strip_js_comments(src):
+    """Block and line comments removed. -> str
+
+    ⚠⚠ WITHOUT THIS, THIS GATE GRADED ITS OWN EXPLANATION. Found by the cross-family eye on v2910,
+    and it MEASURED the failure rather than asserting it: "head 2/2 matches start in the comment;
+    tail 2/2 matches start in the comment; only the guard is unique and in code." The helper's own
+    comment names `slice(0,2)` and `slice(-2)` while explaining the overlap, and those appear
+    EARLIER in the body than the statements, so `re.search` read the prose every time. The law
+    passed only because comment and code happened to agree.
+    Fails when someone widens the live window and leaves the comment: head still reads 2 from the
+    prose, `3 >= 3` still passes, and a FOUR-word clause then repeats a word — the exact drift this
+    gate exists to catch. [[source-reading-guard]] [[measured-true-read-wrong]]
+    """
+    src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    return re.sub(r"//[^\n]*", " ", src)
+
+
+def _weld_source(strip=True):
     src = io.open(UI, encoding="utf-8").read()
-    return _between(src, "var _weld = function(t){", "};")
+    body = _between(src, "var _weld = function(t){", "};")
+    return _strip_js_comments(body) if strip else body
 
 
 class AWeldNeverRepeatsAWord(unittest.TestCase):
@@ -65,10 +83,16 @@ class AWeldNeverRepeatsAWord(unittest.TestCase):
         go quiet. [[source-reading-guard]] [[feedback-silence-is-not-evidence]]"""
         body = _weld_source()
         self.assertGreater(len(body), 80,
-                           "_weld's body came back at %d chars — this gate did not reach its "
-                           "subject, so its silence is not evidence" % len(body))
-        self.assertIn("slice", body, "_weld no longer slices — the law below is about a shape "
-                                     "that has changed, and it must be re-derived, not assumed")
+                           "_weld's CODE came back at %d chars with comments stripped — this gate "
+                           "did not reach its subject, so its silence is not evidence" % len(body))
+        # ⚠ counted, not merely present: `assertIn("slice", ...)` was satisfied by the comment.
+        # THREE windows, and naming them is the point: head `slice(0,2)`, tail `slice(-2)`, and
+        # the free middle `slice(2,-2)`. Only head and tail can overlap; the middle is what is
+        # ALLOWED to wrap. Getting this count wrong is how a reach check becomes decoration.
+        self.assertEqual(body.count("slice"), 3,
+                         "_weld's code has %d `slice` call(s), not 3 (head, tail, middle) — the "
+                         "shape this law is about has changed and must be re-derived, not assumed"
+                         % body.count("slice"))
 
     def test_the_whole_string_guard_covers_every_overlapping_length(self):
         """The one law. Head window H, tail window T, whole-string guard G, all three read out of
@@ -76,17 +100,18 @@ class AWeldNeverRepeatsAWord(unittest.TestCase):
         H + T - 1 or some N slips past the guard into the two-window branch and repeats a word."""
         body = _weld_source()
 
-        m_head = re.search(r"slice\(\s*0\s*,\s*(\d+)\s*\)", body)
-        m_tail = re.search(r"slice\(\s*-\s*(\d+)\s*\)", body)
-        m_guard = re.search(r"w\.length\s*<=\s*(\d+)", body)
-        self.assertIsNotNone(m_head, "no `slice(0, N)` head window found in _weld — UNKNOWN, "
-                                     "not passing")
-        self.assertIsNotNone(m_tail, "no `slice(-N)` tail window found in _weld — UNKNOWN, "
-                                     "not passing")
-        self.assertIsNotNone(m_guard, "no `w.length <= N` whole-string guard found in _weld — "
-                                      "without one, EVERY overlapping length repeats a word")
-
-        head, tail, guard = int(m_head.group(1)), int(m_tail.group(1)), int(m_guard.group(1))
+        # ⚠ findall + a pinned count, never search-and-take-the-first. A second occurrence means
+        # this gate is reading something other than the one statement it means to grade.
+        f_head = re.findall(r"w\.slice\(\s*0\s*,\s*(\d+)\s*\)", body)
+        f_tail = re.findall(r"w\.slice\(\s*-\s*(\d+)\s*\)", body)
+        f_guard = re.findall(r"w\.length\s*<=\s*(\d+)", body)
+        for label, hits in (("head window", f_head), ("tail window", f_tail), ("guard", f_guard)):
+            self.assertEqual(len(hits), 1,
+                             "the %s matched %d time(s) in _weld's CODE, expected exactly 1 — "
+                             "this gate is not grading a single statement, so its verdict is "
+                             "UNKNOWN: %r" % (label, len(hits), hits))
+        m_head, m_tail, m_guard = f_head, f_tail, f_guard
+        head, tail, guard = int(m_head[0]), int(m_tail[0]), int(m_guard[0])
         need = head + tail - 1
         self.assertGreaterEqual(
             guard, need,

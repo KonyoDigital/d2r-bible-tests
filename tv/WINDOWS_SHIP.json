@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2910",
+  "ver": "v2911",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2910: latent: no clause is three words today, so every render was green",
+  "note": "v2911: the eye found the second one twenty minutes after v2910 shipped",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
