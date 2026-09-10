@@ -903,7 +903,7 @@ GATES = [
          skip_ok=()),
     Gate("test_css_generated_text_is_not_a_js_escape",
          [sys.executable, os.path.join(HERE, "test_css_generated_text_is_not_a_js_escape.py")], 60,
-         "v2894 (#58) — a separator written as `content: \" \\u00b7\"` (the JS escape) painted the "
+         why="v2894 (#58) — a separator written as `content: \" \\u00b7\"` (the JS escape) painted the "
          "literal text U00B7 on his river strip, and render_check called the target GREEN at five "
          "widths twice: generated content is not in textContent, so every automatic check agreed "
          "with the code and disagreed with the screen. Decidable in the source, invisible to the "
@@ -911,7 +911,7 @@ GATES = [
          skip_ok=()),
     Gate("test_two_surfaces_one_shelf",
          [sys.executable, os.path.join(HERE, "test_two_surfaces_one_shelf.py")], 60,
-         "v2893 (#58) — the shelf subtracted the 8 fixture reels from /api/reel_story at v2877 and "
+         why="v2893 (#58) — the shelf subtracted the 8 fixture reels from /api/reel_story at v2877 and "
          "the RIVER STRIP two panels up the same page still counted all 24: 'the river · 24 reel(s) "
          "on the shelf' over a shelf drawing 16, with INTAKE·PRINTER·CAPTURE·TOMBSTONE 6·2·12·4 of "
          "which 2·1·4·1 were fixtures. One shelf, two answers. Proven red three ways: the filter "

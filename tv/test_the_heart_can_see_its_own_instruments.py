@@ -290,6 +290,42 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                       "_hrtInstruments does not read d.partial, so a run that proved a SUBSET "
                       "renders as the whole picture — a count with the wrong denominator")
 
+        # ⚠⚠ v2896 — AND NOW THE THINGS THE SHIP ACTUALLY CHANGED, BECAUSE THE TWO ASSERTIONS
+        # ABOVE DID NOT PIN THEM. Raised by the cross-family eye on v2892, and it is right: the
+        # backend added `oldestProofMs` PRECISELY BECAUSE the file's `ageMs` is the mtime of a
+        # write and not the age of the census ("mtime 98 min, median gate proof 569 min"). A law
+        # that only asks for the strings `ageMs` and `partial` stays GREEN through the exact
+        # regression this ship exists to prevent — delete the `oldestProofMs` branch, keep
+        # `d.ageMs`, and the panel goes straight back to advertising a file's mtime as the
+        # freshness of 281 gates. Naming the fields is not pinning the behaviour.
+        # [[regression-guard]] [[label-outlived-referent]]
+        self.assertIn("oldestProofMs", body,
+                      "_hrtInstruments no longer reads d.oldestProofMs — the STORED age is back to "
+                      "the FILE'S mtime, which any write refreshes, so re-proving three gates "
+                      "would make the whole census read fresh")
+        _i_old, _i_age = body.find("oldestProofMs"), body.find("ageMs")
+        self.assertLess(_i_old, _i_age,
+                        "d.ageMs is consulted BEFORE d.oldestProofMs — the fallback has become the "
+                        "headline, which is the defect with the fix still present in the file")
+        self.assertIn("provenAtCount", body,
+                      "_hrtInstruments does not read d.provenAtCount, so the oldest-proof age is "
+                      "printed with no denominator: a --prove of 3 gates against an otherwise "
+                      "unstamped store renders 'oldest gate proof just now' over ~280 gates that "
+                      "nobody has ever looked at")
+
+        # ⚠ AND IT MUST REACH THE MARKUP. Every assertion above is satisfied by a value that is
+        # computed and then dropped on the floor — the shape this repo logs as [[plumbing-with-no-
+        # tap]]. The `hrt-w` cell is where the reader sees it, so that is what gets pinned.
+        _w = re.search(r"hrt-w[^\n]*?>'\s*\+\s*_hrtEsc\(([^;]{0,400})", body)
+        self.assertIsNotNone(_w, "the STORED row no longer builds an .hrt-w cell — the age, the "
+                                 "PARTIAL flag and the denominator have nowhere to appear")
+        _painted = _w.group(1)
+        for _var in ("_iAge", "_iPart", "_iDenom"):
+            self.assertIn(_var, _painted,
+                          "%s is computed and never concatenated into the .hrt-w cell — the value "
+                          "is 'read' and reaches no screen, which is indistinguishable from never "
+                          "having been served" % _var)
+
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 # The law that demands re-runnable proofs carries one. Cutting the join is the defect: the proving
@@ -309,6 +345,32 @@ RED_PROOF = [{
     "file": "control_app.py",
     "find": '            "state": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',
     "replace": '            "stateMISSING": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',
+    "matches": 1,
+}, {
+    # ⚠⚠ THE THREE BELOW WERE ADDED AT v2896 BECAUSE THE CROSS-FAMILY EYE SHOWED THIS LAW COULD
+    # NOT GO RED THROUGH THE REGRESSION IT WAS WRITTEN FOR. It asserted the strings `ageMs` and
+    # `partial` and nothing else, so the panel could revert to advertising a file's mtime as the
+    # freshness of 283 gates and stay green. A red-proof is the only thing that would have caught
+    # that, and this law shipped without one covering its own subject.
+    "why": "reverting the STORED age to the FILE'S mtime — the exact bug v2892 shipped to fix, "
+           "and the one the old assertions could not see",
+    "file": "control_ui.html",
+    "find": "(typeof d.oldestProofMs === 'number') ? d.oldestProofMs",
+    "replace": "(typeof d.ageMs === 'number') ? d.ageMs",
+    "matches": 1,
+}, {
+    "why": "dropping the denominator: the oldest-proof age is then printed over a census whose "
+           "other gates may never have been looked at, with nothing on screen saying so",
+    "file": "control_ui.html",
+    "find": "var _iStamped = (typeof d.provenAtCount === 'number') ? d.provenAtCount : null;",
+    "replace": "var _iStamped = null;",
+    "matches": 1,
+}, {
+    "why": "computing all three values and painting none of them — the plumbing-with-no-tap shape "
+           "every string-matching assertion in this file was blind to",
+    "file": "control_ui.html",
+    "find": "_hrtEsc(_iAge + _iPart + _iDenom",
+    "replace": "_hrtEsc(''",
     "matches": 1,
 }]
 

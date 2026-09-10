@@ -28937,3 +28937,71 @@ and `repair 1` disappears, because all 8 fixtures were releasable and one was th
 
 Gate: five more laws on `test_two_surfaces_one_shelf` (14 total), two more red-proofs (5 total, all
 PROVEN). All 8 printer-adjacent laws re-run green after the refactor.
+
+## REG-890 — a law that could not go red through the regression it was written for
+
+**v2896.** The cross-family eye (grok-4-1-fast-reasoning, xai) reviewed v2892 and named this first,
+correctly: `test_the_stored_half_says_how_old_it_is_and_whether_it_was_partial` asserted only that
+the strings `ageMs` and `partial` appear in `_hrtInstruments`. The ship it was written for replaced
+`ageMs` — the mtime of a file — with `oldestProofMs`, because *"mtime said 98 min while the MEDIAN
+gate proof was 569 min old"*. Two regressions stayed green:
+
+- delete the `d.oldestProofMs` branch, keep `d.ageMs` → the panel advertises a file's mtime as the
+  freshness of 283 gates, which is the exact defect v2892 shipped to fix
+- keep the reads and stop concatenating them into the markup → the keys are "read", nothing reaches
+  the screen
+
+Both are the shape this repo logs as a guard that greps a NAME instead of pinning the BEHAVIOUR, and
+the law shipped with no red-proof covering its own subject. It now asserts `oldestProofMs` is
+consulted BEFORE `ageMs`, that `provenAtCount` is read, and that `_iAge`/`_iPart`/`_iDenom` all
+appear inside the `.hrt-w` cell that a reader actually sees. Four red-proofs, all PROVEN.
+
+## REG-891 — the oldest *stamp* is not the oldest gate
+
+**v2896.** `oldestProofMs` is computed over gates that CARRY a `verdictAt` stamp. A gate with no
+stamp contributes nothing — while being, by definition, the stalest fact in the census: nobody has
+ever looked at it. A `--prove` of three gates against an otherwise-empty map therefore renders
+**"oldest gate proof just now"** across ~280 gates with no look at all. The payload already carried
+`provenAtCount`, the denominator that says so; the UI never read it. Served and unjoined, one field
+wide.
+
+The STORED row now states its coverage: `· across all 283 gate(s)` when every gate is stamped, and
+when some are not, `· and it covers only N of M gate(s): the other K carry no proof stamp at all, so
+this age is a FLOOR, not the census`.
+
+## REG-892 — an activate and a sel that name different subjects are two targets wearing one name
+
+**v2896.** `render_check`'s `heart-stored` target selects `#hrt-instruments …`, and its `activate`
+walked `.hrt-sec` headings looking for `/instruments still go red/i`. That id was added IN THE SAME
+COMMIT precisely because an earlier selector photographed the wrong section — and activate was never
+pointed at it. Reword the heading and `want` stays null forever: the target refuses with "the panel
+could not be ACTIVATED" about a node that is present, correct, and exactly where `sel` expects it.
+
+Same function, quieter: the in-frame test compared the rect against `window.innerHeight` while
+`.fx-body` is `overflow-y: auto` and the window is `overflow: hidden` — a section can intersect the
+WINDOW while sitting above the overlay's own scrollport, i.e. "in frame" by the test and out of
+frame in the shot. It now measures against the nearest scrolling ancestor, falling back to the
+window when there is none.
+
+Verified: `heart-stored` renders 9/9 painted, 0 clipped, at all five widths, with the section in
+frame and the new denominator legible.
+
+## REG-893 — `Gate(name, argv, timeout, "why…")` puts the why in `needs_app`
+
+**v2896.** Both gates added this session registered with an EMPTY `why`, and the pre-push suite
+caught it: `test_every_gate_says_what_it_protects` named them, and a gate that cannot say what it
+protects is the one people start ignoring when it goes red.
+
+The signature is `Gate(name, argv, timeout=900, needs_app=False, cwd=…, why='', skip_ok=())`. A
+description passed as the FOURTH POSITIONAL lands in **`needs_app`** — where a non-empty string is
+TRUTHY, so the gate also silently declared that it needs the app running. Every neighbouring entry
+writes `why=` as a keyword; I copied their shape by eye and dropped the one token that made it
+correct. Same family as the `Gate(...)` insert that drops the separating comma: the call still
+parses, still runs, and is wrong in a way no syntax check can see.
+
+Same push, same two files: `test_every_cli_that_prints_non_ascii_is_encoding_safe` flagged both for
+printing `⚠`/`·` without `from console_safe import enable; enable()` — on a non-UTF-8 console they
+crash while REPORTING, so a clean tree exits non-zero. Both now enable it.
+
+⚠ Neither was found by me. The gate set found both, which is the argument for running it rather
+than reasoning about it.

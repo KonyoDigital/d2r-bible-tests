@@ -975,13 +975,16 @@ TARGETS = {
                 c.click();
                 return false;
             }
-            /* find the instruments section by its own heading, never by position */
-            var secs = ov.querySelectorAll('.hrt-sec');
-            var want = null;
-            for (var i = 0; i < secs.length; i++) {
-                var h = secs[i].querySelector('.hrt-h');
-                if (h && /instruments still go red/i.test(h.textContent || '')) { want = secs[i]; break; }
-            }
+            /* ⚠⚠ v2896 — BY THE ID `sel` NAMES, NOT BY HEADING COPY. Raised by the cross-family
+               eye on v2892: this walked `.hrt-sec` headings for /instruments still go red/i while
+               `sel` selects `#hrt-instruments` — and that id was added IN THE SAME COMMIT because
+               a previous selector photographed the wrong section. Activate was never pointed at
+               it. Reword the heading and `want` stays null forever: the target refuses with "the
+               panel could not be ACTIVATED" about a node that is present, correct, and exactly
+               where `sel` expects it. An activate and a sel that name different subjects are two
+               targets wearing one name. [[label-outlived-referent]] [[the-unjoined-end]] */
+            var want = ov.querySelector('#hrt-instruments') ||
+                       document.getElementById('hrt-instruments');
             if (!want) return false;
             /* ⚠ PROVEN FROM THE RECT, IN THE VIEWPORT — not from scrollIntoView returning.
                Scrolling can be refused (a hidden or zero-height scroller) and the call still
@@ -989,8 +992,17 @@ TARGETS = {
             want.scrollIntoView({block: 'center'});
             var r = want.getBoundingClientRect();
             if (!(r.width > 0 && r.height > 0)) return false;
-            var vh = window.innerHeight || 0;
-            return (r.top < vh && r.bottom > 0);
+            /* ⚠ AGAINST THE SCROLLPORT THAT ACTUALLY CLIPS IT. The same eye: `.fx-body` is
+               `overflow-y: auto` while the window is `overflow: hidden`, so a section can
+               intersect the WINDOW while sitting above the overlay's own scrollport — in frame by
+               this test, out of frame in the shot. Measure against the nearest scrolling ancestor
+               when there is one, and fall back to the window when there is not. */
+            var sc = want.closest('.fx-body') || ov;
+            var box = (sc && sc.getBoundingClientRect) ? sc.getBoundingClientRect() : null;
+            var top = box ? Math.max(0, box.top) : 0;
+            var bot = box ? Math.min(window.innerHeight || 0, box.bottom) : (window.innerHeight || 0);
+            if (!(bot > top)) { top = 0; bot = window.innerHeight || 0; }
+            return (r.top < bot && r.bottom > top);
         })()""",
         "sel": "#hrt-instruments .hrt-k, #hrt-instruments .hrt-s, #hrt-instruments .hrt-w",
     },

@@ -24,6 +24,15 @@ import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+import sys
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+# ⚠ NON-ASCII IN THE VERDICT MEANS STDOUT MUST BE MADE SAFE FIRST. On a non-UTF-8 console this
+# file crashes while REPORTING, so a clean tree exits non-zero — the gate's own output is the
+# thing that breaks. test_control enforces it across every CLI in this tree.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 
 #: Every file in tv/ that carries a stylesheet the console actually paints from.
 STYLED = ("control_ui.html",)

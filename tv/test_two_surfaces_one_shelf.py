@@ -37,6 +37,12 @@ if HERE not in sys.path:
 
 import river_lanes as RL   # noqa: E402
 
+# ⚠ NON-ASCII IN THE VERDICT MEANS STDOUT MUST BE MADE SAFE FIRST. On a non-UTF-8 console this
+# file crashes while REPORTING, so a clean tree exits non-zero — the gate's own output is the
+# thing that breaks. test_control enforces it across every CLI in this tree.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 
 def _rep(hidden_ids=()):
     """A synthetic router report: 6 reels over four lanes, 2 of them 'fixtures'."""

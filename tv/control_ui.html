@@ -12280,6 +12280,24 @@ window._lockMark = function(isOpen, px, label){
           : (_iMs < 5400000 ? Math.round(_iMs / 60000) + ' min ago'
                             : Math.round(_iMs / 3600000) + 'h ago')));
     var _iPart = d.partial ? ' · PARTIAL: a subset was proven, not all of them' : '';
+    /* ⚠⚠ v2896 — THE OLDEST *STAMP* IS NOT THE OLDEST GATE. Raised by the cross-family eye on
+       v2892: `oldestProofMs` is computed over the gates that CARRY a verdictAt stamp, and a gate
+       with no stamp contributes nothing — while being, by definition, the stalest fact in the
+       census. Nobody has ever looked at it. So a `--prove` of three gates against a store whose
+       map is otherwise empty yields "oldest gate proof just now" over ~280 gates with no look at
+       all, and the payload already carried the denominator (`provenAtCount`) that says so. It was
+       served and never read — the unjoined end, one field wide.
+       [[zero-needs-a-denominator]] [[unknown-stays-unknown]] [[the-unjoined-end]] */
+    var _iCensus = ((typeof d.proved === 'number') ? d.proved : 0)
+                 + ((typeof d.unproven === 'number') ? d.unproven : 0);
+    var _iStamped = (typeof d.provenAtCount === 'number') ? d.provenAtCount : null;
+    var _iGap = (_iStamped === null || !_iCensus) ? null : (_iCensus - _iStamped);
+    var _iDenom = (_iStamped === null)
+      ? ' · how many gates that age covers is UNKNOWN — nothing said how many carry a stamp'
+      : (_iGap > 0
+          ? (' · and it covers only ' + _iStamped + ' of ' + _iCensus + ' gate(s): the other '
+             + _iGap + ' carry no proof stamp at all, so this age is a FLOOR, not the census')
+          : (_iCensus ? (' · across all ' + _iStamped + ' gate(s)') : ''));
     /* ⚠ AN ID, BECAUSE A TARGET THAT CANNOT NAME ITS SUBJECT PHOTOGRAPHS WHATEVER IS THERE.
        The heart-stored render target selected `.hrt-sec .hrt-k/.hrt-s/.hrt-w` — EVERY section — so
        it reported 241/241 in frame while the shot was scrolled to THE CHRONICLE ROUTES and this
@@ -12287,7 +12305,7 @@ window._lockMark = function(isOpen, px, label){
     var h = '<div class="hrt-sec" id="hrt-instruments"><div class="hrt-h">' + head + ' · ' + _hrtEsc(line) + '</div>'
       + '<div class="hrt-row"><span class="hrt-k">this reading</span>'
       + '<span class="hrt-s ' + (d.partial ? 'st-UNKNOWN' : cls) + '">STORED</span>'
-      + '<span class="hrt-w">' + _hrtEsc(_iAge + _iPart
+      + '<span class="hrt-w">' + _hrtEsc(_iAge + _iPart + _iDenom
           + ' — read from a file, not derived on open like the rest of this panel')
       + '</span></div>';
     h += '<div class="hrt-row"><span class="hrt-k">the gates</span>'

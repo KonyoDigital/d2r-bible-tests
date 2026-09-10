@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2896** | `(this commit)` | v2896 — a cross-family review of v2892 named a law that could not go red a headline with no denominator and a target aimed at the wrong subject |
 | **v2895** | `(this commit)` | v2895 — seven printer stations read 24 beside a shelf of 16 and its own line saying 16 of 16 |
 | **v2894** | `(this commit)` | v2894 — the strip ran two denominators together and my fix for it painted a JS escape |
 | **v2893** | `(this commit)` | v2893 — the strip counted 24 fixtures and all while the shelf below it drew 16 |
