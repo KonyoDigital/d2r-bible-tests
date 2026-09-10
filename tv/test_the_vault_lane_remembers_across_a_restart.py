@@ -140,6 +140,42 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
                         "loses every retirement")
 
 
+    # ── THE ACTOR, NOT JUST THE REPORTER ─────────────────────────────────────────────────────
+    def test_a_tick_after_a_restart_still_knows_what_was_retired(self):
+        """⚠⚠ THE MONEY BUG, AND v2901 SHIPPED IT INSIDE THE FIX FOR IT. Raised by the
+        cross-family eye: v2901 loaded the store from `_vault_autoread_state()` — the REPORTER —
+        and `vault_autoreel_tick()`, the function that SPENDS, read `retired` straight out of
+        process memory. Two of its callers never go through state(): the 45s loop's first pass
+        after a restart, and the stop-agent nudge that fires as soon as a reel stops. So a tick
+        could run with `retired == {}` and pay for every reel the previous process had ruled out.
+
+        Chronicle's sibling had this right already — `chronicle_autoreel_tick` lazy-loads via
+        `_chron_reels_retired()`. The persistence was copied; the lesson was not. [[copy-drift]]"""
+        CA._VAULT_AUTOREAD["retired"] = {"reel_paid_for_once": {"why": "2 attempts", "at": 1}}
+        self.assertTrue(CA._vault_autoread_save())
+        self._restart()
+        self.assertEqual(sorted(CA._VAULT_AUTOREAD["retired"]), [],
+                         "the fixture did not clear memory, so this proves nothing")
+        CA.vault_autoreel_tick()          # ⚠ the ACTOR, called directly — no state() first
+        self.assertIn("reel_paid_for_once", CA._VAULT_AUTOREAD["retired"],
+                      "a tick ran after a restart without restoring the retirements, so the lane "
+                      "will pay again for a reel it had already ruled out")
+
+    def test_a_save_before_any_load_cannot_erase_the_store(self):
+        """An empty in-memory `retired` written over a good store is strictly worse than not
+        persisting at all — the file would then look authoritative while holding nothing."""
+        CA._VAULT_AUTOREAD["retired"] = {"reel_paid_for_once": {"why": "2 attempts", "at": 1}}
+        self.assertTrue(CA._vault_autoread_save())
+        self._restart()
+        CA._VAULT_AUTOREAD["reads"] = 1   # something trivial changes, and a save fires
+        CA._vault_autoread_save()
+        with io.open(CA._vault_autoread_path(), encoding="utf-8") as fh:
+            on_disk = json.load(fh)
+        self.assertIn("reel_paid_for_once", on_disk.get("retired") or {},
+                      "a save that ran before any load wrote empty memory over the store and "
+                      "destroyed every retirement on disk")
+
+
 RED_PROOF = [
     {
         "why": "dropping the restore: every restart goes back to reporting a lane that has never "
@@ -163,6 +199,23 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "        os.replace(tmp, dest)\n        return True",
         "replace": "        shutil.copyfile(tmp, dest)\n        return True",
+        "matches": 1,
+    },
+    {
+        "why": "unloading the ACTOR: a tick after a restart then sees no retirements and pays "
+               "again for every reel the previous process had ruled out — the money bug v2901 "
+               "shipped inside its own fix",
+        "file": "control_app.py",
+        "find": "    _vault_autoread_load()\n    if not _VAULT_AUTOREEL_ON:",
+        "replace": "    if not _VAULT_AUTOREEL_ON:",
+        "matches": 1,
+    },
+    {
+        "why": "letting a save run before any load: empty memory is written over a good store and "
+               "every retirement on disk is destroyed",
+        "file": "control_app.py",
+        "find": '    if not _VAULT_AUTOREAD_STORE.get("tried"):\n        _vault_autoread_load()',
+        "replace": '    if False:\n        _vault_autoread_load()',
         "matches": 1,
     },
 ]

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2902** | `(this commit)` | v2902 — the cross family eye found the money bug shipped inside the fix for the money bug |
 | **v2901** | `(this commit)` | v2901 — the vault lane had fourteen write sites and no persistence so every restart re-bought what it had retired |
 | **v2900** | `(this commit)` | v2900 — opening every details changed nothing because one CSS rule hides advanced on the sessions home |
 | **v2899** | `(this commit)` | v2899 — closest details found the one already open so the outer drawers stayed closed and the switch had no box |

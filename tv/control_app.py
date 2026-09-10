@@ -20200,6 +20200,13 @@ def _vault_autoread_save():
     tick. Everything here changes what the lane WILL DO next: what it has read, when, how many
     attempts each reel has already cost, and which reels it has stopped paying for.
     """
+    # ⚠⚠ NEVER WRITE MEMORY OVER A STORE THIS PROCESS HAS NOT READ. Same eye, same finding: if a
+    # save ran before any load, an empty in-memory `retired` would be written straight over a good
+    # store and every retirement on disk would be destroyed — a strictly worse outcome than not
+    # persisting at all, because the file would then look authoritative.
+    # A load is attempted first; only its ANSWER may be acted on. [[unknown-stays-unknown]]
+    if not _VAULT_AUTOREAD_STORE.get("tried"):
+        _vault_autoread_load()
     try:
         dest = _vault_autoread_path()
         tmp = dest + ".tmp"
@@ -20831,6 +20838,23 @@ def _vault_autoread_state():
 
 def vault_autoreel_tick():
     """One pass. Starts at most one vault sweep, and every refusal carries a named reason."""
+    # ⚠⚠⚠ v2902 — THE ACTOR LOADS, NOT JUST THE REPORTER. Raised by the cross-family eye on v2901
+    # and it is the money bug the ship existed to stop, shipped inside the fix for it.
+    #
+    # v2901 called _vault_autoread_load() from _vault_autoread_state() only — the REPORTER. This
+    # function is the one that SPENDS: it reads `_VAULT_AUTOREAD["retired"]` to decide which reels
+    # not to buy again. Two of its callers never go through state():
+    #     _vault_autoread_loop      the first pass, 45s after a restart
+    #     the stop-agent nudge      control_app.py:~4224, fires as soon as a reel stops
+    # So after an os.execv or a console replace, a tick could run with `retired == {}` and pay for
+    # every reel the previous process had retired.
+    #
+    # Chronicle's sibling already had this right: `chronicle_autoreel_tick` calls
+    # `_chron_reels_retired()`, which lazy-loads before the loop. I copied the persistence and not
+    # the lesson. [[copy-drift]] [[the-unjoined-end]]
+    #
+    # Idempotent and cheap: after the first call this is one flag check.
+    _vault_autoread_load()
     if not _VAULT_AUTOREEL_ON:
         return {"ok": False, "why": "the vault auto-sweep is off (TV_VAULT_AUTOREEL=0)"}
     try:
@@ -26006,7 +26030,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2901",
+        "ver": "v2902",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -29316,7 +29316,7 @@ Gate `test_the_vault_lane_remembers_across_a_restart` — 6 laws, no footage, TV
 temp dir so it cannot touch his store. Proven red 3 ways, 1 match each: drop the restore · report an
 unreadable store as fresh · write in place instead of `os.replace`. 285 gates.
 
-## REG-900 CONFIRMED ON LIVE DATA — and the store is machine-local
+## The vault store confirmed on live data, and why it must stay machine-local (follow-up to REG-900, not a new defect)
 
 **~40 minutes after v2901 shipped**, his console re-exec'd into the new code (pid preserved by
 `os.execv`) and the vault lane ran with persistence in place. `tv/.vault_autoread.json` appeared:
@@ -29346,3 +29346,50 @@ out — #60's exact defect, re-entered through git. Now ignored, proven by check
 ⚠ Its sibling `.status_worst.json` **stays tracked on purpose**: that one is a single kept EVIDENCE
 record (the 612,893 ms request that answered #28), not per-machine state. Verified the new rule does
 not catch it.
+
+## REG-901 — v2901 shipped the money bug inside the fix for the money bug
+
+**v2902.** Found by the cross-family eye reviewing v2901, and it is right.
+
+v2901 persisted the vault lane's memory and called `_vault_autoread_load()` from
+**`_vault_autoread_state()` — the REPORTER**. The function that actually SPENDS,
+`vault_autoreel_tick()`, read `_VAULT_AUTOREAD["retired"]` straight out of process memory and never
+loaded. Two of its callers never go through `state()`:
+
+```
+_vault_autoread_loop        the first pass, 45s after a restart
+the stop-agent nudge        control_app.py:~4224, fires as soon as a reel stops
+```
+
+So after an `os.execv` or a console replace, a tick could run with `retired == {}` and **pay again
+for every reel the previous process had ruled out** — the exact defect #60 exists to end, re-entered
+one function to the left.
+
+⚠ **And the second half is worse.** `_vault_autoread_save()` would then write that empty memory
+**over the good store**, destroying every retirement on disk. A store that looks authoritative and
+holds nothing is strictly worse than no store at all.
+
+⚠ **Chronicle's sibling already had this right.** `chronicle_autoreel_tick` lazy-loads through
+`_chron_reels_retired()` before its loop. I copied the persistence and not the lesson —
+[[copy-drift]] in its purest form, inside the same file.
+
+**Fixed both ways:** the actor loads at the top of the tick (idempotent — one flag check after the
+first call), and the writer refuses to write a store this process has not read.
+
+MEASURED, both scenarios the eye named:
+
+```
+A  restart, then a TICK before anyone asks for status
+   after restart   retired []
+   after the tick  retired ['reel_paid_for_once']     RESTORED — the lane will not re-buy it
+
+B  a SAVE fires before any load
+   on disk after   retired ['reel_paid_for_once']     PRESERVED — the writer loaded first
+```
+
+Gate now 8 laws, **5 red-proofs, all PROVEN**, 1 match each — including unloading the actor and
+letting a blind save through.
+
+⚠ The lesson: a cross-family review caught in one pass what my own gate, written the same hour and
+proven red three ways, could not — because every one of my laws went through the reporter. **A gate
+proves the path it walks; it says nothing about the path it does not.**

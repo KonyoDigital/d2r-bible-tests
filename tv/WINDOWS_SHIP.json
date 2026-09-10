@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2901",
+  "ver": "v2902",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2901: the vault lane had fourteen write sites and no persistence so every restart re-bought what it had retired",
+  "note": "v2902: the cross family eye found the money bug shipped inside the fix for the money bug",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
