@@ -29209,3 +29209,52 @@ red-proofs        — all 4 still PROVEN red, 1 match each
 ⚠ The eye's own note is worth keeping: the regression this law exists to catch was *already* covered
 by its `RED_PROOF`, which rewrites that exact ternary. The residual was never a hole in coverage —
 it was a future false alarm, and those are worth removing before they arrive.
+
+## REG-899 — v2899's diagnosis was wrong: the drawer was never closed, it was undisplayed
+
+**v2900 (#70). This corrects REG-897.** v2899 changed `v2000_shadow_reader` to open EVERY ancestor
+`<details>` instead of the nearest. CI stayed red. The assertion `r.box > 0` failed exactly as
+before.
+
+**Measured over CDP on `control_ui.html`, ancestor chain innermost-first:**
+
+```
+button#sadv-sha    display flex    h 0
+div#shadow-adv     display block   h 0
+details#sig-adv    display NONE    h 0    open=true   <<< here
+div.rail-secondary                 h 0
+aside.rail         display flex    h 1045
+```
+
+`open=true` is v2899 working exactly as written — and changing nothing, because the element is
+`display:none`. **A `<details open>` with `display:none` still has zero box.**
+
+The rule, `control_ui.html:6207`:
+
+```css
+body[data-view="sessions"] aside.rail #sig-adv,
+body.shell-open           aside.rail #sig-adv { display: none; }
+```
+
+⚠ **The product is RIGHT.** ⚙ ADVANCED is deliberately hidden on the gameplay home — Konyo asked
+twice for the backend surfaces to be off the Sessions view (#6). The console BOOTS into `sessions`,
+and the spec never changed the view, so the switch could never have a box on any run since that
+move. That is why Routine I has been red since v2889 and why nobody reading the spec could see it:
+every existence check passes and only the layout check fails.
+
+The spec now moves the view off `sessions` before measuring. That is setup, not a cheat — the test
+asserts ON / OFF / DEAD **paint differently**, a question about the switch, not about which tab the
+console opens on.
+
+**PROVEN BOTH WAYS before shipping, which is what I failed to do at v2899:**
+
+```
+BEFORE the view fix   view=sessions   #sig-adv display=none    box=0
+AFTER  the view fix   view=tvd        #sig-adv display=block   box=73.875
+```
+
+⚠ **The lesson is mine, not the spec's.** I shipped v2899 on a diagnosis I could not verify locally
+("browser suites run on CI") and told myself CI would confirm it. CI is a verifier, not a substitute
+for a measurement I could have taken in ninety seconds with the CDP harness I already had. Walking
+the computed styles found in one probe what a plausible story had got wrong.
+[[feedback-suspect-the-instrument]] [[ab-against-head-before-blaming-the-room]]

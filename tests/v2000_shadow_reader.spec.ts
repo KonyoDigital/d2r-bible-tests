@@ -122,6 +122,36 @@ test('the three facts have three separate surfaces, not one lamp', async ({ page
   const r = await page.evaluate(() => {
     const sw: any = document.getElementById('sadv-sha');
     if (!sw) return { missing: true };
+    /* ⚠⚠⚠ v2900 (#70) — THE DRAWER IS NOT CLOSED, IT IS UNDISPLAYED, AND THAT IS THE PRODUCT
+       BEING RIGHT. control_ui.html:6207 says:
+
+           body[data-view="sessions"] aside.rail #sig-adv,
+           body.shell-open           aside.rail #sig-adv { display: none; }
+
+       ⚙ ADVANCED is deliberately hidden on the gameplay home — Konyo asked twice for the backend
+       surfaces to be off the Sessions view. The console BOOTS into `sessions`, so `#sadv-sha` has
+       `display:none` on an ancestor and NO amount of opening <details> can give it a box.
+
+       MEASURED over CDP on control_ui.html, ancestor chain innermost-first:
+
+           button#sadv-sha   display flex   h 0
+           div#shadow-adv    display block  h 0
+           details#sig-adv   display NONE   h 0   open=true   <<< here
+           div.rail-secondary                h 0
+           aside.rail        display flex   h 1045
+
+       ⚠ v2899 OPENED EVERY ANCESTOR <details> AND CI STAYED RED. That fix was aimed at the wrong
+       mechanism; `open=true` above is v2899 working exactly as written and changing nothing. The
+       blocker was one CSS rule, and only walking the computed styles found it. I should have
+       measured before shipping that one. [[feedback-suspect-the-instrument]]
+
+       So the view is moved off `sessions` first. This is setup, not a cheat: the test asserts that
+       ON / OFF / DEAD PAINT differently, which is a question about the switch, not about which tab
+       the console happens to open on. */
+    document.body.classList.remove('shell-open');
+    if (document.body.getAttribute('data-view') === 'sessions') {
+      document.body.setAttribute('data-view', 'tvd');
+    }
     /* ⚠⚠ v2899 (#70) — EVERY ANCESTOR <details>, NOT THE NEAREST ONE. This was
        `sw.closest('details'); if (det) det.open = true;` and it was a NO-OP: the nearest ancestor
        is `#sig-adv`, which ships with `open` already in the markup, so the line opened something
