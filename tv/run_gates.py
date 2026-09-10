@@ -795,7 +795,10 @@ GATES = [
          skip_ok=()),
     Gate("test_a_total_is_only_as_known_as_its_parts",
          [sys.executable, os.path.join(HERE, "test_a_total_is_only_as_known_as_its_parts.py")], 90,
-         "v2881 — the second eye, reviewing v2880: 'unknown vault count is still published as a "
+         # ⚠ `why=` BY KEYWORD. Gate.__init__ is (name, argv, timeout, needs_app, cwd, why, ...),
+         # so a 4th POSITIONAL string lands in needs_app — truthy — and leaves why empty. Measured
+         # at the gate: 1 of 279 gates had an empty why, and it was this one.
+         why="v2881 — the second eye, reviewing v2880: 'unknown vault count is still published as a "
          "complete number on the fields the screen actually reads'. v2880 made lockedVault None "
          "when the tag->lane map cannot be read and left the SUM beside it publishing a confident "
          "count that omitted those reels, and the sentence reading '0 reel(s) (0 MB) are waiting "
