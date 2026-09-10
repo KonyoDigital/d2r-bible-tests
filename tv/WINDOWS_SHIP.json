@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2902",
+  "ver": "v2903",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2902: the cross family eye found the money bug shipped inside the fix for the money bug",
+  "note": "v2903: every lane is named after a station it contains so the card showed one word twice with different counts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

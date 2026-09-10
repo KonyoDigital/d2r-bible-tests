@@ -29393,3 +29393,36 @@ letting a blind save through.
 ⚠ The lesson: a cross-family review caught in one pass what my own gate, written the same hour and
 proven red three ways, could not — because every one of my laws went through the reporter. **A gate
 proves the path it walks; it says nothing about the path it does not.**
+
+## REG-902 — every lane is named after a station it contains, so one word carried two numbers
+
+**v2903 (#58).** Read off HIS screen — a Grok Bot capture at 1470×923, not my fixture:
+
+```
+1 INTAKE      4        <- the LANE
+  INTAKE  0            <- the STATION, same word, same card
+4 TOMBSTONE   3        <- the LANE
+  TOMBSTONE 0          <- the STATION
+```
+
+MEASURED rather than eyeballed: **all 4 of 4 lanes** are named after a station they contain
+(`INTAKE`, `PRINTER`, `CAPTURE`, `TOMBSTONE` are each in `reel_router.STATIONS`), and on his data
+**3 of those 4 showed two different numbers under one word** — 4 vs 0, 8 vs 7, 3 vs 0.
+
+⚠ **The strip was already paying for this.** There is a whole paragraph under the cards explaining
+why TOMBSTONE reads 0, and the closure chip carries its own `the ledger` label for exactly the same
+reason: a figure that would be misread gets a small word naming where it came from. The chip row
+now carries `STATIONS`, in the same treatment as `.shr-cl i` on purpose — a second device for the
+same job would be a second vocabulary.
+
+Nothing is hidden and no number moved.
+
+⚠ **AND THE FIRST RENDER DID NOT PHOTOGRAPH IT.** The target's `sel` listed five classes and not the
+new one, so the caption was unphotographed and losing it would have been invisible — while the
+verdict stayed green at 17/17. That target's own comment already records this lesson about
+`.shr-life`/`.shr-cl`: *"a selector list is a COVERAGE DECISION."* **Third time.** Caught by reading
+the extracted text, not by the verdict. `sel` widened; 21/21 painted, 0 clipped, five widths.
+
+Laws: `OneWordMustNotCarryTwoNumbers` — 3, including one that measures the COLLISION ITSELF (if a
+future rename means no lane is named after a station, the caption is decoration and the law says so
+rather than keeping it out of habit). 6 red-proofs on the gate, all PROVEN, 1 match each.

@@ -28,6 +28,7 @@ measures the same thing on his Mac and on a CI runner that has no reels at all �
 import ast
 import io
 import os
+import re
 import sys
 import unittest
 
@@ -268,6 +269,71 @@ class ThePrinterSpineCountsWhatTheShelfShows(unittest.TestCase):
 
 
 
+class OneWordMustNotCarryTwoNumbers(unittest.TestCase):
+    """EVERY LANE IS NAMED AFTER A STATION IT CONTAINS, so the card shows one word twice.
+
+    ⚠⚠ READ OFF HIS SCREEN, not off a fixture — grok bot capture at 1470x923, 2026-09-10:
+
+        1 INTAKE      4        <- the LANE
+          INTAKE  0            <- the STATION, same word, same card
+        4 TOMBSTONE   3        <- the LANE
+          TOMBSTONE 0          <- the STATION
+
+    The strip ALREADY pays for this: there is a paragraph under the cards explaining why TOMBSTONE
+    reads 0, and the closure chip carries its own `the ledger` label for the same reason. A figure
+    that would be misread gets a word naming where it came from. `.shr-stlab` is that device applied
+    to the row that needed it — nothing hidden, no number moved. [[label-outlived-referent]]
+    """
+
+    def _collisions(self):
+        import river_lanes as RL
+        import reel_router as RR
+        sts = set(RR.STATIONS)
+        return [n for n, s, w in RL.LANES if n in sts], list(RL.LANES)
+
+    def test_the_collision_this_label_exists_for_is_real(self):
+        """⚠ A ZERO NEEDS A DENOMINATOR. If no lane were named after a station, the caption would
+        be decoration and this law would be asserting a habit. Count it. [[zero-needs-a-denominator]]"""
+        hit, lanes = self._collisions()
+        self.assertTrue(lanes, "river_lanes.LANES is empty, so this law measured NOTHING")
+        self.assertEqual(len(hit), len(lanes),
+                         "only %d of %d lane names are also station names — the premise of the "
+                         "station caption has changed and the label should be re-judged, not kept "
+                         "out of habit: %s" % (len(hit), len(lanes), hit))
+
+    def test_the_chips_say_they_are_stations(self):
+        """⚠ PARSED FROM THE RENDERER, COMMENTS STRIPPED — the comment above this markup quotes the
+        very words it renders, so a law reading prose would pass on its own documentation. That has
+        happened five times in this repo. [[source-reading-guard]]"""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        i = ui.find("function _shLanesRender")
+        self.assertGreater(i, -1, "_shLanesRender is gone — the river strip has no renderer")
+        d, j = 0, ui.index("{", i)
+        end = j
+        while end < len(ui):
+            if ui[end] == "{":
+                d += 1
+            elif ui[end] == "}":
+                d -= 1
+                if d == 0:
+                    break
+            end += 1
+        body = ui[i:end + 1]
+        body = re.sub(r"/\*(?:.|\n)*?\*/", " ", body)
+        body = re.sub(r"(?m)//.*$", " ", body)
+        self.assertIn("shr-stlab", body,
+                      "the lane card no longer says its chips are STATIONS, so the big number and "
+                      "the chip under the same word are two figures with one name again")
+
+    def test_the_label_is_styled_and_scoped(self):
+        """An unstyled label is a bare word in the middle of a card; an unscoped one leaks."""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertIn("#th-shelfov .shr-stlab", ui,
+                      "no rule styles .shr-stlab INSIDE #th-shelfov — it renders unstyled, or "
+                      "worse, styled by something outside the shelf")
+
+
+
 RED_PROOF = [
     {
         "why": "removing the report-level filter restores the strip that printed 24 over a shelf "
@@ -307,6 +373,14 @@ RED_PROOF = [
         "file": "printer.py",
         "find": '"rows": rows, "counts": counts_for(rows),',
         "replace": '"rows": rows, "counts": {},',
+        "matches": 1,
+    },
+    {
+        "why": "dropping the STATIONS caption: the lane's big number and the chip under the same "
+               "word become two figures with one name again, on all four cards",
+        "file": "control_ui.html",
+        "find": "             + '<div class=\"shr-stlab\">stations</div>'\n",
+        "replace": "",
         "matches": 1,
     },
 ]

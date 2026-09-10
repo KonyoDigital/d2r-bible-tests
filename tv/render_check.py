@@ -1472,8 +1472,14 @@ TARGETS = {
         # showed `+7 closed out` running THROUGH the TOMBSTONE card's right border at 901px while
         # the harness called the target clean. A target that measures three of five classes is a
         # gate blind to what changed. [[gate-blind-to-unexercised-input]] [[the-unjoined-end]]
+        # ⚠⚠ v2903 — `.shr-stlab` ADDED, AND THIS IS THE THIRD TIME THIS TARGET HAS TAUGHT THE
+        # SAME LESSON. The note above already says it about `.shr-life`/`.shr-cl`: a selector list
+        # is a COVERAGE DECISION, and a new element left out of it is unphotographed — losing it
+        # would be invisible and the target would still report clean. I added the STATIONS caption
+        # and the very next render extracted text with no "stations" in it. Caught by reading the
+        # text, not by the verdict, which was green. [[gate-blind-to-unexercised-input]]
         "sel": ("#sh-lanes .shr-lbl, #sh-lanes .shr-n, #sh-lanes .shr-st, "
-                "#sh-lanes .shr-life, #sh-lanes .shr-cl"),
+                "#sh-lanes .shr-life, #sh-lanes .shr-cl, #sh-lanes .shr-stlab"),
         "activate": r"""(function(){
             /* ⚠ IDEMPOTENT. The harness re-runs this every 0.4s, so it must never toggle:
                thShelf(force) with an explicit true always SHOWS, thShelf() alone flips. */

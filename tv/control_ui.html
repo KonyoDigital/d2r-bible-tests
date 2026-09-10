@@ -1919,6 +1919,12 @@
      content — the same reason `.shr-st` carries it twelve lines up. [[visual-regression-detector]] */
   /* ⚠ THE SOURCE LABEL IS THE POINT, not decoration. It is the only thing standing between a
      reader and reading this number as more of the station count above it. */
+  /* v2903 (#58) — the same treatment as `.shr-cl i` ("the ledger") on purpose: this strip already
+     says "a figure that could be misread gets a small word naming its source", and a second device
+     for the same job would be a second vocabulary. [[copy-drift]] */
+  #th-shelfov .shr-stlab { text-transform: uppercase; letter-spacing: var(--ls-wide);
+    color: rgba(200,180,120,.5); font: var(--fw-normal) var(--fs-2xs)/1.4 var(--mono);
+    margin: 3px 0 1px; }
   #th-shelfov .shr-cl i { display: block; font-style: normal; text-transform: uppercase;
     letter-spacing: var(--ls-wide); color: rgba(200,180,120,.5);
     font-weight: var(--fw-normal); margin-bottom: 1px; }
@@ -11166,6 +11172,25 @@ window._lockMark = function(isOpen, px, label){
       H.push('<div class="shr-lane' + ((l.count || _lc) ? '' : ' shr-empty') + '" title="' + esc(l.why || '') + '">'
              + '<div class="shr-n"><u>' + (i + 1) + '</u> ' + esc(l.name) + '</div>'
              + '<div class="shr-c">' + (l.count || 0) + '</div>'
+             /* ⚠⚠ v2903 (#58) — SAY THAT THESE ARE STATIONS, BECAUSE THE LANE IS NAMED AFTER ONE.
+                Read off HIS screen (grok bot capture, 1470x923, 2026-09-10): every lane card puts
+                a big number under a word, then chips under the SAME word with a different number.
+
+                    1 INTAKE      4        <- the LANE
+                      INTAKE  0            <- the STATION, same word, same card
+                    4 TOMBSTONE   3        <- the LANE
+                      TOMBSTONE 0          <- the STATION
+
+                MEASURED, not impressions: ALL 4 OF 4 lanes are named after a station they contain
+                (INTAKE, PRINTER, CAPTURE, TOMBSTONE are all in reel_router.STATIONS), and on his
+                data 3 of those 4 show two DIFFERENT numbers under one word — 4 vs 0, 8 vs 7, 3 vs 0.
+
+                ⚠ THE STRIP ALREADY PAYS FOR THIS. There is a whole paragraph under the cards
+                explaining why TOMBSTONE reads 0, and the closure chip carries its own `the ledger`
+                label for exactly the same reason: a figure that would be misread gets a word
+                saying where it came from. This is that device, applied to the row that needed it.
+                Nothing is hidden and no number moves. [[label-outlived-referent]] */
+             + '<div class="shr-stlab">stations</div>'
              + '<div class="shr-sts">' + bits + '</div>' + _closedBit + '</div>');
       if (i < rows.length - 1) H.push('<div class="shr-arrow">\u25B8</div>');
     });
