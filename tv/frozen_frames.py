@@ -97,6 +97,37 @@ UNKNOWN = PW.UNKNOWN
 FROZEN = "FROZEN"
 MOVING = "MOVING"
 
+#: was the window frontmost when the frame was taken, and — if the feed is frozen — which of the
+#: two things the console said it could not tell apart is this. Four more words, still no merging.
+KEY = "KEY"
+NOT_KEY = "NOT_KEY"
+WEDGED = "WEDGED"
+THROTTLED = "THROTTLED"
+
+#: WHICH ARM of paint_witness.verdict said BLANK, and they are NOT equally trustworthy.
+#: ⚠⚠ MEASURED 2026-09-10 — THE INK ARM PRODUCED A FALSE BLANK ON HIS SHELF AND I OPENED THE FILE
+#: TO CATCH IT. `VISUAL1-after.png` reads `p99 55, brightShare 0.26%` and the ink arm calls it
+#: blank. It is a COMPLETE, fully painted console — MY HUNT, POLARIS SPEAR, the TZ tracker, THE
+#: FLEET, a live tooltip — rendered in his DARK theme ("🌙 2 dark" in its own footer). Nothing is
+#: wrong with the window; it is dim, and the ink arm's whole premise is that a painted console has
+#: a bright tail.
+#: The single-colour arm cannot make that mistake: 100% of a window being ONE colour is not a
+#: rendering of anything. So the arm is REPORTED on every frame, and a caller that is about to do
+#: something irreversible to his window on a BLANK verdict must look at which one fired.
+#: This is paint_witness's Family A — "a wrong BLANK replaces the window he is looking at, mid-use"
+#: — observed in the wild rather than in a harness. [[visual-regression-detector]]
+ARM_SINGLE_COLOUR = "single-colour"
+ARM_INK = "ink"
+
+#: the traffic lights. MEASURED over the 134 window captures on his shelf that carry chrome:
+#:     chroma <= 40    108 captures   grey lights, the window was not key
+#:     41 .. 149         2 captures   unclassifiable, reported UNKNOWN
+#:     chroma >= 150    24 captures   coloured lights, the window was key
+#: Both bars sit inside a 109-wide empty band that holds 2 of 134 readings. A bar placed at the
+#: edge of the population it must accept is a bar that fails on the next capture.
+KEY_CHROMA_MIN = 150
+GREY_CHROMA_MAX = 40
+
 #: ⚠ ALSO QUOTED. paint_witness's own doctrine is that a single frame is a sample and consecutive
 #: agreeing frames are what justify acting; `BLANK_STRIKES` is that number. A frozen run is the
 #: same shape of claim, so it uses the same number rather than inventing a second one.
@@ -301,9 +332,13 @@ def shot(path):
 
 
 def look(path):
-    """BLANK / PAINTED / UNKNOWN for one capture FILE. -> dict, always the same shape."""
+    """BLANK / PAINTED / UNKNOWN for one capture FILE. -> dict, always the same shape.
+
+    ⚠ `arm` names WHICH of paint_witness's two blank tests fired, because one of them has been
+    seen to be wrong on his own data and the other cannot be. See ARM_INK above.
+    """
     out = {"file": os.path.basename(path), "state": UNKNOWN, "why": "", "rect": None,
-           "measure": None}
+           "measure": None, "arm": None}
     try:
         sh, rect = shot(path)
     except Unreadable as e:
@@ -315,6 +350,11 @@ def look(path):
     m = PW.measure(sh)
     state, why = PW.verdict(m)
     out.update({"state": state, "why": why, "measure": m, "rect": list(rect)})
+    if state == BLANK:
+        # ⚠ read from the MEASUREMENT against paint_witness's own constant, never by matching the
+        # wording of its sentence — a reason string is prose and it is allowed to be reworded.
+        out["arm"] = (ARM_SINGLE_COLOUR if (m.get("modalShare") or 0) >= PW.BLANK_MODAL_SHARE
+                      else ARM_INK)
     return out
 
 
@@ -438,7 +478,7 @@ def disambiguate(rep):
     [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]
     """
     out = {"state": UNKNOWN, "why": "", "keyState": UNKNOWN, "keyWhy": "",
-           "frontmostNow": None, "frontmostWhy": "not asked"}
+           "frontmostAppNow": None, "frontmostWhy": "not asked"}
     f, b = rep.get("frozen") or {}, rep.get("blank") or {}
     if f.get("state") != FROZEN:
         out["why"] = ("the feed is %s, so there is no frozen frame to tell apart from a throttled "
@@ -451,11 +491,12 @@ def disambiguate(rep):
     ks = key_state(os.path.join(rep["dir"], frames[0]["file"]))
     out["keyState"], out["keyWhy"] = ks["state"], ks["why"]
     if f.get("freshness") == "FRESH":
-        seen, why = frontmost_now()
-        out["frontmostNow"], out["frontmostWhy"] = seen, why
+        name, why = frontmost_app()
+        out["frontmostAppNow"], out["frontmostWhy"] = name, why
     else:
         out["frontmostWhy"] = ("the newest capture is %ss old, and what is frontmost NOW says "
                                "nothing about what was frontmost then" % f.get("ageSec"))
+    arm = frames[0].get("arm")
     if ks["state"] == KEY:
         out["state"] = WEDGED
         out["why"] = ("the feed is FROZEN and the window was FRONTMOST when the frame was taken "
@@ -467,11 +508,15 @@ def disambiguate(rep):
                       "still has content on it. That is what WebKit throttling looks like: the "
                       "last painted frame, held. Harmless." % ks["why"])
     elif ks["state"] == NOT_KEY and b.get("state") == BLANK:
-        out["why"] = ("the window was NOT frontmost (%s), which would normally read as harmless "
-                      "throttling — but the frame is BLANK, and throttling holds the LAST PAINTED "
-                      "FRAME rather than emptying the window. The two readings CONTRADICT and "
-                      "nothing here has measured which is true, so this is UNKNOWN and is not "
-                      "being filed as harmless." % ks["why"])
+        out["why"] = (
+            "the window was NOT frontmost (%s), which would normally read as harmless throttling "
+            "— but the newest frame is BLANK (by the %s test), and throttling holds the LAST "
+            "PAINTED FRAME rather than emptying a window. The two readings CONTRADICT, nothing "
+            "here has measured which is true, and this is NOT being filed as harmless.%s"
+            % (ks["why"], arm,
+               "" if arm == ARM_SINGLE_COLOUR else
+               " ⚠ and the ink test is the one that has been seen to call a dim but fully "
+               "painted console blank, so the BLANK half is itself a candidate, not a fact."))
     else:
         out["why"] = ("the window's key state could not be established (%s), so a frozen feed "
                       "cannot be told apart from a throttled one" % ks["why"])
@@ -569,7 +614,10 @@ def scan(directory, newest=NEWEST_HASHED, decode=NEWEST_DECODED, now=None):
                    "runs": [], "framesInRuns": 0,
                    "freshness": UNKNOWN, "ageSec": None, "staleAfterSec": STALE_SEC},
         "blank": {"state": UNKNOWN, "why": "nothing has been decoded yet",
-                  "blankFrames": 0, "frames": []},
+                  "blankFrames": 0, "bySingleColour": 0, "byInk": 0, "frames": []},
+        "wedge": {"state": UNKNOWN, "why": "nothing has been examined yet",
+                  "keyState": UNKNOWN, "keyWhy": "", "frontmostAppNow": None,
+                  "frontmostWhy": "not asked"},
         "findings": [], "verdict": "",
     }
     entries, why = captures(directory)
@@ -629,6 +677,8 @@ def scan(directory, newest=NEWEST_HASHED, decode=NEWEST_DECODED, now=None):
     rep["decoded"] = sum(1 for f in frames if f["state"] != UNKNOWN)
     rep["undecodable"] = sum(1 for f in frames if f["state"] == UNKNOWN)
     rep["blank"]["blankFrames"] = sum(1 for f in frames if f["state"] == BLANK)
+    rep["blank"]["bySingleColour"] = sum(1 for f in frames if f.get("arm") == ARM_SINGLE_COLOUR)
+    rep["blank"]["byInk"] = sum(1 for f in frames if f.get("arm") == ARM_INK)
 
     if not frames:
         rep["blank"]["why"] = ("no capture was decoded: %d examined, decode window %d"
@@ -640,8 +690,12 @@ def scan(directory, newest=NEWEST_HASHED, decode=NEWEST_DECODED, now=None):
     elif rep["blank"]["blankFrames"]:
         rep["blank"]["state"] = BLANK
         rep["blank"]["why"] = ("%d of the %d newest capture(s) decoded have NOTHING DRAWN on them "
-                               "(%d could not be decoded). Newest blank frame: %s — %s"
-                               % (rep["blank"]["blankFrames"], rep["decoded"], rep["undecodable"],
+                               "(%d by the single-colour test, %d by the INK test which has been "
+                               "seen to call a dim but fully painted console blank; %d could not "
+                               "be decoded). Newest blank frame: %s — %s"
+                               % (rep["blank"]["blankFrames"], rep["decoded"],
+                                  rep["blank"]["bySingleColour"], rep["blank"]["byInk"],
+                                  rep["undecodable"],
                                   next(f["file"] for f in frames if f["state"] == BLANK),
                                   next(f["why"] for f in frames if f["state"] == BLANK)))
     elif rep["undecodable"]:
@@ -655,24 +709,26 @@ def scan(directory, newest=NEWEST_HASHED, decode=NEWEST_DECODED, now=None):
         rep["blank"]["why"] = ("all %d of the newest capture(s) have content drawn on them: %s"
                                % (rep["decoded"], frames[0]["why"]))
 
+    rep["wedge"] = disambiguate(rep)
     rep["verdict"] = _verdict(rep)
     return rep
 
 
 def _verdict(rep):
-    """One line that names BOTH findings and their denominators. -> str
+    """One line that names ALL THREE findings and their denominators. -> str
 
-    ⚠ The two states are printed side by side and never reduced to one word. A caller that wants a
+    ⚠ The states are printed side by side and never reduced to one word. A caller that wants a
     single boolean has to decide which question it is asking, which is the point.
     """
-    f, b = rep["frozen"], rep["blank"]
+    f, b, wg = rep["frozen"], rep["blank"], rep["wedge"]
     rep["findings"] = [
-        "FEED  %-7s %s" % (f["state"], f["why"]),
-        "PIXEL %-7s %s" % (b["state"], b["why"]),
+        "FEED  %-9s %s" % (f["state"], f["why"]),
+        "PIXEL %-9s %s" % (b["state"], b["why"]),
+        "CAUSE %-9s %s" % (wg["state"], wg["why"]),
     ]
-    return ("feed=%s pixels=%s | %d capture(s) in the directory, %d examined, %d decoded, "
+    return ("feed=%s pixels=%s cause=%s | %d capture(s) in the directory, %d examined, %d decoded, "
             "%d undecodable | freshness=%s" %
-            (f["state"], b["state"], rep["captures"], rep["examined"], rep["decoded"],
+            (f["state"], b["state"], wg["state"], rep["captures"], rep["examined"], rep["decoded"],
              rep["undecodable"], f["freshness"]))
 
 
@@ -715,4 +771,13 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    # ⚠ WINDOWS PRINTS THIS FILE'S VERDICT IN cp1255, AND AN EMOJI IS A CRASH THERE, NOT A MOJIBAKE.
+    # This module reports with ⚠/✅ characters, so on a non-UTF-8 console it would die WHILE
+    # REPORTING — a clean tree exiting non-zero, with the traceback where the answer should be.
+    # Guarded here rather than at import so the library path stays side-effect free.
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     sys.exit(main(sys.argv[1:]))

@@ -24,11 +24,20 @@ import io
 import os
 import re
 import shutil
+import sys
 import subprocess
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UI = os.path.join(HERE, "control_ui.html")
+
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+# ⚠ `unittest.main(verbosity=2)` PRINTS THE FIRST LINE OF EVERY DOCSTRING, and every docstring in
+# this file opens with ⚠. On a cp1255 console that is a crash while REPORTING the verdict.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 
 
 def _between(src, start, end):
