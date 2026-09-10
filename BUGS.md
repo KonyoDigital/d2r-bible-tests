@@ -28459,3 +28459,28 @@ itself, not a sibling failing for its own reason.
 **The rule, stated so it cannot be misread again:** a match count proves the anchor EXISTS. Only a
 run proves the tamper MOVES THE ANSWER — and only naming the reddened law proves it moved the right
 one. `[[sabotage-is-usually-the-wrong-one]]` `[[feedback-suspect-the-instrument]]`
+
+### REG-858 — a gate that reddens for the WRONG reason is the mirror of a green sabotage
+**v2885.** The second eye, reviewing v2883, flagged the `why` on my new
+`test_cold_caches_invalidate` red-proof: it named **two** laws as reddening under the tamper, and
+one of them does not. Reproduced by running each ALONE with the key comparison removed from
+`frame_authority.py`:
+```
+test_a_cache_with_the_WRONG_key_is_never_served   ALONE -> FAILED   (its own subject)
+test_a_corrupt_cache_fails_OPEN                   ALONE -> OK       (never reddens)
+both in sequence                                        -> FAILED (failures=2)
+```
+**The second red was leftover state.** unittest runs WRONG_key first; the weakened serve path
+returns its poison blob early and never rewrites the good cache, and the memo — keyed on the test
+file's `(size, mtime)`, NOT on the cache file — carries that poison into the next test, which calls
+`_call()` **before** `_drop_memo()`. Corrupt JSON still dies in `json.load` and still fails open; the
+key comparison is never reached on that path. There was no `setUp` and no `tearDown`.
+**Why this is worth a scar:** a green sabotage looks like a working guard and is not. This is the
+mirror — it looked like TWO working guards and was one. Both are invisible unless each law is
+isolated, and "the file went red" is not evidence about which law did.
+**Fixed:** `_CacheContract.setUp()` now drops the memo AND removes the cache file, so every law
+starts from nothing. Re-measured under the same tamper: **failures 2 -> 1**, sole reddened law
+`test_a_cache_with_the_WRONG_key_is_never_served`, untampered OK, `--prove` still PROVEN.
+**The rule:** naming the reddened law is not enough — the law has to be RUN ALONE to earn the name.
+`[[sabotage-is-usually-the-wrong-one]]` `[[feedback-fixtures-never-touch-live-data]]`
+`[[review-after-ship]]`

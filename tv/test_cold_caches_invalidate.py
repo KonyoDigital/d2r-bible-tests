@@ -41,6 +41,34 @@ class _CacheContract(object):
     def _drop_memo(self):
         raise NotImplementedError
 
+    def setUp(self):
+        """⚠⚠ EACH LAW STARTS FROM NOTHING, OR IT CAN GO RED FOR THE PREVIOUS LAW'S REASON.
+
+        There was no setUp and no tearDown, and unittest runs WRONG_key before corrupt. Measured
+        2026-09-10 with the key comparison removed from frame_authority.py:
+
+            test_a_cache_with_the_WRONG_key_is_never_served, ALONE -> FAILED   (its own subject)
+            test_a_corrupt_cache_fails_OPEN,                 ALONE -> OK       (never reddens)
+            both in sequence                                       -> FAILED (failures=2)
+
+        The second red was leftover state: WRONG_key writes a poison blob, the weakened serve path
+        returns it early and never rewrites the good cache, and the memo — keyed on the test file's
+        (size, mtime), not on the cache file — carries that poison into the next test, which calls
+        _call() BEFORE _drop_memo(). Corrupt JSON still dies in json.load and still fails open; the
+        key comparison is never reached on that path.
+
+        A gate that reddens for the wrong reason is the mirror of a green sabotage: it looks like
+        coverage and is not. Dropping BOTH the memo and the cache file gives every law a clean
+        slate, so a red here means that law's own subject broke.
+        [[feedback-fixtures-never-touch-live-data]] [[sabotage-is-usually-the-wrong-one]]
+        """
+        self._drop_memo()
+        try:
+            if self.path and os.path.exists(self.path):
+                os.remove(self.path)
+        except OSError:
+            pass                      # unwritable venue: the laws below skip on their own
+
     def test_a_cache_with_the_WRONG_key_is_never_served(self):
         real = self._call()          # populates memo + disk with the correct key
         self.assertTrue(real, "the derivation returned nothing — this test measures NOTHING")
@@ -106,7 +134,7 @@ class ChronicleRoutesCache(_CacheContract, unittest.TestCase):
 
 RED_PROOF = [
     {
-        'why': 'dropping the key comparison serves a disk cache whose key no longer matches the tree — a stale answer with a speedup attached, from a cache that decides what may be DELETED. Verified: untampered OK, tampered FAILED, reddened law test_a_cache_with_the_WRONG_key_is_never_served. ⚠⚠ THE FIRST WORDING OF THIS why WAS WRONG AND A CROSS-FAMILY REVIEW CAUGHT IT. It claimed BOTH FixtureReelsCache laws reddened. Measured by running each ALONE under the same tamper: the wrong-key law FAILED, the corrupt law came back OK. test_a_corrupt_cache_fails_OPEN reddens only IN SEQUENCE — with the key check gone the wrong-key test serves the poison blob and returns early, never rewriting the good cache and leaving _FIXTURE_CACHE poisoned; there is no tearDown, and the corrupt test calls _call() BEFORE _drop_memo(), so it reads that poison. Corrupt JSON still dies in json.load and still fails open — the key comparison is never reached. That second red is leftover process state, not the fail-open law catching anything, and naming it was the mis-attribution this discipline exists to prevent.',
+        'why': 'dropping the key comparison serves a disk cache whose key no longer matches the tree — a stale answer with a speedup attached, from a cache that decides what may be DELETED. Verified: untampered OK, tampered FAILED, reddened law test_a_cache_with_the_WRONG_key_is_never_served. ⚠⚠ THE FIRST WORDING OF THIS why WAS WRONG AND A CROSS-FAMILY REVIEW CAUGHT IT. It claimed BOTH FixtureReelsCache laws reddened. Measured by running each ALONE under the same tamper: the wrong-key law FAILED, the corrupt law came back OK. test_a_corrupt_cache_fails_OPEN reddens only IN SEQUENCE — with the key check gone the wrong-key test serves the poison blob and returns early, never rewriting the good cache and leaving _FIXTURE_CACHE poisoned; there is no tearDown, and the corrupt test calls _call() BEFORE _drop_memo(), so it reads that poison. Corrupt JSON still dies in json.load and still fails open — the key comparison is never reached. That second red is leftover process state, not the fail-open law catching anything, and naming it was the mis-attribution this discipline exists to prevent. FIXED in the same version: _CacheContract.setUp now drops the memo AND removes the cache file, so every law starts from nothing. Re-measured under the same tamper — failures went 2 -> 1 and the only reddened law is test_a_cache_with_the_WRONG_key_is_never_served.',
         'file': 'frame_authority.py',
         'find': '_blob.get("key") == _ckey and ',
         'replace': '',

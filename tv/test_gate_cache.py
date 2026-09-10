@@ -89,5 +89,16 @@ class TestGateCache(unittest.TestCase):
                         "the flush wrapper is gone — the memo would be rebuilt on every quote")
 
 
+RED_PROOF = [
+    {
+        'why': "removing the (size, mtime) signature comparison lets a REWRITTEN frame keep its old verdict — the misroute this cache exists to prevent, and the one that had Konyo watching 'grouping frames…' never come back. Dropping only the mtime half would NOT redden it: the law rewrites the file as b'second-and-longer', so size moves too and the surviving size check still misses. The whole comparison has to go. matches=2 — heart2 replaces ALL occurrences, so this was verified as heart2 will run it, not on the single replacement I first tried: both tampered -> FAILED (failures=1), restored -> OK, sole reddened law test_a_REWRITTEN_frame_misses_rather_than_lying.",
+        'file': 'control_app.py',
+        'find': ' and hit[0] == sig[0] and hit[1] == sig[1]',
+        'replace': '',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

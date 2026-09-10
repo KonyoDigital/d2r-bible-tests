@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2884",
+  "ver": "v2885",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2884: break exactly one side, or an agreement law cannot see the sabotage",
+  "note": "v2885: the mirror of a green sabotage: it looks like coverage and is not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
