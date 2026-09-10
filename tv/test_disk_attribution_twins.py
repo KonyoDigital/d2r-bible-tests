@@ -173,6 +173,17 @@ class TheGuardCanFail(unittest.TestCase):
                       "the expression is not read from the shipped file")
 
 
+RED_PROOF = [
+    {
+        'why': "narrowing the server twin from <= 0 to < 0 makes ZERO fall through to the 'ours' branch while the JS footer still answers NONE — one rule implemented twice, and the change lands in one copy, which is this gate's whole subject. It breaks exactly ONE side: an agreement law is blind to anything both surfaces read (FINGERPRINT_LEN proved that on test_mask_encoders_agree the same day). Verified: untampered OK, tampered FAILED (failures=1), reddened law test_the_python_twin_agrees_on_every_state.",
+        'file': 'control_app.py',
+        'find': 'elif ours <= 0:',
+        'replace': 'elif ours < 0:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

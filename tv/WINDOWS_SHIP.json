@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2883",
+  "ver": "v2884",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2883: a match count proves the anchor exists, not that removing it moves the answer",
+  "note": "v2884: break exactly one side, or an agreement law cannot see the sabotage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
