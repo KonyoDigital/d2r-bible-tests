@@ -1004,7 +1004,15 @@ TARGETS = {
             if (!(bot > top)) { top = 0; bot = window.innerHeight || 0; }
             return (r.top < bot && r.bottom > top);
         })()""",
-        "sel": "#hrt-instruments .hrt-k, #hrt-instruments .hrt-s, #hrt-instruments .hrt-w",
+        # ⚠ v2905 (#68) — THE NEW ELEMENTS ARE IN THE SELECTOR, NOT JUST IN THE MARKUP. This
+        # repo has now lost a surface three times by adding one and leaving it out of `sel`:
+        # an unphotographed element reads exactly like a clean one, and losing it would be
+        # invisible in a green run. `.hrt-hn` is the census figures under the question,
+        # `.hrt-nw` are the welds that stop a figure ending a line without its noun, and
+        # `.hrt-w > i` are the source labels that say WHICH gates the 285 counts.
+        "sel": ("#hrt-instruments .hrt-k, #hrt-instruments .hrt-s, #hrt-instruments .hrt-w, "
+                "#hrt-instruments .hrt-hn, #hrt-instruments .hrt-nw, "
+                "#hrt-instruments .hrt-w > i"),
     },
     "heart": {
         "serve": True,

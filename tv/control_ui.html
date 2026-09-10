@@ -5687,6 +5687,37 @@
   #heart-ov .hrt-s { font-variant-numeric: tabular-nums; letter-spacing: var(--ls-label);
     text-transform: uppercase; font-size: var(--fs-2xs); }
   #heart-ov .hrt-w { color: var(--muted); overflow-wrap: anywhere; }
+  /* ⚠⚠ v2905 (#68) — THE SAME DEVICE AS `.shr-cl i` ("the ledger") AND `.shr-stlab` ("stations"),
+     never a second one. This panel already says a figure that could be read as ANOTHER figure gets
+     a small dim uppercase word naming where it came from, on its own line above it — and the
+     STORED row is the one place in the heart that needed it. PHOTOGRAPHED at 1120x628, his real
+     window, before this change:
+
+         CAN MY OWN INSTRUMENTS STILL GO RED? · 281 PROVEN · 0 CARRY NO EXECUTABLE PROOF
+         (UNKNOWN)
+         this reading  STORED  oldest gate proof 13h ago · PARTIAL: a subset was proven, not all
+                               of them · across all 285 gate(s) — read from a file, ...
+
+     281 and 285 sit three lines apart, both end in a word about gates, and NOTHING on screen said
+     they are different denominators: 281 is proved+unproven from the census, 285 is how many gates
+     carry a verdictAt stamp. That is the shelf's "two different numbers under one word" defect,
+     one panel over, and it gets the shelf's answer. [[copy-drift]] [[label-outlived-referent]] */
+  #heart-ov .hrt-w > i { display: block; font-style: normal; text-transform: uppercase;
+    letter-spacing: var(--ls-wide); color: rgba(200,180,120,.5); font-size: var(--fs-2xs);
+    font-weight: var(--fw-normal); margin-bottom: 1px; }
+  #heart-ov .hrt-w > i ~ i { margin-top: 7px; }
+  /* the census figures are a MEASUREMENT under the question, not part of the heading. At
+     --ls-widest the 88-character header was the ONLY one in this panel that wrapped (its siblings
+     are 52 and 55) and every break landed mid-phrase; at label tracking the figures fit one line
+     at 901 and above, and the question keeps the section-header voice on its own. */
+  #heart-ov .hrt-h .hrt-hn { display: block; margin-top: 3px; font-weight: var(--fw-normal);
+    letter-spacing: var(--ls-label); }
+  /* ⚠ A FIGURE NEVER ENDS A LINE WITHOUT THE WORD THAT SAYS WHAT IT COUNTS. `.shr-cl .shr-nw`'s
+     rule and `.shr-cl .shr-nw`'s scar — `+7 closed / out` in the shelf, and here, measured at
+     375x800: `STILL GO RED? · 281` ended a line and `PROVEN` began the next, so the reader met a
+     bare number. Only the two-word ends are welded: a nowrap over the whole clause measures ~355px
+     inside a ~270px column, which is an overflow, not a fix. [[visual-regression-detector]] */
+  #heart-ov .hrt-h .hrt-nw { white-space: nowrap; }
   /* the sentence a whole state shares, said once above its rows instead of on each of them */
   #heart-ov .hrt-grp { margin: 10px 0 4px; padding: 5px 8px; border-left: 2px solid #2c3742;
     color: var(--muted); font-size: var(--fs-2xs); line-height: var(--lh-snug); }
@@ -12277,10 +12308,27 @@ window._lockMark = function(isOpen, px, label){
     var head = 'Can my own instruments still go red?';
     /* ⚠ UNKNOWN IS A THIRD ANSWER, NOT A BAD ONE. A console that has never run the proving loop
        must say so rather than imply a clean bill — the commonest lie a supervision layer tells. */
-    var line = (st === 'UNKNOWN')
-      ? 'never measured here — run `python3 tv/heart2.py --prove`'
-      : ((d.proved == null ? '?' : d.proved) + ' proven · '
-         + (d.unproven == null ? '?' : d.unproven) + ' carry no executable proof (UNKNOWN)');
+    /* ⚠ ONE CLAUSE PER FIGURE, because the header is where they are welded to their nouns and a
+       single joined string has nowhere to put the seam. Same words, same numbers, same order. */
+    var lineBits = (st === 'UNKNOWN')
+      ? ['never measured here — run `python3 tv/heart2.py --prove`']
+      : [(d.proved == null ? '?' : d.proved) + ' proven',
+         (d.unproven == null ? '?' : d.unproven) + ' carry no executable proof (UNKNOWN)'];
+    /* the first two words and the last two words of a clause never break apart — that is where a
+       figure and its noun live, and where `(UNKNOWN)` was being orphaned at 1120 and 1440. */
+    var _weld = function(t){
+      var w = String(t).split(' ');
+      /* ⚠ 3 IS THE OVERLAP CASE, AND IT DUPLICATED A WORD. `slice(0,2)` and `slice(-2)` share
+         index 1 when there are exactly three words, so 'a b c' welded to 'a b' + 'b c' and the
+         reader met the middle word TWICE. No clause here is three words TODAY, which is exactly why
+         it would have shipped: the defect waits for the first three-word phrase anyone adds. A
+         three-word clause is short enough to weld whole. [[label-outlived-referent]] */
+      if (w.length <= 3) return '<span class="hrt-nw">' + _hrtEsc(t) + '</span>';
+      var mid = w.slice(2, -2).join(' ');
+      return '<span class="hrt-nw">' + _hrtEsc(w.slice(0, 2).join(' ')) + '</span> '
+           + (mid ? _hrtEsc(mid) + ' ' : '')
+           + '<span class="hrt-nw">' + _hrtEsc(w.slice(-2).join(' ')) + '</span>';
+    };
     /* ⚠⚠ v2892 — A STORED MEASUREMENT SITTING UNDER A HEADER THAT SAYS "derived just now".
        _hrtBuild prints the panel's own age from d.ageMs, and that age is the LIVE derivation —
        seconds. THIS half is different in kind: heart2 writes tv/.heart2.json and NOTHING refreshes
@@ -12304,7 +12352,9 @@ window._lockMark = function(isOpen, px, label){
       : (_iFrom + (_iMs < 90000 ? 'just now'
           : (_iMs < 5400000 ? Math.round(_iMs / 60000) + ' min ago'
                             : Math.round(_iMs / 3600000) + 'h ago')));
-    var _iPart = d.partial ? ' · PARTIAL: a subset was proven, not all of them' : '';
+    /* the separator is glued to the clause it introduces, never left at a line end — see
+       the note on _iDenom below. */
+    var _iPart = d.partial ? ' · PARTIAL: a subset was proven, not all of them' : '';
     /* ⚠⚠ v2896 — THE OLDEST *STAMP* IS NOT THE OLDEST GATE. Raised by the cross-family eye on
        v2892: `oldestProofMs` is computed over the gates that CARRY a verdictAt stamp, and a gate
        with no stamp contributes nothing — while being, by definition, the stalest fact in the
@@ -12318,20 +12368,36 @@ window._lockMark = function(isOpen, px, label){
     var _iStamped = (typeof d.provenAtCount === 'number') ? d.provenAtCount : null;
     var _iGap = (_iStamped === null || !_iCensus) ? null : (_iCensus - _iStamped);
     var _iDenom = (_iStamped === null)
-      ? ' · how many gates that age covers is UNKNOWN — nothing said how many carry a stamp'
+      /* ⚠ v2905 (#68) — EVERY BRANCH GLUES ITS SEPARATOR TO THE WORD AFTER IT. Photographed
+         at 375x800 and at his own 1120x628: the `·` was ending a line on its own, pointing at
+         a clause that had wrapped away from it. The NBSP moves the break to before the dot.
+         [[visual-regression-detector]] */
+      ? ' · how many gates that age covers is UNKNOWN — nothing said how many carry a stamp'
       : (_iGap > 0
-          ? (' · and it covers only ' + _iStamped + ' of ' + _iCensus + ' gate(s): the other '
+          ? (' · and it covers only ' + _iStamped + ' of ' + _iCensus + ' gate(s): the other '
              + _iGap + ' carry no proof stamp at all, so this age is a FLOOR, not the census')
-          : (_iCensus ? (' · across all ' + _iStamped + ' gate(s)') : ''));
+          /* ⚠⚠ v2905 (#68) — "not all of them · across all 285 gate(s)" READ AS A CONTRADICTION,
+             and at his real 1120 width the wrap put both halves on one line. The two "all"s are
+             about different things: the first is how much of the suite the last --prove COVERED,
+             the second is how many gates carry a stamp for the age beside it. Saying which is the
+             whole job of this clause, and it was the one word it did not have. The number does not
+             move. [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+          /* the same words as the FLOOR branch six lines up — 'and it covers only X of Y'
+             against 'and it covers all N' — because the two are alternatives of ONE
+             sentence and a reader should not have to notice which arm they got. */
+          : (_iCensus ? (' · and it covers all ' + _iStamped
+                         + ' gate(s) that carry a proof stamp') : ''));
     /* ⚠ AN ID, BECAUSE A TARGET THAT CANNOT NAME ITS SUBJECT PHOTOGRAPHS WHATEVER IS THERE.
        The heart-stored render target selected `.hrt-sec .hrt-k/.hrt-s/.hrt-w` — EVERY section — so
        it reported 241/241 in frame while the shot was scrolled to THE CHRONICLE ROUTES and this
        section was nowhere in it. Green, and about the wrong surface. [[regression-guard]] */
-    var h = '<div class="hrt-sec" id="hrt-instruments"><div class="hrt-h">' + head + ' · ' + _hrtEsc(line) + '</div>'
+    var h = '<div class="hrt-sec" id="hrt-instruments"><div class="hrt-h">' + _hrtEsc(head)
+      + '<b class="hrt-hn">' + lineBits.map(_weld).join(' \u00b7 ') + '</b></div>'
       + '<div class="hrt-row"><span class="hrt-k">this reading</span>'
       + '<span class="hrt-s ' + (d.partial ? 'st-UNKNOWN' : cls) + '">STORED</span>'
-      + '<span class="hrt-w">' + _hrtEsc(_iAge + _iPart + _iDenom
-          + ' — read from a file, not derived on open like the rest of this panel')
+      + '<span class="hrt-w"><i>the proof stamps</i>' + _hrtEsc(_iAge + _iPart + _iDenom)
+      + '<i>where this row comes from</i>read from a file, not derived on open like the rest of '
+      + 'this panel'
       + '</span></div>';
     h += '<div class="hrt-row"><span class="hrt-k">the gates</span>'
       + '<span class="hrt-s ' + cls + '">' + _hrtEsc(st) + '</span>'

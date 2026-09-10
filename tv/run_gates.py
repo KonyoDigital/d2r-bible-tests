@@ -3591,6 +3591,44 @@ GATES = [
          # instance cannot come up.
          needs_app=False,
          why="every app button, against the LIVE control API"),
+
+    # ── v2907 — the fleet's three lanes, registered by me, not by the agents that wrote them ──
+    Gate("test_frozen_frames",
+         [sys.executable, os.path.join(HERE, "test_frozen_frames.py")], 120,
+         needs_app=False,
+         why="a FROZEN feed and a BLANK screen are two findings and neither may be reported as the "
+             "other. Measured on his real capture shelf 2026-09-10: 68 of 178 captures were "
+             "byte-identical repeats, three long runs, two confirmed blank by opening the image "
+             "\u2014 while every HTTP check in the same minute read `GET / 200, 1,744,954 bytes`. "
+             "A repeated hash is the POINTER; the verdict needs a look. #34.",
+         skip_ok=()),
+    Gate("test_provenance",
+         [sys.executable, os.path.join(HERE, "test_provenance.py")], 120,
+         needs_app=False,
+         why="a store must be able to name what produced it, and must never invent a name it does "
+             "not have. Census measured on this tree 2026-09-10: 44 stores \u2014 6 ANSWER, 4 "
+             "PARTIAL, 16 SILENT, 17 REFERENCE, 1 UNKNOWN. `37 of 43` was arithmetically true and "
+             "three classes wide, which is why the fix had to separate them. #69.",
+         skip_ok=()),
+    Gate("test_a_weld_never_repeats_a_word",
+         [sys.executable, os.path.join(HERE, "test_a_weld_never_repeats_a_word.py")], 120,
+         needs_app=False,
+         why="a weld joins a figure to its noun and must never show a word twice. `_weld` wraps the "
+             "first two and last two words of a clause; for a THREE-word clause those windows "
+             "overlap at index 1 and the middle word was emitted twice. Latent \u2014 the live "
+             "clauses are 2, 6 and 8 words, so every render was green. The law is arithmetic "
+             "(guard >= head + tail - 1) read as NUMBERS out of the source, plus the real helper "
+             "run under node over lengths 1..14.",
+         skip_ok=()),
+    Gate("test_shelf_driver_supervision",
+         [sys.executable, os.path.join(HERE, "test_shelf_driver_supervision.py")], 120,
+         needs_app=False,
+         why="a lane that sits DARK must say so, and nothing in this console could say it. "
+             "`vaultAutoread` sat at `reads: 0, lastTs: null` for weeks with work owed and no "
+             "heartbeat, and neither heart2 (can the GATES go red) nor lane_liveness (is the "
+             "thread ticking) joins `there is work owed` to `this lane did a unit of work`. "
+             "One predicate, not a second opinion. #59.",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

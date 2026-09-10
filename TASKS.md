@@ -1669,6 +1669,10 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2910** | `(this commit)` | v2910 — latent: no clause is three words today, so every render was green |
+| **v2909** | `(this commit)` | v2909 — vaultAutoread sat at reads 0 for weeks with work owed and nothing said so |
+| **v2908** | `(this commit)` | v2908 — 44 stores: 6 answer, 4 partial, 16 silent, 17 reference, 1 unknown |
+| **v2907** | `(this commit)` | v2907 — 68 of 178 captures were byte-identical repeats while every HTTP check read 200 |
 | **v2906** | `(this commit)` | v2906 — each side asked for the fleet separately against a sixty second cache so a run could straddle the expiry |
 | **v2905** | `(this commit)` | v2905 — the frame deleter was compared in frames against the planner in chronicle pages so the relation could never hold |
 | **v2904** | `(this commit)` | v2904 — the tick and the save both asked whether the store was readable and then acted as if it always was |

@@ -29526,6 +29526,69 @@ set would answer "nothing is outside the offer" with a confident zero. RED_PROOF
 undisturbed at **matches: 2**, PROVEN red. `corroborate.py --selftest`: 🟢 every invariant can both
 hold and refuse.
 
+## REG-906 — a FROZEN feed and a BLANK screen are two findings, and neither may be reported as the other
+
+**v2907.** #34 has said for weeks that the blank-console detector asks the PAGE, not the pixels.
+Measured 2026-09-10 on his real capture shelf: **68 of 178 captures byte-identical**, in three runs —
+34 @ 286,148 B (20:57→06:12), 18 @ 276,288 B (08:59→16:16), 16 @ 275,319 B (06:58→08:44). Two of the
+three confirmed BLANK by opening the image; the third is UNKNOWN until looked at, and is recorded as
+UNKNOWN. In the same minutes the bot's own ticks read `GET / 200 · 1,744,954 bytes`.
+
+`frozen_frames.py` separates the two states a single boolean was collapsing: **FROZEN** (the bytes
+stopped changing) and **BLANK** (there is nothing in the frame). A repeated hash is a POINTER to look,
+never the verdict — an identical size can mean either, and `luminance 30` vs `luminance 255` were both
+blank while being opposite numbers. Ten red-proofs, all PROVEN at 1 match each.
+
+⚠ **Confirmed independently, same day, by Grok Bot on his live window:** first open of THE SHELF
+painted an **empty main stage while the DOM reported `filled=true cards=535`**, and a re-open painted
+correctly. So it is real, it is reproducible, and it is TRANSIENT — which is why every text check
+missed it and why the pixel path is the only one that can see it.
+
+## REG-907 — a store must be able to name what produced it, and must never invent a name it does not have
+
+**v2908.** #69 was filed as "37 of 43 stores cannot say what produced them". Measured on this tree
+2026-09-10: **44 stores — ANSWERS 6 · PARTIAL 4 · SILENT 16 · REFERENCE 17 · UNKNOWN 1**. Both numbers
+are right about different questions: `verdict_provenance.py` counts 43 because it excludes its own
+baseline from its own census, and `37` is `43 − 6`, arithmetically true and **three classes wide**.
+A REFERENCE file has no producer to name, so counting it as a gap manufactures 17 defects that do not
+exist; a SILENT one is a real gap; a PARTIAL one is a half-answer that must not be rounded up.
+`provenance.py` keeps the four classes apart and refuses to synthesise a producer it cannot evidence.
+Ten red-proofs, all PROVEN at 1 match each. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+## REG-909 — a weld joined a figure to its noun by showing a word twice
+
+**v2910.** #68's typography pass added `_weld()` to the HEART's instruments header: a number must
+never end a line without the word saying what it counts, so the first two and last two words of a
+clause are wrapped in `.hrt-nw` and the middle is left to wrap. For a **three-word** clause those two
+windows overlap at index 1, and the middle word was emitted by BOTH:
+
+    'a b c'  ->  <span>a b</span> <span>b c</span>      the reader meets `b` twice
+
+**It was latent, and that is the finding.** The live clauses are 2, 6 and 8 words, so every render
+was green, every photograph was correct, and nothing was wrong on his screen. The defect was waiting
+for the first three-word phrase anyone added — written by someone with no reason to suspect the
+helper.
+
+The gate is arithmetic, not prose: it parses the head width, the tail width and the whole-string
+guard out of the source as NUMBERS and asserts `guard >= head + tail - 1`, because two windows of
+width H and T overlap exactly when `H + T > N`. A gate that grepped for `w.length <= 3` would pass
+the day someone widened a slice and forgot the guard. It then runs the real helper under node over
+lengths 1..14 and asserts the words that come out are the words that went in, once each, in order.
+Three red-proofs, all PROVEN at 1 match — including one that widens the head window without touching
+the guard, proving the law is the RELATION and not a hardcoded 3.
+[[source-reading-guard]] [[label-outlived-referent]]
+
+## REG-908 — a lane that sits DARK must say so, and nothing in this console could say it
+
+**v2909.** `vaultAutoread` sat at `reads: 0, lastTs: null` **for weeks**, with work owed, and no
+surface anywhere said so. The reason is structural, not accidental: heart2 asks whether the GATES can
+still go red, `lane_liveness` asks whether a THREAD is still ticking, and **neither joins "there is
+work owed" to "this lane has done a unit of work"**. A lamp that cannot report the dark is not a lamp.
+`shelf_driver.py` makes that join ONE predicate — not a second opinion sitting beside the first, which
+is how the two existing answers came to disagree without anyone noticing. Eleven red-proofs, all
+PROVEN at 1 match each, including the one that matters: a DARK lane genuinely goes red.
+[[plumbing-with-no-tap]] [[the-unjoined-end]]
+
 ## REG-905 — the two sides graded two different fleets, and conflated "disagree" with "cannot check"
 
 **v2906 (#63, pair `count-and-mask-agree`).** Four defects in the invariant itself. None of them is
