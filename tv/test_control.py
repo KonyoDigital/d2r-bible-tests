@@ -39120,6 +39120,56 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
             "and the lane that would clear them cannot see them — two authorities, one question."
             % missed)
 
+    def test_the_WAITING_sentence_and_the_SWEEPER_agree(self):
+        """★★ v2880 — #167 AGAIN, AND THE REVIEW CAUGHT ME DOING ONE HALF OF THE JOB.
+        v2878 narrowed the TICK to vault ∩ READ_CLEARS (right) and widened `_w_vault` to every
+        vault tag (opposite). `_w_vault` feeds `lockedVault` / `lockedBehindASweep`, which the
+        footer renders as "N reel(s) await a sweep". With only `rows-not-banked` left:
+
+            footer                       "N reel(s) await a sweep"     > 0
+            vaultAutoread.owed           nothing owes a read             0
+            lane_health after 48h        "it has swept everything"    idle
+            heart vault-lane-has-worked  a silent vault is acceptable    0
+
+        Footage undeletable, no tick started, doctor calls the lane idle. Retention's own why for
+        that tag names the remedy — "Apply the vault proposal" — a BANK, not a read.
+        Parsed, not grepped: both sites must select the SAME subset. [[source-reading-guard]]"""
+        # ⚠⚠ PARSED, NOT READ. The first cut asked `"READ_CLEARS" in body` — and the COMMENT
+        # above the code says "vault ∩ READ_CLEARS", so the prose satisfied it and a deliberate
+        # sabotage (widening _w_vault back to every vault tag) came back GREEN. A law written to
+        # catch a prose-read, failing by reading prose. Walk the comprehension's own `if` clauses.
+        # [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]
+        import ast as _ast
+        src = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                      encoding="utf-8").read()
+        tree = _ast.parse(src)
+        sites, bad = 0, []
+        for n in _ast.walk(tree):
+            if not isinstance(n, (_ast.SetComp, _ast.ListComp, _ast.GeneratorExp)):
+                continue
+            whole = _ast.dump(n)
+            if "OWED_BY" not in whole:
+                continue
+            names = set()
+            for g in n.generators:
+                for cond in g.ifs:
+                    for sub in _ast.walk(cond):
+                        if isinstance(sub, _ast.Attribute):
+                            names.add(sub.attr)
+                        elif isinstance(sub, _ast.Name):
+                            names.add(sub.id)
+                        elif isinstance(sub, _ast.Constant) and isinstance(sub.value, str):
+                            names.add(sub.value)
+            sites += 1
+            if "vault" in names and "READ_CLEARS" not in names:
+                bad.append(_ast.dump(n)[:90])
+        self.assertTrue(sites, "no comprehension reads OWED_BY — this law is vacuous")
+        self.assertEqual(
+            [], bad,
+            "%d site(s) select vault tags from OWED_BY WITHOUT narrowing to READ_CLEARS in the "
+            "comprehension itself, while the sweeper does: %r. The screen would say a sweep will "
+            "free footage no sweep will ever touch." % (len(bad), bad))
+
     def test_a_tag_a_READ_cannot_clear_is_never_QUEUED(self):
         """★★ v2878 — THE OTHER DIRECTION, AND IT COSTS REAL MONEY. `rows-not-banked` is the
         vault's reel, so the PANEL must report it as waiting — but the sweep already ran and made

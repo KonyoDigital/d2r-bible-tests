@@ -18038,12 +18038,40 @@ def _retention_once():
     # Same split as the 2026-08-28 incident, inverted: the sweeper right, the explanation
     # wrong. Reports everything the LANE owns (all three tags), where the sweeper pays only
     # for READ_CLEARS — different questions, one map. [[copy-drift]] [[the-unjoined-end]]
+    # ⚠⚠⚠ v2880 — AND IT MUST BE THE SAME SUBSET THE SWEEPER PAYS FOR, OR THE SENTENCE LIES.
+    # A cross-family review of v2878: I narrowed the TICK to vault ∩ READ_CLEARS (right — a read
+    # cannot clear `rows-not-banked`) and widened this to EVERY vault tag, which is the opposite
+    # direction. This number feeds `lockedVault` / `lockedBehindASweep`, and the footer renders it
+    # as "N reel(s) (X MB) await a sweep". So when the only holds left are `rows-not-banked`:
+    #
+    #     footer                       "N reel(s) await a sweep"     > 0
+    #     vaultAutoread.owed           nothing owes a read             0
+    #     lane_health after 48h        "it has swept everything"    idle
+    #     heart vault-lane-has-worked  a silent vault is acceptable    0
+    #
+    # Footage stays undeletable, no tick ever starts, and the doctor calls the lane idle — #167
+    # again, with the supervision path believing the sweeper and the screen telling him a sweep
+    # will fix it. Retention's own why for that tag names the remedy: "Apply the vault proposal (or
+    # let a sweep write vault_seen.json)" — a BANK, not a read. So "awaiting a sweep" is exactly
+    # vault ∩ READ_CLEARS; a reel owed a BANK is still held, and still reported, under its own tag.
+    #
+    # ⚠ AND UNKNOWN FAILS THE SAME WAY ON BOTH SIDES. This fell back to a literal `vault-owes` and
+    # KEPT COUNTING while `_vault_owed_reels` returns None. Same file, opposite unknown policy —
+    # and a partial count is worse than unknown here, because it looks like a look.
+    # [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]] [[label-outlived-referent]]
     try:
         import shelf_driver as _sd_lane
-        _vault_lane_tags = frozenset(t for t, l in _sd_lane.OWED_BY.items() if l == "vault")
+        _vault_lane_tags = frozenset(t for t, l in _sd_lane.OWED_BY.items()
+                                     if l == "vault" and t in _sd_lane.READ_CLEARS)
     except Exception:
-        _vault_lane_tags = frozenset(("vault-owes",))
-    _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") in _vault_lane_tags]
+        _vault_lane_tags = None
+    if _vault_lane_tags is None:
+        _w_vault = []
+        _vault_unknown = ("the tag->lane map could not be read, so how many reels await a sweep "
+                          "is UNKNOWN — not zero")
+    else:
+        _vault_unknown = ""
+        _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") in _vault_lane_tags]
     waiting = _w_chron + _w_vault
     waiting_mb = round(sum(k.get("mb") or 0 for k in waiting), 1)
     _chron_mb = round(sum(k.get("mb") or 0 for k in _w_chron), 1)
@@ -18105,7 +18133,11 @@ def _retention_once():
             "floorGb": ON_AIR_FLOOR_GB,
             "lockedBehindASweep": len(waiting), "lockedMb": waiting_mb,
             "lockedChron": len(_w_chron), "lockedChronMb": _chron_mb,
-            "lockedVault": len(_w_vault), "lockedVaultMb": _vault_mb,
+            # ⚠ v2880 — None, not 0, when the map could not be read. A zero here renders as
+            # "nothing awaits a sweep", which is a measurement nobody took.
+            "lockedVault": (None if _vault_unknown else len(_w_vault)),
+            "lockedVaultMb": (None if _vault_unknown else _vault_mb),
+            "lockedVaultWhy": (_vault_unknown or None),
             "eligible": len(cands), "eligibleMb": round(p.get("freeMb") or 0, 1),
             "unreadable": p.get("unreadable") or [],
             # v2229 (#53) — THE TREND, ATTRIBUTED. He asked "how come i have 15 gigabytes more today
@@ -25739,7 +25771,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2879",
+        "ver": "v2880",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

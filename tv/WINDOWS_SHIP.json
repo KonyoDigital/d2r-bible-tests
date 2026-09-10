@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2879",
+  "ver": "v2880",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2879: the blueprint compared a snapshot of his data as if it were the map of the code, so CI could never pass it and his own tree went stale in minutes",
+  "note": "v2880: the waiting figure counted reels no sweep would ever touch, and the law I wrote to catch it was satisfied by my own comment",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
