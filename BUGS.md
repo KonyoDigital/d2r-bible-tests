@@ -28900,3 +28900,40 @@ fix quotes the bad escape on purpose, and a version of this law that read prose 
 on its own documentation (the 5th time a check in this repo has read a comment as code). It also
 carries its own denominator: a run that finds fewer than 10 `content:` declarations fails as
 "measured nothing" rather than passing.
+
+## REG-889 — the printer spine counted 24 beside a shelf of 16, under its own line saying "16 of 16"
+
+**v2895 (#58).** Found by sweeping for siblings of REG-886 rather than by anyone reporting it.
+
+`_shelf_visible()` cuts the story's rows to the 16 he can see, and it runs ABOVE the printer join.
+The join then took `printer.stream()["counts"]` — an aggregate over every reel ON DISK. MEASURED on
+his shelf, all seven stations, in the same payload:
+
+```
+in        recorder 23 · repair 1                    24
+funnel    banked 8 · releasable 16                  24
+template  CHRONICLE 1 · INVENTORY 1 · RUN 9 · …     24
+route     content 8 · policy 16                     24
+extract   NOT_A_HOLDING 2 · NO_NAMES 9 · …          24
+out       UNDECIDED 24                              24
+tombstone ON DISK 24                                24
+
+   beneath, from the same handler:  "16 of 16 reel(s) carry the printer's verdicts"
+   beside,  from the same payload:  onDisk 16
+```
+
+A denominator and its own label disagreeing one line apart, on a strip whose entire job is to say
+where the reels are.
+
+**The counting rule now has a name.** It was an inline tally inside `stream()`'s walk; re-tallying
+the visible rows in the endpoint would have been a second opinion about what a station *said*, owned
+by the wrong module. `printer.counts_for(rows, stations)` is that rule, `stream()` itself calls it,
+and the endpoint calls it with the rows it is actually showing. One rule, two callers — the filter
+decides WHICH reels, the printer decides WHAT they said. Verified byte-identical against the payload
+the running console served before the refactor.
+
+AFTER, on his data: every station totals **16**. The picture changed honestly — `releasable 16 → 8`
+and `repair 1` disappears, because all 8 fixtures were releasable and one was the repair row.
+
+Gate: five more laws on `test_two_surfaces_one_shelf` (14 total), two more red-proofs (5 total, all
+PROVEN). All 8 printer-adjacent laws re-run green after the refactor.

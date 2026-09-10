@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2894",
+  "ver": "v2895",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2894: the strip ran two denominators together and my fix for it painted a JS escape",
+  "note": "v2895: seven printer stations read 24 beside a shelf of 16 and its own line saying 16 of 16",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

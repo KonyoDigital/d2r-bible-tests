@@ -254,6 +254,35 @@ def _tombstone_census(blob):
                     "at the far end means 'none on this shelf', never 'none ever'" % len(rows))}
 
 
+def counts_for(rows, stations=None):
+    """Bucket stream() rows by what each station SAID. -> {station: {say: n}}
+
+    ⚠⚠ v2895 (#58) — THIS IS THE RULE `stream()` ALWAYS USED, GIVEN A NAME SO A CALLER CAN COUNT
+    A SUBSET WITHOUT INVENTING A SECOND OPINION. The console hides the 8 `test-fixture` reels from
+    THE SHELF, and its printer spine was drawn from `stream()["counts"]` — an aggregate over every
+    reel on disk. MEASURED on his shelf: all seven stations totalled **24** while the shelf beside
+    them drew **16**, under a line that read "16 of 16 reel(s) carry the printer's verdicts".
+
+    The endpoint could have re-tallied the visible rows itself, and that is exactly the copy that
+    drifts: two places deciding what a station "said", one of them not owned by the printer. The
+    counting lives here, with `stream()` itself calling it, so there is one rule and two callers.
+    [[copy-drift]] [[label-outlived-referent]]
+
+    ⚠ A station a row does not carry buckets as the string "None" — the same value `stream()` has
+    always produced for an absent `say` — rather than being skipped. A dropped row would make the
+    columns stop summing to the number of rows, which is the property every reader of this spine
+    is relying on.
+    """
+    sts = list(stations or STATIONS)
+    out = dict((st, {}) for st in sts)
+    for r in (rows or []):
+        _s = (r or {}).get("stations") or {}
+        for st in sts:
+            k = str((_s.get(st) or {}).get("say"))
+            out[st][k] = out[st].get(k, 0) + 1
+    return out
+
+
 def stream(reel=None):
     """Follow every reel from the door to the far end. -> dict
 
@@ -483,10 +512,6 @@ def stream(reel=None):
                            "reclaiming %.1f MB; none of them is this one."
                            % (len(_treels), sum(float(_t.get("mb") or 0) for _t in _treels))}
 
-        for st in STATIONS:
-            counts.setdefault(st, {})
-            k = str(stations[st].get("say"))
-            counts[st][k] = counts[st].get(k, 0) + 1
         rows.append({"reel": name, "stations": stations})
 
     unknown = sum(1 for r in rows
@@ -518,7 +543,10 @@ def stream(reel=None):
         _detail = " The unanswered stations are: " + "; ".join(_bits) + "."
     state = "UNKNOWN" if not rows else ("FLOWING" if not unknown else "PARTIAL")
     return {
-        "ok": bool(rows), "state": state, "rows": rows, "counts": counts,
+        # ⚠ COUNTED BY `counts_for`, THE SAME FUNCTION THE CONSOLE CALLS FOR A SUBSET. This
+        # was an inline tally in the walk above; naming it is what stops the endpoint growing a
+        # second opinion about what a station said. [[copy-drift]]
+        "ok": bool(rows), "state": state, "rows": rows, "counts": counts_for(rows),
         "walked": len(rows), "unknownStations": unknown, "droppedRows": dropped,
         "stations": list(STATIONS), "owners": {k: v[0] for k, v in STATION_OWNER.items()},
         "questions": {k: v[1] for k, v in STATION_OWNER.items()},

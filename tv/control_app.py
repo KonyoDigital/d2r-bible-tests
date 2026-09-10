@@ -25855,7 +25855,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2894",
+        "ver": "v2895",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28292,15 +28292,36 @@ class Handler(BaseHTTPRequestHandler):
                             "scenario": (_st.get("extract") or {}).get("scenario"),
                         }
                     _hit = 0
+                    _seen_ids = set()
                     for _r in (_story.get("reels") or []):
                         _k = str(_r.get("reel") or _r.get("dir") or "")
                         _k = _k if _k.startswith("reel_") else ("reel_" + _k)
+                        _seen_ids.add(_k)
                         _s = _by.get(_k)
                         if _s:
                             _r["printer"] = _s
                             _hit += 1
                     _story["printerStations"] = list(_p.get("stations") or ())
-                    _story["printerCounts"] = _p.get("counts") or {}
+                    # ⚠⚠ v2895 (#58) — THE SPINE COUNTS THE REELS THE SHELF SHOWS, AND IT DID NOT.
+                    # `_shelf_visible()` runs ABOVE this block, so `_story["reels"]` is already the
+                    # 16 he can see — and this line then took `stream()["counts"]`, an aggregate
+                    # over every reel on disk. MEASURED on his shelf: ALL SEVEN STATIONS totalled
+                    # 24 (in 24 · funnel 24 · template 24 · route 24 · extract 24 · out 24 ·
+                    # tombstone "ON DISK 24") beside a shelf drawing 16, directly under this
+                    # handler's own sentence "16 of 16 reel(s) carry the printer's verdicts". Seven
+                    # more figures naming the reels his ruling says are not to be mentioned.
+                    #
+                    # ⚠ COUNTED BY THE PRINTER, NOT HERE. `counts_for` is the rule `stream()`
+                    # itself uses; re-tallying the visible rows in this handler would be a second
+                    # opinion about what a station said, owned by the wrong module. The filter
+                    # decides WHICH reels; the printer decides WHAT they said.
+                    # [[copy-drift]] [[zero-needs-a-denominator]]
+                    _vis_rows = [_row for _row in (_p.get("rows") or [])
+                                 if str(_row.get("reel") or "") in _seen_ids]
+                    _story["printerCounts"] = (
+                        _PR.counts_for(_vis_rows, _p.get("stations"))
+                        if callable(getattr(_PR, "counts_for", None))
+                        else (_p.get("counts") or {}))
                     _story["printerJoined"] = _hit
                     _story["printerWhy"] = ("%d of %d reel(s) carry the printer's verdicts beside "
                                             "their retention stage" % (_hit, len(_story.get("reels") or [])))

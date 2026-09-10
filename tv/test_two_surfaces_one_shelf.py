@@ -189,6 +189,79 @@ class TwoSurfacesOneShelf(unittest.TestCase):
                         "hands back an empty set, which CLAIMS nothing is hidden")
 
 
+class ThePrinterSpineCountsWhatTheShelfShows(unittest.TestCase):
+    """THE THIRD SURFACE. Same shelf, same ruling, found by sweeping for siblings of REG-886.
+
+    ⚠⚠ MEASURED on his shelf 2026-09-10: the printer spine is drawn from `stream()["counts"]`, an
+    aggregate over every reel ON DISK, while `_shelf_visible()` had already cut the story's rows to
+    16. ALL SEVEN STATIONS read 24 — in 24 · funnel 24 · template 24 · route 24 · extract 24 ·
+    out 24 · tombstone "ON DISK 24" — directly beneath the handler's own sentence *"16 of 16
+    reel(s) carry the printer's verdicts"*. A denominator and its own label, disagreeing, one line
+    apart. [[zero-needs-a-denominator]] [[label-outlived-referent]]
+    """
+
+    ROWS = [
+        {"reel": "reel_keep_a", "stations": {"in": {"say": "recorder"}, "out": {"say": "UNDECIDED"}}},
+        {"reel": "reel_keep_b", "stations": {"in": {"say": "recorder"}, "out": {"say": "UNDECIDED"}}},
+        {"reel": "reel_hide_a", "stations": {"in": {"say": "repair"}, "out": {"say": "UNDECIDED"}}},
+    ]
+
+    def test_the_counting_rule_has_a_name_the_endpoint_can_call(self):
+        """The rule must live in the printer, not be re-tallied by whoever needs a subset."""
+        import printer as PR
+        self.assertTrue(callable(getattr(PR, "counts_for", None)),
+                        "printer.counts_for() is gone — a caller wanting the visible subset must "
+                        "now re-implement what a station 'said', which is a second opinion owned "
+                        "by the wrong module")
+
+    def test_a_subset_sums_to_the_subset(self):
+        import printer as PR
+        got = PR.counts_for(self.ROWS[:2], ["in", "out"])
+        self.assertEqual(sum(got["in"].values()), 2,
+                         "the station column does not sum to the rows it was given")
+        self.assertEqual(got["in"], {"recorder": 2},
+                         "the hidden reel's verdict is still in the tally: %s" % got["in"])
+        self.assertEqual(PR.counts_for(self.ROWS, ["in"])["in"], {"recorder": 2, "repair": 1},
+                         "counting every row no longer reproduces the whole-shelf tally")
+
+    def test_a_missing_station_buckets_rather_than_vanishing(self):
+        """A dropped row would stop the columns summing to the number of rows — the one property
+        every reader of this spine relies on."""
+        import printer as PR
+        got = PR.counts_for(self.ROWS, ["in", "nosuchstation"])
+        self.assertEqual(sum(got["nosuchstation"].values()), len(self.ROWS),
+                         "rows vanished from a station they do not carry, so the columns no "
+                         "longer sum to the shelf: %s" % got["nosuchstation"])
+
+    def test_stream_itself_counts_with_it(self):
+        """One rule, two callers — not one rule and a copy. [[copy-drift]]"""
+        src = io.open(os.path.join(HERE, "printer.py"), encoding="utf-8").read()
+        tree = ast.parse(src)
+        inside_stream = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "stream":
+                for n in ast.walk(node):
+                    if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                            and n.func.id == "counts_for"):
+                        inside_stream.append(n)
+        self.assertTrue(inside_stream,
+                        "stream() no longer calls counts_for() — the walk has gone back to its own "
+                        "inline tally, so the spine and the subset are counted by two rules that "
+                        "are free to drift apart")
+
+    def test_the_endpoint_counts_only_the_reels_it_is_showing(self):
+        """⚠ PARSED, NOT GREPPED. [[source-reading-guard]]"""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        tree = ast.parse(src)
+        joined = [n for n in ast.walk(tree)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                  and n.func.attr == "counts_for"]
+        self.assertTrue(joined,
+                        "control_app.py never calls counts_for — printerCounts is back to the "
+                        "whole-disk aggregate and the spine counts reels the shelf hides")
+
+
+
 RED_PROOF = [
     {
         "why": "removing the report-level filter restores the strip that printed 24 over a shelf "
@@ -212,6 +285,22 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "_lr = _RL.lanes(hide=_hide)",
         "replace": "_lr = _RL.lanes()",
+        "matches": 1,
+    },
+    {
+        "why": "putting the printer spine back on the whole-disk aggregate restores the seven "
+               "stations reading 24 beside a shelf of 16",
+        "file": "control_app.py",
+        "find": "_PR.counts_for(_vis_rows, _p.get(\"stations\"))",
+        "replace": "(_p.get(\"counts\") or {})",
+        "matches": 1,
+    },
+    {
+        "why": "returning stream() to its own inline tally means the spine and the visible subset "
+               "are counted by two rules",
+        "file": "printer.py",
+        "find": '"rows": rows, "counts": counts_for(rows),',
+        "replace": '"rows": rows, "counts": {},',
         "matches": 1,
     },
 ]
