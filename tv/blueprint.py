@@ -307,6 +307,48 @@ def stripped_sets():
             "strippedFrames": sum(withpf.values()), "grossFrames": gross, "panelFrames": panels}
 
 
+#: ⚠⚠⚠ v2879 — THIS FILE IS TWO THINGS, AND ONLY ONE BELONGS IN GIT.
+#: A MAP OF THE CODE — stations, lanes, readers, gates — stable and committable; and a
+#: SNAPSHOT OF HIS DATA — how many reels sit where, how large each live ledger is right now —
+#: which changes every time the vault lane reads a reel.
+#:
+#: `--check` stripped only the `generated` line and compared the rest verbatim, so:
+#:   · ON HIS MAC it went stale within MINUTES. Measured: two renders 37 minutes apart, no code
+#:     change, differed on vault_seen.json 10399 B -> 11650 B, "his 35 reel(s)" -> "29 reel(s)",
+#:     STATION 10 -> 8, PRINTER 7 -> 3. Every push needed a regenerate-and-amend.
+#:   · ON CI IT COULD NEVER PASS. The runner has no reels, no vault_seen.json, no footage, so a
+#:     file committed from his Mac cannot equal what CI renders, whatever anyone does.
+#:     test_the_blueprint_cannot_go_stale has been red on the runner for many ships because of it.
+#:     A gate that cannot pass on the machine that runs it is not a gate.
+#:
+#: The snapshot is STILL RENDERED — he reads it, and it is the macro view he asked for. It is
+#: simply fenced, and the staleness question is asked of the map alone.
+#: [[the-unjoined-end]] [[label-outlived-referent]] [[zero-needs-a-denominator]]
+LIVE_BEGIN = "<!-- LIVE:BEGIN — a snapshot of his data, NOT part of the staleness check -->"
+LIVE_END = "<!-- LIVE:END -->"
+
+
+def code_only(text):
+    """The part of the blueprint that describes the CODE. -> str
+
+    ⚠ ONE STRIPPER, used by --check and by any future reader alike. Two copies of this rule is
+    how a check starts asking a different question from the one the file answers. [[copy-drift]]
+    """
+    out, live = [], False
+    for ln in (text or "").split("\n"):
+        s = ln.strip()
+        if s.startswith("<!-- LIVE:BEGIN"):
+            live = True
+            continue
+        if s.startswith("<!-- LIVE:END"):
+            live = False
+            continue
+        if live or s.startswith("generated "):
+            continue
+        out.append(ln)
+    return "\n".join(out)
+
+
 def render():
     L = []
     A = L.append
@@ -397,9 +439,11 @@ def render():
     A("")
     A("## LEDGERS — the durable memory")
     A("")
+    A(LIVE_BEGIN)
     for f, why, exists, size in ledgers():
         A("    %-24s %-6s %8s  %s"
           % (f, ("live" if exists else "empty"), (("%d B" % size) if exists else "-"), why))
+    A(LIVE_END)
     A("")
     A("## WILSON — one statistic, every lane that scores itself")
     A("")
@@ -428,6 +472,7 @@ def render():
     # Konyo: *"shouldnt this be a connected and communicating system thats easily seen wired from
     # a macro view"*. [[the-unjoined-end]]
     rv = river()
+    A(LIVE_BEGIN)
     A("## THE RIVER — every reel from the door to the far end")
     A("")
     if not rv or rv.get("why"):
@@ -484,6 +529,8 @@ def render():
         A("⚠ Measured 2026-09-08: the ONLY readers of `panelFrames` were `river.py` counting how")
         A("many reels have one, and a census writer. The stripped sets are recorded and unread.")
     A("")
+    A(LIVE_END)
+    A("")
     A("## GATES")
     A("")
     g = gate_count()
@@ -519,8 +566,7 @@ def main(argv=None):
             print("BLUEPRINT.md could not be read (%s) — regenerate it: python3 tv/blueprint.py"
                   % type(e).__name__)
             return 1
-        strip = lambda t: "\n".join(l for l in t.split("\n")
-                                    if not l.strip().startswith("generated "))
+        strip = code_only
         if strip(have) == strip(txt):
             print("BLUEPRINT.md is current.")
             return 0

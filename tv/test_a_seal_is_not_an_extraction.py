@@ -126,12 +126,31 @@ def _shelf(rows):
     io.open(os.path.join(hist, "vault_swept.json"), "w", encoding="utf-8").write(json.dumps({}))
     old = os.environ.get("TV_HIST")
     os.environ["TV_HIST"] = hist
+    # ⚠⚠ v2879 — THE WITNESS INDEX IS STUBBED, OR THE CHAIN NEVER REACHES THE RULE.
+    # MEASURED on CI and reproduced here by hiding the ambient stores: every reel comes back
+    # `no-witness-index` — the FIRST rule in plan()'s chain — because `frame_authority.
+    # witness_index(HERE)` reads a durable store that a runner does not have. The safety promise
+    # still held there (candidates: 0), but these laws are about the rule FURTHER DOWN, and a law
+    # that never reaches its subject certifies nothing. `plan()` reads that index from HERE, not
+    # from the caller's hist_dir (the v2750 host-dependency), so the fixture cannot supply it by
+    # writing a file — it has to say so out loud. Stubbing what you are NOT testing is not
+    # weakening a law; letting the runner's filesystem decide which branch runs is.
+    # [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
+    import frame_authority as _fa
+    _real_wi = _fa.witness_index
+    # ⚠ A COMPLETE index, not a half one. The first cut returned only `haveIndex`, and the
+    # chain then held every reel as `ledger-unreadable` — the SECOND rule — because a result
+    # missing `ok` reads as "the durable witness index could not be read". A stub that is
+    # missing a field is a different fixture from the one you meant to build.
+    _fa.witness_index = lambda *a, **k: {"haveIndex": True, "ok": True,
+                                         "frames": set(), "sessions": set(), "perStore": {}}
     try:
         import retro_triage as rt
         io.open(rt._store_path(), "w", encoding="utf-8").write(json.dumps(survey))
         RR._TRIAGE_CACHE["at"] = None
         plan = RR.plan(hist)
     finally:
+        _fa.witness_index = _real_wi
         if old is None:
             os.environ.pop("TV_HIST", None)
         else:
