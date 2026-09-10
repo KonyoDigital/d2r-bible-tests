@@ -793,6 +793,14 @@ GATES = [
              "number of ticks, on the first tick after a restart, with run() driven rather than "
              "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
          skip_ok=()),
+    Gate("test_the_census_counts_every_gate",
+         [sys.executable, os.path.join(HERE, "test_the_census_counts_every_gate.py")], 60,
+         why="v2882 — run_gates registered 279 gates and the heart's census reported 278. The "
+             "missing one was `visual-lock`, whose file is visual_lock_invariant.py in the REPO "
+             "ROOT; gate_files() looked only in tv/, failed, and dropped it with no line saying "
+             "so, so \"0 blind of 278\" read as complete while one gate had never been asked. "
+             "Two counts of the same thing disagreed and the quiet one was wrong.",
+         skip_ok=()),
     Gate("test_a_total_is_only_as_known_as_its_parts",
          [sys.executable, os.path.join(HERE, "test_a_total_is_only_as_known_as_its_parts.py")], 90,
          # ⚠ `why=` BY KEYWORD. Gate.__init__ is (name, argv, timeout, needs_app, cwd, why, ...),

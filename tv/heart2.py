@@ -253,9 +253,16 @@ def _read_text(path):
         return None
 
 
-def gate_files():
+def gate_files(say=print):
+    # ⚠ `say` IS A PARAMETER HERE, NOT A GLOBAL. heart2 threads its printer through
+    # (make_sandbox(say=print), prove(..., say=print)); there is no module-level `say`.
+    # v2882 added the dropped-gate warning below WITHOUT this parameter, so the one line that
+    # exists to make a silent omission loud would have raised NameError the first time a gate
+    # was actually dropped — a warning that cannot fire, inside the fix for a warning that was
+    # never written. Caught because --triage hit the same mistake and crashed immediately.
+    # [[plumbing-with-no-tap]] [[feedback-blind-fixture-green-gate]]
     """Every registered gate that is a python test file here. -> [(name, filename)]"""
-    out = []
+    out, _dropped = [], []
     try:
         import run_gates
     except Exception as e:
@@ -273,8 +280,26 @@ def gate_files():
                 base = os.path.basename(part)
                 if os.path.exists(os.path.join(HERE, base)):
                     fn = base
+                # ⚠⚠ v2882 — A GATE WHOSE FILE IS NOT IN tv/ WAS DROPPED SILENTLY, AND COUNTED
+                # NOWHERE. `visual-lock` runs REPO/visual_lock_invariant.py; the check above only
+                # looked in HERE, so it failed and the gate vanished from the heart's scope with no
+                # line saying so. Measured: run_gates registers 279 gates, the heart reported 278 —
+                # and "0 blind of 278" read as "every gate is accounted for" while one was not even
+                # asked about. The heart's own premise is that the instruments must watch
+                # themselves; a census that quietly omits a row is the first thing that premise
+                # forbids. Root files are addressed ".."-relative so every consumer keeps working:
+                # red_proofs_in and _run_gate both os.path.join(<tv>, filename), which resolves to
+                # the repo root, and make_sandbox places the file there.
+                # [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[heart-v2-instruments-watch-themselves]]
+                elif os.path.exists(os.path.join(REPO, base)):
+                    fn = os.path.join("..", base)
         if fn:
             out.append((getattr(g, "name", fn), fn))
+        else:
+            _dropped.append(getattr(g, "name", "?"))
+    if _dropped:
+        say("  ⚠ %d registered gate(s) have no python file this heart can read, so they are NOT in "
+            "the census below — UNKNOWN, not clean: %s" % (len(_dropped), ", ".join(_dropped)))
     return out
 
 
@@ -349,7 +374,9 @@ def make_sandbox(say=print):
     # ⚠ ONE FILE, BY NAME. NEVER `cp -R` of the repo or of tv/ — tv/ holds ~5.8 GB of footage and
     # copying it caused an ENOSPC once already. safe_copy exists precisely to avoid that, and this
     # adds a single named file beside its output rather than widening what it copies.
-    for _root_file in ("bible.html",):
+    # v2882 — visual_lock_invariant.py joins bible.html here: it is the one GATE whose file lives
+    # in the repo root, and without it in the sandbox `visual-lock` cannot be proven.
+    for _root_file in ("bible.html", "visual_lock_invariant.py"):
         _srcf = os.path.join(REPO, _root_file)
         if os.path.isfile(_srcf):
             try:
@@ -401,7 +428,10 @@ def blind_reason(why, matches, tail):
             % (n_skipped, n_ran, n_ran - n_skipped))
 
 
-def _run_gate(sandbox_tv, filename, timeout=180):
+def _run_gate(sandbox_tv, filename, timeout=180, extra=()):
+    # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
+    # it a gate runs a command the suite never issues, and its verdict is about something
+    # else. Default empty keeps every existing caller identical.
     """-> (passed: bool, tail: str)"""
     p = os.path.join(sandbox_tv, filename)
     if not os.path.exists(p):
@@ -409,7 +439,7 @@ def _run_gate(sandbox_tv, filename, timeout=180):
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"      # no stale .pyc can outlive a tamper
     try:
-        r = subprocess.run([sys.executable, p], cwd=sandbox_tv, env=env,
+        r = subprocess.run([sys.executable, p] + list(extra), cwd=sandbox_tv, env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
@@ -982,13 +1012,86 @@ def propose(results, census, hits):
     return PROPOSALS
 
 
+def triage(say=print):
+    """Split the gates that carry NO red-proof into 'writable' and 'not provable here'.
+
+    ⚠⚠ THE CENSUS COUNTED TWO DIFFERENT THINGS AS ONE. `proved / total` leaves a remainder, and
+    every gate in it was reported the same way: unproven. But that remainder holds two populations
+    that mean opposite things —
+
+      • a gate nobody has written a sabotage for yet   -> WRITABLE, the number is a to-do list
+      • a gate that CANNOT go red in this sandbox      -> a ceiling, and no amount of work moves it
+
+    MEASURED 2026-09-10: `test_tasks_ships_are_recorded` is green on his Mac and red the moment it
+    runs in a sandbox, because `safe_copy` copies files and not `.git`, so the gate's own subject
+    ("git named 0 shipped versions; 12 are needed") cannot exist there. Writing a red-proof for it
+    would have produced UNPROVABLE — work spent to learn something the census could have told me.
+
+    A gate with no proof is never RUN by --prove, so nothing ever discovers which population it is
+    in. This runs each one untampered, once, and asks. That is a measurement, not a heuristic: the
+    first attempt at this counted `git` mentions with a regex, which would have put a gate that
+    merely says the word git in the wrong column. [[unknown-stays-unknown]]
+    [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+    """
+    files = gate_files()
+    todo = [(n, f) for n, f in files if not red_proofs_in(f)]
+    say("")
+    say("  %d gate(s) carry no red-proof — running each untampered to see which COULD be proven"
+        % len(todo))
+    # ⚠ make_sandbox RETURNS (tv_dir, root) — the FIRST element is already the tv/ directory,
+    # which is why prove() hands it straight to _run_gate. Joining "tv" onto it again produced
+    # TypeError on a tuple. Mirrored from prove()'s own two lines rather than guessed a second time.
+    sandbox, _root = make_sandbox(say)
+    if not sandbox:
+        say("  no sandbox — the split is UNKNOWN, not empty")
+        return {"writable": [], "unprovable": [], "why": "no sandbox"}
+    # ⚠⚠ RUN THE GATE THE WAY THE SUITE RUNS IT, OR THE VERDICT IS ABOUT A COMMAND NOBODY ISSUES.
+    # The first cut called _run_gate(sandbox, filename), which builds [python3, <file>] — dropping
+    # the gate's ARGV TAIL and ignoring its registered TIMEOUT. Measured: 3 of the 8 gates this
+    # reported as "not provable" were my own instrument.
+    #   corroborate-selftest  real argv ends in `--selftest`; without it the LIVE corroboration ran
+    #                         and reported real disagreements. With it: exit 0, "🟢 every invariant
+    #                         can both hold and refuse".
+    #   js-syntax (300s), test_control (900s)  — given _run_gate's 180s default, both timed out and
+    #                         a timeout was filed as a property of the gate rather than of the clock.
+    # [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+    try:
+        import run_gates as _rg
+        _spec = {g.name: (list(getattr(g, "argv", []) or []), getattr(g, "timeout", 180))
+                 for g in getattr(_rg, "GATES", [])}
+    except Exception as _e:
+        _spec = {}
+        say("  run_gates would not import (%s) — falling back to a bare run, so a gate that needs "
+            "extra argv may be misfiled" % type(_e).__name__)
+    writable, unprovable = [], []
+    for name, fn_ in todo:
+        _argv, _to = _spec.get(name, ([], 180))
+        _tail = [a for a in _argv[2:] if isinstance(a, str)]      # everything after [python, file]
+        ok, out = _run_gate(sandbox, fn_, timeout=_to, extra=_tail)
+        (writable if ok else unprovable).append((name, (out or "").strip().splitlines()[-1][:70]
+                                                 if out else ""))
+    say("  WRITABLE      %3d — green in the sandbox, so a sabotage would mean something" % len(writable))
+    say("  NOT PROVABLE  %3d — already red untampered; a red-proof here can only say UNPROVABLE"
+        % len(unprovable))
+    for n, why in unprovable[:12]:
+        say("     %-46s %s" % (n[:46], why))
+    if len(unprovable) > 12:
+        say("     ... and %d more" % (len(unprovable) - 12))
+    return {"writable": [n for n, _ in writable], "unprovable": [n for n, _ in unprovable]}
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--prove", nargs="*", default=None)
     ap.add_argument("--detect", action="store_true")
     ap.add_argument("--ratchet", action="store_true")
+    ap.add_argument("--triage", action="store_true",
+                    help="split the no-red-proof gates into WRITABLE vs NOT PROVABLE HERE")
     a = ap.parse_args(argv)
+    if a.triage:
+        triage()
+        return 0
     if not any([a.report, a.prove is not None, a.detect, a.ratchet]):
         a.report = True
 

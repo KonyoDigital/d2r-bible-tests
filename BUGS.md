@@ -28377,3 +28377,55 @@ and the sentence to one answer, and keeps the other direction honest — a reada
 publish a real count. Proven red by restoring the raw sum.
 `[[unknown-stays-unknown]]` `[[zero-needs-a-denominator]]` `[[label-outlived-referent]]`
 `[[review-after-ship]]`
+
+### REG-855 — the heart's census omitted a gate, and said nothing
+**v2882.** `run_gates.GATES` registers **279** gates. `heart2 --prove` reported **278 in scope**.
+The two counts of the same thing disagreed, and the quiet one was wrong — which is the whole of
+`[[feedback-contradiction-is-the-finding]]`. The missing gate was **`visual-lock`**, whose file is
+`visual_lock_invariant.py` in the **repo root** rather than in `tv/`. `gate_files()` tested only
+`os.path.exists(os.path.join(HERE, base))`, failed, set `fn = None`, and dropped the gate **with no
+line saying so**.
+**Why it matters more than one row:** the heart's entire premise is *can my own gates still go
+red?*, answered as `proved / total`. With the drop silent, `"155 proved · 0 blind · 278 total"` read
+as *every gate is accounted for*, while one guard had never been asked the question at all. A census
+that quietly omits a row is the first thing that premise forbids — and it was found by an outside
+count (the Grok bot published 278 while `run_gates` imports 279), not by the heart.
+**Fixed three ways, because counting it alone would have traded a silent omission for a silent
+UNPROVABLE:**
+1. Root-file gates are addressed `"../<file>.py"` — `red_proofs_in()` and `_run_gate()` both join
+   from `tv/`, so the name resolves for every consumer without changing either.
+2. `visual_lock_invariant.py` joins `bible.html` in `make_sandbox`'s root-copy list, so the gate can
+   actually be proven instead of reporting UNPROVABLE from an empty sandbox.
+3. Any gate the heart still cannot read now **prints**: *"⚠ N registered gate(s) have no python file
+   this heart can read … UNKNOWN, not clean"*. The omission can never be silent again.
+**Measured after:** heart scope **279 = 279**; `visual-lock → ../visual_lock_invariant.py`; it is
+now counted as *in scope, no red-proof* — visibly unproven rather than invisibly absent.
+**Gated:** `test_the_census_counts_every_gate` (4 laws — nothing missing, nothing invented, every
+counted name resolves to a real file, and a root-file gate reaches the sandbox). Proven red by
+restoring the tv/-only lookup.
+`[[unknown-stays-unknown]]` `[[zero-needs-a-denominator]]` `[[heart-v2-instruments-watch-themselves]]`
+
+### REG-856 — the heart ran gates with a command the suite never issues
+**v2882.** `heart2._run_gate()` builds `[python3, <file>]` and runs it. But a registered `Gate`
+carries an **argv tail** and its **own timeout**, and `_run_gate` used neither: it dropped everything
+after the filename and applied a fixed 180s.
+**Measured**, when the new `--triage` first classified the 122 proof-less gates as `114 WRITABLE / 8
+NOT PROVABLE` — three of that 8 were the instrument, not the gates:
+- `corroborate-selftest`'s real argv ends in `--selftest`. Without it the **live corroboration** ran
+  and reported real disagreements, so a green gate was filed as permanently unprovable. Run
+  correctly: exit 0, *"🟢 every invariant can both hold and refuse"*.
+- `js-syntax` (registered 300s) and `test_control` (900s) were cut at 180s. A property of the clock,
+  recorded as a property of the gate.
+After the fix the same command reports **117 WRITABLE / 5 NOT PROVABLE**.
+**Why it is more than a triage bug:** `prove()` calls the same `_run_gate`. Any gate needing extra
+argv would have had its red-proof graded on the wrong command — a proof that says PROVEN about
+something nobody runs. No such proof exists today (every current proof targets a bare `test_*.py`),
+so nothing shipped was wrong; the hole was open, not walked through.
+**Fix:** `_run_gate(..., extra=())`, appended to the argv; the default keeps every existing caller
+byte-identical. `triage()` reads each gate's real `argv[2:]` and `timeout` from `run_gates`.
+**Verified:** the three gates proven this session re-prove PROVEN through the modified path.
+⚠ Also fixed in passing: the dropped-gate warning added earlier in v2882 called `say(...)` inside
+`gate_files()`, which has no such parameter — `say` is threaded as an argument in this module, not a
+global. The one line whose job is to make a silent omission loud would have raised `NameError` the
+first time a gate was dropped. Exercised with a synthetic unreadable gate before believing it.
+`[[feedback-suspect-the-instrument]]` `[[plumbing-with-no-tap]]` `[[zero-needs-a-denominator]]`

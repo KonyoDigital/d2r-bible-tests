@@ -200,6 +200,17 @@ class TheHistoricalShapeIsWHYThisExists(unittest.TestCase):
                              "filling it again, which no count over the whole archive would show")
 
 
+RED_PROOF = [
+    {
+        'why': 'putting the literal None back is the defect itself: it made histBytes null in 8,588 of 8,588 rows, so the corpus bound could never apply. matches=2 because the retention pass calls disk_history_append from TWO sites and _the_call() takes whichever ast.walk reaches first — tampering one could miss it. Verified by hand: untampered OK, tampered FAILED (failures=1).',
+        'file': 'control_app.py',
+        'find': 'hist_bytes=_hist_bytes,',
+        'replace': 'hist_bytes=None,',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

@@ -529,5 +529,16 @@ def main():
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'VISUAL-LOCK exists to forbid a raw font-weight literal ever coming back in place of a var(--fw-*) token. Putting two back is the drift itself. Verified by hand before declaring: the tampered tree exits 1 and names the offenders. matches=2 because no single font-weight declaration in control_ui.html is unique — the smallest token declaration occurs twice.',
+        'file': 'tv/control_ui.html',
+        'find': 'font-weight: var(--fw-regular)',
+        'replace': 'font-weight: 400',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main())

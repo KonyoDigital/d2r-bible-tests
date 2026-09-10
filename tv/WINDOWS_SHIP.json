@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2881",
+  "ver": "v2882",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2881: two product defects and three laws that only ever ran where the data was",
+  "note": "v2882: run_gates registers 279, the heart counted 278, and the drop printed nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
