@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2897",
+  "ver": "v2898",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2897: the polled endpoint waited on a disk survey and the kept record named it",
+  "note": "v2898: a browser-free coverage check ran only in CI so five of six versions shipped red",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

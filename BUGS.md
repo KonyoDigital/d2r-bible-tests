@@ -29093,3 +29093,36 @@ Gate `test_the_polled_endpoint_never_waits_on_a_survey` — 4 laws, no footage (
 sleeping stand-in, so it measures the same on a CI runner). Proven red 3 ways, 1 match each:
 restore the synchronous call · drop the one-at-a-time flag · report the lane OFF before anything
 surveyed it. 284 gates.
+
+## REG-896 — the check existed, was correct, was cheap, and ran only where it could not stop a push
+
+**v2898 (#72), the systemic half of REG-894.** `test_render_coverage :: test_it_exists_and_covers_every_target`
+already asked whether every render target has a coverage floor, and already needed no browser. It
+lives in `run_gates.py` — and the pre-push hook's own comment says `run_gates.py` "ran only locally
+and in CI". The fast lane runs `test_agent.py` and `test_control.py` and nothing else.
+
+So the guard was in the wrong room. `📺 TV DIABLO` failed on **five of six consecutive versions**
+(v2888, v2889, v2890, v2892, v2896) and nothing before any of those pushes said a word.
+
+**The split.** The law has two halves with completely different costs:
+
+| half | needs | where it now runs |
+|---|---|---|
+| does every target have a floor entry? | source + json, milliseconds | **`test_control` — every push** |
+| did every target still meet its floor? | a full 17-target render | `run_gates` / CI, unchanged |
+
+The ratchet half is *correctly* skipped on a subset render — "a subset cannot tell a deliberate
+filter from a surface that vanished" — and every render in that window was a subset. That skip is
+right; what was missing is that nothing else asked the cheap structural question.
+
+`render_check.py` is read with **ast**, not grepped, so a mention in a comment cannot satisfy it,
+and the pre-push never imports the render harness as a side effect. It carries its own denominator:
+fewer than 6 targets parsed fails as "the reader stopped matching the file" rather than passing.
+
+PROVEN RED twice, match counts printed, restore verified byte-identical:
+
+```
+removed 1 key  ('heart-stored', floor 17 -> 16)   ->  FAILED: "1 of 17 render target(s) have NO coverage floor"
+cleared 16 keys                                   ->  FAILED: "17 of 17 render target(s) have NO coverage floor"
+restored                                          ->  OK, sha256 identical
+```

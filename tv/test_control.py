@@ -5,6 +5,7 @@ import atexit
 import contextlib
 import glob
 import io
+import ast
 import json
 import os
 import re
@@ -7439,6 +7440,68 @@ class TestNoOrphanSuite(unittest.TestCase):
         self.assertEqual(silent, [], "a gate with no `why` cannot be triaged when it goes red, and "
                                      "an untriageable gate is the one people start ignoring: %s"
                                      % ", ".join(silent))
+
+    def test_every_render_target_has_a_coverage_floor(self):
+        """⚠⚠ THIS LIVES HERE, IN test_control, BECAUSE THIS IS WHERE THE PRE-PUSH LOOKS (#72).
+
+        `test_render_coverage` already asks this and already needs no browser — and it runs ONLY in
+        run_gates.py, which the hook's own comment says "ran only locally and in CI". The pre-push
+        fast lane runs test_agent and test_control and nothing else. So the check existed, was
+        correct, was cheap, and was in the one place that could not stop a push.
+
+        MEASURED (REG-894): v2892 added the `heart-stored` render target without blessing the
+        floor. `📺 TV DIABLO — agent tests` then failed on v2892, v2888, v2889, v2890, v2896 — five
+        of six consecutive versions — and nothing before any of those pushes said a word. The
+        coverage RATCHET is skipped on a subset render, correctly ("a subset cannot tell a
+        deliberate filter from a surface that vanished"), and every render in that window was a
+        subset. A red CI that stays red stops being read, and then it cannot report the NEXT
+        breakage.
+
+        ⚠ THIS IS THE STRUCTURAL HALF ONLY, AND DELIBERATELY SO. "Does every target have a floor
+        entry" is a source-and-json question answerable in milliseconds with no Chrome. "Did every
+        target still measure at least its floor" needs a full 17-target render and stays where it
+        is. Splitting them is the whole point: the half that can run on every push, does.
+
+        ⚠ PARSED, NOT GREPPED, AND NOT IMPORTED. render_check.py is read with ast so this cannot be
+        satisfied by a mention in a comment, and so importing the render harness never becomes a
+        side effect of the pre-push. [[source-reading-guard]] [[regression-guard]]
+        """
+        here = os.path.dirname(os.path.abspath(__file__))
+        rc = os.path.join(here, "render_check.py")
+        cov = os.path.join(here, "render_coverage.json")
+        self.assertTrue(os.path.isfile(rc), "render_check.py is gone")
+        self.assertTrue(os.path.isfile(cov),
+                        "tv/render_coverage.json is missing — every target's coverage is UNKNOWN "
+                        "and losing one would be invisible. Regenerate: "
+                        "python3 tv/render_check.py --bless")
+
+        with io.open(rc, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        names = None
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(isinstance(t, ast.Name) and t.id == "TARGETS" for t in node.targets):
+                continue
+            if isinstance(node.value, ast.Dict):
+                names = [k.value for k in node.value.keys
+                         if isinstance(k, ast.Constant) and isinstance(k.value, str)]
+        # ⚠ A ZERO NEEDS A DENOMINATOR: "no target lacks a floor" over zero targets parsed is a
+        # broken reader wearing the clothes of a pass. [[zero-needs-a-denominator]]
+        self.assertIsNotNone(names, "TARGETS is no longer a dict literal in render_check.py, so "
+                                    "this law could not read the target list — UNKNOWN, not clean")
+        self.assertGreater(len(names), 5,
+                           "only %d render target(s) parsed out of render_check.py — the reader "
+                           "stopped matching the file it is pointed at" % len(names))
+
+        with io.open(cov, encoding="utf-8") as fh:
+            floor = (json.load(fh) or {}).get("floor") or {}
+        missing = sorted(set(names) - set(floor))
+        self.assertEqual(missing, [],
+                         "%d of %d render target(s) have NO coverage floor, so losing them would "
+                         "be invisible and CI will refuse this push after it has already shipped: "
+                         "%s.  Fix with a full pass: python3 tv/render_check.py --bless"
+                         % (len(missing), len(names), ", ".join(missing)))
 
 
 class TestAFreshMachineStartsEmpty(unittest.TestCase):
