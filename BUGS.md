@@ -29587,6 +29587,85 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-919 — the FLOOR arm could hide the tested-but-unproven count
+
+**v2916.** The eye found the band on the pass after v2915. `_iGap > 0` is tested FIRST and can be
+true AT THE SAME TIME as `_iNotProven > 0`, whenever `unproven > (provenAtCount - proved) > 0`.
+Measured against the shipped expression:
+
+    proved 285 · unproven 10 · provenAtCount 289
+      tested but not proven = 289 - 285 = 4
+      _iGap = (285 + 10) - 289 = 6   ->  FLOOR fires first, the arm is never reached
+      rendered: "covers only 289 of 295 gate(s) ... a FLOOR, not the census"   <- 4 never named
+
+The original lie is NOT restored — it says FLOOR, not "covers all" — but the finding is silently
+dropped, and **no fixture covered that band**: PADDED (gap 0) and UNDECLARED (gap -2) both sit
+outside it. The clause is now computed ONCE and appended wherever it is true. An arm decides how to
+describe COVERAGE; it does not get to decide whether this fact is mentioned at all.
+
+    EYE BAND 285/10/289 -> "covers only 289 of 295 ... a FLOOR, not the census · 4 of them did NOT
+                            come back proven"
+
+[[zero-needs-a-denominator]] [[label-outlived-referent]]
+
+## REG-918 — the ratchet skipped every subset run, and its floor was six nodes of slack
+
+**v2916.** #72. Designed by a fleet agent, blocked in part by its own skeptics, applied by me with
+the unsound parts removed. Both halves confirmed against the shipped bytes:
+
+**(b) THE SUBSET SKIP**, `render_check.py:3112-3118`:
+
+    cov_missing = 0
+    if _full:
+        cov_missing = _coverage_check(results, _say)
+    elif _coverage_floor() is not None:
+        _say("     (i) coverage ratchet skipped - this run asked for %d of %d targets, and a subset
+              cannot tell a deliberate filter from a surface that vanished.")
+
+**The stated reason is true of the SET and false of the MEMBERS.** A subset run cannot speak for
+targets it did not render — and it has exactly as much evidence as a full run about the ones it DID:
+it rendered them, counted their nodes, and their floors are in the file. Measured with the new gate
+against the shipped code: floor 11, a subset measuring 10, **exit 0**, printing *"every target
+rendered, at every width, with text and no clipping."*
+
+**(a) `--bless` ONLY RISES AND REFUSES A SUBSET** — so the only run that could notice a drop is the
+only run allowed to update the floor, and on a subset neither happens. A closed trap.
+
+**THE STALE FLOOR, DERIVED NOT GUESSED.** `floor["heart-stored"] = 9` at all five widths. From
+`_hrtInstruments`: the old three-clause selector gives `6 + 3*blind` = **9 with one blind gate —
+exactly the recorded floor**, and the v2905/v2910 six-clause selector gives `12 + 3*blind` = 15. The
+floor of 9 **is** the pre-v2905 selector. Six nodes could vanish inside the ratchet's own slack and
+stay green.
+
+**A THIRD FACT nobody asked for:** the growth report was capped at `sorted(grew)[:6]` with no "and N
+more", so with 17 targets x 5 widths a stale floor could be dropped from the only place it is ever
+mentioned. The cap is gone.
+
+The checker now takes a `scope`. In scope, a drop is judged exactly as on a full run. Out of scope,
+the entry is NOT CHECKED and says so — UNKNOWN, never clean. A floor naming a target `TARGETS` no
+longer defines is refused even on a subset, because that loss needs no browser. Staleness is loud
+per target and per width, and recorded in `.render_verdict.json` so it outlives the scrollback.
+⚠ `--bless` is UNCHANGED: a subset still may not raise anything, because auto-raising from a partial
+run would bless coverage never fully measured — this very defect one layer down.
+
+⚠ **DO NOT simply `--bless` heart-stored to 15.** Its coverage is DATA-DEPENDENT (`12 + 3*blind`), so
+a floor written from a measurement would be a floor over the DATA, not over the SURFACE.
+
+**What I removed from the design, and why:**
+· **P7 dropped.** It carried the slack into `heart2.surface_verdict()` -> `.heart2.json` as
+  `surfaces`, and `surfaces` has **zero consumers** in `control_ui.html` — half a join. The design
+  said so itself and a skeptic confirmed it by measurement.
+· **`floorKnown` was written and never read** — dead plumbing a skeptic caught. Rather than delete
+  it I wired it through as `coverageFloorKnown`, because it genuinely separates "no floor file"
+  from "a floor of 0". [[unknown-stays-unknown]]
+
+Eight laws, eight red-proofs, **all PROVEN at 1 match each**. LAW 5 and LAW 8 pin what the fix must
+NOT do: a stale floor must not by itself red a run (a gate that is only ever red gets switched off),
+and `--bless` must still refuse a partial. No regressions: test_render_coverage 15/15,
+test_the_harness_isolates_the_world 11/11, test_the_ratchet_cannot_erase_the_census 2/2.
+⚠ Blast radius verified: `hooks/pre-push:427` runs `render_check.py` with NO arguments — always a
+full run — so the scoped ratchet cannot newly red a push. [[the-unjoined-end]] [[stale-reading]]
+
 ## REG-916 — the branch kept keying off the NET after the figure stopped
 
 **v2915.** The eye caught this on the pass immediately after v2914. v2913 and v2914 fixed what was

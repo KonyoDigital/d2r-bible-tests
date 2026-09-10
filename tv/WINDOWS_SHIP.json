@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2915",
+  "ver": "v2916",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2915: the eye caught the half-fix and grok bot caught a state I promised but never shipped",
+  "note": "v2916: the only run that could notice a drop was the only run allowed to update the floor",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

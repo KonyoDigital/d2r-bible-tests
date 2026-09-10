@@ -2511,6 +2511,18 @@ GATES = [
              "measurements. tv/render_coverage.json is a ratchet: coverage may RISE freely,\n"
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
+    # #72 — the ratchet was correct and NOT CONSULTED on a subset run, and its floor was stale.
+    Gate("test_the_ratchet_is_not_skipped_by_a_subset",
+         [sys.executable, os.path.join(HERE, "test_the_ratchet_is_not_skipped_by_a_subset.py")],
+         120,
+         why="the coverage ratchet above was SKIPPED WHOLESALE on a subset run, so\n"
+             "`render_check.py heart-stored` could lose a node and exit 0 with an\n"
+             "informational line about it. A subset cannot speak for the targets it did not\n"
+             "render; it has exactly as much evidence as a full run about the ones it did.\n"
+             "And the floor is a CEILING on what the ratchet can see: heart-stored's floor\n"
+             "said 9 at every width while the v2910 selector photographs 15, so six watched\n"
+             "nodes could vanish and the run would still be green. This pins the scope, the\n"
+             "loud per-width STALE report, and the rule that a subset may still never bless."),
     # v2589 — A7's remaining half: the per-store writer was a measurement NOBODY HAD TAKEN, and
     # three earlier attempts each returned a zero that measured the instrument.
     Gate("write_census", [sys.executable, os.path.join(HERE, "write_census.py")], 120,

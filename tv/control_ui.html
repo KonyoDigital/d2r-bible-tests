@@ -12391,6 +12391,19 @@ window._lockMark = function(isOpen, px, label){
        "291 did NOT come back proven" about a census nobody took. Absent is not zero, in this
        direction too. [[unknown-stays-unknown]] */
     var _iNotProven = (_iStamped === null || !_iHaveCensus) ? null : (_iStamped - _iProved);
+    /* ⚠⚠ v2916 (#68) — THE FLOOR ARM WAS HIDING THIS FACT, and the eye found the band. `_iGap > 0`
+       is tested FIRST and can be true AT THE SAME TIME as `_iNotProven > 0`, whenever
+       `unproven > (provenAtCount - proved) > 0`. MEASURED: proved 285 · unproven 10 ·
+       provenAtCount 289 -> _iGap = 6, FLOOR fires, and the panel says "covers only 289 of 295 ...
+       FLOOR" while never naming the FOUR gates tested that did not come back proven. The original
+       lie is not restored, but the finding is silently dropped — and no fixture covered that band,
+       because PADDED (gap 0) and UNDECLARED (gap -2) both sit outside it.
+       So the clause is computed ONCE and appended wherever it is true. An arm decides how to
+       describe COVERAGE; it does not get to decide whether this fact is mentioned at all.
+       [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+    var _iNPsay = (_iNotProven > 0)
+      ? (' · ' + _iNotProven + ' of the ' + _iStamped + ' tested did NOT come back proven')
+      : '';
     var _iGap = (_iStamped === null || !_iHaveCensus) ? null : (_iCensus - _iStamped);
     var _iDenom = (_iStamped === null)
       /* ⚠ v2905 (#68) — EVERY BRANCH GLUES ITS SEPARATOR TO THE WORD AFTER IT. Photographed
@@ -12400,7 +12413,7 @@ window._lockMark = function(isOpen, px, label){
       ? ' · how many gates that age covers is UNKNOWN — nothing said how many carry a stamp'
       : (_iGap > 0
           ? (' · and it covers only ' + _iStamped + ' of ' + _iCensus + ' gate(s): the other '
-             + _iGap + ' carry no proof stamp at all, so this age is a FLOOR, not the census')
+             + _iGap + ' carry no proof stamp at all, so this age is a FLOOR, not the census' + _iNPsay)
           /* ⚠⚠ v2905 (#68) — "not all of them · across all 285 gate(s)" READ AS A CONTRADICTION,
              and at his real 1120 width the wrap put both halves on one line. The two "all"s are
              about different things: the first is how much of the suite the last --prove COVERED,

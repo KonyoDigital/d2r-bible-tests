@@ -2876,17 +2876,61 @@ def _coverage_of(results):
     return out
 
 
-def _coverage_check(results, say):
-    """Refuse when a target measures FEWER nodes than its floor. -> n_refusals"""
+def _coverage_check(results, say, scope=None, out=None):
+    """Refuse when a target measures FEWER nodes than its floor. -> n_refusals
+
+    ⚠⚠ #72 — A SUBSET RUN USED TO SKIP THIS ENTIRELY, so `render_check.py heart-stored`
+    could lose a node and still exit 0. The old reason was true of the SET and false of the
+    MEMBERS: a subset cannot tell a deliberate filter from a vanished surface for the targets it
+    did NOT run, and has exactly as much evidence as a full run about the ones it DID.
+    `scope` is the set of target names THIS RUN ASKED FOR. Inside it, a drop is judged exactly as
+    on a full run. Outside it, the floor entry is NOT CHECKED — reported as unmeasured, never as
+    clean and never as a drop. `scope=None` means "everything", which is the old behaviour.
+
+    ⚠ AND A FLOOR IS A CEILING ON WHAT THIS GATE CAN SEE. heart-stored's floor said 9 at every
+    width while a clean run photographed 15, so six watched nodes could vanish inside the ratchet's
+    own slack and the run would still be >= 9 and still be green. A ratchet exists precisely so
+    that "a surface this gate used to watch has gone" cannot read as clean, and inside its slack it
+    cannot fire at all. So every gap is now named per target, per width, with the number of nodes
+    of blindness it buys. [[zero-needs-a-denominator]] [[stale-reading]]
+
+    `out`, when a dict, collects the machine-readable report: stale / staleNodes / notChecked,
+    which main() writes into .render_verdict.json so the fact outlives the scrollback.
+    """
     floor = _coverage_floor()
     now = _coverage_of(results)
+    rep = out if isinstance(out, dict) else {}
+    # 0 is a measurement, absent is nobody looked — floorKnown keeps those apart for the reader
+    # of the verdict record. [[unknown-stays-unknown]]
+    rep.setdefault("floorKnown", floor is not None)
+    rep.setdefault("stale", [])
+    rep.setdefault("staleNodes", 0)
+    rep.setdefault("notChecked", [])
     if floor is None:
         say("⚪ coverage ratchet UNKNOWN — %s has never been written, so this run cannot tell "
             "whether coverage shrank. Run --bless on a clean run to set the floor."
             % os.path.relpath(COVERAGE, REPO))
         return 0
+    if scope is None:
+        scope = set(floor) | set(now)          # a FULL run: nothing is out of scope
+    scope = set(scope)
     bad = 0
     for name in sorted(floor):
+        if name not in scope:
+            # ⚠ NOT ASKED FOR IS UNKNOWN, NOT CLEAN — and it is not a drop either. This run has
+            # no evidence about it in either direction, so it says so and judges what it ran.
+            # [[unknown-stays-unknown]]
+            if name not in TARGETS:
+                # … but a floor naming a target this file no longer DEFINES needs no browser to
+                # judge. That is a lost surface, readable from the registry alone, and a subset
+                # run is often the only run anybody executes.
+                say("🔴 coverage %-8s the floor names this target and TARGETS no longer "
+                    "defines it. A surface that stopped being registered is UNMEASURED for ever, "
+                    "and unmeasured must never read as clean." % name)
+                bad += 1
+            else:
+                rep["notChecked"].append(name)
+            continue
         if name not in now:
             say("🔴 coverage %-8s the target did not report at all this run, and its floor says it "
                 "should measure %d width(s). A surface that stops being checked is UNMEASURED, and "
@@ -2906,10 +2950,40 @@ def _coverage_check(results, say):
                     "is the defect — and it would otherwise have been %d clean readings in a green "
                     "run." % (name, key, is_, was, is_))
                 bad += 1
+    # ⚠⚠ #72 — A FLOOR THAT HAS NOT KEPT UP IS SLACK THE RATCHET CANNOT SEE THROUGH, and
+    # this used to be one ⓘ line, capped at six rows, worded as an invitation. MEASURED:
+    # heart-stored floor 9 at all five widths against a selector that now photographs 15, so six
+    # of its nodes could disappear and the run would still be green. The gap is now named per
+    # target and per width, with the blindness it buys, and NOTHING is truncated silently — a
+    # truncated list of blind spots is itself a blind spot. [[zero-needs-a-denominator]]
+    #
+    # ⚠ IT IS LOUD, NOT A REFUSAL, ON PURPOSE. Raising a floor needs a FULL clean run and a
+    # --bless, which needs a browser; refusing every push until someone finds one would make this
+    # the gate that is only ever red, and a gate that is only ever red is switched off inside a
+    # week — the same defect as one that is green for ever. The fact is RECORDED instead, in
+    # .render_verdict.json, so the heart supervises it rather than the scrollback.
+    # [[join-gate-heart]]
     grew = [(n, k, now[n][k], floor[n][k]) for n in floor for k in floor[n]
-            if now.get(n, {}).get(k, 0) > floor[n][k]]
-    for n, k, is_, was in sorted(grew)[:6]:
-        say("     ⓘ coverage %s %s grew %d -> %d; --bless to raise the floor" % (n, k, was, is_))
+            if n in scope and now.get(n, {}).get(k, 0) > floor[n][k]]
+    # ⚠ THE RECORD IS BUILT FROM THE WHOLE LIST, NOT FROM THE PRINTED LOOP. If the printout is
+    # ever capped again, the recorded fact must not be capped with it.
+    rep["stale"] = [[n, k, was, is_] for n, k, is_, was in sorted(grew)]
+    rep["staleNodes"] = rep.get("staleNodes", 0) + sum(is_ - was for _n, _k, is_, was in grew)
+    for n, k, is_, was in sorted(grew):
+        say("     🟠 coverage %-8s %s STALE: floor %d, measured %d, STALE by %d — this "
+            "ratchet cannot fire until %d of the %d nodes it photographs are gone. It grew "
+            "%d -> %d; --bless on a FULL clean run to raise the floor."
+            % (n, k, was, is_, is_ - was, is_ - was + 1, is_, was, is_))
+    if rep["stale"]:
+        say("     🟠 %d stale floor(s), %d node(s) of slack in total — this gate would "
+            "stay GREEN while that many watched nodes vanished. "
+            "python3 tv/render_check.py --bless"
+            % (len(rep["stale"]), rep["staleNodes"]))
+    if rep["notChecked"]:
+        say("     ⚪ coverage NOT CHECKED for %d of %d floored target(s): %s. They were not "
+            "asked for this run, so their coverage is UNKNOWN — not clean, and no subset run "
+            "may ever raise a floor. [[unknown-stays-unknown]]"
+            % (len(rep["notChecked"]), len(floor), ", ".join(sorted(rep["notChecked"]))))
     return bad
 
 
@@ -3109,13 +3183,21 @@ def main(argv):
     # branches that exist to say "nothing was established" were skipped — so a dead browser
     # printed "🔴 9 target(s) did not render cleanly — LOOK AT THE PNGs above" for PNGs that were
     # never written. A count of one kind of thing must not absorb a different kind.
+    # ⚠⚠ #72 — THE RATCHET USED TO BE SKIPPED ENTIRELY ON A SUBSET RUN. `elif` meant a
+    # `render_check.py heart-stored` run could lose a node and exit 0 with one ⓘ line about it.
+    # The scope is handed in instead, so the ratchet judges what was actually rendered and stays
+    # silent — explicitly UNKNOWN — about the rest.
+    #
+    # ⚠ AND A SUBSET STILL MAY NOT RAISE ANYTHING. --bless returns above, behind its own
+    # `complete` gate: a partial run blessing coverage it never fully measured would be this
+    # same lie one layer down.
     cov_missing = 0
-    if _full:
-        cov_missing = _coverage_check(results, _say)
-    elif _coverage_floor() is not None:
-        _say("     ⓘ coverage ratchet skipped — this run asked for %d of %d targets, and a subset "
-             "cannot tell a deliberate filter from a surface that vanished."
-             % (len(targets), len(TARGETS)))
+    _cov = {}
+    cov_missing = _coverage_check(results, _say, scope=set(targets), out=_cov)
+    if not _full:
+        _say("     ⓘ this run asked for %d of %d target(s); the ratchet judged those %d and "
+             "says nothing about the rest, which are UNKNOWN rather than clean."
+             % (len(targets), len(TARGETS), len(targets)))
 
     # ⚠⚠ v2859 — THE RENDER VERDICT WAS NOT DURABLE ANYWHERE, so the heart could not read it.
     # Konyo asked whether 100% on HEART 2.0 is also a VISUAL pass. It is not, and the reason it
@@ -3133,6 +3215,17 @@ def main(argv):
               "totalTargets": len(TARGETS),
               "reported": sorted(results.keys()),
               "coverageMissing": int(cov_missing),
+              # #72 — the ratchet's OWN blind spot, recorded so it outlives the terminal. A
+              # stale floor is slack this gate cannot see through; 0 here is a measured zero,
+              # and the key being absent means an older render_check wrote this file — which
+              # is UNKNOWN, not clean. [[join-gate-heart]] [[unknown-stays-unknown]]
+              # ⚠ the skeptic caught this written and never read. Absent here means an
+              # older render_check wrote the file; False means there is no floor at all;
+              # True means a floor exists and 0 in the fields below is MEASURED.
+              "coverageFloorKnown": bool(_cov.get("floorKnown")),
+              "coverageStale": list(_cov.get("stale") or []),
+              "coverageStaleNodes": int(_cov.get("staleNodes") or 0),
+              "coverageNotChecked": list(_cov.get("notChecked") or []),
               "renderFailures": int(bad)}
         with io.open(os.path.join(HERE, ".render_verdict.json"), "w", encoding="utf-8") as _fh:
             _fh.write(json.dumps(_v, indent=2, sort_keys=True, ensure_ascii=False) + "\n")

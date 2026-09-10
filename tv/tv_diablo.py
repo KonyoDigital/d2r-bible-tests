@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2915"   # the branch kept keying off the net, and OCCLUDED could not reach the wire
+VERSION = "v2916"   # the ratchet skipped every subset run and its floor was six nodes of slack
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
