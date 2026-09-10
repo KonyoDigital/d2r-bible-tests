@@ -146,5 +146,16 @@ class DeepOwedIsStamped(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate\'s last law (test_the_segmenter_still_ignores_it) pins that reel_segments.segments() admits a journal row into the timeline ONLY on strict lane equality with "deep". That strictness is the thing that keeps the new v2724 `deep-owed` stamp — a record that a read was OWED, not that one happened — from being counted as an actual scene read and inflating a reel\'s segments. The tamper replaces the exact equality test at reel_segments.py:138 with a PREFIX match, which is the literal failure mode the law names: `startswith("deep")` accepts `deep-owed` as if it were `deep`, so an owing row walks straight into the segment loop. It is the real filter expression in the running code path, not a comment, not a message string, not a shared constant — the docstring above it and the "deep" mentions elsewhere in the file are untouched, and there is exactly one occurrence in the file (0 in tv_diablo.py), so replace-all and replace-one are the same experiment here.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=1); reddened law DeepOwedIsStamped.test_the_segmenter_still_ignores_it; that law ALONE FAILED (failures=1) — `python3 -m unittest test_deep_owed_is_stamped.DeepOwedIsStamped.test_the_segmenter_still_ignores_.',
+        'file': 'reel_segments.py',
+        'find': 'r.get("lane") != "deep"',
+        'replace': 'not str(r.get("lane") or "").startswith("deep")',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

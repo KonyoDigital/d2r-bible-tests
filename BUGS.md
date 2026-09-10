@@ -28484,3 +28484,23 @@ starts from nothing. Re-measured under the same tamper: **failures 2 -> 1**, sol
 **The rule:** naming the reddened law is not enough — the law has to be RUN ALONE to earn the name.
 `[[sabotage-is-usually-the-wrong-one]]` `[[feedback-fixtures-never-touch-live-data]]`
 `[[review-after-ship]]`
+
+### REG-859 — ten red-proofs found in parallel, and two of them named a file heart2 cannot open
+**v2886.** Ten agents, one per unproven gate, each in its own git worktree so they could tamper
+source simultaneously without touching the live tree. The brief made them MEASURE rather than
+propose: print the match count · gate must be OK untampered · replace **all** occurrences (heart2
+does) · name the law that reddened · **run that law ALONE** · restore. All ten returned ok=true.
+**They were still wrong twice, and only an independent re-check caught it.**
+- One returned `file: "tv/reel_segments.py"`. `red_proofs_in` joins from `tv/`, so that resolves to
+  `tv/tv/reel_segments.py` — nothing. The proof would have shipped and reported UNPROVABLE.
+- The `bible.html` target had to stay BARE, because `resolve_proof_target` tries `tv/` first and the
+  repo root second, precisely because 59 gates name that file.
+So every path was resolved against the file heart2 actually opens, and every anchor re-counted
+there, before anything was written. All 10 counts matched their claim; the 2 paths did not.
+**Then proven locally, not taken on the agents' word:** `heart2 --prove` over all ten returned
+**10 PROVEN · 0 BLIND · 0 INVALID · 0 UNPROVABLE**.
+**Worth keeping about the briefs:** handing the agents the three known green-sabotage shapes up
+front — wrong side of a union, anchor outside the declaration, shared constant — meant none of them
+came back with the inert anchors that cost three attempts by hand earlier the same day.
+**Census: 165 -> 175 of 280 (62.5%).**
+`[[workflow-topology]]` `[[sabotage-is-usually-the-wrong-one]]` `[[feedback-suspect-the-instrument]]`

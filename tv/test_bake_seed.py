@@ -123,5 +123,16 @@ class TestTheBakerRefuses(unittest.TestCase):
         self.assertEqual(rc, 2, "a missing store must report, not bake an empty seed")
 
 
+RED_PROOF = [
+    {
+        'why': "The tamper deletes refusal #4 — the only place in bake_seed.py that stops the grail baker from seeding a name a boot one-shot already owns. Line 174 of bake_seed.py is the single guard clause in the _GRAIL_SEED loop (`if n in sp_set or n in owned or not d: continue`); `owned` comes from one_shot_owned(src), which scans the v1692/v1693 boot region of bible.html for the names those one-shots apply with their own dated provenance. Removing `or n in owned` leaves the loop otherwise intact — it still skips set pieces and dateless rows — so nothing about the bake looks broken, but any one-shot-owned name sitting in his foundLog now gets setdefault'd straight into the shipped seed, which is exactly the double-provenance v1693 refuses in as many words. Unlike refusal #3 (rule 3 has a second sweep at lines 168-170 that would silently undo a single-site deletion — the union trap), this clause has no partner, so its removal is the whole law. Measured: 1 match in the file; untampered `python3 test_bake_seed.py` prints OK (6 tests); with the tamper it prints FAILED (failures=1) with `FAIL: test_it_refuses_a_name_a_one_shot_owns` asserting `seeded 'Wrath', which a boot one-shot applies with its own provenance`; run alone via `python3 -m unittest test_bake_seed.TestTheBakerRefuses.test_it_refuses_a_name_a_one_shot_owns` it still fails (on 'Ice' — the target is whichever owned name is not yet seeded, so it varies with run order, but it fails either way), proving the red is this law's own and not leftover sibling state; `git checkout -- tv/bake_seed.py` returns the gate to OK and the tree to clean.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=1); reddened law test_it_refuses_a_name_a_one_shot_owns; that law ALONE FAILED (failures=1).",
+        'file': 'bake_seed.py',
+        'find': 'if n in sp_set or n in owned or not d:',
+        'replace': 'if n in sp_set or not d:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

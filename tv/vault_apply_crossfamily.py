@@ -196,6 +196,17 @@ def main(argv):
     return 0 if (rep["k"] == rep["n"] and rep["baselineHolds"]) else 1
 
 
+RED_PROOF = [
+    {
+        'why': 'The law is that vault_apply RE-GATES a caller-supplied proposal at the WRITE, and re-gates BOTH buckets. The tamper deletes "unsure" from the re-gate loop\'s iteration tuple — the exact v2641 fix — so an uncorroborated row parked under `unsure` never has the two-witness/confidence gate applied to it and reaches the window check un-refused. This is the real mechanism, not a comment or a message string: the loop line is the only place the buckets to be gated are named. It is not a shared constant (KEEP_CONF_FLOOR and KEEP_MIN_WITNESSES are untouched, so both sides of the comparison stay put), and it is not the wrong side of a union — proven by what stayed green under the tamper: the `evidence-type` attack (an `owned` row) still refused 8/8, and the corroborated-row baseline still accepted 4/4, so the door discriminates and is not merely jammed open.  MEASURED: untampered ✅ vault_apply_crossfamily    0.2s    PROVEN · 24 of 24 attacks refused; baseline 4/4 corroborated rows accepted; tampered (all 1 match(es)) ❌ 1 gate(s) FAILED: vault_apply_crossfamily   (LEAKS · 8 of 24 attacks refused; baseline 4/4 corroborated rows accepted — unsure-bypass 0/8 LEAKS, owned-is-none 0/8 LEAKS); reddened law unsure-bypass (_attempt_unsure_bypasses_the_regate); that law ALONE This gate is a script, not a unittest suite — it declares no ClassName/test_ laws, so `python3 -m unittest vault_apply_c.',
+        'file': 'control_app.py',
+        'find': 'for _which in ("owned", "unsure"):',
+        'replace': 'for _which in ("owned",):',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

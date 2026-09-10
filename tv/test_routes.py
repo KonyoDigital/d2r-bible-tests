@@ -2420,5 +2420,16 @@ class TestAnEmptyRoutingSaysSo(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the Stage-1 router\'s stash-panel branch inside control_app._kai_route_for_label: it is the only place that turns a panel label (stash-runes / stash-gems / stash-materials) into the tally funnel that would take that frame. Replacing the return with None deletes the routing itself — a recognised runes/gems/materials panel becomes unroutable, so _kai_build_routing stops assigning route="tally:runes", stops marking the frame routed="kai-funnel", and the accuracy gate\'s cell-correctness check (want = _kai_route_for_label(label) at line 7920) can no longer name the one correct cell, so grid-confirmed frames get rejected. That is the real defect the gate exists to catch: frames of his stash that KAI recognised silently stop reaching the tally funnel and are never counted. The anchor is the executable return expression inside the declaration — not a comment, not a message string, and not a constant read from both sides of an agreement law (the test asserts the literal expected route "tally:runes", so only one side moves).  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=13); reddened law TestRouterLedger.test_route_for_label; that law ALONE FAILED (failures=1) — python3 -m unittest test_routes.TestRouterLedger.test_route_for_label under the tamper: "FAIL: tes.',
+        'file': 'control_app.py',
+        'find': '        return "tally:" + label[len("stash-"):]',
+        'replace': '        return None',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

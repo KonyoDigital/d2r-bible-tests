@@ -265,5 +265,16 @@ class APopulatedWorldSurvivesALostClaim(unittest.TestCase):
         self.assertTrue(_run({}, webdriver="true", protocol="'file:'")["owner"])
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate slices the real `window._D2R_OWNER = (function(){` IIFE out of bible.html and executes it in node, so the source it protects is bible.html, not any test fixture. Inside that block the claim-recovery counter decides whether a browser holding a mismatched `d2r_ownerClaim` still owns a populated world, by counting real ENTRIES in the four bare world keys. `Array.isArray(_p)` is the actual v2779 fix that gates the array-walking branch: it is what stops a bare JSON string from being walked. The tamper puts back the exact shipped defect it replaced — the duck-typed `_p && _p.length != null` — and a string passes that test because a string has `.length` and is indexable, so `JSON.parse(\'"abc"\')` gets walked character by character and counts 3 entries. Three letters then recover a world that does not exist and hand ownership to a browser that never had one. This is executable code inside the declaration the law reads, not a comment, not a message string, and not a constant shared with the assertion side: the test builds its own store in python and only ever reads the block\'s `owner` verdict, so nothing moves on both sides at once. Removing it reddens exactly one law and leaves the other thirteen green, including the entry counts in `test_his_REAL_STORE_SHAPES_still_recover`, which is what shows the anchor is the string branch specifically and not the counter as a whole.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=1); reddened law test_a_JSON_STRING_counts_its_CHARACTERS_and_must_not; that law ALONE FAILED (failures=1) — python3 -m unittest test_a_populated_world_survives_a_lost_claim.APopulatedWorldSurvivesALostClaim.',
+        'file': 'bible.html',
+        'find': 'if (Array.isArray(_p)) {',
+        'replace': 'if (_p && _p.length != null) {',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -131,5 +131,16 @@ class OrphansSayWhoseTheyAre(unittest.TestCase):
                          "ownership that the sweep does not establish")
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the "names this tree" positive witness inside `my_orphans._attribute` — the second of the three ownership witnesses the law is about, and the executable branch itself, not a comment or a message string. `_attribute` asks his ports first (final answer), then the spawn ledger, then this test: if the process\'s command line contains this repo\'s tv/ directory or its parent root, the process is running our own code and is positively OURS, which is what promotes it to the actionable WARN grade. Replacing the condition with `if False:` deletes that witness entirely, so a process literally executing `python3 <tv>/control_app.py --open` falls through to the UNATTRIBUTED return and comes back `ours=None` — "busy and old, and nothing can say whose it is" — i.e. our own runaway is downgraded from "mine, actionable" to "nobody can say", which is exactly the class of miss this file exists to prevent. Note the anchor is chosen over the tempting `or`→`and` edit, which proves nothing: `_root` is a prefix of `_here`, so both sides move together and the branch still fires. It is also not the message string, because the refusal text still contains the word "tree" ("does not name this tree"), so `assertIn("tree", why)` keeps passing and only the real behavioural assertion `assertTrue(own)` goes red.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=1); reddened law test_a_process_naming_THIS_TREE_is_ours; that law ALONE FAILED (failures=1).',
+        'file': 'my_orphans.py',
+        'find': 'if _here in cmd or _root in cmd:',
+        'replace': 'if False:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -286,6 +286,17 @@ def main(argv=None):
         shutil.rmtree(root, ignore_errors=True)
 
 
+RED_PROOF = [
+    {
+        'why': 'The whole synthetic-fixture arrangement rests on one property: every generated frame must fingerprint differently, because vault_retro dedupes by jpeg_sig, so two identical frames are ONE witness and a scenario asserting "four separate recordings ground this flag" silently proves a weaker rule while staying green. The mechanism that makes it hold is the seed-derivation inside _tiny_jpeg — the base colour and the lattice value are both functions of `seed`, and materialise hands every frame a fresh seed. The tamper deletes exactly that derivation (a fixed base colour, a lattice that no longer reads `seed`) while leaving the function, its signature, its callers, its docstring, its comments and the frame count untouched: 120 frames still get written, they are just all the same image. That is the real defect the law exists to catch — a plausible-looking placeholder generator producing frames the sweep collapses into one — not a comment, not a message string, and not a shared constant (`seed` is a local parameter of _tiny_jpeg, read only on the generating side; the checking side re-derives signatures independently through chronicle_retro.jpeg_sig).  MEASURED: untampered ✅ vault-fixture-reels     0.1s    🟢 every frame fingerprints distinctly; tampered (all 1 match(es)) ❌ vault-fixture-reels     0.1s    🔴 reel_s_1500000000001_1_0000.jpg and reel_s_1500000000001_1_0001.jpg share a signature — the sweep would count them as one witness; reddened law signatures_are_distinct; that law ALONE tv/vault_fixture_reels.py is NOT a unittest module (0 occurrences of "unittest" or "class Test"), so there is no "FAIL: .',
+        'file': 'vault_fixture_reels.py',
+        'find': '    im = Image.new("RGB", (32, 32), (seed % 251, (seed * 7) % 241, (seed * 13) % 239))\n    for x in range(0, 32, 4):\n        for y in range(0, 32, 4):\n            v = (seed * (x + 1) * (y + 1)) % 255\n',
+        'replace': '    im = Image.new("RGB", (32, 32), (128, 120, 110))\n    for x in range(0, 32, 4):\n        for y in range(0, 32, 4):\n            v = ((x + 1) * (y + 1)) % 255\n',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     import sys
     sys.exit(main(sys.argv[1:]))

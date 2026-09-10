@@ -103,5 +103,16 @@ class TheProofPhotoIsFoundUnderEitherSpelling(unittest.TestCase):
                          "an absent photo returned a path instead of an empty string")
 
 
+RED_PROOF = [
+    {
+        'why': 'The tamper deletes one half of the two-spelling resolver inside `_hist_frame_paths` (tv/control_app.py:200) — the branch that, when a journaled frameId arrives BARE (`s_888_2/f_123.jpg`), also tries the `reel_`-prefixed directory on disk. It is the real executable widening, not a comment and not a shared constant: the sibling branch (prefixed id -> bare directory, `_st.replace(_lead, _lead[len("reel_"):], 1)`) is untouched, so the union the law compares does not shrink on both sides — only the bare-asking side loses its candidate. Replacing it with `_alts.append(_st)` keeps the loop syntactically identical and appends a stem that the de-dupe pass immediately drops, so the function silently reverts to a one-spelling lookup for the 4,411 witness rows that spell the id bare while 40 of 663 directories under frames/hist are prefixed. Those photos are the `provenance` leg of the extraction contract, and a photo looked up wrongly is indistinguishable from one that is gone — exactly the failure the gate exists to prevent before a footage prune.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=1); reddened law test_a_PREFIXED_directory_is_found_by_a_BARE_id; that law ALONE FAILED (failures=1) — AssertionError: False is not true : a photo in a `reel_`-prefixed directory was reported missing w.',
+        'file': 'control_app.py',
+        'find': '_alts.append("reel_" + _st)',
+        'replace': '_alts.append(_st)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

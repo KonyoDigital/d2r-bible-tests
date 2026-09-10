@@ -422,5 +422,16 @@ class TheDoctorWatchesEachOne(unittest.TestCase):
         self.assertIn("no longer reports", why)
 
 
+RED_PROOF = [
+    {
+        'why': 'The line is the ONLY place in the tree where `route_census` catches a reel that carries a route\'s evidence and did not come out on that route — the "the join dropped" arm of the three-state verdict. It is real executable code inside the per-route loop, not a comment and not a message string, and it is not shared with the other side of any comparison: the census derives BROKEN from `r["routes"]` here, while the corroborating label check `_label_agrees` reads `subTemplate` further down and is untouched, so the two halves cannot both move together. It is also not the ROUTES tuple — that IS the shared constant this file\'s tests iterate on both sides, and editing it would have shrunk expectation and answer together. With the arm removed, a route whose reel was un-routed simply produces an empty `took` list and falls through to UNKNOWN, so the census reports `broken == []` instead of naming which of the four died — exactly the defect the file exists for ("a rail that cannot say WHICH of four broke"). Anchor counted 1 in reel_templates.py and 1 tree-wide across every .py/.html/.js, so replace-all and replace-one are the same experiment.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=2); reddened law test_a_dropped_route_reddens_ONLY_that_route; that law ALONE FAILED (failures=1) — `python3 -m unittest test_the_four_routes_go_red_alone.OneRouteDiesAlone.test_a_dropped_route_redd.',
+        'file': 'reel_templates.py',
+        'find': 'if name not in (r.get("routes") or []):',
+        'replace': 'if False:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

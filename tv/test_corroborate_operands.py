@@ -147,6 +147,17 @@ class TheInvariantCanNowActuallyInvert(_Base):
         self.assertTrue(old <= 2, "the old left side could not violate `<= 2` at any shelf state")
 
 
+RED_PROOF = [
+    {
+        'why': "The tamper deletes the refusal at the top of BOTH cross-engine invariants' left operands in corroborate.py — `_inv_the_deleter_is_never_looser_than_the_planner` and `_inv_the_two_deleters_stay_at_their_own_granularity`. Each wraps its `fa.plan_frames(hist)` call in a try/except that returns None when the shelf cannot be read; the tamper turns that into `return 0`. That is the exact defect class the whole gate exists to catch: an unanswerable question rendered as a confident measured zero. Because the relation both invariants publish is `left <= right`, a constant 0 on the left can never invert, so an unreadable shelf would silently report AGREEMENT on the one direction with no undo (the thing that can delete his footage). The anchor is executable code inside the two `left()` closures — not a comment, not a message string, not a shared constant — and it is the only site the raising-plan law reads: the two left() try/except blocks are the only `fa.plan_frames` call sites in the file (2 occurrences, both replaced), while the `rr.plan` except blocks have different text and are untouched. Measured: untampered the gate printed OK (9 tests); with all 2 occurrences replaced it printed FAILED (failures=1) with exactly one law red, and that law failed ALONE under `python3 -m unittest test_corroborate_operands.AMissingKeyIsUNKNOWNNeverZero.test_a_RAISING_plan_is_None_not_zero` with `AssertionError: 0 is not None`, so the red is not leftover state from a sibling test. `git checkout -- corroborate.py` restored the file (clean `git status`) and the gate printed OK again.  MEASURED: untampered OK; tampered (all 2 match(es)) FAILED (failures=1); reddened law AMissingKeyIsUNKNOWNNeverZero.test_a_RAISING_plan_is_None_not_zero; that law ALONE FAILED (failures=1) — FAIL: test_a_RAISING_plan_is_None_not_zero (test_corroborate_operands.AMissingKeyIsUNKNOWNNeverZer.",
+        'file': 'corroborate.py',
+        'find': '            plan = fa.plan_frames(hist)\n        except Exception:\n            return None\n',
+        'replace': '            plan = fa.plan_frames(hist)\n        except Exception:\n            return 0\n',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

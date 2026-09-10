@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2885",
+  "ver": "v2886",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2885: the mirror of a green sabotage: it looks like coverage and is not",
+  "note": "v2886: verified agents still need verifying: the counts held, the paths did not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
