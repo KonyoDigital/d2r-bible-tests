@@ -12398,8 +12398,25 @@ window._lockMark = function(isOpen, px, label){
              reading rather than a complete one. A gap of exactly 0 keeps its old words.
              [[stale-reading]] [[zero-needs-a-denominator]] [[label-outlived-referent]] */
           : (_iGap < 0
-              ? (' · and ' + _iStamped + ' gate(s) carry a proof stamp, ' + (-_iGap)
-                 + ' more than this census counted — the census is OLDER than the stamps')
+              /* ⚠⚠ v2913 (#68) — v2911 NAMED THE WRONG CAUSE, AND THE CROSS-FAMILY EYE CAUGHT IT.
+                 v2911 fixed the real lie (a negative gap rendering as 'covers all') and then
+                 explained it as "the census is OLDER than the stamps". MEASURED on his store:
+                     proved 287 · unproven 0 · verdictAt 291        gap -4
+                     blind  1   test_the_river_has_an_outlet
+                     +3     test_end_routes · test_render_coverage ·
+                            test_the_harness_isolates_the_world
+                 The two figures count DIFFERENT THINGS; they do not age differently. `verdictAt` is
+                 every gate the run TESTED. `proved + unproven` is PROVEN plus never-declared. A gate
+                 tested that came back BLIND or INVALID sits in the first and in NEITHER term of the
+                 second, so the gap is STRUCTURAL and a full census does not close it.
+                 My own runs refute the lag story: across four targeted proves `proved` went 285->287
+                 and `verdictAt` 289->291 TOGETHER, and the gap stayed -4 throughout. Telling him to
+                 re-run a census he just ran is a right number under a wrong reason — the exact
+                 failure this panel exists to end.
+                 [[label-outlived-referent]] [[feedback-contradiction-is-the-finding]] */
+              ? (' · and ' + _iStamped + ' gate(s) were TESTED, ' + (-_iGap)
+                 + ' more than this census counts as proven — those were tested and did NOT'
+                 + ' come back proven')
               : (_iCensus ? (' · and it covers all ' + _iStamped
                              + ' gate(s) that carry a proof stamp') : '')));
     /* ⚠ AN ID, BECAUSE A TARGET THAT CANNOT NAME ITS SUBJECT PHOTOGRAPHS WHATEVER IS THERE.

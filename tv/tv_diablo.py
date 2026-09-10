@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2912"   # the pixel verdict was recorded for eight days and published to nobody
+VERSION = "v2913"   # v2911 fixed the lie and shipped the wrong reason in its place
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

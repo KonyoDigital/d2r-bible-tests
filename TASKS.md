@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2913** | `(this commit)` | v2913 — the gap is structural: tested versus proven, and a full census does not close it |
 | **v2912** | `(this commit)` | v2912 — sixteen uiBeat keys on the wire and not one of them was the one that can see a dead window |
 | **v2911** | `(this commit)` | v2911 — the eye found the second one twenty minutes after v2910 shipped |
 | **v2910** | `(this commit)` | v2910 — latent: no clause is three words today, so every render was green |

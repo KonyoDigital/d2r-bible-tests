@@ -76,7 +76,14 @@ def _run(cases):
     return json.loads(r.stdout.strip())
 
 
-HIS_LIVE = {"proved": 285, "unproven": 0, "provenAtCount": 289}     # measured 2026-09-10
+HIS_LIVE = {"proved": 285, "unproven": 0, "provenAtCount": 289}     # measured 2026-09-10, gap -4
+TODAY = {"proved": 287, "unproven": 0, "provenAtCount": 291}        # same store after 2 more gates
+# ⚠⚠ THE SMALLEST NEGATIVE GAP, AND THE EYE HAD TO ASK FOR IT. v2911 shipped with HIS_LIVE as the
+# ONLY negative fixture, gap -4. The cross-family eye rewrote the arm to `_iGap < -1` and ran the
+# real expression: HIS_LIVE stayed green while gap -1 rendered "covers all 289" — the original bug,
+# with the whole suite passing. A single tested-but-unproven gate is the smallest real form of this
+# state, so it is the one the law must pin. [[feedback-threshold-above-the-ceiling]]
+NEAR = {"proved": 288, "unproven": 0, "provenAtCount": 289}         # gap -1
 EXACT = {"proved": 289, "unproven": 0, "provenAtCount": 289}
 FLOOR = {"proved": 285, "unproven": 4, "provenAtCount": 280}
 NO_COUNT = {"proved": 285, "unproven": 0}
@@ -107,9 +114,42 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
         self.assertIn("289", got, "the sentence must still name how many gates carry a stamp: %r" % got)
         self.assertIn("4", got, "the sentence must name the size of the drift (289 - 285 = 4): %r" % got)
         low = got.lower()
-        self.assertTrue("older" in low or "stale" in low,
-                        "a negative gap means the census is OLDER than the stamps, and the "
-                        "sentence must say so rather than describing coverage: %r" % got)
+        # ⚠⚠ v2913 — THE CAUSE v2911 NAMED WAS WRONG, AND THIS LAW ENFORCED THE WRONG WORD.
+        # It asserted the sentence say the census is "OLDER"/"stale". MEASURED on his store:
+        # proved 287 · unproven 0 · verdictAt 291, gap -4 = 1 BLIND (test_the_river_has_an_outlet)
+        # + 3 tested-but-unproven (test_end_routes, test_render_coverage,
+        # test_the_harness_isolates_the_world). `verdictAt` counts every gate TESTED; proved+unproven
+        # counts PROVEN plus never-declared. The gap is STRUCTURAL — a full census does not close it,
+        # and across four targeted proves proved went 285->287 with verdictAt 289->291 TOGETHER while
+        # the gap stayed -4. A right number under a wrong reason sends him to re-run a census he just
+        # ran. [[label-outlived-referent]]
+        self.assertTrue("tested" in low,
+                        "the sentence must name what the extra stamps ACTUALLY are — gates that "
+                        "were TESTED and did not come back proven: %r" % got)
+        self.assertNotIn("older", low,
+                         "the census is NOT older than the stamps; the two count different things "
+                         "and the gap is structural. That wording sends him to re-run a census "
+                         "that just ran: %r" % got)
+
+    def test_a_gap_of_MINUS_ONE_is_caught_too(self):
+        """⚠ THE HOLE THE EYE FOUND. One tested-but-unproven gate is the smallest form of this
+        state. v2911's only negative fixture was gap -4, so tightening the arm to `_iGap < -1` left
+        the suite fully green while a one-stamp drift rendered `covers all` again. A law with one
+        fixture on the arm it exists to protect is a threshold nobody measured."""
+        got = _run([NEAR])[0]
+        self.assertNotIn("covers all", got,
+                         "with 289 tested against 288 proven, the panel says %r — it asserts "
+                         "completeness over the larger number for a ONE-gate drift" % got)
+        self.assertIn("289", got, "must still name how many were tested: %r" % got)
+        self.assertIn("1", got, "must name the size of the drift (289 - 288 = 1): %r" % got)
+
+    def test_todays_reading_of_his_own_store_is_handled(self):
+        """The same store two gates later. The gap is STRUCTURAL, so it stayed -4 while both figures
+        moved — this fixture exists so a future reader can see that is expected, not drift."""
+        got = _run([TODAY])[0]
+        self.assertNotIn("covers all", got, "287/0/291 must not claim completeness: %r" % got)
+        self.assertIn("291", got, "must name the tested count: %r" % got)
+        self.assertIn("4", got, "must name the drift (291 - 287 = 4): %r" % got)
 
     def test_the_three_other_states_keep_their_own_words(self):
         """⚠ A fix that repairs one arm by breaking its siblings is not a fix. The FLOOR, EXACT and
@@ -128,8 +168,8 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
     def test_every_arm_glues_its_separator_to_the_clause_it_introduces(self):
         """A `·` must never end a line pointing at a clause that wrapped away from it — the v2905
         finding, which this new arm must not reintroduce. [[visual-regression-detector]]"""
-        for name, got in zip(("negative", "floor", "exact", "unknown"),
-                             _run([HIS_LIVE, FLOOR, EXACT, NO_COUNT])):
+        for name, got in zip(("gap-4", "today", "gap-1", "floor", "exact", "unknown"),
+                             _run([HIS_LIVE, TODAY, NEAR, FLOOR, EXACT, NO_COUNT])):
             if not got:
                 continue
             self.assertNotIn("· ", got,
@@ -139,28 +179,29 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "deleting the negative arm's test drops his measured state straight back into "
-               "'covers all 289' — the exact sentence measured on his console on 2026-09-10.",
+        "why": "deleting the negative arm's test drops his measured state back into 'covers all "
+               "289' — the exact sentence measured on his console on 2026-09-10.",
         "file": "control_ui.html",
         "find": "          : (_iGap < 0\n",
         "replace": "          : (false\n",
         "matches": 1,
     },
     {
-        "why": "a threshold below every reachable value is an ABSENT branch wearing a condition. "
-               "-1000 can never be met by a real drift, so the arm never runs and the negative "
-               "state falls through to 'covers all' again. [[feedback-threshold-above-the-ceiling]]",
+        "why": "the threshold the EYE actually broke it with. `_iGap < -1` leaves the gap -4 "
+               "fixture green while a ONE-gate drift renders 'covers all' again — which is why "
+               "this suite now carries a gap -1 fixture. [[feedback-threshold-above-the-ceiling]]",
         "file": "control_ui.html",
-        "find": "? (' \u00b7\u00a0and ' + _iStamped + ' gate(s) carry a proof stamp, ' + (-_iGap)",
-        "replace": "? (_iGap < -1000 ? (' \u00b7\u00a0and ' + _iStamped + ' gate(s) carry a proof stamp, ') : (' \u00b7\u00a0and it covers all ' + _iStamped + ' gate(s) that carry a proof stamp, ')) + ((-_iGap)",
+        "find": "          : (_iGap < 0\n",
+        "replace": "          : (_iGap < -1\n",
         "matches": 1,
     },
     {
-        "why": "removing the word that names the finding: the sentence still prints both numbers "
-               "but no longer says the census is OLDER, so a stale reading reads as a tidy one.",
+        "why": "restoring the WRONG CAUSE. v2911 said the census is 'OLDER than the stamps'; the "
+               "gap is structural (tested vs proven), so that wording sends him to re-run a census "
+               "that just ran — a right number under a wrong reason.",
         "file": "control_ui.html",
-        "find": " more than this census counted — the census is OLDER than the stamps",
-        "replace": " more than this census counted",
+        "find": "more than this census counts as proven \u2014 those were tested and did NOT'",
+        "replace": "more than this census counted \u2014 the census is OLDER than the stamps and did NOT'",
         "matches": 1,
     },
 ]

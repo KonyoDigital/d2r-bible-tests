@@ -29587,6 +29587,48 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-913 — v2911 fixed the lie and shipped the wrong reason in its place
+
+**v2913.** The cross-family eye caught this reviewing v2911, and it was right about the mechanism
+even though its arithmetic blamed the wrong set. I measured before believing it.
+
+v2911 correctly stopped a negative `_iGap` rendering as *"covers all 289 gate(s)"*. It then explained
+the negative gap as **"the census is OLDER than the stamps"**. That is false. Measured on his store:
+
+    proved 287 · unproven 0 · verdictAt 291        gap -4
+    blind  1     test_the_river_has_an_outlet
+    +3           test_end_routes · test_render_coverage · test_the_harness_isolates_the_world
+
+**The two figures count different things; they do not age differently.** `verdictAt` is every gate the
+run TESTED. `proved + unproven` is PROVEN plus never-declared. A gate that was tested and came back
+BLIND or INVALID sits in the first and in NEITHER term of the second, so **the gap is structural and
+a full census does not close it**.
+
+⚠ **My own runs refute the lag story I shipped.** Across four targeted proves, `proved` went
+285 → 287 and `verdictAt` went 289 → 291 **together**, and the gap stayed −4 throughout. The claim
+that targeted proves grow `verdictAt` without moving `proved` is simply not what happens.
+
+Telling him the census is stale sends him to re-run a census that just ran — **a right number under a
+wrong reason**, which is the exact failure this panel exists to end. The arm now says what the extra
+stamps ARE: *"291 gate(s) were TESTED, 4 more than this census counts as proven — those were tested
+and did NOT come back proven."*
+
+**The eye also found a real hole in v2911's gate**, and this one is the more valuable half. That gate
+claimed behavioural coverage of four states, but the negative arm had **one** fixture (gap −4). The
+eye rewrote the condition to `_iGap < -1`, ran the real expression, and measured: gap −4 stayed green
+while **gap −1 rendered `covers all 289` — the original bug, with the whole suite passing.** A law
+with a single fixture on the arm it exists to protect is a threshold nobody measured. A `NEAR` fixture
+(gap −1) and a `TODAY` fixture (his store two gates later) now pin it, and one of the three red-proofs
+IS the `_iGap < -1` rewrite.
+
+⚠ **Two of my own sabotages were wrong before they were right**, both from hand-typing rather than
+deriving: two anchors matched 0 because I typed `' · '` with a normal space where the file carries an
+NBSP, and one came back **BLIND** because my replacement merely shortened the sentence instead of
+restoring the banned word. Anchors are now cut from the file's own bytes with ASCII-only search keys,
+and the tamper is verified to defeat the law BEFORE a `--prove` is spent.
+[[label-outlived-referent]] [[sabotage-is-usually-the-wrong-one]]
+[[feedback-threshold-above-the-ceiling]] [[review-after-ship]]
+
 ## REG-912 — the pixel verdict was recorded for 8 days and published to nobody
 
 **v2912.** #34 / #42. Measured on his LIVE console 2026-09-10:
