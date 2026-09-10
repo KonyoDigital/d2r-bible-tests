@@ -28720,3 +28720,37 @@ My summary filter treated a run's `conclusion` as failing unless it was in `(Non
 counted as failures and reported as such. Corrected in the same breath by re-filtering on
 `status == 'completed'` first. A false red costs exactly what a false green does — trust in the
 instrument. [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+
+### REG-880 — I shipped a CI red at v2888 and reported CI clean for three versions on top of it
+`📺 TV DIABLO — agent tests` was GREEN on v2887 and FAILED on v2888, v2889 and v2890 — the three
+versions carrying the heart work. One gate: **`verdict_provenance`**, the ratchet I armed in v2888.
+I read CI after every one of those ships and never chased it, partly because my own tally was noisy
+in ways I created: an in-progress run returns `conclusion: ''` and a cancelled one returns
+`cancelled`, and my filter called both FAILING (REG-879). A tally that cries wolf is how a real red
+gets walked past.
+
+**THE DEFECT: A ROW IS NOT A FILE.** The ratchet's local scope is meant to go unmeasured where its
+stores do not exist. The guard asked `s in lo` — *does the census have a row for this store* — but
+`census()` emits a row for a DECLARED store even when it is absent, with state UNKNOWN and
+`why: "declared but not on disk — never written"`. MEASURED in a tracked-files-only export of HEAD:
+
+    baseline local stores ACTUALLY on disk on a CI venue   0 of 32
+    of those, DECLARED (so the census emits a row anyway)  4
+    what the guard therefore computed                      present = 4, not 0
+    so it compared: SILENT/REFERENCE/ANSWERS -> UNKNOWN     4 rank drops
+    verdict                                                "provenance went BACKWARDS in 4 place(s)"
+
+The tracked scope was never wrong — all 11 stores match byte-for-byte on a CI-shaped venue. Only the
+not-measured guard was. Now it asks the disk: `os.path.exists(os.path.join(HERE, s))`. Verified BOTH
+venues before shipping: this Mac 32 of 32 measured, exit 0; CI-shaped export "NOT MEASURED — 0 of 32
+baseline store(s) are here", exit 0, tracked scope still enforced.
+[[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+
+### REG-881 — the second eye writes its prompt and its answer INTO a public repo, unignored
+`second_eye_run.py` drops `.grok/heart2_look_<n>.sh` (the prompt, carrying a diff) and `.out` (the
+review) beside the two deliberately tracked files in `.grok/`. Neither was ignored. MEASURED: one
+pair held `/Users/konyo` **once in the .sh and ten times in the .out** — his home path, into a
+PUBLIC repo, the moment any `git add -A` ran while they existed. I used `git add -A` repeatedly this
+session. Nothing ever landed (`git log` over `.grok/heart2_look_*`: 0 files) purely because the eye
+happened to run AFTER each commit rather than before. `.grok/heart2_look_*` is ignored now; the two
+real files there stay tracked.

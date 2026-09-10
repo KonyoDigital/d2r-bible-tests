@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2890",
+  "ver": "v2891",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2890: 281 of 281 gates carry a red-proof heart2 has executed",
+  "note": "v2891: the ratchet asked whether the census had a row when it needed to ask whether the file was on disk",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

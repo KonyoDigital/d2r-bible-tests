@@ -358,7 +358,15 @@ def ratchet():
     bad += len(reg) + len(gone)
 
     b_local = was.get("local") or {}
-    present = sum(1 for s in b_local if s in lo)
+    # ⚠⚠ ON DISK, NOT "THE CENSUS HAS A ROW FOR IT". This counted `s in lo`, and census() emits a
+    # row for a DECLARED store even when the file is absent — state UNKNOWN, why "declared but not
+    # on disk — never written". So on a CI checkout, where 0 of 32 local stores exist, four of them
+    # are declared, four rows appeared, `present` read 4 instead of 0, the not-measured guard never
+    # fired, and the ratchet compared anyway: SILENT/REFERENCE/ANSWERS -> UNKNOWN, four rank drops,
+    # "provenance went BACKWARDS in 4 place(s)". MEASURED in a tracked-files-only export of HEAD.
+    # That red shipped in v2888 and stood for three versions. A row is not a file.
+    # [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+    present = sum(1 for s in b_local if os.path.exists(os.path.join(HERE, s)))
     if b_local and present == 0:
         print("  local scope: NOT MEASURED on this venue — 0 of %d baseline store(s) are here. "
               "These are runtime stores written by the machine that runs the console; their "

@@ -241,3 +241,12 @@ tv/.chronicle_routes_cache.json
 
 # v2875 — the driver's own heartbeat: a runtime RECORD, like .heart2.json and reel_tombstones.
 tv/.shelf_driver.json
+
+# v2890 — THE EYE WRITES ITS PROMPT AND ITS ANSWER INTO THE REPO, AND THIS REPO IS PUBLIC.
+# second_eye_run.py drops .grok/heart2_look_<n>.sh (the prompt, carrying a diff) and .out (the
+# review) beside the two DELIBERATELY tracked files in .grok/. MEASURED 2026-09-10: one pair held
+# /Users/konyo 1x in the .sh and 10x in the .out — his home path, into a public repo, the moment
+# any `git add -A` ran while they existed. Nothing ever landed (git log over .grok/heart2_look_*:
+# 0 files) but only because the eye happened to run AFTER each commit. The two real files stay
+# tracked; only the scratch is ignored.
+.grok/heart2_look_*
