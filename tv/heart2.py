@@ -109,6 +109,28 @@ PROVEN, BLIND, UNPROVEN, UNPROVABLE, INVALID = "PROVEN", "BLIND", "UNPROVEN", "U
 
 
 # ── finding the gates ────────────────────────────────────────────────────────────────────────
+def _stale_say(v):
+    """What the ratchet cannot see, in words a reader can act on. -> str
+
+    ⚠ A NUMBER WITH NO SENTENCE IS A NUMBER NOBODY ACTS ON. `coverageStaleNodes: 30` means thirty
+    watched nodes could disappear and every automated check would still read clean, and that is not
+    obvious from the integer. UNKNOWN is said out loud rather than rendered as a quiet zero.
+    """
+    n = v.get("coverageStaleNodes")
+    if not isinstance(n, int):
+        return ("how much slack this ratchet carries is UNKNOWN — the render verdict predates the "
+                "measurement, so nothing here says whether a watched node could vanish unseen")
+    if not isinstance(v.get("coverageFloorKnown"), bool):
+        return ("%d node(s) of slack were counted, but whether a floor exists at all is UNKNOWN, "
+                "so this number has no denominator" % n)
+    if not v.get("coverageFloorKnown"):
+        return "there is no coverage floor yet, so the ratchet cannot fire for any target"
+    if n <= 0:
+        return "no slack: every floor sits at what a clean run actually photographs"
+    return ("%d node(s) of slack — that many watched nodes could vanish and this ratchet would "
+            "still read clean, because each floor sits below what a clean run photographs" % n)
+
+
 def surface_verdict(path=None):
     """What the LAST render run actually reported. -> dict
 
@@ -141,6 +163,29 @@ def surface_verdict(path=None):
                       "PARTIAL" if rep else "UNMEASURED"),
             "reported": len(rep), "totalTargets": tot, "ageS": age,
             "coverageMissing": int(v.get("coverageMissing") or 0),
+            # ⚠⚠ v2917 (#72) — THE HEART CLAIMED TO SUPERVISE THIS AND DID NOT READ IT.
+            # v2916 recorded the ratchet's own blind spot into .render_verdict.json and dropped the
+            # heart join (P7) because `surfaces` had no UI consumer — then shipped FOUR assertions
+            # that the heart was watching: render_check.py's two comments, this gate's header, and
+            # LAW 7 itself. Found by the cross-family eye twenty minutes after it shipped.
+            # MEASURED on his tree: .render_verdict.json carried `coverageStaleNodes: 30` while
+            # `surface_verdict()` returned state OK / coverageMissing 0, and grep for a consumer of
+            # coverageStale* outside render_check and its own gate returned ZERO. Thirty watched
+            # nodes could vanish and every automated supervisor still read clean.
+            # Moving a fact from scrollback into a file nobody opens is a better grave, not
+            # supervision. [[the-unjoined-end]] [[label-outlived-referent]]
+            # ⚠ IT REPORTS, IT DOES NOT REFUSE. LAW 5 of that gate is deliberate: a stale floor must
+            # not by itself red a run, because a gate that is only ever red gets switched off. So
+            # `state` keeps meaning "did every target report", and the slack rides beside it under
+            # its own name with its own words.
+            "coverageStaleNodes": (int(v["coverageStaleNodes"])
+                                   if isinstance(v.get("coverageStaleNodes"), int) else None),
+            # ⚠ THREE ANSWERS. None = an older render_check wrote this file and never measured
+            # slack, which is UNKNOWN and not zero. False = there is no floor at all. True = a floor
+            # exists, so a 0 beside it is MEASURED. [[unknown-stays-unknown]]
+            "coverageFloorKnown": (bool(v["coverageFloorKnown"])
+                                   if isinstance(v.get("coverageFloorKnown"), bool) else None),
+            "coverageStaleSay": _stale_say(v),
             "renderFailures": int(v.get("renderFailures") or 0)}
 
 

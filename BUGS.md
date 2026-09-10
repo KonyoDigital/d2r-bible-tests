@@ -29587,6 +29587,47 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-920 — the heart claimed to supervise the ratchet's blind spot and never read it
+
+**v2917.** #72. Found by the cross-family eye **twenty minutes after v2916 shipped**, and it is the
+defect that version introduced while fixing another.
+
+v2916 recorded the ratchet's own slack into `.render_verdict.json` and DROPPED the heart join (P7),
+correctly — `heart2.surface_verdict()` fed `surfaces`, and `surfaces` had zero consumers in
+`control_ui.html`. Half a join is worth dropping. What shipped alongside it was **four assertions
+that the heart supervises the fact**:
+
+    render_check.py:2964   "so the heart supervises it rather than the scrollback"
+    render_check.py:2898   "so the fact outlives the scrollback"
+    the gate header, L54   "so the heart supervises it, not the scrollback"
+    LAW 7                  "a verdict nobody records is a verdict nobody supervises"
+
+**MEASURED on his tree:**
+
+    .render_verdict.json    coverageStaleNodes 30 · coverageMissing 0 · coverageFloorKnown True
+    surface_verdict()       state OK · coverageMissing 0 · no slack key at all
+    consumers of coverageStale* outside render_check and its own gate:   ZERO
+
+**Thirty watched nodes could vanish and every automated supervisor still read clean.** Moving a fact
+from scrollback into a JSON file nobody opens is a better grave, not supervision.
+
+⚠ **AND LAW 7 TESTED THE HALF I DID WHILE ASSERTING THE HALF I DROPPED.** It passed *because* the
+value was on disk, so it could never notice that recording is not supervising. A law that checks the
+WRITER cannot see an absent READER. It now asserts `heart2.surface_verdict()` carries the number AND
+says what it means, with a second law pinning that an older verdict with no slack field reads
+**UNKNOWN, never a quiet zero**.
+
+`surface_verdict()` now returns `coverageStaleNodes`, `coverageFloorKnown` and `coverageStaleSay`:
+*"30 node(s) of slack — that many watched nodes could vanish and this ratchet would still read
+clean."* ⚠ It REPORTS and does not refuse: LAW 5 is deliberate, a stale floor must not by itself red
+a run, because a gate that is only ever red gets switched off within a week.
+
+Eleven red-proofs, all PROVEN at 1 match. ⚠ One came back **INVALID** first — my anchor caught only
+the first line of a two-line expression, so the tamper orphaned its continuation and heart2 refused
+it: *"A gate reddened by a SyntaxError proves nothing about the law."* The anchor now spans the whole
+expression and the tampered file is verified to PARSE before the prove is spent.
+[[the-unjoined-end]] [[plumbing-with-no-tap]] [[label-outlived-referent]] [[unknown-stays-unknown]]
+
 ## REG-919 — the FLOOR arm could hide the tested-but-unproven count
 
 **v2916.** The eye found the band on the pass after v2915. `_iGap > 0` is tested FIRST and can be

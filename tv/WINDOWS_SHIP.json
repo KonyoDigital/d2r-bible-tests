@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2916",
+  "ver": "v2917",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2916: the only run that could notice a drop was the only run allowed to update the floor",
+  "note": "v2917: thirty nodes of slack on disk and zero consumers, while four places said the heart was watching",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2917** | `(this commit)` | v2917 — thirty nodes of slack on disk and zero consumers, while four places said the heart was watching |
 | **v2916** | `(this commit)` | v2916 — the only run that could notice a drop was the only run allowed to update the floor |
 | **v2915** | `(this commit)` | v2915 — the eye caught the half-fix and grok bot caught a state I promised but never shipped |
 | **v2914** | `(this commit)` | v2914 — the third pass on one sentence found the defect inside the fix for the previous finding |

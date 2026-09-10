@@ -160,6 +160,32 @@ RED_PROOF = [
         "replace": "    if False and not complete:",
         "matches": 1,
     },
+    {
+        "why": "putting the heart back to how v2916 shipped it: the slack is RECORDED and the "
+               "heart does not read it, which is the exact state the cross-family eye caught - "
+               "30 watched nodes could vanish and every supervisor still read clean.",
+        "file": "heart2.py",
+        "find": "            \"coverageStaleNodes\": (int(v[\"coverageStaleNodes\"])\n                                   if isinstance(v.get(\"coverageStaleNodes\"), int) else None),",
+        "replace": "            \"_staleNodesRemovedByHeart2\": None,",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the sentence leaves a bare integer. A number with no words is a number "
+               "nobody acts on - the reader cannot tell 30 from 0 without being told what 30 means.",
+        "file": "heart2.py",
+        "find": "            \"coverageStaleSay\": _stale_say(v),",
+        "replace": "            \"_staleSayRemoved\": None,",
+        "matches": 1,
+    },
+    {
+        "why": "making an ABSENT slack field read as a measured zero. An older render verdict never "
+               "measured slack at all, and reporting that as 'no slack' answers a question nobody "
+               "asked. [[unknown-stays-unknown]]",
+        "file": "heart2.py",
+        "find": "    if not isinstance(n, int):",
+        "replace": "    if False:",
+        "matches": 1,
+    },
 ]
 
 
@@ -311,7 +337,18 @@ class AStaleFloorIsALoudFactNotASilentPass(_Bench):
                          "dropped: %s\n%s" % (missing, text[-1500:]))
 
     def test_the_slack_is_RECORDED_so_it_outlives_the_terminal(self):
-        """LAW 7 — [[join-gate-heart]]: a verdict nobody records is a verdict nobody supervises."""
+        """LAW 7 — [[join-gate-heart]]: a verdict nobody records is a verdict nobody supervises.
+
+        ⚠⚠ v2917 — AND THIS LAW TESTED THE HALF I DID WHILE ASSERTING THE HALF I DROPPED. v2916
+        recorded the slack into .render_verdict.json, dropped the heart join because `surfaces` had
+        no consumer, and then claimed in FOUR places that the heart supervises the fact. The
+        cross-family eye caught it twenty minutes after it shipped. MEASURED: the file carried
+        `coverageStaleNodes: 30` while `heart2.surface_verdict()` returned state OK with no such
+        key, and a grep for a consumer outside render_check and this file returned ZERO.
+
+        A law that only checks the WRITER can never notice that recording is not supervising — it
+        passes precisely because the value is on disk. So this now asserts the READER: the heart
+        must carry the number AND say what it means. [[the-unjoined-end]] [[plumbing-with-no-tap]        """
         _t, _rc, _text = self._stale_run()
         v = self.verdict()
         self.assertIn("coverageStaleNodes", v,
@@ -322,6 +359,41 @@ class AStaleFloorIsALoudFactNotASilentPass(_Bench):
                          "number here is worse than none." % v["coverageStaleNodes"])
         self.assertEqual(len(v.get("coverageStale") or []), 12,
                          "the per-width rows were not recorded: %r" % (v.get("coverageStale"),))
+
+    def test_the_HEART_carries_the_slack_and_says_what_it_means(self):
+        """⚠ THE CONSUMER, NOT THE WRITER. `heart2.surface_verdict()` is what an automated
+        supervisor reads. If the slack is not in ITS answer, then 30 watched nodes can vanish and
+        every supervisor still reads clean — which is the state v2916 shipped while claiming the
+        opposite in four places."""
+        import heart2
+        v = heart2.surface_verdict()
+        self.assertIn("coverageStaleNodes", v,
+                      "the heart's own verdict does not carry the ratchet's slack, so nothing "
+                      "automated can see it: %s" % sorted(v))
+        self.assertIn("coverageStaleSay", v,
+                      "a bare integer is a number nobody acts on — the heart must say what the "
+                      "slack MEANS: %s" % sorted(v))
+        say = str(v.get("coverageStaleSay") or "")
+        self.assertGreater(len(say), 20, "the slack sentence is empty: %r" % say)
+
+    def test_an_older_verdict_reads_UNKNOWN_and_never_a_quiet_zero(self):
+        """⚠ ABSENT IS NOT ZERO. A render verdict written before v2916 has no slack field at all.
+        Reporting that as 0 would say 'no slack' about a question nobody asked.
+        [[unknown-stays-unknown]] [[zero-needs-a-denominator]]"""
+        import heart2, tempfile, json as _j, os as _os
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            _j.dump({"full": True, "totalTargets": 2, "reported": ["a", "b"],
+                     "coverageMissing": 0, "renderFailures": 0}, fh)
+            old_path = fh.name
+        try:
+            v = heart2.surface_verdict(old_path)
+            self.assertIsNone(v.get("coverageStaleNodes"),
+                              "an older verdict with no slack field must read UNKNOWN, not 0: %r"
+                              % v.get("coverageStaleNodes"))
+            self.assertIn("UNKNOWN", str(v.get("coverageStaleSay") or ""),
+                          "and it must SAY unknown: %r" % v.get("coverageStaleSay"))
+        finally:
+            _os.unlink(old_path)
 
 
 class ASubsetMayNeverRaiseTheFloor(_Bench):
