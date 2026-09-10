@@ -595,6 +595,17 @@ def main(argv):
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate is `python3 tv/overlap_ratchet.py --check` (run_gates.py:3086) and the SOURCE it protects is the console it serves and measures: tv/control_ui.html. Only the four overlay-panel keys are actually graded — every page-level width is recorded UNSTABLE by measurement and `375x800 heart-ov` is declared structurally unmeasurable — and of those panels only #forensics-ov populates enough to hold a collision (28 painted text leaves at 901 against 3/2/2 for heart, compare and heatmap). So the honest place to attack this gate is a real spacing law inside the forensics panel. `.fx-secsub { … margin: -2px 0 8px 16px; }` (control_ui.html:1355) IS that law: the -2px is the tuned pull that seats each section\'s subtitle immediately under its section header, and it is real CSS — not a comment, not a mention inside a message string, and not a constant an agreement law reads from both sides (nothing else in the file or in overlap_ratchet.py reads it). Moving it to -13px pulls the subtitle 11px up onto the header line, which is exactly the defect class this gate exists for and the one render_check cannot see: nothing is clipped, nothing is off-screen, nothing is covered — two labels are simply drawn on top of each other. ⚠⚠ THE 11px IS MEASURED, NOT PICKED, AND A BIGGER SHIFT WOULD HAVE READ GREEN. `_JS` hit-tests every leaf with elementFromPoint at its centre, so once the subtitle\'s box swallows the header\'s centre y the header stops being a painted leaf, the pair disappears and the count falls back to 0 — a sabotage that looks violent and proves nothing. The header span is 15px tall (y=196..211, centre 203.5) and the subtitle 15px (y=217..232), so the usable window is a shift of >9px (to clear the 3px MIN_OVERLAP_PX threshold) and <13.5px (to keep the header\'s centre outside the subtitle\'s box). -13px sits in the middle of it and the measured pairs came back at oy=5 and oy=4 against a threshold of 3, with `leaves` unchanged at 28. ⚠ The gate measures on his Mac only — on a venue with no browser it exits 77 and on a non-Darwin baseline venue it declares a skip — so this proof was measured where the gate actually runs. MEASURED: untampered GREEN (exit 0, `✅ held.`); tampered RED (exit 1) at ALL FOUR widths — forensics-ov 0->6 / 0->6 / 0->6 / 0->5; law reddened = check()\'s `if now != then` ratchet comparison; ALONE a fresh process calling only `overlap_ratchet.check()` returned 1 with the same rise; RESTORED with `git checkout -- tv/control_ui.html` and the gate printed `✅ held.` again. matches=1, counted in tv/control_ui.html (not estimated) — the string is unique, so heart2\'s replace-all and a single replacement are the same experiment. `file` is the bare basename: heart2 joins it onto the sandbox tv/, giving <sandbox>/tv/control_ui.html, which exists.  MEASURED: untampered GREEN. `python3 tv/overlap_ratchet.py --check` -> exit 0, last line `✅ held.` Al; tampered (all 1) RED. Same command, exit 1. `901x900 forensics-ov baseline 0 now 6 🔴 ROSE +6`, an; reddened law check()\'s ratchet comparison in tv/overlap_ratchet.py — `if now != the; ALONE FAILS ALONE. The gate is a SCRIPT, not a unittest suite, so "alone" was a fresh python3 process that.',
+        'file': 'control_ui.html',
+        'find': 'margin: -2px 0 8px 16px;',
+        'replace': 'margin: -13px 0 8px 16px;',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

@@ -428,5 +428,16 @@ class AppCtxNav(unittest.TestCase):
             "workshop row or drop that rule and hide the empty clusters individually." % stray)
 
 
+RED_PROOF = [
+    {
+        'why': 'REG-443: engineDriven() must AND the ?engine=1 flag with a real frame test — drop `&& framed()` and a top-level board arms `engine-driven`, whose CSS hides the whole tab row, leaving him 0 of 19 tabs.  MEASURED: untampered python3 tv/test_app_ctx_nav.py -> Ran 4 tests in 3.984s / OK; tampered (all 1) python3 tv/test_app_ctx_nav.py -> Ran 4 tests in 3.006s / FAILED (failures=2); reddened law test_app_ctx_nav.AppCtxNav.test_the_framing_LAW_holds_when_the_functio; ALONE python3 -m unittest test_app_ctx_nav.AppCtxNav.test_the_framing_LAW_holds_when_the_function_is_RUN -.',
+        'file': 'bible.html',
+        'find': '&& framed()',
+        'replace': '&& true',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

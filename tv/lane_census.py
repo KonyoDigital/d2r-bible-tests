@@ -342,5 +342,16 @@ def main(argv):
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate runs `python3 tv/lane_census.py --prove`, which proves the CLASSIFIER that decides whether a thread target is a persistent LOOP or a one-shot TASK — the instrument THE HEART quotes when it says which lanes run unwatched. The one law that was wrong twice on the day it was written lives in `_body`: a function body ends at the next STATEMENT at or left of the def\'s indent, and a BLANK LINE ends nothing. This edit deletes exactly that behaviour — the blank-line skip in `_body`\'s boundary scan — so the body is cut at the first empty line. It is real code, not a comment and not a message string, and it is not shared with the proof\'s fixture (the fixture is a literal string in `prove()`; the anchor is the scanner that reads it), so both sides cannot move together. Note the near-miss anchors that prove nothing here: `_PERSISTENT[0]` (`while\\s+True`) is redundant with `_PERSISTENT[2]` (`while\\s+[\\w.]+\\s*:$`), so deleting the True pattern leaves `while True:` still matching — wrong side of a union; and removing the `#`-strip in `_code_only` leaves `planted_commented_out` classified TASK anyway. Under this tamper the classifier reports a function whose `while True:` sits below a blank line as a one-shot TASK — the exact false measurement (five `_loop` functions read as workers) that this file was written to make impossible.  MEASURED: untampered GREEN. `perl -e \'alarm 200; exec @ARGV\' python3 lane_census.py --prove` -> exit ; tampered (all 1) RED. Same command -> exit 1, "🔴 2 case(s) wrong — this classifier may not be quo; reddened law prove()\'s case `planted_loop` — classify(FIX, "planted_loop") == "LOOP; ALONE FAILS ALONE. The gate is a SCRIPT, so "alone" = a fresh process running exactly that one check with .  ⚠ matches=2 AND THAT IS NOT A MISCOUNT. This gate\'s FILE IS ITS OWN TARGET, so this declaration\'s own `find` field is a second occurrence of the anchor the moment it lands: 1 before writing, 2 after. heart2 measured it — "INVALID — the tamper matched 2 time(s), expected 1". The real code site is the one that reddens; the other is this text, replaced harmlessly in a throwaway sandbox after heart2 has already parsed the proof. Third instance of this shape after corroborate-selftest and live-panel. [[stale-reading]]',
+        'file': 'lane_census.py',
+        'find': 'if not raw.strip():',
+        'replace': 'if False and not raw.strip():',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

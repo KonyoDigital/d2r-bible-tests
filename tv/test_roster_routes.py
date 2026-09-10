@@ -136,6 +136,17 @@ class TheRefutableClaimIsMeasured(unittest.TestCase):
                  {r["key"]: r["state"] for r in d["routes"]}))
 
 
+RED_PROOF = [
+    {
+        'why': '`_unit_stated()` in tv/roster_routes.py is the only code that enforces the law "an empty unit word is not a unit" — `{w: \'\'}` on the surface is a right number under an unstated unit, the same defect as no unit key at all, and the module docstring pins it: "⚠ `{w: \'\'}` IS NOT A UNIT. Matching `{w:` alone would have called that healthy." The tamper deletes exactly that enforcement — the `.strip()` truthiness test on the captured word — leaving only the regex-matched-at-all check, so an empty unit word reads as a stated unit and the `unit` lane goes ok:True for a surface that says nothing. It is real code, not a comment, not a name inside a message string, and not a constant read from both sides of an agreement law: the test builds its own in-memory `_DEN` fixture with uniques/sets stated and runewords empty, so the tamper moves only the runewords side of the comparison. No dependence on bible.html, control_app.py or control_ui.html, so the proof is deterministic across trees.  MEASURED: untampered GREEN. `perl -e \'alarm 200; exec @ARGV\' python3 test_roster_routes.py` -> "Ran 8; tampered (all 1) RED. Same command after replacing all 1 occurrence -> "Ran 8 tests in 0.472s / F; reddened law test_roster_routes.AnUnknownTotalIsNotAMissingOne.test_an_empty_unit_w; ALONE FAILS ALONE. `python3 -m unittest test_roster_routes.AnUnknownTotalIsNotAMissingOne.test_an_empty_un.',
+        'file': 'roster_routes.py',
+        'find': 'return bool(m and m.group(1).strip())',
+        'replace': 'return bool(m)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

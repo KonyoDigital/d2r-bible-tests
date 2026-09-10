@@ -314,6 +314,17 @@ class TestV2626TheTitleBarHidBlankness(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'measure() crops the OS title bar off the top of the captured bitmap before sampling luminances — that crop IS the v2626/v2752 fix, because a blank console body plus chrome reads 0.95 modal share and clears the 0.98 blank bar, so his black window was called PAINTED. Deleting the crop (top = 0) restores the exact bug the suite exists to pin. Anchor is the executable expression inside measure(), not the CHROME_TOP_PX constant that test_the_crop_is_a_FLOOR_not_a_guess reads from both sides.  MEASURED: untampered Ran 23 tests in 0.466s — OK (python3 tv/test_pixel_witness.py, run from tv/); tampered (all 1) FAILED (failures=2) — TestV2626TheTitleBarHidBlankness.test_a_blank_body_under_a; reddened law test_pixel_witness.TestV2626TheTitleBarHidBlankness.test_a_blank_body_; ALONE python3 -m unittest test_pixel_witness.TestV2626TheTitleBarHidBlankness.test_a_blank_body_under_a_ti.',
+        'file': 'paint_witness.py',
+        'find': 'top = CHROME_TOP_PX if h > CHROME_TOP_PX * 4 else 0',
+        'replace': 'top = 0',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

@@ -152,6 +152,17 @@ class TestTheSunderCharmsAreUniques(unittest.TestCase):
                          "recognises only the bare form and the other two fall through")
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the REAL THING the gate exists to protect: the variant-prefix strip inside _artRarity\'s sunder-charm branch (bible.html:17208). SUNDER_CHARMS holds only bare names, so without stripping "Latent "/"Renewed " every "Latent Rotting Fissure" / "Renewed Cold Rupture" fails the roster lookup, falls through the whole chain to rarity \'\' — the exact defect A21a was carved for (a unique landing on the Sets bar). It is live code, not a comment (the suite strips comments before asserting) and not a shared constant: the law reads the classifier branch, the roster it compares against is untouched. PreCrafted is left in place so the edit is a behaviour deletion, not a syntax break.  MEASURED: untampered Ran 6 tests in 5.350s — OK (green before tamper; green again after `git checkout; tampered (all 1) Ran 6 tests in 5.355s — FAILED (failures=1): assertRegex \'Latent\\|Renewed\' not f; reddened law test_item_classifier.TestTheSunderCharmsAreUniques.test_the_variant_pr; ALONE python3 -m unittest test_item_classifier.TestTheSunderCharmsAreUniques.test_the_variant_prefixes_are.',
+        'file': 'bible.html',
+        'find': '/^(Latent|Renewed|PreCrafted)\\s+/i',
+        'replace': '/^(PreCrafted)\\s+/i',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

@@ -649,5 +649,16 @@ def main(argv):
     return code
 
 
+RED_PROOF = [
+    {
+        'why': 'live-panel exists because uiBeat.panels reported ZERO-HEIGHT / OFF-SIDE for panels that cannot be reached by any amount of scrolling and NOTHING READ IT (v2406). The FATAL tuple at live_panel_gate.py line 83 is the one place the checker declares which panel states are unreachable-by-scrolling; check() tests `s in FATAL` against it, and this gate\'s own sabotage suite asserts a collapsed panel and a sideways-clipped panel must both go RED. Emptying that tuple deletes the refusal itself. It is not a comment, not text inside a message string, and not a constant both sides of an agreement law read: prove()\'s fixtures hardcode the state strings, so the expectation does not move with the tamper.  MEASURED: untampered `python3 tv/live_panel_gate.py --gate` -> EXIT=0, "instrument proven on 23 sabotage(s) AND the live console read clean"; tampered (all matches) -> EXIT=1, "3 case(s) wrong - this gate may not be trusted" then "the SABOTAGE failed - the instrument is broken"; reddened law = live_panel_gate.prove() case "a collapsed panel" (want 1 got 0), with "a panel clipped sideways" and "a FRESH beat is graded normally" falling the same way. ALONE FAILS ALONE: the gate is a script, so alone = a fresh process importing live_panel_gate and evaluating only check() on the single ZERO-HEIGHT fixture -> want 1, got 0 tampered / got 1 restored.  ⚠ matches=2, NOT 1: this gate\'s FILE IS ITS OWN TARGET, because the subject it grades is a live console process that no sandbox tamper can reach. The anchor occurs once in the code at line 83 and once inside this proof\'s own `find` field; the why must never repeat those bytes or the count drifts (corroborate.py hit exactly this and measured INVALID). ⚠ The clean run needs a console listening on TV_CONSOLE_URL: with none, the gate exits 77 (a declared SKIP) and heart2 reads that as ALREADY RED -> UNPROVABLE. That is a fact about the venue, not about this proof.  ⚠ matches=2 AND THAT IS NOT A MISCOUNT — this gate\'s FILE IS ITS OWN TARGET, so this declaration\'s own `find` field becomes a second occurrence the moment it lands. Counted 1 before writing and 2 after; the agent measured post-write and was right, my pre-write re-check was wrong. Same shape as REG-861 (corroborate-selftest). The real code site is the FATAL tuple; the other is this text, replaced harmlessly in a throwaway sandbox after heart2 has already parsed it.  MEASURED: untampered EXIT=0 — "🟢 live-panel: instrument proven on 23 sabotage(s) AND the li; tampered EXIT=1 — applied to ALL 2 occurrences (ast.parse of the tampered file ; reddened law live_panel_gate.prove() case "a collapsed panel" — check({\'uiBeat\':{\'p.',
+        'file': 'live_panel_gate.py',
+        'find': 'FATAL = ("ZERO-HEIGHT", "OFF-SIDE")',
+        'replace': 'FATAL = ()',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

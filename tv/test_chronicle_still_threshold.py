@@ -100,5 +100,16 @@ class ASceneChangeMustBreakTheRun(unittest.TestCase):
                       "read_reel is back on the shared default — the chronicle sweep is blind again")
 
 
+RED_PROOF = [
+    {
+        'why': "This is the declaration of the chronicle sweep's own still threshold in tv/chronicle_retro.py (line 95) — the exact parameter the gate exists to pin. Putting it back to the shared 0.22 restores the original defect verbatim: a threshold above the ceiling of what jpeg_sig/sig_diff can produce, so no frame pair ever breaks a run and a whole session collapses into ONE run. It is not a comment, not a message string, and not a shared constant read by both sides of an agreement law — STILL_MAX_DIFF (0.22) stays untouched, so the CHRON < STILL agreement really goes red instead of both sides moving together. The reddened law is behavioural, not source-text: still_runs() stops splitting a genuine 0.0625 scene change.  MEASURED: untampered python3 tv/test_chronicle_still_threshold.py -> Ran 6 tests, OK (green before ta; tampered (all 1) python3 tv/test_chronicle_still_threshold.py -> Ran 6 tests, FAILED (failures=3); reddened law test_chronicle_still_threshold.ASceneChangeMustBreakTheRun.test_a_mode; ALONE python3 -m unittest test_chronicle_still_threshold.ASceneChangeMustBreakTheRun.test_a_modest_but_rea.",
+        'file': 'chronicle_retro.py',
+        'find': 'CHRON_STILL_MAX_DIFF = 0.002',
+        'replace': 'CHRON_STILL_MAX_DIFF = 0.22',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main()

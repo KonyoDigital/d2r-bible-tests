@@ -193,6 +193,17 @@ class TheWalkReachesEverySightingHoweverItNESTS(unittest.TestCase):
         self.assertEqual(m["notFoundSeen"]["uniques"]["Shako"][0]["loc"], "inventory")
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the real "an existing loc is never overwritten" guard inside _stamp_leaf (control_app.py:_stamp_sighting_locs). With the sg.get("loc") clause gone, a sighting that already carries a loc taken closer to the capture is re-derived and overwritten by the weaker later answer, and the stamp count goes 0 -> 1. Not a comment, not a message string, not a shared constant: it is the single executable branch both no-overwrite laws assert on, at both walk depths.  MEASURED: untampered Ran 11 tests in 0.005s — OK (perl -e \'alarm 200; exec @ARGV\' python3 tv/test_sig; tampered (all 1) Ran 11 tests — FAILED (failures=2): TheAnswerIsKeptWhileTheReelIsStillHere.test_; reddened law test_sighting_loc_persist.TheAnswerIsKeptWhileTheReelIsStillHere.test_; ALONE python3 -m unittest test_sighting_loc_persist.TheAnswerIsKeptWhileTheReelIsStillHere.test_an_existin.',
+        'file': 'control_app.py',
+        'find': 'if not isinstance(sg, dict) or sg.get("loc"):',
+        'replace': 'if not isinstance(sg, dict):',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

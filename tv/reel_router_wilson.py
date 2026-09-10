@@ -250,6 +250,17 @@ def main(argv):
     return 0 if rep["k"] == rep["n"] else 1
 
 
+RED_PROOF = [
+    {
+        'why': 'A7·ROUTE\'s `empty` refusal: `_station_of` must send a reel that retro_triage walked IN FULL and found ZERO panel frames in to EMPTY, never into STATION — STATION is the PAID read queue, and a reel with no panel frame has no item name to read, so routing it there buys nothing on his money. Deleting the EMPTY verdict is exactly the defect the module was written against (a survey verdict flattened into a flag beside the station is how six of thirteen reels got into the paid queue). The anchor is the decider\'s own return, not a comment, not the OWES message text, and not the shared STATIONS constant.  MEASURED: untampered PROVEN · 56 of 56 attempts refused, exit 0 (perl -e \'alarm 200; exec @ARGV\' pyth; tampered (all 1) LEAKS · 48 of 56 attempts refused, exit 1 — empty 0/8 LEAKS; the other six claim; reddened law empty — reel_router_wilson._attempt_an_empty_reel_enters_the_paid_queu; ALONE FAILS ALONE — fresh process, no siblings: python3 -c "import reel_router_wilson as W; print(W._attem.',
+        'file': 'reel_router.py',
+        'find': 'return "EMPTY", (',
+        'replace': 'return "STATION", (',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

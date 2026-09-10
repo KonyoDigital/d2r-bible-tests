@@ -793,6 +793,15 @@ GATES = [
              "number of ticks, on the first tick after a restart, with run() driven rather than "
              "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
          skip_ok=()),
+    Gate("test_the_era_flips_at_chiliad",
+         [sys.executable, os.path.join(HERE, "test_the_era_flips_at_chiliad.py")], 90,
+         why="v2888 — Konyo asked for the version bar to rename itself at the 3000 mark: "
+             "\"when we hit version 3000 i want it to be called Chiliad 001 ... from version 3001 "
+             "its chiliad ... automatically ... like a lock/unlock style\". It ships 113 versions "
+             "early and fires unattended, so the boundary is proven NOW, in a real JS engine, "
+             "against the shipped window._eraName rather than the source text. Off by one and the "
+             "first Chiliad ship reads 'Millenium v001' with nobody watching.",
+         skip_ok=()),
     Gate("test_the_census_counts_every_gate",
          [sys.executable, os.path.join(HERE, "test_the_census_counts_every_gate.py")], 60,
          why="v2882 — run_gates registered 279 gates and the heart's census reported 278. The "

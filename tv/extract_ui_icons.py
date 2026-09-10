@@ -327,5 +327,16 @@ def main():
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'every icon the console declares must actually be a file in art/ — a missing PNG fails SILENTLY (each <img> carries onerror=this.remove(), and control_ui.html references /art/ui_foc_stash.png at 3 sites), so renaming the role out from under the shipped file must be caught here or the MINI focus just loses its picture with a tidy label left behind  MEASURED: untampered `perl -e \'alarm 200; exec @ARGV\' python3 tv/extract_ui_icons.py --check` -> "OK ; tampered (all 1) match count printed BEFORE editing: 1 in tv/extract_ui_icons.py (expected 1). Ap; reddened law the ICONS presence loop in main() under --check (extract_ui_icons.py:2; ALONE FAILS ALONE. This gate is a SCRIPT, so "alone" = a fresh process invoking exactly that one check wit.  ⚠ matches=2 AND THAT IS NOT A MISCOUNT. This gate\'s FILE IS ITS OWN TARGET, so this declaration\'s own `find` field is a second occurrence of the anchor the moment it lands: 1 before writing, 2 after. heart2 measured it — "INVALID — the tamper matched 2 time(s), expected 1". The real code site is the one that reddens; the other is this text, replaced harmlessly in a throwaway sandbox after heart2 has already parsed the proof. Third instance of this shape after corroborate-selftest and live-panel. [[stale-reading]]',
+        'file': 'extract_ui_icons.py',
+        'find': '    "foc_stash": (r"data',
+        'replace': '    "foc_stash_cube": (r"data',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main())

@@ -488,5 +488,16 @@ def main(argv=None):
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate (tv/swallow_census.py --check) ratchets RANK 1 — a failed read handed back to a caller as DATA (0 / {} / [] / \'\'). tv/human_eyes_ledger.py is the purest instance of the honest shape it protects: all three of its file-IO handlers return None ("None propagates rather than flattening to []", its own docstring, line ~138), so a caller can tell "could not ask" from "no briefs". Turning those three `return None` into `return []` converts three honest unknowns into three empty containers a caller cannot distinguish from a real measurement — exactly the class the ratchet exists to stop — and the count rises 74 -> 77. The anchor is real code, not prose: line 53 mentions the literal string `except OSError: return []` in a comment and does NOT match, because the anchor pins the two-line, 8-space-indented handler body. It is not a shared constant and not a derived-set union — the census recomputes rank 1 from the AST while the baseline stays fixed on disk, so only the tampered side moves.  MEASURED: untampered GREEN before: `perl -e \'alarm 200; exec @ARGV\' python3 tv/swallow_census.py --ch; tampered (all 3) All 3 occurrences replaced (counted first: MATCHES: 3; tampered file re-parsed w; reddened law the rank-1 GROWTH branch of swallow_census.check() — `if b_now > b_was; ALONE This gate is a SCRIPT, not a unittest suite, so "alone" = a fresh process invoking exactly that one .',
+        'file': 'human_eyes_ledger.py',
+        'find': '    except OSError:\n        return None',
+        'replace': '    except OSError:\n        return []',
+        'matches': 3,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

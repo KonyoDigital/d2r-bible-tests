@@ -123,5 +123,16 @@ class TestFlushIsWiredIntoTheCloseSeam(unittest.TestCase):
         self.assertIn("ask the console to read it", body)
 
 
+RED_PROOF = [
+    {
+        'why': "chron_visit_flush()'s ONLY act is to drive the visit state machine to its close: _chron_visit_step(None, None) passes a non-chronicle scene, which is the sole path that ends an open visit and returns its {ledger, since, until, frames, n}. Cut that call and the flush becomes the pre-v1689 world exactly — the seam still runs at session close, still never fires a read, still returns None-on-nothing, but a Chronicle visit that was still open when he stopped is journalled ZERO times, so /api/chronicle_visits stays [] and the v1527 read offer can never appear. It is the real machinery, not a comment, not a message string, and not a constant read by both sides of an agreement.  MEASURED: untampered python3 tv/test_chronicle_visit_flush.py -> Ran 7 tests, OK (all 7 green); tampered (all 1) python3 tv/test_chronicle_visit_flush.py -> Ran 7 tests, FAILED (failures=3, err; reddened law test_chronicle_visit_flush.TestChronicleVisitFlush.test_the_visit_he_n; ALONE python3 -m unittest test_chronicle_visit_flush.TestChronicleVisitFlush.test_the_visit_he_never_close.",
+        'file': 'tv_diablo.py',
+        'find': '_closed_visit = _chron_visit_step(None, None)',
+        'replace': '_closed_visit = None',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -165,6 +165,17 @@ class AbsentRequiresAComparableVocabulary(unittest.TestCase):
                 % (len(OM.ORGANS) - ncomp))
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the comparability MEASUREMENT itself: comparability() stops asking whether any of the organ\'s names resolves to any surface and declares every organ that answered with names comparable. That is the exact defect the suite exists for — doctor (34 concern names, 0 resolve) and watchdog (7 names, 0 resolve) become comparable and matrix() hands down confident ABSENT cells on surfaces nothing was measured against. Measured under the tamper: watchdog delivered a verdict on 57 surfaces (_bridge_prober, _chron_autoread_loop, ...) that the test independently classified as unreachable by its vocabulary, and main() printed "only 3 of the 4 organs" where the independent count says 1. The test does NOT read the module\'s own classification — it recomputes overlap from organ_coverage() + surfaces() + one_name.same_thing — so this is not the wrong side of a union and not a shared constant.  MEASURED: untampered Ran 5 tests in 4.570s — OK (green before tamper; re-run after git checkout -- tv; tampered (all 1) Ran 5 tests in 4.401s — FAILED (failures=2): test_an_incomparable_organ_never_pr; reddened law test_organ_comparability.AbsentRequiresAComparableVocabulary.test_an_i; ALONE python3 -m unittest test_organ_comparability.AbsentRequiresAComparableVocabulary.test_an_incomparabl.',
+        'file': 'organ_matrix.py',
+        'find': 'out[organ] = ((hits > 0),',
+        'replace': 'out[organ] = ((True),',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

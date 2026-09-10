@@ -202,5 +202,16 @@ def main():
         t.close()
 
 
+RED_PROOF = [
+    {
+        'why': 'the gate exists so the install crest — which says WHICH MACHINE this is, not what to hunt — is never the loudest thing above the fold (v2294: `.bs-glyph` measured FIRST at 92.5% saturated-pixel share, ahead of the help button at 75.7%, because a solid 20x20 block of the install hue sat at the top of the board). The whole fix was the FOOTPRINT: `.bd-sigil .bs-glyph` keeps `background:transparent` and wears the hue as a 1px `box-shadow:inset` ring instead of a fill (bible.html:47056), hue untouched at full strength because damping it to a tint puts Hollow vs Iron at dE 2.4. The anchor IS that declaration — not the comment eight lines above it that quotes the same numbers, and not the `:hover` rule; restoring the solid fill is deleting the real thing. MEASURED: `find` occurs 1x in bible.html (grep-counted, the CSS rule only; the v2294 comment block mentions `.bs-glyph` but not this string). UNTAMPERED: `perl -e \'alarm 200; exec @ARGV\' python3 tv/crest_loudness.py` -> exit 0, "the crest is #21, behind .help-btn — identity is quiet" (top: .help-btn 75.7%). TAMPERED (all 1 occurrence replaced): exit 1, "THE INSTALL CREST IS THE LOUDEST THING ON THE BOARD (#bs-glyph at 95.0%)", ranking `95.0% #bs-glyph` above `75.7% .help-btn`. RESTORED (git checkout -- bible.html): exit 0, green again, "#24, behind .help-btn". WHY THE REPLACEMENT HARDCODES A PALETTE HUE INSTEAD OF `var(--bs-hue)`: the crest hue is a hash of a per-profile install id, and this gate\'s CDP probe runs in a FRESH temp Chrome profile, so a new id — and a new hue — is minted on every run. 4 of the 16 palette hues sit below the gate\'s own saturation floor ((max-min)>=60): #b9b2a4, #9fb6c9, #e8e0cf, #9aa6b2. MEASURED FIRST ATTEMPT: the faithful-looking tamper `background:var(--bs-hue,#e9d07a);box-shadow:none;` ran against a guest world that hashed to "Ashen Oath" hue #b9b2a4 (max-min = 21) and the gate stayed GREEN with the crest at #162 — a solid fill nobody\'s metric can see. #ff6b6b is Crimson from that same HUES list (bible.html:54115), the palette\'s red/orange ALERT band the v2294 defect lives in and the one his own install hashed to, so the proof reproduces the real defect deterministically on any install id. [[gate-blind-to-unexercised-input]] [[sabotage-is-usually-the-wrong-one]]  MEASURED: untampered exit 0 (green). `perl -e \'alarm 200; exec @ARGV\' python3 crest_loudness.py` from; tampered (all 1) exit 1 (FAIL, not skip). Same command after replacing all 1 occurrence: "95.0% #; reddened law crest_loudness.py main() — the single loudness law at lines 188-195: `; ALONE FAILS ALONE. Fresh process, that one check function, no siblings: `python3 -c "import sys; sys.path..',
+        'file': 'bible.html',
+        'find': 'background:transparent;box-shadow:inset 0 0 0 1px var(--bs-hue,#e9d07a);',
+        'replace': 'background:#ff6b6b;box-shadow:none;',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main())

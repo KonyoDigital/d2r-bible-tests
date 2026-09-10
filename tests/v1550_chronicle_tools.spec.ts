@@ -169,8 +169,50 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
     expect(board.length, 'bible.html did not load — this guard would then pass by being blind')
       .toBeGreaterThan(1000);
     const routes = [...new Set([...app.matchAll(/path == "(\/api\/[a-z_0-9]+)"/g)].map((m) => m[1]))];
-    const orphans = routes.filter((r) => !ui.includes(r) && !tvd.includes(r) && !board.includes(r));
-    expect(orphans, 'a route with no caller is plumbing with no tap — give it one or delete it')
+    /* v2888 — THE "NAMED OWNER" THIS TEST'S OWN TITLE HAS ALWAYS PROMISED.
+     *
+     * The title reads "every /api route in the console now has a consumer, OR A NAMED OWNER" and
+     * the implementation had no owner list at all, so a route kept deliberately — with no UI
+     * caller by design — had no way to say so and read as plumbing with no tap. Measured on
+     * 92feadb0: /api/mini_auto and /api/mini_preflight, the only two, red since v2857.
+     *
+     * ⚠ DELETING THEM WAS THE WRONG FIX AND WAS MEASURED AS SUCH. /api/mini_auto's POST/GET
+     * contract is pinned by test_a_button_speaks_where_it_stands and
+     * test_the_screen_read_never_blocks_the_button — one of which anchors its RED_PROOF on the
+     * literal `if path == "/api/mini_auto":`. test_control asserts /api/mini_preflight's handler
+     * appears exactly once. Removing either would have reddened live gates to green this one.
+     *
+     * ⚠ AN ALLOWLIST THAT CANNOT GO STALE. This does not widen tolerance, it names it: every
+     * owner is CHECKED below — the owning file must exist and must still mention the route. An
+     * entry whose owner stopped caring fails here rather than silently excusing a real orphan.
+     * [[plumbing-with-no-tap]] [[label-outlived-referent]] [[unknown-stays-unknown]] */
+    const OWNED: Record<string, { owner: string; why: string }> = {
+      '/api/mini_auto': {
+        owner: 'tv/test_the_screen_read_never_blocks_the_button.py',
+        why: 'MINI(AUTOMATIC) was removed in v2857 (REG-823) and the handler left as a deliberate '
+           + 'refusal, so a caller gets an answer instead of a 404. Two laws pin its contract.',
+      },
+      '/api/mini_preflight': {
+        owner: 'tv/test_control.py',
+        why: 'v2338 Accessibility preflight for MINI(AUTOMATIC) — proves the pointer obeys with a '
+           + '1px twitch it undoes, because CGEventPost fails SILENTLY without Accessibility. '
+           + 'test_control asserts this handler appears exactly once.',
+      },
+    };
+    for (const [route, rec] of Object.entries(OWNED)) {
+      expect(app, `${route} is allowlisted but no longer exists in control_app.py — a stale owner `
+        + `entry would excuse a REAL orphan on the next route that reuses the name`).toContain(route);
+      const ownerPath = path.resolve(__dirname, '..', rec.owner);
+      expect(fs.existsSync(ownerPath), `${route} names owner ${rec.owner}, which does not exist`)
+        .toBe(true);
+      expect(fs.readFileSync(ownerPath, 'utf8'),
+        `${route} names ${rec.owner} as its owner, but that file no longer mentions the route — `
+        + `the ownership is a claim nobody is keeping`).toContain(route);
+    }
+    const orphans = routes.filter((r) => !ui.includes(r) && !tvd.includes(r) && !board.includes(r)
+                                          && !OWNED[r]);
+    expect(orphans, 'a route with no caller and no NAMED OWNER is plumbing with no tap — give it '
+      + 'a caller, name an owner that actually references it, or delete it')
       .toEqual([]);
     expect(routes.length).toBeGreaterThan(25);
   });

@@ -329,6 +329,38 @@ def red_proofs_in(filename):
 
 
 # ── the sandbox ──────────────────────────────────────────────────────────────────────────────
+def proof_needs_in(filename):
+    """The data a gate's proof needs beside the source. -> [relative path under tv/]
+
+    ⚠⚠ v2888 — A GATE WHOSE SUBJECT IS ABSENT SKIPS, AND A SKIP IS NOT A PASS.
+    test_chronicle_template came back BLIND with the reason "ALL 12 law(s) SKIPPED in the sandbox —
+    the tamper was never judged". That was not a bad anchor: every one of its 12 laws is decorated
+    `@unittest.skipUnless(_HAVE_FOOTAGE)`, MEASURED 12 of 12, so with no footage the whole gate is a
+    no-op that exits 0. safe_copy deliberately leaves tv/'s 5.8 GB of footage behind — correctly,
+    that rule exists because copying it hit ENOSPC once — so the sandbox could never judge it.
+    This is the narrow door: a gate names the ONE data path its proof needs, by hand, and only that
+    path is brought across. Read by AST, never imported. [[regression-guard]] [[zero-needs-a-denominator]]
+    """
+    p = os.path.join(REPO, "tv", filename) if not os.path.isabs(filename) else filename
+    if not os.path.isfile(p):
+        return []
+    try:
+        tree = ast.parse(io.open(p, encoding="utf-8", errors="replace").read())
+    except Exception:
+        return []
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == "PROOF_NEEDS" for t in node.targets):
+            continue
+        try:
+            v = ast.literal_eval(node.value)
+        except Exception:
+            return []
+        return [str(x) for x in v] if isinstance(v, (list, tuple)) else []
+    return []
+
+
 def make_sandbox(say=print):
     """A throwaway copy of the repo via safe_copy.py. -> (tv_path, root) | (None, None)
 
@@ -376,6 +408,28 @@ def make_sandbox(say=print):
     # adds a single named file beside its output rather than widening what it copies.
     # v2882 — visual_lock_invariant.py joins bible.html here: it is the one GATE whose file lives
     # in the repo root, and without it in the sandbox `visual-lock` cannot be proven.
+    # ⚠⚠ v2888 — BRING ACROSS THE DATA A GATE DECLARED, AND NOTHING ELSE.
+    # `cp -c` is an APFS CLONE: no bytes are copied and no disk is spent, and a write inside the
+    # sandbox lands on the copy rather than on his real footage — which matters here because these
+    # ARE his screenshots. Only paths a gate names in PROOF_NEEDS come over; there is no glob and
+    # no recursion into tv/ at large, because that is the ENOSPC that safe_copy exists to prevent.
+    for _need in sorted({_p for _gn, _fn in gate_files(say=lambda *a, **k: None)
+                         for _p in proof_needs_in(_fn)}):
+        _s = os.path.join(REPO, "tv", _need)
+        if not os.path.exists(_s):
+            say("  a gate declares PROOF_NEEDS %r and it is not on this machine — that gate stays "
+                "UNPROVABLE here, which is the honest verdict" % _need)
+            continue
+        _d = os.path.join(dest, "tv", _need)
+        try:
+            os.makedirs(os.path.dirname(_d), exist_ok=True)
+            _rc = subprocess.run(["cp", "-c", "-R", _s, _d],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT).returncode
+            if _rc != 0:      # not APFS, or clones unavailable — say so rather than silently copying GBs
+                say("  could not CLONE %r (cp -c exit %s) — not copying it by hand; the gate stays "
+                    "UNPROVABLE rather than risking the disk" % (_need, _rc))
+        except Exception as _e:
+            say("  PROOF_NEEDS %r could not be brought across: %s" % (_need, type(_e).__name__))
     for _root_file in ("bible.html", "visual_lock_invariant.py"):
         _srcf = os.path.join(REPO, _root_file)
         if os.path.isfile(_srcf):
@@ -428,7 +482,7 @@ def blind_reason(why, matches, tail):
             % (n_skipped, n_ran, n_ran - n_skipped))
 
 
-def _run_gate(sandbox_tv, filename, timeout=180, extra=()):
+def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None):
     # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
     # it a gate runs a command the suite never issues, and its verdict is about something
     # else. Default empty keeps every existing caller identical.
@@ -438,8 +492,19 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=()):
         return None, "the gate file is not in the sandbox"
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"      # no stale .pyc can outlive a tamper
+    # ⚠⚠ v2888 — AN ABSOLUTE ARGUMENT POINTS AT THE REAL TREE, WHICH THE TAMPER NEVER TOUCHED.
+    # A gate handed /Users/.../tv/x.py reads the ORIGINAL x.py no matter what this sandbox says,
+    # so its proof can only ever come back green. Re-root every repo-absolute argument onto the
+    # copy before running. [[feedback-blind-fixture-green-gate]]
+    _root = os.path.dirname(os.path.abspath(sandbox_tv))
+    def _resite(a):
+        if isinstance(a, str) and os.path.isabs(a) and a.startswith(REPO + os.sep):
+            return os.path.join(_root, os.path.relpath(a, REPO))
+        return a
+    _args = [_resite(a) for a in extra]
+    _cmd = ([sys.executable, "-c", script] + _args) if script else ([sys.executable, p] + _args)
     try:
-        r = subprocess.run([sys.executable, p] + list(extra), cwd=sandbox_tv, env=env,
+        r = subprocess.run(_cmd, cwd=sandbox_tv, env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
@@ -660,7 +725,7 @@ def resolve_proof_target(base, rel):
 
 
 def gate_spec(name):
-    """The registered gate's argv tail and timeout. -> ([extra], timeout)
+    """The registered gate's argv tail, timeout and -c script. -> ([extra], timeout, script|None)
 
     ⚠⚠ v2887 — REG-856 WAS FIXED IN triage() AND NOT IN prove(), AND THE BUG ENTRY SAID SO.
     It recorded "prove() calls the same _run_gate" as a known consequence and then threaded the
@@ -674,12 +739,22 @@ def gate_spec(name):
     try:
         import run_gates as _rg
     except Exception:
-        return [], 180
+        return [], 180, None
     for g in getattr(_rg, "GATES", []):
         if getattr(g, "name", None) == name:
             argv = list(getattr(g, "argv", []) or [])
-            return [a for a in argv[2:] if isinstance(a, str)], getattr(g, "timeout", 180)
-    return [], 180
+            # ⚠⚠ v2888 — `-c` IS NOT A FILE, AND argv[2:] IS ITS SCRIPT BODY.
+            # hover-wilson registers as [python, "-c", <2.4KB verdict script>, <abs path>]. The
+            # blanket argv[2:] handed that whole script back as an ARGUMENT, so the proof ran
+            # `python3 <sandbox>/hover_wilson.py "<script text>" "<REAL tree path>"` — i.e. the
+            # module's own main() instead of the gate, pointed at UNTAMPERED source. It reported
+            # BLIND, and BLIND was the honest verdict: nothing the tamper touched was ever
+            # executed. Measured 2026-09-10: 1 of 281 gates uses -c, and 1 of 281 forwards an
+            # absolute real-tree path — the same one. [[the-unjoined-end]] [[source-reading-guard]]
+            if len(argv) > 2 and argv[1] == "-c":
+                return [a for a in argv[3:] if isinstance(a, str)], getattr(g, "timeout", 180), argv[2]
+            return [a for a in argv[2:] if isinstance(a, str)], getattr(g, "timeout", 180), None
+    return [], 180, None
 
 
 def _prove_one(sandbox, name, filename, pr, idx, say):
@@ -732,8 +807,8 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
         return UNPROVABLE
 
     # 1. CLEAN RUN. A gate that is already red in the sandbox can prove nothing.
-    _extra, _to = gate_spec(name)
-    ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra)
+    _extra, _to, _script = gate_spec(name)
+    ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script)
     if ok_clean is None:
         say("     %-52s %s — clean run: %s" % (label, UNPROVABLE, tail))
         return UNPROVABLE
@@ -770,7 +845,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     with io.open(tgt, "w", encoding="utf-8") as fh:
         fh.write(_tampered)
     try:
-        ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra)
+        ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script)
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(original)
@@ -1081,8 +1156,8 @@ def triage(say=print):
     # [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
     writable, unprovable = [], []
     for name, fn_ in todo:
-        _tail, _to = gate_spec(name)          # ONE reader, shared with _prove_one
-        ok, out = _run_gate(sandbox, fn_, timeout=_to, extra=_tail)
+        _tail, _to, _scr = gate_spec(name)    # ONE reader, shared with _prove_one
+        ok, out = _run_gate(sandbox, fn_, timeout=_to, extra=_tail, script=_scr)
         (writable if ok else unprovable).append((name, (out or "").strip().splitlines()[-1][:70]
                                                  if out else ""))
     say("  WRITABLE      %3d — green in the sandbox, so a sabotage would mean something" % len(writable))

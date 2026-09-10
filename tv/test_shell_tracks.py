@@ -134,6 +134,17 @@ class TestShellTrackCounts(unittest.TestCase):
                          "when its only child is absolutely positioned")
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the SIXTH track size from the narrow-layout `body.theatre-open .shell` rule inside @media (max-width: 900px) — re-creating the exact v2453 defect: five sizes handed to the six-row areas template "head" "stage" "dash" "rail" "tick" "foot", so every size lands one row short of its area and the theatre stage computes to 0px (Konyo\'s black-panel screenshots). It is a one-sided edit: it moves only `got` (the rows declaration), never `want` (the areas template at line 1488), so it is not a shared constant both sides of the agreement law read.  MEASURED: untampered OK — `python3 tv/test_shell_tracks.py` ran 2 tests, exit 0, "OK"; tampered (all 1) FAILED (failures=1) — "AssertionError: 5 != 6 : in @media(max-width: 900px), `bo; reddened law test_shell_tracks.TestShellTrackCounts.test_every_shell_row_rule_decla; ALONE FAILS ALONE — `python3 -m unittest test_shell_tracks.TestShellTrackCounts.test_every_shell_row_rule_.',
+        'file': 'control_ui.html',
+        'find': 'auto minmax(220px, 1fr) 0 auto auto auto !important',
+        'replace': 'auto minmax(220px, 1fr) 0 auto auto !important',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

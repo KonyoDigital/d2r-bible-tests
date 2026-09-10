@@ -173,5 +173,16 @@ class TheSealOnlyRemembersWhatWasRead(unittest.TestCase):
                                        "unproven rather than passing")
 
 
+RED_PROOF = [
+    {
+        'why': 'the retro sweep must never seal a reel it never read: chronicle_swept.json hides every reel it names from all future sweeps, so widening the did_read predicate to always-true re-seals a no-index / zero-work reel and loses that footage until a full `force` re-run  MEASURED: untampered Ran 9 tests in 0.115s — OK (skipped=1); the single skip is test_the_key_written_; tampered (all 1) Ran 9 tests in 0.115s — FAILED (failures=2, skipped=1): test_a_reel_that_read_NO; reddened law test_chronicle_seal.TheSealOnlyRemembersWhatWasRead.test_a_reel_that_r; ALONE python3 -m unittest test_chronicle_seal.TheSealOnlyRemembersWhatWasRead.test_a_reel_that_read_NOTHIN.',
+        'file': 'control_app.py',
+        'find': 'did_read = (st.get("classified") or 0) > 0 or (st.get("pages") or 0) > 0',
+        'replace': 'did_read = True',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main()

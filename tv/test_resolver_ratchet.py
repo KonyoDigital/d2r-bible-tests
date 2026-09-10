@@ -107,5 +107,16 @@ class TheResolverCountMayOnlyFall(unittest.TestCase):
                         "this ratchet is guarding nothing")
 
 
+RED_PROOF = [
+    {
+        'why': 'a ninth resolver-shaped declaration appears in tv/ and the census absorbs it silently  MEASURED: untampered Ran 3 tests in 0.245s -> OK, exit 0 (clean worktree at 92feadb0); tampered (all 4) all 4 occurrences replaced in tv/tv_diablo.py (file still parses; ast.parse OK) ; reddened law test_resolver_ratchet.TheResolverCountMayOnlyFall.test_no_new_resolver; ALONE Alone under the tamper: python3 -m unittest test_resolver_ratchet.TheResolverCountMayOnlyFall.test_n.',
+        'file': 'tv_diablo.py',
+        'find': '_STASH_TAB_ALIASES',
+        'replace': '_STASH_PANEL_ALIASES',
+        'matches': 4,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

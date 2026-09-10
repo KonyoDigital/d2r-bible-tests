@@ -174,5 +174,16 @@ class TestTheAggregateSaysWhatItCovers(unittest.TestCase):
         self.assertEqual(kind["d"], "global")
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the single line where reel_story keeps UNKNOWN separate from ZERO. `_yield_of` returns (None, None, None) when the reel is absent from the triage store — or when the store itself would not parse and `story()` passes None for the blob. Replacing it with (0, 0, 0.0) makes an unsurveyed reel report a measured yield of 0.0%, i.e. pure waste, which is exactly the fabricated number that would rank his un-deletable footage for pruning. It is the real declaration, not a comment, not a message string, and not a constant read by both sides of an agreement law (the TAG_STAGE/reel_retention.RULES pair was deliberately avoided for that reason). The docstring one line above mentions "(None, None, None)" but carries no `return ` prefix, so the anchor cannot hit prose.  MEASURED: untampered Ran 15 tests in 0.051s — OK, exit 0 (perl alarm 200 / python3 tv/test_reel_story; tampered (all 1) Ran 15 tests in 0.028s — FAILED (failures=3), exit 1; reddened law test_reel_story.TestUnknownIsNotZero.test_a_reel_absent_from_the_triag; ALONE python3 -m unittest test_reel_story.TestUnknownIsNotZero.test_a_reel_absent_from_the_triage_store_yi.',
+        'file': 'reel_story.py',
+        'find': '        return None, None, None',
+        'replace': '        return 0, 0, 0.0',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

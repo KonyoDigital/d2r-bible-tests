@@ -214,6 +214,21 @@ def main(argv=None):
     print("\n  vault.forget: " + forget_note())
     print("\n  ⚠ nothing was applied. Every attempt is a proposal the door MUST reject, and each "
           "is rejected before the board is asked.")
+    # ⚠⚠ v2888 — WAS `return 0`, UNCONDITIONALLY. heart2 named this one of three gates that could
+    # never go red however bad the answer got: it scored every sabotage and then discarded the
+    # verdict. Its sibling hover-wilson already exits 1 on a LEAKS row, so this makes a law that
+    # exists elsewhere apply here too rather than inventing one. MEASURED BEFORE ARMING, 2026-09-10:
+    # 2 claims, 8 of 8 sabotages caught on each, 0 LEAKS — so arming blocks nothing today and catches the
+    # first sabotage that ever gets through. An UNPROVEN claim still PASSES, loudly: nobody having
+    # tried to break it yet is work to do, not a defect. [[the-unjoined-end]] [[regression-guard]]
+    _leaks = [r for r in rows if r.get("state") == "LEAKS"]
+    if _leaks:
+        print("")
+        print("LEAK - a deliberately WRONG input was NOT caught:")
+        for _r in _leaks:
+            print("   %s (%s): caught %s of %s sabotages"
+                  % (_r.get("claim"), _r.get("what"), _r.get("caught"), _r.get("attempts")))
+        return 1
     return 0
 
 

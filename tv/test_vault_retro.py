@@ -884,5 +884,16 @@ class TestV2239WilsonReachesThePrune(unittest.TestCase):
         self.assertGreaterEqual(ps.PRUNE_CONFLUENCE_FLOOR, v.THROWOUT_CONFLUENCE_FLOOR)
 
 
+RED_PROOF = [
+    {
+        'why': 'This single line IS law 1 (MERGE-MAX) — the body of _max_count() in vault_retro.py, the one comparison every count in the accumulated vault ledger passes through via _absorb()/merge_vault(). Flipping >= to <= turns merge-max into merge-min, so a later half-scrolled or obstructed stash frame that sees 3 where 9 was already recorded SUBTRACTS six runes from his ledger — the exact silent-destruction failure the gate exists to catch. It is not a comment, not a mention inside a message string, and not a constant both sides of an agreement law read: the shortfall reporting in merge_vault compares pc/nc directly, so only the stored count moves. Order-independence is deliberately left intact (min is commutative too), which is why the red lands on the merge-max law rather than on a symmetric collapse of both derived sides.  MEASURED: untampered python3 tv/test_vault_retro.py -> Ran 69 tests in 6.193s, OK (green before tampe; tampered (all 1) python3 tv/test_vault_retro.py -> Ran 69 tests in 6.004s, FAILED (failures=2): T; reddened law test_vault_retro.TestMergeMax.test_a_smaller_later_read_never_subtract; ALONE FAILS ALONE. Fresh process: python3 -m unittest test_vault_retro.TestMergeMax.test_a_smaller_later_r.',
+        'file': 'vault_retro.py',
+        'find': 'return a if a >= b else b',
+        'replace': 'return a if a <= b else b',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

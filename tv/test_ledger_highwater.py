@@ -155,6 +155,17 @@ class ThePeakMustNotBeSeededFromALoss(unittest.TestCase):
                              "putting entries back would hide whatever removed them." % verb)
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the SEEDING-MAY-ONLY-RAISE guard inside seed() — the one line that makes the high-water mark a ratchet instead of a mirror of whatever history happens to still be on disk. Neutering it (the `continue` becomes unreachable) lets a re-seed overwrite a stored peak of 416 with today\'s 400 once the snapshot that proved 416 has been rotated away, which is exactly the "a mechanism that forgets on request is not a ratchet" law. It is real executable code, not a comment, not a message string, and not a shared constant: the test\'s own docstring records that its FIRST version passed on this sabotage because historic_peaks() could still re-find the high on disk, so the test was rewritten to rotate the proof away — that rewritten law is what this anchor reddens.  MEASURED: untampered GREEN — `python3 test_ledger_highwater.py` ran 8 tests, "OK", 0 failures (re-con; tampered (all 1) RED — Ran 8 tests, FAILED (failures=1); the other 7 laws stayed ok, so exactly o; reddened law test_ledger_highwater.ThePeakMustNotBeSeededFromALoss.test_re_seeding_; ALONE FAILS ALONE — fresh process, `python3 -m unittest test_ledger_highwater.ThePeakMustNotBeSeededFromAL.',
+        'file': 'ledger_highwater.py',
+        'find': 'if isinstance(old, int) and v <= old:',
+        'replace': 'if False:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

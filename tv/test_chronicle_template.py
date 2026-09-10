@@ -89,6 +89,12 @@ _FRAMES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # and the CI job surfaces them, because a check that did not happen is not a check that passed.
 # ⚠ The skip is conditioned on the directory being ABSENT, never on CI or platform: on his Mac,
 # where the frames are, a real regression must still turn this red.
+#: v2888 — the ONE data path this suite's proof needs, named by hand so heart2 can bring it into
+#: the sandbox (an APFS clone: no disk spent, and a write lands on the copy, not on his footage).
+#: Without it all 12 laws skip and the gate exits 0 having graded NOTHING — which heart2 correctly
+#: reported as BLIND. It stays gitignored and never leaves his Mac; this only crosses tmp.
+PROOF_NEEDS = ["frames/hist/reel_s_1786385768689_67392"]
+
 _HAVE_FOOTAGE = os.path.isdir(_FRAMES_DIR)
 _NO_FOOTAGE_WHY = ("the pinned reel %s is not on this machine — this suite grades HAND-READ ground "
                    "truth against Konyo's real frames, which are gitignored and never leave his "
@@ -411,6 +417,17 @@ class _WriteTrap(object):
         for target, attr, orig in self._saved.values():
             setattr(target, attr, orig)
         return False
+
+
+RED_PROOF = [
+    {
+        'why': 'is_chronicle is a 2-of-4 independent vote ON PURPOSE: the HEAD module made the close-X a HARD requirement and lost seven whole Chronicle pages whose close-X a tall item tooltip had swallowed (close_x_red exactly 0.0000 while list_midgray read 0.45-0.50). Re-adding the hard close-X gate is the exact regression the seven named frames are kept as guards against.  MEASURED: untampered WITH his reel present: `python3 test_chronicle_template.py` -> Ran 12 tests in 1; tampered (all 1) `python3 test_chronicle_template.py` -> Ran 12 tests in 10.5s, FAILED (failures=; reddened law test_chronicle_template.TestConfusionMatrixOverRealFootage.test_the_cl; ALONE Fresh process, that law only: `python3 -m unittest test_chronicle_template.TestConfusionMatrixOverRe.',
+        'file': 'chronicle_template.py',
+        'find': 'is_chronicle = len(votes) >= 2',
+        'replace': 'is_chronicle = len(votes) >= 2 and "close-X" in votes',
+        'matches': 1,
+    },
+]
 
 
 if __name__ == "__main__":

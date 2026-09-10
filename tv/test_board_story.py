@@ -152,6 +152,17 @@ class TheStoryCannotSilentlyMisFile(unittest.TestCase):
             "caller happened to read.")
 
 
+RED_PROOF = [
+    {
+        'why': "A ruling only counts when it OPENS the progress line; matching the ⛔ marker ANYWHERE files a live task that merely MENTIONS a scope cut under RETIRED whole — the historical defect that made A1 (1/3, in progress) vanish off the board. Anchor is the executable condition in _classify (board_sync.py:160), not a comment and not a shared constant: it sits on one side only, while the assertion is about _classify's returned state.  MEASURED: untampered Ran 9 tests in 0.101s — OK (green); tampered (all 1) Ran 9 tests in 0.072s — FAILED (failures=1): AssertionError 'retired' != 'progre; reddened law test_board_story.ARulingSurvivesTheDeriver.test_a_ruling_MENTIONED_mid; ALONE python3 -m unittest test_board_story.ARulingSurvivesTheDeriver.test_a_ruling_MENTIONED_mid_line_does.",
+        'file': 'board_sync.py',
+        'find': 'prog.startswith("⛔")',
+        'replace': '"⛔" in prog',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

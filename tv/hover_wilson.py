@@ -359,5 +359,31 @@ def main(argv=None):
     return 0
 
 
+RED_PROOF = [
+    {
+        "why": "⚠⚠ THE ONLY TAMPER THIS GATE CAN FEEL IS ONE THAT MAKES A DETECTOR ACCEPT A WRONG "
+               "INPUT. hover-wilson exits 1 on a LEAKS row and NOTHING else: score() reads `if not "
+               "n: UNPROVEN; elif k == n: PROVEN; else: LEAKS`, and a probe that RAISES becomes "
+               "UNKNOWN — which the gate prints loudly and PASSES, on purpose (\"nobody has tried "
+               "to break these yet; that is work to do, not an alarm\"). The previous anchor "
+               "deleted `tags.add(\"slot-conflict\")` in slot_identity.py and heart2 measured the "
+               "result: BLIND, green through its own defeat. Worse, probe_coordinate `continue`s "
+               "past a cell whose HONEST round-trip fails, so breaking cell_of outright leaves "
+               "attempts=0 → UNPROVEN → green. Halving the column divisor is the one shape that "
+               "reddens it: cell 0 grows to swallow cell 1, so (0,r) still round-trips honestly and "
+               "is COUNTED, while the deliberate one-cell-right shift resolves back to the same "
+               "cell and is NOT caught. MEASURED 2026-09-10 against the real module: "
+               "coordinate LEAKS, sabotages=8 caught=4, exit 1 — the row down is still caught, "
+               "which is what proves the probe is still working rather than merely broken. "
+               "[[sabotage-is-usually-the-wrong-one]] [[feedback-blind-fixture-green-gate]]",
+        "file": 'slot_identity.py',
+        "find": 'col = int((px - bx) / (bw / cols))',
+        "replace": 'col = int((px - bx) / (bw / cols) / 2)',
+        "matches": 1,
+    },
+]
+
+
+
 if __name__ == "__main__":
     sys.exit(main())

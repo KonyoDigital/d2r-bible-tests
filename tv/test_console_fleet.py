@@ -689,5 +689,16 @@ class TestVisitsPageCarriesConsoleMachines(unittest.TestCase):
                          "unexpected KV prefixes read by /visits: %r" % (prefixes,))
 
 
+RED_PROOF = [
+    {
+        'why': 'The fleet roster only sees every machine because listAll() FOLLOWS THE KV CURSOR — a single kv.list() page returns the OLDEST rows and made Konyo\'s cousin invisible. This line is the loop\'s continue/stop decision; replacing it with a bare `break` collapses listAll to page one, which is the pre-fix oldest-window bug restored. It is executable code, not a comment, not a message string, and not a constant read by both sides of an agreement law (PAGE_CAP/PAGE_SIZE are untouched, and the byte-identical twin in functions/console.js is a different file so no parity law masks it).  MEASURED: untampered python3 tv/test_console_fleet.py -> OK, "Ran 26 tests in 2.750s", 0 skipped (nod; tampered (all 1) python3 tv/test_console_fleet.py -> FAILED (failures=3): TestConsoleFleetWindow.; reddened law test_console_fleet.TestConsolePagination.test_cursor_is_followed_past_; ALONE python3 -m unittest test_console_fleet.TestConsolePagination.test_cursor_is_followed_past_page_one (.',
+        'file': 'functions/api/console.js',
+        'find': 'if (page.list_complete || !page.cursor) break;',
+        'replace': 'break;',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -138,5 +138,16 @@ class TestScreenReadNeverBlocksTheButton(unittest.TestCase):
     # only law here that still guards something. [[regression-guard]]
 
 
+RED_PROOF = [
+    {
+        'why': 'v2801 — a request handler that reads the screen INLINE blocks the HTTP response, and a POST that never returns is a button that looks dead (Grok measured 0 bytes for 8s, then 25s, on his live console). The tamper reintroduces that exact defect: the lattice+occupancy scan called on the request thread, inside the handler body.  MEASURED: untampered OK — `python3 test_the_screen_read_never_blocks_the_button.py` -> "Ran 1 test ..; tampered (all 2) FAILED (failures=1). AssertionError: \'do_GET\' unexpectedly found in (\'do_GET\',\'d; reddened law test_the_screen_read_never_blocks_the_button.TestScreenReadNeverBlocks; ALONE FAILS ALONE. Fresh process: `python3 -m unittest test_the_screen_read_never_blocks_the_button.TestSc.',
+        'file': 'control_app.py',
+        'find': '        if path == "/api/mini_auto":\n',
+        'replace': '        if path == "/api/mini_auto":\n            _cells = _mini_cells_from_live_frame("stash")\n',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

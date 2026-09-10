@@ -161,5 +161,16 @@ class ANoteMayNotQuoteANumberThatIsNotTrue(unittest.TestCase):
             "99 runewords' — and it may only change because he says so.")
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate\'s second law pins the ONE expression the whole v2192/v2484 ruling note reasons about: the chronicle KPI\'s denominator must stay `total: _tip ? Object.keys(_tip).length : 0` — UNFILTERED — because that is what makes the note\'s "it has always divided by 99" true and the neighbouring `(99/99)` label correct. Swapping the denominator to the made-map (`Object.keys(rm).length`) is exactly the 97-vs-99 confusion the note was corrected for: the KPI would start dividing by the NUMERATOR\'s basis, every surrounding comment would be describing an expression that no longer exists, and the old wrong "97" would retroactively look right. It is live code on bible.html:41420, not a comment, not a mention inside a message string, and not a constant the test reads from both sides (the test hardcodes its own expected shape), so only one side of the comparison moves.  MEASURED: untampered GREEN — `python3 tv/test_ruling_note_numbers.py` -> Ran 4 tests, OK (0.057s), ex; tampered (all 1) RED — same command -> Ran 4 tests, FAILED (failures=1); the single failure is te; reddened law test_ruling_note_numbers.ANoteMayNotQuoteANumberThatIsNotTrue.test_the; ALONE FAILS ALONE — fresh process: `python3 -m unittest test_ruling_note_numbers.ANoteMayNotQuoteANumberTh.',
+        'file': 'bible.html',
+        'find': 'total: _tip ? Object.keys(_tip).length : 0',
+        'replace': 'total: _tip ? Object.keys(rm).length : 0',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

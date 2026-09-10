@@ -137,6 +137,17 @@ class ItSeesTheWritesItClaimsToWatch(unittest.TestCase):
                          "the witness altered what was written")
 
 
+RED_PROOF = [
+    {
+        'why': "The witness's whole job is counting who writes a reel store, and this codebase writes through io.open, not builtins.open. The line `io.open = _open` in watching().__enter__ is the patch that makes io.open writes visible at all — the exact defect the module's own demo caught before it shipped (it reported ZERO writers for a store it had just watched being written). Neutering it to a self-assignment removes the recording hook while leaving builtins.open and os.replace patched, so the module still imports, still restores cleanly, and still sees atomic writes — the only thing that disappears is the real mechanism. Anchor is inside the executable declaration (line 145), not a comment and not a message string; the identical text appears nowhere else in the file.  MEASURED: untampered green — `python3 tv/test_write_witness.py`: Ran 7 tests, OK; tampered (all 1) red — Ran 7 tests, FAILED (failures=2): test_it_sees_an_io_open_write ([] != ['_; reddened law test_write_witness.ItSeesTheWritesItClaimsToWatch.test_it_sees_an_io_o; ALONE FAILS ALONE — `python3 -m unittest test_write_witness.ItSeesTheWritesItClaimsToWatch.test_it_sees_an.",
+        'file': 'write_witness.py',
+        'find': 'io.open = _open',
+        'replace': 'io.open = io.open',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

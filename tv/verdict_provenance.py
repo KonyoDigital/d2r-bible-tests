@@ -52,6 +52,7 @@ covered the day it appears and the two cannot drift. [[copy-drift]]
 import glob
 import io
 import json
+import subprocess
 import os
 import re
 import sys
@@ -211,7 +212,199 @@ def census(root=None):
             "declaredMissing": why, "why": why}
 
 
+# ── v2888 · THE RATCHET ───────────────────────────────────────────────────────────────────────
+#: Konyo, 2026-09-10: "ratchet it". This file MEASURED a real gap and returned a literal 0, so it
+#: could never go red — one of the three gates heart2 named for exactly that. Arming it outright
+#: was not an option: only 6 of 43 stores can say what produced them, so a hard gate is a wall.
+#: A ratchet blocks the gap GROWING without blocking on the debt already there.
+#:
+#: ⚠⚠ IT PINS EACH STORE, NOT THE FOUR TOTALS. Konyo: "does it not need to be accurate though?" —
+#: and he was right. Counts hide a swap: one store gaining provenance the same day another loses
+#: it leaves ANSWERS/PARTIAL/SILENT/REFERENCE identical and the ratchet green while the thing it
+#: watches got worse. A per-store map also NAMES which store moved and which way.
+#:
+#: ⚠⚠ TWO SCOPES, BECAUSE THE HOST MACHINE IS OTHERWISE THE FIXTURE. census() globs tv/*.json, and
+#: MEASURED 2026-09-10: 11 of 43 stores are tracked in git; 32 exist only on the machine that
+#: wrote them, and ALL 16 SILENT stores are in that untracked half. One blended baseline would be
+#: red on CI for 32 absent stores while the real debt was never visible there at all. So the
+#: tracked scope is enforced on EVERY venue and the local scope only where its stores exist — and
+#: it SAYS SO where they do not. A half that goes unmeasured in silence is the failure this whole
+#: file is about. [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+BASELINE = os.path.join(HERE, "verdict_provenance_baseline.json")
+
+#: SILENT and REFERENCE TIE ON PURPOSE — they print the identical why ("no field in the row says
+#: what produced it"), so ranking one over the other would invent a distinction the census does
+#: not draw. A move between them is REPORTED, never reddened. UNKNOWN is lowest: a store that lost
+#: its rows did not improve.
+RANK = {"ANSWERS": 3, "PARTIAL": 2, "SILENT": 1, "REFERENCE": 1, "UNKNOWN": 0}
+
+
+def _tracked():
+    """Basenames of stores git tracks — the ones that exist on every venue. -> (set|None, why)"""
+    try:
+        r = subprocess.run(["git", "ls-files", HERE], cwd=HERE, capture_output=True,
+                           text=True, timeout=30)
+    except Exception as e:
+        return None, "git could not be asked which stores are tracked (%s)" % type(e).__name__
+    if r.returncode != 0:
+        return None, "git ls-files exited %s" % r.returncode
+    out = set()
+    for line in r.stdout.splitlines():
+        b = os.path.basename(line.strip())
+        if b.endswith(".json") or b.endswith(".jsonl"):
+            out.add(b)
+    return out, ""
+
+
+def _split(rep, tr=None):
+    """The census split into the two scopes. -> (tracked, local, why)
+
+    ⚠⚠ v2888 — `tr` IS PASSED IN, AND THAT IS THE WHOLE POINT. The first cut called git at RUNTIME
+    to ask which stores are tracked, and heart2 measured the consequence immediately:
+        verdict_provenance UNPROVABLE — ALREADY RED untampered (git ls-files exited 128)
+    because the sandbox is a COPY, not a checkout. Which stores git tracks is a fact about the
+    repo, pinned when the baseline is written by a human — not something to re-derive on every
+    run in whatever directory the gate happens to be executed from. Asking git each time made the
+    verdict depend on the venue's VCS state rather than on provenance. [[stale-reading]]
+    """
+    if tr is None:
+        tr, why = _tracked()
+        if tr is None:
+            return None, None, why
+    t, l = {}, {}
+    _self = os.path.basename(BASELINE)
+    for r in rep["rows"]:
+        # ⚠ THE RATCHET'S OWN BASELINE IS NOT A VERDICT STORE. census() globs tv/*.json, so the
+        # first run after --write-baseline found the file it had just written and reported it as
+        # "NEW store arrives REFERENCE — new debt". Measured on the very first clean run. Same
+        # self-reference shape as the red-proofs whose gate file is their own tamper target.
+        if r["store"] == _self:
+            continue
+        (t if r["store"] in tr else l)[r["store"]] = r["state"]
+    return t, l, ""
+
+
+def write_baseline():
+    tr, lo, why = _split(census())
+    if tr is None:
+        print("🔴 %s — refusing to write a baseline I cannot scope" % why)
+        return 1
+    # ⚠ NO HOSTNAME AND NO PATHS. This repo is PUBLIC; a venue is described by SHAPE, not identity.
+    doc = {"tracked": tr, "local": lo, "localCount": len(lo),
+           "trackedNames": sorted(tr),
+           "why": "per-store provenance ratchet; the tracked scope is enforced on every venue, "
+                  "the local scope only where its stores exist"}
+    io.open(BASELINE, "w", encoding="utf-8").write(json.dumps(doc, indent=2, sort_keys=True))
+    print("wrote %s — tracked %d store(s), local %d store(s)"
+          % (os.path.basename(BASELINE), len(tr), len(lo)))
+    return 0
+
+
+def _compare(was, now):
+    """-> (regressions, gains, arrivals, departures), each a list of sentences."""
+    reg, gain, new, gone = [], [], [], []
+    for store, before in sorted(was.items()):
+        after = now.get(store)
+        if after is None:
+            gone.append("%s: %s -> ABSENT. A store that vanished is UNKNOWN, not fixed" % (store, before))
+            continue
+        if RANK.get(after, 0) < RANK.get(before, 0):
+            reg.append("%s: %s -> %s" % (store, before, after))
+        elif RANK.get(after, 0) > RANK.get(before, 0):
+            gain.append("%s: %s -> %s" % (store, before, after))
+    for store, after in sorted(now.items()):
+        if store in was:
+            continue
+        if after == "UNKNOWN":
+            new.append("%s: NEW and empty — not debt yet, and not clean either" % store)
+        elif RANK.get(after, 0) < RANK["ANSWERS"]:
+            reg.append("%s: NEW store arrives %s — new debt" % (store, after))
+        else:
+            new.append("%s: NEW and it ANSWERS" % store)
+    return reg, gain, new, gone
+
+
+def ratchet():
+    """Red only if the gap GREW. -> exit code"""
+    if not os.path.exists(BASELINE):
+        print("🔴 no baseline at %s — nothing to ratchet against." % os.path.basename(BASELINE))
+        print("   run: python3 tv/verdict_provenance.py --write-baseline")
+        return 1
+    try:
+        was = json.loads(io.open(BASELINE, encoding="utf-8").read())
+    except Exception as e:
+        print("🔴 the baseline will not parse (%s) — UNKNOWN, not clean" % type(e).__name__)
+        return 1
+    _names = was.get("trackedNames")
+    if _names is None:
+        print("🔴 the baseline predates trackedNames and cannot say which scope is which — "
+              "re-write it: python3 tv/verdict_provenance.py --write-baseline")
+        return 1
+    tr, lo, why = _split(census(), set(_names))
+    if tr is None:
+        print("🔴 %s — so nothing can be compared. UNKNOWN, not clean." % why)
+        return 1
+
+    bad = 0
+    reg, gain, new, gone = _compare(was.get("tracked") or {}, tr)
+    print("  tracked scope: %d store(s) measured against %d in the baseline"
+          % (len(tr), len(was.get("tracked") or {})))
+    for s in reg + gone:
+        print("   🔴 %s" % s)
+    for s in gain:
+        print("   🟢 improved — %s  (re-write the baseline to lock it in)" % s)
+    for s in new:
+        print("   ⚪ %s" % s)
+    bad += len(reg) + len(gone)
+
+    b_local = was.get("local") or {}
+    present = sum(1 for s in b_local if s in lo)
+    if b_local and present == 0:
+        print("  local scope: NOT MEASURED on this venue — 0 of %d baseline store(s) are here. "
+              "These are runtime stores written by the machine that runs the console; their "
+              "absence is a venue fact, not a clean result." % len(b_local))
+    else:
+        reg2, gain2, new2, gone2 = _compare(b_local, lo)
+        print("  local scope: %d store(s) measured against %d in the baseline" % (len(lo), len(b_local)))
+        for s in reg2:
+            print("   🔴 %s" % s)
+        for s in gain2:
+            print("   🟢 improved — %s  (re-write the baseline to lock it in)" % s)
+        for s in new2 + gone2:
+            print("   ⚪ %s" % s)
+        bad += len(reg2)
+    if bad:
+        print("")
+        print("🔴 provenance went BACKWARDS in %d place(s) — the ratchet exists to stop exactly "
+              "this. Fix the store, or re-write the baseline if the move is deliberate." % bad)
+        return 1
+    print("")
+    print("🟢 provenance did not go backwards.")
+    return 0
+
+
+RED_PROOF = [
+    {
+        "why": "v2888 — this gate used to `return 0` unconditionally, which is why heart2 named it "
+               "one of three that could never go red. The tamper removes the guard that keeps the "
+               "ratchet's OWN baseline out of its census: census() globs tv/*.json, so without it "
+               "the file written by --write-baseline is found on the next run and reported as "
+               "\"NEW store arrives REFERENCE — new debt\", turning the gate red. That is a real "
+               "defect, not a contrivance — it happened on the very first clean run and this line "
+               "is the fix. matches: 2 because verdict_provenance.py IS its own gate file, so this "
+               "declaration's `find` is a second occurrence of the anchor once it lands. "
+               "[[regression-guard]] [[sabotage-is-usually-the-wrong-one]]",
+        "file": 'verdict_provenance.py',
+        "find": 'if r["store"] == _self:',
+        "replace": 'if False:',
+        "matches": 2,
+    },
+]
+
+
 def main(argv):
+    if "--write-baseline" in argv:
+        return write_baseline()
     rep = census()
     print("\nCAN EACH STORED VERDICT SAY WHAT PRODUCED IT?\n")
     mark = {"ANSWERS": "🟢", "PARTIAL": "🟡", "SILENT": "🔴", "REFERENCE": "📖",
@@ -227,7 +420,12 @@ def main(argv):
              c["UNKNOWN"]))
     print("  ⚠ SILENT means a verdict cannot be invalidated when its producer improves — a stale")
     print("    NO outlives every future pass looking exactly like a fresh one.\n")
-    return 0
+    # ⚠ v2888 — WAS `return 0`, UNCONDITIONALLY, which is what made this one of the three gates
+    # that could never go red however bad the answer got. The census still prints in full; the
+    # VERDICT now comes from the ratchet.
+    if "--census-only" in argv:
+        return 0
+    return ratchet()
 
 
 if __name__ == "__main__":

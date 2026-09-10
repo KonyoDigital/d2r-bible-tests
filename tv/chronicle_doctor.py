@@ -241,6 +241,17 @@ def diagnose():
             "unknown": [r["name"] for r in rows if r["state"] == UNKNOWN]}
 
 
+RED_PROOF = [
+    {
+        'why': 'chronicle_doctor.py\'s `_claude_lane` check asserts the PRIMARY chronicle reader exists on this machine (`hasattr(tv_diablo, "claude_chronicle_read")`), and "claude lane" is one of the four BLOCKING checks that decide READY vs NOT READY (exit 0 vs 1). The anchor is the function\'s own `def` line at tv/tv_diablo.py:5970 — the real declaration of the lane, not a comment and not a mention in a message string (the other 4 occurrences of the bare name in that file are all prose comments; this anchor excludes them by matching `def ...(`). Renaming the declaration genuinely removes the lane from the module\'s API — test_control.py, test_chronicle_chain.py and chronicle_retro\'s two_lane_reader all call `tv.claude_chronicle_read`. It is not a shared constant read by both sides of an agreement: the doctor reads the name only from the module, never from a second source that would move with it.  MEASURED: untampered Ran `perl -e \'alarm 200; exec @ARGV\' python3 chronicle_doctor.py` from tv/ — "✅ ; tampered (all 1) Applied via Python str.replace over ALL occurrences (measured count printed: 1; ; reddened law chronicle_doctor._claude_lane — the "claude lane" blocking check (chro; ALONE Fresh process, no siblings: `python3 -c "import chronicle_doctor as cd; cd._check(\'claude lane\', cd..',
+        'file': 'tv_diablo.py',
+        'find': 'def claude_chronicle_read(',
+        'replace': 'def claude_chronicle_read_DISABLED(',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     import console_safe  # noqa: F401  — the glyphs below must survive a non-UTF-8 console
 

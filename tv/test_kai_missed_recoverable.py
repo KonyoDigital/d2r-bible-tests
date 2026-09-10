@@ -90,5 +90,16 @@ class TheSummaryRowCarriesEveryMissedFrame(unittest.TestCase):
         self.assertIn("for m in missed[:20]:", self.src)
 
 
+RED_PROOF = [
+    {
+        'why': 'The v1712 law is that a session close reporting "N frames held text no eye read" must NAME every one of them, not just the 20 that get verbose journal rows. This line builds _missed_ids from the FULL missed list; slicing it to [:20] reintroduces exactly the shipped defect (108 counted, 20 named, 88 unrecoverable). The anchor is the live list comprehension inside the block the test extracts and execs from control_app.py — not a comment, not a message string, and not a constant shared with the sibling laws that read the verbose cap or missedShown, which stay green.  MEASURED: untampered Ran 6 tests in 0.020s — OK; tampered (all 1) Ran 6 tests in 0.016s — FAILED (failures=1); AssertionError: 20 != 108 : 88 fram; reddened law test_kai_missed_recoverable.TheSummaryRowCarriesEveryMissedFrame.test_; ALONE python3 -m unittest test_kai_missed_recoverable.TheSummaryRowCarriesEveryMissedFrame.test_every_miss.',
+        'file': 'control_app.py',
+        'find': '[str(m.get("f") or "") for m in missed if m.get("f")]',
+        'replace': '[str(m.get("f") or "") for m in missed[:20] if m.get("f")]',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main()

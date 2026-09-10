@@ -214,5 +214,16 @@ def main(argv):
     return code
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate (tv/tasks_freshness.py, a script) grades every TASKS.md row under READY TO APPLY / URGENT THREE / BLOCKED-HIS CALL / OPEN BRIEFS that carries a `<!--fp: <file> :: <string>-->` fingerprint: the string\'s PRESENCE means the work is still undone, and a count of 0 means the work landed while the row still claims it is open. Exactly ONE row is fingerprinted today — row 155, `<!--fp: tv/tv_diablo.py :: PROMPT_VER = "p1839"-->` — so that declaration IS the whole subject of the gate. Bumping the reader version at tv/tv_diablo.py:372 is the real-world event the gate exists to catch (the row\'s own text: "the moment that string disappears, this row becomes actionable and the gate says so"). The anchor is the live declaration, not a comment and not text inside a message string; and it is not a shared constant read from both sides — the needle literal lives in TASKS.md, which the tamper does not touch, so only one side of the agreement moves.  MEASURED: untampered perl -e \'alarm 200; exec @ARGV\' python3 tv/tasks_freshness.py -> EXIT 0. Output:; tampered (all 1) Replaced ALL 1 occurrence (measured with s.count() before and after: find 1 -> 0; reddened law tasks_freshness.check() stale-fingerprint law — a graded row whose fin; ALONE This gate is a SCRIPT, so "alone" = a fresh process invoking exactly that one check function with no.',
+        'file': 'tv_diablo.py',
+        'find': 'PROMPT_VER = "p1839"',
+        'replace': 'PROMPT_VER = "p1840"',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

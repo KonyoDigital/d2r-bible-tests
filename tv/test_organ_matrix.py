@@ -215,5 +215,16 @@ class ItNeverInventsCoverage(unittest.TestCase):
             "invisible, which is the defect A17 taught in v2490" % (len(surfaces), len(rows)))
 
 
+RED_PROOF = [
+    {
+        'why': "The corroborator's coverage answer must keep the LANE it learned each name in. organ_matrix._corr() publishes each route-set name twice — bare, and qualified with its lane (chronicle./fleet./roster.) — because the surface registry identifies route surfaces as `chronicle.runeword`, `fleet.sets`, `roster.unique`. Dropping the qualifier is the exact historical defect: three route modules flatten into one set of bare concept names and all nine route surfaces fall out of COVERED. The anchor deletes the qualification itself (real code, not a comment, not a message string, not a shared constant), and it shrinks only the ORGAN's vocabulary — the surface list comes from self_arming.ROUTES, so this is not the wrong side of a union.  MEASURED: untampered OK — Ran 6 tests in 5.939s, exit 0, green before the edit; tampered (all 1) FAILED (failures=1) — Ran 6 tests in 5.323s; test_the_corroborator_keeps_the_lan; reddened law test_organ_matrix.ItNeverInventsCoverage.test_the_corroborator_keeps_t; ALONE python3 -m unittest test_organ_matrix.ItNeverInventsCoverage.test_the_corroborator_keeps_the_lane_it.",
+        'file': 'organ_matrix.py',
+        'find': 'names.add("%s.%s" % (lane, f))',
+        'replace': 'names.add(f)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

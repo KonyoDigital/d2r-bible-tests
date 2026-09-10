@@ -75,5 +75,16 @@ def main():
     sys.exit(0)
 
 
+RED_PROOF = [
+    {
+        'why': 'TV_ROBOT=1 must actually ENGAGE the frozen robot lane — kill the flag\'s only reading and the lane silently boots as AUTO INTAKE, which is exactly the rot this smoke exists to catch  MEASURED: untampered python3 tv/robot_smoke.py → exit 0, "robot smoke OK — banner up · 19 journal row; tampered (all 1) count in tv/tv_diablo.py measured = 1 (grep/str.count), all 1 replaced, ast.pars; reddened law law 1 of robot_smoke.main() — `if "ROBOT (TV_ROBOT=1)" not in text:` →; ALONE robot_smoke is a SCRIPT, not a unittest suite, so "alone" = a fresh process running only the banner .',
+        'file': 'tv_diablo.py',
+        'find': 'ROBOT_MODE = str(os.environ.get("TV_ROBOT", "0") or "0").strip().lower() in ("1", "true", "yes", "on")',
+        'replace': 'ROBOT_MODE = False',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     main()

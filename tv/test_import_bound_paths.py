@@ -501,5 +501,16 @@ class TheBoardSyncIsolationRecipeIsTRUE(unittest.TestCase):
             BS.REPO = old
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the env binding the registry entry "board_sync.py:REPO" describes: REPO stops reading D2R_REPO at import, so the AST scanner no longer finds it and the registry\'s claim becomes a note about code that is gone — exactly the drift this gate exists to catch.  MEASURED: untampered OK — Ran 11 tests in 6.145s, exit 0 (python3 tv/test_import_bound_paths.py from ; tampered (all 1) FAILED (failures=3) — Ran 11 tests in 2.492s. Red laws: TestImportBoundPathRegis; reddened law test_import_bound_paths.TestImportBoundPathRegistry.test_registry_has_; ALONE FAILED (failures=1) — run in a fresh process as `python3 -m unittest test_import_bound_paths.TestImp.',
+        'file': 'board_sync.py',
+        'find': 'REPO = os.environ.get("D2R_REPO", "/Users/konyo/d2r_bible_tests")',
+        'replace': 'REPO = "/Users/konyo/d2r_bible_tests"',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main()

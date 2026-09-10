@@ -28549,3 +28549,95 @@ gate file carrying the agent's own RED_PROOF draft, already applied to the main 
 with `git worktree remove` and pruned. `.claude` 478 MB -> 36 KB, sandbox builds again.
 **Standing rule for fan-outs: worktree isolation is not free when the worktrees sit inside the tree
 the tooling copies.** `[[workflow-topology]]` `[[i-own-everything-i-start]]`
+
+### REG-863 — heart2 handed a gate's `-c` SCRIPT BODY back as an ARGUMENT, and pointed it at the REAL tree
+`gate_spec()` returned `argv[2:]` for every gate. One gate — `hover-wilson` — registers as
+`[python, "-c", <2.9 KB verdict script>, <absolute path>]`, so that blanket slice handed the whole
+script back as argv and the proof ran
+`python3 <sandbox>/hover_wilson.py "<script text>" "/Users/…/tv/hover_wilson.py"` — the module's own
+`main()` instead of the gate, **pointed at untampered source one directory outside the sandbox**.
+heart2 reported it BLIND, and BLIND was the honest verdict: nothing the tamper touched was ever
+executed. Measured 2026-09-10 across all 281 gates: **1 uses `-c`, 1 forwards an absolute real-tree
+path — the same one**, so the blast radius is that single gate. Fixed in `gate_spec` (carry the
+script separately) and `_run_gate` (re-root every repo-absolute argument onto the sandbox copy),
+applied at **all three** call sites, which is the REG-856 lesson. [[the-unjoined-end]]
+
+### REG-864 — a gate whose subject is ABSENT skips 12 of 12 and exits 0
+`test_chronicle_template` came back BLIND with "ALL 12 law(s) SKIPPED in the sandbox". Not a bad
+anchor: **every one of its 12 laws is `@unittest.skipUnless(_HAVE_FOOTAGE)`** — measured 12 of 12,
+0 footage-free — and `safe_copy` deliberately leaves tv/'s 5.8 GB of footage behind (that rule
+exists because copying it hit ENOSPC once). So the sandbox could never judge it, and unittest exits
+**0** when everything skips. `run_gates.py` already knew: its own comment names this gate and says
+"12 of 12, a gate that passed while covering NOTHING on this venue". Fixed with `PROOF_NEEDS` — a
+gate names the ONE data path its proof needs, read by AST, brought over as an **APFS clone**
+(`cp -c`: no disk spent, and a write lands on the copy, never on his real footage). It now runs 12
+tests and reddens under tamper. ⚠ The gate is still a skip-pass **on CI**, which has no footage and
+never will; that is a separate open question, not something this fixed. [[regression-guard]]
+
+### REG-865 — the only tamper hover-wilson can feel is one that makes a detector ACCEPT a wrong input
+The gate exits 1 on a `LEAKS` row and nothing else: `if not n: UNPROVEN; elif k == n: PROVEN; else:
+LEAKS`, and a probe that RAISES becomes `UNKNOWN` — printed loudly and **passed**, on purpose. The
+old anchor deleted `tags.add("slot-conflict")`, which raises → UNKNOWN → green. Worse,
+`probe_coordinate` `continue`s past any cell whose HONEST round-trip fails, so breaking `cell_of`
+outright leaves `attempts=0` → UNPROVEN → green. Both wrong sides of the same door. Re-aimed onto
+`col = int((px - bx) / (bw / cols))`: halving the divisor grows cell 0 to swallow cell 1, so `(0,r)`
+still round-trips honestly **and is counted**, while the deliberate one-cell-right shift resolves
+back to the same cell and is not caught. Measured: **coordinate LEAKS, sabotages=8 caught=4, exit
+1** — the row-down sabotage is still caught, which is what proves the probe still works rather than
+merely being broken. [[sabotage-is-usually-the-wrong-one]]
+
+### REG-866 — two self-targeting proofs counted 1 where the file is its own target
+`ui_icons` and `lane-census` both name their own gate file as the tamper target, so the declaration's
+own `find` field becomes a second occurrence the moment it lands: 1 before writing, 2 after. heart2
+measured both — "INVALID — the tamper matched 2 time(s), expected 1". Declared `matches: 2` with the
+reason recorded in each `why`. Third and fourth instance of this shape after `corroborate-selftest`
+and `live-panel`; the count is not a fudge, it is the arithmetic of a file that contains its own
+sabotage.
+
+### REG-867 — my own era-lock proof outlived its anchor
+`test_the_era_flips_at_chiliad` declared `find: "if (n >= 3001) return 'Chiliad '"`. That line stopped
+existing the same session, when `_eraName` became a **table** so 4001/Utopia would be a row rather
+than another edit — and the proof was never re-aimed. heart2 measured the anchor at **0 occurrences**
+and `test_the_heart_can_see_its_own_instruments` went red, which is the heart doing its job on my own
+guard rather than on the product. Re-aimed onto the table row `[3001, 'Chiliad ', '']`; re-proven.
+[[label-outlived-referent]]
+
+### REG-868 — my era lock killed two anchors in test_control, and the push found it, not me
+`test_control` windows source with `_between(start, end)`. Two laws started at the literal
+`var _lbl = 'Millenium'`, which stopped existing when the era lock landed — the line is now
+`var _lbl = _cv ? window._eraName(_cv) : 'Millenium';` and `_skewNow` moved ABOVE it, so the window
+was both anchorless and inverted. The block those laws grade is byte-identical; only the anchor
+died. Re-aimed onto the assignment `var _lbl =` (measured: 1 occurrence in control_ui.html), which
+survives every future era because 'Millenium' is now only the fallback. Two pushes were burned
+finding this, both reporting **exit 0 while the ref never moved**. [[label-outlived-referent]]
+
+### REG-869 — verdict_provenance measured a real gap and returned a literal 0
+One of the three gates heart2 named as unable to go red. Arming it outright was not an option:
+**only 6 of 43 stores can say what produced them**, so a hard gate is a wall. Konyo ruled "ratchet
+it". Built as a ratchet, and three measurements shaped it:
+
+1. **Per store, not four counts.** Konyo: *"does it not need to be accurate though?"* — right.
+   Counts hide a swap: one store gaining provenance the day another loses it leaves all four totals
+   identical and the ratchet green. A per-store map also names which store moved and which way.
+2. **Two scopes.** census() globs `tv/*.json`. MEASURED: **11 of 43 stores are tracked in git; 32
+   exist only on the machine that wrote them, and ALL 16 SILENT stores are in that untracked half.**
+   One blended baseline is red on CI for 32 absent stores while the real debt was never visible
+   there. The tracked scope is enforced everywhere; the local scope only where its stores exist,
+   and it SAYS SO where they do not.
+3. **The scope is pinned in the baseline, not re-derived from git.** The first cut called
+   `git ls-files` at verdict time and heart2 measured the consequence in one run: `UNPROVABLE —
+   ALREADY RED untampered (git ls-files exited 128)`, because a sandbox is a copy, not a checkout.
+
+SILENT and REFERENCE deliberately TIE in the rank: they print the identical `why`, so ranking one
+above the other would invent a distinction the census does not draw. Proven red three ways, each
+for its own named reason: a downgrade, a vanished store, and a new store with no producer field.
+⚠ It also found its OWN baseline as "NEW store arrives REFERENCE" on the first clean run — the
+same self-reference shape as REG-866; excluded by name.
+
+### REG-870 — vault-wilson and sweep-wilson scored every sabotage and discarded the verdict
+The other two of the three. Both compute LEAKS rows exactly as `hover-wilson` does, and both ended
+`main()` in an unconditional `return 0`, so no sabotage could ever redden them. MEASURED BEFORE
+ARMING: vault-wilson 2 claims 8/8 caught, sweep-wilson 2 claims 8/8 caught, **0 LEAKS on either** —
+so arming costs nothing today and catches the first sabotage that ever gets through. This makes a
+law that already exists on their sibling apply to them too rather than inventing one. An UNPROVEN
+claim still passes, loudly: nobody having tried to break it yet is work to do, not a defect.

@@ -6866,10 +6866,18 @@ class TestV2280CouldNotAskIsNotUpToDate(unittest.TestCase):
                       "the unreachable case must say it is unknown; anything softer reads as an "
                       "all-clear, which is the exact failure this branch exists to end")
 
+    # ⚠ v2888 — THE ANCHOR WAS THE LITERAL VALUE, AND THE VALUE MOVED.
+    # These two laws windowed from `var _lbl = 'Millenium'`, which stopped existing when the era
+    # lock landed: the line is now `var _lbl = _cv ? window._eraName(_cv) : 'Millenium';` and
+    # `_skewNow` is computed ABOVE it, so the old window was both anchorless and inverted. The
+    # BLOCK these laws grade never changed — the stale-suffix branch is byte-identical. Anchoring
+    # on the assignment `var _lbl =` (measured: 1 occurrence) survives every future era, because
+    # 'Millenium' is only the fallback string and will be joined by Chiliad and Utopia.
+    # [[label-outlived-referent]] [[source-reading-guard]]
     def test_the_two_digit_label_carries_the_FULL_version_when_stale(self):
         self.assertIn("could not check if current", self.ui)
         self.assertIn("behind the fleet'", self.ui)
-        block = _between(self, self.ui, "var _lbl = 'Millenium'", "_skewNow", what="the label block")
+        block = _between(self, self.ui, "var _lbl =", "_skewNow", what="the label block")
         self.assertIn("_flL.ok === false", block)
         self.assertIn("_cv", block,
                       "the stale label must name the FULL version — two digits cannot tell v2101 "
@@ -6878,7 +6886,7 @@ class TestV2280CouldNotAskIsNotUpToDate(unittest.TestCase):
     def test_the_clean_machine_stays_QUIET(self):
         """His ruling: clean reads 'Millenium 79' and nothing else. A warning that fires when
         nothing is wrong is how a real warning becomes furniture."""
-        block = _between(self, self.ui, "var _lbl = 'Millenium'", "_skewNow", what="the label block")
+        block = _between(self, self.ui, "var _lbl =", "_skewNow", what="the label block")
         self.assertIn("else if ((+_flL.behind || 0) > 0)", block,
                       "the suffix must be gated on a real fault; an ungated suffix would append "
                       "to every healthy console on the fleet")

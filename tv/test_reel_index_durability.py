@@ -417,5 +417,16 @@ class ReelIndexDurability(unittest.TestCase):
                       "are on disk and the theatre cannot see them")
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate exists because a sealed reel must carry a parseable index.json even if the seal is interrupted. tv_diablo.py\'s REEL FOLD splits that into phase 1 (write index.json from filenames alone, milliseconds, atomic — the reel becomes PLAYABLE) and phase 2 (the slow blank-detection enrichment, time-boxed). The tamper deletes the phase-1 write call while leaving `_indexed = True`, so the retry loop still claims success and phase 2 still writes an index at the END — i.e. it restores exactly the historical bug: the index lands on the wrong side of control_app\'s force-kill, and a killed reel holds 60 real frames and no index.json (the black screen). It deletes the real write call, not a comment, not a message string, and not a constant read by both sides of an agreement.  MEASURED: untampered OK — Ran 7 tests in 6.240s, OK. Re-run after restore: Ran 7 tests in 6.308s, OK ; tampered (all 1) FAILED (failures=4) — Ran 7 tests in 6.433s. test_2: "reel killed mid-pass has 6; reddened law ReelIndexDurability.test_2_reel_killed_mid_pass_is_still_playable (als; ALONE Fails alone in a fresh process: `python3 -m unittest test_reel_index_durability.ReelIndexDurability..',
+        'file': 'tv_diablo.py',
+        'find': '                        _reel_index_write(_ixdoc)\n                        _indexed = True',
+        'replace': '                        _indexed = True',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

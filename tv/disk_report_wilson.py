@@ -237,6 +237,17 @@ def main(argv):
     return 0 if rep["state"] == "PROVEN" else 1
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate (tv/disk_report_wilson.py, a SCRIPT not a unittest suite) grades control_app.credible_pruned_mb — the WRITE-end validator disk_history_append calls before it puts prunedMb on disk. Its `negative` attack hands the writer -1.0 .. -8.0 MB eight times and requires each row to come back prunedMb=None WITH a prunedWhy sentence. The refusal is one line in credible_pruned_mb: `if v < 0:` -> return None, "prunedMb was negative (%r) — pruning does not consume space". Widening that threshold to -1e18 deletes the real refusal without touching any comment, message string or shared constant: a negative figure then falls through the ==0 branch, fails the corpus bound (-1.0 is not > 8583 MB * 1.01) and is PUBLISHED verbatim as prunedMb=-1.0 — exactly the sign error reaching a dashboard that the law exists to refuse. It is not the wrong side of a union (only the negative axis moves; notanumber, notfinite and overcorpus stay 8/8) and it is not a shared constant (the baseline control still holds, so the red is a leak, not a withdrawn instrument).  MEASURED: untampered GREEN. `perl -e \'alarm 200; exec @ARGV\' python3 disk_report_wilson.py` from tv/ ; tampered (all 1) RED. Same command after replacing ALL 1 occurrence -> exit 1, "LEAKS · 24 of 32 ; reddened law disk_report_wilson._attempt_negative — the "negative" claim in CLAIMS ; ALONE FAILS ALONE. Fresh process, no siblings: `python3 -c "import disk_report_wilson as D; n,k=D._attempt.',
+        'file': 'control_app.py',
+        'find': 'if v < 0:',
+        'replace': 'if v < -1e18:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

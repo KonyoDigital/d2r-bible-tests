@@ -398,6 +398,17 @@ def main():
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'the BOARD button must hand back a same-window nav path under /board — v781 made it ONE window (Grok\'s button testing had spawned 26 native board windows) and v2052 made an HTTP client able to move that window; a wrong nav target breaks both silently  MEASURED: untampered GREEN. `perl -e \'alarm 200; exec @ARGV\' python3 tv/test_button_matrix.py` -> exi; tampered (all 1) RED. Same command -> exit 1, "FAILED 1". Exactly one law fell: BOARD nav path — ; reddened law BOARD nav path — test_button_matrix.main(): check("BOARD nav path", is; ALONE FAILS ALONE. This gate is a SCRIPT, not a unittest suite, so "alone" was a fresh process invoking ex.',
+        'file': 'control_app.py',
+        'find': 'nav = "/board?app=1#%s" % tab',
+        'replace': 'nav = "board?app=1#%s" % tab',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     # v1711 — boot our OWN console if none was handed to us. Never :17772 (his live app).
     if not CTRL:

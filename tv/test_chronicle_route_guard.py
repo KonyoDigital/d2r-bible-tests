@@ -280,5 +280,16 @@ class TestEveryFireSiteIsGuarded(unittest.TestCase):
                          "_kai_frame_cls's vocabulary must not change in v1689")
 
 
+RED_PROOF = [
+    {
+        'why': 'The guard\'s whole power is _kai_chron_claim_near() recognising a deep read whose scene is \'chronicle\' — that single comparison is what lets a kai-vault/tally intake be refused on his real frame reel_s_1786385768689_67392/f_1786385778600. Break that comparison and chron is always None, so _kai_route_guard_reason returns \'\' and every stash/vault/tally intake routes straight onto a Chronicle page again — the exact v1689 incident (ok:false, total:0). The anchor is the executable condition inside the scan loop, not a comment and not the message string that also says \'chronicle\'; the negative-control laws (stash frame routes, far-from-chronicle routes, chronicle\'s own lane untouched) stay green under it, so the redness is the refusal law itself.  MEASURED: untampered python3 tv/test_chronicle_route_guard.py -> EXIT=0, "Ran 13 tests ... OK" (green; tampered (all 1) python3 tv/test_chronicle_route_guard.py -> EXIT=1, "Ran 13 tests ... FAILED (fa; reddened law test_chronicle_route_guard.TestRefusal.test_vault_intake_on_his_real_c; ALONE python3 -m unittest test_chronicle_route_guard.TestRefusal.test_vault_intake_on_his_real_chronicle_f.',
+        'file': 'control_app.py',
+        'find': 'if sc == "chronicle" and (chron is None or d < chron["deltaMs"]):',
+        'replace': 'if sc == "chronicle-DISABLED" and (chron is None or d < chron["deltaMs"]):',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

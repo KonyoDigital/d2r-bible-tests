@@ -279,5 +279,16 @@ def main(argv):
     return code
 
 
+RED_PROOF = [
+    {
+        'why': 'v2404 — A BRIEF NOBODY ANSWERED MUST NOT FADE INTO SILENCE: owed() is the only thing that names an unanswered brief, so if it reports none, a question stuck forever reads as a clean, completed loop — the harness\'s own failure mode 1.  MEASURED: untampered GREEN, exit 0: `python3 human_eyes_gate.py --gate` printed all 6 sabotage cases ; tampered (all 1) RED, exit 1. Output: "🔴 2 case(s) wrong — this gate may not be trusted." then "🔴; reddened law human_eyes_gate.prove() case 2 — "brief owed too long   want 1" (the f; ALONE FAILS ALONE. This gate is a SCRIPT, so "alone" = a fresh python3 process that builds only case 2\'s f.',
+        'file': 'human_eyes_ledger.py',
+        'find': '    return [r for r in st if r["verdict"] == OWED]',
+        'replace': '    return []',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

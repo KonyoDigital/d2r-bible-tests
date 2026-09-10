@@ -332,6 +332,17 @@ class ItArmsNothing(unittest.TestCase):
                              % banned)
 
 
+RED_PROOF = [
+    {
+        'why': "UNKNOWN is a position, not a default. `_station_of()` returns UNKNOWN the moment EITHER `sealed` or `names` is unmeasured, so a reel nobody could measure is never dressed up as a reel sitting at a real station. Collapsing the `or` to an `and` lets a single unmeasured field fall through into the evidence ladder: sealed=None/names=0 is published as STATION (a paid-read candidate built on nothing) and sealed=True/names=None as CAPTURE, while route()'s `unknown` count drops to 0 so the shelf reports that it could place every reel. That is the confident-zero this module exists to refuse.  MEASURED: untampered GREEN — `python3 test_reel_router.py` -> Ran 30 tests in 0.163s, OK; tampered (all 1) RED — Ran 30 tests, FAILED (failures=3): UnknownIsAPositionNotAGap.test_unmeasur; reddened law test_reel_router.UnknownIsAPositionNotAGap.test_unmeasured_seal_is_UNK; ALONE FAILS ALONE — `python3 -m unittest test_reel_router.UnknownIsAPositionNotAGap.test_unmeasured_seal_i.",
+        'file': 'reel_router.py',
+        'find': 'if sealed is None or names is None:',
+        'replace': 'if sealed is None and names is None:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

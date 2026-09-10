@@ -713,5 +713,16 @@ class TheShapeRuleDoesNotQuietlyMergeThings(unittest.TestCase):
                 "the pair that was reviewed, not for the shape." % (shape, sorted(extra)))
 
 
+RED_PROOF = [
+    {
+        'why': 'This one line IS the join the gate exists to prove: concept() falls back to the tail of a dotted surface name, so `chronicle.runeword` resolves to RUNEWORD and same_thing() can finally answer the question A1\'s unreachable FLOWING and A3\'s 9 MISNAMED cells could not ask. Replacing it with None deletes the mechanism (not a comment, not a message string), and it is one_name\'s OWN table lookup — chronicle_template, route_totals and lane_lock never read it, so no agreement law moves on both sides and the tamper cannot be absorbed by a shared constant. The shape fallback in same_thing() does not rescue it: _shape("chronicle.runeword") is "chronicleruneword", which never equals _shape("runeword"), so the law goes red on real behaviour rather than on a wording change.  MEASURED: untampered Ran 16 tests in 2.077s / OK, EXIT=0 (perl -e \'alarm 200; exec @ARGV\' python3 tv/; tampered (all 1) Ran 16 tests in 4.316s / FAILED (failures=1), EXIT=1. Exactly one law red, no er; reddened law test_one_name.ItAnswersTheQuestionNothingCouldAsk.test_a_dotted_surfac; ALONE RED ALONE. `python3 -m unittest test_one_name.ItAnswersTheQuestionNothingCouldAsk.test_a_dotted_surf.',
+        'file': 'one_name.py',
+        'find': 'return _LOOKUP.get(tail)',
+        'replace': 'return None',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

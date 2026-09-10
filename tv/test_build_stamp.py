@@ -89,6 +89,17 @@ class TheStampRendersWhole(unittest.TestCase):
                         "with no way back, which is worse than the truncation it replaced")
 
 
+RED_PROOF = [
+    {
+        'why': 'v1691.1 caps the build badge at 180px and lets the version NAME clip; v2466 added a post-render fit check that drops the name entirely rather than ending it mid-word. Killing that check reintroduces the exact defect two cold cross-family reads called a rendering bug: 406px of text painted into a 178px box, cut mid-word.  MEASURED: untampered green — "Ran 3 tests in 10.561s / OK", all three RAN (no skip), so headless Chro; tampered (all 1) red — "FAILED (failures=1)": AssertionError: 406 not less than or equal to 179 :; reddened law test_build_stamp.TheStampRendersWhole.test_the_stamp_is_not_clipped; ALONE FAILS ALONE — python3 -m unittest test_build_stamp.TheStampRendersWhole.test_the_stamp_is_not_clippe.',
+        'file': 'bible.html',
+        'find': 'if (el.scrollWidth > el.clientWidth + 1) {',
+        'replace': 'if (false) {',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

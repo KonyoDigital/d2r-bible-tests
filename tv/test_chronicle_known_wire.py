@@ -258,5 +258,16 @@ class AgainstHisRealFootage(unittest.TestCase):
                          "every frame the live agent marked IN THIS REEL should be read back")
 
 
+RED_PROOF = [
+    {
+        'why': "sweep_hist(known_chronicle=) shipped in v1689 and the call site never passed it, so every retro sweep re-derived what the live agent had already identified and paid a classifier to disagree — deleting the kwarg restores that exact defect  MEASURED: untampered Ran 8 tests in 1.957s — OK (skipped=1). Green before tampering.; tampered (all 1) Ran 8 tests in 1.862s — FAILED (failures=1, skipped=1). AssertionError: 'known_c; reddened law test_chronicle_known_wire.CallSiteActuallyPassesIt.test_sweep_hist_is_; ALONE python3 -m unittest test_chronicle_known_wire.CallSiteActuallyPassesIt.test_sweep_hist_is_called_wit.",
+        'file': 'control_app.py',
+        'find': 'known_chronicle=known,',
+        'replace': '',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

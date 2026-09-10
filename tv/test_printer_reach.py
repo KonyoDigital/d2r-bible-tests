@@ -179,6 +179,17 @@ class AZeroMustEarnTheWordClean(unittest.TestCase):
                 "The contract would then be able to change without this test noticing." % fact)
 
 
+RED_PROOF = [
+    {
+        'why': 'tv/run_gates.py:2982 points the gate at tv/test_printer_reach.py, whose SOURCE under test is tv/printer_reach.py. The one law the gate exists to hold is that a zero taken through a filter which rejects every input measures the filter — implemented by exactly one branch in report(): `if not satisfied:` (printer_reach.py:174), which returns UNREACHABLE when NOT ONE seal satisfies EXTRACTION_CONTRACT. Neutering that condition is the real regression: report() then falls through to the CLEAN return and announces a pipeline shown healthy on a corpus where no reel can ever be judged disposable. The anchor is the live branch condition, not a comment (the file is dense with them), not text inside a `why` message string (UNREACHABLE and "REFUSING EVERY SEAL" appear in several), and not a constant read from both sides — EXTRACTION_CONTRACT lives in frame_authority and is deliberately untouched, so no agreement law moves with it. It also survives the sibling-state trap: every test in the suite builds its own stubbed or on-disk corpus, so the reddened law fails identically alone.  MEASURED: untampered GREEN — `python3 test_printer_reach.py`: Ran 7 tests in 0.003s, OK (all 7 named ; tampered (all 1) RED — same command: FAILED (failures=2). test_no_seal_satisfying_the_contract_is; reddened law test_printer_reach.AZeroMustEarnTheWordClean.test_no_seal_satisfying_t; ALONE FAILS ALONE — `python3 -m unittest test_printer_reach.AZeroMustEarnTheWordClean.test_no_seal_satisfy.',
+        'file': 'printer_reach.py',
+        'find': 'if not satisfied:',
+        'replace': 'if False:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

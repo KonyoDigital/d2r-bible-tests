@@ -918,6 +918,17 @@ class NothingInMustGiveUnknownOut(unittest.TestCase):
                             "one_funnel cannot reach a verdict at all: %s" % got.get("why"))
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the ONLY nothing-to-read branch in per_reel_routes.routes() (line 104), the code that makes the probe say UNKNOWN over an empty shelf; without it the probe answers POLICY_ONLY — a verdict over evidence never gathered, the exact defect this gate forbids. Anchor is executable code, occurs exactly once, and is not shared with any agreement law. Measured: untampered OK (16 tests), tampered FAILED (failures=2), the named law fails ALONE, restored with git checkout and green again (16 tests, OK). Path check: heart2 joins onto tv/ → tv/per_reel_routes.py, which exists.  MEASURED: untampered tv/test_probe_unknown_law.py: Ran 16 tests in 3.861s — OK (green before the tamp; tampered (all 1) Ran 16 tests in 3.557s — FAILED (failures=2): test_every_probe_answers_UNKNOWN_w; reddened law test_probe_unknown_law.NothingInMustGiveUnknownOut.test_every_probe_an; ALONE FAILED (failures=1) in a fresh process — `python3 -m unittest test_probe_unknown_law.NothingInMustGi.',
+        'file': 'per_reel_routes.py',
+        'find': 'if not rows:',
+        'replace': 'if False:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

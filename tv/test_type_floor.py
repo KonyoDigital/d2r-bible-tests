@@ -89,6 +89,17 @@ class EveryFontTokenResolves(unittest.TestCase):
             "a token name is wrong, which is the moment nobody is looking: %s" % (FLOOR_PX, bad))
 
 
+RED_PROOF = [
+    {
+        'why': '--fs-3xs is REFERENCED and DEFINED NOWHERE; the only thing keeping it legal is its fallback to the floor token --fs-2xs. Dropping the fallback leaves a BARE var() on an undefined token, which makes the whole declaration invalid so the element silently inherits its parent size — the exact defect the gate pins. Both occurrences are real CSS (lines 2400, 3782) and survive the test\'s comment-stripping, so this is not prose and not a shared constant.  MEASURED: untampered OK — Ran 3 tests, OK (python3 tv/test_type_floor.py); tampered (all 2) FAILED (failures=1): AssertionError: Lists differ: [\'--fs-3xs\'] != [] — "these t; reddened law test_type_floor.EveryFontTokenResolves.test_an_undefined_token_is_only; ALONE FAILED alone — python3 -m unittest test_type_floor.EveryFontTokenResolves.test_an_undefined_token_is.',
+        'file': 'control_ui.html',
+        'find': 'var(--fs-3xs, var(--fs-2xs))',
+        'replace': 'var(--fs-3xs)',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

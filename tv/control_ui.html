@@ -9557,9 +9557,35 @@ window._lockMark = function(isOpen, px, label){
        source. The full-version suffix that v2280 added stays: it is the guard for a machine a
        THOUSAND versions behind, and this only shortens the range where the badge alone is
        ambiguous. [[label-outlived-referent]] */
+    /* ── v2888 — THE ERA FLIPS ITSELF AT 3001. Konyo: "when we hit version 3000 i want it to be
+       called Chiliad 001 ... meaning from version 3001 its chiliad ... it should automatically be
+       done at 3000 like a lock/unlock style".
+       The note above said the v3000 rename "is his to decide and not something to pre-build a
+       branch for". He has decided, so this is that branch — and it is a lock that unlocks ITSELF:
+       no switch, no flag, no hand. The count crosses 3000 and the bar renames on the next paint.
+       ⚠ ONLY THE NAME MOVES. slice(-3) already prints 001 at v3001 and 999 at v3999.
+       ⚠ THE SKEW ARM IS UNTOUCHED — the block above warns that collapsing this bar would delete
+       the only place console/agent/board drift is on screen.
+       ⚠ v4000 IS NOT ANSWERED HERE: slice(-3) prints 000 again and the era would still read
+       Chiliad. That is the next thousand's decision, exactly as v3000 was his. This function is
+       where it goes. [[label-outlived-referent]] [[unknown-stays-unknown]] */
+    window._eraName = function (ver) {
+      var n = parseInt(String(ver == null ? '' : ver).replace(/^v/i, ''), 10);
+      if (!isFinite(n)) return '';
+      /* ⚠ A TABLE, NOT A CHAIN OF IFS — highest floor first. Konyo, having just asked for Chiliad:
+         "at 4001 it should be Utopia 001 ... continue the lock to there so we dont need to do it
+         again at 4000". So the next thousand is a ROW, not an edit. Millenium keeps its 'v' because
+         that is what every earlier ship already wears and a rename must not rewrite history. */
+      var ERAS = [[4001, 'Utopia ', ''], [3001, 'Chiliad ', ''], [0, 'Millenium ', 'v']];
+      var tail = String(n).slice(-3);
+      for (var i = 0; i < ERAS.length; i++) {
+        if (n >= ERAS[i][0]) return ERAS[i][1] + ERAS[i][2] + tail;
+      }
+      return '';
+    };
     var _num = _cv ? ('v' + String(_cv).replace(/^v/i, '').slice(-3)) : '';
     var _skewNow = ((_av && _cv !== _av) || (_bv && _cv !== _bv));
-    var _lbl = 'Millenium' + (_num ? (' ' + _num) : '');
+    var _lbl = _cv ? window._eraName(_cv) : 'Millenium';
     /* v2280 — A SHORT BADGE CANNOT CARRY A 178-VERSION GAP. His ruling stands — clean reads
        "Millenium 379" and nothing else — but at the two digits this used to print, v2101 and
        v2001 were both "01", so a machine four months behind wore the same calm badge as a

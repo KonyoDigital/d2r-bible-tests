@@ -361,6 +361,17 @@ class AFieldFilledOnNoRowIsNotAField(unittest.TestCase):
                               "the reading declined to answer `ok`: %s" % r)
 
 
+RED_PROOF = [
+    {
+        'why': 'The whole rule lives in this predicate: a field is DEAD when it is present on every row and filled on NONE. `_unfilled` (dead_field.py:329) is the only place that asks "filled on no row"; invert it and the detector answers about the columns that ARE filled, so `reel_retention._tombstone`\'s startedTs — null 410 of 410 on the one door with no undo — comes back unnamed while two healthy columns are reported instead. Not a comment, not a message string, not MIN_ROWS (which both the law and the test read).  MEASURED: untampered OK — `python3 test_dead_field.py` ran 24 tests, OK, before any edit.; tampered (all 1) FAILED (failures=7) — test_EMPTY_containers_are_judged_uniformly, test_NUMBERS_s; reddened law test_dead_field.AFieldFilledOnNoRowIsNotAField.test_it_catches_the_fie; ALONE FAILED (failures=1) alone under the tamper: `python3 -m unittest test_dead_field.AFieldFilledOnNoRow.',
+        'file': 'dead_field.py',
+        'find': 'if not filled.get(k))',
+        'replace': 'if filled.get(k))',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

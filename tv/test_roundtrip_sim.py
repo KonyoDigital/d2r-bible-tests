@@ -227,5 +227,16 @@ class TestRoundtrip(unittest.TestCase):
         self.assertTrue(body.startswith(b"\xff\xd8"), "reel frame is not a JPEG")
 
 
+RED_PROOF = [
+    {
+        'why': 'v883 REEL FOLD: on seal the agent must MOVE this session\'s loose f_<ms>.jpg footage into frames/hist/reel_<sid>/ (both the main fold pass and the v1608.1 late sweep). Loose frames are a shared pool the reaper sheds FIRST, so a run whose fold never moved anything goes hollow within hours and the sealed session plays black.  MEASURED: untampered GREEN. `perl -e \'alarm 200; exec @ARGV\' python3 test_roundtrip_sim.py` → "Ran 1 ; tampered (all 2) RED. Same command after replacing BOTH occurrences → "FAILED (failures=1)", exit; reddened law TestRoundtrip.test_roundtrip_on_record_seal_sim — tv/test_roundtrip_si; ALONE FAILS ALONE. `python3 -m unittest test_roundtrip_sim.TestRoundtrip.test_roundtrip_on_record_seal_sim.',
+        'file': 'tv_diablo.py',
+        'find': 'os.replace(os.path.join(_hd, _fn), os.path.join(_reel, _fn))',
+        'replace': 'pass',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
