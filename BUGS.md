@@ -29126,3 +29126,55 @@ removed 1 key  ('heart-stored', floor 17 -> 16)   ->  FAILED: "1 of 17 render ta
 cleared 16 keys                                   ->  FAILED: "17 of 17 render target(s) have NO coverage floor"
 restored                                          ->  OK, sha256 identical
 ```
+
+## REG-897 — Routine I red since v2889: the spec opened a door that was never shut
+
+**v2899 (#70).** `Routine I — Playwright suite` has failed on v2889, v2890, v2891, v2892 and v2896.
+Two specs, three failures, and both share one shape.
+
+### v2000_shadow_reader:147 — FIXED
+
+```
+r.missing  false      <- the switch EXISTS
+r.hasDot   true       <- its lamp EXISTS
+r.box      0          <- FAILED: getBoundingClientRect().height
+```
+
+The spec's own comment says it opens the drawer "so the switch is laid out, not merely styled":
+
+```js
+const det = sw.closest('details');
+if (det) det.open = true;
+```
+
+`closest()` returns the NEAREST ancestor — `#sig-adv`, which ships with `open` **already in the
+markup**. So the line opened something that was never shut, the outer drawers stayed closed, and the
+switch had no box. Three `<details>` sit above `#sadv-sha` in control_ui.html. Now every ancestor is
+opened, not the first one found.
+
+⚠ **Existence checks passed and the layout check failed** — that pairing is the tell, and it is why
+this sat red without anyone reading it: the spec looked like it was finding the switch fine.
+
+### v1996_pixels_reach_the_ledger:137 and :190 — SAME SHAPE, CAUSE **UNKNOWN**
+
+```
+rows.length          > 0     <- the .ibx-eye-row nodes EXIST
+rows.join(' | ')     ""      <- FAILED: innerText is empty
+```
+
+`innerText` is layout-dependent exactly like `getBoundingClientRect` — it returns `""` for nodes
+that are not rendered, where `textContent` would return the words. So the shape matches: nodes
+present, layout property empty.
+
+⚠ **But the cause is NOT established and is not claimed.** The render harness does not cover these
+nodes: its `inbox` target selects `#inbox-sticky .ibp-row`, and the spec selects
+`#inbox-panel .ibx-eye-row` — two different surfaces. Whether those rows render blank in a
+*properly open* panel (a real defect) or are simply not laid out when the spec looks (a fixture
+defect) is UNKNOWN.
+
+**What would settle it:** a render target on `#inbox-panel .ibx-eye-row`. That converts the guess
+into a measurement, and — pleasingly — adding it now forces a floor bless, which the pre-push law
+added one version earlier (REG-896) would refuse to let ship without.
+
+⚠ Browser suites run on CI, never on his Mac, so this fix is **unverified locally by design**. CI is
+the verifier.

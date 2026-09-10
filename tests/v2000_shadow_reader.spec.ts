@@ -122,9 +122,18 @@ test('the three facts have three separate surfaces, not one lamp', async ({ page
   const r = await page.evaluate(() => {
     const sw: any = document.getElementById('sadv-sha');
     if (!sw) return { missing: true };
-    // the drawer is a closed <details>; open it so the switch is laid out, not merely styled
-    const det = sw.closest('details');
-    if (det) det.open = true;
+    /* ⚠⚠ v2899 (#70) — EVERY ANCESTOR <details>, NOT THE NEAREST ONE. This was
+       `sw.closest('details'); if (det) det.open = true;` and it was a NO-OP: the nearest ancestor
+       is `#sig-adv`, which ships with `open` already in the markup, so the line opened something
+       that was never shut and the OUTER drawers stayed closed. `#sadv-sha` therefore had no box,
+       and `getBoundingClientRect().height` — a LAYOUT property — read 0 while `missing:false` and
+       `hasDot:true` both passed. Existence checks green, layout check red: the spec was measuring
+       a collapsed world and blaming the switch.
+       MEASURED: three <details> sit above #sadv-sha in control_ui.html, and Routine I has been
+       red on this line since v2889. [[feedback-blind-fixture-green-gate]] */
+    for (let d: any = sw.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
+      d.open = true;
+    }
     const dot: any = sw.querySelector('.shadow-adv-dot');
     const look = () => ({
       opacity: getComputedStyle(sw).opacity,

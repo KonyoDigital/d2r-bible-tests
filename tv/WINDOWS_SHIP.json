@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2898",
+  "ver": "v2899",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2898: a browser-free coverage check ran only in CI so five of six versions shipped red",
+  "note": "v2899: closest details found the one already open so the outer drawers stayed closed and the switch had no box",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

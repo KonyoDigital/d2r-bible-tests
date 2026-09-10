@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2899** | `(this commit)` | v2899 — closest details found the one already open so the outer drawers stayed closed and the switch had no box |
 | **v2898** | `(this commit)` | v2898 — a browser-free coverage check ran only in CI so five of six versions shipped red |
 | **v2897** | `(this commit)` | v2897 — the polled endpoint waited on a disk survey and the kept record named it |
 | **v2896** | `(this commit)` | v2896 — a cross-family review of v2892 named a law that could not go red a headline with no denominator and a target aimed at the wrong subject |
