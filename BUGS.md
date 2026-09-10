@@ -29587,6 +29587,51 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-912 — the pixel verdict was recorded for 8 days and published to nobody
+
+**v2912.** #34 / #42. Measured on his LIVE console 2026-09-10:
+
+    console uptime            1h27m
+    _console_rescue_loop      FLOWING — "it ran 8s ago, within its own 10s period"
+    _pixel_blank_report       fires every 6th tick  ->  ~87 firings in that window
+    paint_witness answer      state=OCCLUDED, "Terminal (100.0%) is on top of it"
+    /api/status uiBeat keys   ageS · blankStrikes · elsHigh · elsNow · elsWindowN · frozenBeats ·
+                              hidden · lastRescueWhy · n · paintWhy · painting · panels · raf ·
+                              rescues · silenceBoundS · view
+    'pixelBlank' in uiBeat    False
+
+**Sixteen keys, none of them the pixel verdict.** `_pixel_blank_report` writes every outcome into
+`_UI_BEAT["pixelBlank"]` and its docstring is explicit that a quiet field means "asked and fine"
+rather than "never asked" — but the wire never carried it. The witness ran ~87 times, answered
+correctly every time, and every answer died in a dict. Its own comment already named the gap:
+*"PUBLISHED IS NOT SHOWN. What belongs here is louder reporting."* It has recorded
+`console-pixels-blank-nothing-else-saw-it` **73 times across 8 days** while he still found the fault
+by looking at a black screen.
+
+**The cost was paid the same day, by the reader who most needed it.** Grok Bot, reading exactly
+those sixteen fields, filed his window as **FROZEN — pixels dead** (`hidden=false`, `painting=true`,
+capture hash static across a whole look). Asked directly, the witness said **OCCLUDED**: *"Terminal
+(100.0%) is on top of it, so he cannot see it. The uniform frame is what capturing a covered window
+returns, and the page reporting hidden/not-painting is CORRECT for one."* A covered window returns a
+uniform frame forever, so its captures are byte-identical — **the same signature as a freeze**. The
+field that separates them existed, was correct, was current, and was not on the wire.
+
+`pixel_witness_public()` now publishes it on both `status_payload()` and `ui_pre_rescue_snapshot()`.
+The snapshot mattered as much as the wire: it already carried `painting`, `frozenBeats` and
+`blankStrikes` — every counter that is STRUCTURALLY blind to this fault — so omitting the one that
+is not blind made it a curated view of the wrong evidence.
+
+⚠ **Three answers, never two.** `state=None` is NOT ASKED (and every exec restarts that clock),
+OCCLUDED is a clean result, BLANK is the fault. The reading carries its own `ageS`, because the
+console re-execs on every version bump and a verdict from before the last exec is a stale one.
+Four red-proofs, all PROVEN at 1 match — including the one that makes "never asked" report a clean
+PAINTED, which is silence becoming evidence of health.
+
+⚠ **It still only REPORTS.** Nothing here acts. `console.pixel_rescue` remains LOCKED (16 of 16
+distinct attacks refused, Wilson lower bound 0.806), and a reload was already measured NOT to cure
+this fault — three rescues, blank after every one. Being able to SEE it does not entitle it to act.
+[[the-unjoined-end]] [[plumbing-with-no-tap]] [[unknown-stays-unknown]] [[stale-reading]]
+
 ## REG-911 — the weld gate parsed its own comment, and passed because the prose happened to agree
 
 **v2911.** Found by the cross-family eye reviewing v2910, twenty minutes after that version shipped.

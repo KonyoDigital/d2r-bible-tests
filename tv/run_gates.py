@@ -3610,6 +3610,18 @@ GATES = [
              "PARTIAL, 16 SILENT, 17 REFERENCE, 1 UNKNOWN. `37 of 43` was arithmetically true and "
              "three classes wide, which is why the fix had to separate them. #69.",
          skip_ok=()),
+    Gate("test_the_pixel_verdict_reaches_the_wire",
+         [sys.executable, os.path.join(HERE, "test_the_pixel_verdict_reaches_the_wire.py")], 120,
+         needs_app=False,
+         why="the one instrument that can tell a DEAD window from a COVERED one must answer where "
+             "someone can read it. Measured on his console 2026-09-10: up 1h27m, rescue loop "
+             "FLOWING at its 10s period, so the witness had run ~87 times \u2014 and "
+             "`/api/status` published SIXTEEN uiBeat keys with the pixel verdict not among them. "
+             "The same day Grok Bot read those sixteen fields and filed FROZEN about a window the "
+             "witness called OCCLUDED (Terminal 100% on top). A covered window and a dead one "
+             "produce byte-identical captures. Three answers, never two: None is NOT ASKED, "
+             "OCCLUDED is clean, BLANK is the fault.",
+         skip_ok=()),
     Gate("test_a_negative_gap_is_not_covers_all",
          [sys.executable, os.path.join(HERE, "test_a_negative_gap_is_not_covers_all.py")], 120,
          needs_app=False,

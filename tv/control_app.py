@@ -13173,8 +13173,58 @@ def ui_pre_rescue_snapshot(beat=None):
         "elsHigh": els_high if isinstance(els_high, int) else None,
         "blankStrikes": b.get("blankStrikes") if isinstance(b.get("blankStrikes"), int) else None,
         "hidden": b.get("hidden") if isinstance(b.get("hidden"), bool) else None,
+        # v2912 — the PIXEL verdict beside the page's own counters, because this fault is
+        # exactly the case where the two disagree and only one of them can see it.
+        "pixelBlank": pixel_witness_public(b),
         "beats": b.get("n") if isinstance(b.get("n"), int) else None,
         "beatAgeS": round(age, 1) if isinstance(age, (int, float)) else None,
+    }
+
+
+def pixel_witness_public(b=None):
+    """The pixel witness's own verdict, in the shape an OUTSIDE reader needs. -> dict
+
+    ⚠⚠ v2912 (#34/#42) — IT WAS RECORDED FOR 8 DAYS AND PUBLISHED TO NOBODY. `_pixel_blank_report`
+    writes every outcome into `_UI_BEAT["pixelBlank"]` and its docstring is explicit that a quiet
+    field must mean "asked and fine" rather than "never asked". But the wire never carried it:
+    MEASURED on his live console 2026-09-10, `/api/status` published SIXTEEN uiBeat keys —
+    ageS · blankStrikes · elsHigh · elsNow · elsWindowN · frozenBeats · hidden · lastRescueWhy ·
+    n · paintWhy · painting · panels · raf · rescues · silenceBoundS · view — and **not one of
+    them was the pixel verdict**. The console had been up 1h27m with the rescue loop FLOWING at
+    its own 10s period, so the witness had run about 87 times, and every answer died in a dict.
+
+    That function's own comment says the gap out loud — *"PUBLISHED IS NOT SHOWN. What belongs
+    here is louder reporting"* — and it has recorded `console-pixels-blank-nothing-else-saw-it`
+    73 times across 8 days while he still found the fault by looking at a black screen.
+
+    ⚠ THE COST OF THE FAILURE WAS PAID THE SAME DAY. Grok Bot, reading exactly the fields above,
+    reported his window **FROZEN, pixels dead** — `hidden=false · painting=true · hash static`. The
+    witness, asked directly, said **OCCLUDED**: "Terminal (100.0%) is on top of it, so he cannot
+    see it. The uniform frame is what capturing a covered window returns." A covered window and a
+    dead one produce byte-identical captures, and the field that tells them apart existed, was
+    correct, was current, and was not on the wire. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ THREE ANSWERS, NEVER TWO. `state=None` means the pixels have NOT BEEN ASKED on this process
+    — not that they are fine. OCCLUDED is a clean result and not a fault. BLANK is the fault.
+    Collapsing any pair of those is the whole defect this field exists to end.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    if b is None:
+        b = _UI_BEAT
+    p = b.get("pixelBlank")
+    if not isinstance(p, dict):
+        return {"state": None, "why": "the pixels have not been asked yet on this process — "
+                                      "UNKNOWN, which is not the same as nothing being wrong",
+                "strikes": None, "ageS": None}
+    _ts = p.get("ts")
+    return {
+        "state": p.get("state"),
+        "why": str(p.get("why") or "")[:400],
+        "strikes": p.get("strikes") if isinstance(p.get("strikes"), int) else None,
+        # ⚠ THE AGE OF THE READING, NOT OF THE REQUEST. A verdict from before the last exec is a
+        # stale verdict, and without this the reader cannot tell. [[stale-reading]]
+        "ageS": (round(max(0.0, time.time() - (_ts / 1000.0)), 1)
+                 if isinstance(_ts, (int, float)) else None),
     }
 
 
@@ -26063,7 +26113,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2911",
+        "ver": "v2912",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -26199,6 +26249,10 @@ def status_payload():
                    "painting": _UI_BEAT.get("painting"),
                    "frozenBeats": int(_UI_BEAT.get("frozenBeats") or 0),
                    "paintWhy": _UI_BEAT.get("paintWhy") or "",
+                   # v2912 (#34) — the pixel witness on the WIRE. Every outside reader
+                   # (his console, the heart, Grok Bot) had to infer paint from a static
+                   # capture hash, which is identical for a covered window and a dead one.
+                   "pixelBlank": pixel_witness_public(),
                    # v2336 — what the page says about its own panels, so the eagle can see his
                    # SCREEN and not merely his engines. None = this console predates v2336.
                    "panels": ((_UI_BEAT.get("state") or {}).get("panels") or None),

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2911",
+  "ver": "v2912",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2911: the eye found the second one twenty minutes after v2910 shipped",
+  "note": "v2912: sixteen uiBeat keys on the wire and not one of them was the one that can see a dead window",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
