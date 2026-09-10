@@ -29587,6 +29587,55 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-916 — the branch kept keying off the NET after the figure stopped
+
+**v2915.** The eye caught this on the pass immediately after v2914. v2913 and v2914 fixed what was
+PRINTED and left the DECISION wrong. Measured against the shipped expression:
+
+    proved 285 · unproven 4 · provenAtCount 289
+      _iGap       = (285 + 4) - 289 = 0   ->  `_iGap < 0` is FALSE, the arm never fires
+      _iNotProven = 289 - 285       = 4   ->  FOUR gates tested and not proven
+      rendered:  "and it covers all 289 gate(s) that carry a proof stamp"    <- THE ORIGINAL BUG
+
+`unproven` padded the gap to exactly zero and hid four real findings behind a completeness claim.
+No earlier fixture could see it — every one was strictly negative. The question this arm asks is
+*were more gates TESTED than came back PROVEN*, which is `_iNotProven > 0` and never involves
+`unproven`. `_iGap` stays for the FLOOR arm, which is genuinely about the census total.
+
+⚠ **The fix immediately broke the law shipped one version earlier, and that law caught it.** With no
+census fields, `_iProved` defaults to 0, so `_iStamped - 0` is the whole stamp count and the clause
+announced *"291 did NOT come back proven"* about a census nobody took. `_iNotProven` is now null
+without a census. Absent is not zero in this direction either.
+
+⚠ **The eye also found that v2914's own defect had NO red-proof.** Nothing tampered `_iNotProven`
+back to `-_iGap`, so `--prove` could not show that law go red for the reason that named the version.
+In this repo a law never seen red for its own reason is unproven. That sabotage now exists and is
+PROVEN. Five red-proofs, all PROVEN at 1 match, every one pre-checked to turn the suite red before a
+`--prove` was spent. [[label-outlived-referent]] [[unknown-stays-unknown]] [[review-after-ship]]
+
+## REG-917 — OCCLUDED could not reach the wire, and the one reader who needed it said so
+
+**v2915.** #34/#42. v2912 published `pixelBlank` and documented three answers — `null` / `OCCLUDED` /
+`BLANK` — then shipped a `state` that can only ever emit PAINTED or BLANK. `blank_strikes()` answers
+a STRIKE question, so its aggregate collapses occlusion; the OCCLUDED verdict lives one level down in
+`looks[]`. Measured on his console:
+
+    blank_strikes(68536)  state      = 'PAINTED'
+    looks[-1]             state      = 'OCCLUDED'
+                          occludedBy = "Terminal (100.0%) is on top of it"
+
+**Grok Bot found it by following the brief exactly and refusing to collapse the contradiction:**
+*"brief's three answers were null / OCCLUDED / BLANK. Live field returned PAINTED, while the why
+string still names Terminal occlusion... Reporting both; not collapsing them."* It also confirmed the
+occlusion geometrically — Terminal `1467x815 @ 0,33` fully covers TV DIABLO `1120x660 @ 175,148`.
+
+The brief was mine and it named a state the field could not produce. `pixel_witness_public()` now
+reports OCCLUDED as a STATE and carries `occludedBy`, while `strikeState` keeps the aggregate under
+its own name so a derived answer never replaces the number it came from.
+⚠ This shapes the WIRE only — the rescue reads `_UI_BEAT["pixelBlank"]` directly and still sees the
+strike aggregate, so nothing about when a rescue arms has changed. Six red-proofs, all PROVEN at 1
+match. [[the-unjoined-end]] [[label-outlived-referent]]
+
 ## REG-914 — a census of ZERO read as "could not compute", so the loudest case said nothing
 
 **v2914.** Found by the cross-family eye, reported on v2911 and again on v2913, and reproduced here

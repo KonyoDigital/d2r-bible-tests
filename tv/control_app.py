@@ -13217,8 +13217,21 @@ def pixel_witness_public(b=None):
                                       "UNKNOWN, which is not the same as nothing being wrong",
                 "strikes": None, "ageS": None}
     _ts = p.get("ts")
+    # ⚠⚠ v2915 — OCCLUDED REACHES THE WIRE AS A STATE, NOT AS PROSE. v2912 published this field and
+    # documented three answers — null / OCCLUDED / BLANK — and then shipped a `state` that can only
+    # ever say PAINTED or BLANK, with the occlusion surviving only inside `why`. A reader keying on
+    # `state` alone could not learn the window was covered.
+    # ⚠ THIS SHAPES THE WIRE ONLY. The rescue reads `_UI_BEAT["pixelBlank"]` DIRECTLY and still sees
+    # the strike-level aggregate it reasons about, so nothing about when a rescue arms is changed
+    # here. What changes is only what an OUTSIDE reader is told. [[label-outlived-referent]]
+    _look = p.get("lookState")
+    _state = "OCCLUDED" if _look == "OCCLUDED" else p.get("state")
     return {
-        "state": p.get("state"),
+        "state": _state,
+        # the strike-level aggregate, kept under its own name so the derived answer above can
+        # always be checked against the number it came from. [[the-unjoined-end]]
+        "strikeState": p.get("state"),
+        "occludedBy": p.get("occludedBy"),
         "why": str(p.get("why") or "")[:400],
         "strikes": p.get("strikes") if isinstance(p.get("strikes"), int) else None,
         # ⚠ THE AGE OF THE READING, NOT OF THE REQUEST. A verdict from before the last exec is a
@@ -13248,6 +13261,22 @@ def _pixel_blank_report():
         out["why"] = r.get("why")
         out["strikes"] = r.get("strikes")
         out["measure"] = r.get("measure")
+        # ⚠⚠ v2915 (#34) — `blank_strikes` ANSWERS A STRIKE QUESTION, AND IT COLLAPSES OCCLUSION.
+        # Its top-level state is PAINTED-or-BLANK because that is what the strike counter needs.
+        # But `look()` inside it distinguishes a THIRD state, and that one is the difference
+        # between "nothing is drawn" and "something is drawn ON TOP" — opposite facts with
+        # byte-identical captures. MEASURED on his console 2026-09-10:
+        #     blank_strikes(...)  state    = 'PAINTED'
+        #     looks[-1]           state    = 'OCCLUDED'
+        #                         occludedBy = "Terminal (100.0%) is on top of it"
+        # Grok Bot read the wire, followed its brief to the letter, and reported the contradiction
+        # rather than hiding it: "field returned PAINTED while the why string still names Terminal
+        # occlusion... reporting both; not collapsing them." It was right, and the collapse was
+        # mine. The LAST look is the most recent one. [[unknown-stays-unknown]]
+        _looks = r.get("looks") or []
+        _last = _looks[-1] if _looks else {}
+        out["lookState"] = _last.get("state") if isinstance(_last, dict) else None
+        out["occludedBy"] = _last.get("occludedBy") if isinstance(_last, dict) else None
     except Exception as exc:
         out["state"] = "UNKNOWN"
         out["why"] = "the pixel witness would not answer (%s)" % type(exc).__name__
@@ -26113,7 +26142,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2914",
+        "ver": "v2915",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

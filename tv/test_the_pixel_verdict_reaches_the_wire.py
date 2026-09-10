@@ -126,6 +126,54 @@ class ThePixelVerdictReachesTheWire(unittest.TestCase):
         self.assertEqual(occ.get("strikes"), 0)
         self.assertEqual(blank.get("strikes"), 3)
 
+    def test_OCCLUDED_reaches_the_wire_as_a_STATE_not_as_prose(self):
+        """⚠⚠ v2915 — v2912 DOCUMENTED THREE ANSWERS AND SHIPPED A FIELD THAT COULD ONLY EMIT TWO.
+        `blank_strikes` answers a STRIKE question, so its aggregate is PAINTED-or-BLANK; the
+        OCCLUDED verdict lives one level down in `looks[]`. MEASURED on his console 2026-09-10:
+
+            blank_strikes(...)  state      = 'PAINTED'
+            looks[-1]           state      = 'OCCLUDED'
+                                occludedBy = "Terminal (100.0%) is on top of it"
+
+        Grok Bot read the wire, followed its brief exactly, and reported the contradiction instead
+        of hiding it. A reader keying on `state` could not learn the window was covered — and a
+        covered window and a dead one produce byte-identical captures, which is the entire reason
+        this field exists. [[label-outlived-referent]] [[unknown-stays-unknown]]"""
+        import control_app as CA
+        now = int(time.time() * 1000)
+        got = CA.pixel_witness_public({"pixelBlank": {
+            "state": "PAINTED", "lookState": "OCCLUDED", "strikes": 0, "ts": now,
+            "occludedBy": "Terminal (100.0%) is on top of it, so he cannot see it",
+            "why": "look 1 of 3 found content on the window, so it is not blank"}})
+        self.assertEqual(got.get("state"), "OCCLUDED",
+                         "the look said OCCLUDED and the wire says %r — a reader keying on state "
+                         "cannot learn the window is covered" % got.get("state"))
+        self.assertIn("Terminal", str(got.get("occludedBy")),
+                      "what is on top must be nameable, not buried in prose: %r" % got)
+
+    def test_the_strike_aggregate_survives_under_its_own_name(self):
+        """⚠ A DERIVED ANSWER MUST NEVER REPLACE THE NUMBER IT CAME FROM. The rescue reasons about
+        the strike-level aggregate; if the wire overwrote it, a supervisor could read the conclusion
+        and never check it — the defect v2457 was refused for. [[the-unjoined-end]]"""
+        import control_app as CA
+        got = CA.pixel_witness_public({"pixelBlank": {
+            "state": "PAINTED", "lookState": "OCCLUDED", "strikes": 0,
+            "ts": int(time.time() * 1000), "occludedBy": "Terminal (100.0%)", "why": "x"}})
+        self.assertEqual(got.get("strikeState"), "PAINTED",
+                         "the strike-level aggregate must remain readable beside the derived "
+                         "state: %r" % got)
+
+    def test_a_genuine_BLANK_is_never_masked_by_the_occlusion_arm(self):
+        """⚠ THE ARM MUST NOT SWALLOW THE FAULT. If the look says BLANK, the wire says BLANK — an
+        occlusion check that hid a real dead window would be worse than no check."""
+        import control_app as CA
+        got = CA.pixel_witness_public({"pixelBlank": {
+            "state": "BLANK", "lookState": "BLANK", "strikes": 3,
+            "ts": int(time.time() * 1000), "occludedBy": None,
+            "why": "brightest 1% at luminance 27; a painted console reads ~177"}})
+        self.assertEqual(got.get("state"), "BLANK", "a real BLANK must reach the wire: %r" % got)
+        self.assertEqual(got.get("strikes"), 3, "and carry its strike count: %r" % got)
+
     def test_the_reading_carries_its_own_age(self):
         """⚠ A verdict from before the last exec is a STALE verdict, and the console re-execs on
         every version bump. Without an age the reader cannot tell. [[stale-reading]]"""
@@ -181,6 +229,22 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": '        "ageS": (round(max(0.0, time.time() - (_ts / 1000.0)), 1)',
         "replace": '        "ageS": (None if True else round(max(0.0, time.time() - (_ts / 1000.0)), 1)',
+        "matches": 1,
+    },
+    {
+        "why": "collapsing the occlusion arm puts the wire back to reporting PAINTED for a window "
+               "nobody can see - the state Grok Bot reported the contradiction about.",
+        "file": "control_app.py",
+        "find": "    _state = \"OCCLUDED\" if _look == \"OCCLUDED\" else p.get(\"state\")",
+        "replace": "    _state = p.get(\"state\")",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the strike aggregate leaves only the derived answer, so a supervisor "
+               "reads a conclusion it cannot check against the number it came from.",
+        "file": "control_app.py",
+        "find": "        \"strikeState\": p.get(\"state\"),",
+        "replace": "        \"_strikeStateRemoved\": None,",
         "matches": 1,
     },
 ]

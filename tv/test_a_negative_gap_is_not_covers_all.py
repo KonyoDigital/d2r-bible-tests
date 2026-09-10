@@ -99,6 +99,11 @@ NO_CENSUS = {"provenAtCount": 291}
 # one had `unproven: 0`. Two gates carrying NO proof block cancel two of the four tested-but-unproven
 # in `proved + unproven - provenAtCount`, so v2913 printed 2 where the answer is 4.
 UNDECLARED = {"proved": 285, "unproven": 2, "provenAtCount": 289}
+# ⚠⚠ THE ONE THAT PROVES THE BRANCH, NOT ONLY THE FIGURE. v2914 fixed what was PRINTED and left the
+# DECISION keyed on the net: with `unproven` padding the gap to exactly 0, `_iGap < 0` is FALSE, the
+# arm never fires, and the panel says "covers all 289" — the ORIGINAL BUG — while four gates were
+# tested and not proven. No earlier fixture could see it: they were all strictly negative.
+PADDED = {"proved": 285, "unproven": 4, "provenAtCount": 289}
 
 
 @unittest.skipIf(shutil.which("node") is None,
@@ -197,6 +202,20 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
         self.assertNotIn("TESTED, 2 ", got,
                          "reporting the NET under a COUNT's words is the defect: %r" % got)
 
+    def test_unproven_padding_the_gap_to_zero_cannot_hide_the_finding(self):
+        """⚠⚠ v2915 — THE BRANCH, NOT THE FIGURE. `_iGap` is `(proved + unproven) - provenAtCount`,
+        so `unproven` can pad it to exactly 0 while `provenAtCount` still exceeds `proved`.
+        MEASURED: proved 285 · unproven 4 · provenAtCount 289 -> _iGap = 0, the arm did not fire,
+        and the panel said "covers all 289" with FOUR gates tested and unproven. The question this
+        arm asks is "were more gates TESTED than came back PROVEN", which is `_iNotProven > 0` and
+        never involves `unproven`. [[label-outlived-referent]]"""
+        got = _run([PADDED])[0]
+        self.assertNotIn("covers all", got,
+                         "unproven padded the gap to zero and the panel claimed completeness over "
+                         "289 while 4 gates were tested and not proven: %r" % got)
+        self.assertIn("4 of them", got,
+                      "must name the four tested-but-unproven gates: %r" % got)
+
     def test_the_three_other_states_keep_their_own_words(self):
         """⚠ A fix that repairs one arm by breaking its siblings is not a fix. The FLOOR, EXACT and
         UNKNOWN arms must be untouched — this is the regression half of the law."""
@@ -214,8 +233,8 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
     def test_every_arm_glues_its_separator_to_the_clause_it_introduces(self):
         """A `·` must never end a line pointing at a clause that wrapped away from it — the v2905
         finding, which this new arm must not reintroduce. [[visual-regression-detector]]"""
-        for name, got in zip(("gap-4", "today", "gap-1", "all-blind", "undeclared", "floor", "exact", "unknown"),
-                             _run([HIS_LIVE, TODAY, NEAR, ALL_BLIND, UNDECLARED, FLOOR, EXACT, NO_COUNT])):
+        for name, got in zip(("gap-4", "today", "gap-1", "all-blind", "undeclared", "padded", "floor", "exact", "unknown"),
+                             _run([HIS_LIVE, TODAY, NEAR, ALL_BLIND, UNDECLARED, PADDED, FLOOR, EXACT, NO_COUNT])):
             if not got:
                 continue
             self.assertNotIn("· ", got,
@@ -228,7 +247,7 @@ RED_PROOF = [
         "why": "deleting the negative arm's test drops his measured state back into 'covers all "
                "289' — the exact sentence measured on his console on 2026-09-10.",
         "file": "control_ui.html",
-        "find": "          : (_iGap < 0\n",
+        "find": "          : (_iNotProven > 0\n",
         "replace": "          : (false\n",
         "matches": 1,
     },
@@ -237,8 +256,8 @@ RED_PROOF = [
                "fixture green while a ONE-gate drift renders 'covers all' again — which is why "
                "this suite now carries a gap -1 fixture. [[feedback-threshold-above-the-ceiling]]",
         "file": "control_ui.html",
-        "find": "          : (_iGap < 0\n",
-        "replace": "          : (_iGap < -1\n",
+        "find": "          : (_iNotProven > 0\n",
+        "replace": "          : (_iGap < 0\n",
         "matches": 1,
     },
     {
@@ -257,6 +276,15 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "var _iHaveCensus = (typeof d.proved === 'number') || (typeof d.unproven === 'number');",
         "replace": "var _iHaveCensus = !!_iCensus;",
+        "matches": 1,
+    },
+    {
+        "why": "the sabotage v2914 never had: putting the NET back where the COUNT belongs. This is "
+               "the defect that named that version, and until now --prove could not show its law "
+               "go red for its own reason.",
+        "file": "control_ui.html",
+        "find": "              ? (' \u00b7\u00a0and ' + _iStamped + ' gate(s) were TESTED, ' + _iNotProven",
+        "replace": "              ? (' \u00b7\u00a0and ' + _iStamped + ' gate(s) were TESTED, ' + (-_iGap)",
         "matches": 1,
     },
 ]

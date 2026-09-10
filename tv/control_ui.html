@@ -12385,7 +12385,12 @@ window._lockMark = function(isOpen, px, label){
        Tested-but-not-proven never involves `unproven`: it is simply the gates that were TESTED
        minus the gates that came back PROVEN. [[label-outlived-referent]] [[zero-needs-a-denominator]] */
     var _iProved = (typeof d.proved === 'number') ? d.proved : 0;
-    var _iNotProven = (_iStamped === null) ? null : (_iStamped - _iProved);
+    /* ⚠ AND IT MUST BE NULL WITHOUT A CENSUS, or the new branch INVENTS a drift from a missing
+       number — caught immediately by v2914's own law: with no census fields `_iProved`
+       defaults to 0 and `_iStamped - 0` is the whole stamp count, so the clause announced
+       "291 did NOT come back proven" about a census nobody took. Absent is not zero, in this
+       direction too. [[unknown-stays-unknown]] */
+    var _iNotProven = (_iStamped === null || !_iHaveCensus) ? null : (_iStamped - _iProved);
     var _iGap = (_iStamped === null || !_iHaveCensus) ? null : (_iCensus - _iStamped);
     var _iDenom = (_iStamped === null)
       /* ⚠ v2905 (#68) — EVERY BRANCH GLUES ITS SEPARATOR TO THE WORD AFTER IT. Photographed
@@ -12417,7 +12422,16 @@ window._lockMark = function(isOpen, px, label){
              OLDER than the stamps, and it is the one arm of this sentence that reports a STALE
              reading rather than a complete one. A gap of exactly 0 keeps its old words.
              [[stale-reading]] [[zero-needs-a-denominator]] [[label-outlived-referent]] */
-          : (_iGap < 0
+          /* ⚠⚠ v2915 (#68) — THE BRANCH KEYED OFF THE NET WHILE THE FIGURE DID NOT, so v2914 fixed
+             what was PRINTED and left the DECISION wrong. The eye caught it on the very next pass.
+             MEASURED against the shipped expression: proved 285 · unproven 4 · provenAtCount 289
+             gives _iGap = (285+4) - 289 = 0, so `_iGap < 0` is FALSE, the arm never fires, and the
+             panel says "covers all 289" — THE ORIGINAL BUG — while FOUR gates were tested and did
+             not come back proven. `unproven` padded the gap to zero and hid them.
+             The question this arm asks is "were more gates TESTED than came back PROVEN", and that
+             is `_iNotProven > 0`. It never involves `unproven`. `_iGap` stays for the FLOOR arm,
+             which is genuinely about the census total. [[label-outlived-referent]] */
+          : (_iNotProven > 0
               /* ⚠⚠ v2913 (#68) — v2911 NAMED THE WRONG CAUSE, AND THE CROSS-FAMILY EYE CAUGHT IT.
                  v2911 fixed the real lie (a negative gap rendering as 'covers all') and then
                  explained it as "the census is OLDER than the stamps". MEASURED on his store:
