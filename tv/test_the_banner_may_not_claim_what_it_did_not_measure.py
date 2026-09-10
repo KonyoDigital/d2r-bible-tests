@@ -142,6 +142,17 @@ class TheBannerMayNotClaimWhatItDidNotMeasure(unittest.TestCase):
             "literal" % len(vals))
 
 
+RED_PROOF = [
+    {
+        'why': 'Reinstates the exact v2799 defect: the LIGHT-mode startup banner stops interpolating the MEASURED OCR state (`_ocr_here`, computed from OCR_ENABLED and _OCR.available() on the two lines above) and goes back to a hardcoded literal "OCR OFF" — while `ocr lane: {ocr_tag}` five lines below still prints the real, measured state and says ON. The tamper deletes the real thing the law protects (the interpolation of a measurement) rather than a comment or a message-string mention: the gate PARSES the AST of the `if LIGHT_MODE:` body and inspects the constant parts of the banner print\'s f-string, so only an edit to the banner\'s own literal text can move it. It is not a shared constant (nothing else reads `_ocr_here`, count=1 use site) and not on the wrong side of a union (there is one derived set, the literal text of the banner branch).  MEASURED: untampered OK — 4 tests, all pass: `python3 tv/test_the_banner_may_not_claim_what_it_did_not_measure.; tampered (all 1) FAILED (failures=1), exit 1. Match count printed before the edit: matches=1, and after the; reddened law test_the_banner_may_not_claim_what_it_did_not_measure.TheBannerMayNotC; ALONE FAILS ALONE. `python3 -m unittest test_the_banner_may_not_claim_what_it_did_not_measure.TheBannerMayNotClaimWh.',
+        'file': 'tv_diablo.py',
+        'find': 'OCR {_ocr_here} · 1 claude',
+        'replace': 'OCR OFF · 1 claude',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

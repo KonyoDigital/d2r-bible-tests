@@ -220,5 +220,16 @@ class TheExportCarriesExactlyOneWorld(unittest.TestCase):
                           % ("owner" if owner else "guest"))
 
 
+RED_PROOF = [
+    {
+        'why': "Deletes the REAL install-fork strip inside _collectProgress: the ternary condition that recognises a guest-world key (I·<id8>· / IL·<id8>·) before computing its BARE name. With it dead, `bare` stays the namespaced raw key, LSR.key(bare)===rk still holds, and the exporter emits the other worlds verbatim — exactly the v2738 defect. It is executable code, not a comment or a message string, and it is on ONE side only: the law's other side is window.LSR.key(), which the edit does not touch, so the two derived views genuinely disagree.  MEASURED: untampered OK — `python3 tv/test_export_scopes_to_one_world.py` ran 7 tests, 0 skipped (node present ; tampered (all 1) FAILED (failures=3): test_an_OWNER_export_carries_no_guest_world (owner snapshot carried [; reddened law test_export_scopes_to_one_world.TheExportCarriesExactlyOneWorld.test_a; ALONE RED ALONE — `PYTHONPATH=tv python3 -m unittest test_export_scopes_to_one_world.TheExportCarriesExactlyOneWorld.",
+        'file': 'bible.html',
+        'find': "rk.indexOf('IL·') === 0 || rk.indexOf('I·') === 0",
+        'replace': 'false',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

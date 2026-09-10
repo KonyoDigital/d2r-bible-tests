@@ -141,5 +141,16 @@ class MiniFocPillsAreSymmetric(unittest.TestCase):
             )
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate exists because his A17 #7 ruling ("make it symmetric then?") shipped at v2686 as an equal-column grid on `.mini-foc` with nothing pinning it. The one thing that enforces the ruling is the `grid-template-columns` VALUE on the `.mini-foc` rule in tv/control_ui.html — it is the real declaration, not a comment and not a mention in a message string, and it is not a constant read from both sides of an agreement law (the guard parses this value out of the live CSS and grades it against a fixed policy). Swapping the equal-fraction value for `repeat(2, max-content)` restores exactly the asymmetry he asked to be removed: columns sized to whatever label is longest, which v2709 already proved is a moving target. Anchoring on the full declaration keeps the match unique — the bare `minmax(0, 1fr)` appears 11 times and `grid-template-columns` 46 times elsewhere in the file, so heart2\'s replace-all would have shredded unrelated layouts.  MEASURED: untampered Ran 4 tests in 0.011s -- OK (test_it_is_a_grid, test_the_columns_are_declared, test_every_; tampered (all 1) FAILED (failures=1) -- MiniFocPillsAreSymmetric.test_every_column_is_an_EQUAL_FRACTION: As; reddened law test_mini_foc_pills_are_symmetric.MiniFocPillsAreSymmetric.test_every_; ALONE python3 -m unittest test_mini_foc_pills_are_symmetric.MiniFocPillsAreSymmetric.test_every_column_is_an_EQUAL_F.',
+        'file': 'control_ui.html',
+        'find': 'grid-template-columns: repeat(2, minmax(0, 1fr));',
+        'replace': 'grid-template-columns: repeat(2, max-content);',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

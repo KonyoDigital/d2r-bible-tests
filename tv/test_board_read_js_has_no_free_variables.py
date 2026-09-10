@@ -215,5 +215,16 @@ class BoardReadJsHasNoFreeVariables(unittest.TestCase):
             "to silence a failure is how this law stops being one." % len(GLOBALS))
 
 
+RED_PROOF = [
+    {
+        'why': 'Renaming the JS `var storeEmptied=null;` declaration inside board_ownership\'s emitted script leaves the later `storeEmptied={at:...}` assignment and the `storeEmptied:storeEmptied` payload read pointing at a name that is never declared — the exact v2731 shape (`rwMadeFull:(dump?rwFull:null)`) that made the whole board read throw \'Can\'t find variable: dump\' and stopped his automatic ledger backup for a day while every gate stayed green. It deletes a real declaration in the code the law grades, not a comment, a message string or a shared constant.  MEASURED: untampered OK — Ran 6 tests in 1.42s, all ok (python3 tv/test_board_read_js_has_no_free_variables.py); tampered (all 1) FAILED (failures=1) — Ran 6 tests; only test_no_free_variables_in_either_mode red: "Lists ; reddened law test_board_read_js_has_no_free_variables.BoardReadJsHasNoFreeVariables; ALONE FAILED alone — python3 -m unittest test_board_read_js_has_no_free_variables.BoardReadJsHasNoFreeVariables.test.',
+        'file': 'control_app.py',
+        'find': 'var storeEmptied=null;',
+        'replace': 'var storeEmptiedZ=null;',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -169,5 +169,16 @@ class HisOwnRowIsNotARoundTrip(unittest.TestCase):
                       "round trip and every law above grades a function nothing runs")
 
 
+RED_PROOF = [
+    {
+        'why': "His own fleet row must take the LOCAL board_tally figure over the beacon's round-tripped one — deleting the overlay write puts his card back a publish cadence plus a 60s cache behind his own disk (123 while board_tally.json already says 124).  MEASURED: untampered 9 tests, OK (green) — perl -e 'alarm 200; exec @ARGV' python3 tv/test_his_own_fleet_row_is; tampered (all 1) FAILED (failures=2): test_his_row_takes_the_LOCAL_figure_over_the_beacons (AssertionError:; reddened law HisOwnRowIsNotARoundTrip.test_his_row_takes_the_LOCAL_figure_over_the_; ALONE RED ALONE — python3 -m unittest test_his_own_fleet_row_is_not_a_round_trip.HisOwnRowIsNotARoundTrip.test_his_r.",
+        'file': 'control_app.py',
+        'find': 't[led] = dict(v)',
+        'replace': 'v = dict(v)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

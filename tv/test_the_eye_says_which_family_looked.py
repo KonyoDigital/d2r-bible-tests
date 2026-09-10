@@ -416,5 +416,16 @@ class TheEyeSaysWhichFamilyLooked(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'The only place _second_eye_lane_state() names the FAILING state is the intentBlocked branch in tv/control_app.py — a lane the far end is permanently refusing (402 Payment Required, intentBlocked true). Rewriting that single occurrence to state="on" restores the exact v2770 defect: an installed, signed-in, switched-on but refused second lane is republished to THE FLEET as an ordinary healthy second eye, so failure wears health. It is not a comment, not a message string, and not a constant both sides of an agreement read — the render laws use hardcoded _CASES, so only the wire law moves.  MEASURED: untampered perl -e \'alarm 200; exec @ARGV\' python3 tv/test_the_eye_says_which_family_looked.py -> Ran; tampered (all 1) Same command after replacing all 1 occurrence -> Ran 13 tests, FAILED (failures=1): test_a; reddened law test_the_eye_says_which_family_looked.TheEyeSaysWhichFamilyLooked.test; ALONE python3 -m unittest test_the_eye_says_which_family_looked.TheEyeSaysWhichFamilyLooked.test_a_lane_that_is_ON_A.',
+        'file': 'control_app.py',
+        'find': 'state="failing"',
+        'replace': 'state="on"',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

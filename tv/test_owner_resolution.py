@@ -189,5 +189,16 @@ class OwnerResolution(unittest.TestCase):
         self.assertIs(by["PLAYWRIGHT claimed with the wildcard"], True)
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate lifts the real `window._D2R_OWNER = (function(){...})();` IIFE out of bible.html and runs it in a node vm sandbox across 9 ownership cases. The load-bearing half of the automation escape hatch is that BOTH conditions are required: `navigator.webdriver === true` AND `location.protocol === \'file:\'`. Deleting the protocol half is the too-generous direction — the Dean defect\'s shape — because any webdriver-flagged browser on the deployed http(s) site would then resolve as OWNER and inherit the seeded chronicle. This anchor is the assignment statement itself, not a comment and not a mention inside a message string; the identical condition also appears once more in an unrelated profile-default function (offset 378121), so the anchor is bound with the `automated = ` prefix and the trailing `;`, giving exactly 1 match confined to the _D2R_OWNER declaration.  MEASURED: untampered OK — `python3 tv/test_owner_resolution.py`: Ran 4 tests, OK (all four laws green, node fou; tampered (all 1) FAILED (failures=1) — Ran 4 tests. `test_every_case_resolves_as_ruled` FAIL: "ownership re; reddened law test_owner_resolution.OwnerResolution.test_every_case_resolves_as_rule; ALONE FAILS ALONE — fresh process, cwd tv/: `python3 -m unittest test_owner_resolution.OwnerResolution.test_every_ca.',
+        'file': 'bible.html',
+        'find': "automated = navigator.webdriver === true && location.protocol === 'file:';",
+        'replace': 'automated = navigator.webdriver === true;',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

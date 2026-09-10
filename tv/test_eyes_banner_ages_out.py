@@ -164,5 +164,16 @@ class TheEyesBannerAgesOut(unittest.TestCase):
                                      "hover — it is still evidence, it just is not a headline")
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate\'s whole subject is the one-hour age bar that decides whether a Grok error is the PRESENT STATE or a MEMORY. This is the live guard clause itself in tv/control_ui.html — not a comment, not a message string, and not a constant the test also reads (the test hardcodes 59/61 minutes and 7 days, so it does not move with the source). Raising the bar to ~114 years makes `_stale` stay empty for any real age, reinstating the exact v2718 defect: a week-old 402 printed in the present tense beside its own "7d ago".  MEASURED: untampered OK — Ran 5 tests, OK (exit 0), tv/test_eyes_banner_ages_out.py on a clean tree; tampered (all 1) FAILED (failures=2): test_a_WEEK_old_error_is_a_memory_not_the_present_tense ("\'\' is not t; reddened law test_eyes_banner_ages_out.TheEyesBannerAgesOut.test_a_WEEK_old_error_i; ALONE python3 -m unittest test_eyes_banner_ages_out.TheEyesBannerAgesOut.test_a_WEEK_old_error_is_a_memory_not_the_p.',
+        'file': 'control_ui.html',
+        'find': '_ageMs !== null && _ageMs > 3600000',
+        'replace': '_ageMs !== null && _ageMs > 3600000000000',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

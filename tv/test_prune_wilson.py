@@ -460,5 +460,16 @@ class FortyEightRefusalsCannotTellCorrectFromBrokenSHUT(unittest.TestCase):
                          "a raising guard left the auto-prune switch changed")
 
 
+RED_PROOF = [
+    {
+        'why': '_refused() is the one place the harness decides what counts as the deleter REFUSING, and its whole point is that a bare False carrying no reason is not a refusal — "it just said no" is the shape a stub returns, and the console has to be able to say WHY it did not delete. Dropping the `and bool(str(why or "").strip())` arm deletes that behaviour itself, not a comment about it: every reasonless False would then be banked as a caught sabotage against prune.arm, the one door with no undo.  MEASURED: untampered Ran 20 tests in 0.495s — OK (exit 0); tampered (all 1) Ran 20 tests in 0.397s — FAILED (failures=1); the only failure is TheHarnessCanGoRed.test_; reddened law test_prune_wilson.TheHarnessCanGoRed.test_a_bare_False_with_no_reason_; ALONE python3 -m unittest test_prune_wilson.TheHarnessCanGoRed.test_a_bare_False_with_no_reason_does_not_count_as_a_.',
+        'file': 'prune_wilson.py',
+        'find': 'return (ok is False) and bool(str(why or "").strip())',
+        'replace': 'return (ok is False)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -172,6 +172,17 @@ def main(argv):
     return 0 if r.get("ok") else 1
 
 
+RED_PROOF = [
+    {
+        'why': 'The write_census gate (tv/write_census.py, a script — Gate("write_census", [python, tv/write_census.py])) is an OBSERVATION: it arms tv/write_witness.py over a real write to a scratch root and reads back who did it, then requires at least one store both MEASURED and confirmed equal to its declared owner in store_owners.STORES. The only exercisable store today is retro_triage.json, and retro_triage.remember() writes it atomically — open("<store>.tmp","w") then os.replace(tmp, p). The .tmp basename is NOT in write_witness.WATCHED, so the patched open records nothing; the single witnessed event comes exclusively from the os.replace patch installed by `watching().__enter__`. That installation line is the real mechanism, and the module\'s own scar says so ("THE ATOMIC WRITE IS THE ONE THAT MATTERS AND IT IS NOT AN `open` OF THE STORE"). Deleting the installation (not the comment, not the message string, not a shared constant) blinds the witness to the only write it can see. Anchor is unique (count printed: 1) and distinct from `__exit__`\'s `os.replace = self._replace`, so a replace-all touches exactly the installation.  MEASURED: untampered python3 tv/write_census.py -> EXIT=0. Row: "MEASURED retro_triage.json retro_triage — 1 wr; tampered (all 1) python3 tv/write_census.py -> EXIT=1. Row flipped to "WATCHED AND SAW NOTHING retro_triage; reddened law write_census.census()\'s ok-law: ok = bool(confirmed) and not disagree ; ALONE FAILS ALONE. The gate is a script, so "alone" = a fresh process invoking exactly that one check. (1) python3 -.',
+        'file': 'write_witness.py',
+        'find': 'os.replace = _replace',
+        'replace': 'pass',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

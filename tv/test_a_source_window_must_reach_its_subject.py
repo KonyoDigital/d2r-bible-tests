@@ -181,5 +181,16 @@ class ASourceWindowMustReachItsSubject(unittest.TestCase):
                          "was 9000." % bad)
 
 
+RED_PROOF = [
+    {
+        'why': 'A FIXED-SIZE SOURCE WINDOW MEASURES MY GUESS, NOT THE FILE — _river_payload cut SRC[i:i+9000] out of the /api/river handler, the payload grew to +9145, find returned -1 and three laws reported a perfectly fine route as gone. The both-ends anchor (next `if path ==`, else EOF) is the real thing; reverting it to a byte count restores the defect.  MEASURED: untampered GREEN — `python3 tv/test_a_source_window_must_reach_its_subject.py` Ran 4 tests, OK (9.85s; tampered (all 1) RED — same command, Ran 4 tests, FAILED (failures=1). Match count in target measured as ex; reddened law test_a_source_window_must_reach_its_subject.ASourceWindowMustReachItsS; ALONE FAILS ALONE — `python3 -m unittest test_a_source_window_must_reach_its_subject.ASourceWindowMustReachItsSubjec.',
+        'file': 'test_the_river_has_a_mouth.py',
+        'find': '    blk = SRC[i:end if end > i else len(SRC)]',
+        'replace': '    blk = SRC[i:i + 9000]',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

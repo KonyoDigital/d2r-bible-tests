@@ -186,5 +186,16 @@ class NoResolverFallsBackToHisLiveWorld(unittest.TestCase):
                       "_log_root has its own copy of the rule again instead of delegating")
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the ONE thing the gate\'s star law asserts: the except-arm of control_app._fixture_root_for_state() consulting TV_HIST before it may answer HERE. Renaming the env key leaves the handler broad, still yielding HERE, and now with no "TV_HIST" constant inside it — exactly the v2783/v2788 defect the census exists to find (a request for isolation degrading to NO isolation, which on LOG_PATH appends to and truncates his real control_agent.log). It is code, not a comment or message string: the census is AST-based, so the surrounding explanatory comments that quote TV_HIST are invisible to it, and the anchor is the assignment itself.  MEASURED: untampered Ran 5 tests in 2.815s — OK (python3 tv/test_no_resolver_falls_back_to_his_live_world.py, c; tampered (all 1) Ran 5 tests in 2.841s — FAILED (failures=1). AssertionError: [\'control_app.py:78 in _fixtu; reddened law test_no_resolver_falls_back_to_his_live_world.NoResolverFallsBackToHis; ALONE python3 -m unittest test_no_resolver_falls_back_to_his_live_world.NoResolverFallsBackToHisLiveWorld.test_NO_ex.',
+        'file': 'control_app.py',
+        'find': '_hist = os.environ.get("TV_HIST")',
+        'replace': '_hist = os.environ.get("TV_HIST_NOT_CONSULTED")',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

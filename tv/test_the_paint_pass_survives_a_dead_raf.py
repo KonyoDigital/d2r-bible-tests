@@ -133,5 +133,16 @@ class ThePaintPassSurvivesADeadRaf(unittest.TestCase):
                              "elements it reparents them for a tick" % (bad, n_fixed))
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the actual timer fallback inside _shellPaintAgain() in tv/control_ui.html, leaving requestAnimationFrame as the only scheduler — exactly the defect this gate exists to catch, since rAF does not fire in a window WebKit considers hidden (the state that produces the stale composite). The anchor is live code, not prose: the gate blanks comments via _code_only() before reading, and it is bounded inside the _shellPaintAgain body (_fn stops at the next `\\n  function `), so it is not a mention in a message string, a shared constant, or an edit that moves both sides of an agreement.  MEASURED: untampered OK — Ran 6 tests, 0 failures (python3 tv/test_the_paint_pass_survives_a_dead_raf.py); tampered (all 1) FAILED (failures=1) — Ran 6 tests; the only red law is test_the_second_pass_does_not_depen; reddened law ThePaintPassSurvivesADeadRaf.test_the_second_pass_does_not_depend_on_r; ALONE FAILED (failures=1) — `python3 -m unittest test_the_paint_pass_survives_a_dead_raf.ThePaintPassSurvivesADeadRa.',
+        'file': 'control_ui.html',
+        'find': 'try { setTimeout(once, 32); } catch (e) {}',
+        'replace': 'try { void 0; } catch (e) {}',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

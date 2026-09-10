@@ -126,5 +126,16 @@ def main():
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'comment-count asserts that the runeword denominator written in bible.html\'s prose ("chronicle and 100/100") equals the DISTINCT runeword names parsed out of the RUNEWORDS array literal in the same file. Renaming the first RUNEWORDS entry from Enigma to an already-present name (Insight) removes one distinct word from the measured set (100 -> 99) while the claimed 100 is unchanged, so the two sides of the pair genuinely disagree. It is not a comment, not text inside a message string, and not a constant both sides read: the claim comes from prose, the measurement from the data literal.  MEASURED: untampered python3 tv/comment_count_gate.py -> exit 0, "comment-count: OK - 3 claim(s) match what the; tampered (all 1) python3 tv/comment_count_gate.py -> exit 1, "comment-count: 1 stale claim(s). runeword den; reddened law comment_count_gate.CHECKS[0] "runeword denominator" (_runewords vs the; ALONE Gate is a script, so "alone" = a fresh python3 process importing comment_count_gate and evaluating ONLY CHECKS.',
+        'file': 'bible.html',
+        'find': '{n:"Enigma"',
+        'replace': '{n:"Insight"',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main())

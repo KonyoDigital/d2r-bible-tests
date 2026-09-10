@@ -184,5 +184,16 @@ class TheTwoDeletersShareOneWindow(unittest.TestCase):
             ast.parse(io.open(os.path.join(HERE, f), encoding="utf-8").read())
 
 
+RED_PROOF = [
+    {
+        'why': 'recent_reels() is the shield itself: it must hold the NEWEST `keep` reel directories, ordered by the timestamp parsed out of the directory name. Flipping the slice from [-keep:] to [:keep] keeps the OLDEST reels instead, so the newest recordings become prunable while the count and the two KEEP_RECENT constants still agree — the protection reads as intact and is in fact inverted. Chosen over editing KEEP_RECENT because the behavioural fixture is DERIVED from FA.KEEP_RECENT and the equality law reads one number from each module, making a constant edit the weaker anchor.  MEASURED: untampered OK — Ran 7 tests in 0.016s, OK (all 7 green, no skips); tampered (all 1) FAILED (failures=1) — Ran 7 tests; test_the_shield_actually_holds_the_newest_reels: "the s; reddened law TheTwoDeletersShareOneWindow.test_the_shield_actually_holds_the_newest; ALONE FAILS ALONE — python3 -m unittest test_the_two_deleters_share_one_window.TheTwoDeletersShareOneWindow.test_the.',
+        'file': 'frame_authority.py',
+        'find': 'sorted(reels, key=_reel_ts)[-keep:]',
+        'replace': 'sorted(reels, key=_reel_ts)[:keep]',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

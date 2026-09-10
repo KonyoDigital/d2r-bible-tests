@@ -123,5 +123,16 @@ class SealedIsNotCertified(unittest.TestCase):
                                 "unmeasured-number shape this split exists to remove" % r.get("reel"))
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the tombstone station from printer.py\'s STATIONS declaration — the tuple that registers the 7th station and fixes it as LAST ("station and THEN tombstone at the end of it all"). This is the real declaration, not a comment or a message string, and the test hardcodes the literal "tombstone" on its own side, so it is not a shared constant both halves read. With it removed, TheStationExistsAndIsLast.test_tombstone_is_registered_and_final goes red.  MEASURED: untampered OK (skipped=2) — 9 tests, 2 skips, both the declared `no reels on this host — printer.stre; tampered (all 1) FAILED (failures=1, skipped=2) — AssertionError: \'tombstone\' not found in (\'in\', \'funnel\',; reddened law test_tombstone_station.TheStationExistsAndIsLast.test_tombstone_is_reg; ALONE python3 -m unittest test_tombstone_station.TheStationExistsAndIsLast.test_tombstone_is_registered_and_final un.',
+        'file': 'printer.py',
+        'find': '"out", "tombstone")',
+        'replace': '"out")',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

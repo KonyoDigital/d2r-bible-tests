@@ -28504,3 +28504,48 @@ front — wrong side of a union, anchor outside the declaration, shared constant
 came back with the inert anchors that cost three attempts by hand earlier the same day.
 **Census: 165 -> 175 of 280 (62.5%).**
 `[[workflow-topology]]` `[[sabotage-is-usually-the-wrong-one]]` `[[feedback-suspect-the-instrument]]`
+
+### REG-860 — REG-856 was fixed in one of its two call sites, and the entry said so
+**v2887.** REG-856 recorded that `_run_gate` dropped each gate's registered argv tail and timeout,
+and named the consequence out loud: *"prove() calls the same `_run_gate`. Any gate needing extra
+argv would have had its red-proof graded on the wrong command."* The fix was then threaded through
+`triage()` only. **Naming the second site in prose is not the same as covering it.**
+**Measured two versions later**, proving 47 gates:
+```
+js-syntax             UNPROVABLE — clean run: timed out after 180s   (registered: 300s)
+corroborate-selftest  UNPROVABLE — ALREADY RED untampered            (registered argv: --selftest)
+```
+Neither was a bad proof. Both were `prove()` running a command the suite never issues. After one
+shared `gate_spec()` reader used by `_prove_one` (clean AND tampered runs) and `triage()` alike:
+both PROVEN. `[[feedback-generalize-fixes]]` `[[the-unjoined-end]]`
+
+### REG-861 — a proof whose gate file IS its target inflates its own match count
+**v2887.** `corroborate-selftest` is `python3 corroborate.py --selftest`, so its RED_PROOF is
+written into the very file it tampers — and the proof's own `find` and `why` fields are themselves
+occurrences of the anchor. My validator counted `return a <= b` **once** and was right: that was
+true *before* the proof was written. Applying it made the count **3**, and heart2 refused with
+*"INVALID — the tamper matched 3 time(s), expected 1. The SABOTAGE is wrong."*
+A reading that was correct when taken and stale when used — the same shape as every other
+`[[stale-reading]]`, but produced by the act of recording the measurement.
+**Census of the class, not a guess:** exactly **2 of 280** gates target their own file.
+`vault-fixture-reels` is genuinely sound — its anchor occurs once in real code and **zero** times
+inside its proof block, verified by splitting the file at `RED_PROOF = [`.
+**Fix:** `matches: 3`, documented in the proof itself. The tamper still reddens via the real code at
+line 1945; the other two land in this declaration inside a throwaway sandbox copy, after heart2 has
+already parsed it. Then PROVEN (3 match(es) tampered → red).
+`[[stale-reading]]` `[[sabotage-is-usually-the-wrong-one]]`
+
+### REG-862 — agent worktrees live INSIDE the repo, and 478 MB of them disabled the heart
+**v2887.** A 50-agent fan-out left 4 worktrees under `.claude/worktrees/` — inside the repo
+`safe_copy` is asked to copy. `safe_copy` has a deliberate MB ceiling ("this copier is for source,
+not data"), the checkouts blew through it, and `make_sandbox` began returning None. Every proof
+would have reported UNKNOWN with nothing wrong with the proofs.
+**The tool behaved correctly and said so:** *"safe_copy REFUSED the sandbox (exit 1) — nothing was
+copied, so nothing can be proven. That is UNKNOWN, not clean."* It declined rather than proving
+against an empty tree.
+Diagnosis order matters here: names-don't-match (refuted, 47 of 47 present) → disk full (refuted,
+40 GB free) → the ceiling (confirmed). Each worktree was inspected before removal — each held one
+gate file carrying the agent's own RED_PROOF draft, already applied to the main tree — then removed
+with `git worktree remove` and pruned. `.claude` 478 MB -> 36 KB, sandbox builds again.
+**Standing rule for fan-outs: worktree isolation is not free when the worktrees sit inside the tree
+the tooling copies.** `[[workflow-topology]]` `[[i-own-everything-i-start]]`

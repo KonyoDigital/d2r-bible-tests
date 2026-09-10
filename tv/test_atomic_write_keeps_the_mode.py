@@ -183,5 +183,16 @@ class AtomicWriteKeepsTheModeAndTheHookStaysArmed(unittest.TestCase):
                         "this clone pushes with no gates")
 
 
+RED_PROOF = [
+    {
+        'why': "Deletes the ONLY capture of the destination's existing permission bits in atomic_write (tv/bump_version.py). With _mode None the function takes the brand-new-file branch — chmod(tmp, 0o666 & ~umask) = 0644 — and the post-replace fallback, guarded by `if _mode is not None`, never fires, so os.replace lands a 0644 inode over a 0755 script. That is the v2794 defect exactly: an executable edited through atomic_write comes out non-executable, hooks/pre-push goes 100755 -> 100644, and git silently skips every gate. The anchor is the executable statement, not a comment or a message string; the docstring's many prose mentions of the mode are untouched by this literal (count 1 in the file).  MEASURED: untampered OK — `python3 tv/test_atomic_write_keeps_the_mode.py` ran 7 tests, verdict OK, 0.015s.; tampered (all 1) FAILED (failures=2) — 7 tests run. test_atomic_write_PRESERVES_an_executable_bit: Assertio; reddened law AtomicWriteKeepsTheModeAndTheHookStaysArmed.test_atomic_write_PRESERVE; ALONE RED ALONE — `python3 -m unittest test_atomic_write_keeps_the_mode.AtomicWriteKeepsTheModeAndTheHookStaysArmed..",
+        'file': 'bump_version.py',
+        'find': '_mode = os.stat(path).st_mode',
+        'replace': '_mode = None',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

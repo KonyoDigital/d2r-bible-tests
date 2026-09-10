@@ -160,5 +160,16 @@ class ThePanelPrintsWhatTheRowMeasured(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the whole fix in one expression: `roster-unconfirmed` is the ONLY code that defers to the row\'s own measurement, so `_raw` prints `only 0 independent witnesses (none) - needs 2` instead of the generic sentence. Kill the condition and `_raw` collapses to `(_code || _meas)` = the pre-fix behaviour, which is exactly the defect on his screen: the panel prints "read once" over Gheed\'s Wager, which has ZERO. The anchor is the live declaration inside the three lines the gate slices out of bible.html and runs in node - not a comment, not a message string, and not a shared constant read by both sides of an agreement (the bare string `roster-unconfirmed` occurs 4x in bible.html, but this composite anchor is unique at 1). Both slice anchors `var _meas = String(` and `var _raw =` survive the edit, so the instrument still parses instead of dying in 0.010s with all six laws blaming the fix for a broken slicer.  MEASURED: untampered Ran 6 tests in 0.215s -- OK. 0 skips: node present at /usr/local/bin/node, so the skipIf g; tampered (all 1) Ran 6 tests in 0.147s -- FAILED (failures=4): test_a_measured_row_prints_ITS_OWN_count, te; reddened law ThePanelPrintsWhatTheRowMeasured.test_a_measured_row_prints_ITS_OWN_co; ALONE python3 -m unittest test_the_panel_prints_what_the_row_measured.ThePanelPrintsWhatTheRowMeasured.test_a_measur.',
+        'file': 'bible.html',
+        'find': '/^roster-unconfirmed/.test(_code) && _meas',
+        'replace': 'false && _meas',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

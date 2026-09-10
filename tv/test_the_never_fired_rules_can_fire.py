@@ -200,5 +200,16 @@ class TheNeverFiredRulesCanFire(unittest.TestCase):
                         "before trusting this suite. neverFired=%r" % sorted(never))
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the live trigger of the `zero-pages` retention rule at reel_retention.py:750 — `elif pages < MIN_PAGES and not _proven_empty(reel) and not _no_chronicle_to_find(reel):` — the branch that HOLDS a reel sealed with no pages read. It is executable condition, not a comment and not a message string, and it is not a constant both sides of the law read: the test carries its own literal "zero-pages" in SHAPES and never imports MIN_PAGES, so only the production side moves. Neutering the comparison to `pages < 0` deletes the hold entirely: the fixture reel recorded as pages=0 falls straight through the chain and comes out `eligible`, i.e. deletable. That is exactly the failure the gate exists to catch — a rule that has never fired on his footage also failing to fire on a reel built for it.  MEASURED: untampered OK (skipped=1) — Ran 7 tests in 3.685s, python3 tv/test_the_never_fired_rules_can_fire.py; tampered (all 1) FAILED (failures=2, skipped=1) — Ran 7 tests in 4.270s; reddened law test_each_of_the_five_rules_fires_on_its_own_shape (also test_the_fixt; ALONE FAILED (failures=1) alone in a fresh process: python3 -m unittest test_the_never_fired_rules_can_fire.TheNever.',
+        'file': 'reel_retention.py',
+        'find': 'pages < MIN_PAGES',
+        'replace': 'pages < 0',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

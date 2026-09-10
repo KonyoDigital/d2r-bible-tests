@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2887** | `(this commit)` | v2887 — 47 proofs measured, and three defects that were mine not the agents |
 | **v2886** | `(this commit)` | v2886 — verified agents still need verifying: the counts held, the paths did not |
 | **v2885** | `(this commit)` | v2885 — the mirror of a green sabotage: it looks like coverage and is not |
 | **v2884** | `(this commit)` | v2884 — break exactly one side, or an agreement law cannot see the sabotage |

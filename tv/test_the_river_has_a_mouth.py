@@ -201,5 +201,16 @@ class TheRiverHasAMouth(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate\'s central law asserts the end of the river is actually ON the /api/river SUCCESS payload: test_the_mouth_is_ON_the_river_and_in_the_SUCCESS_branch reads the handler block between \'if path == "/api/river"\' and the next route, then requires \'"mouth": river_mouth()\' inside it. The tamper deletes the REAL THING — the call that computes the mouth — while leaving the key, the comments, the docstrings and the file\'s parseability untouched, so the payload reports mouth=None and 410 completed journeys become invisible to every surface, exactly the defect the gate exists to catch. It is not a comment (the anchor is executable code inside the dict literal), not a mention inside a message string (the law\'s own failure message lives in the test file, not the target), and not a shared constant (the law reads the payload text, not river_mouth\'s definition — the function and its ledger reads are untouched, so the sibling law test_the_mouth_reads_the_LEDGER_and_never_the_ROUTER stays green and cannot mask the red).  MEASURED: untampered OK (skipped=1) — Ran 8 tests in 0.234s, exit 0. The one skip is test_the_totals_are_real_a; tampered (all 1) FAILED (failures=1, skipped=1), exit 1 — Ran 8 tests. Exactly one law red.; reddened law test_the_river_has_a_mouth.TheRiverHasAMouth.test_the_mouth_is_ON_the_; ALONE FAILS ALONE. `python3 -m unittest test_the_river_has_a_mouth.TheRiverHasAMouth.test_the_mouth_is_ON_the_river_.',
+        'file': 'control_app.py',
+        'find': '"mouth": river_mouth(),',
+        'replace': '"mouth": None,',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

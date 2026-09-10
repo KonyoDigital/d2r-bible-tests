@@ -223,5 +223,16 @@ class TheResetTouchesUniquesOnly(unittest.TestCase):
                          "the store was touched despite the refusal")
 
 
+RED_PROOF = [
+    {
+        'why': "Deletes the ONLY mechanism that makes the reset uniques-only: _uniqueResetPlan's roster filter over d2r_foundLog. Without it the plan names every foundLog row, so _uniqueResetDo clears his SET-PIECE rows (and drops them from d2r_owned) while still returning ok:true — the exact failure the gate was written for ('foundLog carries set-piece rows alongside uniques, so a wholesale clear would take his set-piece dates while leaving d2r_setPieces intact — invisible in the store anyone would check'). Not a comment, not a message string, not a shared constant: it is the executable filter itself, sliced out of bible.html and run as real JS in node. The near-miss fragment '.filter(function(n){ return uni[K(n)] === 1; })' occurs 2x (the sibling is the ownNames line), so the anchor is the full 'var names = ...' statement, which occurs exactly 1x.  MEASURED: untampered GREEN before tamper and GREEN again after `git checkout -- bible.html`: both runs `Ran 10 ; tampered (all 1) RED: `Ran 10 tests / FAILED (failures=3)` — test_a_SET_PIECE_row_inside_foundLog_SURVIVES ; reddened law test_uniques_reset_is_uniques_only.TheResetTouchesUniquesOnly.test_a_S; ALONE FAILS ALONE. `python3 -m unittest test_uniques_reset_is_uniques_only.TheResetTouchesUniquesOnly.test_a_SET_PIE.",
+        'file': 'bible.html',
+        'find': 'var names = Object.keys(fl).filter(function(n){ return uni[K(n)] === 1; });',
+        'replace': 'var names = Object.keys(fl);',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

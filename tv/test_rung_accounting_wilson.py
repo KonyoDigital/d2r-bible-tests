@@ -312,5 +312,16 @@ class RungAccountingHarnessIsHonest(unittest.TestCase):
                          "%d of %d attack(s) were answered wrongly: %s" % (len(wrong), n, wrong))
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate protects tv/rung_accounting_wilson.py (run_gates.py:2274 runs tv/test_rung_accounting_wilson.py, whose SRC is rung_accounting_wilson.py). Its first stated law is that the harness "must refuse to bank a run it failed" — enforced by test_it_REFUSES_to_bank_when_an_attack_was_answered_wrongly, which requires an `if ok != n:` guard that RETURNS before .bank() is reached. The anchor is that guard itself, live code inside main()\'s `--bank` branch at line 572, not a comment, not a message string, and not a constant read by both sides of an agreement. Neutering it to a condition that can never hold leaves main() banking self_arming evidence from a run whose attacks were answered wrongly — exactly the cheat the file exists to make impossible — and the law\'s regex `if\\s+ok\\s*!=\\s*n\\s*:` finds nothing, so it goes red. Replacement keeps the file syntactically valid so the failure is the LAW, not an import error.  MEASURED: untampered python3 tv/test_rung_accounting_wilson.py -> Ran 12 tests, OK (green before tampering, and; tampered (all 1) grep -c "if ok != n:" = 1; replaced ALL 1 occurrence -> 0 remaining, 1 of the replacement.; reddened law test_rung_accounting_wilson.RungAccountingHarnessIsHonest.test_it_REFU; ALONE python3 -m unittest test_rung_accounting_wilson.RungAccountingHarnessIsHonest.test_it_REFUSES_to_bank_when_an_.',
+        'file': 'rung_accounting_wilson.py',
+        'find': 'if ok != n:',
+        'replace': 'if ok < 0:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

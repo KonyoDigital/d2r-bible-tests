@@ -176,5 +176,16 @@ class HeartFanLabelsAreWidthBounded(unittest.TestCase):
         )
 
 
+RED_PROOF = [
+    {
+        'why': "v2729 — the blind-claims label interpolated EVERY blind claim's name into a centred label positioned by INDEX and sized by CONTENT: measured 313px at 1440 against lock names of 89-104px, growing without limit as claims are added. `_blind.slice(0, 2)` is the only width bound; deleting it restores the unbounded join the fan was measured to collide on (overlap_ratchet 2->4 at three widths, 0->2 at 375, with no code touched).  MEASURED: untampered OK — Ran 6 tests, 0 failures (python3 tv/test_heart_fan_labels_are_width_bounded.py); tampered (all 1) FAILED (failures=1) — only test_the_blind_claims_list_is_BOUNDED went red; reddened law test_heart_fan_labels_are_width_bounded.HeartFanLabelsAreWidthBounded.; ALONE FAILS ALONE — `python3 -m unittest test_heart_fan_labels_are_width_bounded.HeartFanLabelsAreWidthBounded.test_.",
+        'file': 'control_ui.html',
+        'find': "_blind.slice(0, 2).join(', ')",
+        'replace': "_blind.join(', ')",
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

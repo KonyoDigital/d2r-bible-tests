@@ -177,5 +177,16 @@ class TheStatusPollNeverWaitsOnASpawn(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'This is the one line that makes a /api/status read BOUNDED. `_lock_briefly()` is the helper every status-path reader (`_agent_alive`, `_pid_cached`, `_pid_alive`, `_capture_health`) goes through, and the timeout on this acquire is the entire fix for "ON AIR spun \'loading\' while the recording was already running". Dropping the timeout restores the original defect exactly: the reader waits for the whole of `start_agent`\'s 166-line lock block instead of refusing and falling back to the lock-free pid cache. It is not a comment, not a message string, and not a shared constant both sides read — `_STATE_READ_WAIT_S` itself is left untouched, so the fixture law `test_the_wait_is_bounded_and_SHORT` still sees 0.25 and stays green while the behavioural laws go red. Exactly 1 occurrence in tv/control_app.py, so replace-all and replace-one are the same experiment.  MEASURED: untampered OK — Ran 7 tests in 1.692s, OK (all 7 green, gate exits clean); tampered (all 1) FAILED (failures=4) in 12.201s — test_agent_alive_answers_while_the_lock_is_held (waited 3; reddened law test_the_status_poll_never_waits_on_a_spawn.TheStatusPollNeverWaitsOnA; ALONE RED ALONE — `python3 -m unittest test_the_status_poll_never_waits_on_a_spawn.TheStatusPollNeverWaitsOnASpawn.t.',
+        'file': 'control_app.py',
+        'find': '_lock.acquire(timeout=_STATE_READ_WAIT_S)',
+        'replace': '_lock.acquire()',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

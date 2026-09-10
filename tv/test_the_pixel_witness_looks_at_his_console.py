@@ -135,5 +135,16 @@ class ThePixelWitnessLooksAtHisConsole(unittest.TestCase):
                          "window can be answered about a different one")
 
 
+RED_PROOF = [
+    {
+        'why': 'console_pid() must not hand back the FIRST pid lsof prints for :17772 — measured 2026-09-08, that port was held by his console (14222) AND by a WebKit XPC renderer service (60423) that owns no window, so taking the first owner reproduces the original "UNKNOWN forever" bug wearing a different wrong number. The line `wid, _why = window_for(pid)` inside console_pid is the whole discipline: only the owner that ACTUALLY HAS A WINDOW is returned. Replacing it with `(pid, "")` keeps console_pid importable and still returning an int, keeps the no-listener case returning None, and deletes exactly the window check — nothing else. The anchor is executable code, not a comment: the module\'s docstring and main()\'s comment both mention window discovery, and this law parses the AST of console_pid rather than grepping, so only the real call counts.  MEASURED: untampered Ran 6 tests — OK (all 6 green) via `python3 test_the_pixel_witness_looks_at_his_console.py; tampered (all 1) Ran 6 tests — FAILED (failures=1). Exactly one law red: test_console_pid_skips_an_owner_wi; reddened law test_the_pixel_witness_looks_at_his_console.ThePixelWitnessLooksAtHisC; ALONE Fresh process, `python3 -m unittest test_the_pixel_witness_looks_at_his_console.ThePixelWitnessLooksAtHisConso.',
+        'file': 'paint_witness.py',
+        'find': 'wid, _why = window_for(pid)',
+        'replace': 'wid, _why = (pid, "")',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

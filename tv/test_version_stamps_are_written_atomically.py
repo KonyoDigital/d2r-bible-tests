@@ -159,5 +159,16 @@ class VersionStampsAreWrittenAtomically(unittest.TestCase):
         )
 
 
+RED_PROOF = [
+    {
+        'why': 'The ship path must call atomic_write for the four version stamps, not open them for writing directly. A plain io.open(path,"w") TRUNCATES on open, so his 6 MB bible.html is 0 bytes on disk until the write completes — and his console EXECS the working tree, so a page load in that window renders nothing (measured historically: 9 torn reads of 188, every torn size 0 bytes). This tamper re-joins the loop to the truncating call, which is the original defect verbatim: the helper still exists and is still fully tested, and only the JOIN is cut — the purest form of this repo\'s most repeated defect (two halves built and never met).  MEASURED: untampered GREEN — `python3 tv/test_version_stamps_are_written_atomically.py` -> Ran 6 tests, OK (exi; tampered (all 1) RED — FAILED (failures=1); the red law is test_THE_SHIP_PATH_ACTUALLY_CALLS_IT (assertIn "; reddened law test_version_stamps_are_written_atomically.VersionStampsAreWrittenAtom; ALONE FAILS ALONE — fresh process, `python3 -m unittest test_version_stamps_are_written_atomically.VersionStampsAreW.',
+        'file': 'bump_version.py',
+        'find': 'atomic_write(path, text, nl)',
+        'replace': 'io.open(path, "w", encoding="utf-8", newline=nl).write(text)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

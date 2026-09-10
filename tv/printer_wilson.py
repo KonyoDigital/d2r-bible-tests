@@ -267,6 +267,17 @@ def main(argv):
     return 0 if rep["ok"] else 1
 
 
+RED_PROOF = [
+    {
+        'why': 'tv/printer_wilson.py runs five sabotages against tv/printer.py\'s stream(). Its `strangerreel` axis plants a reel that ONLY one_start_point knows and requires printer.stream to still walk it with all seven stations, UNKNOWN-with-a-reason where nobody answered. The single line that implements "a reel any one owner knows is walked" is the reel-name UNION at printer.py:315 — `names = sorted(set(river) | set(doors) | set(routes))`. Turning that union into an intersection deletes the real behaviour (not a comment, not a message string, not a shared constant: printer_wilson quotes P.STATIONS but never reads `names`), so the stranger reel disappears from the walk and the axis LEAKS. Exactly 1 occurrence in printer.py; `file` is the bare basename so heart2 joins it to tv/printer.py, which exists.  MEASURED: untampered python3 printer_wilson.py -> "PROVEN · 5 of 5 attempts refused", exit 0 (twice: before tam; tampered (all 1) python3 printer_wilson.py -> "strangerreel 0/1 LEAKS", "LEAKS · 4 of 5 attempts refused", ; reddened law _attempt_strangerreel — the "strangerreel" axis in tv/printer_wilson.p; ALONE Fresh process, no siblings: python3 -c "import printer_wilson as W, printer as P; W._attempt_strangerreel(P)" .',
+        'file': 'printer.py',
+        'find': 'sorted(set(river) | set(doors) | set(routes))',
+        'replace': 'sorted(set(river) & set(doors) & set(routes))',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

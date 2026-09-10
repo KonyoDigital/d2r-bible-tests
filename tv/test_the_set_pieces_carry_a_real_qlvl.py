@@ -143,5 +143,16 @@ class TheSetPiecesCarryARealQlvl(unittest.TestCase):
             self.assertIn(must, t, "the provenance note no longer records %r" % must)
 
 
+RED_PROOF = [
+    {
+        'why': 'ELEVEN set pieces have NO row in the game table under any spelling, so their qlvl stays 0 = UNKNOWN. A qlvl is one of the two filters deciding whether an item can drop at all (monster mlvl >= item qlvl), so a fabricated value sends him to the wrong zone with a number that traces to nothing. This tamper writes a plausible level onto every unknown set record — exactly the fabrication his no-guessing rule forbids — and the law must go red.  MEASURED: untampered Ran 7 tests — OK (green clean, so the proof is not measuring an already-red gate).; tampered (all 121) All 121 occurrences replaced (0 left of the find string). Ran 7 tests — FAILED (failures=1; reddened law test_the_set_pieces_carry_a_real_qlvl.TheSetPiecesCarryARealQlvl.test_; ALONE python3 -m unittest test_the_set_pieces_carry_a_real_qlvl.TheSetPiecesCarryARealQlvl.test_the_pieces_with_no_g.',
+        'file': 'bible.html',
+        'find': '"qlvl":0,"tier":"set"',
+        'replace': '"qlvl":50,"tier":"set"',
+        'matches': 121,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

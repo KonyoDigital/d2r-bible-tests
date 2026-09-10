@@ -154,5 +154,16 @@ class LiveVersionIsNotTheWorkingTree(unittest.TestCase):
         self.assertGreaterEqual(age, 0, "the ref age is negative: %r" % (age,))
 
 
+RED_PROOF = [
+    {
+        'why': "The whole point of the gate is that liveVer must come from the REMOTE ref, never from the tree his console execs — otherwise it agrees with bibleVer by construction and the divergence it exists to expose (console v2706 while origin/main shipped v2705, silently, for over an hour) can never appear. This tamper deletes the real thing: it swaps the remote ref for the local commit in the two `git show` reads of the ship record (line 26141 inside `_published_ver`, and line 1149 which computes `publishedVer` for the same panel), so the function still runs, still returns a version and an age, still caches — and is now reading the local tree's own commit. Not a comment, not a message string, not a shared constant: it is the ref argument in the argv actually handed to git.  MEASURED: untampered python3 tv/test_live_version_is_not_the_working_tree.py -> Ran 7 tests, OK (green; test_it; tampered (all 2) Both occurrences replaced (verified: 0 remaining of find, 2 of replace). Gate run -> Ran 7; reddened law test_live_version_is_not_the_working_tree.LiveVersionIsNotTheWorkingTr; ALONE python3 -m unittest test_live_version_is_not_the_working_tree.LiveVersionIsNotTheWorkingTree.test_it_asks_the_.",
+        'file': 'control_app.py',
+        'find': 'origin/main:tv/WINDOWS_SHIP.json',
+        'replace': 'HEAD:tv/WINDOWS_SHIP.json',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

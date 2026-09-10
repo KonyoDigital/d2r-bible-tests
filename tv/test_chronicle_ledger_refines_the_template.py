@@ -150,5 +150,16 @@ class ChronicleLedgerRefinesTheTemplate(unittest.TestCase):
                          "a stash reel was given a chronicle ledger: %r" % (row.get("ledgers"),))
 
 
+RED_PROOF = [
+    {
+        'why': "Deletes the ledger READ itself — the join that carries a chronicle visit row's `ledger` (and a deep frame's `chronicleTab`) from the journal into the template row. With it gone `_ledgers` is always [], so a CHRONICLE reel goes back to the bare word `chronicle` instead of `chronicle · uniques` — the exact defect this gate exists for. Not a comment, not a message string, not a shared constant: it is the sole expression producing `_ledgers`, and the stash side (`tabs`, built from `stashTab`) is untouched, so the stash laws stay green and only the ledger laws move.  MEASURED: untampered GREEN: `python3 tv/test_chronicle_ledger_refines_the_template.py` -> Ran 6 tests, OK, exit; tampered (all 1) RED: Ran 6 tests, FAILED (failures=2), exit 1 — FAIL test_a_visit_row_names_the_ledger, FA; reddened law test_chronicle_ledger_refines_the_template.ChronicleLedgerRefinesTheTe; ALONE FAILS ALONE: `python3 -m unittest test_chronicle_ledger_refines_the_template.ChronicleLedgerRefinesTheTemplate.",
+        'file': 'reel_templates.py',
+        'find': 'str(r.get("ledger") or r.get("chronicleTab") or "").strip().lower()',
+        'replace': '""',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -219,5 +219,16 @@ class TheTheatreOpenChainCannotHang(unittest.TestCase):
                       "'a black rectangle and no account of it'")
 
 
+RED_PROOF = [
+    {
+        'why': 'thOpen() AWAITS thLoadSession(), whose /api/session?n= read is the theatre-open chain\'s more expensive hop (pack=debug). v2790 bounded it with an AbortController + a 12s timeout and WIRED the controller into the call via `_sac ? { signal: _sac.signal } : undefined`. This tamper unwires exactly that — the AbortController and setTimeout lines stay two rows above, untouched, so the code still LOOKS bounded — while the fetch itself is once again unstoppable: a server replaced mid-fetch parks the promise forever and the stage stays black with nothing said. It is the precise sabotage the law\'s own comment says a context-window check would have read as green ("presence near is not wiring to"), so it exercises the `wired = "signal" in l` half of the law rather than the `near` half.  MEASURED: untampered GREEN — `python3 tv/test_the_theatre_open_chain_cannot_hang.py` ran 5 tests, OK (exit 0), ; tampered (all 1) RED — full gate: FAILED (failures=1), only test_every_fetch_thOpen_AWAITS_is_bounded faili; reddened law test_every_fetch_thOpen_AWAITS_is_bounded; ALONE FAILS ALONE — 1 test run, 1 failure, identical message to the full-suite run..',
+        'file': 'control_ui.html',
+        'find': ', _sac ? { signal: _sac.signal } : undefined',
+        'replace': ', undefined',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

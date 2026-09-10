@@ -1226,5 +1226,16 @@ class TheModuleProvesItself(unittest.TestCase):
         ast.parse(SRC)
 
 
+RED_PROOF = [
+    {
+        'why': 'ledger_authority.classify_row computes the fleet-side deficit as the SIGNED `row["have"] - seed_n` — the one expression that lets Dean\'s runewords read -5 ("five seeded rows are MISSING from his store") instead of a comfortable 0. Clamping it with max(0, ...) is the exact real-world defect the law exists for: the figure stays a number, but the sign and the "MISSING" sentence both vanish. It is the live expression, not a comment and not a shared constant — the test derives its own seed size from LA.seed_names_for("runewords"), so only the subtraction moves. MATCHES=1 in ledger_authority.py.  MEASURED: untampered python3 test_ledger_authority.py -> Ran 89 tests in 0.872s / OK (green); tampered (all 1) python3 test_ledger_authority.py -> Ran 89 tests / FAILED (failures=2): FleetRowsAreDerive; reddened law test_ledger_authority.FleetRowsAreDerivedAndSaySo.test_a_DEFICIT_is_re; ALONE python3 -m unittest test_ledger_authority.FleetRowsAreDerivedAndSaySo.test_a_DEFICIT_is_reported_negative_and_.',
+        'file': 'ledger_authority.py',
+        'find': 'row["have"] - seed_n',
+        'replace': 'max(0, row["have"] - seed_n)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

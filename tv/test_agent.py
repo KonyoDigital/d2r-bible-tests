@@ -4084,6 +4084,17 @@ class TestV2327TheModelFrameIsNormalisedBySizeNotByExtension(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': "_claude_env() strips ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN out of the env handed to every vision subprocess so `claude -p` rides Konyo's subscription login instead of a shell API key (v720). Gutting the comprehension makes the pop never happen: the keys stay in the child env and stripped[] is empty, so the auth log lies too. This is the executable body, not the shared _API_AUTH_ENV constant and not a comment.  MEASURED: untampered OK (skipped=2) — Ran 263 tests in 7.565s, exit 0; tampered (all 1) FAILED (failures=1, skipped=2) — Ran 263 tests in 7.574s, exit 1; reddened law test_agent.TestClaudeEnv.test_strips_api_key_keeps_other_env; ALONE FAILS ALONE — `python3 -m unittest test_agent.TestClaudeEnv.test_strips_api_key_keeps_other_env` in a fresh pr.",
+        'file': 'tv_diablo.py',
+        'find': 'stripped = [k for k in _API_AUTH_ENV if env.pop(k, None) is not None]',
+        'replace': 'stripped = []',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 

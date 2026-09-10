@@ -142,6 +142,17 @@ class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
                          "about one surface is not evidence about another")
 
 
+RED_PROOF = [
+    {
+        'why': 'Deletes the actual wiring the gate exists to pin: prune.arm\'s prerequisite list in LOCKS (tv/self_arming.py line 270) no longer names printer.stream, so the deleter would wait on the two VAULT locks and the frame gate but on NOTHING in the river it deletes from — exactly the v2570 defect. It is executable code inside the LOCKS declaration, not a comment and not a string in a message; the surrounding comment block still says "printer.stream ADDED", so a prose-based guard would miss it, and this one does not.  MEASURED: untampered python3 tv/test_printer_wilson.py -> Ran 7 tests, OK, exit 0; tampered (all 1) python3 tv/test_printer_wilson.py -> Ran 7 tests, FAILED (failures=1), exit 1. Red law: Th; reddened law TheRiverIsWiredIntoTheDeleter.test_the_deleter_waits_on_the_river_that; ALONE python3 -m unittest test_printer_wilson.TheRiverIsWiredIntoTheDeleter.test_the_deleter_waits_on_the_river_that.',
+        'file': 'self_arming.py',
+        'find': '"after": ["printer.stream", "vault.sweep_start", "vault.apply", "frame.release"],',
+        'replace': '"after": ["vault.sweep_start", "vault.apply", "frame.release"],',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

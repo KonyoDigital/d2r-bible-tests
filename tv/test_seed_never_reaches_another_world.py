@@ -246,5 +246,16 @@ class TheSeedNeverReachesAnotherWorld(unittest.TestCase):
             self.assertIn(n, gun, "%r is a seed name and is not un-ticked" % n)
 
 
+RED_PROOF = [
+    {
+        'why': "Deletes the guest guard from the ONE predicate that decides whether Konyo's hardcoded 245-find _GRAIL_SEED may land on a browser: bible.html:4108 `window._seedsBelongHere = (!window._isCousinShell && window._D2R_LEDGER === window._SEED_LEDGER);`. Dropping `!window._isCousinShell &&` leaves an UNCLAIMED (guest) browser seedable, because the resolver's has-a-chronicle heuristic still answers 'KonyoEndgame' for it. This is the real declaration, not a comment or a message string — the three prose mentions of the rule (lines 4047/4071/10386) spell it WITHOUT the `window.` prefixes so they are untouched, and the gate's node harness computes `_isCousinShell` on its own side, so only the bible.html side of the agreement moves. The test slices this exact line out of bible.html by anchor and executes it in node, so the tamper reaches the decision, not a spelling.  MEASURED: untampered OK — `python3 test_seed_never_reaches_another_world.py` ran 9 tests, verdict OK (node v24.; tampered (all 1) FAILED (failures=2) of 9. Red laws: test_a_GUEST_never_receives_the_seed (AssertionError: ; reddened law test_seed_never_reaches_another_world.TheSeedNeverReachesAnotherWorld.; ALONE FAILED (failures=1) alone — `python3 -m unittest test_seed_never_reaches_another_world.TheSeedNeverReachesAnot.",
+        'file': 'bible.html',
+        'find': '!window._isCousinShell && window._D2R_LEDGER === window._SEED_LEDGER',
+        'replace': 'window._D2R_LEDGER === window._SEED_LEDGER',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

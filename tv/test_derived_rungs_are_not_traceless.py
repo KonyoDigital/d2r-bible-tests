@@ -213,5 +213,16 @@ class DerivedRungsAreNotTraceless(unittest.TestCase):
         self.assertIn("b", obs["unknown"])
 
 
+RED_PROOF = [
+    {
+        'why': 'v2725\'s defect, restored: with the DERIVED_SOURCES lookup gone from _waypoint_cover, a storeless rung is reported as traceless again — `derivedBy` is None and the cover map prints "no store records this rung, so passing it leaves no trace" for the four rungs reel_retention.plan() decides for every reel on the shelf.  MEASURED: untampered GREEN — `python3 test_derived_rungs_are_not_traceless.py` exit 0, "Ran 9 tests ... OK" (me; tampered (all 1) RED — exit 1, "Ran 9 tests ... FAILED (failures=1)". The one failure is test_a_derived_run; reddened law test_derived_rungs_are_not_traceless.DerivedRungsAreNotTraceless.test_; ALONE FAILS ALONE — `python3 -m unittest test_derived_rungs_are_not_traceless.DerivedRungsAreNotTraceless.test_a_der.',
+        'file': 'one_funnel.py',
+        'find': 'src = DERIVED_SOURCES.get(rung)',
+        'replace': 'src = None',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

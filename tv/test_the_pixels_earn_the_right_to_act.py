@@ -372,5 +372,16 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
                          "tick: %s" % sorted(keys))
 
 
+RED_PROOF = [
+    {
+        'why': "Deletes the pixel-rescue COOLDOWN BINDING, not a mention of it. `_PIXEL_ACT_EVERY_S` can only stop the rescue from firing every 10s in the one `if` test at control_app.py:13609; replacing that test with `if False:` leaves the constant sitting in now-unreachable code (3 other occurrences survive: its definition, `_left = ...`, and the refusal message), so a law reading MENTION would stay green. test_the_cooldown_is_actually_CONSULTED reads the AST of `_console_rescue_loop` for an `ast.If` whose TEST contains the identifier, so it goes red. This is the exact weaker-law sabotage the test's own comment records having been caught by.  MEASURED: untampered Ran 19 tests in 0.206s — OK (perl -e 'alarm 200; exec @ARGV' python3 tv/test_the_pixels_ea; tampered (all 1) Ran 19 tests — FAILED (failures=1). Red law: ThePixelsEarnTheRightToAct.test_the_cooldown_; reddened law test_the_pixels_earn_the_right_to_act.ThePixelsEarnTheRightToAct.test_; ALONE python3 -m unittest test_the_pixels_earn_the_right_to_act.ThePixelsEarnTheRightToAct.test_the_cooldown_is_actu.",
+        'file': 'control_app.py',
+        'find': 'if _ok and (_now - float(_PIXEL_ACT["lastActTs"])) < _PIXEL_ACT_EVERY_S:',
+        'replace': 'if False:',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

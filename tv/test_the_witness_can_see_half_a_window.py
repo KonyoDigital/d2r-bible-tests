@@ -265,5 +265,16 @@ class TheWitnessCanSeeHalfAWindow(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': "half_blank_strikes only believes a partly-drawn window when the SAME cells are blank on every consecutive look — blank cells that MOVE mean the window is repainting, not stuck, and are refused as a fault. That entire discipline lives in one expression: the running intersection `seen & cur`. Replacing it with `seen = cur` keeps only the latest look's blank set, so the intersection can never empty and a repainting window is reported as a stuck half-blank fault — the cry-wolf behaviour the module exists to avoid. It is executable code inside the function under test, not a comment, not a message string, and not a shared constant: the sibling law test_a_STUCK_half_blank_window_survives_the_strikes stayed GREEN under the tamper, so the edit moved one side of the agreement only.  MEASURED: untampered GREEN — `python3 test_the_witness_can_see_half_a_window.py` => Ran 12 tests in 1.683s, OK; tampered (all 1) RED — Ran 12 tests, FAILED (failures=1). test_a_MOVING_blank_cell_is_refused_as_a_fault: A; reddened law test_the_witness_can_see_half_a_window.TheWitnessCanSeeHalfAWindow.tes; ALONE FAILS ALONE — `python3 -m unittest test_the_witness_can_see_half_a_window.TheWitnessCanSeeHalfAWindow.test_a_M.",
+        'file': 'region_witness.py',
+        'find': 'seen = cur if seen is None else (seen & cur)',
+        'replace': 'seen = cur',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

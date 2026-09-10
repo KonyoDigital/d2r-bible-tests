@@ -175,5 +175,16 @@ class ASightingSaysWhichSurface(unittest.TestCase):
         ast.parse(RETRO)
 
 
+RED_PROOF = [
+    {
+        'why': 'TWO LOOKS AT DIFFERENT SURFACES ARE NOT A CONTRADICTION: resolve_contested only returns `cross-scene` when both sides know their scene and those scenes DISAGREE. Invert that one comparison and a stash sighting vs a chronicle absence becomes `not-found` — the verdict that calls the found reading "the suspect one" — manufacturing twelve of his real sightings into contradictions, while two genuinely disagreeing Chronicle readings get excused as cross-scene.  MEASURED: untampered Ran 8 tests — OK (green in this worktree, perl alarm 200 guard); tampered (all 1) Ran 8 tests — FAILED (failures=2): test_different_surfaces_do_NOT_contradict (AssertionErr; reddened law test_a_sighting_says_which_surface.ASightingSaysWhichSurface.test_diff; ALONE python3 -m unittest test_a_sighting_says_which_surface.ASightingSaysWhichSurface.test_different_surfaces_do_NO.',
+        'file': 'counter_ledger.py',
+        'find': '_fsc != _nsc',
+        'replace': '_fsc == _nsc',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

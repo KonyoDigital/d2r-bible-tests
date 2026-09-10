@@ -492,5 +492,16 @@ def main(argv):
     return 0
 
 
+RED_PROOF = [
+    {
+        'why': 'the gate exists so no edit can ship a surface that does not PARSE (REG-060, REG-072 — a hard SyntaxError blanks the whole page); deleting the name from this real function declaration in tv/control_ui.html\'s first inline classic <script> makes the block unparseable, and the gate must go red instead of green  MEASURED: untampered python3 tv/js_syntax_gate.py -> "OK JS SYNTAX GATE OK - every surface parses in a real JS ; tampered (all 1) after replacing all 1 occurrence: exit 1, "JS SYNTAX GATE - 1 problem(s): tv/control_ui.ht; reddened law js_syntax_gate.check() -> check_with_node([\'tv/control_ui.html\']): the; ALONE FAILS ALONE. Fresh process, single target, no siblings: python3 -c "import js_syntax_gate as g; probs,skipped=.',
+        'file': 'control_ui.html',
+        'find': 'function _fxEsc(',
+        'replace': 'function (',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

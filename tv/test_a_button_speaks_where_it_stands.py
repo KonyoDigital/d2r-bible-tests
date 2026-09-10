@@ -134,6 +134,17 @@ class AButtonSpeaksWhereItStands(unittest.TestCase):
     # [[label-outlived-referent]] [[the-unjoined-end]]
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate protects tv/control_ui.html: any button handler whose only reply lands in a box more than MAX_QUIET_GAP=80 lines from the button must ALSO toast, or a refusal renders in a room he is not looking at and the button reads as dead (the MINI AUTO defect, 275 lines). No surviving handler currently carries a toast(), so the only edit that produces the exact defect class is to repoint a handler\'s reply at a box that lives far from its button. btn-eagle sits at line 7393 and answers into #eagle-out at 7408 (gap 15, healthy). Repointing that single write to #ct-out — an existing box at line 7003 — makes the gap 390 with no voice, which is precisely the regression the law exists to catch. The anchor is the LIVE JS write, not a comment or a message string: it is the one and only occurrence of $(\'eagle-out\') in the file, and the button\'s own id line is untouched, so only one side of the pairing moves (no shared-constant, no both-sides-shrink trap). ⚠ The obvious-looking alternative is a trap I checked and rejected: renaming the box element id (id="eagle-out" -> something else) makes _line_of return None, the box is silently skipped, and the gate stays GREEN.  MEASURED: untampered python3 tv/test_a_button_speaks_where_it_stands.py -> Ran 2 tests, OK (green). Handler sca; tampered (all 1) After replacing all 1 occurrence: Ran 2 tests, FAILED (failures=1). test_the_scanner_finds; reddened law test_a_reply_that_lands_far_away_is_ALSO_spoken (AButtonSpeaksWhereItS; ALONE python3 -m unittest test_a_button_speaks_where_it_stands.AButtonSpeaksWhereItStands.test_a_reply_that_lands_fa.',
+        'file': 'control_ui.html',
+        'find': "$('eagle-out')",
+        'replace': "$('ct-out')",
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

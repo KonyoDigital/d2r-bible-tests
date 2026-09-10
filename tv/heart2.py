@@ -659,6 +659,29 @@ def resolve_proof_target(base, rel):
     return tgt
 
 
+def gate_spec(name):
+    """The registered gate's argv tail and timeout. -> ([extra], timeout)
+
+    ⚠⚠ v2887 — REG-856 WAS FIXED IN triage() AND NOT IN prove(), AND THE BUG ENTRY SAID SO.
+    It recorded "prove() calls the same _run_gate" as a known consequence and then threaded the
+    spec through only the new command. MEASURED two versions later, proving 47 gates:
+        js-syntax             UNPROVABLE — clean run: timed out after 180s   (registered: 300s)
+        corroborate-selftest  UNPROVABLE — ALREADY RED untampered            (registered: --selftest)
+    Both are the dropped spec, not the gates. A fix applied to one of two call sites is a fix that
+    has not been generalised, and naming the second site in prose is not the same as covering it.
+    [[feedback-generalize-fixes]] [[the-unjoined-end]]
+    """
+    try:
+        import run_gates as _rg
+    except Exception:
+        return [], 180
+    for g in getattr(_rg, "GATES", []):
+        if getattr(g, "name", None) == name:
+            argv = list(getattr(g, "argv", []) or [])
+            return [a for a in argv[2:] if isinstance(a, str)], getattr(g, "timeout", 180)
+    return [], 180
+
+
 def _prove_one(sandbox, name, filename, pr, idx, say):
     tgt_rel = str(pr.get("file") or "")
     # ⚠⚠ v2821 — RESOLVE AGAINST tv/ FIRST, THEN THE REPO COPY'S ROOT.
@@ -709,7 +732,8 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
         return UNPROVABLE
 
     # 1. CLEAN RUN. A gate that is already red in the sandbox can prove nothing.
-    ok_clean, tail = _run_gate(sandbox, filename)
+    _extra, _to = gate_spec(name)
+    ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra)
     if ok_clean is None:
         say("     %-52s %s — clean run: %s" % (label, UNPROVABLE, tail))
         return UNPROVABLE
@@ -746,7 +770,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     with io.open(tgt, "w", encoding="utf-8") as fh:
         fh.write(_tampered)
     try:
-        ok_tampered, tail2 = _run_gate(sandbox, filename)
+        ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra)
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(original)
@@ -1055,18 +1079,9 @@ def triage(say=print):
     #   js-syntax (300s), test_control (900s)  — given _run_gate's 180s default, both timed out and
     #                         a timeout was filed as a property of the gate rather than of the clock.
     # [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
-    try:
-        import run_gates as _rg
-        _spec = {g.name: (list(getattr(g, "argv", []) or []), getattr(g, "timeout", 180))
-                 for g in getattr(_rg, "GATES", [])}
-    except Exception as _e:
-        _spec = {}
-        say("  run_gates would not import (%s) — falling back to a bare run, so a gate that needs "
-            "extra argv may be misfiled" % type(_e).__name__)
     writable, unprovable = [], []
     for name, fn_ in todo:
-        _argv, _to = _spec.get(name, ([], 180))
-        _tail = [a for a in _argv[2:] if isinstance(a, str)]      # everything after [python, file]
+        _tail, _to = gate_spec(name)          # ONE reader, shared with _prove_one
         ok, out = _run_gate(sandbox, fn_, timeout=_to, extra=_tail)
         (writable if ok else unprovable).append((name, (out or "").strip().splitlines()[-1][:70]
                                                  if out else ""))

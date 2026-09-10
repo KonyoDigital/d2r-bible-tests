@@ -202,5 +202,16 @@ class SearchPlaceholderFits(unittest.TestCase):
         return self.src[st:en]
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate\'s whole reason for existing is that the global search field\'s placeholder must have a SHORT variant that fits the ~285px of text a 375px input can show — pinned as a BUDGET (40 chars) derived from the box, not as the current wording. This tamper does not touch a comment, a message string or a shared constant: it rewrites the shipping value of data-ph-short on the real <input id="gsearch-input"> back into the desktop-length prose the defect was made of, which is scenario 1 named in the gate\'s own docstring ("the short string drifts back toward prose until it no longer fits"). The 375px field would truncate mid-word again, exactly the v2697 defect the second eye caught. The budget SHORT_BUDGET_CHARS lives in the test file, not in bible.html, so only one side of the comparison moves.  MEASURED: untampered OK — `perl -e \'alarm 200; exec @ARGV\' python3 tv/test_search_placeholder_fits.py` -> "Ran ; tampered (all 1) FAILED (failures=1). Exactly one law went red: test_short_placeholder_fits_the_narrow_box ; reddened law test_search_placeholder_fits.SearchPlaceholderFits.test_short_placehol; ALONE Fails ALONE in a fresh process: `cd tv && python3 -m unittest test_search_placeholder_fits.SearchPlaceholderFi.',
+        'file': 'bible.html',
+        'find': 'data-ph-short="Search the bible',
+        'replace': 'data-ph-short="Search a boss, act, zone, super-unique, or item',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

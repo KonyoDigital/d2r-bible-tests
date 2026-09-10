@@ -198,5 +198,16 @@ class TheLiveFrameCannotBePulledMidRead(unittest.TestCase):
                          "snapshots survived the call: %s" % sorted(after - before))
 
 
+RED_PROOF = [
+    {
+        'why': 'The whole point of _mini_cells_from_live_frame is that the PIXEL READERS never receive the live frame path — the capture promotes eye.jpg by replacing it, so an open that races the promote returns [Errno 2] and MINI AUTO refuses with "the grid could not be located". The fix reads the bytes once and hands vault_corpus a private temp snapshot. This tamper hands the lattice reader `frame` (the live path) again, restoring exactly the shipped defect: the reader is back on a file the capture can pull out from under it. It deletes the real thing (the argument at the call site), not a comment or a message string.  MEASURED: untampered OK — `python3 tv/test_the_live_frame_cannot_be_pulled_mid_read.py` => Ran 5 tests, OK (0.1; tampered (all 1) FAILED (failures=1) — Ran 5 tests; the single failure is test_the_READER_never_receives_th; reddened law test_the_live_frame_cannot_be_pulled_mid_read.TheLiveFrameCannotBePull; ALONE FAILED alone — `python3 -m unittest test_the_live_frame_cannot_be_pulled_mid_read.TheLiveFrameCannotBePulledMi.',
+        'file': 'control_app.py',
+        'find': '_vc.inventory_lattice(_snap)',
+        'replace': '_vc.inventory_lattice(frame)',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

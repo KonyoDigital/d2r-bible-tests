@@ -178,5 +178,16 @@ class EyebrowNeverStrandsASeparator(unittest.TestCase):
         )
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate\'s whole reason for existing is that the eyebrow separators must be bound to the word BEFORE them so the browser has no break opportunity there — two independent cold reads reported "· OF 383" alone on a line. The fix as shipped is the six-character JS escape \xa0 immediately before each \'·\' inside the two `<div class="hh-eye">` builders in tv/control_ui.html. This tamper turns that escape into   (a plain space) at all four sites, which is exactly the pre-fix defect: the DOM gets an ordinary space, the break opportunity comes back, and a wrapped line can begin with a bare separator. It deletes the REAL THING — not a comment, not a message string, not a constant shared with the law: the ESCAPES tuple lives in the test file and is untouched, and the sibling law\'s `of\xa0` bindings are untouched, so exactly one law moves. The anchor deliberately omits the leading backslash so it survives JSON escaping literally, and   is still valid JS, so the tamper reproduces the bug rather than breaking the syntax.  MEASURED: untampered OK — Ran 4 tests in 0.038s, 0 failures (test_the_guard_can_actually_see_the_eyebrows, test; tampered (all 4) FAILED (failures=1) — Ran 4 tests; test_no_separator_can_begin_a_wrapped_line raised Asser; reddened law test_eyebrow_never_strands_a_separator.EyebrowNeverStrandsASeparator.t; ALONE FAILS ALONE — fresh process, `python3 -m unittest test_eyebrow_never_strands_a_separator.EyebrowNeverStrandsAS.',
+        'file': 'control_ui.html',
+        'find': 'u00a0·',
+        'replace': 'u0020·',
+        'matches': 4,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

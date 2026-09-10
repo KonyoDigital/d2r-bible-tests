@@ -133,5 +133,16 @@ class ChromeAloneIsNotPaint(unittest.TestCase):
                         "the ink test is not what carries this verdict any more")
 
 
+RED_PROOF = [
+    {
+        'why': 'a blank console window whose only bright pixels are two rows of OS title-bar chrome must read BLANK — crop below 32 leaves rows 30-31 at luminance 255 in the sample, which alone clears the 1.5% ink bar and reported his black screen as PAINTED  MEASURED: untampered OK — Ran 6 tests in 0.446s, all 6 pass (python3 tv/test_chrome_alone_is_not_paint.py, exit; tampered (all 1) FAILED (failures=3) — Ran 6 tests in 0.592s, exit 1. Red laws: test_a_blank_window_with_a_; reddened law test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_wind; ALONE RED ALONE — `python3 -m unittest test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_window_with.',
+        'file': 'paint_witness.py',
+        'find': 'CHROME_TOP_PX = 36',
+        'replace': 'CHROME_TOP_PX = 30',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

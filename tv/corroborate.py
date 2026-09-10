@@ -2301,5 +2301,16 @@ def main(argv):
     return 1 if st == DISAGREE else 0
 
 
+RED_PROOF = [
+    {
+        'why': 'The gate is `python3 tv/corroborate.py --selftest` (run_gates.py:189) and the source it protects is corroborate.py itself. `_holds(a, b, rel)` is the one place every cross-engine invariant\'s relation is actually evaluated — check_one() calls it for the live path, and the self-test\'s first six laws exist to prove each relation can both hold and refuse. The ceiling arm `return a <= b` (line 1945) IS the comparison, not a comment, not a message string, and not a constant read by both sides of an agreement law: replacing it with `return True` deletes the ability of the `<=` relation to ever say no, so any invariant asserting "left must stay under this ceiling" would report agreement whatever the engines said — precisely the failure the gate\'s own `why` names ("If this self-test stops going red on demand, the corroborator would report agreement whatever the engines actually said"). The mirror arm `return a >= b` is untouched, so the red is attributable to this edit alone and not to a broadly broken module.  MEASURED: untampered GREEN — 15/15 OK, EXIT=0; tampered (all 1) RED — 1 of 15 rows FAILed ("relation <= can refuse"), EXIT=1; reddened law relation <= can refuse — corroborate.selftest() row 3, asserting `not ; ALONE FAILS ALONE. The gate is a script, not a unittest, so "alone" was a fresh process invoking only that one check.  ⚠⚠ matches=3, NOT 1, AND THAT IS NOT A TYPO. This gate\'s FILE IS ITS OWN TARGET: the gate is `python3 corroborate.py --selftest`, so the RED_PROOF lives in the very file it tampers, and the proof\'s own `find` and `why` fields ARE occurrences of the anchor. The count was a true 1 when measured before the proof was written and a false 1 the moment it landed — a reading that was correct when taken and stale when used. heart2 measured it: "INVALID — the tamper matched 3 time(s), expected 1". The real code site is line 1945; the other two are this declaration, replaced harmlessly in a throwaway sandbox copy after heart2 has already parsed it. The gate reddens because of 1945. [[stale-reading]]',
+        'file': 'corroborate.py',
+        'find': 'return a <= b',
+        'replace': 'return True',
+        'matches': 3,
+    },
+]
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

@@ -156,5 +156,16 @@ class ExaminedEmptyReleases(unittest.TestCase):
                       "would read as nobody-looked again, which is what v2702 fixed")
 
 
+RED_PROOF = [
+    {
+        'why': 'seal_releases_frames is the STRICT deciding question: an EMPTY seal may release its frames only when it DECLARED examinedEmpty is True. Deleting that condition lets the 6-of-31 seals that score EMPTY only on the substring \'nothing\' (\'nothing was taken\', the default branch of _seal_extracted for a sweep that grounded no rows) release his footage — exactly the over-permission this gate exists to prevent, and the condition Konyo\'s conditional yes rests on.  MEASURED: untampered Ran 8 tests in 0.003s — OK (exit 0), python3 tv/test_examined_empty_releases.py; tampered (all 1) FAILED (failures=2) — test_a_seal_claiming_nothing_was_taken_does_NOT_release ("AssertionE; reddened law test_examined_empty_releases.ExaminedEmptyReleases.test_a_seal_claimin; ALONE FAILED (failures=1) in a fresh process: python3 -m unittest test_examined_empty_releases.ExaminedEmptyReleases.',
+        'file': 'frame_authority.py',
+        'find': 'row.get("examinedEmpty") is True',
+        'replace': 'True',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
