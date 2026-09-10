@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2903",
+  "ver": "v2904",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2903: every lane is named after a station it contains so the card showed one word twice with different counts",
+  "note": "v2904: the tick and the save both asked whether the store was readable and then acted as if it always was",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

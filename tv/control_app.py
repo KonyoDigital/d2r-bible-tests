@@ -20167,30 +20167,41 @@ def _vault_autoread_load():
              was retired, and acting on that claim re-buys every reel the lane had already ruled
              out. UNKNOWN must travel. [[unknown-stays-unknown]]
     """
-    st = _VAULT_AUTOREAD_STORE
-    if st["tried"]:
-        return st["readable"]
-    st["tried"] = True
-    try:
-        with io.open(_vault_autoread_path(), encoding="utf-8") as fh:
-            d = json.load(fh)
-    except FileNotFoundError:
-        st["readable"] = False
-        return False
-    except Exception:
-        st["readable"] = None            # ⚠ NOT False — "unreadable" is not "fresh"
-        return None
-    if not isinstance(d, dict):
-        st["readable"] = None
-        return None
-    for k in ("reads", "lastTs"):
-        if isinstance(d.get(k), int):
-            _VAULT_AUTOREAD[k] = d[k]
-    for k in ("retired", "tries", "lastWhy"):
-        if isinstance(d.get(k), dict):
-            _VAULT_AUTOREAD[k] = dict(d[k])
-    st["readable"] = True
-    return True
+    # ⚠⚠⚠ v2904 — THE WHOLE READ IS UNDER THE LOCK, AND `tried` IS PUBLISHED LAST. Raised by the
+    # cross-family eye on v2902: `st["tried"] = True` was set BEFORE the file was applied, so an
+    # overlapping tick (the status poll's refresh thread vs the stop-agent nudge, on a console that
+    # has just come up) could see `tried` True, get a `readable` still at its initial None, read
+    # `retired` while it was still {} — and spend. Then the save would write that incomplete memory
+    # over the good store. `_VAULT_AUTOREAD_LOCK` existed and gated only the lamp refresh.
+    #
+    # ⚠ AND AN UNREADABLE STORE IS NO LONGER CACHED FOR THE LIFE OF THE PROCESS. Chronicle's
+    # sibling `_chron_reels_retired()` does not cache a failed read, so a later tick retries; mine
+    # pinned readable=None forever, which turned one bad read into a permanent blindness.
+    with _VAULT_AUTOREAD_LOCK:
+        st = _VAULT_AUTOREAD_STORE
+        if st["tried"]:
+            return st["readable"]
+        try:
+            with io.open(_vault_autoread_path(), encoding="utf-8") as fh:
+                d = json.load(fh)
+        except FileNotFoundError:
+            st["tried"], st["readable"] = True, False
+            return False
+        except Exception:
+            st["readable"] = None        # ⚠ NOT False — "unreadable" is not "fresh"
+            return None                  # ⚠ `tried` stays False so a later tick may retry
+        if not isinstance(d, dict):
+            st["readable"] = None
+            return None
+        for k in ("reads", "lastTs"):
+            if isinstance(d.get(k), int):
+                _VAULT_AUTOREAD[k] = d[k]
+        for k in ("retired", "tries", "lastWhy"):
+            if isinstance(d.get(k), dict):
+                _VAULT_AUTOREAD[k] = dict(d[k])
+        # ⚠ LAST. Nothing may observe `tried` until `retired` is actually in memory.
+        st["tried"], st["readable"] = True, True
+        return True
 
 
 def _vault_autoread_save():
@@ -20205,8 +20216,16 @@ def _vault_autoread_save():
     # store and every retirement on disk would be destroyed — a strictly worse outcome than not
     # persisting at all, because the file would then look authoritative.
     # A load is attempted first; only its ANSWER may be acted on. [[unknown-stays-unknown]]
+    _mem = _VAULT_AUTOREAD_STORE.get("readable")
     if not _VAULT_AUTOREAD_STORE.get("tried"):
-        _vault_autoread_load()
+        _mem = _vault_autoread_load()
+    # ⚠⚠⚠ v2904 — REFUSE, DO NOT OVERWRITE AN UNREADABLE STORE. v2902 called the load and ignored
+    # its answer, so after a failed read this wrote the empty in-memory dict out as well-formed
+    # JSON — and the NEXT process would load that cleanly as True and pay again. An UNKNOWN turned
+    # into a durable, authoritative "nothing was retired" is worse than never persisting at all.
+    # Leaving the file untouched keeps the only copy of those decisions. [[unknown-stays-unknown]]
+    if _mem is None:
+        return False
     try:
         dest = _vault_autoread_path()
         tmp = dest + ".tmp"
@@ -20854,9 +20873,23 @@ def vault_autoreel_tick():
     # the lesson. [[copy-drift]] [[the-unjoined-end]]
     #
     # Idempotent and cheap: after the first call this is one flag check.
-    _vault_autoread_load()
     if not _VAULT_AUTOREEL_ON:
         return {"ok": False, "why": "the vault auto-sweep is off (TV_VAULT_AUTOREEL=0)"}
+    # ⚠⚠⚠ v2904 — AND THE ANSWER IS ACTED ON, NOT MERELY REQUESTED. v2902 called the load here and
+    # THREW THE RESULT AWAY, then read `_VAULT_AUTOREAD["retired"]` — which is still {} after a
+    # FAILED load. So a corrupt or unreadable store made every retired reel look new and the lane
+    # paid for all of them. That is the money bug for the one outcome v2901's comments spent the
+    # most ink on, and it survived two ships because the happy path was the only one anybody tested.
+    #
+    # This function already has the right shape one step below: it refuses when `_vault_owed_reels()`
+    # returns None rather than collapsing that into "owed 0". `retired` gets the same treatment.
+    # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+    _mem = _vault_autoread_load()
+    if _mem is None:
+        return {"ok": False, "unknown": True, "owed": None,
+                "why": "the vault lane's own memory could not be read, so which reels it has "
+                       "already RETIRED is UNKNOWN. Refusing to sweep: spending here would re-buy "
+                       "every reel this lane had already ruled out."}
     try:
         if (vault_sweep_state() or {}).get("running"):
             return {"ok": False, "busy": True, "why": "a vault sweep is already running"}
@@ -26030,7 +26063,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2903",
+        "ver": "v2904",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

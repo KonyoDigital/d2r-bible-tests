@@ -176,47 +176,110 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
                       "destroyed every retirement on disk")
 
 
+    # ── THE THIRD OUTCOME, WHICH TWO SHIPS LEFT THEORETICAL ──────────────────────────────────
+    def test_a_tick_against_an_unreadable_store_refuses_to_spend(self):
+        """⚠⚠ THE MONEY BUG FOR THE `None` CASE, AND IT SURVIVED TWO SHIPS. v2901 loaded only in
+        the reporter; v2902 made the actor load and then THREW THE ANSWER AWAY. After a failed load
+        `retired` is still {}, so every reel this lane had ruled out looks new and it pays for all
+        of them. The tick already refuses when `_vault_owed_reels()` is None instead of collapsing
+        that into "owed 0" — `retired` now gets the same treatment.
+
+        The eye's own words: a gate that has never been red for UNKNOWN-then-spend will not catch
+        this coming back. So it is pinned here. [[unknown-stays-unknown]]"""
+        CA._VAULT_AUTOREAD["retired"] = {"reel_ruled_out": {"why": "2 attempts", "at": 1}}
+        self.assertTrue(CA._vault_autoread_save())
+        with io.open(CA._vault_autoread_path(), "w", encoding="utf-8") as fh:
+            fh.write("{ not json at all")
+        self._restart()
+        r = CA.vault_autoreel_tick() or {}
+        self.assertTrue(r.get("unknown"),
+                        "the tick did not refuse against an UNREADABLE store: %r. Its `retired` is "
+                        "empty only because the read failed, so it would re-buy every reel the "
+                        "lane had already ruled out" % (str(r)[:140],))
+        self.assertFalse(r.get("ok"), "an UNKNOWN tick reported ok")
+
+    def test_a_save_against_an_unreadable_store_leaves_the_file_alone(self):
+        """An UNKNOWN written out as well-formed JSON is worse than never persisting: the NEXT
+        process loads it cleanly as True and pays again."""
+        with io.open(CA._vault_autoread_path(), "w", encoding="utf-8") as fh:
+            fh.write("{ not json at all")
+        self._restart()
+        CA._VAULT_AUTOREAD["reads"] = 99
+        self.assertFalse(CA._vault_autoread_save(),
+                         "the save reported success against an unreadable store")
+        with io.open(CA._vault_autoread_path(), encoding="utf-8") as fh:
+            still = fh.read()
+        self.assertIn("not json", still,
+                      "an unreadable store was OVERWRITTEN with empty memory — the only copy of "
+                      "those retirements is gone and the next process will trust the emptiness")
+
+    def test_an_unreadable_store_is_retried_not_blind_for_the_process(self):
+        """⚠ Chronicle's sibling `_chron_reels_retired()` does not cache a failed read, so a later
+        tick can retry. Caching `tried=True` on failure turns one bad read into permanent
+        blindness for the life of the console."""
+        with io.open(CA._vault_autoread_path(), "w", encoding="utf-8") as fh:
+            fh.write("{ not json at all")
+        self._restart()
+        self.assertIsNone(CA._vault_autoread_load(), "the corrupt store did not read as UNKNOWN")
+        # the file is repaired underneath — a later tick must be able to see it
+        CA._VAULT_AUTOREAD["retired"] = {"reel_ruled_out": {"why": "x", "at": 1}}
+        CA._VAULT_AUTOREAD_STORE.update({"tried": True, "readable": True})
+        CA._vault_autoread_save()
+        CA._VAULT_AUTOREAD.update({"retired": {}})
+        CA._VAULT_AUTOREAD_STORE.update({"tried": False, "readable": None})
+        self.assertIs(CA._vault_autoread_load(), True,
+                      "a repaired store could not be read back — the failure was cached")
+
+
 RED_PROOF = [
     {
-        "why": "dropping the restore: every restart goes back to reporting a lane that has never "
-               "swept, and every retirement is bought again",
-        "file": "control_app.py",
-        "find": "        _st_readable = _vault_autoread_load()",
-        "replace": "        _st_readable = False",
-        "matches": 1,
+        'why': 'dropping the restore: every restart goes back to reporting a lane that has never swept, and every retirement is bought again',
+        'file': 'control_app.py',
+        'find': '        _st_readable = _vault_autoread_load()',
+        'replace': '        _st_readable = False',
+        'matches': 1,
     },
     {
-        "why": "an unreadable store reported as a fresh start — an empty `retired` becomes a claim "
-               "nobody measured, and the lane re-buys what it had ruled out",
-        "file": "control_app.py",
-        "find": '        st["readable"] = None            # ⚠ NOT False — "unreadable" is not "fresh"',
-        "replace": '        st["readable"] = False',
-        "matches": 1,
+        'why': "returning False instead of None on an unreadable store — the load then reports a corrupt file as a FRESH START, and an empty `retired` becomes a claim nobody measured. The previous sabotage here tampered a cached flag the next load overwrites, which changed no behaviour: a green sabotage is the sabotage's fault",
+        'file': 'control_app.py',
+        'find': '            return None                  # ⚠ `tried` stays False so a later tick may retry',
+        'replace': '            return False',
+        'matches': 1,
     },
     {
-        "why": "writing the store in place instead of tmp + os.replace — a crash mid-write loses "
-               "every retirement, and a reader can see a torn file",
-        "file": "control_app.py",
-        "find": "        os.replace(tmp, dest)\n        return True",
-        "replace": "        shutil.copyfile(tmp, dest)\n        return True",
-        "matches": 1,
+        'why': 'writing the store in place instead of tmp + os.replace — a crash mid-write loses every retirement, and a reader can see a torn file',
+        'file': 'control_app.py',
+        'find': '        os.replace(tmp, dest)\n        return True',
+        'replace': '        shutil.copyfile(tmp, dest)\n        return True',
+        'matches': 1,
     },
     {
-        "why": "unloading the ACTOR: a tick after a restart then sees no retirements and pays "
-               "again for every reel the previous process had ruled out — the money bug v2901 "
-               "shipped inside its own fix",
-        "file": "control_app.py",
-        "find": "    _vault_autoread_load()\n    if not _VAULT_AUTOREEL_ON:",
-        "replace": "    if not _VAULT_AUTOREEL_ON:",
-        "matches": 1,
+        'why': 'unloading the ACTOR: a tick after a restart then sees no retirements and pays again for every reel the previous process had ruled out — the money bug v2901 shipped inside its own fix',
+        'file': 'control_app.py',
+        'find': '    _mem = _vault_autoread_load()\n    if _mem is None:\n        return {"ok": False, "unknown": True, "owed": None,',
+        'replace': '    _mem = False\n    if _mem is None:\n        return {"ok": False, "unknown": True, "owed": None,',
+        'matches': 1,
     },
     {
-        "why": "letting a save run before any load: empty memory is written over a good store and "
-               "every retirement on disk is destroyed",
-        "file": "control_app.py",
-        "find": '    if not _VAULT_AUTOREAD_STORE.get("tried"):\n        _vault_autoread_load()',
-        "replace": '    if False:\n        _vault_autoread_load()',
-        "matches": 1,
+        'why': 'letting a save run before any load: empty memory is written over a good store and every retirement on disk is destroyed',
+        'file': 'control_app.py',
+        'find': '    _mem = _VAULT_AUTOREAD_STORE.get("readable")\n    if not _VAULT_AUTOREAD_STORE.get("tried"):\n        _mem = _vault_autoread_load()',
+        'replace': '    _mem = True',
+        'matches': 1,
+    },
+    {
+        'why': 'letting the TICK spend against an unreadable store — its `retired` is empty only because the read failed, so it re-buys every reel the lane had ruled out',
+        'file': 'control_app.py',
+        'find': '    if _mem is None:\n        return {"ok": False, "unknown": True, "owed": None,',
+        'replace': '    if False:\n        return {"ok": False, "unknown": True, "owed": None,',
+        'matches': 1,
+    },
+    {
+        'why': 'letting the SAVE overwrite an unreadable store: UNKNOWN becomes well-formed JSON saying nothing was retired, and the next process trusts it',
+        'file': 'control_app.py',
+        'find': '    if _mem is None:\n        return False\n    try:\n        dest = _vault_autoread_path()',
+        'replace': '    if False:\n        return False\n    try:\n        dest = _vault_autoread_path()',
+        'matches': 1,
     },
 ]
 

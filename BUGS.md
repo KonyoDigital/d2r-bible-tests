@@ -29426,3 +29426,49 @@ the extracted text, not by the verdict. `sel` widened; 21/21 painted, 0 clipped,
 Laws: `OneWordMustNotCarryTwoNumbers` — 3, including one that measures the COLLISION ITSELF (if a
 future rename means no lane is named after a station, the caption is decoration and the law says so
 rather than keeping it out of habit). 6 red-proofs on the gate, all PROVEN, 1 match each.
+
+## REG-903 — the third outcome was requested and then ignored, twice
+
+**v2904.** Third round of the cross-family eye on this lane, and the third time it was right.
+
+v2901 loaded only in the reporter. v2902 made the ACTOR load — and **threw the answer away**:
+
+```python
+_vault_autoread_load()          # v2902: called, result discarded
+...
+if rid in _VAULT_AUTOREAD["retired"]:   # still {} after a FAILED load
+```
+
+`_vault_autoread_load()` documents three outcomes — `True` restored, `False` no store yet, **`None`
+unreadable** — and both new call sites treated "I called it" as "it worked". So a corrupt store made
+every retired reel look new and the lane paid for all of them. **That is the money bug for the one
+outcome v2901's comments spent the most ink on**, and it survived two ships because the happy path
+was the only path anyone tested.
+
+The save did the same, and worse: it wrote the empty in-memory dict out as **well-formed JSON**, so
+the next process would load it cleanly as `True` and pay again. An UNKNOWN turned into a durable,
+authoritative "nothing was retired" is worse than never persisting at all.
+
+**Three fixes:**
+1. the tick REFUSES when the store is unreadable — the same shape it already used for
+   `_vault_owed_reels()` returning `None`, rather than collapsing that into "owed 0"
+2. the save REFUSES to overwrite an unreadable store, leaving the only copy of those decisions
+3. the whole read is under `_VAULT_AUTOREAD_LOCK` with `tried` published LAST. It was set BEFORE the
+   file was applied, so an overlapping tick could see `tried` true, read `retired` while still `{}`,
+   spend, and then have the save write that incomplete memory over the good store. And an unreadable
+   store is no longer cached for the life of the process — chronicle's `_chron_reels_retired()` does
+   not cache a failed read, so a later tick retries; mine pinned blindness permanently.
+
+MEASURED against a deliberately corrupted store:
+
+```
+TICK  ok=False unknown=True  "…which reels it has already RETIRED is UNKNOWN. Refusing to sweep…"
+SAVE  returned False, file still holds the corrupt bytes — the only copy intact
+```
+
+⚠ **AND THE SABOTAGES WERE WRONG BEFORE THE LAWS WERE.** First prove: 3 of 7 INVALID (0, 2 and 0
+matches) because my own v2904 edits had moved the anchored lines — repaired by rebuilding RED_PROOF
+from the parsed structure rather than hand-quoting. Then one came back **BLIND**: tampering
+`st["readable"] = None` changed only a cached flag the next load overwrites, so no behaviour moved
+and the law was right to stay green. Re-aimed at the `return None` that actually decides. **7 of 7
+PROVEN, 1 match each.** [[sabotage-is-usually-the-wrong-one]]
