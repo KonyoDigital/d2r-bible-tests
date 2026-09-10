@@ -20181,6 +20181,42 @@ def _shelf_visible(story):
     return out
 
 
+def shelf_hidden_reels(hist_dir=None):
+    """The reel ids NO console surface may show. -> (frozenset | None, why)
+
+    ⚠⚠ THE SECOND HALF OF `_shelf_visible`, AND IT EXISTS BECAUSE ONE FILTER WAS NOT ENOUGH.
+    v2877 subtracted the fixture reels from /api/reel_story and the RIVER STRIP two panels away
+    went on counting them, so his console said "24 reel(s) on the shelf" over a shelf drawing 16.
+    Same ruling, same shelf, two answers. The strip is fed by `river_lanes` off `reel_router`, not
+    by the story, so it could not reuse a row filter — what both surfaces CAN share is the set of
+    reels being hidden, decided once, here.
+
+    ⚠ IT READS THE SAME AUTHORITY THE STORY'S TAGS COME FROM. `reel_story.story()` builds its rows
+    from `reel_retention.plan()`, so keying on that plan's tags means the two surfaces cannot drift
+    apart by construction — not because two functions were kept in step by hand.
+
+    ⚠ `None` IS UNKNOWN AND IS NEVER AN EMPTY SET. An empty set is a claim: "nothing is hidden".
+    A plan that could not run knows nothing about what is hidden, and a caller handed `set()` for
+    that would filter nothing while believing it had filtered. [[unknown-stays-unknown]]
+    """
+    try:
+        import reel_retention as _RR
+        _p = _RR.plan(hist_dir=hist_dir)
+    except Exception as _e:
+        return None, ("reel_retention.plan() raised %s, so which reels are hidden is UNKNOWN — "
+                      "this is not a report that none are" % type(_e).__name__)
+    if not _p.get("ok"):
+        return None, (_p.get("why") or "reel_retention.plan() could not run, so which reels are "
+                                       "hidden is UNKNOWN")
+    _ids = set()
+    for _rec in list(_p.get("candidates") or []) + list(_p.get("kept") or []):
+        if (_rec or {}).get("tag") in SHELF_HIDDEN_TAGS:
+            _r = str((_rec or {}).get("reel") or "")
+            if _r:
+                _ids.add(_r)
+    return frozenset(_ids), ""
+
+
 def _vault_owed_reels(hist=None):
     """The reels the VAULT lane owes a read: it OWNS them, and has not sealed them yet.
 
@@ -25819,7 +25855,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2892",
+        "ver": "v2893",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28089,7 +28125,12 @@ class Handler(BaseHTTPRequestHandler):
                 _lanes = None
                 try:
                     import river_lanes as _RL
-                    _lr = _RL.lanes()
+                    # ⚠ THE SAME 8 REELS THE SHELF HIDES, SUBTRACTED FROM THE SAME SHELF.
+                    # `hide=None` (an unreadable plan) leaves the river whole and says so in
+                    # `hiddenWhy` rather than quietly drawing a filtered-looking river it never
+                    # filtered. [[unknown-stays-unknown]]
+                    _hide, _hide_why = shelf_hidden_reels()
+                    _lr = _RL.lanes(hide=_hide)
                     if _lr.get("ok"):
                         # ⚠ COUNTS AND THE LANE'S OWN SENTENCE — never the reel RECORDS. The
                         # shelf already has the sessions; shipping 40 reel records again would
@@ -28141,6 +28182,12 @@ class Handler(BaseHTTPRequestHandler):
                         _lanes = {"ok": True,
                                   "reconciles": _lr.get("reconciles"),
                                   "shelf": _lr.get("shelf"),
+                                  # ⚠ REPORTED, NEVER RENDERED. His ruling is that the fixtures are
+                                  # not mentioned ANYWHERE VISUALLY; a field in the payload is what
+                                  # lets a gate and the doctor prove the subtraction happened at
+                                  # all. A filter nothing can measure is a filter nothing can keep.
+                                  "hidden": _lr.get("hidden"),
+                                  "hiddenWhy": _hide_why,
                                   # ⚠ TWO DENOMINATORS, BOTH SHIPPED. `shelf` is reels on disk
                                   # (what `reconciles` is about); `closed` is reels that have left
                                   # it; `lifetime` is the union. Shipping only the first is how

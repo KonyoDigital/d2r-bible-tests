@@ -130,11 +130,16 @@ def assert_partitions():
     return (not findings), findings
 
 
-def lanes(rep=None):
+def lanes(rep=None, hide=None):
     """The four lanes over the router's answer. Decides nothing. -> dict
 
     -> {"ok", "lanes": [{name, why, stations, count, reels: [...]}], "shelf", "unknown",
         "reconciles", "why"}
+
+    `hide` is a set of reel ids the CALLER has decided this console must not show. This module
+    still decides nothing — it applies the caller's set to the router's report BEFORE grouping, so
+    `shelf`, every lane `count`, every `byStation` figure and `reconciles` all move together off
+    one filter rather than four hand-patched numbers.
 
     ⚠ `reconciles` IS PUBLISHED, NOT ASSUMED. It is the sum over lanes plus UNKNOWN against the
     shelf. A view that quietly drops a reel is the whole reason the router returns a report rather
@@ -171,6 +176,39 @@ def lanes(rep=None):
                       "not a report that the river is empty"
                       % ((rep or {}).get("why") or "no reason given"))
         return out
+    # ⚠⚠ v2893 — ONE FILTER, AND EVERY FIGURE MOVES WITH IT (#58).
+    # Konyo, 2026-09-10, on the 8 reels the suite opens by name: *"no need to even mention those 8
+    # anywhere visually on the console."* `_shelf_visible()` had subtracted them from
+    # /api/reel_story since v2877 and the RIVER STRIP — the other surface drawn from the same
+    # shelf, two panels away — still counted every one of them. MEASURED on his console:
+    #
+    #     strip header   24 reel(s) on the shelf      the shelf below it        16 rows
+    #     INTAKE 6 · PRINTER 2 · CAPTURE 12 · TOMBSTONE 4   of which 2 · 1 · 4 · 1 are fixtures
+    #
+    # Two surfaces, one shelf, two answers — the exact defect the ruling was given to end.
+    #
+    # ⚠ THE CUT IS ON THE REPORT, NOT ON THE OUTPUT, and that is the whole reason it is here and
+    # not four subtractions at the endpoint. Everything below — `by`, each lane's `reels`,
+    # `count`, `byStation`, `shelf`, `unknown` and `reconciles` — is derived from `rep`. Filter the
+    # report once and all of them are already right; patch the output and each figure is a
+    # separate chance to miss one. [[zero-needs-a-denominator]] [[label-outlived-referent]]
+    rep_all = rep                      # ⚠ the ROSTER still needs every reel — see below
+    out["hidden"] = 0
+    if hide:
+        _h = set(str(x) for x in hide if x)
+        _keep, _drop = [], []
+        for _r in (rep.get("reels") or []):
+            (_drop if str(_r.get("reel") or "") in _h else _keep).append(_r)
+        if _drop:
+            # ⚠ UNKNOWN IS ITS OWN DENOMINATOR. A hidden reel the router could not place is
+            # counted in `unknown`, not in any lane, so hiding it must decrement BOTH or
+            # `reconciles` goes false on a river that is perfectly intact.
+            _unk = sum(1 for _r in _drop if _r.get("station") == "UNKNOWN")
+            rep = dict(rep)
+            rep["reels"] = _keep
+            rep["shelf"] = max(0, int(rep.get("shelf") or 0) - len(_drop))
+            rep["unknown"] = max(0, int(rep.get("unknown") or 0) - _unk)
+            out["hidden"] = len(_drop)
     by = {}
     for r in (rep.get("reels") or []):
         by.setdefault(r.get("station"), []).append(r)
@@ -193,7 +231,12 @@ def lanes(rep=None):
     closed_by_station, closed_why, closed_n = {}, "", None
     try:
         import reel_router as _rr2
-        _ro = _rr2.roster(rep=rep)
+        # ⚠⚠ THE ROSTER GETS `rep_all`, NOT THE FILTERED REPORT, AND THIS IS NOT A DETAIL.
+        # roster() decides a reel has CLOSED OUT by its ABSENCE from the walk. Hand it a report
+        # with 8 reels removed and it reads all 8 as closed — the console would hide them from the
+        # shelf and then announce them in the TOMBSTONE lane and in `closed`, which is the one
+        # place the ruling most obviously forbids. Hidden means unseen, never "finished".
+        _ro = _rr2.roster(rep=rep_all)
         closed_why = str(_ro.get("closedWhy") or "")
         if _ro.get("closedReadable"):
             closed_n = _ro.get("closed")

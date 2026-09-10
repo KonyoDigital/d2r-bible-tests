@@ -28812,3 +28812,43 @@ Three defects caught by dry-running before scheduling:
      store now. [[zero-needs-a-denominator]]
 ⚠ My duration estimate (~23 min) was 39% low because I timed the STALEST twelve gates — which were
 the fast ones — and scaled x23. Measured honestly, extrapolated carelessly.
+
+## REG-886 — one shelf, two numbers: the river strip counted the reels the shelf hides
+
+**v2893 (#58).** `_shelf_visible()` has subtracted the 8 `test-fixture` reels from `/api/reel_story`
+since v2877, under his ruling of 2026-09-10: *"no need to even mention those 8 anywhere visually on
+the console."* The RIVER STRIP — the other surface drawn from the same shelf, two panels up the same
+page — went on counting every one of them.
+
+MEASURED on his console, both surfaces answered live in the same second:
+
+```
+/api/reel_story   onDisk 16 · reels 16 · printerJoined 16
+/api/river        lanes.shelf 24        -> "the river · 24 reel(s) on the shelf"
+                  INTAKE 6 · PRINTER 2 · CAPTURE 12 · TOMBSTONE 4
+                  of which hidden by the shelf:  2 · 1 · 4 · 1
+```
+
+One shelf, two answers, and nothing on screen saying which was his. This is [[copy-drift]] in the
+shape this repo keeps re-tailoring: a rule applied at ONE of the places that draws the thing.
+
+**The fix is one filter on the REPORT, not four subtractions on the output.** `river_lanes.lanes()`
+derives `shelf`, every lane `count`, every `byStation` cell and `reconciles` from `rep`, so filtering
+the router's report once moves all of them together; patching the output would have been four
+separate chances to miss one. The set itself is decided in ONE place — `shelf_hidden_reels()` in
+`control_app.py`, keyed on the same `SHELF_HIDDEN_TAGS` and the same `reel_retention.plan()` the
+story's row tags come from, so the two surfaces cannot drift apart by construction.
+
+⚠ **The trap inside the fix, and it is not obvious.** `reel_router.roster()` decides a reel has
+CLOSED OUT by its ABSENCE from the walk. Handing it the filtered report reads all 8 hidden reels as
+finished — hidden from the shelf, then announced in TOMBSTONE and in `closed`. It is passed
+`rep_all`, and `test_the_closure_roster_is_handed_every_reel` holds that.
+
+AFTER, measured: `shelf 24 -> 16`, `INTAKE 6->4 · PRINTER 2->1 · CAPTURE 12->8 · TOMBSTONE 4->3`
+(4+1+8+3 = 16), `reconciles` still True, `closed` unchanged at 446. Pixels at 1120/1440/901/375:
+**"the river · 16 reel(s) on the shelf"**, 17/17 painted, 0 clipped.
+
+Gate `test_two_surfaces_one_shelf` — 9 laws, no footage (synthetic report, stubbed roster), so it
+measures the same thing on his Mac and on a CI runner with no reels. Proven red three ways: the
+filter removed, the roster handed the filtered report, and the endpoint unjoined from the set it
+computes.

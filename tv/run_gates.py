@@ -901,6 +901,15 @@ GATES = [
              "discarded. Proven red both ways: the skip branch off, and the helper un-joined from "
              "its only call site.",
          skip_ok=()),
+    Gate("test_two_surfaces_one_shelf",
+         [sys.executable, os.path.join(HERE, "test_two_surfaces_one_shelf.py")], 60,
+         "v2893 (#58) — the shelf subtracted the 8 fixture reels from /api/reel_story at v2877 and "
+         "the RIVER STRIP two panels up the same page still counted all 24: 'the river · 24 reel(s) "
+         "on the shelf' over a shelf drawing 16, with INTAKE·PRINTER·CAPTURE·TOMBSTONE 6·2·12·4 of "
+         "which 2·1·4·1 were fixtures. One shelf, two answers. Proven red three ways: the filter "
+         "removed, the closure roster handed the FILTERED report (which reads all 8 as closed out), "
+         "and the endpoint unjoined from the set it computes.",
+         skip_ok=()),
     Gate("test_the_ratchet_cannot_erase_the_census",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
          why="v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "

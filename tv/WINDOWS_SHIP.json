@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2892",
+  "ver": "v2893",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2892: the panel promised never stored above a stored number, and showed the file age instead of the gate age",
+  "note": "v2893: the strip counted 24 fixtures and all while the shelf below it drew 16",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
