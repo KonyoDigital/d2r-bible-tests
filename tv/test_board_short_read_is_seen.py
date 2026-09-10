@@ -162,5 +162,16 @@ class BoardShortReadIsSeen(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': "removing the comparison lets a TORN /board read be served as a normal 200 with nothing anywhere noticing — REG-681's defect on the serve side. `if False` is the deliberate choice: this law's own comment records that an earlier version asserted only that _BOARD_SHORT_FLOOR appeared SOMEWHERE in the block, and since the constant is also named in the message string, `if False:` left it GREEN. The law was hardened to grade the COMPARISON with a regex, so the same tamper now reddens it. Verified: untampered OK, tampered FAILED (failures=1), reddened law test_the_serve_path_checks_the_LENGTH.",
+        'file': 'control_app.py',
+        'find': 'if len(body) < _BOARD_SHORT_FLOOR',
+        'replace': 'if False',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

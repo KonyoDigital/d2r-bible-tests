@@ -104,5 +104,16 @@ class ChronicleRoutesCache(_CacheContract, unittest.TestCase):
         CR._MEMO["val"] = None
 
 
+RED_PROOF = [
+    {
+        'why': 'dropping the key comparison serves a disk cache whose key no longer matches the tree — a stale answer with a speedup attached, from a cache that decides what may be DELETED. Verified by hand: untampered OK, tampered FAILED (failures=2), and the reddened laws are test_a_cache_with_the_WRONG_key_is_never_served and test_a_corrupt_cache_fails_OPEN, both in FixtureReelsCache — the frame_authority side this anchor lives on, not a sibling failing for its own reason.',
+        'file': 'frame_authority.py',
+        'find': '_blob.get("key") == _ckey and ',
+        'replace': '',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -28429,3 +28429,33 @@ byte-identical. `triage()` reads each gate's real `argv[2:]` and `timeout` from 
 global. The one line whose job is to make a silent omission loud would have raised `NameError` the
 first time a gate was dropped. Exercised with a synthetic unreadable gate before believing it.
 `[[feedback-suspect-the-instrument]]` `[[plumbing-with-no-tap]]` `[[zero-needs-a-denominator]]`
+
+### REG-857 — three green sabotages, three different reasons, one root
+**v2883.** Writing red-proofs for six gates produced three sabotages that were perfectly anchored,
+perfectly counted, and completely inert. Each looked correct by the rule *"PRINT THE MATCH COUNT"*
+and each proved nothing. The counts were right; the experiments were wrong.
+1. **The wrong side of a union.** `test_store_isolation` compares `written` against `forked`, and
+   `_fork_sets` UNIONS `_LP_FORKED` with `_WP_FORKED`. `d2r_muleRoster` is LP-only, and its single
+   occurrence in `bible.html` **was the write site** — so deleting it removed the key from BOTH
+   sides of the comparison and the answer could not move. Working anchor: `,'d2r_chronApplied'`,
+   which sits INSIDE the `_WP_FORKED` declaration (chars 387231..387512) while the key survives 5
+   times elsewhere as its write site.
+2. **The anchor outside the declaration.** The next candidate, `d2r_chronicleHandoff`, has a unique
+   anchor — at char **5,720,420**, nowhere near the fork declaration. Unique is not the same as
+   *load-bearing*.
+3. **A shared constant.** `test_mask_encoders_agree` holds two implementations of one job to a
+   byte-for-byte match. Tampering `FINGERPRINT_LEN = 12 -> 11` moved BOTH encoders together and
+   they still agreed. A sabotage for an agreement law must break exactly ONE side; anything both
+   read is invisible to it by construction. Working lever: the python encoder's bit packing,
+   `(1 << (i % 8))` -> `(1 << (7 - i % 8))`, LSB-first against the JS's own order — FAILED
+   (failures=6), including `test_the_BYTE_BOUNDARY_bits`, the law written because *"an encoder pair
+   can agree on every other input and differ here"*.
+**Also measured:** the bit-packing anchor occurs **2** times and my first check replaced only the
+first. heart2 replaces ALL matches, so a proof verified on one occurrence describes a different
+experiment from the one that will run. Re-verified with both replaced, then declared `matches: 2`.
+**And:** `test_every_lock_declares_its_attacks` went red under its sabotage — but the file failing
+is not the law failing. Confirmed the red law was `test_every_banking_harness_passes_attacks`
+itself, not a sibling failing for its own reason.
+**The rule, stated so it cannot be misread again:** a match count proves the anchor EXISTS. Only a
+run proves the tamper MOVES THE ANSWER — and only naming the reddened law proves it moved the right
+one. `[[sabotage-is-usually-the-wrong-one]]` `[[feedback-suspect-the-instrument]]`

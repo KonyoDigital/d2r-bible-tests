@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2883** | `(this commit)` | v2883 — a match count proves the anchor exists, not that removing it moves the answer |
 | **v2882** | `(this commit)` | v2882 — run_gates registers 279, the heart counted 278, and the drop printed nothing |
 | **v2881** | `(this commit)` | v2881 — two product defects and three laws that only ever ran where the data was |
 | **v2880** | `(this commit)` | v2880 — the waiting figure counted reels no sweep would ever touch, and the law I wrote to catch it was satisfied by my own comment |

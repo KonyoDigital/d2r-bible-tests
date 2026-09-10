@@ -358,6 +358,17 @@ class TheGuardCanFail(unittest.TestCase):
         self.assertIn("return None", src)
 
 
+RED_PROOF = [
+    {
+        'why': 'flipping the python encoder to MSB-first breaks agreement with the inline JS encoder, which is the whole subject: two implementations of one job, and the tested one was not the used one. Verified as heart2 will run it — BOTH occurrences replaced: FAILED (failures=6), restored OK. ⚠ FINGERPRINT_LEN WAS THE WRONG LEVER AND CAME BACK GREEN: it is a SHARED constant, so both sides moved together and still agreed. A sabotage for an agreement law must break exactly ONE implementation, never something both read.',
+        'file': 'fleet_mask.py',
+        'find': '(1 << (i % 8))',
+        'replace': '(1 << (7 - i % 8))',
+        'matches': 2,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

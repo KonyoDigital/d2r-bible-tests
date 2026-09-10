@@ -149,5 +149,16 @@ class TestGrailStoresAreIsolatedPerWorld(unittest.TestCase):
             "these are isolated now and must be removed from KNOWN_UNISOLATED: %s" % now_isolated)
 
 
+RED_PROOF = [
+    {
+        'why': "unforking a grail store is the regression this gate exists to catch: the key stays written but stops being isolated per world, so a guest's writes land in his. ⚠ THE ANCHOR IS FUSSY AND THE FIRST TWO CHOICES CAME BACK GREEN. _fork_sets UNIONS _LP_FORKED and _WP_FORKED, so a key in both survives removal from one (d2r_muleRoster is LP-only and its single occurrence WAS the write site, so deleting it removed the key from both sides of the comparison and nothing moved). This anchor sits INSIDE the _WP_FORKED declaration (chars 387231..387512) and the key appears 5 times elsewhere, so the write site survives and the store really does go unisolated. Verified by hand: untampered OK, tampered AssertionError.",
+        'file': 'bible.html',
+        'find': ",'d2r_chronApplied'",
+        'replace': '',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

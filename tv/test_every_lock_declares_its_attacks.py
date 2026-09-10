@@ -215,6 +215,17 @@ class ItDoesNotDecideHisRuling(unittest.TestCase):
         self.assertIsInstance(flip, list)
 
 
+RED_PROOF = [
+    {
+        'why': "a bank() call with no attacks= writes a row that cannot say how many DISTINCT attacks back it — REG-598's defect exactly, where Wilson could not tell 83 independent looks from one attack applied 83 times (83/83 was 2 attacks x 40 reels, really 0.5655). Verified by hand: untampered OK, tampered FAILED (failures=1), and the law that went red is test_every_banking_harness_passes_attacks itself, not a sibling failing for its own reason.",
+        'file': 'frame_release_wilson.py',
+        'find': 'attacks=n,',
+        'replace': '',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     try:
         from console_safe import enable
