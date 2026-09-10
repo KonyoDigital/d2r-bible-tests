@@ -28683,3 +28683,40 @@ whitespace-named path INSIDE his tree. That is precisely the class this law was 
 opinion about what isolation means"). It does NOT reproduce under `/Users`, so which of the two is
 wrong is UNKNOWN pending its own measurement. The gate therefore declares a red-proof it cannot yet
 execute — heart2 reports it UNPROVABLE rather than counting it as proven, which is the honest state.
+
+### REG-876 — the heart reaches 281 of 281, and the last gate was blocked by my own substring guard
+The applier that writes RED_PROOF blocks skipped `test_control.py` with "already has RED_PROOF". It
+was testing `"RED_PROOF" in src` — a SUBSTRING — and the file contains a law named
+`test_RED_PROOF_the_old_flag_only_guard_cannot_satisfy_this_law`. A law explicitly about a flag-only
+guard being insufficient is what defeated my flag-only guard. AST says the file held **0** real
+module-level RED_PROOF assignments. Third instance of this class today after the `-c` script read as
+argv and the `_record_ship_in_tasks(` definition satisfying its own call-check: **when a law reads
+source, PARSE — a substring is not a declaration.** [[source-reading-guard]]
+
+### REG-877 — vault-wilson and sweep-wilson: the tamper must make a refusal ACCEPT, never RAISE
+Both gates exit 1 only on a LEAKS row; a probe that RAISES becomes UNKNOWN, which they print loudly
+and PASS. So a red-proof has to weaken a door, not break it.
+· **vault-wilson** — `(_kept if _v.get("pass") else _dropped).append(_r)` → `(_kept).append(_r)`: every
+  proposal row clears the witness gate, so a hand-supplied proposal is written without being
+  re-checked where the write happens. MEASURED: ungated LEAKS 8/0, exit 1, `empty` still PROVEN 8/8.
+· **sweep-wilson** — ⚠ DELIBERATELY NOT the busy guard. Defeating that would let a REAL SWEEP START,
+  and a heart2 sandbox does not set TV_HIST, so it could reach his real reels. The tamper drops the
+  STRUCTURED `busy` flag while the refusal itself remains — v2206's documented failure, where a
+  cross-family review "refused the read as a lock and retried forever". MEASURED: busy LEAKS 8/0,
+  exit 1, `lane` still PROVEN 8/8, and nothing was spent.
+  ⚠ Anchored on TWO lines carrying `"state": dict(_CHRON_JOB)}` because the one-line form occurs
+  **3 times** — chronicle_autoread_tick, chronicle_autoreel_tick, chronicle_sweep_start — and a
+  three-site tamper reddens for a broader reason than the one claimed.
+
+### REG-878 — reel_demo was never always-green; it just had no proof
+Its `main()` ends `return 0 if r["ok"] else 1` and declares SKIP 77 with a named reason where the
+shelf is absent, so CI (no footage) skips it honestly. The proof changes one of the counts Konyo
+registered as his own rulings — runewords 99 → 98 — and `_check`'s `got == want` turns it red.
+PROVEN, 2 matches (self-targeting: reel_demo.py is its own gate file).
+
+### REG-879 — a CI tally of mine reported 3 failures that did not exist
+My summary filter treated a run's `conclusion` as failing unless it was in `(None, 'success',
+'skipped')`. An IN-PROGRESS run returns `''`, not `None`, so three still-running routines were
+counted as failures and reported as such. Corrected in the same breath by re-filtering on
+`status == 'completed'` first. A false red costs exactly what a false green does — trust in the
+instrument. [[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]

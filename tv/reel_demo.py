@@ -391,6 +391,22 @@ def main(argv):
     return 0 if r["ok"] else 1
 
 
+RED_PROOF = [
+    {
+        "why": "v2889 — the tamper changes one of the counts Konyo REGISTERED as his own rulings "
+               "(runewords 99, sets 135 pieces, uniques 403). _check compares got == want and main "
+               "ends in `return 0 if r[\"ok\"] else 1`, so a single wrong number turns the gate red. "
+               "That is the whole point of this gate: it walks his REAL reels through all six printer "
+               "stations and holds the pipeline to numbers fixed before any of it changed. ⚠ It "
+               "declares SKIP 77 with a named reason where the shelf is absent (CI has no footage), "
+               "so this proof only runs where his reels are. [[regression-guard]]",
+        "file": 'reel_demo.py',
+        "find": 'for kind, want in (("runeword", 99), ("set", 135), ("unique", 403)):',
+        "replace": 'for kind, want in (("runeword", 98), ("set", 135), ("unique", 403)):',
+        "matches": 2,
+    },
+]
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

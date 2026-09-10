@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2890** | `(this commit)` | v2890 — 281 of 281 gates carry a red-proof heart2 has executed |
 | **v2889** | `(this commit)` | v2889 — a called-check satisfied by the definition line, two gates that could not run in a sandbox, and a failed read handed back as data |
 | **v2888** | `(this commit)` | v2888 — a -c script handed back as an argument, footage the sandbox never had, and two sabotages aimed at the wrong side |
 | **v2887** | `(this commit)` | v2887 — 47 proofs measured, and three defects that were mine not the agents |

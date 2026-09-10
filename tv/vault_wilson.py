@@ -232,6 +232,22 @@ def main(argv=None):
     return 0
 
 
+RED_PROOF = [
+    {
+        "why": "v2889 — the tamper makes EVERY proposal row clear the witness gate, so a hand-supplied "
+               "proposal is written without ever being re-checked at the door. vault-wilson exits 1 "
+               "only on a LEAKS row and a probe that RAISES is UNKNOWN (loud, and PASSING), so the "
+               "tamper had to make a refusal ACCEPT rather than break. MEASURED against a shadowed "
+               "control_app before this was written: ungated LEAKS, sabotages=8 caught=0, exit 1 — "
+               "and `empty` stayed PROVEN 8/8, which is what shows the probe still works rather than "
+               "being globally broken. [[sabotage-is-usually-the-wrong-one]]",
+        "file": 'control_app.py',
+        "find": '(_kept if _v.get("pass") else _dropped).append(_r)',
+        "replace": '(_kept).append(_r)',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     try:
         from console_safe import enable

@@ -43236,5 +43236,22 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
             % healed)
 
 
+RED_PROOF = [
+    {
+        "why": "v2890 — the tamper replaces an ATOMIC report write with `open(path, \"w\").write(...)`, "
+               "which TRUNCATES the file before the value on the right is computed. That is the exact "
+               "shape that emptied his 6 MB bible.html once, so this is the real defect rather than a "
+               "contrivance. test_control asserts the atomic call is present and the literal occurs "
+               "EXACTLY ONCE in control_app.py — chosen from 109 candidate single-occurrence literals "
+               "measured across the suite. ⚠ matches: 2 because test_control.py IS its own gate file, "
+               "so this declaration's `find` becomes a second occurrence once it lands. "
+               "[[open-for-write-truncates-first]] [[bible-writes-must-be-atomic]]",
+        "file": 'control_app.py',
+        "find": '_kai_write_report_atomic(_pp_path, _pp_next)',
+        "replace": 'open(_pp_path, "w").write(_pp_next)',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

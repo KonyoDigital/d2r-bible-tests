@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2889",
+  "ver": "v2890",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2889: a called-check satisfied by the definition line, two gates that could not run in a sandbox, and a failed read handed back as data",
+  "note": "v2890: 281 of 281 gates carry a red-proof heart2 has executed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

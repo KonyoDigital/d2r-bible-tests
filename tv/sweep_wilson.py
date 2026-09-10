@@ -161,6 +161,26 @@ def main(argv=None):
     return 0
 
 
+RED_PROOF = [
+    {
+        "why": "v2889 — the tamper drops the STRUCTURED `busy` flag while the refusal itself REMAINS, "
+               "so a caller can no longer tell contention from any other refusal. That is v2206's "
+               "documented failure in its own words: a cross-family review of v2204 \"refused the "
+               "read as a lock and retried forever\". ⚠ DELIBERATELY NOT the busy GUARD: defeating "
+               "that would let a real sweep START, and a heart2 sandbox does not set TV_HIST, so it "
+               "could reach his real reels. This tamper spends nothing. ⚠ ANCHORED ON TWO LINES "
+               "carrying `\"state\": dict(_CHRON_JOB)}` because the one-line form occurs THREE times "
+               "— in chronicle_autoread_tick, chronicle_autoreel_tick AND chronicle_sweep_start — and "
+               "a three-site tamper would redden for a broader reason than the one claimed. MEASURED "
+               "against a shadowed control_app: busy LEAKS, sabotages=8 caught=0, exit 1, `lane` "
+               "still PROVEN 8/8. [[sabotage-is-usually-the-wrong-one]] [[unknown-stays-unknown]]",
+        "file": 'control_app.py',
+        "find": '            return {"ok": False, "busy": True, "why": "a sweep is already running",\n                    "state": dict(_CHRON_JOB)}\n',
+        "replace": '            return {"ok": False, "why": "a sweep is already running",\n                    "state": dict(_CHRON_JOB)}\n',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     try:
         from console_safe import enable
