@@ -1735,10 +1735,28 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
     ⚠ NO ROW COMPARABLE IS UNKNOWN, NEVER 0 == 0. A fleet that published no masks must not make this
     hold vacuously. [[zero-needs-a-denominator]]
     """
+    # ⚠⚠⚠ v2906 — ONE FLEET READING, HANDED TO BOTH SIDES. Each side called `fleet_presence()`
+    # for itself and that answer is cached 60s (control_app.py:25361), so a run straddling the
+    # expiry GRADED TWO DIFFERENT FLEETS. Measured: Konyo's maskKeys read [sets, uniques] on one
+    # probe and [] minutes later, because his masks appear and vanish with his board window. That
+    # is not a data defect — it is this invariant reading two worlds and calling the difference a
+    # disagreement. [[feedback-suspect-the-instrument]]
+    _shared = {"got": False, "fleet": None}
+
+    def _fleet():
+        if not _shared["got"]:
+            _shared["got"] = True
+            try:
+                import control_app as _ca
+                _shared["fleet"] = _ca.fleet_presence()
+            except Exception:
+                _shared["fleet"] = None
+        return _shared["fleet"]
+
     def left():
         try:
             import ledger_authority as la
-            d = la.mask_cross_check()
+            d = la.mask_cross_check(fleet=_fleet())
         except Exception:
             return None
         if not isinstance(d, dict) or not d.get("ok"):
@@ -1758,10 +1776,7 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
             import ledger_authority as la
         except Exception:
             return None
-        try:
-            fl = ca.fleet_presence() or {}
-        except Exception:
-            return None
+        fl = _fleet() or {}
         if not isinstance(fl, dict) or not fl.get("ok"):
             return None
         rows = list(fl.get("online") or []) + list(fl.get("offline") or [])
@@ -1790,16 +1805,42 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
                 # the tally's store must be the same store, which ledger_authority states ONCE.
                 if not _same.get(led):
                     continue
-                if isinstance((m.get("masks") or {}).get(led), dict) \
-                        and isinstance((m.get("tally") or {}).get(led), dict):
-                    n += 1
+                mk = (m.get("masks") or {}).get(led)
+                t = (m.get("tally") or {}).get(led)
+                if not (isinstance(mk, dict) and isinstance(t, dict)):
+                    continue
+                # ⚠⚠ COMPARABLE, NOT MERELY PUBLISHED. This counted every pair that published both,
+                # while the LEFT side counts agreements among pairs mask_cross_check could actually
+                # READ — it `continue`s a pair whose roster will not load, and an undecodable mask
+                # lands with popcount None. So RIGHT could exceed LEFT with ZERO disagreement, and
+                # "they disagree" and "I could not check" shared one red verdict and one sentence.
+                # ⚠ Decodability is judged HERE, independently: this side never asks
+                # mask_cross_check what it concluded, so the two sides stay two witnesses.
+                # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+                # ⚠ THE FINGERPRINT COMES FROM THE ROSTER LOADER, NOT FROM THE MASK — and the
+                # mask dict is passed WHOLE. My first cut read mk["mask"]/mk["fingerprint"], keys
+                # this payload does not carry (it is {b, have, n, v}), so decode refused every pair
+                # and this side returned None: a confident "nothing is comparable" produced by my
+                # own wrong call. Caught because the live value was checked, not assumed.
+                _roster, _rw = la._roster_for(led)
+                if _roster is None:
+                    continue
+                try:
+                    _rr, _fp = fm.load_roster_for(led)
+                    _names, _dw = fm.decode(mk, _roster, _fp)
+                except Exception:
+                    continue
+                if _names is None:
+                    continue
+                n += 1
         return n or None
 
     return ("count-and-mask-agree",
             "every machine's posted count matches the mask it published for the same ledger",
-            "let one board hold a set-piece name that is not on the shared roster — the card's "
-            "len(store) numerator counts it and the roster-intersection mask does not, so one "
-            "machine reports two different progress figures under one label",
+            "let a board hold BOTH a sunder's base name and its `Latent ...` form — his own "
+            "ledger does, by the v2691 ruling — and the mask sets two bits where the chronicle "
+            "counts one row; or let one name differ only by apostrophe glyph and the tally's "
+            "canonical fold counts it while the mask's exact match does not",
             "machine/ledger pairs that agree", left,
             "machine/ledger pairs that published both", right, "==")
 

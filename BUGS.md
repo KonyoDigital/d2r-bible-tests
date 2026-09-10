@@ -29525,3 +29525,44 @@ needs BOTH engines, so an unreadable planner is a second way to go blind, and su
 set would answer "nothing is outside the offer" with a confident zero. RED_PROOF anchor verified
 undisturbed at **matches: 2**, PROVEN red. `corroborate.py --selftest`: 🟢 every invariant can both
 hold and refuse.
+
+## REG-905 — the two sides graded two different fleets, and conflated "disagree" with "cannot check"
+
+**v2906 (#63, pair `count-and-mask-agree`).** Four defects in the invariant itself. None of them is
+a data defect — his ledger is correct and does not move.
+
+**1. TWO FLEETS.** `left()` and `right()` each called `fleet_presence()` for themselves, and that
+answer is cached for 60s. **A run straddling the expiry graded two different fleets.** Measured:
+Konyo's `maskKeys` read `[sets, uniques]` on one probe and `[]` minutes later, because his masks
+appear and vanish with his board window. One reading is now taken and handed to both sides —
+`mask_cross_check` already accepted `fleet=`.
+
+**2. "THEY DISAGREE" AND "I COULD NOT CHECK" SHARED ONE VERDICT.** `right()` counted every pair that
+PUBLISHED both, while `left()` counts agreements among pairs `mask_cross_check` could actually READ
+— it `continue`s a pair whose roster will not load, and an undecodable mask lands with popcount
+None. So RIGHT could exceed LEFT **with zero disagreement**, under one red verdict and one sentence.
+`right()` now judges decodability itself — independently, never asking `mask_cross_check` what it
+concluded, so the two sides stay two witnesses.
+
+⚠ **My first cut of that got it wrong and the live value caught it.** I read `mk["mask"]` and
+`mk["fingerprint"]`, keys the payload does not carry (it is `{b, have, n, v}`), so decode refused
+every pair and the side returned `None` — a confident "nothing is comparable" produced by my own
+bad call. The real shape passes the mask dict WHOLE and takes the fingerprint from
+`load_roster_for(led)`. Caught because the live value was checked rather than assumed.
+
+**3. THE REPRO COULD NOT FIRE.** It described "a set-piece name not on the shared roster" counted by
+the card's `len(store)` numerator — but that numerator is `d2r_tally.uniques.have`, itself
+roster-intersected. **139 of his 440 store entries are off-roster and NOT ONE is counted by either
+side.** Replaced with what actually fires: a sunder's base name AND its `Latent …` form (the mask
+sets two bits where the chronicle counts one row), or a name differing only by apostrophe glyph.
+
+**4. STALE CITATIONS** to control_app.py:11847 / :11715, which now land in `_project_live_ring` and
+`_receipts_stream` (ast-verified, not grepped). Dropped.
+
+AFTER: `agree=1 == comparable=2` — **still RED, and correctly so.** The Konyo/uniques pair genuinely
+diverges 301 vs 300, resolved to three named items with zero residual (see #63). `--selftest`:
+🟢 every invariant can both hold and refuse.
+
+⚠ NOT DONE HERE: the mask/tally reconciliation itself changes what a number MEANS on the fleet
+card, and holding all three sunder spellings is Konyo's v2691 ruling. His data does not move; the
+mask must learn his rule. Open for his decision.

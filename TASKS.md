@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2906** | `(this commit)` | v2906 — each side asked for the fleet separately against a sixty second cache so a run could straddle the expiry |
 | **v2905** | `(this commit)` | v2905 — the frame deleter was compared in frames against the planner in chronicle pages so the relation could never hold |
 | **v2904** | `(this commit)` | v2904 — the tick and the save both asked whether the store was readable and then acted as if it always was |
 | **v2903** | `(this commit)` | v2903 — every lane is named after a station it contains so the card showed one word twice with different counts |
