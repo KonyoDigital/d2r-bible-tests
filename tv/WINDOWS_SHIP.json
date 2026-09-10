@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2904",
+  "ver": "v2905",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2904: the tick and the save both asked whether the store was readable and then acted as if it always was",
+  "note": "v2905: the frame deleter was compared in frames against the planner in chronicle pages so the relation could never hold",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

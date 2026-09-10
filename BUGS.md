@@ -29472,3 +29472,56 @@ from the parsed structure rather than hand-quoting. Then one came back **BLIND**
 `st["readable"] = None` changed only a cached flag the next load overwrites, so no behaviour moved
 and the law was right to stay green. Re-aimed at the `return None` that actually decides. **7 of 7
 PROVEN, 1 match each.** [[sabotage-is-usually-the-wrong-one]]
+
+## REG-904 — a units error wearing a safety invariant, in two places
+
+**v2905 (#63).** `frame-deleter-not-looser` has been red on his tree all day. It is not a defect in
+either engine: **the two sides were never comparable.**
+
+```
+LEFT   798  FRAME FILES        frame_authority.plan_frames(hist)["prunable"]
+RIGHT    0  CHRONICLE PAGES    sum(candidate["pages"]) — the READER's output
+```
+
+**It could not hold in any world.** MEASURED on his tree: frames exceed pages on **24 of 24 reels**
+(3,151 frames vs 676 pages), so the right side's CEILING — the planner offering every reel it keeps
+— is **676, below the left side's present 798**. The relation was structurally biased to fire the
+moment anything at all was prunable.
+
+⚠ Retention's `0` is a GENUINE measured zero, not an "I could not ask": `candidates 0 · kept 24 ·
+onDisk 24 · unreadable [] · ok True`, with its own sentence *"NOTHING is safe to delete yet — and
+that is an answer, not a failure."* 24 reels examined, 0 offered. It passes the denominator test.
+
+**Both sides now speak REEL NAMES** — reels the frame deleter would free from that the planner is
+still holding, against a constant 0. The constant is on the side that is NOT the measurement (the
+question is containment), unlike the v2393 defect this file carries a scar for.
+
+**AND THE TWIN CARRIED THE IDENTICAL ERROR.** `_inv_the_deleter_is_never_looser_than_the_planner` is
+NOT in `BUILDERS` (27 entries) so the verdict path never grades it — but `prove_each()` enumerates
+globals and grades **28**, publishing the same `798 vs 0`, and `test_corroborate_operands.py` names
+it in its own tuple so its left operand ran in 9 test methods. Fixing one and not the other would
+have left the bad row published. Both corrected; `prove_each` now reads `left=3 right=0` on both.
+
+⚠ **IT STAYS RED AT 3, AND THAT IS DELIBERATE.** The arithmetic is fixed; the finding underneath is
+not swept up with it. Three reels the frame deleter would free from that the planner still holds.
+
+### The finding underneath — LATENT, not live
+All 798 prunable frames (0.864 GB) sit in exactly 3 reel dirs, and **all 3 are held by retention as
+`holdKind="policy"`, reason "the TEST SUITE opens this reel by name — deleting it does not turn a
+test red, it makes it LIE"**. `frame_authority.evidence_held_reels()` keeps only `holdKind ==
+"evidence"` by deliberate design and returns 8 reels, none of these 3, while
+`test_referenced_reels()` names 47 and DOES name all three — and `plan_frames` never calls it
+(ast-verified).
+
+**No deleter can execute this today**: the only production caller is a READ endpoint, `main()` only
+prints, and `_prune_once` globs `hist/f_*.jpg` — the hist ROOT, never inside `reel_*/`.
+
+⚠ **WHETHER A POLICY HOLD SHOULD BIND THE FRAME DELETER IS KONYO'S RULING, NOT A MEASUREMENT.**
+`evidence_held_reels`'s own ⛔ comment says the evidence-only filter is intentional. Open, and not
+decided here.
+
+Operand tests rewritten to the reel-set form and given a new UNKNOWN law: the corrected operand
+needs BOTH engines, so an unreadable planner is a second way to go blind, and subtracting an unknown
+set would answer "nothing is outside the offer" with a confident zero. RED_PROOF anchor verified
+undisturbed at **matches: 2**, PROVEN red. `corroborate.py --selftest`: 🟢 every invariant can both
+hold and refuse.

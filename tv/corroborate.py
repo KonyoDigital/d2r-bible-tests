@@ -339,42 +339,50 @@ def _inv_the_deleter_is_never_looser_than_the_planner():
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
 
     def left():
+        """Reels the FRAME deleter would free at least one frame from, that the REEL planner does
+        NOT offer. Both sides are REEL NAMES — the only comparable form of this file's own law.
+
+        ⚠⚠ v2905 — THIS WAS A UNITS ERROR AND IT COULD NOT HOLD IN ANY WORLD. Until now the left
+        side was len(plan["prunable"]) — FRAME FILES — and the right was sum(candidate["pages"]) —
+        CHRONICLE PAGES, the reader's OUTPUT, a quantity the frame deleter never produces.
+        MEASURED on his tree 2026-09-10: frames exceed pages on 24 of 24 reels (3,151 vs 676), so
+        the right side's CEILING — the planner offering every reel it keeps — sits BELOW the left
+        side's present value of 798. The relation was structurally biased to fire the moment
+        anything at all was prunable. [[label-outlived-referent]]
+
+        ⚠ IT STAYS RED, AND THAT IS THE POINT. On his tree this reads 3 — three reels the frame
+        deleter would free from that the planner is still holding. The arithmetic is corrected; the
+        finding underneath is NOT swept up with it.
+        """
         try:
             plan = fa.plan_frames(hist)
         except Exception:
             return None
-        if isinstance(plan, dict):
-            # ⚠⚠ THE KEY IS `prunable`, AND ASKING FOR THE WRONG ONE MADE THIS INVARIANT INERT.
-            # It asked for "free" or "freeable"; `frame_authority.plan_frames` returns neither —
-            # its keys are bytes/haveIndex/heldBy/kept/prunable/say/scanned/sealOk/sealedSessions/
-            # witnessFrames/witnessOk. So `.get()` fell through to `[]` and this side answered 0
-            # FOREVER, on every tree, whatever the deleter did. An invariant whose left side is a
-            # constant zero cannot be violated, so it has never once been able to fire — and it
-            # guards the DIRECTION WITH NO UNDO. A guard that cannot go red is measuring nothing.
-            # ⚠ It REFUSES rather than defaulting when the key is absent: a missing `prunable` is
-            # an unreadable plan, not an empty one, and answering 0 there is how this hid.
-            # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
-            if "prunable" not in plan:
-                return None
-            return len(plan.get("prunable") or [])
-        if isinstance(plan, (list, tuple)):
-            return len(plan)
-        return None
-
-    def right():
+        if not isinstance(plan, dict) or "prunable" not in plan:
+            return None
         try:
             p = rr.plan(hist)
         except Exception:
             return None
-        if not p.get("ok"):
+        # ⚠ AN UNREADABLE OFFER IS UNKNOWN, NEVER AN EMPTY ONE. Subtracting a set nobody could read
+        # would answer "nothing is outside the offer" — a confident zero from an unanswered
+        # question, which is the exact defect this file exists to refuse. [[unknown-stays-unknown]]
+        if not p.get("ok") or p.get("candidates") is None:
             return None
-        # every frame inside every reel retention is willing to let go
-        return sum(int(c.get("pages") or 0) for c in (p.get("candidates") or []))
+        offered = {c.get("reel") for c in (p.get("candidates") or [])}
+        freeing = {os.path.basename(os.path.dirname(f)) for f in (plan.get("prunable") or [])}
+        return len(freeing - offered)
 
+    def right():
+        # ⚠ CONSTANT BY CONSTRUCTION, NOT BY ACCIDENT — and unlike the v2393 defect this file
+        # carries a scar for, the constant is on the side that is NOT the measurement. The question
+        # is CONTAINMENT, so the only passing answer is "no reel freed outside the offer".
+        # `left()` varies with BOTH engines and can invert.
+        return 0
     return ("deleter-not-looser",
-            "the one thing that can delete never frees more than the planner offers",
+            "the one thing that can delete never frees a frame from a reel the planner holds",
             "let frame_authority clear a reel retention still holds and this inverts",
-            "frame_authority.free", left, "retention.candidates", right, "<=")
+            "reels freed outside the offer", left, "reels allowed outside the offer", right, "<=")
 
 
 
@@ -399,31 +407,50 @@ def _inv_the_two_deleters_stay_at_their_own_granularity():
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
 
     def left():
+        """Reels the FRAME deleter would free at least one frame from, that the REEL planner does
+        NOT offer. Both sides are REEL NAMES — the only comparable form of this file's own law.
+
+        ⚠⚠ v2905 — THIS WAS A UNITS ERROR AND IT COULD NOT HOLD IN ANY WORLD. Until now the left
+        side was len(plan["prunable"]) — FRAME FILES — and the right was sum(candidate["pages"]) —
+        CHRONICLE PAGES, the reader's OUTPUT, a quantity the frame deleter never produces.
+        MEASURED on his tree 2026-09-10: frames exceed pages on 24 of 24 reels (3,151 vs 676), so
+        the right side's CEILING — the planner offering every reel it keeps — sits BELOW the left
+        side's present value of 798. The relation was structurally biased to fire the moment
+        anything at all was prunable. [[label-outlived-referent]]
+
+        ⚠ IT STAYS RED, AND THAT IS THE POINT. On his tree this reads 3 — three reels the frame
+        deleter would free from that the planner is still holding. The arithmetic is corrected; the
+        finding underneath is NOT swept up with it.
+        """
         try:
             plan = fa.plan_frames(hist)
         except Exception:
             return None
-        if isinstance(plan, dict):
-            # ⚠ SAME DEFECT, SECOND SITE — see the note above. Both invariants asked for a key
-            # `plan_frames` has never returned, so both left sides were a constant 0.
-            if "prunable" not in plan:
-                return None
-            return len(plan.get("prunable") or [])
-        return len(plan) if isinstance(plan, (list, tuple)) else None
-
-    def right():
+        if not isinstance(plan, dict) or "prunable" not in plan:
+            return None
         try:
             p = rr.plan(hist)
-            if not p.get("ok"):
-                return None
-            return sum(int(c.get("pages") or 0) for c in (p.get("candidates") or []))
         except Exception:
             return None
+        # ⚠ AN UNREADABLE OFFER IS UNKNOWN, NEVER AN EMPTY ONE. Subtracting a set nobody could read
+        # would answer "nothing is outside the offer" — a confident zero from an unanswered
+        # question, which is the exact defect this file exists to refuse. [[unknown-stays-unknown]]
+        if not p.get("ok") or p.get("candidates") is None:
+            return None
+        offered = {c.get("reel") for c in (p.get("candidates") or [])}
+        freeing = {os.path.basename(os.path.dirname(f)) for f in (plan.get("prunable") or [])}
+        return len(freeing - offered)
 
+    def right():
+        # ⚠ CONSTANT BY CONSTRUCTION, NOT BY ACCIDENT — and unlike the v2393 defect this file
+        # carries a scar for, the constant is on the side that is NOT the measurement. The question
+        # is CONTAINMENT, so the only passing answer is "no reel freed outside the offer".
+        # `left()` varies with BOTH engines and can invert.
+        return 0
     return ("frame-deleter-not-looser",
-            "the frame deleter never frees more than the reel planner offers",
+            "the frame deleter never frees a frame from a reel the planner is still holding",
             "let frame_authority clear frames inside a reel retention is holding and this inverts",
-            "frame_authority.free", left, "retention.candidate pages", right, "<=")
+            "reels freed outside the offer", left, "reels allowed outside the offer", right, "<=")
 
 def _inv_the_two_readers_measure_the_same_screen():
     """★ TWO READERS, TWO COPIES OF ONE MEASUREMENT OF HIS MONITOR.

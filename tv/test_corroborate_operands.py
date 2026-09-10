@@ -37,6 +37,7 @@ if HERE not in sys.path:
 
 import corroborate as C  # noqa: E402
 import frame_authority as fa  # noqa: E402
+import reel_retention as rr  # noqa: E402
 
 #: the two invariants that read plan_frames' prunable list
 BUILDERS = ("_inv_the_deleter_is_never_looser_than_the_planner",
@@ -45,10 +46,30 @@ BUILDERS = ("_inv_the_deleter_is_never_looser_than_the_planner",
 
 class _Base(unittest.TestCase):
 
-    def _stub(self, plan):
-        real = fa.plan_frames
+    def _stub(self, plan, offered=()):
+        """Both engines, because the corrected left operand is a JOIN of the two.
+
+        ⚠⚠ v2905 — THE SECOND HALF IS NOT OPTIONAL. This fed only frame_authority, which is exactly
+        how the left side came to be measured in a unit reel_retention does not speak: FRAME FILES
+        against the planner's CHRONICLE PAGES. A stub that still fed one engine would let that
+        return without a single test going red.
+        ⚠ EVERY CANDIDATE BELOW CARRIES pages=0 ON PURPOSE. `pages` is no longer an operand; if a
+        future edit reintroduces it, these fixtures give it nothing to read and the tests go red.
+        """
+        real_fa, real_rr = fa.plan_frames, rr.plan
         fa.plan_frames = lambda *a, **k: plan
-        self.addCleanup(setattr, fa, "plan_frames", real)
+        rr.plan = lambda *a, **k: {"ok": True,
+                                   "candidates": [{"reel": r, "pages": 0} for r in offered]}
+        self.addCleanup(setattr, fa, "plan_frames", real_fa)
+        self.addCleanup(setattr, rr, "plan", real_rr)
+
+    def _frames(self, **per_reel):
+        """`reel_a=5` -> five frame paths inside reel_a. The count of PATHS and the count of REELS
+        are deliberately different in every fixture, so a test cannot pass under both units."""
+        out = []
+        for reel, n in per_reel.items():
+            out += [os.path.join("/hist", reel, "f_%d.jpg" % i) for i in range(n)]
+        return out
 
     def _left(self, builder):
         """The invariant's LEFT operand, driven exactly as the live path drives it."""
@@ -70,10 +91,35 @@ class TheLeftOperandReadsTheKeyThatExists(_Base):
         self.assertNotIn("free", plan)
         self.assertNotIn("freeable", plan)
 
-    def test_it_COUNTS_the_prunable_list(self):
+    def test_it_counts_REELS_OUTSIDE_THE_OFFER_and_not_frames(self):
+        """★ THE OPERAND SHAPE, PINNED — not the number. Nine frame files across two reels, neither
+        offered: the answer must be 2. If it is ever 9 again, the left side has gone back to
+        counting FRAMES and the relation is comparing units.
+
+        MEASURED on his tree 2026-09-10, which is why the SHAPE is the subject: frames exceeded
+        chronicle pages on 24 of 24 reels (3,151 vs 676), so a frame-count left side sat above the
+        page-count right side's own CEILING and the relation could not hold in any world. The old
+        assertion pinned 3 == 3 and would have passed forever under either unit.
+        [[label-outlived-referent]]
+        """
         for b in BUILDERS:
-            self._stub({"prunable": ["a", "b", "c"]})
-            self.assertEqual(self._left(b), 3, "%s did not count prunable" % b)
+            self._stub({"prunable": self._frames(reel_a=5, reel_b=4)}, offered=())
+            left = self._left(b)
+            self.assertEqual(left, 2, "%s did not count REELS outside the offer" % b)
+            self.assertNotEqual(left, 9,
+                                "%s is counting FRAME FILES again — that is the units error this "
+                                "file exists to keep out" % b)
+
+    def test_the_planners_PAGE_COUNT_is_no_longer_an_operand(self):
+        """★★ THE UNITS ERROR ITSELF, RED. The right side used to be sum(candidate["pages"]) —
+        chronicle pages, the READER's output, a quantity the frame deleter never produces. Here 400
+        frames sit inside the one reel the planner offered, at pages=0. The answer must move with
+        the OFFER and never with the pages."""
+        for b in BUILDERS:
+            self._stub({"prunable": self._frames(reel_a=400)}, offered=("reel_a",))
+            self.assertEqual(self._left(b), 0,
+                             "%s: 400 frames inside the ONE reel the planner offered is not a "
+                             "violation at any page count" % b)
 
     def test_the_OLD_keys_are_no_longer_consulted(self):
         """RED for the original defect: a plan carrying only the old keys must NOT answer from
@@ -121,22 +167,52 @@ class TheInvariantCanNowActuallyInvert(_Base):
     fix this was UNREACHABLE: the left side was a constant 0, so `left <= right` held against
     every possible right and the relation could never be violated."""
 
-    def test_a_deleter_freeing_MORE_than_the_planner_offers_now_breaks_the_relation(self):
+    def test_a_deleter_freeing_from_a_reel_the_planner_HOLDS_breaks_the_relation(self):
+        """★★★ THE INVERSION, IN THE UNIT THE LAW IS ACTUALLY WRITTEN IN. The reel-set equivalent of
+        "the deleter frees more than the planner offers" is: it frees a frame from a reel that is
+        NOT in the offer. The planner offers reel_a; the deleter reaches into reel_b and reel_c as
+        well, so two reels are freed outside the offer and `left <= right` must be FALSE.
+
+        ⚠ THIS IS NOT THE OLD TEST WITH NEW NUMBERS. The old one asserted 9 <= 2 was false, which is
+        true of any two integers in that order and never once looked at WHICH reels — a deleter
+        taking 1 frame from a held reel while the planner offered 50 pages passed it clean.
+        MEASURED on his tree today the corrected operand reads 3: three reels the frame deleter
+        would free from that the planner is still holding.
+        """
         for b in BUILDERS:
-            self._stub({"prunable": ["f%d" % i for i in range(9)]})
-            left = self._left(b)
-            right = 2          # the planner offered 2
-            self.assertEqual(left, 9)
+            self._stub({"prunable": self._frames(reel_a=3, reel_b=1, reel_c=1)},
+                       offered=("reel_a",))
+            left, right = self._left(b), 0
+            self.assertEqual(left, 2,
+                             "%s did not name the two reels freed outside the offer" % b)
             self.assertFalse(left <= right,
-                             "%s: the deleter freeing 9 while the planner offers 2 still reads as "
-                             "agreement — the invariant cannot invert" % b)
+                             "%s: the deleter reaching into two reels the planner is still holding "
+                             "still reads as agreement — the invariant cannot invert" % b)
+
+    def test_an_UNREADABLE_PLANNER_is_UNKNOWN_never_zero(self):
+        """★★ THE NEW HALF. The corrected left operand needs BOTH engines, so there is now a second
+        unanswerable question: the planner's offer. Subtracting an unknown set would silently answer
+        "nothing is outside the offer" — a confident zero produced by a question nobody answered,
+        the exact defect this file was written for. [[unknown-stays-unknown]]"""
+        for b in BUILDERS:
+            self._stub({"prunable": self._frames(reel_a=3)})
+            rr.plan = lambda *a, **k: {"ok": False, "why": "the shelf would not read"}
+            self.assertIsNone(self._left(b),
+                              "%s reported a number while the planner's offer was unreadable" % b)
+        for b in BUILDERS:
+            self._stub({"prunable": self._frames(reel_a=3)})
+            rr.plan = lambda *a, **k: {"ok": True, "candidates": None}
+            self.assertIsNone(self._left(b),
+                              "%s treated a MISSING candidate list as an empty offer" % b)
 
     def test_and_the_healthy_direction_still_holds(self):
         """⚠ THE BASELINE. A guard that fails on everything is not a guard. The invariant must
         still agree when the deleter is the stricter of the two, which is the normal state."""
         for b in BUILDERS:
-            self._stub({"prunable": ["f1"]})
-            self.assertTrue(self._left(b) <= 6)
+            self._stub({"prunable": self._frames(reel_a=6, reel_b=2)},
+                       offered=("reel_a", "reel_b", "reel_c"))
+            self.assertEqual(self._left(b), 0)
+            self.assertTrue(self._left(b) <= 0)
 
     def test_before_the_fix_this_relation_was_UNREACHABLE(self):
         """The old expression, run against the same sabotage, to show what was actually being
