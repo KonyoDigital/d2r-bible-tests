@@ -29005,3 +29005,42 @@ crash while REPORTING, so a clean tree exits non-zero. Both now enable it.
 
 ⚠ Neither was found by me. The gate set found both, which is the argument for running it rather
 than reasoning about it.
+
+## REG-894 — I shipped a CI red at v2892 and it stayed red for four versions
+
+**Found on the v2896 tick, not by me noticing.** `📺 TV DIABLO — agent tests` failed on
+`64de5007`, and the history says it has failed on **every version since v2892**:
+
+```
+failure  64de5007  v2896        failure  f76ccd07  v2890
+failure  8243ce55  v2892        failure  c1204600  v2889
+success  fde4160e  v2891        failure  3df65543  v2888
+```
+
+The gate: `test_render_coverage :: test_it_exists_and_covers_every_target` — `['heart-stored'] != []`.
+v2892 added the `heart-stored` render target and never blessed the coverage floor, so
+`tv/render_coverage.json` listed 16 targets against 17 in `TARGETS`. The law's own words: *"a floor
+missing a target is a target nobody would notice losing."*
+
+⚠ **The same shape as REG-880, four versions later.** A red CI that stays red stops being read, and
+then it cannot tell me about the NEXT breakage — which is the entire reason the check exists. The
+pre-push gate did not catch it because the coverage ratchet is SKIPPED on a subset run ("this run
+asked for 1 of 17 targets, and a subset cannot tell a deliberate filter from a surface that
+vanished") and every render I did this session was a subset.
+
+**Fixed by a full 17-target `--bless`**, which refuses unless every target reported green:
+
+```
+heart-stored        ADDED   9 nodes at 1120x628 · 1120x900 · 1440x1000 · 375x800 · 901x900
+advanced-fleet-down 6 -> 7          heart 85 -> 93          heart-fan 261 -> 278
+LOWERED: none  (a ratchet may only rise)
+```
+
+The three that rose did so because the heart panel genuinely gained rows at v2896. `test_render_coverage`
+now runs 15 tests green.
+
+**Also this tick:** the Grok bot writes `heart2_look_now.sh` into the repo ROOT for the length of one
+tick and removes it. It carries local `/Users/...` paths, this repo is PUBLIC, and `.gitignore` only
+covered the `.grok/` copy — so it was one `git add -A` away from shipping. A root-level rule now
+covers it; proven by decoy (ignored, `git status` sees 0) with the `.grok/` rule still biting.
+Nothing had ever landed (`git log --all` over the pattern is empty).

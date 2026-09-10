@@ -250,3 +250,11 @@ tv/.shelf_driver.json
 # 0 files) but only because the eye happened to run AFTER each commit. The two real files stay
 # tracked; only the scratch is ignored.
 .grok/heart2_look_*
+
+# ⚠⚠ AND THE SAME SHAPE AT THE REPO ROOT, FROM A DIFFERENT PRODUCER. The GROK BOT writes
+# `heart2_look_now.sh` into the repo ROOT for the length of one tick (its output goes to
+# ~/gb-shelf) and removes it. MEASURED 2026-09-10 19:07: it sat there as `?? heart2_look_now.sh`
+# while this session was committing, and it carries local `/Users/...` paths into a PUBLIC repo.
+# The rule above only covers `.grok/`, so the root copy was one `git add -A` away from shipping.
+# Nothing has ever landed (`git log --all` over the pattern is empty) — this keeps it that way.
+heart2_look_*.sh
