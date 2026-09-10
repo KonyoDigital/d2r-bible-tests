@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2894** | `(this commit)` | v2894 — the strip ran two denominators together and my fix for it painted a JS escape |
 | **v2893** | `(this commit)` | v2893 — the strip counted 24 fixtures and all while the shelf below it drew 16 |
 | **v2892** | `(this commit)` | v2892 — the panel promised never stored above a stored number, and showed the file age instead of the gate age |
 | **v2891** | `(this commit)` | v2891 — the ratchet asked whether the census had a row when it needed to ask whether the file was on disk |

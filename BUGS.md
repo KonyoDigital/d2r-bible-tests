@@ -28852,3 +28852,51 @@ Gate `test_two_surfaces_one_shelf` — 9 laws, no footage (synthetic report, stu
 measures the same thing on his Mac and on a CI runner with no reels. Proven red three ways: the
 filter removed, the roster handed the filtered report, and the endpoint unjoined from the set it
 computes.
+
+## REG-887 — two figures with nothing between them read as one phrase
+
+**v2894 (#58, the typography pass).** The river strip's header carried two different denominators
+as adjacent flex items with an 8px gap and no separator. At 901px, where the group wraps onto a
+line of its own, his console read:
+
+```
+7 CLOSED OUT 23 LIFETIMES
+```
+
+Reels that have LEFT the shelf, and the whole life record — one reading. Every other join in that
+strip is a `·` ("THE RIVER · 16 REEL(S)", "SOURCE · THE ROUTER"), so the strip already had the
+vocabulary and this one place was not speaking it.
+
+The separator is an `::after` on the FIRST item, not a flex sibling and not a `::before` on the
+second. The note beside these elements says they are separate items so *"a separator is not
+orphaned"* — a separator that is its own flex child can be stranded at the end of a wrapped line,
+and one leading the second item starts the next line with a floating dot. Inside the first item,
+which is `white-space: nowrap`, it cannot be separated from the figure it follows at any viewport.
+
+**Same version, the lane closure chip:** at 901 the TOMBSTONE card broke `7 closed / out`. The note
+above that chip claims the label line "takes the break that the phrase was taking" — it does not
+when the card is narrow. `white-space: nowrap` on the whole chip is what ran it through the card's
+right border originally, so only the two words are held together; "closed out" is narrower than
+"7 closed out" and cannot overflow anywhere the current text does not.
+
+---
+
+## REG-888 — the render harness is structurally blind to CSS-generated text
+
+**v2894.** The separator above was first written as `content: " ·"` — the JAVASCRIPT escape.
+CSS reads `\u` as an escaped letter `u` plus the literal `00b7`, and `text-transform: uppercase`
+served him **`7 CLOSED OUT U00B7 23 LIFETIMES`**.
+
+⚠ **`render_check` called that target GREEN — twice, at five widths, `clipped 0/36`.** Generated
+content is not in `textContent`, so the extracted text read "7 closed out 23 lifetimes", perfectly
+correct, while the pixels carried a stray token. Every automatic check agreed with the code and
+disagreed with the screen. Only opening the PNG found it — which is the whole argument for
+[[visual-regression-detector]] over a green harness verdict.
+
+The harness cannot be taught to see this cheaply, but the SOURCE is decidable, so the guard lives
+there: `test_css_generated_text_is_not_a_js_escape` scans every `content:` declaration in the
+console stylesheet and refuses any `\uXXXX`. It strips CSS comments first — the comment beside the
+fix quotes the bad escape on purpose, and a version of this law that read prose would fail forever
+on its own documentation (the 5th time a check in this repo has read a comment as code). It also
+carries its own denominator: a run that finds fewer than 10 `content:` declarations fails as
+"measured nothing" rather than passing.

@@ -1884,6 +1884,30 @@
   #th-shelfov .shr-life { flex: 0 0 auto; white-space: nowrap; color: #8d836f;
     font-weight: var(--fw-medium); }
   #th-shelfov .shr-life b { color: #b9ad92; font-variant-numeric: tabular-nums; }
+  /* ⚠⚠ v2894 (#58) — TWO FIGURES WITH NOTHING BETWEEN THEM READ AS ONE PHRASE.
+     MEASURED on the render at 901px, where the group wraps onto a line of its own:
+
+         7 CLOSED OUT 23 LIFETIMES
+
+     Two different denominators — reels that have LEFT the shelf, and the whole life record —
+     with an 8px gap and no separator, so the eye takes "closed out 23" as one reading. Every
+     other join in this strip is a · ("THE RIVER · 16 REEL(S)", "SOURCE · THE ROUTER"),
+     so the strip already had the vocabulary and this one place was not speaking it.
+
+     ⚠ IT IS AN `::after` ON THE FIRST ITEM, NOT A FLEX SIBLING, AND THAT IS THE WHOLE POINT.
+     The note twenty lines up says these are separate items so "a separator is not orphaned" —
+     a separator that is its own flex child can be left stranded at the end of a wrapped line,
+     and one placed as an `::before` on the SECOND item leads the next line with a floating dot,
+     which is the same defect mirrored. Inside the FIRST item — which is `white-space: nowrap` —
+     it cannot be separated from the figure it follows, whatever the viewport does.
+     [[visual-regression-detector]] */
+  /* ⚠ THE LITERAL CHARACTER, NOT AN ESCAPE. The first cut wrote `content: " \u00b7"`,
+     which is the JAVASCRIPT escape — CSS reads `\u` as an escaped `u` and paints the text
+     `u00b7`, which `text-transform: uppercase` then served him as "7 CLOSED OUT U00B7 23
+     LIFETIMES". The render harness called that target GREEN: `::after` content is not in
+     `textContent`, so the extracted text read correctly while the pixels did not. Only
+     looking at the image found it. [[visual-regression-detector]] */
+  #th-shelfov .shr-life:not(:last-child)::after { content: " ·"; opacity: .45; }
   /* The lane's closure figure. It sits UNDER the station tallies because it is a different
      source with a different denominator — a reader must not scan it as another station. */
   /* ⚠⚠ NO `white-space: nowrap` HERE, AND THE FIRST CUT HAD IT. Measured on the render at 901px:
@@ -1899,6 +1923,19 @@
     letter-spacing: var(--ls-wide); color: rgba(200,180,120,.5);
     font-weight: var(--fw-normal); margin-bottom: 1px; }
   #th-shelfov .shr-cl b { color: #e0d0a8; }
+  /* ⚠⚠ v2894 (#58) — THE PHRASE BREAKS, THE WORDS DO NOT. The note above this chip says the
+     label line "takes the break that the phrase was taking", and at 901px it does not: the
+     TOMBSTONE card is narrow enough that the phrase itself splits —
+
+         THE LEDGER
+         7 closed
+         out
+
+     `white-space: nowrap` on the WHOLE chip is what ran `+7 closed out` through the card's right
+     border in the first place, so this keeps only the two words together. "closed out" is
+     narrower than "7 closed out", so it cannot overflow anywhere the current text does not —
+     the break simply moves to the one place it reads correctly, before the phrase. */
+  #th-shelfov .shr-cl .shr-nw { white-space: nowrap; }
   #th-shelfov .shr-cl { margin-top: 6px; padding-top: 6px; min-width: 0;
     border-top: 1px dashed rgba(200,180,120,.22);
     font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono);
@@ -11124,7 +11161,7 @@ window._lockMark = function(isOpen, px, label){
         _closedBit = '<div class="shr-cl" title="' + esc(String(l.closedWhy || ''))
                    + ' — ' + esc(String(l.closedShown || 0)) + ' of ' + _lc
                    + ' drawn on the shelf below"><i>the ledger</i><b>' + _lc
-                   + '</b> closed out</div>';
+                   + '</b> <span class="shr-nw">closed out</span></div>';
       }
       H.push('<div class="shr-lane' + ((l.count || _lc) ? '' : ' shr-empty') + '" title="' + esc(l.why || '') + '">'
              + '<div class="shr-n"><u>' + (i + 1) + '</u> ' + esc(l.name) + '</div>'
