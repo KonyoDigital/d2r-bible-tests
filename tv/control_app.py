@@ -18079,7 +18079,25 @@ def _retention_once():
     _lane_bits = []
     if _w_chron: _lane_bits.append("%d on the chronicle reader (%.0f MB)" % (len(_w_chron), _chron_mb))
     if _w_vault: _lane_bits.append("%d on the vault lane (%.0f MB)" % (len(_w_vault), _vault_mb))
+    # ⚠ v2881 — AN UNKNOWN LANE MUST APPEAR, OR THE SENTENCE READS AS "ONLY THE CHRONICLE LANE".
+    # With `_w_vault` empty this bit was simply skipped, so the same words described a shelf where
+    # the vault lane is genuinely clear and one where nobody could look. [[unknown-stays-unknown]]
+    elif _vault_unknown: _lane_bits.append("the vault lane could not be read (UNKNOWN, not zero)")
     _lane_say = (" — " + " · ".join(_lane_bits)) if _lane_bits else ""
+    # ⚠⚠ v2881 — THE SENTENCE HE READS IS A THIRD SITE, AND IT KEPT THE CONFIDENT ZERO.
+    # v2880 guarded `lockedVault`; this pass guarded `lockedBehindASweep`. Measured after BOTH, by
+    # importing a shelf_driver with no OWED_BY: the payload said None/None/why correctly and the
+    # `say` still read "0 reel(s) (0 MB) are waiting on a sweep" — the one line on the screen he
+    # actually reads. Fields and prose came from the same variables and disagreed anyway, because
+    # only the fields were guarded. ONE phrase, computed here, used by BOTH sentences, so they
+    # cannot drift apart again. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    _wait_say = ("an UNKNOWN number of reel(s) are waiting on a sweep"
+                 if _vault_unknown else
+                 "%d reel(s) (%.0f MB) are waiting on a sweep" % (len(waiting), waiting_mb))
+    _locked_say = ("an UNKNOWN number of reel(s) are locked behind a sweep that has never run"
+                   if _vault_unknown else
+                   "%d reel(s) (%.0f MB) are locked behind a sweep that has never run"
+                   % (len(waiting), waiting_mb))
     cands = p.get("candidates") or []
     # v2006's scar, honoured: ONE SIDE DECIDES. The floor travels on the payload so the board can
     # never compare a rounded number against python's unrounded one and disagree about the same fact.
@@ -18131,7 +18149,18 @@ def _retention_once():
     # can no longer disagree. [[stale-reading]]
     base = {"checked": int(time.time() * 1000), "error": None, "freeGb": round(free_gb, 1),
             "floorGb": ON_AIR_FLOOR_GB,
-            "lockedBehindASweep": len(waiting), "lockedMb": waiting_mb,
+            # ⚠⚠ v2881 — THE TOTAL CARRIED THE DEFECT THE LINE BELOW WAS WRITTEN TO REMOVE.
+            # v2880 made `lockedVault` None when the tag->lane map cannot be read, with the note
+            # "a zero here renders as 'nothing awaits a sweep', which is a measurement nobody
+            # took" — and left `lockedBehindASweep` summing `_w_chron + _w_vault` where the vault
+            # half had just been set to `[]`. So the footer published a confident count and MB
+            # figure that silently OMITTED an unknown number of reels. Caught by the second eye
+            # reviewing v2880: "unknown vault count is still published as a complete number on the
+            # fields the screen actually reads". A sum is only as known as its least-known part.
+            # [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[feedback-generalize-fixes]]
+            "lockedBehindASweep": (None if _vault_unknown else len(waiting)),
+            "lockedMb": (None if _vault_unknown else waiting_mb),
+            "lockedTotalWhy": (_vault_unknown or None),
             "lockedChron": len(_w_chron), "lockedChronMb": _chron_mb,
             # ⚠ v2880 — None, not 0, when the map could not be read. A zero here renders as
             # "nothing awaits a sweep", which is a measurement nobody took.
@@ -18185,17 +18214,16 @@ def _retention_once():
                      " %d more were sealed by an older reader and will be re-read." % _extra)
             _RETENTION.update(dict(base, owedARead=_owed,
                                    say="%.1fGB free — above the %.0fGB floor. Nothing is eligible "
-                                       "to free. %d reel(s) (%.0f MB) are waiting on a sweep%s.%s"
-                                       % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb,
+                                       "to free. %s%s.%s"
+                                       % (free_gb, ON_AIR_FLOOR_GB, _wait_say,
                                           _lane_say, _tail)))
         return None
     if not cands:
         with _PRUNE_LOCK:
             _RETENTION.update(dict(base,
-                say="%.1fGB free, BELOW the %.0fGB floor — and nothing is eligible. %d reel(s) "
-                    "(%.0f MB) are locked behind a sweep that has never run; every other reel is "
-                    "held for a reason that no amount of pressure changes."
-                    % (free_gb, ON_AIR_FLOOR_GB, len(waiting), waiting_mb)))
+                say="%.1fGB free, BELOW the %.0fGB floor — and nothing is eligible. %s; "
+                    "every other reel is held for a reason that no amount of pressure changes."
+                    % (free_gb, ON_AIR_FLOOR_GB, _locked_say)))
         return None
     ok, why = retention_may_act()
     if not ok:
@@ -25771,7 +25799,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2880",
+        "ver": "v2881",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

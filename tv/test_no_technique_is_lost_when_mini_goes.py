@@ -148,9 +148,25 @@ class TheDenominatorIsPublished(unittest.TestCase):
                       "population they are all bounded by")
         if rep.get("ok"):
             cov = rep["doorCoverage"]
-            self.assertIsNotNone(cov, rep.get("doorCoverageWhy"))
-            self.assertIn("total", cov)
-            self.assertIn("stamped", cov)
+            # ⚠⚠ v2881 — AN UNKNOWN COVERAGE IS ALLOWED; AN UNKNOWN COVERAGE WITH NO REASON IS NOT.
+            # This asserted `cov is not None` on every ok census. But the per-technique verdicts come
+            # from the technique families, and the stamped population comes from the journal — two
+            # sources, and the second can be absent while the first is perfectly readable. The census
+            # publishes `doorCoverageWhy` precisely so it can say ok about the verdicts and UNKNOWN
+            # about their bound. Demanding a number there forced the census to invent a denominator
+            # or go not-ok, which are the two failures this design already avoids.
+            # MEASURED on CI: "unexpectedly None : no journal at sessions.jsonl, so nothing is
+            # established about either stream" — a runner has no journal, so the law could only ever
+            # pass on a machine that had run sessions. The contract is: a number, or a reason.
+            # [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[feedback-blind-fixture-green-gate]]
+            if cov is None:
+                self.assertTrue(str(rep.get("doorCoverageWhy") or "").strip(),
+                                "doorCoverage is None and doorCoverageWhy is empty — the population "
+                                "every verdict is bounded by is unknown and nothing says why, which "
+                                "is the one reading this field exists to prevent")
+            else:
+                self.assertIn("total", cov)
+                self.assertIn("stamped", cov)
 
 
 class TheLiveAnswerIsHonest(unittest.TestCase):

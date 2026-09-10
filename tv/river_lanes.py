@@ -149,16 +149,27 @@ def lanes(rep=None):
             out["why"] = ("the router could not be walked (%s), so the shelf is UNKNOWN — this is "
                           "NOT an empty river" % type(exc).__name__)
             return out
-    if not isinstance(rep, dict) or not rep.get("ok"):
-        out["why"] = ("the router did not answer (%s), so there are no lanes to draw and this is "
-                      "not a report that the river is empty"
-                      % ((rep or {}).get("why") or "no reason given"))
-        return out
+    # ⚠⚠ v2881 — THE MAP IS CHECKED FIRST, BECAUSE IT IS A PROPERTY OF THE CODE, NOT OF THE DATA.
+    # `assert_partitions()` reads LANES and reel_router.STATIONS and nothing else — it needs no
+    # reels, no shelf and no router answer. It used to run BELOW the router check, so on any
+    # machine whose walk comes back UNKNOWN the structural check never ran at all — and that is
+    # EVERY CI runner, which has no reels by construction. The one place a broken map would be
+    # caught before it reached him was the one place it was unreachable.
+    # MEASURED: with printer._sources emptied to imitate a runner, test_a_BROKEN_map_refuses_to_draw
+    # fails with "'partition' not found in 'the router did not answer…'" — the transient refusal
+    # masking the permanent defect. A broken map is broken whether or not the river is flowing, so
+    # it is now reported whether or not the router answered.
+    # [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
     ok, findings = assert_partitions()
     if not ok:
         # ⚠ REFUSE TO DRAW A RIVER THAT WOULD LOSE REELS. Rendering four tidy lanes over a broken
         # map is worse than rendering nothing, because it looks complete. [[unknown-stays-unknown]]
         out["why"] = "the lane map does not partition the router's stations: %s" % "; ".join(findings)
+        return out
+    if not isinstance(rep, dict) or not rep.get("ok"):
+        out["why"] = ("the router did not answer (%s), so there are no lanes to draw and this is "
+                      "not a report that the river is empty"
+                      % ((rep or {}).get("why") or "no reason given"))
         return out
     by = {}
     for r in (rep.get("reels") or []):

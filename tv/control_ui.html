@@ -9715,10 +9715,17 @@ window._lockMark = function(isOpen, px, label){
                tell him whether clearing them would even reach the floor; 609 MB against a 2.4 GB
                shortfall is a different decision from 609 MB against 200 MB. The backend has
                published lockedMb all along and nothing read it. [[the-unjoined-end]] */
+            /* ⚠⚠ v2881 — A NULL TOTAL RENDERED AS NOTHING AT ALL, WHICH READS AS "NONE AWAIT".
+               The backend now publishes null + lockedTotalWhy when a lane could not be read, and
+               this ternary sent both null and 0 down the same empty branch — so an unmeasured
+               shelf and a clear one printed identical text. Say the unknown out loud.
+               [[unknown-stays-unknown]] [[the-unjoined-end]] */
             + (_rt.lockedBehindASweep
                  ? (', ' + _rt.lockedBehindASweep + ' reel(s) ('
                     + (_rt.lockedMb ? Math.round(_rt.lockedMb) + 'MB' : '?') + ') await a sweep')
-                 : '');
+                 : (_rt.lockedTotalWhy
+                      ? ', how many await a sweep is UNKNOWN \u2014 not none'
+                      : ''));
     }
     /* ══ v2232 (#53) — THE TREND, AND IT SHOWS ABOVE THE FLOOR TOO ═══════════════════════════════
        He asked "how come i have 15 gigabytes more today than yesterday? is the pruning working?"

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2880",
+  "ver": "v2881",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2880: the waiting figure counted reels no sweep would ever touch, and the law I wrote to catch it was satisfied by my own comment",
+  "note": "v2881: two product defects and three laws that only ever ran where the data was",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

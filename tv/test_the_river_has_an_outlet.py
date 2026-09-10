@@ -165,8 +165,22 @@ class TheRiverHasAnOutlet(unittest.TestCase):
     def test_a_readable_store_says_so(self):
         with _Stubbed([]):
             rep = RR.route()
-        self.assertTrue(rep.get("outletReadable"))
-        self.assertEqual(0, rep["counts"]["ROUTED"])
+        # ⚠ THE OUTLET VERDICT IS OWED ON EVERY WALK — that is the subject of this law, and it now
+        # holds on a shelf with no reels too (v2881 publishes it on the UNKNOWN return).
+        self.assertTrue(rep.get("outletReadable"),
+                        "a stubbed, readable store did not produce a readable verdict: %r"
+                        % (rep.get("outletWhy"),))
+        # ⚠⚠ ROUTED 0 IS A SECOND CLAIM, AND IT NEEDS A WALK. On a runner with no reels the walk is
+        # UNKNOWN and `counts` is empty ON PURPOSE — asserting ROUTED == 0 there would demand
+        # exactly the confident zero the outlet field exists to prevent, and this file would be
+        # forcing the defect it was written to catch. Assert it only where a count was actually
+        # taken. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        if rep.get("counts"):
+            self.assertEqual(0, rep["counts"]["ROUTED"])
+        else:
+            self.assertIn("UNKNOWN", str(rep.get("why") or ""),
+                          "no counts were taken and nothing says the walk was UNKNOWN — an empty "
+                          "census with no reason is indistinguishable from a shelf that is clear")
 
     # ── ⚠⚠ THE LANE ROUTES WHAT OWES A ROUTE, AND REFUSES WHAT OWES A STEP FIRST ────────────
     def test_the_lane_agrees_with_the_routers_OWES_table(self):
@@ -184,7 +198,20 @@ class TheRiverHasAnOutlet(unittest.TestCase):
         self.assertNotIn("CAPTURE", LANE.ROUTES_FROM)
         with _Stubbed([]):
             p = LANE.plan()
-        self.assertTrue(p["ok"], p["why"])
+        # ⚠⚠ v2881 — THIS ASSERTED ok BEFORE REACHING THE SKIP THIS FILE ALREADY WROTE FOR IT.
+        # `_NO_SHELF` exists three screens up, worded for exactly this case — but the plan REFUSES
+        # on a shelf with no reels ("the router did not answer"), so `p["ok"]` was False and the
+        # law died one line before its own escape hatch. Found by running the gate inside a
+        # `safe_copy` sandbox, which is a truer CI runner than an emptied TV_HIST: the env var left
+        # enough of his world behind to keep this green, the sandbox did not.
+        # The two structural assertions above still run everywhere — CAPTURE must be in BLOCKED_BY
+        # and out of ROUTES_FROM is a fact about the code, and it is what this law most protects.
+        # [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]]
+        if not p["ok"]:
+            self.assertTrue(str(p.get("why") or "").strip(),
+                            "the lane refused to plan and gave no reason — a refusal with no why "
+                            "is indistinguishable from a shelf with nothing to do")
+            self.skipTest("%s (the lane refused: %s)" % (_NO_SHELF, str(p.get("why"))[:70]))
         if not (p["route"] or p["declined"]):
             self.skipTest(_NO_SHELF)
         self.assertFalse([x for x in p["route"] if x["from"] == "CAPTURE"],
@@ -350,6 +377,17 @@ class TheRiverHasAnOutlet(unittest.TestCase):
                          "an unreadable stamp store graded as a measured result — ROUTED 0 was "
                          "reported as a count when nobody could look")
 
+
+
+RED_PROOF = [
+    {
+        'why': 'dropping the outlet verdict on the UNKNOWN path restores the confident ROUTED 0 this gate exists to separate from a real count. ⚠ THE SUCCESS PATH IS THE WRONG ANCHOR: a sandbox has no shelf, so the walk is UNKNOWN and the success line never executes — measured BLIND, it stayed GREEN through its own defeat. Tamper the path the runner actually takes.',
+        'file': 'reel_router.py',
+        'find': 'rep["outletReadable"] = _r is not None',
+        'replace': 'rep["outletReadable"] = None',
+        'matches': 1,
+    },
+]
 
 
 if __name__ == "__main__":

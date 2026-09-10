@@ -201,8 +201,22 @@ class TheRiverHasADriver(unittest.TestCase):
         journal would grow for ever on an idle machine."""
         before = len(ST.rows().get("rows") or [])
         r = LANE.apply(by="test:quiet-river")
-        self.assertTrue(r["ok"], r["why"])
         after = len(ST.rows().get("rows") or [])
+        # ⚠⚠ v2881 — THE REFUSAL IS A REAL PATH, AND IT IS THE ONLY ONE CI EVER TAKES.
+        # This asserted r["ok"] first, so on the runner it died at "the router did not answer
+        # (UNKNOWN, not an empty shelf — printer.stream() could not answer)" — a CORRECT refusal
+        # on a machine with no reels. Measured on CI: three laws across three files fail on that
+        # one sentence. The subject here is not "the lane ran", it is "a quiet tick writes
+        # NOTHING", and that promise must hold whether the lane routes or refuses — a refusal that
+        # grew an append-only journal would be the same defect wearing a different verdict.
+        # Asserting both paths is strictly more coverage than asserting one and skipping the other.
+        # [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]]
+        if not r["ok"]:
+            self.assertEqual(
+                before, after,
+                "the lane REFUSED (%s) and still wrote %d row(s) — an append-only journal grew on "
+                "a tick that did no work" % (str(r.get("why"))[:70], after - before))
+            return
         self.assertEqual(before + (r["routed"] or 0), after,
                          "the lane wrote %d row(s) while reporting %d routed — a tick is writing "
                          "rows it does not account for" % (after - before, r["routed"]))
@@ -242,6 +256,17 @@ class TheRiverHasADriver(unittest.TestCase):
         self.assertIn(st, (D.OK, D.MISSING, D.UNKNOWN))
         self.assertTrue(say and len(say) > 30)
 
+
+
+RED_PROOF = [
+    {
+        'why': 'arming the prune lock is the one change these laws exist to refuse; test_the_prune_lock_is_STILL_false must go red the instant it flips',
+        'file': 'control_app.py',
+        'find': '_PRUNE_SAFE_TO_RUN = False',
+        'replace': '_PRUNE_SAFE_TO_RUN = True',
+        'matches': 1,
+    },
+]
 
 
 if __name__ == "__main__":

@@ -91,6 +91,17 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
     # ── ⚠⚠ THE LAW: the disagreement is the finding ───────────────────────────────────────────
     def test_dom_says_painted_but_the_room_is_blank_is_a_FINDING(self):
         real_d, real_p = SW.dom_claim, SW.pixel_claim
+        # ⚠⚠ v2881 — THE CONSOLE'S PID IS A THIRD SOURCE, AND IT WAS NEVER STUBBED.
+        # `verdict()` looks the console's pid up BEFORE it calls pixel_claim, and
+        # returns UNKNOWN — "the console's pid could not be found, so nothing was
+        # looked at" — when there is none. On his Mac his console is running, so the
+        # lookup succeeded and these laws graded the agreement logic. On a CI runner
+        # there is no console at all, so every one of them returned UNKNOWN before the
+        # stubbed claims were ever reached: 'ok' != 'unknown', 'missing' != 'unknown'.
+        # A law that stubs two of three inputs is still measuring the machine.
+        # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+        real_pid = SW._console_pid
+        SW._console_pid = lambda *a, **k: 424242   # never used: pixel_claim is stubbed
         SW.dom_claim = lambda *a, **k: (_dom(
             theatre={"open": True, "loaded": True, "painted": True, "ink": True},
             shelf={"open": True, "filled": True, "cards": 3090}), "")
@@ -107,11 +118,23 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
                           "the message does not name the mechanism, so it is not actionable")
         finally:
             SW.dom_claim, SW.pixel_claim = real_d, real_p
+            SW._console_pid = real_pid
 
     def test_agreement_is_OK(self):
         """The other direction. A row that can only go red is as useless as one that can only be
         green, and this one must stay quiet on a healthy console."""
         real_d, real_p = SW.dom_claim, SW.pixel_claim
+        # ⚠⚠ v2881 — THE CONSOLE'S PID IS A THIRD SOURCE, AND IT WAS NEVER STUBBED.
+        # `verdict()` looks the console's pid up BEFORE it calls pixel_claim, and
+        # returns UNKNOWN — "the console's pid could not be found, so nothing was
+        # looked at" — when there is none. On his Mac his console is running, so the
+        # lookup succeeded and these laws graded the agreement logic. On a CI runner
+        # there is no console at all, so every one of them returned UNKNOWN before the
+        # stubbed claims were ever reached: 'ok' != 'unknown', 'missing' != 'unknown'.
+        # A law that stubs two of three inputs is still measuring the machine.
+        # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+        real_pid = SW._console_pid
+        SW._console_pid = lambda *a, **k: 424242   # never used: pixel_claim is stubbed
         SW.dom_claim = lambda *a, **k: (_dom(shelf={"open": True, "filled": True, "cards": 12}), "")
         SW.pixel_claim = lambda *a, **k: ({"roomCells": 25, "blank": 0, "blankAt": [],
                                            "cols": 8, "rows": 5}, "")
@@ -120,6 +143,7 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
             self.assertEqual(D.OK, st, "a healthy room was graded as a fault: %s" % say)
         finally:
             SW.dom_claim, SW.pixel_claim = real_d, real_p
+            SW._console_pid = real_pid
 
     # ── ⚠ IT MUST NOT CRY WOLF ────────────────────────────────────────────────────────────────
     def test_a_dark_room_with_NOTHING_OPEN_is_not_a_fault(self):
@@ -140,6 +164,17 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
         """A single quiet corner of a sparse panel is not a dead room. His real fault produced
         exactly 2 at 8x5, so the floor is the one his own fault clears."""
         real_d, real_p = SW.dom_claim, SW.pixel_claim
+        # ⚠⚠ v2881 — THE CONSOLE'S PID IS A THIRD SOURCE, AND IT WAS NEVER STUBBED.
+        # `verdict()` looks the console's pid up BEFORE it calls pixel_claim, and
+        # returns UNKNOWN — "the console's pid could not be found, so nothing was
+        # looked at" — when there is none. On his Mac his console is running, so the
+        # lookup succeeded and these laws graded the agreement logic. On a CI runner
+        # there is no console at all, so every one of them returned UNKNOWN before the
+        # stubbed claims were ever reached: 'ok' != 'unknown', 'missing' != 'unknown'.
+        # A law that stubs two of three inputs is still measuring the machine.
+        # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+        real_pid = SW._console_pid
+        SW._console_pid = lambda *a, **k: 424242   # never used: pixel_claim is stubbed
         SW.dom_claim = lambda *a, **k: (_dom(shelf={"open": True, "cards": 9}), "")
         SW.pixel_claim = lambda *a, **k: ({"roomCells": 25, "blank": 1, "blankAt": [(0, 0)],
                                            "cols": 8, "rows": 5}, "")
@@ -147,6 +182,7 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
             self.assertEqual("AGREE", SW.verdict(pid="1").get("state"))
         finally:
             SW.dom_claim, SW.pixel_claim = real_d, real_p
+            SW._console_pid = real_pid
 
     # ── ⚠⚠ UNKNOWN IS NEVER COLLAPSED ─────────────────────────────────────────────────────────
     def test_an_unlookable_window_is_UNKNOWN_not_OK(self):
@@ -154,6 +190,17 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
         'pid owns no on-screen window big enough to be his console, which is not the same as a
         blank one'. An unlookable window is neither painted nor blank."""
         real_d, real_p = SW.dom_claim, SW.pixel_claim
+        # ⚠⚠ v2881 — THE CONSOLE'S PID IS A THIRD SOURCE, AND IT WAS NEVER STUBBED.
+        # `verdict()` looks the console's pid up BEFORE it calls pixel_claim, and
+        # returns UNKNOWN — "the console's pid could not be found, so nothing was
+        # looked at" — when there is none. On his Mac his console is running, so the
+        # lookup succeeded and these laws graded the agreement logic. On a CI runner
+        # there is no console at all, so every one of them returned UNKNOWN before the
+        # stubbed claims were ever reached: 'ok' != 'unknown', 'missing' != 'unknown'.
+        # A law that stubs two of three inputs is still measuring the machine.
+        # [[feedback-blind-fixture-green-gate]] [[feedback-fixtures-never-touch-live-data]]
+        real_pid = SW._console_pid
+        SW._console_pid = lambda *a, **k: 424242   # never used: pixel_claim is stubbed
         SW.dom_claim = lambda *a, **k: (_dom(shelf={"open": True, "cards": 3090}), "")
         SW.pixel_claim = lambda *a, **k: (None, "simulated: no window")
         try:
@@ -163,6 +210,7 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
             self.assertEqual(D.UNKNOWN, st, "an unlookable window was graded: %s" % say)
         finally:
             SW.dom_claim, SW.pixel_claim = real_d, real_p
+            SW._console_pid = real_pid
 
     def test_a_silent_console_is_UNKNOWN_not_OK(self):
         real_d = SW.dom_claim
@@ -206,6 +254,17 @@ class TheStageAgreesWithTheDom(unittest.TestCase):
     def test_it_still_parses(self):
         ast.parse(SRC)
 
+
+
+RED_PROOF = [
+    {
+        'why': 'losing the CONTRADICTION branch makes a blank room grade as merely UNKNOWN, so the row stops being able to report a fault at all',
+        'file': 'console_doctor.py',
+        'find': 'if st == "CONTRADICTION":',
+        'replace': 'if st == "_HEART2_TAMPERED_":',
+        'matches': 1,
+    },
+]
 
 
 if __name__ == "__main__":

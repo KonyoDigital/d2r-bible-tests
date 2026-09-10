@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2881** | `(this commit)` | v2881 — two product defects and three laws that only ever ran where the data was |
 | **v2880** | `(this commit)` | v2880 — the waiting figure counted reels no sweep would ever touch, and the law I wrote to catch it was satisfied by my own comment |
 | **v2879** | `(this commit)` | v2879 — the blueprint compared a snapshot of his data as if it were the map of the code, so CI could never pass it and his own tree went stale in minutes |
 | **v2878** | `(this commit)` | v2878 — the panel and the sweeper were still two readers of one plan, and a read cannot clear a reel whose rows were already made |

@@ -411,6 +411,20 @@ def route(hist=None, path=None):
         # separate source; an unreadable WALK says nothing about it either way.
         rep["closed"] = _closed_ledger()
         rep["unreached"] = unreached_stations({}, (rep["closed"] or {}).get("n"))
+        # ⚠⚠ v2881 — THE OUTLET IS A SEPARATE SOURCE TOO, AND IT WAS LEFT BEHIND.
+        # The v2817 note directly above states the principle — "an unreadable WALK says nothing
+        # about it either way" — and applied it to `closed`/`unreached` only. The stamp store is
+        # the same shape: whether it could be READ has nothing to do with whether the shelf holds
+        # reels, so a consumer asking "was the outlet readable?" on an empty shelf got None and ''
+        # — no key at all, which reads as "no" for a store that answered perfectly.
+        # MEASURED on CI (a runner has no reels, so every walk is UNKNOWN there): two laws in
+        # test_the_river_has_an_outlet.py stub a READABLE store and still fail with "None is not
+        # true" and "nothing says WHY the outlet could not be read". Both pass on his Mac, which
+        # has a shelf — the host machine was the fixture. [[feedback-blind-fixture-green-gate]]
+        # [[unknown-stays-unknown]] [[feedback-generalize-fixes]]
+        _r, _ow = _routed_by_a_lane(path)
+        rep["outletReadable"] = _r is not None
+        rep["outletWhy"] = _ow
         return rep
     # ⚠⚠ v2770 — `path` IS THREADED, and it was not. Found by the post-ship review: route()
     # called the overlay with NO path, so the helper's own `path` parameter was unreachable and

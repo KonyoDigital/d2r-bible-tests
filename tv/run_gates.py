@@ -793,6 +793,15 @@ GATES = [
              "number of ticks, on the first tick after a restart, with run() driven rather than "
              "read. Proven red both ways: include_periodic=False, and the v2801 SLOW membership.",
          skip_ok=()),
+    Gate("test_a_total_is_only_as_known_as_its_parts",
+         [sys.executable, os.path.join(HERE, "test_a_total_is_only_as_known_as_its_parts.py")], 90,
+         "v2881 — the second eye, reviewing v2880: 'unknown vault count is still published as a "
+         "complete number on the fields the screen actually reads'. v2880 made lockedVault None "
+         "when the tag->lane map cannot be read and left the SUM beside it publishing a confident "
+         "count that omitted those reels, and the sentence reading '0 reel(s) (0 MB) are waiting "
+         "on a sweep'. Reproduced with a shelf_driver that has no OWED_BY; fixed on all three "
+         "surfaces plus the UI. Proven red by restoring the raw sum.",
+         skip_ok=()),
     Gate("test_the_backlog_sees_a_version_with_no_row",
          [sys.executable, os.path.join(HERE, "test_the_backlog_sees_a_version_with_no_row.py")], 60,
          why="v2854 — --backlog built its answer from the ledger, and audit() covers only versions "

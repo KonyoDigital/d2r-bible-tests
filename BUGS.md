@@ -28259,3 +28259,121 @@ by a reviewer, never by reading. When a law is about a mechanism, assert the mec
 what it consumes and require the output to change. Asserting that the machinery is PRESENT is the
 cheap version and it is always green.
 
+
+### REG-848 — the router dropped the outlet verdict on an UNKNOWN walk
+**v2881.** `reel_router.route()` returns early when the shelf walk is UNKNOWN. v2817 had already
+established the principle for that return, in a comment sitting three lines above the hole: *"the
+closure count does not depend on the walk, so it is published here too… a consumer that asked 'what
+has closed out?' while the walk was UNKNOWN got no key at all — which reads as 'nothing', the exact
+conflation this whole change exists to end."* It applied that to `closed` and `unreached` and left
+`outletReadable`/`outletWhy` behind — the same shape, the same separate source, one function away.
+Whether the STAMP STORE could be read has nothing to do with whether the shelf holds reels.
+**Measured:** with `_evidence` forced to None (a runner with no reels), `outletReadable` came back
+`None` and `outletWhy` `''` for a store that answered perfectly. Two laws in
+`test_the_river_has_an_outlet.py` stub a readable store and failed on CI with *"None is not true"*
+and *"nothing says WHY the outlet could not be read, so ROUTED 0 is a guess wearing a count's
+clothes"* — while passing on his Mac, which has a shelf. **Fix:** the UNKNOWN return computes and
+publishes the outlet verdict the same way the success path does. `[[unknown-stays-unknown]]`
+`[[feedback-generalize-fixes]]`
+
+### REG-849 — the lane map could only be checked on a machine that had reels
+**v2881.** `river_lanes.lanes()` refused on an unanswered router BEFORE calling
+`assert_partitions()`. That check reads `LANES` and `reel_router.STATIONS` and nothing else — no
+reels, no shelf, no router answer — so it is a property of the CODE. Ordering it below the router
+check meant that on any machine whose walk comes back UNKNOWN it never ran at all, and that is
+**every CI runner**, which has no reels by construction. The one place a broken map would be caught
+before it reached him was the one place it was unreachable. **Measured:** with `printer._sources`
+emptied, `test_a_BROKEN_map_refuses_to_draw` fails `'partition' not found in 'the router did not
+answer…'` — a transient refusal masking a permanent defect. **Fix:** the map is checked first. A
+broken map is broken whether or not the river is flowing.
+`[[feedback-blind-fixture-green-gate]]` `[[gate-blind-to-unexercised-input]]`
+
+### REG-850 — three laws asserted a verdict only a machine with data can produce
+**v2881.** The host machine was the fixture. Each of these was green on his Mac for years and red on
+every CI run, and the shared cause is that they asked for a definite answer on a world that
+correctly says UNKNOWN:
+- `test_a_quiet_river_costs_ZERO_rows` asserted `r["ok"]` before its real subject. Its promise is
+  *a no-op tick writes nothing*, and that must hold whether the lane routes or refuses — a refusal
+  that grew an append-only journal is the same defect wearing a different verdict. Now asserted on
+  both paths, which is strictly more coverage than one path plus a silent skip.
+- `test_a_readable_store_says_so` bundled a second claim, `counts["ROUTED"] == 0`, that genuinely
+  needs a walk. On an empty shelf `counts` is empty ON PURPOSE; demanding ROUTED 0 there forces
+  exactly the confident zero the outlet field exists to prevent. Split: the outlet verdict is owed
+  always, the count only where a count was taken.
+- `test_the_coverage_is_published_on_the_census_itself` asserted `doorCoverage is not None` on every
+  ok census. The verdicts come from the technique families and the population comes from the
+  journal — two sources, and the second can be absent while the first reads fine. The census
+  publishes `doorCoverageWhy` precisely to say ok about the verdicts and UNKNOWN about their bound.
+  The contract is **a number, or a reason**; that is what is asserted now.
+**Verified both ways:** all five touched files green on his Mac AND green under an emptied
+`printer._sources`/`_evidence` and an empty `TV_HIST`. **CI red list 8 → 6 → 3 pending confirmation.**
+`[[feedback-blind-fixture-green-gate]]` `[[unknown-stays-unknown]]` `[[zero-needs-a-denominator]]`
+
+### REG-851 — CI installed Pillow and not numpy, so a lattice law graded an import error
+**v2881.** `vault_corpus.inventory_lattice` opens with `import numpy as _np; from PIL import Image`
+and returns `{"ok": False, "why": "unreadable: <import error>"}` if either is missing. Both CI
+workflows installed **pillow** — with a comment explaining exactly why (*"a missing import is a skip
+wearing a failure"*) — and **not numpy**. So on every runner that call refused before attempting any
+lattice fit, and `test_the_reason_says_NO_GRID_and_not_EMPTY_PANEL` failed with *"the refusal does
+not say the FIT failed"*: perfectly true, and completely misleading, because no fit was ever run.
+**Measured** by blocking the numpy import locally: `why` became `"unreadable: No module named
+'numpy'"` and none of the law's five accepted keys matched — the exact CI failure, reproduced.
+**Fix:** numpy is installed in `publish.yml` and `tv-tests.yml` alongside pillow, so the law
+MEASURES its subject. Widening the law to accept `"unreadable"` would have turned it green without
+ever testing anything — a skip wearing a pass. The law now also fails with a message that names the
+missing dependency, so the next reader is not sent hunting for a wording defect that isn't there.
+`[[regression-guard]]` `[[feedback-suspect-the-instrument]]`
+
+### REG-852 — a law stubbed two of three inputs, and the third was his running console
+**v2881.** `stage_witness.verdict()` looks up the console's pid BEFORE it calls `pixel_claim`, and
+returns UNKNOWN — *"the console's pid could not be found, so nothing was looked at"* — when there is
+none. `test_the_stage_agrees_with_the_dom.py` stubs `dom_claim` and `pixel_claim` at four sites and
+stubbed `_console_pid` at none. On his Mac the console is running, the lookup succeeded, and the
+laws graded the agreement logic they were written for. On a CI runner there is no console at all, so
+they returned UNKNOWN before the stubbed claims were ever reached: `'ok' != 'unknown'` and
+`'missing' != 'unknown'`. **A law that controls two of three inputs is still measuring the machine.**
+**Fix:** all four sites now stub the pid too (the value is never used — `pixel_claim` is stubbed).
+**Verified** by forcing `_console_pid` to return None for the whole module: 10 of 10 green, where
+the runner's own log is the red proof they failed before.
+`[[feedback-blind-fixture-green-gate]]` `[[feedback-fixtures-never-touch-live-data]]`
+
+### REG-853 — an empty TV_HIST is not an empty world; the safe_copy sandbox is
+**v2881.** Fixing REG-850 I verified each law two ways: on his Mac, and with `TV_HIST` pointed at an
+empty directory. Both green. The gate still failed. Running the SAME file inside a
+`python3 tv/safe_copy.py` sandbox — a copy of the repo without the footage — reproduced the CI
+failure immediately: `test_CAPTURE_is_DECLINED_and_the_refusal_is_PUBLISHED`, the third of the three
+failures CI had reported for that file and the one I had not fixed. **The env var left enough of his
+world behind to keep the law green; the sandbox did not.** `TV_HIST` redirects one store. A runner
+lacks *everything* — reels, stamps, ledgers, journals, a console, and any dependency nobody
+installed. Only a copy without them asks the same question CI asks.
+**The defect it exposed:** the law asserted `p["ok"]` one line ABOVE the `_NO_SHELF` skip this very
+file had written for exactly this case, so on an empty shelf it died before reaching its own escape
+hatch. Its two structural assertions — CAPTURE is in `BLOCKED_BY` and out of `ROUTES_FROM` — run
+everywhere and are what it most protects; only the data-dependent half now stands down, and it says
+so rather than passing quietly.
+**Standing method:** before claiming a CI red is fixed, run the gate in a `safe_copy` sandbox. A
+green on his Mac and a green under an env var are the same green — his machine, twice.
+`[[feedback-blind-fixture-green-gate]]` `[[test-venue]]` `[[zero-needs-a-denominator]]`
+
+### REG-854 — the unknown reached the field and stopped one line short of the sentence
+**v2881.** The second eye, reviewing **my own v2880**: *"unknown vault count is still published as a
+complete number on the fields the screen actually reads."* Confirmed by reading the code and then
+reproduced by importing a `shelf_driver` with no `OWED_BY` — the exact failure the guarded branch was
+written for. v2880 set `lockedVault`/`lockedVaultMb` to None with the note *"a zero here renders as
+'nothing awaits a sweep', which is a measurement nobody took"* — and the line **directly above it**
+published `lockedBehindASweep: len(waiting)`, a sum whose vault half had just been set to `[]`.
+**Three surfaces, one defect, found in this order:**
+1. `lockedBehindASweep` / `lockedMb` — a confident total silently omitting an unknown number.
+2. `_lane_bits` — the vault entry was skipped when empty, so the same words described a lane that
+   is genuinely clear and a lane nobody could read.
+3. **The `say`** — after fixing 1 and 2, measurement showed the sentence *still* read
+   `0 reel(s) (0 MB) are waiting on a sweep`. Fields and prose were built from the same variables
+   and disagreed anyway, because only the fields had been guarded. Both sentences now go through
+   **one** phrase computed beside the counts, so they cannot drift apart again.
+Plus the UI: `lockedBehindASweep ? … : ''` sent null and 0 down the same empty branch, so an
+unmeasured shelf and a clear one printed identical text — it now says the unknown out loud.
+**Gated:** `test_a_total_is_only_as_known_as_its_parts` (5 laws) holds the payload, the breakdown
+and the sentence to one answer, and keeps the other direction honest — a readable map must still
+publish a real count. Proven red by restoring the raw sum.
+`[[unknown-stays-unknown]]` `[[zero-needs-a-denominator]]` `[[label-outlived-referent]]`
+`[[review-after-ship]]`

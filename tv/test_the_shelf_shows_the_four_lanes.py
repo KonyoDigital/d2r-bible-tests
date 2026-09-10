@@ -310,5 +310,16 @@ class TheShelfShowsTheFourLanes(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        'why': 'waving the partition check through lets a lane map that loses reels draw four tidy lanes; test_a_BROKEN_map_refuses_to_draw must go red',
+        'file': 'river_lanes.py',
+        'find': '    ok, findings = assert_partitions()',
+        'replace': '    ok, findings = True, []',
+        'matches': 1,
+    },
+]
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

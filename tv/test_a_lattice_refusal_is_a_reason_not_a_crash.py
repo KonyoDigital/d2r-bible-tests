@@ -95,6 +95,21 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
         import vault_corpus as VC
         r = VC.inventory_lattice(_flat_frame())
         why = str((r or {}).get("why") or "").lower()
+        # ⚠⚠ v2881 — A MISSING DEPENDENCY IS A THIRD STATE, AND IT MUST SAY SO IN ITS OWN WORDS.
+        # `inventory_lattice` opens with `import numpy; from PIL import Image` and returns
+        # "unreadable: <import error>" if either is absent. CI installed pillow and NOT numpy, so
+        # this law failed there with "the refusal does not say the FIT failed" — perfectly true and
+        # completely misleading: no fit was ever attempted. It cost a full investigation to learn
+        # that the message was about a pip line, not about the refusal wording.
+        # The dependency is now installed in both workflows so the law MEASURES its subject. This
+        # branch stays RED on purpose if it ever goes missing again — a skip is not a pass — but it
+        # now names the real cause instead of impersonating a wording defect.
+        # [[regression-guard]] [[feedback-suspect-the-instrument]]
+        if why.startswith("unreadable:"):
+            self.fail("the frame could not be decoded at all, so the FIT never ran and this law "
+                      "measured nothing: %r. This is a MISSING DEPENDENCY on this machine, not a "
+                      "refusal-wording defect — install it (both CI workflows pip-install pillow "
+                      "and numpy for exactly this reason) and run again." % why[:90])
         self.assertTrue(
             any(k in why for k in ("no candidate pitch", "no lattice", "found nothing",
                                    "no grid", "pinned to the search bound")),
@@ -120,6 +135,17 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
         self.assertGreaterEqual(
             oks, 0,
             "sanity only — this asserts the call completes on real frames without raising")
+
+
+RED_PROOF = [
+    {
+        'why': "the refusal must name the FIT failure. ⚠ ONE LINE IS NOT ENOUGH — the sentence spans two string literals and 'no candidate pitch' and 'no grid' are BOTH accepted keys, so a single-key sabotage comes back GREEN. And the replacement must keep both literals intact or the tamper does not parse at all (measured: INVALID, line 313).",
+        'file': 'vault_corpus.py',
+        'find': 'the %s ridge fit found no candidate pitch at all on this frame — that "\n                           "is \'no grid is visible here\'',
+        'replace': 'the %s ridge fit found _HEART2_TAMPERED_ at all on this frame — that "\n                           "is \'_HEART2_TAMPERED_\'',
+        'matches': 1,
+    },
+]
 
 
 if __name__ == "__main__":

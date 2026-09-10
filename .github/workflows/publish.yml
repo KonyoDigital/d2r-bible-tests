@@ -154,8 +154,18 @@ jobs:
       # with fewer capabilities than the one that only reports. 26 tests skipped here and ran there,
       # and on 2026-08-20 two new fixtures that decode JPEGs turned that gap from silent skipping
       # into an outright ERROR that refused ten consecutive publishes.
-      - name: Install Pillow (so the frame-decoding suites run instead of skipping)
-        run: python3 -m pip install --quiet pillow
+      # ⚠⚠ v2881 — NUMPY BELONGS HERE FOR THE SAME REASON PILLOW DOES, AND IT WAS MISSING.
+      # `vault_corpus.inventory_lattice` opens with `import numpy as _np; from PIL import Image`
+      # and returns {"ok": False, "why": "unreadable: <the import error>"} when either is absent.
+      # Pillow was installed; numpy was not — so on every runner that call refused with
+      # "unreadable: No module named 'numpy'" and never reached the FIT it exists to perform.
+      # test_the_reason_says_NO_GRID_and_not_EMPTY_PANEL then failed, because a dependency error is
+      # a third state, neither "no grid on screen" nor "grid found, nothing in it".
+      # Widening the law to accept "unreadable" would have made it green WITHOUT ever testing its
+      # subject on CI — a skip wearing a pass, which is the exact phrase the step below was named
+      # for. Install the dependency so the law MEASURES instead. [[regression-guard]]
+      - name: Install Pillow + numpy (so the frame-decoding suites run instead of skipping)
+        run: python3 -m pip install --quiet pillow numpy
       - run: cd tv && python3 -m unittest test_control test_tz_art
 
   review:
