@@ -909,6 +909,15 @@ GATES = [
          "with the code and disagreed with the screen. Decidable in the source, invisible to the "
          "harness. Proven red by restoring the escape.",
          skip_ok=()),
+    Gate("test_the_polled_endpoint_never_waits_on_a_survey",
+         [sys.executable, os.path.join(HERE, "test_the_polled_endpoint_never_waits_on_a_survey.py")], 90,
+         why="v2897 (#28, REG-895) — tv/.status_worst.json kept the request that named it: totalMs "
+         "612,893 with vaultAutoread 603,443 (98.5%), capture=False mode=off agent=False "
+         "lockWaitDelta 0. /api/status is polled ~1/s and every 3s TTL miss ran reel_retention."
+         "plan() over his footage synchronously in the handler. The refresh is now off-thread, one "
+         "at a time, UNKNOWN until it lands, and carries its age. Measured after: worst handler "
+         "cost 0.1ms against a 6,000ms survey, 1 invocation across 9 polls. Proven red 3 ways.",
+         skip_ok=()),
     Gate("test_two_surfaces_one_shelf",
          [sys.executable, os.path.join(HERE, "test_two_surfaces_one_shelf.py")], 60,
          why="v2893 (#58) — the shelf subtracted the 8 fixture reels from /api/reel_story at v2877 and "

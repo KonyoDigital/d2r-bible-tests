@@ -29044,3 +29044,52 @@ tick and removes it. It carries local `/Users/...` paths, this repo is PUBLIC, a
 covered the `.grok/` copy — so it was one `git add -A` away from shipping. A root-level rule now
 covers it; proven by decoy (ignored, `git status` sees 0) with the `.grok/` rule still biting.
 Nothing had ever landed (`git log --all` over the pattern is empty).
+
+## REG-895 — the polled endpoint waited ten minutes on a disk survey (#28 answered)
+
+**v2897.** #28 has been open for weeks as *"/api/status degrades 2000x under a recording session"*.
+Its own remaining step said the answer would arrive on its own: *"next time /api/status is slow —
+with or without ON AIR — read `timing.worstRequest`. That single record answers this task."*
+
+It had already arrived. `tv/.status_worst.json`, written v2846:
+
+```
+totalMs        612,893.2 ms      (10 minutes 13 seconds)
+vaultAutoread  603,443.2 ms      98.5% of the request
+unattributed     7,393.9 ms
+capture=False · mode=off · agent=False · lockWaitDelta 0
+```
+
+**No recording session. No agent. No lock contention.** The title was wrong about the cause, and the
+next-largest section in that request was `selfArming` at 203.6 ms — three thousand times smaller.
+
+**The shape.** `/api/status` is polled about once a second. The vault-autoread lamp had a 3-second
+TTL, so roughly every third poll missed — and the miss path called `_vault_autoread_state()` →
+`_vault_owed_reels()` → `reel_retention.plan()` over his footage **synchronously, inside the
+handler, with no deadline**. A function whose name promised a cache blocked the endpoint whenever
+the cache was cold.
+
+⚠ **The 603-second trigger is UNKNOWN and is not guessed at.** `plan()` measures **0.067 s** warm on
+the same tree (three consecutive runs), so that was not the ordinary path — something made the
+survey pathological that day. What is provable without knowing which, is the SHAPE: an unbounded
+synchronous call in a polled endpoint means whatever goes wrong lands whole on the console.
+
+**Fixed by bounding the shape, not by chasing the trigger.** The refresh runs off-thread, one at a
+time; the handler serves the last answer with its `ageMs` and a `stale` flag, and `on: null` with a
+reason until the first survey lands — never `{}` or `on: False`, because an unmeasured lane is not
+an idle one.
+
+MEASURED after, against a 6,000 ms stand-in survey polled once a second:
+
+```
+worst handler cost   0.1 ms        (was: the survey's full duration)
+survey invocations   1 per 9 polls (not one thread per poll — 600 for the record above)
+before it lands      on=None, stale=True, with a reason
+after it lands       on=True, ageMs=10 -> 1014 -> 2018
+threads left alive   0
+```
+
+Gate `test_the_polled_endpoint_never_waits_on_a_survey` — 4 laws, no footage (the survey is a
+sleeping stand-in, so it measures the same on a CI runner). Proven red 3 ways, 1 match each:
+restore the synchronous call · drop the one-at-a-time flag · report the lane OFF before anything
+surveyed it. 284 gates.

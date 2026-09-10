@@ -5010,6 +5010,54 @@ _SCREEN_REC_TTL_S = 10.0
 
 _VAULT_AUTOREAD_CACHE = {"t": 0.0, "d": None}
 _VAULT_AUTOREAD_TTL_S = 3.0
+#: ⚠⚠ v2897 (#28) — THE REFRESH RUNS OFF-THREAD, BECAUSE THIS ONE BLOCKED /api/status FOR TEN
+#: MINUTES. The console's own kept record, tv/.status_worst.json, holds the request that finally
+#: named it:
+#:
+#:     totalMs 612,893.2   vaultAutoread 603,443.2  (98.5%)   ver v2846
+#:     capture=False · mode=off · agent=False · lockWaitDelta 0
+#:
+#: NO recording session, NO agent, NO lock contention — so "it degrades under a recording session"
+#: was never the shape. `/api/status` is polled about once a second; a 3-second TTL means a miss
+#: every third poll, and each miss ran `reel_retention.plan()` over his footage SYNCHRONOUSLY,
+#: with no deadline, inside the handler.
+#:
+#: ⚠ THE TRIGGER FOR 603s IS STILL UNKNOWN AND IS NOT GUESSED AT HERE. plan() measures 0.067s
+#: warm on the same tree today, three runs running, so this is not the ordinary path. What is
+#: MEASURED is the shape: an unbounded synchronous call in a polled endpoint, where whatever makes
+#: plan() slow that day — a cold FS cache, a concurrent writer, contention with a capture — lands
+#: whole on the console. Bounding the shape fixes it without needing the trigger.
+#: [[unknown-stays-unknown]] [[poll-slower-than-its-interval]]
+_VAULT_AUTOREAD_REFRESH = {"running": False}
+_VAULT_AUTOREAD_LOCK = threading.Lock()
+
+
+def _vault_autoread_kick():
+    """Start ONE background refresh of the vault-autoread lamp. Returns immediately.
+
+    ⚠ ONE AT A TIME. Without the flag, a slow survey plus a once-a-second poll spawns a new thread
+    every second for as long as the survey lasts — 600 threads for the request above. That is the
+    [[poll-slower-than-its-interval]] shape, which this repo has already measured once at "172s
+    answered every 12s".
+    """
+    with _VAULT_AUTOREAD_LOCK:
+        if _VAULT_AUTOREAD_REFRESH["running"]:
+            return False
+        _VAULT_AUTOREAD_REFRESH["running"] = True
+
+    def _run():
+        try:
+            d = _vault_autoread_state()
+            _VAULT_AUTOREAD_CACHE["t"], _VAULT_AUTOREAD_CACHE["d"] = time.time(), d
+        except Exception:
+            pass          # a failed refresh leaves the previous answer and its age standing
+        finally:
+            with _VAULT_AUTOREAD_LOCK:
+                _VAULT_AUTOREAD_REFRESH["running"] = False
+
+    threading.Thread(target=_run, daemon=True, name="tvd-vault-autoread").start()
+    return True
+
 
 
 def _vault_autoread_state_cached():
@@ -5026,14 +5074,21 @@ def _vault_autoread_state_cached():
     """
     now = time.time()
     c = _VAULT_AUTOREAD_CACHE
-    if c["d"] is not None and (now - c["t"]) < _VAULT_AUTOREAD_TTL_S:
-        return c["d"]
-    try:
-        d = _vault_autoread_state()
-    except Exception:
-        return c["d"] if c["d"] is not None else {}
-    c["t"], c["d"] = time.time(), d
-    return d
+    fresh = c["d"] is not None and (now - c["t"]) < _VAULT_AUTOREAD_TTL_S
+    if not fresh:
+        # ⚠ KICK, NEVER BLOCK. This used to call _vault_autoread_state() right here.
+        _vault_autoread_kick()
+    if c["d"] is None:
+        # ⚠ NOT MEASURED YET IS NOT "OFF". The lamp reports whether a lane is running; handing back
+        # {} or on:False before the first survey finishes would say the lane is idle when nobody
+        # has looked. [[unknown-stays-unknown]]
+        return {"on": None, "ageMs": None, "stale": True,
+                "why": "the vault-autoread survey has not finished its first run since this "
+                       "console started — UNKNOWN, and specifically not off"}
+    out = dict(c["d"])
+    out["ageMs"] = int(max(0.0, now - c["t"]) * 1000)
+    out["stale"] = not fresh
+    return out
 
 
 def screen_recording_ok_cached():
@@ -25855,7 +25910,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2896",
+        "ver": "v2897",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
