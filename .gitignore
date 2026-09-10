@@ -258,3 +258,17 @@ tv/.shelf_driver.json
 # The rule above only covers `.grok/`, so the root copy was one `git add -A` away from shipping.
 # Nothing has ever landed (`git log --all` over the pattern is empty) — this keeps it that way.
 heart2_look_*.sh
+
+# ⚠⚠ v2901 (#60) — THE VAULT LANE'S MEMORY IS MACHINE-LOCAL AND MUST NOT TRAVEL.
+# `.vault_autoread.json` holds what THIS console's vault lane has read, how many attempts each
+# reel cost it, and which reels it has RETIRED — stopped paying to sweep. Those decisions are about
+# the reels on THIS disk.
+#
+# This repo is worked from two machines (the Mac ships, the Windows box pulls and tests). A tracked
+# store would hand one machine's retirements to the other, whose hist/ holds different reels
+# entirely — so the lane would skip reels it has never seen and re-buy ones it had ruled out, which
+# is the exact defect #60 exists to end, re-entered through git.
+#
+# ⚠ Its sibling `.status_worst.json` IS tracked ON PURPOSE and stays that way: that one is a single
+# kept EVIDENCE record (the 612,893 ms request that answered #28), not per-machine state.
+tv/.vault_autoread.json

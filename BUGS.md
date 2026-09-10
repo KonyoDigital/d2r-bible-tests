@@ -29315,3 +29315,34 @@ is that the NEXT sweep survives a restart, and that the state now distinguishes 
 Gate `test_the_vault_lane_remembers_across_a_restart` — 6 laws, no footage, TV_HIST pointed at a
 temp dir so it cannot touch his store. Proven red 3 ways, 1 match each: drop the restore · report an
 unreadable store as fresh · write in place instead of `os.replace`. 285 gates.
+
+## REG-900 CONFIRMED ON LIVE DATA — and the store is machine-local
+
+**~40 minutes after v2901 shipped**, his console re-exec'd into the new code (pid preserved by
+`os.execv`) and the vault lane ran with persistence in place. `tv/.vault_autoread.json` appeared:
+
+```
+reads   14          lastTs  1789063270156          retired  6 reels
+storeReadable True  <- restored from disk, not from memory
+```
+
+And the corroborator pair that has been red all day:
+
+```
+vault-lane-has-worked:  1 >= 1   ->  HOLDS ✅     (was 0 >= 1)
+```
+
+⚠ **It closed the way it was predicted to, not retroactively.** v2901 could not invent a `lastTs`
+that never happened, and the entry above says so in as many words. It went green when the lane
+completed one sweep AND that sweep survived — which is the only evidence that actually proves the
+fix. #63's second disagreeing pair is closed.
+
+**The store must never be committed.** It records what THIS console's lane has read, what each reel
+cost it, and which reels it has RETIRED — decisions about the reels on THIS disk. The repo is worked
+from two machines; a tracked store would hand one machine's retirements to the other, whose `hist/`
+holds different reels, so the lane would skip reels it has never seen and re-buy ones it had ruled
+out — #60's exact defect, re-entered through git. Now ignored, proven by check-ignore.
+
+⚠ Its sibling `.status_worst.json` **stays tracked on purpose**: that one is a single kept EVIDENCE
+record (the 612,893 ms request that answered #28), not per-machine state. Verified the new rule does
+not catch it.
