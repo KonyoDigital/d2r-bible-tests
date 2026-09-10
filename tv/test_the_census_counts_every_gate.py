@@ -20,6 +20,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ This file prints non-ASCII in its assertion messages and is an entry point, so on a non-UTF-8
+# console (Windows stdout is cp1255 here) it would crash WHILE REPORTING and a clean tree would
+# exit non-zero. Sibling gates are exempt only because they import control_app, which enables this
+# downstream; this one imports heart2/run_gates, so it must enable it itself.
+try:
+    from console_safe import enable
+    enable()
+except Exception:
+    pass
+
 import heart2 as H       # noqa: E402
 import run_gates as G    # noqa: E402
 
