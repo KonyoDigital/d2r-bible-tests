@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2913",
+  "ver": "v2914",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2913: the gap is structural: tested versus proven, and a full census does not close it",
+  "note": "v2914: the third pass on one sentence found the defect inside the fix for the previous finding",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

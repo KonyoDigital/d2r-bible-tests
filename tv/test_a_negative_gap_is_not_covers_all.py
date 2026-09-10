@@ -87,6 +87,18 @@ NEAR = {"proved": 288, "unproven": 0, "provenAtCount": 289}         # gap -1
 EXACT = {"proved": 289, "unproven": 0, "provenAtCount": 289}
 FLOOR = {"proved": 285, "unproven": 4, "provenAtCount": 280}
 NO_COUNT = {"proved": 285, "unproven": 0}
+# ⚠⚠ THE LOUDEST CASE, AND IT RENDERED THE EMPTY STRING. Found by the cross-family eye on v2913 and
+# reproduced against the shipped expression: a run in which NOTHING came back proven gives gap -291,
+# the largest reachable, and `!_iCensus` treated that measured 0 as "could not compute" — so the
+# clause said nothing at all. A census of zero is a MEASUREMENT.
+ALL_BLIND = {"proved": 0, "unproven": 0, "provenAtCount": 291}
+# ⚠ ...and its twin, which MUST stay silent. Absent is not zero: with no census fields at all there
+# is nothing to compare, and inventing a drift from a missing number is the opposite failure.
+NO_CENSUS = {"provenAtCount": 291}
+# ⚠⚠ THE ONE THAT SEPARATES A COUNT FROM A NET, and no earlier fixture could see it because every
+# one had `unproven: 0`. Two gates carrying NO proof block cancel two of the four tested-but-unproven
+# in `proved + unproven - provenAtCount`, so v2913 printed 2 where the answer is 4.
+UNDECLARED = {"proved": 285, "unproven": 2, "provenAtCount": 289}
 
 
 @unittest.skipIf(shutil.which("node") is None,
@@ -151,6 +163,40 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
         self.assertIn("291", got, "must name the tested count: %r" % got)
         self.assertIn("4", got, "must name the drift (291 - 287 = 4): %r" % got)
 
+    def test_a_census_of_ZERO_speaks_and_an_ABSENT_census_stays_silent(self):
+        """⚠ THE PAIR IS THE LAW, NOT EITHER HALF. `proved 0 · unproven 0 · provenAtCount 291` is a
+        real reading of a real run — every gate tested, none proven — and it is the LARGEST negative
+        gap this clause can ever see. It rendered `''`. Meanwhile a payload with no census fields at
+        all must stay silent, because a drift computed from a missing number is invented.
+        Guarding on truthiness collapsed those two; guarding on `typeof === 'number'` separates
+        them. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]"""
+        loud, silent = _run([ALL_BLIND, NO_CENSUS])
+        self.assertTrue(loud, "a census of ZERO against 291 stamps rendered the empty string — the "
+                              "largest negative gap reachable, and the panel said nothing")
+        self.assertIn("291", loud, "must name the tested count: %r" % loud)
+        self.assertNotIn("covers all", loud,
+                         "0 proven against 291 tested must never claim completeness: %r" % loud)
+        self.assertEqual(silent, "",
+                         "with NO census fields there is nothing to compare, so the clause must "
+                         "stay silent rather than invent a drift: %r" % silent)
+
+    def test_the_figure_is_a_COUNT_of_unproven_gates_not_a_NET(self):
+        """⚠ v2914 — `-_iGap` is `provenAtCount - (proved + unproven)`, which is a NET. `unproven`
+        is gates that declare NO proof block at all — a different fact — and it subtracts from the
+        very number the sentence claims to report. MEASURED: proved 285 · unproven 2 ·
+        provenAtCount 289 rendered "2 ... did NOT come back proven" when FOUR gates were tested and
+        did not come back proven. Right on his store only because his `unproven` is 0.
+        Tested-but-not-proven is `provenAtCount - proved` and never involves `unproven`.
+        [[label-outlived-referent]]"""
+        got = _run([UNDECLARED])[0]
+        self.assertIn("289 gate(s) were TESTED", got,
+                      "must name how many were tested: %r" % got)
+        self.assertIn("4", got,
+                      "289 tested minus 285 proven is FOUR gates that did not come back proven; a "
+                      "net of 2 is the undeclared gates cancelling two of them: %r" % got)
+        self.assertNotIn("TESTED, 2 ", got,
+                         "reporting the NET under a COUNT's words is the defect: %r" % got)
+
     def test_the_three_other_states_keep_their_own_words(self):
         """⚠ A fix that repairs one arm by breaking its siblings is not a fix. The FLOOR, EXACT and
         UNKNOWN arms must be untouched — this is the regression half of the law."""
@@ -168,8 +214,8 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
     def test_every_arm_glues_its_separator_to_the_clause_it_introduces(self):
         """A `·` must never end a line pointing at a clause that wrapped away from it — the v2905
         finding, which this new arm must not reintroduce. [[visual-regression-detector]]"""
-        for name, got in zip(("gap-4", "today", "gap-1", "floor", "exact", "unknown"),
-                             _run([HIS_LIVE, TODAY, NEAR, FLOOR, EXACT, NO_COUNT])):
+        for name, got in zip(("gap-4", "today", "gap-1", "all-blind", "undeclared", "floor", "exact", "unknown"),
+                             _run([HIS_LIVE, TODAY, NEAR, ALL_BLIND, UNDECLARED, FLOOR, EXACT, NO_COUNT])):
             if not got:
                 continue
             self.assertNotIn("· ", got,
@@ -200,8 +246,17 @@ RED_PROOF = [
                "gap is structural (tested vs proven), so that wording sends him to re-run a census "
                "that just ran — a right number under a wrong reason.",
         "file": "control_ui.html",
-        "find": "more than this census counts as proven \u2014 those were tested and did NOT'",
-        "replace": "more than this census counted \u2014 the census is OLDER than the stamps and did NOT'",
+        "find": "of them did NOT come back proven')",
+        "replace": "more than this census counted, the census is OLDER than the stamps')",
+        "matches": 1,
+    },
+    {
+        "why": "restoring the truthiness guard collapses a MEASURED census of zero into 'could not "
+               "compute', and the largest negative gap reachable (0 proven against 291 tested) goes "
+               "back to rendering the empty string.",
+        "file": "control_ui.html",
+        "find": "var _iHaveCensus = (typeof d.proved === 'number') || (typeof d.unproven === 'number');",
+        "replace": "var _iHaveCensus = !!_iCensus;",
         "matches": 1,
     },
 ]

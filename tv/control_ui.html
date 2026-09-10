@@ -12366,7 +12366,27 @@ window._lockMark = function(isOpen, px, label){
     var _iCensus = ((typeof d.proved === 'number') ? d.proved : 0)
                  + ((typeof d.unproven === 'number') ? d.unproven : 0);
     var _iStamped = (typeof d.provenAtCount === 'number') ? d.provenAtCount : null;
-    var _iGap = (_iStamped === null || !_iCensus) ? null : (_iCensus - _iStamped);
+    /* ⚠⚠ v2914 (#68) — `!_iCensus` TREATED A MEASURED ZERO AS "COULD NOT COMPUTE", and that
+       silenced the LOUDEST case this clause exists for. Found by the cross-family eye on v2913 and
+       reproduced against the shipped expression: `proved 0 · unproven 0 · provenAtCount 291` — a
+       full run in which NOTHING came back proven — returned the empty string. Gap -291, the
+       largest negative gap reachable, and the panel said nothing at all.
+       A census of zero is a MEASUREMENT. The question "do we have a census?" is answered by whether
+       the fields are numbers, not by whether they are truthy — the same collapse of 0 and None this
+       repo has paid for repeatedly. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+    var _iHaveCensus = (typeof d.proved === 'number') || (typeof d.unproven === 'number');
+    /* ⚠⚠ v2914 (#68) — `-_iGap` IS A NET, NOT A COUNT, AND v2913 PRINTED IT UNDER A COUNT'S WORDS.
+       Third round of the eye on this one clause, and it found this on the fix for the last one.
+       MEASURED against the shipped expression: `proved 285 · unproven 2 · provenAtCount 289` gives
+       gap -2, and the panel said "2 ... were tested and did NOT come back proven". The real answer
+       is FOUR. `unproven` is gates carrying NO proof block at all — a different fact — and two of
+       them cancelled two of the four in the subtraction. Right on his store only because his
+       `unproven` is 0.
+       Tested-but-not-proven never involves `unproven`: it is simply the gates that were TESTED
+       minus the gates that came back PROVEN. [[label-outlived-referent]] [[zero-needs-a-denominator]] */
+    var _iProved = (typeof d.proved === 'number') ? d.proved : 0;
+    var _iNotProven = (_iStamped === null) ? null : (_iStamped - _iProved);
+    var _iGap = (_iStamped === null || !_iHaveCensus) ? null : (_iCensus - _iStamped);
     var _iDenom = (_iStamped === null)
       /* ⚠ v2905 (#68) — EVERY BRANCH GLUES ITS SEPARATOR TO THE WORD AFTER IT. Photographed
          at 375x800 and at his own 1120x628: the `·` was ending a line on its own, pointing at
@@ -12414,9 +12434,8 @@ window._lockMark = function(isOpen, px, label){
                  re-run a census he just ran is a right number under a wrong reason — the exact
                  failure this panel exists to end.
                  [[label-outlived-referent]] [[feedback-contradiction-is-the-finding]] */
-              ? (' · and ' + _iStamped + ' gate(s) were TESTED, ' + (-_iGap)
-                 + ' more than this census counts as proven — those were tested and did NOT'
-                 + ' come back proven')
+              ? (' · and ' + _iStamped + ' gate(s) were TESTED, ' + _iNotProven
+                 + ' of them did NOT come back proven')
               : (_iCensus ? (' · and it covers all ' + _iStamped
                              + ' gate(s) that carry a proof stamp') : '')));
     /* ⚠ AN ID, BECAUSE A TARGET THAT CANNOT NAME ITS SUBJECT PHOTOGRAPHS WHATEVER IS THERE.

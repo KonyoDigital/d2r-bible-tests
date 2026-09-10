@@ -29587,6 +29587,45 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-914 — a census of ZERO read as "could not compute", so the loudest case said nothing
+
+**v2914.** Found by the cross-family eye, reported on v2911 and again on v2913, and reproduced here
+against the shipped expression before being believed:
+
+    proved 0 · unproven 0 · provenAtCount 291   ->   ''   (the empty string)
+
+That is a full run in which **every gate was tested and none came back proven** — gap −291, the
+largest this clause can ever see — and the panel was silent. `_iGap` was guarded by `!_iCensus`, so a
+**measured** zero was treated as "could not compute": `_iGap` forced to `null`, `null > 0` and
+`null < 0` both false in JS, and the final arm returns `''`.
+
+A census of zero is a MEASUREMENT. "Do we have a census?" is answered by whether the fields are
+NUMBERS, not by whether they are truthy — the same 0/None collapse this repo has paid for repeatedly.
+⚠ And the twin must stay silent: with **no** census fields there is nothing to compare, and inventing
+a drift from a missing number is the opposite failure. Both halves are one law now.
+[[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+## REG-915 — the figure was a NET printed under a COUNT's words
+
+**v2914.** The eye's third pass over this one clause, finding the defect in the fix for its own last
+finding. `-_iGap` is `provenAtCount - (proved + unproven)`. `unproven` is gates declaring **no proof
+block at all** — a different fact — and it subtracts from the very number the sentence reports.
+Measured against the shipped expression:
+
+    proved 285 · unproven 2 · provenAtCount 289
+      renders:  "289 gate(s) were TESTED, 2 ... did NOT come back proven"
+      truth:     289 - 285 = FOUR gates tested and not proven
+                 the 2 undeclared gates cancelled two of them in the subtraction
+
+**Right on his store only because his `unproven` is 0.** Tested-but-not-proven never involves
+`unproven`: it is `provenAtCount - proved`. The arm now reports that count and says
+*"291 gate(s) were TESTED, 4 of them did NOT come back proven."*
+
+⚠ This is the same defect class as REG-913 — a right number under a wrong label — found **inside the
+fix for REG-913**. Three rounds on one sentence, each round a real finding, which is what the
+cross-family eye is for. Four red-proofs, all PROVEN at 1 match, and every sabotage was verified to
+turn the suite red BEFORE a `--prove` was spent. [[label-outlived-referent]] [[review-after-ship]]
+
 ## REG-913 — v2911 fixed the lie and shipped the wrong reason in its place
 
 **v2913.** The cross-family eye caught this reviewing v2911, and it was right about the mechanism
