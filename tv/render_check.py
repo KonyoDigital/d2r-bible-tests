@@ -944,6 +944,56 @@ TARGETS = {
             "375x800":   {"zero": 2, "clipped": 2},
         },
     },
+    "heart-stored": {
+        "serve": True,
+        # ⚠ SAME VENUE DECLARATIONS AS ITS SIBLINGS, AND MY FIRST CUT OMITTED BOTH. This panel
+        # ANIMATES — the chip beats and the fan draws — so a settle-by-size check can never
+        # converge: the target refused with "the page never settled in 25s, readyState/size kept
+        # moving" and never reached activation at all. `heart` and `heart-fan` both carry
+        # settles=False + warmup=10.0 for exactly that reason. Copying a target's mechanics without
+        # its venue facts is how a harness measures its own impatience.
+        "settles": False,
+        "warmup": 10.0,
+        "why": ("♥ THE STORED HALF OF THE HEART — the census row, IN FRAME. `heart-fan` reports "
+                "275/277 painted and the instruments section is in NEITHER of its shots, because "
+                "the panel SCROLLS and that section renders below the fan. A paint count measures "
+                "DOM rects; it does not prove a thing is in the picture, and this panel has already "
+                "taught that once: the lock fan survived three fixes while every instrument called "
+                "it clean. So this target scrolls the section into view and refuses until its own "
+                "row is inside the viewport, which is the only form of the question a screenshot "
+                "can answer. It exists because the stored half is the one that can go stale — "
+                "heart2 writes tv/.heart2.json and nothing but a human running --ratchet refreshes "
+                "it, so its age and its PARTIAL flag are exactly what a reader must be able to see"),
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* IDEMPOTENT — the harness re-runs this every 0.4s, so it must never toggle. */
+            var ov = document.getElementById('heart-ov');
+            if (!ov) return false;
+            if (ov.hidden || getComputedStyle(ov).display === 'none') {
+                var c = document.getElementById('heart-chip');
+                if (!c) return false;
+                c.click();
+                return false;
+            }
+            /* find the instruments section by its own heading, never by position */
+            var secs = ov.querySelectorAll('.hrt-sec');
+            var want = null;
+            for (var i = 0; i < secs.length; i++) {
+                var h = secs[i].querySelector('.hrt-h');
+                if (h && /instruments still go red/i.test(h.textContent || '')) { want = secs[i]; break; }
+            }
+            if (!want) return false;
+            /* ⚠ PROVEN FROM THE RECT, IN THE VIEWPORT — not from scrollIntoView returning.
+               Scrolling can be refused (a hidden or zero-height scroller) and the call still
+               returns, so the only honest test is where the rect actually LANDED. */
+            want.scrollIntoView({block: 'center'});
+            var r = want.getBoundingClientRect();
+            if (!(r.width > 0 && r.height > 0)) return false;
+            var vh = window.innerHeight || 0;
+            return (r.top < vh && r.bottom > 0);
+        })()""",
+        "sel": "#hrt-instruments .hrt-k, #hrt-instruments .hrt-s, #hrt-instruments .hrt-w",
+    },
     "heart": {
         "serve": True,
         "why": "♥ THE HEART — the panel that says which vessels are alive, which valves are open, "
@@ -1628,7 +1678,36 @@ _PROBE = r"""(function(sel, OK_TRUNC){
          name its subject sends the reader hunting instead of looking. */
       zero++;
       if (zeroWhat.length < 5) zeroWhat.push(
-        (String(e.className||'') || e.tagName) + ' :: ' + (e.textContent||'').trim().slice(0,24));
+        /* ⚠⚠ v2892 — A CLASS IS NOT A LOCATION. This named the class and the text, and for an
+           EMPTY node the text is '' — so the refusal read "hrt-w :: ; hrt-w :: " and said nothing
+           about WHERE. MEASURED on the heart panel: 2 of 243 nodes zero-size, both .hrt-w, and
+           NINE call sites in control_ui.html can emit an empty one, so source reading could not
+           narrow it. That is the complaint v2708 fixed for `covered` — "a refusal that cannot name
+           its subject sends the reader hunting instead of looking" — and it was only half fixed:
+           the class was named, the PLACE was not. Walk up for the nearest heading, which is what a
+           human would use to find it. */
+        (function(){
+          var where = '', p = e.parentElement, hops = 0;
+          while (p && hops++ < 6) {
+            var h = p.querySelector && p.querySelector('.hrt-h, .fx-head, h1, h2, h3');
+            if (h && (h.textContent||'').trim()) { where = (h.textContent||'').trim().slice(0,44); break; }
+            p = p.parentElement;
+          }
+          /* ⚠ AND NAME THE ROW. The section heading was not enough: the heart panel builds rows as
+             <span class="hrt-k">LABEL</span><span class="hrt-s">STATE</span><span class="hrt-w">WHY</span>,
+             so an empty .hrt-w is only findable by the LABEL beside it. Reading source could not
+             narrow 9 candidate call sites; the row's own key answers it in one line. */
+          var row = e.parentElement, key = '';
+          if (row) {
+            var k = row.querySelector && row.querySelector('.hrt-k');
+            if (k) key = (k.textContent||'').trim().slice(0,32);
+          }
+          var t = (e.textContent||'').trim();
+          return (String(e.className||'') || e.tagName)
+               + (key ? ' [row: ' + key + ']' : '')
+               + (where ? ' under "' + where + '"' : ' (no titled ancestor within 6 hops)')
+               + ' :: ' + (t ? t.slice(0,24) : 'EMPTY TEXT');
+        })());
       return;
     }
     rects.push({w:Math.round(r.width), h:Math.round(r.height),

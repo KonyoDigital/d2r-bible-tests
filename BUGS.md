@@ -28754,3 +28754,61 @@ PUBLIC repo, the moment any `git add -A` ran while they existed. I used `git add
 session. Nothing ever landed (`git log` over `.grok/heart2_look_*`: 0 files) purely because the eye
 happened to run AFTER each commit rather than before. `.grok/heart2_look_*` is ignored now; the two
 real files there stay tracked.
+
+### REG-882 — the heart panel promised "never stored" directly above a stored, 10-hour-old number
+`#heart-ov`'s header read *"the console's own circulation · derived on every open, never stored"*.
+True of the v1 half (vessels, recomputed live, and `_hrtBuild` prints its age as "derived just
+now"). **False of the heart-2.0 half underneath it**, which is read from `tv/.heart2.json` and
+refreshed by nothing but a human typing `--ratchet`. MEASURED 2026-09-10: the panel said "derived
+just now" over a census **49.6 minutes** old, and `_hrtInstruments` was handed `ageMs` and `partial`
+by control_app and rendered **neither**. Now: the row states `STORED · oldest gate proof Nh ago ·
+PARTIAL: a subset was proven`, and the header scopes itself to "except the rows marked STORED".
+
+⚠ AND THE AGE IT SHOWED WAS THE WRONG AGE. `ageMs` is the store's **mtime** — the last time anything
+wrote it. The store carries `verdictAt`, a PER-GATE map. Measured: mtime 99 min, **median gate proof
+569 min, 270 of 281 unproven for over four hours**. So the number was true of the file and false of
+96% of the gates, and any write resets mtime — a refresh that re-proved three gates would have made
+the whole census read fresh. `oldestProofMs` is the headline now: a census is only as current as its
+stalest gate. [[stale-reading]] [[zero-needs-a-denominator]]
+
+### REG-883 — two nodes rendered at ZERO SIZE, and four instruments called the panel clean
+`heart-fan` reported 272/274 painted at every width. A zero-size element **cannot be clipped**, so
+"0 clipped" beside it is a false green — this harness's own founding rule, in Konyo's words: *"make
+sure its coded as a loop full set complete so going forward you can visually check and i dont need
+to keep telling you after you say its fixed something doesnt render"*.
+The blank third column is DELIBERATE (a DARK vessel has nothing per-row to say), so the fix was NOT
+to add text: **no text means no element**. The span is conditional now — 241/241, and `heart` went
+92/92, `heart-fan` 275/275.
+⚠ Finding them took fixing the INSTRUMENT, not more guessing. The refusal named a class and nothing
+else — `hrt-w :: ; hrt-w ::` — while NINE call sites can emit an empty one. It now names the section
+AND the row AND says EMPTY TEXT: `hrt-w [row: serve_forever] under "Every vessel · dark first" ::
+EMPTY TEXT`. Same half-fix v2708 made for `covered`: the class was named, the PLACE was not.
+
+### REG-884 — I built a render target to prove a section was in frame, and it photographed another one
+New `heart-stored` target scrolls the instruments section into view. Its first two cuts were green
+and wrong: `sel` matched `.hrt-sec .hrt-k/.hrt-s/.hrt-w` — **every** section — so it reported
+241/241 "in frame" while the shot was scrolled to THE CHRONICLE ROUTES and the subject was nowhere
+in it. A target that cannot name its subject photographs whatever is there. Fixed by giving the
+section `id="hrt-instruments"`; it now measures **6/6**, its actual rows.
+⚠ Its first cut also omitted `settles=False` + `warmup=10.0`, which BOTH heart siblings declare, and
+refused with "the page never settled in 25s" — the panel ANIMATES. Copying a target's mechanics
+without its venue facts measures the harness's own impatience.
+
+### REG-885 — ROUTINE U: the nightly re-prove, and the three defects its dry run caught first
+`heart2 --prove` is a sabotage drill, not a test run, and a proof DECAYS when the code moves under
+it. Routine U re-proves the whole census nightly at 23:30 (`ai.konyo.d2r.routine_U`), heavy three
+(`test_control`, `test_agent`, `robot_smoke`) on Sundays.
+**FIRST RUN FOUND A DECAYED GATE:** `test_the_river_has_an_outlet` is **BLIND** — dropping the outlet
+verdict on the UNKNOWN path leaves it green. Nothing knew.
+MEASURED: 1916s (31.9 min), 278 re-proved, 277 proved, 1 blind, oldest proof 7.4h.
+Three defects caught by dry-running before scheduling:
+  1. SIGALRM kills without running `finally`, so the lock was ORPHANED — and an age-only staleness
+     test then refused every start for TWO HOURS. It asks `kill(pid, 0)` now.
+  2. The killed parent left its `heart2` child running — pid 51399, ppid 1, 179 MB, 12 min after its
+     parent died. Scheduled, every interrupted night would leave one. Same shape as the 24 orphaned
+     `pt_signal_server` daemons that got Achilles' autostart disabled.
+  3. It counted verdicts with `out.count("PROVEN")` — a substring tally — and reported **PROVEN 379
+     for a run of 278 gates**. A number larger than its own denominator is the tell. It reads the
+     store now. [[zero-needs-a-denominator]]
+⚠ My duration estimate (~23 min) was 39% low because I timed the STALEST twelve gates — which were
+the fast ones — and scaled x23. Measured honestly, extrapolated carelessly.

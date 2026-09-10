@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2892** | `(this commit)` | v2892 — the panel promised never stored above a stored number, and showed the file age instead of the gate age |
 | **v2891** | `(this commit)` | v2891 — the ratchet asked whether the census had a row when it needed to ask whether the file was on disk |
 | **v2890** | `(this commit)` | v2890 — 281 of 281 gates carry a red-proof heart2 has executed |
 | **v2889** | `(this commit)` | v2889 — a called-check satisfied by the definition line, two gates that could not run in a sandbox, and a failed read handed back as data |

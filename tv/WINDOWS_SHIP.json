@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2891",
+  "ver": "v2892",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2891: the ratchet asked whether the census had a row when it needed to ask whether the file was on disk",
+  "note": "v2892: the panel promised never stored above a stored number, and showed the file age instead of the gate age",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

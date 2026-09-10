@@ -17368,6 +17368,13 @@ def _heart2_census():
                     "proved": None, "unproven": None, "blind": None}
         with io.open(_p, encoding="utf-8") as _fh:
             _d = json.load(_fh)
+        # per-gate proof ages, from the store's own verdictAt map (ms epoch)
+        _h2_va = _d.get("verdictAt") or {}
+        _h2_ages = sorted(max(0.0, time.time() * 1000.0 - float(v))
+                          for v in _h2_va.values() if isinstance(v, (int, float)))
+        _h2_n = len(_h2_ages)
+        _h2_oldest = int(_h2_ages[-1]) if _h2_ages else None
+        _h2_median = int(_h2_ages[_h2_n // 2]) if _h2_ages else None
         _blind = list(_d.get("blind") or [])
         _unchecked = list(_d.get("blindUnchecked") or [])
         _proved = _d.get("proved")
@@ -17377,7 +17384,20 @@ def _heart2_census():
             "proved": _proved,
             "unproven": _unproven,
             "blind": _blind,
+            # ⚠⚠ THE FILE'S AGE IS NOT THE CENSUS'S AGE, AND THE GAP IS NOT SMALL.
+            # ageMs is the mtime of tv/.heart2.json — the last time ANY proving wrote it. But the
+            # store carries `verdictAt`, a PER-GATE map of when each gate was last measured red,
+            # and those differ wildly. MEASURED 2026-09-10: mtime said 98 min while the MEDIAN gate
+            # proof was 569 min old and 270 of 281 gates had not been proven in over four hours. So
+            # "measured 98 min ago" was true of the file and false of 96% of the gates — the
+            # denominator defect, in the time dimension. Worse, ANY write resets mtime, so a
+            # scheduled refresh that re-proved three gates would make the whole census read fresh.
+            # oldestProofMs is the honest headline: a census is only as current as its stalest gate.
+            # [[stale-reading]] [[zero-needs-a-denominator]]
             "ageMs": int(max(0.0, time.time() - os.path.getmtime(_p)) * 1000),
+            "oldestProofMs": _h2_oldest,
+            "medianProofMs": _h2_median,
+            "provenAtCount": _h2_n,
             # ⚠ A PARTIAL RUN IS NAMED AS ONE. heart2 marks a subset `--prove` with `partial`,
             # and without reading it this sentence states one batch's result as the whole
             # picture. [[zero-needs-a-denominator]] [[stale-reading]]
@@ -25799,7 +25819,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2891",
+        "ver": "v2892",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

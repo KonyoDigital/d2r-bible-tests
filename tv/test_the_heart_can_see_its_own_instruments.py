@@ -32,6 +32,7 @@ cannot quietly stop working:
     anything [[achilles-self-carving-system]]
 """
 import os
+import re
 import ast
 import io
 import sys
@@ -247,6 +248,47 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                 joined = os.path.normpath(os.path.join("/sandbox", rel))
                 self.assertTrue(joined.startswith("/sandbox" + os.sep),
                                 "%s[%d] escapes the sandbox via %r -> %r" % (name, i, rel, joined))
+
+    def test_the_stored_half_says_how_old_it_is_and_whether_it_was_partial(self):
+        """⚠⚠ THE PANEL SAID "derived just now" OVER A CENSUS 49.6 MINUTES OLD.
+
+        _hrtBuild renders the heart panel's own age from d.ageMs, and that age is the LIVE
+        derivation — seconds. _hrtInstruments is a different kind of thing: heart2 writes
+        tv/.heart2.json and NOTHING refreshes it but a human typing `--ratchet`. control_app
+        already SERVES ageMs and partial for that section; MEASURED 2026-09-10, the UI rendered
+        NEITHER, so a fifty-minute-old count sat under a banner promising it was fresh.
+
+        v2804's gate asserted only that `"instruments": _heart2_census()` appears in
+        control_app.py — its own comment calls that "one layer short of the surface". This is the
+        layer it stopped short of. [[stale-reading]] [[zero-needs-a-denominator]]"""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        i = ui.find("function _hrtInstruments")
+        self.assertGreater(i, -1, "_hrtInstruments is gone — the heart 2.0 census has no renderer")
+        d, j = 0, ui.index("{", i)
+        end = j
+        while end < len(ui):
+            if ui[end] == "{":
+                d += 1
+            elif ui[end] == "}":
+                d -= 1
+                if d == 0:
+                    break
+            end += 1
+        body = ui[i:end + 1]
+        # ⚠⚠ STRIP THE COMMENTS FIRST. The first cut of this law asserted the substrings against the
+        # RAW body — and the explanatory comment I had just written inside _hrtInstruments contains
+        # the words "ageMs" and "partial", so the law was satisfied by its own prose. MEASURED:
+        # replacing d.ageMs -> d.NOPE and d.partial -> false left it GREEN. A law that reads MENTION
+        # instead of BEHAVIOUR is inert, and this is the fourth of that shape today.
+        # [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]
+        body = re.sub(r"/\*(?:.|\n)*?\*/", " ", body)
+        body = re.sub(r"(?m)//.*$", " ", body)
+        self.assertIn("ageMs", body,
+                      "_hrtInstruments does not read d.ageMs, so a stored census renders with no "
+                      "age and cannot be told from one measured a second ago")
+        self.assertIn("partial", body,
+                      "_hrtInstruments does not read d.partial, so a run that proved a SUBSET "
+                      "renders as the whole picture — a count with the wrong denominator")
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════

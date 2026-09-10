@@ -12219,7 +12219,40 @@ window._lockMark = function(isOpen, px, label){
       ? 'never measured here — run `python3 tv/heart2.py --prove`'
       : ((d.proved == null ? '?' : d.proved) + ' proven · '
          + (d.unproven == null ? '?' : d.unproven) + ' carry no executable proof (UNKNOWN)');
-    var h = '<div class="hrt-sec"><div class="hrt-h">' + head + ' · ' + _hrtEsc(line) + '</div>';
+    /* ⚠⚠ v2892 — A STORED MEASUREMENT SITTING UNDER A HEADER THAT SAYS "derived just now".
+       _hrtBuild prints the panel's own age from d.ageMs, and that age is the LIVE derivation —
+       seconds. THIS half is different in kind: heart2 writes tv/.heart2.json and NOTHING refreshes
+       it but a human typing `--ratchet`. MEASURED 2026-09-10: the panel read "derived just now"
+       above a census 49.6 MINUTES old, and this section's own ageMs and partial were served by
+       control_app and rendered by nobody. A count with no age cannot be told from a fresh one, and
+       `partial` means a SUBSET was proven — stating one batch as the whole picture is exactly the
+       denominator defect this panel exists to end. [[stale-reading]] [[zero-needs-a-denominator]] */
+    /* ⚠⚠ THE AGE OF THE FILE IS NOT THE AGE OF THE CENSUS. ageMs is .heart2.json's mtime — the
+       last time ANY proving wrote it. oldestProofMs comes from the store's per-gate verdictAt map.
+       MEASURED 2026-09-10: mtime 99 min, oldest gate proof 571 min, MEDIAN 571 min, 270 of 281
+       gates unproven for over four hours. Showing the file's age said "99 min" about a census 96%
+       of which was nine hours old, and any write resets mtime — so a refresh that re-proved three
+       gates would make the whole thing read fresh. A census is only as current as its stalest
+       gate, so that is the headline. [[stale-reading]] [[zero-needs-a-denominator]] */
+    var _iMs = (typeof d.oldestProofMs === 'number') ? d.oldestProofMs
+             : ((typeof d.ageMs === 'number') ? d.ageMs : null);
+    var _iFrom = (typeof d.oldestProofMs === 'number') ? 'oldest gate proof ' : 'file written ';
+    var _iAge = (_iMs === null)
+      ? 'age UNKNOWN — nothing recorded when this was measured'
+      : (_iFrom + (_iMs < 90000 ? 'just now'
+          : (_iMs < 5400000 ? Math.round(_iMs / 60000) + ' min ago'
+                            : Math.round(_iMs / 3600000) + 'h ago')));
+    var _iPart = d.partial ? ' · PARTIAL: a subset was proven, not all of them' : '';
+    /* ⚠ AN ID, BECAUSE A TARGET THAT CANNOT NAME ITS SUBJECT PHOTOGRAPHS WHATEVER IS THERE.
+       The heart-stored render target selected `.hrt-sec .hrt-k/.hrt-s/.hrt-w` — EVERY section — so
+       it reported 241/241 in frame while the shot was scrolled to THE CHRONICLE ROUTES and this
+       section was nowhere in it. Green, and about the wrong surface. [[regression-guard]] */
+    var h = '<div class="hrt-sec" id="hrt-instruments"><div class="hrt-h">' + head + ' · ' + _hrtEsc(line) + '</div>'
+      + '<div class="hrt-row"><span class="hrt-k">this reading</span>'
+      + '<span class="hrt-s ' + (d.partial ? 'st-UNKNOWN' : cls) + '">STORED</span>'
+      + '<span class="hrt-w">' + _hrtEsc(_iAge + _iPart
+          + ' — read from a file, not derived on open like the rest of this panel')
+      + '</span></div>';
     h += '<div class="hrt-row"><span class="hrt-k">the gates</span>'
       + '<span class="hrt-s ' + cls + '">' + _hrtEsc(st) + '</span>'
       + '<span class="hrt-w">' + _hrtEsc(d.why || '') + '</span></div>';
@@ -12357,7 +12390,7 @@ window._lockMark = function(isOpen, px, label){
     var c = d.counts || {};
     var head = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head">'
       + '<b>♥ THE HEART</b><button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button>'
-      + '<div class="hrt-sub">the console’s own circulation · derived on every open, never stored</div>'
+      + '<div class="hrt-sub">the console’s own circulation · derived on every open, except the rows marked STORED</div>'
       + '</div><div class="fx-body">';
     if (!d.ok) {
       return head + '<div class="hrt-note"><b class="st-UNKNOWN">THE CENSUS COULD NOT BE TAKEN.</b> '
@@ -12411,7 +12444,17 @@ window._lockMark = function(isOpen, px, label){
       rows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(v.name) + '</span>'
         + '<span class="hrt-s st-' + _hrtEsc(st) + '">' + _hrtEsc(st)
         + (v.score == null ? '' : ' · ' + Number(v.score).toFixed(3)) + '</span>'
-        + '<span class="hrt-w">' + _hrtEsc(_detail) + '</span></div>';
+          /* ⚠⚠ v2892 — NO TEXT MEANS NO ELEMENT, NOT AN EMPTY ONE. The blank third column is
+             DELIBERATE (see _detail above: a DARK vessel has nothing per-row to say and the group
+             header already says it), but emitting <span class="hrt-w"></span> anyway leaves a
+             ZERO-SIZE node, and a zero-size node cannot be clipped — so "0 clipped" beside it is a
+             false green, which is this harness's own founding rule. MEASURED on the live panel:
+             2 of 243 nodes zero-size, both .hrt-w, rows `serve_forever` and `wait`, both UNKNOWN
+             with no watcher. The column still reads empty; there is simply nothing there to
+             measure. The grid has 3 fixed columns, so dropping the third child does not move the
+             first two. [[unknown-stays-unknown]] */
+          + (_detail ? '<span class="hrt-w">' + _hrtEsc(_detail) + '</span>' : '')
+          + '</div>';
     }
     var lrows = '', lk = (d.locks || []);
     for (var j = 0; j < lk.length; j++) {
