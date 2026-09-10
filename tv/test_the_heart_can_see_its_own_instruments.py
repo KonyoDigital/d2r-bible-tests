@@ -303,10 +303,27 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                       "_hrtInstruments no longer reads d.oldestProofMs — the STORED age is back to "
                       "the FILE'S mtime, which any write refreshes, so re-proving three gates "
                       "would make the whole census read fresh")
-        _i_old, _i_age = body.find("oldestProofMs"), body.find("ageMs")
-        self.assertLess(_i_old, _i_age,
-                        "d.ageMs is consulted BEFORE d.oldestProofMs — the fallback has become the "
-                        "headline, which is the defect with the fix still present in the file")
+        # ⚠⚠ ANCHORED ON THE ASSIGNMENT, NOT ON FIRST OCCURRENCE IN THE WHOLE FUNCTION. Raised by
+        # the cross-family eye on v2896, and it is right: `body.find("oldestProofMs") <
+        # body.find("ageMs")` anchors on a token that appears more than once, so it would go RED ON
+        # CORRECT CODE the moment anyone renders the file age beside the oldest proof — an earlier
+        # `d.ageMs` anywhere in the function breaks an assertion about a different statement. A
+        # guard that fires on correct code is how a gate teaches people to ignore it.
+        # Both ends anchored, so a widened region cannot read as absent. [[source-reading-guard]]
+        _a = body.find("_iMs")
+        _b = body.find(";", _a) if _a >= 0 else -1
+        self.assertTrue(_a >= 0 and _b > _a,
+                        "the _iMs assignment is gone — nothing chooses which age the STORED row "
+                        "shows, so this law has no statement to judge")
+        _stmt = body[_a:_b]
+        _i_old, _i_age = _stmt.find("oldestProofMs"), _stmt.find("ageMs")
+        self.assertGreaterEqual(_i_old, 0,
+                                "the _iMs assignment does not mention oldestProofMs at all: %r"
+                                % _stmt[:160])
+        self.assertTrue(_i_age < 0 or _i_old < _i_age,
+                        "d.ageMs is consulted BEFORE d.oldestProofMs in the _iMs assignment — the "
+                        "fallback has become the headline, which is the defect with the fix still "
+                        "present in the file: %r" % _stmt[:160])
         self.assertIn("provenAtCount", body,
                       "_hrtInstruments does not read d.provenAtCount, so the oldest-proof age is "
                       "printed with no denominator: a --prove of 3 gates against an otherwise "

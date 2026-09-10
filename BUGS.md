@@ -29178,3 +29178,34 @@ added one version earlier (REG-896) would refuse to let ship without.
 
 ⚠ Browser suites run on CI, never on his Mac, so this fix is **unverified locally by design**. CI is
 the verifier.
+
+## REG-898 — a guard that would have gone red on CORRECT code
+
+**After v2899, from the cross-family eye's review of v2896.** Its verdict on that ship was *"no
+concrete correctness defect"*, and then it named one residual — correctly:
+
+```python
+_i_old, _i_age = body.find("oldestProofMs"), body.find("ageMs")
+self.assertLess(_i_old, _i_age, ...)
+```
+
+`ageMs` occurs more than once in `_hrtInstruments`. The assertion is *about* the `_iMs` assignment
+but was measured over the WHOLE function, so the moment anyone renders the file age beside the
+oldest proof — a perfectly reasonable thing to add — an earlier `d.ageMs` would break an assertion
+about a different statement. **A guard that fires on correct code is how a gate teaches people to
+ignore it**, which is the same damage as one that never fires at all.
+
+Re-anchored on the assignment itself, both ends bounded (`_iMs` … `;`) so a widened region cannot
+read as absent.
+
+VERIFIED BOTH DIRECTIONS:
+
+```
+positive control — insert an EARLIER `d.ageMs` (correct code)  -> law stays OK ✅  (was: would fail)
+                   restore                                      -> control_ui.html sha256 identical
+red-proofs        — all 4 still PROVEN red, 1 match each
+```
+
+⚠ The eye's own note is worth keeping: the regression this law exists to catch was *already* covered
+by its `RED_PROOF`, which rewrites that exact ternary. The residual was never a hole in coverage —
+it was a future false alarm, and those are worth removing before they arrive.
