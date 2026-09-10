@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2888",
+  "ver": "v2889",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2888: a -c script handed back as an argument, footage the sandbox never had, and two sabotages aimed at the wrong side",
+  "note": "v2889: a called-check satisfied by the definition line, two gates that could not run in a sandbox, and a failed read handed back as data",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

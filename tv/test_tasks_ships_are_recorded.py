@@ -17,6 +17,8 @@ back to v2000 would force this file to grow without bound, which is the OTHER wa
 unreadable — the audit's own words: "a file long enough to contradict itself is a file nobody can
 read to the end". Older ships are a DECLARED omission in the file, not a silent one.
 """
+import ast
+import io
 import os
 import re
 import subprocess
@@ -117,37 +119,33 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
             "describes what the repo did:\n" + "\n".join("    %s  %s" % (v, sha) for v, sha in missing))
 
     def test_the_bump_RECORDS_the_row_itself(self):
-        """v2715 — THE MIDDLE STEP FAILED THREE TIMES, SO IT IS NO LONGER A STEP.
+        """v2715 — the middle step failed THREE times, so it is no longer a thing to remember.
 
-        This file already told anyone reading it: *"THE WORKFLOW IT ENFORCES: bump -> record the
-        row here -> commit. The gate fails on its own ship if that middle step is skipped - it did,
-        on v2670, which is how this line came to exist."*
-
-        It then happened on v2712, v2713 AND v2714, in a single session, by the same hand that had
-        just read that sentence. This gate caught it in CI, correctly, three ships late.
-
-        A step a human must remember, in the middle of a mechanical sequence a tool is already
-        performing, will be skipped again. `bump_version` already edits four files; TASKS.md is the
-        fifth surface describing the same event, and the tool that moves the stamp is the only
-        thing that reliably knows a ship happened. So it writes the row now — and this pins that it
-        still DOES, because a recorder that exists and is never called is the purest form of the
-        defect this repo keeps paying for. [[the-unjoined-end]]
-        """
-        import io as _io
-        src = _io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read()
-        src = re.sub(r'"""(?:.|\n)*?"""', " ", src)          # judge CODE, not the prose about it
-        src = re.sub(r"(?m)#.*$", " ", src)
-        self.assertIn(
-            "def _record_ship_in_tasks", src,
-            "bump_version has no ship recorder, so recording a ship is a step somebody has to "
-            "remember — and that has now failed on v2670, v2712, v2713 and v2714."
-        )
-        self.assertIn(
-            "_record_ship_in_tasks(", src.split("def _record_ship_in_tasks", 1)[0]
-            + src.split("def _record_ship_in_tasks", 1)[1].split("\ndef ", 1)[-1],
-            "the recorder is DEFINED but never CALLED from the bump. A tested helper nobody "
-            "invokes is exactly the shape this gate exists to prevent."
-        )
+        ⚠⚠ v2888 — THE 'IS IT CALLED' HALF OF THIS LAW WAS INERT, AND I MEASURED IT.
+        It read the source as TEXT and asserted two substrings: `def _record_ship_in_tasks` and
+        `_record_ship_in_tasks(`. But the DEFINITION LINE CONTAINS THE CALL SUBSTRING — `def
+        _record_ship_in_tasks(` ends in `_record_ship_in_tasks(` — so the second assertion was
+        satisfied by the definition itself. MEASURED: delete every call site, leave the def alone,
+        and the counts go 1/2 -> 1/1 and the law still PASSES. A guard written to catch plumbing
+        with no tap was itself plumbing with no tap.
+        So it PARSES now, and demands a real Call node OUTSIDE the function's own body — which is
+        the only form of the question that can tell "defined and used" from "defined and orphaned".
+        [[plumbing-with-no-tap]] [[source-reading-guard]] [[feedback-blind-fixture-green-gate]]"""
+        path = os.path.join(HERE, "bump_version.py")
+        tree = ast.parse(io.open(path, encoding="utf-8").read())
+        defs = [n for n in ast.walk(tree)
+                if isinstance(n, ast.FunctionDef) and n.name == "_record_ship_in_tasks"]
+        self.assertEqual(len(defs), 1,
+                         "bump_version.py declares %d function(s) named _record_ship_in_tasks — the "
+                         "step that writes the TASKS.md row must exist exactly once" % len(defs))
+        body = defs[0]
+        calls = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "_record_ship_in_tasks"
+                 and not (body.lineno <= getattr(n, "lineno", 0) <= body.end_lineno)]
+        self.assertTrue(calls,
+                        "_record_ship_in_tasks is DEFINED and never CALLED from outside itself, so "
+                        "a bump would stamp four files and silently skip the TASKS.md row — the "
+                        "exact failure this function was written to end, back as an orphan")
 
     # ⚠ A SECOND TEST WAS WRITTEN HERE AND THEN REMOVED, BECAUSE ITS LAW WAS FALSE.
     # It asserted the mirror defect: that any version TASKS.md names must have moved the stamp.
@@ -165,6 +163,29 @@ class RecentShipsAreRecordedInTheList(unittest.TestCase):
 
 
 
+
+#: v2888 — this suite reads GIT HISTORY (it asks git which versions shipped), and a heart2 sandbox
+#: is a plain copy with no .git, so every law failed there with "git named 0 shipped versions on a
+#: FULL clone" — a message that denies being a venue problem while being one. The .git comes across
+#: as an APFS clone: measured 0.09s for 297 MB, and blocks are SHARED, so it costs no disk and a
+#: write in the sandbox cannot reach his real history.
+PROOF_NEEDS = ["../.git"]
+RED_PROOF = [
+    {
+        "why": "v2888 — the tamper ORPHANS the step: it deletes the only call to "
+               "_record_ship_in_tasks and leaves the definition intact, so a bump would stamp four "
+               "files and silently skip the TASKS.md row. That is the exact failure the function "
+               "was written to end, and it is the failure the OLD law could not see — it matched "
+               "the substring `_record_ship_in_tasks(`, which the DEFINITION LINE also contains. "
+               "MEASURED before the law was rewritten: delete every call, counts go 1/2 -> 1/1, law "
+               "still PASSES. It parses for a real Call node outside the def now, so this tamper "
+               "reddens it. [[plumbing-with-no-tap]] [[source-reading-guard]]",
+        "file": 'bump_version.py',
+        "find": '    _record_ship_in_tasks(ver, name, note)',
+        "replace": '    pass  # _HEART2_TAMPERED_ the row is never recorded',
+        "matches": 1,
+    },
+]
 
 if __name__ == "__main__":
     # ⚠ HIS CONSOLE IS HEBREW (cp1255) AND CANNOT ENCODE THE CHARACTERS THIS FILE PRINTS. Without

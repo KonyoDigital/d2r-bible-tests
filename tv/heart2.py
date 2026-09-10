@@ -341,13 +341,21 @@ def proof_needs_in(filename):
     This is the narrow door: a gate names the ONE data path its proof needs, by hand, and only that
     path is brought across. Read by AST, never imported. [[regression-guard]] [[zero-needs-a-denominator]]
     """
+    # ⚠⚠ None MEANS "I COULD NOT READ THIS". IT NEVER MEANS []. The first cut answered [] on a
+    # parse failure and the swallow ratchet caught it ON CI THE SAME DAY — RANK 1, "a failed read
+    # handed back as DATA", baseline 74 -> 75, `tv/heart2.py 0 -> 1`. [] says "this gate declares
+    # no needs"; a file that will not parse says nothing at all, and those are opposite facts. Get
+    # it wrong and a gate is silently deprived of the data its proof requires, then reported BLIND
+    # for a reason that names none of it. A non-.py target still answers [] and that is correct:
+    # PROOF_NEEDS is a python declaration, so a file that cannot hold one genuinely declares none.
+    # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
     p = os.path.join(REPO, "tv", filename) if not os.path.isabs(filename) else filename
-    if not os.path.isfile(p):
+    if not os.path.isfile(p) or not p.endswith(".py"):
         return []
     try:
         tree = ast.parse(io.open(p, encoding="utf-8", errors="replace").read())
     except Exception:
-        return []
+        return None
     for node in tree.body:
         if not isinstance(node, ast.Assign):
             continue
@@ -356,7 +364,7 @@ def proof_needs_in(filename):
         try:
             v = ast.literal_eval(node.value)
         except Exception:
-            return []
+            return None            # it DECLARES needs and they cannot be read — UNKNOWN, not none
         return [str(x) for x in v] if isinstance(v, (list, tuple)) else []
     return []
 
@@ -413,14 +421,35 @@ def make_sandbox(say=print):
     # sandbox lands on the copy rather than on his real footage — which matters here because these
     # ARE his screenshots. Only paths a gate names in PROOF_NEEDS come over; there is no glob and
     # no recursion into tv/ at large, because that is the ENOSPC that safe_copy exists to prevent.
-    for _need in sorted({_p for _gn, _fn in gate_files(say=lambda *a, **k: None)
-                         for _p in proof_needs_in(_fn)}):
-        _s = os.path.join(REPO, "tv", _need)
+    _needs, _unreadable = set(), []
+    for _gn, _fn in gate_files(say=lambda *a, **k: None):
+        _got = proof_needs_in(_fn)
+        if _got is None:
+            _unreadable.append(_gn)     # NOT "declares nothing" — nobody could tell
+            continue
+        _needs.update(_got)
+    if _unreadable:
+        say("  ⚠ %d gate file(s) would not parse, so whether they declare PROOF_NEEDS is UNKNOWN, "
+            "not none: %s" % (len(_unreadable), ", ".join(_unreadable[:6])))
+    for _need in sorted(_needs):
+        # ⚠ v2888 — A NEED MAY REACH ABOVE tv/ ("../.git"), BECAUSE NOT EVERY SUBJECT LIVES IN tv/.
+        # test_tasks_ships_are_recorded reads GIT HISTORY, and a sandbox is a copy with no .git, so
+        # it failed with "git named 0 shipped versions on a FULL clone" — a sentence that asserts
+        # it is NOT a venue problem while standing in exactly that venue. Both sides are normalised
+        # and checked for containment, so a need can never escape the repo or the sandbox.
+        _s = os.path.normpath(os.path.join(REPO, "tv", _need))
+        _inside = os.path.normpath(REPO) + os.sep
+        if not (_s + os.sep).startswith(_inside):
+            say("  PROOF_NEEDS %r points outside the repo — refusing to bring it across" % _need)
+            continue
         if not os.path.exists(_s):
             say("  a gate declares PROOF_NEEDS %r and it is not on this machine — that gate stays "
                 "UNPROVABLE here, which is the honest verdict" % _need)
             continue
-        _d = os.path.join(dest, "tv", _need)
+        _d = os.path.normpath(os.path.join(dest, "tv", _need))
+        if not (_d + os.sep).startswith(os.path.normpath(dest) + os.sep):
+            say("  PROOF_NEEDS %r would land outside the sandbox — refused" % _need)
+            continue
         try:
             os.makedirs(os.path.dirname(_d), exist_ok=True)
             _rc = subprocess.run(["cp", "-c", "-R", _s, _d],

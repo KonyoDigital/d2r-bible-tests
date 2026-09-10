@@ -152,5 +152,31 @@ class TheBlueprintCannotGoStaleSilently(unittest.TestCase):
 
 
 
+RED_PROOF = [
+    {
+        "why": "⚠ RE-AIMED — MY FIRST ANCHOR WAS THE WRONG SIDE OF THE DOOR, and heart2 measured it "
+               "BLIND (1 match, still green). river() has FOUR why-writes; I picked the one that "
+               "handles a router which IMPORTS AND THEN THROWS, while this law blinds the IMPORT "
+               "and so returns early through a different line entirely. Verified the replacement "
+               "by shadowing a tampered blueprint and calling river() with reel_router blinded: "
+               "why='' -> the law fails. Third instance of this shape today. "
+               "[[sabotage-is-usually-the-wrong-one]] "
+               "v2888 — the tamper makes river() LOSE ITS `why` when reel_router cannot be imported, "
+               "so an unreadable subsystem renders as an EMPTY one — 'the router could not be read' "
+               "and '0 lanes' become the same pixels, which is the single rule this file exists to "
+               "enforce: \"Where something cannot be counted it says so rather than printing a zero, "
+               "because '0 lanes' and 'I could not read the lanes' are opposite facts.\" It reddens "
+               "test_an_unreadable_subsystem_says_UNKNOWN_not_zero, which does NOT read text — it "
+               "blinds the import and demands the answer, after an earlier text-reading cut of the "
+               "same law let a sabotage walk straight past it. The replacement keeps the code valid "
+               "and simply files the reason under a key nobody reads, which is exactly how this "
+               "defect looks in the wild. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]",
+        "file": 'blueprint.py',
+        "find": 'return {"why": "reel_router is not importable (%s)" % type(e).__name__}',
+        "replace": 'return {}',
+        "matches": 1,
+    },
+]
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

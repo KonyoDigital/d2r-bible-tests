@@ -28641,3 +28641,45 @@ ARMING: vault-wilson 2 claims 8/8 caught, sweep-wilson 2 claims 8/8 caught, **0 
 so arming costs nothing today and catches the first sabotage that ever gets through. This makes a
 law that already exists on their sibling apply to them too rather than inventing one. An UNPROVEN
 claim still passes, loudly: nobody having tried to break it yet is work to do, not a defect.
+
+### REG-871 — the "is it CALLED" half of a plumbing guard was satisfied by the definition line
+`test_tasks_ships_are_recorded` asserted two substrings in bump_version.py: `def
+_record_ship_in_tasks` and `_record_ship_in_tasks(`. **The definition line contains the call
+substring** — `def _record_ship_in_tasks(` ends in `_record_ship_in_tasks(` — so the second
+assertion was satisfied by the definition itself. MEASURED: delete every call site, leave the def
+alone, counts go 1/2 → 1/1, and the law still PASSES. A guard written to catch plumbing-with-no-tap
+was itself plumbing with no tap. It parses now and demands a real `Call` node OUTSIDE the
+function's own body, which is the only form of the question that separates "defined and used" from
+"defined and orphaned". Red-proof orphans the call; proven red. [[plumbing-with-no-tap]]
+
+### REG-872 — two gates could not run in a sandbox at all, for two different missing subjects
+`test_tasks_ships_are_recorded` reads GIT HISTORY and failed with *"git named 0 shipped versions on
+a FULL clone"* — a sentence that denies being a venue problem while standing in one, because a
+heart2 sandbox is a copy with no `.git`. `PROOF_NEEDS` now reaches above `tv/` (containment-checked
+both sides) and brings `../.git` across as an APFS clone: **0.09s for 297 MB, blocks shared**, so it
+costs no disk and a sandbox write cannot reach his real history. Both gates now PROVEN.
+
+### REG-873 — proof_needs_in handed a failed read back as DATA, and CI caught it the same day
+It returned `[]` when a gate file would not parse. `[]` means "declares no needs"; a file that will
+not parse says nothing at all, and those are opposite facts — a gate could be silently deprived of
+the data its proof requires and then reported BLIND for a reason naming none of it. Routine M, the
+swallowed-exception ratchet: **RANK 1, baseline 74 → 75, `tv/heart2.py 0 → 1`**. Returns `None` now
+and the caller says which gate files could not be read; ratchet back to **74, held**. A non-.py
+target still answers `[]` and that is correct — PROOF_NEEDS is a python declaration.
+
+### REG-874 — a path law compared one realpath'd side against one that was not
+`test_the_harness_isolates_the_world::test_the_fallback_AGREES_with_the_rule_it_stands_in_for`
+compared `canon` to `fb` directly. macOS's `/var` is a symlink to `/private/var`, so in a sandbox
+(which lives under `/var/folders`) the SAME directory read as a disagreement and the gate was
+ALREADY RED before any tamper. It passes on his tree only because `/Users` is not symlinked. Both
+sides are realpath'd now; a genuine disagreement still survives, because realpath normalises the
+prefix and nothing else.
+
+### REG-875 — ⚠ OPEN: the fallback and the canonical rule genuinely DISAGREE on a whitespace TV_HIST
+With REG-874's artifact removed, a real disagreement is visible in the sandbox and only there: for
+`TV_HIST="   "`, `_fixture_root` returns HERE while the v2783 fallback returns **`HERE/"   "`** — a
+whitespace-named path INSIDE his tree. That is precisely the class this law was written to catch
+("a fallback that honours a TV_HIST pointing INSIDE his tree is not a safer fallback; it is a second
+opinion about what isolation means"). It does NOT reproduce under `/Users`, so which of the two is
+wrong is UNKNOWN pending its own measurement. The gate therefore declares a red-proof it cannot yet
+execute — heart2 reports it UNPROVABLE rather than counting it as proven, which is the honest state.

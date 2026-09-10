@@ -396,11 +396,38 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                     if l.startswith("PAIR:")]
             self.assertTrue(line, "the child never reported for TV_HIST=%r — UNMEASURED" % val)
             canon, fb = line[-1][5:].split("|", 1)
-            self.assertEqual(canon, fb,
+            # ⚠ v2888 — REALPATH BOTH SIDES. macOS's /var IS A SYMLINK to /private/var, so in a
+            # heart2 sandbox (which lives under /var/folders) canon came back '/var/folders/…/tv'
+            # and fb '/private/var/folders/…' — the SAME directory, reported as a disagreement,
+            # and the gate read ALREADY RED untampered before a single tamper was applied. It
+            # passes on his tree only because /Users is not symlinked. This does not soften the
+            # law: a genuine disagreement survives realpath, because realpath normalises the
+            # prefix and nothing else. [[feedback-blind-fixture-green-gate]]
+            self.assertEqual(os.path.realpath(canon), os.path.realpath(fb),
                              "for TV_HIST=%r the fallback answers %r while the rule it stands in "
                              "for answers %r — two opinions about which directory is his world"
                              % (val, fb, canon))
 
+
+RED_PROOF = [
+    {
+        "why": "v2888 — the tamper makes _fixture_root STOP HONOURING TV_HIST, so every caller that "
+               "said \"this is not his world\" silently falls back to his real tree. That is the "
+               "defect this whole file exists to prevent, and it has already cost a wrong diagnosis "
+               "once: a gate run rewrote four live-state files and the sim/live banners in "
+               "control_agent.log — written by my own test-spawned control apps — were read as HIS "
+               "button presses. ⚠ ANCHORED ON `if not _under(hist, here):`, which occurs ONCE. The "
+               "obvious anchor `hist = os.environ.get(\"TV_HIST\")` occurs THREE times, so tampering "
+               "it rewrites three unrelated sites and the red could be for a broader reason than the "
+               "one claimed. Both were run against a shadowed tv_diablo before this was written: "
+               "single-site tamper -> _fixture_root(HERE) returns HERE -> the law fails. "
+               "[[sabotage-is-usually-the-wrong-one]] [[feedback-fixtures-never-touch-live-data]]",
+        "file": 'tv_diablo.py',
+        "find": 'if not _under(hist, here):',
+        "replace": 'if False:',
+        "matches": 1,
+    },
+]
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
