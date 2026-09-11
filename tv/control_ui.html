@@ -17201,7 +17201,26 @@ window._lockMark = function(isOpen, px, label){
       out.innerHTML = (j && j.ok && j.applied)
         ? ('<span style="color:#8fd0a0">' + escC(String(j.why || 'done')) + '</span>')
         : ('<span style="color:#e9b96e">' + escC(String((j && j.why) || 'no answer')) + '</span>');
+      /* ⚠⚠ v2951 — A SUCCESSFUL APPLY CONSUMES THE PLAN. It described names that were
+         MISSING; once the board has put them back it no longer describes the board, and an
+         armed button pointing at a stale plan is a WRITE waiting to happen. Success path
+         only — a failed apply leaves the plan valid and worth retrying. */
+      if (j && j.ok && j.applied) { window.__restorePlanned = null; }
     } catch(e){ out.innerHTML = '<span style="color:#e07070">' + escC(String(e)) + '</span>'; }
+    finally {
+      /* ⚠⚠ v2951 — THIS BUTTON WAS THE CANCEL SIGN HE REPORTED. Konyo: "its showing a
+         cancel sign where it doesnt need to sometimes.. like a CANT CLICK circle with a line
+         diagonal". MEASURED: of the 7 onclick handlers that disable themselves, this was the
+         ONLY one with no re-enable on ANY path — not on success, not on ok:false, not in the
+         catch. One click and it stayed `disabled` for ever, and `button:disabled/.act:disabled`
+         is one of only THREE rules that survive the blanket `*{cursor:var(--kcur)!important}`,
+         so the pointer kept saying "forbidden" at a control that was merely finished.
+         ⚠ RE-EVALUATED FROM THE PLAN, never a bare `disabled = false`: re-enabling
+         unconditionally would re-arm a write against the plan just consumed above.
+         [[label-outlived-referent]] [[the-unjoined-end]] */
+      var _p = window.__restorePlanned;
+      this.disabled = !(_p && _p.missingTotal > 0);
+    }
   };
   $('btn-repair-dates').onclick = async function(){
     var out = $('repair-out'); this.disabled = true;

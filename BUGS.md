@@ -31349,3 +31349,47 @@ All five stale ones now carry the DATE they were measured, because that is what 
 `test_store_isolation.py` also says "41 stores" and is CORRECT — it is explicitly dated 2026-08-22
 as history. A dated number that is old reads as history; an undated one reads as truth.
 [[copy-drift]] [[stale-reading]]
+
+## REG-955 — a button that never came back, and the cursor that told him so (v2951)
+
+Konyo: *"the mouse cursor cool one regressed.. its showing a cancel sign where it doesnt need to
+sometimes.. like a CANT CLICK here circle with a line diagonal on it blocked.. but some of them
+should be showing that we can click on it and glow or highlights the borders"*.
+
+**Why a stuck button is the ONLY thing that can produce that sign.** `control_ui.html` paints his
+custom hand on every element with `*{cursor:var(--kcur) !important}`. Measured: **82 of the 83
+`cursor:pointer` rules lose to it** (1 carries `!important`). Only THREE rules are written to
+survive — `text` for inputs, `not-allowed` for `.tzz.tzz-thin`, and `not-allowed` for
+`button:disabled, .act:disabled`. So the console has **no surviving way to say "clickable"**, while
+`disabled` still says "forbidden" loudly.
+
+**The defect.** Of the **7** onclick handlers that disable themselves, exactly **ONE** never
+re-enabled on any path: `btn-restore-apply` set `this.disabled = true` before its fetch and cleared
+it nowhere — not on success, not on `ok:false`, not in the catch. One click and the pointer said
+CANNOT CLICK for ever, at a control that had merely finished. Now 0 of 7.
+
+⚠ **THE OBVIOUS FIX WOULD HAVE BEEN WORSE THAN THE BUG.** A bare `disabled = false` — or
+re-arming from `__restorePlanned` — re-arms a **WRITE**: the plan describes names that were
+MISSING, and once the board has put them back it no longer describes the board. So a successful
+apply CONSUMES the plan (`__restorePlanned = null`) and the `finally` re-evaluates from it: a
+failure re-arms for a retry, a success stays disabled because nothing is armed.
+
+### Three things refuted along the way, each by measurement
+
+- *"the thin terror-zone cells disagree with their own inertness"* — refuted: `var _thin =
+  (t.tier === 'thin')`, the same condition, and their children are not interactive.
+- *"43 classes advertise a click with no wiring"* — refuted: that was the SEARCH's reach. They are
+  wired by **id** (`btn-on`, `ch-sel-all`, `tz-refresh`), invisible to a class-based grep.
+- *"`pointer-events:none` is swallowing clicks"* — refuted: pseudo-elements only
+  (`button.act::before`, `.flash::after`), which is correct.
+
+### ⚠ THE LAW CAUGHT ITSELF GRADING PROSE
+
+The first cut of `test_a_busy_control_comes_back` searched raw handler bodies and went RED against
+a correct fix — because the comment explaining the fix contains the words *"never a bare
+`disabled = false`"*. The guard was grading the sentence that describes the defect. Comments are
+now BLANKED (not deleted, so brace depth and offsets survive) before anything is graded. Nine
+prose-reads this session; this one was mine, inside a guard written to prevent exactly it.
+[[source-reading-guard]]
+
+Gate proven red twice at 1 match each: removing the re-evaluation, and removing the plan-consume.

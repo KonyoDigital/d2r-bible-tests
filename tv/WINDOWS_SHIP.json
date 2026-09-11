@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2950",
+  "ver": "v2951",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2950: --note SHELF_MOUTH.recent was already arriving from api river and being thrown away, so the mouth showed a count and no journeys",
+  "note": "v2951: --note one of seven self-disabling controls never re-enabled, and disabled is one of only three cursor rules that survive the blanket",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

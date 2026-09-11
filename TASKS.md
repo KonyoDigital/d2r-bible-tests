@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2950** | `(this commit)` | v2950 — --note SHELF_MOUTH.recent was already arriving from api river and being thrown away, so the mouth showed a count and no journeys |
+| **v2951** | `(this commit)` | v2951 — --note one of seven self-disabling controls never re-enabled, and disabled is one of only three cursor rules that survive the blanket |
+| **v2950** | `ad47acb3` | v2950 — --note SHELF_MOUTH.recent was already arriving from api river and being thrown away, so the mouth showed a count and no journeys |
 | **v2949** | `3a4e06ae` | v2949 — --note the tombstone writer joined provenance and its red-proof came back BLIND because no law asserted it |
 | **v2948** | `475a253f` | v2948 — --note the console execs the working tree, so a running process can hold an older image and no surface could tell |
 | **v2947** | `81ab01d6` | v2947 — --note comparable probed the local live tally, so the cross-check went dark wherever no board had posted |

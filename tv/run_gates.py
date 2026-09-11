@@ -937,6 +937,15 @@ GATES = [
          "removed, the closure roster handed the FILTERED report (which reads all 8 as closed out), "
          "and the endpoint unjoined from the set it computes.",
          skip_ok=()),
+    Gate("test_a_busy_control_comes_back",
+         [sys.executable, os.path.join(HERE, "test_a_busy_control_comes_back.py")], 60,
+         why="v2951 — his report: a CANT-CLICK cursor at controls that should be clickable. "
+             "Measured: the blanket *{cursor:var(--kcur)!important} beats 82 of 83 cursor:pointer "
+             "rules, so `button:disabled` is one of only THREE survivors and a stuck button is the "
+             "one thing that can produce that sign. Of 7 self-disabling onclick handlers exactly "
+             "ONE never re-enabled on any path. Proven red twice at 1 match each: removing the "
+             "re-evaluation, and removing the plan-consume that stops a re-armed WRITE.",
+         skip_ok=()),
     Gate("test_the_console_says_which_image_is_answering",
          [sys.executable, os.path.join(HERE, "test_the_console_says_which_image_is_answering.py")], 60,
          why="v2948 — task #67: his console EXECS the working tree, so every save is a deploy, but "
