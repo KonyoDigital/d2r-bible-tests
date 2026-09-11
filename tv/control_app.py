@@ -16606,11 +16606,27 @@ def _prune_note(path, why):
         pass
 
 
+# ⚠⚠ v2986 — `enabled` WAS A DEAD DEFAULT, AND ARMING THE OTHER SWITCH WAS DECORATION WITHOUT IT.
+# The loop needs BOTH: `if not _PRUNE_SAFE_TO_RUN: ... continue` and then `if not on ... continue`,
+# where `on` is this flag. v2984 flipped the code switch and reported the prune ARMED — measured on
+# his live console minutes later, `prune.enabled` was still False, so not one pass could ever run.
+# MEASURED, and this is why it is not "his toggle to flip": `_PRUNE_STATS["enabled"]` is READ at
+# exactly one site (the loop) and WRITTEN at none. No endpoint, no UI control, no writer anywhere
+# in the tree. It could not be turned on by him, by me, or by anything else — a second switch with
+# no tap. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+#
+# ⚠ AND `lastSay` CARRIED THE PRE-v2197 STORY TO HIS SCREEN. It read "OFF (v2161) — the panel gate
+# answers None both for 'not a stash screen' and for 'a tooltip covered the tab strip'". v2197
+# retired that: the decision site now KEEPS every text-bearing frame outright, and the blank class
+# is deletable only where LaneCanary proves the reader was live. The old sentence was the reason
+# the prune was off, still being printed after the reason stopped being true, on the panel he reads
+# to decide whether his disk is safe. [[label-outlived-referent]]
 _PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0,
-                "lastSay": "OFF (v2161) — the panel gate answers None both for 'not a stash "
-                           "screen' and for 'a tooltip covered the tab strip', and the tooltip is "
-                           "where item names live. It cannot yet prove a delete is safe.",
-                "enabled": False}
+                "lastSay": "ARMED (v2986) — no pass has run yet on this process. The deleter keeps "
+                           "every text-bearing frame, keeps any frame the gate could not read, and "
+                           "frees only blank frames where the OCR lane was proven live around "
+                           "them. It never touches a reel directory.",
+                "enabled": True}
 
 
 def prune_stats():
@@ -26566,7 +26582,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2985",
+        "ver": "v2986",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

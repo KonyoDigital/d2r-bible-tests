@@ -112,6 +112,28 @@ class TheArmedPruneCannotReachAReel(unittest.TestCase):
             "the floor is the second of the two facts that make arming safe; lowering it puts the "
             "v2187 tooltip case back in reach on an ordinary session")
 
+    def test_arming_one_switch_did_not_leave_the_other_dead(self):
+        """⚠⚠ v2986 — I FLIPPED ONE OF TWO SWITCHES AND REPORTED THE PRUNE ARMED.
+
+        `_prune_loop` refuses twice: `if not _PRUNE_SAFE_TO_RUN: ... continue`, and then
+        `if not on or not _agent_alive(): continue`, where `on` is `_PRUNE_STATS["enabled"]`.
+        v2984 set the first and left the second at its default False, so not one pass could ever
+        run — measured on his live console minutes after shipping: `prune.enabled: False`.
+
+        And it was not his toggle to flip: `_PRUNE_STATS["enabled"]` is READ at exactly one site
+        and WRITTEN at none — no endpoint, no UI control, no writer in the tree. A second switch
+        with no tap. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+        """
+        if not CA._PRUNE_SAFE_TO_RUN:
+            return          # disarmed is coherent; this only binds while the code switch is ON
+        self.assertTrue(
+            CA._PRUNE_STATS.get("enabled"),
+            "the code switch is ARMED and the data switch is off, so the loop refuses on its "
+            "second condition and the arming is decoration — exactly the state v2984 shipped")
+        say = str(CA._PRUNE_STATS.get("lastSay") or "")
+        self.assertNotIn("OFF (", say,
+                         "the console still prints an OFF reason while the prune is armed: %r" % say[:90])
+
     def test_the_switch_is_armed_and_the_reason_is_recorded(self):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         self.assertTrue(CA._PRUNE_SAFE_TO_RUN, "the prune is disarmed; he asked for it armed")
@@ -130,6 +152,14 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": 'live = [q for q in _g.glob(os.path.join(root, "f_*.jpg"))',
         "replace": 'live = [q for q in _g.glob(os.path.join(root, "*", "f_*.jpg"))',
+        "matches": 1,
+    },
+    {
+        "why": "arming the code switch while the data switch stays dead is the v2984 defect: the "
+               "loop refuses on its second condition and not one pass ever runs",
+        "file": "control_app.py",
+        "find": '                "enabled": True}',
+        "replace": '                "enabled": False}',
         "matches": 1,
     },
     {

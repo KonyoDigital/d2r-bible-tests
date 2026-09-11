@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2985** | `(this commit)` | v2985 — the row names the store it is in, and the reels come before the analysis |
+| **v2986** | `(this commit)` | v2986 — arming one of two switches is not arming, and the panel kept the old reason |
+| **v2985** | `25287787` | v2985 — the row names the store it is in, and the reels come before the analysis |
 | **v2984** | `57950a2f` | v2984 — the prune is armed, and the argument against it was about the other deleter |
 | **v2983** | `99946faf` | v2983 — a container belongs to the item, not to the frame it was seen in |
 | **v2982** | `9300ca1d` | v2982 — a read verdict laundered into stored state, carried forward every 20 seconds |
