@@ -30,6 +30,16 @@ is the defect this file exists to end. [[copy-drift]] [[the-unjoined-end]]
 import os
 import sys
 
+HERE_BOOT = os.path.dirname(os.path.abspath(__file__))
+if HERE_BOOT not in sys.path:
+    sys.path.insert(0, HERE_BOOT)
+
+# ⚠ v2947 — THIS FILE PRINTS NON-ASCII, SO IT MUST MAKE STDOUT SAFE FIRST.
+# The gate caught it: on a non-UTF-8 console (Windows cp1255) a bare print of an emoji CRASHES
+# the script, and the crash lands on his cousin's machine, not here. [[windows-powershell-gotchas]]
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
@@ -80,7 +90,10 @@ def stations_in_journal(path=None):
         return set(), "no journal at %s" % os.path.basename(p)
     seen, n = set(), 0
     try:
-        for ln in io.open(p, encoding="utf-8") if False else open(p, encoding="utf-8"):
+        # ⚠ v2947 — this read `io.open(...) if False else open(...)`, and `io` is not imported
+        # here. The dead branch never ran, so nothing failed — until the gate that walks every call
+        # for a name nothing binds found it. A leftover is still an unbound name.
+        for ln in open(p, encoding="utf-8"):
             ln = ln.strip()
             if not ln:
                 continue
