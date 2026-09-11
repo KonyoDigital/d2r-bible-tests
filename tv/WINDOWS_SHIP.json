@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2957",
+  "ver": "v2958",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2957: --note the shelf driver had one write-capable call site, its own CLI, so his beat sat 37.8 hours old against a 12 hour bar",
+  "note": "v2958: --note a law accepted None where it meant False, and the tamper sat on a path no law executed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

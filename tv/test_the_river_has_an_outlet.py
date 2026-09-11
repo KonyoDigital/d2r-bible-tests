@@ -156,8 +156,16 @@ class TheRiverHasAnOutlet(unittest.TestCase):
     def test_an_unreadable_stamp_store_is_UNKNOWN_not_zero(self):
         with _Stubbed([], ok=False, why="simulated"):
             rep = RR.route()
-        self.assertFalse(rep.get("outletReadable"),
-                         "the router claims the outlet was readable when the store refused")
+        # ⚠⚠ v2958 — assertIs(..., False), NOT assertFalse. THIS IS WHY THE GATE WAS BLIND.
+        # `outletReadable` exists to separate False (the store refused — a MEASURED fact) from
+        # None (nobody looked). `assertFalse(None)` PASSES, so the one law guarding the unreadable
+        # case accepted exactly the value the field was invented to distinguish, and a tamper that
+        # replaced the verdict with None sailed straight through it. Demonstrated: assertFalse(None)
+        # passes, assertIs(None, False) fails. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        self.assertIs(rep.get("outletReadable"), False,
+                      "the outlet verdict is %r — the router either claims the outlet was readable "
+                      "when the store refused, or answers None, which is 'nobody looked' wearing "
+                      "'unreadable' clothes" % (rep.get("outletReadable"),))
         self.assertTrue(str(rep.get("outletWhy") or ""),
                         "nothing says WHY the outlet could not be read, so ROUTED 0 is a guess "
                         "wearing a count's clothes")
@@ -379,7 +387,55 @@ class TheRiverHasAnOutlet(unittest.TestCase):
 
 
 
+    def test_the_UNREADABLE_EVIDENCE_path_still_answers_the_outlet(self):
+        """⚠⚠ THE PATH CI ACTUALLY TAKES, AND NO LAW REACHED IT — which is why proof [1] measured
+        BLIND while eleven laws ran and stayed green.
+
+        `route()` returns EARLY when `_evidence()` cannot be read (`ev is None`): "UNKNOWN, not an
+        empty shelf". Every other law here supplies a readable store through `_Stubbed`, so they all
+        fall through to the MAIN return and the early one was exercised by nothing. A runner has no
+        reels, so this early path is the one the whole repo takes on CI — the single place where a
+        confident ROUTED 0 would do the most damage, and the least guarded.
+
+        ⚠ assertIsInstance(bool), not assertTrue/assertFalse: the verdict must be a MEASURED
+        boolean either way. None here is "nobody looked" wearing a verdict's clothes, and
+        `assertFalse(None)` would wave it through — the exact hole that made this gate blind.
+        [[unknown-stays-unknown]]"""
+        real = RR._evidence
+        try:
+            RR._evidence = lambda hist=None: (None, "simulated unreadable evidence")
+            rep = RR.route()
+        finally:
+            RR._evidence = real
+        self.assertIn("UNKNOWN", str(rep.get("why") or ""),
+                      "the early return did not say the shelf is UNKNOWN rather than empty")
+        self.assertIsInstance(rep.get("outletReadable"), bool,
+                              "the outlet verdict on the unreadable-evidence path is %r — a walk "
+                              "that could not read its evidence still owes a MEASURED yes or no "
+                              "about the outlet, never None"
+                              % (rep.get("outletReadable"),))
+        # ⚠ A `why` IS OWED ONLY WHEN THE ANSWER IS NO. My first cut asserted outletWhy was
+        # always non-empty here and it FAILED against correct code: on this run the outlet WAS
+        # readable, so there is nothing to explain, and demanding a sentence would have forced a
+        # reason for a non-event. The law is "an unreadable outlet must say why", not "every walk
+        # must narrate". [[zero-needs-a-denominator]]
+        if rep.get("outletReadable") is False:
+            self.assertTrue(str(rep.get("outletWhy") or ""),
+                            "the outlet could not be read on the path CI takes and nothing says "
+                            "why, so its verdict cannot be acted on")
+
 RED_PROOF = [
+    {
+        'why': 'v2958 — THE PATH THE STUBBED LAWS ACTUALLY RUN. The existing proof below tampers '
+               'the EARLY return (no shelf), but every law here supplies a store through _Stubbed '
+               'and falls through to the MAIN return, so that tamper never executed in the laws '
+               'that ran — 11 of them stayed green through it and the drill reported BLIND. This '
+               'one drops the verdict on the main path, where the laws live.',
+        'file': 'reel_router.py',
+        'find': 'rep["outletReadable"] = routed is not None',
+        'replace': 'rep["outletReadable"] = None',
+        'matches': 1,
+    },
     {
         'why': 'dropping the outlet verdict on the UNKNOWN path restores the confident ROUTED 0 this gate exists to separate from a real count. ⚠ THE SUCCESS PATH IS THE WRONG ANCHOR: a sandbox has no shelf, so the walk is UNKNOWN and the success line never executes — measured BLIND, it stayed GREEN through its own defeat. Tamper the path the runner actually takes.',
         'file': 'reel_router.py',

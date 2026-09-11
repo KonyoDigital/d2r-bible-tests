@@ -31596,3 +31596,45 @@ Measured after: the row still reads MISSING, correctly — the staleness check f
 lane check, and the stored beat is still 37.9 h old until the loop next ticks. The eagle now reports
 all four states in live use (missing/ok/unknown/unmeasured), which independently confirms v2956's
 `cd.ICON` fix.
+
+## REG-961 — the blind gate that was holding #34 shut (v2958)
+
+`console.pixel_rescue` refused with: *"1 instrument(s) are BLIND (test_the_river_has_an_outlet) — a
+surface may not arm itself while the gates that would catch its failure cannot go red."* So #42 was
+never blocked by its cross-family seat first; building that harness would have left the lock shut
+for a reason already stated. The heart had been reporting this one blind gate all day.
+
+**TWO INDEPENDENT DEFECTS, and the drill named both: *"5 of 16 laws SKIPPED, but the other 11 DID
+run and stayed green — so the law IS weak, and separately some laws opted out. Both jobs, not one."***
+
+**1. `assertFalse(None)` passes.** `outletReadable` exists to separate `False` (the store refused —
+a MEASURED fact) from `None` (nobody looked), and the single law guarding the unreadable case used
+`assertFalse`, which accepts exactly the value the field was invented to distinguish. Demonstrated:
+`assertFalse(None)` passes, `assertIs(None, False)` fails. Now identity, not truthiness.
+
+**2. The tamper sat on a path no law executed.** The red-proof dropped the verdict on the EARLY
+return (`ev is None` — unreadable evidence), but every law supplies a store through `_Stubbed` and
+falls through to the MAIN return. Eleven laws ran and stayed green through a tamper that never
+executed in any of them. The proof's own `why` had already diagnosed it — *"tamper the path the
+runner actually takes"* — and then anchored the other one.
+
+Fixed by proving BOTH paths: a second red-proof on the main return, and a new law that reaches the
+early one by making `_evidence()` unreadable. That early path is what CI takes (a runner has no
+reels), so it was the least guarded place and the most dangerous — a confident `ROUTED 0` there is
+the exact defect the field exists to prevent. **Both proofs now PROVEN at 1 match each.**
+
+⚠ **MY FIRST CUT OF THE NEW LAW FAILED AGAINST CORRECT CODE.** It asserted `outletWhy` was always
+non-empty; on that run the outlet WAS readable, so there was nothing to explain and the assertion
+demanded a reason for a non-event. Narrowed: a `why` is owed only when the answer is NO.
+
+### What the lock says now, and why it is better
+
+    before:  may: False — 1 instrument(s) are BLIND
+    after:   may: False — 16 of 16 DISTINCT ATTACKS were refused (16 of 16 attempts);
+                          the Wilson lower bound is 0.806 against a bar of 0.839
+
+No longer "you may not ask because a guard cannot fail", but "you have asked 16 times, passed every
+one, and 16 successes buy only 0.806". ⚠ The next step is NOT to add easy attacks: the bot's cold
+A1/A2 both LAND, so recording them honestly moves 16/16 to 16/18 and LOWERS the bound before it
+raises it. That is what cross-family evidence is for — an outside family found holes the inside
+family's attacks missed — and the score should say so.
