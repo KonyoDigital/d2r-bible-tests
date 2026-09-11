@@ -17542,6 +17542,22 @@ def _heart2_census():
             "proved": _proved,
             "unproven": _unproven,
             "blind": _blind,
+            # ⚠⚠ v2952 — PASSTHROUGH, NOT A SECOND MEASUREMENT. Task #68.
+            # The census answered `proved/unproven/blind` and dropped everything else heart2 had
+            # already written in the same file, so the console could not show the SPLIT: which of
+            # the proven are backend laws and which are pixel laws, nor how many gates are
+            # DECLARED versus measured. Read straight off `_d`, the dict already loaded three
+            # lines up — computing any of these a second way here would be two authorities on one
+            # number, which is the defect this file has recorded more than any other.
+            # ⚠ Every one may be None. heart2 writes them only on a full run; `partial` above says
+            # whether this was one. A missing key stays None and NEVER becomes 0. [[copy-drift]]
+            "declared": _d.get("declared"),
+            "total": _d.get("total"),
+            "backendProved": _d.get("backendProved"),
+            "backendTotal": _d.get("backendTotal"),
+            "pixelProved": _d.get("pixelProved"),
+            "pixelTotal": _d.get("pixelTotal"),
+            "surfaces": (_d.get("surfaces") or {}),
             # ⚠⚠ THE FILE'S AGE IS NOT THE CENSUS'S AGE, AND THE GAP IS NOT SMALL.
             # ageMs is the mtime of tv/.heart2.json — the last time ANY proving wrote it. But the
             # store carries `verdictAt`, a PER-GATE map of when each gate was last measured red,
@@ -26215,7 +26231,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2951",
+        "ver": "v2952",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

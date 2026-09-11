@@ -178,7 +178,12 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in paint_witness.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'paint_witness.py',
-        "find": 'gradient',
+        # ⚠ v2952 — WAS THE BARE WORD 'gradient', AND v2944 BROKE IT BY WRITING A COMMENT.
+        # A one-word anchor is unique only by luck: an INK_MAX_DISTINCT comment mentioning "a dark
+        # gradient plus chrome" made it match TWICE, and a tamper that changes two places proves
+        # nothing about either. Anchored on the whole sentence the law actually asserts.
+        # [[sabotage-is-usually-the-wrong-one]]
+        "find": 'background is a gradient, not one flat colour',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
