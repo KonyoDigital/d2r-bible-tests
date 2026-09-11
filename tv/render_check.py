@@ -2655,25 +2655,6 @@ def check(name, spec, shots=True):
             out["ok"] = False
             out["refusals"].append(why)
             return out
-        # ⚠⚠ v2923 (#53) — A SURFACE BUILT FOR THIS HARNESS THAT THIS HARNESS NEVER READ.
-        # `control_ui.html` writes the fan solver's whole record onto the overlay as `data-fanfit`
-        # and says why in as many words: *"for the render harness, which photographs the DOM and
-        # cannot reach a JS global"*. MEASURED: `render_check.py` contained ZERO occurrences of
-        # `fanfit`. The attribute was written for a reader that did not exist, so #53's central
-        # question — did the solver find nothing, or find something and revert it? — stayed one
-        # manual probe away on every render this gate has ever done.
-        # `report` is the general tap: any target may name a JS expression whose value is recorded
-        # beside its verdict. It NEVER decides ok/not-ok — a report that could fail a run would be
-        # a second gate wearing a diagnostic's clothes. [[plumbing-with-no-tap]] [[the-unjoined-end]]
-        if spec.get("report"):
-            try:
-                _rep = tab.ev(spec["report"])
-            except Exception as _exc:
-                _rep = {"error": type(_exc).__name__}
-            # ⚠ None means the expression answered nothing, which is NOT the same as a target that
-            # never declared one. Both are recorded, and neither is silence. [[unknown-stays-unknown]]
-            out["report"] = _rep if _rep is not None else {"unread": "the report expression "
-                                                           "returned null"}
         for w, h in WIDTHS:
             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                      deviceScaleFactor=1, mobile=False)
@@ -2694,6 +2675,45 @@ def check(name, spec, shots=True):
                 out["ok"] = False
                 out["refusals"].append("%dx%d: %s" % (w, h, why_w))
                 continue
+            # ⚠⚠ v2924 (#53) — PER WIDTH, BECAUSE THE FAN'S WHOLE PROBLEM IS WIDTH.
+            # v2923 evaluated this ONCE, before this loop, and the cross-family eye caught it: at
+            # that moment the viewport is Chrome's launch size (`--window-size=1440,1300`), which is
+            # NOT one of the five WIDTHS this harness photographs. So the printed `reverted: false`
+            # was a reading from a viewport no shot was ever taken at — and the labels collide at
+            # particular widths, which is the entire reason #53 exists. A verdict measured at a size
+            # nobody photographs cannot speak for 375x800, where the collisions have been worst.
+            # ⚠ AND IT STAMPS THE VIEWPORT IT MEASURED. The v2923 expression carried no
+            # innerWidth/innerHeight, so the log could not say which size produced the answer — a
+            # number with no denominator, in the instrument added to answer a question.
+            # [[zero-needs-a-denominator]] [[stale-reading]] [[feedback-blind-fixture-green-gate]]
+            if spec.get("report"):
+                try:
+                    _rep = tab.ev(spec["report"])
+                except Exception as _exc:
+                    _rep = {"error": type(_exc).__name__}
+                if _rep is None:
+                    _rep = {"unread": "the report expression returned null"}
+                if isinstance(_rep, dict):
+                    _rep = dict(_rep)
+                    # ⚠⚠ `readAt`, NOT `atWidth` — AND THE DIFFERENCE IS THE FINDING.
+                    # MEASURED 2026-09-11: `_hrtFanFit` has exactly ONE caller (control_ui.html, the
+                    # heart-open path after /api/heart lands), and the page's only resize listener
+                    # calls `_shellSizePane()` and nothing else. So `data-fanfit` is written ONCE, at
+                    # open, and is NEVER recomputed when the window changes size.
+                    # My first cut of this stamped `atWidth`, which ASSERTED a width it had not
+                    # measured: the same stale attribute read five times wearing five different
+                    # labels. That is worse than v2923's unlabelled reading, because a wrong
+                    # denominator invites arithmetic a missing one does not.
+                    # ⚠ AND THIS IS ITSELF THE LIKELIEST #53: a fan solved once at open is stale at
+                    # every other width, which is exactly "the labels collide at some widths". The
+                    # diagnostic must not FIX that by re-solving here — `_hrtFanFit` MUTATES the DOM,
+                    # so calling it would change the layout being photographed.
+                    # [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+                    _rep["readAt"] = "%dx%d" % (w, h)
+                    _rep["solvedAt"] = "UNKNOWN — the fan solves once on open and never re-solves "\
+                                       "on resize, so this reading is from whatever width the "\
+                                       "heart was opened at, not from the one named in readAt"
+                out.setdefault("report", {})["%dx%d" % (w, h)] = _rep
             # ⚠ MEASURE REACHABILITY BEFORE SCROLLING TO IT — see _REACH. After the
             # scrollIntoView below, every target is on screen by construction.
             reach = tab.ev("%s(%s)" % (_REACH, json.dumps(spec["sel"])))
@@ -3139,8 +3159,12 @@ def main(argv):
         # into a dict nobody prints is the same defect as the attribute nobody read: one grave
         # instead of another. This never changes ok/not-ok — it is a diagnostic, and a diagnostic
         # that can fail a run is a second gate in disguise. [[plumbing-with-no-tap]]
-        if r.get("report") is not None:
-            _say("     ⓘ report %s" % json.dumps(r["report"], sort_keys=True)[:400])
+        if r.get("report"):
+            # ⚠ one line per width. Collapsing five readings into one would re-create exactly the
+            # defect v2924 fixed: an answer with no denominator.
+            for _wk in sorted(r["report"]):
+                _say("     ⓘ report %-9s %s"
+                     % (_wk, json.dumps(r["report"][_wk], sort_keys=True)[:340]))
         for key in sorted(r["widths"]):
             m = r["widths"][key]
             # ⚠ v2697 — EVERY COUNT CARRIES ITS DENOMINATOR, because three of these used to read as
@@ -3254,6 +3278,9 @@ def main(argv):
               # older render_check wrote the file; False means there is no floor at all;
               # True means a floor exists and 0 in the fields below is MEASURED.
               "coverageFloorKnown": bool(_cov.get("floorKnown")),
+              # ⚠ v2924 — RECORDED, not only printed. A diagnostic that lives in scrollback
+              # is the grave REG-920 named. Keyed by target, then by width.
+              "reports": {_n: _r["report"] for _n, _r in results.items() if _r.get("report")},
               "coverageStale": list(_cov.get("stale") or []),
               "coverageStaleNodes": int(_cov.get("staleNodes") or 0),
               "coverageNotChecked": list(_cov.get("notChecked") or []),

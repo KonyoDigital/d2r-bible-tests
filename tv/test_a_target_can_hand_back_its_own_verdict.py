@@ -77,16 +77,39 @@ class ATargetCanHandBackItsOwnVerdict(unittest.TestCase):
         self.assertIn("report", keys,
                       "heart-fan declares no `report`, so data-fanfit goes on being written for a "
                       "reader that does not exist: %s" % keys)
-        self.assertIn("fanfit", _src(),
-                      "render_check no longer mentions fanfit at all — the tap is gone")
+        # ⚠⚠ v2924 — THIS USED TO BE `assertIn("fanfit", _src())`, AND THE EYE CAUGHT IT.
+        # After v2923 the file's OWN COMMENTS contain "fanfit", so that check matched my prose
+        # about the code rather than the code. Someone could keep
+        #     "report": "(function(){ return {ok:true}; })()"
+        # and delete `getAttribute('data-fanfit')` entirely: the key is still present, the comments
+        # still say fanfit, the law stays green, and the attribute is once again written for a
+        # reader that does not read it — the exact defect this file's docstring names.
+        # The law is now about the EXPRESSION, read out of TARGETS, not about the file's text.
+        # [[source-reading-guard]] [[measured-true-read-wrong]]
+        rep = None
+        for kk, vv in zip(fan.keys, fan.values):
+            if isinstance(kk, ast.Constant) and kk.value == "report":
+                rep = ast.literal_eval(vv)
+        self.assertIsInstance(rep, str, "heart-fan's report is not a string expression: %r" % (rep,))
+        self.assertIn("data-fanfit", rep,
+                      "heart-fan declares a report that never reads data-fanfit, so the attribute "
+                      "is written for a reader that does not read it: %r" % rep[:160])
+        self.assertIn("getAttribute", rep,
+                      "the report does not actually READ the attribute off the element: %r"
+                      % rep[:160])
 
     def test_check_READS_a_declared_report(self):
         """A spec key nothing consults is a spec key that does not exist."""
         body = ast.get_source_segment(_src(), _fn("check"))
         self.assertIn('spec.get("report")', body,
                       "check() never asks whether the target declared a report")
-        self.assertIn('out["report"]', body,
+        self.assertIn('setdefault("report"', body,
                       "check() never records the report it just evaluated")
+        # ⚠ v2924 — AND IT MUST BE KEYED BY WIDTH. A single `out["report"]` was the v2923 shape,
+        # measured once at Chrome's launch size and therefore about no photographed viewport.
+        self.assertIn('out.setdefault("report", {})["%dx%d" % (w, h)]', body,
+                      "the report is not keyed by width, so it cannot say which viewport it "
+                      "describes — the defect the eye caught in v2923")
 
     def test_the_report_is_PRINTED_and_not_merely_COLLECTED(self):
         """⚠ Recording a verdict into a dict nobody prints is one grave instead of another — the
@@ -99,16 +122,26 @@ class ATargetCanHandBackItsOwnVerdict(unittest.TestCase):
     def test_a_report_NEVER_decides_ok_or_not_ok(self):
         """⚠ THE LOAD-BEARING RESTRAINT. A diagnostic that can fail a run is a second gate in
         disguise. Parsed: no assignment to out["ok"] may appear inside the report block."""
-        body = ast.get_source_segment(_src(), _fn("check"))
-        i = body.index('if spec.get("report"):')
-        # the block ends at the next line with the same indentation that is not part of it
-        tail = body[i:]
-        end = tail.index("\n        for w, h in WIDTHS:")
-        block = tail[:end]
-        self.assertNotIn('out["ok"]', block,
+        # ⚠⚠ v2924 — PARSED, NOT SEARCHED FOR THE NEXT LINE. My first cut found the block by
+        # `tail.index("\n        for w, h in WIDTHS:")` — i.e. by assuming what followed it. When
+        # v2924 moved the report INSIDE that loop the search raised ValueError and the law errored
+        # rather than judging: a law that breaks when its subject MOVES was reading position, not
+        # structure. The AST knows where an `if` body starts and ends. [[source-reading-guard]]
+        node = _fn("check")
+        block_node = None
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.If):
+                t = ast.dump(sub.test)
+                if "report" in t and "spec" in t:
+                    block_node = sub
+        self.assertIsNotNone(block_node,
+                             "no `if spec.get(\"report\")` block in check() — this law did not "
+                             "reach its subject, so its silence is not evidence")
+        block = "\n".join(ast.dump(st) for st in block_node.body)
+        self.assertNotIn("'ok'", block,
                          "the report block assigns out[\"ok\"] — a diagnostic that can fail a run "
                          "is a second gate wearing a diagnostic's clothes:\n%s" % block[:400])
-        self.assertNotIn('refusals', block,
+        self.assertNotIn("refusals", block,
                          "the report block appends a refusal, which fails the run: %s" % block[:400])
 
     def test_a_report_that_RAISES_is_recorded_and_never_swallowed(self):
@@ -139,17 +172,24 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "collecting without printing is the REG-920 shape: the value is recorded and no surface shows it, so the fact moves from one grave to another.",
+        "why": "collecting without printing is the REG-920 shape. The anchor spans the WHOLE loop: an earlier cut took only the _say() lines and left the enclosing `for` with an empty body, so the tamper was a SyntaxError rather than a law.",
         "file": "render_check.py",
-        "find": "            _say(\"     \u24d8 report %s\" % json.dumps(r[\"report\"], sort_keys=True)[:400])",
-        "replace": "            pass",
+        "find": "            for _wk in sorted(r[\"report\"]):\n                _say(\"     \u24d8 report %-9s %s\"\n                     % (_wk, json.dumps(r[\"report\"][_wk], sort_keys=True)[:340]))\n",
+        "replace": "            pass\n",
         "matches": 1,
     },
     {
-        "why": "letting a null report be stored as null makes 'the expression answered nothing' identical to 'this target declared no report'. The anchor spans the WHOLE two-line expression: an earlier cut took only the first line and orphaned its continuation, so heart2 refused it as a SyntaxError rather than a law.",
+        "why": "letting a null report be stored as null makes 'the expression answered nothing' identical to 'this target declared no report'.",
         "file": "render_check.py",
-        "find": "            out[\"report\"] = _rep if _rep is not None else {\"unread\": \"the report expression \"\n                                                           \"returned null\"}",
-        "replace": "            out[\"report\"] = _rep",
+        "find": "                    _rep = {\"unread\": \"the report expression returned null\"}",
+        "replace": "                    _rep = None",
+        "matches": 1,
+    },
+    {
+        "why": "collapsing the per-width readings back into ONE key is the v2923 defect the eye caught: a single reading, taken at a viewport this harness never photographs, presented as the answer for all five.",
+        "file": "render_check.py",
+        "find": "                out.setdefault(\"report\", {})[\"%dx%d\" % (w, h)] = _rep",
+        "replace": "                out[\"report\"] = _rep",
         "matches": 1,
     },
 ]

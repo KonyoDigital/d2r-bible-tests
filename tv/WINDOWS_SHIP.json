@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2923",
+  "ver": "v2924",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2923: data-fanfit was for the render harness and render_check had zero occurrences of fanfit",
+  "note": "v2924: and my first fix stamped a width it had not measured, which is worse than no label",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

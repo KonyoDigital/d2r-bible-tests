@@ -29587,6 +29587,54 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-928 — the answer was measured at a viewport nobody photographs, and the law could not see it
+
+**v2924.** #53. The cross-family eye on v2923, one version after that ship.
+
+**THE READING WAS FROM THE WRONG VIEWPORT.** `check()` evaluated the report ONCE, before the
+`for w, h in WIDTHS` loop. At that moment the viewport is Chrome's launch size —
+`--window-size=1440,1300` — which is **not one of the five widths this harness photographs**
+(1440x1000, 1120x900, 901x900, 375x800, 1120x628). So the `reverted: false` v2923 printed, and which
+I reported as #53's answer, described a size no shot was ever taken at. The fan's entire problem is
+that labels collide **at particular widths**; a verdict from an unphotographed one cannot speak for
+375x800, where the collisions have been worst. The expression also carried no `innerWidth`, so the
+log could not even say which size produced it.
+
+**AND MY FIRST FIX WAS WORSE THAN THE DEFECT.** Moving the read inside the loop, I stamped
+`atWidth` — which ASSERTED a width it had not measured. Because:
+
+    _hrtFanFit has exactly ONE caller  (control_ui.html, the heart-open path)
+    the page's only resize listener calls _shellSizePane() and nothing else
+
+`data-fanfit` is written ONCE, at open, and is **never recomputed on resize**. So the per-width read
+is the same stale attribute five times, and `atWidth` put five different labels on it. A wrong
+denominator invites arithmetic that a missing one does not. It now reports `readAt` (the width when
+it was read) beside `solvedAt: "UNKNOWN — the fan solves once on open and never re-solves on
+resize"`. [[stale-reading]] [[zero-needs-a-denominator]]
+
+⚠ **AND THAT IS THE LIKELIEST #53.** A fan solved once at open is stale at every other width, which
+is exactly "the labels collide at some widths" — a far better candidate than "the all-or-nothing
+revert throws away good solutions", which measured `reverted: false` every time. The diagnostic
+deliberately does NOT fix it by re-solving: `_hrtFanFit` MUTATES the DOM, so calling it would change
+the layout being photographed — an instrument altering what it measures.
+
+**THE LAW COULD NOT SEE ANY OF IT, AND IT WAS A PROSE-READ.** `assertIn("fanfit", _src())` matched
+v2923's own COMMENTS. Keep `"report": "(function(){ return {ok:true}; })()"`, delete
+`getAttribute('data-fanfit')`, and the key is present, the comments still say fanfit, the gate stays
+green, and the attribute is again written for a reader that does not read it. The law now reads the
+EXPRESSION out of `TARGETS` and requires `data-fanfit` and `getAttribute` in it. Proven with that
+exact decoy: *"heart-fan declares a report that never reads data-fanfit."*
+
+⚠ A second law was **positional, not structural**: it located the report block by
+`tail.index("\n        for w, h in WIDTHS:")` — by assuming what FOLLOWED it. When this version moved
+the report inside that loop, the search raised ValueError and the law ERRORED instead of judging. It
+now finds the `if` node by AST. A law that breaks when its subject moves was reading position, not
+structure. [[source-reading-guard]]
+
+The report is also **recorded** into `.render_verdict.json` now, not only printed. Four red-proofs,
+all PROVEN at 1 match, every tamper verified to PARSE first — one had to be widened to the whole
+`for` loop after leaving it with an empty body.
+
 ## REG-927 — an attribute written for a reader that did not exist
 
 **v2923.** #53. `control_ui.html` writes the fan solver's entire record onto the heart overlay as
