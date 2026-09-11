@@ -15678,15 +15678,54 @@ window._lockMark = function(isOpen, px, label){
       _fail('the river could not be reached: ' + ((e && e.message) || e));
     });
   }
+  /* ⚠⚠ v2964 (#58) — A SESSION ID IS NOT UNIQUE, SO IT CANNOT ALWAYS PLACE A REEL.
+     v2963 joined the card to the river on `data-sid` and that was the right key — it took the
+     grid from 0 stamped to 107. But MEASURED the same evening on his console: 530 cards carry
+     only 419 distinct session ids, and one id (`s_1788190210097_78660`) is worn by ELEVEN cards
+     with eleven DIFFERENT t0/t1/reads/verdicts. They are eleven different runs, not one run drawn
+     eleven times.
+     So of the river's 60 reels: 27 match exactly ONE card, and 31 match MANY — and those 31 were
+     painting their station onto 80 cards. 80 of the 107 stamps v2963 produced were a real
+     station standing on runs the river never stamped. That is a right number under a name that is
+     not its referent, at scale, which is the defect he has caught here more than any other.
+     The river keys by reel id, a reel id is `reel_` + the session id, and the session id does not
+     identify a run — so the AMBIGUITY IS UPSTREAM and no UI rule can resolve it. What the UI can
+     do is refuse to invent: an id worn by more than one card places none of them, and says so.
+     [[unknown-stays-unknown]] [[label-outlived-referent]] */
+  var _SH_SID_N = null;
+  function _shSidCount(c){
+    if (_SH_SID_N === null){
+      _SH_SID_N = {};
+      var ov = $('th-shelfov');
+      var all = ov ? ov.querySelectorAll('.sh-card') : [];
+      for (var i = 0; i < all.length; i++){
+        var s = all[i].getAttribute('data-sid') || '';
+        if (s) _SH_SID_N[s] = (_SH_SID_N[s] || 0) + 1;
+      }
+    }
+    return _SH_SID_N[c.getAttribute('data-sid') || ''] || 0;
+  }
   function _shStationOf(c){
     if (!SHELF_RIVER) return null;
     var r = SHELF_RIVER[c.getAttribute('data-sid')];
-    return r ? r.station : null;
+    if (!r) return null;
+    /* the id is worn by more than one run: the river stamped ONE of them and cannot say which */
+    if (_shSidCount(c) > 1) return null;
+    return r.station;
+  }
+  /* is this card unplaceable BECAUSE the id is shared, rather than never stamped at all? The two
+     are different facts and must not render as one. */
+  function _shSidAmbiguous(c){
+    return !!(SHELF_RIVER && SHELF_RIVER[c.getAttribute('data-sid')] && _shSidCount(c) > 1);
   }
   // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
   // Reads sort keys straight off the card data-attrs; re-appends in order. Newest / longest / most-found / most-reads.
   function _shSort(){
     var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
+    /* v2964 — the shared-id census is per RENDER. thShelf rebuilds the grid with `ov.innerHTML =`,
+       so a cache that outlived one open would count a card set that no longer exists — a stale
+       denominator deciding whether a stamp is withheld. [[stale-reading]] */
+    _SH_SID_N = null;
     var grid = ov.querySelector('.sh-grid'); if (!grid) return;
     var cards = [].slice.call(grid.querySelectorAll('.sh-card'));
     var gn = function(c, a){ return +c.getAttribute(a) || 0; };
@@ -15751,7 +15790,9 @@ window._lockMark = function(isOpen, px, label){
       }
       var ordG = SHELF_RIVER_ORDER || [];
       var byStation = {}; vis.forEach(function(c){
-        var st = _shStationOf(c) || '\u2014 not stamped';
+        var st = _shStationOf(c)
+                 || (_shSidAmbiguous(c) ? '\u2014 shared id, cannot place'
+                                        : '\u2014 not stamped');
         (byStation[st] = byStation[st] || []).push(c);
       });
       /* declared before the per-card painter above uses it — a `var` function expression is
@@ -15782,6 +15823,15 @@ window._lockMark = function(isOpen, px, label){
       vis.forEach(function(c){
         var r = SHELF_RIVER[c.getAttribute('data-sid')];
         var old = c.querySelector('.shc-river'); if (old) old.remove();
+        if (r && _shSidCount(c) > 1) {
+          /* v2964 — SAY WHY IT IS BLANK. A withheld stamp and an absent one look identical on a
+             card, and only one of them is a data defect he can act on. */
+          c.setAttribute('data-station', '');
+          c.setAttribute('data-station-why', 'shared session id: ' + _shSidCount(c)
+                         + ' runs carry it, and the river stamped one of them');
+          return;
+        }
+        c.removeAttribute('data-station-why');
         if (!r) {
           c.setAttribute('data-station', '');
           return;   /* not stamped: no badge, and the section header already says so */

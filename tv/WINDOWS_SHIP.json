@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2963",
+  "ver": "v2964",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2963: 530 reels read as unstamped because the map is keyed by session id and was read by ordinal",
+  "note": "v2964: one river stamp was painting every sibling run that wore the same id - 80 of 107 stamps",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

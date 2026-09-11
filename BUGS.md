@@ -31700,6 +31700,49 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-967 - a SESSION ID is not unique, so it cannot place a reel (task #58 - v2964)
+
+REG-966 joined the shelf card to the river on `data-sid` and that key was right - it took the grid
+from **0 stamped to 107**. Measuring the result the same evening turned up the half that was wrong.
+
+**MEASURED on his live console 2026-09-11:**
+
+    530 cards carry only 419 distinct session ids
+    one id - s_1788190210097_78660 - is worn by ELEVEN cards
+    those eleven have ELEVEN different t0/t1/reads/verdicts
+
+They are **eleven different runs**, not one run drawn eleven times. `/api/sessions` says the same
+one level up: **3,122 entries, 2,798 unique ids**. And the shelf's 530 is exactly 3,122 minus the
+2,592 empty runs its own filter bar hides, so the duplication is in the source data, not the render.
+
+So of the river's 60 reels: **27 match exactly one card, 31 match many** - and those 31 were
+painting a real station onto **80 cards the river never stamped**. **80 of the 107 stamps REG-966
+produced were a right number under a name that is not its referent**, which is the defect he has
+caught here more than any other. It shipped and was corrected before it was pushed.
+
+**The ambiguity is UPSTREAM and no UI rule can resolve it.** The river keys by reel id, a reel id is
+`reel_` + the session id, and the session id does not identify a run. What the UI can do is refuse
+to invent: an id worn by more than one card now places none of them, and says so in its own bucket.
+
+    INTAKE 0 . TRIAGE 2 . EMPTY 0 . STATION 1 . PRINTER 0 . JOIN 6 . CAPTURE 6 . ROUTED 12
+    - shared id, cannot place   80 reels
+    - not stamped              423 reels          (27 + 80 + 423 = 530)
+
+A withheld stamp and an absent one must not read the same on a card either, so the ambiguous ones
+carry `data-station-why="shared session id: N runs carry it, and the river stamped one of them"`.
+Only one of those two states is a data defect he can act on. [[unknown-stays-unknown]]
+
+The census is reset at the top of `_shSort`: `thShelf` rebuilds the grid with `innerHTML =`, so a
+cached count would be a stale denominator deciding whether a stamp is withheld. [[stale-reading]]
+
+⚠ **STILL OPEN, NOT FIXED HERE:** the 80 are a real upstream defect - a session id worn by up to 11
+runs. Deduplicating or re-keying the store needs his ruling on whether two runs sharing an id are
+the same footage, and a wrong rule here loses runs. Filed, visible, not guessed at.
+
+⚠ A red-proof anchor in the first draft matched **0** occurrences, because the source spells the
+bucket with the escape `\u2014`, not a literal em-dash. Caught by printing the match count before
+the drill ran - a 0-match tamper would have gone green and proved nothing.
+
 ## REG-966 - THE SHELF looked the river up with the card's ORDINAL, so every reel read "not stamped" (task #58 - v2963)
 
 `_shRiverLoad` builds `SHELF_RIVER` keyed by the reel id minus its `reel_` prefix, which is a

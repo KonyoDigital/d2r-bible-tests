@@ -101,7 +101,72 @@ class TheTwoHalvesNameOneKey(unittest.TestCase):
                       "two halves may now agree with each other and disagree with /api/river")
 
 
+class ASharedIdPlacesNothing(unittest.TestCase):
+    """#58 / v2964 — the join was right and the KEY IS NOT UNIQUE.
+
+    MEASURED on his console: 530 cards carry 419 distinct session ids, and one id is worn by
+    ELEVEN cards with eleven different t0/t1/reads/verdicts — eleven different runs, not one run
+    drawn eleven times. Of the river's 60 reels, 27 match exactly one card and 31 match many,
+    and those 31 were painting a real station onto 80 cards the river never stamped.
+
+    80 of 107 stamps were a right number under a name that is not its referent. The ambiguity is
+    UPSTREAM — the river keys by reel id, a reel id is `reel_` + the session id, and the session
+    id does not identify a run — so the UI cannot resolve it and must not invent.
+    """
+
+    def setUp(self):
+        i = UI.find("  function _shStationOf(c){")
+        self.assertGreater(i, 0, "_shStationOf is gone — this law lost its target")
+        j = UI.find("\n  }", i)
+        self.assertGreater(j, i, "could not find the end of _shStationOf")
+        self.region = UI[i:j + 4]
+
+    def test_a_station_is_withheld_when_the_id_is_shared(self):
+        self.assertIn("_shSidCount(c) > 1", self.region,
+                      "_shStationOf no longer asks how many cards wear this session id, so one "
+                      "reel's station is painted onto every sibling run sharing its id — 80 of "
+                      "107 stamps were wrong this way")
+        after = self.region[self.region.find("_shSidCount(c) > 1"):]
+        self.assertIn("return null", after.split("\n")[0] + after.split("\n")[1],
+                      "the shared-id branch does not return null, so the guard reads as a check "
+                      "and behaves as a no-op")
+
+    def test_the_ambiguous_are_not_filed_as_never_stamped(self):
+        """Two different facts: 'the river never stamped this' and 'it stamped one of the runs
+        wearing this id and cannot say which'. Only the second is a data defect he can act on."""
+        self.assertIn("shared id, cannot place", UI,
+                      "the ambiguous cards have no bucket of their own, so they fall into "
+                      "'not stamped' and a real upstream defect — a session id worn by 11 runs — "
+                      "becomes invisible")
+        self.assertIn("_shSidAmbiguous", UI,
+                      "nothing distinguishes an ambiguous card from an unstamped one")
+
+    def test_the_census_cannot_outlive_one_render(self):
+        """thShelf rebuilds the grid with innerHTML, so a cached census would be a stale
+        denominator deciding whether a stamp is withheld. [[stale-reading]]"""
+        i = UI.find("  function _shSort(){")
+        self.assertGreater(i, 0)
+        head = UI[i:i + 700]
+        self.assertIn("_SH_SID_N = null", head,
+                      "the shared-id census is never reset at the top of _shSort, so it survives "
+                      "a rebuild and counts a card set that no longer exists")
+
+
 RED_PROOF = [
+    {
+        "why": "dropping the shared-id guard restores the measured defect: one reel's station painted onto every sibling run wearing its id, 80 wrong stamps of 107",
+        "file": "control_ui.html",
+        "find": "    if (_shSidCount(c) > 1) return null;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "folding the ambiguous cards back into 'not stamped' hides an upstream defect — a session id worn by 11 different runs — behind a bucket that means something else",
+        "file": "control_ui.html",
+        "find": '\\u2014 shared id, cannot place',
+        "replace": '\\u2014 not stamped',
+        "matches": 1,
+    },
     {
         "why": "putting any one lookup back on data-n reproduces the measured defect — the map is "
                "keyed by session id and read by ordinal, so 0 of 530 cards match",
