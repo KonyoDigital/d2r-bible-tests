@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2955",
+  "ver": "v2956",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2955: --note the river lanes fetch had no timeout, so a slow answer left the placeholder standing and the refusal paths unreachable",
+  "note": "v2956: --note CI had been red for two stamps on gates the local pre-push never runs, and the console cursor fell back to the system arrow",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -59,6 +59,12 @@ EXEMPT = {
     "_intake_lease_status":     "in-memory lease dict",
     "getsize":                  "a single os.path.getsize stat() call, microseconds",
     "isfile":                   "a single os.path.isfile stat() call, microseconds",
+    # ⚠ v2956 — MEASURED BEFORE EXEMPTING, NOT ASSUMED. Walked its AST: the only calls it makes
+    # are get/isinstance/max/round/str/time — no open(), no json.load, no subprocess. It reshapes
+    # `_UI_BEAT["pixelBlank"]`, a dict already in memory, into the shape an outside reader needs.
+    # This gate was RED ON ORIGIN for two stamps (CI run 34592434138, agent-suite) and my local
+    # pre-push never ran it, so "green here" said nothing about it. [[test-venue]]
+    "pixel_witness_public":     "reshapes an in-memory _UI_BEAT dict; no I/O of any kind",
     # ⚠ v2844 — EXEMPT FOR A REASON THAT IS TRUE, NOT BECAUSE THEY ARE FREE. Both touch disk.
     # They are exempt because they run in the timing EPILOGUE, after `_total` has already been
     # taken, so their cost cannot land in this request's `unattributedMs` — which is the only

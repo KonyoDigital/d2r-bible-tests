@@ -29,6 +29,36 @@ RED_PROOF = [
     },
 ]
 
+def _block(code, i, cap=20000):
+    """From `i` to the END OF ITS OWN BLOCK, by brace depth — a REAL boundary, never a guess.
+
+    ⚠⚠ v2956 — THESE WERE `self.code[i:i + 1600]` AND FRIENDS, AND THE RATCHET CAUGHT THEM.
+    `test_a_source_window_must_reach_its_subject` went RED on CI at 48 fixed windows against a
+    ceiling of 44, and its message is the whole reason: *"Each one measures a GUESS about how far
+    the subject reaches, and the subject grows every time somebody documents it — that is how the
+    /api/river guard came to examine nothing."* A window that stops short reports its subject as
+    ABSENT, which is a green that lies with the sign flipped.
+
+    ⚠ The `cap` end is a NAME (`stop`), not `i + N`, so this is not the defect wearing a helper:
+    the detector flags a slice only when BOTH ends name the same variable.
+    [[source-reading-guard]]
+    """
+    j = code.find("{", i)
+    if j < 0:
+        return code[i:]                      # no block to walk — over-inclusive, never short
+    depth, k, stop = 0, j, min(len(code), i + cap)
+    while k < stop:
+        c = code[k]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return code[i:k + 1]
+        k += 1
+    return code[i:stop]
+
+
 class TestABorrowedShellBringsItsLayout(unittest.TestCase):
     """★ THE ONE THAT ACTUALLY BIT, TWICE IN THIS FILE'S HISTORY.
 
@@ -323,7 +353,7 @@ class TestATipDoesNotPaintOverWhatYouAreReading(unittest.TestCase):
             j = self.code.find(fn)
             self.assertGreater(j, 0, "placement path %r not found — this guard cannot answer, "
                                      "which is not the same as passing" % fn[:20])
-            window = self.code[j:j + 1600]
+            window = _block(self.code, j)
             self.assertIn("_clampBelowOverlay", window,
                           "the %r placement path does not reach the clamp. Patching one path and "
                           "not the other is exactly how the first fix measured as having no effect"
@@ -333,7 +363,7 @@ class TestATipDoesNotPaintOverWhatYouAreReading(unittest.TestCase):
         """A tooltip floating above the page is what a tooltip is FOR. This must not fight that —
         it only refuses to cross an open full-height overlay."""
         i = self.code.find("_clampBelowOverlay: function")
-        body = self.code[i:i + 700]
+        body = _block(self.code, i)
         self.assertIn("ov.hidden", body,
                       "the clamp does not check whether the overlay is open, so it would displace "
                       "every tooltip on the console whether or not the shelf is up")
@@ -377,7 +407,7 @@ class TestTheShelfIsNotATrap(unittest.TestCase):
         behind a closed theatre'. The shelf was the one exception."""
         i = self.code.find("function thClose()")
         self.assertGreater(i, 0, "thClose could not be found")
-        body = self.code[i:i + 1200]
+        body = _block(self.code, i)
         self.assertIn("th-shelfov", body,
                       "thClose does not hide the shelf overlay, so Close Theatre leaves it hanging "
                       "over a closed stage")
@@ -385,7 +415,7 @@ class TestTheShelfIsNotATrap(unittest.TestCase):
     def test_the_door_toggles(self):
         i = self.code.find("_bshelf.onclick")
         self.assertGreater(i, 0)
-        body = self.code[i:i + 900]
+        body = _block(self.code, i)
         self.assertIn("thClose()", body,
                       "clicking THE SHELF while it is open does nothing — the one control he would "
                       "reach for first cannot get him out")
@@ -412,14 +442,14 @@ class TestTheShelfIsNotATrap(unittest.TestCase):
         (_dossierToTheatre calls it), so clearing there covers every route in."""
         i = self.code.find("async function thLoadSession")
         self.assertGreater(i, 0, "thLoadSession not found")
-        self.assertIn("shelfIsDoor = false", self.code[i:i + 500],
+        self.assertIn("shelfIsDoor = false", _block(self.code, i),
                       "the door flag is never cleared when a reel opens, so ✕ would close the "
                       "whole theatre out from under a reel he chose to watch")
 
     def test_the_way_out_appears_with_the_stage_not_on_the_next_poll(self):
         i = self.code.find("function thLit()")
         self.assertGreater(i, 0)
-        self.assertIn("sim.hidden = !TH.open", self.code[i:i + 700],
+        self.assertIn("sim.hidden = !TH.open", _block(self.code, i),
                       "btn-sim's visibility is set only by the status poll, so after opening the "
                       "theatre the Close control stays hidden until the next tick — measured as "
                       "HIDDEN/ABSENT by a probe clicking it right after opening")

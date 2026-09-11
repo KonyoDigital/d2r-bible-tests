@@ -31501,3 +31501,54 @@ one fetch; its sibling eleven lines away was never swept."* [[sweep-dont-ask]]
    contains, so it reported success on an edit that never applied. The re-check uses `_lanesAC`, a
    name unique to this fix.
 3. Reported "the shelf draws the wrong river" from a screenshot, when a gate already ruled it out.
+
+## REG-959 — origin was RED for two stamps on three gates, and none of them were mine (v2956)
+
+Grok Bot's GB-B-414 reported it and I could not have seen it: *"Origin CI still red on `388882ed`
+v2953 — same three gates as GB-B-413. v2955 does not touch those tests."* My local pre-push does not
+run `run_gates.py` the way CI does, so **"green here" said nothing about them**. [[test-venue]]
+
+    ❌ test_control                                    282.5s  (1 failure of 2235)
+    ❌ test_the_status_breakdown_covers_what_it_bills    1.5s
+    ❌ test_a_source_window_must_reach_its_subject      16.9s
+
+**1. A producer billed but never timed.** `pixel_witness_public` runs inside `status_payload`
+unwrapped, so its cost lands in `unattributedMs` where nobody can act on it. Traced to **v2912** —
+*"the pixel verdict was recorded for eight days and published to nobody"* — which added the key and
+not its timing. EXEMPTED, not wrapped, and the reason was MEASURED before it was written: its AST
+makes only get/isinstance/max/round/str/time calls — no `open()`, no `json.load`, no subprocess.
+
+**2. A ratchet at 48 against a ceiling of 44.** Six `self.code[i:i + N]` windows in
+`test_heart_surface.py` re-anchored to the block's own closing brace → **42**, and the file still
+passes, so none of them were relying on the extra slack. The helper's cap end is a NAME, not
+`i + N`, so it is not the defect wearing a helper. The gate's own words are the lesson: *"Each one
+measures a GUESS about how far the subject reaches… that is how the /api/river guard came to
+examine nothing."*
+
+**3. A law that hand-listed three states when the doctor has four.** ⚠ **I HAD THIS BACKWARDS AT
+FIRST** and nearly "fixed" the wrong end. `shelf lanes reading` answered `unmeasured`, and I read
+that as a fourth word invented for `unknown` — the vocabulary defect I had been unifying all day.
+It is not: `UNMEASURED` is declared at `console_doctor.py:48` beside the other three, carries its
+own icon `◻`, and two other gates require it. Its check says why: *"AN ABSENT BEAT IS UNMEASURED,
+NOT HEALTHY. A driver that has never run says nothing."* That is not UNKNOWN ("could not be asked").
+The LAW was stale. Now derived from `cd.ICON` — a state with no icon cannot render, so a fifth is
+admitted exactly when it can appear on screen and not before. [[copy-drift]]
+
+⚠ It also explains a discrepancy: his console says `MISSING` (driver beat 37.1h ago, stale) while CI
+says `unmeasured` (never beat at all). One check, two genuinely different facts.
+
+### And the cursor 2x, dropped from the CONSOLE ONLY
+
+He measured it for me: **hand on the bible site, arrow in the console** — same CSS, different
+renderer. So the `@supports` upgrade resolves to the **64×64 2x** variant on his Retina display,
+the renderer rejects a cursor that large, and it falls through to `auto`; the 32×32 base rule that
+would have worked is overridden by the later `!important`.
+
+⚠ **I PLANNED TO CHANGE BOTH SURFACES FOR SYMMETRY AND THE MEASUREMENT SAID NO.** `bible.html`
+carries THREE 2x clauses, one with a different payload — a different cursor entirely — so "remove
+all 2x" would have broken something unrelated. And no gate ties the two files' cursor CSS together:
+what is pinned is `art/hd_cursor_hand32.png`'s bytes, i.e. the **1x**, which is unchanged in both.
+The bible renders in Chrome where the 2x works; only the console's WKWebView fails. Console only.
+
+⚠ UNVERIFIABLE HERE: there is no WebKit on this Mac, which the original cursor comment already
+conceded. This ships as a hypothesis with a named mechanism; his reload is the test.

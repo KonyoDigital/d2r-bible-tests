@@ -18217,8 +18217,19 @@ class TestV2026TheEagleEyeSeesTheWholeConsole(unittest.TestCase):
         rows = cd.run(include_slow=False)   # the sub-doctors cost ~2min; guarded separately
         self.assertGreaterEqual(len(rows), 5, "the eagle eye lost checks")
         for r in rows:
-            self.assertIn(r["state"], (cd.OK, cd.MISSING, cd.UNKNOWN),
-                          "%r is not one of ok/missing/unknown" % r)
+            # ⚠⚠ v2956 — DERIVED FROM THE DOCTOR'S OWN VOCABULARY, NOT A HAND-TYPED TUPLE.
+            # This read (cd.OK, cd.MISSING, cd.UNKNOWN) and went RED ON CI the day console_doctor
+            # gained a FOURTH state: `shelf lanes reading` answered `unmeasured` — declared at
+            # console_doctor.py:48 beside the other three, with its own icon, and meaning something
+            # the other three cannot say. Its check spells it out: "AN ABSENT BEAT IS UNMEASURED,
+            # NOT HEALTHY. A driver that has never run says nothing." That is not UNKNOWN ("could
+            # not be asked"); it is "never ran".
+            # ICON is the authority because a state with no icon cannot be rendered at all, so a
+            # fifth state is admitted here the moment it can appear on screen — and not before.
+            # [[copy-drift]] [[label-outlived-referent]]
+            _states = tuple(cd.ICON)
+            self.assertIn(r["state"], _states,
+                          "%r is not one of %s" % (r, "/".join(_states)))
             self.assertTrue(str(r.get("why") or "").strip(),
                             "check %r answered with no reason - a verdict with no why is a lamp"
                             % r.get("check"))
