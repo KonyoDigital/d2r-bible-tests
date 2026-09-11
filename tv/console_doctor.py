@@ -2764,7 +2764,30 @@ def _check_the_shelf_lanes_are_still_reading():
     if not beat.get("ok", True):
         return MISSING, ("the shelf driver's last beat %.1fh ago reported NOT ok: %s"
                          % (age_h, str(beat.get("why") or "no reason given")[:90]))
-    return OK, ("the shelf driver beat %.1fh ago and reported ok%s" % (age_h, tail))
+    # ⚠⚠ v2957 — `ok` IS ABOUT THE PLAN, NOT ABOUT A LANE, AND THIS ROW IS ABOUT LANES.
+    # `beat["ok"]` is true whenever retention's plan was READABLE. A lane can be DARK or STALLED
+    # underneath a perfectly readable plan, and until now this row would have said "reported ok"
+    # over the top of it. That is REG-908's original complaint intact: `vaultAutoread` read 0 with
+    # lastTs null for weeks and nothing said so. Wiring a producer WITHOUT this widen would have
+    # flipped the row from permanently-MISSING to permanently-OK and left the fault unsurfaced —
+    # a green that lies, bought with a fix. [[zero-needs-a-denominator]]
+    # ⚠ AN ABSENT `laneCounts` KEEPS THE PRE-WIDENING ANSWER. His stored record predates the field,
+    # and a legacy row must not be refused for lacking a key it COULD NOT HAVE HAD — the same
+    # backward-compatibility rule REG-948 was written for. Absent is UNKNOWN about lanes, and
+    # UNKNOWN here is reported as the old OK plus a note, never as a new failure.
+    _lc = beat.get("laneCounts")
+    if isinstance(_lc, dict) and _lc:
+        _bad = {k: v for k, v in _lc.items()
+                if str(k).upper() in ("DARK", "STALLED") and isinstance(v, int) and v > 0}
+        if _bad:
+            return MISSING, ("the shelf driver beat %.1fh ago, but %s — a lane in that state has "
+                             "stopped reading and the plan being readable does not cover it%s"
+                             % (age_h, ", ".join("%d %s" % (v, k) for k, v in sorted(_bad.items())),
+                                tail))
+        return OK, ("the shelf driver beat %.1fh ago and every lane it counted is reading (%s)%s"
+                    % (age_h, ", ".join("%s %s" % (v, k) for k, v in sorted(_lc.items())), tail))
+    return OK, ("the shelf driver beat %.1fh ago and reported ok; it recorded no per-lane counts, "
+                "so whether each lane is reading is UNKNOWN rather than confirmed%s" % (age_h, tail))
 
 
 #: How old a shelf beat may be before a lane that stopped reading would go unnoticed. His driver

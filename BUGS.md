@@ -31552,3 +31552,47 @@ The bible renders in Chrome where the 2x works; only the console's WKWebView fai
 
 ⚠ UNVERIFIABLE HERE: there is no WebKit on this Mac, which the original cursor comment already
 conceded. This ships as a hypothesis with a named mechanism; his reload is the test.
+
+## REG-960 — the shelf driver existed, was gated, and nothing ran it (task #59 — v2957)
+
+His own console showed it: **`SHELF LANES READING: MISSING — the shelf driver last beat 37.1 HOURS
+ago (bar: 12h)`**. Measured here: `.shelf_driver.json` was **37.8 h** old, and `beat()` had exactly
+ONE write-capable call site — `shelf_driver.py`'s own CLI `main()`. `control_app` imported the
+module under TWO aliases and called nothing on either, reading only its constants. An import with
+no call is the purest form of [[the-unjoined-end]], and it shipped that way for 773 lines, a
+registered gate and 11 red-proofs.
+
+**Producer.** `_retention_loop` now runs `beat()` on a 6 h throttle — half the doctor's 12 h bar, so
+one missed beat is not yet red: a lane must be silent for two whole periods before the supervisor
+complains. His ruling when he chose this over a manager AI is why it only RUNS and decides nothing:
+*"A driver — something that executes what `reel_retention.plan()` already decides. No opinions, no
+second predicate."*
+
+⚠ **THROTTLED OFF THE STORED BEAT, NOT MODULE STATE.** A module-level timer resets on every
+relaunch, and his console relaunches often — it would beat on boot and then stay silent for exactly
+as long as the process lives.
+⚠ **CALLED BARE.** Handing it this pass's plan would narrow what it measures to what retention
+happened to be looking at — a second opinion wearing a helper.
+
+### ⚠ THE PRODUCER ALONE WOULD HAVE BOUGHT A GREEN THAT LIES
+
+`beat["ok"]` is true whenever retention's plan was READABLE. A lane can be DARK or STALLED
+underneath a perfectly readable plan, and the row would have said *"reported ok"* over the top of
+it — flipping from permanently-MISSING to permanently-OK while REG-908's originating complaint
+(`vaultAutoread`: reads 0, `lastTs` null for weeks, nothing said so) still had no surface. So the
+doctor row ships in the SAME version, widened to read `laneCounts` and name any DARK/STALLED lane.
+
+⚠ An absent `laneCounts` keeps the pre-widening answer: his stored record predates the field, and a
+legacy row must not be refused for lacking a key it COULD NOT HAVE HAD — REG-948's rule. Absent is
+reported as OK *plus a note that per-lane state is UNKNOWN*, never as a new failure.
+
+**Gates assert the MECHANISM, never the verdict.** `tv/.shelf_driver.json` is gitignored
+(.gitignore:243), so CI has no beat and correctly reads UNMEASURED for ever; a law asserting the row
+is GREEN would assert a fact about HIS disk. The two new laws walk control_app's AST for a real
+CALL to `beat()` through whatever alias it imports, and for `last_beat()` in the throttle.
+16 red-proofs PROVEN at 1 match each, none BLIND.
+
+Measured after: the row still reads MISSING, correctly — the staleness check fires before the
+lane check, and the stored beat is still 37.9 h old until the loop next ticks. The eagle now reports
+all four states in live use (missing/ok/unknown/unmeasured), which independently confirms v2956's
+`cd.ICON` fix.

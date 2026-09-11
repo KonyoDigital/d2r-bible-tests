@@ -18470,6 +18470,13 @@ def _retention_once():
     return r
 
 
+#: ⚠ v2957 — SIX HOURS, AGAINST THE DOCTOR'S TWELVE-HOUR BAR. Half the bar, so one missed beat
+#: is not yet a red row: a lane has to be silent for two whole periods before the supervisor
+#: complains. Any longer and the bar could not distinguish "the driver is late" from "the driver
+#: is dead", which is the distinction the row exists to draw.
+_SHELF_BEAT_EVERY_S = 6 * 3600.0
+
+
 def _retention_loop():
     said = None
     first = True
@@ -18479,6 +18486,31 @@ def _retention_loop():
                 time.sleep(_RETENTION_EVERY_S)
             first = False
             _lane_tick('tvd-retention', _RETENTION_EVERY_S)
+            # ⚠⚠ v2957 — THE SHELF DRIVER IS RUN, NOT MERELY PRESENT. Task #59.
+            # `shelf_driver.beat()` had exactly ONE write-capable call site: its own CLI main().
+            # Nothing on a schedule ever called it, so `.shelf_driver.json` sat 37.8 HOURS old
+            # against a 12h bar and his console reported SHELF LANES READING: MISSING — a lane
+            # that stopped reading would not have been noticed, which is the whole point of the
+            # supervisor. His ruling when he chose this over a manager AI: "A driver — something
+            # that executes what reel_retention.plan() already decides. No opinions, no second
+            # predicate." So this RUNS it; it decides nothing. [[the-unjoined-end]]
+            # ⚠ THROTTLED OFF THE BEAT FILE'S OWN `at`, NOT MODULE STATE. A module-level timer
+            # resets on every relaunch, and his console relaunches often — it would beat on every
+            # boot and then fall silent for exactly as long as the process lives.
+            # ⚠ CALLED BARE. Handing it this pass's plan would narrow what it measures to what
+            # retention happened to be looking at, which is a second opinion wearing a helper.
+            # ⚠ SWALLOWED WHOLE, like every other lane tick here: a driver that cannot run must
+            # not take the retention loop down with it.
+            try:
+                import shelf_driver as _sd_beat
+                _lb = _sd_beat.last_beat() or {}
+                _lb_at = _lb.get("at") if isinstance(_lb, dict) else None
+                _due = (not isinstance(_lb_at, (int, float))
+                        or (time.time() * 1000.0 - float(_lb_at)) > _SHELF_BEAT_EVERY_S * 1000.0)
+                if _due:
+                    _sd_beat.beat()
+            except Exception:
+                pass
             # ⚠⚠ A FAILURE THAT NEVER CLEARS IS THE SAME DEFECT POINTING THE OTHER WAY. The
             # success paths below all go through `_RETENTION.update(...)` and none of them touches
             # `error`, so without this a single bad ledger would have left the console saying
@@ -26231,7 +26263,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2956",
+        "ver": "v2957",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -13307,8 +13307,15 @@ window._lockMark = function(isOpen, px, label){
                      + ' measured better than not moving and landed'),
                scale: +scale.toFixed(4), moves: landed };
     }
+    /* ⚠ v2957 — THE THIRD ok:true PATH CARRIES THE COUNTS TOO. The reverted path (all dropped)
+       and the partial path (some kept) both reported keptStacks/droppedStacks; this one — the
+       whole placement landing — reported neither, so a reader could not tell "every stack kept"
+       from "this build predates the counts". A key present on two of three returns teaches a
+       caller to write `x || 0`, and that is how a real zero and an absent field become one
+       number. [[unknown-stays-unknown]] */
     return { ok: true, reverted: false, before: pxBefore, after: pxAfter,
              painted: painted, authored: authored, unpainted: unpainted,
+             keptStacks: applied.length, droppedStacks: 0,
              solve: { from: startState, to: endState, passes: passes },
              scale: +scale.toFixed(4), moves: applied };
   }
@@ -13383,6 +13390,14 @@ window._lockMark = function(isOpen, px, label){
             before: _ff && _ff.before,
             after: _ff && _ff.after,
             wouldHaveBeen: _ff && _ff.wouldHaveBeen,
+            /* ⚠ v2957 — EXPLICIT null, NEVER `_ff && _ff.x`. JSON.stringify DROPS an undefined
+               value, so the key would vanish from the payload and the reader's own
+               `.get("droppedStacks", 0)` default would publish a fabricated zero — a number
+               nobody measured, indistinguishable from a real one. A null survives the round trip
+               and says "not reported". [[zero-needs-a-denominator]] */
+            partial: (_ff && _ff.partial != null) ? !!_ff.partial : null,
+            keptStacks: (_ff && _ff.keptStacks != null) ? _ff.keptStacks : null,
+            droppedStacks: (_ff && _ff.droppedStacks != null) ? _ff.droppedStacks : null,
             why: (_ff && _ff.why) || ''
           }));
         } catch (e2) {}

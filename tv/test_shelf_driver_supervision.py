@@ -512,7 +512,75 @@ class TheLaneCensusCanReportTheDark(unittest.TestCase):
                          % (sorted(r["lane"] for r in b["lanes"]), sorted(SD.LANES)))
 
 
+    def test_SOMETHING_ON_A_SCHEDULE_ACTUALLY_CALLS_THE_DRIVER(self):
+        """⚠⚠ THE HALF THAT WAS MISSING FOR 773 LINES. Task #59, REG-908.
+
+        `shelf_driver.py` shipped with a registered gate and 11 red-proofs, and then NOTHING ran it
+        unattended: `control_app` imported the module under TWO aliases and called nothing on
+        either, reading only the constants. An import with no call is the purest form of
+        [[the-unjoined-end]]. MEASURED 2026-09-11: his stored beat was 37.8 HOURS old against a 12h
+        bar, and the row said MISSING because it was true.
+
+        ⚠ THE MECHANISM, NEVER THE VERDICT. `tv/.shelf_driver.json` is gitignored (.gitignore:243),
+        so CI has no beat and correctly reads UNMEASURED for ever. A law asserting the row is GREEN
+        would be asserting a fact about HIS disk, which CI cannot have. So this asserts the CALL
+        exists, walked through whatever alias control_app imports it under.
+        ⚠ A CALL, not a mention: `import shelf_driver as X` followed by `X.beat(...)`. An earlier
+        version of this whole task proved the tap was plumbed and never that water came out."""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        tree = ast.parse(src)
+        aliases = set()
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Import):
+                for al in n.names:
+                    if al.name == "shelf_driver":
+                        aliases.add(al.asname or al.name)
+        self.assertTrue(aliases,
+                        "control_app never imports shelf_driver at all, so nothing can be running it")
+        called = []
+        for n in ast.walk(tree):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr == "beat"
+                    and isinstance(n.func.value, ast.Name) and n.func.value.id in aliases):
+                called.append(getattr(n, "lineno", 0))
+        self.assertTrue(called,
+                        "control_app imports shelf_driver as %s and calls beat() on none of them — "
+                        "the driver exists, is gated, and nothing runs it" % sorted(aliases))
+
+    def test_the_beat_is_throttled_off_the_STORED_time_not_module_state(self):
+        """A module-level timer resets on every relaunch, and his console relaunches often — it
+        would beat on every boot and then stay silent for exactly as long as the process lives.
+        Parsed: the due-check must read the beat record, not a global."""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        tree = ast.parse(src)
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "_retention_loop"), None)
+        self.assertIsNotNone(fn, "_retention_loop is gone")
+        calls = {c.func.attr for c in ast.walk(fn)
+                 if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)}
+        self.assertIn("last_beat", calls,
+                      "the loop calls beat() without first asking last_beat() how old the stored "
+                      "one is, so the throttle is module state and dies with the process")
+
 RED_PROOF = [
+    {
+        "why": "law: something on a schedule CALLS the driver. Removing the call leaves the module "
+               "imported and run by nobody - the 773-line driver with no caller that REG-908 was "
+               "about, restored.",
+        "file": "control_app.py",
+        "find": "                    _sd_beat.beat()",
+        "replace": "                    pass  # _HEART2_TAMPERED_",
+        "matches": 1,
+    },
+    {
+        "why": "law: the throttle reads the STORED beat time. Removing last_beat() leaves a timer "
+               "that resets on every relaunch, so it beats on boot and is silent for the life of "
+               "the process.",
+        "file": "control_app.py",
+        "find": "                _lb = _sd_beat.last_beat() or {}",
+        "replace": "                _lb = {}  # _HEART2_TAMPERED_",
+        "matches": 1,
+    },
     {
         "why": 'THE ONE THIS TASK IS NAMED AFTER — disarming the DARK verdict. Work owed and zero units of work ever completed then falls through to UNTIMED, so the state the vault lane sat in for weeks with reads 0 / lastTs null renders as "staleness cannot be decided" instead of RED. Reddens test_a_lane_with_work_owed_and_no_unit_of_work_is_DARK.',
         "file": 'shelf_driver.py',
