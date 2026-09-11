@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2936"   # a refusal is a return value and the except arm cannot see it
+VERSION = "v2937"   # one rule living in seven copies gets fixed in one
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -501,15 +501,13 @@ def _journal_path():
     explicit = os.environ.get("TV_SESSIONS")
     if explicit:
         return explicit
-    hist = os.environ.get("TV_HIST")
-    if hist:
-        try:
-            h = os.path.realpath(hist)
-            if not _under(hist, HERE):
-                return os.path.join(h, "sessions.jsonl")
-        except Exception:
-            pass
-    return os.path.join(HERE, "sessions.jsonl")
+    # ⚠⚠ v2937 — CALL THE ONE RESOLVER; DO NOT RE-IMPLEMENT IT. This carried its own copy of the
+    # rule, so v2932's narrowing (blank or relative TV_HIST is not a request for isolation) reached
+    # `_fixture_root` and never reached here. MEASURED from the repo root with TV_HIST="   ":
+    # this returned `<repo>/   /sessions.jsonl` — the exact REG-937 harm, still live, beside the two
+    # lines that ship changed. `_log_root` already records this shape: v2783/v2785 fixed one copy
+    # and neither swept to the other. Caught by the cross-family eye on v2932. [[copy-drift]]
+    return os.path.join(_fixture_root(HERE), "sessions.jsonl")
 
 
 JOURNAL = _journal_path()   # v877 — CI harness override; v1866 — an isolated hist isolates this too
@@ -3197,15 +3195,13 @@ def _sub_budget_path():
     explicit = os.environ.get("TV_SUB_BUDGET")
     if explicit:
         return explicit
-    hist = os.environ.get("TV_HIST")
-    if hist:
-        try:
-            h = os.path.realpath(hist)
-            if not _under(hist, HERE):
-                return os.path.join(h, ".subscription_budget.json")
-        except Exception:
-            pass
-    return os.path.join(HERE, ".subscription_budget.json")
+    # ⚠⚠ v2937 — CALL THE ONE RESOLVER; DO NOT RE-IMPLEMENT IT. This carried its own copy of the
+    # rule, so v2932's narrowing (blank or relative TV_HIST is not a request for isolation) reached
+    # `_fixture_root` and never reached here. MEASURED from the repo root with TV_HIST="   ":
+    # this returned `<repo>/   /.subscription_budget.json` — the exact REG-937 harm, still live, beside the two
+    # lines that ship changed. `_log_root` already records this shape: v2783/v2785 fixed one copy
+    # and neither swept to the other. Caught by the cross-family eye on v2932. [[copy-drift]]
+    return os.path.join(_fixture_root(HERE), ".subscription_budget.json")
 
 
 _SUB_BUDGET_PATH = _sub_budget_path()

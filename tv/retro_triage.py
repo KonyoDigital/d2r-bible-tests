@@ -75,8 +75,14 @@ def _store_path(root=None):
     """
     if root:
         return os.path.join(root, STORE)
-    hist = os.environ.get("TV_HIST")
-    if hist:
+    # ⚠⚠ v2937 — AND THIS ONE DID NOT EVEN REALPATH OR FENCE. It joined TV_HIST straight on, so
+    # `TV_HIST="   "` produced the RELATIVE path `"   /retro_triage.json"`, resolved against
+    # whatever CWD the process started in. Found by the class law driving every resolver rather
+    # than by inspection — it is the SIXTH copy of this rule, after _fixture_root, the control_app
+    # fallback, _journal_path, _sub_budget_path, end_routes, chronicle_routes and g5_grok_eyes.
+    # Blank-after-strip is nobody asking; a relative value has no fixed meaning. [[copy-drift]]
+    hist = (os.environ.get("TV_HIST") or "").strip()
+    if hist and os.path.isabs(hist):
         return os.path.join(hist, STORE)
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), STORE)
 

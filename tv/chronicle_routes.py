@@ -418,8 +418,12 @@ def _routes_cache_root():
         import tv_diablo as _tvd
         return _tvd._fixture_root(HERE)
     except Exception:
-        _hist = os.environ.get("TV_HIST")
-        if _hist:
+        # ⚠⚠ v2937 — blank-after-strip is nobody asking, and a RELATIVE value resolves against
+        # the process CWD so it has no fixed meaning. MEASURED from the repo root with the import
+        # forced to fail and TV_HIST="   ": this planted its file at `<repo>/   `. The narrowing
+        # reached `_fixture_root` at v2932 and never reached the copies. [[copy-drift]]
+        _hist = (os.environ.get("TV_HIST") or "").strip()
+        if _hist and os.path.isabs(_hist):
             try:
                 _rp = os.path.realpath(_hist)
                 if not (_rp == HERE or _rp.startswith(HERE + os.sep)):

@@ -29613,6 +29613,52 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-942 — one rule living in seven copies, fixed in one
+
+**v2937.** From the cross-family eye on v2932. **v2932 fixed the site; this fixes the class.**
+
+v2932 narrowed the isolation rule — blank-after-`strip()` means nobody asked, a relative value has
+no fixed meaning — in `tv_diablo._fixture_root` and `control_app._fixture_root_for_state`. **Five
+more copies of the same rule kept the old predicate**, and MEASURED from the repo root with
+`TV_HIST="   "` they were still planting files inside his tree:
+
+| site | when it runs | landed at |
+|---|---|---|
+| `tv_diablo._journal_path` | always | `<repo>/   /sessions.jsonl` |
+| `tv_diablo._sub_budget_path` | always | `<repo>/   /.subscription_budget.json` |
+| `end_routes._store_paths` | always | `<repo>/   /vault_swept.json` |
+| `chronicle_routes._routes_cache_root` | import fails | `<repo>/   ` |
+| `g5_grok_eyes._g5_stats_root` | import fails | `<repo>/   ` |
+| **`retro_triage._store_path`** | always | `   /retro_triage.json` — **relative**, no realpath, no fence |
+
+That is REG-937's measured harm, still live, beside the two lines v2932 changed. `chronicle_routes`'
+own comment already calls itself *"third instance of the shape v2783/v2785 fixed in control_app."*
+It was the fourth. This is the seventh copy counted.
+
+**The two `tv_diablo` sites re-implemented the rule rather than calling it** — they now return
+`os.path.join(_fixture_root(HERE), …)`, which is the one narrowed resolver. The arms that exist
+*because* `tv_diablo` cannot be imported keep their own copy, and a law pins them.
+
+**⚠ The sixth site was found by the LAW, not by me.** `retro_triage._store_path` — reached through
+`end_routes`, joining `TV_HIST` straight on with no `realpath` and no `_under` fence — was invisible
+to my AST scan and to the eye's list. The class law drove every resolver and went red on it. *That
+is the difference between fixing the sites you can name and fixing the class.*
+
+**⚠ And the first cut of that law was itself blind.** It drove the canonical resolvers and never
+broke `import tv_diablo`, so the except-arms — the code that runs *precisely* when the resolver is
+unreachable — were pinned by nothing, and the chronicle tamper came back **BLIND: green through its
+own defeat.** This is the identical criticism the eye made of v2932's laws, reproduced inside the
+ship that was fixing it. A second law now forces the ImportError and drives both arms.
+
+**Also:** `test_no_TV_HIST_value_can_name_a_root_inside_his_REPO` was renamed. It feeds only blank
+and relative values — exactly what `isabs` already rejects — and never an ABSOLUTE path inside the
+repo, which is the case **still open** (the `_under` fence is drawn at `tv/`, so `<repo>/foo` is
+still accepted). The name claimed the boundary was closed; a green run was never evidence of it.
+
+**Gate:** `test_the_harness_isolates_the_world` — 15 laws, **6/6 red-proofs PROVEN.**
+Verified after: a real fixture still isolates (`TV_HIST=/tmp/realfixture` → journal and triage both
+follow it).
+
 ## REG-941 — a refusal is a return value, and the `except` arm cannot see it
 
 **v2936.** From the cross-family eye on v2931 — a gap that version introduced with its own fix.

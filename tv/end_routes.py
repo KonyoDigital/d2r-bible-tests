@@ -168,7 +168,16 @@ def _store_paths(hist_dir=None):
     reader. With no redirect in play the order is unchanged: HERE, where all four live.
     [[feedback-fixtures-never-touch-live-data]] [[gate-blind-to-unexercised-input]]
     """
-    hist = hist_dir or os.environ.get("TV_HIST") or ""
+    # ⚠⚠ v2937 — A BLANK OR RELATIVE TV_HIST IS NOT A REDIRECT. `"   "` is truthy, so this set
+    # `redirected` and then realpath'd it against the process CWD: MEASURED from the repo root,
+    # `vault_swept.json` landed at `<repo>/   /vault_swept.json`. Same narrowing as
+    # `tv_diablo._fixture_root` — blank after strip means nobody asked, and a relative value has no
+    # fixed meaning. An explicit `hist_dir` ARGUMENT is left alone: that is a caller naming a
+    # directory outright, which is a different act from an env var read by accident. [[copy-drift]]
+    _env = (os.environ.get("TV_HIST") or "").strip()
+    if not (_env and os.path.isabs(_env)):
+        _env = ""
+    hist = hist_dir or _env
     redirected = bool(hist)
     base = os.path.realpath(hist) if redirected else HERE
     out = {}

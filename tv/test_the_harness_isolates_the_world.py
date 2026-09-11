@@ -408,6 +408,110 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                              "for answers %r — two opinions about which directory is his world"
                              % (val, fb, canon))
 
+    def test_EVERY_resolver_refuses_a_blank_or_relative_TV_HIST(self):
+        """⚠⚠ THE CLASS, NOT THE SITE — and v2932 fixed the site. The narrowing reached
+        `_fixture_root` and `_fixture_root_for_state` and NOT the copies, so MEASURED from the repo
+        root with `TV_HIST="   "`, these still planted files at `<repo>/   `:
+
+            tv_diablo._journal_path              <repo>/   /sessions.jsonl
+            tv_diablo._sub_budget_path           <repo>/   /.subscription_budget.json
+            end_routes._store_paths              <repo>/   /vault_swept.json
+            chronicle_routes._routes_cache_root  <repo>/           (import-failure arm)
+            g5_grok_eyes._g5_stats_root          <repo>/           (import-failure arm)
+
+        `chronicle_routes`' own comment already calls itself "third instance of the shape
+        v2783/v2785 fixed in control_app" — and it was the fourth. A rule that lives in five copies
+        gets fixed in one. This law drives EVERY resolver, in TWO working directories, and requires
+        none of them to hand back a path built from a value nobody meant as a path.
+        [[copy-drift]] [[sweep-dont-ask]]"""
+        import tempfile
+        repo = os.path.dirname(HERE)
+        code = (
+            "import os, sys\n"
+            "sys.path.insert(0, %r)\n"
+            "import tv_diablo as T\n"
+            "out = []\n"
+            "out.append(('_fixture_root', T._fixture_root(%r)))\n"
+            "out.append(('_journal_path', T._journal_path()))\n"
+            "out.append(('_sub_budget_path', T._sub_budget_path()))\n"
+            "try:\n"
+            "    import end_routes as E\n"
+            "    out.append(('end_routes', sorted(E._store_paths().values())[0]))\n"
+            "except Exception:\n"
+            "    pass\n"
+            "for n, p in out:\n"
+            "    print('R:' + n + '=' + os.path.realpath(str(p)))\n" % (HERE, HERE))
+        for val in ("   ", "relative/path", "./x"):
+            for cwd in (repo, HERE, tempfile.mkdtemp()):
+                env = dict(os.environ, TV_STUB="1", TV_HIST=val)
+                out = subprocess.check_output([sys.executable, "-c", code], env=env, cwd=cwd,
+                                              stderr=subprocess.STDOUT, timeout=180)
+                rows = [l[2:] for l in out.decode("utf-8", "replace").splitlines()
+                        if l.startswith("R:")]
+                self.assertTrue(rows, "no resolver answered for TV_HIST=%r at cwd=%r — UNMEASURED"
+                                % (val, cwd))
+                for row in rows:
+                    name, got = row.split("=", 1)
+                    stripped = val.strip()
+                    if stripped:
+                        self.assertNotIn(os.sep + stripped, got,
+                                         "%s built its path from TV_HIST=%r at cwd=%r -> %r; a "
+                                         "value that is blank or relative is not a request for "
+                                         "isolation" % (name, val, cwd, got))
+                    self.assertTrue(got.startswith(os.path.realpath(HERE)),
+                                    "%s answered %r for TV_HIST=%r at cwd=%r — it should fall back "
+                                    "to his own tree" % (name, got, val, cwd))
+
+    def test_the_IMPORT_FAILURE_ARMS_refuse_a_blank_or_relative_TV_HIST_too(self):
+        """⚠⚠ THE ARMS NO LAW REACHED. The cross-family eye said it of v2932 and it was true again
+        of v2937's own first cut: the laws drive the canonical resolver and never break
+        `import tv_diablo`, so the except-arms — the code that runs PRECISELY when the resolver is
+        unreachable — were pinned by nothing. The drill proved it: the chronicle tamper came back
+        **BLIND**, green through its own defeat, because no law ever ran that arm.
+
+        MEASURED with the import forced to fail and `TV_HIST="   "`, from the repo root: both arms
+        planted their files at `<repo>/   `. [[gate-blind-to-unexercised-input]] [[copy-drift]]"""
+        repo = os.path.dirname(HERE)
+        code = (
+            "import os, sys\n"
+            "sys.path.insert(0, %r)\n"
+            "class _B:\n"
+            "    def find_module(self, n, p=None):\n"
+            "        return self if n == 'tv_diablo' else None\n"
+            "    def load_module(self, n):\n"
+            "        raise ImportError('forced')\n"
+            "sys.meta_path.insert(0, _B())\n"
+            "for mod, attr in (('chronicle_routes', '_routes_cache_root'),\n"
+            "                  ('g5_grok_eyes', '_g5_stats_root')):\n"
+            "    for k in list(sys.modules):\n"
+            "        if k in (mod, 'tv_diablo'):\n"
+            "            del sys.modules[k]\n"
+            "    try:\n"
+            "        m = __import__(mod)\n"
+            "        print('R:' + mod + '=' + os.path.realpath(str(getattr(m, attr)())))\n"
+            "    except Exception as e:\n"
+            "        print('R:' + mod + '=RAISED ' + type(e).__name__)\n" % (HERE,))
+        for val in ("   ", "relative/path"):
+            env = dict(os.environ, TV_STUB="1", TV_HIST=val)
+            out = subprocess.check_output([sys.executable, "-c", code], env=env, cwd=repo,
+                                          stderr=subprocess.STDOUT, timeout=180)
+            rows = [l[2:] for l in out.decode("utf-8", "replace").splitlines()
+                    if l.startswith("R:")]
+            self.assertEqual(2, len(rows),
+                             "only %d import-failure arm(s) answered for TV_HIST=%r — UNMEASURED, "
+                             "which is exactly how this arm went unpinned before" % (len(rows), val))
+            for row in rows:
+                name, got = row.split("=", 1)
+                self.assertNotIn("RAISED", got, "%s raised instead of answering: %r" % (name, got))
+                stripped = val.strip()
+                if stripped:
+                    self.assertNotIn(os.sep + stripped, got,
+                                     "%s built its path from TV_HIST=%r -> %r" % (name, val, got))
+                self.assertTrue(got.startswith(os.path.realpath(HERE)),
+                                "%s answered %r for TV_HIST=%r — the arm that runs when the "
+                                "resolver is unreachable must obey the same rule it stands in for"
+                                % (name, got, val))
+
     def test_the_answer_does_not_depend_on_the_CALLERS_WORKING_DIRECTORY(self):
         """⚠⚠ THE BLIND SPOT IN THE LAW ABOVE, and it is why REG-875 sat open. That law runs its
         child with ONE working directory, so it could only ever see agreement or disagreement at
@@ -449,12 +553,15 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                              "TV_HIST=%r gave %d different answers depending only on where the "
                              "process was started: %r" % (val, len(seen), sorted(seen)))
 
-    def test_no_TV_HIST_value_can_name_a_root_inside_his_REPO(self):
-        """⚠ The boundary the rules check is `tv/`, but his tree is the REPOSITORY. A value landing
-        inside the repo yet outside `tv/` passed the `_under` test and was accepted as a fixture
-        world — which is how `<repo>/   ` became an isolation root. This law pins the cases the
-        v2932 narrowings close; the wider boundary question is recorded in BUGS.md as still open,
-        because moving it touches 75 TV_HIST call sites and needs the full suite to settle."""
+    def test_no_BLANK_or_RELATIVE_TV_HIST_can_name_a_root_inside_his_repo(self):
+        """⚠⚠ RENAMED AT v2937 BECAUSE THE OLD NAME CLAIMED MORE THAN THE BODY TESTED. It was
+        `test_no_TV_HIST_value_can_name_a_root_inside_his_REPO`, and it feeds only blank and
+        relative values — exactly the inputs the `isabs` guard already rejects. It never sets an
+        ABSOLUTE path inside the repo and outside `tv/`, which is the case that is STILL OPEN: the
+        `_under` fence is drawn at `tv/`, so `<repo>/foo` is still accepted as a fixture world.
+        A green run of this law was never evidence the repo boundary holds, and the name said it
+        was. The cross-family eye caught the mismatch between the name and the assertion.
+        [[label-outlived-referent]] [[regression-guard]]"""
         repo = os.path.dirname(HERE)
         for val in ("   ", "relative/path", "./x", ""):
             env = dict(os.environ, TV_STUB="1", TV_HIST=val)
@@ -491,6 +598,27 @@ RED_PROOF = [
         "file": 'control_app.py',
         "find": '        if _hist and _hist.strip() and os.path.isabs(_hist.strip()):\n',
         "replace": '        if _hist:\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2937/A — puts the journal back on its own private copy of the rule, so a blank or relative TV_HIST resolves against the process CWD. MEASURED from the repo root: <repo>/   /sessions.jsonl. 75% of the rows in his real journal once came from harnesses, and this is the path that decides which journal they land in.',
+        "file": 'tv_diablo.py',
+        "find": '    return os.path.join(_fixture_root(HERE), "sessions.jsonl")\n',
+        "replace": '    hist = os.environ.get("TV_HIST")\n    if hist:\n        return os.path.join(os.path.realpath(hist), "sessions.jsonl")\n    return os.path.join(HERE, "sessions.jsonl")\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2937/B — restores the sixth copy, which did not even realpath or fence: it joined TV_HIST straight on, so a whitespace value produced a RELATIVE store path resolved against the caller's CWD. Found by the class law, not by inspection.",
+        "file": 'retro_triage.py',
+        "find": '    hist = (os.environ.get("TV_HIST") or "").strip()\n    if hist and os.path.isabs(hist):\n',
+        "replace": '    hist = os.environ.get("TV_HIST")\n    if hist:\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2937/C — unnarrows the import-failure arm, which this file's own comment already calls the third instance of a shape fixed twice before. It plants its cache at <repo>/   when the resolver cannot be imported.",
+        "file": 'chronicle_routes.py',
+        "find": '        _hist = (os.environ.get("TV_HIST") or "").strip()\n        if _hist and os.path.isabs(_hist):\n',
+        "replace": '        _hist = os.environ.get("TV_HIST")\n        if _hist:\n',
         "matches": 1,
     },
 ]

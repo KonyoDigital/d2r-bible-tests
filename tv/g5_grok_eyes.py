@@ -638,8 +638,12 @@ def _g5_stats_root():
         return _tvd._fixture_root(_here)
     except Exception:
         pass
-    hist = os.environ.get("TV_HIST")
-    if hist:
+    # ⚠⚠ v2937 — blank-after-strip is nobody asking, and a RELATIVE value resolves against
+    # the process CWD so it has no fixed meaning. MEASURED from the repo root with the import
+    # forced to fail and TV_HIST="   ": this planted its file at `<repo>/   `. The narrowing
+    # reached `_fixture_root` at v2932 and never reached the copies. [[copy-drift]]
+    hist = (os.environ.get("TV_HIST") or "").strip()
+    if hist and os.path.isabs(hist):
         try:
             # v1897 — the SAME comparison tv_diablo makes, and it must stay the same: on Windows a
             # raw startswith on paths of differing case decides a fixture is his real tree.
