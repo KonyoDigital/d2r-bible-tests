@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2983** | `(this commit)` | v2983 — a container belongs to the item, not to the frame it was seen in |
+| **v2984** | `(this commit)` | v2984 — the prune is armed, and the argument against it was about the other deleter |
+| **v2983** | `99946faf` | v2983 — a container belongs to the item, not to the frame it was seen in |
 | **v2982** | `9300ca1d` | v2982 — a read verdict laundered into stored state, carried forward every 20 seconds |
 | **v2981** | `522095b2` | v2981 — shadow_ai records his own choice and could not say who wrote it |
 | **v2980** | `191a1d9a` | v2980 — the guard that looks like it protects the wilson loop does not skip a provenance block |

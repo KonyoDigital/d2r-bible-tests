@@ -973,6 +973,15 @@ GATES = [
          "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
          "deep rows carry any coordinate — and test 5 pins that zero.",
          skip_ok=()),
+    Gate("test_the_armed_prune_cannot_reach_a_reel",
+         [sys.executable, os.path.join(HERE, "test_the_armed_prune_cannot_reach_a_reel.py")], 90,
+         why="v2984 — he said 'arm it' and _PRUNE_SAFE_TO_RUN is now True. #78's claim that arming "
+             "deletes 798 frames from held reels is FALSE: _prune_once globs HIST_DIR/f_*.jpg and "
+             "plan_frames reports on HIST_DIR/reel_*/ — measured overlap 0. Test 1 runs the real "
+             "deleter above the floor (119 loose frames actually deleted) and asserts every frame "
+             "inside a reel survives, so containment is proven by execution, not by reading the "
+             "glob. Also pins the floor at 200 and the disjointness note.",
+         skip_ok=()),
     Gate("test_a_read_verdict_is_never_stored",
          [sys.executable, os.path.join(HERE, "test_a_read_verdict_is_never_stored.py")], 60,
          why="#79 — `_shadow_watch_note` seeded itself from `shadow_watch_state()`, whose failure "

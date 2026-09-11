@@ -16516,7 +16516,54 @@ _PRUNE_LOCK = threading.Lock()
 # The attempt is kept out of the tree deliberately rather than half-landed. [[the-unjoined-end]]
 #
 # SO: arming today buys 0.37 GB against 47 GB free and risks the tooltip case. Do not.
-_PRUNE_SAFE_TO_RUN = False
+#
+# ⚠⚠⚠ v2984 — HIS INSTRUCTION, 2026-09-12: "arm it", said twice. ARMED. What follows is what I
+# measured before flipping it, because everything above is about a DIFFERENT POPULATION than the
+# number that was being used to argue about it.
+#
+# THE TWO DELETERS ARE DISJOINT, AND #78 CONFLATED THEM:
+#   prune_reclaimable() -> frame_authority.plan_frames()   REPORTS. Deletes nothing, ever.
+#   _prune_once()       -> sig_diff + stash_panel_verdict + os.remove   THE ACTUAL DELETER.
+# _prune_once globs `HIST_DIR/f_*.jpg` — LOOSE frames only — and rule 1 of its own charter is
+# "never touch a REEL directory". plan_frames reports on frames INSIDE `HIST_DIR/reel_*/`.
+# Measured on his tree the moment before arming:
+#     loose frames _prune_once can see          23      (_PRUNE_FLOOR is 200)
+#     plan_frames prunable                     798      all 798 inside a reel_* subdirectory
+#     OVERLAP                                    0
+# So #78's headline — "the moment the prune is armed this becomes 798 frames of his own footage
+# deleted from reels retention wanted held" — IS FALSE. This switch cannot reach those frames. The
+# 798 is a plan with no actor; nothing in the tree executes it. [[plumbing-with-no-tap]]
+# And arming frees NOTHING today: 23 loose frames against a floor of 200, so the pass returns
+# "only 23 loose frame(s) - the floor is 200" and deletes zero.
+#
+# ⚠⚠ EVERYTHING ABOVE FROM v2187 IS SUPERSEDED, AND I ALMOST SHIPPED ITS WARNING AS CURRENT FACT.
+# v2187 ends "arming today buys 0.37 GB and risks the tooltip case. Do not", and says the liveness
+# proof "is kept out of the tree deliberately rather than half-landed". BOTH STATEMENTS WERE TRUE
+# WHEN WRITTEN AND ARE FALSE NOW — v2197 landed the second phase. I wrote a long warning here
+# repeating them, and only caught it because I ran the deleter for real and read its own sentence
+# back: "119 blank frame(s) freed (the OCR lane passed 2 of 2 deliberate probe(s)), 0 kept for want
+# of that proof." A comment is not a measurement. [[inherited-claim-is-not-evidence]]
+#
+# WHAT _prune_once ACTUALLY DOES TODAY, read at the decision site (:18800-18836), not inferred:
+#     text present + no panel found  -> KEEP   ("Inverted. Text present -> KEEP" — the tooltip case
+#                                               v2187 feared is explicitly handled here)
+#     the panel gate BROKE           -> KEEP   ("an unmeasured frame is not a spare one")
+#     SILENT (crop made, zero OCR)   -> deletable ONLY where LaneCanary proves the OCR lane was live
+#                                      around that frame's timestamp; otherwise KEPT and said so
+# So it frees the BLANK class with a liveness proof, which is precisely the design v2187 asked for
+# and believed unbuilt. The tooltip class — the one that can carry the last copy of an item name —
+# is kept by rule.
+#
+# ⚠ THE RISK THAT REMAINS IS NARROWER: LaneCanary is the single point of trust. If its probes were
+# ever memoised, or `live_at` widened, the blank class would start deleting on an unproven lane —
+# and a blank frame on a dead reader is indistinguishable from a frame nobody read. :22038 already
+# carries a guard note saying the probe must not go through the memoised gate. That is the thing to
+# watch, not the tooltip.
+#
+# So the two facts that make arming safe today are LOAD-BEARING, not incidental, and
+# test_the_armed_prune_cannot_reach_a_reel.py pins both: it can never glob inside a reel, and the
+# floor stands. If either regresses, that gate goes red before his footage does.
+_PRUNE_SAFE_TO_RUN = True
 # ── v2058 — THE PRUNE IS OFF. IT WAS EATING THE ONLY FRAMES THAT CARRY ITEM NAMES. ───────────
 # v2037 deleted a frame when `sig_diff(kept, this) <= 0.02`, using sig_diff at its DEFAULT tol=28.
 # At that tolerance a D2R hover tooltip moves the whole-frame jpeg_sig by LITERALLY ZERO — and a
@@ -26519,7 +26566,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2983",
+        "ver": "v2984",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
