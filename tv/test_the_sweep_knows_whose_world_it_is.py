@@ -179,24 +179,43 @@ class TestTheSweepKnowsWhoseWorldItIs(unittest.TestCase):
                          "the sweeper and the console disagree about whether to DELETE:\n  %s"
                          % "\n  ".join(wrong))
 
-    def test_the_join_asks_the_console_ITSELF_and_not_a_copy_of_its_rule(self):
-        """⚠ A TRANSCRIBED RULE IS A SECOND RULE. If this suite re-implemented the console's
-        decision instead of calling it, the two would drift apart silently — which is the whole
-        defect above, one layer up. The law must IMPORT control_app and CALL
-        board_identity_drift(). [[copy-drift]]"""
-        src = io.open(os.path.join(HERE, "test_the_sweep_knows_whose_world_it_is.py"),
-                      encoding="utf-8").read()
-        import ast as _ast
-        calls = 0
-        for n in _ast.walk(_ast.parse(src)):
-            if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Attribute) \
-               and n.func.attr == "board_identity_drift":
-                calls += 1
-        self.assertGreaterEqual(calls, 1,
-                                "no law here CALLS board_identity_drift() — the join is prose, and "
-                                "a suite that only reads fixtures cannot notice the console "
-                                "changing its mind")
+    def test_the_comparison_DEPENDS_on_the_console_and_not_on_a_copy_of_its_rule(self):
+        """⚠⚠ v2921 — AND MY FIRST TWO ATTEMPTS AT THIS LAW WERE BOTH HOLLOW.
 
+        v2920 shipped an AST token-counter: it walked for any `*.board_identity_drift(...)` and
+        asserted `calls >= 1`. The cross-family eye showed it passes on a DECOY — a discarded call
+        beside a re-implemented rule — and goes RED on a correct refactor, because
+        `from control_app import board_identity_drift` makes the node an `ast.Name`. Wrong in both
+        directions.
+
+        My first replacement was no better: it inverted the console and then asserted that MY OWN
+        inline comparison disagreed. True by construction, and it never touched the law it claimed
+        to protect.
+
+        ⚠ THE ONLY HONEST TEST OF A DEPENDENCY IS TO BREAK THE THING DEPENDED ON AND WATCH THE
+        DEPENDENT FAIL. So this RUNS the join law with `board_identity_drift` inverted and requires
+        it to go RED. If the join were comparing against a transcribed copy of the console's rule,
+        an inverted console would leave it green — and that is exactly what this catches.
+        [[the-unjoined-end]] [[source-reading-guard]] [[copy-drift]]
+        """
+        import control_app as ca
+        orig = ca.board_identity_drift
+        # every record answered with the OPPOSITE of what the console would say
+        def _inverted():
+            real = orig()
+            return {"state": ("ok" if real.get("state") == "drift" else "drift"),
+                    "why": "inverted by the dependency law"}
+        try:
+            ca.board_identity_drift = _inverted
+            with self.assertRaises(AssertionError, msg=(
+                    "the join law stayed GREEN with the console inverted — it is comparing against "
+                    "a copy of the console's rule, not against the console")):
+                self.test_the_sweeper_and_the_CONSOLE_agree_on_every_record_the_writer_can_emit()
+        finally:
+            ca.board_identity_drift = orig
+        self.assertIs(ca.board_identity_drift, orig,
+                      "the console function was not restored — this law would poison every law "
+                      "that runs after it")
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 RED_PROOF = [
@@ -226,6 +245,13 @@ RED_PROOF = [
         "file": "board_identity_sweep.py",
         "find": "    if rec.get(\"previous\"):",
         "replace": "    if False:",
+        "matches": 1,
+    },
+    {
+        "why": "the DECOY the cross-family eye described: keep the call to board_identity_drift, DISCARD its answer, and transcribe the console's rule inline. The old AST token-counter stayed green on exactly this. The dependency law must catch it.",
+        "file": "test_the_sweep_knows_whose_world_it_is.py",
+        "find": "                console_sweeps = str(theirs.get(\"state\")) == \"drift\"",
+        "replace": "                console_sweeps = bool(rec.get(\"previous\")) or (not rec.get(\"owner\") and bool(rec.get(\"pfx\")))",
         "matches": 1,
     },
 ]

@@ -29587,6 +29587,39 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-925 — a token-counter cannot prove a dependency, and my first two tries at fixing it were hollow too
+
+**v2921.** Found by the cross-family eye on v2920 — the version whose whole point was replacing a
+hollow law with a real one. The join law it shipped is genuine; its **companion** was not.
+
+`test_the_join_asks_the_console_ITSELF_and_not_a_copy_of_its_rule` walked the AST for any
+`*.board_identity_drift(...)` and asserted `calls >= 1`. **Wrong in both directions:**
+
+    passes on a DECOY      ca.board_identity_drift()     # answer DISCARDED
+                           console_sweeps = bool(rec.get("previous")) or \
+                                            (not rec.get("owner") and bool(rec.get("pfx")))
+                           — a transcribed copy of the console's rule with an unused call beside it
+
+    RED on a correct join  from control_app import board_identity_drift
+                           theirs = board_identity_drift()
+                           — the node is an ast.Name, not an Attribute, so the count is 0
+
+⚠ **AND MY FIRST TWO REPLACEMENTS WERE HOLLOW AS WELL**, which is the part worth recording. The
+first inverted the console and then asserted that MY OWN inline comparison disagreed — true by
+construction, and it never touched the law it claimed to protect. Writing a hollow law is easy
+enough that I did it three times in one thread while actively hunting for hollow laws.
+
+**THE ONLY HONEST TEST OF A DEPENDENCY IS TO BREAK THE THING DEPENDED ON AND WATCH THE DEPENDENT
+FAIL.** The law now RUNS the join law with `board_identity_drift` inverted — every record answered
+with the opposite of the truth — and requires it to go RED. A join comparing against a transcribed
+copy would stay green under that, which is exactly what it catches. It restores the real function in
+a `finally` and then asserts the restoration, so it cannot poison the laws that follow.
+
+**Proven with the eye's own decoy**, now a standing sabotage: keep the call, discard the answer,
+transcribe the rule. The suite goes red with *"the join law stayed GREEN with the console inverted —
+it is comparing against a copy of the console's rule."* Five red-proofs, all PROVEN at 1 match each.
+[[the-unjoined-end]] [[source-reading-guard]] [[copy-drift]]
+
 ## REG-924 — deleting the hollow law left the gap it was hiding
 
 **v2920.** Found by the cross-family eye on v2919 — the version that deleted my duplicate sweeper.
