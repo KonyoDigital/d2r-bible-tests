@@ -45,6 +45,26 @@ _console_safe_enable()
 # word said about the missing denominator. A backfill whose audit cannot re-read its own output
 # is a backfill nobody can check. [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
 ROW = re.compile(r'^\| \*\*(v\d{4})\*\* \| (`[^`]*`[^|]*?) \|', re.M)
+# ⚠⚠ v2929 — AND A SECOND TABLE SHAPE, WHICH THE FIRST CUT COULD NOT SEE AT ALL.
+# MEASURED at origin the same hour v2927 shipped: the table holds **330** version rows and ROW
+# matched **280**. The other 47 (v2435..v2510) are a LEGACY TWO-COLUMN shape —
+# `| **v2435** | the page published ... |` — with no SHA slot whatsoever. They were silently
+# excluded, so "no unbound row" was a claim about a subset presented as the whole table, and the
+# law's `len(rows) > 250` floor passed comfortably at 280 while 47 versions stayed unbindable.
+# That is [[regression-guard]]'s first rule — A SAMPLE IS NOT A VERDICT — inside the tool written
+# to fix exactly this class of gap. Grok Bot was still right after the first fix.
+# [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+VROW = re.compile(r'^\| \*\*(v\d{4})\*\* \|(.*)$', re.M)
+
+
+def row_cells(rest):
+    """The cells AFTER the version cell, for either table shape. -> [str]
+
+    3-column row -> ['`sha`', 'note']   ·   legacy 2-column row -> ['note']
+    """
+    return [p.strip() for p in rest.rstrip().rstrip("|").split("|")]
+
+
 _ADDED_STAMP = re.compile(r'^\+VERSION = "(v\d{4})"')
 CARRIED = "in the %s commit"          # the words a carried row wears
 
@@ -103,43 +123,51 @@ def cell_for(state, sha, why):
 
 
 def stamp(path=None, write=True, cwd=None, known=None):
-    """Fill every unbound row. -> dict of counts and the rows it changed
+    """Fill every unbound row, in EITHER table shape. -> dict of counts and the rows it changed
 
-    ⚠ IT ONLY EVER REPLACES `(this commit)`. A cell already carrying a SHA is left exactly as it
-    is — this tool must never be able to rewrite provenance that is already recorded, because a
-    backfill that can overwrite is a backfill that can launder a wrong answer.
+    ⚠ IT ONLY EVER REPLACES `(this commit)` OR INSERTS A MISSING CELL. A cell already carrying a
+    SHA is left exactly as it is — a backfill that can overwrite is a backfill that can launder a
+    wrong answer.
     """
     p = path or TASKS
     src = io.open(p, encoding="utf-8").read()
     # ⚠ `known` EXISTS SO A LAW CAN ASK THE REAL QUESTION — the same seam surface_verdict(path=)
-    # carries, and for the same reason: a law that feeds this real git history can only pass on a
-    # machine with that history, and a law that reads the source instead of running it is the
-    # weaker kind this repo keeps having to strengthen. [[feedback-fixtures-never-touch-live-data]]
+    # carries. A law that needs this machine's git history can only pass on this machine.
+    # [[feedback-fixtures-never-touch-live-data]]
     known = version_commits(cwd) if known is None else known
-    rows = ROW.findall(src)
-    newest = rows[0][0] if rows else None
-    counts = {"bound": 0, "carried": 0, "pending": 0, "unknown": 0, "left": 0}
+    counts = {"bound": 0, "carried": 0, "pending": 0, "unknown": 0, "left": 0, "legacyFilled": 0}
     changed = []
+    all_rows = VROW.findall(src)
+    newest = all_rows[0][0] if all_rows else None
 
     def _fix(m):
-        ver, cell = m.group(1), m.group(2)      # cell is the WHOLE cell, backticks and any note
-        if cell != "`(this commit)`":
+        ver, rest = m.group(1), m.group(2)
+        cells = row_cells(rest)
+        legacy = len(cells) < 2
+        cell = "" if legacy else cells[0]
+        if not legacy and cell != "`(this commit)`":
             counts["left"] += 1
             return m.group(0)
         state, sha, why = resolve(ver, known, newest)
         counts[state] += 1
         fresh = cell_for(state, sha, why)
-        if fresh != cell:
-            changed.append((ver, state, (sha or "")[:8]))
+        changed.append((ver, state, (sha or "")[:8]))
+        if legacy:
+            counts["legacyFilled"] += 1
+            return "| **%s** | %s |%s" % (ver, fresh, rest)
         return m.group(0).replace(cell, fresh, 1)
 
-    out = ROW.sub(_fix, src)
+    out = VROW.sub(_fix, src)
     if write and out != src:
         tmp = p + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as fh:
             fh.write(out)
         os.replace(tmp, p)       # atomic: a reader never sees a half table
-    counts["rows"] = len(rows)
+    counts["rows"] = len(all_rows)
+    # ⚠ BEFORE AND AFTER ARE DIFFERENT FACTS, and a --dry run that prints only the projected
+    # number reads as a description of the file on disk. [[stale-reading]]
+    counts["shaCellsBefore"] = len(ROW.findall(src))
+    counts["shaCellsAfter"] = len(ROW.findall(out))
     counts["knownVersions"] = len(known)
     return {"counts": counts, "changed": changed, "wrote": bool(write and out != src)}
 
@@ -151,10 +179,20 @@ def main(argv=None):
     ns = a.parse_args(argv)
     r = stamp(write=not (ns.dry or ns.audit))
     c = r["counts"]
-    print("   %d row(s) in the version table · %d version(s) have a VERSION-stamp commit"
-          % (c["rows"], c["knownVersions"]))
-    print("   bound %d · carried %d · pending %d · UNKNOWN %d · already stamped %d"
-          % (c["bound"], c["carried"], c["pending"], c["unknown"], c["left"]))
+    # ⚠ BOTH NUMBERS, ALWAYS. v2927 printed only what its reader could see, and the 50-row gap
+    # between that and the real table was the whole of the defect it went on to have.
+    print("   %d row(s) in the version table · %d carry a SHA cell now%s · %d version(s) have a "
+          "VERSION-stamp commit"
+          % (c["rows"], c["shaCellsBefore"],
+             ("" if c["shaCellsAfter"] == c["shaCellsBefore"]
+              else " -> %d after this run" % c["shaCellsAfter"]),
+             c["knownVersions"]))
+    print("   bound %d · carried %d · pending %d · UNKNOWN %d · already stamped %d · "
+          "legacy rows given a cell %d"
+          % (c["bound"], c["carried"], c["pending"], c["unknown"], c["left"], c["legacyFilled"]))
+    if c["rows"] != c["shaCellsAfter"]:
+        print("   \u26a0 %d row(s) still carry NO SHA cell — this tool cannot speak for them"
+              % (c["rows"] - c["threeColumn"]))
     if ns.audit and c["unknown"]:
         print("   ✗ %d row(s) bind to nothing at all." % c["unknown"])
         return 1

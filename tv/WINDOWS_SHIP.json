@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2928",
+  "ver": "v2929",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2928: --note the writer has three states and the reader I shipped had two; ok:false and threw were never consulted",
+  "note": "v2929: --note v2927 fixed 280 of 330 rows and said no unbound row; 50 legacy two-column rows had no SHA slot and were silently outside the claim",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -29587,6 +29587,43 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-934 — v2927 fixed 280 rows of a 330-row table and reported "no unbound row"
+
+**v2929.** Found by measuring my own v2927 fix against origin, one hour after it shipped — and
+**Grok Bot was still right after the first fix**, which is the whole point of this entry.
+
+REG-932 claimed *"249 of 278 rows"* and *"0 UNKNOWN"*. MEASURED at origin: the version table holds
+**330 rows**, and `stamp_versions.ROW` matched **280**. The other **50 (v2435..v2510)** are a legacy
+**two-column** shape — `| **v2435** | the page published ... |` — with **no SHA slot at all**. They
+were excluded in silence, so "no unbound row" was a statement about a subset presented as the whole
+table, and the law's `len(rows) > 250` floor passed comfortably at 280 while 50 versions stayed
+unbindable.
+
+That is [[regression-guard]]'s first rule — **a sample is not a verdict** — occurring inside the
+tool written to close exactly this class of gap, and reported in a BUGS entry and a commit message
+as though it were complete. The denominator I published was my reader's reach, not the file's size.
+
+**Fix:** a line-based `VROW` reader that sees every version row in either shape, `row_cells()` to
+tell the shapes apart, and a legacy row gets a SHA cell **inserted** while its note is kept intact.
+All 50 resolved (49 bound, 3 carried across the run). The CLI now prints **both** numbers — rows in
+the table and rows carrying a SHA cell — and says out loud when they differ. `--dry` distinguishes
+*now* from *after this run*, since printing only the projected number reads as a description of the
+file on disk.
+
+Verified safe for the other two parsers of this table before touching 50 rows:
+`tasks_freshness.py` matches only the first column, and `board_sync.py` takes timestamps
+**"from git, never from the markdown"** (its own comment) and matches versions on an identifier.
+Both run unchanged afterwards, and `test_board_story` passes.
+
+**Gate:** `test_every_version_binds_to_a_commit`, 8 laws, **8/8 red-proofs PROVEN.** The headline law
+now asserts the two counts are EQUAL, so a row outside the reader's reach fails the law instead of
+hiding behind it.
+
+⚠ **One proof went INVALID and the drill is the only reason I know.** v2927's laundering-guard
+anchor stopped matching when `stamp()` was rewritten — 0 matches, which proves nothing and is not
+red. Re-anchored from the file's own bytes. **Three times this session a rewrite has left a stale
+anchor**; re-counting every anchor before spending a drill is now the habit, not the exception.
+
 ## REG-933 — the writer has three states and the reader I shipped had two: a crash printed as a keep
 
 **v2928.** Found by the cross-family eye on v2925, **one hour after v2926 shipped**, and reproduced

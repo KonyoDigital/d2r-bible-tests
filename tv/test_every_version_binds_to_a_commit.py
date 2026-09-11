@@ -25,9 +25,15 @@ TASKS = os.path.join(os.path.dirname(HERE), "TASKS.md")
 
 
 def _table(rows):
-    """A minimal version table. -> path (caller unlinks)"""
+    """A minimal version table. -> path (caller unlinks)
+
+    ⚠ v2929 — a row given `None` as its cell is emitted in the LEGACY TWO-COLUMN shape, because a
+    fixture that can only build the modern shape cannot catch a reader blind to the old one — and
+    that blindness is exactly what shipped in v2927.
+    """
     body = "| ver | sha | note |\n|---|---|---|\n" + "".join(
-        "| **%s** | %s | %s — a note |\n" % (v, c, v) for v, c in rows)
+        ("| **%s** | %s — a note |\n" % (v, v)) if c is None else
+        ("| **%s** | %s | %s — a note |\n" % (v, c, v)) for v, c in rows)
     f = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
     f.write(body)
     f.close()
@@ -48,6 +54,13 @@ class EveryVersionBindsToACommit(unittest.TestCase):
         """
         src = io.open(TASKS, encoding="utf-8").read()
         rows = SV.ROW.findall(src)
+        # ⚠⚠ v2929 — AND THE TWO COUNTS MUST AGREE. v2927 asserted "no unbound row" while its
+        # reader saw 280 of the table's 330 rows: 50 legacy two-column rows carried no SHA cell at
+        # all and were silently outside the claim. A sample is not a verdict.
+        self.assertEqual(len(SV.VROW.findall(src)), len(rows),
+                         "%d version row(s) exist but only %d carry a SHA cell — the rest cannot "
+                         "bind a version to a commit and this law would not have noticed"
+                         % (len(SV.VROW.findall(src)), len(rows)))
         pending = [v for v, cell in rows if cell == "`(this commit)`"]
         self.assertLessEqual(len(pending), 1,
                              "%d version row(s) cannot name the commit that shipped them (%s) — "
@@ -58,11 +71,48 @@ class EveryVersionBindsToACommit(unittest.TestCase):
                              "the pending row is %s but the newest row is %s — an OLD row lost "
                              "its binding, which is not the same as one not yet earned"
                              % (pending[0], rows[0][0]))
-        rows = SV.ROW.findall(src)
+        rows = SV.VROW.findall(src)
         self.assertGreater(len(rows), 250,
                            "the table reader matched only %d rows, which is fewer than the "
                            "history it is supposed to cover — suspect the regex, not the table"
                            % len(rows))
+
+    def test_a_LEGACY_two_column_row_is_seen_and_given_a_cell(self):
+        """⚠⚠ THE DEFECT v2927 SHIPPED, found an hour later by measuring against origin. The table
+        holds 330 version rows; v2927's reader matched 280. The other 50 (v2435..v2510) are a
+        legacy `| **vNNNN** | note |` shape with NO SHA slot, so they were excluded in silence —
+        and the law's `len(rows) > 250` floor passed comfortably at 280.
+
+        Grok Bot was STILL right after the first fix, which is the point: the claim had been
+        answered for the rows the tool could see. [[regression-guard]] [[zero-needs-a-denominator]]"""
+        p = _table([("v9003", "`(this commit)`"), ("v9002", None), ("v9001", None)])
+        try:
+            r = SV.stamp(path=p, known={"v9003": "cccccccccccc", "v9002": "dddddddddddd",
+                                        "v9001": "eeeeeeeeeeee"})
+            got = io.open(p, encoding="utf-8").read()
+        finally:
+            os.unlink(p)
+        self.assertEqual(3, r["counts"]["rows"],
+                         "the reader saw %d of 3 rows — a legacy row is invisible to it"
+                         % r["counts"]["rows"])
+        self.assertEqual(2, r["counts"]["legacyFilled"],
+                         "legacy rows were not given a cell: %r" % (r["counts"],))
+        self.assertEqual(r["counts"]["rows"], r["counts"]["shaCellsAfter"],
+                         "after the run %d row(s) still carry no SHA cell"
+                         % (r["counts"]["rows"] - r["counts"]["shaCellsAfter"]))
+        self.assertIn("`dddddddd`", got, "the legacy row did not get its commit:\n%s" % got)
+
+    def test_filling_a_legacy_row_KEEPS_its_note(self):
+        """⚠ A migration that widens a row must not eat what was already in it. The note is the
+        only human-readable record of what that version did."""
+        p = _table([("v9002", "`(this commit)`"), ("v9001", None)])
+        try:
+            SV.stamp(path=p, known={"v9002": "cccccccccccc", "v9001": "dddddddddddd"})
+            got = io.open(p, encoding="utf-8").read()
+        finally:
+            os.unlink(p)
+        self.assertIn("v9001 — a note", got,
+                      "the legacy row's note was destroyed by the widening:\n%s" % got)
 
     def test_a_cell_that_ALREADY_names_a_commit_is_never_rewritten(self):
         """⚠⚠ THE LAUNDERING GUARD. A backfill that can overwrite an existing SHA is a backfill
@@ -152,9 +202,9 @@ class EveryVersionBindsToACommit(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "lets the backfill overwrite a cell that already names a commit, so a recorded provenance can be replaced by a derived one. A tool that can launder history is worse than no tool.",
+        "why": "lets the backfill overwrite a cell that already names a commit, so a recorded provenance can be replaced by a derived one. A tool that can launder history is worse than no tool. \u26a0 The v2927 anchor for this went INVALID when stamp() was rewritten for v2929 \u2014 caught by the drill, which is the only reason it is not a silent hole.",
         "file": "stamp_versions.py",
-        "find": '        if cell != "`(this commit)`":\n            counts["left"] += 1\n            return m.group(0)\n',
+        "find": '        if not legacy and cell != "`(this commit)`":\n            counts["left"] += 1\n            return m.group(0)\n',
         "replace": '        if False:\n            counts["left"] += 1\n            return m.group(0)\n',
         "matches": 1,
     },
@@ -184,6 +234,27 @@ RED_PROOF = [
         "file": "bump_version.py",
         "find": "            import stamp_versions as _sv\n",
         "replace": "            import os as _sv\n",
+        "matches": 1,
+    },
+    {
+        "why": "v2929/A — blinds the tool to the legacy two-column shape again, so 50 rows (v2435..v2510) get no SHA cell and 'no unbound row' becomes a claim about a subset.",
+        "file": "stamp_versions.py",
+        "find": '        legacy = len(cells) < 2\n',
+        "replace": '        legacy = False\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2929/B — widens the legacy row by DESTROYING its note, which is the only human-readable record of what that version did.',
+        "file": "stamp_versions.py",
+        "find": '        if legacy:\n            counts["legacyFilled"] += 1\n            return "| **%s** | %s |%s" % (ver, fresh, rest)\n',
+        "replace": '        if legacy:\n            counts["legacyFilled"] += 1\n            return "| **%s** | %s |" % (ver, fresh)\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2929/C — counts the table with the narrow reader, so `rows` reports the tool's reach instead of the file's size and the two counts can never disagree.",
+        "file": "stamp_versions.py",
+        "find": '    all_rows = VROW.findall(src)\n',
+        "replace": '    all_rows = ROW.findall(src)\n',
         "matches": 1,
     },
 ]
