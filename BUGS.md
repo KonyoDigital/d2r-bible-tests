@@ -31700,6 +31700,48 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-969 - the second eye found three ways my own v2962 gate could go blind (task #53/#58 - v2966)
+
+`tv/second_eye_run.py` handed the v2962 diff to grok-4-1-fast-reasoning. It did not rubber-stamp it:
+it ran the node-sliced test file itself, confirmed the fixture reaches the branch, and then found
+three holes in the LAW rather than in the code. All three reproduced. All three are the
+green-that-lies class, on gates I wrote hours earlier.
+
+**1 - THE FIXTURE NEVER PINNED ITS OWN DIVERGENCE.** The old filter `dropped.indexOf(mi) < 0` is
+wrong only when a hole sits in front of a dropped stack. In the fixture Z (si=0) never moves, so the
+withdrawn stack is `attempted[0]` carrying `si=1`. Nothing asserted that. Its words: *"a later
+solver change also moves Z ... `dropped.indexOf(mi)` accidentally agrees with `kept.indexOf(m.si)`.
+Partial still reaches, names still match, RED_PROOF[0] stays green. The law goes blind for the same
+reason the production bug hid: a correct count next to a fixture that no longer produces the
+disagreement."*
+
+⚠ **MY FIRST FIX WAS TOO WEAK AND A SABOTAGE CAUGHT IT.** I asserted "some si differs from its
+position", which survives trivially. The law now RUNS BOTH IMPLEMENTATIONS over the fixture's own
+output and demands they DISAGREE. Proven by removing the Z stack: the two filters then agree and the
+law goes RED (EXIT=1, matches=1). A first sabotage attempt came back GREEN and that was the
+SABOTAGE's fault - Z at x=40..90 never collides with anything, so moving its row changed nothing.
+[[sabotage-is-usually-the-wrong-one]]
+
+**2 - A NODE-LESS HOST PASSED A GATE WHOSE ONLY JOB IS TO EXECUTE JS.** Three parties disagreed and
+the green one won: `skip_ok=()` says this gate may never skip, the gate's own `why` says *"node
+absent => SKIP, which is UNMEASURED and not a pass"*, and a class-level `@skipIf` makes unittest
+print `OK (skipped=7)` and **exit 0**, which run_gates maps to PASS. MEASURED with node off PATH:
+
+    before   EXIT=0   OK (skipped=7)   -> gate GREEN, seven laws skipped, nothing measured
+    after    EXIT=77  declared skip    -> refused, because skip_ok=()
+
+77 is run_gates' SKIP_EXIT; every other non-zero is a FAIL. The decorators stay for other runners.
+[[regression-guard]] - a skip is not a pass, in my own gate, four hours after writing it.
+
+**3 - `moves` IS PER-STACK, THE HARNESS READ PER-ELEMENT.** `_hrtFanFit` writes one row per stack
+then stamps that translate onto every label in it; the sibling verdict law already measured "3
+stacks kept, DOM: 5 of 20 labels transformed". The two lists matching in this fixture is a property
+of the fixture (one label per x), not a contract. Now compares the set of stacks each side names.
+
+★ THE POINT: the eye reviewed CODE THAT HAD ALREADY SHIPPED and every finding was about the
+instrument, not the feature. A different model family running the test rather than reading it is
+worth the gate that protects it.
+
 ## REG-968 - the panel called "your reels" showed no reels (task #58 - v2965)
 
 **MEASURED on his live console at his real window size 1120x660:**

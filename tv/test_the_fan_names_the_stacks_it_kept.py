@@ -194,11 +194,49 @@ class TheReportNamesWhatIsOnThePage(unittest.TestCase):
         self.assertGreater(ff.get("droppedStacks") or 0, 0, "nothing was withdrawn")
         self.assertGreater(ff.get("keptStacks") or 0, 0, "nothing was kept")
 
+    def test_this_fixture_can_tell_the_two_implementations_apart(self):
+        """★ THE SECOND EYE'S FINDING on v2962, sharpened after its first form proved too weak.
+
+        The old filter `dropped.indexOf(mi) < 0` compares a POSITION in `applied` against values
+        that are indices into `stacks`. It is only WRONG when a hole sits in front of a dropped
+        stack — here Z (si=0) never moves, so the withdrawn stack is attempted[0] carrying si=1.
+
+        Asserting merely that some si differs from its position is NOT enough: with Z removed the
+        gap at B still produces a difference while the two filters could still agree. So this law
+        RUNS BOTH IMPLEMENTATIONS over the fixture's own output and demands they DISAGREE. If they
+        ever agree, the red-proof that restores the old filter would stay GREEN and this whole file
+        would be measuring nothing — the production bug hid for exactly that reason.
+        [[feedback-blind-fixture-green-gate]] [[sabotage-is-usually-the-wrong-one]]"""
+        ff, _ = _run(self, _SPEC_PARTIAL)
+        att = ff.get("attempted") or []
+        kept = ff.get("moves") or []
+        self.assertTrue(att, "nothing was attempted, so there is nothing to tell apart")
+        kept_si = {m.get("si") for m in kept}
+        dropped_si = {m.get("si") for m in att} - kept_si
+        self.assertTrue(dropped_si,
+                        "no stack was withdrawn, so the partial path did not run and neither "
+                        "implementation is exercised")
+        # what the CORRECT filter yields — by stack index
+        correct = [m for m in att if m.get("si") in kept_si]
+        # what the OLD, defective filter yielded — position tested against stack indices
+        old = [m for i, m in enumerate(att) if i not in dropped_si]
+        self.assertNotEqual([m.get("si") for m in correct], [m.get("si") for m in old],
+                            "the correct filter and the OLD positional one give the SAME answer "
+                            "on this fixture, so it cannot tell them apart. RED_PROOF[0] would "
+                            "stay green and every law here would be blind. "
+                            "attempted=%r kept=%r dropped=%r"
+                            % ([m.get("si") for m in att], sorted(kept_si), sorted(dropped_si)))
+
     def test_moves_names_exactly_the_stacks_that_kept_a_transform(self):
         """The measured inversion: the withdrawn stack reported as landed, the kept one unnamed."""
         ff, on_dom = _run(self, _SPEC_PARTIAL)
-        reported = sorted(m["x"] for m in (ff.get("moves") or []))
-        on_page = sorted(t["x"] for t in on_dom)
+        # ⚠ EYE FINDING on v2962: `moves` carries ONE row per STACK, while the harness reads
+        # one row per ELEMENT — _hrtFanFit stamps a stack's transform onto every label in it. The
+        # sibling verdict law already measured "3 stacks kept · DOM: 5 of 20 labels transformed".
+        # These two lists being the same length here is a property of THIS fixture, not a
+        # contract, so compare the stacks both sides name. [[label-outlived-referent]]
+        reported = sorted({m["x"] for m in (ff.get("moves") or [])})
+        on_page = sorted({t["x"] for t in on_dom})
         self.assertEqual(on_page, reported,
                          "`moves` does not name the stacks that actually carry a transform.\n"
                          "  reported by moves : %s\n"
@@ -293,4 +331,17 @@ RED_PROOF = [
 ]
 
 if __name__ == "__main__":
+    # ⚠⚠ EYE FINDING on v2962 — THREE PARTIES DISAGREED ABOUT "node absent", AND THE GREEN ONE WON.
+    # The gate declares skip_ok=() ("this gate may never skip") and its own why says "node absent
+    # => SKIP, which is UNMEASURED and not a pass". But a class-level @skipIf makes unittest print
+    # `OK (skipped=7)` and exit 0, and run_gates maps 0 to PASS. MEASURED with node off PATH:
+    # EXIT=0, seven laws skipped, gate GREEN — the skip-counted-as-pass class, on a gate whose
+    # whole job is to execute JS.
+    # 77 is run_gates' SKIP_EXIT: every other non-zero code is a FAIL, and with skip_ok=() a
+    # DECLARED skip is refused rather than waved through. The decorators stay for other runners.
+    # [[regression-guard]] [[feedback-blind-fixture-green-gate]]
+    if shutil.which("node") is None:
+        sys.stderr.write("node is absent — this gate executes the solver and can measure NOTHING "
+                         "without it. UNMEASURED, declared as a skip (77), never a pass.\n")
+        raise SystemExit(77)
     unittest.main(verbosity=2)
