@@ -24,16 +24,20 @@ import stamp_versions as SV  # noqa: E402
 TASKS = os.path.join(os.path.dirname(HERE), "TASKS.md")
 
 
-def _table(rows):
-    """A minimal version table. -> path (caller unlinks)
+def _table(rows, foreign=()):
+    """A version table, optionally with a FOREIGN table above it. -> path (caller unlinks)
 
-    ⚠ v2929 — a row given `None` as its cell is emitted in the LEGACY TWO-COLUMN shape, because a
-    fixture that can only build the modern shape cannot catch a reader blind to the old one — and
-    that blindness is exactly what shipped in v2927.
+    ⚠⚠ v2930 — `foreign` EXISTS BECAUSE ITS ABSENCE COST A REGRESSION. v2929's fixtures held one
+    table, so nothing could express the situation that actually broke: TASKS.md also carries a
+    `| ship | what it closed |` table whose rows START WITH A BOLD vNNNN and have two columns BY
+    DESIGN. A reader that matches on the row shape alone eats them.
     """
-    body = "| ver | sha | note |\n|---|---|---|\n" + "".join(
-        ("| **%s** | %s — a note |\n" % (v, v)) if c is None else
-        ("| **%s** | %s | %s — a note |\n" % (v, c, v)) for v, c in rows)
+    body = ""
+    if foreign:
+        body += "| ship | what it closed |\n|---|---|\n" + "".join(
+            "| **%s** | %s closed something |\n" % (v, v) for v in foreign) + "\n"
+    body += SV.TABLE_HEAD + "\n|---|---|---|\n" + "".join(
+        "| **%s** | %s | %s — a note |\n" % (v, c, v) for v, c in rows)
     f = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
     f.write(body)
     f.close()
@@ -53,14 +57,18 @@ class EveryVersionBindsToACommit(unittest.TestCase):
         truth teaches you to edit the data to satisfy it. [[ab-against-head-before-blaming-the-room]]
         """
         src = io.open(TASKS, encoding="utf-8").read()
-        rows = SV.ROW.findall(src)
-        # ⚠⚠ v2929 — AND THE TWO COUNTS MUST AGREE. v2927 asserted "no unbound row" while its
-        # reader saw 280 of the table's 330 rows: 50 legacy two-column rows carried no SHA cell at
-        # all and were silently outside the claim. A sample is not a verdict.
-        self.assertEqual(len(SV.VROW.findall(src)), len(rows),
-                         "%d version row(s) exist but only %d carry a SHA cell — the rest cannot "
-                         "bind a version to a commit and this law would not have noticed"
-                         % (len(SV.VROW.findall(src)), len(rows)))
+        # ⚠⚠ v2930 — SCOPED TO THE TABLE, AND THE LAW HAD THE SAME BUG THE TOOL DID. The v2929
+        # form counted `VROW` over the WHOLE FILE (331) against `ROW` (281) and read the 50 rows
+        # of the separate `| ship | what it closed |` table as version rows missing a cell. The
+        # comparison is only meaningful inside the version table's own region.
+        span = SV.table_region(src)
+        self.assertIsNotNone(span, "the version table header is gone — re-derive this law")
+        body = src[span[0]:span[1]]
+        rows = SV.ROW.findall(body)
+        self.assertEqual(len(SV.VROW.findall(body)), len(rows),
+                         "%d row(s) in the version table but only %d carry a SHA cell — the rest "
+                         "cannot bind a version to a commit and this law would not have noticed"
+                         % (len(SV.VROW.findall(body)), len(rows)))
         pending = [v for v, cell in rows if cell == "`(this commit)`"]
         self.assertLessEqual(len(pending), 1,
                              "%d version row(s) cannot name the commit that shipped them (%s) — "
@@ -71,48 +79,51 @@ class EveryVersionBindsToACommit(unittest.TestCase):
                              "the pending row is %s but the newest row is %s — an OLD row lost "
                              "its binding, which is not the same as one not yet earned"
                              % (pending[0], rows[0][0]))
-        rows = SV.VROW.findall(src)
         self.assertGreater(len(rows), 250,
                            "the table reader matched only %d rows, which is fewer than the "
                            "history it is supposed to cover — suspect the regex, not the table"
                            % len(rows))
 
-    def test_a_LEGACY_two_column_row_is_seen_and_given_a_cell(self):
-        """⚠⚠ THE DEFECT v2927 SHIPPED, found an hour later by measuring against origin. The table
-        holds 330 version rows; v2927's reader matched 280. The other 50 (v2435..v2510) are a
-        legacy `| **vNNNN** | note |` shape with NO SHA slot, so they were excluded in silence —
-        and the law's `len(rows) > 250` floor passed comfortably at 280.
+    def test_a_row_OUTSIDE_the_version_table_is_never_touched(self):
+        """⚠⚠ THE REGRESSION I SHIPPED IN v2929, made into the law that would have caught it.
 
-        Grok Bot was STILL right after the first fix, which is the point: the claim had been
-        answered for the rows the tool could see. [[regression-guard]] [[zero-needs-a-denominator]]"""
-        p = _table([("v9003", "`(this commit)`"), ("v9002", None), ("v9001", None)])
+        TASKS.md carries a second table headed `| ship | what it closed |` whose rows also start
+        with a bold vNNNN and have TWO columns by design. v2929 matched on the row shape alone,
+        decided 50 of them were "legacy version rows missing a SHA cell", and inserted one into
+        every last one — producing three-cell rows under a two-column header, in the file this
+        tool exists to keep honest. v2927's narrower reader had been RIGHT to skip them.
+
+        **A row is a version row because of the TABLE IT IS IN**, not because of how it starts.
+        [[regression-guard]] [[ab-against-head-before-blaming-the-room]]"""
+        p = _table([("v9002", "`(this commit)`")], foreign=("v9001", "v9000"))
+        before = io.open(p, encoding="utf-8").read()
         try:
-            r = SV.stamp(path=p, known={"v9003": "cccccccccccc", "v9002": "dddddddddddd",
-                                        "v9001": "eeeeeeeeeeee"})
+            SV.stamp(path=p, known={"v9002": "cccccccccccc", "v9001": "dddddddddddd",
+                                    "v9000": "eeeeeeeeeeee"})
+            after = io.open(p, encoding="utf-8").read()
+        finally:
+            os.unlink(p)
+        for v in ("v9001", "v9000"):
+            row_b = [l for l in before.splitlines() if l.startswith("| **%s**" % v)][0]
+            row_a = [l for l in after.splitlines() if l.startswith("| **%s**" % v)][0]
+            self.assertEqual(row_b, row_a,
+                             "a row in ANOTHER table was rewritten:\n  before %s\n  after  %s"
+                             % (row_b, row_a))
+        self.assertNotIn("dddddddd", after, "a foreign row was given a commit it never asked for")
+
+    def test_the_NEWEST_row_is_the_highest_number_not_the_first_line(self):
+        """⚠ v2929 took `all_rows[0]` as the newest and got v2435 — a row from a different table
+        that merely appeared earlier in the file. File order is not version order."""
+        p = _table([("v9001", "`(this commit)`"), ("v9003", "`(this commit)`")])
+        try:
+            r = SV.stamp(path=p, known={})       # nothing bindable: only the NEWEST may be pending
             got = io.open(p, encoding="utf-8").read()
         finally:
             os.unlink(p)
-        self.assertEqual(3, r["counts"]["rows"],
-                         "the reader saw %d of 3 rows — a legacy row is invisible to it"
-                         % r["counts"]["rows"])
-        self.assertEqual(2, r["counts"]["legacyFilled"],
-                         "legacy rows were not given a cell: %r" % (r["counts"],))
-        self.assertEqual(r["counts"]["rows"], r["counts"]["shaCellsAfter"],
-                         "after the run %d row(s) still carry no SHA cell"
-                         % (r["counts"]["rows"] - r["counts"]["shaCellsAfter"]))
-        self.assertIn("`dddddddd`", got, "the legacy row did not get its commit:\n%s" % got)
-
-    def test_filling_a_legacy_row_KEEPS_its_note(self):
-        """⚠ A migration that widens a row must not eat what was already in it. The note is the
-        only human-readable record of what that version did."""
-        p = _table([("v9002", "`(this commit)`"), ("v9001", None)])
-        try:
-            SV.stamp(path=p, known={"v9002": "cccccccccccc", "v9001": "dddddddddddd"})
-            got = io.open(p, encoding="utf-8").read()
-        finally:
-            os.unlink(p)
-        self.assertIn("v9001 — a note", got,
-                      "the legacy row's note was destroyed by the widening:\n%s" % got)
+        self.assertEqual(1, r["counts"]["pending"],
+                         "%r — the newest row was not identified by number" % (r["counts"],))
+        self.assertIn("| **v9003** | `(this commit)`", got,
+                      "v9003 is the highest version and should be the pending one:\n%s" % got)
 
     def test_a_cell_that_ALREADY_names_a_commit_is_never_rewritten(self):
         """⚠⚠ THE LAUNDERING GUARD. A backfill that can overwrite an existing SHA is a backfill
@@ -199,62 +210,82 @@ class EveryVersionBindsToACommit(unittest.TestCase):
                         "bump_version.py imports the stamper and never calls stamp() — plumbing "
                         "with no tap")
 
+        # ⚠⚠ v2930 — AND THE CALL MUST COME AFTER THE WRITE, WHICH IS WHERE THIS LAW WAS HOLLOW.
+        # v2927 called stamp() BEFORE `io.open(p, "w").write(...)`. TASKS.md is read into `s` at
+        # the top of that function; the stamper wrote the file; then the stale `s` was written
+        # straight back over it. MEASURED: the v2928 bump printed "bound 1 version row(s)" and
+        # commit 6442cfe5 still carries `| **v2927** | `(this commit)` |`. The backfill ran,
+        # was correct, and was clobbered in the same breath.
+        # Asserting the call EXISTS proved the tap was plumbed, never that water came out — the
+        # exact defect this law names in the line above. [[plumbing-with-no-tap]]
+        src = io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8").read()
+        writes = [n for n in ast.walk(tree)
+                  if isinstance(n, ast.Call)
+                  and isinstance(n.func, ast.Attribute) and n.func.attr == "write"
+                  and "head + row" in (ast.get_source_segment(src, n) or "")]
+        self.assertTrue(writes, "the TASKS.md row write is gone — re-derive this law")
+        self.assertGreater(min(c.lineno for c in calls), max(w.lineno for w in writes),
+                           "stamp() is called at line %d, BEFORE the TASKS.md write at line %d — "
+                           "the backfill will be overwritten by the stale in-memory copy, which "
+                           "is exactly what shipped in v2927"
+                           % (min(c.lineno for c in calls), max(w.lineno for w in writes)))
+
 
 RED_PROOF = [
     {
-        "why": "lets the backfill overwrite a cell that already names a commit, so a recorded provenance can be replaced by a derived one. A tool that can launder history is worse than no tool. \u26a0 The v2927 anchor for this went INVALID when stamp() was rewritten for v2929 \u2014 caught by the drill, which is the only reason it is not a silent hole.",
-        "file": "stamp_versions.py",
+        "why": 'lets the backfill overwrite a cell that already names a commit, so a recorded provenance can be replaced by a derived one. A tool that can launder history is worse than no tool. ⚠ The v2927 anchor for this went INVALID when stamp() was rewritten for v2929 — caught by the drill, which is the only reason it is not a silent hole.',
+        "file": 'stamp_versions.py',
         "find": '        if not legacy and cell != "`(this commit)`":\n            counts["left"] += 1\n            return m.group(0)\n',
         "replace": '        if False:\n            counts["left"] += 1\n            return m.group(0)\n',
         "matches": 1,
     },
     {
-        "why": "prints a CARRIED version as a plain SHA, asserting that its own VERSION stamp landed in that commit when it did not. 19 of the 249 rows are carried, so this mislabels every batched intermediate version.",
-        "file": "stamp_versions.py",
+        "why": 'prints a CARRIED version as a plain SHA, asserting that its own VERSION stamp landed in that commit when it did not. 19 of the 249 rows are carried, so this mislabels every batched intermediate version.',
+        "file": 'stamp_versions.py',
         "find": '    if state == "carried":\n        return "`%s` (%s)" % (sha[:8], why)\n',
         "replace": '    if state == "carried":\n        return "`%s`" % sha[:8]\n',
         "matches": 1,
     },
     {
-        "why": "restores the narrow ROW regex that could not re-read a cell carrying an annotation \u2014 the defect this tool shipped and caught on itself, where the stamp counted 278 rows and the audit that followed counted 259 with nothing said about the 19 that vanished.",
-        "file": "stamp_versions.py",
+        "why": 'restores the narrow ROW regex that could not re-read a cell carrying an annotation — the defect this tool shipped and caught on itself, where the stamp counted 278 rows and the audit that followed counted 259 with nothing said about the 19 that vanished.',
+        "file": 'stamp_versions.py',
         "find": "ROW = re.compile(r'^\\| \\*\\*(v\\d{4})\\*\\* \\| (`[^`]*`[^|]*?) \\|', re.M)\n",
         "replace": "ROW = re.compile(r'^\\| \\*\\*(v\\d{4})\\*\\* \\| (`[^`]*`) \\|', re.M)\n",
         "matches": 1,
     },
     {
-        "why": "turns an unbindable row into a silent blank instead of an UNKNOWN, so a version with no provenance renders exactly like one that was never checked.",
-        "file": "stamp_versions.py",
+        "why": 'turns an unbindable row into a silent blank instead of an UNKNOWN, so a version with no provenance renders exactly like one that was never checked.',
+        "file": 'stamp_versions.py',
         "find": '    return "`(UNKNOWN — %s)`" % why\n',
         "replace": '    return "``"\n',
         "matches": 1,
     },
     {
-        "why": "unjoins the stamper from the bump, which is exactly the state the table was in for 249 versions: a correct tool nothing ever ran.",
-        "file": "bump_version.py",
-        "find": "            import stamp_versions as _sv\n",
-        "replace": "            import os as _sv\n",
+        "why": 'unjoins the stamper from the bump, which is exactly the state the table was in for 249 versions: a correct tool nothing ever ran.',
+        "file": 'bump_version.py',
+        "find": '            import stamp_versions as _sv\n',
+        "replace": '            import os as _sv\n',
         "matches": 1,
     },
     {
-        "why": "v2929/A — blinds the tool to the legacy two-column shape again, so 50 rows (v2435..v2510) get no SHA cell and 'no unbound row' becomes a claim about a subset.",
-        "file": "stamp_versions.py",
-        "find": '        legacy = len(cells) < 2\n',
-        "replace": '        legacy = False\n',
+        "why": 'v2930/A — unscopes the substitution so it eats every `| **vNNNN** |` row in the FILE again, including the 50 rows of the separate `| ship | what it closed |` table. That is the regression v2929 shipped: three-cell rows under a two-column header.',
+        "file": 'stamp_versions.py',
+        "find": '    new_body = VROW.sub(_fix, body)\n    out = head + new_body + tail\n',
+        "replace": '    new_body = VROW.sub(_fix, src)\n    out = new_body\n',
         "matches": 1,
     },
     {
-        "why": 'v2929/B — widens the legacy row by DESTROYING its note, which is the only human-readable record of what that version did.',
-        "file": "stamp_versions.py",
-        "find": '        if legacy:\n            counts["legacyFilled"] += 1\n            return "| **%s** | %s |%s" % (ver, fresh, rest)\n',
-        "replace": '        if legacy:\n            counts["legacyFilled"] += 1\n            return "| **%s** | %s |" % (ver, fresh)\n',
+        "why": 'v2930/B — takes the FIRST row in file order as the newest instead of the highest number, which is how v2929 decided v2435 was newer than v2929.',
+        "file": 'stamp_versions.py',
+        "find": '    newest = ("v%d" % max(int(v[1:]) for v, _ in all_rows)) if all_rows else None\n',
+        "replace": '    newest = all_rows[0][0] if all_rows else None\n',
         "matches": 1,
     },
     {
-        "why": "v2929/C — counts the table with the narrow reader, so `rows` reports the tool's reach instead of the file's size and the two counts can never disagree.",
-        "file": "stamp_versions.py",
-        "find": '    all_rows = VROW.findall(src)\n',
-        "replace": '    all_rows = ROW.findall(src)\n',
+        "why": "v2930/C — restores the v2927 ORDER: the stamper runs and then the TASKS.md write lands on top of it, from the stale `s` read at the top of the function. MEASURED: the v2928 bump printed 'bound 1 version row(s)' and commit 6442cfe5 still carries `(this commit)` for v2927. ⚠ The first cut of this tamper only swapped the write with a print and came back BLIND — the write has to move PAST the stamper for the law to have anything to catch.",
+        "file": 'bump_version.py',
+        "find": '        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            if _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n',
+        "replace": '        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            if _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n',
         "matches": 1,
     },
 ]

@@ -29587,42 +29587,62 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
-## REG-934 — v2927 fixed 280 rows of a 330-row table and reported "no unbound row"
+## REG-934 — ⚠ WITHDRAWN, AND THE "FIX" WAS THE DEFECT (see REG-935)
 
-**v2929.** Found by measuring my own v2927 fix against origin, one hour after it shipped — and
-**Grok Bot was still right after the first fix**, which is the whole point of this entry.
+**Filed at v2929, withdrawn at v2930, and left standing here because a retracted finding that is
+deleted teaches nothing.**
 
-REG-932 claimed *"249 of 278 rows"* and *"0 UNKNOWN"*. MEASURED at origin: the version table holds
-**330 rows**, and `stamp_versions.ROW` matched **280**. The other **50 (v2435..v2510)** are a legacy
-**two-column** shape — `| **v2435** | the page published ... |` — with **no SHA slot at all**. They
-were excluded in silence, so "no unbound row" was a statement about a subset presented as the whole
-table, and the law's `len(rows) > 250` floor passed comfortably at 280 while 50 versions stayed
-unbindable.
+I claimed v2927 had fixed "280 rows of a 330-row table" and that 50 rows (v2435..v2510) were a
+LEGACY TWO-COLUMN VERSION-ROW SHAPE that should bind to commits. **That is wrong.** Those 50 rows
+are not version rows at all: they belong to a **separate table** at the top of `TASKS.md` headed
 
-That is [[regression-guard]]'s first rule — **a sample is not a verdict** — occurring inside the
-tool written to close exactly this class of gap, and reported in a BUGS entry and a commit message
-as though it were complete. The denominator I published was my reader's reach, not the file's size.
+    | ship | what it closed |
 
-**Fix:** a line-based `VROW` reader that sees every version row in either shape, `row_cells()` to
-tell the shapes apart, and a legacy row gets a SHA cell **inserted** while its note is kept intact.
-All 50 resolved (49 bound, 3 carried across the run). The CLI now prints **both** numbers — rows in
-the table and rows carrying a SHA cell — and says out loud when they differ. `--dry` distinguishes
-*now* from *after this run*, since printing only the projected number reads as a description of the
-file on disk.
+which has two columns **by design** and no commit column to fill. `v2927`'s narrower reader had been
+**right** to skip them, and I read its correctness as a blind spot.
 
-Verified safe for the other two parsers of this table before touching 50 rows:
-`tasks_freshness.py` matches only the first column, and `board_sync.py` takes timestamps
-**"from git, never from the markdown"** (its own comment) and matches versions on an identifier.
-Both run unchanged afterwards, and `test_board_story` passes.
+**What the wrong fix did:** v2929 inserted a SHA cell into all 50, producing three-cell rows under a
+two-column header — a malformed table, in the file the tool exists to keep honest. Caught before it
+reached origin, repaired in v2930 (all 50 restored, verified byte-identical).
 
-**Gate:** `test_every_version_binds_to_a_commit`, 8 laws, **8/8 red-proofs PROVEN.** The headline law
-now asserts the two counts are EQUAL, so a row outside the reader's reach fails the law instead of
-hiding behind it.
+**The true numbers:** the version table holds **281 rows and every one of them binds.** The 330 I
+published was the version table plus another table's rows, counted together because my reader
+matched on row shape rather than on which table a row is in.
 
-⚠ **One proof went INVALID and the drill is the only reason I know.** v2927's laundering-guard
-anchor stopped matching when `stamp()` was rewritten — 0 matches, which proves nothing and is not
-red. Re-anchored from the file's own bytes. **Three times this session a rewrite has left a stale
-anchor**; re-counting every anchor before spending a drill is now the habit, not the exception.
+The lesson is the one that was already written down and that I applied to the tool while skipping it
+myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
+the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
+
+## REG-935 — the backfill ran, was correct, and was overwritten in the same breath
+
+**v2930.** The join I shipped in v2927 never worked in production, and my own law said it did.
+
+`bump_version.py` reads `TASKS.md` into `s` at the top of its recording function. v2927 called the
+stamper **before** the row write. The stamper wrote the file correctly; the next line then wrote the
+**stale in-memory `s`** straight back over it. A textbook lost update.
+
+**MEASURED:** the v2928 bump printed `bound 1 version row(s) to a commit`, and commit `6442cfe5`
+still carries `| **v2927** | \u0060(this commit)\u0060 |`. The only reason the table looked bound
+locally is that I had run `stamp_versions.py` **by hand** during v2929. Nothing automatic ever
+worked.
+
+⚠⚠ **AND THE LAW WAS HOLLOW.** `test_bump_version_actually_CALLS_the_stamper` asserted that the
+import and the `.stamp()` call existed. **It proved the tap was plumbed, never that water came out**
+— and it cites `[[plumbing-with-no-tap]]` in its own docstring while doing so. The law now requires
+the stamp call's line to come AFTER the TASKS.md write, which is the ordering the defect violated.
+
+**Fix:** write first, stamp second. Verified end-to-end on the v2930 bump itself: v2929 bound to
+`bfdae60c` and v2930 left pending, in one run, with no hand intervention.
+
+**Gate:** `test_every_version_binds_to_a_commit`, 8 laws, **8/8 red-proofs PROVEN** — including a
+law for the foreign table and one for newest-by-number (v2929 took the first row in FILE order and
+got v2435, from the other table).
+
+⚠ **Three of those proofs came back BLIND first.** Two were v2929 proofs whose laws v2930 deleted —
+a tamper with no law left to defeat. The third was mine: the ordering tamper only swapped the write
+with a `print`, so the write never moved past the stamper and the law had nothing to catch. **The
+sabotage is usually the wrong one** — sixth time this session, and every one was found by the drill
+rather than by reading the tamper.
 
 ## REG-933 — the writer has three states and the reader I shipped had two: a crash printed as a keep
 

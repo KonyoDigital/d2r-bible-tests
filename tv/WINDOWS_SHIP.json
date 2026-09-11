@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2929",
+  "ver": "v2930",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2929: --note v2927 fixed 280 of 330 rows and said no unbound row; 50 legacy two-column rows had no SHA slot and were silently outside the claim",
+  "note": "v2930: --note v2929 inserted a SHA cell into 50 rows of a different table; v2927 had been right to skip them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

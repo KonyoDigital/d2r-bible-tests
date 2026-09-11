@@ -55,6 +55,33 @@ ROW = re.compile(r'^\| \*\*(v\d{4})\*\* \| (`[^`]*`[^|]*?) \|', re.M)
 # to fix exactly this class of gap. Grok Bot was still right after the first fix.
 # [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
 VROW = re.compile(r'^\| \*\*(v\d{4})\*\* \|(.*)$', re.M)
+#: The version table's own header. ⚠⚠ v2930 — SCOPE, AND IT COST A SELF-INFLICTED REGRESSION.
+# v2929 read every `| **vNNNN** |` line in the FILE, concluded that 50 of them were "legacy
+# two-column version rows", and inserted a SHA cell into all 50. They were not version rows at
+# all: they belong to a SEPARATE table headed `| ship | what it closed |` at the top of TASKS.md,
+# which has two columns BY DESIGN and no commit column to fill. The result was 50 three-cell rows
+# under a two-column header — a malformed table, in the file this tool exists to keep honest.
+# v2927's narrow reader had been RIGHT to skip them, and REG-934 mis-read its correctness as a
+# blind spot. A row is a version row because of the TABLE IT IS IN, not because it starts with a
+# bold vNNNN. [[regression-guard]] [[source-reading-guard]] [[ab-against-head-before-blaming-the-room]]
+TABLE_HEAD = "| version | commit | commit subject |"
+
+
+def table_region(src):
+    """(start, end) character offsets of the version table's rows. -> tuple|None
+
+    Everything outside this is another table's business and must never be touched.
+    """
+    i = src.find(TABLE_HEAD)
+    if i < 0:
+        return None
+    i = src.find("\n", src.find("\n", i) + 1) + 1      # past the header and the |---| rule
+    j = i
+    for line in src[i:].splitlines(True):
+        if not line.startswith("|"):
+            break
+        j += len(line)
+    return (i, j)
 
 
 def row_cells(rest):
@@ -137,8 +164,15 @@ def stamp(path=None, write=True, cwd=None, known=None):
     known = version_commits(cwd) if known is None else known
     counts = {"bound": 0, "carried": 0, "pending": 0, "unknown": 0, "left": 0, "legacyFilled": 0}
     changed = []
-    all_rows = VROW.findall(src)
-    newest = all_rows[0][0] if all_rows else None
+    span = table_region(src)
+    if span is None:
+        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,
+                               knownVersions=len(known)), "changed": [], "wrote": False}
+    head, body, tail = src[:span[0]], src[span[0]:span[1]], src[span[1]:]
+    all_rows = VROW.findall(body)
+    # ⚠ THE NEWEST IS THE HIGHEST NUMBER, not the first line. v2929 took all_rows[0] and got
+    # v2435 — a row from a different table that happened to appear earlier in the file.
+    newest = ("v%d" % max(int(v[1:]) for v, _ in all_rows)) if all_rows else None
 
     def _fix(m):
         ver, rest = m.group(1), m.group(2)
@@ -157,7 +191,12 @@ def stamp(path=None, write=True, cwd=None, known=None):
             return "| **%s** | %s |%s" % (ver, fresh, rest)
         return m.group(0).replace(cell, fresh, 1)
 
-    out = VROW.sub(_fix, src)
+    # ⚠ SUBSTITUTE ONCE. The first cut called VROW.sub(_fix, body) twice — once here and once to
+    # measure the result — so every counter was tallied twice and `already stamped` printed 560
+    # for a 281-row table. A counter incremented inside a substitution callback is state, and
+    # running the substitution again is not a free read. [[feedback-suspect-the-instrument]]
+    new_body = VROW.sub(_fix, body)
+    out = head + new_body + tail
     if write and out != src:
         tmp = p + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as fh:
@@ -166,8 +205,8 @@ def stamp(path=None, write=True, cwd=None, known=None):
     counts["rows"] = len(all_rows)
     # ⚠ BEFORE AND AFTER ARE DIFFERENT FACTS, and a --dry run that prints only the projected
     # number reads as a description of the file on disk. [[stale-reading]]
-    counts["shaCellsBefore"] = len(ROW.findall(src))
-    counts["shaCellsAfter"] = len(ROW.findall(out))
+    counts["shaCellsBefore"] = len(ROW.findall(body))
+    counts["shaCellsAfter"] = len(ROW.findall(new_body))
     counts["knownVersions"] = len(known)
     return {"counts": counts, "changed": changed, "wrote": bool(write and out != src)}
 
