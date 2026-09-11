@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2961** | `(this commit)` | v2961 — --note the drift lane compared two version stamps, so an unstamped save to the running file was invisible to it |
+| **v2962** | `(this commit)` | v2962 — the partial revert reported the withdrawn stack as landed and the kept one not at all |
+| **v2961** | `4cf877ef` | v2961 — --note the drift lane compared two version stamps, so an unstamped save to the running file was invisible to it |
 | **v2960** | `b5466dcf` | v2960 — --note the last re-gate verdict could not say what produced it, so a stale result outlived every improvement to the gate that made it |
 | **v2959** | `955834af` | v2959 — --note the heart stopped drawing a row for a blind instrument because there is no longer a blind instrument |
 | **v2958** | `e2bf0e8a` | v2958 — --note a law accepted None where it meant False, and the tamper sat on a path no law executed |

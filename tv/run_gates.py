@@ -1147,6 +1147,25 @@ GATES = [
              "for a CDP probe, data-fanfit for the render harness which cannot reach a JS global. "
              "Neither is visible to him. Three tampers proven red.",
          skip_ok=()),
+    Gate("test_the_fan_names_the_stacks_it_kept",
+         [sys.executable,
+          os.path.join(HERE, "test_the_fan_names_the_stacks_it_kept.py")], 120,
+         why="#53. v2848 made the revert INCREMENTAL — withdraw the most-displaced stack, "
+             "re-measure, stop when the arrangement is no longer worse — and it landed with a "
+             "defect one field over. `applied` is dense over the stacks that MOVED; `kept` and "
+             "`dropped` hold indices into `stacks`. The partial path filtered one index space "
+             "by the other's values. MEASURED 2026-09-11 by running the real _hrtFanFit over a "
+             "stub DOM: moves reported [{x:100,dy:15}] — WITHDRAWN, carrying no transform — "
+             "while the only transform on the page was x=500, named nowhere. Exactly inverted, "
+             "and keptStacks:1 was right the whole time, which is what hid it: a correct count "
+             "beside a wrong name. Four source-reading laws already guard this function and "
+             "none could see it, because the code LOOKS right — the mistake is only in what it "
+             "returns, so this law EXECUTES it. Also pins `moves` to one meaning on all three "
+             "returns (what carries a transform NOW) after the reverted path published "
+             "moves:N beside keptStacks:0, with `attempted` keeping the record of what was "
+             "tried. Both branches have a fixture-still-reaches-it guard. Three tampers proven "
+             "red. node absent => SKIP, which is UNMEASURED and not a pass.",
+         skip_ok=()),
     Gate("test_the_page_is_not_its_own_console",
          [sys.executable,
           os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,

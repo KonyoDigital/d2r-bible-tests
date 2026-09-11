@@ -13215,7 +13215,16 @@ window._lockMark = function(isOpen, px, label){
       if (!st.dx && !st.dy) continue;
       var tf = 'translate(' + st.dx.toFixed(1) + ',' + st.dy.toFixed(1) + ')';
       for (var q2 = 0; q2 < st.els.length; q2++) st.els[q2].setAttribute('transform', tf);
-      applied.push({ x: st.x, dx: st.dx, dy: st.dy, w: +(st.w || 0).toFixed(1) });
+      /* ⚠⚠ v2962 (#53) — `si` IS THE STACK INDEX, AND IT IS NOT OPTIONAL.
+         `applied` is dense over the stacks that MOVED; `kept`/`dropped` hold indices into
+         `stacks`. Two index spaces, and the partial path filtered one by the other's values.
+         MEASURED 2026-09-11 on a stub-DOM run of this exact function: a fan with a
+         non-moving stack sorted first, one stack withdrawn and one kept, reported
+         `moves: [{x:100,dy:15}]` while the only transform on the DOM was x=500 — the
+         withdrawn stack named as landed, the landed one not named at all. `keptStacks` was
+         right the whole time, which is what made it invisible: a correct count beside a
+         wrong name. [[label-outlived-referent]] [[unknown-stays-unknown]] */
+      applied.push({ si: t, x: st.x, dx: st.dx, dy: st.dy, w: +(st.w || 0).toFixed(1) });
     }
     /* ⚠⚠ THE PLACEMENT IS MEASURED BEFORE IT IS KEPT — AND THE FIRST VERSION OF THIS GUARD WAS
        DEAD, WHICH ONLY A SABOTAGE SHOWED. It reverted on `pxAfter > pxBefore` alone. An inverted
@@ -13285,18 +13294,24 @@ window._lockMark = function(isOpen, px, label){
       for (var z = 0; z < stacks.length; z++) {
         for (var y2 = 0; y2 < stacks[z].els.length; y2++) stacks[z].els[y2].removeAttribute('transform');
       }
+      /* ⚠ v2962 (#53) — `moves` USED TO BE `applied` HERE, BESIDE `keptStacks: 0`. One
+         payload, two answers: the DOM record published `moves: 2, keptStacks: 0`. `moves`
+         now means the same thing on all three returns — the transforms on the page RIGHT
+         NOW — and `attempted` keeps the record of what was tried, which is the field the
+         fan-keeps-its-own-verdict law exists to protect. */
       return { ok: true, reverted: true, before: pxBefore, after: pxBefore, wouldHaveBeen: pxAfter,
+               moves: [], attempted: applied,
                painted: painted, authored: authored, unpainted: unpainted,
                keptStacks: 0, droppedStacks: dropped.length,
                solve: { from: startState, to: endState, passes: passes },
                why: ('the placement did not measure better, so none of it landed'
                      + (dropped.length ? ' — and withdrawing ' + dropped.length
                         + ' stack(s) one at a time did not rescue any of it either' : '')),
-               scale: +scale.toFixed(4), moves: applied };
+               scale: +scale.toFixed(4) };
     }
     if (dropped.length) {
       /* a PARTIAL solve: some stacks were withdrawn, the rest measured better and stayed. */
-      var landed = applied.filter(function (m, mi) { return dropped.indexOf(mi) < 0; });
+      var landed = applied.filter(function (m) { return kept.indexOf(m.si) >= 0; });
       return { ok: true, reverted: false, partial: true,
                before: pxBefore, after: pxNow, wouldHaveBeen: pxAfter,
                painted: painted, authored: authored, unpainted: unpainted,
@@ -13305,7 +13320,7 @@ window._lockMark = function(isOpen, px, label){
                why: ('the whole placement measured worse, so ' + dropped.length
                      + ' stack(s) were withdrawn one at a time; the remaining ' + kept.length
                      + ' measured better than not moving and landed'),
-               scale: +scale.toFixed(4), moves: landed };
+               scale: +scale.toFixed(4), moves: landed, attempted: applied };
     }
     /* ⚠ v2957 — THE THIRD ok:true PATH CARRIES THE COUNTS TOO. The reverted path (all dropped)
        and the partial path (some kept) both reported keptStacks/droppedStacks; this one — the
@@ -13317,7 +13332,7 @@ window._lockMark = function(isOpen, px, label){
              painted: painted, authored: authored, unpainted: unpainted,
              keptStacks: applied.length, droppedStacks: 0,
              solve: { from: startState, to: endState, passes: passes },
-             scale: +scale.toFixed(4), moves: applied };
+             scale: +scale.toFixed(4), moves: applied, attempted: applied };
   }
 
   /* ⚠⚠ v2729 — THE MEASURED DODGE, AND IT IS THE FIX [[heartov2]] HAS NEEDED FOR THREE ATTEMPTS.
@@ -13387,6 +13402,7 @@ window._lockMark = function(isOpen, px, label){
             to: (_ff && _ff.solve && _ff.solve.to) || null,
             passes: (_ff && _ff.solve && _ff.solve.passes),
             moves: (_ff && _ff.moves) ? _ff.moves.length : 0,
+            attempted: (_ff && _ff.attempted) ? _ff.attempted.length : null,
             before: _ff && _ff.before,
             after: _ff && _ff.after,
             wouldHaveBeen: _ff && _ff.wouldHaveBeen,

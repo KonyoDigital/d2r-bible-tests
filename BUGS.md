@@ -31700,6 +31700,44 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-965 — the partial revert named the stack it PUT BACK, and not the one it kept (task #53 — v2962)
+
+v2848 fixed #53's headline defect: the guard's all-or-nothing revert threw away every stack's move
+because ONE stack dragged the arrangement over the line. It became INCREMENTAL — withdraw the
+most-displaced stack, re-measure all three conditions, stop the moment the arrangement is no longer
+worse. That part is right and is not what this entry is about.
+
+It landed with a defect one field over. `applied` is **dense over the stacks that MOVED**; `kept`
+and `dropped` hold **indices into `stacks`**. Two index spaces, and the partial path filtered one by
+the other's values:
+
+    var landed = applied.filter(function (m, mi) { return dropped.indexOf(mi) < 0; });
+
+**MEASURED 2026-09-11** by extracting the real `_hrtFanFit` and running it in node over a stub DOM —
+a fan with a non-moving stack sorted first (so the two index spaces genuinely diverge), one stack
+withdrawn and one kept:
+
+    moves REPORTED   : [{"x":100,"dx":0,"dy":15}]     <- WITHDRAWN, carries no transform
+    transforms ON DOM: [{"name":"LC","x":500,...}]    <- KEPT, and named nowhere
+
+**Exactly inverted.** `keptStacks: 1` was right the whole time, and that is what hid it: a correct
+count standing beside a wrong name — the shape he has caught here more often than any other.
+[[label-outlived-referent]]
+
+Swept the same class one field over: `moves` meant **what landed** on two returns and **what was
+attempted** on the reverted one, so the DOM record published `moves: 2` beside `keptStacks: 0` in a
+single payload. `moves` now means one thing on all three returns — the transforms on the page right
+now — and a new `attempted` keeps the record of what was tried, which is the field
+`test_the_fan_keeps_its_own_verdict` exists to protect.
+
+⚠ **FOUR SOURCE-READING LAWS ALREADY GUARDED THIS FUNCTION AND NONE COULD SEE IT.** The code *looks*
+right; the mistake is only visible in what it RETURNS. So the new law
+`test_the_fan_names_the_stacks_it_kept` **executes** the function over a stub DOM and asserts
+`moves` names exactly the stacks carrying a transform, in both directions, on both branches — each
+with a fixture-still-reaches-this-branch guard first, because a fixture that stops exercising the
+path would let every assertion below it pass vacuously. Three tampers PROVEN red (1 match each).
+node absent => SKIP, which is UNMEASURED and not a pass.
+
 ## REG-964 — the drift lane compares LABELS; nothing compared the bytes (task #67 — v2961)
 
 #67's title is literal: *"nothing measures the code the console is ACTUALLY executing."* What
