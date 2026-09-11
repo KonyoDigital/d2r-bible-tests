@@ -92,10 +92,13 @@ def _save(d):
     # ⚠ SWALLOWED, like the write below. [[zero-needs-a-denominator]]
     try:
         import provenance as _PV
-        d = dict((_k, (_PV.stamp_row(_v, by="main_character",
-                                     extra={"store": "main_character"})
-                       if isinstance(_v, dict) else _v))
-                 for _k, _v in (d or {}).items())
+        # ⚠⚠ v2979 — ONLY THE ROWS THIS WRITE CHANGED. The second eye caught v2976
+        # mapping stamp_row over the WHOLE store: stamp_row REPLACES any existing block,
+        # so every sibling was relabelled on every save. Two lies — a BACK-FILL (legacy
+        # rows nobody in this process wrote claiming us) and CHURN (one row credited, all
+        # of them restamped, so "which predate v3000" answers "none"). Shipped 3x.
+        d = _PV.stamp_changed_rows(d, _load(), by="main_character",
+                                   extra={"store": "main_character"})
     except Exception:
         pass
     try:

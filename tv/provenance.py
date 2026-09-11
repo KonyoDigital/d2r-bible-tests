@@ -261,6 +261,45 @@ def stamp(payload, by, ver=_MISSING, at=None, extra=None):
     return out
 
 
+def stamp_changed_rows(new, prior, by, ver=_MISSING, at=None, extra=None):
+    """Stamp only the rows whose CONTENT changed. -> dict
+
+    ⚠⚠ v2979 — `stamp_row` REPLACES any existing block, so mapping it over a whole store relabels
+    every sibling row on every save. The second eye caught that on v2976 and it was shipped three
+    times (capture_doors, chron_hunt_memory, main_character). Two ways it lies:
+
+      · BACK-FILL. First save after the upgrade: the other rows are months of tallies nobody in
+        this process wrote, and they would claim `by=<me>` at this instant. That is exactly what
+        `ThePastIsNotRewritten` forbids — stamping a row you did not write invents provenance.
+      · CHURN. `after_session_ended` credits ONE door, then persists the blob with nothing else
+        changed. All the others get a fresh `at`/`ver`, so "which tallies predate v3000?" answers
+        "none of them".
+
+    So a row is stamped when, and only when, this write changed it:
+      · content differs from the prior (ignoring the block itself)  -> stamp: we wrote this
+      · row is new                                                  -> stamp: we wrote this
+      · content identical                                           -> KEEP the prior's block,
+        including keeping NO block, because an untouched legacy row was not written by us
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    prior = prior if isinstance(prior, dict) else {}
+    out = {}
+    for k, v in (new or {}).items():
+        if not isinstance(v, dict):
+            out[k] = v
+            continue
+        old = prior.get(k)
+        if isinstance(old, dict):
+            a = dict((kk, vv) for kk, vv in v.items() if kk != PROV_KEY)
+            b = dict((kk, vv) for kk, vv in old.items() if kk != PROV_KEY)
+            if a == b:
+                out[k] = dict(v) if PROV_KEY in v else (
+                    dict(v, **{PROV_KEY: old[PROV_KEY]}) if PROV_KEY in old else dict(v))
+                continue
+        out[k] = stamp_row(v, by, ver=ver, at=at, extra=extra)
+    return out
+
+
 def stamp_row(row, by, ver=_MISSING, at=None, extra=None):
     """The same block, for ONE `.jsonl` record. -> dict
 

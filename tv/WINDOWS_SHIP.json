@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2978",
+  "ver": "v2979",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2978: a blob stamp would have added a phantom item to tracked items",
+  "note": "v2979: mapping the stamp over a whole store back-filled legacy rows and churned the rest",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

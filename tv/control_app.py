@@ -4918,9 +4918,13 @@ def _capture_door_save(d):
     # keeping. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
     try:
         import provenance as _PV
-        d = dict((_k, (_PV.stamp_row(_v, by="control_app", extra={"store": "capture_doors"})
-                       if isinstance(_v, dict) else _v))
-                 for _k, _v in (d or {}).items())
+        # ⚠⚠ v2979 — ONLY THE ROWS THIS WRITE CHANGED. The second eye caught v2976
+        # mapping stamp_row over the WHOLE store: stamp_row REPLACES any existing block,
+        # so every sibling was relabelled on every save. Two lies — a BACK-FILL (legacy
+        # rows nobody in this process wrote claiming us) and CHURN (one row credited, all
+        # of them restamped, so "which predate v3000" answers "none"). Shipped 3x.
+        d = _PV.stamp_changed_rows(d, _capture_door_load(), by="control_app",
+                                   extra={"store": "capture_doors"})
     except Exception:
         pass
     try:
@@ -22575,10 +22579,14 @@ def _chron_reads_save(rec):
     # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
     try:
         import provenance as _PV
-        rec = dict((_k, (_PV.stamp_row(_v, by="control_app",
-                                       extra={"store": "chron_hunt_memory"})
-                         if isinstance(_v, dict) else _v))
-                   for _k, _v in (rec or {}).items())
+        # ⚠⚠ v2979 — ONLY THE ROWS THIS WRITE CHANGED. The second eye caught v2976
+        # mapping stamp_row over the WHOLE store: stamp_row REPLACES any existing block,
+        # so every sibling was relabelled on every save. Two lies — a BACK-FILL (legacy
+        # rows nobody in this process wrote claiming us) and CHURN (one row credited, all
+        # of them restamped, so "which predate v3000" answers "none"). Shipped 3x.
+        _prior = _PV.load_json(_chron_reads_path()) or {}
+        rec = _PV.stamp_changed_rows(rec, _prior, by="control_app",
+                                     extra={"store": "chron_hunt_memory"})
     except Exception:
         pass
     _p = _chron_reads_path()
@@ -26443,7 +26451,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2978",
+        "ver": "v2979",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

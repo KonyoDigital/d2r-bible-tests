@@ -27,6 +27,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -294,46 +295,121 @@ class TheCharacterLedgerKeepsItsTrackedCount(unittest.TestCase):
         self.assertEqual(before, live, "saving mutated the caller's ledger")
 
 
+class OnlyTheRowsThisWriteChangedAreStamped(unittest.TestCase):
+    """★ THE SECOND EYE'S FINDING on v2976, and it was shipped THREE TIMES before this law existed.
+
+    `stamp_row` REPLACES any existing block, so mapping it over a whole store relabels every
+    sibling on every save. Two distinct lies, both of which the eye named:
+
+      BACK-FILL   first save after the upgrade: rows that are months of tallies nobody in this
+                  process wrote would claim `by=control_app` at that instant — the exact thing
+                  `ThePastIsNotRewritten`, in this same file, exists to forbid.
+      CHURN       `after_session_ended` credits ONE door and persists the blob; every other door
+                  gets a fresh at/ver, so "which tallies predate v3000?" answers "none of them".
+
+    So a row is stamped when and only when THIS write changed it. An untouched row keeps whatever
+    block it had — including keeping NONE. [[unknown-stays-unknown]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="prov_chg_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.p = os.path.join(self.d, "capture_doors.json")
+        was = CA._capture_doors_path
+        CA._capture_doors_path = lambda: self.p
+        self.addCleanup(setattr, CA, "_capture_doors_path", was)
+        # a LEGACY store: real tallies, no stamps anywhere
+        io.open(self.p, "w", encoding="utf-8").write(json.dumps(
+            {"mini": {"blank": 2, "filmed": 1}, "onair": {"blank": 19, "filmed": 1},
+             "shadow": {"blank": 263, "filmed": 181}}))
+
+    def _save_touching_onair(self):
+        cur = json.load(io.open(self.p, encoding="utf-8"))
+        cur["onair"]["blank"] = 20
+        CA._capture_door_save(cur)
+        return json.load(io.open(self.p, encoding="utf-8"))
+
+    def test_the_row_we_changed_is_stamped(self):
+        blob = self._save_touching_onair()
+        self.assertEqual("control_app", getattr(PV.read(blob["onair"]), "by", None),
+                         "the door this write actually changed does not name its producer")
+
+    def test_untouched_legacy_rows_are_not_back_filled(self):
+        blob = self._save_touching_onair()
+        for k in ("mini", "shadow"):
+            self.assertIsNone(getattr(PV.read(blob[k]), "by", None),
+                              "%r was BACK-FILLED: a tally nobody in this process wrote now "
+                              "claims us as its producer, which invents provenance" % k)
+
+    def test_untouched_rows_keep_their_tallies(self):
+        blob = self._save_touching_onair()
+        self.assertEqual(263, blob["shadow"].get("blank"))
+        self.assertEqual(3, len(blob), "the door count moved: %s" % sorted(blob))
+
+    def test_a_no_op_save_does_not_churn_the_stamps(self):
+        """Scenario A: one door credited, the blob persisted, nothing else changed."""
+        blob = self._save_touching_onair()
+        at1 = getattr(PV.read(blob["onair"]), "at", None)
+        self.assertIsNotNone(at1)
+        time.sleep(0.02)
+        CA._capture_door_save(json.load(io.open(self.p, encoding="utf-8")))
+        blob2 = json.load(io.open(self.p, encoding="utf-8"))
+        self.assertEqual(at1, getattr(PV.read(blob2["onair"]), "at", None),
+                         "a save that changed nothing moved the stamp's clock, so `at` tracks "
+                         "'last time any row was persisted', not 'last time THIS row was written'")
+
+    def test_a_row_that_changes_later_is_restamped(self):
+        """The other half: keeping an old block must not mean freezing it forever."""
+        self._save_touching_onair()
+        cur = json.load(io.open(self.p, encoding="utf-8"))
+        cur["mini"]["blank"] = 99
+        CA._capture_door_save(cur)
+        blob = json.load(io.open(self.p, encoding="utf-8"))
+        self.assertEqual("control_app", getattr(PV.read(blob["mini"]), "by", None),
+                         "a row that DID change kept its old (absent) block, so the stamp can "
+                         "never catch up with the data")
+
+
 RED_PROOF = [
     {
-        "why": "stamping the BLOB adds a phantom item to `tracked = len(_load())`, the count main_character prints as \"tracked items\" - a number he reads",
-        "file": "main_character.py",
-        "find": '        d = dict((_k, (_PV.stamp_row(_v, by="main_character",\n                                     extra={"store": "main_character"})\n                       if isinstance(_v, dict) else _v))\n                 for _k, _v in (d or {}).items())\n',
-        "replace": '        d = _PV.stamp(d, by="main_character", extra={"store": "main_character"})\n',
+        "why": 'restoring the blanket comprehension relabels every sibling row on every save - the BACK-FILL and CHURN the second eye found in v2976, shipped three times',
+        "file": 'control_app.py',
+        "find": '        d = _PV.stamp_changed_rows(d, _capture_door_load(), by="control_app",\n                                   extra={"store": "capture_doors"})\n',
+        "replace": '        d = dict((_k, (_PV.stamp_row(_v, by="control_app", extra={"store": "capture_doors"})\n                       if isinstance(_v, dict) else _v))\n                 for _k, _v in (d or {}).items())\n',
         "matches": 1,
     },
     {
-        "why": "stamping the BLOB inflates len(d), and corroborate.hunt-remembers reads exactly that number against zero - an EMPTY memory would report 1 and the instrument watching for re-bought reads would call it healthy",
-        "file": "control_app.py",
-        "find": '        rec = dict((_k, (_PV.stamp_row(_v, by="control_app",\n                                       extra={"store": "chron_hunt_memory"})\n                         if isinstance(_v, dict) else _v))\n                   for _k, _v in (rec or {}).items())\n',
-        "replace": '        rec = _PV.stamp(rec, by="control_app", extra={"store": "chron_hunt_memory"})\n',
-        "matches": 1,
-    },
-    {
-        "why": "stamping the BLOB instead of each door is the hazard reel_retention names for this "
-               "very store: blueprint.capture_doors() enumerates the top level, so a _prov key "
-               "there is published as a fourth door that does not exist",
-        "file": "control_app.py",
-        "find": '        d = dict((_k, (_PV.stamp_row(_v, by="control_app", extra={"store": "capture_doors"})\n                       if isinstance(_v, dict) else _v))\n                 for _k, _v in (d or {}).items())\n',
-        "replace": '        d = _PV.stamp(d, by="control_app", extra={"store": "capture_doors"})\n',
-        "matches": 1,
-    },
-    {
-        "why": "stamping the BLOB instead of the ROW is the exact hazard reel_retention names: a "
-               "reel-keyed store gains a top-level _prov, and every reader that enumerates it "
-               "counts one reel that does not exist",
-        "file": "retro_triage.py",
+        "why": 'stamping the BLOB instead of the ROW is the exact hazard reel_retention names: a reel-keyed store gains a top-level _prov, and every reader that enumerates it counts one reel that does not exist',
+        "file": 'retro_triage.py',
         "find": '        row = _PV.stamp_row(row, by="retro_triage")',
         "replace": '        blob = _PV.stamp(blob, by="retro_triage")',
         "matches": 1,
     },
     {
-        "why": "removing the stamp call puts the store back to SILENT: a new triage verdict that "
-               "cannot be invalidated when the classifier improves, over the store that decides "
-               "EMPTY on the river",
-        "file": "retro_triage.py",
+        "why": 'removing the stamp call puts the store back to SILENT: a new triage verdict that cannot be invalidated when the classifier improves, over the store that decides EMPTY on the river',
+        "file": 'retro_triage.py',
         "find": '        row = _PV.stamp_row(row, by="retro_triage")\n',
-        "replace": "",
+        "replace": '',
+        "matches": 1,
+    },
+    {
+        "why": 'stamping the BLOB adds a phantom door that blueprint.capture_doors() publishes as a row',
+        "file": 'control_app.py',
+        "find": '        d = _PV.stamp_changed_rows(d, _capture_door_load(), by="control_app",\n                                   extra={"store": "capture_doors"})\n',
+        "replace": '        d = _PV.stamp(d, by="control_app", extra={"store": "capture_doors"})\n',
+        "matches": 1,
+    },
+    {
+        "why": 'stamping the BLOB inflates len(d), which corroborate.hunt-remembers compares against zero - an EMPTY memory would report 1',
+        "file": 'control_app.py',
+        "find": '        rec = _PV.stamp_changed_rows(rec, _prior, by="control_app",\n                                     extra={"store": "chron_hunt_memory"})\n',
+        "replace": '        rec = _PV.stamp(rec, by="control_app", extra={"store": "chron_hunt_memory"})\n',
+        "matches": 1,
+    },
+    {
+        "why": 'stamping the BLOB adds a phantom item to `tracked = len(_load())`, a number he reads',
+        "file": 'main_character.py',
+        "find": '        d = _PV.stamp_changed_rows(d, _load(), by="main_character",\n                                   extra={"store": "main_character"})\n',
+        "replace": '        d = _PV.stamp(d, by="main_character", extra={"store": "main_character"})\n',
         "matches": 1,
     },
 ]

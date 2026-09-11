@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2978** | `(this commit)` | v2978 — a blob stamp would have added a phantom item to tracked items |
+| **v2979** | `(this commit)` | v2979 — mapping the stamp over a whole store back-filled legacy rows and churned the rest |
+| **v2978** | `762c0a28` | v2978 — a blob stamp would have added a phantom item to tracked items |
 | **v2977** | `7ccf3e49` | v2977 — chron_hunt_memory is counted by len and an empty memory would have read as one |
 | **v2976** | `c333c67b` | v2976 — capture_doors is keyed by door and blueprint enumerates that top level |
 | **v2975** | `339e933b` | v2975 — chron_evidence could not be re-judged when the gate improves |

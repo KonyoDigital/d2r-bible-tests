@@ -31700,6 +31700,51 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-982 - I mapped the stamp over WHOLE stores and shipped it three times (task #69 - v2979)
+
+The second eye reviewed v2976 and found a contract bug the three tests in that diff could not see.
+`stamp_row` **REPLACES** any existing block - verified: stamping a row already marked `old-writer`
+returns one marked `control_app`. So mapping it across a store relabels **every sibling on every
+save**. I did that in v2976, v2977 and v2978, and v2976 was already SHIPPED.
+
+Two distinct lies, both named by the eye:
+
+  **BACK-FILL.** First save after the upgrade: `mini` and `shadow` are months of tallies nobody in
+  this process wrote, and they would claim `by=control_app` at that instant. That is exactly what
+  `ThePastIsNotRewritten` - **in the same test file** - exists to forbid. I wrote the law and then
+  violated it three functions away.
+
+  **CHURN.** `after_session_ended` credits ONE door then persists the blob with nothing else
+  changed. Every other door gets a fresh `at`/`ver`, so "which tallies predate v3000?" answers
+  "none of them" - destroying the very re-judgeability the stamp was added for.
+
+FIXED with one shared `provenance.stamp_changed_rows(new, prior, by, extra)` rather than three
+copies: a row is stamped when and only when THIS write changed it; an untouched row keeps whatever
+block it had, **including keeping NONE**. Verified on all four cases:
+
+    unchanged + already stamped  -> keeps 'old-writer'
+    unchanged + LEGACY (no block) -> stays None, no back-fill
+    changed                       -> stamped
+    brand new                     -> stamped
+
+And the eye's Scenario B run for real against a legacy store, touching one door:
+
+    onair (changed)    by='control_app'      mini/shadow (untouched)  by=None
+    doors still 3      shadow tally 263 kept
+    re-save, nothing changed -> `at` unchanged   (no churn)
+
+⚠ **AND MY OWN HELPER REFERENCED A CONSTANT THAT DOES NOT EXIST.** It used `KEY`; the module
+defines `PROV_KEY`. A NameError inside a swallowed `try` would have stamped NOTHING, silently, in
+all three stores - a fix that reports success and does nothing. Caught only because the four-case
+check was RUN rather than reasoned about.
+
+⚠ **THEN THREE RED-PROOFS WENT INVALID**, matching 0: the rewire deleted the exact code they
+anchored on. heart2: *"The SABOTAGE is wrong, not the law."* Re-aimed at the live calls, each
+`ast.parse`d first. Six tampers PROVEN red, 1 match each.
+
+★ v2976 is ON ORIGIN with this defect; v2977/v2978 were caught before pushing. The fix lands in the
+same batch as the versions that carried it.
+
 ## REG-981 - the character ledger counts itself, so the stamp went inside its items (task #69 - v2978)
 
 `main_character.json` was SILENT and is keyed BY ITEM NAME - "dwarf star", "war traveler". Before
