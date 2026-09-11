@@ -19977,9 +19977,24 @@ def vault_seen_save(unsure_rows):
             pass
         cur["lastSeenTs"] = row.get("lastSeenTs") or cur["lastSeenTs"]
     rows = [r for r in keep.values() if r["witnesses"]]
+    # ⚠⚠ v2974 (#69) — WHAT PRODUCED THIS BANK. vault_seen.json was SILENT in the 2026-09-11
+    # census. It holds UNGROUNDED sightings kept so a LATER session can corroborate them, so
+    # a row written under an older grounding rule is exactly the thing a future sweep must be
+    # able to re-judge — and without a producer it cannot be told from one banked today.
+    # ⚠ FLAT PAYLOAD ({rows, ts}) and every reader takes a NAMED field, so the stamp goes on
+    # the BLOB. `rows` stays a plain list — stamping the ROWS here would change what
+    # `len(rows)` and the corroboration walk see (REG-972 in the other direction).
+    # ⚠ SWALLOWED: this function already returns None rather than raising when the write
+    # fails, and a LABEL must never be the thing that loses a sighting nobody can re-derive.
+    _payload = {"rows": rows, "ts": int(time.time() * 1000)}
+    try:
+        import provenance as _PV
+        _payload = _PV.stamp(_payload, by="control_app", extra={"store": "vault_seen"})
+    except Exception:
+        pass
     try:
         with open(_VAULT_SEEN_PATH, "w", encoding="utf-8") as fh:
-            json.dump({"rows": rows, "ts": int(time.time() * 1000)}, fh, ensure_ascii=False)
+            json.dump(_payload, fh, ensure_ascii=False)
     except Exception:
         return None
     return len(rows)
@@ -26373,7 +26388,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2973",
+        "ver": "v2974",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

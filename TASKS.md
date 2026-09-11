@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2973** | `(this commit)` | v2973 — shadow_watch decides whether a quiet loop is healthy and could not name its writer |
+| **v2974** | `(this commit)` | v2974 — a sighting banked under an older grounding rule read like one banked today |
+| **v2973** | `73b0d082` | v2973 — shadow_watch decides whether a quiet loop is healthy and could not name its writer |
 | **v2972** | `317f606d` | v2972 — two last-result stores that declare themselves mirrors were both silent |
 | **v2971** | `cb2d274a` | v2971 — the law read a token and a superstring operand would have passed it |
 | **v2970** | `a7be6904` | v2970 — a fault from an old detector read exactly like one from today |

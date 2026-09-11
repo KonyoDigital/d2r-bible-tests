@@ -48,13 +48,17 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
              # v2973 — the freshness note console_doctor uses to tell a loop that RAN AND DECLINED
              # from one that DIED. Same flat shape, same blob-level stamp, so it joins this law
              # rather than getting a file of its own. [[copy-drift]]
-             ("shadow_watch", "def _shadow_watch_note(**kw):", "json.dump(cur, fh)"))
+             ("shadow_watch", "def _shadow_watch_note(**kw):", "json.dump(cur, fh)"),
+             # v2974 — the bank of UNGROUNDED sightings kept so a LATER session can corroborate
+             # them. A row written under an older grounding rule is exactly what a future sweep
+             # must be able to re-judge, and without a producer it cannot.
+             ("vault_seen", "def vault_seen_save(unsure_rows):", "return len(rows)"))
 
     def test_each_twin_stamps_the_blob_it_writes(self):
         for store, start, end in self.CASES:
             body = _body(self, start, end, store)
-            m = re.search(r"(?:payload|cur)\s*=\s*_PV\.stamp\("
-                          r"\s*(?:payload|cur)\s*,\s*by\s*=\s*[\"']([\w.]+)[\"']",
+            m = re.search(r"(?:payload|cur|_payload)\s*=\s*_PV\.stamp\("
+                          r"\s*(?:payload|cur|_payload)\s*,\s*by\s*=\s*[\"']([\w.]+)[\"']",
                           body)
             self.assertIsNotNone(
                 m, "%s is written without a provenance stamp, so a result persisted by an older "
@@ -97,6 +101,15 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "un-stamping the vault-seen bank leaves ungrounded sightings nobody can attribute - "
+               "a row banked under an older grounding rule reads exactly like one banked today, "
+               "and the reels it came from may already be pruned",
+        "file": "control_app.py",
+        "find": '        _payload = _PV.stamp(_payload, by="control_app", extra={"store": "vault_seen"})\n',
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "un-stamping the shadow-watch note puts back a freshness reading nobody can "
                "attribute - the store console_doctor uses to tell a loop that ran and declined "

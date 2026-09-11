@@ -31700,6 +31700,30 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-977 - the bank of UNGROUNDED sightings could not say what produced it (task #69 - v2974)
+
+`vault_seen.json` was SILENT. It holds sightings that did NOT ground, kept deliberately so a LATER
+session can corroborate them - *"a name that this sweep did not see again is NOT forgotten, because
+absence of evidence is not evidence"*. That makes the producer load-bearing rather than decorative:
+a row banked under an OLDER grounding rule is exactly what a future sweep must be able to re-judge,
+and with no producer it reads identically to one banked today. The reels it came from may already
+be pruned, so the row is all there is.
+
+Verified against a temp path before believing it:
+
+    returned        0   (rows remembered)
+    top-level keys  ['_prov', 'rows', 'ts']
+    rows is a LIST  True
+    provenance      by='control_app'  at=1789149815377
+
+⚠ **THE STAMP GOES ON THE BLOB AND `rows` STAYS A PLAIN LIST.** This is REG-972's hazard pointing
+the other way: stamping the ROWS here would change what `len(rows)` and the corroboration walk see,
+so the count this function returns would stop matching the bank it wrote. The shape decides, every
+time, and the law now grades four stores through one table rather than four files that can drift
+apart. [[copy-drift]]
+
+Four tampers PROVEN red, 1 match each. **#69: 16 SILENT -> 10.**
+
 ## REG-976 - the note that tells a DECLINED loop from a DEAD one could not name its writer (task #69 - v2973)
 
 `shadow_watch.json` was SILENT. It is one of the two stores `console_doctor` leans on to tell a loop
