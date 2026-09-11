@@ -20034,16 +20034,36 @@ class TestV2058ThePruneStaysOffUntilItCanSeeATooltip(unittest.TestCase):
         switch is set."""
         ca = self._ca()
         names = set(ca._prune_once.__code__.co_names)
-        consults = bool({"stash_screen_open", "stash_screen_open_cached", "panel_gate"} & names)
+        # ⚠⚠ v2984 — THIS VOCABULARY WENT STALE AND THE LAW COULD NO LONGER GO RED FOR THE RIGHT
+        # REASON. It accepted only {stash_screen_open, stash_screen_open_cached, panel_gate}. v2172
+        # replaced all three with `stash_panel_verdict` (the three-state gate), so the moment anyone
+        # armed the prune this refused — not because the panel check was missing, but because it had
+        # been RENAMED. Measured on the live function: co_names carries `stash_panel_verdict`,
+        # `_gate_receipt`, `_GATE_LAST` and `LaneCanary`, and none of the three old names exists
+        # anywhere in the tree. A law that names a dead vocabulary is a law that has stopped reading
+        # the code. [[source-reading-guard]] [[label-outlived-referent]]
+        # The OLD names are KEPT in the set on purpose: if the gate is ever reverted to them the law
+        # must still pass, because what it protects is "does it ask", not "what is it called".
+        consults = bool({"stash_screen_open", "stash_screen_open_cached", "panel_gate",
+                         "stash_panel_verdict"} & names)
         if ca._PRUNE_SAFE_TO_RUN or ca._PRUNE_STATS.get("enabled"):
             self.assertTrue(consults,
                             "the prune is armed and _prune_once still never asks whether the "
                             "frame it is deleting shows a stash panel — that is the v2037 defect "
                             "exactly, and it costs item names, not disk")
-            self.assertIn("_PANEL_UNKNOWN", names,
-                          "armed without the UNKNOWN sentinel: the gate's own 'not a panel' answer "
-                          "is None, so a gate that could not be ASKED would read as one that said "
-                          "no, and an unmeasured frame would be deleted as a spare one")
+            # ⚠ v2984 — `_PANEL_UNKNOWN` was the two-state sentinel. v2172's gate answers THREE
+            # ways instead ("panel" / text-but-no-panel / "broke" / silent), so the protection now
+            # lives in the branches, not in one constant. Pinned where it actually is: an
+            # unreadable frame must be KEPT, and that is `_why == "broke"` -> continue.
+            self.assertIn("LaneCanary", names,
+                          "armed without the OCR-liveness proof: a blank frame and a frame nobody "
+                          "could read are the same observation without it, and the blank class is "
+                          "the one this deletes from")
+            _src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     "control_app.py"), encoding="utf-8").read()
+            self.assertIn('if _why == "broke":', _src,
+                          "the gate's BROKE state no longer forces a keep, so a frame that was "
+                          "never read could be deleted as a spare one")
 
     def test_the_refusal_is_CODE_not_only_a_flag(self):
         """A flag is data and data gets flipped. The loop must refuse on its own."""
@@ -20058,7 +20078,18 @@ class TestV2058ThePruneStaysOffUntilItCanSeeATooltip(unittest.TestCase):
         """The ONE condition. Re-arming without a per-frame panel check repeats the defect."""
         ca = self._ca()
         names = set(ca._prune_once.__code__.co_names)
-        consults = bool({"stash_screen_open", "stash_screen_open_cached", "panel_gate"} & names)
+        # ⚠⚠ v2984 — THIS VOCABULARY WENT STALE AND THE LAW COULD NO LONGER GO RED FOR THE RIGHT
+        # REASON. It accepted only {stash_screen_open, stash_screen_open_cached, panel_gate}. v2172
+        # replaced all three with `stash_panel_verdict` (the three-state gate), so the moment anyone
+        # armed the prune this refused — not because the panel check was missing, but because it had
+        # been RENAMED. Measured on the live function: co_names carries `stash_panel_verdict`,
+        # `_gate_receipt`, `_GATE_LAST` and `LaneCanary`, and none of the three old names exists
+        # anywhere in the tree. A law that names a dead vocabulary is a law that has stopped reading
+        # the code. [[source-reading-guard]] [[label-outlived-referent]]
+        # The OLD names are KEPT in the set on purpose: if the gate is ever reverted to them the law
+        # must still pass, because what it protects is "does it ask", not "what is it called".
+        consults = bool({"stash_screen_open", "stash_screen_open_cached", "panel_gate",
+                         "stash_panel_verdict"} & names)
         if ca._PRUNE_SAFE_TO_RUN:
             self.assertTrue(consults,
                             "the prune is armed but _prune_once still never asks whether the frame "
@@ -28672,15 +28703,48 @@ class TestV2172TheGateSaysWHICHKindOfNo(unittest.TestCase):
                          "the cached answer forgot the read was blind, so a frame first seen "
                          "while the OCR lane was down now reads as a confident 'no'")
 
-    def test_the_prune_is_STILL_OFF_because_the_tooltip_case_is_open(self):
-        """The instrument is not the arming. A tooltip hiding the tab strip while the OCR lane is
-        healthy still yields no canons with no counter moving. Until that is separable, the flag
-        stays False — and this test is what stops a future pass reading the new verdict as
-        permission. [[unknown-stays-unknown]]"""
+    def test_the_prune_may_be_ARMED_only_while_the_tooltip_class_is_kept(self):
+        """v2984 — HIS INSTRUCTION, 2026-09-12, said twice: "arm it". This law used to be a flat
+        `assertFalse(_PRUNE_SAFE_TO_RUN)`, written when the only imagined way to be safe was to
+        SEPARATE a tooltip from a genuine "no". Its own words: "Until that is separable, the flag
+        stays False."
+
+        v2197 did something stronger than separating them — it stopped needing to. The decision site
+        now KEEPS every text-bearing frame outright ("Inverted. Text present -> KEEP"), so the
+        tooltip case is protected without ever having to be told apart from a real no. Holding the
+        flag False was therefore guarding a condition that had already been retired, and it could
+        only ever refuse — never pass — however good the gate became.
+
+        So the lock is not removed, it is RE-AIMED at what actually makes arming safe. Each clause
+        below is a thing that, if it regressed, would make the armed prune eat item names:
+          1. text present -> KEEP      (the tooltip protection itself)
+          2. gate BROKE   -> KEEP      (an unmeasured frame is not a spare one)
+          3. the blank class is deletable only with an OCR-liveness proof
+        Containment — that it can never reach a reel — is proven by execution in
+        test_the_armed_prune_cannot_reach_a_reel.py rather than asserted here.
+        [[unknown-stays-unknown]] [[label-outlived-referent]]"""
         ca = self._ca()
-        self.assertFalse(ca._PRUNE_SAFE_TO_RUN,
-                         "the prune was armed on the strength of a three-state gate that still "
-                         "cannot see a tooltip covering the tab strip")
+        _whole = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py"),
+                      encoding="utf-8").read()
+        if not ca._PRUNE_SAFE_TO_RUN:
+            return          # disarmed is always safe; these clauses only bind while it is ON
+        # ⚠⚠ SCOPED TO THE FUNCTION BODY, AND THE FIRST CUT WAS NOT. Read against the whole file,
+        # clause 1's anchor matched TWICE — once at the decision site and once in a COMMENT I wrote
+        # in the same session, quoting the phrase. Deleting the real code would have left the law
+        # green on my own prose. A law must read the code it governs, not the whole file.
+        # [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]
+        src = _between(self, _whole, "def _prune_once(", "def _prune_loop(",
+                       what="the prune deleter")
+        self.assertIn("Inverted. Text present -> KEEP", src,
+                      "ARMED while the text-bearing class is no longer kept by rule — that class "
+                      "is where a hover tooltip lives, and on a stash screen the tooltip is the "
+                      "only place an item name appears")
+        self.assertIn('if _why == "broke":', src,
+                      "ARMED while a frame the gate could not read is no longer force-kept")
+        self.assertIn("blank frame, but the OCR lane was not proven live around it", src,
+                      "ARMED while a blank frame can be deleted without proof the reader was "
+                      "alive — 'no text here' and 'nobody looked' are the same observation "
+                      "without it")
 
 
 class TestV2185TheValidatorCarriedTheDefectItValidatesAgainst(unittest.TestCase):
