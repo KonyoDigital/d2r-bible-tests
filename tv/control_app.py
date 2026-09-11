@@ -21229,6 +21229,21 @@ def _shadow_watch_note(**kw):
     if not isinstance(cur, dict):
         cur = {}
     cur.update(kw)
+    # ⚠⚠ v2973 (#69) — WHAT PRODUCED THIS NOTE. shadow_watch.json was SILENT in the
+    # 2026-09-11 census. It is one of the two stores console_doctor leans on to tell a loop
+    # that RAN AND CORRECTLY DECLINED from a loop that DIED — measured on his machine
+    # 2026-09-04, "shadow_watch.json 0.0h against retro_triage.json 75.7h, with the console
+    # up throughout, and no way to say which of the quiet ones were healthy". A freshness
+    # reading is only worth what knowing its WRITER is worth.
+    # ⚠ FLAT PAYLOAD and every reader takes a NAMED field, so the stamp goes on the BLOB; a
+    # reel-keyed store needs it inside each row instead (REG-972).
+    # ⚠ SWALLOWED, exactly like the write below it: a note that cannot be labelled is still
+    # worth keeping. [[unknown-stays-unknown]]
+    try:
+        import provenance as _PV
+        cur = _PV.stamp(cur, by="control_app", extra={"store": "shadow_watch"})
+    except Exception:
+        pass
     try:
         with open(_shadow_watch_path(), "w", encoding="utf-8") as fh:
             json.dump(cur, fh)
@@ -26358,7 +26373,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2972",
+        "ver": "v2973",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

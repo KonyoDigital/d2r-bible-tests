@@ -44,12 +44,17 @@ def _body(case, start, end, what):
 class BothTwinsStampTheirPayload(unittest.TestCase):
 
     CASES = (("chron_last_result", "def _chron_result_save():", "os.replace(tmp, _CHRON_RESULT_PATH)"),
-             ("vault_last_result", "def _vault_result_save():", "_VAULT_RESULT_PATH)"))
+             ("vault_last_result", "def _vault_result_save():", "_VAULT_RESULT_PATH)"),
+             # v2973 — the freshness note console_doctor uses to tell a loop that RAN AND DECLINED
+             # from one that DIED. Same flat shape, same blob-level stamp, so it joins this law
+             # rather than getting a file of its own. [[copy-drift]]
+             ("shadow_watch", "def _shadow_watch_note(**kw):", "json.dump(cur, fh)"))
 
     def test_each_twin_stamps_the_blob_it_writes(self):
         for store, start, end in self.CASES:
             body = _body(self, start, end, store)
-            m = re.search(r"payload\s*=\s*_PV\.stamp\(\s*payload\s*,\s*by\s*=\s*[\"']([\w.]+)[\"']",
+            m = re.search(r"(?:payload|cur)\s*=\s*_PV\.stamp\("
+                          r"\s*(?:payload|cur)\s*,\s*by\s*=\s*[\"']([\w.]+)[\"']",
                           body)
             self.assertIsNotNone(
                 m, "%s is written without a provenance stamp, so a result persisted by an older "
@@ -92,6 +97,15 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "un-stamping the shadow-watch note puts back a freshness reading nobody can "
+               "attribute - the store console_doctor uses to tell a loop that ran and declined "
+               "from one that died",
+        "file": "control_app.py",
+        "find": '        cur = _PV.stamp(cur, by="control_app", extra={"store": "shadow_watch"})\n',
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "un-stamping the chronicle's last result puts it back to SILENT: a proposal "
                "persisted by an older sweep reads exactly like one from today's",

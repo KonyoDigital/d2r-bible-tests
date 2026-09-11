@@ -31700,6 +31700,40 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-976 - the note that tells a DECLINED loop from a DEAD one could not name its writer (task #69 - v2973)
+
+`shadow_watch.json` was SILENT. It is one of the two stores `console_doctor` leans on to tell a loop
+that RAN AND CORRECTLY DECLINED from a loop that DIED - measured on his machine 2026-09-04,
+*"shadow_watch.json 0.0h against retro_triage.json 75.7h, with the console up throughout, and no way
+to say which of the quiet ones were healthy."* A freshness reading is worth exactly what knowing its
+writer is worth.
+
+Verified against a temp path before believing it:
+
+    keys        ['_prov', 'lookedAt', 'ok', 'sawAt', 'startedAt', 'starts', 'why']
+    provenance  by='control_app'  at=1789148128770
+    fields kept ok=True  why='a test note'  lookedAt=123
+
+Folded into the twins law rather than given a file of its own: same flat shape, same blob-level
+stamp, so one law grades all three and cannot drift from itself. [[copy-drift]]
+
+★ FOUR OF MY OWN SLIPS ON ONE SMALL CHANGE, EVERY ONE CAUGHT BY A GUARD RATHER THAN BY LUCK:
+
+  1. **The patch anchor matched 0** - I copied indentation off a formatted display instead of the
+     raw bytes. The assert refused and NOTHING was written; `control_app` still imported clean and
+     the probe still read `by=None`. This is the sed-prefixed-indentation trap, and the reason
+     every patch in this session prints its match count.
+  2. **The law then FAILED honestly** - shadow_watch's payload variable is `cur`, not `payload`, so
+     the shared regex did not match. A law that went green there would have been the real defect.
+  3. **My regex fix silently did not apply** (`"(?:payload|cur)" in s -> False`) because the
+     raw-string escaping did not match the file's bytes. Printing the check, not assuming it, is
+     what surfaced that.
+  4. **Then I wrote it back at 13 spaces instead of 12**, and on the retry PRESERVED my own broken
+     indent by reading it as ground truth - an inherited claim from damage I had just done.
+     [[inherited-claim-is-not-evidence]]
+
+Three tampers PROVEN red, 1 match each. **#69: 16 SILENT -> 11.**
+
 ## REG-975 - two last-result stores that DECLARE themselves mirrors were both silent (task #69 - v2972)
 
 Continuing the SILENT 16. `chron_last_result.json` and `vault_last_result.json` had no producer, so
