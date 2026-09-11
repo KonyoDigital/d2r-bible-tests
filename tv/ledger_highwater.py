@@ -122,6 +122,17 @@ def _peaks():
 
 
 def _write_peaks(blob):
+    # ⚠⚠ v2941 (#69) — STAMP AT THE WRITE. The writer is the only place that knows it is the
+    # producer; a census can only ever ask what a store already carries. `provenance.stamp()` had
+    # existed with ZERO production callers while 0 of 44 stores carried a `_prov` block, so the
+    # definition, the reader and the writer were three correct halves of one thing, none joined.
+    # ⚠ GUARDED, and it must be: a store that cannot be stamped is still a store worth writing.
+    # Provenance is a label on the data, never a precondition for keeping it. [[the-unjoined-end]]
+    try:
+        import provenance as _PV
+        blob = _PV.stamp(blob, by='ledger_highwater')
+    except Exception:
+        pass
     tmp = PEAKS + ".tmp"
     with io.open(tmp, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(blob, ensure_ascii=False, indent=1))

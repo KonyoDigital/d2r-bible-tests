@@ -340,6 +340,115 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
     [[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
     """
 
+    def test_a_WRITER_stamps_what_it_produces(self):
+        """⚠⚠ THE OTHER HALF, AND WITHOUT IT THE JOIN IS INERT. Making the census ask the
+        definition changed NOTHING measurable — census before and after the reader patch were
+        byte-identical — because **0 of 44 stores carried a `_prov` block**. The census can only
+        ever ask what a store already carries; the WRITER is the only place that knows it is the
+        producer. `provenance.stamp()` had zero production callers.
+
+        MEASURED on a fixture (never his store): `ledger_highwater._write_peaks` now writes
+        `['_prov', 'at', 'rows']` and the census grades it ANSWERS where it graded SILENT."""
+        import tempfile, json
+        import ledger_highwater as LH, verdict_provenance as VP
+        d = tempfile.mkdtemp()
+        was = LH.PEAKS
+        LH.PEAKS = os.path.join(d, "ledger_peaks.json")
+        try:
+            LH._write_peaks({"rows": [{"n": 3}], "at": 123})
+            blob = json.load(io.open(LH.PEAKS, encoding="utf-8"))
+        finally:
+            LH.PEAKS = was
+        self.assertIn(PV.PROV_KEY, blob,
+                      "the writer did not stamp what it produced: %s" % sorted(blob.keys()))
+        self.assertEqual("ANSWERS", VP._verdict(blob)[0],
+                         "a stamped store still does not answer: %r" % (VP._verdict(blob),))
+        self.assertEqual("ledger_highwater", blob[PV.PROV_KEY].get("by"),
+                         "the block does not name its producer: %r" % blob[PV.PROV_KEY])
+        self.assertEqual([{"n": 3}], blob.get("rows"),
+                         "stamping altered the payload it was supposed to label")
+
+    def test_an_UNSTAMPABLE_store_is_still_WRITTEN(self):
+        """⚠ Provenance is a LABEL on the data, never a precondition for keeping it. If the
+        definition module cannot be imported, the write must still land — losing his data to
+        protect a label would be the worst possible trade. [[unknown-stays-unknown]]"""
+        import tempfile, json, sys as _sys
+        import ledger_highwater as LH
+        d = tempfile.mkdtemp()
+        was, mod = LH.PEAKS, _sys.modules.get("provenance")
+        LH.PEAKS = os.path.join(d, "ledger_peaks.json")
+        _sys.modules["provenance"] = None          # import provenance -> raises
+        try:
+            LH._write_peaks({"rows": [{"n": 9}], "at": 7})
+            blob = json.load(io.open(LH.PEAKS, encoding="utf-8"))
+        finally:
+            LH.PEAKS = was
+            if mod is None:
+                _sys.modules.pop("provenance", None)
+            else:
+                _sys.modules["provenance"] = mod
+        self.assertEqual([{"n": 9}], blob.get("rows"),
+                         "the write was lost when the stamp could not be applied: %r" % blob)
+        self.assertNotIn(PV.PROV_KEY, blob, "it claimed a provenance it could not compute")
+
+    def test_the_CENSUS_now_ASKS_the_definition(self):
+        """⚠⚠ THE JOIN, MADE AT v2941 AND SPECIFIED IN PROSE LONG BEFORE. `provenance.classify()`
+        had ZERO production callers — an AST walk of every tv/*.py found one importer, its own
+        test — while its docstring already named the caller it was waiting for, and the law two
+        methods down was written so that "applying the three-line `_verdict` patch does not turn
+        this law red". Two halves each built correctly, never joined, with the joint already
+        described. [[the-unjoined-end]] [[copy-drift]]
+
+        MEASURED: the SAME stamped .jsonl row grades SILENT on the old vocabulary and ANSWERS once
+        the census asks. That is the half the accidental sub-dict merge NEVER covered — the census
+        reads a .jsonl's last line TOP-LEVEL, sees `_prov` and no producer field."""
+        import verdict_provenance as VP
+        row = PV.stamp({"n": 1, "what": "a reading"}, by="demo_module", ver="v2941")
+        self.assertIn(PV.PROV_KEY, row, "stamp() did not attach the block — re-derive this law")
+        self.assertEqual("ANSWERS", VP._verdict(row)[0],
+                         "a stamped row does not grade ANSWERS: %r" % (VP._verdict(row),))
+        was = VP._PV
+        VP._PV = None
+        try:
+            old = VP._verdict(row)[0]
+        finally:
+            VP._PV = was
+        self.assertEqual("SILENT", old,
+                         "the old vocabulary already graded this ANSWERS, so the join proves "
+                         "nothing — re-derive this law against a shape it actually changes")
+
+    def test_the_join_can_NEVER_make_an_unstamped_store_worse(self):
+        """★ classify() returns None for anything it has nothing to say about, and the existing
+        field vocabulary must run unchanged underneath. A join that downgrades honest stores would
+        be worse than the gap it closes."""
+        import verdict_provenance as VP
+        for plain in ({"ver": "v2941", "by": "x", "n": 1},
+                      {"n": 1},
+                      {"writtenAt": 123, "rows": 4}):
+            was = VP._PV
+            VP._PV = None
+            try:
+                old = VP._verdict(plain)[0]
+            finally:
+                VP._PV = was
+            self.assertEqual(old, VP._verdict(plain)[0],
+                             "the join changed the grade of an UNSTAMPED store %r: %s -> %s"
+                             % (plain, old, VP._verdict(plain)[0]))
+
+    def test_an_UNREADABLE_definition_falls_back_and_does_not_blank_the_census(self):
+        """⚠ The import is guarded on purpose. If the definition module cannot be imported, the
+        census must still grade on its own vocabulary — an unreadable definition is UNKNOWN, never
+        a reason to call every store SILENT. [[unknown-stays-unknown]]"""
+        import verdict_provenance as VP
+        was = VP._PV
+        VP._PV = None
+        try:
+            self.assertEqual("ANSWERS", VP._verdict({"ver": "v1", "by": "x"})[0],
+                             "with the definition unreachable the census stopped recognising a "
+                             "store its own vocabulary knows")
+        finally:
+            VP._PV = was
+
     def test_every_declaration_is_complete(self):
         self.assertTrue(RED_PROOF, "no red-proof declared at all")
         for i, pr in enumerate(RED_PROOF):
@@ -354,125 +463,88 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
 
 RED_PROOF = [
     {
-        'why': "THE UNKNOWN PATH GOES RED — the requirement stated as a defect. A store with no "
-               "block would report a KNOWN producer called \"unknown\", so a file nobody can "
-               "attribute renders identically to one written by a module of that name. This is "
-               "the exact shape of the defect this repo keeps shipping: a word standing where a "
-               "measurement belongs. Caught by "
-               "test_absent_provenance_is_unknown_and_carries_no_name.",
-        'file': 'provenance.py',
-        'find': '        return _unknown(UNKNOWN_WHY_ABSENT)',
-        'replace': '        return Prov(True, by="unknown", why=UNKNOWN_WHY_ABSENT)',
-        'matches': 1,
+        "why": 'THE UNKNOWN PATH GOES RED — the requirement stated as a defect. A store with no block would report a KNOWN producer called "unknown", so a file nobody can attribute renders identically to one written by a module of that name. This is the exact shape of the defect this repo keeps shipping: a word standing where a measurement belongs. Caught by test_absent_provenance_is_unknown_and_carries_no_name.',
+        "file": 'provenance.py',
+        "find": '        return _unknown(UNKNOWN_WHY_ABSENT)',
+        "replace": '        return Prov(True, by="unknown", why=UNKNOWN_WHY_ABSENT)',
+        "matches": 1,
     },
     {
-        'why': "accepting a placeholder as a writer name: by=\"unknown\" is then a legal stamp, "
-               "and the store ANSWERS the census with a word that answers nothing. Absent "
-               "provenance must be refused at the writer, not laundered into a name. Caught by "
-               "test_a_placeholder_writer_is_refused.",
-        'file': 'provenance.py',
-        'find': '    if b.lower() in _PLACEHOLDERS:',
-        'replace': '    if False:',
-        'matches': 1,
+        "why": 'accepting a placeholder as a writer name: by="unknown" is then a legal stamp, and the store ANSWERS the census with a word that answers nothing. Absent provenance must be refused at the writer, not laundered into a name. Caught by test_a_placeholder_writer_is_refused.',
+        "file": 'provenance.py',
+        "find": '    if b.lower() in _PLACEHOLDERS:',
+        "replace": '    if False:',
+        "matches": 1,
     },
     {
-        'why': "writing the content FIRST and stamping in a second replace — the store is live and "
-               "unattributed for the width of one write, and every test that reads the settled "
-               "file passes. This is v2712's torn-read window with provenance as the thing that "
-               "goes missing. Caught by test_save_json_performs_exactly_one_replace and by "
-               "test_a_concurrent_reader_never_sees_the_store_without_its_block.",
-        'file': 'provenance.py',
-        'find': "    doc = stamp(obj, by, ver=ver, at=at, extra=extra)\n"
-                "    _atomic_write(path, json.dumps(doc, indent=indent, sort_keys=sort_keys, ensure_ascii=False))",
-        'replace': "    _atomic_write(path, json.dumps(obj, indent=indent, sort_keys=sort_keys, ensure_ascii=False))\n"
-                   "    doc = stamp(obj, by, ver=ver, at=at, extra=extra)\n"
-                   "    _atomic_write(path, json.dumps(doc, indent=indent, sort_keys=sort_keys, ensure_ascii=False))",
-        'matches': 1,
+        "why": "writing the content FIRST and stamping in a second replace — the store is live and unattributed for the width of one write, and every test that reads the settled file passes. This is v2712's torn-read window with provenance as the thing that goes missing. Caught by test_save_json_performs_exactly_one_replace and by test_a_concurrent_reader_never_sees_the_store_without_its_block.",
+        "file": 'provenance.py',
+        "find": '    doc = stamp(obj, by, ver=ver, at=at, extra=extra)\n    _atomic_write(path, json.dumps(doc, indent=indent, sort_keys=sort_keys, ensure_ascii=False))',
+        "replace": '    _atomic_write(path, json.dumps(obj, indent=indent, sort_keys=sort_keys, ensure_ascii=False))\n    doc = stamp(obj, by, ver=ver, at=at, extra=extra)\n    _atomic_write(path, json.dumps(doc, indent=indent, sort_keys=sort_keys, ensure_ascii=False))',
+        "matches": 1,
     },
     {
-        'why': "recording `ver: null` instead of `verUnknown: <why>`. The key is then PRESENT with "
-               "nothing behind it, so any downstream key-presence check reads it as a version and "
-               "the store's grade climbs from PARTIAL to ANSWERS on a null. Caught by "
-               "test_an_unestablished_version_is_partial_not_answers.",
-        'file': 'provenance.py',
-        'find': '        block["verUnknown"] = vwhy or "the version could not be established"',
-        'replace': '        block["ver"] = None',
-        'matches': 1,
+        "why": "recording `ver: null` instead of `verUnknown: <why>`. The key is then PRESENT with nothing behind it, so any downstream key-presence check reads it as a version and the store's grade climbs from PARTIAL to ANSWERS on a null. Caught by test_an_unestablished_version_is_partial_not_answers.",
+        "file": 'provenance.py',
+        "find": '        block["verUnknown"] = vwhy or "the version could not be established"',
+        "replace": '        block["ver"] = None',
+        "matches": 1,
     },
     {
-        'why': "letting the block leak into payload(): every reader that iterates a store's keys "
-               "gains a phantom entry — on chronicle_swept.json, keyed by reel id, that is a 402nd "
-               "reel that does not exist. Additive has to mean invisible to existing readers, not "
-               "merely parseable. Caught by test_the_block_never_reaches_a_readers_key_loop.",
-        'file': 'provenance.py',
-        'find': '    return dict((k, v) for k, v in obj.items() if k != PROV_KEY)',
-        'replace': '    return dict(obj)',
-        'matches': 1,
+        "why": "letting the block leak into payload(): every reader that iterates a store's keys gains a phantom entry — on chronicle_swept.json, keyed by reel id, that is a 402nd reel that does not exist. Additive has to mean invisible to existing readers, not merely parseable. Caught by test_the_block_never_reaches_a_readers_key_loop.",
+        "file": 'provenance.py',
+        "find": '    return dict((k, v) for k, v in obj.items() if k != PROV_KEY)',
+        "replace": '    return dict(obj)',
+        "matches": 1,
     },
     {
-        'why': "appending the block LAST instead of first. JSON key order is insertion order and "
-               "verdict_provenance._sample_row samples list(blob)[:25], so on any store wider than "
-               "25 keys the block lands outside the sample window and the census never sees it — "
-               "the mechanism works, the measurement cannot see it, and nothing anywhere fails. "
-               "Caught by test_the_block_is_the_first_key.",
-        'file': 'provenance.py',
-        'find': '    out = {PROV_KEY: block}\n'
-                '    for k, val in payload.items():\n'
-                '        if k == PROV_KEY:\n'
-                '            continue          # re-stamping REPLACES; a store carries one producer, the last one\n'
-                '        out[k] = val\n'
-                '    return out',
-        'replace': '    out = {}\n'
-                   '    for k, val in payload.items():\n'
-                   '        if k == PROV_KEY:\n'
-                   '            continue          # re-stamping REPLACES; a store carries one producer, the last one\n'
-                   '        out[k] = val\n'
-                   '    out[PROV_KEY] = block\n'
-                   '    return out',
-        'matches': 1,
+        "why": 'appending the block LAST instead of first. JSON key order is insertion order and verdict_provenance._sample_row samples list(blob)[:25], so on any store wider than 25 keys the block lands outside the sample window and the census never sees it — the mechanism works, the measurement cannot see it, and nothing anywhere fails. Caught by test_the_block_is_the_first_key.',
+        "file": 'provenance.py',
+        "find": '    out = {PROV_KEY: block}\n    for k, val in payload.items():\n        if k == PROV_KEY:\n            continue          # re-stamping REPLACES; a store carries one producer, the last one\n        out[k] = val\n    return out',
+        "replace": '    out = {}\n    for k, val in payload.items():\n        if k == PROV_KEY:\n            continue          # re-stamping REPLACES; a store carries one producer, the last one\n        out[k] = val\n    out[PROV_KEY] = block\n    return out',
+        "matches": 1,
     },
     {
-        'why': "accepting epoch SECONDS as `at`. It parses, it is a plausible integer, and it "
-               "dates every stamped row to January 1970 — a 1000x unit collision this tree has "
-               "already been bitten by once. Caught by test_epoch_seconds_are_refused.",
-        'file': 'provenance.py',
-        'find': '    if at < _MS_FLOOR:',
-        'replace': '    if False:',
-        'matches': 1,
+        "why": 'accepting epoch SECONDS as `at`. It parses, it is a plausible integer, and it dates every stamped row to January 1970 — a 1000x unit collision this tree has already been bitten by once. Caught by test_epoch_seconds_are_refused.',
+        "file": 'provenance.py',
+        "find": '    if at < _MS_FLOOR:',
+        "replace": '    if False:',
+        "matches": 1,
     },
     {
-        'why': "silently accepting a JSON ARRAY store. known_frames.json is the census's single "
-               "UNKNOWN precisely because it has no key to hang a block on; wrapping it would "
-               "change the shape its readers parse — a migration disguised as a stamp. Caught by "
-               "test_a_list_shaped_store_is_refused_by_name, which asserts the refusal names the "
-               "array shape rather than failing for some other reason.",
-        'file': 'provenance.py',
-        'find': '    if isinstance(payload, list):',
-        'replace': '    if isinstance(payload, tuple):',
-        'matches': 1,
+        "why": "silently accepting a JSON ARRAY store. known_frames.json is the census's single UNKNOWN precisely because it has no key to hang a block on; wrapping it would change the shape its readers parse — a migration disguised as a stamp. Caught by test_a_list_shaped_store_is_refused_by_name, which asserts the refusal names the array shape rather than failing for some other reason.",
+        "file": 'provenance.py',
+        "find": '    if isinstance(payload, list):',
+        "replace": '    if isinstance(payload, tuple):',
+        "matches": 1,
     },
     {
-        'why': "grading every block ANSWERS regardless of whether it carries a version. PARTIAL "
-               "and ANSWERS are different answers — \"names the writer\" and \"names the build\" — "
-               "and collapsing them is the same mistake the census itself carved a comment about. "
-               "A store that can name only its lane would then read as fully attributable. Caught "
-               "by test_an_unestablished_version_is_partial_not_answers and by "
-               "test_a_stamped_store_with_no_version_reads_as_PARTIAL.",
-        'file': 'provenance.py',
-        'find': '    return "ANSWERS" if p.ver else "PARTIAL"',
-        'replace': '    return "ANSWERS"',
-        'matches': 1,
+        "why": 'grading every block ANSWERS regardless of whether it carries a version. PARTIAL and ANSWERS are different answers — "names the writer" and "names the build" — and collapsing them is the same mistake the census itself carved a comment about. A store that can name only its lane would then read as fully attributable. Caught by test_an_unestablished_version_is_partial_not_answers and by test_a_stamped_store_with_no_version_reads_as_PARTIAL.',
+        "file": 'provenance.py',
+        "find": '    return "ANSWERS" if p.ver else "PARTIAL"',
+        "replace": '    return "ANSWERS"',
+        "matches": 1,
     },
     {
-        'why': "letting stamp() mutate the dict it was handed. A writer that builds a payload once "
-               "and saves it on every tick then carries the FIRST save's timestamp forever, so the "
-               "store's `at` stops meaning \"when this was written\" while still looking like a "
-               "live clock — a label that outlived its referent. Caught by "
-               "test_stamping_does_not_mutate_the_callers_payload.",
-        'file': 'provenance.py',
-        'find': '    out = {PROV_KEY: block}\n',
-        'replace': '    payload[PROV_KEY] = block\n    out = payload\n',
-        'matches': 1,
+        "why": 'letting stamp() mutate the dict it was handed. A writer that builds a payload once and saves it on every tick then carries the FIRST save\'s timestamp forever, so the store\'s `at` stops meaning "when this was written" while still looking like a live clock — a label that outlived its referent. Caught by test_stamping_does_not_mutate_the_callers_payload.',
+        "file": 'provenance.py',
+        "find": '    out = {PROV_KEY: block}\n',
+        "replace": '    payload[PROV_KEY] = block\n    out = payload\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2941/A — unjoins the census from the definition. The reader falls back to its field vocabulary, so a stamped .jsonl row (top-level `_prov`, no producer field) grades SILENT again — the half the accidental sub-dict merge never covered. MEASURED: the same row reads SILENT without this and ANSWERS with it.',
+        "file": 'verdict_provenance.py',
+        "find": '    _g = _PV.classify(row) if _PV is not None else None\n    if _g is not None:\n        return _g, [_PV.PROV_KEY]\n',
+        "replace": '',
+        "matches": 1,
+    },
+    {
+        "why": 'v2941/B — stops the WRITER stamping. Without it the join is inert: the census can only ask what a store carries, and 0 of 44 carried a _prov block. Making the reader ask changed nothing measurable until a writer answered.',
+        "file": 'ledger_highwater.py',
+        "find": "    try:\n        import provenance as _PV\n        blob = _PV.stamp(blob, by='ledger_highwater')\n    except Exception:\n        pass\n",
+        "replace": '',
+        "matches": 1,
     },
 ]
 

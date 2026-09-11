@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2940** | `(this commit)` | v2940 — --note four wilson harnesses banked unconditionally from main so merely looking wrote evidence; the gate keeps banking deliberately |
+| **v2941** | `(this commit)` | v2941 — --note the definition had zero callers, the census never asked it, and no writer ever stamped |
+| **v2940** | `f2530768` | v2940 — --note four wilson harnesses banked unconditionally from main so merely looking wrote evidence; the gate keeps banking deliberately |
 | **v2939** | `417929db` | v2939 — --note the git-unreadable arm reported zeros while its sibling reported None, so a broken instrument read as a measured empty table |
 | **v2938** | `a9a9b717` | v2938 — --note encode has zero production callers so v2934 fixed a function the wire never calls |
 | **v2937** | `61dcfb0c` | v2937 — --note v2932 narrowed the resolver and five more copies kept resolving a blank TV_HIST against the caller cwd |

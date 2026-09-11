@@ -146,6 +146,14 @@ def _is_producer_key(k):
     return k.lower() in PRODUCER_FIELDS or bool(_PRODUCER_SUFFIX.search(k))
 
 
+#: ⚠ GUARDED: if the definition module cannot be imported the census must still run on its own
+#: vocabulary — an unreadable definition is UNKNOWN, never a reason to grade every store SILENT.
+try:
+    import provenance as _PV
+except Exception:          # pragma: no cover - exercised by the red-proof
+    _PV = None
+
+
 def _verdict(row):
     """Can this row say what produced it? -> (state, fields)
 
@@ -155,6 +163,22 @@ def _verdict(row):
     tables as missing a stamp they have no reason to carry, which inflates the gap and teaches a
     reader to skip the report. A finding that cries wolf is one he learns to ignore.
     """
+    # ⚠⚠ v2941 (#69) — ASK THE DEFINITION FIRST. `provenance.classify()` has existed since the
+    # module was written and had ZERO production callers — an AST walk of every tv/*.py found one
+    # importer, its own test. The module's own docstring names this caller ("verdict_provenance.
+    # _verdict then falls through to its own field vocabulary exactly as before"), and
+    # test_provenance.py:312 is written so that "applying the three-line `_verdict` patch does not
+    # turn this law red". Two halves each built right and never joined, with the joint already
+    # specified in prose. [[the-unjoined-end]] [[copy-drift]]
+    #
+    # ⚠ IT CANNOT MAKE A STORE WORSE: classify() returns None for anything it has nothing to say
+    # about, and the existing vocabulary runs unchanged below. What it fixes is the half that was
+    # working BY ACCIDENT — a .json store graded ANSWERS only because _sample_row merges sub-dicts
+    # and `_prov` happens to contain a bare `ver`; rename that inner key and the census silently
+    # stops recognising every stamped store. A `.jsonl` store got no merge at all and graded SILENT.
+    _g = _PV.classify(row) if _PV is not None else None
+    if _g is not None:
+        return _g, [_PV.PROV_KEY]
     keys = [str(k).lower() for k in row.keys()]
     found = sorted(k for k in row.keys() if _is_producer_key(k))
     has_clock = any(k in CLOCK_FIELDS or k.endswith("at") or k.endswith("ts") for k in keys)

@@ -29613,6 +29613,49 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-946 — three correct halves of one thing, none of them joined (#69, first half shipped)
+
+**v2941.** #69 said *"37 of 43 stores cannot say what produced them."* Measured today:
+**44 stores — ANSWERS 6 · PARTIAL 4 · SILENT 16 · REFERENCE 17 · UNKNOWN 1.** The 37 was arithmetic
+over a denominator that included 17 REFERENCE stores (rosters, lookup tables) which have **no reason
+to carry a stamp** — counting them inflates the gap and teaches a reader to skip the report.
+
+**The real shape was three pieces, each built correctly, none connected:**
+
+| piece | state before | |
+|---|---|---|
+| the DEFINITION — `provenance.classify()` | correct, **ZERO production importers** (AST walk of every `tv/*.py`: one importer, its own test) |
+| the READER — `verdict_provenance._verdict()` | graded by its own field vocabulary, never asked the definition |
+| the WRITER — `provenance.stamp()` | **0 of 44 stores carried a `_prov` block** |
+
+And the joint was already written down: `classify()`'s docstring names the caller it was waiting for,
+and `test_provenance.py:312` was authored so *"applying the three-line `_verdict` patch does not turn
+this law red."* Nobody applied it.
+
+**Reader half — MEASURED, and the measurement is the point.** The census is **byte-identical before
+and after** the patch. That is not a failed fix: it proves the reader alone is inert, because there
+was nothing stamped to read. What it *does* fix is that the working half stopped working **by
+accident** — a `.json` store graded ANSWERS only because `_sample_row` merges sub-dicts and `_prov`
+happens to contain a bare `ver`; rename that inner key and every stamped store silently stops being
+recognised. A `.jsonl` store got no merge at all: **the same stamped row grades SILENT on the old
+vocabulary and ANSWERS once the census asks.**
+
+**Writer half — proven end to end on a fixture, never his store.**
+`ledger_highwater._write_peaks` now writes `['_prov', 'at', 'rows']`, graded **ANSWERS** where it was
+**SILENT**, with the block carrying `by: ledger_highwater · at · ver`.
+
+**⚠ Both guards are deliberate and both are gated.** An unreadable definition falls back to the old
+vocabulary rather than blanking the census, and an unstampable store is **still written** —
+provenance is a label on the data, never a precondition for keeping it.
+
+**Gate:** `test_provenance` — 26 laws, **12/12 red-proofs PROVEN, no BLIND, no INVALID.**
+
+**⚠ STILL OPEN — 15 of the 16 SILENT stores.** The pattern is now a proven one-block template
+(stamp at the single write choke point, guarded). It does not apply retroactively: a store carries
+its stamp from its **next write**, not before. Two cautions measured on the way: `shadow_ai.json`
+looked single-writer and `tv_diablo` only READS it, and several stores have three or more writers —
+so each needs its choke point found, not a substring match trusted.
+
 ## REG-945 — reading is not evidence until someone decides it is (#75, and HALF ITS PREMISE IS REFUTED)
 
 **v2940.** #75 said *"a read-only audit can BANK evidence, and duplicate rows inflate n."* Measured,
