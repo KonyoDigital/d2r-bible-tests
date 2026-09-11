@@ -964,6 +964,15 @@ GATES = [
          "rather than restating it. Proven red three ways: a second module claiming `position`, a "
          "literal copy of the station tuple, and dropping the UNKNOWN sentinel.",
          skip_ok=()),
+    Gate("test_a_read_verdict_is_never_stored",
+         [sys.executable, os.path.join(HERE, "test_a_read_verdict_is_never_stored.py")], 60,
+         "#79 — `_shadow_watch_note` seeded itself from `shadow_watch_state()`, whose failure "
+         "paths return diagnostic dicts wearing `ok`. One unreadable moment laundered a READ "
+         "verdict into stored state, and the lockless read-modify-write carried it forward every "
+         "20s forever. Measured on his live store: health_engine's shadowWatch row held at "
+         "unknown->ok, and corroborate's shadow-armed-is-watching left ungraded. The write is now "
+         "atomic too — the torn file was what minted the sentinel, so the defect was circular.",
+         skip_ok=()),
     Gate("test_the_ratchet_cannot_erase_the_census",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_cannot_erase_the_census.py")], 60,
          why="v2853 — `--ratchet` wrote {unproven, proved} straight over .heart2.json. Measured in a "

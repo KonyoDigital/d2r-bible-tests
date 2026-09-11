@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2981"   # the switch that decides whether the eye may fire names who flipped it
+VERSION = "v2982"   # a read verdict laundered into stored state, carried forward every 20 seconds
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

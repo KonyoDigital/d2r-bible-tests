@@ -21279,11 +21279,53 @@ def shadow_watch_state():
         return {"ok": False, "why": "the record is unreadable: %s" % str(e)[:70]}
 
 
+def _shadow_watch_stored():
+    """The PERSISTED record only — {} when there is nothing readable. -> dict
+
+    ⚠⚠ v2982 (#79) — A WRITE MUST NEVER BE SEEDED FROM `shadow_watch_state()`. That function
+    answers a READER, so every one of its failure paths returns a DIAGNOSTIC dict carrying `ok`:
+    `{"ok": False, "why": "the record is unreadable: ..."}`, `{"ok": False, "why": "the record is
+    not a mapping"}`, and on OSError `{"ok": True, "why": "the watcher has never written a
+    record"}`. `_shadow_watch_note` seeded `cur` from it, wrote the tick's real fields on top with
+    `cur.update(kw)`, and PERSISTED the sentinel — so a single unreadable moment laundered a
+    read-path verdict into stored state, where the lockless read-modify-write then carried it
+    forward every 20 s forever, because nothing ever removes a key.
+
+    MEASURED ON HIS LIVE STORE 2026-09-12: `shadow_watch.json` = {"ok": false, "why": "the shadow
+    reader is switched off", "lookedAt": 1789166507974, "_prov": {...}}. (The _prov version is
+    ELIDED on purpose: bump_version.py anchors on `s.count('"ver": "vNNNN"') == 1` in this file, so
+    quoting a real stamp in prose makes the count 2 and REFUSES every future bump. It failed closed
+    and said so, which is the right behaviour — but prose must not impersonate code.) No caller
+    can pass `ok` — all six call sites are AST-checked above and none has it — yet there it is,
+    beside a `_prov` stamped minutes earlier. A CHIMERA: a true, current `why` from a real tick
+    sitting next to a false, stale `ok` from a different event months of ticks ago.
+
+    WHAT THE STALE KEY COSTS, and it is not cosmetic — both consumers test it FIRST and give up:
+      · health_engine.check_shadow_watch: `if ... w.get("ok") is False: return UNKNOWN` — so the
+        shadowWatch row is permanently UNKNOWN, printing the caller's "the shadow reader is
+        switched off" as though that were an unreadability reason. The switched-OFF case has its
+        own branch three lines below that correctly returns OK. It was unreachable.
+      · corroborate `shadow-armed-is-watching`: the same test returns None, so the invariant
+        guarding "an evening of play produced no reels while the panel read 'armed'" has been
+        UNGRADED, not passing.
+    One laundered key disabled a health row and a corroborator pair. check_shadow_watch's own
+    docstring cites [[label-outlived-referent]] — it is an instance of the scar it was written to
+    catch. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    try:
+        with open(_shadow_watch_path(), encoding="utf-8") as fh:
+            j = json.load(fh)
+        return j if isinstance(j, dict) else {}
+    except Exception:
+        return {}
+
+
 def _shadow_watch_note(**kw):
-    cur = shadow_watch_state()
-    if not isinstance(cur, dict):
-        cur = {}
+    cur = _shadow_watch_stored()
     cur.update(kw)
+    # `ok` is a verdict the READ path invents to describe itself; it is never stored state. Popping
+    # it here also HEALS the record already poisoned on his disk, on the very next tick.
+    cur.pop("ok", None)
     # ⚠⚠ v2973 (#69) — WHAT PRODUCED THIS NOTE. shadow_watch.json was SILENT in the
     # 2026-09-11 census. It is one of the two stores console_doctor leans on to tell a loop
     # that RAN AND CORRECTLY DECLINED from a loop that DIED — measured on his machine
@@ -21299,9 +21341,18 @@ def _shadow_watch_note(**kw):
         cur = _PV.stamp(cur, by="control_app", extra={"store": "shadow_watch"})
     except Exception:
         pass
+    # ⚠ ATOMIC. A plain open(...,"w") TRUNCATES BEFORE json.dump runs, so a kill, a crash or an
+    # ENOSPC between those two moments leaves a 0-byte or half-written record — which
+    # shadow_watch_state() then reports as unreadable, which is precisely how a sentinel got
+    # laundered in the first place. Same shape as _shadow_set and the other five writers.
+    # [[open-for-write-truncates-first]] [[bible-writes-must-be-atomic]]
     try:
-        with open(_shadow_watch_path(), "w", encoding="utf-8") as fh:
+        _p = _shadow_watch_path()
+        os.makedirs(os.path.dirname(_p) or ".", exist_ok=True)
+        _tmp = _p + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as fh:
             json.dump(cur, fh)
+        os.replace(_tmp, _p)
     except Exception:
         pass
     return cur
@@ -26468,7 +26519,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2981",
+        "ver": "v2982",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

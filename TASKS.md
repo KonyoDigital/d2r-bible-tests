@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2981** | `(this commit)` | v2981 — shadow_ai records his own choice and could not say who wrote it |
+| **v2982** | `(this commit)` | v2982 — a read verdict laundered into stored state, carried forward every 20 seconds |
+| **v2981** | `522095b2` | v2981 — shadow_ai records his own choice and could not say who wrote it |
 | **v2980** | `191a1d9a` | v2980 — the guard that looks like it protects the wilson loop does not skip a provenance block |
 | **v2979** | `979ac41e` | v2979 — mapping the stamp over a whole store back-filled legacy rows and churned the rest |
 | **v2978** | `762c0a28` | v2978 — a blob stamp would have added a phantom item to tracked items |
