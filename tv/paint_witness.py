@@ -217,6 +217,23 @@ def _grab(window_id, quartz=None):
 #: ⚠ Skipped only on windows tall enough for it to be chrome rather than the whole thing, so a
 #: small helper window is never measured down to nothing.
 CHROME_TOP_PX = 36
+
+#: ⚠⚠ v2953 — THE SIDES ARE CHROME TOO, AND ONLY THE TOP WAS EVER EXCLUDED.
+#: The note beside the top crop already gives the whole reason — "The chrome is not evidence about
+#: whether the page drew; it is drawn by the window server either way" — and then applied it to ONE
+#: axis. The sampling loop ran `range(0, w)`, straight through the left and right window border.
+#: MEASURED, by a cold cross-family attack (GB-L-PIXEL-3, designed by a different model family with
+#: no hint from me): A1 "chrome bleed" — a DEAD body whose only bright pixels are a border hairline
+#: — reads p99Luminance 255 and brightShare 0.0162, clearing both ink bars, so the witness calls a
+#: dead window PAINTED. One bright row of window border vetoes emptiness.
+#: ⚠ THE VALUE IS NOT MINE AND NOT NEW. `frozen_frames.SIDE_FRACTION` has excluded exactly this
+#: since it was written, for exactly this reason: "rounded window corners and the 1px window border
+#: are not evidence about what the page drew". Two pipelines measured the same window and disagreed
+#: about what counted as evidence.
+#: ⚠ COPIED, NOT IMPORTED, BECAUSE frozen_frames IMPORTS THIS MODULE — importing it back is a
+#: cycle. A copy is only allowed if something holds the two together, so
+#: test_chrome_alone_is_not_paint asserts they are equal. [[copy-drift]]
+CHROME_SIDE_FRACTION = 0.02
 #: ⚠⚠ v2752 — 30 WAS CHOSEN AGAINST THE MODAL TEST AND THE INK TEST OUTGREW IT. HIS BLACK CONSOLE
 #: READ AS **PAINTED** BECAUSE OF TWO ROWS OF WINDOW CHROME.
 #: Konyo, 2026-09-07, with a screenshot of a black console: *"black screen again.. something should
@@ -262,9 +279,12 @@ def measure(shot, samples=60):
     # modal-share bar just as diluted. The chrome is not evidence about whether the page drew; it
     # is drawn by the window server either way. [[feedback-threshold-above-the-ceiling]]
     top = CHROME_TOP_PX if h > CHROME_TOP_PX * 4 else 0
+    # ⚠ v2953 — the SIDE border, excluded for the same reason as the top.
+    side = int(w * CHROME_SIDE_FRACTION) if w > CHROME_TOP_PX * 4 else 0
     lums, total = Counter(), 0
     for yy in range(top, h, max(1, (h - top) // samples)):
-        for xx in range(0, w, max(1, w // samples)):
+        for xx in range(side, max(side + 1, w - side),
+                        max(1, (w - 2 * side) // samples)):
             o = yy * bpr + xx * bpp
             if o + 3 > len(buf):
                 continue

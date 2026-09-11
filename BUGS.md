@@ -31393,3 +31393,41 @@ prose-reads this session; this one was mine, inside a guard written to prevent e
 [[source-reading-guard]]
 
 Gate proven red twice at 1 match each: removing the re-evaluation, and removing the plan-consume.
+
+## REG-956 — only the TOP chrome was ever excluded, so a border hairline vetoed emptiness (v2953)
+
+Task #34. Found by a COLD cross-family attack: GB-L-PIXEL-3, designed by a different model family
+with no hint from me, then reproduced here before being believed.
+
+`paint_witness.measure()` excluded the window's TOP chrome (`CHROME_TOP_PX = 36`) and its own note
+gave the reason in full — *"The chrome is not evidence about whether the page drew; it is drawn by
+the window server either way"* — then applied it to **one axis only**. The sampling loop ran
+`range(0, w)`, straight through the left and right window border.
+
+**The attack that exploits it.** A1 "chrome bleed": a DEAD body whose only bright pixels are a
+border hairline reads `p99Luminance 255, brightShare 0.0162`, clearing both ink bars, so the
+witness calls a dead window PAINTED. One bright row of window border vetoes emptiness.
+
+**The fix is not a new statistic.** `frozen_frames.SIDE_FRACTION = 0.02` has excluded exactly this
+since it was written, for exactly this reason: *"rounded window corners and the 1px window border
+are not evidence about what the page drew"*. Two pipelines measured the same window and disagreed
+about what counted as evidence. Mirrored as `CHROME_SIDE_FRACTION`.
+
+⚠ **COPIED, NOT IMPORTED — `frozen_frames` imports `paint_witness`, so importing it back is a
+cycle.** A copy is only tolerable if something holds the two together, so
+`test_the_SIDE_crop_agrees_with_frozen_frames` asserts they are equal, and
+`test_the_side_crop_is_actually_APPLIED_to_the_sampling` walks `measure()`'s AST to prove the x
+loop starts at the offset rather than at 0 — a constant nothing reads is plumbing with no tap.
+
+### ⚠ WHAT THIS DOES *NOT* DO, STATED PLAINLY
+
+A1 was handed to us as a **measure-dict**, i.e. already sampled. A crop changes the SAMPLING, so it
+cannot change A1-the-dict's verdict — **A1 will still return PAINTED when fed as a dict, and that
+is correct**: given those four numbers, PAINTED is the right answer. What the crop does is stop
+such a dict ever being produced from a real window. The fix addresses the real failure mode, not
+the fixture, and reporting "A1 now refuses" would be false.
+
+Measured after: all four real recorded frames still class correctly (gb blank x34 BLANK, chrome dim
+blank BLANK, gb painted PAINTED, his healthy PAINTED); test_chrome_alone_is_not_paint, test_paint_ink,
+test_the_pixels_earn_the_right_to_act and test_pixel_witness all green; 4 red-proofs PROVEN at
+1 match each.

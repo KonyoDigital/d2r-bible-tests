@@ -229,7 +229,60 @@ class ChromeAloneIsNotPaint(unittest.TestCase):
                         "the ink test is not what carries this verdict any more")
 
 
+    def test_the_SIDE_crop_agrees_with_frozen_frames(self):
+        """⚠⚠ A COPIED NUMBER, HELD TO ITS ORIGIN. v2953 excluded the window's SIDE border from
+        sampling — the top had been excluded since the beginning, and the note giving the reason
+        ("the chrome is not evidence about whether the page drew") had only ever been applied to
+        one axis. The sampling loop ran `range(0, w)`, straight through the border.
+
+        The 0.02 is NOT new and NOT mine: `frozen_frames.SIDE_FRACTION` has excluded exactly this
+        since it was written, saying "rounded window corners and the 1px window border are not
+        evidence about what the page drew". Two pipelines measured the same window and disagreed
+        about what counted as evidence.
+
+        It is COPIED rather than imported because frozen_frames imports THIS module — importing it
+        back is a cycle. A copy is only tolerable if something holds the two together. This is that
+        something. [[copy-drift]]"""
+        import frozen_frames as FF
+        self.assertEqual(FF.SIDE_FRACTION, PW.CHROME_SIDE_FRACTION,
+                         "the two pipelines disagree about how much window border is evidence: "
+                         "frozen_frames %r vs paint_witness %r"
+                         % (FF.SIDE_FRACTION, PW.CHROME_SIDE_FRACTION))
+
+    def test_the_side_crop_is_actually_APPLIED_to_the_sampling(self):
+        """A constant that nothing reads is plumbing with no tap. Parsed, not grepped: the x loop
+        inside measure() must start at the side offset, not at 0. [[plumbing-with-no-tap]]"""
+        import ast
+        import inspect
+        src = inspect.getsource(PW.measure)
+        tree = ast.parse(src.lstrip())
+        starts_at_zero = False
+        uses_side = False
+        for n in ast.walk(tree):
+            if isinstance(n, ast.For) and isinstance(n.iter, ast.Call) \
+                    and getattr(n.iter.func, "id", None) == "range" and n.iter.args:
+                a0 = n.iter.args[0]
+                if isinstance(a0, ast.Constant) and a0.value == 0 \
+                        and isinstance(n.target, ast.Name) and n.target.id == "xx":
+                    starts_at_zero = True
+                if isinstance(a0, ast.Name) and a0.id == "side":
+                    uses_side = True
+        self.assertFalse(starts_at_zero,
+                         "the x sampling loop still starts at 0 — the side border is being "
+                         "measured as if it were the page")
+        self.assertTrue(uses_side,
+                        "measure() declares a side crop and never applies it to the x loop")
+
 RED_PROOF = [
+    {
+        "why": "law: the side border is excluded from sampling. Putting the x loop back to 0 "
+               "restores the state a cold cross-family attack exploited - one bright row of window "
+               "border vetoing emptiness, so a DEAD window reads PAINTED.",
+        "file": "paint_witness.py",
+        "find": "        for xx in range(side, max(side + 1, w - side),",
+        "replace": "        for xx in range(0, w,",
+        "matches": 1,
+    },
     {
         "why": 'a blank console window whose only bright pixels are two rows of OS title-bar chrome must read BLANK — crop below 32 leaves rows 30-31 at luminance 255 in the sample, which alone clears the 1.5% ink bar and reported his black screen as PAINTED  MEASURED: untampered OK — Ran 6 tests in 0.446s, all 6 pass (python3 tv/test_chrome_alone_is_not_paint.py, exit; tampered (all 1) FAILED (failures=3) — Ran 6 tests in 0.592s, exit 1. Red laws: test_a_blank_window_with_a_; reddened law test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_wind; ALONE RED ALONE — `python3 -m unittest test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_window_with.',
         "file": 'paint_witness.py',
