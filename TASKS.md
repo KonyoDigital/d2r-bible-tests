@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2942** | `(this commit)` | v2942 — --note shelf_driver shipped 773 lines gated and red-proven and nothing ran it; his beat was 31.6h old and no supervisor said so |
+| **v2943** | `(this commit)` | v2943 — --note the eagle skips PERIODIC on 5 of every 6 passes and the durable record dropped the key that says so |
+| **v2942** | `88b7100f` | v2942 — --note shelf_driver shipped 773 lines gated and red-proven and nothing ran it; his beat was 31.6h old and no supervisor said so |
 | **v2941** | `424bb40e` | v2941 — --note the definition had zero callers, the census never asked it, and no writer ever stamped |
 | **v2940** | `f2530768` | v2940 — --note four wilson harnesses banked unconditionally from main so merely looking wrote evidence; the gate keeps banking deliberately |
 | **v2939** | `417929db` | v2939 — --note the git-unreadable arm reported zeros while its sibling reported None, so a broken instrument read as a measured empty table |

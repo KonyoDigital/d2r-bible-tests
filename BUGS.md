@@ -29613,6 +29613,63 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-948 — a permanently-red pair cannot report a dropped check (#63)
+
+**v2943.** #63 said *"the corroborator reports 3 engine pairs disagreeing on live data."*
+
+**⚠ The premise is a SNAPSHOT, not a state.** Across repeated runs the red set is **not a fixed 3** —
+membership and count both move. Counting them by eye is also a trap: the verdict line itself starts
+with 🔴, so `grep -c 🔴` returns rows **+1**.
+
+**The one that was a real defect — and it was in the instrument.**
+`eagle-ran-every-check` compared the eagle's row count against `len(CHECKS) - len(SLOW)`. But the
+unattended tick **also skips `PERIODIC`** (the "engines corroborate" check, every 6th tick), so the
+expectation was one too high on **5 of every 6 passes**. MEASURED on his tree:
+
+    rows in the last eagle pass says 53 and rows that pass was expected to cover says 54
+
+A pair that is red almost always **cannot report a genuinely dropped check** — it is the cry-wolf
+shape, and a finding he learns to skip is worse than no finding at all.
+
+**Root cause: an unjoined end.** `control_app.py` computes `_include_periodic`, stores it into the
+in-memory `_EAGLE` — and the durable `.eagle_last.json` write persisted only `"slow"` and **dropped
+it**. That file is the ONLY thing an out-of-process reader (the corroborator, the gates, CI) can
+see. Measured keys before the fix: `[checked, needsYou, pid, port, primary, rows, slow, ts, unknown]`.
+
+**Fix, three joined parts:** the durable write persists `periodic` (not `bool(...)` — an unlabelled
+pass stays unlabelled); `_durable_pass()` returns it in the SAME tuple rather than gaining a second
+reader, which is this module's own *one read, one policy* rule; and the expectation subtracts the
+cheap PERIODIC checks when the pass skipped them.
+
+**Verified for every pass shape:** cheap+skipped → **53** (what the eagle actually emits),
+cheap+included → 54, full → 56, unlabelled → **UNKNOWN**. On his tree the pair now reads
+**⚪ UNKNOWN — "rows that pass was expected to cover answered UNKNOWN"**, because his stored record
+predates the key. That is honest, not silenced: **3 disagreements → 2, and the one removed was the
+false alarm.**
+
+**Gate:** `test_corroborate_operands` — 15 laws, **4/4 red-proofs PROVEN, no BLIND, no INVALID.**
+
+⚠⚠ **AND THE FIRST CUT OF THIS FIX BROKE FIVE EXISTING TESTS — the gate caught it, not me.** v2943
+first returned UNKNOWN when a record carried no `periodic`, on the *absent is not False* principle.
+`test_control` went red in five places, including
+`test_a_PRE_v2409_record_with_no_primary_key_is_still_read`, whose own message reads *"refused for
+lacking a key it COULD NOT HAVE HAD"*, and `test_an_eagle_that_flew_EVERY_check_agrees` reading
+`'unknown' != 'agree'`.
+
+**Backward compatibility with an older console's record is a DELIBERATE contract and it outranks the
+newer principle.** A legacy record keeps the pre-v2943 expectation. The cost is stated rather than
+hidden: such a record can still read red on a pass that skipped PERIODIC — the state it was already
+in — and it self-corrects the moment the console writes one record carrying the key. Folded into
+v2943 rather than shipped as a follow-up, because v2943 never reached origin.
+
+⚠ **One shape, or one caller raises where the others do not.** Widening six of `_durable_pass`'s
+returns and missing the seventh produced `tuple index out of range`, and the pair reported "cannot
+be asked" **for the wrong reason** — a green-looking UNKNOWN hiding a bug. A law now asserts every
+return in that function has the same arity.
+
+⚠ My own v2942 added a CHECK, moving both numbers 52/53 → 53/54. It did **not** cause this and did
+not worsen it; the off-by-PERIODIC is structural. Checked before assuming.
+
 ## REG-947 — an import with no call (#59, the supervision half joined)
 
 **v2942.** Konyo, 2026-09-10: *"a lane that stops reading goes RED on its own."* `shelf_driver.py`

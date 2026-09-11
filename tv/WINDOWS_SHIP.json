@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2942",
+  "ver": "v2943",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2942: --note shelf_driver shipped 773 lines gated and red-proven and nothing ran it; his beat was 31.6h old and no supervisor said so",
+  "note": "v2943: --note the eagle skips PERIODIC on 5 of every 6 passes and the durable record dropped the key that says so",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

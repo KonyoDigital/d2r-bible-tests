@@ -167,6 +167,104 @@ class TheInvariantCanNowActuallyInvert(_Base):
     fix this was UNREACHABLE: the left side was a constant 0, so `left <= right` held against
     every possible right and the relation could never be violated."""
 
+    # ── v2943 (#63) — the pair that was permanently red ────────────────────────────────────────
+    def _eagle_expectation(self, eagle):
+        """The `eagle-ran-every-check` right() operand under a given _EAGLE state. -> int|None"""
+        import control_app as ca, corroborate as CO
+        inv = None
+        for b in CO.BUILDERS:
+            try:
+                t = b()
+            except Exception:
+                continue
+            if isinstance(t, tuple) and t and t[0] == "eagle-ran-every-check":
+                inv = t
+                break
+        self.assertIsNotNone(inv, "the eagle-ran-every-check invariant is gone — re-derive this law")
+        right = [x for x in inv if callable(x)][-1]
+        was = getattr(ca, "_EAGLE", None)
+        ca._EAGLE = eagle
+        try:
+            return right()
+        finally:
+            ca._EAGLE = was
+
+    def test_a_pass_that_SKIPPED_periodic_is_not_expected_to_have_run_it(self):
+        """⚠⚠ A PERMANENTLY-RED PAIR CANNOT REPORT A DROPPED CHECK. The unattended eagle tick skips
+        PERIODIC on 5 of every 6 passes, and this expectation counted the roster minus SLOW only —
+        so it was one too high almost always. MEASURED on his tree before the fix: "rows in the
+        last eagle pass says 53 and rows that pass was expected to cover says 54". That is the
+        cry-wolf shape: a finding he learns to skip is worse than no finding.
+        [[feedback-threshold-above-the-ceiling]]"""
+        import console_doctor as cd
+        cheap = len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
+        per = len([c for c in cd.CHECKS if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])
+        self.assertGreater(per, 0, "no PERIODIC check is also cheap — re-derive this law")
+        skipped = self._eagle_expectation({"checked": 1, "slow": False, "periodic": False})
+        included = self._eagle_expectation({"checked": 1, "slow": False, "periodic": True})
+        self.assertEqual(cheap - per, skipped,
+                         "a pass that skipped PERIODIC is still expected to have run it: %r" % skipped)
+        self.assertEqual(cheap, included,
+                         "a pass that INCLUDED periodic is under-expected: %r" % included)
+        self.assertNotEqual(skipped, included,
+                            "the expectation does not depend on `periodic` at all, so the pair is "
+                            "back to disagreeing on 5 of every 6 passes")
+
+    def test_a_LEGACY_record_stays_GRADEABLE(self):
+        """⚠⚠ THE RULE I GOT WRONG, AND THE GATE CAUGHT IT. v2943 returned UNKNOWN for a record
+        with no `periodic`, on the "absent is not False" principle — and five tests in
+        `TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess` went red, including
+        `test_a_PRE_v2409_record_with_no_primary_key_is_still_read`, whose own message reads
+        *"refused for lacking a key it COULD NOT HAVE HAD"*.
+
+        Backward compatibility with an older console's record is a DELIBERATE contract and it
+        outranks the newer principle. A legacy record keeps the pre-v2943 expectation; the cost is
+        that it can still read red on a pass that skipped PERIODIC — the state it was already in —
+        and it self-corrects the moment the console writes one record carrying the key."""
+        import console_doctor as cd
+        cheap = len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
+        got = self._eagle_expectation({"checked": 1, "slow": False})
+        self.assertEqual(cheap, got,
+                         "a legacy record without `periodic` is no longer gradeable (%r) — that "
+                         "refuses a record for lacking a key it could not have had" % (got,))
+
+    def test_the_DURABLE_record_persists_what_the_reader_needs(self):
+        """⚠⚠ THE UNJOINED END. `periodic` was computed and stored into the in-memory _EAGLE and
+        then DROPPED by the disk write — and that file is the ONLY thing an out-of-process reader
+        (this module, the gates, CI) can see. PARSED, not grepped. [[the-unjoined-end]]"""
+        import ast as _ast, io as _io, os as _os
+        here = _os.path.dirname(_os.path.abspath(__file__))
+        src = _io.open(_os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        found = False
+        for node in _ast.walk(_ast.parse(src)):
+            if not isinstance(node, _ast.Dict):
+                continue
+            keys = {k.value for k in node.keys
+                    if isinstance(k, _ast.Constant) and isinstance(k.value, str)}
+            if {"checked", "rows", "slow", "needsYou"}.issubset(keys):
+                found = True
+                self.assertIn("periodic", keys,
+                              "the eagle's durable record drops `periodic` (%s) — the reader "
+                              "cannot then say which roster the pass was measured against"
+                              % sorted(keys))
+        self.assertTrue(found, "the eagle's durable dict literal is gone — re-derive this law")
+
+    def test_the_durable_read_hands_back_ONE_shape(self):
+        """⚠ ONE READ, ONE POLICY — this module's own rule. Every return of `_durable_pass` must
+        have the same arity, or a caller unpacking it gets `tuple index out of range` on one path
+        only. MEASURED during this fix: widening six returns and missing the seventh produced
+        exactly that, and the pair reported 'cannot be asked' for the wrong reason."""
+        import ast as _ast, io as _io, os as _os
+        here = _os.path.dirname(_os.path.abspath(__file__))
+        src = _io.open(_os.path.join(here, "corroborate.py"), encoding="utf-8").read()
+        fn = [n for n in _ast.walk(_ast.parse(src))
+              if isinstance(n, _ast.FunctionDef) and n.name == "_durable_pass"][0]
+        arities = {len(r.value.elts) for r in _ast.walk(fn)
+                   if isinstance(r, _ast.Return) and isinstance(r.value, _ast.Tuple)}
+        self.assertEqual(1, len(arities),
+                         "_durable_pass returns tuples of differing length %s — one caller path "
+                         "raises where the others do not" % sorted(arities))
+
     def test_a_deleter_freeing_from_a_reel_the_planner_HOLDS_breaks_the_relation(self):
         """★★★ THE INVERSION, IN THE UNIT THE LAW IS ACTUALLY WRITTEN IN. The reel-set equivalent of
         "the deleter frees more than the planner offers" is: it frees a frame from a reel that is
@@ -225,11 +323,32 @@ class TheInvariantCanNowActuallyInvert(_Base):
 
 RED_PROOF = [
     {
-        'why': "The tamper deletes the refusal at the top of BOTH cross-engine invariants' left operands in corroborate.py — `_inv_the_deleter_is_never_looser_than_the_planner` and `_inv_the_two_deleters_stay_at_their_own_granularity`. Each wraps its `fa.plan_frames(hist)` call in a try/except that returns None when the shelf cannot be read; the tamper turns that into `return 0`. That is the exact defect class the whole gate exists to catch: an unanswerable question rendered as a confident measured zero. Because the relation both invariants publish is `left <= right`, a constant 0 on the left can never invert, so an unreadable shelf would silently report AGREEMENT on the one direction with no undo (the thing that can delete his footage). The anchor is executable code inside the two `left()` closures — not a comment, not a message string, not a shared constant — and it is the only site the raising-plan law reads: the two left() try/except blocks are the only `fa.plan_frames` call sites in the file (2 occurrences, both replaced), while the `rr.plan` except blocks have different text and are untouched. Measured: untampered the gate printed OK (9 tests); with all 2 occurrences replaced it printed FAILED (failures=1) with exactly one law red, and that law failed ALONE under `python3 -m unittest test_corroborate_operands.AMissingKeyIsUNKNOWNNeverZero.test_a_RAISING_plan_is_None_not_zero` with `AssertionError: 0 is not None`, so the red is not leftover state from a sibling test. `git checkout -- corroborate.py` restored the file (clean `git status`) and the gate printed OK again.  MEASURED: untampered OK; tampered (all 2 match(es)) FAILED (failures=1); reddened law AMissingKeyIsUNKNOWNNeverZero.test_a_RAISING_plan_is_None_not_zero; that law ALONE FAILED (failures=1) — FAIL: test_a_RAISING_plan_is_None_not_zero (test_corroborate_operands.AMissingKeyIsUNKNOWNNeverZer.",
-        'file': 'corroborate.py',
-        'find': '            plan = fa.plan_frames(hist)\n        except Exception:\n            return None\n',
-        'replace': '            plan = fa.plan_frames(hist)\n        except Exception:\n            return 0\n',
-        'matches': 2,
+        "why": "The tamper deletes the refusal at the top of BOTH cross-engine invariants' left operands in corroborate.py — `_inv_the_deleter_is_never_looser_than_the_planner` and `_inv_the_two_deleters_stay_at_their_own_granularity`. Each wraps its `fa.plan_frames(hist)` call in a try/except that returns None when the shelf cannot be read; the tamper turns that into `return 0`. That is the exact defect class the whole gate exists to catch: an unanswerable question rendered as a confident measured zero. Because the relation both invariants publish is `left <= right`, a constant 0 on the left can never invert, so an unreadable shelf would silently report AGREEMENT on the one direction with no undo (the thing that can delete his footage). The anchor is executable code inside the two `left()` closures — not a comment, not a message string, not a shared constant — and it is the only site the raising-plan law reads: the two left() try/except blocks are the only `fa.plan_frames` call sites in the file (2 occurrences, both replaced), while the `rr.plan` except blocks have different text and are untouched. Measured: untampered the gate printed OK (9 tests); with all 2 occurrences replaced it printed FAILED (failures=1) with exactly one law red, and that law failed ALONE under `python3 -m unittest test_corroborate_operands.AMissingKeyIsUNKNOWNNeverZero.test_a_RAISING_plan_is_None_not_zero` with `AssertionError: 0 is not None`, so the red is not leftover state from a sibling test. `git checkout -- corroborate.py` restored the file (clean `git status`) and the gate printed OK again.  MEASURED: untampered OK; tampered (all 2 match(es)) FAILED (failures=1); reddened law AMissingKeyIsUNKNOWNNeverZero.test_a_RAISING_plan_is_None_not_zero; that law ALONE FAILED (failures=1) — FAIL: test_a_RAISING_plan_is_None_not_zero (test_corroborate_operands.AMissingKeyIsUNKNOWNNeverZer.",
+        "file": 'corroborate.py',
+        "find": '            plan = fa.plan_frames(hist)\n        except Exception:\n            return None\n',
+        "replace": '            plan = fa.plan_frames(hist)\n        except Exception:\n            return 0\n',
+        "matches": 2,
+    },
+    {
+        "why": "v2943/A — drops `periodic` from the eagle's durable record, the ONLY thing an out-of-process reader can see. The corroborator then cannot say which roster a pass was measured against and the pair goes permanently UNKNOWN — an alarm that can never report a genuinely dropped check.",
+        "file": 'control_app.py',
+        "find": '                       "periodic": _EAGLE.get("periodic"),\n',
+        "replace": '',
+        "matches": 1,
+    },
+    {
+        "why": "v2943/B — stops subtracting PERIODIC, so a pass that skipped it is still expected to have run it. MEASURED on his tree before the fix: 'rows says 53 and expected 54' on 5 of every 6 passes — a permanently-red pair, which is the cry-wolf shape.",
+        "file": 'corroborate.py',
+        "find": '            return _base - len([c for c in cd.CHECKS\n                                if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])\n',
+        "replace": '            return _base\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2943/C — makes a LEGACY record (one with no `periodic`, written by an older console) ungradeable. That refuses a record for lacking a key it could not have had, and it is the exact regression the gate caught: five tests in TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess went red, plus test_an_eagle_that_flew_EVERY_check_agrees reading 'unknown' != 'agree'. Backward compatibility here is a deliberate contract.",
+        "file": 'corroborate.py',
+        "find": '            if periodic is None:\n                # ⚠⚠ v2944 — BACKWARD COMPATIBILITY OUTRANKS THE NEW RULE, AND THE GATE TAUGHT ME\n                # THAT. v2943 returned UNKNOWN here on the "absent is not False" principle, and\n                # test_control\'s TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess went RED in\n                # five places — including `test_a_PRE_v2409_record_with_no_primary_key_is_still_read`,\n                # whose own message is "refused for lacking a key it COULD NOT HAVE HAD". That is a\n                # deliberate contract: a record written by an older console must still be gradeable.\n                # So a record with no `periodic` keeps the PRE-v2943 expectation. The cost is\n                # stated rather than hidden: such a record can still read red on a pass that\n                # skipped PERIODIC — which is the state it was already in — and it corrects itself\n                # the moment the console writes one record carrying the key.\n                # [[feedback-blind-fixture-green-gate]] [[copy-drift]]\n                return _base\n',
+        "replace": '            if periodic is None:\n                return None\n',
+        "matches": 1,
     },
 ]
 

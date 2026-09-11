@@ -737,7 +737,11 @@ def _eagle_record_path():
 
 
 def _durable_pass(max_age_ms=None):
-    """The last durable eagle pass as ONE snapshot. -> (rows, slow) with either possibly None.
+    """The last durable eagle pass as ONE snapshot. -> (rows, slow, periodic), any possibly None.
+
+    ⚠ v2943 — `periodic` joined the tuple rather than getting its own reader, because this file's
+    own rule is ONE READ, ONE POLICY: a second reader of the same record under different rules is
+    exactly how this broke twice before (see below).
 
     ⚠ ONE READ, ONE POLICY, BECAUSE TWO READERS OF ONE RECORD IS HOW THIS BROKE TWICE. v2407 had
     `left()` reading rows here under freshness + author rules while a separate `_durable_slow_flag`
@@ -753,15 +757,15 @@ def _durable_pass(max_age_ms=None):
         import json as _json, os as _os, time as _time
         _p = _eagle_record_path()
         if not _os.path.isfile(_p):
-            return (None, None)
+            return (None, None, None)
         with io.open(_p, encoding="utf-8") as _fh:
             _row = _json.load(_fh)
         _ts = _row.get("ts")
         if not isinstance(_ts, (int, float)):
-            return (None, None)
+            return (None, None, None)
         cap = _EAGLE_RECORD_MAX_AGE_MS if max_age_ms is None else max_age_ms
         if (_time.time() * 1000 - float(_ts)) > cap:
-            return (None, None)            # too old to mean anything
+            return (None, None, None)            # too old to mean anything
         # ⚠ v2409 — ASK WHETHER IT WAS THE PRIMARY CONSOLE, NOT WHETHER IT HAD A PORT.
         # v2408 refused a record whose port was None, reasoning that a portless process has no
         # window. Grok Bot then named the actual stray: `control_app.py --no-open` on **:17985** —
@@ -775,7 +779,7 @@ def _durable_pass(max_age_ms=None):
         # ⚠ ABSENT IS NOT False. A pre-v2409 record carries no `primary` key at all and must still
         # be read, or upgrading blinds this on every machine until each rewrites its file.
         if _row.get("primary") is False:
-            return (None, None)
+            return (None, None, None)
         # ⚠ THE COMPATIBILITY HOLE THE COLD REVIEW FOUND, AND IT WAS THE ONE CASE THAT MATTERS.
         # A pre-v2409 record carries no `primary` key and is deliberately still read — but the
         # record an OLD SCRATCH actually produces is `{port: 17985}` with no `primary`, which sailed
@@ -785,15 +789,20 @@ def _durable_pass(max_age_ms=None):
         # a genuinely keyless file.
         if _row.get("primary") is None and isinstance(_row.get("port"), int) \
                 and _row.get("port") != _PRIMARY_PORT:
-            return (None, None)
+            return (None, None, None)
         if "port" in _row and _row.get("port") is None:
-            return (None, None)
+            return (None, None, None)
         _r = _row.get("rows")
         _s = _row.get("slow")
+        # ⚠ v2943 — same "absent stays absent" rule as `slow`: a record written before the eagle
+        # persisted this key answers None, and the caller then says UNKNOWN rather than assuming
+        # the pass did or did not include PERIODIC. [[unknown-stays-unknown]]
+        _p = _row.get("periodic")
         return (int(_r) if isinstance(_r, int) else None,
-                bool(_s) if isinstance(_s, bool) else None)
+                bool(_s) if isinstance(_s, bool) else None,
+                bool(_p) if isinstance(_p, bool) else None)
     except Exception:
-        return (None, None)
+        return (None, None, None)
 
 
 def _inv_the_eagle_can_still_look():
@@ -876,11 +885,41 @@ def _inv_the_eagle_can_still_look():
         # by asking whether `checked` is set; this mirrors that decision exactly rather than
         # guessing again. [[feedback-fixtures-never-touch-live-data]] [[copy-drift]]
         e = dict(getattr(ca, "_EAGLE", {}) or {})
-        slow = e.get("slow") if e.get("checked") is not None else _durable_pass()[1]
+        # ⚠⚠ v2943 (#63) — AND `periodic`, WHICH THIS EXPECTATION IGNORED. The unattended tick
+        # skips PERIODIC on 5 of every 6 passes, so roster-minus-SLOW was 1 too high almost always
+        # and this pair read DISAGREE almost always. MEASURED on his tree before the fix: "rows in
+        # the last eagle pass says 53 and rows that pass was expected to cover says 54". A pair
+        # that is permanently red cannot report a genuinely dropped check — it is the cry-wolf
+        # shape, and a finding he learns to skip is worse than no finding at all.
+        _dur = _durable_pass()
+        slow = e.get("slow") if e.get("checked") is not None else _dur[1]
+        periodic = e.get("periodic") if e.get("checked") is not None else _dur[2]
+        _base = None
         if slow is False:
-            return cheap
+            _base = cheap
         if slow is True:
-            return full
+            _base = full
+        if _base is not None:
+            # ⚠ ABSENT IS UNKNOWN, NOT False — the same rule the block below states for `slow`.
+            # A record written before the eagle persisted `periodic` cannot say whether that pass
+            # included it, and guessing turns this pair back into an alarm nobody can act on.
+            if periodic is None:
+                # ⚠⚠ v2944 — BACKWARD COMPATIBILITY OUTRANKS THE NEW RULE, AND THE GATE TAUGHT ME
+                # THAT. v2943 returned UNKNOWN here on the "absent is not False" principle, and
+                # test_control's TestV2394TheEagleCanBeGradedFromOUTSIDEItsOwnProcess went RED in
+                # five places — including `test_a_PRE_v2409_record_with_no_primary_key_is_still_read`,
+                # whose own message is "refused for lacking a key it COULD NOT HAVE HAD". That is a
+                # deliberate contract: a record written by an older console must still be gradeable.
+                # So a record with no `periodic` keeps the PRE-v2943 expectation. The cost is
+                # stated rather than hidden: such a record can still read red on a pass that
+                # skipped PERIODIC — which is the state it was already in — and it corrects itself
+                # the moment the console writes one record carrying the key.
+                # [[feedback-blind-fixture-green-gate]] [[copy-drift]]
+                return _base
+            if periodic:
+                return _base
+            return _base - len([c for c in cd.CHECKS
+                                if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])
         # ⚠⚠ AN UNLABELLED PASS IS UNKNOWN, NOT "ASSUME THE WHOLE ROSTER" — AND MY DEFENCE OF THE
         # STRICT DEFAULT WAS WRONG ON ITS OWN TERMS. I argued that defaulting to `full` keeps a
         # skipped check catchable. It does not: a skip is caught by a LABELLED cheap pass reporting

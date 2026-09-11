@@ -17250,6 +17250,17 @@ def _eagle_once():
                        # benign answer manufactured from an absent one. An unlabelled pass must
                        # stay unlabelled so the reader can answer UNKNOWN.
                        "slow": _EAGLE.get("slow"),
+                       # ⚠⚠ v2943 (#63) — AND `periodic`, WHICH THIS WRITE DROPPED. It is
+                       # computed at :17119 and stored into _EAGLE at :17175, and then only `slow`
+                       # reached the disk — and this file is the ONLY thing an out-of-process
+                       # reader (the corroborator, the gates, CI) can see. The unattended tick
+                       # skips PERIODIC on 5 of every 6 passes, so the corroborator's
+                       # `eagle-ran-every-check` pair compared 53 against 54 and read DISAGREE
+                       # almost always: a permanently-red alarm that would HIDE a genuinely
+                       # dropped check. Same `not bool(...)` rule as the line above — an
+                       # unlabelled pass must stay unlabelled so the reader can answer UNKNOWN.
+                       # [[the-unjoined-end]] [[feedback-threshold-above-the-ceiling]]
+                       "periodic": _EAGLE.get("periodic"),
                        "needsYou": len(bad), "unknown": len(unk),
                        "pid": os.getpid(),
                        # the port this process actually serves, or None when it serves none —
@@ -26155,7 +26166,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2942",
+        "ver": "v2943",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
