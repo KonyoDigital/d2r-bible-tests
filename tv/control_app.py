@@ -14223,6 +14223,21 @@ def ui_fault_record(kind, why=None, where=None, path=None, before=None):
     p = path or _ui_faults_path()
     row = {"at": int(time.time() * 1000), "kind": str(kind or "")[:40],
            "why": str(why or "")[:200], "where": str(where or "")[:120]}
+    # ⚠⚠ v2970 (#69) — WHAT PRODUCED THIS ROW. MEASURED by verdict_provenance 2026-09-11:
+    # 44 stores, SILENT 16, and both of this console's own .jsonl series were among them. A row
+    # with no producer cannot be INVALIDATED when the writer improves, so a verdict from an old
+    # detector outlives every later pass looking exactly like a fresh one.
+    # ⚠ A JSONL ROW IS ITS OWN LINE, so `stamp_row` here carries NONE of the fake-row hazard that
+    # made a reel-keyed store need the stamp inside its rows (REG-972). Different shape, same
+    # helper, and the shape is what decides.
+    # ⚠ THE ROW'S OWN `at` IS UNTOUCHED: that is WHEN THE THING HAPPENED, and the producer's clock
+    # lives inside the nested block. One namespace touched exactly once.
+    # ⚠ SWALLOWED — provenance is a label on the data, never a precondition for keeping it.
+    try:
+        import provenance as _PV
+        row = _PV.stamp_row(row, by="control_app", extra={"store": "ui_faults"})
+    except Exception:
+        pass
     # ⚠⚠ WAS THE TREE SETTLED? [[staleRender]] Item B has been unanswerable for days for exactly
     # one reason: the evidence is destroyed at the moment the fault happens. A sighting near a
     # commit proves nothing here — this repo ships every 15-50 minutes during a session, so
@@ -14423,6 +14438,21 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
     row = {"at": int(time.time() * 1000), "freeGb": round(float(free_gb), 2),
            "floorGb": floor_gb, "histBytes": hist_bytes, "reels": reels,
            "eligibleMb": eligible_mb, "prunedMb": _pruned, "prunedWhy": _pruned_why}
+    # ⚠⚠ v2970 (#69) — WHAT PRODUCED THIS ROW. MEASURED by verdict_provenance 2026-09-11:
+    # 44 stores, SILENT 16, and both of this console's own .jsonl series were among them. A row
+    # with no producer cannot be INVALIDATED when the writer improves, so a verdict from an old
+    # detector outlives every later pass looking exactly like a fresh one.
+    # ⚠ A JSONL ROW IS ITS OWN LINE, so `stamp_row` here carries NONE of the fake-row hazard that
+    # made a reel-keyed store need the stamp inside its rows (REG-972). Different shape, same
+    # helper, and the shape is what decides.
+    # ⚠ THE ROW'S OWN `at` IS UNTOUCHED: that is WHEN THE THING HAPPENED, and the producer's clock
+    # lives inside the nested block. One namespace touched exactly once.
+    # ⚠ SWALLOWED — provenance is a label on the data, never a precondition for keeping it.
+    try:
+        import provenance as _PV
+        row = _PV.stamp_row(row, by="control_app", extra={"store": "disk_history"})
+    except Exception:
+        pass
     try:
         with open(p, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row) + "\n")
@@ -26300,7 +26330,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2969",
+        "ver": "v2970",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

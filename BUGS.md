@@ -31700,6 +31700,36 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-973 - the console's own two .jsonl series could not say what wrote them (task #69 - v2970)
+
+Continuing the SILENT 16. `ui_faults.jsonl` and `disk_history.jsonl` are both written by
+`control_app` and both were SILENT. A row with no producer **cannot be invalidated**: a fault logged
+by an old detector, or a disk reading taken under an older credibility rule, outlives every later
+pass looking exactly like a fresh one.
+
+**A JSONL ROW IS ITS OWN LINE**, so `stamp_row` here carries none of the fake-row hazard that forced
+the reel-keyed store to take the stamp inside its rows (REG-972). Same helper, different shape, and
+the shape is what decides which call is correct - now pinned by law in both directions.
+
+The row's own `at` is untouched: that is WHEN THE THING HAPPENED, and the producer's clock lives
+inside the nested block. Collapsing them would date a fault to when it was written.
+
+★ TWO INSTRUMENT DEFECTS OF MINE, CAUGHT BEFORE THE VERSION LANDED:
+
+**1 - TWO LAWS SKIPPED AND REPORTED OK.** The first cut asked for a writer named
+`disk_history_record`. No such function exists - it is `disk_history_append` - so both disk-series
+laws SKIPPED and the file printed `OK (skipped=2)`. That is the skip-counted-as-pass class, the
+same one the eye caught in REG-969 hours earlier, this time from guessing a name instead of reading
+it. NAMED, NOT GUESSED. [[regression-guard]]
+
+**2 - A TAMPER THAT COULD NOT BITE.** The first red-proof appended `X_UNSTAMPED = 1` after the row
+literal, which un-stamps nothing - it would have gone GREEN and proved the law measured nothing.
+Worse, I had inserted the SAME stamp line at both sites, so an honest anchor would have matched 2
+and heart2 would have called it INVALID. The two calls now differ by an `extra={"store": ...}` tag,
+giving each a unique anchor, and each tamper deletes the real call. [[sabotage-is-usually-the-wrong-one]]
+
+Two tampers PROVEN red, 1 match each. 302 gates. **14 SILENT stores remain.**
+
 ## REG-972 - the same provenance helper, the opposite right answer, decided by the store's SHAPE (task #69 - v2969)
 
 REG-971 stamped `retro_triage.remember()`. Reading the NEXT silent store turned up a hazard the

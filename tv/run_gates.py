@@ -1221,6 +1221,23 @@ GATES = [
              "census gaining a REFERENCE class, and the actionable set is the 16 SILENT. One "
              "tamper proven red.",
          skip_ok=()),
+    Gate("test_the_console_series_say_what_wrote_them",
+         [sys.executable,
+          os.path.join(HERE, "test_the_console_series_say_what_wrote_them.py")], 60,
+         why="#69. ui_faults.jsonl and disk_history.jsonl were both SILENT in the 2026-09-11 "
+             "census (44 stores, SILENT 16). A row with no producer cannot be INVALIDATED when "
+             "the writer improves: a fault logged by an old detector, or a disk reading taken "
+             "under an older credibility rule, outlives every later pass looking exactly like "
+             "a fresh one. A JSONL ROW IS ITS OWN LINE, so stamp_row here carries none of the "
+             "fake-row hazard that forced the reel-keyed store to take it inside its rows "
+             "(REG-972) — same helper, different shape, and the shape decides. Pins that the "
+             "row keeps its OWN `at` (when the thing happened) distinct from the producer's "
+             "clock, that the fault/reading itself is unharmed, and that one row is still one "
+             "LINE — a stamped row split across lines would parse as two faults. ⚠ the first "
+             "cut of this law asked for a writer named disk_history_record, which does not "
+             "exist, and SKIPPED: two laws reporting OK while measuring nothing. The writer is "
+             "disk_history_append, named rather than guessed. Two tampers proven red.",
+         skip_ok=()),
     Gate("test_the_page_is_not_its_own_console",
          [sys.executable,
           os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,
