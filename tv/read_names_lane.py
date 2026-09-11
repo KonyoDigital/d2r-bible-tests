@@ -108,10 +108,46 @@ def evidence(journal_paths=None):
                     if str(r.get("scene") or "").strip().lower() not in EG.PANEL_SCENES:
                         continue
                     rows += 1
+                    # ⚠⚠ v2983 — HIS RULING, 2026-09-12: *"these are specifically locked items
+                    # within the INVENTORY specifically and not stashed items.. they are inside
+                    # and witnessed within the inventory for sure."*
+                    #
+                    # `scene` IS A PROPERTY OF THE FRAME, NOT OF THE ITEM. One deep row carries one
+                    # `scene` and a LIST of names, so every name read from that frame inherited the
+                    # frame's single label. In D2R the stash panel displays the inventory beside it,
+                    # so a single frame legitimately holds items from BOTH containers — and the lane
+                    # filed all of them under whichever panel it thought it was looking at.
+                    #
+                    # The producer already recorded the right answer and nobody read it:
+                    # `names_loc` is a PER-NAME container map, present on 125 of 151 deep rows.
+                    # MEASURED on his journal, frame `scene` vs per-name `names_loc`:
+                    #     stash / inventory    56   <- DISAGREE
+                    #     inventory / inventory 31
+                    #     stash / stash        12   <- the ONLY genuinely-stash sightings
+                    #     inventory / floor     7   <- DISAGREE
+                    #     stash / equipped      2 · stash / floor 1 · inventory / equipped 1
+                    # 66 of 110 panel sightings carried a container contradicting the item's own.
+                    #
+                    # HIS THREE ARE THE PROOF, because they are the only names whose answer is
+                    # KNOWN — the cube and the tomes are carried, permanently, and can never sit in
+                    # a stash. `names_loc` says `inventory` on all 58 of their sightings. `scene`
+                    # says `stash` on 34 of them. He was right and the system already agreed with
+                    # him; the lane was the only thing that did not.
+                    #
+                    # `scene` is KEPT, not replaced — it is a true fact about the frame, and the
+                    # pair is worth more than either half: a name whose frame and item disagree is
+                    # exactly a name seen in one panel while living in another.
+                    # [[the-unjoined-end]] [[label-outlived-referent]]
+                    _loc = r.get("names_loc")
+                    _loc = _loc if isinstance(_loc, dict) else {}
                     for nm in names:
+                        # ⚠ "" is NOT "floor" and NOT the scene. A name the producer did not place
+                        # is UNPLACED, and a guess here would be indistinguishable from a reading.
+                        # [[unknown-stays-unknown]]
                         out.setdefault(nm, []).append(
                             {"session": sid, "conf": r.get("conf"),
-                             "scene": str(r.get("scene") or ""), "ts": r.get("ts")})
+                             "scene": str(r.get("scene") or ""), "ts": r.get("ts"),
+                             "loc": str(_loc.get(nm) or "").strip().lower() or None})
         except Exception:
             continue
     return out, ("%d deep PANEL row(s) carrying names" % rows)
@@ -129,6 +165,25 @@ def evidence(journal_paths=None):
 #: ⚠ A DECLARED LIST, NOT A HEURISTIC. "appears in most sessions" would also describe a genuinely
 #: common find, and would grow silently into a filter nobody can audit. Three names, his words,
 #: and a law asserts the list stays closed.
+#:
+#: ⚠⚠ HIS RULING, 2026-09-12, REFINING THE ABOVE — THEY ARE NOT NOISE, THEY ARE THE ONLY GROUND
+#: TRUTH THIS READER HAS: *"these are specifically locked items within the INVENTORY specifically
+#: and not stashed items.. they are inside and witnessed within the inventory for sure. and the
+#: slot itendity for them should also have been tallied and logged and ledgered as such so there is
+#: that distinigushed difference."*
+#:
+#: Not ticking them stays right. Treating them as 52.7% of wasted output was wrong. They are the
+#: only three names whose TRUE CONTAINER IS KNOWN — carried permanently, so they can never sit in
+#: a stash — which makes them a known-answer probe for the container reader. Pointed at them, the
+#: reader failed: the frame `scene` the lane was using said `stash` for 34 of their 58 sightings,
+#: while the producer's per-name `names_loc` said `inventory` for all 58. He was right, the system
+#: had already agreed with him, and only the lane disagreed. v2983 joins them; see evidence().
+#:
+#: ⛔ THE SLOT HALF OF HIS RULING IS NOT BUILT AND CANNOT BE BUILT HERE. Measured 2026-09-12: of
+#: 151 deep rows carrying names, **0** carry any slot/cell/grid/xy/rect field. There is no grid
+#: coordinate anywhere in the journal to join, so a slot ledger is a CAPTURE-AND-EXTRACTION change,
+#: not a wiring change — the same shape of answer as REG-340 ("that is a capture change, not a code
+#: change, and it is the real prerequisite"). Recorded as unbuilt rather than half-built.
 FURNITURE = ("horadric cube", "tome of identify", "tome of town portal")
 
 
@@ -203,6 +258,33 @@ def ledger_of(name, rost):
     return "NEITHER"
 
 
+def _containers(items):
+    """Where the ITEM was, from the producer's per-name map. -> dict
+
+    Returns `container` (only when every PLACED sighting agrees), `containers` (the full tally,
+    so a disagreement is legible rather than averaged away), `placed`/`unplaced` as an explicit
+    denominator pair, and `frameDisagreed` — how many sightings carry a frame `scene` that
+    contradicts the item's own location. That last number is the one his 2026-09-12 ruling is
+    about: it is the count of times the lane would have filed an inventory item as a stash item.
+    """
+    locs, placed, unplaced, dis = {}, 0, 0, 0
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        loc = it.get("loc")
+        if not loc:
+            unplaced += 1
+            continue
+        placed += 1
+        locs[loc] = locs.get(loc, 0) + 1
+        sc = str(it.get("scene") or "").strip().lower()
+        if sc and sc != loc:
+            dis += 1
+    return {"container": (list(locs)[0] if len(locs) == 1 else None),
+            "containers": locs, "placed": placed, "unplaced": unplaced,
+            "frameDisagreed": dis}
+
+
 def split(evidence_by_name=None, min_witnesses=None, conf_floor=None):
     """Which read names would AUTO-TALLY and which fall to the manual lane. -> dict
 
@@ -239,7 +321,14 @@ def split(evidence_by_name=None, min_witnesses=None, conf_floor=None):
                # ⚠ None (roster unreadable) is NOT "NEITHER". A name that cannot be classified is
                # unknown, and showing it as un-tickable would hide it from him for a reason that is
                # about my reader. [[unknown-stays-unknown]]
-               "ledger": ledger_of(nm, rost)}
+               "ledger": ledger_of(nm, rost),
+               # ⚠ v2983 — WHERE THE ITEM ITSELF WAS, not which panel was on screen. See the
+               # comment in evidence(): these are different questions and 66 of his 110 panel
+               # sightings answer them differently. `container` is stated ONLY when every placed
+               # sighting agrees; when they disagree it stays None and `containers` carries the
+               # split, because "it moved" and "the reader is unsure" must not be flattened into a
+               # confident single word. [[unknown-stays-unknown]]
+               **_containers(evidence_by_name[nm])}
         (auto if v.get("pass") else manual).append(row)
     return {"ok": True, "state": "MEASURED", "auto": auto, "manual": manual,
             "names": len(evidence_by_name), "minWitnesses": mw, "confFloor": cf,
@@ -255,6 +344,13 @@ def split(evidence_by_name=None, min_witnesses=None, conf_floor=None):
             "autoTickable": (None if rost is None else
                              len([r for r in auto if r.get("ledger") not in
                                   (None, "NEITHER", "FURNITURE")])),
+            # ⚠ v2983 — THE HEADLINE HIS RULING EARNED. Not a ratio: the raw pair, so a reader
+            # can see the denominator. [[zero-needs-a-denominator]]
+            "frameItemDisagree": sum(r.get("frameDisagreed") or 0 for r in auto + manual),
+            "placedSightings": sum(r.get("placed") or 0 for r in auto + manual),
+            "unplacedSightings": sum(r.get("unplaced") or 0 for r in auto + manual),
+            "lockedLaneNames": sorted(r["name"] for r in auto + manual
+                                      if r.get("container") in ("inventory", "equipped")),
             "summary": ("%d of %d read name(s) clear %d witness(es); %d fall to the manual lane"
                         % (len(auto), len(evidence_by_name), mw, len(manual)))}
 

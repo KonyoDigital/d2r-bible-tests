@@ -964,9 +964,18 @@ GATES = [
          "rather than restating it. Proven red three ways: a second module claiming `position`, a "
          "literal copy of the station tuple, and dropping the UNKNOWN sentinel.",
          skip_ok=()),
+    Gate("test_the_lane_asks_the_item_not_the_frame",
+         [sys.executable, os.path.join(HERE, "test_the_lane_asks_the_item_not_the_frame.py")], 60,
+         why="his 2026-09-12 ruling — a container belongs to the ITEM, not the frame. One deep row "
+         "carries one `scene` and many names, and the stash panel shows the inventory beside it, "
+         "so 67 of 110 placed sightings carried a container contradicting the item's own "
+         "`names_loc`. His three carried fixtures are the known-answer probe: names_loc said "
+         "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
+         "deep rows carry any coordinate — and test 5 pins that zero.",
+         skip_ok=()),
     Gate("test_a_read_verdict_is_never_stored",
          [sys.executable, os.path.join(HERE, "test_a_read_verdict_is_never_stored.py")], 60,
-         "#79 — `_shadow_watch_note` seeded itself from `shadow_watch_state()`, whose failure "
+         why="#79 — `_shadow_watch_note` seeded itself from `shadow_watch_state()`, whose failure "
          "paths return diagnostic dicts wearing `ok`. One unreadable moment laundered a READ "
          "verdict into stored state, and the lockless read-modify-write carried it forward every "
          "20s forever. Measured on his live store: health_engine's shadowWatch row held at "

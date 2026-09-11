@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2982"   # a read verdict laundered into stored state, carried forward every 20 seconds
+VERSION = "v2983"   # a container belongs to the item, not to the frame it was seen in
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
