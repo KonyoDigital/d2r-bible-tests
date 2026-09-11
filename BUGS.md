@@ -29587,6 +29587,49 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-933 — the writer has three states and the reader I shipped had two: a crash printed as a keep
+
+**v2928.** Found by the cross-family eye on v2925, **one hour after v2926 shipped**, and reproduced
+before it was believed.
+
+`control_ui.html` writes `data-fanfit` in three shapes:
+
+| written when | shape |
+|---|---|
+| the solver ran and kept/reverted | `{ok: true, reverted: …, from: …, to: …}` |
+| `_hrtFanFit` **raised** | `{ok: false, threw: "…"}` — **no `reverted` at all** |
+| its own `no fan` / `no layout yet` refusal | `{ok: false, reverted: false, …}` |
+
+v2926's reader called a payload a *reading* iff it carried none of `error`/`unread`/`unparsed`, then
+called it *kept* iff `reverted` was not `True`. **Neither `ok` nor `threw` was ever consulted.**
+MEASURED: a payload of `{"ok": false, "threw": "TypeError"}` produced `fanRevertedAt: []` and the
+sentence **"the lock fan kept its placement at all 1 readable width(s)"**.
+
+The page's own `catch` exists precisely so a crash and a keep cannot look alike — its comment says
+so — and the reader built to answer #53 reintroduced the collapse one layer up. `_fan_state()` now
+classifies `reading` / `threw` / `unread`, and **anything not explicitly `ok: true` is refused**, so
+an older or unexpected shape reads UNMEASURED rather than clean.
+
+**Two smaller siblings from the same review:**
+
+- **a fabricated zero.** `heart-fan` present but EMPTY published `fanWidths: 0` beside
+  `fanRevertedAt: None` — two different answers to "did anybody measure". ⚠ The eye named *three*
+  cases here; measured, the `isinstance` guard already caught two of them and **only this one was
+  real**. A finding is a measurement to earn, not an instruction to obey — taking it wholesale would
+  have "fixed" two things that were already correct.
+- **the published denominator was not the sentence's.** `fanWidths` was `len(all keys)` while
+  `_fan_say` divided by `len(readable)`. MEASURED: five widths all returning `{"error": …}` gave
+  `fanWidths: 5` beside a sentence saying NONE could be read. Now `fanWidthsReported` and
+  `fanWidthsReadable`, two names because there are two numbers.
+
+⚠ **The v2926 fixtures were the accomplice.** They omitted `ok`, so they asserted against a payload
+the page never writes — and stayed green while the reader could not tell a solve from a crash.
+[[feedback-blind-fixture-green-gate]]
+
+**Gate:** `test_the_heart_can_see_the_surfaces`, now 15 laws, **11/11 red-proofs PROVEN.**
+⚠ Four earlier anchors went stale in the rewrite and were caught by re-counting before the drill —
+a stale anchor proves INVALID, not red, and would have been a silent hole.
+
 ## REG-932 — 249 of 278 version rows could not name the commit that shipped them
 
 **v2927.** Raised by **Grok Bot three ticks running** (GB-B-403/404/405) as a refutable claim:

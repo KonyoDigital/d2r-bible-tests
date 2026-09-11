@@ -131,21 +131,68 @@ def _stale_say(v):
             "still read clean, because each floor sits below what a clean run photographs" % n)
 
 
+def _fan_state(rec):
+    """What one width's payload actually IS. -> 'reading' | 'threw' | 'unread'
+
+    ⚠⚠ v2928 — THE WRITER HAS THREE STATES AND v2926's READER HAD TWO. Caught by the cross-family
+    eye and reproduced: `control_ui.html` writes `{ok:false, threw:"..."}` when `_hrtFanFit` raises,
+    and `{ok:false, reverted:false, ...}` for its own `no fan` / `no layout yet` refusals. NEITHER
+    carries `error`/`unread`/`unparsed`, so v2926 counted both as readings, found `reverted` not
+    True, and printed **"the lock fan kept its placement"**. MEASURED: a payload of
+    `{"ok": false, "threw": "TypeError"}` produced `fanRevertedAt: []` and that exact sentence.
+
+    The page's own `catch` exists to stop a crash and a keep looking alike — its comment says so in
+    as many words — and the reader built to answer #53 reintroduced the collapse one layer up.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+    ⚠ A MISSING `ok` IS NOT A PASS. Anything that is not explicitly `ok: true` is refused, so an
+    older or unexpected shape reads UNMEASURED rather than clean.
+    """
+    if not isinstance(rec, dict):
+        return "unread"
+    if any(k in rec for k in ("error", "unread", "unparsed")):
+        return "unread"
+    if rec.get("ok") is True:
+        return "reading"
+    if "ok" in rec:
+        return "threw"
+    return "unread"
+
+
+def _fan_buckets(v):
+    """Every width sorted into what it actually said. -> (reported, reading, threw, unread)"""
+    fan = (v.get("reports") or {}).get("heart-fan")
+    if not isinstance(fan, dict) or not fan:
+        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the
+        # isinstance guard already caught two of its three cases, but the third — `heart-fan`
+        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two
+        # different answers to "did anybody measure". `not fan` closes it for good.
+        return (None, [], [], [])
+    rep = sorted(fan)
+    by = {}
+    for w in rep:
+        by.setdefault(_fan_state(fan[w]), []).append(w)
+    return (rep, by.get("reading", []), by.get("threw", []), by.get("unread", []))
+
+
 def _fan_reverted(v):
     """Widths where the fan put everything back, or None if nothing was readable. -> list|None
 
-    ⚠ None and [] ARE DIFFERENT ANSWERS. [] means every readable width kept its placement; None
-    means no width could be read at all. Collapsing them is how #53 would read solved.
-    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    ⚠ None and [] ARE DIFFERENT ANSWERS. [] means every READABLE width kept its placement; None
+    means no width produced a reading at all — absent, empty, failed, or thrown.
+    Collapsing them is how #53 would read solved. [[unknown-stays-unknown]]
     """
-    fan = (v.get("reports") or {}).get("heart-fan")
-    if not isinstance(fan, dict) or not fan:
+    rep, reading, _threw, _unread = _fan_buckets(v)
+    if rep is None or not reading:
         return None
-    good = [w for w in sorted(fan) if isinstance(fan[w], dict)
-            and not any(k in fan[w] for k in ("error", "unread", "unparsed"))]
-    if not good:
-        return None
-    return [w for w in good if fan[w].get("reverted") is True]
+    fan = v["reports"]["heart-fan"]
+    return [w for w in reading if fan[w].get("reverted") is True]
+
+
+def _fan_counts(v):
+    """(reported, readable) — None when nothing was measured, never 0. -> tuple"""
+    rep, reading, _t, _u = _fan_buckets(v)
+    return (None if rep is None else len(rep), None if rep is None else len(reading))
 
 
 def _fan_say(v):
@@ -161,33 +208,32 @@ def _fan_say(v):
     ⚠ IT REPORTS, IT DOES NOT REFUSE. `state` keeps meaning "did every target report"; this rides
     beside it under its own name, for the same reason LAW 5 gives.
     """
-    reps = v.get("reports")
-    if not isinstance(reps, dict):
+    if not isinstance(v.get("reports"), dict):
         return ("whether the heart's lock fan kept or reverted its placement is UNKNOWN — this "
                 "render verdict predates the per-width report tap, so nothing here measured it")
-    fan = reps.get("heart-fan")
-    if not isinstance(fan, dict) or not fan:
+    rep, reading, threw, unread = _fan_buckets(v)
+    if rep is None:
         return ("whether the lock fan kept or reverted is UNKNOWN — heart-fan handed back no "
                 "reading in the last render, which is not the same as a clean one")
-    widths = sorted(fan)
-    good = [w for w in widths if isinstance(fan[w], dict)
-            and not any(k in fan[w] for k in ("error", "unread", "unparsed"))]
-    unread = [w for w in widths if w not in good]
-    rev = [w for w in good if fan[w].get("reverted") is True]
     # ⚠ THE CAVEAT TRAVELS WITH THE NUMBER, or the heart re-creates the over-claim the tap was
     # rewritten to remove: the fan solves ONCE at open and never re-solves on resize, so a reading
     # filed under a width names where it was READ, never where it was SOLVED. [[stale-reading]]
-    stale = " (each reading names the width it was READ at; the fan solves once at open, so the "\
-            "width it was SOLVED at is UNKNOWN)"
-    if not good:
-        return ("the lock fan reported at %d width(s) and NONE could be read (%s) — UNMEASURED, "
-                "not clean" % (len(widths), ", ".join(unread)))
-    head = ("the lock fan REVERTED at %d of %d readable width(s): %s"
-            % (len(rev), len(good), ", ".join(rev))) if rev else \
-           ("the lock fan kept its placement at all %d readable width(s)" % len(good))
+    stale = (" (each reading names the width it was READ at; the fan solves once at open, so the "
+             "width it was SOLVED at is UNKNOWN)")
+    tail = ""
+    if threw:
+        tail += (" · the solver FAILED at %d width(s) (%s) — ok:false, which is not a placement"
+                 % (len(threw), ", ".join(threw)))
     if unread:
-        head += " · %d width(s) handed back no reading (%s)" % (len(unread), ", ".join(unread))
-    return head + stale
+        tail += " · %d width(s) handed back no reading (%s)" % (len(unread), ", ".join(unread))
+    if not reading:
+        return ("the lock fan reported at %d width(s) and NONE produced a reading — UNMEASURED, "
+                "not clean%s" % (len(rep), tail))
+    rev = _fan_reverted(v) or []
+    head = ("the lock fan REVERTED at %d of %d readable width(s): %s"
+            % (len(rev), len(reading), ", ".join(rev))) if rev else \
+           ("the lock fan kept its placement at all %d readable width(s)" % len(reading))
+    return head + tail + stale
 
 
 def surface_verdict(path=None):
@@ -248,8 +294,14 @@ def surface_verdict(path=None):
             # ⚠⚠ v2926 (#53) — THE JOIN. Counts first so a law can assert on them, then the
             # sentence, because a number with no sentence is a number nobody acts on.
             # `fanRevertedAt` is None, never 0, when nothing was readable: UNMEASURED is not zero.
-            "fanWidths": (len([w for w in (v.get("reports") or {}).get("heart-fan", {})])
-                          if isinstance((v.get("reports") or {}).get("heart-fan"), dict) else None),
+            # ⚠⚠ v2928 — TWO NAMES, BECAUSE THERE ARE TWO NUMBERS. v2926 published one `fanWidths`
+            # = len(all keys) while `_fan_say` divided by len(readable). MEASURED: five widths all
+            # returning {"error": …} gave `fanWidths: 5` beside a sentence saying NONE could be
+            # read — a consumer dividing by the published denominator gets a different answer from
+            # the published sentence. A name that promises the sentence's denominator must BE it.
+            # [[zero-needs-a-denominator]] [[label-outlived-referent]]
+            "fanWidthsReported": _fan_counts(v)[0],
+            "fanWidthsReadable": _fan_counts(v)[1],
             "fanRevertedAt": _fan_reverted(v),
             "fanSay": _fan_say(v),
             "renderFailures": int(v.get("renderFailures") or 0)}

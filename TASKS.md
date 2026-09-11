@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2928** | `(this commit)` | v2928 — --note the writer has three states and the reader I shipped had two; ok:false and threw were never consulted |
 | **v2927** | `(this commit)` | v2927 — --note 249 of 278 version rows read (this commit); Grok Bot raised it three ticks running and was right |
 | **v2926** | `6aa6b9c2` | v2926 — --note reports was written by v2924 and heart2 contained fanfit zero times; the fan could revert at every photographed width and every supervisor still read OK |
 | **v2925** | `6aa6b9c2` (in the v2926 commit) | v2925 — --note the report line cut 83 chars and the 83 were the AFTER half of the pair; the tap sat behind a refusal; the caveat was hardcoded in a general tap |

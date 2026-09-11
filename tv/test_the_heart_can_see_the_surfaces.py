@@ -39,68 +39,83 @@ RC = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
 
 RED_PROOF = [
     {
-        "why": "un-writing the verdict returns the render result to the push log and the terminal, "
-               "which is exactly the state that made the visual share unmeasurable",
-        "file": "render_check.py",
+        "why": 'un-writing the verdict returns the render result to the push log and the terminal, which is exactly the state that made the visual share unmeasurable',
+        "file": 'render_check.py',
         "find": '            _fh.write(json.dumps(_v, indent=2, sort_keys=True, ensure_ascii=False) + "\\n")',
         "replace": '            pass',
         "matches": 1,
     },
     {
-        "why": "letting an ABSENT verdict read as OK is the whole defect in miniature: a surface "
-               "nobody photographed reporting as one that passed",
-        "file": "heart2.py",
+        "why": 'letting an ABSENT verdict read as OK is the whole defect in miniature: a surface nobody photographed reporting as one that passed',
+        "file": 'heart2.py',
         "find": '        return {"state": "UNMEASURED", "why": "render_check has never written a verdict here — "',
         "replace": '        return {"state": "OK", "why": "render_check has never written a verdict here — "',
         "matches": 1,
     },
     {
-        "why": "v2871's CI condition made permanent: a render that reported ZERO targets grades "
-               "PARTIAL instead of UNMEASURED. An empty container returning a clean-looking "
-               "verdict is the exact shape CI was in for four ships while nobody could say why",
-        "file": "heart2.py",
+        "why": "v2871's CI condition made permanent: a render that reported ZERO targets grades PARTIAL instead of UNMEASURED. An empty container returning a clean-looking verdict is the exact shape CI was in for four ships while nobody could say why",
+        "file": 'heart2.py',
         "find": '                      "PARTIAL" if rep else "UNMEASURED"),',
         "replace": '                      "PARTIAL"),',
         "matches": 1,
     },
     {
-        "why": "dropping the count comparison lets a 2-of-6 SUBSET run grade OK — a partial "
-               "render speaking for the four surfaces it never looked at",
-        "file": "heart2.py",
+        "why": 'dropping the count comparison lets a 2-of-6 SUBSET run grade OK — a partial render speaking for the four surfaces it never looked at',
+        "file": 'heart2.py',
         "find": '    return {"state": ("OK" if (v.get("full") and tot and len(rep) >= tot) else',
         "replace": '    return {"state": ("OK" if (v.get("full") and tot) else',
         "matches": 1,
     },
     {
-        "why": "v2926/A — an unmeasured fan handed back as [] reads as 'nothing reverted'. That is the exact UNMEASURED-as-clean shape this file already paid for at v2871, arriving in the new join.",
+        "why": 'v2928 — hands back [] when nothing was READABLE, so a run where every width failed reads as a fan that kept its placement. None and [] are different answers.',
         "file": "heart2.py",
-        "find": '    fan = (v.get("reports") or {}).get("heart-fan")\n    if not isinstance(fan, dict) or not fan:\n        return None\n',
-        "replace": '    fan = (v.get("reports") or {}).get("heart-fan")\n    if not isinstance(fan, dict) or not fan:\n        return []\n',
+        "find": '    rep, reading, _threw, _unread = _fan_buckets(v)\n    if rep is None or not reading:\n        return None\n',
+        "replace": '    rep, reading, _threw, _unread = _fan_buckets(v)\n    if rep is None:\n        return None\n',
         "matches": 1,
     },
     {
-        "why": 'v2926/B — drops the width names, so a revert at 375x800 (where REG-928 says the collisions are worst) reaches the heart as an empty list. #53 is a per-width question and an average cannot answer it.',
+        "why": 'drops the width names, so a revert at 375x800 (where REG-928 says the collisions are worst) reaches the heart as an empty list. #53 is a per-width question.',
         "file": "heart2.py",
-        "find": '    return [w for w in good if fan[w].get("reverted") is True]\n',
+        "find": '    return [w for w in reading if fan[w].get("reverted") is True]\n',
         "replace": '    return []\n',
         "matches": 1,
     },
     {
-        "why": 'v2926/C — counts {error}/{unread} shapes as readings, so two failed reads grade as a fan that kept its placement. A failure to read is not a reading. [[zero-needs-a-denominator]]',
+        "why": 'counts {error}/{unread}/{unparsed} shapes as readings, so five failed reads grade as five clean widths. A failure to read is not a reading.',
         "file": "heart2.py",
-        "find": '    good = [w for w in sorted(fan) if isinstance(fan[w], dict)\n            and not any(k in fan[w] for k in ("error", "unread", "unparsed"))]\n    if not good:\n        return None\n',
-        "replace": '    good = [w for w in sorted(fan) if isinstance(fan[w], dict)]\n    if not good:\n        return None\n',
+        "find": '    if any(k in rec for k in ("error", "unread", "unparsed")):\n        return "unread"\n',
+        "replace": '    if any(k in rec for k in ("error", "unread", "unparsed")):\n        return "reading"\n',
         "matches": 1,
     },
     {
-        "why": 'v2926/D — drops the caveat, so a reading filed under a width ASSERTS the fan solved at that width. MEASURED: _hrtFanFit has one call site and the only resize listener calls _shellSizePane(); the solve width is genuinely unknown.',
+        "why": 'drops the caveat, so a reading filed under a width ASSERTS the fan solved at that width. MEASURED: _hrtFanFit has one call site and the only resize listener calls _shellSizePane().',
         "file": "heart2.py",
-        "find": '    stale = " (each reading names the width it was READ at; the fan solves once at open, so the "\\\n            "width it was SOLVED at is UNKNOWN)"\n',
+        "find": '    stale = (" (each reading names the width it was READ at; the fan solves once at open, so the "\n             "width it was SOLVED at is UNKNOWN)")\n',
         "replace": '    stale = ""\n',
         "matches": 1,
     },
+    {
+        "why": "v2928/F1 — RESTORES THE SHIPPED DEFECT. control_ui.html writes {ok:false, threw:...} when _hrtFanFit raises; treating that as a reading makes a CRASH print 'the lock fan kept its placement'. The page's own catch exists to stop that collapse.",
+        "file": "heart2.py",
+        "find": '    if "ok" in rec:\n        return "threw"\n',
+        "replace": '    if "ok" in rec:\n        return "reading"\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2928/F2 — lets a PRESENT BUT EMPTY heart-fan publish a measured 0 beside fanRevertedAt None: two different answers to 'did anybody measure'.",
+        "file": "heart2.py",
+        "find": '    if not isinstance(fan, dict) or not fan:\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [])\n',
+        "replace": '    if not isinstance(fan, dict):\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [])\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2928/F3 — publishes the TOTAL count under the readable name, so a consumer dividing by it disagrees with the sentence printed beside it.',
+        "file": "heart2.py",
+        "find": '            "fanWidthsReadable": _fan_counts(v)[1],\n',
+        "replace": '            "fanWidthsReadable": _fan_counts(v)[0],\n',
+        "matches": 1,
+    },
 ]
-
 
 class TheHeartCanSeeTheSurfaces(unittest.TestCase):
 
@@ -227,12 +242,16 @@ class TheHeartCanSeeTheSurfaces(unittest.TestCase):
     def test_a_fan_that_REVERTED_is_NAMED_by_width(self):
         """★★ #53 IS A PER-WIDTH QUESTION. A revert at 375x800 — where REG-928 says the collisions
         are worst — must reach the heart by name, not be averaged into a count."""
+        # ⚠ v2928 — `ok: True` IS PART OF THE SHAPE. control_ui.html always stamps it, and the
+        # v2926 fixtures omitted it — so they were asserting against a payload the page never
+        # writes, and the reader could not tell a solve from a crash while they stayed green.
         got = self._verdict({"reports": {"heart-fan": {
-            "375x800":  {"reverted": True,  "readAt": "375x800"},
-            "1440x900": {"reverted": False, "readAt": "1440x900"}}}})
+            "375x800":  {"ok": True, "reverted": True,  "readAt": "375x800"},
+            "1440x900": {"ok": True, "reverted": False, "readAt": "1440x900"}}}})
         self.assertEqual(["375x800"], got.get("fanRevertedAt"),
                          "the reverting width is not named: %r" % (got.get("fanRevertedAt"),))
-        self.assertEqual(2, got.get("fanWidths"), "the denominator is wrong: %r" % got)
+        self.assertEqual(2, got.get("fanWidthsReadable"),
+                         "the readable denominator is wrong: %r" % got)
         self.assertIn("375x800", got.get("fanSay") or "",
                       "the sentence does not name the width that reverted: %r" % got.get("fanSay"))
 
@@ -255,11 +274,58 @@ class TheHeartCanSeeTheSurfaces(unittest.TestCase):
         READ, never where it was SOLVED, and a heart that drops that caveat re-states v2923's
         defect with a better label. [[stale-reading]] [[inherited-claim-is-not-evidence]]"""
         got = self._verdict({"reports": {"heart-fan": {
-            "375x800": {"reverted": False, "readAt": "375x800"}}}})
+            "375x800": {"ok": True, "reverted": False, "readAt": "375x800"}}}})
         say = got.get("fanSay") or ""
         self.assertIn("READ", say, "the sentence does not distinguish read-at from solved-at: %r" % say)
         self.assertIn("UNKNOWN", say,
                       "the solve width is asserted rather than left unknown: %r" % say)
+
+    def test_a_solver_that_THREW_is_never_reported_as_a_KEEP(self):
+        """⚠⚠ THE WORST OF THE THREE, and it shipped in v2926. MEASURED: control_ui.html writes
+        `{ok:false, threw:"..."}` when `_hrtFanFit` raises, and `{ok:false, reverted:false, ...}`
+        for its own `no fan` / `no layout yet` refusals. Neither carries error/unread/unparsed, so
+        the v2926 reader counted both as readings, found `reverted` not True, and printed
+        **"the lock fan kept its placement at all 1 readable width(s)"**.
+
+        The page's own `catch` was written to stop a crash and a keep looking alike; the reader
+        built to answer #53 reintroduced the collapse one layer up. [[unknown-stays-unknown]]"""
+        for shape in ({"ok": False, "threw": "TypeError: x is null"},
+                      {"ok": False, "reverted": False, "why": "no fan"}):
+            got = self._verdict({"reports": {"heart-fan": {"375x800": shape}}})
+            self.assertIsNone(got.get("fanRevertedAt"),
+                              "a failed solve graded as a fan that kept its placement (%r): %r"
+                              % (shape, got.get("fanRevertedAt")))
+            self.assertNotIn("kept its placement", got.get("fanSay") or "",
+                             "a crash is reported as a keep (%r): %r" % (shape, got.get("fanSay")))
+            self.assertIn("UNMEASURED", got.get("fanSay") or "",
+                          "a failed solve does not say UNMEASURED (%r): %r" % (shape, got.get("fanSay")))
+
+    def test_an_EMPTY_fan_report_publishes_no_fabricated_zero(self):
+        """⚠ `heart-fan` PRESENT AND EMPTY published `fanWidths: 0` beside `fanRevertedAt: None` —
+        two different answers to 'did anybody measure'. The eye named three cases here; measured,
+        the isinstance guard already caught two and only this one was real. A finding is a
+        measurement to earn, not an instruction to obey. [[zero-needs-a-denominator]]"""
+        for extra in ({}, {"reports": {"console": {}}}, {"reports": {"heart-fan": {}}}):
+            got = self._verdict(extra)
+            self.assertIsNone(got.get("fanWidthsReported"),
+                              "%r published a measured count where nothing was measured: %r"
+                              % (extra, got.get("fanWidthsReported")))
+            self.assertIsNone(got.get("fanWidthsReadable"),
+                              "%r published a readable count out of nothing" % (extra,))
+
+    def test_the_published_denominator_IS_the_one_the_sentence_uses(self):
+        """⚠ v2926 published one `fanWidths` = len(all keys) while `_fan_say` divided by
+        len(readable). MEASURED: five widths all returning {"error": …} gave `fanWidths: 5` beside
+        a sentence saying NONE could be read. A consumer dividing by the published number gets a
+        different answer from the published words. [[label-outlived-referent]]"""
+        got = self._verdict({"reports": {"heart-fan": {
+            w: {"error": "WebSocketTimeout"} for w in
+            ("375x800", "901x900", "1120x628", "1120x900", "1440x900")}}})
+        self.assertEqual(5, got.get("fanWidthsReported"), "the reported count is wrong: %r" % got)
+        self.assertEqual(0, got.get("fanWidthsReadable"),
+                         "five failed reads counted as readable: %r" % got.get("fanWidthsReadable"))
+        self.assertIn("NONE produced a reading", got.get("fanSay") or "",
+                      "the sentence disagrees with the numbers beside it: %r" % got.get("fanSay"))
 
     def test_a_run_that_REPORTED_NOTHING_is_UNMEASURED_not_OK(self):
         """★★ The state CI was actually in, made into a law instead of a mystery. A verdict file
