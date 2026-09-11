@@ -31192,3 +31192,59 @@ it represents, and all 10 call sites carry a value sourced from the state each a
    BLANK if the guard stopped declining. At bar 200 it falls; at bar 4 the two blank attacks fall.
    The bar is free to move between 9 and 152 and no attack objects, which is correct rather than a
    hole: anywhere in that gap separates the two classes identically.
+
+## REG-951 — four vocabularies for one river, and both its ends unmanned (fixed v2946)
+
+Konyo, shown the four lists side by side: *"this is a mess.. make it unified and fix whats needed.."*
+
+**Measured.** Four modules declared an ordered list for one river, and **three each claimed, in their
+own comment, to be the order a reel moves through**:
+
+    reel_router.STATIONS   9   INTAKE..TOMBSTONE    "a reel's station is its POSITION"
+    river.STAGES          11   capture..disk        "order matters - it is the river"
+    reel_story.STAGES      6   filmed..releasable   "the order a reel moves through"
+    printer.STATIONS       7   in..tombstone        the PRINTER's own pipeline
+
+Two of them separately declared a `tombstone`. The journal stamped a 9th name, `UNKNOWN`, that no
+module declared at all.
+
+**The resolution was already written in `reel_router`'s own comment**, which is why nothing was
+renamed: *"A reel's station is its POSITION; what it OWES is the named gate in front of it. Keeping
+those separate is the whole point — one word for both is how `route` became the retention tag."*
+So `river.STAGES` is the WORK LADDER, not a rival river; `printer.STATIONS` runs INSIDE the PRINTER
+station; `reel_story.STAGES` is a coarser PROGRESS view. `river_vocab.py` records which question
+each answers and IMPORTS the canonical river rather than restating it. Gate proven red three ways
+(1 match each): a second module claiming `position`, a literal copy of the tuple, and dropping the
+`UNKNOWN` sentinel.
+
+### Three things the unification measured, all of which were previously invisible
+
+1. **No dwell in this river is measurable.** `actorTransitions = 0`. Twenty actor rows exist but no
+   reel carries TWO, so nothing has ever recorded a reel *moving*. The dwell table produced before
+   this — `STATION -> CAPTURE median 3.2 days` — was the age of a BACKFILL: 40 of 122 rows were
+   written by `claude:first-wiring` in one batch, 37 inside four consecutive milliseconds. 102 of
+   122 rows are `observer` ("I noticed it here"), which cannot time a move. `dwellS` is None, never
+   0, because 0 would read as instant. Konyo caught this by refusing the number: *"3.2 days? no
+   way... needs to be stale or something"*. He was right.
+2. **Both ends are unwitnessed.** `endsWitnessed = {INTAKE: false, TOMBSTONE: false}`. Nothing has
+   ever been stamped entering or leaving. Consistent with the heart's ONE blind gate being
+   `test_the_river_has_an_outlet` — the outlet's proof cannot fail, and the outlet has never run.
+3. **~~36 reels left without passing the mouth.~~ WITHDRAWN IN PLACE — I was wrong, and the repo
+   had already ruled on it.** I measured 36 river-tracked reels gone from `frames/hist` with no
+   `TOMBSTONE` **stamp** and called it a hole. Re-measured against the **ledger**: all 36 are in
+   `reel_tombstones.json`, `goneWithoutTombstone = 0`, and 446 reels have finished.
+   A tombstoned reel LEAVES THE DISK — it stops being a card and becomes a row — so "gone and never
+   stamped" is the NORMAL exit, not a leak. `control_app.river_mouth()` reads the terminus from the
+   ledger deliberately: putting it in the router would push a retention fact inside
+   `assert_independent_of_retention()`, which is the one thing that guard exists to prevent.
+   Its docstring already said so in as many words — *"WHY TOMBSTONE LOOKED UNREACHABLE, AND WHY
+   THAT READING WAS WRONG"* — and I had not read it before reporting.
+   [[carved-skill-unloaded-is-unapplied]]
+
+   ⚠ What REMAINS true from this line: the river JOURNAL never stamps `INTAKE` or `TOMBSTONE`, so
+   the journal alone cannot show a reel entering or leaving. That is a rendering gap for the shelf,
+   not a leak in the river.
+
+⚠ **Two wrong denominators before the right one.** Counted against `frames/` this says 60-of-60
+gone; against `tv/` it finds 12 "reels" that are really SOURCE FILES (`reel_router.py`,
+`reel_story.py`). The store is `frames/hist`. Both wrong answers looked clean.
