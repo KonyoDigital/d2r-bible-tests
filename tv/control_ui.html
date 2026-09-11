@@ -11457,11 +11457,38 @@ window._lockMark = function(isOpen, px, label){
        RENDER from a bare cross-scope call five times, and the export costs nothing.
        [[console-ui-two-script-blocks]] */
     var R = window._shLanesRender || _shLanesRender;
+    /* ⚠⚠ v2955 — BOUNDED, BECAUSE AN UNBOUNDED ASK PAINTS NOTHING AND SAYS NOTHING.
+       This was a bare `await fetch('/api/river')` with no AbortController and no timeout, so a slow
+       or hung ask left `#sh-lanes` sitting on its shipped placeholder "reading the river..." for as
+       long as the shelf stayed open — and `_shLanesRender`'s two honest refusal paths (null ->
+       "could not be reached... UNKNOWN, not an empty river", and {ok:false}) were never reached,
+       because a hung fetch neither resolves nor rejects.
+       ⚠ MEASURED, NOT INFERRED. A FULL render pass caught `river-strip` at `painted 0/21` on the
+       FIRST width while the other four read 21/21 — and the same target rendered 21/21 at every
+       width when asked ALONE. Nodes present, nothing painted: the strip was still loading when the
+       shot was taken. His console shows the other half — a 2026-09-10 capture has this box reading
+       "reading the river..." while the printer spine below it rendered fully.
+       ⚠ ITS SIBLING WAS FIXED AND THIS ONE WAS NOT. `_shRiverLoad` got exactly this bound in
+       REG-723; this function is ~4000 lines away in the same file and was never swept, which is
+       REG-713's recorded shape: "v2228 bounded one fetch; its sibling eleven lines away was never
+       swept". [[the-unjoined-end]] [[sweep-dont-ask]] */
+    var _lanesAC = null, _lanesTO = null;
+    try { _lanesAC = new AbortController(); } catch (e0) { _lanesAC = null; }
     try {
-      var r = await fetch(API + '/api/river');
-      R(await r.json());
+      _lanesTO = setTimeout(function(){
+        try { if (_lanesAC) _lanesAC.abort(); } catch (e1) {}
+      }, 12000);
+    } catch (e2) { _lanesTO = null; }
+    try {
+      var r = await fetch(API + '/api/river', { signal: _lanesAC && _lanesAC.signal });
+      var _lanesJson = await r.json();
+      if (_lanesTO) { clearTimeout(_lanesTO); _lanesTO = null; }
+      R(_lanesJson);
     } catch (e) {
-      R(null);      /* could-not-ask, said out loud — never the placeholder's words */
+      if (_lanesTO) { clearTimeout(_lanesTO); _lanesTO = null; }
+      /* could-not-ask, said out loud — never the placeholder's words. An ABORT lands here too, so
+         a timeout paints the stated refusal instead of leaving the box mid-sentence. */
+      R(null);
     }
   }
   window._shLanesLoad = _shLanesLoad;

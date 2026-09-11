@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2954",
+  "ver": "v2955",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2954: --note seven facts were made reachable by the console in v2952 and rendered to nobody",
+  "note": "v2955: --note the river lanes fetch had no timeout, so a slow answer left the placeholder standing and the refusal paths unreachable",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

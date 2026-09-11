@@ -31465,3 +31465,39 @@ its own arithmetic was updated rather than left to rot. [[label-outlived-referen
 
 Laws: the clause must be PUSHED onto lineBits (parsed, comments blanked — not merely mentioned),
 and a partial run must say so. 5 red-proofs PROVEN at 1 match each.
+
+## REG-958 — the river strip's ask was unbounded, so a slow answer painted nothing (v2955)
+
+Konyo's console capture of 2026-09-10 shows `#sh-lanes` reading **`reading the river…`** — its
+shipped placeholder — while the printer spine below it rendered fully. I first read that as "the
+shelf draws the printer's 7 stations as if they were the river". **That was wrong**, and a
+read-only agent refuted it against the code: BOTH strips exist, stacked in the same overlay, the
+router lanes above the printer spine, each naming its own source, and
+`test_each_flow_strip_names_its_own_engine.py` already polices exactly that.
+
+**The real defect:** `_shLanesLoad()` was a bare `await fetch('/api/river')` — no AbortController,
+no timeout. A slow or hung ask left the placeholder standing for as long as the shelf stayed open,
+and `_shLanesRender`'s two honest refusal paths (`null` -> *"could not be reached… UNKNOWN, not an
+empty river"*, and `{ok:false}`) were **unreachable**, because a hung fetch neither resolves nor
+rejects.
+
+### Measured, not inferred
+
+    full render pass   river-strip  painted 0/21 at the FIRST width, 21/21 at the other four
+    same target alone  river-strip  21/21 at ALL five widths
+
+Nodes present, nothing painted: the strip was still loading when the shot was taken. Green alone,
+red in a full run, is a race — and it is a race *because* the ask was unbounded.
+
+⚠ **A SWEEP FAILURE WITH A NAME.** `_shRiverLoad` got this exact bound in REG-723. This sibling sits
+~4000 lines away in the same file and was never swept — REG-713's recorded shape: *"v2228 bounded
+one fetch; its sibling eleven lines away was never swept."* [[sweep-dont-ask]]
+
+### Three of my own errors on the way, all caught before they shipped
+
+1. Copied `sed`-prefixed indentation into an edit anchor for the THIRD time today (0 matches, the
+   assert held, nothing written). Stop reading code through a prefixing filter.
+2. Verified the fix with `signal: _ac && _ac.signal` — a string the ALREADY-FIXED sibling also
+   contains, so it reported success on an edit that never applied. The re-check uses `_lanesAC`, a
+   name unique to this fix.
+3. Reported "the shelf draws the wrong river" from a screenshot, when a gate already ruled it out.
