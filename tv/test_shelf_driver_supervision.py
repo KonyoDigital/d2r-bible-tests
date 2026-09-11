@@ -29,6 +29,7 @@ import shutil
 import sys
 import tempfile
 import types
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -112,6 +113,69 @@ class TheLaneCensusCanReportTheDark(unittest.TestCase):
     # ═════════════════════════════════════════════════════════════════════════════════════════
     # THE ONE THIS WHOLE TASK IS FOR
     # ═════════════════════════════════════════════════════════════════════════════════════════
+    # ── v2942 (#59) — the driver existed, was gated, and NOTHING RAN IT ────────────────────────
+    def test_a_SILENT_driver_is_RED_not_quiet(self):
+        """★★ KONYO, 2026-09-10: "a lane that stops reading goes RED on its own." This module was
+        written for exactly that at v2909 — 773 lines, a registered gate, 11 red-proofs — and then
+        nothing ran it unattended.
+
+        MEASURED 2026-09-11: `control_app.py` imports it under TWO aliases (`_sd`, `_sd_lane`) and
+        calls NOTHING on either — it reads only the constants OWED_BY and READ_CLEARS. His stored
+        beat was **31.6 hours old** and no supervisor said so. An import with no call.
+        [[the-unjoined-end]]"""
+        import console_doctor as CD
+        import shelf_driver as SD
+        was = SD.last_beat
+        try:
+            SD.last_beat = lambda: {"at": (time.time() - 40 * 3600) * 1000.0, "ok": True,
+                                    "owed": 18, "held": 16, "onDisk": 34}
+            st, why = CD._check_the_shelf_lanes_are_still_reading()
+            self.assertEqual(CD.MISSING, st,
+                             "a driver silent for 40 hours graded %r: %s" % (st, why))
+            self.assertIn("HOURS ago", why, "the row does not say how stale it is: %r" % why)
+            SD.last_beat = lambda: {"at": (time.time() - 60) * 1000.0, "ok": True, "owed": 0}
+            st2, _ = CD._check_the_shelf_lanes_are_still_reading()
+            self.assertEqual(CD.OK, st2, "a beat one minute old did not read OK: %r" % st2)
+        finally:
+            SD.last_beat = was
+
+    def test_a_driver_that_NEVER_RAN_is_UNMEASURED_not_OK(self):
+        """⚠ A driver that has never beaten says NOTHING about the lanes. Reporting that as healthy
+        is the zero-with-no-denominator this repo keeps paying for."""
+        import console_doctor as CD
+        import shelf_driver as SD
+        was = SD.last_beat
+        try:
+            for empty in (None, {}, {"ok": True}):
+                SD.last_beat = lambda e=empty: e
+                st, why = CD._check_the_shelf_lanes_are_still_reading()
+                self.assertEqual(CD.UNMEASURED, st,
+                                 "an absent beat (%r) graded %r — it is not 'fine'" % (empty, st))
+        finally:
+            SD.last_beat = was
+
+    def test_the_CHECK_never_re_runs_the_producer(self):
+        """⚠⚠ THE RULE THE OBVIOUS FIX WOULD HAVE BROKEN. `_check_the_fleet_lane_is_reachable`
+        states it in its own docstring — *read what the producer last wrote; never re-run the
+        producer inside a request* — because the walk would be added to every doctor pass at
+        exactly the moment the console is already degraded. A stale beat IS the finding; re-running
+        `lane_census()` would erase the evidence this row exists to report.
+        PARSED, not grepped. [[poll-slower-than-its-interval]]"""
+        import console_doctor as CD
+        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        fn = [n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef)
+              and n.name == "_check_the_shelf_lanes_are_still_reading"][0]
+        called = {c.func.attr for c in ast.walk(fn)
+                  if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)}
+        self.assertIn("last_beat", called, "the check does not read the stored beat at all")
+        self.assertNotIn("lane_census", called,
+                         "the check RE-RUNS the producer inside a doctor pass — that adds the "
+                         "lane walk to every request precisely when the console is degraded")
+        self.assertTrue(any(n for n, _f in CD.CHECKS if "shelf" in n.lower()),
+                        "the check exists and is not registered in CHECKS — an unjoined end "
+                        "inside the fix for an unjoined end")
+
     def test_a_lane_with_work_owed_and_no_unit_of_work_is_DARK(self):
         """⚠⚠ THE STATE `vaultAutoread` SAT IN FOR WEEKS. Work is owed, the lane's own durable
         store says it has completed nothing, and the verdict must be RED with no threshold
@@ -450,81 +514,102 @@ class TheLaneCensusCanReportTheDark(unittest.TestCase):
 
 RED_PROOF = [
     {
-        'why': 'THE ONE THIS TASK IS NAMED AFTER — disarming the DARK verdict. Work owed and zero units of work ever completed then falls through to UNTIMED, so the state the vault lane sat in for weeks with reads 0 / lastTs null renders as "staleness cannot be decided" instead of RED. Reddens test_a_lane_with_work_owed_and_no_unit_of_work_is_DARK.',
-        'file': 'shelf_driver.py',
-        'find': '    if not row.get("works"):',
-        'replace': '    if False and not row.get("works"):',
-        'matches': 1,
+        "why": 'THE ONE THIS TASK IS NAMED AFTER — disarming the DARK verdict. Work owed and zero units of work ever completed then falls through to UNTIMED, so the state the vault lane sat in for weeks with reads 0 / lastTs null renders as "staleness cannot be decided" instead of RED. Reddens test_a_lane_with_work_owed_and_no_unit_of_work_is_DARK.',
+        "file": 'shelf_driver.py',
+        "find": '    if not row.get("works"):',
+        "replace": '    if False and not row.get("works"):',
+        "matches": 1,
     },
     {
-        'why': 'collapsing an UNMEASURABLE work-list into "nothing owed of 0 reels" — a retention plan that could not be built then reports every lane IDLE, which is a confident zero produced by a failed read. Reddens test_a_plan_that_could_not_be_read_is_UNKNOWN_on_every_lane.',
-        'file': 'shelf_driver.py',
-        'find': '        owed_all, owed_why = None, str(w.get("why") or "the shelf could not be read")\n        on_disk = None',
-        'replace': '        owed_all, owed_why = [], ""\n        on_disk = 0',
-        'matches': 1,
+        "why": 'collapsing an UNMEASURABLE work-list into "nothing owed of 0 reels" — a retention plan that could not be built then reports every lane IDLE, which is a confident zero produced by a failed read. Reddens test_a_plan_that_could_not_be_read_is_UNKNOWN_on_every_lane.',
+        "file": 'shelf_driver.py',
+        "find": '        owed_all, owed_why = None, str(w.get("why") or "the shelf could not be read")\n        on_disk = None',
+        "replace": '        owed_all, owed_why = [], ""\n        on_disk = 0',
+        "matches": 1,
     },
     {
-        'why': 'letting a 0 with no denominator read as IDLE. "0 owed of an UNKNOWN number of reels" then becomes a clean bill, which is the shape this repo shipped four times in one session. Reddens test_a_zero_owed_with_no_denominator_is_UNKNOWN_not_IDLE.',
-        'file': 'shelf_driver.py',
-        'find': '    if owed == 0 and on_disk is None:',
-        'replace': '    if False and on_disk is None:',
-        'matches': 1,
+        "why": 'letting a 0 with no denominator read as IDLE. "0 owed of an UNKNOWN number of reels" then becomes a clean bill, which is the shape this repo shipped four times in one session. Reddens test_a_zero_owed_with_no_denominator_is_UNKNOWN_not_IDLE.',
+        "file": 'shelf_driver.py',
+        "find": '    if owed == 0 and on_disk is None:',
+        "replace": '    if False and on_disk is None:',
+        "matches": 1,
     },
     {
-        'why': 'collapsing "nobody could ask this lane" into DARK. The two reds are different accusations — one sends him to fix a lane, the other to fix a reader — and an UNKNOWN dressed as a stall is how a supervision layer starts crying wolf. Reddens test_a_lane_nobody_could_ask_is_UNKNOWN_and_never_DARK.',
-        'file': 'shelf_driver.py',
-        'find': '    if not row.get("resolved") or row.get("works") is None:',
-        'replace': '    if False:',
-        'matches': 1,
+        "why": 'collapsing "nobody could ask this lane" into DARK. The two reds are different accusations — one sends him to fix a lane, the other to fix a reader — and an UNKNOWN dressed as a stall is how a supervision layer starts crying wolf. Reddens test_a_lane_nobody_could_ask_is_UNKNOWN_and_never_DARK.',
+        "file": 'shelf_driver.py',
+        "find": '    if not row.get("resolved") or row.get("works") is None:',
+        "replace": '    if False:',
+        "matches": 1,
     },
     {
-        'why': 'reading an UNPARSEABLE store as a store with a field missing. The reason then names the wrong fault (add a key to a healthy writer) while the torn file goes untouched, and `durable` drops from UNKNOWN to a False verdict nobody measured. Reddens test_an_unreadable_store_is_UNKNOWN_and_not_a_missing_field.',
-        'file': 'shelf_driver.py',
-        'find': '    if readable is None:\n        out["why"] = ("this lane\'s store exists and could NOT be read',
-        'replace': '    if False:\n        out["why"] = ("this lane\'s store exists and could NOT be read',
-        'matches': 1,
+        "why": 'reading an UNPARSEABLE store as a store with a field missing. The reason then names the wrong fault (add a key to a healthy writer) while the torn file goes untouched, and `durable` drops from UNKNOWN to a False verdict nobody measured. Reddens test_an_unreadable_store_is_UNKNOWN_and_not_a_missing_field.',
+        "file": 'shelf_driver.py',
+        "find": '    if readable is None:\n        out["why"] = ("this lane\'s store exists and could NOT be read',
+        "replace": '    if False:\n        out["why"] = ("this lane\'s store exists and could NOT be read',
+        "matches": 1,
     },
     {
-        'why': 'declaring durability instead of measuring it. A heartbeat whose unit count survives a restart and whose clock reading does not is then reported fully durable — the chronicle lane\'s exact shape, and #60 one level up. Reddens test_durability_is_measured_from_the_store_and_needs_BOTH_halves.',
-        'file': 'shelf_driver.py',
-        'find': '    out["durable"] = bool(out["durableWorks"] and out["durableLast"])',
-        'replace': '    out["durable"] = True',
-        'matches': 1,
+        "why": "declaring durability instead of measuring it. A heartbeat whose unit count survives a restart and whose clock reading does not is then reported fully durable — the chronicle lane's exact shape, and #60 one level up. Reddens test_durability_is_measured_from_the_store_and_needs_BOTH_halves.",
+        "file": 'shelf_driver.py',
+        "find": '    out["durable"] = bool(out["durableWorks"] and out["durableLast"])',
+        "replace": '    out["durable"] = True',
+        "matches": 1,
     },
     {
-        'why': 'handing the green word to a lane whose staleness nobody can decide. With no lane declaring a WORK period, every working lane would read FLOWING on the strength of a bound that does not exist. Reddens test_a_working_lane_with_no_declared_bound_is_UNTIMED_not_FLOWING.',
-        'file': 'shelf_driver.py',
-        'find': '        return UNTIMED, ("%d reel(s) owed; this lane last worked %s ago and declares no WORK "',
-        'replace': '        return FLOWING, ("%d reel(s) owed; this lane last worked %s ago and declares no WORK "',
-        'matches': 1,
+        "why": 'handing the green word to a lane whose staleness nobody can decide. With no lane declaring a WORK period, every working lane would read FLOWING on the strength of a bound that does not exist. Reddens test_a_working_lane_with_no_declared_bound_is_UNTIMED_not_FLOWING.',
+        "file": 'shelf_driver.py',
+        "find": '        return UNTIMED, ("%d reel(s) owed; this lane last worked %s ago and declares no WORK "',
+        "replace": '        return FLOWING, ("%d reel(s) owed; this lane last worked %s ago and declares no WORK "',
+        "matches": 1,
     },
     {
-        'why': 'pinning the driver\'s heartbeat back to HERE, so TV_HIST cannot redirect it and a gate run overwrites the record his console reads. The v2423 shape: an env honoured only at import is a redirect that silently does not take. Reddens test_the_beat_path_honours_a_fixture_world.',
-        'file': 'shelf_driver.py',
-        'find': '        return os.path.join(_tvd._fixture_root(HERE), ".shelf_driver.json")',
-        'replace': '        return os.path.join(HERE, ".shelf_driver.json")',
-        'matches': 1,
+        "why": "pinning the driver's heartbeat back to HERE, so TV_HIST cannot redirect it and a gate run overwrites the record his console reads. The v2423 shape: an env honoured only at import is a redirect that silently does not take. Reddens test_the_beat_path_honours_a_fixture_world.",
+        "file": 'shelf_driver.py',
+        "find": '        return os.path.join(_tvd._fixture_root(HERE), ".shelf_driver.json")',
+        "replace": '        return os.path.join(HERE, ".shelf_driver.json")',
+        "matches": 1,
     },
     {
-        'why': 'writing the beat with a bare open(w), which truncates the destination BEFORE writing — a crash or a full disk mid-beat then leaves an empty file that reads back as a census that found nothing. Reddens test_the_beat_writer_is_atomic.',
-        'file': 'shelf_driver.py',
-        'find': '            tmp = dest + ".tmp"\n            with io.open(tmp, "w", encoding="utf-8") as fh:\n                json.dump(out, fh, indent=1)\n            os.replace(tmp, dest)',
-        'replace': '            with io.open(dest, "w", encoding="utf-8") as fh:\n                json.dump(out, fh, indent=1)',
-        'matches': 1,
+        "why": 'writing the beat with a bare open(w), which truncates the destination BEFORE writing — a crash or a full disk mid-beat then leaves an empty file that reads back as a census that found nothing. Reddens test_the_beat_writer_is_atomic.',
+        "file": 'shelf_driver.py',
+        "find": '            tmp = dest + ".tmp"\n            with io.open(tmp, "w", encoding="utf-8") as fh:\n                json.dump(out, fh, indent=1)\n            os.replace(tmp, dest)',
+        "replace": '            with io.open(dest, "w", encoding="utf-8") as fh:\n                json.dump(out, fh, indent=1)',
+        "matches": 1,
     },
     {
-        'why': 'dropping a loop from the out-of-scope list, which is how the scope note goes stale: a background loop then belongs to neither list — not supervised by this census and not explained by it — and nothing says so. Reddens test_every_background_loop_is_either_a_shelf_lane_or_named_as_not_one.',
-        'file': 'shelf_driver.py',
-        'find': '                   "tvd-ledger-backup", "tvd-space-warden", "tvd-version-drift",',
-        'replace': '                   "tvd-space-warden", "tvd-version-drift",',
-        'matches': 1,
+        "why": 'dropping a loop from the out-of-scope list, which is how the scope note goes stale: a background loop then belongs to neither list — not supervised by this census and not explained by it — and nothing says so. Reddens test_every_background_loop_is_either_a_shelf_lane_or_named_as_not_one.',
+        "file": 'shelf_driver.py',
+        "find": '                   "tvd-ledger-backup", "tvd-space-warden", "tvd-version-drift",',
+        "replace": '                   "tvd-space-warden", "tvd-version-drift",',
+        "matches": 1,
     },
     {
-        'why': 'making one beat build TWO retention plans — the second predicate this module was written to refuse, in its cheapest form. Two reads of a moving shelf inside a single beat can disagree, and nothing downstream could tell which number it was looking at. Reddens test_one_beat_asks_the_work_list_exactly_once.',
-        'file': 'shelf_driver.py',
-        'find': '        cen = lane_census(hist, work_=w)',
-        'replace': '        cen = lane_census(hist)',
-        'matches': 1,
+        "why": 'making one beat build TWO retention plans — the second predicate this module was written to refuse, in its cheapest form. Two reads of a moving shelf inside a single beat can disagree, and nothing downstream could tell which number it was looking at. Reddens test_one_beat_asks_the_work_list_exactly_once.',
+        "file": 'shelf_driver.py',
+        "find": '        cen = lane_census(hist, work_=w)',
+        "replace": '        cen = lane_census(hist)',
+        "matches": 1,
+    },
+    {
+        "why": 'v2942/A — a driver silent for days grades OK again, so a lane that stopped reading goes unnoticed. MEASURED on his tree: the stored beat was 31.7 hours old against a 12h bar and no supervisor anywhere said so.',
+        "file": 'console_doctor.py',
+        "find": '    if age_h >= _SHELF_BEAT_STALE_H:\n        return MISSING, ("the shelf driver last beat %.1f HOURS ago (bar: %.0fh), so a lane that "\n                         "stopped reading would not have been noticed%s"\n                         % (age_h, _SHELF_BEAT_STALE_H, tail))\n',
+        "replace": '    if False:\n        return MISSING, ""\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2942/B — a driver that has NEVER run reports healthy. A beat that does not exist says nothing about the lanes; calling that OK is the zero-with-no-denominator this repo keeps paying for.',
+        "file": 'console_doctor.py',
+        "find": '        return UNMEASURED, ("the shelf driver has never recorded a beat, so whether any lane is "\n                            "still reading is UNKNOWN — it is not \'fine\'")\n',
+        "replace": '        return OK, "no beat recorded"\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2942/C — unregisters the row from CHECKS, so the check exists and nothing runs it — an unjoined end inside the fix for an unjoined end, which is exactly the state shelf_driver shipped in at v2909.',
+        "file": 'console_doctor.py',
+        "find": '    ("shelf lanes reading", _check_the_shelf_lanes_are_still_reading),\n',
+        "replace": '',
+        "matches": 1,
     },
 ]
 

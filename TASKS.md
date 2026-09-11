@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2941** | `(this commit)` | v2941 — --note the definition had zero callers, the census never asked it, and no writer ever stamped |
+| **v2942** | `(this commit)` | v2942 — --note shelf_driver shipped 773 lines gated and red-proven and nothing ran it; his beat was 31.6h old and no supervisor said so |
+| **v2941** | `424bb40e` | v2941 — --note the definition had zero callers, the census never asked it, and no writer ever stamped |
 | **v2940** | `f2530768` | v2940 — --note four wilson harnesses banked unconditionally from main so merely looking wrote evidence; the gate keeps banking deliberately |
 | **v2939** | `417929db` | v2939 — --note the git-unreadable arm reported zeros while its sibling reported None, so a broken instrument read as a measured empty table |
 | **v2938** | `a9a9b717` | v2938 — --note encode has zero production callers so v2934 fixed a function the wire never calls |

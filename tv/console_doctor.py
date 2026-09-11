@@ -2714,7 +2714,69 @@ def _check_the_fleet_lane_is_reachable():
                         g_on, g_off, g_on + g_off, why))
 
 
+def _check_the_shelf_lanes_are_still_reading():
+    """★ A LANE THAT STOPS READING MUST GO RED ON ITS OWN — Konyo, 2026-09-10, which is what
+    `shelf_driver.py` was written for at v2909 (REG-908). It shipped 773 lines, a registered gate
+    and 11 declared red-proofs, and then nothing ran it unattended.
+
+    MEASURED 2026-09-11: `control_app.py` imports the module under TWO aliases (`_sd`, `_sd_lane`)
+    and calls NOTHING on either — it reads only the constants `OWED_BY` and `READ_CLEARS`. An
+    import with no call is the purest form of [[the-unjoined-end]]. His stored beat was **31.6
+    hours old** and no supervisor anywhere said so: the lane was not failing its supervision, it
+    HAD none — the same registered-vs-existing gap the fleet row above was added for.
+
+    ⚠⚠ IT READS THE STORED BEAT AND NEVER RE-RUNS THE PRODUCER. `lane_census()` walks the lanes;
+    calling it inside a doctor pass would add that walk to every request at exactly the moment the
+    console is already degraded — the rule `_check_the_fleet_lane_is_reachable` states in its own
+    docstring, and the one `_heart2_census()` follows. A stale beat IS the finding; re-running the
+    producer would erase the very evidence this row exists to report. [[poll-slower-than-its-interval]]
+
+    ⚠ AN ABSENT BEAT IS UNMEASURED, NOT HEALTHY. A driver that has never run says nothing about
+    the lanes, and reporting that as OK is the zero-with-no-denominator this repo keeps paying for.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    try:
+        import shelf_driver as _sd
+    except Exception as e:
+        return UNKNOWN, ("shelf_driver will not import (%s), so whether the lanes are still "
+                         "reading is UNMEASURED" % str(e)[:60])
+    try:
+        beat = _sd.last_beat()
+    except Exception as e:
+        return UNKNOWN, ("the shelf driver could not be asked for its last beat (%s) — UNMEASURED, "
+                         "not clean" % type(e).__name__)
+    if not isinstance(beat, dict) or not beat.get("at"):
+        return UNMEASURED, ("the shelf driver has never recorded a beat, so whether any lane is "
+                            "still reading is UNKNOWN — it is not 'fine'")
+    try:
+        age_h = (time.time() * 1000.0 - float(beat["at"])) / 3600000.0
+    except Exception:
+        return UNKNOWN, "the stored beat carries an unreadable timestamp, so its age is UNKNOWN"
+    owed = beat.get("owed")
+    held = beat.get("held")
+    tail = ("" if owed is None and held is None
+            else " — it last reported %s owed, %s held, %s on disk"
+                 % (owed, held, beat.get("onDisk")))
+    if age_h >= _SHELF_BEAT_STALE_H:
+        return MISSING, ("the shelf driver last beat %.1f HOURS ago (bar: %.0fh), so a lane that "
+                         "stopped reading would not have been noticed%s"
+                         % (age_h, _SHELF_BEAT_STALE_H, tail))
+    if not beat.get("ok", True):
+        return MISSING, ("the shelf driver's last beat %.1fh ago reported NOT ok: %s"
+                         % (age_h, str(beat.get("why") or "no reason given")[:90]))
+    return OK, ("the shelf driver beat %.1fh ago and reported ok%s" % (age_h, tail))
+
+
+#: How old a shelf beat may be before a lane that stopped reading would go unnoticed. His driver
+#: is a per-session tool, not a timer, so this is deliberately generous — it exists to catch a
+#: driver that has FALLEN SILENT FOR A DAY, not one that has not run in an hour.
+_SHELF_BEAT_STALE_H = 12.0
+
 CHECKS = [
+    # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
+    # stored beat was 31.6h old while control_app imported the module under two aliases and called
+    # nothing on either. [[the-unjoined-end]]
+    ("shelf lanes reading", _check_the_shelf_lanes_are_still_reading),
     # v2843 — THE FLEET, WHICH THE HEART HAD NEVER HEARD OF. `grep -c fleet` was 0 across
     # heart.py and lane_census.py while his card sat on "unreachable" and the footer said 8 dark.
     ("fleet reachable", _check_the_fleet_lane_is_reachable),

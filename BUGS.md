@@ -29613,6 +29613,42 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-947 — an import with no call (#59, the supervision half joined)
+
+**v2942.** Konyo, 2026-09-10: *"a lane that stops reading goes RED on its own."* `shelf_driver.py`
+was written for exactly that at v2909 — **773 lines, a registered gate, 11 declared red-proofs** —
+and then nothing ran it.
+
+**MEASURED 2026-09-11:** `control_app.py` imports the module under **two aliases** (`_sd`,
+`_sd_lane`) and **calls nothing on either** — an AST walk of attribute-calls through those aliases
+returns NONE. It reads only the constants `OWED_BY` and `READ_CLEARS`. **An import with no call is
+the purest form of [[the-unjoined-end]].** His stored beat was **31.6 hours old**, and no supervisor
+anywhere said so: the lane was not failing its supervision, it HAD none — the same
+registered-vs-existing gap the fleet row was added for.
+
+**Fix:** `console_doctor._check_the_shelf_lanes_are_still_reading`, registered in `CHECKS`. On his
+live state it reports **MISSING — "the shelf driver last beat 31.7 HOURS ago (bar: 12h), so a lane
+that stopped reading would not have been noticed — it last reported 18 owed, 16 held, 34 on disk."**
+
+**⚠⚠ THE OBVIOUS FIX WOULD HAVE BROKEN A DOCUMENTED RULE.** The diagnosis said to call
+`shelf_driver.lane_census(allow_import=True)`. `_check_the_fleet_lane_is_reachable` states the rule
+in its own docstring — ***read what the producer last wrote; never re-run the producer inside a
+request*** — because the lane walk would be added to every doctor pass at exactly the moment the
+console is already degraded. Worse, **a stale beat IS the finding; re-running the producer would
+erase the evidence the row exists to report.** The check reads `last_beat()` and a law PARSES the
+function to prove it never calls `lane_census`.
+
+**⚠ An absent beat is UNMEASURED, not OK.** A driver that has never run says nothing about the lanes.
+
+**Gate:** `test_shelf_driver_supervision` — 25 laws, **14/14 red-proofs PROVEN, no BLIND, no
+INVALID.** Three new proofs: a silent driver grading OK, a never-run driver grading OK, and the row
+unregistered from CHECKS — *an unjoined end inside the fix for an unjoined end.*
+
+⚠ Two claims in the diagnosis did not survive checking: `beat()` "has no callers outside the module"
+matched **30 production sites by NAME alone** (mostly `live_panel_gate`'s own `beat`), and
+"control_app imports only OWED_BY/READ_CLEARS" understated it — it imports the whole module twice.
+Name-matching is not measurement; the alias-scoped AST walk is.
+
 ## REG-946 — three correct halves of one thing, none of them joined (#69, first half shipped)
 
 **v2941.** #69 said *"37 of 43 stores cannot say what produced them."* Measured today:

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2941",
+  "ver": "v2942",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2941: --note the definition had zero callers, the census never asked it, and no writer ever stamped",
+  "note": "v2942: --note shelf_driver shipped 773 lines gated and red-proven and nothing ran it; his beat was 31.6h old and no supervisor said so",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
