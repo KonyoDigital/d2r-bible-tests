@@ -12,13 +12,19 @@ classifier was on that date"*.
 
 Then: *"make sure to look out for other coding things like this that might be gapped just like
 this was.. connect it all to a unified wiring and coding correctly to a one unit engine."* So it
-was swept, and the gap is not one store. Measured by this module across 41 stores:
+was swept, and the gap is not one store. Measured by this module 2026-09-11 across 44 stores:
 
-    ANSWERS      4    names a version or engine, not merely a writer
-    PARTIAL      3    names the LANE only — WHO wrote it, never WHAT VERSION
-    SILENT      21    a dated row, and nothing says what produced it
-    REFERENCE   12    a roster or lookup table — no clock, so the question does not apply
+    ANSWERS      6    names a version or engine, not merely a writer
+    PARTIAL      4    names the LANE only — WHO wrote it, never WHAT VERSION
+    SILENT      16    a dated row, and nothing says what produced it
+    REFERENCE   17    a roster or lookup table — no clock, so the question does not apply
     UNKNOWN      1    the shape could not be read, and that is not "stamp-less"
+
+⚠ THIS CENSUS IS RESTATED IN EIGHT PLACES AND FIVE OF THEM WENT STALE. Measured 2026-09-11:
+verdict_provenance, run_gates (twice) and store_owners (twice) each carried 41/4/3/21/12/1 while
+the tool itself reported 44/6/4/16/17/1. A figure copied into prose drifts silently, so every
+restatement now carries the DATE it was measured — a dated number that is old reads as history; an
+undated one reads as truth. [[copy-drift]] [[stale-reading]]
 
     retro_triage.json       437 rows   SILENT   <- decides EMPTY on the river
     chronicle_swept.json    401 rows   SILENT   <- decides READ

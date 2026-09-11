@@ -1036,6 +1036,23 @@ def _tombstone(hist, cands):
     except Exception:
         prev = None
     blob = {"reels": (prev or []) + rows, "updatedTs": int(time.time() * 1000)}
+    # ⚠⚠ v2949 — THE MOUTH OF THE RIVER SAYS WHO CLOSED IT OUT. Task #69.
+    # `reel_tombstones.json` is the record of what retention actually deleted — 446 reels and
+    # 5,768 MB reclaimed — and it could not say what produced it. Chosen as the next writer to
+    # join because its single-writer rule is already a GATED LAW (test_reel_reaper.py:163), its
+    # shape is flat `{reels, updatedTs}`, and every reader takes `blob["reels"]` rather than
+    # enumerating the top level — so a `_prov` key here cannot move a count.
+    # ⚠ GUARDED, and it must be: a store that cannot be stamped is still a store worth writing.
+    # Provenance is a label on the data, never a precondition for keeping it. Same shape as the
+    # block proven at ledger_highwater.py. [[the-unjoined-end]]
+    # ⚠ NEVER do this to a ROW-KEYED store (retro_triage, chron_hunt_memory, main_character,
+    # capture_doors): a top-level `_prov` there becomes a FAKE ROW that blueprint.py publishes as
+    # a reel count of 456 and printer_reach admits as a reel. [[zero-needs-a-denominator]]
+    try:
+        import provenance as _PV
+        blob = _PV.stamp(blob, by='reel_retention')
+    except Exception:
+        pass
     dest = _tombstone_path(hist)
     tmp = dest + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:

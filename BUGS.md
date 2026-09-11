@@ -31311,3 +31311,41 @@ older image is answering. That is the entire point.
 Gate `test_the_console_says_which_image_is_answering` (5 laws, all parsing) proven red three ways
 at 1 match each: moving the stamp into the producer, renaming the served key, hardcoding the
 version. Found by a read-only agent fleet and confirmed by its skeptic.
+
+## REG-954 — a red-proof with no law behind it came back BLIND (v2949)
+
+Task #69 joined `reel_retention._tombstone` to `provenance.stamp()` — the second production writer
+to answer what produced it — and added the matching `RED_PROOF` entry. The drill then reported:
+
+    test_provenance[12]   BLIND ← stayed GREEN through its own defeat (1 match(es))
+
+Deleting the stamp block from `reel_retention.py` changed nothing, because **no law asserted the
+second writer stamps at all**. The tamper was real, the anchor matched exactly once, and it still
+could not go red: a sabotage with no law behind it can only ever be green.
+
+Fixed by writing the law the proof needed — `test_the_SECOND_writer_stamps_too`, driving the real
+`_tombstone()` against a temp dir (never his store) and asserting `_prov.by == 'reel_retention'`,
+that `reels` survives untouched, and that the row count did not move. All 13 red-proofs in
+test_provenance are now PROVEN at 1 match each.
+
+⚠ THE CENSUS IS UNCHANGED AND THAT IS CORRECT: 44 stores · ANSWERS 6 · PARTIAL 4 · SILENT 16 ·
+REFERENCE 17 · UNKNOWN 1, byte-identical before and after. A store carries `_prov` only from its
+NEXT write. The honest claim is "a second writer is joined", never "two stores now answer".
+`--write-baseline` was deliberately NOT run: it overwrites unconditionally with no regression
+check, so with nothing moved it would lock in nothing and silently absorb drift across 32 stores.
+
+### The same census was restated in EIGHT places and FIVE had gone stale
+
+Measured 2026-09-11 — the tool reported 44/6/4/16/17/1 while these each said 41/4/3/21/12/1:
+
+    verdict_provenance.py:15-20     stale
+    run_gates.py:3275               stale
+    store_owners.py:57 AND :178     stale, and the same string duplicated
+    provenance.py:8                 current
+    test_provenance.py:8            current
+    run_gates.py:3662               current (and dated)
+
+All five stale ones now carry the DATE they were measured, because that is what separates them:
+`test_store_isolation.py` also says "41 stores" and is CORRECT — it is explicitly dated 2026-08-22
+as history. A dated number that is old reads as history; an undated one reads as truth.
+[[copy-drift]] [[stale-reading]]

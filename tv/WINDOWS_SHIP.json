@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2948",
+  "ver": "v2949",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2948: --note the console execs the working tree, so a running process can hold an older image and no surface could tell",
+  "note": "v2949: --note the tombstone writer joined provenance and its red-proof came back BLIND because no law asserted it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

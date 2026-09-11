@@ -368,6 +368,32 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
         self.assertEqual([{"n": 3}], blob.get("rows"),
                          "stamping altered the payload it was supposed to label")
 
+    def test_the_SECOND_writer_stamps_too(self):
+        """⚠⚠ THE DRILL CAUGHT THIS LAW MISSING, WHICH IS THE WHOLE POINT OF THE DRILL.
+        v2949 joined `reel_retention._tombstone` to provenance and added its RED_PROOF, and the
+        proof came back **BLIND** — deleting the stamp block changed nothing, because no law
+        asserted the second writer stamps. A tamper with no law behind it is a sabotage that can
+        only ever be green. [[sabotage-is-usually-the-wrong-one]]
+
+        MEASURED on a temp dir, never his store: `_tombstone(tmp, [])` writes
+        `['_prov', 'reels', 'updatedTs']` and `_prov.by == 'reel_retention'`.
+        ⚠ `reels` must survive untouched — every reader takes `blob["reels"]`, and a stamp that
+        moved a count would be worse than no stamp at all."""
+        import tempfile, json, shutil
+        import reel_retention as RR
+        d = tempfile.mkdtemp()
+        try:
+            RR._tombstone(d, [])
+            blob = json.load(io.open(RR._tombstone_path(d), encoding="utf-8"))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertIn(PV.PROV_KEY, blob,
+                      "reel_tombstones.json carries no provenance block: %r" % sorted(blob))
+        self.assertEqual("reel_retention", blob[PV.PROV_KEY].get("by"),
+                         "the tombstone writer does not name itself: %r" % blob.get(PV.PROV_KEY))
+        self.assertIn("reels", blob, "the stamp displaced the payload")
+        self.assertEqual([], blob["reels"], "the stamp changed the row count")
+
     def test_an_UNSTAMPABLE_store_is_still_WRITTEN(self):
         """⚠ Provenance is a LABEL on the data, never a precondition for keeping it. If the
         definition module cannot be imported, the write must still land — losing his data to
@@ -543,6 +569,13 @@ RED_PROOF = [
         "why": 'v2941/B — stops the WRITER stamping. Without it the join is inert: the census can only ask what a store carries, and 0 of 44 carried a _prov block. Making the reader ask changed nothing measurable until a writer answered.',
         "file": 'ledger_highwater.py',
         "find": "    try:\n        import provenance as _PV\n        blob = _PV.stamp(blob, by='ledger_highwater')\n    except Exception:\n        pass\n",
+        "replace": '',
+        "matches": 1,
+    },
+    {
+        "why": 'v2949 — stops the SECOND writer stamping. reel_tombstones.json is the record of what retention actually deleted (446 reels, 5768 MB reclaimed) and could not say what produced it. Chosen because its single-writer rule is already a gated law and every reader takes blob["reels"] rather than enumerating the top level, so a _prov key cannot move a count.',
+        "file": 'reel_retention.py',
+        "find": "    try:\n        import provenance as _PV\n        blob = _PV.stamp(blob, by='reel_retention')\n    except Exception:\n        pass\n",
         "replace": '',
         "matches": 1,
     },
