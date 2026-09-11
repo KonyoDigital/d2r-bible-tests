@@ -853,6 +853,18 @@ TARGETS = {
         "report": ("(function(){ var o=document.querySelector('#heart-ov'); if(!o) return null;"
                    " var a=o.getAttribute('data-fanfit'); if(!a) return null;"
                    " try { return JSON.parse(a); } catch(e) { return {unparsed:String(a).slice(0,200)}; } })()"),
+        # ⚠⚠ v2925 — THE FAN'S OWN CAVEAT, DECLARED WHERE THE FAN IS DECLARED.
+        # MEASURED 2026-09-11: `_hrtFanFit` has exactly ONE call site in control_ui.html (the
+        # heart-open path), and the page's ONLY resize listener calls `_shellSizePane()` and
+        # nothing else. So `data-fanfit` is written ONCE, at open, and is never recomputed when
+        # the window changes size — which means `readAt` names the width this harness READ at,
+        # and the width the fan SOLVED at is genuinely unknown. Say so, rather than let a
+        # per-width key imply a per-width verdict. [[stale-reading]] [[unknown-stays-unknown]]
+        "reportNote": {
+            "solvedAt": "UNKNOWN — the fan solves once on open and never re-solves on resize, "
+                        "so this reading is from whatever width the heart was opened at, not "
+                        "from the one named in readAt",
+        },
         "serve": True,
         "why": "♥ THE HEART'S LOCK FAN — the half of the panel nothing was photographing. The "
                "`heart` target's selector is `.hrt-h, .hrt-row`, which is TWO of the panel's "
@@ -2495,6 +2507,27 @@ def _serve_console():
     raise RuntimeError("a private console did not answer on :%d in 30s — UNKNOWN, not a pass" % port)
 
 
+# ⚠ v2925 — generous ON PURPOSE. The point is not to fit a line, it is to never drop a field
+# without saying so; see the printer below for the 83 chars this number exists to stop losing.
+_REPORT_LINE_CAP = 1200
+
+
+def _report_line(payload):
+    """The ⓘ line's payload text — truncated only OUT LOUD. -> str
+
+    ⚠⚠ v2925 — THIS IS A FUNCTION SO A LAW CAN EXERCISE IT INSTEAD OF READING IT.
+    The defect it exists to stop was a bare `[:340]` inside the printer: unreachable from any
+    test, so the only way to assert anything about it was to match its source text, and a law
+    that matches source text goes green the moment somebody rewrites the same bug differently.
+    [[source-reading-guard]] [[feedback-blind-fixture-green-gate]]
+    """
+    _s = json.dumps(payload, sort_keys=True)
+    if len(_s) <= _REPORT_LINE_CAP:
+        return _s
+    return "%s… +%d more char(s) NOT SHOWN — full value in .render_verdict.json" % (
+        _s[:_REPORT_LINE_CAP], len(_s) - _REPORT_LINE_CAP)
+
+
 def check(name, spec, shots=True):
     """Render one target at every width and judge it. -> dict"""
     out = {"target": name, "why": spec["why"], "widths": {}, "ok": True, "refusals": []}
@@ -2655,6 +2688,68 @@ def check(name, spec, shots=True):
             out["ok"] = False
             out["refusals"].append(why)
             return out
+        # ⚠⚠ v2925 (#53) — THE READING IS TAKEN EVEN AT A WIDTH THAT REFUSED.
+        # v2924 put this AFTER `if why_w: … continue`, so a width whose TARGET SELECTOR failed to
+        # settle produced no fanfit reading at all. MEASURED by parse on 2026-09-11: the `why_w`
+        # continue was at line 2677 and the tap at 2689 — the tap was unreachable for exactly the
+        # widths that struggle. And the widths that struggle are the narrow ones: 375x800 is where
+        # REG-928 says the collisions are worst, so the ONE width the instrument exists to speak
+        # for is the one that silently dropped out, leaving a refusal and no diagnostic.
+        # The reading does not depend on the refusal: `data-fanfit` lives on `#heart-ov`, not on
+        # `.hrt-k` / `.hrt-svgwrap`, so it is readable whether or not the target selector painted.
+        # ⚠ It still NEVER decides ok/not-ok — the refusal above already did that, and a diagnostic
+        # that can change a verdict is a second gate in disguise. [[plumbing-with-no-tap]]
+        def _take_report(w, h):
+                # ⚠⚠ v2924 (#53) — PER WIDTH, BECAUSE THE FAN'S WHOLE PROBLEM IS WIDTH.
+                # v2923 evaluated this ONCE, before this loop, and the cross-family eye caught it: at
+                # that moment the viewport is Chrome's launch size (`--window-size=1440,1300`), which is
+                # NOT one of the five WIDTHS this harness photographs. So the printed `reverted: false`
+                # was a reading from a viewport no shot was ever taken at — and the labels collide at
+                # particular widths, which is the entire reason #53 exists. A verdict measured at a size
+                # nobody photographs cannot speak for 375x800, where the collisions have been worst.
+                # ⚠ AND IT STAMPS THE VIEWPORT IT MEASURED. The v2923 expression carried no
+                # innerWidth/innerHeight, so the log could not say which size produced the answer — a
+                # number with no denominator, in the instrument added to answer a question.
+                # [[zero-needs-a-denominator]] [[stale-reading]] [[feedback-blind-fixture-green-gate]]
+                if spec.get("report"):
+                    try:
+                        _rep = tab.ev(spec["report"])
+                    except Exception as _exc:
+                        _rep = {"error": type(_exc).__name__}
+                    if _rep is None:
+                        _rep = {"unread": "the report expression returned null"}
+                    if isinstance(_rep, dict):
+                        _rep = dict(_rep)
+                        # ⚠⚠ `readAt`, NOT `atWidth` — AND THE DIFFERENCE IS THE FINDING.
+                        # MEASURED 2026-09-11: `_hrtFanFit` has exactly ONE caller (control_ui.html, the
+                        # heart-open path after /api/heart lands), and the page's only resize listener
+                        # calls `_shellSizePane()` and nothing else. So `data-fanfit` is written ONCE, at
+                        # open, and is NEVER recomputed when the window changes size.
+                        # My first cut of this stamped `atWidth`, which ASSERTED a width it had not
+                        # measured: the same stale attribute read five times wearing five different
+                        # labels. That is worse than v2923's unlabelled reading, because a wrong
+                        # denominator invites arithmetic a missing one does not.
+                        # ⚠ AND THIS IS ITSELF THE LIKELIEST #53: a fan solved once at open is stale at
+                        # every other width, which is exactly "the labels collide at some widths". The
+                        # diagnostic must not FIX that by re-solving here — `_hrtFanFit` MUTATES the DOM,
+                        # so calling it would change the layout being photographed.
+                        # [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+                        _rep["readAt"] = "%dx%d" % (w, h)
+                        # ⚠⚠ v2925 — THE CAVEAT BELONGS TO THE TARGET, NOT TO THE TAP.
+                        # v2924 hardcoded the fan's `solvedAt` essay right here, inside a tap whose own
+                        # comments call it a GENERAL expression that ANY target may declare. So every
+                        # other shape this tap produces — `{"error": …}`, `{"unread": …}`,
+                        # `{"unparsed": …}`, and any second target's reading — was stamped with a
+                        # sentence about a fan solve it has nothing to do with. The cross-family eye
+                        # caught it as a caller/callee contract disagreement; it is dormant only
+                        # because heart-fan is the single declarer TODAY, which is the same "dormant
+                        # until it is not" shape as [[label-outlived-referent]].
+                        # An error/unread/unparsed shape is NOT a reading, so it is never annotated.
+                        if not ("error" in _rep or "unread" in _rep or "unparsed" in _rep):
+                            for _nk, _nv in (spec.get("reportNote") or {}).items():
+                                _rep[_nk] = _nv
+                    out.setdefault("report", {})["%dx%d" % (w, h)] = _rep
+
         for w, h in WIDTHS:
             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                      deviceScaleFactor=1, mobile=False)
@@ -2674,46 +2769,9 @@ def check(name, spec, shots=True):
             if why_w:
                 out["ok"] = False
                 out["refusals"].append("%dx%d: %s" % (w, h, why_w))
+                _take_report(w, h)      # ⚠ v2925 — the fan's attribute does not need the selector
                 continue
-            # ⚠⚠ v2924 (#53) — PER WIDTH, BECAUSE THE FAN'S WHOLE PROBLEM IS WIDTH.
-            # v2923 evaluated this ONCE, before this loop, and the cross-family eye caught it: at
-            # that moment the viewport is Chrome's launch size (`--window-size=1440,1300`), which is
-            # NOT one of the five WIDTHS this harness photographs. So the printed `reverted: false`
-            # was a reading from a viewport no shot was ever taken at — and the labels collide at
-            # particular widths, which is the entire reason #53 exists. A verdict measured at a size
-            # nobody photographs cannot speak for 375x800, where the collisions have been worst.
-            # ⚠ AND IT STAMPS THE VIEWPORT IT MEASURED. The v2923 expression carried no
-            # innerWidth/innerHeight, so the log could not say which size produced the answer — a
-            # number with no denominator, in the instrument added to answer a question.
-            # [[zero-needs-a-denominator]] [[stale-reading]] [[feedback-blind-fixture-green-gate]]
-            if spec.get("report"):
-                try:
-                    _rep = tab.ev(spec["report"])
-                except Exception as _exc:
-                    _rep = {"error": type(_exc).__name__}
-                if _rep is None:
-                    _rep = {"unread": "the report expression returned null"}
-                if isinstance(_rep, dict):
-                    _rep = dict(_rep)
-                    # ⚠⚠ `readAt`, NOT `atWidth` — AND THE DIFFERENCE IS THE FINDING.
-                    # MEASURED 2026-09-11: `_hrtFanFit` has exactly ONE caller (control_ui.html, the
-                    # heart-open path after /api/heart lands), and the page's only resize listener
-                    # calls `_shellSizePane()` and nothing else. So `data-fanfit` is written ONCE, at
-                    # open, and is NEVER recomputed when the window changes size.
-                    # My first cut of this stamped `atWidth`, which ASSERTED a width it had not
-                    # measured: the same stale attribute read five times wearing five different
-                    # labels. That is worse than v2923's unlabelled reading, because a wrong
-                    # denominator invites arithmetic a missing one does not.
-                    # ⚠ AND THIS IS ITSELF THE LIKELIEST #53: a fan solved once at open is stale at
-                    # every other width, which is exactly "the labels collide at some widths". The
-                    # diagnostic must not FIX that by re-solving here — `_hrtFanFit` MUTATES the DOM,
-                    # so calling it would change the layout being photographed.
-                    # [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
-                    _rep["readAt"] = "%dx%d" % (w, h)
-                    _rep["solvedAt"] = "UNKNOWN — the fan solves once on open and never re-solves "\
-                                       "on resize, so this reading is from whatever width the "\
-                                       "heart was opened at, not from the one named in readAt"
-                out.setdefault("report", {})["%dx%d" % (w, h)] = _rep
+            _take_report(w, h)
             # ⚠ MEASURE REACHABILITY BEFORE SCROLLING TO IT — see _REACH. After the
             # scrollIntoView below, every target is on screen by construction.
             reach = tab.ev("%s(%s)" % (_REACH, json.dumps(spec["sel"])))
@@ -3163,8 +3221,17 @@ def main(argv):
             # ⚠ one line per width. Collapsing five readings into one would re-create exactly the
             # defect v2924 fixed: an answer with no denominator.
             for _wk in sorted(r["report"]):
-                _say("     ⓘ report %-9s %s"
-                     % (_wk, json.dumps(r["report"][_wk], sort_keys=True)[:340]))
+                _s = _report_line(r["report"][_wk])
+                # ⚠⚠ v2925 — A SILENT `[:340]` ATE THE HALF OF THE PAIR THAT ANSWERS #53.
+                # MEASURED 2026-09-11 against the gate's own .render_verdict.json: heart-fan
+                # serialises to 423 chars, so 83 were dropped — and the 83 were exactly
+                # `"to": {"adjacent": 0, "collisions": 0, "displacement": 65.6}`, the collisions
+                # AFTER the solve. The line kept `from` (before) and dropped `to` (after), so the
+                # one human-facing surface printed HALF A COMPARISON and looked complete. The
+                # cross-family eye caught it on v2924, in the instrument built to answer #53.
+                # A cut that does not SAY it cut is [[zero-needs-a-denominator]] wearing a slice:
+                # nothing distinguishes a short payload from a truncated one.
+                _say("     ⓘ report %-9s %s" % (_wk, _s))
         for key in sorted(r["widths"]):
             m = r["widths"][key]
             # ⚠ v2697 — EVERY COUNT CARRIES ITS DENOMINATOR, because three of these used to read as

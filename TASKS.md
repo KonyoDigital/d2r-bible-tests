@@ -1669,6 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2926** | `(this commit)` | v2926 — --note reports was written by v2924 and heart2 contained fanfit zero times; the fan could revert at every photographed width and every supervisor still read OK |
+| **v2925** | `(this commit)` | v2925 — --note the report line cut 83 chars and the 83 were the AFTER half of the pair; the tap sat behind a refusal; the caveat was hardcoded in a general tap |
 | **v2924** | `(this commit)` | v2924 — and my first fix stamped a width it had not measured, which is worse than no label |
 | **v2923** | `(this commit)` | v2923 — data-fanfit was for the render harness and render_check had zero occurrences of fanfit |
 | **v2922** | `(this commit)` | v2922 — the dependency law counted its own calls so an unreachable binding reads UNKNOWN instead of an accusation |

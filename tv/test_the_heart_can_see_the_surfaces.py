@@ -71,6 +71,34 @@ RED_PROOF = [
         "replace": '    return {"state": ("OK" if (v.get("full") and tot) else',
         "matches": 1,
     },
+    {
+        "why": "v2926/A — an unmeasured fan handed back as [] reads as 'nothing reverted'. That is the exact UNMEASURED-as-clean shape this file already paid for at v2871, arriving in the new join.",
+        "file": "heart2.py",
+        "find": '    fan = (v.get("reports") or {}).get("heart-fan")\n    if not isinstance(fan, dict) or not fan:\n        return None\n',
+        "replace": '    fan = (v.get("reports") or {}).get("heart-fan")\n    if not isinstance(fan, dict) or not fan:\n        return []\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2926/B — drops the width names, so a revert at 375x800 (where REG-928 says the collisions are worst) reaches the heart as an empty list. #53 is a per-width question and an average cannot answer it.',
+        "file": "heart2.py",
+        "find": '    return [w for w in good if fan[w].get("reverted") is True]\n',
+        "replace": '    return []\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2926/C — counts {error}/{unread} shapes as readings, so two failed reads grade as a fan that kept its placement. A failure to read is not a reading. [[zero-needs-a-denominator]]',
+        "file": "heart2.py",
+        "find": '    good = [w for w in sorted(fan) if isinstance(fan[w], dict)\n            and not any(k in fan[w] for k in ("error", "unread", "unparsed"))]\n    if not good:\n        return None\n',
+        "replace": '    good = [w for w in sorted(fan) if isinstance(fan[w], dict)]\n    if not good:\n        return None\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2926/D — drops the caveat, so a reading filed under a width ASSERTS the fan solved at that width. MEASURED: _hrtFanFit has one call site and the only resize listener calls _shellSizePane(); the solve width is genuinely unknown.',
+        "file": "heart2.py",
+        "find": '    stale = " (each reading names the width it was READ at; the fan solves once at open, so the "\\\n            "width it was SOLVED at is UNKNOWN)"\n',
+        "replace": '    stale = ""\n',
+        "matches": 1,
+    },
 ]
 
 
@@ -169,6 +197,69 @@ class TheHeartCanSeeTheSurfaces(unittest.TestCase):
                                               "week is indistinguishable from one from this minute")
         self.assertGreaterEqual(got.get("ageS") or 0, 7,
                                 "the age is not derived from ranAt: 8s in, %r out" % got.get("ageS"))
+
+    # ── v2926 (#53) — THE FAN JOIN, from the cross-family eye on v2924 ──────────────────────────
+    def _verdict(self, extra):
+        """A fixture verdict with `extra` merged in, graded by the real surface_verdict(). -> dict"""
+        base = {"ranAt": time.time() * 1000 - 1000, "full": True, "totalTargets": 1,
+                "reported": ["heart-fan"], "coverageMissing": 0, "renderFailures": 0}
+        base.update(extra)
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(base, f)
+            _p = f.name
+        try:
+            return H.surface_verdict(_p)
+        finally:
+            os.unlink(_p)
+
+    def test_a_verdict_with_NO_reports_says_UNKNOWN_and_not_clean(self):
+        """⚠⚠ THE MEASURED GAP. v2924 wrote `reports` into .render_verdict.json and MEASURED
+        2026-09-11 heart2.py contained "fanfit" 0 times and "report" 0 times — the fan could revert
+        at every photographed width and every automated supervisor still read OK. A verdict written
+        before the tap existed must say so, not report a clean fan. [[the-unjoined-end]]"""
+        got = self._verdict({})
+        self.assertIsNone(got.get("fanRevertedAt"),
+                          "an unmeasured fan came back as a list, which reads as 'nothing "
+                          "reverted': %r" % (got.get("fanRevertedAt"),))
+        self.assertIn("UNKNOWN", got.get("fanSay") or "",
+                      "a verdict that never measured the fan does not say so: %r" % got.get("fanSay"))
+
+    def test_a_fan_that_REVERTED_is_NAMED_by_width(self):
+        """★★ #53 IS A PER-WIDTH QUESTION. A revert at 375x800 — where REG-928 says the collisions
+        are worst — must reach the heart by name, not be averaged into a count."""
+        got = self._verdict({"reports": {"heart-fan": {
+            "375x800":  {"reverted": True,  "readAt": "375x800"},
+            "1440x900": {"reverted": False, "readAt": "1440x900"}}}})
+        self.assertEqual(["375x800"], got.get("fanRevertedAt"),
+                         "the reverting width is not named: %r" % (got.get("fanRevertedAt"),))
+        self.assertEqual(2, got.get("fanWidths"), "the denominator is wrong: %r" % got)
+        self.assertIn("375x800", got.get("fanSay") or "",
+                      "the sentence does not name the width that reverted: %r" % got.get("fanSay"))
+
+    def test_readings_that_FAILED_are_UNMEASURED_and_never_a_clean_fan(self):
+        """★ An error is a failure to read, not a reading. Counting `{"error": …}` as 'did not
+        revert' is [[zero-needs-a-denominator]] — the empty container returning a clean 0."""
+        got = self._verdict({"reports": {"heart-fan": {
+            "375x800":  {"error": "WebSocketTimeout"},
+            "1440x900": {"unread": "the report expression returned null"}}}})
+        self.assertIsNone(got.get("fanRevertedAt"),
+                          "two failed reads graded as a fan that kept its placement: %r"
+                          % (got.get("fanRevertedAt"),))
+        self.assertIn("UNMEASURED", got.get("fanSay") or "",
+                      "failed reads do not say UNMEASURED: %r" % got.get("fanSay"))
+
+    def test_the_SOLVE_width_caveat_travels_with_the_number(self):
+        """⚠⚠ THE OVER-CLAIM THE TAP WAS REWRITTEN TO REMOVE, arriving one layer up. MEASURED:
+        `_hrtFanFit` has ONE call site and the page's only resize listener calls `_shellSizePane()`
+        and nothing else — so the fan solves once at open. A per-width reading names where it was
+        READ, never where it was SOLVED, and a heart that drops that caveat re-states v2923's
+        defect with a better label. [[stale-reading]] [[inherited-claim-is-not-evidence]]"""
+        got = self._verdict({"reports": {"heart-fan": {
+            "375x800": {"reverted": False, "readAt": "375x800"}}}})
+        say = got.get("fanSay") or ""
+        self.assertIn("READ", say, "the sentence does not distinguish read-at from solved-at: %r" % say)
+        self.assertIn("UNKNOWN", say,
+                      "the solve width is asserted rather than left unknown: %r" % say)
 
     def test_a_run_that_REPORTED_NOTHING_is_UNMEASURED_not_OK(self):
         """★★ The state CI was actually in, made into a law instead of a mystery. A verdict file

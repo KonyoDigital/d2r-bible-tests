@@ -38,6 +38,9 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
+# ⚠ v2925 — the MODULE, not the path. `RC` above is a filename used by _src(); two of the laws
+# below must EXERCISE the code rather than read it, and that needs the real import.
+import render_check as RCM  # noqa: E402
 _console_safe_enable()
 
 
@@ -156,11 +159,112 @@ class ATargetCanHandBackItsOwnVerdict(unittest.TestCase):
 
     def test_a_NULL_report_is_UNREAD_and_not_silence(self):
         """⚠ An expression that answered nothing is not a target that declared nothing. Collapsing
-        those two is how a missing surface reads as a clean one. [[unknown-stays-unknown]]"""
-        body = ast.get_source_segment(_src(), _fn("check"))
-        self.assertIn("unread", body,
-                      "a report returning null is stored as null, which is indistinguishable from "
-                      "a target that never declared one")
+        those two is how a missing surface reads as a clean one. [[unknown-stays-unknown]]
+
+        ⚠⚠ v2925 — THIS LAW WAS BLIND AND THE DRILL CAUGHT IT. It was `assertIn("unread", body)`
+        over check()'s whole source. v2925 added a guard `"unread" in _rep` and a COMMENT saying
+        "an error/unread/unparsed shape is NOT a reading" — so the word survived in two places the
+        tamper does not touch, and deleting the REAL assignment left the law green. A law that
+        reads prose goes green the moment prose mentions the thing.
+        [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]"""
+        fn = _fn("check")
+        nulls = [n for n in ast.walk(fn)
+                 if isinstance(n, ast.If)
+                 and isinstance(n.test, ast.Compare)
+                 and isinstance(n.test.ops[0], ast.Is)
+                 and isinstance(n.test.comparators[0], ast.Constant)
+                 and n.test.comparators[0].value is None]
+        self.assertEqual(1, len(nulls),
+                         "the null branch is gone — a report that answered nothing now falls "
+                         "through as if the target had declared nothing (found %d)" % len(nulls))
+        keys = set()
+        for asn in ast.walk(nulls[0]):
+            if isinstance(asn, ast.Assign) and isinstance(asn.value, ast.Dict):
+                keys |= {k.value for k in asn.value.keys if isinstance(k, ast.Constant)}
+        self.assertIn("unread", keys,
+                      "the null branch assigns %r — a report returning null is stored as a shape "
+                      "indistinguishable from a target that never declared one" % (sorted(keys),))
+
+    # ── v2925, from the cross-family eye on v2924 ───────────────────────────────────────────────
+    def test_the_printed_line_never_drops_a_field_in_SILENCE(self):
+        """⚠⚠ THE MEASURED DEFECT. v2924 printed the payload through a bare `[:340]`. MEASURED on
+        the gate's own .render_verdict.json: heart-fan serialises to 423 chars, so 83 were cut —
+        and the 83 were exactly `"to": {...}`, the collisions AFTER the solve. The line kept the
+        BEFORE half of the pair, dropped the AFTER half, and looked complete either way.
+
+        This law EXERCISES the rule rather than reading it: a payload of the real shape must keep
+        every top-level key, and a payload past the cap must SAY how much it dropped.
+        [[zero-needs-a-denominator]] [[regression-guard]]"""
+        real = {"from": {"collisions": 2}, "to": {"adjacent": 0, "collisions": 0,
+                "displacement": 65.6}, "reverted": False, "readAt": "375x800",
+                "solvedAt": "UNKNOWN — " + "x" * 160, "why": "", "moves": 4, "passes": 2}
+        line = RCM._report_line(real)
+        for k in real:
+            self.assertIn('"%s"' % k, line,
+                          "the printed line drops %r — a truncation that does not announce "
+                          "itself is indistinguishable from a short payload" % k)
+        over = RCM._report_line({"k": "v" * (RCM._REPORT_LINE_CAP + 500)})
+        self.assertIn("NOT SHOWN", over, "past the cap the line cuts without saying it cut")
+        self.assertRegex(over, r"\+\d+ more char\(s\)",
+                         "the cut does not state HOW MANY characters went missing")
+
+    def test_a_width_that_REFUSED_still_hands_back_its_reading(self):
+        """⚠⚠ v2924 put the tap AFTER `if why_w: … continue`, so the widths that struggle — the
+        narrow ones, where REG-928 says the collisions are worst — were the exact widths that
+        produced no reading. The attribute lives on `#heart-ov` and does not depend on the
+        target's selector, so a refusal is not a reason to skip it.
+
+        STRUCTURAL, not prose: walk to the `If` that appends a refusal and ends in `continue`,
+        and require a call to the tap inside THAT body. [[the-unjoined-end]]"""
+        fn = _fn("check")
+        guilty = []
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.If):
+                continue
+            body = node.body
+            if not any(isinstance(x, ast.Continue) for x in body):
+                continue
+            dumped = ast.dump(node)
+            if "refusals" not in dumped:
+                continue
+            calls = [c for c in ast.walk(node)
+                     if isinstance(c, ast.Call) and getattr(c.func, "id", "") == "_take_report"]
+            if not calls:
+                guilty.append(node.lineno)
+        self.assertEqual([], guilty,
+                         "a width refuses and `continue`s at line(s) %s without taking its "
+                         "report — the reading does not need the selector that failed" % guilty)
+
+    def test_the_CAVEAT_belongs_to_the_target_and_not_to_the_tap(self):
+        """⚠ v2924 hardcoded the fan's `solvedAt` essay inside a tap its own comments call GENERAL.
+        Every `{"error": …}` and `{"unread": …}` shape, and any second target's reading, was
+        stamped with a sentence about a fan solve. Dormant only because heart-fan is the single
+        declarer today. The tap may stamp ONLY what the spec declared, and only onto a reading."""
+        fn = _fn("check")
+        loops = [n for n in ast.walk(fn)
+                 if isinstance(n, ast.For) and "reportNote" in ast.dump(n)]
+        self.assertEqual(1, len(loops),
+                         "the tap does not stamp the SPEC's own note (found %d such loops)"
+                         % len(loops))
+        guards = [n for n in ast.walk(fn)
+                  if isinstance(n, ast.If) and loops[0] in n.body]
+        self.assertTrue(guards, "the spec's note is stamped onto EVERY shape, errors included")
+        g = ast.dump(guards[0])
+        for shape in ("error", "unread", "unparsed"):
+            self.assertIn(shape, g,
+                          "%r is annotated as though it were a reading — it is a failure to "
+                          "read, and the two must not look alike" % shape)
+        # and the tap must not have re-grown a hardcoded essay of its own
+        for node in ast.walk(fn):
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) \
+               and isinstance(node.value.value, str) and len(node.value.value) > 60:
+                tgt = ast.dump(node.targets[0])
+                self.assertNotIn("_rep", tgt,
+                                 "the tap assigns a %d-char literal into the reading again — "
+                                 "that is the v2924 defect regrown"
+                                 % len(node.value.value))
+        self.assertIn("reportNote", RCM.TARGETS["heart-fan"],
+                      "heart-fan no longer declares the caveat that explains its own readAt")
 
 
 RED_PROOF = [
@@ -172,24 +276,45 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "collecting without printing is the REG-920 shape. The anchor spans the WHOLE loop: an earlier cut took only the _say() lines and left the enclosing `for` with an empty body, so the tamper was a SyntaxError rather than a law.",
+        "why": "collecting without printing is the REG-920 shape. v2925 moved the truncation out of this loop into _report_line(), so the v2924 anchor matched ZERO and would have proved INVALID rather than red \u2014 caught by re-counting every anchor after the edit, which is the only reason it is not a silent hole.",
         "file": "render_check.py",
-        "find": "            for _wk in sorted(r[\"report\"]):\n                _say(\"     \u24d8 report %-9s %s\"\n                     % (_wk, json.dumps(r[\"report\"][_wk], sort_keys=True)[:340]))\n",
-        "replace": "            pass\n",
+        "find": "                _say(\"     \u24d8 report %-9s %s\" % (_wk, _s))\n",
+        "replace": "                pass\n",
         "matches": 1,
     },
     {
-        "why": "letting a null report be stored as null makes 'the expression answered nothing' identical to 'this target declared no report'.",
+        "why": "a null reading collapsed into silence is [[unknown-stays-unknown]]: a target that answered nothing looks exactly like a target that declared nothing.",
         "file": "render_check.py",
-        "find": "                    _rep = {\"unread\": \"the report expression returned null\"}",
-        "replace": "                    _rep = None",
+        "find": "                    _rep = {\"unread\": \"the report expression returned null\"}\n",
+        "replace": "                    _rep = {}\n",
         "matches": 1,
     },
     {
-        "why": "collapsing the per-width readings back into ONE key is the v2923 defect the eye caught: a single reading, taken at a viewport this harness never photographs, presented as the answer for all five.",
+        "why": "one reading for the whole run is the v2923 defect: an answer taken at Chrome's launch size, which is not one of the five widths this harness photographs.",
         "file": "render_check.py",
         "find": "                out.setdefault(\"report\", {})[\"%dx%d\" % (w, h)] = _rep",
-        "replace": "                out[\"report\"] = _rep",
+        "replace": "                out.setdefault(\"report\", {})[\"all\"] = _rep",
+        "matches": 1,
+    },
+    {
+        "why": "v2925/A \u2014 RESTORES THE MEASURED DEFECT EXACTLY. The bare [:340] is what the cross-family eye caught on v2924: the heart-fan payload is 423 chars, so 83 were dropped, and the 83 were `\"to\": {...}` \u2014 the collisions AFTER the solve. The law must go red because the AFTER half of the pair vanishes from the printed line and nothing says it did.",
+        "file": "render_check.py",
+        "find": "    _s = json.dumps(payload, sort_keys=True)\n    if len(_s) <= _REPORT_LINE_CAP:\n        return _s\n",
+        "replace": "    _s = json.dumps(payload, sort_keys=True)[:340]\n    if True:\n        return _s\n",
+        "matches": 1,
+    },
+    {
+        "why": "v2925/B \u2014 puts the tap back behind the refusal, so a width whose selector failed to settle hands back NO reading. The widths that struggle are the narrow ones, and 375x800 is where REG-928 says the collisions are worst: the one width the instrument exists for is the one that drops out.",
+        "file": "render_check.py",
+        "find": "                _take_report(w, h)      # \u26a0 v2925 \u2014 the fan's attribute does not need the selector\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v2925/C \u2014 re-grows the hardcoded essay inside a tap its own comments call GENERAL, stamping a sentence about a fan solve onto every {error}/{unread} shape and onto any second target's reading.",
+        "file": "render_check.py",
+        "find": '                        if not ("error" in _rep or "unread" in _rep or "unparsed" in _rep):\n                            for _nk, _nv in (spec.get("reportNote") or {}).items():\n                                _rep[_nk] = _nv\n',
+        "replace": '                        _rep["solvedAt"] = "UNKNOWN — the fan solves once on open and never re-solves on resize, so this reading is from whatever width the heart was opened at"\n',
         "matches": 1,
     },
 ]

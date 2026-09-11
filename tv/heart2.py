@@ -131,6 +131,65 @@ def _stale_say(v):
             "still read clean, because each floor sits below what a clean run photographs" % n)
 
 
+def _fan_reverted(v):
+    """Widths where the fan put everything back, or None if nothing was readable. -> list|None
+
+    ⚠ None and [] ARE DIFFERENT ANSWERS. [] means every readable width kept its placement; None
+    means no width could be read at all. Collapsing them is how #53 would read solved.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    fan = (v.get("reports") or {}).get("heart-fan")
+    if not isinstance(fan, dict) or not fan:
+        return None
+    good = [w for w in sorted(fan) if isinstance(fan[w], dict)
+            and not any(k in fan[w] for k in ("error", "unread", "unparsed"))]
+    if not good:
+        return None
+    return [w for w in good if fan[w].get("reverted") is True]
+
+
+def _fan_say(v):
+    """#53's answer in one sentence, or UNKNOWN said out loud. -> str
+
+    ⚠⚠ v2926 — THE HEART DID NOT READ THE ONE THING BUILT TO ANSWER #53. v2924 added a per-width
+    `report` tap and wrote `reports` into .render_verdict.json; MEASURED 2026-09-11, heart2.py
+    contained the string "fanfit" ZERO times and "report" ZERO times. The fan could revert its
+    placement at every photographed width and every automated supervisor still read OK.
+    That is the identical shape this file already paid for at v2917 with `coverageStaleNodes` —
+    a write whose only reader is its own writer. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ IT REPORTS, IT DOES NOT REFUSE. `state` keeps meaning "did every target report"; this rides
+    beside it under its own name, for the same reason LAW 5 gives.
+    """
+    reps = v.get("reports")
+    if not isinstance(reps, dict):
+        return ("whether the heart's lock fan kept or reverted its placement is UNKNOWN — this "
+                "render verdict predates the per-width report tap, so nothing here measured it")
+    fan = reps.get("heart-fan")
+    if not isinstance(fan, dict) or not fan:
+        return ("whether the lock fan kept or reverted is UNKNOWN — heart-fan handed back no "
+                "reading in the last render, which is not the same as a clean one")
+    widths = sorted(fan)
+    good = [w for w in widths if isinstance(fan[w], dict)
+            and not any(k in fan[w] for k in ("error", "unread", "unparsed"))]
+    unread = [w for w in widths if w not in good]
+    rev = [w for w in good if fan[w].get("reverted") is True]
+    # ⚠ THE CAVEAT TRAVELS WITH THE NUMBER, or the heart re-creates the over-claim the tap was
+    # rewritten to remove: the fan solves ONCE at open and never re-solves on resize, so a reading
+    # filed under a width names where it was READ, never where it was SOLVED. [[stale-reading]]
+    stale = " (each reading names the width it was READ at; the fan solves once at open, so the "\
+            "width it was SOLVED at is UNKNOWN)"
+    if not good:
+        return ("the lock fan reported at %d width(s) and NONE could be read (%s) — UNMEASURED, "
+                "not clean" % (len(widths), ", ".join(unread)))
+    head = ("the lock fan REVERTED at %d of %d readable width(s): %s"
+            % (len(rev), len(good), ", ".join(rev))) if rev else \
+           ("the lock fan kept its placement at all %d readable width(s)" % len(good))
+    if unread:
+        head += " · %d width(s) handed back no reading (%s)" % (len(unread), ", ".join(unread))
+    return head + stale
+
+
 def surface_verdict(path=None):
     """What the LAST render run actually reported. -> dict
 
@@ -186,6 +245,13 @@ def surface_verdict(path=None):
             "coverageFloorKnown": (bool(v["coverageFloorKnown"])
                                    if isinstance(v.get("coverageFloorKnown"), bool) else None),
             "coverageStaleSay": _stale_say(v),
+            # ⚠⚠ v2926 (#53) — THE JOIN. Counts first so a law can assert on them, then the
+            # sentence, because a number with no sentence is a number nobody acts on.
+            # `fanRevertedAt` is None, never 0, when nothing was readable: UNMEASURED is not zero.
+            "fanWidths": (len([w for w in (v.get("reports") or {}).get("heart-fan", {})])
+                          if isinstance((v.get("reports") or {}).get("heart-fan"), dict) else None),
+            "fanRevertedAt": _fan_reverted(v),
+            "fanSay": _fan_say(v),
             "renderFailures": int(v.get("renderFailures") or 0)}
 
 

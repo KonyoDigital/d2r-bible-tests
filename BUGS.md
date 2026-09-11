@@ -29587,6 +29587,67 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-929 — the ⓘ report line printed the BEFORE half of the pair and dropped the AFTER half
+
+**v2925.** Found by the cross-family eye on v2924, reproduced by measurement before it was believed.
+
+The per-width report tap built for #53 printed its payload through a bare `[:340]`. MEASURED against
+the gate's own `.render_verdict.json`: the heart-fan payload serialises to **423 chars, so 83 were
+dropped** — and the 83 were exactly `"to": {"adjacent": 0, "collisions": 0, "displacement": 65.6}`.
+The line kept `from` (collisions BEFORE the solve) and dropped `to` (collisions AFTER), which is the
+entire comparison #53 asks for. It also cut `solvedAt` mid-sentence, losing the caveat that says the
+reading is not from the width it is filed under.
+
+A cut that does not announce itself is [[zero-needs-a-denominator]] wearing a slice: nothing
+distinguishes a short payload from a truncated one.
+
+**Fix:** the truncation moved out of the printer into `_report_line()` — a function so a law can
+EXERCISE it instead of reading its source — capped at 1200 and stating `+N more char(s) NOT SHOWN`.
+**Gate:** `test_the_printed_line_never_drops_a_field_in_SILENCE`, red-proof restores the `[:340]`.
+
+Two siblings shipped in the same version, both from the same eye:
+
+- **the tap sat behind the refusal.** MEASURED by parse: the `why_w` `continue` was at line 2677 and
+  the tap at 2689, so a width whose target selector failed to settle handed back NO reading. The
+  widths that struggle are the narrow ones, and 375x800 is where REG-928 says the collisions are
+  worst — the one width the instrument exists for was the one that silently dropped out. The
+  attribute lives on `#heart-ov` and never needed the selector. Fixed by `_take_report(w, h)`,
+  called on both paths.
+- **the caveat was hardcoded inside a GENERAL tap.** v2924 stamped the fan's `solvedAt` essay onto
+  every shape the tap produces, including `{"error": …}` and `{"unread": …}` and any second
+  target's reading. Now the TARGET declares `reportNote` and a failure to read is never annotated
+  as though it were a reading.
+
+**And a law that was BLIND, caught by the drill and not by me.** `test_a_NULL_report_is_UNREAD_and_
+not_silence` was `assertIn("unread", body)` over `check()`'s source. v2925's own fix added a guard
+`"unread" in _rep` and a comment containing the word — so the tamper deleted the real assignment and
+the law stayed green on my own prose. Rewritten to walk to the `_rep is None` branch and require the
+dict it assigns to carry the key. **7/7 red-proofs PROVEN, 1 match each.**
+
+## REG-930 — the heart did not read the one thing built to answer #53
+
+**v2926.** v2924 wrote per-width `reports` into `.render_verdict.json`. MEASURED 2026-09-11:
+`heart2.py` contained the string `fanfit` **0 times** and `report` **0 times**. The lock fan could
+revert its placement at every photographed width and every automated supervisor still read `OK`.
+
+This is the identical shape this file already paid for at v2917 with `coverageStaleNodes` — a write
+whose only reader is its own writer — recurring in the very next instrument.
+
+**Fix:** `_fan_reverted()` and `_fan_say()` in heart2, joined into `surface_verdict()` as
+`fanWidths` / `fanRevertedAt` / `fanSay`. `fanRevertedAt` is **None, never []**, when nothing was
+readable, and `{"error"}` / `{"unread"}` shapes are failures to read, never readings. The
+read-at-vs-solved-at caveat travels WITH the number so the heart cannot re-state v2923's over-claim
+one layer up. Reads on his real verdict: 5 widths, reverted at none.
+**Gate:** four behavioural laws on fixtures in `test_the_heart_can_see_the_surfaces.py`.
+**8/8 red-proofs PROVEN, 1 match each.**
+
+⚠ **STILL UNJOINED, and measured rather than assumed:** `grep` for `fanSay` and `coverageStaleSay`
+in `control_ui.html` returns **0**. The census `surfaces` block reaches the heart and stops there —
+v2917's join never reached a surface he can see either. That is a real gap and it belongs to **#68
+(HEART 2.0 visual pass)**, which is where the driver and the design pass live; it is recorded here
+so it is not rediscovered a third time.
+
+
 ## REG-928 — the answer was measured at a viewport nobody photographs, and the law could not see it
 
 **v2924.** #53. The cross-family eye on v2923, one version after that ship.

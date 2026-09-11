@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2924",
+  "ver": "v2926",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2924: and my first fix stamped a width it had not measured, which is worse than no label",
+  "note": "v2926: --note reports was written by v2924 and heart2 contained fanfit zero times; the fan could revert at every photographed width and every supervisor still read OK",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
