@@ -97,14 +97,28 @@ CARRIED = "in the %s commit"          # the words a carried row wears
 
 
 def version_commits(cwd=None):
-    """{version: sha} for every version whose VERSION stamp landed in a commit. -> dict
+    """{version: sha} for every version whose VERSION stamp landed in a commit. -> dict|None
+
+    None means GIT COULD NOT BE ASKED. That is not an empty history.
 
     ONE git call, not one per version: `git log -p -- tv/tv_diablo.py` already contains every
     change to the stamp, and 249 subprocesses to learn the same thing is how a tool becomes
     something nobody runs.
     """
-    out = subprocess.run(["git", "log", "-p", "--format=@@@%H", "--", "tv/tv_diablo.py"],
-                         capture_output=True, text=True, cwd=cwd or REPO).stdout
+    # ⚠⚠ v2931 — None WHEN GIT COULD NOT BE ASKED, `{}` ONLY WHEN IT ANSWERED AND SAID NOTHING.
+    # The cross-family eye caught this and it reproduces: in a directory with no history,
+    # `version_commits()` returned `{}`, every row resolved UNKNOWN, and the tool WROTE
+    # `(UNKNOWN — ...)` over the honest `(this commit)`. An instrument failure turned into a
+    # measurement — by the tool whose own docstring says it must never launder a wrong answer.
+    # [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+    try:
+        r = subprocess.run(["git", "log", "-p", "--format=@@@%H", "--", "tv/tv_diablo.py"],
+                           capture_output=True, text=True, cwd=cwd or REPO)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    out = r.stdout
     sha, found = None, {}
     for line in out.splitlines():
         if line.startswith("@@@"):
@@ -146,7 +160,13 @@ def cell_for(state, sha, why):
         return "`%s` (%s)" % (sha[:8], why)
     if state == "pending":
         return "`(this commit)`"
-    return "`(UNKNOWN — %s)`" % why
+    # ⚠⚠ v2931 — AN UNKNOWN ROW KEEPS `(this commit)` RATHER THAN BEING STAMPED UNKNOWN.
+    # Writing UNKNOWN looks more honest and is strictly worse: `stamp()` never overwrites a cell
+    # that is not the literal, so a row that simply has not been committed YET — three bumps
+    # batched before a commit, which is the documented workflow — would be frozen as UNKNOWN
+    # forever, and the one rule that protects real provenance would be what keeps the lie.
+    # The count is still reported, and --audit still exits 1. [[unknown-stays-unknown]]
+    return "`(this commit)`"
 
 
 def stamp(path=None, write=True, cwd=None, known=None):
@@ -163,6 +183,14 @@ def stamp(path=None, write=True, cwd=None, known=None):
     # [[feedback-fixtures-never-touch-live-data]]
     known = version_commits(cwd) if known is None else known
     counts = {"bound": 0, "carried": 0, "pending": 0, "unknown": 0, "left": 0, "legacyFilled": 0}
+    if known is None:
+        # ⚠ REFUSE, LOUDLY. Writing anything here would record the state of a broken `git log`
+        # as the provenance of his ship history.
+        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,
+                               knownVersions=None),
+                "changed": [], "wrote": False,
+                "why": "git could not be asked for the version history, so NOTHING was written — "
+                       "this is UNMEASURED, not a table with no bindings"}
     changed = []
     span = table_region(src)
     if span is None:

@@ -67,52 +67,66 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": 'v2928 — hands back [] when nothing was READABLE, so a run where every width failed reads as a fan that kept its placement. None and [] are different answers.',
-        "file": "heart2.py",
-        "find": '    rep, reading, _threw, _unread = _fan_buckets(v)\n    if rep is None or not reading:\n        return None\n',
-        "replace": '    rep, reading, _threw, _unread = _fan_buckets(v)\n    if rep is None:\n        return None\n',
-        "matches": 1,
-    },
-    {
         "why": 'drops the width names, so a revert at 375x800 (where REG-928 says the collisions are worst) reaches the heart as an empty list. #53 is a per-width question.',
-        "file": "heart2.py",
+        "file": 'heart2.py',
         "find": '    return [w for w in reading if fan[w].get("reverted") is True]\n',
         "replace": '    return []\n',
         "matches": 1,
     },
     {
         "why": 'counts {error}/{unread}/{unparsed} shapes as readings, so five failed reads grade as five clean widths. A failure to read is not a reading.',
-        "file": "heart2.py",
+        "file": 'heart2.py',
         "find": '    if any(k in rec for k in ("error", "unread", "unparsed")):\n        return "unread"\n',
         "replace": '    if any(k in rec for k in ("error", "unread", "unparsed")):\n        return "reading"\n',
         "matches": 1,
     },
     {
         "why": 'drops the caveat, so a reading filed under a width ASSERTS the fan solved at that width. MEASURED: _hrtFanFit has one call site and the only resize listener calls _shellSizePane().',
-        "file": "heart2.py",
+        "file": 'heart2.py',
         "find": '    stale = (" (each reading names the width it was READ at; the fan solves once at open, so the "\n             "width it was SOLVED at is UNKNOWN)")\n',
         "replace": '    stale = ""\n',
         "matches": 1,
     },
     {
-        "why": "v2928/F1 — RESTORES THE SHIPPED DEFECT. control_ui.html writes {ok:false, threw:...} when _hrtFanFit raises; treating that as a reading makes a CRASH print 'the lock fan kept its placement'. The page's own catch exists to stop that collapse.",
-        "file": "heart2.py",
-        "find": '    if "ok" in rec:\n        return "threw"\n',
-        "replace": '    if "ok" in rec:\n        return "reading"\n',
-        "matches": 1,
-    },
-    {
-        "why": "v2928/F2 — lets a PRESENT BUT EMPTY heart-fan publish a measured 0 beside fanRevertedAt None: two different answers to 'did anybody measure'.",
-        "file": "heart2.py",
-        "find": '    if not isinstance(fan, dict) or not fan:\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [])\n',
-        "replace": '    if not isinstance(fan, dict):\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [])\n',
-        "matches": 1,
-    },
-    {
         "why": 'v2928/F3 — publishes the TOTAL count under the readable name, so a consumer dividing by it disagrees with the sentence printed beside it.',
-        "file": "heart2.py",
+        "file": 'heart2.py',
         "find": '            "fanWidthsReadable": _fan_counts(v)[1],\n',
         "replace": '            "fanWidthsReadable": _fan_counts(v)[0],\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2931/A — collapses a RAISE and a REFUSAL back into one state, so the heart tells the operator 'the solver FAILED' when the overlay merely opened before the SVG had layout. The page's own comment says the two need different fixes.",
+        "file": 'heart2.py',
+        "find": '    if "threw" in rec:\n        return "threw"\n',
+        "replace": '    if False:\n        return "threw"\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2931/B — drops the refusal sentence, so a solver that ran and declined is described only as 'no reading' and the timing/layout cause disappears from the one line a reader acts on.",
+        "file": 'heart2.py',
+        "find": '    if refused:\n        tail += (" · the solver RAN AND DECLINED at %d width(s) (%s) — ok:false with a reason, "\n                 "which is a timing or layout miss and not a crash"\n                 % (len(refused), ", ".join(refused)))\n',
+        "replace": '    if False:\n        tail += ""\n',
+        "matches": 1,
+    },
+    {
+        "why": 'hands back [] when nothing was READABLE, so a run where every width failed reads as a fan that kept its placement. None and [] are different answers. ⚠ re-anchored at v2931 when _fan_buckets gained a fifth bucket.',
+        "file": 'heart2.py',
+        "find": '    rep, reading, _threw, _unread, _refused = _fan_buckets(v)\n    if rep is None or not reading:\n        return None\n',
+        "replace": '    rep, reading, _threw, _unread, _refused = _fan_buckets(v)\n    if rep is None:\n        return None\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2928/F1 — RESTORES THE SHIPPED DEFECT: control_ui.html writes {ok:false, threw:...} when _hrtFanFit raises, and treating that as a reading makes a CRASH print 'the lock fan kept its placement'. ⚠ re-anchored at v2931.",
+        "file": 'heart2.py',
+        "find": '    if rec.get("ok") is True:\n        return "reading"\n',
+        "replace": '    if rec.get("ok") is not None:\n        return "reading"\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2928/F2 — lets a PRESENT BUT EMPTY heart-fan publish a measured 0 beside fanRevertedAt None: two different answers to 'did anybody measure'. ⚠ re-anchored at v2931.",
+        "file": 'heart2.py',
+        "find": '    if not isinstance(fan, dict) or not fan:\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [], [])\n',
+        "replace": '    if not isinstance(fan, dict):\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [], [])\n',
         "matches": 1,
     },
 ]
@@ -299,6 +313,28 @@ class TheHeartCanSeeTheSurfaces(unittest.TestCase):
                              "a crash is reported as a keep (%r): %r" % (shape, got.get("fanSay")))
             self.assertIn("UNMEASURED", got.get("fanSay") or "",
                           "a failed solve does not say UNMEASURED (%r): %r" % (shape, got.get("fanSay")))
+
+    def test_a_solver_that_DECLINED_is_not_reported_as_one_that_CRASHED(self):
+        """⚠ v2928 fixed the keep-lie and introduced a diagnosis-lie in the same breath, caught by
+        the cross-family eye one ship later. control_ui.html writes `{ok:false, threw:"..."}` when
+        `_hrtFanFit` RAISES, and `{ok:false, why:"the fan has no layout yet"}` when the solver RAN
+        and declined — a timing or layout miss. v2928's rule was "ok present and not True ->
+        threw", so the heart told the operator THE SOLVER FAILED for a layout miss. The page's own
+        comment says the two need different fixes. [[label-outlived-referent]]"""
+        crash = self._verdict({"reports": {"heart-fan": {
+            "375x800": {"ok": False, "threw": "TypeError: x is null"}}}})
+        decline = self._verdict({"reports": {"heart-fan": {
+            "375x800": {"ok": False, "reverted": False, "why": "the fan has no layout yet"}}}})
+        for g in (crash, decline):
+            self.assertIsNone(g.get("fanRevertedAt"),
+                              "neither shape produced a placement, so neither may report one")
+        self.assertNotEqual(crash.get("fanSay"), decline.get("fanSay"),
+                            "a crash and a refusal print the SAME sentence, so the operator gets "
+                            "the wrong diagnosis for a layout miss: %r" % crash.get("fanSay"))
+        self.assertIn("FAILED", crash.get("fanSay") or "",
+                      "a raise is not named as a failure: %r" % crash.get("fanSay"))
+        self.assertIn("DECLINED", decline.get("fanSay") or "",
+                      "a refusal is not named as one: %r" % decline.get("fanSay"))
 
     def test_an_EMPTY_fan_report_publishes_no_fabricated_zero(self):
         """⚠ `heart-fan` PRESENT AND EMPTY published `fanWidths: 0` beside `fanRevertedAt: None` —

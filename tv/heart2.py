@@ -154,8 +154,18 @@ def _fan_state(rec):
         return "unread"
     if rec.get("ok") is True:
         return "reading"
-    if "ok" in rec:
+    # ⚠⚠ v2931 — A CRASH AND A REFUSAL ARE DIFFERENT ANSWERS, and v2928 printed one sentence for
+    # both. control_ui.html writes `{ok:false, threw:"..."}` when `_hrtFanFit` RAISES, and
+    # `{ok:false, why:"the fan has no layout yet"}` when the solver RAN and declined — a timing or
+    # layout miss, not an exception. v2928's rule was "ok present and not True -> threw", so the
+    # heart told the operator THE SOLVER FAILED for what is really "the overlay opened before the
+    # SVG had layout". The page's own comment says the two need different fixes.
+    # Caught by the cross-family eye on v2928, one ship after it fixed the keep-lie.
+    # [[unknown-stays-unknown]] [[label-outlived-referent]]
+    if "threw" in rec:
         return "threw"
+    if "ok" in rec:
+        return "refused"
     return "unread"
 
 
@@ -167,12 +177,15 @@ def _fan_buckets(v):
         # isinstance guard already caught two of its three cases, but the third — `heart-fan`
         # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two
         # different answers to "did anybody measure". `not fan` closes it for good.
-        return (None, [], [], [])
+        return (None, [], [], [], [])
     rep = sorted(fan)
     by = {}
     for w in rep:
         by.setdefault(_fan_state(fan[w]), []).append(w)
-    return (rep, by.get("reading", []), by.get("threw", []), by.get("unread", []))
+    # ⚠ a REFUSAL rides with unread, not with threw: neither produced a placement, but only one
+    # of them is a bug in the solver. `_fan_say` names them separately.
+    return (rep, by.get("reading", []), by.get("threw", []),
+            by.get("unread", []), by.get("refused", []))
 
 
 def _fan_reverted(v):
@@ -182,7 +195,7 @@ def _fan_reverted(v):
     means no width produced a reading at all — absent, empty, failed, or thrown.
     Collapsing them is how #53 would read solved. [[unknown-stays-unknown]]
     """
-    rep, reading, _threw, _unread = _fan_buckets(v)
+    rep, reading, _threw, _unread, _refused = _fan_buckets(v)
     if rep is None or not reading:
         return None
     fan = v["reports"]["heart-fan"]
@@ -190,8 +203,15 @@ def _fan_reverted(v):
 
 
 def _fan_counts(v):
-    """(reported, readable) — None when nothing was measured, never 0. -> tuple"""
-    rep, reading, _t, _u = _fan_buckets(v)
+    """(reported, readable) — None when NOTHING WAS REPORTED; readable may legitimately be 0. -> tuple
+
+    ⚠ v2931 — the v2928 docstring said "never 0" and the body returns 0 whenever heart-fan
+    reported widths and none of them produced a reading. The eye judged it right: the published 0
+    is the correct unknown-stays-unknown answer (widths WERE looked at, none was readable) and the
+    DOCSTRING was the lie. A caller writing `readable or fallback` on the strength of that sentence
+    would treat a measured zero as missing. [[label-outlived-referent]]
+    """
+    rep, reading, _t, _u, _r = _fan_buckets(v)
     return (None if rep is None else len(rep), None if rep is None else len(reading))
 
 
@@ -211,7 +231,7 @@ def _fan_say(v):
     if not isinstance(v.get("reports"), dict):
         return ("whether the heart's lock fan kept or reverted its placement is UNKNOWN — this "
                 "render verdict predates the per-width report tap, so nothing here measured it")
-    rep, reading, threw, unread = _fan_buckets(v)
+    rep, reading, threw, unread, refused = _fan_buckets(v)
     if rep is None:
         return ("whether the lock fan kept or reverted is UNKNOWN — heart-fan handed back no "
                 "reading in the last render, which is not the same as a clean one")
@@ -224,6 +244,10 @@ def _fan_say(v):
     if threw:
         tail += (" · the solver FAILED at %d width(s) (%s) — ok:false, which is not a placement"
                  % (len(threw), ", ".join(threw)))
+    if refused:
+        tail += (" · the solver RAN AND DECLINED at %d width(s) (%s) — ok:false with a reason, "
+                 "which is a timing or layout miss and not a crash"
+                 % (len(refused), ", ".join(refused)))
     if unread:
         tail += " · %d width(s) handed back no reading (%s)" % (len(unread), ", ".join(unread))
     if not reading:

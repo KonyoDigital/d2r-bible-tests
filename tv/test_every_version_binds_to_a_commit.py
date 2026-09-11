@@ -120,10 +120,19 @@ class EveryVersionBindsToACommit(unittest.TestCase):
             got = io.open(p, encoding="utf-8").read()
         finally:
             os.unlink(p)
+        # ⚠⚠ ASSERT ON THE STATE, NOT THE CELL. The first cut read the file and came back BLIND:
+        # since v2931 an UNKNOWN row also keeps `(this commit)`, so pending and unknown are
+        # byte-identical on disk and the law could not tell which row had been called newest.
+        # The drill caught it. [[sabotage-is-usually-the-wrong-one]]
+        states = {v: st for v, st, _sha in r["changed"]}
+        self.assertEqual("pending", states.get("v9003"),
+                         "v9003 is the highest version and must be the pending one; states=%r"
+                         % (states,))
+        self.assertEqual("unknown", states.get("v9001"),
+                         "v9001 is not the newest and must not be treated as pending; states=%r"
+                         % (states,))
         self.assertEqual(1, r["counts"]["pending"],
                          "%r — the newest row was not identified by number" % (r["counts"],))
-        self.assertIn("| **v9003** | `(this commit)`", got,
-                      "v9003 is the highest version and should be the pending one:\n%s" % got)
 
     def test_a_cell_that_ALREADY_names_a_commit_is_never_rewritten(self):
         """⚠⚠ THE LAUNDERING GUARD. A backfill that can overwrite an existing SHA is a backfill
@@ -174,24 +183,46 @@ class EveryVersionBindsToACommit(unittest.TestCase):
                          "the table reader saw %d rows before the stamp and %d after — the "
                          "instrument cannot re-read its own output" % (before, after))
 
-    def test_a_version_that_binds_to_NOTHING_reads_UNKNOWN_and_not_a_guess(self):
-        """★ An unbindable row must say so. Inventing the nearest SHA is worse than a blank,
-        because a wrong provenance is acted on and a blank is questioned."""
-        # ⚠ TWO ROWS ON PURPOSE. The first cut used one, and it failed — correctly: a single-row
-        # table's only row IS the newest, so `pending` is the right answer and the fixture was
-        # asking the wrong question. The law is about an OLDER row that binds to nothing.
-        # [[sabotage-is-usually-the-wrong-one]] — the same lesson, arriving through a red law.
+    def test_a_version_that_binds_to_NOTHING_keeps_the_literal_and_is_REPORTED(self):
+        """★ An unbindable row must not be stamped UNKNOWN. That looks more honest and is strictly
+        worse: stamp() never overwrites a non-literal cell, so a row that simply has not been
+        COMMITTED yet — three bumps batched before a commit, the documented workflow — would be
+        frozen as UNKNOWN forever, and the rule protecting real provenance is what keeps the lie.
+        Raised by the cross-family eye on v2927. The count is still reported and --audit exits 1."""
         p = _table([("v9002", "`(this commit)`"), ("v9001", "`(this commit)`")])
         try:
-            r = SV.stamp(path=p, known={})          # nothing known at all
+            r = SV.stamp(path=p, known={})          # git answered; it simply knows nothing
             got = io.open(p, encoding="utf-8").read()
         finally:
             os.unlink(p)
-        self.assertEqual(1, r["counts"]["pending"],
-                         "the NEWEST row must stay `(this commit)` — its commit does not exist "
-                         "yet, and that is honest: %r" % (r["counts"],))
-        self.assertEqual(1, r["counts"]["unknown"], "an unbindable row was bound anyway: %r" % (r["counts"],))
-        self.assertIn("UNKNOWN", got, "the unbindable row does not say UNKNOWN:\n%s" % got)
+        self.assertEqual(1, r["counts"]["pending"], "%r" % (r["counts"],))
+        self.assertEqual(1, r["counts"]["unknown"], "an unbindable row was bound anyway: %r"
+                         % (r["counts"],))
+        self.assertNotIn("UNKNOWN", got,
+                         "an unresolvable row was STAMPED unknown, which never-overwrite then "
+                         "makes permanent:\n%s" % got)
+
+    def test_an_UNREADABLE_git_writes_NOTHING_at_all(self):
+        """⚠⚠ THE TOOL LAUNDERED AN INSTRUMENT FAILURE INTO DATA, in the function whose own
+        docstring forbids it. MEASURED: in a directory with no history, `version_commits()`
+        returned `{}` — indistinguishable from a real empty answer — every row resolved UNKNOWN,
+        and the tool WROTE `(UNKNOWN — ...)` over the honest `(this commit)`.
+        `{}` and None are different answers. [[unknown-stays-unknown]]"""
+        d = tempfile.mkdtemp()
+        self.assertIsNone(SV.version_commits(d),
+                          "a git that cannot be asked returned a dict, which reads as a real "
+                          "answer meaning 'no versions exist'")
+        p = os.path.join(d, "T.md")
+        io.open(p, "w", encoding="utf-8").write(
+            SV.TABLE_HEAD + "\n|---|---|---|\n| **v9002** | `(this commit)` | n |\n"
+            "| **v9001** | `(this commit)` | n |\n")
+        before = io.open(p, encoding="utf-8").read()
+        r = SV.stamp(path=p, cwd=d)
+        self.assertFalse(r["wrote"], "the tool wrote to the table with a broken instrument")
+        self.assertEqual(before, io.open(p, encoding="utf-8").read(),
+                         "the table changed although git could not be read")
+        self.assertIn("UNMEASURED", r.get("why") or "",
+                      "the refusal does not say it is unmeasured: %r" % r.get("why"))
 
     def test_bump_version_actually_CALLS_the_stamper(self):
         """⚠ THE JOIN. A backfill nobody runs is the same grave in a better location — and this
@@ -254,13 +285,6 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": 'turns an unbindable row into a silent blank instead of an UNKNOWN, so a version with no provenance renders exactly like one that was never checked.',
-        "file": 'stamp_versions.py',
-        "find": '    return "`(UNKNOWN — %s)`" % why\n',
-        "replace": '    return "``"\n',
-        "matches": 1,
-    },
-    {
         "why": 'unjoins the stamper from the bump, which is exactly the state the table was in for 249 versions: a correct tool nothing ever ran.',
         "file": 'bump_version.py',
         "find": '            import stamp_versions as _sv\n',
@@ -286,6 +310,27 @@ RED_PROOF = [
         "file": 'bump_version.py',
         "find": '        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            if _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n',
         "replace": '        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            if _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2931/C — a non-zero `git log` becomes an EMPTY answer again, indistinguishable from 'this repo has no versions' — an instrument failure read as a measurement.",
+        "file": 'stamp_versions.py',
+        "find": '    if r.returncode != 0:\n        return None\n',
+        "replace": '    if False:\n        return None\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2931/D — lets the tool WRITE with a broken instrument, recording the state of a failed `git log` as the provenance of the ship history.',
+        "file": 'stamp_versions.py',
+        "find": '    if known is None:\n        # ⚠ REFUSE, LOUDLY. Writing anything here would record the state of a broken `git log`\n        # as the provenance of his ship history.\n        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,\n                               knownVersions=None),\n                "changed": [], "wrote": False,\n                "why": "git could not be asked for the version history, so NOTHING was written — "\n                       "this is UNMEASURED, not a table with no bindings"}\n',
+        "replace": '    if False:\n        return None\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2931/E — stamps an unresolvable row UNKNOWN; never-overwrite then makes it permanent, so a version merely waiting to be committed is frozen as unknown forever.',
+        "file": 'stamp_versions.py',
+        "find": '    # ⚠⚠ v2931 — AN UNKNOWN ROW KEEPS `(this commit)` RATHER THAN BEING STAMPED UNKNOWN.\n    # Writing UNKNOWN looks more honest and is strictly worse: `stamp()` never overwrites a cell\n    # that is not the literal, so a row that simply has not been committed YET — three bumps\n    # batched before a commit, which is the documented workflow — would be frozen as UNKNOWN\n    # forever, and the one rule that protects real provenance would be what keeps the lie.\n    # The count is still reported, and --audit still exits 1. [[unknown-stays-unknown]]\n    return "`(this commit)`"\n',
+        "replace": '    return "`(UNKNOWN — %s)`" % why\n',
         "matches": 1,
     },
 ]

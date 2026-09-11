@@ -29613,6 +29613,49 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-936 — an instrument failure written down as a measurement, in the tool that forbids it
+
+**v2931.** Both findings from the cross-family eye, on v2927 and v2928, reproduced before acting.
+
+**1 — a broken `git log` became data (HIGH).** `version_commits()` returned `{}` on failure, which is
+indistinguishable from "git answered and this repo has no versions". Every row then resolved UNKNOWN
+and the tool **wrote** `(UNKNOWN — …)` over the honest `(this commit)`. MEASURED in a directory with
+no history: the second row came back stamped UNKNOWN. That is the tool whose own docstring says it
+*must never launder a wrong answer* doing exactly that. Now `None` on failure, and `stamp()` refuses
+to write anything at all, saying UNMEASURED out loud.
+
+**2 — and the never-overwrite rule would have made it permanent.** An unresolvable row is no longer
+stamped UNKNOWN; it keeps `(this commit)`. Stamping it looks more honest and is strictly worse: since
+`stamp()` never overwrites a non-literal cell, a version merely waiting to be committed — three
+bumps batched before a commit, the documented workflow — would be **frozen as UNKNOWN forever**, and
+the one rule that protects real provenance is what would keep the lie. The count is still reported
+and `--audit` still exits 1.
+
+**3 — a solver that DECLINED was reported as one that CRASHED (MEDIUM).** v2928 fixed the keep-lie
+and introduced a diagnosis-lie in the same breath. `control_ui.html` writes `{ok:false, threw:"…"}`
+when `_hrtFanFit` raises, and `{ok:false, why:"the fan has no layout yet"}` when the solver ran and
+declined. v2928's rule was "`ok` present and not `True` → threw", so the heart told the operator
+**the solver FAILED** for what is a timing or layout miss. The page's own comment says the two need
+different fixes. `_fan_state` now returns `refused` separately and `_fan_say` names it.
+
+**4 — the docstring was the lie, not the code (LOW).** `_fan_counts` said "None when nothing was
+measured, never 0" while returning 0 when widths reported and none was readable. The eye judged it
+correctly: the published `0` is the right answer — widths *were* looked at — and the sentence above
+it was wrong. Corrected.
+
+**Gates:** `test_the_heart_can_see_the_surfaces` 16 laws / **13 red-proofs**, and
+`test_every_version_binds_to_a_commit` 9 laws / **10 red-proofs**. **23/23 PROVEN, one match each.**
+
+⚠ **Three proofs were silently dropped as stale and I nearly let them go.** Widening `_fan_buckets`
+to five buckets stranded three v2928 anchors; my rebuild script reported them as dropped and carried
+on. Their **laws still existed** — so accepting the drop would have left three laws unproven while
+the run printed a clean count. Re-anchored, all three PROVEN.
+
+⚠ **And one came back BLIND for a reason v2931 itself created:** now that an unknown row keeps
+`(this commit)`, pending and unknown are byte-identical on disk, so the newest-by-number law could no
+longer tell them apart by reading the file. It now asserts on the returned STATE. **Seventh wrong
+sabotage this session, all seven found by the drill.**
+
 ## REG-935 — the backfill ran, was correct, and was overwritten in the same breath
 
 **v2930.** The join I shipped in v2927 never worked in production, and my own law said it did.

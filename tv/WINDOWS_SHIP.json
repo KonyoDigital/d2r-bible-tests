@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2930",
+  "ver": "v2931",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2930: --note v2929 inserted a SHA cell into 50 rows of a different table; v2927 had been right to skip them",
+  "note": "v2931: --note a historyless git returned an empty answer and the tool stamped UNKNOWN over honest cells; and a solver that declined was reported as one that crashed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
