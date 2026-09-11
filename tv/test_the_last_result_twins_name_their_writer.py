@@ -52,13 +52,18 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
              # v2974 — the bank of UNGROUNDED sightings kept so a LATER session can corroborate
              # them. A row written under an older grounding rule is exactly what a future sweep
              # must be able to re-judge, and without a producer it cannot.
-             ("vault_seen", "def vault_seen_save(unsure_rows):", "return len(rows)"))
+             ("vault_seen", "def vault_seen_save(unsure_rows):", "return len(rows)"),
+             # v2975 — the chronicle's banked PROPOSAL. Stamps a COPY: provenance.stamp() returns a
+             # new dict, so the caller's live `prop` never gains a key that travels to other
+             # readers. Its `_doc` name differs from the source `prop`, which is why the regex
+             # above grades `by=` rather than a variable spelling.
+             ("chron_evidence", "def _chron_evidence_save", "os.replace(tmp, _CHRON_EVIDENCE_PATH)"))
 
     def test_each_twin_stamps_the_blob_it_writes(self):
         for store, start, end in self.CASES:
             body = _body(self, start, end, store)
-            m = re.search(r"(?:payload|cur|_payload)\s*=\s*_PV\.stamp\("
-                          r"\s*(?:payload|cur|_payload)\s*,\s*by\s*=\s*[\"']([\w.]+)[\"']",
+            m = re.search(r"\w+\s*=\s*_PV\.stamp\("
+                          r"\s*\w+\s*,\s*by\s*=\s*[\"']([\w.]+)[\"']",
                           body)
             self.assertIsNotNone(
                 m, "%s is written without a provenance stamp, so a result persisted by an older "
@@ -101,6 +106,14 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "un-stamping the chronicle's banked evidence leaves a proposal that cannot be "
+               "re-judged when the gate improves - the same defect retro_triage had over 437 rows",
+        "file": "control_app.py",
+        "find": '            _doc = _PV.stamp(prop, by="control_app", extra={"store": "chron_evidence"})\n',
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "un-stamping the vault-seen bank leaves ungrounded sightings nobody can attribute - "
                "a row banked under an older grounding rule reads exactly like one banked today, "

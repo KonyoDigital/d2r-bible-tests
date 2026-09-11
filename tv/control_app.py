@@ -22442,9 +22442,26 @@ def _chron_evidence_save(prop):
         # that was mangled on the way in, which is the exact failure v1799/v1800/v1801 spent three
         # versions making visible. Silence is not evidence — and neither is a rescue that reports
         # success. [[feedback-suspect-the-instrument]] [[inherited-claim-is-not-evidence]]
+        # ⚠⚠ v2975 (#69) — WHAT PRODUCED THIS EVIDENCE. chron_evidence.json was SILENT in the
+        # 2026-09-11 census. It is the chronicle's banked PROPOSAL, and a proposal written
+        # under an older gate cannot be re-judged when the gate improves unless it says who
+        # wrote it — the same reason retro_triage needed one (REG-971).
+        # ⚠ STAMP A COPY, NEVER THE CALLER'S OBJECT. Verified: provenance.stamp() returns a
+        # NEW dict and leaves its input untouched, so `prop` does not gain a key that would
+        # travel back to every other reader of the live proposal.
+        # ⚠ AND IT MUST NOT RESCUE AN UNSERIALISABLE PROPOSAL. This function deliberately
+        # lets json.dump RAISE so a mangled proposal is reported NOT SAVED — v1799/v1800/
+        # v1801 spent three versions making that visible. The stamp is added OUTSIDE the
+        # try that would swallow it, so a payload that cannot serialise still fails loudly.
+        _doc = prop
+        try:
+            import provenance as _PV
+            _doc = _PV.stamp(prop, by="control_app", extra={"store": "chron_evidence"})
+        except Exception:
+            _doc = prop
         tmp = _CHRON_EVIDENCE_PATH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(prop, fh)
+            json.dump(_doc, fh)
         os.replace(tmp, _CHRON_EVIDENCE_PATH)
         _CHRON_EVIDENCE_WRITES += 1
         _CHRON_EVIDENCE_LAST_OK = True
@@ -26388,7 +26405,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2974",
+        "ver": "v2975",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

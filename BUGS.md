@@ -31700,6 +31700,39 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-978 - the chronicle's banked proposal could not be re-judged when the gate improves (task #69 - v2975)
+
+`chron_evidence.json` was SILENT. It is the chronicle's banked PROPOSAL, so a proposal written under
+an OLDER gate is exactly what a later, better gate must be able to re-judge - and with no producer
+it cannot be told from one written today. Same shape of harm as retro_triage over 437 rows (REG-971).
+
+**TWO CONTRACTS HAD TO SURVIVE THE STAMP, AND BOTH WERE VERIFIED RATHER THAN ASSUMED:**
+
+1. **The caller's object must not gain a key.** `_chron_evidence_save` is handed the LIVE proposal.
+   Measured first: `provenance.stamp()` returns a NEW dict and leaves its input untouched, so the
+   stamp goes on a copy and `prop` never carries `_prov` back to its other readers.
+
+        on disk keys   ['_prov', 'sets', 'uniques']    by='control_app'
+        caller's prop  ['sets', 'uniques']             untouched=True
+
+2. **An unserialisable proposal must STILL FAIL LOUDLY.** This function deliberately lets
+   `json.dump` raise so a mangled proposal is reported NOT SAVED - v1799/v1800/v1801 spent three
+   versions making that visible, and its own comment says *"a rescue that reports success"* is the
+   defect. The stamp is swallowed but the DUMP is not, so:
+
+        unserialisable proposal -> saved=False, "chronicle evidence NOT saved (Object of type set
+        is not JSON serializable)"
+
+⚠ **THE LAW STOPPED NEEDING A HAND-KEPT ALTERNATION.** Its regex had grown
+`(?:payload|cur|_payload)` one store at a time, and chron_evidence would have needed a fourth -
+except its target and source names DIFFER (`_doc = _PV.stamp(prop, …)`), so a backreference would
+have been wrong too. The law now grades `by=` and accepts any variable pair, because the variable's
+spelling was never what it cared about. A guard that needs editing for every new subject is a guard
+that will eventually be edited wrong. [[copy-drift]]
+
+Five stores now graded through ONE table. Five tampers PROVEN red, 1 match each.
+**#69: 16 SILENT -> 9.**
+
 ## REG-977 - the bank of UNGROUNDED sightings could not say what produced it (task #69 - v2974)
 
 `vault_seen.json` was SILENT. It holds sightings that did NOT ground, kept deliberately so a LATER
