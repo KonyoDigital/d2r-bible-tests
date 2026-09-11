@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2922** | `(this commit)` | v2922 — the dependency law counted its own calls so an unreachable binding reads UNKNOWN instead of an accusation |
 | **v2921** | `(this commit)` | v2921 — break the thing depended on and watch the dependent fail: the join law now runs under an inverted console |
 | **v2920** | `(this commit)` | v2920 — the suite never imported control_app and the one dangerous record was untested |
 | **v2919** | `(this commit)` | v2919 — deleted: the existing sweeper matches the console 5 of 5 and mine missed by 3 |

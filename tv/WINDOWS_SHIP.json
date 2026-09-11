@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2921",
+  "ver": "v2922",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2921: break the thing depended on and watch the dependent fail: the join law now runs under an inverted console",
+  "note": "v2922: the dependency law counted its own calls so an unreachable binding reads UNKNOWN instead of an accusation",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

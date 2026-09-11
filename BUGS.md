@@ -29587,6 +29587,40 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-926 — "I could not tell" is not "I caught a copy"
+
+**v2922.** The cross-family eye validated v2921's dependency law as correct — it traced the
+inversion, the join method, the `finally` restore — and then found the one shape it still gets
+wrong, which is the same shape the law exists to police.
+
+If the join is refactored to a **module-level** `from control_app import board_identity_drift`, the
+name binds at import time. Patching the module attribute is then never seen, the join stays green
+under an inverted console, and v2921's law concluded *"it is comparing against a copy of the
+console's rule"* — **a false accusation against a genuine join**. The AST counter this replaced went
+red on that same refactor. Failing it a second way is no improvement.
+
+**The patched function now COUNTS ITS OWN CALLS**, and the two outcomes are reported as different
+facts. Both verified by simulation:
+
+    decoy — call kept, answer discarded, rule transcribed
+      -> RED: "it DID call the patched function 6 time(s) — so it is consulting the console and
+               then ignoring the answer: a copy of the rule."
+
+    TRUE module-level binding (a correct join this law cannot reach)
+      -> RED: "the join never called the patched board_identity_drift, so this law cannot tell a
+               transcribed copy from a correct module-level import. UNKNOWN, not a pass."
+
+Both refuse — neither is a *proven* join — but only one is called a copy. [[unknown-stays-unknown]]
+
+⚠ The mock also takes `*args, **kwargs` now. A stub stricter than the real signature fails for its
+own reasons, and this repo has paid for that shape before. [[feedback-suspect-the-instrument]]
+
+⚠ **AND MY FIRST ATTEMPT TO VERIFY THIS WAS THE WRONG INSTRUMENT.** I simulated the module-level
+import by binding `_REAL_DRIFT` INSIDE the join method — which runs after the patch, so it captured
+the patched function, the law passed, and I nearly recorded "arm 2 unverified" as a property of the
+law rather than of my test. Binding it at true module scope produced the real scenario.
+[[feedback-suspect-the-instrument]] [[zero-needs-a-denominator]]
+
 ## REG-925 — a token-counter cannot prove a dependency, and my first two tries at fixing it were hollow too
 
 **v2921.** Found by the cross-family eye on v2920 — the version whose whole point was replacing a

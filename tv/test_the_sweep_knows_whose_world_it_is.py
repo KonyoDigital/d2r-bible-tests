@@ -200,19 +200,42 @@ class TestTheSweepKnowsWhoseWorldItIs(unittest.TestCase):
         """
         import control_app as ca
         orig = ca.board_identity_drift
-        # every record answered with the OPPOSITE of what the console would say
-        def _inverted():
-            real = orig()
+        seen = []
+
+        # ⚠ *args/**kwargs: a mock that is stricter than the real signature fails for its own
+        # reasons, and this repo has paid for that shape before. [[feedback-suspect-the-instrument]]
+        def _inverted(*_a, **_kw):
+            seen.append(1)
+            real = orig(*_a, **_kw)
             return {"state": ("ok" if real.get("state") == "drift" else "drift"),
                     "why": "inverted by the dependency law"}
         try:
             ca.board_identity_drift = _inverted
-            with self.assertRaises(AssertionError, msg=(
-                    "the join law stayed GREEN with the console inverted — it is comparing against "
-                    "a copy of the console's rule, not against the console")):
+            try:
                 self.test_the_sweeper_and_the_CONSOLE_agree_on_every_record_the_writer_can_emit()
+            except AssertionError:
+                caught = True
+            else:
+                caught = False
         finally:
             ca.board_identity_drift = orig
+
+        # ⚠⚠ "I COULD NOT TELL" IS NOT "I CAUGHT A COPY", and conflating them is how this law would
+        # accuse a correct join. Found by the cross-family eye on v2921: if the join is refactored
+        # to a MODULE-LEVEL `from control_app import board_identity_drift`, the name binds at import
+        # time, this attribute patch is never seen, and the join stays green — while still being a
+        # genuine join. The AST counter this replaced went red on that same refactor; failing it a
+        # second way would be no better. So the patched function COUNTS ITS OWN CALLS, and a join
+        # that never reached it is UNKNOWN. [[unknown-stays-unknown]] [[source-reading-guard]]
+        self.assertTrue(seen,
+                        "the join never called the patched board_identity_drift, so this law "
+                        "cannot tell a transcribed copy from a correct module-level import. "
+                        "UNKNOWN, not a pass — bind the console inside the join method, or teach "
+                        "this law how the new binding works.")
+        self.assertTrue(caught,
+                        "the join law stayed GREEN with the console inverted, and it DID call the "
+                        "patched function %d time(s) — so it is consulting the console and then "
+                        "ignoring the answer: a copy of the rule." % len(seen))
         self.assertIs(ca.board_identity_drift, orig,
                       "the console function was not restored — this law would poison every law "
                       "that runs after it")
