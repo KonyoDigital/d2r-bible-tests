@@ -29587,6 +29587,57 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-932 — 249 of 278 version rows could not name the commit that shipped them
+
+**v2927.** Raised by **Grok Bot three ticks running** (GB-B-403/404/405) as a refutable claim:
+*"a next model restoring status from the version table alone will not bind v2924 to `d2ec0fcd`"*.
+It was right, and the true scope was larger than it said.
+
+**MEASURED 2026-09-11:** the `TASKS.md` version table held **278 rows; 249 carried the literal
+`(this commit)`** and only 29 carried a SHA. `bump_version.py` writes that literal because at bump
+time the commit does not exist yet — and nothing ever came back to fill it in. **89% of the ship
+history was unbindable.** This is precisely the failure `CLAUDE.md` §3 was written after: a list
+that survives only in a session is not a list.
+
+**⚠ The authority is the STAMP, not the subject line.** A commit subject can mention a version it
+does not ship ("v2924 was wrong, fixed in v2925"), so binding on subjects invents provenance. The
+backfill binds on the commit whose diff **added `VERSION = "vNNNN"` to `tv/tv_diablo.py`** — the
+first of the four stamps, and what a `vNNNN` label is defined to mean.
+
+**⚠⚠ Three honest states, not two.** Versions are batched 3–4 per push on purpose, so an
+intermediate version's VERSION line never appears alone in any commit:
+
+| state | n | meaning |
+|---|---|---|
+| **bound** | 230 | its own VERSION stamp landed in that commit — exact |
+| **carried** | 19 | shipped *inside* the commit stamping the next version up; the cell says so |
+| **pending** | 1 | the newest row, whose commit does not exist yet — honest as `(this commit)` |
+| **UNKNOWN** | 0 | binds to nothing; says so rather than guessing |
+
+Calling a carried version "bound" asserts a precision that does not exist; calling it unknown throws
+away a fact that does. Verified on all 19: each has a next-stamped version within a few, and 12 of
+19 subjects name it outright.
+
+**New:** `tv/stamp_versions.py` (one `git log -p` call, not 249 subprocesses), wired into
+`bump_version.py` so it cannot bleed again, and it **only ever replaces the literal** — a cell
+already naming a commit is untouchable, because a backfill that can overwrite is one that can
+launder a wrong answer. **Gate:** `test_every_version_binds_to_a_commit`, **5/5 red-proofs PROVEN.**
+
+**⚠ TWO DEFECTS THE TOOL FOUND IN ITSELF, both kept as laws:**
+
+1. **Its own audit could not re-read its own output.** The first `ROW` regex required a cell to END
+   at its closing backtick, so the moment it wrote a carried row (`` `sha` (in the vNNNN commit) ``)
+   the reader stopped matching it: **the stamp run counted 278 rows and the audit that followed
+   counted 259**, with nothing said about the 19 that vanished. A shrinking denominator with no
+   author. [[zero-needs-a-denominator]]
+2. **The headline law was stricter than the truth.** It demanded ZERO `(this commit)` and went red
+   the instant v2927 was bumped — the LAW was wrong, not the table. Corrected to *at most one, and
+   it must be the newest*, which is also strictly stronger: it now catches an OLD row losing its
+   binding, which the zero-check would have conflated with the pending row.
+
+⚠ The headline law reads a DATA file, so no source tamper can turn it red — it is carried by the
+five proofs on the code, and that limit is stated rather than papered over.
+
 ## REG-931 — the tick's bare `rm -f tv/.board_identity.json`, run a second time (operational)
 
 **2026-09-11. Not a code defect — mine.** The loop's step 4 says `rm -f tv/.board_identity.json`

@@ -283,6 +283,24 @@ def _record_ship_in_tasks(ver, name, note):
             print("   \u26a0 TASKS.md ship table not found - record %s by hand" % ver)
             return
         row = "| **%s** | `(this commit)` | %s \u2014 %s |\n" % (ver, ver, (note or name or "").strip())
+        # ⚠⚠ AND BACKFILL EVERY EARLIER ROW WHILE WE ARE HERE. This literal is honest for the row
+        # being written — at bump time the commit genuinely does not exist — but nothing ever came
+        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a
+        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).
+        # The previous version's commit DOES exist by now, so every row but the newest can be
+        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        try:
+            import stamp_versions as _sv
+            _r = _sv.stamp()
+            _c = _r["counts"]
+            if _c["bound"] or _c["carried"] or _c["unknown"]:
+                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"
+                      % (_c["bound"], _c["carried"], _c["unknown"]))
+        except Exception as _e:
+            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound
+            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]
+            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"
+                  % type(_e).__name__)
         io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))
         print("   recorded %s in TASKS.md" % ver)
     except Exception as e:

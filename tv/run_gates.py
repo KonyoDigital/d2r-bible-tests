@@ -2512,6 +2512,17 @@ GATES = [
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
     # #72 — the ratchet was correct and NOT CONSULTED on a subset run, and its floor was stale.
+    Gate("test_every_version_binds_to_a_commit",
+         [sys.executable, os.path.join(HERE, "test_every_version_binds_to_a_commit.py")], 120,
+         why="v2927 — MEASURED: 249 of 278 rows in the TASKS.md version table carried the literal "
+             "`(this commit)`, so 89% of the ship history could not bind a version to a commit. "
+             "Grok Bot raised it three ticks running (GB-B-403/404/405) and was right. The "
+             "backfill binds on the commit whose diff ADDED the VERSION stamp — never on a subject "
+             "line, which can mention a version it does not ship. Three honest states: bound (230), "
+             "carried (19, a batched intermediate that shipped inside the next stamped commit), "
+             "and UNKNOWN. Proven red five ways, including the narrow-regex defect the tool "
+             "shipped and caught on itself.",
+         skip_ok=()),
     Gate("test_a_target_can_hand_back_its_own_verdict",
          [sys.executable, os.path.join(HERE, "test_a_target_can_hand_back_its_own_verdict.py")], 120,
          needs_app=False,

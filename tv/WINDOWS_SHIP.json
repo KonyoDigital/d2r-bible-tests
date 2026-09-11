@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2926",
+  "ver": "v2927",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2926: --note reports was written by v2924 and heart2 contained fanfit zero times; the fan could revert at every photographed width and every supervisor still read OK",
+  "note": "v2927: --note 249 of 278 version rows read (this commit); Grok Bot raised it three ticks running and was right",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
