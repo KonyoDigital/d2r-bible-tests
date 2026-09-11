@@ -31638,3 +31638,34 @@ one, and 16 successes buy only 0.806". ⚠ The next step is NOT to add easy atta
 A1/A2 both LAND, so recording them honestly moves 16/16 to 16/18 and LOWERS the bound before it
 raises it. That is what cross-family evidence is for — an outside family found holes the inside
 family's attacks missed — and the score should say so.
+
+## REG-962 — the coverage ratchet refused the fix, and it was right to (v2959)
+
+v2958 removed the last BLIND instrument. The next push was then BLOCKED:
+
+    🔴 coverage heart      measured 92 node(s), was 93.
+    🔴 coverage heart-fan  measured 275 node(s), was 278.
+    (every target that ran rendered cleanly — it is the set of surfaces that shrank)
+
+**The node loss IS the fix landing.** `control_ui.html:12555` renders one `.hrt-row` per blind
+instrument. `heart`'s selector is `.hrt-h, .hrt-row`, so losing that row is exactly **−1**;
+`heart-fan` covers more classes on the same row, exactly **−3**. Both deltas accounted for. The
+census confirms it: `blind: []`, `unproven: 0`, `state: WATCHED` — it was DARK.
+
+⚠ **`--bless` REFUSED TO LOWER THEM, AND THAT IS THE DESIGN.** *"a floor may only RISE… If that loss
+is deliberate, lower it by hand and say why in the commit… In a green run a silent drop reads
+exactly like clean, which is how the `console` target went 3/3 -> 2/2 unnoticed."* So a bless cannot
+quietly absorb a regression; a deliberate lowering costs a human sentence. Lowered by hand, and the
+script asserted each floor was exactly its expected old value first — it could not lower blind.
+
+`--bless` did legitimately RAISE `heart-stored` 9 → 18 on the same full clean run: v2954's clauses
+genuinely added nodes, and that floor had been stale by 12 with 60 nodes of slack across five
+widths.
+
+### What I checked before touching a floor, because blessing a real regression is how a ratchet becomes furniture
+
+- **Did my own local render runs raise it?** No — `render_coverage.json` was byte-identical to
+  origin's and unmodified in the tree.
+- **Was anything rendering badly?** No — `0 render failure(s)`; every target that ran was clean.
+- **Do the deltas match the cause exactly?** Yes, −1 and −3 against a row worth one `.hrt-row` and
+  three fan-class nodes. Had they not matched, this would be a regression hunt, not a bless.

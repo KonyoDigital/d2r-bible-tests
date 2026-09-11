@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2958",
+  "ver": "v2959",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2958: --note a law accepted None where it meant False, and the tamper sat on a path no law executed",
+  "note": "v2959: --note the heart stopped drawing a row for a blind instrument because there is no longer a blind instrument",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

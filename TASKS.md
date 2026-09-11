@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2958** | `(this commit)` | v2958 — --note a law accepted None where it meant False, and the tamper sat on a path no law executed |
+| **v2959** | `(this commit)` | v2959 — --note the heart stopped drawing a row for a blind instrument because there is no longer a blind instrument |
+| **v2958** | `e2bf0e8a` | v2958 — --note a law accepted None where it meant False, and the tamper sat on a path no law executed |
 | **v2957** | `0890528b` | v2957 — --note the shelf driver had one write-capable call site, its own CLI, so his beat sat 37.8 hours old against a 12 hour bar |
 | **v2956** | `d055335f` | v2956 — --note CI had been red for two stamps on gates the local pre-push never runs, and the console cursor fell back to the system arrow |
 | **v2955** | `77fe455c` | v2955 — --note the river lanes fetch had no timeout, so a slow answer left the placeholder standing and the refusal paths unreachable |
