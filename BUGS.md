@@ -29613,6 +29613,47 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-940 — a reader that could not find the table reported nothing wrong
+
+**v2935.** Four findings from the cross-family eye on v2930, all reproduced before acting, all live
+at origin when they were found.
+
+**1 — `--audit` was vacuously green whenever it could not find the table (MEDIUM).** `table_region`
+returning `None` produced all-zero counters, so `unknown == 0` and the command whose entire job is
+to refuse an unbound table **exited 0**. MEASURED: a `TASKS.md` holding only the ship table printed
+*"0 row(s) in the version table · 0 carry a SHA cell"* and exited 0. **Zero examined is not zero
+unbound** — [[zero-needs-a-denominator]], in the tool written to close exactly that shape. Now
+`rows` is `None`, the refusal carries a `why`, and `main()` prints it and exits 1.
+
+**2 — the rule line was assumed, and the row it dropped was the NEWEST (MEDIUM).**
+`i = src.find("\n", src.find("\n", i) + 1) + 1` assumed the line after the header is
+`|---|---|---|`. MEASURED on a table written without it: the second newline ended the first DATA
+row, the region began one row late, `rows` reported **1 where there were 2**, and the newest row
+stayed `(this commit)` forever. Worse, `str.find` returns `-1` and that was never tested — a
+truncated file collapsed the start to 0 and walked the `|` lines from the top, which is the ship
+table this function exists to exclude: **the v2929 regression, back.** The rule line is now matched,
+and an unrecognised shape is UNKNOWN rather than a guessed offset.
+
+**3 — two callers in one ship disagreed about the word "newest" (LOW).** v2930 redefined it inside
+`stamp()` as `max(version)` and left the live law reading `rows[0]`. On a table that is not
+newest-first — a backfilled row, a batch recorded out of order — `stamp()` would be right and the
+law would go **RED on a correctly stamped table**. It does not fire today only because the table
+happens to be newest-first. [[label-outlived-referent]]
+
+**4 — a defensive arm no fixture could reach (LOW).** `_fix` special-cases a two-column row INSIDE
+the version table, but v2930 removed the only fixture able to build one, and the live table has
+**0** such rows. The branch was code nothing could turn red. The `c is None` arm is restored and a
+law exercises it. [[feedback-blind-fixture-green-gate]]
+
+**Gate:** `test_every_version_binds_to_a_commit` — 14 laws, **14/14 red-proofs PROVEN, one match
+each.**
+
+⚠ Findings 1 and 2 are the same defect wearing two faces: **a reader that cannot parse its input
+answering as though it had parsed it.** One returned zeros for "no table", the other returned a
+smaller table for "unrecognised table". Both were caught because the eye asked what happens on input
+the fixtures never build — which is the fourth time this session that the blind spot was the
+FIXTURE and not the law.
+
 ## REG-939 — two rosters wearing one identity, held apart only by arithmetic
 
 **v2934, closing #73.**

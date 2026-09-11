@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2934",
+  "ver": "v2935",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2934: --note both carry the same sourceHash so only 135 vs 398 kept a sets mask from being read as uniques",
+  "note": "v2935: --note no version table meant audit exit 0, and a missing rule line silently dropped the newest row",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -36,8 +36,12 @@ def _table(rows, foreign=()):
     if foreign:
         body += "| ship | what it closed |\n|---|---|\n" + "".join(
             "| **%s** | %s closed something |\n" % (v, v) for v in foreign) + "\n"
+    # ⚠ v2935 — `c is None` BUILDS A TWO-COLUMN ROW INSIDE THE VERSION TABLE. v2930 dropped this
+    # arm when the foreign-table fixture replaced it, leaving `_fix`'s `legacy = len(cells) < 2`
+    # branch with nothing that exercises it — a defensive arm no test could ever turn red.
     body += SV.TABLE_HEAD + "\n|---|---|---|\n" + "".join(
-        "| **%s** | %s | %s — a note |\n" % (v, c, v) for v, c in rows)
+        ("| **%s** | %s — a note |\n" % (v, v)) if c is None else
+        ("| **%s** | %s | %s — a note |\n" % (v, c, v)) for v, c in rows)
     f = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
     f.write(body)
     f.close()
@@ -75,14 +79,83 @@ class EveryVersionBindsToACommit(unittest.TestCase):
                              "only the newest may be pending. Run `python3 tv/stamp_versions.py`"
                              % (len(pending), ", ".join(pending[:6])))
         if pending:
-            self.assertEqual(rows[0][0], pending[0],
-                             "the pending row is %s but the newest row is %s — an OLD row lost "
-                             "its binding, which is not the same as one not yet earned"
-                             % (pending[0], rows[0][0]))
+            # ⚠⚠ v2935 — BY NUMBER, NOT BY FILE ORDER. v2930 redefined "newest" inside stamp() as
+            # max(version) and left this law reading rows[0], so the two callers in the SAME ship
+            # disagreed about the word. On a table that is not newest-first — a backfilled row, a
+            # batch recorded out of order — stamp() correctly marks max(version) pending and this
+            # law would have gone RED on a correctly stamped table. It does not fire today only
+            # because the table happens to be newest-first. [[label-outlived-referent]]
+            newest = "v%d" % max(int(v[1:]) for v, _ in rows)
+            self.assertEqual(newest, pending[0],
+                             "the pending row is %s but the highest version is %s — an OLD row "
+                             "lost its binding, which is not the same as one not yet earned"
+                             % (pending[0], newest))
         self.assertGreater(len(rows), 250,
                            "the table reader matched only %d rows, which is fewer than the "
                            "history it is supposed to cover — suspect the regex, not the table"
                            % len(rows))
+
+    def test_a_TWO_COLUMN_row_INSIDE_the_version_table_is_given_a_cell(self):
+        """⚠ The arm no fixture could reach. `_fix` special-cases `len(cells) < 2` and inserts a
+        SHA cell — correct for a hand-edited or genuinely leftover row inside the version table —
+        but v2930 removed the only fixture that could build one, so the branch was defensive code
+        nothing could turn red. The live table has 0 such rows, so the live law cannot reach it
+        either. [[feedback-blind-fixture-green-gate]]"""
+        p = _table([("v9003", "`(this commit)`"), ("v9002", None)])
+        try:
+            r = SV.stamp(path=p, known={"v9003": "c" * 12, "v9002": "d" * 12})
+            got = io.open(p, encoding="utf-8").read()
+        finally:
+            os.unlink(p)
+        self.assertEqual(2, r["counts"]["rows"], "the two-column row was not seen: %r" % (r["counts"],))
+        self.assertEqual(1, r["counts"]["legacyFilled"],
+                         "the in-table two-column row was not given a cell: %r" % (r["counts"],))
+        self.assertIn("`dddddddd`", got, "it did not get its commit:\n%s" % got)
+        self.assertIn("v9002 — a note", got, "its note was destroyed by the widening:\n%s" % got)
+
+    def test_a_table_whose_RULE_LINE_is_missing_is_UNMEASURED_not_short(self):
+        """⚠⚠ MEASURED: written without `|---|---|---|`, the old reader skipped two newlines, the
+        second of which ended the first DATA row — so the region began one row late, `rows`
+        reported 1 where there were 2, and the NEWEST row stayed pending forever. A reader that
+        silently drops a row reports a smaller table rather than an unrecognised one."""
+        p = _table([("v9002", "`(this commit)`"), ("v9001", "`(this commit)`")])
+        raw = io.open(p, encoding="utf-8").read().replace("|---|---|---|\n", "", 1)
+        io.open(p, "w", encoding="utf-8").write(raw)
+        try:
+            r = SV.stamp(path=p, known={"v9002": "c" * 12, "v9001": "d" * 12})
+            after = io.open(p, encoding="utf-8").read()
+        finally:
+            os.unlink(p)
+        self.assertIsNone(r["counts"]["rows"],
+                          "a table with no rule line reported %r rows instead of refusing"
+                          % (r["counts"]["rows"],))
+        self.assertIn("UNMEASURED", r.get("why") or "",
+                      "the refusal does not say it is unmeasured: %r" % r.get("why"))
+        self.assertEqual(raw, after, "it wrote to a table it could not parse")
+
+    def test_NO_version_table_makes_audit_REFUSE_not_pass(self):
+        """⚠⚠ THE COMMAND WHOSE JOB IS TO REFUSE AN UNBOUND TABLE WAS VACUOUSLY GREEN WHENEVER IT
+        COULD NOT FIND THE TABLE. MEASURED: a TASKS.md holding only the ship table printed
+        "0 row(s) in the version table" and `--audit` exited 0. Zero examined is not zero
+        unbound. [[zero-needs-a-denominator]]"""
+        p = _table([], foreign=("v9001",))
+        was = SV.TASKS
+        buf = io.StringIO()
+        try:
+            io.open(p, "w", encoding="utf-8").write(
+                "| ship | what it closed |\n|---|---|\n| **v9001** | a note |\n")
+            SV.TASKS = p
+            sys.stdout, real = buf, sys.stdout
+            try:
+                rc = SV.main(["--audit"])
+            finally:
+                sys.stdout = real
+        finally:
+            SV.TASKS = was
+            os.unlink(p)
+        self.assertEqual(1, rc, "--audit passed with no version table at all:\n%s" % buf.getvalue())
+        self.assertIn("UNMEASURED", buf.getvalue(),
+                      "the refusal does not say it is unmeasured:\n%s" % buf.getvalue())
 
     def test_a_row_OUTSIDE_the_version_table_is_never_touched(self):
         """⚠⚠ THE REGRESSION I SHIPPED IN v2929, made into the law that would have caught it.
@@ -391,6 +464,27 @@ RED_PROOF = [
         "file": 'stamp_versions.py',
         "find": '              % (c["rows"] - c["shaCellsAfter"]))\n',
         "replace": '              % (c["rows"] - c["threeColumn"]))\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2935/A — drops the rule-line requirement, so a table written without |---|---|---| has its region start one row late: the NEWEST row is silently dropped and reported as a smaller table rather than an unrecognised one. MEASURED: rows=1 where there were 2, newest stuck at (this commit) forever.',
+        "file": "stamp_versions.py",
+        "find": '    if len(lines) < 2 or not _RULE.match(lines[1]):\n        return None\n',
+        "replace": '    if False:\n        return None\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2935/B — restores all-zero counters when the table cannot be found, so `unknown == 0` and the command whose job is to refuse an unbound table is vacuously green whenever it cannot find the table. Zero examined is not zero unbound.',
+        "file": "stamp_versions.py",
+        "find": '        return {"counts": dict(counts, rows=None, shaCellsBefore=None, shaCellsAfter=None,\n                               knownVersions=len(known)), "changed": [], "wrote": False,\n                "why": "the version table header was not found (or its |---| rule line is "\n                       "missing), so NOTHING here was examined — this is UNMEASURED, not a table "\n                       "with nothing unbound"}\n',
+        "replace": '        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,\n                               knownVersions=len(known)), "changed": [], "wrote": False}\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2935/C — lets main() print its zeros and exit 0 on a refusal, so the CLI reports success for a run that examined nothing.',
+        "file": "stamp_versions.py",
+        "find": '    if r.get("why"):\n        # ⚠ the refusal is the answer. Printed and non-zero, never a quiet success.\n        print("   \\u2717 %s" % r["why"])\n        return 1\n',
+        "replace": '    if False:\n        return 1\n',
         "matches": 1,
     },
 ]

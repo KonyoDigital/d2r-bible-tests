@@ -65,23 +65,41 @@ VROW = re.compile(r'^\| \*\*(v\d{4})\*\* \|(.*)$', re.M)
 # blind spot. A row is a version row because of the TABLE IT IS IN, not because it starts with a
 # bold vNNNN. [[regression-guard]] [[source-reading-guard]] [[ab-against-head-before-blaming-the-room]]
 TABLE_HEAD = "| version | commit | commit subject |"
+#: the markdown rule line under a table header — `|---|---|---|`, with optional alignment colons.
+_RULE = re.compile(r"^\|[\s:|-]+\|\s*$")
 
 
 def table_region(src):
-    """(start, end) character offsets of the version table's rows. -> tuple|None
+    """(start, end) character offsets of the version table's ROWS. -> tuple|None
 
     Everything outside this is another table's business and must never be touched.
+
+    ⚠⚠ v2935 — THE FIRST CUT SKIPPED TWO NEWLINES AND CHECKED NEITHER, and the row it dropped was
+    the NEWEST one. `i = src.find("\n", src.find("\n", i) + 1) + 1` assumes the line after the
+    header is the `|---|---|---|` rule. MEASURED on a table written without that rule: the second
+    newline ended the FIRST DATA ROW, so the region began one row late, `rows` reported **1 where
+    there were 2**, and the newest row stayed `(this commit)` forever. And `str.find` returns -1 on
+    failure, which was never tested — a header with no two following newlines collapsed the start
+    to 0 and walked the `|` lines from the TOP of the file, which is the ship table this function
+    exists to exclude. That is the v2929 regression, back, on a truncated file.
+
+    So the rule line is now REQUIRED and matched, not assumed. A shape this cannot recognise is
+    UNKNOWN — it returns None rather than guessing an offset.
+    [[unknown-stays-unknown]] [[source-reading-guard]]
     """
     i = src.find(TABLE_HEAD)
     if i < 0:
         return None
-    i = src.find("\n", src.find("\n", i) + 1) + 1      # past the header and the |---| rule
-    j = i
-    for line in src[i:].splitlines(True):
+    lines = src[i:].splitlines(True)
+    if len(lines) < 2 or not _RULE.match(lines[1]):
+        return None
+    start = i + len(lines[0]) + len(lines[1])
+    j = start
+    for line in src[start:].splitlines(True):
         if not line.startswith("|"):
             break
         j += len(line)
-    return (i, j)
+    return (start, j)
 
 
 def row_cells(rest):
@@ -194,8 +212,17 @@ def stamp(path=None, write=True, cwd=None, known=None):
     changed = []
     span = table_region(src)
     if span is None:
-        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,
-                               knownVersions=len(known)), "changed": [], "wrote": False}
+        # ⚠⚠ v2935 — NOT FINDING THE TABLE IS NOT FINDING NOTHING WRONG. The first cut returned
+        # all-zero counters here, so `--audit` saw `unknown == 0` and exited 0: the command whose
+        # whole job is to refuse an unbound table was VACUOUSLY GREEN whenever it could not find
+        # the table — a renamed header, a drifted TABLE_HEAD, a truncated file. MEASURED: a
+        # TASKS.md holding only the ship table printed "0 row(s) in the version table" and exited
+        # 0. That is [[zero-needs-a-denominator]] in the tool written to close exactly that shape.
+        return {"counts": dict(counts, rows=None, shaCellsBefore=None, shaCellsAfter=None,
+                               knownVersions=len(known)), "changed": [], "wrote": False,
+                "why": "the version table header was not found (or its |---| rule line is "
+                       "missing), so NOTHING here was examined — this is UNMEASURED, not a table "
+                       "with nothing unbound"}
     head, body, tail = src[:span[0]], src[span[0]:span[1]], src[span[1]:]
     all_rows = VROW.findall(body)
     # ⚠ THE NEWEST IS THE HIGHEST NUMBER, not the first line. v2929 took all_rows[0] and got
@@ -246,6 +273,10 @@ def main(argv=None):
     ns = a.parse_args(argv)
     r = stamp(write=not (ns.dry or ns.audit))
     c = r["counts"]
+    if r.get("why"):
+        # ⚠ the refusal is the answer. Printed and non-zero, never a quiet success.
+        print("   \u2717 %s" % r["why"])
+        return 1
     # ⚠ BOTH NUMBERS, ALWAYS. v2927 printed only what its reader could see, and the 50-row gap
     # between that and the real table was the whole of the defect it went on to have.
     print("   %d row(s) in the version table · %d carry a SHA cell now%s · %d version(s) have a "
