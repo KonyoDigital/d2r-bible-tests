@@ -20226,6 +20226,20 @@ def _vault_result_save():
         if not res:
             return
         payload = {"result": res, "savedTs": int(time.time() * 1000)}
+        # ⚠⚠ v2972 (#69) — WHAT PRODUCED THIS RESULT. Both last-result stores were SILENT in the
+        # 2026-09-11 census (44 stores, SILENT 16). These two are deliberate twins — the vault
+        # save says "mirrors _chron_result_save deliberately" — so they are stamped together
+        # rather than one now and its sibling in a later sweep. [[sweep-dont-ask]]
+        # ⚠ THE PAYLOAD IS FLAT ({result, [proposal,] savedTs}) and every reader takes a NAMED
+        # field, so the stamp goes on the BLOB. A reel-keyed store would need it inside each row
+        # instead — same helper, opposite right answer, decided by the shape (REG-972).
+        # ⚠ SWALLOWED: this save is already best-effort because losing the cache must never take
+        # down the sweep that produced it, and a LABEL must not be the thing that loses it.
+        try:
+            import provenance as _PV
+            payload = _PV.stamp(payload, by="control_app", extra={"store": "vault_last_result"})
+        except Exception:
+            pass
         tmp = _VAULT_RESULT_PATH + ".tmp"
         # v1899 — MAKE THE PARENT. With an isolated TV_HIST pointing at a directory that does not
         # exist yet, the tmp write fails with ENOENT and the proposal is lost. The chronicle's save
@@ -24007,6 +24021,20 @@ def _chron_result_save():
         payload = {"result": _CHRON_JOB.get("result"),
                    "proposal": globals().get("_CHRON_LAST_PROPOSAL"),
                    "savedTs": int(time.time() * 1000)}
+        # ⚠⚠ v2972 (#69) — WHAT PRODUCED THIS RESULT. Both last-result stores were SILENT in the
+        # 2026-09-11 census (44 stores, SILENT 16). These two are deliberate twins — the vault
+        # save says "mirrors _chron_result_save deliberately" — so they are stamped together
+        # rather than one now and its sibling in a later sweep. [[sweep-dont-ask]]
+        # ⚠ THE PAYLOAD IS FLAT ({result, [proposal,] savedTs}) and every reader takes a NAMED
+        # field, so the stamp goes on the BLOB. A reel-keyed store would need it inside each row
+        # instead — same helper, opposite right answer, decided by the shape (REG-972).
+        # ⚠ SWALLOWED: this save is already best-effort because losing the cache must never take
+        # down the sweep that produced it, and a LABEL must not be the thing that loses it.
+        try:
+            import provenance as _PV
+            payload = _PV.stamp(payload, by="control_app", extra={"store": "chron_last_result"})
+        except Exception:
+            pass
         if not payload.get("result"):
             return
         tmp = _CHRON_RESULT_PATH + ".tmp"
@@ -26330,7 +26358,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2971",
+        "ver": "v2972",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -31700,6 +31700,31 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-975 - two last-result stores that DECLARE themselves mirrors were both silent (task #69 - v2972)
+
+Continuing the SILENT 16. `chron_last_result.json` and `vault_last_result.json` had no producer, so
+a proposal persisted by an older sweep read exactly like one from today's - and these stores exist
+precisely because *"a fresh process reports the LAST sweep, not 'idle, nothing here'"*.
+
+**STAMPED TOGETHER, BECAUSE THE CODE SAYS THEY ARE ONE THING.** `_vault_result_save`'s own docstring:
+*"mirrors _chron_result_save deliberately, including the atomic tmp+replace and the refusal to use
+`default=str`"*. Fixing one and leaving its DECLARED mirror for a later sweep is the shape this repo
+has paid for more than any other - REG-713's recorded form is "v2228 bounded one fetch; its sibling
+eleven lines away was never swept". [[sweep-dont-ask]] [[the-unjoined-end]]
+
+**THE SHAPE DECIDED THE CALL, AGAIN.** Both payloads are FLAT - `{result, [proposal,] savedTs}` -
+and every reader takes a NAMED field, so the stamp goes on the BLOB. A reel-keyed store needs it
+INSIDE each row or it gains a phantom row (REG-972). Same helper, opposite right answer. The law
+pins the shape as well as the presence: it fails if either twin ever uses `stamp_row` here.
+
+Also pinned, each for a reason already paid for:
+  · each twin tags its OWN store name - a shared tag would make both claim one origin AND collapse
+    the two red-proof anchors into one, which is how REG-973's tamper nearly went INVALID
+  · the stamp sits INSIDE the try - both saves are best-effort because "losing the cache must never
+    take down the sweep that produced it", so a LABEL must never become the thing that loses it
+
+Two tampers PROVEN red, 1 match each. 303 gates. **#69: 16 SILENT -> 12.**
+
 ## REG-974 - a substring is not a derivation, and the eye caught me shipping the class I had just fixed (task #58 - v2971)
 
 The second eye reviewed v2967 - the commit whose whole point was replacing a bare membership check

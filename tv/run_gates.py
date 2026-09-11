@@ -1238,6 +1238,23 @@ GATES = [
              "exist, and SKIPPED: two laws reporting OK while measuring nothing. The writer is "
              "disk_history_append, named rather than guessed. Two tampers proven red.",
          skip_ok=()),
+    Gate("test_the_last_result_twins_name_their_writer",
+         [sys.executable,
+          os.path.join(HERE, "test_the_last_result_twins_name_their_writer.py")], 60,
+         why="#69. chron_last_result.json and vault_last_result.json were both SILENT in the "
+             "2026-09-11 census. They are DELIBERATE TWINS — _vault_result_save says it "
+             "'mirrors _chron_result_save deliberately' — so they are stamped together; "
+             "fixing one and leaving its declared mirror is this repo's most repeated shape. "
+             "Both payloads are FLAT ({result, [proposal,] savedTs}) and every reader takes a "
+             "NAMED field, so the stamp goes on the BLOB; a reel-keyed store needs it inside "
+             "each row or it gains a phantom row (REG-972) — same helper, opposite right "
+             "answer, decided by the shape, and this law pins the shape as well as the "
+             "presence. Also pins that each twin tags its OWN store name (a shared tag would "
+             "make both claim one origin AND collapse the two red-proof anchors into one), and "
+             "that the stamp sits inside the try — both saves are best-effort because losing "
+             "the cache must never take down the sweep that produced it, so a LABEL must never "
+             "become the thing that loses it. Two tampers proven red.",
+         skip_ok=()),
     Gate("test_the_page_is_not_its_own_console",
          [sys.executable,
           os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,
