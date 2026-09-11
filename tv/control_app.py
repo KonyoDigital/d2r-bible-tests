@@ -2428,7 +2428,15 @@ def board_mask(ledger="sets"):
     if not isinstance(out, dict) or out.get("ok") is not True:
         return _mask_give_up(ledger, "board JS: %s"
                              % str((out or {}).get("why") if isinstance(out, dict) else "not a dict")[:80])
-    mask = {"v": fp, "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}
+    # ⚠⚠ v2938 — THE LIVE PATH MINTS THE MASK, AND v2934's CHECK WAS NOT ON IT.
+    # v2934 taught fleet_mask.encode()/decode() to carry `r`, the identity of the ORDERED
+    # LIST, so a sets mask cannot be read against the uniques roster. MEASURED by the
+    # cross-family eye and confirmed by AST: encode() has ZERO production callers. Every
+    # mask on the wire is minted HERE from the board JS result, which returns {ok,n,have,b}
+    # and no `r` — so the guard was real, gated, and on a path nothing runs.
+    # `roster` is in scope and list_fingerprint is one call away. [[plumbing-with-no-tap]]
+    mask = {"v": fp, "r": _fm.list_fingerprint(roster),
+            "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}
     san = _fm.sanitize_for_wire(mask)
     if not san:
         return _mask_give_up(ledger, "sanitize refused the mask")
@@ -26147,7 +26155,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2937",
+        "ver": "v2938",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

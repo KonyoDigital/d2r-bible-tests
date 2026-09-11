@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2937** | `(this commit)` | v2937 — --note v2932 narrowed the resolver and five more copies kept resolving a blank TV_HIST against the caller cwd |
+| **v2938** | `(this commit)` | v2938 — --note encode has zero production callers so v2934 fixed a function the wire never calls |
+| **v2937** | `61dcfb0c` | v2937 — --note v2932 narrowed the resolver and five more copies kept resolving a blank TV_HIST against the caller cwd |
 | **v2936** | `5c686102` | v2936 — --note v2931 taught stamp to refuse; main was joined to it and the bump was not, so the bump was silent on the one path that runs every time |
 | **v2935** | `0331f55d` | v2935 — --note no version table meant audit exit 0, and a missing rule line silently dropped the newest row |
 | **v2934** | `b92c3da0` | v2934 — --note both carry the same sourceHash so only 135 vs 398 kept a sets mask from being read as uniques |

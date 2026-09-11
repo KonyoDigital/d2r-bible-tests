@@ -29613,6 +29613,40 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-943 — v2934's guard was real, red-proofed, and on a path nothing runs
+
+**v2938.** From the cross-family eye on v2934, confirmed here by AST.
+
+v2934 taught `fleet_mask.encode()` to stamp `r` — the identity of the ordered list — and `decode()`
+to refuse a mismatch, closing the hole where a sets mask could be read against the uniques roster.
+Three laws, 4/4 red-proofs. **And `encode()` has ZERO production callers.**
+
+Every mask on the wire is minted in `control_app.board_mask`, from the board's JS result
+`{ok, n, have, b}` — no `r`. A third severance sat downstream: `sanitize_for_wire`'s keep-list was
+`v`/`n`/`b`/`have`, so an `r` that *did* arrive was dropped. **The guard was gated, proven, and
+severed from the live path at two points.** `tv/test_mask_encoders_agree.py` already recorded the
+first fact — *AST-measured, zero production callers of `encode()`* — and I did not read it.
+
+**Fix:** `board_mask` stamps `r` (the roster is in scope; `list_fingerprint` is one call away), and
+`sanitize_for_wire` carries it, capped like `v` and omitted when absent so masks minted before
+v2938 are unchanged.
+
+**Laws:** `test_EVERY_mask_minting_site_stamps_the_list_identity` is per-FUNCTION — any function
+building a dict with the mask shape (`v`+`n`+`b`) must mention `r`, so a fourth minting site cannot
+be added without it. Plus `test_the_WIRE_carries_the_list_identity`, exercising the sanitizer.
+
+⚠ **An existing law went red and that was the finding working.**
+`test_the_wire_shape_carries_no_names` pins the wire's exact key set — *"No item names ever cross
+this boundary"* — so adding `r` broke it. That forced the decision to be made out loud instead of
+absorbed: `r` is a truncated SHA-256 and therefore structurally incapable of carrying a name, and
+the law now asserts it matches `^[0-9a-f]{1,32}$` rather than trusting the claim.
+
+⚠ **And my first cut of the minting law was a false positive on my own fix** — it asserted on the
+dict *literal*, so it flagged `sanitize_for_wire`, which builds the shape and adds `r` on the next
+line. Caught and rewritten function-scoped **before** a drill was spent on it.
+
+**Gate:** `test_fleet_mask` — 29 laws, **6/6 red-proofs PROVEN, one match each.**
+
 ## REG-942 — one rule living in seven copies, fixed in one
 
 **v2937.** From the cross-family eye on v2932. **v2932 fixed the site; this fixes the class.**

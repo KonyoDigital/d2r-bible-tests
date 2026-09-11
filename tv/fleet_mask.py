@@ -308,7 +308,14 @@ def sanitize_for_wire(mask):
         return None
     if any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" for c in b):
         return None
+    # ⚠ v2938 — AND THE WIRE MUST CARRY IT. The keep-list was v/n/b/have, so an `r` reaching
+    # here was DROPPED and the mask arrived unidentifiable by list — the third and last place
+    # v2934's guard was severed from the live path. Capped like `v`, omitted when absent so
+    # masks minted before v2938 are unchanged. [[the-unjoined-end]]
     out = {"v": v, "n": n, "b": b}
+    _r = str(mask.get("r") or "")[:32]
+    if _r:
+        out["r"] = _r
     if isinstance(have, int) and 0 <= have <= n:
         out["have"] = have
     return out

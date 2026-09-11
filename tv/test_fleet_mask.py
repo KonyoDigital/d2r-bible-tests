@@ -12,6 +12,7 @@ working, which is why the fingerprint tests below matter more than the arithmeti
 
 import io
 import json
+import ast
 import os
 import re
 import shutil
@@ -52,6 +53,20 @@ RED_PROOF = [
         "file": 'fleet_mask.py',
         "find": '    return {"v": fingerprint, "r": list_fingerprint(roster), "n": n, "have": hits,\n',
         "replace": '    return {"v": fingerprint, "n": n, "have": hits,\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2938/A — stops the LIVE minting site stamping the list identity, which is the state v2934 shipped in: encode() has zero production callers, so every mask on the wire came from here without `r` and v2934's guard was gated code on a path nothing runs.",
+        "file": 'control_app.py',
+        "find": '    mask = {"v": fp, "r": _fm.list_fingerprint(roster),\n            "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}\n',
+        "replace": '    mask = {"v": fp, "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2938/B — restores the wire keep-list to v/n/b/have, so a stamped `r` is DROPPED before the mask leaves the machine and the far side cannot tell a sets mask from a uniques one.',
+        "file": 'fleet_mask.py',
+        "find": '    _r = str(mask.get("r") or "")[:32]\n    if _r:\n        out["r"] = _r\n',
+        "replace": '',
         "matches": 1,
     },
 ]
@@ -227,6 +242,59 @@ class TestTheServerNeverLearnsAnItemName(unittest.TestCase):
         self.roster, self.fp = fm.load_roster()
 
     # ── v2934 (#73) — the two ledgers were separated only by arithmetic ─────────────────────────
+    def test_EVERY_mask_minting_site_stamps_the_list_identity(self):
+        """⚠⚠ v2934 GATED A FUNCTION NOTHING IN PRODUCTION CALLS. The cross-family eye measured it
+        and AST confirms: `fleet_mask.encode()` has **ZERO production callers**. Every mask on the
+        wire is minted in `control_app.board_mask` from the board's JS result — `{ok,n,have,b}`,
+        no `r` — so v2934's list-identity guard was real, red-proofed, and **on a path nothing
+        runs**. A third severance sat downstream: `sanitize_for_wire`'s keep-list was v/n/b/have,
+        so an `r` that did arrive was dropped.
+
+        So the law is per-MINTING-SITE, not per-function: any dict literal carrying the mask shape
+        (`v` + `n` + `b`) must also carry `r`. A fourth minting site cannot be added without it.
+        [[plumbing-with-no-tap]] [[the-unjoined-end]]"""
+        # ⚠ FUNCTION-SCOPED, not literal-scoped. The first cut asserted on the dict literal and
+        # flagged `sanitize_for_wire`, which builds the shape and then adds `r` on the next line —
+        # a false positive from the law's own design, caught before a drill was spent on it.
+        # What matters is that the FUNCTION minting a mask knows about the list identity.
+        seen = 0
+        for mod in ("control_app.py", "fleet_mask.py"):
+            src = io.open(os.path.join(HERE, mod), encoding="utf-8").read()
+            tree = ast.parse(src)
+            for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
+                mints = False
+                for node in ast.walk(fn):
+                    if isinstance(node, ast.Dict):
+                        keys = {k.value for k in node.keys
+                                if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+                        if {"v", "n", "b"}.issubset(keys):
+                            mints = True
+                if not mints:
+                    continue
+                seen += 1
+                seg = ast.get_source_segment(src, fn) or ""
+                self.assertIn('"r"', seg,
+                              "%s.%s() builds a mask and never mentions the list identity `r` — "
+                              "v2934's guard is only as live as the sites that stamp it"
+                              % (mod, fn.name))
+        self.assertGreaterEqual(seen, 2,
+                                "only %d mask-minting function(s) found — re-derive this law" % seen)
+
+    def test_the_WIRE_carries_the_list_identity(self):
+        """★ The last severance. `sanitize_for_wire` keep-listed v/n/b/have, so even a stamped `r`
+        was stripped before the mask left the machine and arrived unidentifiable by list."""
+        sets, fps = fm.load_roster(os.path.join(HERE, "set_roster.json"), "pieces")
+        self.assertTrue(sets, "the roster would not load — UNMEASURED")
+        wire = fm.sanitize_for_wire(fm.encode(set(sets[:5]), sets, fps))
+        self.assertIsNotNone(wire, "a good mask did not survive the wire sanitizer")
+        self.assertEqual(fm.list_fingerprint(sets), wire.get("r"),
+                         "the wire dropped the list identity: %r" % (wire,))
+        # ⚠ and a mask minted before v2938 must still pass, without growing a field
+        legacy = {k: v for k, v in fm.encode(set(sets[:5]), sets, fps).items() if k != "r"}
+        out = fm.sanitize_for_wire(legacy)
+        self.assertIsNotNone(out, "a pre-v2938 mask was rejected by the sanitizer")
+        self.assertNotIn("r", out, "the sanitizer invented an identity the mask never carried")
+
     def test_the_TWO_LIVE_ROSTERS_do_not_share_an_identity(self):
         """⚠⚠ MEASURED 2026-09-11: set_roster.json and unique_roster.json BOTH carry
         `sourceHash a364e7b4f6114747d79bbcf9`, so `roster_fingerprint()` returned the identical
@@ -280,7 +348,15 @@ class TestTheServerNeverLearnsAnItemName(unittest.TestCase):
     def test_the_wire_shape_carries_no_names(self):
         m = fm.encode(self.roster[:50], self.roster, self.fp)
         w = fm.sanitize_for_wire(m)
-        self.assertEqual(set(w), {"v", "n", "b", "have"})
+        # ⚠⚠ v2938 — `r` JOINED THIS SHAPE DELIBERATELY, and this law going red is what forced the
+        # decision to be made out loud rather than absorbed. It is the identity of the ORDERED LIST
+        # a mask was built against, and it MUST cross the wire or the far side cannot tell a sets
+        # mask from a uniques one. It is a truncated SHA-256 of the roster, so it is structurally
+        # incapable of carrying a name — asserted below rather than assumed.
+        self.assertEqual(set(w), {"v", "r", "n", "b", "have"})
+        self.assertRegex(w["r"], r"^[0-9a-f]{1,32}$",
+                         "the list identity is not a hex digest, so 'it cannot contain a name' "
+                         "stops being structural: %r" % (w["r"],))
         blob = repr(w)
         for name in self.roster[:50]:
             self.assertNotIn(name, blob, "an item name reached the wire shape")

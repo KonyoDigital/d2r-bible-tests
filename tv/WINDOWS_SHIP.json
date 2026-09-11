@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2937",
+  "ver": "v2938",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2937: --note v2932 narrowed the resolver and five more copies kept resolving a blank TV_HIST against the caller cwd",
+  "note": "v2938: --note encode has zero production callers so v2934 fixed a function the wire never calls",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
