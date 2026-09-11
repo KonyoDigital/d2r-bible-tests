@@ -36,6 +36,7 @@ if HERE not in sys.path:
 from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
+import control_app as CA     # noqa: E402
 import provenance as PV      # noqa: E402
 import retro_triage as RT    # noqa: E402
 
@@ -146,7 +147,63 @@ class ThePastIsNotRewritten(unittest.TestCase):
                           "attribute")
 
 
+class ADoorKeyedStoreStampsItsDoors(unittest.TestCase):
+    """#69 / v2976 — capture_doors.json is keyed BY DOOR at the top level, and
+    `blueprint.capture_doors()` enumerates that top level. reel_retention._tombstone names this
+    exact store in its warning: a top-level `_prov` here "becomes a FAKE ROW that blueprint.py
+    publishes as a reel count". So the stamp goes INSIDE each door, exactly like retro_triage.
+
+    Each door carries a per-door Wilson ledger — reels opened vs reels that held film — so a tally
+    accumulated under an older crediting rule is precisely what a later rule must be able to
+    re-judge. [[zero-needs-a-denominator]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="prov_doors_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.p = os.path.join(self.d, "capture_doors.json")
+        self._was = CA._capture_doors_path
+        CA._capture_doors_path = lambda: self.p
+        self.addCleanup(setattr, CA, "_capture_doors_path", self._was)
+        self.live = {"mini": {"blank": 2, "filmed": 1}, "onair": {"blank": 19, "filmed": 1},
+                     "shadow": {"blank": 263, "filmed": 181}}
+        self.before = json.loads(json.dumps(self.live))
+        CA._capture_door_save(self.live)
+        self.blob = json.load(io.open(self.p, encoding="utf-8"))
+
+    def test_no_phantom_door_appears(self):
+        self.assertNotIn("_prov", self.blob,
+                         "the stamp landed at the TOP LEVEL of a door-keyed store, so "
+                         "blueprint.capture_doors() now counts a door that does not exist")
+        self.assertEqual(3, len(self.blob),
+                         "three doors were saved but the store holds %d top-level key(s): %s"
+                         % (len(self.blob), sorted(self.blob)))
+
+    def test_every_door_names_its_producer(self):
+        for k, row in self.blob.items():
+            self.assertEqual("control_app", getattr(PV.read(row), "by", None),
+                             "door %r does not name its producer" % k)
+
+    def test_the_door_tallies_are_unharmed(self):
+        self.assertEqual(263, self.blob["shadow"].get("blank"))
+        self.assertEqual(181, self.blob["shadow"].get("filmed"))
+
+    def test_the_callers_live_dict_is_not_mutated(self):
+        """The door dict is live state the console keeps using after the save."""
+        self.assertEqual(self.before, self.live,
+                         "saving mutated the caller's door dict, so _prov travels to every other "
+                         "reader of the live state")
+
+
 RED_PROOF = [
+    {
+        "why": "stamping the BLOB instead of each door is the hazard reel_retention names for this "
+               "very store: blueprint.capture_doors() enumerates the top level, so a _prov key "
+               "there is published as a fourth door that does not exist",
+        "file": "control_app.py",
+        "find": '        d = dict((_k, (_PV.stamp_row(_v, by="control_app", extra={"store": "capture_doors"})\n                       if isinstance(_v, dict) else _v))\n                 for _k, _v in (d or {}).items())\n',
+        "replace": '        d = _PV.stamp(d, by="control_app", extra={"store": "capture_doors"})\n',
+        "matches": 1,
+    },
     {
         "why": "stamping the BLOB instead of the ROW is the exact hazard reel_retention names: a "
                "reel-keyed store gains a top-level _prov, and every reader that enumerates it "

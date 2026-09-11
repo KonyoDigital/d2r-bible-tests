@@ -4904,6 +4904,25 @@ def _capture_door_load():
 
 
 def _capture_door_save(d):
+    # ⚠⚠ v2976 (#69) — STAMP EACH DOOR, NEVER THE BLOB. capture_doors.json was SILENT, and
+    # it is keyed BY DOOR at the top level: {"mini": {...}, "onair": {...}, "shadow": {...}}.
+    # reel_retention._tombstone names this exact store in its warning — "a top-level `_prov`
+    # there becomes a FAKE ROW that blueprint.py publishes as a reel count" — and
+    # blueprint.capture_doors() does enumerate the top level, so a blob stamp would invent a
+    # fourth door. The stamp goes INSIDE each door's own dict, like retro_triage (REG-971).
+    # ⚠ WHY IT IS WORTH HAVING: each door carries a per-door Wilson ledger — reels opened vs
+    # reels that held film. A tally accumulated under an older crediting rule cannot be
+    # re-judged when that rule improves unless it says who wrote it.
+    # ⚠ A COPY, so the caller's live dict never gains keys. `stamp` returns a NEW dict.
+    # ⚠ SWALLOWED, like the write below: a door that cannot be labelled is still worth
+    # keeping. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    try:
+        import provenance as _PV
+        d = dict((_k, (_PV.stamp_row(_v, by="control_app", extra={"store": "capture_doors"})
+                       if isinstance(_v, dict) else _v))
+                 for _k, _v in (d or {}).items())
+    except Exception:
+        pass
     try:
         _cdp = _capture_doors_path()
         tmp = _cdp + ".tmp"
@@ -26405,7 +26424,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2975",
+        "ver": "v2976",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

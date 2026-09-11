@@ -31700,6 +31700,49 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-979 - "SILENT" was hiding two different facts, and one of them is no work at all (task #69 - v2976)
+
+★ **THE CENSUS CANNOT TELL A MISSING WRITER FROM AN UNRUN ONE**, and I had been counting them as the
+same thing. `verdict_provenance` asks what a store CARRIES; it cannot ask what its writer WOULD do.
+
+    ledger_peaks.json   reads SILENT
+    _write_peaks        has stamped since v2941, and there is NO second writer
+    file mtime          2026-09-03 21:08:53
+    v2941 shipped       2026-09-11 09:16:41
+
+The writer is correct and has not run in 8 days. Same for `reel_tombstones.json` (`_tombstone`,
+v2949). Neither is work. Every remaining SILENT store must be split this way BEFORE it is counted.
+[[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+⚠ **AND THE CHECK I WROTE TO SPLIT THEM WAS CONTAMINATED BY MY OWN EDITS.** It asked "does any file
+mentioning this store also contain `_PV.stamp`". `control_app.py` now contains my stamps for OTHER
+stores, so every store it mentions answered YES. The table said four stores were already handled;
+three of them were not. Settled instead by finding each store's OWN write choke point and reading it:
+`capture_doors` -> `_capture_door_save`, `chron_hunt_memory` -> `_chron_reads_save`,
+`main_character` -> `_save`, none stamping. Second instrument of mine to fail on this one task,
+after the shape heuristic that called three row-keyed stores FLAT.
+[[feedback-suspect-the-instrument]]
+
+**v2976 stamps capture_doors, and the shape mattered again.** It is keyed BY DOOR -
+`{"mini": …, "onair": …, "shadow": …}` - and `blueprint.capture_doors()` enumerates that top level.
+`reel_retention._tombstone` names this very store in its warning. So the stamp goes INSIDE each
+door. Verified:
+
+    top-level keys   ['mini', 'onair', 'shadow']   <- still 3
+    a reader counting 3 door(s)
+    every door stamped True     door tallies kept True     caller's live dict untouched True
+
+Each door holds a per-door Wilson ledger - reels opened vs reels that held film - so a tally
+accumulated under an older crediting rule is exactly what a later rule must be able to re-judge.
+
+⚠ **MY FIRST RED-PROOF WAS REFUSED AS INVALID, NOT RED.** heart2: *"the tamper does not parse
+(invalid syntax). A gate reddened by a SyntaxError proves nothing about the law."* I had replaced
+the first line of a three-line dict comprehension and left the rest dangling. The tamper now
+replaces the WHOLE block with a valid single-line blob stamp, and the patch script `ast.parse`s the
+tampered file before declaring it. A red that comes from broken syntax is not evidence.
+
+Three tampers PROVEN red, 1 match each.
+
 ## REG-978 - the chronicle's banked proposal could not be re-judged when the gate improves (task #69 - v2975)
 
 `chron_evidence.json` was SILENT. It is the chronicle's banked PROPOSAL, so a proposal written under
