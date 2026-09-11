@@ -62,9 +62,18 @@ class TheReelsComeFirst(unittest.TestCase):
         grid = self.asm.find("+ body")
         self.assertGreater(grid, 0,
                            "the card grid (`body`) is no longer in the overlay assembly at all")
+        # ⚠⚠ v2985 (#58) — THE RIVER STRIP JOINS THIS LIST. It was deliberately absent before, and
+        # correctly so: v2965 defined "everything analytic" as exactly the three blocks below and
+        # placed the strip ABOVE the list as "the organisation he asked for". That was one half of
+        # his sentence; the other half was "those reels coming in should be SEEN", and measured at
+        # his real 1120x660 the strip's ~337px helped put every card off-screen — the panel named
+        # "your reels" showed none. So the strip moved below too, and this law now pins it there;
+        # without the entry, a future edit could restore the old order and silently undo #58 while
+        # this gate stayed green. [[label-outlived-referent]]
         for name, token in (("the pipeline board", 'id="sh-story"'),
                             ("the highlights strip", "_shHighlights()"),
-                            ("the 14-day timeline", "timelineDiv")):
+                            ("the 14-day timeline", "timelineDiv"),
+                            ("the river strip", 'id="sh-lanes"')):
             at = self.asm.find(token)
             self.assertGreater(at, 0, "%s is gone from the assembly (%r)" % (name, token))
             self.assertGreater(at, grid,
@@ -120,6 +129,14 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "      + searchBar + body\n",
         "replace": "      + searchBar\n",
+        "matches": 1,
+    },
+    {
+        "why": "putting the river strip back ABOVE the list is the v2965 order that helped push "
+               "every card off his 660px screen — the clause added in v2985 must turn red on it",
+        "file": "control_ui.html",
+        "find": "      + searchBar + body\n      /* \u26a0\u26a0 v2985 (#58)",
+        "replace": "      + '<div class=\"sh-lanes\" id=\"sh-lanes\"></div>'\n      + searchBar + body\n      /* \u26a0\u26a0 v2985 (#58)",
         "matches": 1,
     },
     {

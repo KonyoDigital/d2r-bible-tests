@@ -973,6 +973,17 @@ GATES = [
          "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
          "deep rows carry any coordinate — and test 5 pins that zero.",
          skip_ok=()),
+    Gate("test_the_settled_row_names_the_store_it_is_in",
+         [sys.executable, os.path.join(HERE, "test_the_settled_row_names_the_store_it_is_in.py")], 90,
+         why="his 2026-09-12 ruling — 'leave the keys alone, just fix the store label'. "
+             "kaiChronicleSettledWhy stamped store:'foundLog' on every _gFound hit, but _gFound is "
+             "a UNION whose first line is `if (owned.has(n)) return true`. Measured on his ledger: "
+             "of 360 rows carrying a store, 11 name one whose contents lack that name — 1 an "
+             "apostrophe artefact of the audit, 10 real, 8 from this branch, and ALL 10 registered "
+             "somewhere (the label was wrong, nothing was lost). The fold is copied from _gFound "
+             "because _chMapHas does not fold the apostrophe and would mislabel the four curly "
+             "names. Executes the shipped branch in node rather than reading prose about it.",
+         skip_ok=()),
     Gate("test_the_armed_prune_cannot_reach_a_reel",
          [sys.executable, os.path.join(HERE, "test_the_armed_prune_cannot_reach_a_reel.py")], 90,
          why="v2984 — he said 'arm it' and _PRUNE_SAFE_TO_RUN is now True. #78's claim that arming "

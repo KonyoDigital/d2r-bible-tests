@@ -49940,7 +49940,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2984', name:'v2984 - the prune is armed, and the argument against it was about the other deleter', date:'2026-09-12', note:'' };
+  window.D2R_BUILD = { id:'v2985', name:'v2985 - the row names the store it is in, and the reels come before the analysis', date:'2026-09-12', note:'' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -50187,7 +50187,41 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
     if (!nm) return { store: 'empty', why: 'no-name' };
     // 1) Grail found ledger (dated chronicle) + live _gFound (includes legacy owned)
     try {
-      if (typeof _gFound === 'function' && _gFound(nm)) return { store: 'foundLog', why: 'you already had this one' };
+      /* ⚠⚠ v2985 — SAY WHICH STORE ACTUALLY MATCHED. `_gFound` is a UNION: its very first line is
+         `if (owned.has(n)) return true;` and only then does it consult d2r_foundLog. The comment
+         above says so out loud ("includes legacy owned") — yet this branch stamped every hit
+         `store: 'foundLog'`. So a name living in d2r_owned and NOT in d2r_foundLog was filed under
+         a store it is not in, and `DEST` then rendered it "→ chronicle".
+
+         MEASURED on his newest ledger backup, 2026-09-12: of 360 routing rows carrying a `store`,
+         11 named a store whose contents lack that name. One (Atma’s Scarab) was an apostrophe
+         artefact of my own audit, not a defect. The other 10 are real, and 8 of them are exactly
+         this branch — Lionheart, Enlightenment, Heart of the Oak, Myth, Death Mask, Black Cleft,
+         Crescent Moon (amulet), Athena's Wrath (set piece). Every one of the 10 is registered in
+         SOME store: nothing is lost, the LABEL is wrong. [[label-outlived-referent]]
+
+         ⚠ THE FOLD IS COPIED FROM `_gFound`, DELIBERATELY, AND `_chMapHas` IS NOT USED. _chMapHas
+         resolves through _chNameKeys, which yields only {exact, lowercase, bare-of-" Rune"} — it
+         does NOT fold the apostrophe. Using it here would mislabel precisely the four curly-
+         apostrophe names (Atma’s Scarab, Saracen’s Chance, Seraph’s Hymn, The Cat’s Eye) as
+         'owned' whenever his ledger key is straight. v1779 already paid for that lesson in this
+         same function: "_gFound(curly)=false, _gFound(straight)=true".
+
+         ⚠ HIS KEYS ARE NOT TOUCHED — his ruling, 2026-09-12: "leave the keys alone, just fix the
+         store label". Same call v1779 and v2762 both made: the read folds, the ledger is never
+         rewritten. No count moves; only the provenance word changes. */
+      if (typeof _gFound === 'function' && _gFound(nm)) {
+        var _fl = _chLsGet('d2r_foundLog', {}) || {};
+        var _inFL = (_fl[nm] != null);
+        try {
+          var _r2 = (typeof window.d2rResolveItem === 'function') ? window.d2rResolveItem(nm) : null;
+          var _c2 = _r2 && _r2.canonical;
+          if (!_inFL && _c2 && _fl[_c2] != null) _inFL = true;
+          if (!_inFL && _fl[String(nm).replace(/\u2019/g, "'")] != null) _inFL = true;
+          if (!_inFL && _fl[String(nm).replace(/'/g, '\u2019')] != null) _inFL = true;
+        } catch(e){}
+        return { store: (_inFL ? 'foundLog' : 'owned'), why: 'you already had this one' };
+      }
     } catch(e){}
     var found = _chLsGet('d2r_foundLog', {}) || {};
     if (_chMapHas(found, nm)) return { store: 'foundLog', why: 'you already had this one' };

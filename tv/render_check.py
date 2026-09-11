@@ -1480,6 +1480,79 @@ TARGETS = {
     # harness could open the panel and photograph nothing, and `thOpen` — the theatre's own opener
     # — was unexported for exactly the same reason `thShelf` was. Fixing one and not the other
     # fixes half a chain. Both exported in v2805; measured ACTIVATE TRUE at 1440, 901 and 375.
+    "shelf-cards": {
+        "serve": True, "path": "", "warmup": 14.0, "settles": False,
+        "why": "\U0001f4da THE SHELF'S REEL CARDS \u2014 the things the panel is NAMED after, and "
+               "nothing has ever photographed them. Every existing shelf target aims at the "
+               "analytics: `river-strip` watches #sh-lanes, and the grid itself had no selector in "
+               "any target. That is precisely how #58 survived \u2014 at his real 1120x660 the "
+               "overlay is trapped in a ~449px stage with 549px of furniture above the first card, "
+               "so the panel showed 0 of 530 cards while every instrument called the shelf green. "
+               "A target that watches the chrome and not the content cannot see an empty room. "
+               "\u26a0 IT MEASURES THE ON-AIR SHELF, i.e. the WORST case. _shLiveRender hides "
+               "#sh-live unless `__lastStatus.__on` is true, and the harness's status stub sets "
+               "it, so the 'Recording now' card is painted and counts toward the furniture above "
+               "the first card. His console off-air (measured `mode: off`) shows LESS. Keeping the "
+               "worst case is deliberate \u2014 a shelf that only works when he is not recording "
+               "is still broken \u2014 but any y reported here is an UPPER BOUND on what he sees, "
+               "never his everyday state.",
+        "seed": """(function(){ return 1; })()""",
+        "sel": "#th-shelfov .sh-grid .shc-hero, #th-shelfov .sh-grid .shc-sess, "
+               "#th-shelfov .sh-grid .shc-area",
+        # ⚠ ONLY THE TWO CLASSES THAT DECLARE AN ELLIPSIS. Both set `white-space:nowrap;
+        # overflow:hidden; text-overflow:ellipsis` in control_ui.html (.shc-area at :2106-2107,
+        # .shc-headfind at its own rule), so the cut is DESIGNED and he can SEE it. Anything else
+        # on this card that clips is a real defect and must still turn this target red — a blanket
+        # allowance here would buy a green by making the target stop looking.
+        "truncation_ok": {
+            "shc-area": "the run's area line — `white-space:nowrap; overflow:hidden; "
+                        "text-overflow:ellipsis` at control_ui.html:2106-2107. A long D2R area "
+                        "name ('Catacombs Level 3 · The Crypt') cannot fit a 244px card column, "
+                        "and it is cut with a visible ellipsis, not hard-clipped",
+            "shc-headfind": "the run's top find, same nowrap+ellipsis rule on its own class. The "
+                            "full name is one click away on the card, and the ellipsis makes the "
+                            "cut visible rather than silent",
+        },
+        "activate": r"""(function(){
+            /* ⚠ IDEMPOTENT. The harness re-runs this every 0.4s, so it must never toggle:
+               thShelf(force) with an explicit true always SHOWS, thShelf() alone flips. */
+            var ov = document.getElementById('th-shelfov');
+            if (!ov) return false;
+            /* ⚠⚠ THE THEATRE FIRST, OR THE PANEL OPENS INTO A ZERO-SIZED PARENT. Measured over
+               CDP: with #theatre hidden, every lane rect is 0x0 while the DOM is perfectly
+               correct — 4 lanes, no wait node, real content. A rect check alone would then
+               report "painted 0 of 4" and a bare existence check would have passed. */
+            var th = document.getElementById('theatre');
+            if (th && th.hidden) {
+                try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+            }
+            if (th && th.hidden) return false;
+            if (ov.hidden) {
+                try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
+            }
+            if (ov.hidden) return false;
+            var el = document.getElementById('sh-lanes');
+            if (!el) return false;
+            /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
+               since the wait node disappears the moment the strip renders */
+            if (el.querySelector('.shr-wait')) {
+                try { (window._shLanesLoad || function(){})(); } catch (e) {}
+                return false;                 /* not ready, and NOT a pass */
+            }
+            /* ⚠⚠ PROVE IT FROM THE RECT, never from the fetch resolving —
+               test_activation_is_proven_from_the_RECT_not_from_the_call_returning. A river that
+               could not be read paints ONE `.shr-wait.shr-bad` line with a perfectly good box, so
+               a bare rect check on #sh-lanes would photograph the failure and call it a river. */
+            var lanes = el.querySelectorAll('.shr-lane');
+            if (lanes.length < 2) return false;
+            var painted = 0;
+            for (var i = 0; i < lanes.length; i++) {
+                var r = lanes[i].getBoundingClientRect();
+                if (r.width > 8 && r.height > 4) painted++;
+            }
+            return painted === lanes.length;
+        })()""",
+    },
     "river-strip": {
         "serve": True,
         "path": "",

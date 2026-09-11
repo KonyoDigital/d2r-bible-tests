@@ -15481,7 +15481,6 @@ window._lockMark = function(isOpen, px, label){
          walks every reel directory and the shelf must not wait on a disk pass to open. Until it
          answers it says so — a board that draws zeros before the data lands is a board that
          lies for a second every time. [[unknown-stays-unknown]] */
-      + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
       + '<div class="sh-live" id="sh-live" hidden>'   // D24 — live "recording now" card, filled + shown by _shLiveRender when on-air
         + '<div class="shl-top"><span class="shl-rec"><span class="shl-dot"></span>rec</span>'
           + '<span class="shl-title">Recording now — this reel is building</span>'
@@ -15507,6 +15506,27 @@ window._lockMark = function(isOpen, px, label){
          (_shStoryRender, _shHighlights, the timeline) finds it the same way; this is an order
          change, which is why it is safe to make on the surface he has open. [[borrowed-surface]] */
       + searchBar + body
+      /* ⚠⚠ v2985 (#58) — THE RIVER STRIP MOVES BELOW THE LIST, AND THIS REVERSES v2965 ON PURPOSE.
+         v2965 put the strip ABOVE the list and called it "the organisation he asked for", quoting
+         him: "those reels coming in should be seen timestamped and recent 8 left there... and the
+         rest organized relating and relevant to the coding and backend."
+
+         MEASURED at his real 1120x660: the overlay is trapped inside .stage — a grid row worth
+         ~449px of a 660px window — and 549px of furniture sits above the first reel card, so THE
+         CARDS ARE ENTIRELY OFF-SCREEN. The panel named "your reels" was showing none of them. The
+         half of his sentence that v2965 served was "organized"; the half it broke was "should be
+         SEEN". This restores the second without discarding the first.
+
+         Weighed and rejected: raising the ceiling with position:fixed buys ~210px but covers the
+         transport deck, and :1738 is a recorded ruling — "the shelf must never bury the transport
+         deck (📚 stays a true toggle)". A scar outranks a layout preference.
+
+         ⚠ NOTHING IS REMOVED, NO ID MOVES, NOTHING IS COLLAPSED behind a click. The strip renders
+         in full — all four lanes, the station tallies, the ledger chip and both footnotes — it is
+         an ORDER change only, and _shLanesLoad/_shLanesRender find it by getElementById exactly as
+         before. It now sits with the other analytic blocks (pipeline board, highlights, timeline)
+         that v2965 itself placed below the list. */
+      + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
       + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
       + _shHighlights() + timelineDiv;
     ov.hidden = false;
