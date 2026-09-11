@@ -29613,6 +29613,39 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-944 — two refusals in one function disagreeing about how to say "I did not look"
+
+**v2939.** From the cross-family eye on v2935.
+
+v2935 taught the **no-table** refusal to report `rows=None`, because *zero examined is not zero
+unbound*. It left the **git-unreadable** refusal from v2931 reporting `rows=0` with a `why` beside
+it. MEASURED side by side:
+
+| refusal arm | reports |
+|---|---|
+| no version table found (v2935) | `rows=None` |
+| `git log` could not be asked (v2931) | **`rows=0`** |
+
+So a caller reading `rows is None` as unmeasured reads a **broken instrument as a measured empty
+table** — the exact defect v2935 closed, still standing on the arm it did not touch.
+
+**Fix:** every refusal reports `None` for every count. **Law:** `test_EVERY_refusal_says_UNMEASURED_
+the_SAME_WAY` exercises **all three** refusal paths — git unreadable, missing rule line, no version
+table — and requires each to hand back `None`, so no refusal can be mistaken for a measurement and
+a fourth refusal path cannot be added on zeros.
+
+⚠ **The eye also read the tree past the version it was reviewing** and reported the bump/`why` gap
+as *"closed in v2936 — do not 'fix' it again."* Worth recording: a reviewer that checks whether a
+finding is already fixed saves the fix being applied twice.
+
+⚠ **A red-proof was dropped as stale whose law still existed** — v2931/D, "writes nothing with a
+broken instrument", whose anchor my edit to that return block moved. The drill would have reported a
+clean **15/15** with that guard silently uncovered. Re-anchored → 16/16. **Third time this session,
+and all three were caught only by reading the drop line rather than the total.**
+
+**Gate:** `test_every_version_binds_to_a_commit` — 16 laws, **16/16 red-proofs PROVEN, one match
+each, no BLIND, no INVALID.**
+
 ## REG-943 — v2934's guard was real, red-proofed, and on a path nothing runs
 
 **v2938.** From the cross-family eye on v2934, confirmed here by AST.

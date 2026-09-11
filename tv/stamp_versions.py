@@ -204,7 +204,13 @@ def stamp(path=None, write=True, cwd=None, known=None):
     if known is None:
         # ⚠ REFUSE, LOUDLY. Writing anything here would record the state of a broken `git log`
         # as the provenance of his ship history.
-        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,
+        # ⚠⚠ v2939 — `rows=None`, NOT 0, AND THE SIBLING ARM ALREADY KNEW THAT. v2935 taught the
+        # no-table refusal to report None because zero examined is not zero unbound; this arm kept
+        # reporting 0 with a `why` beside it, so a caller reading `rows is None` as UNMEASURED read
+        # a broken `git log` as a MEASURED EMPTY TABLE. Two refusals in one function disagreeing
+        # about how to say "I did not look" is the defect v2935 closed, on the arm it did not
+        # touch. Caught by the cross-family eye on v2935. [[zero-needs-a-denominator]]
+        return {"counts": dict(counts, rows=None, shaCellsBefore=None, shaCellsAfter=None,
                                knownVersions=None),
                 "changed": [], "wrote": False,
                 "why": "git could not be asked for the version history, so NOTHING was written — "
