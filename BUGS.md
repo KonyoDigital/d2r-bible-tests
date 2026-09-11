@@ -29587,6 +29587,58 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-923 — I shipped a second safety tool for a file that already had one, and mine was wrong
+
+**v2919.** Found by the cross-family eye on v2918, in the guard v2918 added to fix REG-921.
+**`tv/board_claim_guard.py` and its gate are DELETED.** The fix is a deletion, not a repair.
+
+**THE RECON FAILURE IS MINE.** `tv/board_identity_sweep.py` already existed — 6,619 bytes, dated
+Sep 9, already registered and PROVEN as `test_the_sweep_knows_whose_world_it_is`. Same gitignored
+file, same `~/d2r_board_backups`. I never grepped for it. `workflow-topology`'s first rule is *read
+what already exists before writing a brief that says create*, and I had been enforcing it on fleet
+briefs all night while skipping it on my own work.
+
+**AND MINE WAS WRONG.** Measured against the console's own `board_identity_drift()` on five records:
+
+    record                      console   existing sweeper   my guard
+    owner:true, no previous     ok        OK                 ok
+    owner:true, previous DICT   drift     DRIFTED            ok        <- kept what the console calls drift
+    owner:false + pfx           drift     GUEST              drift
+    owner:false, NO pfx         ok        OK                 drift     <- DELETED what the console calls fine
+    owner missing               ok        OK                 unknown   <-
+
+    existing sweeper disagrees with the console on 0 of 5
+    my guard        disagrees with the console on 3 of 5
+
+The console reads `previous` and `pfx`; my guard read only `owner`. So the tool written to stop
+losing his claim introduced a new way to lose it.
+
+**THE EXISTING TOOL ALREADY HAD EVERY PROPERTY I THOUGHT I WAS ADDING**, and one I had missed:
+
+    state OK and not force  ->  KEPT: "Removing it turns ok into unknown, which is worse."
+    console_is_running()    ->  REFUSED: "sweeping under a live writer can leave a half-written
+                                 record that reads as neither state"    <- the TOCTOU guard I omitted
+    unreadable              ->  KEPT: "an unreadable file is not a proven-bad one"
+    backup                  ->  copied to ~/d2r_board_backups BEFORE os.remove
+    --dry                   ->  "would-sweep", touches nothing
+
+⚠ **MY GUARD ALSO RACED THE CONSOLE.** It classified with `read()`, then `copy2` + `os.remove` on
+the live path with no re-read, while `:17772` was up and `_board_identity_remember` writes with an
+atomic `os.replace`. A write landing in that window meant copying and deleting his claim — REG-921
+again, through the tool built to prevent REG-921.
+
+⚠ **AND ITS OWN LAW COULD NOT SEE ANY OF IT.** `test_it_speaks_the_same_three_states_as_the_console`
+walked the AST for dict keys named `"state"` and asserted my words were a SUBSET of the console's.
+That checks the VOCABULARY overlaps, never that the MAPPING agrees — so it stayed green while the
+two classifications differed on three of five inputs. The same shape as REG-920: a law asserting a
+join it does not test.
+
+⚠ **ONE CORRECTION TO THE REVIEW ITSELF.** The eye reported the old sweeper as a THIRD, differing
+mapping. Measured, it is not: it matches the console on 5 of 5. My first probe made it look wrong by
+passing `previous` as a string where the code reads `(rec.get("previous") or {}).get("id")` — my
+instrument, not its behaviour. A review earns a measurement, not obedience.
+[[copy-drift]] [[workflow-topology]] [[feedback-suspect-the-instrument]] [[the-unjoined-end]]
+
 ## REG-922 — the law that fixed an unjoined end graded the machine's own file
 
 **v2918.** Caught by the cross-family eye on v2917, in the law I had just written to close REG-920.

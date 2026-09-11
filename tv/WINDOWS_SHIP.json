@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2918",
+  "ver": "v2919",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2918: owner is asked first now, in code, because a rule that needs care at 2am gets followed carelessly once",
+  "note": "v2919: deleted: the existing sweeper matches the console 5 of 5 and mine missed by 3",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

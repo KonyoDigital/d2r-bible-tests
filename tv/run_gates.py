@@ -2512,19 +2512,6 @@ GATES = [
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
     # #72 — the ratchet was correct and NOT CONSULTED on a subset run, and its floor was stale.
-    Gate("test_a_board_claim_is_never_swept",
-         [sys.executable, os.path.join(HERE, "test_a_board_claim_is_never_swept.py")], 120,
-         needs_app=False,
-         why="his board claim is never mine to remove, and a rule without its condition is how it "
-             "gets removed. MEASURED 2026-09-11: I followed the standing rule after a clean render "
-             "and deleted a record reading owner=true, id e07a5fe180a8, seenCount 1458 \u2014 HIS "
-             "CLAIM. The file is gitignored (.gitignore:68) so git could not restore it; it came "
-             "back only because a backup happened to carry the same id and I had PRINTED the id "
-             "first. That backup was STALE BY 677 SIGHTINGS. Lose it for real and his board renders "
-             "as an empty stranger\u2019s world, 0 of 403. The condition now lives in code: owner "
-             "true is never swept, false is backed up THEN removed, anything else is UNKNOWN and "
-             "UNKNOWN is not permission.",
-         skip_ok=()),
     Gate("test_the_ratchet_is_not_skipped_by_a_subset",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_is_not_skipped_by_a_subset.py")],
          120,
