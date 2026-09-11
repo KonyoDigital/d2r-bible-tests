@@ -847,6 +847,12 @@ TARGETS = {
     # the panel paints its unreachable branch, so a file:// target would refuse on every run — the
     # mistake the `tvd` target already made and got deleted for, recorded above.
     "heart-fan": {
+        # #53 — the solver's own record, written by `_hrtFanFit` onto the overlay. `reverted` is
+        # the whole question: false means it found a placement and KEPT it; true means it found one
+        # and put everything back, which is the all-or-nothing revert the task names.
+        "report": ("(function(){ var o=document.querySelector('#heart-ov'); if(!o) return null;"
+                   " var a=o.getAttribute('data-fanfit'); if(!a) return null;"
+                   " try { return JSON.parse(a); } catch(e) { return {unparsed:String(a).slice(0,200)}; } })()"),
         "serve": True,
         "why": "♥ THE HEART'S LOCK FAN — the half of the panel nothing was photographing. The "
                "`heart` target's selector is `.hrt-h, .hrt-row`, which is TWO of the panel's "
@@ -2649,6 +2655,25 @@ def check(name, spec, shots=True):
             out["ok"] = False
             out["refusals"].append(why)
             return out
+        # ⚠⚠ v2923 (#53) — A SURFACE BUILT FOR THIS HARNESS THAT THIS HARNESS NEVER READ.
+        # `control_ui.html` writes the fan solver's whole record onto the overlay as `data-fanfit`
+        # and says why in as many words: *"for the render harness, which photographs the DOM and
+        # cannot reach a JS global"*. MEASURED: `render_check.py` contained ZERO occurrences of
+        # `fanfit`. The attribute was written for a reader that did not exist, so #53's central
+        # question — did the solver find nothing, or find something and revert it? — stayed one
+        # manual probe away on every render this gate has ever done.
+        # `report` is the general tap: any target may name a JS expression whose value is recorded
+        # beside its verdict. It NEVER decides ok/not-ok — a report that could fail a run would be
+        # a second gate wearing a diagnostic's clothes. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+        if spec.get("report"):
+            try:
+                _rep = tab.ev(spec["report"])
+            except Exception as _exc:
+                _rep = {"error": type(_exc).__name__}
+            # ⚠ None means the expression answered nothing, which is NOT the same as a target that
+            # never declared one. Both are recorded, and neither is silence. [[unknown-stays-unknown]]
+            out["report"] = _rep if _rep is not None else {"unread": "the report expression "
+                                                           "returned null"}
         for w, h in WIDTHS:
             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
                      deviceScaleFactor=1, mobile=False)
@@ -3110,6 +3135,12 @@ def main(argv):
             continue
         icon = "🟢" if r["ok"] else "🔴"
         _say("%s %-8s %s" % (icon, name, r["why"]))
+        # ⚠ v2923 (#53) — AND IT IS PRINTED, not merely collected. Recording a target's own verdict
+        # into a dict nobody prints is the same defect as the attribute nobody read: one grave
+        # instead of another. This never changes ok/not-ok — it is a diagnostic, and a diagnostic
+        # that can fail a run is a second gate in disguise. [[plumbing-with-no-tap]]
+        if r.get("report") is not None:
+            _say("     ⓘ report %s" % json.dumps(r["report"], sort_keys=True)[:400])
         for key in sorted(r["widths"]):
             m = r["widths"][key]
             # ⚠ v2697 — EVERY COUNT CARRIES ITS DENOMINATOR, because three of these used to read as

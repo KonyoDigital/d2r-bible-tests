@@ -29587,6 +29587,50 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-927 — an attribute written for a reader that did not exist
+
+**v2923.** #53. `control_ui.html` writes the fan solver's entire record onto the heart overlay as
+`data-fanfit`, and names its reader outright:
+
+    "`window._hrtFanLast` is for a CDP probe; the `data-fanfit` attribute is for the render
+     harness, which photographs the DOM and cannot reach a JS global."
+
+**MEASURED: `render_check.py` contained ZERO occurrences of `fanfit`.** The attribute was written
+for a reader that did not exist. So #53's central question — did the solver find no improving move,
+or find one and put it back? — sat in the DOM *being photographed*, one manual probe away, on every
+render this gate has ever performed.
+
+`report` is now the general tap: any target may name a JS expression whose value is recorded beside
+its verdict. Wired to `heart-fan`, one run answered #53:
+
+    ⓘ report {"reverted": false, "ok": true, "passes": 2, "moves": 4, "before": 1, "after": 0,
+              "from": {"collisions": 2, "adjacent": 2, "displacement": 0},
+              "to":   {"collisions": 0, "adjacent": 0, "displacement": 65.6}}
+
+**`reverted: false`** — the all-or-nothing revert did NOT fire. The solver found a placement in two
+passes, moved four stacks, took collisions 2 -> 0 and adjacencies 2 -> 0, and KEPT it (displacement
+65.6 proves the moves are applied). **#53's premise as written does not describe the render world**,
+and that is now re-measured on every run rather than resting on one probe from v2827.
+
+⚠ **HIS CONSOLE REMAINS UNKNOWN.** This is the fixture world; his lock set carries different labels
+at different widths. What changed is that a render of his console would now print the answer instead
+of discarding it. [[unknown-stays-unknown]]
+
+**THREE RESTRAINTS, EACH A LAW:**
+· It is **PRINTED**, not merely collected — recording a verdict into a dict nobody prints is one
+  grave instead of another, which is REG-920's shape exactly.
+· It may **NEVER decide ok/not-ok**. A diagnostic that can fail a run is a second gate wearing a
+  diagnostic's clothes, and the next person to add a `report` would be adding a gate unawares. The
+  law parses the block and refuses any `out["ok"]` or refusal inside it.
+· A **null** report reads as `unread`, never as absence — "the expression answered nothing" must not
+  be identical to "this target declared no report".
+
+Six laws, three red-proofs, all PROVEN at 1 match. ⚠ One came back **INVALID** first: the anchor
+took only the first line of a two-line expression and orphaned its continuation, so heart2 refused
+it — *"a gate reddened by a SyntaxError proves nothing about the law."* Second time tonight for that
+exact trap; every tamper is now checked to PARSE before a prove is spent.
+[[plumbing-with-no-tap]] [[the-unjoined-end]] [[regression-guard]]
+
 ## REG-926 — "I could not tell" is not "I caught a copy"
 
 **v2922.** The cross-family eye validated v2921's dependency law as correct — it traced the

@@ -2512,6 +2512,18 @@ GATES = [
              "a DROP fails, and blessing refuses on a partial run so one busy afternoon\n"
              "cannot become the new normal."),
     # #72 — the ratchet was correct and NOT CONSULTED on a subset run, and its floor was stale.
+    Gate("test_a_target_can_hand_back_its_own_verdict",
+         [sys.executable, os.path.join(HERE, "test_a_target_can_hand_back_its_own_verdict.py")], 120,
+         needs_app=False,
+         why="a surface built for this harness that this harness never read. control_ui.html writes "
+             "the fan solver's whole record onto the overlay as `data-fanfit` and says it is \u2018for "
+             "the render harness, which photographs the DOM and cannot reach a JS global\u2019 \u2014 "
+             "and render_check.py contained ZERO occurrences of `fanfit`. #53's central question "
+             "(did the solver find nothing, or find something and revert it?) sat in the DOM being "
+             "photographed, one manual probe away, on every render this gate ever did. `report` is "
+             "the general tap; it is PRINTED, not merely collected, and it may never decide ok \u2014 "
+             "a diagnostic that can fail a run is a second gate in disguise.",
+         skip_ok=()),
     Gate("test_the_ratchet_is_not_skipped_by_a_subset",
          [sys.executable, os.path.join(HERE, "test_the_ratchet_is_not_skipped_by_a_subset.py")],
          120,
