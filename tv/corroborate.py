@@ -1831,7 +1831,7 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
         # go RED because the code became MORE correct — the two-independently-computed-sides drift
         # this whole file exists to catch, self-inflicted. [[copy-drift]] [[the-unjoined-end]]
         try:
-            _same = {str(p.get("ledger")): bool(p.get("sameQuestion"))
+            _same = {str(p.get("ledger")): (p.get("comparable") is True)
                      for p in (la.surface_pairs() or []) if isinstance(p, dict)}
         except Exception:
             return None                      # cannot say which pairs are comparable — UNKNOWN
@@ -1924,7 +1924,17 @@ def _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE():
             return None
         if not pairs or any(p.get("ledger") is None for p in pairs):
             return None
-        n = sum(1 for p in pairs if p.get("sameQuestion") is True)
+        # ⚠⚠ v2945 — THIS INVARIANT IS ABOUT STORES, SO IT ASKS ABOUT STORES.
+        # It read `sameQuestion` as a proxy, and when that flag was collapsed into the single
+        # `comparable` (which also requires a shared DENOMINATOR) this pair went red — correctly
+        # refusing, but about the wrong question: `uniques` genuinely does read ONE store on both
+        # sides, and only its universes differ. Its name says "one name, one store"; it now
+        # compares the two store fields, which `surface_pairs` publishes as facts precisely so an
+        # invariant with a different question does not have to borrow someone else's verdict.
+        # [[label-outlived-referent]]
+        n = sum(1 for p in pairs
+                if p.get("tallyStore") and p.get("maskStore")
+                and p.get("tallyStore") == p.get("maskStore"))
         return n if n else None
 
     def right():

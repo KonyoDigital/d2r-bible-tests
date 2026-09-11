@@ -946,7 +946,7 @@ class TheHeartStatesTheDisagreement(unittest.TestCase):
         """An exemption with no reason is one nobody can audit, and it silently grows. Same law the
         river's by-design station list already carries."""
         for p in LA.surface_pairs():
-            if p.get("sameQuestion") is False:
+            if p.get("comparable") is False:
                 self.assertGreater(len(p["why"]), 20,
                                    "%s is excluded from the count/mask comparison with no real "
                                    "reason given" % p["ledger"])

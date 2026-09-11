@@ -50,8 +50,19 @@ LOCK = "console.pixel_rescue"
 SRC = "pixel_witness_wilson"
 
 
-def _m(modal, p99, bright, distinct=140, lum=20):
-    """One measured frame, in the exact shape `verdict()` consumes."""
+def _m(modal, p99, bright, distinct, lum=20):
+    """One measured frame, in the exact shape `verdict()` consumes.
+
+    ⚠⚠ v2945 — `distinct` DEFAULTS TO None ("nobody measured it"), NOT 140.
+    140 is the HEALTHY-console figure, and it used to sit here as a silent default on every frame
+    the attacker built — including the one named "his BLANK console, measured", whose other three
+    numbers are real. v2944 then added an ink-test guard that reads `distinct`, and the guard
+    promptly declined the ink test on his own blank console: 2 of 16 sabotages fell, one of them
+    the recorded blank. The witness called a DEAD screen PAINTED, which is the whole of task #34.
+    A guard may only decline on EVIDENCE. A default is not evidence, and `verdict()` already
+    skips the guard when `distinct` is None. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    [[feedback-blind-fixture-green-gate]]
+    """
     return {"distinct": distinct, "modalShare": modal, "modalLuminance": lum,
             "p99Luminance": p99, "brightShare": bright}
 
@@ -89,8 +100,8 @@ def attacks():
 
     # ── A. FALSE BLANK — the direction that costs him his window ────────────────────────────
     A = [
-        ("his HEALTHY console, measured", _m(0.069, 177, 0.0394), PW.PAINTED),
-        ("Terminal full of text, measured", _m(0.628, 254, 0.0581), PW.PAINTED),
+        ("his HEALTHY console, measured", _m(0.069, 177, 0.0394, 140), PW.PAINTED),
+        ("Terminal full of text, measured", _m(0.628, 254, 0.0581, 152), PW.PAINTED),
         # ⚠⚠ THESE THREE ARE LITERALS ON PURPOSE, AND A SABOTAGE CAUGHT ME WRITING THEM THE
         # OTHER WAY. They first read `_m(0.50, PW.INK_P99_MAX, 0.001)` — the attack input DERIVED
         # FROM THE CONSTANT IT EXISTS TO PIN. Widening INK_P99_MAX from 80 to 200 then moved the
@@ -101,22 +112,31 @@ def attacks():
         #
         # Each of the three now pins ONE bar with a hard number, chosen so the OTHER two conditions
         # cannot mask it:
-        ("p99 at his HEALTHY value, ink otherwise silent", _m(0.50, 177, 0.001), PW.PAINTED),
-        ("brightShare at his HEALTHY value, p99 dark", _m(0.50, 10, 0.0394), PW.PAINTED),
-        ("modal 0.97 with real ink above it", _m(0.97, 200, 0.05), PW.PAINTED),
-        ("a DARK but painted window", _m(0.50, 179, 0.020), PW.PAINTED),
-        ("p99 unmeasurable — the ink test must not fire", _m(0.50, None, 0.001), PW.PAINTED),
-        ("brightShare unmeasurable — same", _m(0.50, 10, None), PW.PAINTED),
+        ("p99 at his HEALTHY value, ink otherwise silent", _m(0.50, 177, 0.001, 9), PW.PAINTED),
+        ("brightShare at his HEALTHY value, p99 dark", _m(0.50, 10, 0.0394, 9), PW.PAINTED),
+        ("modal 0.97 with real ink above it", _m(0.97, 200, 0.05, 9), PW.PAINTED),
+        ("a DARK but painted window", _m(0.50, 179, 0.020, 9), PW.PAINTED),
+        # ⚠⚠ v2945 — THIS ONE PINS INK_MAX_DISTINCT FROM ABOVE, AND NOTHING DID BEFORE.
+        # Measured: moving the bar to 32/128/200 changed no verdict at all, so v2944's guard could
+        # be widened to anything without a single attack noticing. This is the state the guard was
+        # BUILT for: a dark-themed window with 152 distinct luminances — drawing plainly happened —
+        # whose brightest 1% and bright share are both ink-silent. Without the guard the ink test
+        # fires and calls a fully painted window BLANK, costing him the window he is looking at.
+        ("richly drawn but dim — the guard's whole reason", _m(0.50, 40, 0.005, 152), PW.PAINTED),
+        ("p99 unmeasurable — the ink test must not fire", _m(0.50, None, 0.001, 9), PW.PAINTED),
+        ("brightShare unmeasurable — same", _m(0.50, 10, None, 9), PW.PAINTED),
     ]
     for name, m, want in A:
         out.append(("false-blank", name, verdict_is(m, want, name)))
 
     # ── B. MISSED BLANK — a witness that never fires leaves him the detector ────────────────
     B = [
-        ("his BLANK console, measured", _m(0.124, 33, 0.0041), PW.BLANK),
-        ("a flat white window", _m(0.9966, 255, 1.0), PW.BLANK),
+        # distinct=9 is HIS, recorded: chrome's own scrollbar/border draw 9 luminances on a blank white
+        # window. See REAL_FRAMES in test_chrome_alone_is_not_paint.py — same frame, same 0.124.
+        ("his BLANK console, measured", _m(0.124, 33, 0.0041, distinct=9), PW.BLANK),
+        ("a flat white window", _m(0.9966, 255, 1.0, 1), PW.BLANK),
         # literal for the same reason as above — his own blank-console numbers, rounded inward
-        ("both ink bars just inside, literal", _m(0.50, 40, 0.005), PW.BLANK),
+        ("both ink bars just inside, literal", _m(0.50, 40, 0.005, 9), PW.BLANK),
     ]
     for name, m, want in B:
         out.append(("missed-blank", name, verdict_is(m, want, name)))

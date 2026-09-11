@@ -1667,7 +1667,10 @@ def staleness(own=None, fleet=None, table=None):
 def surface_pairs():
     """Every figure this console publishes under one name from two independent computations.
 
-    -> [{ledger, tallyStore, maskStore, sameQuestion, why}]
+    -> [{ledger, tallyStore, maskStore, tallyTotal, maskRosterN, comparable, why}]
+
+    ONE decidable flag: `comparable`. The rest are facts for a reader, not a second
+    filter to get wrong.
 
     ⚠⚠ THE ONE THAT IS ALREADY WRONG, MEASURED LIVE 2026-09-06. `fleet_mask.LEDGERS["uniques"]`
     reads `d2r_owned` — the VAULT — while `grail_tally` moved the `uniques` pair to `chronFound`,
@@ -1696,12 +1699,63 @@ def surface_pairs():
     for name, spec in sorted(masks.items()):
         ms = spec.get("store")
         ts = TALLY_STORE.get(name)
+        # ⚠⚠ v2945 (#63) — ONE FLAG, BECAUSE TWO IS TWO CHANCES TO ASK THE WRONG ONE.
+        # Konyo, on seeing a first cut that published `sameQuestion` AND `sameUniverse` side by
+        # side: *"why is there two separte ones? it needs to be unified as one.. not two filters
+        # that way you wont be able to look at the worng key?"* — and he is right, because that is
+        # EXACTLY what had already happened: the corroborator asked `sameQuestion`, got True, and
+        # compared `tally.have = 300 of 403` against `mask.have = 301 of 398`.
+        #
+        # It is the same instruction he gave once before, quoted in
+        # test_the_cross_reference_asks_one_question: *"which one is it really?!!? is it 398 or 403
+        # make a unifed logic"*. That gate also RULED on the numbers:
+        #     403  chronTotal — HIS PINNED RULING, the game's own Chronicle count
+        #     392  funiScan().total — the carded roster
+        #     398  "produced by neither, and NO array on the page is this size"
+        # So 398 is not a rival universe to reconcile; it is the number already declared wrong.
+        #
+        # `comparable` is the ONE question a caller may decide on: may these two numbers be set
+        # against each other at all? The raw facts stay as fields for DIAGNOSIS — never as a second
+        # thing to test. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+        _tot = _rn = None
+        try:
+            import fleet_mask as _fm2
+            _rr, _fpp = _fm2.load_roster_for(name)
+            _rn = len(_rr) if _rr else None
+        except Exception:
+            _rn = None
+        try:
+            import control_app as _ca2
+            _t = (_ca2.grail_tally() or {}).get(name) or {}
+            _tot = _t.get("total") if isinstance(_t.get("total"), int) else None
+        except Exception:
+            _tot = None
+        _store_ok = (ms == ts) if (ms and ts) else None
+        _univ_ok = None if (_tot is None or _rn is None) else (_tot == _rn)
+        # ⚠ UNKNOWN PROPAGATES. If either half could not be measured the answer is None, never
+        # False — "I could not check" and "I checked and they differ" are different facts, and
+        # collapsing them is how a pair goes quiet for the wrong reason.
+        if _store_ok is None or _univ_ok is None:
+            _comparable = None
+        else:
+            _comparable = bool(_store_ok and _univ_ok)
+        if _comparable:
+            _why = ""
+        elif _store_ok is False:
+            _why = ("the mask counts %s and the tally counts %s — two questions under one label, "
+                    "so their numbers are not comparable and a cross-reference names the wrong "
+                    "ledger" % (ms, ts))
+        elif _univ_ok is False:
+            _why = ("both sides read %s, but the tally counts out of %s while the mask can only "
+                    "represent %s roster names — so their COUNTS are not comparable. 403 is his "
+                    "pinned ruling; 398 is the size the page itself says is produced by neither"
+                    % (ts, _tot, _rn))
+        else:
+            _why = ("whether these two figures are comparable is UNKNOWN: store %s, tally total "
+                    "%r, roster %r" % ("ok" if _store_ok else "unmeasured", _tot, _rn))
         out.append({"ledger": name, "tallyStore": ts, "maskStore": ms,
-                    "sameQuestion": (ms == ts) if (ms and ts) else None,
-                    "why": ("" if ms == ts else
-                            "the mask counts %s and the tally counts %s — two questions under one "
-                            "label, so their numbers are not comparable and a cross-reference "
-                            "names the wrong ledger" % (ms, ts))})
+                    "tallyTotal": _tot, "maskRosterN": _rn,
+                    "comparable": _comparable, "why": _why})
     return out
 
 
@@ -1728,12 +1782,18 @@ def mask_cross_check(fleet=None):
                 "rows": [], "excluded": []}
     pairs = {p["ledger"]: p for p in surface_pairs()}
     excluded = [{"ledger": k, "why": v["why"]}
-                for k, v in sorted(pairs.items()) if v.get("sameQuestion") is False]
+                for k, v in sorted(pairs.items()) if v.get("comparable") is not True]
     rows = []
     for m in (list((fleet or {}).get("online") or []) + list((fleet or {}).get("offline") or [])):
         who = (m or {}).get("nickname") or (m or {}).get("machine") or "?"
         for led, pair in sorted(pairs.items()):
-            if pair.get("sameQuestion") is not True:
+            # ⚠⚠ v2945 — `comparable`, NOT merely "same store". A mask can only REPRESENT the
+            # names on the roster it was built against, so a tally counted out of a LARGER universe
+            # produces a popcount below its `have` for items the mask has no bit for — a
+            # disagreement manufactured by the instrument. `uniques` is exactly this: both sides
+            # read d2r_foundLog, the tally counts out of 403, the mask can only carry 398.
+            # Excluded and NAMED in `excluded`, never silently skipped.
+            if pair.get("comparable") is not True:
                 continue
             mk = ((m or {}).get("masks") or {}).get(led)
             t = ((m or {}).get("tally") or {}).get(led)

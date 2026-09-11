@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2944** | `(this commit)` | v2944 — --note a window with 140 distinct luminances read BLANK because its p99 sat one point under the bar |
+| **v2945** | `(this commit)` | v2945 — --note surface_pairs published two questions under one label; the corroborator asked the wrong one and compared 403 against 398 |
+| **v2944** | `0b249f8d` | v2944 — --note a window with 140 distinct luminances read BLANK because its p99 sat one point under the bar |
 | **v2943** | `dd8e88b0` | v2943 — --note the eagle skips PERIODIC on 5 of every 6 passes and the durable record dropped the key that says so |
 | **v2942** | `88b7100f` | v2942 — --note shelf_driver shipped 773 lines gated and red-proven and nothing ran it; his beat was 31.6h old and no supervisor said so |
 | **v2941** | `424bb40e` | v2941 — --note the definition had zero callers, the census never asked it, and no writer ever stamped |

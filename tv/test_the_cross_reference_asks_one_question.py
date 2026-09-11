@@ -85,7 +85,9 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
         pairs = {str(p.get("ledger")): p for p in (LA.surface_pairs() or [])}
         self.assertTrue(pairs, "surface_pairs answered nothing — fix this guard first")
         bad = {k: (v.get("tallyStore"), v.get("maskStore"))
-               for k, v in pairs.items() if not v.get("sameQuestion")}
+               for k, v in pairs.items()
+               if not (v.get("tallyStore") and v.get("maskStore")
+                       and v.get("tallyStore") == v.get("maskStore"))}
         self.assertEqual({}, bad,
                          "a ledger's mask and tally still read different stores, so their numbers "
                          "are not comparable and the panel prints one label over two questions: %r"
@@ -220,6 +222,90 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
         ast.parse(CA_SRC)
         ast.parse(CORR)
 
+    # ── ⚠⚠ v2945 — ONE DECIDABLE FLAG, BECAUSE TWO IS TWO CHANCES TO ASK THE WRONG ONE ───────
+    def test_a_pair_carries_exactly_ONE_decidable_flag(self):
+        """HIS RULING, 2026-09-11: "why is there two separte ones? it needs to be unified as one..
+        not two filters that way you wont be able to look at the worng key?"
+
+        He is describing a defect that had ALREADY HAPPENED. `surface_pairs()` published
+        `sameQuestion` (same store?) beside a second universe test, the corroborator asked only the
+        first, got True for `uniques`, and compared a tally counted out of 403 against a mask that
+        can only represent 398. One label, two questions, and the reader picked the wrong one.
+
+        So the shape is the law: ONE key a caller may branch on, and the rest facts. Parsed from
+        the dict this function actually returns — never grepped. [[source-reading-guard]]"""
+        src = io.open(os.path.join(HERE, "ledger_authority.py"), encoding="utf-8").read()
+        fn = next((n for n in ast.walk(ast.parse(src))
+                   if isinstance(n, ast.FunctionDef) and n.name == "surface_pairs"), None)
+        self.assertIsNotNone(fn, "surface_pairs is gone — this law examined nothing")
+        keys = set()
+        for d in (n for n in ast.walk(fn) if isinstance(n, ast.Dict)):
+            for k in d.keys:
+                if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                    keys.add(k.value)
+        self.assertIn("comparable", keys,
+                      "surface_pairs no longer publishes `comparable`, the one flag a caller "
+                      "decides on. Keys found: %r" % sorted(keys))
+        for retired in ("sameQuestion", "sameUniverse"):
+            self.assertNotIn(retired, keys,
+                             "`%s` is back alongside `comparable` — that is the two-filter shape "
+                             "he ruled out, and the second filter is the one that gets asked by "
+                             "mistake" % retired)
+
+    def test_NO_module_still_READS_a_retired_flag(self):
+        """A removed key does not fail loudly by itself: `.get("sameQuestion")` on a dict that no
+        longer has it returns None, and `None is not True` quietly skips every row. That is exactly
+        how `mask_cross_check` came back agreeN=0 / comparableN=0 — a clean-looking zero standing
+        for "I asked a question nobody answers any more". [[zero-needs-a-denominator]]
+
+        Reads only — `.get("x")` and `["x"]`. Prose may discuss the history freely."""
+        RETIRED = {"sameQuestion", "sameUniverse"}
+        bad = []
+        for fn in sorted(os.listdir(HERE)):
+            if not fn.endswith(".py"):
+                continue
+            try:
+                tree = ast.parse(io.open(os.path.join(HERE, fn), encoding="utf-8").read())
+            except Exception:
+                continue
+            for n in ast.walk(tree):
+                nm = None
+                if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                        and n.func.attr == "get" and n.args
+                        and isinstance(n.args[0], ast.Constant)):
+                    nm = n.args[0].value
+                elif isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Constant):
+                    nm = n.slice.value
+                if nm in RETIRED:
+                    bad.append("%s:%d %s" % (fn, getattr(n, "lineno", 0), nm))
+        self.assertEqual([], bad, "a module still reads a retired flag, which now returns None "
+                                  "and skips silently rather than failing: %r" % bad)
+
+    def test_a_pair_ruled_NOT_comparable_NAMES_BOTH_NUMBERS(self):
+        """An exemption nobody can audit is an exemption that grows. A ledger excluded from the
+        cross-check must say which two universes disagree, in digits, so the next reader can tell
+        `403 vs 398` from `the instrument is broken`."""
+        for p in (LA.surface_pairs() or []):
+            if p.get("comparable") is not False:
+                continue
+            why = str(p.get("why") or "")
+            for n in (p.get("tallyTotal"), p.get("maskRosterN")):
+                self.assertIn(str(n), why,
+                              "%s is not comparable and its reason does not name %r: %r"
+                              % (p.get("ledger"), n, why))
+
+    def test_the_cross_check_EXCLUDES_exactly_the_non_comparable(self):
+        """Excluded and NAMED, never silently skipped — and never excluding one it could have
+        measured. Both directions, because a filter that drops everything also 'agrees'."""
+        pairs = {str(p["ledger"]): p for p in (LA.surface_pairs() or [])}
+        d = LA.mask_cross_check() or {}
+        named = {str(e.get("ledger")) for e in (d.get("excluded") or [])}
+        want = {k for k, v in pairs.items() if v.get("comparable") is not True}
+        self.assertEqual(want, named,
+                         "the cross-check's exclusion list and the pairs disagree about which "
+                         "ledgers are out: excluded=%r, not-comparable=%r" % (sorted(named), sorted(want)))
+        self.assertEqual(set(), {r["ledger"] for r in (d.get("rows") or [])} & named,
+                         "a ledger is both excluded and measured")
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
@@ -239,6 +325,27 @@ RED_PROOF = [
         "file": 'control_app.py',
         "find": "if(rawv==null||rawv===''){continue;}",
         "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'law: a pair carries exactly ONE decidable flag. `comparable` is the key every caller branches on; deleting it from the returned dict must turn the gate red',
+        "file": 'ledger_authority.py',
+        "find": '"comparable": _comparable',
+        "replace": '"_HEART2_TAMPERED_": _comparable',
+        "matches": 1,
+    },
+    {
+        "why": 'law: the cross-check excludes exactly the non-comparable and NAMES them. Breaking the exclusion comprehension must turn the gate red, not silently empty the list',
+        "file": 'ledger_authority.py',
+        "find": 'if v.get("comparable") is not True]',
+        "replace": 'if v.get("_HEART2_TAMPERED_") is not True]',
+        "matches": 1,
+    },
+    {
+        "why": 'law: a pair ruled not-comparable names BOTH numbers. Dropping the tally total from the reason leaves an exemption nobody can audit',
+        "file": 'ledger_authority.py',
+        "find": 'but the tally counts out of %s while the mask can only ',
+        "replace": 'but the tally counts out of a different number while the mask can only ',
         "matches": 1,
     },
 ]

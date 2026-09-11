@@ -207,8 +207,8 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
         """*** THE WHOLE INSTRUMENT IN ONE ASSERTION, on his own numbers rather than invented ones:
         blank 0.124/33/0.0041, healthy 0.069/177/0.0394. If these two ever read the same, the
         witness cannot see his fault and everything above it is theatre."""
-        blank = PWW._m(0.124, 33, 0.0041)
-        healthy = PWW._m(0.069, 177, 0.0394)
+        blank = PWW._m(0.124, 33, 0.0041, 9)
+        healthy = PWW._m(0.069, 177, 0.0394, 140)
         self.assertEqual(PW.verdict(blank)[0], PW.BLANK,
                          "his measured BLANK console no longer reads blank")
         self.assertEqual(PW.verdict(healthy)[0], PW.PAINTED,

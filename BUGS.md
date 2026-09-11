@@ -31149,3 +31149,46 @@ diverges 301 vs 300, resolved to three named items with zero residual (see #63).
 ⚠ NOT DONE HERE: the mask/tally reconciliation itself changes what a number MEANS on the fleet
 card, and holding all three sunder spellings is Konyo's v2691 ruling. His data does not move; the
 mask must learn his rule. Open for his decision.
+
+## REG-950 — the attack harness scored a frame that does not exist (v2944 → fixed v2945)
+
+**Found by:** the second eye on v2944 (a different model family), reproduced here before being believed.
+
+`pixel_witness_wilson._m(modal, p99, bright, distinct=140, lum=20)` built every attack frame with a
+hardcoded `distinct=140` — **the HEALTHY-console figure** — including the attack literally named
+`"his BLANK console, measured"`, whose other three numbers are real. The fourth was fabricated by a
+default, and nothing said so.
+
+That default was inert until v2944 added an ink-test guard that reads `distinct`. The guard then
+declined the ink test on the harness's version of his blank console, and **2 of 16 sabotages fell**,
+one of them the recorded blank.
+
+**⚠ SCOPE, measured — the shipped detector was NOT broken.** Run against the real recorded frames,
+`paint_witness.verdict()` is correct in every case and always was:
+
+    gb-shelf blank x34   distinct=1    -> BLANK
+    gb-shelf blank x18   distinct=1    -> BLANK
+    chrome dim blank     distinct=9    -> BLANK
+    gb-shelf painted     distinct=152  -> PAINTED
+
+A real blank frame measures 1 (9 with chrome), a real painted one 152, and `INK_MAX_DISTINCT` sits
+at 64 between them. The regression was confined to the HARNESS: it was scoring a window nobody has
+ever captured. [[feedback-blind-fixture-green-gate]] — the fixture is the usual culprit.
+
+**Fix.** `distinct` is now a REQUIRED argument, so no frame can be built without stating the window
+it represents, and all 10 call sites carry a value sourced from the state each attack names.
+
+**Two things the repair surfaced that the eye did not raise:**
+
+1. **The ink-bar attacks would have gone vacuous.** Given a painted-class `distinct`, the guard
+   declines the ink test outright and all six pass without exercising a single bar — the exact
+   "a test anchored to its own subject cannot see the subject move" failure their own comment
+   warns about. They now carry a blank-class `distinct` on purpose, so the bars stay live.
+   Proven: `INK_P99_MAX` 80→200 and `INK_SHARE_MAX` 0.015→0.9 each drop exactly the attack that
+   pins them.
+2. **`INK_MAX_DISTINCT` was unpinned upward.** Measured: 32 / 128 / 200 changed no verdict at all,
+   so v2944's own bar could be widened to anything and no attack would notice. A 17th attack now
+   pins it — a richly drawn but dim window (152 distinct, ink-silent) that the ink test would call
+   BLANK if the guard stopped declining. At bar 200 it falls; at bar 4 the two blank attacks fall.
+   The bar is free to move between 9 and 152 and no attack objects, which is correct rather than a
+   hole: anywhere in that gap separates the two classes identically.
