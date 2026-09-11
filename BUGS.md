@@ -29587,6 +29587,45 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-924 — deleting the hollow law left the gap it was hiding
+
+**v2920.** Found by the cross-family eye on v2919 — the version that deleted my duplicate sweeper.
+The deletion was right. What it did NOT do was replace the law it removed.
+
+v2918's join test walked the AST for dict keys named `"state"` and asserted a VOCABULARY SUBSET, so
+it stayed green while the MAPPING disagreed (REG-923). v2919 deleted it and added nothing. **MEASURED
+on the surviving suite:** three hand-built fixtures — `OK_REC`, `GUEST_REC`, `DRIFT_REC` —
+`control_app` never imported at all, and `board_identity_drift` appearing twice, **both times in a
+comment**. So the suite never asked the console anything.
+
+**The untested row is exactly the one that made the deleted tool dangerous:**
+
+    record                      console        deleted guard      surviving fixture
+    {owner: False, pfx: "g7"}   drift, sweep   drift, sweep       the ONLY false-owner case tested
+    {owner: False, pfx: ""}     ok, KEEP       drift, DELETE      NOT TESTED
+    {owner: False} (no pfx)     ok, KEEP       drift, DELETE      NOT TESTED
+    no owner key at all         ok, KEEP       unknown, keep      NOT TESTED
+
+`_board_identity_of` stores `bool(payload.get("owner"))` and `payload.get("pfx")` as-is, so
+owner=false with an empty or missing pfx is a record that really occurs. Re-introduce the `owner`-only
+rule tomorrow and every law in that suite stays green while his claim gets swept.
+
+**THE JOIN NOW ASKS THE CONSOLE, ON SIX SHAPES, AND COMPARES THE DECISION — sweep or keep — not the
+spelling.** ⚠ And it drives the console's OWN reader rather than transcribing its rule:
+`board_identity_drift()` takes no arguments and reads through `_board_identity_last()`, so the law
+swaps that reader and calls the real function. Re-implementing its `if`s here would create the second
+rule the law exists to forbid. A companion law parses this file and asserts at least one call to
+`board_identity_drift()` actually exists, so the join can never decay back into prose.
+
+**Proven by reintroducing the v2918 mistake** — `owner` alone, ignoring pfx — which turns the suite
+red and names all three records by hand:
+
+    owner false, EMPTY pfx : console says ok, the sweeper would SWEEP
+    owner false, NO pfx key: console says ok, the sweeper would SWEEP
+    no owner key at all    : console says ok, the sweeper would SWEEP
+
+Four red-proofs, all PROVEN at 1 match each. [[the-unjoined-end]] [[copy-drift]]
+
 ## REG-923 — I shipped a second safety tool for a file that already had one, and mine was wrong
 
 **v2919.** Found by the cross-family eye on v2918, in the guard v2918 added to fix REG-921.

@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v2920** | `(this commit)` | v2920 — the suite never imported control_app and the one dangerous record was untested |
 | **v2919** | `(this commit)` | v2919 — deleted: the existing sweeper matches the console 5 of 5 and mine missed by 3 |
 | **v2918** | `(this commit)` | v2918 — owner is asked first now, in code, because a rule that needs care at 2am gets followed carelessly once |
 | **v2917** | `(this commit)` | v2917 — thirty nodes of slack on disk and zero consumers, while four places said the heart was watching |

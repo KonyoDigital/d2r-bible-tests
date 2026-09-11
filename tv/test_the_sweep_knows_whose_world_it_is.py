@@ -120,6 +120,83 @@ class TestTheSweepKnowsWhoseWorldItIs(unittest.TestCase):
                          "reads as neither state")
         self.assertTrue(os.path.isfile(p), "his console's file was removed mid-write")
 
+    # ══ THE JOIN, AND IT IS A MAPPING NOT A VOCABULARY ═══════════════════════════════════════
+    #: every shape the writer can actually emit. `_board_identity_of` stores
+    #: `bool(payload.get("owner"))` and `payload.get("pfx")` AS-IS, so owner=False with an empty or
+    #: missing pfx is a record that really occurs — and it is the row nobody tested.
+    JOIN_TABLE = [
+        ("a healthy claim",              {"owner": True,  "pfx": "",   "previous": None}),
+        ("a claim from another install", {"owner": True,  "pfx": "",   "previous": {"id": "old"}}),
+        ("the CDP guest record",         {"owner": False, "pfx": "g7", "previous": None}),
+        ("owner false, EMPTY pfx",       {"owner": False, "pfx": "",   "previous": None}),
+        ("owner false, NO pfx key",      {"owner": False,              "previous": None}),
+        ("no owner key at all",          {"pfx": "",                   "previous": None}),
+    ]
+
+    def test_the_sweeper_and_the_CONSOLE_agree_on_every_record_the_writer_can_emit(self):
+        """⚠⚠ v2920 — THE LAW THIS SUITE HAS NEVER HAD, AND ITS ABSENCE ALMOST COST HIS CLAIM.
+
+        v2918 shipped a second sweeper that classified on `owner` ALONE. It disagreed with
+        `control_app.board_identity_drift()` on THREE of five records — it KEPT what the console
+        calls drift, and DELETED what the console calls ok. v2919 deleted that tool, and deleted
+        the law that was supposed to have caught it: a check that walked the AST for dict keys
+        named "state" and asserted a VOCABULARY SUBSET. Matching words while the mapping differs is
+        not a join, and REG-923 named it.
+
+        ⚠ THE DELETION LEFT THE GAP OPEN. Found by the cross-family eye on v2919: this suite tests
+        three hand-built fixtures — OK_REC, GUEST_REC, DRIFT_REC — and **never imports control_app
+        at all**. `board_identity_drift` appears in it twice, both times in a COMMENT. So the one
+        record that made the deleted tool dangerous, `{owner: False, pfx: ""}`, was untested: the
+        console calls it **ok, keep**; the deleted guard called it **drift, delete**. Re-introduce
+        that rule tomorrow and every law here stays green.
+
+        This asks the CONSOLE, on every shape the writer can emit, and compares the DECISION —
+        sweep or keep — not the spelling. [[the-unjoined-end]] [[copy-drift]]
+        """
+        import control_app as ca
+        # ⚠ DRIVE ITS OWN READER, DO NOT RE-IMPLEMENT ITS RULE. `board_identity_drift()` takes no
+        # arguments — it reads through `_board_identity_last()`. Swapping that reader feeds the REAL
+        # decision function a record; transcribing its `if`s here would create the second rule this
+        # law exists to forbid. [[copy-drift]]
+        orig_reader = ca._board_identity_last
+        wrong = []
+        try:
+            for label, rec in self.JOIN_TABLE:
+                ca._board_identity_last = (lambda _r=rec: dict(_r))
+                theirs = ca.board_identity_drift()
+                if not isinstance(theirs, dict):
+                    self.fail("board_identity_drift() did not answer with a dict for %r: %r"
+                              % (label, theirs))
+                console_sweeps = str(theirs.get("state")) == "drift"
+                mine_sweeps = BIS.classify(rec)[0] in (BIS.GUEST, BIS.DRIFTED)
+                if console_sweeps != mine_sweeps:
+                    wrong.append("%s: console says %s, the sweeper would %s"
+                                 % (label, theirs.get("state"),
+                                    "SWEEP" if mine_sweeps else "KEEP"))
+        finally:
+            ca._board_identity_last = orig_reader
+        self.assertEqual(wrong, [],
+                         "the sweeper and the console disagree about whether to DELETE:\n  %s"
+                         % "\n  ".join(wrong))
+
+    def test_the_join_asks_the_console_ITSELF_and_not_a_copy_of_its_rule(self):
+        """⚠ A TRANSCRIBED RULE IS A SECOND RULE. If this suite re-implemented the console's
+        decision instead of calling it, the two would drift apart silently — which is the whole
+        defect above, one layer up. The law must IMPORT control_app and CALL
+        board_identity_drift(). [[copy-drift]]"""
+        src = io.open(os.path.join(HERE, "test_the_sweep_knows_whose_world_it_is.py"),
+                      encoding="utf-8").read()
+        import ast as _ast
+        calls = 0
+        for n in _ast.walk(_ast.parse(src)):
+            if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Attribute) \
+               and n.func.attr == "board_identity_drift":
+                calls += 1
+        self.assertGreaterEqual(calls, 1,
+                                "no law here CALLS board_identity_drift() — the join is prose, and "
+                                "a suite that only reads fixtures cannot notice the console "
+                                "changing its mind")
+
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 RED_PROOF = [
@@ -135,6 +212,20 @@ RED_PROOF = [
         "file": "board_identity_sweep.py",
         "find": "    pid = console_is_running()",
         "replace": "    pid = None",
+        "matches": 1,
+    },
+    {
+        "why": "reintroducing the v2918 mistake: classify on `owner` ALONE, ignoring pfx. The console calls owner=false with no pfx OK; this would sweep it. MEASURED red on three records at once - empty pfx, missing pfx key, and no owner key at all.",
+        "file": "board_identity_sweep.py",
+        "find": "    if (not rec.get(\"owner\")) and rec.get(\"pfx\"):",
+        "replace": "    if not rec.get(\"owner\"):",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the `previous` check makes a board that came back as a DIFFERENT install read as a healthy claim - the console still calls it drift, so the two decisions split.",
+        "file": "board_identity_sweep.py",
+        "find": "    if rec.get(\"previous\"):",
+        "replace": "    if False:",
         "matches": 1,
     },
 ]

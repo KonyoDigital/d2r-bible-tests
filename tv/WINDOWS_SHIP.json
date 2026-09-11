@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2919",
+  "ver": "v2920",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2919: deleted: the existing sweeper matches the console 5 of 5 and mine missed by 3",
+  "note": "v2920: the suite never imported control_app and the one dangerous record was untested",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
