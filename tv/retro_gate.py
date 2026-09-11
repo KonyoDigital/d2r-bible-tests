@@ -104,6 +104,23 @@ def _load():
 
 
 def _save(d):
+    # ⚠⚠ v2980 (#69) — STAMP EACH LANE, NEVER THE BLOB. retro_gate.json looks flat —
+    # {"t": {...}} — and it is NOT: `t` is a LANE NAME. This module enumerates its own top
+    # level at :145, `for lane, row in sorted((_load() or {}).items())`, and computes a
+    # WILSON LOWER BOUND per lane from that row's agree/disagree counts.
+    # ⚠ AND THE EXISTING GUARD WOULD NOT CATCH IT. That loop skips `if not isinstance(row,
+    # dict)` — and a provenance block IS a dict, so a blob stamp would sail through as a
+    # phantom lane with n=0 rather than being skipped.
+    # ⚠ ONLY THE LANES THIS WRITE CHANGED (v2979/REG-982): stamp_row REPLACES any existing
+    # block, so mapping it over the store would back-fill lanes nobody in this process
+    # wrote and churn the rest.
+    # ⚠ SWALLOWED, like the write below. [[zero-needs-a-denominator]]
+    try:
+        import provenance as _PV
+        d = _PV.stamp_changed_rows(d, _load(), by="retro_gate",
+                                   extra={"store": "retro_gate"})
+    except Exception:
+        pass
     try:
         tmp = _ledger_path() + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as fh:

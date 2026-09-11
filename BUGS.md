@@ -31700,6 +31700,38 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-983 - a store that LOOKED flat was lane-keyed, and the guard that looks protective is not (task #69 - v2980)
+
+`retro_gate.json` is `{"t": {...}}`. One top-level key, so my shape census filed it FLAT - a single
+namespace field. It is not. **`t` is a LANE NAME**, and retro_gate.py:145 enumerates its own top
+level:
+
+    for lane, row in sorted((_load() or {}).items()):
+        if not isinstance(row, dict):
+            continue
+        ... wilson_lower(k, n) per lane
+
+⚠⚠ **AND THAT GUARD DOES NOT PROTECT IT.** `if not isinstance(row, dict): continue` looks exactly
+like the check that would skip a stray key - and a provenance block **IS a dict**, so a blob stamp
+sails straight through as a phantom lane Wilson-scored at n=0. The guard that appears to make the
+blob stamp safe is precisely why it would have gone unnoticed. [[zero-needs-a-denominator]]
+
+★ FOURTH STORE, AND THE READERS DECIDED IT EVERY TIME. The shape said FLAT; the reader said LANE.
+Only reading the consumer settles it:
+
+    capture_doors        blueprint publishes the top level as a row count        (REG-979)
+    chron_hunt_memory    a corroborator compares len() against zero              (REG-980)
+    main_character       a tally printed to him as "tracked items"               (REG-981)
+    retro_gate           a per-lane Wilson loop whose guard cannot skip a dict   (REG-983)
+
+Stamped per lane, and only the lanes this write changed (v2979/REG-982, so no back-fill). Verified:
+
+    lanes ['t','u']   '_prov' a lane: False
+    changed lane t -> by='retro_gate'     untouched lane u -> by=None
+    counts kept: t.agree=4  u.agree=9
+
+Seven tampers PROVEN red, 1 match each, each `ast.parse`d against the tampered file first.
+
 ## REG-982 - I mapped the stamp over WHOLE stores and shipped it three times (task #69 - v2979)
 
 The second eye reviewed v2976 and found a contract bug the three tests in that diff could not see.

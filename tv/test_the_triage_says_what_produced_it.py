@@ -39,6 +39,7 @@ _console_safe_enable()
 
 import control_app as CA     # noqa: E402
 import main_character as MC  # noqa: E402
+import retro_gate as G       # noqa: E402
 import provenance as PV      # noqa: E402
 import retro_triage as RT    # noqa: E402
 
@@ -369,7 +370,68 @@ class OnlyTheRowsThisWriteChangedAreStamped(unittest.TestCase):
                          "never catch up with the data")
 
 
+class TheRetroGateLanesAreNotJoinedByAPhantom(unittest.TestCase):
+    """#69 / v2980 — retro_gate.json LOOKS flat — {"t": {...}} — and is not: `t` is a LANE NAME.
+
+    retro_gate.py:145 enumerates its own top level, `for lane, row in sorted((_load() or {}).items())`,
+    and computes a WILSON LOWER BOUND per lane from that row's agree/disagree counts.
+
+    ⚠ AND THE LOOP'S EXISTING GUARD WOULD NOT CATCH A BLOB STAMP. It skips
+    `if not isinstance(row, dict)` — and a provenance block IS a dict, so the phantom would sail
+    through as a lane with n=0 rather than being skipped. The guard that looks like it protects
+    this is the reason it would go unnoticed. [[zero-needs-a-denominator]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="prov_rg_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.p = os.path.join(self.d, "retro_gate.json")
+        was = G._ledger_path
+        G._ledger_path = lambda: self.p
+        self.addCleanup(setattr, G, "_ledger_path", was)
+        io.open(self.p, "w", encoding="utf-8").write(json.dumps(
+            {"t": {"agree": 3, "disagree": 1}, "u": {"agree": 9, "disagree": 0}}))
+
+    def _save_touching_t(self):
+        cur = G._load()
+        cur["t"]["agree"] = 4
+        G._save(cur)
+        return json.load(io.open(self.p, encoding="utf-8"))
+
+    def test_no_phantom_lane_appears(self):
+        blob = self._save_touching_t()
+        self.assertNotIn("_prov", blob,
+                         "the stamp landed at the TOP LEVEL of a lane-keyed store, so the Wilson "
+                         "loop at retro_gate.py:145 now walks a lane that does not exist — and its "
+                         "isinstance(row, dict) guard does not skip it, because a _prov block IS "
+                         "a dict")
+        self.assertEqual(["t", "u"], sorted(blob),
+                         "the lane set changed: %s" % sorted(blob))
+
+    def test_the_lane_this_write_changed_is_stamped(self):
+        blob = self._save_touching_t()
+        self.assertEqual("retro_gate", getattr(PV.read(blob["t"]), "by", None),
+                         "the lane this write changed does not name its producer")
+
+    def test_an_untouched_lane_is_not_back_filled(self):
+        blob = self._save_touching_t()
+        self.assertIsNone(getattr(PV.read(blob["u"]), "by", None),
+                          "lane 'u' was BACK-FILLED — a tally nobody in this process wrote now "
+                          "claims retro_gate as its producer")
+
+    def test_the_lane_counts_are_unharmed(self):
+        blob = self._save_touching_t()
+        self.assertEqual(4, blob["t"].get("agree"))
+        self.assertEqual(9, blob["u"].get("agree"))
+
+
 RED_PROOF = [
+    {
+        "why": "stamping the BLOB adds a phantom LANE that retro_gate.py:145 walks and Wilson-scores at n=0 - and its isinstance(row, dict) guard does not skip it, because a _prov block is a dict",
+        "file": "retro_gate.py",
+        "find": '        d = _PV.stamp_changed_rows(d, _load(), by="retro_gate",\n                                   extra={"store": "retro_gate"})\n',
+        "replace": '        d = _PV.stamp(d, by="retro_gate", extra={"store": "retro_gate"})\n',
+        "matches": 1,
+    },
     {
         "why": 'restoring the blanket comprehension relabels every sibling row on every save - the BACK-FILL and CHURN the second eye found in v2976, shipped three times',
         "file": 'control_app.py',
