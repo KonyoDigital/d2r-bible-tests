@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2931",
+  "ver": "v2932",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2931: --note a historyless git returned an empty answer and the tool stamped UNKNOWN over honest cells; and a solver that declined was reported as one that crashed",
+  "note": "v2932: --note REG-875: the stated disagreement did not reproduce; both rules AGREED on a path inside his repo",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

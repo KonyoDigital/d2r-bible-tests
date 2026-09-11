@@ -91,8 +91,13 @@ def _fixture_root_for_state():
         # a safer fallback, it is a second opinion about what isolation means. Replicated here
         # rather than re-invented, because this arm exists precisely when that module is
         # unreachable. A law pins the two to the same answers. [[copy-drift]] [[the-unjoined-end]]
+        # ⚠⚠ v2932 (REG-875) — the same two narrowings as the canonical rule, replicated here
+        # because this arm exists precisely when that module cannot be imported. A blank TV_HIST is
+        # nobody asking; a relative one resolves against the caller's CWD and so has no fixed
+        # meaning. Measured: with cwd at the repo root, `"   "` produced `<repo>/   ` from BOTH.
         _hist = os.environ.get("TV_HIST")
-        if _hist:
+        if _hist and _hist.strip() and os.path.isabs(_hist.strip()):
+            _hist = _hist.strip()
             try:
                 _rp = os.path.realpath(_hist)
                 if not (_rp == HERE or _rp.startswith(HERE + os.sep)):
@@ -26142,7 +26147,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2931",
+        "ver": "v2932",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

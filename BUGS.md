@@ -29613,6 +29613,51 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-937 — REG-875 CLOSED: the two rules agreed, and agreed on a path inside his repo
+
+**v2932, closing #71.** REG-875 said the canonical isolation rule and its v2783 fallback *disagree*
+for `TV_HIST="   "` — `HERE` versus `HERE/"   "` — and that which was wrong was UNKNOWN.
+
+**The stated disagreement does not reproduce.** Measured by driving the canonical `_fixture_root`
+and the REAL fallback — the latter reached by forcing `import tv_diablo` to raise, which is the only
+condition under which that arm runs at all — across **3 working directories x 4 TV_HIST values**:
+they agreed in **12 of 12**.
+
+**What reproduces is worse.** They agreed on a *dangerous* answer:
+
+| cwd | `TV_HIST` | both rules returned |
+|---|---|---|
+| repo root | `"   "` | `<repo>/   ` — a whitespace-named dir **inside his tree** |
+| repo root | `"relative/path"` | `<repo>/relative/path` |
+| `tv/` | `"   "` | `HERE` — correct, which is why it looked fine |
+| a temp dir | `"   "` | `<tmp>/   ` |
+
+**Cause:** `os.path.realpath()` resolves a blank or relative value against **whatever CWD the
+process started in**, so the isolation decision was a function of the calling shell rather than of
+what the caller asked for. And the `_under` boundary is drawn at **`tv/`** while his tree is the
+**repository**, so a path inside the repo but outside `tv/` passes the test and is accepted as a
+fixture world. `state.json`, `control_agent.log`, the G5 stats and the subscription meter would have
+been written there.
+
+**⚠ Why the existing law could not see it.** `test_the_fallback_AGREES_with_the_rule_it_stands_in_for`
+runs its child with **one** working directory, so it could only ever observe agreement or
+disagreement at that cwd — and the answer was correct there. A law that varies every input except the
+one the defect depends on is green by construction. [[gate-blind-to-unexercised-input]]
+
+**Fix (v2932), deliberately the narrow half:** in BOTH rules, a `TV_HIST` that is blank after
+`strip()` means nobody asked, and a **relative** value cannot be honoured because its meaning is not
+fixed. Re-measured: 12 of 12 now return `HERE` for blank/relative at every cwd, `/tmp/outside` still
+isolates, and an inside-`tv/` path is still refused. This cannot affect the 75 TV_HIST call sites,
+all of which pass absolute temp dirs.
+
+**Gate:** `test_the_harness_isolates_the_world` — two new laws, one varying the CWD and one pinning
+that no value names a root inside the repo. **3/3 red-proofs PROVEN, one match each.**
+
+**⚠ STILL OPEN, and stated rather than quietly fixed: the boundary is `tv/`, not the repository.**
+An *absolute* path inside the repo but outside `tv/` is still accepted as a fixture world. Moving
+that boundary touches 75 call sites and needs the full suite to settle, so it is recorded here
+rather than guessed at in the same ship.
+
 ## REG-936 — an instrument failure written down as a measurement, in the tool that forbids it
 
 **v2931.** Both findings from the cross-family eye, on v2927 and v2928, reproduced before acting.

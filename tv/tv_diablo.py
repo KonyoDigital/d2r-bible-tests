@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2931"   # an instrument failure written down as a measurement
+VERSION = "v2932"   # the isolation root was a function of the calling shell
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -154,7 +154,18 @@ def _fixture_root(here):
     apps. [[feedback-fixtures-never-touch-live-data]] [[feedback-suspect-the-instrument]]
     """
     hist = os.environ.get("TV_HIST")
-    if hist:
+    # ⚠⚠ v2932 (REG-875) — BLANK IS NOT A PATH, AND RELATIVE IS NOT A DECISION.
+    # MEASURED 2026-09-11 by driving BOTH this rule and control_app's fallback across three working
+    # directories: with cwd at the REPO ROOT and `TV_HIST="   "`, both returned
+    # `<repo>/   ` — a whitespace-named directory INSIDE his tree, handed back as an isolation
+    # root. `TV_HIST="relative/path"` did the same with `<repo>/relative/path`. The cause is
+    # `os.path.realpath()` resolving a non-absolute value against whatever CWD the process happened
+    # to start in, so the isolation decision was a function of the caller's shell.
+    # A request for isolation must not be answered with a guess: blank-after-strip means nobody
+    # asked, and a relative value cannot be honoured because its meaning is not fixed.
+    # [[unknown-stays-unknown]] [[feedback-fixtures-never-touch-live-data]]
+    if hist and hist.strip() and os.path.isabs(hist.strip()):
+        hist = hist.strip()
         try:
             if not _under(hist, here):
                 return os.path.realpath(hist)

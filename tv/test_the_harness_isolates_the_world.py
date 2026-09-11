@@ -408,23 +408,89 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                              "for answers %r — two opinions about which directory is his world"
                              % (val, fb, canon))
 
+    def test_the_answer_does_not_depend_on_the_CALLERS_WORKING_DIRECTORY(self):
+        """⚠⚠ THE BLIND SPOT IN THE LAW ABOVE, and it is why REG-875 sat open. That law runs its
+        child with ONE working directory, so it could only ever see agreement or disagreement at
+        that one cwd — and both rules agreed on a DANGEROUS answer everywhere else.
+
+        MEASURED 2026-09-11, before the fix: with cwd at the REPO ROOT and `TV_HIST="   "`, the
+        canonical rule AND the fallback both returned `<repo>/   ` — a whitespace-named directory
+        INSIDE his tree, handed back as an isolation root. `"relative/path"` gave
+        `<repo>/relative/path` the same way. The cause is `os.path.realpath()` resolving a
+        non-absolute value against whatever CWD the process started in, so the isolation decision
+        was a function of the caller's shell rather than of what the caller asked for.
+
+        Two rules agreeing is not the same as two rules being right. [[gate-blind-to-unexercised-input]]
+        [[feedback-fixtures-never-touch-live-data]]"""
+        import tempfile
+        repo = os.path.dirname(HERE)
+        cwds = [repo, HERE, tempfile.mkdtemp()]
+        for val in ("   ", "relative/path", "./x"):
+            seen = set()
+            for cwd in cwds:
+                env = dict(os.environ, TV_STUB="1", TV_HIST=val)
+                code = ("import sys, os; sys.path.insert(0, %r)\n"
+                        "import control_app as CA, tv_diablo as T\n"
+                        "print('ROOT:' + os.path.realpath(T._fixture_root(CA.HERE)))\n" % (HERE,))
+                out = subprocess.check_output([sys.executable, "-c", code], env=env, cwd=cwd,
+                                              stderr=subprocess.STDOUT, timeout=180)
+                line = [l for l in out.decode("utf-8", "replace").splitlines()
+                        if l.startswith("ROOT:")]
+                self.assertTrue(line, "no answer for TV_HIST=%r at cwd=%r — UNMEASURED"
+                                % (val, cwd))
+                got = line[-1][5:]
+                seen.add(got)
+                self.assertEqual(os.path.realpath(HERE), got,
+                                 "TV_HIST=%r at cwd=%r resolved to %r — a value that is blank or "
+                                 "relative is not a request for isolation, and answering it with a "
+                                 "CWD-derived path puts live state somewhere nobody named"
+                                 % (val, cwd, got))
+            self.assertEqual(1, len(seen),
+                             "TV_HIST=%r gave %d different answers depending only on where the "
+                             "process was started: %r" % (val, len(seen), sorted(seen)))
+
+    def test_no_TV_HIST_value_can_name_a_root_inside_his_REPO(self):
+        """⚠ The boundary the rules check is `tv/`, but his tree is the REPOSITORY. A value landing
+        inside the repo yet outside `tv/` passed the `_under` test and was accepted as a fixture
+        world — which is how `<repo>/   ` became an isolation root. This law pins the cases the
+        v2932 narrowings close; the wider boundary question is recorded in BUGS.md as still open,
+        because moving it touches 75 TV_HIST call sites and needs the full suite to settle."""
+        repo = os.path.dirname(HERE)
+        for val in ("   ", "relative/path", "./x", ""):
+            env = dict(os.environ, TV_STUB="1", TV_HIST=val)
+            code = ("import sys, os; sys.path.insert(0, %r)\n"
+                    "import control_app as CA, tv_diablo as T\n"
+                    "print('ROOT:' + os.path.realpath(T._fixture_root(CA.HERE)))\n" % (HERE,))
+            out = subprocess.check_output([sys.executable, "-c", code], env=env, cwd=repo,
+                                          stderr=subprocess.STDOUT, timeout=180)
+            got = [l for l in out.decode("utf-8", "replace").splitlines()
+                   if l.startswith("ROOT:")][-1][5:]
+            self.assertEqual(os.path.realpath(HERE), got,
+                             "TV_HIST=%r produced %r, a path inside his repository being used as "
+                             "an isolated world" % (val, got))
+
+
 
 RED_PROOF = [
     {
-        "why": "v2888 — the tamper makes _fixture_root STOP HONOURING TV_HIST, so every caller that "
-               "said \"this is not his world\" silently falls back to his real tree. That is the "
-               "defect this whole file exists to prevent, and it has already cost a wrong diagnosis "
-               "once: a gate run rewrote four live-state files and the sim/live banners in "
-               "control_agent.log — written by my own test-spawned control apps — were read as HIS "
-               "button presses. ⚠ ANCHORED ON `if not _under(hist, here):`, which occurs ONCE. The "
-               "obvious anchor `hist = os.environ.get(\"TV_HIST\")` occurs THREE times, so tampering "
-               "it rewrites three unrelated sites and the red could be for a broader reason than the "
-               "one claimed. Both were run against a shadowed tv_diablo before this was written: "
-               "single-site tamper -> _fixture_root(HERE) returns HERE -> the law fails. "
-               "[[sabotage-is-usually-the-wrong-one]] [[feedback-fixtures-never-touch-live-data]]",
+        "why": 'v2888 — the tamper makes _fixture_root STOP HONOURING TV_HIST, so every caller that said "this is not his world" silently falls back to his real tree. That is the defect this whole file exists to prevent, and it has already cost a wrong diagnosis once: a gate run rewrote four live-state files and the sim/live banners in control_agent.log — written by my own test-spawned control apps — were read as HIS button presses. ⚠ ANCHORED ON `if not _under(hist, here):`, which occurs ONCE. The obvious anchor `hist = os.environ.get("TV_HIST")` occurs THREE times, so tampering it rewrites three unrelated sites and the red could be for a broader reason than the one claimed. Both were run against a shadowed tv_diablo before this was written: single-site tamper -> _fixture_root(HERE) returns HERE -> the law fails. [[sabotage-is-usually-the-wrong-one]] [[feedback-fixtures-never-touch-live-data]]',
         "file": 'tv_diablo.py',
         "find": 'if not _under(hist, here):',
         "replace": 'if False:',
+        "matches": 1,
+    },
+    {
+        "why": "v2932/A — restores the pre-REG-875 canonical rule, which realpath'd a blank or relative TV_HIST against the caller's CWD. MEASURED with cwd at the repo root: TV_HIST='   ' produced `<repo>/   `, a whitespace-named directory inside his tree handed back as an isolation root.",
+        "file": 'tv_diablo.py',
+        "find": '    if hist and hist.strip() and os.path.isabs(hist.strip()):\n',
+        "replace": '    if hist:\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2932/B — the same narrowing removed from the FALLBACK, which is the arm that runs precisely when the canonical resolver cannot be imported. Its own comment promises it obeys the same rule; without this it does not.',
+        "file": 'control_app.py',
+        "find": '        if _hist and _hist.strip() and os.path.isabs(_hist.strip()):\n',
+        "replace": '        if _hist:\n',
         "matches": 1,
     },
 ]
