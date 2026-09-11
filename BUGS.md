@@ -29613,6 +29613,63 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-949 — a cross-family attack that LANDED, and a bar with no floor (#42 / #34)
+
+**v2944.** The cross-family seat on `console.pixel_rescue` was **declared in `PROVES` and empty** —
+`pixel_witness_crossfamily` named as proving the lock, with no file behind it. Filling it properly
+meant what the sibling harnesses mean by the word: *"This is not my attack list rewritten"* — the
+function handed **COLD** to a different model family, which **designs** attacks, run here.
+
+Grok Bot (GB-L-PIXEL-3) designed six. It read deeper than the brief: it found the **ink test**
+(`p99 < 80 AND brightShare < 0.015 → BLANK`), a decision path I never mentioned, and aimed at it.
+It self-refused A6 as not constructible — first-class, like the vault harness's own refused A2.
+
+**Run against the real `verdict()`, then re-graded by whether a LIVE capture can produce them:**
+
+| attack | first run | on the live path |
+|---|---|---|
+| A1 chrome_bleed | LANDED | **REFUTED** — his blank-white console measures `modalShare 0.9963` live, caught |
+| A2 sparse_sparkle | LANDED | **REFUTED** — `distinct 52, p99 198` describes a FROZEN frame, not a blank one |
+| **A3 dim_ink_theme** | LANDED | **REAL — fixed here** |
+| A4 sample_phase_miss | LANDED | category error — `distinct 9, brightShare 0.0018` is not distinguishable from dead |
+| A5 flat_by_design | LANDED | category error — the module's own rule: 98% one colour IS blank |
+
+**A3 is the defect.** It handed a window with **`distinct 140, modalShare 0.071`** — arithmetically
+IDENTICAL to his HEALTHY console (140, 0.069) — and the ink test called it **BLANK**, because its
+`p99` sat at **78, one point under the 80 bar**. 140 shades is not a dead renderer under any theme,
+and a false BLANK is the worse direction: **it fires a rescue on a working console.**
+
+**Fix:** `INK_MAX_DISTINCT = 64`, guarding **the ink test ALONE**. The modal path is deliberately
+untouched — conjoining `distinct` there is exactly what failed on 2026-09-04, when his blank-white
+console read PAINTED because chrome draws NINE luminances by itself.
+
+**Measured on every real frame available, border excluded — none changed verdict:**
+
+    dark blank   (34 identical captures)   distinct 1    -> BLANK
+    white blank  (18 identical captures)   distinct 1    -> BLANK
+    white blank  (16 identical captures)   distinct 1    -> BLANK
+    painted      ( 3 identical captures)   distinct 152  -> PAINTED
+
+**⚠ THE BAR IS A FLOOR, NOT A MEASUREMENT OF THE CASE THAT MATTERS MOST.** The ink test exists for
+his 2026-09-05 blank — a dark GRADIENT at `modalShare 0.124` — and that frame is **not** among the
+captures, so **its `distinct` is UNKNOWN**. 64 leaves a gradient plus chrome ample room. If a genuine
+blank is ever measured above it, the bar is wrong and the measurement wins.
+
+**⚠ AND THE DRILL FOUND THE LAW I HAD NOT WRITTEN.** `INK_MAX_DISTINCT = 4` came back **BLIND** —
+nothing I had written could tell a sane bar from one *below what chrome draws*, because every
+fixture I built was chrome-free. **That is the identical mistake as 2026-09-04, one test over.** The
+new floor law pins a dim blank carrying only chrome's 9 luminances, and asserts the bar exceeds 9.
+
+**Gate:** `test_chrome_alone_is_not_paint` — 10 laws, **3/3 red-proofs PROVEN.**
+
+⚠ **AND THE REAL-FRAME LAW HAD TO STOP READING THE FRAMES.** Its first cut opened the PNGs with the
+macOS graphics bindings under a `try`, and `test_every_third_party_import_is_one_CI_installs`
+refused it — **CI does not install them, so there the check would SKIP, and a skip is not a pass.**
+The measurements are now RECORDED in the test as a table with their provenance (how many identical
+captures, which file), so the law is deterministic everywhere and still pins his real frames. The
+refusal was right and the gate was the only thing that said so.
+**Re-run after the fix: A3 flipped LANDED → REFUTED.**
+
 ## REG-948 — a permanently-red pair cannot report a dropped check (#63)
 
 **v2943.** #63 said *"the corroborator reports 3 engine pairs disagreeing on live data."*

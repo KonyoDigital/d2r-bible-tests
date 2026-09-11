@@ -63,6 +63,102 @@ def _shot(w, h, ground=8, chrome_rows=(30, 31), chrome_lum=255):
 
 class ChromeAloneIsNotPaint(unittest.TestCase):
 
+    # ── v2944 — the cross-family attack that landed, and the real frames that must not move ─────
+    def test_the_INK_test_declines_on_an_obviously_PAINTED_window(self):
+        """⚠⚠ A CROSS-FAMILY ATTACK, DESIGNED COLD, THAT LANDED. GB-L-PIXEL-3's `A3_dim_ink_theme`
+        handed a window with **distinct 140, modalShare 0.071** — arithmetically IDENTICAL to his
+        HEALTHY console (140, 0.069) — and the ink test declared it BLANK because its p99 sat at
+        78, ONE POINT under the 80 bar. 140 different shades is not a dead renderer under any theme,
+        and a false BLANK is the worse direction: it fires a rescue on a working console.
+
+        ⚠ The guard is on the INK test ALONE. Conjoining `distinct` with the MODAL test is what
+        failed on 2026-09-04 — his blank-white console draws NINE distinct luminances from chrome
+        by itself and read PAINTED — so that path is deliberately untouched."""
+        a3 = {"samples": 3969, "distinct": 140, "modalShare": 0.071, "modalLuminance": 12,
+              "meanLuminance": 18.0, "p99Luminance": 78, "brightShare": 0.0}
+        st, why = PW.verdict(a3)
+        self.assertEqual(PW.PAINTED, st,
+                         "a window with 140 distinct luminances was called BLANK: %s" % why)
+        self.assertIn("distinct", why, "the refusal does not say which test declined: %r" % why)
+        # and the same frame WITH few shades is still blank — the guard must not disarm the test
+        dead = dict(a3, distinct=3)
+        self.assertEqual(PW.BLANK, PW.verdict(dead)[0],
+                         "the ink test no longer fires on a genuinely featureless dim window — the "
+                         "guard disarmed the test instead of narrowing it")
+
+    def test_the_guard_must_sit_ABOVE_what_CHROME_ALONE_DRAWS(self):
+        """⚠⚠ THE BAR IS A FLOOR, AND THIS IS THE FLOOR. Measured 2026-09-04 on his own machine:
+        his blank console's window CHROME — traffic lights, the "TV DIABLO" title, the 1px rule
+        under it — contributes **9 distinct luminances all by itself**, and "a real blank window is
+        never chrome-free". So a dim blank arrives at the ink test carrying chrome's shades, and a
+        guard set at or below 9 declines exactly the case the ink test exists for.
+
+        ⚠ The drill taught me this law. `INK_MAX_DISTINCT = 4` came back BLIND — nothing I had
+        written could tell a sane bar from one below what chrome draws, because every fixture I
+        had built was chrome-free. That is the SAME mistake as 2026-09-04, one test over.
+        [[feedback-blind-fixture-green-gate]]"""
+        chrome_dim_blank = {"samples": 3969, "distinct": 9, "modalShare": 0.124,
+                            "modalLuminance": 20, "meanLuminance": 22.0,
+                            "p99Luminance": 33, "brightShare": 0.0041}
+        st, why = PW.verdict(chrome_dim_blank)
+        self.assertEqual(PW.BLANK, st,
+                         "a DIM BLANK window carrying only chrome's 9 luminances was not caught "
+                         "(%s) — the guard sits at or below what chrome alone draws, which is the "
+                         "2026-09-04 defect arriving through the ink test" % why)
+        self.assertGreater(PW.INK_MAX_DISTINCT, 9,
+                           "INK_MAX_DISTINCT is %d, at or below the 9 luminances his chrome draws "
+                           "by itself" % PW.INK_MAX_DISTINCT)
+
+    def test_the_MODAL_test_is_NOT_guarded_by_distinct(self):
+        """⚠⚠ THE 2026-09-04 REGRESSION, PINNED SO IT CANNOT RETURN. `distinct <= 4` was once a
+        second bar on the MODAL test, and his blank-white console read PAINTED because chrome alone
+        contributes NINE luminances — the conjunct failed on the only case that mattered. Any future
+        tightening must leave this path alone."""
+        chrome_blank = {"samples": 3969, "distinct": 9, "modalShare": 0.9963, "modalLuminance": 255,
+                        "meanLuminance": 250.0, "p99Luminance": 255, "brightShare": 0.99}
+        self.assertEqual(PW.BLANK, PW.verdict(chrome_blank)[0],
+                         "a 99.6%-one-colour window with chrome was not called BLANK — the modal "
+                         "test has been conjoined with `distinct` again")
+        many = dict(chrome_blank, distinct=200)
+        self.assertEqual(PW.BLANK, PW.verdict(many)[0],
+                         "the modal test now depends on `distinct` — that is the 2026-09-04 defect")
+
+    #: MEASURED FROM HIS OWN CAPTURES, and RECORDED rather than re-measured. Reading the PNGs
+    #: needs the macOS graphics bindings, and the suite may not pull in anything CI does not
+    #: install — a guarded import of them was the FIRST cut, and the CI-imports law refused it
+    #: refused it. That refusal is right: on CI the check would SKIP, and a skip is not a pass.
+    #: Each row is one FROZEN CLASS on his shelf - N byte-identical captures, which cannot happen
+    #: on a live console since the clock alone changes. Border excluded (inset 80).
+    REAL_FRAMES = [
+        {'identical': 34, 'file': 'HEART2-LOOK-103.png', 'samples': 3720, 'distinct': 1, 'modalShare': 1.0, 'modalLuminance': 30, 'meanLuminance': 30.0, 'p99Luminance': 30, 'brightShare': 0.0, 'verdict': 'BLANK'},
+        {'identical': 18, 'file': 'heart2-241-20260910T060700Z.png', 'samples': 3720, 'distinct': 1, 'modalShare': 1.0, 'modalLuminance': 255, 'meanLuminance': 255.0, 'p99Luminance': 255, 'brightShare': 1.0, 'verdict': 'BLANK'},
+        {'identical': 16, 'file': 'heart2-20260910-065806-w47306.png', 'samples': 3720, 'distinct': 1, 'modalShare': 1.0, 'modalLuminance': 255, 'meanLuminance': 255.0, 'p99Luminance': 255, 'brightShare': 1.0, 'verdict': 'BLANK'},
+        {'identical': 3, 'file': 'HEART2-LOOK-139-146-20260910-011122-quartz.png', 'samples': 3782, 'distinct': 1, 'modalShare': 1.0, 'modalLuminance': 30, 'meanLuminance': 30.0, 'p99Luminance': 30, 'brightShare': 0.0, 'verdict': 'BLANK'},
+        {'identical': 3, 'file': 'heart2-20260910-063201-w47001.png', 'samples': 3720, 'distinct': 1, 'modalShare': 1.0, 'modalLuminance': 255, 'meanLuminance': 255.0, 'p99Luminance': 255, 'brightShare': 1.0, 'verdict': 'BLANK'},
+        {'identical': 3, 'file': 'heart2-278-20260910-122047-IDT.png', 'samples': 3782, 'distinct': 152, 'modalShare': 0.1126, 'modalLuminance': 5, 'meanLuminance': 20.8, 'p99Luminance': 192, 'brightShare': 0.0489, 'verdict': 'PAINTED'},
+    ]
+
+    def test_every_REAL_captured_frame_keeps_its_verdict(self):
+        """THE REGRESSION CHECK THAT MATTERS. A threshold change that moved ANY of these would be
+        trading a synthetic attack for a real failure. Five frozen-BLANK classes on his shelf all
+        measure distinct 1; the painted class measures 152. These are his own console's frames,
+        including the 18-identical class whose titlebar-and-nothing-else was confirmed by eye."""
+        for r in self.REAL_FRAMES:
+            m = dict((k, r[k]) for k in ("samples", "distinct", "modalShare", "modalLuminance",
+                                         "meanLuminance", "p99Luminance", "brightShare"))
+            st, why = PW.verdict(m)
+            self.assertEqual(r["verdict"], st,
+                             "a REAL captured frame changed verdict: " + str(r["identical"])
+                             + "x identical, " + str(r["file"]) + ", distinct=" + str(r["distinct"])
+                             + " modalShare=" + str(r["modalShare"]) + " -> " + str(st)
+                             + ", was " + str(r["verdict"]) + ". " + str(why))
+        blanks = [r for r in self.REAL_FRAMES if r["verdict"] == PW.BLANK]
+        painted = [r for r in self.REAL_FRAMES if r["verdict"] == PW.PAINTED]
+        self.assertGreaterEqual(len(blanks), 3, "too few real BLANK frames recorded to call this "
+                                                "a regression check")
+        self.assertTrue(painted, "no real PAINTED frame recorded, so this cannot catch a change "
+                                 "that calls everything blank")
+
     def test_the_crop_clears_the_title_bar_AND_its_border(self):
         """⚠ THE FIX ITSELF. 30 leaves rows 30-31 in the sample; those two rows were the whole
         defect. This asserts the crop is past them, not merely 'bigger than before'."""
@@ -135,11 +231,25 @@ class ChromeAloneIsNotPaint(unittest.TestCase):
 
 RED_PROOF = [
     {
-        'why': 'a blank console window whose only bright pixels are two rows of OS title-bar chrome must read BLANK — crop below 32 leaves rows 30-31 at luminance 255 in the sample, which alone clears the 1.5% ink bar and reported his black screen as PAINTED  MEASURED: untampered OK — Ran 6 tests in 0.446s, all 6 pass (python3 tv/test_chrome_alone_is_not_paint.py, exit; tampered (all 1) FAILED (failures=3) — Ran 6 tests in 0.592s, exit 1. Red laws: test_a_blank_window_with_a_; reddened law test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_wind; ALONE RED ALONE — `python3 -m unittest test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_window_with.',
-        'file': 'paint_witness.py',
-        'find': 'CHROME_TOP_PX = 36',
-        'replace': 'CHROME_TOP_PX = 30',
-        'matches': 1,
+        "why": 'a blank console window whose only bright pixels are two rows of OS title-bar chrome must read BLANK — crop below 32 leaves rows 30-31 at luminance 255 in the sample, which alone clears the 1.5% ink bar and reported his black screen as PAINTED  MEASURED: untampered OK — Ran 6 tests in 0.446s, all 6 pass (python3 tv/test_chrome_alone_is_not_paint.py, exit; tampered (all 1) FAILED (failures=3) — Ran 6 tests in 0.592s, exit 1. Red laws: test_a_blank_window_with_a_; reddened law test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_wind; ALONE RED ALONE — `python3 -m unittest test_chrome_alone_is_not_paint.ChromeAloneIsNotPaint.test_a_blank_window_with.',
+        "file": 'paint_witness.py',
+        "find": 'CHROME_TOP_PX = 36',
+        "replace": 'CHROME_TOP_PX = 30',
+        "matches": 1,
+    },
+    {
+        "why": 'v2944/A — removes the distinct guard from the INK test, so a window with 140 distinct luminances — arithmetically identical to his HEALTHY console (140, 0.069) — is declared BLANK because its p99 sits one point under the bar. A false BLANK is the worse direction: it fires a rescue on a working console. Designed cold by a different model family as A3_dim_ink_theme, and it LANDED.',
+        "file": 'paint_witness.py',
+        "find": '            and d is not None and d <= INK_MAX_DISTINCT\n',
+        "replace": '',
+        "matches": 1,
+    },
+    {
+        "why": 'v2944/B — drops the bar to the old report-only value, which is BELOW what real chrome draws (his blank-white console contributes NINE luminances from chrome alone). The ink test then declines on genuinely blank windows and the detector loses the case it exists for — the 2026-09-04 defect arriving through the other test.',
+        "file": 'paint_witness.py',
+        "find": 'INK_MAX_DISTINCT = 64\n',
+        "replace": 'INK_MAX_DISTINCT = 4\n',
+        "matches": 1,
     },
 ]
 

@@ -90,6 +90,29 @@ BLANK_MAX_DISTINCT = 4      #: kept for the report; NOT part of the verdict — 
 INK_LUM = 90          #: a pixel at or above this counts as ink
 INK_P99_MAX = 80      #: brightest 1% starting below this = no meaningful ink anywhere
 INK_SHARE_MAX = 0.015 #: under 1.5% bright = nothing is drawn
+#: ⚠⚠ v2944 — THE INK TEST MAY NOT FIRE ON A WINDOW THAT IS OBVIOUSLY PAINTED, and this bar is
+#: guarded to the INK test ALONE. Conjoining `distinct` with the MODAL test is what failed on
+#: 2026-09-04 — his blank-white console draws NINE distinct luminances from chrome alone and read
+#: PAINTED — so the modal path above is deliberately left exactly as it is.
+#:
+#: A cross-family attack designed COLD by a different model family (GB-L-PIXEL-3, A3_dim_ink_theme)
+#: landed here: a window with **distinct 140, modalShare 0.071** — arithmetically IDENTICAL to his
+#: HEALTHY console (140, 0.069) — was declared BLANK because its p99 sat at 78, one point under the
+#: 80 bar. 140 different shades is not a dead renderer under any theme.
+#:
+#: MEASURED on every real frame available, border excluded:
+#:     his console, dark blank   (34 identical captures)   distinct 1
+#:     his console, white blank  (18 identical captures)   distinct 1
+#:     his console, painted                                distinct 152
+#:     his console, healthy (live)                         distinct 140
+#: Every blank measures ONE. The bar sits far above that and far below any painted frame.
+#:
+#: ⚠ IT IS A FLOOR, NOT A MEASUREMENT OF THE CASE THAT MATTERS MOST. The ink test exists for his
+#: 2026-09-05 blank, a dark GRADIENT whose modalShare was 0.124 — and that frame is not among the
+#: captures above, so ITS distinct is UNKNOWN. 64 is chosen to leave a dark gradient plus chrome
+#: ample room while still refusing a window with a hundred-odd shades. If a genuine blank is ever
+#: measured above it, this bar is wrong and the measurement wins.
+INK_MAX_DISTINCT = 64
 
 BLANK_STRIKES = 3
 
@@ -312,6 +335,7 @@ def verdict(m):
     # ⚠ It reports a DISTINCT reason, never "one colour covers the window", because that sentence
     # would be false here and a wrong reason is how the last three attempts at this bug went.
     if (m.get("p99Luminance") is not None and m.get("brightShare") is not None
+            and d is not None and d <= INK_MAX_DISTINCT
             and m["p99Luminance"] < INK_P99_MAX and m["brightShare"] < INK_SHARE_MAX):
         return BLANK, ("nothing is DRAWN on this window: its brightest 1%% of pixels start at "
                        "luminance %s (a painted console reads ~177) and only %.2f%% of it is "
@@ -319,6 +343,16 @@ def verdict(m):
                        "the single-colour test cannot see this fault at all — this console's "
                        "background is a gradient, not one flat colour"
                        % (m["p99Luminance"], m["brightShare"] * 100.0, share * 100.0))
+    if (d is not None and d > INK_MAX_DISTINCT
+            and m.get("p99Luminance") is not None and m.get("brightShare") is not None
+            and m["p99Luminance"] < INK_P99_MAX and m["brightShare"] < INK_SHARE_MAX):
+        # ⚠ SAY WHICH TEST DECLINED AND WHY — a right verdict under a wrong reason is how the last
+        # three attempts at this bug went, and this window is dim enough that the ink bars alone
+        # would have called it empty.
+        return PAINTED, ("this window is DIM (brightest 1%% at luminance %s, %.2f%% bright) but it "
+                         "is not empty: %d distinct luminance(s) are drawn on it, and a dead "
+                         "renderer leaves ONE. The ink test is declined above %d distinct"
+                         % (m["p99Luminance"], m["brightShare"] * 100.0, d, INK_MAX_DISTINCT))
     return PAINTED, ("the commonest colour covers %.1f%% of this window across %d distinct "
                      "luminance(s) - it has content on it (blank needs >= %.0f%%)"
                      % (share * 100.0, d, BLANK_MODAL_SHARE * 100.0))

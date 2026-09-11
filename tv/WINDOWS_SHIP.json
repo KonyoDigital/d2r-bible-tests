@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2943",
+  "ver": "v2944",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2943: --note the eagle skips PERIODIC on 5 of every 6 passes and the durable record dropped the key that says so",
+  "note": "v2944: --note a window with 140 distinct luminances read BLANK because its p99 sat one point under the bar",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
