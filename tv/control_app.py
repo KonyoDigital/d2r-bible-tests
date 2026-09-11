@@ -26054,6 +26054,36 @@ _STATUS_SLOW_MS = 750.0
 _PROC_START_MS = int(time.time() * 1000)
 
 
+def _sha_of(path):
+    """sha1 of a file's bytes, or None if it could not be read. -> str|None
+
+    ⚠ None, NEVER a sentinel string. A hash that could not be taken is UNKNOWN, and a caller
+    comparing two Nones would otherwise conclude "they match". [[unknown-stays-unknown]]
+    """
+    try:
+        import hashlib
+        with open(path, "rb") as _fh:
+            return hashlib.sha1(_fh.read()).hexdigest()
+    except Exception:
+        return None
+
+
+#: ⚠⚠ v2961 — THE BYTES, NOT THE LABEL. Task #67, and this is what its title literally asks for:
+#: "nothing measures the code the console is ACTUALLY executing".
+#: `drift_state()` already compares the RUNNING version stamp against the DISK version stamp, and
+#: that is a comparison of two LABELS. It is blind to the case that happens most here: an edit that
+#: does not bump the version. He execs the working tree, so every unstamped save to this file is a
+#: change the drift lane cannot see and this hash can.
+#: ⚠ SCOPE IS control_app.py ALONE, AND THAT IS DELIBERATE. This module is IMPORTED, so its bytes
+#: at import ARE the running code. control_ui.html is SERVED FRESH on every request — the browser
+#: gets whatever is on disk at request time, so an import-time hash of it would measure nothing and
+#: claiming otherwise would be a reading with no referent. [[label-outlived-referent]]
+#: ⚠ TAKEN ONCE, AT IMPORT. 1.8 MB is cheap once and far too dear per request — the status poll is
+#: banned from work like this, which is why the comparison lives in the DOCTOR, not in the payload.
+_PROC_SRC = os.path.abspath(__file__)
+_PROC_SRC_SHA = _sha_of(_PROC_SRC)
+
+
 def _proc_identity():
     """Who is ACTUALLY answering this request. -> {pid, startedMs, ver}
 
@@ -26066,7 +26096,14 @@ def _proc_identity():
         _v = _app_ver()
     except Exception:
         _v = None                 # None = could not be asked, never a guess at the version
-    return {"pid": os.getpid(), "startedMs": _PROC_START_MS, "ver": _v}
+    # ⚠ v2961 — srcSha is the BYTES this process loaded, and it is why `proc` now has a consumer.
+    # A version stamp is a LABEL; two different images can carry the same one, and every unstamped
+    # save to this file is invisible to the drift lane. Published here because only THIS process
+    # knows what it imported — a doctor running elsewhere would hash its own import and measure
+    # itself. Precomputed at import, so publishing it stays free and this producer stays exempt
+    # from the timing law.
+    return {"pid": os.getpid(), "startedMs": _PROC_START_MS, "ver": _v,
+            "srcSha": _PROC_SRC_SHA, "src": os.path.basename(_PROC_SRC)}
 
 
 def _t(name, fn):
@@ -26263,7 +26300,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2960",
+        "ver": "v2961",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

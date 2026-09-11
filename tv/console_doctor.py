@@ -2795,7 +2795,55 @@ def _check_the_shelf_lanes_are_still_reading():
 #: driver that has FALLEN SILENT FOR A DAY, not one that has not run in an hour.
 _SHELF_BEAT_STALE_H = 12.0
 
+def _check_the_running_code_is_the_code_on_disk():
+    """★ IS THE CONSOLE EXECUTING WHAT THE FILE SAYS? — task #67, and the one question the drift
+    lane cannot answer.
+
+    `drift_state()` compares the RUNNING version stamp against the DISK version stamp. Both are
+    LABELS. Two different images can carry the same stamp, and he EXECS THE WORKING TREE — so every
+    save to control_app.py that does not bump a version is a change the drift lane is blind to and
+    this one can see.
+
+    ⚠ IT ASKS THE CONSOLE, IT DOES NOT HASH ITS OWN IMPORT. This doctor may run in a different
+    process; hashing `control_app` from here would measure THIS process's import and report it as
+    the console's. Only the console knows what the console loaded, so the sha comes over the wire
+    from `/api/status`'s `proc` block. [[borrowed-surface]]
+    ⚠ AN OLDER CONSOLE HAS NO `srcSha`, AND THAT IS UNMEASURED, NOT CLEAN. A console started before
+    v2961 publishes no such key; reporting that as OK would be the zero-with-no-denominator this
+    file keeps paying for. [[unknown-stays-unknown]]
+    """
+    d = _get("/api/status")
+    if not isinstance(d, dict):
+        return UNKNOWN, ("the console could not be asked what code it is running, so whether it "
+                         "matches the disk is UNMEASURED")
+    proc = d.get("proc")
+    if not isinstance(proc, dict) or not proc.get("srcSha"):
+        return UNMEASURED, ("this console publishes no source hash — it was started before the "
+                            "check existed, so what it is running cannot be compared to the disk. "
+                            "That is UNMEASURED, not a match")
+    name = str(proc.get("src") or "control_app.py")
+    disk = None
+    try:
+        import hashlib
+        with open(os.path.join(HERE, name), "rb") as fh:
+            disk = hashlib.sha1(fh.read()).hexdigest()
+    except Exception as e:
+        return UNKNOWN, ("%s could not be read from disk (%s), so the comparison is UNMEASURED"
+                         % (name, type(e).__name__))
+    running = str(proc.get("srcSha"))
+    if running != disk:
+        return MISSING, ("the console is running BYTES THAT ARE NO LONGER ON DISK: it loaded %s "
+                         "(%s...) and the file now hashes %s... — every save to this file is a "
+                         "deploy here, and this one has not been picked up. Relaunch to adopt it."
+                         % (name, running[:10], disk[:10]))
+    return OK, ("the console is running exactly what %s holds on disk (%s...)" % (name, disk[:10]))
+
+
 CHECKS = [
+    # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
+    # only way an unstamped save can be seen. See the docstring for why it asks the console rather
+    # than hashing its own import.
+    ("running code matches disk", _check_the_running_code_is_the_code_on_disk),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]

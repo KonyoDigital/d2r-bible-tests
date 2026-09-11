@@ -91,8 +91,65 @@ class TheConsoleSaysWhichImageIsAnswering(unittest.TestCase):
         self.assertEqual(os.getpid(), d.get("pid"), "the rest of the identity was lost")
 
 
+    def test_the_BYTES_are_published_not_only_the_label(self):
+        """⚠⚠ TASK #67 IN ONE ASSERTION. `drift_state()` compares the running version stamp to the
+        disk version stamp — two LABELS. Two different images can carry the same stamp, and he
+        EXECS THE WORKING TREE, so every save that does not bump a version is a change the drift
+        lane is blind to. The sha is the bytes, and the bytes are the thing."""
+        d = CA._proc_identity()
+        self.assertIn("srcSha", d, "proc publishes no source hash, so only the LABEL is comparable")
+        self.assertTrue(d.get("srcSha"), "the source hash is empty")
+        self.assertEqual(CA._sha_of(CA._PROC_SRC), d["srcSha"],
+                         "the published hash is not the hash of the file this module loaded")
+
+    def test_an_unreadable_hash_is_None_never_a_sentinel(self):
+        """Two Nones must not compare equal and be read as 'they match'."""
+        self.assertIsNone(CA._sha_of("/nope/does/not/exist"),
+                          "an unreadable file produced something other than None")
+
+    def test_the_DOCTOR_asks_the_console_rather_than_hashing_its_own_import(self):
+        """⚠⚠ THE DOCTOR MAY RUN IN A DIFFERENT PROCESS. Hashing `control_app` from inside the
+        check would measure THAT process's import and report it as the console's — a borrowed
+        surface answering for someone else. Only the console knows what the console loaded, so the
+        sha must arrive over the wire. Parsed, not grepped. [[borrowed-surface]]"""
+        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        fn = next((n for n in ast.walk(ast.parse(src))
+                   if isinstance(n, ast.FunctionDef)
+                   and n.name == "_check_the_running_code_is_the_code_on_disk"), None)
+        self.assertIsNotNone(fn, "the byte-level check is gone")
+        calls = {c.func.id for c in ast.walk(fn)
+                 if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+        self.assertIn("_get", calls,
+                      "the check never asks the console — it is measuring its own process")
+        imported = {a.name for n in ast.walk(fn) if isinstance(n, ast.Import) for a in n.names}
+        self.assertNotIn("control_app", imported,
+                         "the check imports control_app and would hash ITS OWN import, reporting "
+                         "this process's bytes as the console's")
+
+    def test_a_console_with_no_srcSha_is_UNMEASURED_not_OK(self):
+        """A console started before this existed publishes no hash. Reporting that as a match is
+        the zero-with-no-denominator this repo keeps paying for. [[unknown-stays-unknown]]"""
+        import console_doctor as cd
+        real = cd._get
+        try:
+            cd._get = lambda path, timeout=4: {"proc": {"pid": 1, "ver": "v0"}}
+            st, say = cd._check_the_running_code_is_the_code_on_disk()
+        finally:
+            cd._get = real
+        self.assertEqual(cd.UNMEASURED, st,
+                         "a console that publishes no source hash was graded %r" % st)
+        self.assertIn("UNMEASURED", say)
+
 # THE EXECUTABLE RED-PROOF
 RED_PROOF = [
+    {
+        "why": "law: the BYTES are published, not only the label. Dropping srcSha leaves only the "
+               "version stamp, which cannot see an unstamped save - and he execs the working tree.",
+        "file": "control_app.py",
+        "find": '"srcSha": _PROC_SRC_SHA, "src": os.path.basename(_PROC_SRC)}',
+        "replace": '"src": os.path.basename(_PROC_SRC)}',
+        "matches": 1,
+    },
     {
         "why": "law: the stamp is taken at IMPORT. Moving the assignment into the producer makes "
                "every image report the same start, which is the defect this exists to detect.",

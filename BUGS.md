@@ -31699,3 +31699,41 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 `reel_tombstones.json` and `ledger_peaks.json` both still read SILENT for the same reason, having
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
+
+## REG-964 — the drift lane compares LABELS; nothing compared the bytes (task #67 — v2961)
+
+#67's title is literal: *"nothing measures the code the console is ACTUALLY executing."* What
+existed — `drift_state()` — compares the RUNNING version stamp against the DISK version stamp. Both
+are **labels**. Two images can carry the same stamp, and he EXECS THE WORKING TREE, so every save to
+`control_app.py` that does not bump a version is a change the drift lane is structurally blind to.
+
+`_PROC_SRC_SHA` is now taken at import and published in `proc`, and a doctor row compares it to the
+file on disk.
+
+⚠ **SCOPE IS `control_app.py` ALONE, BY MEASUREMENT.** That module is IMPORTED, so its bytes at
+import ARE the running code. `control_ui.html` (1.76 MB) is SERVED FRESH on every request — the
+browser gets whatever is on disk at request time, so an import-time hash of it would measure nothing
+and publishing one would be a reading with no referent.
+
+⚠ **THE DOCTOR ASKS THE CONSOLE; IT DOES NOT HASH ITS OWN IMPORT.** The doctor may run in a
+different process — hashing `control_app` from inside the check would measure THAT process and
+report it as the console's. Only the console knows what the console loaded, so the sha comes over
+the wire from `/api/status`. A law parses the check and refuses an `import control_app` inside it.
+
+⚠ **AN OLDER CONSOLE IS UNMEASURED, NOT OK.** His live console was started before this existed and
+publishes no `srcSha`; the row says so rather than reporting a match. It reads `unmeasured` right
+now, which is correct and will become a real comparison at the next relaunch.
+
+### And it closes an unjoined end of my own
+
+`proc.startedMs` shipped in v2948 with **zero consumers** — 0 in the UI, 0 in the doctor. I joined
+it to nothing, one version before writing a law against exactly that class for the heart census.
+This doctor row is `proc`'s consumer.
+
+⚠ Hashing 1.8 MB is cheap ONCE and far too dear per request, which is why the hash is taken at
+import and the COMPARISON lives in the doctor rather than in the status payload — that poll is
+banned from work like this, and `_proc_identity` stays exempt from the timing law because publishing
+a precomputed string is free.
+
+This check can only report `unmeasured` because v2956 taught the eagle law to derive its states from
+`cd.ICON`. Without that fix it would have reddened the law on arrival.

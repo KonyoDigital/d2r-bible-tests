@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2960",
+  "ver": "v2961",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2960: --note the last re-gate verdict could not say what produced it, so a stale result outlived every improvement to the gate that made it",
+  "note": "v2961: --note the drift lane compared two version stamps, so an unstamped save to the running file was invisible to it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
