@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2970** | `(this commit)` | v2970 — a fault from an old detector read exactly like one from today |
+| **v2971** | `(this commit)` | v2971 — the law read a token and a superstring operand would have passed it |
+| **v2970** | `a7be6904` | v2970 — a fault from an old detector read exactly like one from today |
 | **v2969** | `0cb14094` | v2969 — a reel-keyed store stamped at the top level would publish a reel that does not exist |
 | **v2968** | `6bd69517` | v2968 — retro_triage was silent over 437 rows while deciding EMPTY on the river |
 | **v2967** | `0aab9937` | v2967 — the map-key guard read a string anywhere in the page instead of grading the derivation |

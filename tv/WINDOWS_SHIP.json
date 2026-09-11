@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2970",
+  "ver": "v2971",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2970: a fault from an old detector read exactly like one from today",
+  "note": "v2971: the law read a token and a superstring operand would have passed it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

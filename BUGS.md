@@ -31700,6 +31700,46 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-974 - a substring is not a derivation, and the eye caught me shipping the class I had just fixed (task #58 - v2971)
+
+The second eye reviewed v2967 - the commit whose whole point was replacing a bare membership check
+with one that "grades the DERIVATION". It found the replacement was **the same defect in a new
+costume**.
+
+**1 - HIGH: `assertIn("x.reel", region)` is a SUBSTRING check.**
+
+    "x.reel" in "String(x.reelId || '').replace(/^reel_/, '')"   -> True
+    "x.reel" in "String(x.reels  || '').replace(/^reel_/, '')"   -> True
+
+`/api/river` emits `reel` and nothing else, so `String(undefined || '')` keys **every row as `''`**:
+zero cards match, the grid reads "not stamped" while the backend still reports stamps - and both
+asserts pass. That is the exact hole I had closed for `sessionId` ⊂ `TH.sessionId` **in the same
+commit**, and the one `source-reading-guard` already carved as `visibilityState` ⊂
+`xvisibilityState`. I fixed the instance and shipped the class.
+⚠ The old red-proof could not see it either: it swapped `x.reel` -> `x.n`, which genuinely removes
+the substring. A tamper that only exercises the easy failure is a tamper that certifies the hard one.
+
+**2 - MEDIUM: the two needles were UNJOINED, and the graded slice included a 15-line comment.**
+Nothing required `x.reel` to be the OPERAND of the `replace` - each needle was checked
+independently, and the region began at `var m = {};`, swallowing the v2963 comment above the key
+line. So a sabotaged key plus the word `x.reel` in PROSE stayed green.
+
+FIXED: comments are blanked before grading, and the assignment is graded whole -
+`var key = String(x.<field> || …)` is parsed, the field must be exactly `reel`, and a single regex
+requires the `reel_` strip to apply to THAT SAME expression.
+
+PROVEN, not argued - the eye's own scenario A, run against a real sabotage:
+
+    key -> x.n, with a comment reading "keyed from x.reel, honest"     EXIT=1  RED
+    control_ui.html restored intact (1,770,615 bytes)
+
+Six tampers now declared, ALL PROVEN red, 1 match each - including the superstring case the old
+law was blind to.
+
+★ THE PATTERN WORTH KEEPING: three consecutive versions (v2966, v2967, v2971) were all the eye
+finding that my INSTRUMENTS were weaker than their own docstrings claimed, never that the feature
+was wrong. A gate is code too, and nothing was grading the gates.
+
 ## REG-973 - the console's own two .jsonl series could not say what wrote them (task #69 - v2970)
 
 Continuing the SILENT 16. `ui_faults.jsonl` and `disk_history.jsonl` are both written by

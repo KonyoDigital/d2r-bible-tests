@@ -43,6 +43,24 @@ _console_safe_enable()
 
 UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
 
+def _no_comments(src):
+    """Blank // and /* */ comments so a law grades CODE, never prose. A comment that mentions the
+    right token satisfied the old membership check while the code carried the wrong one."""
+    out, i, n = [], 0, len(src)
+    while i < n:
+        if src.startswith("/*", i):
+            j = src.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append(" " * (j - i)); i = j
+        elif src.startswith("//", i):
+            j = src.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i)); i = j
+        else:
+            out.append(src[i]); i += 1
+    return "".join(out)
+
+
 _LOOKUP = re.compile(r"SHELF_RIVER\[\s*c\.getAttribute\(\s*'([a-z-]+)'\s*\)\s*\]")
 _CARD_START = "return '<div class=\"sh-card'"
 _CARD_END = "data-search=\"'"
@@ -127,14 +145,35 @@ class TheTwoHalvesNameOneKey(unittest.TestCase):
         self.assertGreater(i, 0, "the map build is gone — this law lost its target")
         j = UI.find("SHELF_RIVER = m;", i)
         self.assertGreater(j, i, "could not find the end of the map build")
-        region = UI[i:j]
-        self.assertIn("x.reel", region,
-                      "the river map's key is no longer derived from the REEL ID. /api/river keys "
-                      "by reel id, so the two halves can now agree with each other and still "
-                      "disagree with the backend")
-        self.assertIn("replace(/^reel_/, '')", region,
-                      "the reel_ prefix is no longer stripped inside the map build, so the keys "
-                      "carry a prefix the card's session id never has")
+        region = _no_comments(UI[i:j])
+        # ★ THE SECOND EYE'S FINDING on v2967, and it caught me shipping the CLASS I had just
+        # fixed. `assertIn("x.reel", region)` is a SUBSTRING check:
+        #     "x.reel" in "String(x.reelId || '')"  ->  True
+        #     "x.reel" in "String(x.reels  || '')"  ->  True
+        # /api/river emits `reel`, never `reelId`, so String(undefined || '') is '' — every row
+        # keys empty, zero cards match, the grid reads "not stamped" while the API still reports
+        # stamps — and BOTH asserts passed. Identical to the sessionId ⊂ TH.sessionId hole closed
+        # in the same commit, and to source-reading-guard's carved visibilityState ⊂
+        # xvisibilityState. The old red-proof could not see it either: it swapped x.reel -> x.n,
+        # which really does remove the substring.
+        # And the two needles were UNJOINED — nothing required x.reel to be the OPERAND of the
+        # replace, and the graded slice included a 15-line comment, so a sabotaged key plus the
+        # word x.reel in prose stayed green. Comments are blanked above; the assignment is graded
+        # whole. [[source-reading-guard]] [[measured-true-read-wrong]]
+        m = re.search(r"var\s+key\s*=\s*String\(\s*x\.([A-Za-z_$][\w$]*)\s*\|\|", region)
+        self.assertIsNotNone(
+            m, "the map key is no longer built by `var key = String(x.<field> || …)`, so this law "
+               "cannot say what it is derived from. Region:\n%s" % region[:400])
+        self.assertEqual(
+            "reel", m.group(1),
+            "the river map's key is derived from x.%s, not x.reel. /api/river emits `reel` and "
+            "nothing else, so String(undefined || '') keys EVERY row as '' — zero cards match and "
+            "the grid reads 'not stamped' while the backend still reports stamps." % m.group(1))
+        self.assertRegex(
+            region, r"var\s+key\s*=\s*String\(\s*x\.reel\s*\|\|[^;]*?replace\(/\^reel_/",
+            "the reel_ strip is no longer applied to the SAME expression that reads x.reel — the "
+            "two halves are present but unjoined, which is how a sabotaged key survives beside a "
+            "leftover mention of the right one")
 
 
 class ASharedIdPlacesNothing(unittest.TestCase):
@@ -189,6 +228,15 @@ class ASharedIdPlacesNothing(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "a SUPERSTRING operand is the hole the eye found: /api/river emits `reel` and never "
+               "`reelId`, so String(undefined || '') keys every row as '' and zero cards match, "
+               "while the old assertIn('x.reel', ...) stayed green because x.reel is a prefix",
+        "file": "control_ui.html",
+        "find": "var key = String(x.reel || '').replace(/^reel_/, '');",
+        "replace": "var key = String(x.reelId || '').replace(/^reel_/, '');",
+        "matches": 1,
+    },
     {
         "why": "swapping the map key's operand off the reel id makes every river row key as '', so "
                "zero cards match and the grid reads not-stamped again while /api/river still "
