@@ -258,8 +258,16 @@ def main(argv=None):
           "legacy rows given a cell %d"
           % (c["bound"], c["carried"], c["pending"], c["unknown"], c["left"], c["legacyFilled"]))
     if c["rows"] != c["shaCellsAfter"]:
+        # ⚠⚠ v2933 — `c["threeColumn"]` DIED IN THE v2929 RENAME AND THE BODY KEPT USING IT.
+        # I renamed the key in the CONDITION and not in the line it guards, so the ONE path that
+        # reports "this tool cannot speak for these rows" raised KeyError instead of warning.
+        # It never fired because on the happy path `rows == shaCellsAfter` and the branch is dead
+        # — a diagnostic that has never had a green run is a diagnostic nobody has proven can
+        # speak. MEASURED: a version-table row whose SHA cell carries no backticks makes
+        # rows=2 / shaCellsAfter=1, reaches this line, and raises.
+        # Caught by the cross-family eye on v2929. [[plumbing-with-no-tap]] [[label-outlived-referent]]
         print("   \u26a0 %d row(s) still carry NO SHA cell — this tool cannot speak for them"
-              % (c["rows"] - c["threeColumn"]))
+              % (c["rows"] - c["shaCellsAfter"]))
     if ns.audit and c["unknown"]:
         print("   ✗ %d row(s) bind to nothing at all." % c["unknown"])
         return 1

@@ -29613,6 +29613,42 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-938 — a diagnostic that had never had a green run, so nobody noticed it could not speak
+
+**v2933.** Found by the cross-family eye on v2929 and reproduced before acting.
+
+v2929 renamed the counts key `threeColumn` to `shaCellsBefore`/`shaCellsAfter`. I updated the key in
+the **condition** and not in the line it guards:
+
+```python
+if c["rows"] != c["shaCellsAfter"]:                       # updated
+    print("   ⚠ %d row(s) still carry NO SHA cell …"
+          % (c["rows"] - c["threeColumn"]))               # NOT updated -> KeyError
+```
+
+So the one path whose job is to report *"this tool cannot speak for these rows"* **raised instead of
+speaking.** MEASURED: a version-table row whose SHA cell carries no backticks is seen by `VROW` and
+not by `ROW`, giving `rows=2 / shaCellsAfter=1`; the branch fires and raises `KeyError('threeColumn')`.
+
+**Why it survived a ship and a red-proof drill:** on the happy path `rows == shaCellsAfter`, so the
+branch is dead and every test, every gate run and every CLI invocation took the other way.
+**A diagnostic that has never had a green run is a diagnostic nobody has proven can speak** — the
+same shape as a gate never seen red, one level down.
+
+**Two laws, and the first one is the point:**
+
+- `test_every_counts_key_the_CLI_reads_is_one_the_stamper_WRITES` — parses `main()`, collects every
+  `c["…"]` key it reads, and compares against the keys `stamp()` actually returns. This catches the
+  CLASS: a rename cannot outrun it. Not "this key exists".
+- `test_the_cannot_speak_warning_SPEAKS_instead_of_raising` — builds the residual case and drives
+  `main()` through it, asserting it prints the count instead of raising.
+
+**11/11 red-proofs PROVEN, one match each.**
+
+⚠ The eye's other three findings on v2929 — the file-wide `VROW` eating the ship table, `newest`
+taken in file order, and the live pending law reading the wrong first row — were the same three I
+had already found and fixed in v2930 (REG-934). Two independent routes to the same three defects.
+
 ## REG-937 — REG-875 CLOSED: the two rules agreed, and agreed on a path inside his repo
 
 **v2932, closing #71.** REG-875 said the canonical isolation rule and its v2783 fallback *disagree*

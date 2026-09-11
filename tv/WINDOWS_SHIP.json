@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2932",
+  "ver": "v2933",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2932: --note REG-875: the stated disagreement did not reproduce; both rules AGREED on a path inside his repo",
+  "note": "v2933: --note the CLI read a counts key the rename had killed, so the one path reporting unspeakable rows raised instead of warning",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -224,6 +224,59 @@ class EveryVersionBindsToACommit(unittest.TestCase):
         self.assertIn("UNMEASURED", r.get("why") or "",
                       "the refusal does not say it is unmeasured: %r" % r.get("why"))
 
+    def test_every_counts_key_the_CLI_reads_is_one_the_stamper_WRITES(self):
+        """⚠⚠ THE CLASS, NOT THE INSTANCE. v2929 renamed `threeColumn` to `shaCellsBefore`/
+        `shaCellsAfter`; I changed the key in the CONDITION and not in the line it guards, so the
+        one path that reports "this tool cannot speak for these rows" raised `KeyError` instead of
+        warning. It never fired, because on the happy path `rows == shaCellsAfter` and the branch
+        is dead — **a diagnostic that has never had a green run is one nobody has proven can
+        speak.** Caught by the cross-family eye on v2929.
+
+        So the law is not "this key exists": it is every key `main()` reads must be a key `stamp()`
+        actually produces. A rename cannot outrun it. [[label-outlived-referent]]"""
+        src = io.open(os.path.join(HERE, "stamp_versions.py"), encoding="utf-8").read()
+        fn = [n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef) and n.name == "main"][0]
+        read = set()
+        for n in ast.walk(fn):
+            if (isinstance(n, ast.Subscript) and isinstance(n.value, ast.Name)
+                    and n.value.id == "c" and isinstance(n.slice, ast.Constant)
+                    and isinstance(n.slice.value, str)):
+                read.add(n.slice.value)
+        self.assertTrue(read, "main() reads no counts keys at all — re-derive this law")
+        p = _table([("v9002", "`(this commit)`"), ("v9001", "`(this commit)`")])
+        try:
+            produced = set(SV.stamp(path=p, known={})["counts"])
+        finally:
+            os.unlink(p)
+        missing = sorted(read - produced)
+        self.assertEqual([], missing,
+                         "main() reads %r from counts, and stamp() never writes %s — the CLI "
+                         "raises KeyError on whichever branch touches it" % (missing, missing))
+
+    def test_the_cannot_speak_warning_SPEAKS_instead_of_raising(self):
+        """★ The residual this warning exists to report, exercised rather than read: a version-table
+        row whose SHA cell carries no backticks is seen by VROW and not by ROW, so `rows` and
+        `shaCellsAfter` disagree and the branch fires. Before v2933 it raised."""
+        p = _table([("v9002", "`(this commit)`"), ("v9001", "deadbeef")])
+        was = SV.TASKS
+        buf = io.StringIO()
+        try:
+            SV.TASKS = p
+            sys.stdout, real = buf, sys.stdout
+            try:
+                rc = SV.main(["--dry"])
+            finally:
+                sys.stdout = real
+        finally:
+            SV.TASKS = was
+            os.unlink(p)
+        out = buf.getvalue()
+        self.assertEqual(0, rc, "--dry did not exit 0: %r" % out)
+        self.assertIn("cannot speak for them", out,
+                      "the residual warning never printed, so the branch is still unproven:\n%s" % out)
+        self.assertIn("1 row(s)", out, "the warning does not name how many rows: %r" % out)
+
     def test_bump_version_actually_CALLS_the_stamper(self):
         """⚠ THE JOIN. A backfill nobody runs is the same grave in a better location — and this
         repo's single most repeated defect is two halves each built right and never joined.
@@ -331,6 +384,13 @@ RED_PROOF = [
         "file": 'stamp_versions.py',
         "find": '    # ⚠⚠ v2931 — AN UNKNOWN ROW KEEPS `(this commit)` RATHER THAN BEING STAMPED UNKNOWN.\n    # Writing UNKNOWN looks more honest and is strictly worse: `stamp()` never overwrites a cell\n    # that is not the literal, so a row that simply has not been committed YET — three bumps\n    # batched before a commit, which is the documented workflow — would be frozen as UNKNOWN\n    # forever, and the one rule that protects real provenance would be what keeps the lie.\n    # The count is still reported, and --audit still exits 1. [[unknown-stays-unknown]]\n    return "`(this commit)`"\n',
         "replace": '    return "`(UNKNOWN — %s)`" % why\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2933 — restores the key that died in the v2929 rename. `threeColumn` was renamed to shaCellsBefore/shaCellsAfter and the CONDITION was updated while the line it guards was not, so the one path reporting 'this tool cannot speak for these rows' raised KeyError instead of warning. It never fired because the branch is dead on the happy path — a diagnostic with no green run is one nobody has proven can speak.",
+        "file": 'stamp_versions.py',
+        "find": '              % (c["rows"] - c["shaCellsAfter"]))\n',
+        "replace": '              % (c["rows"] - c["threeColumn"]))\n',
         "matches": 1,
     },
 ]
