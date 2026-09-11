@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2976",
+  "ver": "v2977",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2976: capture_doors is keyed by door and blueprint enumerates that top level",
+  "note": "v2977: chron_hunt_memory is counted by len and an empty memory would have read as one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

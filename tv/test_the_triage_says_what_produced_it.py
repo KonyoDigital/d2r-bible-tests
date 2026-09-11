@@ -194,7 +194,67 @@ class ADoorKeyedStoreStampsItsDoors(unittest.TestCase):
                          "reader of the live state")
 
 
+class TheHuntMemoryDoesNotFoolItsOwnCorroborator(unittest.TestCase):
+    """#69 / v2977 — chron_hunt_memory.json is keyed BY ITEM, and a blob stamp here would DEFEAT A
+    LIVE CORROBORATOR rather than merely look untidy.
+
+    `corroborate.py`'s `hunt-remembers` invariant is literally `return len(d)` against a right() of
+    0. It exists because the hunt once re-bought the same 8 names for eight hours — 1,717 sightings
+    that "looked exactly like healthy activity". A top-level `_prov` makes an EMPTY memory report
+    1, so the one instrument watching for that spend would report the memory fine while nothing is
+    remembered. [[zero-needs-a-denominator]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="prov_hunt_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.p = os.path.join(self.d, "chron_hunt_memory.json")
+        was = CA._chron_reads_path
+        CA._chron_reads_path = lambda: self.p
+        self.addCleanup(setattr, CA, "_chron_reads_path", was)
+
+    def _save(self, rec):
+        CA._chron_reads_save(rec)
+        return json.load(io.open(self.p, encoding="utf-8"))
+
+    def test_the_corroborators_count_is_unmoved(self):
+        blob = self._save({"sets|A": {"empty": True, "ts": 1}, "sets|B": {"empty": False, "ts": 2}})
+        self.assertEqual(2, len(blob),
+                         "two names were remembered but len(d) is %d — corroborate.hunt-remembers "
+                         "reads exactly this number" % len(blob))
+        self.assertNotIn("_prov", blob,
+                         "a top-level _prov inflates the hunt memory's count, which is the number "
+                         "the corroborator compares against zero")
+
+    def test_an_empty_memory_still_counts_zero(self):
+        """The state the invariant exists to catch: reads being spent while nothing is remembered."""
+        blob = self._save({})
+        self.assertEqual(0, len(blob),
+                         "an EMPTY hunt memory reports %d, so the corroborator would say the "
+                         "memory is fine while the hunt re-buys the same names" % len(blob))
+
+    def test_every_remembered_name_carries_its_producer(self):
+        blob = self._save({"sets|A": {"empty": True, "ts": 1}})
+        for k, row in blob.items():
+            self.assertEqual("control_app", getattr(PV.read(row), "by", None),
+                             "remembered name %r does not name its producer" % k)
+
+    def test_the_callers_live_record_is_not_mutated(self):
+        live = {"sets|A": {"empty": True, "ts": 1}}
+        before = json.loads(json.dumps(live))
+        self._save(live)
+        self.assertEqual(before, live,
+                         "saving mutated the caller's record, so _prov travels to every other "
+                         "reader of the live hunt memory")
+
+
 RED_PROOF = [
+    {
+        "why": "stamping the BLOB inflates len(d), and corroborate.hunt-remembers reads exactly that number against zero - an EMPTY memory would report 1 and the instrument watching for re-bought reads would call it healthy",
+        "file": "control_app.py",
+        "find": '        rec = dict((_k, (_PV.stamp_row(_v, by="control_app",\n                                       extra={"store": "chron_hunt_memory"})\n                         if isinstance(_v, dict) else _v))\n                   for _k, _v in (rec or {}).items())\n',
+        "replace": '        rec = _PV.stamp(rec, by="control_app", extra={"store": "chron_hunt_memory"})\n',
+        "matches": 1,
+    },
     {
         "why": "stamping the BLOB instead of each door is the hazard reel_retention names for this "
                "very store: blueprint.capture_doors() enumerates the top level, so a _prov key "

@@ -31700,6 +31700,39 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-980 - a blob stamp on the hunt memory would have BLINDED a live corroborator (task #69 - v2977)
+
+`chron_hunt_memory.json` was SILENT and is keyed BY ITEM - `"sets|Angelic Halo (ring)"` and 55 more.
+The fake-row warning already ruled out a blob stamp here. Reading WHY turned up something sharper
+than an untidy count:
+
+`corroborate.py`'s `hunt-remembers` invariant is literally
+
+    def left():  ... return len(d)          # d is the whole store
+    def right(): return 0
+
+and its docstring says what it is for: the hunt once re-bought the same 8 names for eight hours -
+**1,717 sightings, and it "looked exactly like healthy activity"**. A top-level `_prov` makes an
+**EMPTY memory report 1**, so the one instrument watching for that spend would call the memory fine
+while nothing was remembered. The stamp would not have looked wrong anywhere; it would have quietly
+disarmed the guard that exists because of a real, expensive incident.
+
+So the stamp goes inside each remembered name. Verified, including the empty case the invariant
+guards:
+
+    names saved 2  ->  len(d) = 2   (not 3)     '_prov' a top key: False
+    every name stamped: True        fields kept: True        caller untouched: True
+    EMPTY memory       ->  len(d) = 0
+
+★ THE GENERAL LESSON, now three stores deep: **before stamping any store, find who COUNTS it.**
+retro_triage and capture_doors were ruled by `blueprint.py` publishing the top level as a row count;
+this one is ruled by a corroborator comparing `len()` against zero. The shape tells you where the
+stamp goes; the READERS tell you what breaks if you get it wrong, and only the second one tells you
+how badly.
+
+⚠ The patch script `ast.parse`s the TAMPERED file before declaring the red-proof, after REG-979's
+tamper was refused as INVALID for not parsing. Four tampers PROVEN red, 1 match each.
+
 ## REG-979 - "SILENT" was hiding two different facts, and one of them is no work at all (task #69 - v2976)
 
 ★ **THE CENSUS CANNOT TELL A MISSING WRITER FROM AN UNRUN ONE**, and I had been counting them as the

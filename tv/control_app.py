@@ -22562,6 +22562,25 @@ def _chron_reads_load():
 
 
 def _chron_reads_save(rec):
+    # ⚠⚠ v2977 (#69) — STAMP EACH REMEMBERED NAME, NEVER THE BLOB. chron_hunt_memory.json is
+    # keyed BY ITEM — "sets|Angelic Halo (ring)" and 55 more — and a blob stamp here would
+    # DEFEAT A LIVE CORROBORATOR, not merely look untidy. corroborate.py's `hunt-remembers`
+    # invariant is literally `return len(d)` against a right() of 0, and it exists because
+    # the hunt once re-bought the same 8 names for eight hours — 1,717 sightings that
+    # "looked exactly like healthy activity". A top-level `_prov` makes an EMPTY memory
+    # report 1, so the one instrument watching for that spend would say the memory is fine
+    # while nothing is remembered. blueprint.py would publish the phantom as a row too.
+    # ⚠ A COPY: `stamp_row` returns a new dict, so the caller's live record is untouched.
+    # ⚠ SWALLOWED: a name that cannot be labelled is still worth remembering.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    try:
+        import provenance as _PV
+        rec = dict((_k, (_PV.stamp_row(_v, by="control_app",
+                                       extra={"store": "chron_hunt_memory"})
+                         if isinstance(_v, dict) else _v))
+                   for _k, _v in (rec or {}).items())
+    except Exception:
+        pass
     _p = _chron_reads_path()
     if _store_write_blocked(_p):      # v2115 — never overwrite a store we failed to read
         return
@@ -26424,7 +26443,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2976",
+        "ver": "v2977",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
