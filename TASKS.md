@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2935** | `(this commit)` | v2935 — --note no version table meant audit exit 0, and a missing rule line silently dropped the newest row |
+| **v2936** | `(this commit)` | v2936 — --note v2931 taught stamp to refuse; main was joined to it and the bump was not, so the bump was silent on the one path that runs every time |
+| **v2935** | `0331f55d` | v2935 — --note no version table meant audit exit 0, and a missing rule line silently dropped the newest row |
 | **v2934** | `b92c3da0` | v2934 — --note both carry the same sourceHash so only 135 vs 398 kept a sets mask from being read as uniques |
 | **v2933** | `67b649f5` | v2933 — --note the CLI read a counts key the rename had killed, so the one path reporting unspeakable rows raised instead of warning |
 | **v2932** | `877f6811` | v2932 — --note REG-875: the stated disagreement did not reproduce; both rules AGREED on a path inside his repo |

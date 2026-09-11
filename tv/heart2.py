@@ -170,7 +170,13 @@ def _fan_state(rec):
 
 
 def _fan_buckets(v):
-    """Every width sorted into what it actually said. -> (reported, reading, threw, unread)"""
+    """Every width sorted into what it actually said. -> (reported, reading, threw, unread, refused)
+
+    ⚠ v2936 — THE ARITY IS FIVE AND THE DOCSTRING SAID FOUR. v2931 split `refused` out of `threw`
+    and updated every unpacker in the tree, but not the sentence that tells the next editor how
+    many names to unpack — so following the docstring is a runtime ValueError. Caught by the
+    cross-family eye, and it is the same [[label-outlived-referent]] class that ship just fixed
+    on `_fan_counts`."""
     fan = (v.get("reports") or {}).get("heart-fan")
     if not isinstance(fan, dict) or not fan:
         # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the
@@ -182,8 +188,11 @@ def _fan_buckets(v):
     by = {}
     for w in rep:
         by.setdefault(_fan_state(fan[w]), []).append(w)
-    # ⚠ a REFUSAL rides with unread, not with threw: neither produced a placement, but only one
-    # of them is a bug in the solver. `_fan_say` names them separately.
+    # ⚠⚠ A REFUSAL GETS ITS OWN BUCKET — it rides with NEITHER unread nor threw. None of the
+    # three produced a placement, but they are three different reasons and `_fan_say` prints a
+    # different sentence for each. This comment said "rides with unread" and the code has never
+    # done that; an editor tidying the code to match would have deleted the declined-solver
+    # sentence v2931 added. The eye caught the comment, not the code.
     return (rep, by.get("reading", []), by.get("threw", []),
             by.get("unread", []), by.get("refused", []))
 

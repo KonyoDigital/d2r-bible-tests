@@ -303,7 +303,17 @@ def _record_ship_in_tasks(ver, name, note):
             import stamp_versions as _sv
             _r = _sv.stamp()
             _c = _r["counts"]
-            if _c["bound"] or _c["carried"] or _c["unknown"]:
+            # ⚠⚠ v2936 — A REFUSAL IS A RETURN VALUE, NOT AN EXCEPTION, AND THE `except` BELOW
+            # CANNOT SEE IT. v2931 taught stamp() to refuse when `git log` cannot be asked; main()
+            # was joined to that and THIS caller was not, so the condition below (all zeros on a
+            # refusal) was False and the bump printed only "recorded vNNNN in TASKS.md".
+            # MEASURED: with git unreachable, stamp() returned a `why` and this path said nothing.
+            # The instrument failure v2931 exists to announce was silent on the one path that runs
+            # at every bump — REG-936's own shape, one caller over.
+            # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]
+            if _r.get("why"):
+                print("   \u26a0 version rows were NOT backfilled: %s" % _r["why"])
+            elif _c["bound"] or _c["carried"] or _c["unknown"]:
                 print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"
                       % (_c["bound"], _c["carried"], _c["unknown"]))
         except Exception as _e:

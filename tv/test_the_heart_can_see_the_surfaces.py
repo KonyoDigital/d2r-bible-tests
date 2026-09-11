@@ -21,6 +21,7 @@ import io
 import time
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -127,6 +128,13 @@ RED_PROOF = [
         "file": 'heart2.py',
         "find": '    if not isinstance(fan, dict) or not fan:\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [], [])\n',
         "replace": '    if not isinstance(fan, dict):\n        # ⚠ v2928 — NOT `.get("heart-fan", {})`. The eye flagged a fabricated 0 here; measured, the\n        # isinstance guard already caught two of its three cases, but the third — `heart-fan`\n        # PRESENT AND EMPTY — really did publish `fanWidths: 0` beside `fanRevertedAt: None`, two\n        # different answers to "did anybody measure". `not fan` closes it for good.\n        return (None, [], [], [], [])\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2936 — merges refused back into unread, which is exactly what an editor 'fixing' the old comment would have done: the returned arity drops to 4 while every unpacker in the tree expects 5, and the declined-solver sentence disappears.",
+        "file": 'heart2.py',
+        "find": '    return (rep, by.get("reading", []), by.get("threw", []),\n            by.get("unread", []), by.get("refused", []))\n',
+        "replace": '    return (rep, by.get("reading", []), by.get("threw", []),\n            by.get("unread", []) + by.get("refused", []))\n',
         "matches": 1,
     },
 ]
@@ -313,6 +321,30 @@ class TheHeartCanSeeTheSurfaces(unittest.TestCase):
                              "a crash is reported as a keep (%r): %r" % (shape, got.get("fanSay")))
             self.assertIn("UNMEASURED", got.get("fanSay") or "",
                           "a failed solve does not say UNMEASURED (%r): %r" % (shape, got.get("fanSay")))
+
+    def test_the_DOCSTRING_arity_matches_what_the_code_returns(self):
+        """⚠ v2931 split `refused` out of `threw` and updated every unpacker in the tree — but not
+        the sentence telling the next editor how many names to unpack. `_fan_buckets` returned five
+        and its docstring advertised four, so following the documentation is a runtime ValueError.
+        A signature in prose is still a contract. [[label-outlified-referent]]"""
+        doc = (H._fan_buckets.__doc__ or "")
+        m = re.search(r"->\s*\(([^)]*)\)", doc)
+        self.assertTrue(m, "_fan_buckets no longer declares its shape at all: %r" % doc[:120])
+        declared = [x.strip() for x in m.group(1).split(",") if x.strip()]
+        actual = len(H._fan_buckets({}))
+        self.assertEqual(actual, len(declared),
+                         "the docstring names %d field(s) %r and the code returns %d — an editor "
+                         "unpacking what the documentation says gets a ValueError"
+                         % (len(declared), declared, actual))
+        # and every return in the function must agree with every other
+        src = io.open(os.path.join(HERE, "heart2.py"), encoding="utf-8").read()
+        fn = [n for n in ast.walk(ast.parse(src))
+              if isinstance(n, ast.FunctionDef) and n.name == "_fan_buckets"][0]
+        arities = {len(r.value.elts) for r in ast.walk(fn)
+                   if isinstance(r, ast.Return) and isinstance(r.value, ast.Tuple)}
+        self.assertEqual({actual}, arities,
+                         "_fan_buckets returns tuples of differing length %r — one path unpacks "
+                         "wrong at runtime" % sorted(arities))
 
     def test_a_solver_that_DECLINED_is_not_reported_as_one_that_CRASHED(self):
         """⚠ v2928 fixed the keep-lie and introduced a diagnosis-lie in the same breath, caught by

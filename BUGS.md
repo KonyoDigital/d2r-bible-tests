@@ -29613,6 +29613,47 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-941 — a refusal is a return value, and the `except` arm cannot see it
+
+**v2936.** From the cross-family eye on v2931 — a gap that version introduced with its own fix.
+
+v2931 taught `stamp()` to **refuse** when `git log` cannot be asked, returning `{"why": …}` with
+null counts instead of raising. `main()` was joined to that. **`bump_version.py` was not** — and its
+`except Exception` arm could never help, because a refusal is a RETURN VALUE, not an exception. Its
+condition reads `if _c["bound"] or _c["carried"] or _c["unknown"]`, all zero on a refusal, so:
+
+**MEASURED with git unreachable:** `stamp()` returned its `why`, and the bump printed only
+`recorded vNNNN in TASKS.md`. **The instrument failure v2931 exists to announce was silent on the
+one path that runs at every single bump** — REG-936's own shape, one caller over.
+
+**Two labels that outlived their referents, same file, same ship:**
+
+- `_fan_buckets`' docstring advertised a **4-tuple** while the code returns **5**. v2931 split
+  `refused` out of `threw` and updated every unpacker in the tree — but not the sentence telling the
+  next editor how many names to unpack, so following the documentation is a runtime `ValueError`.
+- A comment read *"a REFUSAL rides with unread, not with threw."* The code has never done that —
+  refusal has its own bucket, and `_fan_say` prints a different sentence for each. **An editor
+  tidying the code to match the comment would have deleted the declined-solver sentence v2931
+  added.** The eye caught the comment, not the code.
+
+**Laws:** `test_every_CALLER_of_the_stamper_consults_its_REFUSAL` walks to the assignment of every
+`stamp()` result and requires `why` to be read off it — per-caller, so the next caller cannot be
+added unjoined. And `test_the_DOCSTRING_arity_matches_what_the_code_returns` parses the declared
+`-> (...)` tuple against the real return arity, and requires every `return` in the function to agree
+with every other.
+
+**⚠ My first cut of the caller law was `assertIn('"why"', src)` over the whole file** — which the
+fix's own print string satisfies, so deleting the CHECK would have left it green. Rewritten to walk
+the AST before a single drill was spent on it. *Parse, never grep, when a law reads source.*
+
+**⚠ And a proof was silently dropped as stale whose law still existed.** Editing `bump_version.py`
+moved the block v2930/C anchored on — the lost-update ordering proof. The rebuild reported the drop
+and carried on; accepting it would have left the write-then-stamp ordering **unproven behind a clean
+count of 14**. Re-anchored. **Second time this session that a stale drop nearly cost real coverage,
+and both were caught only by reading the drop line instead of the total.**
+
+**15/15 and 14/14 red-proofs PROVEN across the two gates, one match each.**
+
 ## REG-940 — a reader that could not find the table reported nothing wrong
 
 **v2935.** Four findings from the cross-family eye on v2930, all reproduced before acting, all live

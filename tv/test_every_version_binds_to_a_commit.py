@@ -297,6 +297,58 @@ class EveryVersionBindsToACommit(unittest.TestCase):
         self.assertIn("UNMEASURED", r.get("why") or "",
                       "the refusal does not say it is unmeasured: %r" % r.get("why"))
 
+    def test_every_CALLER_of_the_stamper_consults_its_REFUSAL(self):
+        """⚠⚠ THE CLASS. v2931 taught `stamp()` to REFUSE when git cannot be asked, returning a
+        `why` instead of raising. `main()` was joined to that; `bump_version.py` was not — and its
+        `except` arm cannot help, because a refusal is a RETURN VALUE, not an exception. MEASURED
+        with git unreachable: `stamp()` returned a `why`, the bump's `bound or carried or unknown`
+        was all zeros, and the bump printed only "recorded vNNNN in TASKS.md". The instrument
+        failure v2931 exists to announce was silent on the one path that runs at every bump.
+
+        So the law is per-CALLER, not per-site: anything that calls `stamp()` outside this test
+        must read `why` from what it gets back. [[the-unjoined-end]]"""
+        # ⚠ PARSED, NOT GREPPED. The first cut of this law was `assertIn('"why"', src)` over the
+        # whole file — which the fix's own print string satisfies, so deleting the CHECK would
+        # have left it green. A law that reads prose goes green the moment prose mentions the
+        # thing; this one walks to the assignment and requires the value to be consulted.
+        # [[source-reading-guard]]
+        checked = 0
+        for mod in ("stamp_versions.py", "bump_version.py"):
+            tree = ast.parse(io.open(os.path.join(HERE, mod), encoding="utf-8").read())
+            for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
+                names = set()
+                for asn in ast.walk(fn):
+                    if not isinstance(asn, ast.Assign) or not isinstance(asn.value, ast.Call):
+                        continue
+                    f = asn.value.func
+                    if ((isinstance(f, ast.Attribute) and f.attr == "stamp")
+                            or (isinstance(f, ast.Name) and f.id == "stamp")):
+                        if isinstance(asn.targets[0], ast.Name):
+                            names.add(asn.targets[0].id)
+                if not names:
+                    continue
+                checked += 1
+                reads = set()
+                for nd in ast.walk(fn):
+                    base = why = None
+                    if isinstance(nd, ast.Call) and isinstance(nd.func, ast.Attribute) \
+                       and nd.func.attr == "get" and isinstance(nd.func.value, ast.Name) \
+                       and nd.args and isinstance(nd.args[0], ast.Constant):
+                        base, why = nd.func.value.id, nd.args[0].value
+                    elif isinstance(nd, ast.Subscript) and isinstance(nd.value, ast.Name) \
+                            and isinstance(nd.slice, ast.Constant):
+                        base, why = nd.value.id, nd.slice.value
+                    if base in names and why == "why":
+                        reads.add(base)
+                self.assertTrue(reads,
+                                "%s.%s() calls stamp() and never reads `why` off the result — a "
+                                "refusal is a RETURN VALUE, not an exception, so this caller "
+                                "reports nothing at all when the instrument fails"
+                                % (mod, fn.name))
+        self.assertGreaterEqual(checked, 2,
+                                "only %d caller(s) of stamp() were found — re-derive this law"
+                                % checked)
+
     def test_every_counts_key_the_CLI_reads_is_one_the_stamper_WRITES(self):
         """⚠⚠ THE CLASS, NOT THE INSTANCE. v2929 renamed `threeColumn` to `shaCellsBefore`/
         `shaCellsAfter`; I changed the key in the CONDITION and not in the line it guards, so the
@@ -432,13 +484,6 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "v2930/C — restores the v2927 ORDER: the stamper runs and then the TASKS.md write lands on top of it, from the stale `s` read at the top of the function. MEASURED: the v2928 bump printed 'bound 1 version row(s)' and commit 6442cfe5 still carries `(this commit)` for v2927. ⚠ The first cut of this tamper only swapped the write with a print and came back BLIND — the write has to move PAST the stamper for the law to have anything to catch.",
-        "file": 'bump_version.py',
-        "find": '        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            if _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n',
-        "replace": '        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            if _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n',
-        "matches": 1,
-    },
-    {
         "why": "v2931/C — a non-zero `git log` becomes an EMPTY answer again, indistinguishable from 'this repo has no versions' — an instrument failure read as a measurement.",
         "file": 'stamp_versions.py',
         "find": '    if r.returncode != 0:\n        return None\n',
@@ -468,23 +513,37 @@ RED_PROOF = [
     },
     {
         "why": 'v2935/A — drops the rule-line requirement, so a table written without |---|---|---| has its region start one row late: the NEWEST row is silently dropped and reported as a smaller table rather than an unrecognised one. MEASURED: rows=1 where there were 2, newest stuck at (this commit) forever.',
-        "file": "stamp_versions.py",
+        "file": 'stamp_versions.py',
         "find": '    if len(lines) < 2 or not _RULE.match(lines[1]):\n        return None\n',
         "replace": '    if False:\n        return None\n',
         "matches": 1,
     },
     {
         "why": 'v2935/B — restores all-zero counters when the table cannot be found, so `unknown == 0` and the command whose job is to refuse an unbound table is vacuously green whenever it cannot find the table. Zero examined is not zero unbound.',
-        "file": "stamp_versions.py",
+        "file": 'stamp_versions.py',
         "find": '        return {"counts": dict(counts, rows=None, shaCellsBefore=None, shaCellsAfter=None,\n                               knownVersions=len(known)), "changed": [], "wrote": False,\n                "why": "the version table header was not found (or its |---| rule line is "\n                       "missing), so NOTHING here was examined — this is UNMEASURED, not a table "\n                       "with nothing unbound"}\n',
         "replace": '        return {"counts": dict(counts, rows=0, shaCellsBefore=0, shaCellsAfter=0,\n                               knownVersions=len(known)), "changed": [], "wrote": False}\n',
         "matches": 1,
     },
     {
         "why": 'v2935/C — lets main() print its zeros and exit 0 on a refusal, so the CLI reports success for a run that examined nothing.',
-        "file": "stamp_versions.py",
+        "file": 'stamp_versions.py',
         "find": '    if r.get("why"):\n        # ⚠ the refusal is the answer. Printed and non-zero, never a quiet success.\n        print("   \\u2717 %s" % r["why"])\n        return 1\n',
         "replace": '    if False:\n        return 1\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2936 — unjoins the bump from stamp()'s refusal. A refusal is a RETURN VALUE, not an exception, so the except arm below cannot see it and the bump prints only 'recorded vNNNN' while the instrument is broken. MEASURED with git unreachable: stamp() returned a why and this path said nothing.",
+        "file": 'bump_version.py',
+        "find": '            if _r.get("why"):\n                print("   \\u26a0 version rows were NOT backfilled: %s" % _r["why"])\n',
+        "replace": '            if False:\n                print("   backfill note")\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2930/C — restores the v2927 ORDER: the stamper runs and then the TASKS.md write lands on top of it from the stale `s` read at the top of the function. MEASURED: the v2928 bump printed 'bound 1 version row(s)' and 6442cfe5 still carries (this commit) for v2927. ⚠ RE-ANCHORED at v2936 after the refusal-join changed this block — its law still existed, so accepting the stale drop would have left the ordering unproven behind a clean count.",
+        "file": 'bump_version.py',
+        "find": '        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            # ⚠⚠ v2936 — A REFUSAL IS A RETURN VALUE, NOT AN EXCEPTION, AND THE `except` BELOW\n            # CANNOT SEE IT. v2931 taught stamp() to refuse when `git log` cannot be asked; main()\n            # was joined to that and THIS caller was not, so the condition below (all zeros on a\n            # refusal) was False and the bump printed only "recorded vNNNN in TASKS.md".\n            # MEASURED: with git unreachable, stamp() returned a `why` and this path said nothing.\n            # The instrument failure v2931 exists to announce was silent on the one path that runs\n            # at every bump — REG-936\'s own shape, one caller over.\n            # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]\n            if _r.get("why"):\n                print("   \\u26a0 version rows were NOT backfilled: %s" % _r["why"])\n            elif _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n',
+        "replace": '        # ⚠⚠ AFTER THE WRITE, NOT BEFORE — AND THAT ORDER IS THE WHOLE FIX.\n        # v2927 put this block ABOVE the write. `s` was read at the top of this function, the\n        # stamper then wrote TASKS.md itself, and the line above wrote STALE `s` straight back over\n        # it. MEASURED 2026-09-11: the v2928 bump printed "bound 1 version row(s)" and commit\n        # 6442cfe5 still carries `| **v2927** | \\u0060(this commit)\\u0060 |`. The backfill was\n        # real, correct, and clobbered in the same breath — a lost update.\n        # ⚠ AND THE LAW WAS HOLLOW. test_bump_version_actually_CALLS_the_stamper asserted the\n        # import and the .stamp() call existed, so it proved the tap was PLUMBED and never that\n        # water came out. It cites [[plumbing-with-no-tap]] in its own docstring.\n        # being written — at bump time the commit genuinely does not exist — but nothing ever came\n        # back to replace it, and MEASURED 2026-09-11 that left 249 of 278 rows unable to bind a\n        # version to a commit at all. Grok Bot raised it three ticks running (GB-B-403/404/405).\n        # The previous version\'s commit DOES exist by now, so every row but the newest can be\n        # bound here. [[the-unjoined-end]] [[plumbing-with-no-tap]]\n        try:\n            import stamp_versions as _sv\n            _r = _sv.stamp()\n            _c = _r["counts"]\n            # ⚠⚠ v2936 — A REFUSAL IS A RETURN VALUE, NOT AN EXCEPTION, AND THE `except` BELOW\n            # CANNOT SEE IT. v2931 taught stamp() to refuse when `git log` cannot be asked; main()\n            # was joined to that and THIS caller was not, so the condition below (all zeros on a\n            # refusal) was False and the bump printed only "recorded vNNNN in TASKS.md".\n            # MEASURED: with git unreachable, stamp() returned a `why` and this path said nothing.\n            # The instrument failure v2931 exists to announce was silent on the one path that runs\n            # at every bump — REG-936\'s own shape, one caller over.\n            # [[the-unjoined-end]] [[feedback-silence-is-not-evidence]]\n            if _r.get("why"):\n                print("   \\u26a0 version rows were NOT backfilled: %s" % _r["why"])\n            elif _c["bound"] or _c["carried"] or _c["unknown"]:\n                print("   bound %d version row(s) to a commit (%d carried, %d UNKNOWN)"\n                      % (_c["bound"], _c["carried"], _c["unknown"]))\n        except Exception as _e:\n            # ⚠ SAY SO. A silent failure here is how the table quietly goes back to 249 unbound\n            # rows with everything looking healthy. [[feedback-silence-is-not-evidence]]\n            print("   ⚠ version rows were NOT backfilled (%s) — run tv/stamp_versions.py by hand"\n                  % type(_e).__name__)\n        io.open(p, "w", encoding="utf-8").write(s.replace(head, head + row, 1))\n        print("   recorded %s in TASKS.md" % ver)\n',
         "matches": 1,
     },
 ]

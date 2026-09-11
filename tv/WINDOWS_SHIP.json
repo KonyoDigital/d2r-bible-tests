@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2935",
+  "ver": "v2936",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2935: --note no version table meant audit exit 0, and a missing rule line silently dropped the newest row",
+  "note": "v2936: --note v2931 taught stamp to refuse; main was joined to it and the bump was not, so the bump was silent on the one path that runs every time",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
