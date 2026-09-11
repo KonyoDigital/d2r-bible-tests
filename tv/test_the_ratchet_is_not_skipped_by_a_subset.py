@@ -33,6 +33,13 @@ And the floor is stale where it matters most. MEASURED on this tree by parsing, 
       .hrt-hn      1
       .hrt-nw      3   (lineBits = 2 clauses; `_weld` emits 1 span for a <=3-word clause and 2
                         for a longer one -> 1 + 2)
+                        ⚠ v2954 — THIS ARITHMETIC IS NOW THE FLOOR'S, NOT THE PANEL'S. lineBits
+                        gained up to THREE more clauses (backend split, pixel split, and the
+                        PARTIAL caveat), each 5-6 words, so `_weld` emits 2 spans apiece: .hrt-nw
+                        reads 3 on a run that publishes no split and up to 9 on one that does.
+                        The ratchet is unharmed BECAUSE IT ONLY FIRES ON A FALL — more nodes is
+                        never the failure. But this file is about floors going stale, so its own
+                        arithmetic may not. [[label-outlived-referent]] [[stale-reading]]
       .hrt-w > i   2   (both <i> live in the first row's .hrt-w)
       .hrt-k/.hrt-s/.hrt-w   3 x (2 + blind.length)
       => 6 + 3*blind  under the OLD three-clause selector   -> 9 with one blind gate

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2953** | `(this commit)` | v2953 — --note the top border was excluded from sampling since the beginning and the sides never were, so a border hairline could veto emptiness |
+| **v2954** | `(this commit)` | v2954 — --note seven facts were made reachable by the console in v2952 and rendered to nobody |
+| **v2953** | `388882ed` | v2953 — --note the top border was excluded from sampling since the beginning and the sides never were, so a border hairline could veto emptiness |
 | **v2952** | `28756925` | v2952 — --note the census dropped everything heart2 had already written beside proved and blind, so no surface could show the backend versus pixel split |
 | **v2951** | `2a73e70a` | v2951 — --note one of seven self-disabling controls never re-enabled, and disabled is one of only three cursor rules that survive the blanket |
 | **v2950** | `ad47acb3` | v2950 — --note SHELF_MOUTH.recent was already arriving from api river and being thrown away, so the mouth showed a count and no journeys |

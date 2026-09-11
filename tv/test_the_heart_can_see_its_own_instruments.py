@@ -344,6 +344,33 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                           "having been served" % _var)
 
 
+    def test_the_PANEL_renders_the_split_the_census_now_carries(self):
+        """⚠⚠ PLUMBING WITH NO TAP IS THIS REPO'S MOST REPEATED DEFECT. v2952 made seven facts
+        REACHABLE by the console and rendered none of them; a passthrough nobody reads is the same
+        shape as a reader with no writer.
+
+        "294 proven" cannot say whether a proof is a BACKEND law or a PIXEL law, and those fail
+        differently: a backend law going dark loses a guard, a pixel law going dark loses his
+        WINDOW. Parsed from control_ui.html, never grepped — the clause must be PUSHED onto
+        lineBits, not merely mentioned. [[plumbing-with-no-tap]] [[the-unjoined-end]]"""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        code = re.sub(r"/\*.*?\*/", lambda m: " " * len(m.group(0)), ui, flags=re.S)
+        for field in ("backendProved", "pixelProved"):
+            self.assertIn("d." + field, code,
+                          "the panel never reads d.%s, so the census carries it to nobody" % field)
+        self.assertIn("backend laws proven", code, "the backend split has no clause")
+        self.assertIn("pixel laws proven", code, "the pixel split has no clause")
+        self.assertRegex(code, r"lineBits\.push\(",
+                         "the split is computed and never pushed onto the rendered clause list")
+
+    def test_a_PARTIAL_run_says_so_beside_its_own_figures(self):
+        """heart2 writes the split only on a FULL run. A partial one that stayed silent would let a
+        stale split read as current, which is a stale-reading defect wearing fresh numbers."""
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        code = re.sub(r"/\*.*?\*/", lambda m: " " * len(m.group(0)), ui, flags=re.S)
+        self.assertIn("PARTIAL run", code,
+                      "a partial census renders its split with no caveat beside it")
+
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 # The law that demands re-runnable proofs carries one. Cutting the join is the defect: the proving
 # loop would keep measuring perfectly and the heart would never carry a word of it.
@@ -357,7 +384,17 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
 # This tamper breaks the census's RETURN SHAPE instead: no proof's `find` is disturbed, the
 # well-formed test stays green, and only the join assertion can fail.
 # [[sabotage-is-usually-the-wrong-one]]
-RED_PROOF = [{
+RED_PROOF = [
+    {
+        "why": "law: the panel RENDERS the split. Removing the push leaves seven facts reachable "
+               "by the console and rendered to nobody - a passthrough with no consumer, which is "
+               "the same shape as a reader with no writer.",
+        "file": "control_ui.html",
+        "find": "        lineBits.push(d.backendProved + ' of ' + d.backendTotal + ' backend laws proven');",
+        "replace": "        /* _HEART2_TAMPERED_ */",
+        "matches": 1,
+    },
+    {
     "why": "a census that returns no `state` leaves the heart unable to say anything about its instruments",
     "file": "control_app.py",
     "find": '            "state": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',

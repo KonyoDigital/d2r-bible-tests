@@ -12331,6 +12331,33 @@ window._lockMark = function(isOpen, px, label){
       ? ['never measured here — run `python3 tv/heart2.py --prove`']
       : [(d.proved == null ? '?' : d.proved) + ' proven',
          (d.unproven == null ? '?' : d.unproven) + ' carry no executable proof (UNKNOWN)'];
+    /* ══ v2954 — THE SPLIT THE PANEL COULD NOT SHOW. Task #68. ══════════════════════════════
+       Konyo: *"the same shape as it is now.. just more lively and representing the updated derived
+       version of the new heart and wires and whatever.. the locks and unlocks same logic just an
+       upgrade and sync to the relating and upgraded version of everything built today"*. So: same
+       shape, same idiom, one clause per figure — nothing moved, nothing restyled.
+       v2952 made these reachable; until then `_heart2_census()` answered proved/unproven/blind and
+       dropped everything else heart2 had already written in the same file. "294 proven" cannot say
+       whether the proof is a BACKEND law or a PIXEL law, and those fail differently: a backend law
+       going dark loses a guard, a pixel law going dark loses his WINDOW.
+       ⚠ APPENDED, NOT WOVEN IN. The two clauses above are pinned by their own gates; a joined
+       string has nowhere to put the seam, which is why this file already says "ONE CLAUSE PER
+       FIGURE".
+       ⚠ A PARTIAL RUN LEAVES THESE null, AND null RENDERS AS NOTHING — never as 0. A zero here
+       would read as "no pixel law is proven", which is the opposite of unmeasured.
+       [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+    if (st !== 'UNKNOWN'){
+      if (d.backendProved != null && d.backendTotal != null){
+        lineBits.push(d.backendProved + ' of ' + d.backendTotal + ' backend laws proven');
+      }
+      if (d.pixelProved != null && d.pixelTotal != null){
+        lineBits.push(d.pixelProved + ' of ' + d.pixelTotal + ' pixel laws proven');
+      }
+      /* ⚠ `partial` is not a figure, it is a CAVEAT on every figure beside it: heart2 writes the
+         split only on a full run, so a partial one must say so rather than let a stale split read
+         as current. */
+      if (d.partial) { lineBits.push('this was a PARTIAL run'); }
+    }
     /* the first two words and the last two words of a clause never break apart — that is where a
        figure and its noun live, and where `(UNKNOWN)` was being orphaned at 1120 and 1440. */
     var _weld = function(t){

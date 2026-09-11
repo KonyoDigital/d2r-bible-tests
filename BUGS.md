@@ -31431,3 +31431,37 @@ Measured after: all four real recorded frames still class correctly (gb blank x3
 blank BLANK, gb painted PAINTED, his healthy PAINTED); test_chrome_alone_is_not_paint, test_paint_ink,
 test_the_pixels_earn_the_right_to_act and test_pixel_witness all green; 4 red-proofs PROVEN at
 1 match each.
+
+## REG-957 — seven facts made reachable and rendered to nobody (task #68 — v2954)
+
+v2952 added seven passthroughs to `_heart2_census()` and rendered none of them. A passthrough with
+no consumer is the same shape as a reader with no writer: [[plumbing-with-no-tap]].
+
+Konyo asked for exactly one thing here: *"the same shape as it is now.. just more lively and
+representing the updated derived version of the new heart and wires and whatever.. the locks and
+unlocks same logic just an upgrade and sync"*. So nothing moved and nothing was restyled — the
+panel gained CLAUSES, in the idiom the file already states out loud: *"ONE CLAUSE PER FIGURE,
+because the header is where they are welded to their nouns and a single joined string has nowhere
+to put the seam."*
+
+    before:  294 proven · 0 carry no executable proof (UNKNOWN)
+    after:   294 proven · 0 carry no executable proof (UNKNOWN)
+             283 of 285 backend laws proven · 11 of 12 pixel laws proven · this was a PARTIAL run
+
+**Why the split matters and "294 proven" could not say it:** a backend law going dark loses a
+guard; a pixel law going dark loses his WINDOW. Same number, different consequence.
+
+⚠ A partial run leaves the split `null`, and null renders as NOTHING — never 0. A zero there would
+read as "no pixel law is proven", the opposite of unmeasured. `partial` is not a figure but a
+CAVEAT on every figure beside it, so it gets its own clause rather than being folded in.
+
+### The count this change moves, found before the gate found it
+
+`test_the_ratchet_is_not_skipped_by_a_subset` documents the coverage arithmetic in prose:
+`.hrt-nw 3 (lineBits = 2 clauses)`. Three more clauses of 5-6 words each means `_weld` emits two
+spans apiece, so `.hrt-nw` now reads 3 to 9. **The ratchet is unharmed because it only fires on a
+FALL** — more nodes is never the failure — but that file's whole subject is floors going stale, so
+its own arithmetic was updated rather than left to rot. [[label-outlived-referent]]
+
+Laws: the clause must be PUSHED onto lineBits (parsed, comments blanked — not merely mentioned),
+and a partial run must say so. 5 red-proofs PROVEN at 1 match each.
