@@ -33,6 +33,27 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {
+        "why": "v2934/A — removes the list-identity check, so a mask built against a DIFFERENT roster of the SAME length decodes and names items the machine never claimed. MEASURED before the fix: a sets mask against a 135-name uniques roster reported Alma Negra / Andariel's Visage / Annihilus for a machine holding Aldur's set pieces.",
+        "file": 'fleet_mask.py',
+        "find": '    _r = str(mask.get("r") or "")\n    if _r and _r != list_fingerprint(roster):\n        return None, ("that mask was built against a DIFFERENT item list (%s vs %s) — same source "\n                      "file, different roster, so the bits would name the wrong items and the "\n                      "comparison is refused rather than guessed"\n                      % (_r, list_fingerprint(roster)))\n',
+        "replace": '    _r = ""\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2934/B — makes the list fingerprint ignore the list, so both rosters share one identity again and the check that separates them silently agrees with everything.',
+        "file": 'fleet_mask.py',
+        "find": '    h = hashlib.sha256()\n    for name in roster:\n        h.update(str(name).encode("utf-8"))\n        h.update(b"\\x00")\n    return h.hexdigest()[:FINGERPRINT_LEN]\n',
+        "replace": '    h = hashlib.sha256()\n    h.update(b"same")\n    return h.hexdigest()[:FINGERPRINT_LEN]\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2934/C — stops encode() stamping the list identity, so nothing minted can ever be checked and decode's guard is dead code with nothing to read.",
+        "file": 'fleet_mask.py',
+        "find": '    return {"v": fingerprint, "r": list_fingerprint(roster), "n": n, "have": hits,\n',
+        "replace": '    return {"v": fingerprint, "n": n, "have": hits,\n',
+        "matches": 1,
+    },
 ]
 
 class TestTheMaskRoundTrips(unittest.TestCase):
@@ -204,6 +225,57 @@ class TestTheServerNeverLearnsAnItemName(unittest.TestCase):
 
     def setUp(self):
         self.roster, self.fp = fm.load_roster()
+
+    # ── v2934 (#73) — the two ledgers were separated only by arithmetic ─────────────────────────
+    def test_the_TWO_LIVE_ROSTERS_do_not_share_an_identity(self):
+        """⚠⚠ MEASURED 2026-09-11: set_roster.json and unique_roster.json BOTH carry
+        `sourceHash a364e7b4f6114747d79bbcf9`, so `roster_fingerprint()` returned the identical
+        `a364e7b4f611` for both — because that hash identifies bible.html, the FILE both are
+        generated from, and not the list. The only thing separating a 135-piece sets mask from a
+        398-name uniques mask was `n != len(roster)`.
+
+        This law pins BOTH halves: the old fingerprint really is shared (so nobody 'simplifies'
+        the new one away believing it was ever enough), and the list fingerprint really does
+        differ."""
+        sets, fps = fm.load_roster(os.path.join(HERE, "set_roster.json"), "pieces")
+        uniq, fpu = fm.load_roster(os.path.join(HERE, "unique_roster.json"), "names")
+        self.assertTrue(sets and uniq, "a roster would not load — UNMEASURED, not equal")
+        self.assertEqual(fps, fpu,
+                         "the source fingerprints now differ (%s vs %s); if that is deliberate, "
+                         "re-derive this law rather than deleting it" % (fps, fpu))
+        self.assertNotEqual(fm.list_fingerprint(sets), fm.list_fingerprint(uniq),
+                            "the two rosters still share one identity, so only their LENGTHS "
+                            "separate a sets mask from a uniques mask")
+
+    def test_a_SAME_LENGTH_cross_ledger_mask_is_refused(self):
+        """★★ THE FAILURE THIS EXISTS TO STOP, and it reproduces the moment the lengths match.
+        MEASURED before the fix: a SETS mask decoded against a 135-name UNIQUES roster was ACCEPTED
+        and named `Alma Negra, Andariel's Visage, Annihilus, Arachnid Mesh` for a machine holding
+        Aldur's set pieces. This module's own v2329 comment calls that the worst shape it has —
+        *worse than refusing, because it answers*. Today only 135 != 398 holds it off."""
+        sets, fps = fm.load_roster(os.path.join(HERE, "set_roster.json"), "pieces")
+        uniq, fpu = fm.load_roster(os.path.join(HERE, "unique_roster.json"), "names")
+        self.assertTrue(sets and uniq, "a roster would not load — UNMEASURED")
+        mask = fm.encode(set(sets[:7]), sets, fps)
+        got, why = fm.decode(mask, uniq[:len(sets)], fpu)
+        self.assertIsNone(got,
+                          "a sets mask decoded against a same-length uniques roster and named "
+                          "%r — it answered instead of refusing" % (sorted(got or [])[:4],))
+        self.assertIn("DIFFERENT item list", why or "",
+                      "the refusal does not say which check caught it: %r" % why)
+
+    def test_a_mask_STORED_BEFORE_this_check_still_decodes(self):
+        """⚠ THE CONSTRAINT. `r` is additive: every mask already stored was minted without it, and
+        a check that invalidates his fleet's existing masks is a worse outcome than the hole it
+        closes. Absent means unchecked, not refused."""
+        sets, fps = fm.load_roster(os.path.join(HERE, "set_roster.json"), "pieces")
+        self.assertTrue(sets, "the roster would not load — UNMEASURED")
+        fresh = fm.encode(set(sets[:7]), sets, fps)
+        self.assertIn("r", fresh, "new masks do not carry the list identity at all")
+        legacy = {k: v for k, v in fresh.items() if k != "r"}
+        got, why = fm.decode(legacy, sets, fps)
+        self.assertIsNotNone(got, "a mask stored before v2934 was refused: %r" % why)
+        self.assertEqual(7, len(got), "the legacy mask decoded to %d names, not 7" % len(got or []))
 
     def test_the_wire_shape_carries_no_names(self):
         m = fm.encode(self.roster[:50], self.roster, self.fp)

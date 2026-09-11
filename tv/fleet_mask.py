@@ -45,8 +45,38 @@ MAX_BITS = 4096
 
 
 def roster_fingerprint(source_hash):
-    """The identity of the ordered list a mask was built against."""
+    """The identity of the FILE the list came from — NOT of the list. -> str
+
+    ⚠⚠ v2934 (#73) — THE DOCSTRING SAID "the ordered list a mask was built against" AND THAT IS
+    NOT WHAT THIS IS. `sourceHash` is a hash of bible.html, and BOTH rosters are generated from it,
+    so MEASURED 2026-09-11: set_roster.json and unique_roster.json carry the identical
+    `a364e7b4f6114747d79bbcf9` and this returns `a364e7b4f611` for both. The only thing separating
+    a 135-piece sets mask from a 398-name uniques mask was `n != len(roster)`.
+
+    MEASURED with the lengths made equal: a SETS mask decoded against a UNIQUES roster and
+    confidently named **Alma Negra, Andariel's Visage, Annihilus, Arachnid Mesh** for a machine
+    holding Aldur's set pieces. This module's own v2329 comment calls that "the worst failure shape
+    this module has — worse than refusing, because it answers". It is held off today by arithmetic
+    (135 != 398), not by a check. `list_fingerprint` below is the check.
+    [[label-outlived-referent]] [[gate-blind-to-unexercised-input]]
+    """
     return str(source_hash or "")[:FINGERPRINT_LEN]
+
+
+def list_fingerprint(roster):
+    """The identity of the ORDERED LIST ITSELF. -> str, or "" when there is no list.
+
+    Order-sensitive on purpose: bit i means roster[i], so two lists with the same names in a
+    different order are different rosters for this module's purposes. The NUL separator stops
+    ["ab","c"] and ["a","bc"] from hashing alike.
+    """
+    if not roster:
+        return ""
+    h = hashlib.sha256()
+    for name in roster:
+        h.update(str(name).encode("utf-8"))
+        h.update(b"\x00")
+    return h.hexdigest()[:FINGERPRINT_LEN]
 
 
 # ══ v2329 — TWO LEDGERS, ONE TABLE ═══════════════════════════════════════════════════════════
@@ -167,7 +197,10 @@ def encode(owned, roster, fingerprint):
         if name in have:
             buf[i // 8] |= (1 << (i % 8))
             hits += 1
-    return {"v": fingerprint, "n": n, "have": hits,
+    # ⚠ `r` IS ADDITIVE AND OLD MASKS HAVE NONE. decode() checks it only when present, so every
+    # mask already stored keeps decoding exactly as before while everything minted from here is
+    # bound to the list and not merely to the file it came from. [[copy-drift]]
+    return {"v": fingerprint, "r": list_fingerprint(roster), "n": n, "have": hits,
             "b": base64.urlsafe_b64encode(bytes(buf)).decode("ascii").rstrip("=")}
 
 
@@ -203,6 +236,17 @@ def decode(mask, roster, fingerprint, side="that machine"):
     if not isinstance(n, int) or n != len(roster):
         return None, ("the mask covers %r items and this roster has %d — refusing rather than "
                       "truncating" % (n, len(roster)))
+    # ⚠⚠ v2934 (#73) — THE LIST, NOT JUST THE FILE. `v` cannot separate the two ledgers: both
+    # rosters are built from bible.html and carry the same sourceHash. A mask minted since v2934
+    # also carries `r`, the digest of the ordered list, and that is what actually distinguishes
+    # them. Checked BEFORE the length test because it is the stronger statement, and skipped
+    # entirely when absent so no stored mask is invalidated.
+    _r = str(mask.get("r") or "")
+    if _r and _r != list_fingerprint(roster):
+        return None, ("that mask was built against a DIFFERENT item list (%s vs %s) — same source "
+                      "file, different roster, so the bits would name the wrong items and the "
+                      "comparison is refused rather than guessed"
+                      % (_r, list_fingerprint(roster)))
     b = str(mask.get("b") or "")
     try:
         raw = base64.urlsafe_b64decode(b + "=" * (-len(b) % 4))

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2933** | `(this commit)` | v2933 — --note the CLI read a counts key the rename had killed, so the one path reporting unspeakable rows raised instead of warning |
+| **v2934** | `(this commit)` | v2934 — --note both carry the same sourceHash so only 135 vs 398 kept a sets mask from being read as uniques |
+| **v2933** | `67b649f5` | v2933 — --note the CLI read a counts key the rename had killed, so the one path reporting unspeakable rows raised instead of warning |
 | **v2932** | `877f6811` | v2932 — --note REG-875: the stated disagreement did not reproduce; both rules AGREED on a path inside his repo |
 | **v2931** | `d58747fe` | v2931 — --note a historyless git returned an empty answer and the tool stamped UNKNOWN over honest cells; and a solver that declined was reported as one that crashed |
 | **v2930** | `01b66452` | v2930 — --note v2929 inserted a SHA cell into 50 rows of a different table; v2927 had been right to skip them |

@@ -29613,6 +29613,47 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-939 — two rosters wearing one identity, held apart only by arithmetic
+
+**v2934, closing #73.**
+
+`roster_fingerprint()`'s docstring said *"the identity of the ordered list a mask was built
+against."* It is not. It returns the first 12 chars of `sourceHash`, which is a hash of
+**bible.html** — the file BOTH rosters are generated from. MEASURED 2026-09-11:
+
+| roster | names | sourceHash | fingerprint |
+|---|---|---|---|
+| `set_roster.json` | 135 | `a364e7b4f6114747d79bbcf9` | `a364e7b4f611` |
+| `unique_roster.json` | 398 | `a364e7b4f6114747d79bbcf9` | **`a364e7b4f611`** |
+
+So the only thing separating a sets mask from a uniques mask was `n != len(roster)`.
+
+**Reproduced with the lengths made equal:** a SETS mask decoded against a 135-name UNIQUES roster
+was **ACCEPTED**, reporting `Alma Negra, Andariel's Visage, Annihilus, Arachnid Mesh` for a machine
+that actually holds Aldur's set pieces. This module's own v2329 comment names that exact outcome as
+*"the worst failure shape this module has — worse than refusing, because it answers."* It is held
+off today by `135 != 398`, not by a check.
+
+**Fix:** `list_fingerprint(roster)` — a digest of the **ordered list itself**, NUL-separated so
+`["ab","c"]` and `["a","bc"]` cannot hash alike, and order-sensitive because bit *i* means
+`roster[i]`. `encode()` stamps it as `r`; `decode()` refuses on mismatch. Measured after:
+sets `99af4502b3db` vs uniques `166fa24f1610`, and the same-length collision is refused.
+
+**⚠ Additive on purpose — the constraint was that stored masks must stay valid.** `r` is checked
+**only when present**, so every mask minted before v2934 decodes exactly as it did (verified: a
+mask with `r` stripped still returns its 7 names). Absent means unchecked, never refused — a check
+that invalidates his fleet's existing masks is a worse outcome than the hole it closes.
+
+**⚠ And it sits AFTER the length test, not before.** My first cut checked `r` first and turned an
+existing law red: `test_a_length_mismatch_refuses_rather_than_truncating` pins the length refusal's
+wording, and the new check was answering first with a different reason. Length keeps the more
+specific message for the common case; `r` is left to catch exactly what length cannot — two rosters
+of the same size.
+
+**Gate:** `test_fleet_mask` — 3 new laws (the two live rosters do not share an identity; a
+same-length cross-ledger mask is refused; a mask stored before this check still decodes).
+**4/4 red-proofs PROVEN, one match each.**
+
 ## REG-938 — a diagnostic that had never had a green run, so nobody noticed it could not speak
 
 **v2933.** Found by the cross-family eye on v2929 and reproduced before acting.
