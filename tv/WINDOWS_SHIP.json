@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2964",
+  "ver": "v2965",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2964: one river stamp was painting every sibling run that wore the same id - 80 of 107 stamps",
+  "note": "v2965: the first card sat 2101px below the panel bottom edge behind 1433px of analysis",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

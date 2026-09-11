@@ -1185,6 +1185,23 @@ GATES = [
              "and demands the builder emit THAT, so a rename moves both halves or it goes "
              "red. Two tampers proven red.",
          skip_ok=()),
+    Gate("test_the_shelf_shows_reels_before_analysis",
+         [sys.executable,
+          os.path.join(HERE, "test_the_shelf_shows_reels_before_analysis.py")], 60,
+         why="#58. MEASURED on his live console at his real 1120x660: the shelf overlay is "
+             "811x390 and the first card sat at y=2491 — 2101px BELOW the panel's own bottom "
+             "edge — behind 1433px of header, pipeline board, highlights, controls and a "
+             "14-day timeline, inside a 60561px scroll. 530 cards rendered and NOT ONE was on "
+             "screen: the panel named 'your reels' showed no reels. Reordered so the list "
+             "comes straight after the controls that filter it and every analytic block sits "
+             "below — first card y=2491 -> 738, nothing removed, no id moved. Also trims the "
+             "river badge: .shc-river never rendered until v2963 joined the card to the river, "
+             "so its height had never been paid — the card jumped 332->376px inside a 390px "
+             "panel, mostly an 80-char `why` wrapping to three lines. The reason moved to the "
+             "badge title and the card came back to 318px. ⚠ STILL TRUE: panel 390px vs card "
+             "318px with a 325px river strip above means NO card is fully visible at his "
+             "window size — a structural choice, stated not closed. Two tampers proven red.",
+         skip_ok=()),
     Gate("test_the_page_is_not_its_own_console",
          [sys.executable,
           os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,

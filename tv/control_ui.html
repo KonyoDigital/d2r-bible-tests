@@ -15482,7 +15482,6 @@ window._lockMark = function(isOpen, px, label){
          answers it says so — a board that draws zeros before the data lands is a board that
          lies for a second every time. [[unknown-stays-unknown]] */
       + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
-      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
       + '<div class="sh-live" id="sh-live" hidden>'   // D24 — live "recording now" card, filled + shown by _shLiveRender when on-air
         + '<div class="shl-top"><span class="shl-rec"><span class="shl-dot"></span>rec</span>'
           + '<span class="shl-title">Recording now — this reel is building</span>'
@@ -15493,7 +15492,23 @@ window._lockMark = function(isOpen, px, label){
           + '<span class="shl-phase" id="shl-phase"></span>'
           + '<span class="shl-find" id="shl-find" hidden></span>'
         + '</div></div>'
-      + _shHighlights() + searchBar + timelineDiv + body;
+      /* ⚠⚠ v2965 (#58) — THE REELS COME FIRST. MEASURED on his console at his real window
+         size 1120x660: the overlay is 811x390 and the first card sat at y=2491 — 2101px BELOW the
+         panel's own bottom edge — behind 1433px of header, pipeline board, highlights, controls
+         and a 14-day timeline, inside a 60561px scroll. 530 cards rendered and NOT ONE was on
+         screen. The panel named "your reels" showed no reels.
+         Konyo: "those reels coming in should be seen timestamped and recent 8 left there... and
+         the rest organized relating and relevant to the coding and backend."
+         So the order is now: title, the river strip (the organisation he asked for), the live
+         card, the controls that filter the list — then THE LIST. Everything analytic — the
+         pipeline board, the highlights, the 14-day timeline — sits BELOW it, where scrolling for
+         context is a choice rather than a toll on reaching the content.
+         ⚠ NOTHING IS REMOVED AND NO ID MOVES. Every block keeps its id and its async renderer
+         (_shStoryRender, _shHighlights, the timeline) finds it the same way; this is an order
+         change, which is why it is safe to make on the surface he has open. [[borrowed-surface]] */
+      + searchBar + body
+      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
+      + _shHighlights() + timelineDiv;
     ov.hidden = false;
     try { _shLiveRender(window.__lastStatus); } catch(e){}   // D24 — populate the live "recording now" card from the last poll (shown only on-air)
     /* v2383 — fill the pipeline board, through window.* rather than a bare call.
@@ -15840,10 +15855,18 @@ window._lockMark = function(isOpen, px, label){
         c.setAttribute('data-stamp-at', r.at || '');
         var b = document.createElement('div');
         b.className = 'shc-river';
+        /* ⚠⚠ v2965 (#58) — THE `why` IS A TOOLTIP, NOT FOUR LINES ON EVERY CARD.
+           This badge never rendered until v2963 joined the card to the river, so its height had
+           never been paid. MEASURED the moment it appeared: the card went 332px -> 376px inside a
+           390px panel, and an 80-char `why` wrapping to three lines was most of the 83px it added.
+           A panel that cannot show one card is worse than a card that needs a hover for its
+           reason, and the reason is still THERE — on the badge's own title, where the station and
+           the age stay readable at a glance. I added this height; trimming it is not a taste call
+           on his design. */
+        if (r.why) b.title = String(r.why);
         b.innerHTML = '<span class="shcr-st">' + esc(r.station || '\u2014') + '</span>'
           + (r.at ? '<span class="shcr-at">' + esc(_ago(r.at)) + '</span>' : '')
-          + (r.hops > 1 ? '<span class="shcr-hops">' + r.hops + ' hops</span>' : '')
-          + (r.why ? '<span class="shcr-why">' + esc(String(r.why).slice(0, 80)) + '</span>' : '');
+          + (r.hops > 1 ? '<span class="shcr-hops">' + r.hops + ' hops</span>' : '');
         c.appendChild(b);
       });
       var anchor = null;

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2964** | `(this commit)` | v2964 — one river stamp was painting every sibling run that wore the same id - 80 of 107 stamps |
+| **v2965** | `(this commit)` | v2965 — the first card sat 2101px below the panel bottom edge behind 1433px of analysis |
+| **v2964** | `667dedfe` | v2964 — one river stamp was painting every sibling run that wore the same id - 80 of 107 stamps |
 | **v2963** | `b8d77278` | v2963 — 530 reels read as unstamped because the map is keyed by session id and was read by ordinal |
 | **v2962** | `bc71ee45` | v2962 — the partial revert reported the withdrawn stack as landed and the kept one not at all |
 | **v2961** | `4cf877ef` | v2961 — --note the drift lane compared two version stamps, so an unstamped save to the running file was invisible to it |

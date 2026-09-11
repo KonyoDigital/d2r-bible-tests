@@ -31700,6 +31700,38 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-968 - the panel called "your reels" showed no reels (task #58 - v2965)
+
+**MEASURED on his live console at his real window size 1120x660:**
+
+    overlay      811 x 390
+    first card   y = 2491      2101px BELOW the panel's own bottom edge (493)
+    above it     1433px  -  head 39, river strip 325, pipeline board 572,
+                            highlights 174, controls 111, 14-day timeline 90
+    scroll       60561px against a 390px window, about 155 screens
+    cards        530 rendered, 0 fully visible, 530 below the fold
+
+Reordered so the list comes straight after the controls that filter it, with every analytic block
+below it. **First card y=2491 -> 738, a 70% cut.** Nothing removed and no id moved - `_shStoryRender`,
+`_shHighlights` and the timeline all still find their blocks by id, which is why this was safe to do
+on the surface he has open. [[borrowed-surface]]
+
+**AND THE CARD'S OWN HEIGHT WAS MINE.** `.shc-river` never rendered until REG-966 joined the card to
+the river, so its height had never been paid: the card went **332px -> 376px** the moment the join
+started working, inside a 390px panel. An 80-char `why` wrapping to three lines was most of the 83px.
+The reason moved to the badge's `title` and the card came back to **318px**. The station and its age
+stay readable at a glance. I introduced that height, so trimming it is not a taste call on his design.
+
+⚠ **STILL TRUE, STATED RATHER THAN QUIETLY CLOSED: the panel is 390px and a card is 318px.** With the
+river strip at 325px above it, **no card is fully visible at his window size** whatever the order.
+"8 reels visible" is not reachable in a theatre overlay this size - it needs a taller home for the
+shelf or a much shorter card, and that is a structural choice, not a bug. The 70% cut is real; it is
+not the same as solving it. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+New law `test_the_shelf_shows_reels_before_analysis` parses the assembly expression and asserts the
+grid precedes every analytic block, that the controls still precede the list they filter, and that
+nothing was DELETED to buy the space. Two tampers PROVEN red, 1 match each.
+
 ## REG-967 - a SESSION ID is not unique, so it cannot place a reel (task #58 - v2964)
 
 REG-966 joined the shelf card to the river on `data-sid` and that key was right - it took the grid
