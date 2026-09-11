@@ -31280,3 +31280,34 @@ Measured after: `sets` agreeN 2 / comparableN 2 on both machines; `uniques` excl
 its own numbers named — *"Konyo posts 300 out of 403 while the uniques mask can only represent 398
 roster names"*. New law `test_comparable_does_NOT_depend_on_a_live_probe_of_THIS_console` parses
 `surface_pairs()` for a call to `grail_tally` and refuses it.
+
+## REG-953 — nothing reported which IMAGE was answering (task #67, first half — v2948)
+
+His console EXECS the working tree, so every save is a deploy. But a process already running keeps
+its OLD image until it restarts, and `/api/status` reported nothing that changes when the running
+image is replaced. Two surfaces, no way to tell them apart.
+
+**Three obvious candidates, each ruled out by measurement:**
+
+    os.getpid()          os.execv PRESERVES the pid — it does not move across a relaunch
+    ps -o lstart/etime   the kernel start time is preserved across execv too, AND the status
+                         poll is banned from spawning subprocesses
+    the on-disk VERSION  that is what the TREE says, which is the question, not the answer
+
+`_PROC_START_MS` is captured when the MODULE is loaded, so it is the cheapest value that
+necessarily differs between a process started before an edit and one started after.
+
+`/api/status` now carries `proc: {pid, startedMs, ver}` — deliberately NOT the existing `pid` key,
+which is the AGENT's (`_pid_cached`); reusing it would be a label that outlived its referent.
+`ver` comes from `_app_ver()`, never a literal: a second `"vNNNN"` string in control_app.py blanks
+`_disk_ver()` and silently kills the tvd-version-drift lane.
+
+⚠ `_proc_identity()` may never raise. `_t()` returns exactly what its producer returns INCLUDING on
+the raise path, so a throwing producer takes the whole payload down. A failed version read is None.
+
+⚠ **Absence of this key on the LIVE console is the detection, not a failed edit** — it means an
+older image is answering. That is the entire point.
+
+Gate `test_the_console_says_which_image_is_answering` (5 laws, all parsing) proven red three ways
+at 1 match each: moving the stamp into the producer, renaming the served key, hardcoding the
+version. Found by a read-only agent fleet and confirmed by its skeptic.

@@ -937,6 +937,15 @@ GATES = [
          "removed, the closure roster handed the FILTERED report (which reads all 8 as closed out), "
          "and the endpoint unjoined from the set it computes.",
          skip_ok=()),
+    Gate("test_the_console_says_which_image_is_answering",
+         [sys.executable, os.path.join(HERE, "test_the_console_says_which_image_is_answering.py")], 60,
+         why="v2948 — task #67: his console EXECS the working tree, so every save is a deploy, but "
+             "a process already running keeps its OLD image and /api/status reported nothing that "
+             "changes when the image is replaced. os.execv preserves BOTH the pid and the kernel "
+             "start time, so an import-time stamp is the cheapest value that necessarily differs. "
+             "Proven red three ways: moving the stamp into the producer, renaming the served key, "
+             "and hardcoding the version instead of calling _app_ver().",
+         skip_ok=()),
     Gate("test_the_river_has_one_vocabulary",
          [sys.executable, os.path.join(HERE, "test_the_river_has_one_vocabulary.py")], 60,
          why="v2946 — FOUR modules declared an ordered list for one river and three of them each said, "

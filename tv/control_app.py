@@ -25991,6 +25991,36 @@ def _status_worst_save(rec):
 _STATUS_SLOW_MS = 750.0
 
 
+#: ⚠⚠ v2948 — THE ONE VALUE THAT CHANGES WHEN THE RUNNING IMAGE IS REPLACED.
+#: Task #67: nothing measures the code the console is ACTUALLY executing. His console EXECS the
+#: working tree, so every save is a deploy — but an ALREADY-RUNNING process keeps the OLD image
+#: until it restarts, and no surface could tell the two apart.
+#: Why this value and not an obvious one, each ruled out by measurement:
+#:   · `os.getpid()`      — os.execv PRESERVES the pid, so it does not move across a relaunch.
+#:   · `ps -o lstart`     — the kernel start time is preserved across execv too, and the status
+#:                          poll is banned from spawning subprocesses anyway.
+#:   · the on-disk VERSION — that is what the tree SAYS, which is the question, not the answer.
+#: An import-time stamp is captured when the MODULE is loaded, so it is the cheapest value that
+#: necessarily differs between a process started before an edit and one started after.
+#: [[the-unjoined-end]] [[execs-the-working-tree]]
+_PROC_START_MS = int(time.time() * 1000)
+
+
+def _proc_identity():
+    """Who is ACTUALLY answering this request. -> {pid, startedMs, ver}
+
+    ⚠ NEVER RAISES. `_t()` returns exactly what its producer returns INCLUDING on the raise path,
+    so a throwing producer here would take the whole /api/status payload down with it.
+    ⚠ `ver` comes from `_app_ver()`, never a literal: a second "vNNNN" string in this file blanks
+    `_disk_ver()` and silently kills the tvd-version-drift lane.
+    """
+    try:
+        _v = _app_ver()
+    except Exception:
+        _v = None                 # None = could not be asked, never a guess at the version
+    return {"pid": os.getpid(), "startedMs": _PROC_START_MS, "ver": _v}
+
+
 def _t(name, fn):
     """Time one status component. Returns EXACTLY what fn() returns, including on the raise path.
 
@@ -26185,7 +26215,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2947",
+        "ver": "v2948",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -26265,6 +26295,12 @@ def status_payload():
         "bridge": bridge,
         "stopping": bool(_stop_inflight),
         "pid": _t("pid", _pid_cached),
+        # ⚠ NOT the same question as "pid" above — that one is the AGENT's pid (_pid_cached).
+        # This is the CONSOLE process answering right now, plus the moment its image was loaded.
+        # A caller compares `startedMs`/`ver` against the tree to see whether what is running is
+        # what is written. Absence of this key means an OLDER image is answering — which is the
+        # detection, not a failure.
+        "proc": _t("proc", _proc_identity),
         "capture": bool(IS_WIN and (_read_pid(CAP_PID_PATH) and _pid_alive(_read_pid(CAP_PID_PATH)))),
         # v2399 — THE NEXT LOOK: which pane Claude has asked to be shown, so a human eye can
         # photograph the right thing without a pointer. Absent key is impossible; `None` means

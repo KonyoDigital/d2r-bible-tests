@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2947",
+  "ver": "v2948",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2947: --note comparable probed the local live tally, so the cross-check went dark wherever no board had posted",
+  "note": "v2948: --note the console execs the working tree, so a running process can hold an older image and no surface could tell",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
