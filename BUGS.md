@@ -31669,3 +31669,33 @@ widths.
 - **Was anything rendering badly?** No — `0 render failure(s)`; every target that ran was clean.
 - **Do the deltas match the cause exactly?** Yes, −1 and −3 against a row worth one `.hrt-row` and
   three fan-class nodes. Had they not matched, this would be a regression hunt, not a bless.
+
+## REG-963 — the third writer joins provenance (task #69 — v2960)
+
+`chron_last_result.json` is the last re-gate's published verdict, and nothing in it said what
+produced it — so a stale result could not be invalidated when the gate that made it improved, and a
+reader could not tell a fresh sweep from a month-old one wearing the same shape.
+
+**Every precondition measured before choosing this store, not assumed:**
+
+    flat {result, proposal, savedTs}   NOT row-keyed -> a top-level key cannot become a fake row
+    ONE writer                        chronicle_regate.main(); control_app's function only reads memory
+    readers take SUB-KEYS             merge_proposals operates on `proposal`, so a top-level _prov
+                                      cannot ride into a merge and accumulate forward for ever
+    write already atomic              tmp + os.replace
+
+That third check mattered: `chronicle_retro.py:1725` warns that a loop *"copied every key across
+unexamined"* about this exact file. It turned out to be about proposals rather than the store's top
+level — but that is precisely how a harmless-looking stamp propagates somewhere it should not.
+
+⚠ **THE LAW DRIVES THE REAL WRITE PATH**, with `RESULT` redirected to a temp dir. REG-954 is one
+version old: a red-proof with no law behind it came back BLIND, because a sabotage nothing asserts
+can only ever be green. It also must never touch his own file — conftest calls
+`chron_last_result.json` *"the only backstop"* an earlier incident had. Verified after: his copy's
+mtime is unchanged.
+
+⚠ **THE CENSUS IS UNCHANGED AND THAT IS CORRECT**: 44 stores · ANSWERS 6 · PARTIAL 4 · SILENT 16 ·
+REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its NEXT write —
+`reel_tombstones.json` and `ledger_peaks.json` both still read SILENT for the same reason, having
+been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
+stores now answer". `--write-baseline` deliberately NOT run.

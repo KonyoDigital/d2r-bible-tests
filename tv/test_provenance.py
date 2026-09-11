@@ -487,7 +487,59 @@ class TheRedProofsAreWellFormed(unittest.TestCase):
                                "RED_PROOF[%d]'s why is too short to say what breaks" % i)
 
 
+    def test_the_THIRD_writer_stamps_too(self):
+        """⚠⚠ DRIVEN THROUGH THE REAL WRITE PATH, because a red-proof with no law behind it can
+        only ever be green — REG-954, measured on the SECOND writer one version ago.
+
+        `chron_last_result.json` is the last re-gate's published verdict and could not say what
+        produced it, so a stale result could not be invalidated when the gate that made it improved.
+
+        MEASURED, never assumed, before choosing this store:
+          · flat {result, proposal, savedTs} — NOT row-keyed, so a top-level key cannot become a
+            fake row the way it would in retro_triage / chron_hunt_memory / main_character /
+            capture_doors, where blueprint.py publishes the top level as a reel count
+          · ONE writer — chronicle_regate.main(); control_app.chronicle_regate() only reads memory
+          · readers take SUB-KEYS; merge_proposals operates on `proposal`, so a top-level `_prov`
+            cannot ride into a merge and be accumulated forward for ever
+
+        ⚠ RESULT IS REDIRECTED TO A TEMP PATH. This drives main() for real, and main() WRITES — it
+        must never touch his `chron_last_result.json`, which conftest lists as "the only backstop"
+        an earlier incident had."""
+        import tempfile, shutil, json, os as _os
+        import chronicle_regate as CRG
+        d = tempfile.mkdtemp()
+        was = CRG.RESULT
+        real_regate = CRG.regate
+        try:
+            CRG.RESULT = _os.path.join(d, "chron_last_result.json")
+            CRG.regate = lambda *a, **k: (
+                {"result": {"grounded": []}, "proposal": {"setGroups": {}}, "savedTs": 1},
+                {"groundedBefore": 0, "groundedAfter": 0, "heldBefore": 0, "heldAfter": 0,
+                 "folded": 0, "retired": 0, "lanes": [], "allNamesOnRoster": True})
+            rc = CRG.main(["--write"])
+            self.assertEqual(0, rc, "the writer refused on a fixture it should accept")
+            blob = json.load(io.open(CRG.RESULT, encoding="utf-8"))
+        finally:
+            CRG.regate = real_regate
+            CRG.RESULT = was
+            shutil.rmtree(d, ignore_errors=True)
+        self.assertIn(PV.PROV_KEY, blob,
+                      "chron_last_result.json carries no provenance block: %r" % sorted(blob))
+        self.assertEqual("chronicle_regate", blob[PV.PROV_KEY].get("by"),
+                         "the re-gate writer does not name itself: %r" % blob.get(PV.PROV_KEY))
+        self.assertIn("proposal", blob, "the stamp displaced the payload")
+        self.assertEqual({"setGroups": {}}, blob["proposal"],
+                         "the stamp reached into the proposal sub-key, which merge_proposals "
+                         "accumulates forward for ever")
+
 RED_PROOF = [
+    {
+        "why": 'v2960 — stops the THIRD writer stamping. chron_last_result.json is the last re-gate verdict; without a producer on it a stale result cannot be invalidated when the gate that made it improves.',
+        "file": 'chronicle_regate.py',
+        "find": "    try:\n        import provenance as _PV\n        payload = _PV.stamp(payload, by='chronicle_regate')\n    except Exception:\n        pass\n",
+        "replace": '',
+        "matches": 1,
+    },
     {
         "why": 'THE UNKNOWN PATH GOES RED — the requirement stated as a defect. A store with no block would report a KNOWN producer called "unknown", so a file nobody can attribute renders identically to one written by a module of that name. This is the exact shape of the defect this repo keeps shipping: a word standing where a measurement belongs. Caught by test_absent_provenance_is_unknown_and_carries_no_name.',
         "file": 'provenance.py',

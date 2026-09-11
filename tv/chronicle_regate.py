@@ -108,6 +108,25 @@ def main(argv):
     if "--write" not in argv:
         print("(dry run — pass --write to re-publish with a fresh stamp)")
         return 0
+    # ⚠⚠ v2960 — THE THIRD WRITER JOINS PROVENANCE. Task #69.
+    # `chron_last_result.json` is the last re-gate's published verdict, and until now nothing in it
+    # said what produced it — so a stale result could not be invalidated when the gate that made it
+    # improved, and a reader could not tell a fresh sweep from a month-old one wearing the same
+    # shape. Chosen as the next writer because every precondition held under measurement:
+    #   · flat {result, proposal, savedTs} — NOT row-keyed, so a top-level key cannot become a
+    #     fake row (the hazard that rules out retro_triage, chron_hunt_memory, main_character and
+    #     capture_doors, where blueprint.py would publish the stamp as a reel count)
+    #   · ONE writer — this function; control_app.chronicle_regate() only reads memory
+    #   · readers take SUB-KEYS; merge_proposals operates on `proposal`, so a top-level `_prov`
+    #     cannot ride into a merge and be carried forward for ever
+    # ⚠ GUARDED, and it must be: a store that cannot be stamped is still a store worth writing.
+    # Provenance is a label on the data, never a precondition for keeping it. Same shape as the
+    # blocks proven at ledger_highwater and reel_retention. [[the-unjoined-end]]
+    try:
+        import provenance as _PV
+        payload = _PV.stamp(payload, by='chronicle_regate')
+    except Exception:
+        pass
     tmp = RESULT + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, default=str)

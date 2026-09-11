@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2959** | `(this commit)` | v2959 — --note the heart stopped drawing a row for a blind instrument because there is no longer a blind instrument |
+| **v2960** | `(this commit)` | v2960 — --note the last re-gate verdict could not say what produced it, so a stale result outlived every improvement to the gate that made it |
+| **v2959** | `955834af` | v2959 — --note the heart stopped drawing a row for a blind instrument because there is no longer a blind instrument |
 | **v2958** | `e2bf0e8a` | v2958 — --note a law accepted None where it meant False, and the tamper sat on a path no law executed |
 | **v2957** | `0890528b` | v2957 — --note the shelf driver had one write-capable call site, its own CLI, so his beat sat 37.8 hours old against a 12 hour bar |
 | **v2956** | `d055335f` | v2956 — --note CI had been red for two stamps on gates the local pre-push never runs, and the console cursor fell back to the system arrow |

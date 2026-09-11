@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2959",
+  "ver": "v2960",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2959: --note the heart stopped drawing a row for a blind instrument because there is no longer a blind instrument",
+  "note": "v2960: --note the last re-gate verdict could not say what produced it, so a stale result outlived every improvement to the gate that made it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
