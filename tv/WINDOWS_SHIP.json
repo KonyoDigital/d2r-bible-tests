@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2962",
+  "ver": "v2963",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2962: the partial revert reported the withdrawn stack as landed and the kept one not at all",
+  "note": "v2963: 530 reels read as unstamped because the map is keyed by session id and was read by ordinal",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

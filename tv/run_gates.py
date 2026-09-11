@@ -1166,6 +1166,25 @@ GATES = [
              "tried. Both branches have a fixture-still-reaches-it guard. Three tampers proven "
              "red. node absent => SKIP, which is UNMEASURED and not a pass.",
          skip_ok=()),
+    Gate("test_the_shelf_joins_on_the_key_the_river_uses",
+         [sys.executable,
+          os.path.join(HERE, "test_the_shelf_joins_on_the_key_the_river_uses.py")], 60,
+         why="#58. SHELF_RIVER is keyed by the reel id minus its reel_ prefix — a SESSION ID "
+             "like s_1784984019250_95276 — and three sites looked it up with data-n, the "
+             "card ORDINAL ('1','3','6'). The two key spaces never intersect, so every "
+             "lookup returned undefined and EVERY reel rendered 'not stamped'. MEASURED on "
+             "his live console 2026-09-11 in one page load: /api/river said 60 reels stamped, "
+             "122 stamps, unparsed 0, while the grid drew ten station groups reading 0 reels "
+             "and dumped all 530 cards into not-stamped. Joining on the session id: TRIAGE 2, "
+             "STATION 21, PRINTER 5, JOIN 21, CAPTURE 34, ROUTED 24 — 107 stamped, and the "
+             "timestamps he asked for appear. A comment above the map build SAID data-n and "
+             "was wrong for the feature's whole life, which is why nobody looked again. Also "
+             "note SHELF_RIVER={} is TRUTHY, so the could-not-be-read path never fired: a "
+             "join matching nothing rendered exactly like a river with nothing stamped. The "
+             "law does NOT hardcode the attribute — it reads whichever one the lookups use "
+             "and demands the builder emit THAT, so a rename moves both halves or it goes "
+             "red. Two tampers proven red.",
+         skip_ok=()),
     Gate("test_the_page_is_not_its_own_console",
          [sys.executable,
           os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,

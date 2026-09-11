@@ -15417,7 +15417,7 @@ window._lockMark = function(isOpen, px, label){
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
         + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';
-      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-n="' + n
+      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-sid="' + esc(sm.sessionId || '') + '" data-n="' + n
         + '" data-stub="' + (sm.stub ? '1' : '0') + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
@@ -15650,7 +15650,21 @@ window._lockMark = function(isOpen, px, label){
       } else {
         var m = {};
         (d.detail || []).forEach(function(x){
-          /* a reel id is 'reel_' + the session id the card carries in data-n */
+          /* ⚠⚠ v2963 (#58) — A REEL ID IS 'reel_' + THE SESSION ID, AND THE CARD CARRIES
+             THAT IN `data-sid`, NOT `data-n`. This comment used to say data-n, and it was wrong
+             for the whole life of the feature. `data-n` is the card's ORDINAL — "1", "3", "6" —
+             while this map is keyed 's_1784984019250_95276'. The two key spaces never intersect,
+             so every one of the three lookups returned undefined and EVERY reel rendered as
+             "— not stamped".
+             MEASURED on his live console 2026-09-11: /api/river reported 60 reels stamped, 122
+             stamps, everStamped true, unparsed 0 — while the grid drew ten station groups reading
+             "0 reels" and dumped all 530 cards into "— not stamped". Joining on the session id
+             instead matches 107 cards (CAPTURE 34, ROUTED 24, STATION 21, JOIN 21, PRINTER 5,
+             TRIAGE 2).
+             ⚠ AND AN EMPTY MAP IS TRUTHY. `SHELF_RIVER = {}` passes `if (!SHELF_RIVER)`, so the
+             "could not be read" path never fired either: a join that matched NOTHING rendered
+             exactly like a river where nothing is stamped.
+             [[the-unjoined-end]] [[unknown-stays-unknown]] [[measured-true-read-wrong]] */
           var key = String(x.reel || '').replace(/^reel_/, '');
           var hops = x.history || [];
           m[key] = { station: x.at || null, why: x.why || '',
@@ -15666,7 +15680,7 @@ window._lockMark = function(isOpen, px, label){
   }
   function _shStationOf(c){
     if (!SHELF_RIVER) return null;
-    var r = SHELF_RIVER[c.getAttribute('data-n')];
+    var r = SHELF_RIVER[c.getAttribute('data-sid')];
     return r ? r.station : null;
   }
   // v1284 (D11) — SORT the run cards (composes with search+filters: reorders the whole set, filter hides the rest).
@@ -15766,7 +15780,7 @@ window._lockMark = function(isOpen, px, label){
          ⚠ data-station / data-stamp-at go on the element itself, so the value is inspectable and
          a later gate can read what the screen actually shows rather than what the code intended. */
       vis.forEach(function(c){
-        var r = SHELF_RIVER[c.getAttribute('data-n')];
+        var r = SHELF_RIVER[c.getAttribute('data-sid')];
         var old = c.querySelector('.shc-river'); if (old) old.remove();
         if (!r) {
           c.setAttribute('data-station', '');
@@ -15788,7 +15802,7 @@ window._lockMark = function(isOpen, px, label){
         /* the newest stamp in this station — his "with timestamps" */
         var newest = 0;
         cs.forEach(function(c){
-          var r = SHELF_RIVER[c.getAttribute('data-n')];
+          var r = SHELF_RIVER[c.getAttribute('data-sid')];
           if (r && r.at && r.at > newest) newest = r.at;
         });
         var h = document.createElement('div');

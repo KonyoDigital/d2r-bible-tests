@@ -31700,6 +31700,51 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-966 - THE SHELF looked the river up with the card's ORDINAL, so every reel read "not stamped" (task #58 - v2963)
+
+`_shRiverLoad` builds `SHELF_RIVER` keyed by the reel id minus its `reel_` prefix, which is a
+**session id**: `s_1784984019250_95276`. Three sites then read that map with
+`c.getAttribute('data-n')` - the card's **ordinal**: `"1"`, `"3"`, `"6"`. The two key spaces never
+intersect, so every lookup returned `undefined`, every card was written `data-station=""`, no
+`.shc-river` badge was ever appended, and the whole river grouping rendered as ten empty station
+headers plus one catch-all.
+
+**MEASURED on his live console 2026-09-11, one page load, one moment - three readers of one fact:**
+
+    /api/river   60 reels stamped, 122 stamps, everStamped true, unparsed 0
+    the strip    16 at stations   (STATION 4, PRINTER 1, CAPTURE 7, JOIN 1, ROUTED 3)
+    the grid     0 at stations    - not stamped 530
+
+After joining on the session id, same console, same panel:
+
+    TRIAGE 2 - 4d ago   STATION 21 - 3d ago   PRINTER 5 - 5d ago
+    JOIN 21 - 2d ago    CAPTURE 34 - 1d ago   ROUTED 24 - 2d ago      not stamped 423
+
+107 reels went from invisible to grouped under their station, carrying the timestamps he asked for.
+
+**A comment above the map build said `data-n` in as many words** - "a reel id is 'reel_' + the
+session id the card carries in data-n". It was wrong for the entire life of the feature, and it is
+why nobody looked again: a comment that retires the defect in the reader's mind is worse than none.
+[[measured-true-read-wrong]]
+
+**AND AN EMPTY MAP IS TRUTHY.** `SHELF_RIVER = {}` passes `if (!SHELF_RIVER) return null`, and it is
+not `false`, so the "the river could not be read" branch never fired either. **A join that matched
+nothing rendered exactly like a river where nothing is stamped** - the failure had no author and no
+symptom except a screen full of zeros. [[unknown-stays-unknown]] [[the-unjoined-end]]
+
+`sm.sessionId` was already in hand at the card builder and already used twice on that same element
+(`_sesPinned(sm.sessionId)`, `data-pin-sid`). The fix is one new `data-sid` attribute and three
+lookups. Built on both ends, never joined - REG's most repeated shape in this repo.
+
+New law `test_the_shelf_joins_on_the_key_the_river_uses` **does not hardcode the attribute name**:
+it reads whichever attribute the lookups use and demands the card builder emit THAT one, so a
+rename moves both halves or the gate goes red. Two tampers PROVEN red, 1 match each.
+
+WARNING NOTED, NOT FIXED HERE: the strip (16) and the grid (107) still count different populations
+under the same station labels - the strip covers only reels "on the shelf", the grid covers every
+card. Neither states its denominator. Also UNKNOWN: 530 cards carry only ~? unique session ids
+(duplicates observed in the sample), so the grid may render one session more than once.
+
 ## REG-965 — the partial revert named the stack it PUT BACK, and not the one it kept (task #53 — v2962)
 
 v2848 fixed #53's headline defect: the guard's all-or-nothing revert threw away every stack's move
