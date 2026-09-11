@@ -7432,6 +7432,23 @@ class TestNoOrphanSuite(unittest.TestCase):
         self.assertEqual(missing, [], "gates point at files that do not exist:\n  "
                                       + "\n  ".join(missing))
 
+    def test_every_gate_declares_needs_app_as_a_BOOL(self):
+        """⚠⚠ THE SLIP THIS CATCHES IS SILENT, AND IT HAPPENED. Gate's signature is
+        (name, argv, timeout, needs_app, cwd, why, skip_ok), so a description passed as the FOURTH
+        positional argument lands in `needs_app` — not in `why`. Measured on the v2947 push:
+        1 of 295 gates had needs_app='v2946 — FOUR modules declared an ordered...'.
+
+        Two faults from one comma: the gate went untriageable (empty `why`, which the law below
+        caught), AND it silently claimed to need the app running, which the law below CANNOT see.
+        A truthy string is not a bool, and only this asks. [[gate-insert-missing-comma]]"""
+        here = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, here)
+        import run_gates
+        bad = ["%s -> needs_app=%r" % (g.name, str(g.needs_app)[:50])
+               for g in run_gates.GATES if not isinstance(g.needs_app, bool)]
+        self.assertEqual(bad, [], "needs_app must be a bool; a string there is a description that "
+                                  "slipped into the wrong positional slot:\n  " + "\n  ".join(bad))
+
     def test_every_gate_says_what_it_protects(self):
         here = os.path.dirname(os.path.abspath(__file__))
         sys.path.insert(0, here)

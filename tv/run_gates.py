@@ -939,7 +939,7 @@ GATES = [
          skip_ok=()),
     Gate("test_the_river_has_one_vocabulary",
          [sys.executable, os.path.join(HERE, "test_the_river_has_one_vocabulary.py")], 60,
-         "v2946 — FOUR modules declared an ordered list for one river and three of them each said, "
+         why="v2946 — FOUR modules declared an ordered list for one river and three of them each said, "
          "in their own comment, that they were the order a reel moves through; two separately "
          "declared a `tombstone`, and the journal stamped a 9th name (UNKNOWN) no module declared. "
          "river_vocab now says which question each list answers and IMPORTS the canonical river "
