@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2966",
+  "ver": "v2967",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2966: a node-less host passed a gate whose only job is to execute JS, and the fixture never pinned its own divergence",
+  "note": "v2967: the map-key guard read a string anywhere in the page instead of grading the derivation",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

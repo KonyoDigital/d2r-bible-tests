@@ -59,6 +59,22 @@ def _card_builder(case):
 
 class TheTwoHalvesNameOneKey(unittest.TestCase):
 
+    def test_no_lookup_site_escapes_this_law(self):
+        """★ THE SECOND EYE'S FINDING on v2963. `_LOOKUP` only sees
+        `SHELF_RIVER[c.getAttribute('…')]` — single quotes, no local, no fallback. Double quotes,
+        a local (`var k = c.getAttribute('data-n'); SHELF_RIVER[k]`), or a `|| ''` between `)` and
+        `]` all slip past findall, and the REMAINING sites still agree on data-sid, so the law
+        passes while the painter is back on the ordinal. A gate that claims to read whichever
+        attribute the lookups use must not read only the ones spelled like today.
+        [[source-reading-guard]]"""
+        total = UI.count("SHELF_RIVER[")
+        graded = len(_LOOKUP.findall(UI))
+        self.assertEqual(total, graded,
+                         "%d site(s) index SHELF_RIVER[ but only %d are graded — %d escape this "
+                         "law. An ungraded site can hold the ordinal while every graded one agrees "
+                         "on the session id: the measured bug in a different spelling."
+                         % (total, graded, total - graded))
+
     def test_every_lookup_uses_the_same_attribute(self):
         found = _LOOKUP.findall(UI)
         self.assertGreater(len(found), 0,
@@ -89,16 +105,36 @@ class TheTwoHalvesNameOneKey(unittest.TestCase):
         card = _card_builder(self)
         m = re.search(re.escape(attr) + r'="\'\s*\+\s*([A-Za-z_.()\s|\']+?)\s*\+', card)
         self.assertIsNotNone(m, "could not read what %r is filled from in the card builder" % attr)
-        self.assertIn("sessionId", m.group(1),
+        # ★ THE SECOND EYE'S FINDING on v2963: assertIn("sessionId", ...) also accepts
+        # `TH.sessionId` — the THEATRE's currently-open session — which would stamp every card
+        # with one id. The card must be filled from its own row. [[label-outlived-referent]]
+        self.assertIn("sm.sessionId", m.group(1),
                       "%r is filled from %r, not from the session id — the river's keys are "
                       "session ids, so anything else cannot match" % (attr, m.group(1).strip()))
 
     def test_the_map_is_still_keyed_by_the_reel_id(self):
         """[[the-unjoined-end]] — the fix must not be 'rekey the map to the ordinal', which would
-        make the lookups agree and the river wrong."""
-        self.assertIn("replace(/^reel_/, '')", UI,
-                      "the map is no longer keyed by the reel id with its prefix stripped, so the "
-                      "two halves may now agree with each other and disagree with /api/river")
+        make the lookups agree and the river wrong.
+
+        ★ THE SECOND EYE'S FINDING on v2963, and it was right: this asked only whether the
+        characters `replace(/^reel_/, '')` appear ANYWHERE in a 1.7 MB page. Swap the operand —
+        `String(x.n || '').replace(/^reel_/, '')` — and every river row keys as '', zero cards
+        match, the grid reads "— not stamped" again while /api/river still reports stamps, and
+        the string is still in the file so this test passed. It also carried NO red-proof, so
+        heart2 could never notice it was blind to the one defect it exists to forbid.
+        So grade the DERIVATION inside the map-build region. [[source-reading-guard]]"""
+        i = UI.find("var m = {};")
+        self.assertGreater(i, 0, "the map build is gone — this law lost its target")
+        j = UI.find("SHELF_RIVER = m;", i)
+        self.assertGreater(j, i, "could not find the end of the map build")
+        region = UI[i:j]
+        self.assertIn("x.reel", region,
+                      "the river map's key is no longer derived from the REEL ID. /api/river keys "
+                      "by reel id, so the two halves can now agree with each other and still "
+                      "disagree with the backend")
+        self.assertIn("replace(/^reel_/, '')", region,
+                      "the reel_ prefix is no longer stripped inside the map build, so the keys "
+                      "carry a prefix the card's session id never has")
 
 
 class ASharedIdPlacesNothing(unittest.TestCase):
@@ -153,6 +189,15 @@ class ASharedIdPlacesNothing(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "swapping the map key's operand off the reel id makes every river row key as '', so "
+               "zero cards match and the grid reads not-stamped again while /api/river still "
+               "reports stamps - the sabotage the eye showed would have stayed green",
+        "file": "control_ui.html",
+        "find": "var key = String(x.reel || '').replace(/^reel_/, '');",
+        "replace": "var key = String(x.n || '').replace(/^reel_/, '');",
+        "matches": 1,
+    },
     {
         "why": "dropping the shared-id guard restores the measured defect: one reel's station painted onto every sibling run wearing its id, 80 wrong stamps of 107",
         "file": "control_ui.html",

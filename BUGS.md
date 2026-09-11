@@ -31700,6 +31700,42 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-970 - the second eye found three more blind spots, in the v2963 law (task #58 - v2967)
+
+The eye read the v2963 diff AGAINST THE FILES ON DISK and found the law aimed at the right joint but
+not actually pinning it. All three reproduced.
+
+**1 - HIGH: the map-key law forbade a fix it could not see.** `test_the_map_is_still_keyed_by_the_reel_id`
+asked only whether the characters `replace(/^reel_/, '')` appear ANYWHERE in a 1.7 MB page. Its own
+docstring names the forbidden fix - rekeying the map so the lookups agree with each other and
+disagree with /api/river - and that sabotage stayed GREEN:
+
+    var key = String(x.n || '').replace(/^reel_/, '');   <- every row keys as ''
+      -> zero cards match, grid reads "not stamped" again, /api/river still reports stamps
+      -> the string is still in the file, so the test passed
+
+And it carried **no RED_PROOF**, so heart2 could never notice it was blind to the one thing it
+exists to forbid. Now it grades the DERIVATION inside the map-build region (x.reel AND the strip),
+and the tamper the eye described is red-proof #0. [[source-reading-guard]]
+
+**2 - MEDIUM: a lookup that leaves the regex shape was ungraded.** `_LOOKUP` only sees
+`SHELF_RIVER[c.getAttribute('...')]`. Double quotes, a local (`var k = c.getAttribute('data-n');
+SHELF_RIVER[k]`), or a `|| ''` between `)` and `]` all slip past `findall` - and the REMAINING
+sites still agree on data-sid, so the law passes while the painter is back on the ordinal. Measured
+today: 4 sites, 4 graded, 0 escaping - correct now, and nothing enforced it. A new law counts
+`SHELF_RIVER[` and demands the regex account for every one.
+
+**3 - MEDIUM: "filled from sessionId" accepted the WRONG sessionId.** `assertIn("sessionId", ...)`
+is a substring check, so `esc(TH.sessionId || '')` - the THEATRE's currently-open session - would
+satisfy it while stamping every card with one id. Now requires `sm.sessionId`, the card's own row.
+[[label-outlived-referent]]
+
+⚠ An anchor in the first patch matched **0** and the assert stopped it before anything was written -
+my remembered docstring differed from the shipped one by a clause. Re-read, re-anchored on both
+ends of the method, applied. [[inherited-claim-is-not-evidence]]
+
+Five tampers now declared, all PROVEN red, 1 match each.
+
 ## REG-969 - the second eye found three ways my own v2962 gate could go blind (task #53/#58 - v2966)
 
 `tv/second_eye_run.py` handed the v2962 diff to grok-4-1-fast-reasoning. It did not rubber-stamp it:
