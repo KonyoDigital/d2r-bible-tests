@@ -4245,6 +4245,23 @@
   .sh-daygroup.sh-rivergroup .shg-mouth { color: var(--gold-hi); font-variant-numeric: tabular-nums; }
   /* the ledger could not be read, or has not been read yet — never shown as "none finished" */
   .sh-daygroup.sh-rivergroup .shg-mouth-unk { color: var(--warn, var(--gold-dim)); }
+  /* ══ v2950 — THE JOURNEYS THEMSELVES, NOT JUST THEIR COUNT ═══════════════════════════════
+     Konyo, on the shelf drawn as the river: *"i can literaly see REEL SESSIONS timestamped from
+     first in to first out FIFO and eventually pruned and deleted in tombstone"*. The header said
+     "446 closed out" and every journey behind it was invisible.
+     ⚠ A CHILD OF THE HEADER NODE ON PURPOSE. _shGroups() clears `.sh-daygroup` and nothing else,
+     so a sibling here would re-add on every sort, filter and poll, for ever.
+     ⚠ Wraps by design: this region already cost REG-887 and REG-909, both wrap defects. */
+  .shg-mouth-rows { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px;
+                    margin: 6px 0 2px; font-size: var(--fs-2xs); }
+  .shg-mouth-row  { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+                    color: var(--gold-dim); font-variant-numeric: tabular-nums; }
+  .shg-mouth-row .mr-at   { color: var(--gold-hi); min-width: 9.5em; }
+  .shg-mouth-row .mr-sess { opacity: .78; overflow-wrap: anywhere; }
+  .shg-mouth-row .mr-num  { opacity: .62; }
+  .shg-mouth-row .mr-foc  { opacity: .52; font-style: italic; }
+  .shg-mouth-cap  { color: var(--gold-dim); opacity: .7; font-size: var(--fs-2xs);
+                    letter-spacing: var(--ls-wide); }
   /* UNKNOWN is its own state and must not read as an empty river */
   .sh-daygroup.sh-riverunknown .shg-lab { color: var(--warn, var(--gold-dim)); }
   /* v2746 — THE PER-REEL STAMP ON THE CARD. Konyo: "each reel their accoring stamps so they
@@ -15766,6 +15783,45 @@ window._lockMark = function(isOpen, px, label){
         if (mouthBit) { _bits.push(mouthBit); }
         h.innerHTML = '<span class="shg-lab">' + esc(st) + '</span>'
           + '<span class="shg-n">' + _bits.join(' \u00b7 ') + '</span>';
+          /* ══ v2950 — THE JOURNEYS, LISTED. Task #58. ═════════════════════════════════════
+             SHELF_MOUTH.recent is ALREADY populated from /api/river — no backend change, no new
+             endpoint, no extra fetch. It was arriving and being thrown away.
+             ⚠ MEASURED ON HIS LEDGER (446 rows, 12 recent); each field is here or absent because:
+               · `pages` is 0 in 12 of 12 rows -> never printed; a column of zeros is noise
+               · `focus` is null in 9 of 12    -> printed only when present
+               · 7 DISTINCT timestamps of 12   -> the caption says "oldest first", NOT "FIFO". The
+                 array IS ascending (river_mouth sorts it so) but three pairs share a millisecond,
+                 and inside a tie the order is ledger order, not time. "FIFO" would claim a
+                 precision the data does not have. [[unknown-stays-unknown]]
+             ⚠ Appended INSIDE `h`, which carries .sh-daygroup — the only thing _shGroups clears.
+             A sibling would accumulate on every poll. [[plumbing-with-no-tap]] */
+          if (isMouth && SHELF_MOUTH && SHELF_MOUTH.ok !== false
+              && SHELF_MOUTH.recent && SHELF_MOUTH.recent.length){
+            var _mr = SHELF_MOUTH.recent, _mrh = '';
+            for (var _i = 0; _i < _mr.length; _i++){
+              var _row = _mr[_i] || {};
+              var _t = _row.at, _when = 'undated';
+              if (typeof _t === 'number' && _t > 0){
+                var _d = new Date(_t);
+                var _p2 = function(x){ return (x < 10 ? '0' : '') + x; };
+                _when = _d.getFullYear() + '-' + _p2(_d.getMonth() + 1) + '-' + _p2(_d.getDate())
+                      + ' ' + _p2(_d.getHours()) + ':' + _p2(_d.getMinutes());
+              }
+              var _mbTxt = (typeof _row.mb === 'number') ? (Math.round(_row.mb * 10) / 10) + ' MB' : '';
+              var _frTxt = (typeof _row.frames === 'number') ? _row.frames + ' frames' : '';
+              _mrh += '<div class="shg-mouth-row">'
+                    + '<span class="mr-at">' + esc(_when) + '</span>'
+                    + '<span class="mr-sess">' + esc(String(_row.session || _row.reel || '?')) + '</span>'
+                    + (_mbTxt ? '<span class="mr-num">' + esc(_mbTxt) + '</span>' : '')
+                    + (_frTxt ? '<span class="mr-num">' + esc(_frTxt) + '</span>' : '')
+                    + (_row.focus ? '<span class="mr-foc">' + esc(String(_row.focus)) + '</span>' : '')
+                    + '</div>';
+            }
+            h.insertAdjacentHTML('beforeend',
+              '<div class="shg-mouth-rows"><div class="shg-mouth-cap">'
+              + _mr.length + ' of ' + esc(String(SHELF_MOUTH.n)) + ' shown \u00b7 oldest first'
+              + '</div>' + _mrh + '</div>');
+          }
         if (cs.length) { grid.insertBefore(h, cs[0]); }
         else if (anchor) { grid.insertBefore(h, anchor); }
         else { grid.appendChild(h); }

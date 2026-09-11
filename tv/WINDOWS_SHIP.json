@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2949",
+  "ver": "v2950",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2949: --note the tombstone writer joined provenance and its red-proof came back BLIND because no law asserted it",
+  "note": "v2950: --note SHELF_MOUTH.recent was already arriving from api river and being thrown away, so the mouth showed a count and no journeys",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

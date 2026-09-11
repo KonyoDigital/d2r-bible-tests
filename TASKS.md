@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2949** | `(this commit)` | v2949 — --note the tombstone writer joined provenance and its red-proof came back BLIND because no law asserted it |
+| **v2950** | `(this commit)` | v2950 — --note SHELF_MOUTH.recent was already arriving from api river and being thrown away, so the mouth showed a count and no journeys |
+| **v2949** | `3a4e06ae` | v2949 — --note the tombstone writer joined provenance and its red-proof came back BLIND because no law asserted it |
 | **v2948** | `475a253f` | v2948 — --note the console execs the working tree, so a running process can hold an older image and no surface could tell |
 | **v2947** | `81ab01d6` | v2947 — --note comparable probed the local live tally, so the cross-check went dark wherever no board had posted |
 | **v2946** | `f40ef33e` | v2946 — --note four modules each declared the order a reel moves through; nothing has ever stamped INTAKE or TOMBSTONE, and 36 reels left without one |
