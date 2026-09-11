@@ -79,6 +79,25 @@ def _load():
 
 
 def _save(d):
+    # ⚠⚠ v2978 (#69) — STAMP EACH ITEM, NEVER THE LEDGER. main_character.json is keyed BY
+    # ITEM NAME ("dwarf star", "war traveler", …) and THIS MODULE COUNTS ITS OWN STORE:
+    #     tracked = len(_load() or {})          (:212 and :235)
+    #     print("  tracked items: %d …")        (:254)
+    # A top-level `_prov` would add one phantom item to a number he reads. reel_retention
+    # names this store in its fake-row warning for the same reason.
+    # ⚠ FIND WHO COUNTS A STORE BEFORE STAMPING IT — the shape says where the block goes,
+    # the READERS say what breaks if it goes wrong. Here it is a visible tally; in
+    # chron_hunt_memory it was a corroborator comparing len() against zero (REG-980).
+    # ⚠ A COPY: stamp_row returns a new dict, so the caller's ledger is untouched.
+    # ⚠ SWALLOWED, like the write below. [[zero-needs-a-denominator]]
+    try:
+        import provenance as _PV
+        d = dict((_k, (_PV.stamp_row(_v, by="main_character",
+                                     extra={"store": "main_character"})
+                       if isinstance(_v, dict) else _v))
+                 for _k, _v in (d or {}).items())
+    except Exception:
+        pass
     try:
         tmp = LEDGER + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as fh:

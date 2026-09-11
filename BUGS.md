@@ -31700,6 +31700,34 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-981 - the character ledger counts itself, so the stamp went inside its items (task #69 - v2978)
+
+`main_character.json` was SILENT and is keyed BY ITEM NAME - "dwarf star", "war traveler". Before
+touching the writer I looked for who COUNTS it, which is now the standing first move:
+
+    tracked = len(_load() or {})        main_character.py:212 and :235
+    print("  tracked items: %d …")      :254
+
+A top-level `_prov` adds one phantom item to **a number he reads**. Stamped inside each item.
+Verified, including the empty case:
+
+    items saved 2  ->  tracked = 2      '_prov' a top key: False
+    every item stamped: True   fields kept: True   caller untouched: True
+    EMPTY ledger   ->  tracked = 0
+
+★ **THREE STORES IN A ROW, AND THE READERS DECIDED THE SEVERITY EACH TIME.** The shape says WHERE
+the block goes; only the readers say what a wrong answer costs:
+
+    capture_doors        blueprint.py publishes the top level as a row count      (REG-979)
+    chron_hunt_memory    a corroborator compares len() against zero               (REG-980)
+    main_character       a tally printed to him as "tracked items"                (REG-981)
+
+Same helper, same hazard, three different prices. "Find who counts it" is cheaper than any of them.
+
+Five tampers PROVEN red, 1 match each, each `ast.parse`d against the tampered file before being
+declared. **#69: 16 SILENT -> 5 genuinely unstamped**, with ledger_peaks and reel_tombstones
+already correct-but-unrun, and auto_relaunch still UNKNOWN.
+
 ## REG-980 - a blob stamp on the hunt memory would have BLINDED a live corroborator (task #69 - v2977)
 
 `chron_hunt_memory.json` was SILENT and is keyed BY ITEM - `"sets|Angelic Halo (ring)"` and 55 more.

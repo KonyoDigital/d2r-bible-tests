@@ -37,6 +37,7 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
 import control_app as CA     # noqa: E402
+import main_character as MC  # noqa: E402
 import provenance as PV      # noqa: E402
 import retro_triage as RT    # noqa: E402
 
@@ -247,7 +248,60 @@ class TheHuntMemoryDoesNotFoolItsOwnCorroborator(unittest.TestCase):
                          "reader of the live hunt memory")
 
 
+class TheCharacterLedgerKeepsItsTrackedCount(unittest.TestCase):
+    """#69 / v2978 — main_character.json is keyed BY ITEM NAME, and the module COUNTS ITS OWN STORE:
+
+        tracked = len(_load() or {})        (main_character.py:212 and :235)
+        print("  tracked items: %d …")      (:254)
+
+    So a top-level `_prov` adds one phantom item to a number he reads. Third store in a row where
+    the READERS, not the shape, decided how bad a blob stamp would have been: blueprint publishing
+    a row count (REG-972), a corroborator comparing len() against zero (REG-980), and here a
+    visible tally. [[zero-needs-a-denominator]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="prov_mc_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self._was = MC.LEDGER
+        MC.LEDGER = os.path.join(self.d, "main_character.json")
+        self.addCleanup(setattr, MC, "LEDGER", self._was)
+
+    def test_the_tracked_count_is_unmoved(self):
+        MC._save({"dwarf star": {"slot": "ring"}, "war traveler": {"slot": "boots"}})
+        blob = json.load(io.open(MC.LEDGER, encoding="utf-8"))
+        self.assertNotIn("_prov", blob,
+                         "the stamp landed at the TOP LEVEL of an item-keyed ledger, so the "
+                         "tracked count he reads gained an item that does not exist")
+        self.assertEqual(2, len(MC._load() or {}),
+                         "two items were saved but tracked reads %d" % len(MC._load() or {}))
+
+    def test_an_empty_ledger_still_tracks_zero(self):
+        MC._save({})
+        self.assertEqual(0, len(MC._load() or {}),
+                         "an EMPTY ledger reports %d tracked item(s)" % len(MC._load() or {}))
+
+    def test_every_item_names_its_producer(self):
+        MC._save({"dwarf star": {"slot": "ring"}})
+        blob = json.load(io.open(MC.LEDGER, encoding="utf-8"))
+        for k, row in blob.items():
+            self.assertEqual("main_character", getattr(PV.read(row), "by", None),
+                             "item %r does not name its producer" % k)
+
+    def test_the_callers_ledger_is_not_mutated(self):
+        live = {"dwarf star": {"slot": "ring"}}
+        before = json.loads(json.dumps(live))
+        MC._save(live)
+        self.assertEqual(before, live, "saving mutated the caller's ledger")
+
+
 RED_PROOF = [
+    {
+        "why": "stamping the BLOB adds a phantom item to `tracked = len(_load())`, the count main_character prints as \"tracked items\" - a number he reads",
+        "file": "main_character.py",
+        "find": '        d = dict((_k, (_PV.stamp_row(_v, by="main_character",\n                                     extra={"store": "main_character"})\n                       if isinstance(_v, dict) else _v))\n                 for _k, _v in (d or {}).items())\n',
+        "replace": '        d = _PV.stamp(d, by="main_character", extra={"store": "main_character"})\n',
+        "matches": 1,
+    },
     {
         "why": "stamping the BLOB inflates len(d), and corroborate.hunt-remembers reads exactly that number against zero - an EMPTY memory would report 1 and the instrument watching for re-bought reads would call it healthy",
         "file": "control_app.py",
