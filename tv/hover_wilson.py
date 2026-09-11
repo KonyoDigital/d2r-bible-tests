@@ -322,7 +322,16 @@ def main(argv=None):
     rows = score()
     # v2444 — bank BEFORE printing, and only from main(): importing this module must not write to
     # his ledger, and neither must a test that calls score(). [[feedback-fixtures-never-touch-live-data]]
-    _bank = bank_into_proof_queue(rows)
+    # ⚠⚠ v2940 (#75) — BANKING IS NOW DELIBERATE, BECAUSE AN AUDIT THAT WRITES EVIDENCE IS NOT AN
+    # AUDIT. MEASURED 2026-09-11: all four wilson harnesses called bank_into_proof_queue()
+    # unconditionally from main(), and all four are REGISTERED GATES (hover_wilson appears 8 times
+    # in run_gates.py). So every `git push` wrote rows into his self-arming ledger as a SIDE EFFECT
+    # of grading the tree — 333 rows across 18 axes, and roughly twenty of this session's pushes
+    # contributed. Evidence must be banked because someone decided to, never because a gate ran.
+    # ⚠ The FOLD was never the problem: `_fold` keys on (lock, kind, src, ref) and score() folds
+    # before scoring, so repetition never inflated n — measured on console.pixel_rescue,
+    # n == attacks == 16 and wilson == wilsonByAttack. Only the door was open.
+    _bank = bank_into_proof_queue(rows) if "--bank" in argv else {"banked": [], "skipped": ["not banked: pass --bank to write evidence. An audit that writes is not an audit."]}
     if "--json" in argv:
         import json
         print(json.dumps(rows, indent=2))

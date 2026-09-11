@@ -170,14 +170,33 @@ def bank_into_proof_queue(rows):
 
 
 def main(argv=None):
+    argv = list(argv if argv is not None else sys.argv[1:])
     rows = score()
-    b = bank_into_proof_queue(rows)
+    # ⚠⚠ v2940 (#75) — BANKING IS NOW DELIBERATE, BECAUSE AN AUDIT THAT WRITES EVIDENCE IS NOT AN
+    # AUDIT. MEASURED 2026-09-11: all four wilson harnesses called bank_into_proof_queue()
+    # unconditionally from main(), and all four are REGISTERED GATES (hover_wilson appears 8 times
+    # in run_gates.py). So every `git push` wrote rows into his self-arming ledger as a SIDE EFFECT
+    # of grading the tree — 333 rows across 18 axes, and roughly twenty of this session's pushes
+    # contributed. Evidence must be banked because someone decided to, never because a gate ran.
+    # ⚠ The FOLD was never the problem: `_fold` keys on (lock, kind, src, ref) and score() folds
+    # before scoring, so repetition never inflated n — measured on console.pixel_rescue,
+    # n == attacks == 16 and wilson == wilsonByAttack. Only the door was open.
+    b = bank_into_proof_queue(rows) if "--bank" in argv else {"banked": [], "skipped": ["not banked: pass --bank to write evidence. An audit that writes is not an audit."]}
     # the LIVE witness, banked under its own kind so confluence can see two independent sources
     live = score_live()
     live_note = ""
     if live is None:
         live_note = ("the running console could not be reached, so there is no LIVE witness — "
                      "UNKNOWN, not a pass, and nothing was banked for it")
+    elif "--bank" not in argv:
+        # ⚠⚠ v2940 (#75) — THE SECOND DOOR, and the first fix missed it. Guarding
+        # bank_into_proof_queue() alone still left this LIVE-witness bank writing on every plain
+        # `python3 tv/vault_wilson.py`. MEASURED: three CLI audits after that fix still moved the
+        # ledger 333 -> 334, and the row that landed was exactly `vault.apply / live / vault_live`.
+        # Counting the bank CALLS per file (4/2/3/1) and guarding only the shared one is how a
+        # sweep misses the sibling — the same shape as REG-942. [[sweep-dont-ask]]
+        live_note = ("a LIVE witness was read but NOT banked — pass --bank to write it. "
+                     "Reading is not evidence until someone decides it is.")
     else:
         try:
             import self_arming as _sa

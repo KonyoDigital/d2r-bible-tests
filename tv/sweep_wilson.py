@@ -124,8 +124,18 @@ def bank_into_proof_queue(rows):
 
 
 def main(argv=None):
+    argv = list(argv if argv is not None else sys.argv[1:])
     rows = score()
-    b = bank_into_proof_queue(rows)
+    # ⚠⚠ v2940 (#75) — BANKING IS NOW DELIBERATE, BECAUSE AN AUDIT THAT WRITES EVIDENCE IS NOT AN
+    # AUDIT. MEASURED 2026-09-11: all four wilson harnesses called bank_into_proof_queue()
+    # unconditionally from main(), and all four are REGISTERED GATES (hover_wilson appears 8 times
+    # in run_gates.py). So every `git push` wrote rows into his self-arming ledger as a SIDE EFFECT
+    # of grading the tree — 333 rows across 18 axes, and roughly twenty of this session's pushes
+    # contributed. Evidence must be banked because someone decided to, never because a gate ran.
+    # ⚠ The FOLD was never the problem: `_fold` keys on (lock, kind, src, ref) and score() folds
+    # before scoring, so repetition never inflated n — measured on console.pixel_rescue,
+    # n == attacks == 16 and wilson == wilsonByAttack. Only the door was open.
+    b = bank_into_proof_queue(rows) if "--bank" in argv else {"banked": [], "skipped": ["not banked: pass --bank to write evidence. An audit that writes is not an audit."]}
     print("SWEEP WILSON — can the paid sweep refuse when it must?\n")
     print("  %-8s %9s %8s %8s  %s" % ("claim", "sabotages", "caught", "wilson", "state"))
     print("  " + "-" * 58)

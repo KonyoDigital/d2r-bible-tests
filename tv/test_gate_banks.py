@@ -35,6 +35,27 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {
+        "why": "v2940/H — restores unconditional banking in hover_wilson.main(), so merely LOOKING at the numbers writes evidence into his self-arming ledger. MEASURED: his ledger held 333 rows across 18 axes, roughly twenty of that day's pushes contributing. Reading is not evidence until someone decides it is.",
+        "file": 'hover_wilson.py',
+        "find": '    _bank = bank_into_proof_queue(rows) if "--bank" in argv else {"banked": [], "skipped": ["not banked: pass --bank to write evidence. An audit that writes is not an audit."]}\n',
+        "replace": '    _bank = bank_into_proof_queue(rows)\n',
+        "matches": 1,
+    },
+    {
+        "why": "v2940/V — restores unconditional banking in vault_wilson.main(), so merely LOOKING at the numbers writes evidence into his self-arming ledger. MEASURED: his ledger held 333 rows across 18 axes, roughly twenty of that day's pushes contributing. Reading is not evidence until someone decides it is.",
+        "file": 'vault_wilson.py',
+        "find": '    b = bank_into_proof_queue(rows) if "--bank" in argv else {"banked": [], "skipped": ["not banked: pass --bank to write evidence. An audit that writes is not an audit."]}\n',
+        "replace": '    b = bank_into_proof_queue(rows)\n',
+        "matches": 1,
+    },
+    {
+        "why": 'v2940/L — removes the SECOND door. vault_wilson has a live-witness bank besides the shared one, and guarding only the shared call left three CLI audits still moving the ledger 333 -> 334. Count the bank CALLS, not the files.',
+        "file": 'vault_wilson.py',
+        "find": '    elif "--bank" not in argv:\n        # ⚠⚠ v2940 (#75) — THE SECOND DOOR, and the first fix missed it. Guarding\n        # bank_into_proof_queue() alone still left this LIVE-witness bank writing on every plain\n        # `python3 tv/vault_wilson.py`. MEASURED: three CLI audits after that fix still moved the\n        # ledger 333 -> 334, and the row that landed was exactly `vault.apply / live / vault_live`.\n        # Counting the bank CALLS per file (4/2/3/1) and guarding only the shared one is how a\n        # sweep misses the sibling — the same shape as REG-942. [[sweep-dont-ask]]\n        live_note = ("a LIVE witness was read but NOT banked — pass --bank to write it. "\n                     "Reading is not evidence until someone decides it is.")\n',
+        "replace": '',
+        "matches": 1,
+    },
 ]
 
 class TheGateBanksWhatItScores(unittest.TestCase):
@@ -51,6 +72,46 @@ class TheGateBanksWhatItScores(unittest.TestCase):
                       "state that left all five locks UNPROVEN with n=0 while the board said "
                       "miniauto.run had opened itself: evidence measured on every push and fed to "
                       "nothing.")
+
+    def test_a_PLAIN_CLI_AUDIT_banks_NOTHING(self):
+        """⚠⚠ THE OTHER HALF OF THIS FILE'S RULE, AND IT MUST NOT BE CONFUSED WITH IT (#75).
+        This file exists because THE GATE MUST BANK — v2464 measured `open 0 of 5, every lock n=0`
+        when it did not. That stays true and is asserted above: the gate's verdict script calls
+        `bank_into_proof_queue` directly, and nothing here weakens it.
+
+        What was ALSO true, and wrong: all four wilson harnesses banked unconditionally from
+        `main()`, so merely LOOKING at the numbers wrote evidence. MEASURED 2026-09-11 — his ledger
+        held 333 rows across 18 axes, and roughly twenty of that day's pushes had contributed.
+        Reading is not evidence until someone decides it is.
+
+        ⚠ Guarding the shared `bank_into_proof_queue` call alone was NOT enough: vault_wilson has a
+        SECOND, live-witness bank, and three CLI audits after the first fix still moved the ledger
+        333 -> 334. Count the bank CALLS per file, not the files. [[sweep-dont-ask]]"""
+        import subprocess
+        for name in ("vault_wilson", "sweep_wilson", "prune_wilson", "hover_wilson"):
+            d = tempfile.mkdtemp()
+            led = os.path.join(d, "ledger.jsonl")
+            env = dict(os.environ, TV_SELF_ARMING_LEDGER=led, TV_STUB="1")
+            subprocess.run([sys.executable, os.path.join(HERE, name + ".py")],
+                           env=env, cwd=HERE, capture_output=True, timeout=300)
+            wrote = os.path.getsize(led) if os.path.exists(led) else 0
+            self.assertEqual(0, wrote,
+                             "%s wrote %d bytes of evidence on a plain audit run — reading is not "
+                             "evidence until someone decides it is" % (name, wrote))
+
+    def test_the_SAME_harness_DOES_bank_when_it_is_ASKED(self):
+        """★ The other direction, or the law above is satisfied by a harness that can never bank at
+        all — which would re-create the v2464 defect this file was written for."""
+        import subprocess
+        d = tempfile.mkdtemp()
+        led = os.path.join(d, "ledger.jsonl")
+        env = dict(os.environ, TV_SELF_ARMING_LEDGER=led, TV_STUB="1")
+        subprocess.run([sys.executable, os.path.join(HERE, "hover_wilson.py"), "--bank"],
+                       env=env, cwd=HERE, capture_output=True, timeout=300)
+        wrote = os.path.getsize(led) if os.path.exists(led) else 0
+        self.assertGreater(wrote, 0,
+                           "hover_wilson --bank wrote nothing — a harness that can never bank "
+                           "re-creates the exact state v2464 measured: every lock n=0")
 
     def test_a_banking_failure_is_said_out_loud_and_not_swallowed(self):
         """A lock silently ceasing to be fed is how this defect survived. If banking raises, the

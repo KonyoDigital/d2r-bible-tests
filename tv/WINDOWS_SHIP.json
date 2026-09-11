@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2939",
+  "ver": "v2940",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2939: --note the git-unreadable arm reported zeros while its sibling reported None, so a broken instrument read as a measured empty table",
+  "note": "v2940: --note four wilson harnesses banked unconditionally from main so merely looking wrote evidence; the gate keeps banking deliberately",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

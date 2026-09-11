@@ -29613,6 +29613,47 @@ The lesson is the one that was already written down and that I applied to the to
 myself: **a sample is not a verdict — and neither is a superset.** A row is a version row because of
 the TABLE IT IS IN, not because it starts with a bold `vNNNN`.
 
+## REG-945 — reading is not evidence until someone decides it is (#75, and HALF ITS PREMISE IS REFUTED)
+
+**v2940.** #75 said *"a read-only audit can BANK evidence, and duplicate rows inflate n."* Measured,
+those are two claims with two different answers.
+
+**HALF ONE — "duplicate rows inflate n" — REFUTED, and it was closed long ago.** `_fold`
+(`self_arming.py:626`) keys on `(lock, kind, src, ref)`, newest wins, and `score()` folds before
+scoring. MEASURED on the live #42 lock:
+
+    n=16  k=16  attacks=16  wilson=0.8064  wilsonByAttack=0.8064  bar=0.839
+    raw rows for that lock in the file: 2
+
+`n == attacks` and `wilson == wilsonByAttack` — no repetition inflation exists. 333 raw rows fold to
+53. REG-598/REG-600 closed this, `test_self_arming.py:301` already gates it
+(*"banking TWICE does not double the evidence"*), and `run_gates.py`'s own comment says it was
+measured before the line was written. **#42's evidence is not inflated — it is merely insufficient:
+16 distinct attacks against a bar needing 21.**
+
+**HALF TWO — "a read-only audit can BANK" — REAL.** All four wilson harnesses called
+`bank_into_proof_queue()` unconditionally from `main()`, and his ledger held **333 rows across 18
+axes** (`miniauto.run` alone: 92). Banking is now behind an explicit `--bank`.
+
+**⚠⚠ AND THE OBVIOUS FIX WOULD HAVE RE-BROKEN v2464.** `tv/test_gate_banks.py` exists *because*
+**the gate MUST bank**: *"Measured on the live console months later: open 0 of 5, every lock n=0,
+and tv/.self_arming.jsonl did not exist."* The diagnosis I was working from said to drop the three
+banking gates to report-only — that is exactly the state v2464 fixed. The gate banks through its
+**own verdict script** calling `bank_into_proof_queue` directly (`run_gates.py:114`), so guarding
+`main()` leaves it untouched: `test_gate_banks` still passes all 10 tests. **Both rules now live in
+one file so neither can be "fixed" by breaking the other.**
+
+**⚠ Guarding the shared call was not enough.** `vault_wilson` has a SECOND, live-witness bank.
+After the first fix three CLI audits still moved the ledger **333 → 334**, and the row that landed
+was exactly `vault.apply / live / vault_live`. Count the bank CALLS per file (4/2/3/1), not the
+files — the REG-942 shape again.
+
+**Verified both directions, and his ledger is exactly as I found it (333 rows):** four plain audits
+write **0 bytes**; `--bank` writes **957**. **4/4 red-proofs PROVEN.**
+
+⚠ While proving this I banked 4 rows into his live ledger with a test `--bank` run — the very thing
+this fixes — and removed them. Backup kept in the job's tmp.
+
 ## REG-944 — two refusals in one function disagreeing about how to say "I did not look"
 
 **v2939.** From the cross-family eye on v2935.
