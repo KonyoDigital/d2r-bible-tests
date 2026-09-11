@@ -29587,6 +29587,37 @@ including one that sets the threshold to `-1000`, an arm that can never be reach
 condition no real value can meet is an absent branch wearing a guard.
 [[stale-reading]] [[zero-needs-a-denominator]] [[feedback-threshold-above-the-ceiling]]
 
+## REG-931 — the tick's bare `rm -f tv/.board_identity.json`, run a second time (operational)
+
+**2026-09-11. Not a code defect — mine.** The loop's step 4 says `rm -f tv/.board_identity.json`
+unconditionally; I typed it at commit time although no CDP/render session had run this tick, and
+although the sweep had reported `owner=True … a healthy claim — KEPT` minutes earlier.
+
+**Measured consequence, rather than the panic I had the first time:**
+
+| | |
+|---|---|
+| the board claim | never at risk — it lives in the board's own storage, not this file |
+| this file | a DERIVED record; `_board_identity_remember()` rewrites it whenever the board answers |
+| drift while absent | `state: unknown`, carrying its own remedy — **not** a false drift |
+| durable loss | `firstSeen` / `seenCount` reset, 781 → 1. A tally, not a claim. |
+
+**Recovery, verified:** `POST /api/board_ownership` with the console up. It reads the LIVE board and
+rewrites the record from it — came back `ok:true`, `state: ok`,
+`id=e07a5fe180a8414287f30dcc2589c52d`, the same world as the newest owner backup.
+
+⚠ **Restoring from `~/d2r_board_backups/` — my first instinct — would have been WORSE.** It writes a
+stale `lastSeen`, and had the board's install id moved since, the next write would have recorded the
+stale id as `previous` and manufactured exactly the false drift `_board_identity_remember`'s own
+v2147 comment exists to prevent. *The board is the authority; a file copy is a guess.*
+
+⚠ That backup directory is also polluted with this session's gate FIXTURES (`*_guest_*`,
+`*_drifted_*`, `*_ok_*`, `seenCount: None`, ids `aaa…`/`ccc…`). Filter on `owner is True` plus a
+real `seenCount` before treating any of it as his.
+
+**The correct step 4 remains `python3 tv/board_identity_sweep.py`** — it classifies ABSENT/DRIFTED/
+GUEST/OK, keeps OK unless forced, refuses while the console is running, and backs up before removing.
+
 ## REG-929 — the ⓘ report line printed the BEFORE half of the pair and dropped the AFTER half
 
 **v2925.** Found by the cross-family eye on v2924, reproduced by measurement before it was believed.
