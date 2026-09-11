@@ -31248,3 +31248,35 @@ each answers and IMPORTS the canonical river rather than restating it. Gate prov
 ⚠ **Two wrong denominators before the right one.** Counted against `frames/` this says 60-of-60
 gone; against `tv/` it finds 12 "reels" that are really SOURCE FILES (`reel_router.py`,
 `reel_story.py`). The store is `frames/hist`. Both wrong answers looked clean.
+
+## REG-952 — `comparable` asked THIS console, so the cross-check went dark on every other venue (v2945 → fixed v2947)
+
+**Found by:** the second eye on v2945 — a different model family — which read past the truncated
+diff into the real functions and traced the contract. Reproduced before being believed.
+
+v2945 collapsed two flags into one `comparable`, which was right. But it computed the universe half
+by calling `control_app.grail_tally()` **inside `surface_pairs()`'s per-ledger loop** — a live read
+of THIS console's board.
+
+**Scenario.** Board window not open and no banked `board_tally.json` — CI, a fresh clone, the
+Windows box before the board has POSTed. `grail_tally()` answers nothing, every pair becomes
+`comparable=None`, and `mask_cross_check` excludes ALL ledgers — including `sets`, whose stores and
+universes genuinely match (135 == 135). The fleet payload was always enough for the have-vs-popcount
+arithmetic; requiring a local denominator silently made it not enough, and said nothing.
+
+Worse: `test_the_cross_check_parts_when_a_store_holds_an_OFF_ROSTER_name` asserts `(agreeN,
+comparableN) == (1, 1)` **through the real `surface_pairs()`**, so it passed on his Mac and would
+have failed on CI. A test green for a reason the venue supplies.
+
+**Fix — the gate has two levels, and they belong in different places.**
+- STORE level stays in `surface_pairs()`: answerable from the table alone, so it works anywhere.
+- UNIVERSE level moves into `mask_cross_check`, per ROW, against **that row's own posted `total`**.
+  `total` is a per-row fact — two machines can post different totals for one ledger — so a single
+  console-wide answer could not be right for both even when readable.
+- The probe is REMOVED, not merely ungated, and `tallyTotal` is no longer published: a field that
+  answered a per-row question with a console-wide number is a label that outlived its referent.
+
+Measured after: `sets` agreeN 2 / comparableN 2 on both machines; `uniques` excluded PER ROW with
+its own numbers named — *"Konyo posts 300 out of 403 while the uniques mask can only represent 398
+roster names"*. New law `test_comparable_does_NOT_depend_on_a_live_probe_of_THIS_console` parses
+`surface_pairs()` for a call to `grail_tally` and refuses it.

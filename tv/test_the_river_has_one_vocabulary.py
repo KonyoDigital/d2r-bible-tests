@@ -116,6 +116,42 @@ class TheRiverHasOneVocabulary(unittest.TestCase):
         self.assertIn(q.split(":", 1)[1], RV.STATIONS,
                       "printer runs inside a station the river does not have")
 
+    def test_the_CONSOLE_actually_serves_these_facts(self):
+        """⚠⚠ PLUMBING WITH NO TAP IS THIS REPO'S MOST REPEATED DEFECT, and /api/river's own
+        comment records the last time: reel_router was "built, correct, covered by its own suite,
+        and invisible to every surface".
+
+        So this does not check that the helper EXISTS — it checks the route CALLS it, by walking
+        for a Dict whose "vocab" key is a Call to `_river_vocab_facts`. A law that only asserted
+        the function exists would prove the tap was plumbed and never that water came out.
+        [[plumbing-with-no-tap]] [[the-unjoined-end]]"""
+        tree = ast.parse(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+        self.assertIn("_river_vocab_facts", names, "the helper is gone")
+        served = False
+        for d in (n for n in ast.walk(tree) if isinstance(n, ast.Dict)):
+            for k, v in zip(d.keys, d.values):
+                if (isinstance(k, ast.Constant) and k.value == "vocab"
+                        and isinstance(v, ast.Call) and isinstance(v.func, ast.Name)
+                        and v.func.id == "_river_vocab_facts"):
+                    served = True
+        self.assertTrue(served,
+                        "no response dict carries \"vocab\": _river_vocab_facts() — the facts are "
+                        "computed and served to nobody, which is the exact defect /api/river's "
+                        "own comment was written about")
+
+    def test_the_facts_the_console_serves_CARRY_THEIR_UNKNOWNS(self):
+        """A surface that drops the None fields would render a confident river. dwellS must stay
+        present-and-None rather than absent. [[unknown-stays-unknown]]"""
+        import control_app as CA
+        d = CA._river_vocab_facts()
+        for k in ("dwellMeasurable", "dwellS", "endsWitnessed", "atMouth"):
+            self.assertIn(k, d, "the console payload dropped %r" % k)
+        if d.get("dwellMeasurable") is False:
+            self.assertIsNone(d.get("dwellS"),
+                              "dwell is not measurable yet a duration is published — 0 or a number "
+                              "here would render as a real transit time")
+
     def test_it_still_parses(self):
         ast.parse(io.open(os.path.join(HERE, "river_vocab.py"), encoding="utf-8").read())
 
@@ -136,6 +172,15 @@ RED_PROOF = [
         "file": "river_vocab.py",
         "find": "STATIONS = tuple(_rr.STATIONS)",
         "replace": 'STATIONS = ("INTAKE", "TRIAGE", "EMPTY", "STATION", "PRINTER", "JOIN",\n              "CAPTURE", "ROUTED", "TOMBSTONE")',
+        "matches": 1,
+    },
+    {
+        "why": "law: the console SERVES these facts. Renaming the call in the response dict leaves "
+               "the helper defined and reachable by nobody - plumbing with no tap, which is what "
+               "this route's own comment was written about.",
+        "file": "control_app.py",
+        "find": '"vocab": _river_vocab_facts(),',
+        "replace": '"vocab": None,  # _HEART2_TAMPERED_',
         "matches": 1,
     },
     {

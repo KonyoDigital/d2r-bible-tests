@@ -1848,6 +1848,24 @@ def _inv_a_posted_COUNT_and_its_own_MASK_agree():
                 t = (m.get("tally") or {}).get(led)
                 if not (isinstance(mk, dict) and isinstance(t, dict)):
                     continue
+                # ⚠⚠ v2947 — THE UNIVERSE RULE, RE-DERIVED HERE FROM THE ROW ITSELF.
+                # v2947 moved the universe half of the gate into mask_cross_check, per ROW. This
+                # side must apply the same RULE or the two sides count different populations: left
+                # went 2 (uniques excluded for both machines) while this went 4, and the pair went
+                # RED because the code got MORE correct — the exact self-inflicted drift the
+                # comment above already warns about, one version later.
+                # ⚠ RE-DERIVED, NOT BORROWED. It reads the ROW's own `total` and the roster length
+                # from fleet_mask, never mask_cross_check's answer — two sides calling one function
+                # is one source wearing two hats, and this file exists to catch drift between two
+                # genuinely independent computations. [[copy-drift]]
+                try:
+                    _r, _fp = fm.load_roster_for(led)
+                    _rn = len(_r) if _r else None
+                except Exception:
+                    _rn = None
+                _tot = t.get("total") if isinstance(t.get("total"), int) else None
+                if _tot is not None and _rn is not None and _tot != _rn:
+                    continue
                 # ⚠⚠ COMPARABLE, NOT MERELY PUBLISHED. This counted every pair that published both,
                 # while the LEFT side counts agreements among pairs mask_cross_check could actually
                 # READ — it `continue`s a pair whose roster will not load, and an undecodable mask

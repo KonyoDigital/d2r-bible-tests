@@ -1724,28 +1724,46 @@ def surface_pairs():
             _rn = len(_rr) if _rr else None
         except Exception:
             _rn = None
-        try:
-            import control_app as _ca2
-            _t = (_ca2.grail_tally() or {}).get(name) or {}
-            _tot = _t.get("total") if isinstance(_t.get("total"), int) else None
-        except Exception:
-            _tot = None
+        # ⚠⚠ v2947 — THE LIVE PROBE IS GONE, NOT JUST UNGATED.
+        # This used to call control_app.grail_tally() on every pair. Two problems, both real:
+        # (1) it made a TABLE WALK depend on whether THIS console's board had POSTed, and
+        # (2) `total` is a per-ROW fact — two machines can post different totals for one ledger —
+        # so a single console-wide number could not be right for both even when it was readable.
+        # The universe check now happens in mask_cross_check against the ROW's own `total`.
+        # `tallyTotal` is not published here any more: a field that answered a per-row question
+        # with a console-wide number is a label that outlived its referent.
+        # [[label-outlived-referent]] [[gate-blind-to-unexercised-input]]
+        _tot = None
         _store_ok = (ms == ts) if (ms and ts) else None
         _univ_ok = None if (_tot is None or _rn is None) else (_tot == _rn)
         # ⚠ UNKNOWN PROPAGATES. If either half could not be measured the answer is None, never
         # False — "I could not check" and "I checked and they differ" are different facts, and
         # collapsing them is how a pair goes quiet for the wrong reason.
-        if _store_ok is None or _univ_ok is None:
+        # ⚠⚠ v2947 — `comparable` MUST NOT DEPEND ON A LIVE PROBE OF *THIS* CONSOLE.
+        # v2946's second eye (a different model family) caught this and it is a real regression:
+        # `_tot` comes from `grail_tally()`, which answers nothing when the board window is not
+        # open and no `board_tally.json` is banked — CI, a fresh clone, the Windows box before the
+        # board has POSTed. Every pair then went `comparable=None`, `mask_cross_check` excluded ALL
+        # of them, and the cross-check went DARK — including `sets`, whose stores AND universes
+        # genuinely match (135 == 135). The fleet payload was always enough for the
+        # have-vs-popcount arithmetic; requiring a local denominator silently made it not enough.
+        # Worse, `test_the_cross_check_parts_when_a_store_holds_an_OFF_ROSTER_name` asserts (1,1)
+        # THROUGH the real surface_pairs(), so it passed here and would have failed on CI.
+        # ⇒ The one decidable flag is the STORE question, which is answerable from the table alone.
+        # The UNIVERSE question is per-ROW and belongs where the row's own `total` lives, in
+        # mask_cross_check. `tallyTotal` stays published as a FACT for a reader — never a gate.
+        # [[gate-blind-to-unexercised-input]] [[stale-reading]] [[zero-needs-a-denominator]]
+        if _store_ok is None:
             _comparable = None
         else:
-            _comparable = bool(_store_ok and _univ_ok)
+            _comparable = bool(_store_ok)
         if _comparable:
             _why = ""
         elif _store_ok is False:
             _why = ("the mask counts %s and the tally counts %s — two questions under one label, "
                     "so their numbers are not comparable and a cross-reference names the wrong "
                     "ledger" % (ms, ts))
-        elif _univ_ok is False:
+        elif _univ_ok is False:      # a FACT for the reader; the per-row gate lives downstream
             _why = ("both sides read %s, but the tally counts out of %s while the mask can only "
                     "represent %s roster names — so their COUNTS are not comparable. 403 is his "
                     "pinned ruling; 398 is the size the page itself says is produced by neither"
@@ -1754,7 +1772,7 @@ def surface_pairs():
             _why = ("whether these two figures are comparable is UNKNOWN: store %s, tally total "
                     "%r, roster %r" % ("ok" if _store_ok else "unmeasured", _tot, _rn))
         out.append({"ledger": name, "tallyStore": ts, "maskStore": ms,
-                    "tallyTotal": _tot, "maskRosterN": _rn,
+                    "maskRosterN": _rn,
                     "comparable": _comparable, "why": _why})
     return out
 
@@ -1801,6 +1819,21 @@ def mask_cross_check(fleet=None):
                 continue
             roster, _why = _roster_for(led)
             if roster is None:
+                continue
+            # ⚠⚠ v2947 — THE UNIVERSE CHECK, PER ROW, FROM THE ROW'S OWN EVIDENCE.
+            # This machine posted `total`; the mask can only represent `len(roster)` names. If
+            # those differ, its `have` is counted out of a universe the mask cannot encode and the
+            # comparison would manufacture a disagreement. That is the 403-vs-398 case exactly.
+            # Asked HERE and not in surface_pairs() because `total` belongs to the ROW: two
+            # machines can post different totals for one ledger, and a single console-wide answer
+            # cannot be right for both. Absent `total` -> compare anyway, which is the pre-v2945
+            # behaviour and the only one that works on a venue with no local tally.
+            _rowTot = t.get("total") if isinstance(t.get("total"), int) else None
+            if _rowTot is not None and _rowTot != len(roster):
+                excluded.append({"ledger": led, "why":
+                    "%s posts %s out of %d while the %s mask can only represent %d roster names, "
+                    "so their counts are not comparable" % (who, t.get("have"), _rowTot, led,
+                                                            len(roster))})
                 continue
             try:
                 _r, fp = _fm.load_roster_for(led)

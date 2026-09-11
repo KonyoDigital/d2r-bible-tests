@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2946",
+  "ver": "v2947",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2946: --note four modules each declared the order a reel moves through; nothing has ever stamped INTAKE or TOMBSTONE, and 36 reels left without one",
+  "note": "v2947: --note comparable probed the local live tally, so the cross-check went dark wherever no board had posted",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

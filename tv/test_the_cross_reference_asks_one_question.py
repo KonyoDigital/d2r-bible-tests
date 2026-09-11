@@ -289,24 +289,68 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
             if p.get("comparable") is not False:
                 continue
             why = str(p.get("why") or "")
-            for n in (p.get("tallyTotal"), p.get("maskRosterN")):
+            for n in (p.get("maskRosterN"),):
                 self.assertIn(str(n), why,
                               "%s is not comparable and its reason does not name %r: %r"
                               % (p.get("ledger"), n, why))
 
-    def test_the_cross_check_EXCLUDES_exactly_the_non_comparable(self):
-        """Excluded and NAMED, never silently skipped — and never excluding one it could have
-        measured. Both directions, because a filter that drops everything also 'agrees'."""
+    def test_the_cross_check_EXCLUDES_with_a_REASON_at_both_levels(self):
+        """THE GATE HAS TWO LEVELS AND THIS LAW NAMES BOTH, because v2947 moved one of them.
+
+        STORE level (`comparable`, answerable from the table alone): two surfaces reading
+        different stores are not comparable for ANY machine, so that ledger is out everywhere.
+
+        UNIVERSE level (per ROW, inside mask_cross_check): a machine posting `have` out of a total
+        the mask cannot represent is out for THAT ROW only. Two machines can post different totals
+        for one ledger, so one console-wide answer cannot be right for both -- which is why
+        v2945's version, deciding it once from this console's own grail_tally(), went dark on any
+        venue with no local tally and took `sets` down with it.
+
+        What must hold at both levels: excluded AND NAMED, never silently skipped."""
         pairs = {str(p["ledger"]): p for p in (LA.surface_pairs() or [])}
         d = LA.mask_cross_check() or {}
-        named = {str(e.get("ledger")) for e in (d.get("excluded") or [])}
-        want = {k for k, v in pairs.items() if v.get("comparable") is not True}
-        self.assertEqual(want, named,
-                         "the cross-check's exclusion list and the pairs disagree about which "
-                         "ledgers are out: excluded=%r, not-comparable=%r" % (sorted(named), sorted(want)))
-        self.assertEqual(set(), {r["ledger"] for r in (d.get("rows") or [])} & named,
-                         "a ledger is both excluded and measured")
+        excl = d.get("excluded") or []
+        named = {str(e.get("ledger")) for e in excl}
+        store_bad = {k for k, v in pairs.items() if v.get("comparable") is not True}
+        self.assertEqual(set(), store_bad - named,
+                         "a ledger whose surfaces read different stores was measured anyway: %r"
+                         % sorted(store_bad - named))
+        for e in excl:
+            why = str(e.get("why") or "")
+            self.assertTrue(why.strip(), "%r excluded with no reason" % e.get("ledger"))
+            self.assertTrue(any(ch.isdigit() for ch in why),
+                            "%r excluded with a reason naming no number: %r"
+                            % (e.get("ledger"), why))
+        rows = d.get("rows") or []
+        for led in store_bad:
+            self.assertEqual([], [r for r in rows if r.get("ledger") == led],
+                             "%s is out at the STORE level and was measured anyway" % led)
 
+    def test_comparable_does_NOT_depend_on_a_live_probe_of_THIS_console(self):
+        """REG-952, caught by the second eye on v2945 and reproduced before being believed.
+
+        `comparable` briefly called control_app.grail_tally() -- a live read of THIS console's
+        board -- inside the per-ledger loop. On CI, a fresh clone, or the Windows box before the
+        board has POSTed, that answers nothing, so every pair went None and mask_cross_check
+        excluded ALL ledgers, `sets` included, whose stores and universes genuinely match.
+
+        Parsed, not grepped."""
+        src = io.open(os.path.join(HERE, "ledger_authority.py"), encoding="utf-8").read()
+        fn = next((n for n in ast.walk(ast.parse(src))
+                   if isinstance(n, ast.FunctionDef) and n.name == "surface_pairs"), None)
+        self.assertIsNotNone(fn)
+        calls = set()
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Call):
+                f = n.func
+                if isinstance(f, ast.Attribute):
+                    calls.add(f.attr)
+                elif isinstance(f, ast.Name):
+                    calls.add(f.id)
+        self.assertNotIn("grail_tally", calls,
+                         "surface_pairs() probes this console's live tally again -- the one flag "
+                         "every caller branches on would go None wherever no board has POSTed, "
+                         "taking the honest ledgers down with it")
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
 # PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and

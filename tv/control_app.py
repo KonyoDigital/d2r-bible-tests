@@ -20779,6 +20779,25 @@ def river_mouth(limit=12, path=None):
             "why": ""}
 
 
+def _river_vocab_facts():
+    """The river's own honesty, for any surface that draws it. -> dict
+
+    ⚠ NEVER RAISES. A console panel that dies because an instrument is missing is worse than one
+    that says UNKNOWN, so an unimportable vocab returns a reason rather than propagating.
+    """
+    try:
+        import river_vocab as _rv
+        h = _rv.health()
+        return {"stations": list(_rv.STATIONS), "sentinel": _rv.UNPLACED,
+                "source": _rv.SOURCE, "mouth": _rv.MOUTH,
+                "dwellMeasurable": h.get("dwellMeasurable"), "dwellS": h.get("dwellS"),
+                "endsWitnessed": h.get("endsWitnessed"), "atMouth": h.get("atMouth"),
+                "onDisk": h.get("onDisk"), "backfilled": h.get("backfilled"),
+                "undeclared": h.get("undeclared"), "why": h.get("why")}
+    except Exception as e:
+        return {"why": "river_vocab could not be asked: %s" % str(e)[:70]}
+
+
 def river_walk_state():
     """What the river walk last did. -> dict
 
@@ -26166,7 +26185,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2946",
+        "ver": "v2947",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28532,6 +28551,17 @@ class Handler(BaseHTTPRequestHandler):
                     "counts": _cen.get("counts"), "visits": _cen.get("visits"),
                     "reels": _cen.get("reels"), "stamps": _cen.get("stamps"),
                     "unparsed": _cen.get("unparsed"),
+                    # ⚠⚠ v2946 — WHAT THE RIVER CANNOT SAY, SAID OUT LOUD. Everything above is a
+                    # count; these are the facts that tell a reader whether a count MEANS anything.
+                    # `dwellMeasurable` is False because no reel carries two ACTOR stamps, so the
+                    # shelf must never render a duration — the first table derived from this
+                    # journal reported "STATION -> CAPTURE median 3.2 days" and that was the age of
+                    # a BACKFILL (40 of 122 rows written in one batch, 37 inside four consecutive
+                    # ms). `endsWitnessed` says the JOURNAL has never stamped INTAKE or TOMBSTONE,
+                    # which is a rendering gap and NOT a leak: `mouth` above reads the terminus
+                    # from the ledger, where 446 reels have genuinely finished.
+                    # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+                    "vocab": _river_vocab_facts(),
                     # ⚠ NOT an empty list dressed as zero: a station no reel has EVER reached is
                     # the actionable half of this whole picture.
                     #
