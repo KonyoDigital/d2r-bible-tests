@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2980",
+  "ver": "v2981",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2980: the guard that looks like it protects the wilson loop does not skip a provenance block",
+  "note": "v2981: shadow_ai records his own choice and could not say who wrote it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

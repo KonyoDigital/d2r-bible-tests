@@ -31700,6 +31700,43 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-984 - the last two SILENT stores: one is his switch, one has no writer BY DESIGN (task #69 - v2981)
+
+**`shadow_ai.json` - STAMPED.** It is the record of HIS CHOICE about whether the lurking reader may
+fire. `_shadow_state` already keeps three worlds apart - his choice, whether OCR exists, whether a
+reel is rolling - because *"a switch reporting only its own position lies whenever the thing it
+switches cannot run"*. Naming the writer is the fourth fact: a choice written by an older console is
+not the same as one he just made.
+
+Flat, and BOTH readers were measured before choosing the blob: `tv_diablo.shadow_ai_on` and
+`control_app._shadow_state` use `.get()` only - no `len()`, no `.items()`. Verified end to end,
+including that the eye still reads the switch:
+
+    keys ['_prov','on','ts']   by='control_app'   on=False preserved
+    tv_diablo.shadow_ai_on() -> False, then True after a flip
+
+⚠ **AND ITS WRITER NEARLY WENT UNFOUND.** My search looked for the literal string `shadow_ai.json`,
+which appears only in `tv_diablo.py` - all reads. The writer is `control_app._shadow_set`, reaching
+the file through `_shadow_path()`. A filename search cannot find a writer that never spells the
+filename. [[feedback-suspect-the-instrument]]
+
+★ **`auto_relaunch.json` - NOT WORK, AND MUST NOT BECOME WORK.** v2284 deleted `auto_relaunch_set()`
+deliberately: *"With the switch retired nothing may write the choice, and Law 19 caught the setter
+sitting there with no production caller. Keeping it 'in case' is exactly the reason that guard
+refuses to accept. The READER survives, because `_auto_relaunch_state()` still reports a stale
+on-disk answer so the UI can say it no longer applies."*
+
+So the store has NO WRITER BY DESIGN. Stamping it would mean ADDING one, which Law 19 exists to
+refuse. A census that counts it as a gap is counting a retired switch as a defect.
+
+★ THAT MAKES **FOUR** REASONS A STORE READS SILENT, and only the first is work:
+    (a) a writer that does not stamp                    -> fix it
+    (b) a writer that stamps, file predates it          -> nothing to do (ledger_peaks, reel_tombstones)
+    (c) no writer BY DESIGN, the switch is retired      -> must NOT be "fixed" (auto_relaunch)
+    (d) the writer exists but never spells the filename -> find it before concluding (shadow_ai)
+
+Six tampers PROVEN red, 1 match each.
+
 ## REG-983 - a store that LOOKED flat was lane-keyed, and the guard that looks protective is not (task #69 - v2980)
 
 `retro_gate.json` is `{"t": {...}}`. One top-level key, so my shape census filed it FLAT - a single

@@ -57,7 +57,12 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
              # new dict, so the caller's live `prop` never gains a key that travels to other
              # readers. Its `_doc` name differs from the source `prop`, which is why the regex
              # above grades `by=` rather than a variable spelling.
-             ("chron_evidence", "def _chron_evidence_save", "os.replace(tmp, _CHRON_EVIDENCE_PATH)"))
+             ("chron_evidence", "def _chron_evidence_save", "os.replace(tmp, _CHRON_EVIDENCE_PATH)"),
+             # v2981 — the record of HIS CHOICE about whether the lurking reader may fire. Flat,
+             # and BOTH readers take named fields (measured: tv_diablo.shadow_ai_on and
+             # control_app._shadow_state use .get() only, no len(), no .items()), so the block
+             # goes on the blob and cannot become a phantom row.
+             ("shadow_ai", "def _shadow_set(on):", "os.replace(tmp, p)"))
 
     def test_each_twin_stamps_the_blob_it_writes(self):
         for store, start, end in self.CASES:
@@ -106,6 +111,13 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "un-stamping the shadow switch leaves his own ON/OFF choice unattributable - a choice written by an older console reads exactly like one he just made",
+        "file": "control_app.py",
+        "find": '            _sw = _PV.stamp(_sw, by="control_app", extra={"store": "shadow_ai"})\n',
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "un-stamping the chronicle's banked evidence leaves a proposal that cannot be "
                "re-judged when the gate improves - the same defect retro_triage had over 437 rows",

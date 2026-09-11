@@ -19410,8 +19410,25 @@ def _shadow_set(on):
     try:
         os.makedirs(os.path.dirname(p), exist_ok=True)
         tmp = p + ".tmp"
+        # ⚠⚠ v2981 (#69) — WHO FLIPPED THE SWITCH. shadow_ai.json was SILENT, and it is the
+        # record of HIS CHOICE about whether the lurking reader may fire. `_shadow_state`
+        # already keeps three worlds apart — his choice, whether OCR exists, whether a reel
+        # is rolling — because "a switch reporting only its own position lies whenever the
+        # thing it switches cannot run". Naming the writer is the fourth fact: a choice
+        # written by an older console is not the same as one he just made.
+        # ⚠ FLAT, AND BOTH READERS TAKE NAMED FIELDS — measured: tv_diablo.shadow_ai_on and
+        # control_app._shadow_state use .get() only, no len(), no .items(). So the block
+        # goes on the blob and cannot become a phantom row.
+        # ⚠ AND IT MUST NOT COST THE SWITCH. tv_diablo treats an unreadable file as ON, so a
+        # stamp that raised would blind the eye; it is swallowed and the write is unchanged.
+        _sw = {"on": bool(on), "ts": int(time.time() * 1000)}
+        try:
+            import provenance as _PV
+            _sw = _PV.stamp(_sw, by="control_app", extra={"store": "shadow_ai"})
+        except Exception:
+            pass
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"on": bool(on), "ts": int(time.time() * 1000)}, fh)
+            json.dump(_sw, fh)
         os.replace(tmp, p)
     except Exception as e:
         return {"ok": False, "why": "could not write the switch: %s" % str(e)[:120]}
@@ -26451,7 +26468,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2980",
+        "ver": "v2981",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
