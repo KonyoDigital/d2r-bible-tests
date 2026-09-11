@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2968",
+  "ver": "v2969",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2968: retro_triage was silent over 437 rows while deciding EMPTY on the river",
+  "note": "v2969: a reel-keyed store stamped at the top level would publish a reel that does not exist",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

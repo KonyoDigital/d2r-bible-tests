@@ -31700,6 +31700,40 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-972 - the same provenance helper, the opposite right answer, decided by the store's SHAPE (task #69 - v2969)
+
+REG-971 stamped `retro_triage.remember()`. Reading the NEXT silent store turned up a hazard the
+codebase already names by name, about the store I had just touched. From `reel_retention._tombstone`
+(v2949):
+
+> ⚠ NEVER do this to a ROW-KEYED store (retro_triage, chron_hunt_memory, main_character,
+> capture_doors): a top-level `_prov` there becomes a FAKE ROW that blueprint.py publishes as a reel
+> count of 456 and printer_reach admits as a reel.
+
+`reel_tombstones.json` is flat - `{reels: [...], updatedTs}` - and every reader takes `blob["reels"]`,
+so a store-level `_PV.stamp(blob, ...)` is correct there and cannot move a count.
+`retro_triage.json` is keyed BY REEL at the top level, so the same call would add one phantom reel
+to every reader that enumerates it. **Same module, same helper, opposite correct answer, decided by
+the store's shape.**
+
+MEASURED - my v2968 stamp is on the right side of that line, and it was verified rather than assumed:
+
+    two reels surveyed -> top-level keys: 2  ['reel_s_1_2', 'reel_s_3_4']
+    _prov a TOP-LEVEL key (a fake reel)?  False
+    _prov INSIDE each row?                True
+    a reel-counting reader sees:          2   <- must be 2
+
+It is now a LAW rather than my confidence: the top level must gain no phantom key, the count must
+stay equal to the reels surveyed, and every row must still name its producer. The tamper swaps the
+row stamp for a blob stamp - the exact hazard - and it goes red.
+
+★ WHY THIS IS WORTH A VERSION: the warning existed, in a comment, on a different store, written by
+an earlier ship. A comment is advisory and depends on the next reader finding it; nothing would have
+gone red. That is [[carved-skill-unloaded-is-unapplied]] at the level of a code comment, and the
+only fix that survives the next reader is an executable one.
+
+Two tampers PROVEN red, 1 match each.
+
 ## REG-971 - the store that decides EMPTY on the river could not say what produced its verdicts (task #69 - v2968)
 
 **MEASURED 2026-09-11** by running `verdict_provenance.py` against the live tree rather than

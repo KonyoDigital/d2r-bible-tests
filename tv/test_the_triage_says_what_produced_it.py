@@ -90,6 +90,42 @@ class ANewVerdictNamesItsProducer(unittest.TestCase):
                       "cost the VERDICT — the expensive thing this store exists to keep")
 
 
+class TheStampIsNeverAFakeReel(unittest.TestCase):
+    """⚠⚠ THE HAZARD THE CODEBASE NAMES BY NAME, in reel_retention._tombstone: "NEVER do this to a
+    ROW-KEYED store (retro_triage, chron_hunt_memory, main_character, capture_doors): a top-level
+    `_prov` there becomes a FAKE ROW that blueprint.py publishes as a reel count of 456 and
+    printer_reach admits as a reel."
+
+    `retro_triage.json` is keyed BY REEL at the top level, so the stamp must go INSIDE each row.
+    A store-level stamp — the right move for the flat `{reels, updatedTs}` tombstone file — would
+    here add one phantom reel to every count that enumerates the top level. Same module, same
+    helper, opposite correct answer, decided by the store's SHAPE.
+    [[zero-needs-a-denominator]] [[label-outlived-referent]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="prov_shape_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        for name in ("reel_s_1_2", "reel_s_3_4"):
+            os.makedirs(os.path.join(self.d, name), exist_ok=True)
+            RT.remember(os.path.join(self.d, name), hits=1, frames=5, kinds={}, root=self.d)
+        self.blob, ok = RT.load(root=self.d)
+        self.assertTrue(ok, "the store could not be read back")
+
+    def test_the_top_level_gains_no_phantom_reel(self):
+        self.assertNotIn("_prov", self.blob,
+                         "the provenance block landed at the TOP LEVEL of a reel-keyed store, so "
+                         "every reader that enumerates it now counts one reel that does not "
+                         "exist — blueprint.py publishes it and printer_reach admits it")
+        self.assertEqual(2, len(self.blob),
+                         "two reels were surveyed but the store holds %d top-level key(s): %s"
+                         % (len(self.blob), sorted(self.blob)))
+
+    def test_each_row_carries_it_instead(self):
+        for k, row in self.blob.items():
+            self.assertEqual("retro_triage", getattr(PV.read(row), "by", None),
+                             "row %r does not name its producer" % k)
+
+
 class ThePastIsNotRewritten(unittest.TestCase):
     """The standing ruling: stamping rows nobody can attribute would INVENT provenance."""
 
@@ -111,6 +147,15 @@ class ThePastIsNotRewritten(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "stamping the BLOB instead of the ROW is the exact hazard reel_retention names: a "
+               "reel-keyed store gains a top-level _prov, and every reader that enumerates it "
+               "counts one reel that does not exist",
+        "file": "retro_triage.py",
+        "find": '        row = _PV.stamp_row(row, by="retro_triage")',
+        "replace": '        blob = _PV.stamp(blob, by="retro_triage")',
+        "matches": 1,
+    },
     {
         "why": "removing the stamp call puts the store back to SILENT: a new triage verdict that "
                "cannot be invalidated when the classifier improves, over the store that decides "
