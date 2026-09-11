@@ -31700,6 +31700,47 @@ REFERENCE 17 · UNKNOWN 1, byte-identical. A store carries `_prov` only from its
 been joined in earlier versions. The honest claim is **"a third writer is joined"**, never "three
 stores now answer". `--write-baseline` deliberately NOT run.
 
+## REG-971 - the store that decides EMPTY on the river could not say what produced its verdicts (task #69 - v2968)
+
+**MEASURED 2026-09-11** by running `verdict_provenance.py` against the live tree rather than
+trusting the task's headline:
+
+    44 stores . ANSWERS 6 . PARTIAL 4 . SILENT 16 . REFERENCE 17 . UNKNOWN 1
+    provenance did not go backwards (11 tracked / 32 local, both against baseline)
+
+⚠ **THE TASK'S OWN FIGURE WAS STALE.** #69 says "37 of 43 stores cannot say what produced them".
+That predates the census gaining a **REFERENCE** class - a roster or lookup table has no clock, so
+the question does not apply to it. The actionable set is the **16 SILENT**, not 37. The census's
+own docstring carries the identical lesson about its first cut: *"THE FIRST CUT OF THIS REPORTED
+'18 of 21' AND 24 UNKNOWNS. Both were the instrument."* [[label-outlived-referent]] [[stale-reading]]
+
+`retro_triage.json` was SILENT across **437 rows** while being the store that decides **EMPTY** on
+the river. It already carried `gateVer` - WHICH classifier - and that is a different question from
+WHAT WROTE THIS. A verdict with no producer **cannot be invalidated**: improve the classifier
+tomorrow and nothing can name the rows that predate the improvement, so a stale NO survives every
+later pass looking exactly like a fresh one. On this river a stale NO means footage is never read
+again.
+
+`remember()` now stamps each row it writes with `provenance.stamp_row(row, by="retro_triage")`.
+Verified against a temp root, his live store untouched:
+
+    row keys   ['_prov', 'frames', 'full', 'gateVer', 'kinds', 'panels', 'ts']
+    provenance by='retro_triage'  at=1789145073934
+
+⚠ **ADDITIVE ONLY, AND THAT IS A STANDING RULING RATHER THAN A SHORTCUT.** `verdict_provenance`
+says it outright: back-filling a producer onto 437 existing rows *"would invent provenance for
+verdicts nobody can now attribute"*. The law pins BOTH halves - a new row names its producer with
+an epoch-ms clock, and an existing unstamped row comes back UNKNOWN rather than rewritten.
+
+Also pinned: the stamp is swallowed, so a failure in the LABEL can never cost the VERDICT, which is
+the expensive thing this store exists to keep. And the epoch-ms floor is asserted (1e11), because
+seconds-vs-milliseconds is a unit collision already carved once in this tree.
+
+One tamper PROVEN red, 1 match. 301 gates registered.
+
+⚠ NOT CLOSED: 15 SILENT stores remain, each needing its own write choke point. This one was taken
+first because it is the store a river station reads.
+
 ## REG-970 - the second eye found three more blind spots, in the v2963 law (task #58 - v2967)
 
 The eye read the v2963 diff AGAINST THE FILES ON DISK and found the law aimed at the right joint but

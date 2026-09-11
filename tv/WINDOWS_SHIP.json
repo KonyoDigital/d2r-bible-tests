@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2967",
+  "ver": "v2968",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2967: the map-key guard read a string anywhere in the page instead of grading the derivation",
+  "note": "v2968: retro_triage was silent over 437 rows while deciding EMPTY on the river",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v2967"   # a law that forbade a fix it could not see
+VERSION = "v2968"   # the store that decides empty now says who said so
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

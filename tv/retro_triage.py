@@ -161,6 +161,24 @@ def remember(reel_dir, hits, frames, kinds=None, root=None, panel_frames=None):
     # delete frames nobody ever examined. [[unknown-stays-unknown]]
     if panel_frames is not None:
         row["panelFrames"] = {str(k): str(v) for k, v in dict(panel_frames).items()}
+    # ⚠⚠ v2968 (#69) — WHAT PRODUCED THIS ROW, not just which classifier version said so.
+    # `gateVer` above answers "which gate", and that is a different question from "who wrote this".
+    # MEASURED 2026-09-11 by verdict_provenance: 44 stores, ANSWERS 6, PARTIAL 4, SILENT 16, and
+    # retro_triage.json was SILENT over 437 rows while being the store that decides EMPTY on the
+    # river. A verdict with no producer cannot be INVALIDATED: improve the classifier tomorrow and
+    # nothing can name the rows that predate the improvement, so a stale NO survives every future
+    # pass looking exactly like a fresh one — and on this river a stale NO means footage is never
+    # read again.
+    # ⚠ ADDITIVE, AND NOTHING IS BACK-FILLED. Only rows written from here carry it; the 437 that
+    # predate it stay UNKNOWN, because stamping the past would invent a provenance nobody can
+    # attribute. That is verdict_provenance's own standing ruling and it is not relaxed here.
+    # ⚠ SWALLOWED. A store that cannot be stamped must still be written — the verdict is the
+    # expensive thing; the stamp is the label on it. [[unknown-stays-unknown]] [[the-unjoined-end]]
+    try:
+        import provenance as _PV
+        row = _PV.stamp_row(row, by="retro_triage")
+    except Exception:
+        pass
     blob[os.path.basename(reel_dir)] = row
     try:
         tmp = p + ".tmp"

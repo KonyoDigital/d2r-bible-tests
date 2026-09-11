@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2967** | `(this commit)` | v2967 — the map-key guard read a string anywhere in the page instead of grading the derivation |
+| **v2968** | `(this commit)` | v2968 — retro_triage was silent over 437 rows while deciding EMPTY on the river |
+| **v2967** | `0aab9937` | v2967 — the map-key guard read a string anywhere in the page instead of grading the derivation |
 | **v2966** | `a5bf981c` | v2966 — a node-less host passed a gate whose only job is to execute JS, and the fixture never pinned its own divergence |
 | **v2965** | `34c5ae47` | v2965 — the first card sat 2101px below the panel bottom edge behind 1433px of analysis |
 | **v2964** | `667dedfe` | v2964 — one river stamp was painting every sibling run that wore the same id - 80 of 107 stamps |

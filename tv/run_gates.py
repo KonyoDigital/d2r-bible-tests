@@ -1202,6 +1202,25 @@ GATES = [
              "318px with a 325px river strip above means NO card is fully visible at his "
              "window size — a structural choice, stated not closed. Two tampers proven red.",
          skip_ok=()),
+    Gate("test_the_triage_says_what_produced_it",
+         [sys.executable,
+          os.path.join(HERE, "test_the_triage_says_what_produced_it.py")], 60,
+         why="#69. MEASURED 2026-09-11 by verdict_provenance on the live tree: 44 stores, "
+             "ANSWERS 6, PARTIAL 4, SILENT 16, REFERENCE 17, UNKNOWN 1. retro_triage.json was "
+             "SILENT across 437 rows while being the store that decides EMPTY on the river. It "
+             "carried gateVer — WHICH classifier — which is a different question from WHAT "
+             "WROTE THIS. A verdict with no producer cannot be INVALIDATED: improve the "
+             "classifier and nothing names the rows that predate the improvement, so a stale "
+             "NO outlives every later pass looking exactly like a fresh one, and on this river "
+             "a stale NO means footage is never read again. The stamp is ADDITIVE and the law "
+             "pins BOTH halves: a new row names its producer with an epoch-ms clock, and an "
+             "existing unstamped row is NOT back-filled — verdict_provenance's standing "
+             "ruling, since stamping the past invents provenance nobody can attribute. Also "
+             "pins that the stamp is swallowed, so a failure in the LABEL never costs the "
+             "VERDICT. ⚠ the task's own headline '37 of 43' was STALE: it predates the "
+             "census gaining a REFERENCE class, and the actionable set is the 16 SILENT. One "
+             "tamper proven red.",
+         skip_ok=()),
     Gate("test_the_page_is_not_its_own_console",
          [sys.executable,
           os.path.join(HERE, "test_the_page_is_not_its_own_console.py")], 300,
