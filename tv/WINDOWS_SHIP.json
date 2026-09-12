@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3024",
+  "ver": "v3025",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3024: at 1470 the three controls sat together and at his real 1120x660 the Released button was pushed to a second row; the search field now yields instead of the controls, because a wrapped control row costs a whole line above a shelf whose first card is already below the fold.",
+  "note": "v3025: v3019 fixed one stale count and left two others in the same file naming five modals beside a floor of six, so the next person to add an overlay would have counted wrong and left the floor too low.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

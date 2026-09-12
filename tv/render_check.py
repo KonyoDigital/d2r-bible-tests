@@ -682,12 +682,19 @@ TARGETS = {
             }
             return painted >= 2; })()""",
         # ⚠ TAGS THAT NEVER RENDER ARE EXCLUDED, HIDDEN OVERLAYS ARE NOT. `script` and `style` are
-        # zero-size by definition and counting them as a collapse is noise; the five `display:none`
-        # modals (`#th-dossier-ov`, `#th-compare-ov`, `#th-heatmap-ov`, `#forensics-ov`,
-        # `#ch-modal`) are LEFT IN on purpose, because "this overlay is closed" and "this overlay
-        # collapsed" are the same measurement from outside and the probe should say so rather than
-        # have me decide for it. Measured at 1440: 11 children -> 3 painted, 2 script, 1 style,
-        # 5 hidden modals.
+        # zero-size by definition and counting them as a collapse is noise; the SIX `display:none`
+        # modals (`#th-dossier-ov`, `#th-compare-ov`, `#th-heatmap-ov`, `#th-tomb-ov`,
+        # `#forensics-ov`, `#ch-modal`) are LEFT IN on purpose, because "this overlay is closed"
+        # and "this overlay collapsed" are the same measurement from outside and the probe should
+        # say so rather than have me decide for it.
+        # ⚠⚠ v3025 — THIS LIST SAID FIVE FOR A SHIP AND A HALF, and the trap is precise: v3016
+        # added `#th-tomb-ov` and v3019 raised the floor to 6, but this census kept naming five.
+        # Anyone adding a SEVENTH overlay would grep here, count five names plus their own = six,
+        # see the floor already at 6, and not raise it — and the gate would then go red on a change
+        # that was entirely correct. A stale census is worse than no census, because it is
+        # confidently arithmetic. `test_the_modal_census_matches_the_page` now pins this list
+        # against the real markup, so it cannot drift again in silence.
+        # [[label-outlived-referent]] [[sweep-dont-ask]]
         "sel": "body > *:not(script):not(style):not(template):not(noscript)",
         # ⚠⚠ IT MUST SETTLE, AND MY FIRST CUT SET THIS TO False BY COPYING `console`. That target
         # skips the settle because its two named buttons re-time their own labels. The PAGE target
@@ -2312,14 +2319,17 @@ def verdict(key, m, sel, known=None):
     # also invalidates every number below it.
     _zero = int(m.get("zero") or 0)
     # ⚠⚠ A DECLARED ZERO FLOOR, for the one target where zero-size is DESIGN rather than collapse.
-    # The `page` target selects `body > *`, and five of the console's eight top-level children are
+    # The `page` target selects `body > *`, and SIX of the console's nine top-level children are
     # CLOSED MODALS carrying `display:none` — measured: #th-dossier-ov, #th-compare-ov,
-    # #th-heatmap-ov, #forensics-ov, #ch-modal. They are deliberately left IN the selector, because
+    # #th-heatmap-ov, #th-tomb-ov, #forensics-ov, #ch-modal. They are deliberately left IN the
+    # selector, because
     # "this overlay is closed" and "this overlay collapsed" are the same measurement from outside
     # and the probe should say so rather than have me decide for it. But refusing on them makes the
     # target permanently red, and the refusal above is right for every OTHER target — 17 of 18
     # lockers collapsing is exactly the defect it was written for.
-    # So the count is declared per width, printed in full, and refuses when a SIXTH node collapses.
+    # So the count is declared per width, printed in full, and refuses when a SEVENTH node
+    # collapses. ⚠ v3025 — that ordinal was SIXTH and the floor moved under it in v3019; the word
+    # is the contract a reader acts on, so it moves with the number or it lies. The floor is 6.
     # ⚠ It never excuses a WHOLE collapse: that branch is above this one and returns first.
     _zfloor = int(((known or {}).get("zero") or 0))
     if _zero > _zfloor:

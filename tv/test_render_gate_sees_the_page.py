@@ -59,6 +59,7 @@ counts are DECLARED per width, printed in full every run, and refuse only on a R
 `ADeclaredFloorReportsAndDoesNotBLOCK`. Fixing the 54 is its own task with its own pixels and its
 own second eye, not something to smuggle into whatever else is shipping.
 """
+import io
 import os
 import sys
 import unittest
@@ -207,6 +208,74 @@ class ADeclaredFloorReportsAndDoesNotBLOCK(unittest.TestCase):
         self.assertTrue(hurt, "a fully collapsed page passed under the zero floor")
         self.assertIn("every one of", hurt[0])
 
+    def test_the_modal_census_matches_the_page_and_the_floor_matches_the_census(self):
+        """⚠⚠ v3025 — THE CENSUS SAID FIVE FOR A SHIP AND A HALF, AND THE TRAP IS ARITHMETIC.
+
+        render_check.py names the closed modals twice — once beside the `sel` it excuses and once
+        on the function that compares zero to the floor. v3016 added `#th-tomb-ov` and v3019 raised
+        the floor 5 -> 6, but both censuses kept naming five. A post-ship review found it and named
+        the exact scenario: someone adding a SEVENTH overlay greps that list, counts five names
+        plus their own = six, sees the floor already at 6, does not raise it — and the gate goes red
+        on a change that was entirely correct.
+
+        A stale census is worse than none, because it is confidently arithmetic. So this pins three
+        things to each other rather than to any number:
+            the modal ids named in render_check  ==  the closed modals actually in control_ui.html
+            the count of those                    ==  the declared zero floor, at every width
+
+        ⚠ PARSED FROM BOTH SIDES, never a literal. The point is that no number here is written
+        down twice. [[label-outlived-referent]] [[sweep-dont-ask]] [[copy-drift]]
+        """
+        import re
+        rc = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+
+        named = set(re.findall(r"#([a-z0-9-]+(?:-ov|-modal))", rc))
+        self.assertTrue(named, "no modal ids could be parsed out of render_check.py — this law is "
+                               "reading nothing and must fail rather than pass vacuously")
+
+        missing = sorted(i for i in named if ('id="%s"' % i) not in ui)
+        self.assertFalse(missing,
+                         "render_check names %d modal(s) that are NOT in control_ui.html: %s. The "
+                         "census describes a page that no longer exists." % (len(missing), missing))
+
+        #: every CLOSED overlay actually on the page — the empty `hidden` divs the floor counts
+        on_page = set(re.findall(r'<div id="([a-z0-9-]+-ov)" hidden></div>', ui))
+        unnamed = sorted(on_page - named)
+        self.assertFalse(
+            unnamed,
+            "%d closed overlay(s) exist on the page and are named in NEITHER census in "
+            "render_check.py: %s. The next person to add one will count the stale list, get the "
+            "wrong total, and leave the floor too low." % (len(unnamed), unnamed))
+
+        #: and the floor must equal how many there actually are, at EVERY width — a per-width
+        #: split would invent a distinction a resting overlay does not have
+        floors = {w: (k or {}).get("zero")
+                  for w, k in (RC.TARGETS["page"].get("known") or {}).items()}
+        self.assertTrue(floors, "the page target declares no zero floors at all")
+        distinct = sorted(set(floors.values()))
+        self.assertEqual(len(distinct), 1,
+                         "the zero floor differs by width (%s) — a closed overlay is zero-size at "
+                         "every width, so a split is inventing a distinction" % floors)
+        #: ⚠ THE CENSUS LIST IS THE AUTHORITY, not a set I rebuild here. My first cut unioned the
+        #: empty `hidden` divs with anything ending `-modal`, which counted FIVE — because
+        #: `#forensics-ov` ends in `-ov` but is a display:none modal, not an empty hidden div, so
+        #: it fell through both halves. The law went red on my own arithmetic, which is the right
+        #: outcome and the reason it derives the number from ONE place now.
+        census = re.search(r"modals \(((?:[^)]|\n)*?)\)\s*are LEFT IN", rc)
+        self.assertIsNotNone(census, "the modal census block could not be located in "
+                                     "render_check.py — this law cannot pin what it cannot read")
+        census_ids = re.findall(r"#([a-z0-9-]+)", census.group(1))
+        self.assertTrue(census_ids, "the census names no modals at all")
+        gone = sorted(i for i in census_ids if ('id="%s"' % i) not in ui)
+        self.assertFalse(gone, "the census names %d modal(s) absent from the page: %s"
+                         % (len(gone), gone))
+        self.assertEqual(
+            distinct[0], len(census_ids),
+            "the declared zero floor is %r but the census names %d closed modal(s) (%s) — the "
+            "floor and the census disagree, so one of them is excusing or refusing a node nobody "
+            "counted" % (distinct[0], len(census_ids), census_ids))
+
     def test_ONE_MORE_THAN_THE_FLOOR_goes_RED(self):
         """⚠⚠ v3023 — RENAMED. This was `test_a_SIXTH_collapsed_node_goes_RED`, and the word SIXTH
         stopped being true: v3019 raised the live page floor from 5 to 6 (a sixth closed modal was
@@ -342,6 +411,17 @@ class TheProbeIsREUSEDAndNotReimplemented(unittest.TestCase):
 # measured against the target file (each anchor occurs exactly once). Review it: the
 # question is whether deleting this text is the defect the law exists to catch.
 RED_PROOF = [
+    {
+        #: ⚠ THE STALE CENSUS, RESTORED. Dropping the sixth name returns render_check to the state
+        #: it shipped in for a ship and a half: a list saying FIVE beside a floor of 6, so the next
+        #: person to add an overlay counts wrong and leaves the floor too low.
+        "why": "removing a modal from the census makes the named list disagree with the declared "
+               "floor, which is the arithmetic trap a post-ship review caught after v3019",
+        "file": "render_check.py",
+        "find": "`#th-tomb-ov`,\n        # `#forensics-ov`, `#ch-modal`",
+        "replace": "`#forensics-ov`, `#ch-modal`",
+        "matches": 1,
+    },
     {
         "why": 'the law requires this text in render_check.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'render_check.py',
