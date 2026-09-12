@@ -2229,6 +2229,23 @@ GATES = [
              "selected by the class so membership is automatic. It parses the stylesheet by "
              "brace-matching rather than grepping, so a rule buried in an unrelated @media block "
              "cannot satisfy it."),
+    Gate("test_foreign_is_narrow_and_unknown_stays_unknown",
+         [sys.executable, os.path.join(HERE,
+          "test_foreign_is_narrow_and_unknown_stays_unknown.py")], 180,
+         why="TWO THREADS WERE UNKNOWN FOREVER AND THE FIX IS THE DANGEROUS KIND. Measured on his "
+             "live console 2026-09-12: vessels 22, WATCHED 20, DARK 0, UNKNOWN 2 — and both "
+             "UNKNOWNs were `serve_forever` and `wait`, because census() reduces "
+             "`Thread(target=srv.serve_forever)` to a bare name and classify() then finds no `def` "
+             "of it in control_app.py. It was RIGHT to answer UNKNOWN; but nobody could ever look, "
+             "because those are methods on stdlib objects with no definition in this repo at all. "
+             "v3034 added the kind FOREIGN for exactly that. ⚠ A classification that converts "
+             "UNKNOWN into not-a-vessel is a machine for making a census look finished: loosened by "
+             "one condition it stops describing stdlib methods and starts absolving real lanes, and "
+             "the result reads UNKNOWN 0 — the number a completed job produces. So this gate does "
+             "not check that the two known names are FOREIGN; it checks that FOREIGN CANNOT WIDEN. "
+             "A target with no receiver stays UNKNOWN however unresolvable, and a target whose "
+             "method IS defined anywhere in this package stays UNKNOWN even through a receiver. "
+             "Both red-proofs delete one of those conditions rather than the feature."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

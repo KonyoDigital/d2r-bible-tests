@@ -106,14 +106,54 @@ class ABusyControlComesBack(unittest.TestCase):
     def test_the_blanket_cursor_rule_and_its_survivors_are_still_the_reason(self):
         """If the blanket rule ever goes away, this whole law stops being about HIS symptom and
         someone should be told rather than left with a guard whose reason evaporated."""
-        self.assertIn("*{cursor:var(--kcur) !important}", UI,
-                      "the blanket cursor rule is gone — a stuck button may no longer show a "
-                      "cancel sign, and this law needs re-deriving rather than quietly passing")
+        # ⚠⚠ v3034 — PIN THE LAW, NOT THE SPELLING. This asserted the literal string
+        # `*{cursor:var(--kcur) !important}` and was therefore GREEN through the whole of the
+        # regression it was meant to notice: the text was present and his cursor was a plain
+        # arrow. What matters is that SOME blanket rule forces the gauntlet on everything.
+        # [[regression-guard]]
+        self.assertRegex(
+            UI, r"\*\{cursor:[^}]+!important\}",
+            "the blanket cursor rule is gone — a stuck button may no longer show a cancel sign, "
+            "and this law needs re-deriving rather than quietly passing")
+        # ⚠⚠ AND IT MAY NOT ROUTE THROUGH var(). Konyo, 2026-09-12: "the cursor mouse custom
+        # inside the console again regressed and its a regular mouse cursor" — the second time,
+        # v2765 being titled "the gauntlet comes back". `var()` defers validation to
+        # COMPUTED-VALUE time, so an image-set this engine cannot resolve makes the declaration
+        # invalid-at-computed-value and the property drops to its INITIAL value, `auto`. It does
+        # NOT fall back to the plain url() rule above, because the cascade already picked this
+        # one. A LITERAL that cannot be parsed is discarded at PARSE time and the url() rule then
+        # wins, which is a real fallback rather than an arrow. A WebKit update is enough to flip
+        # it, and @supports cannot protect it — a feature query may answer yes while the value
+        # still fails to resolve. [[the-unjoined-end]] [[label-outlived-referent]]
+        # ⚠ ONLY WHAT THE BROWSER PARSES AS CSS. The first cut of this check searched the whole
+        # file and failed on a v2951 JS COMMENT that quotes the rule as prose — a law defeated by
+        # a sentence describing it. [[source-reading-guard]]
+        import re as _re
+        _css = "\n".join(_m.group(1) for _m in
+                         _re.finditer(r"<style[^>]*>(.*?)</style>", UI, _re.S | _re.I))
+        self.assertIn("cursor:", _css,
+                      "no <style> block carries a cursor rule — this law is reading the wrong "
+                      "thing, and an empty haystack passes everything")
+        for _m in _re.finditer(r"\*\{cursor:([^}]+)!important\}", _css):
+            self.assertNotIn(
+                "var(", _m.group(1),
+                "the blanket cursor rule routes through var(): %r. That converts an unsupported "
+                "cursor value into `auto` instead of letting the plain url() rule below take "
+                "over, which is exactly how the gauntlet became a plain arrow twice."
+                % _m.group(1)[:70])
         self.assertRegex(UI, r"button:disabled,\s*\.act:disabled",
                          "the disabled-cursor rule is gone")
 
 
 RED_PROOF = [
+    {
+        "why": "restores the var(--kcur) routing that turned his gauntlet into a plain arrow "
+               "twice — the literal is what makes the url() fallback actually reachable",
+        "file": "control_ui.html",
+        "find": "*{cursor:-webkit-image-set(",
+        "replace": "*{cursor:var(--kcur) !important}/*",
+        "matches": 1,
+    },
     {
         "why": "law: a self-disabling handler must re-enable. Removing the re-evaluation restores "
                "the exact defect he reported - btn-restore-apply stuck disabled after one click, "

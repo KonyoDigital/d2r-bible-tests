@@ -135,6 +135,43 @@ def supervisor_set_is_current(rows):
     return True, "every declared supervisor still names a live thread target"
 
 
+def _defined_anywhere(name):
+    """Does ANY module in this package define `name`? -> bool
+
+    ⚠ THE WHOLE PACKAGE, NOT ONE FILE. The narrowness of FOREIGN rests entirely on this: a target
+    is only declared "not ours" when no `def <name>` exists anywhere in tv/. A lane defined in a
+    sibling module and started from control_app.py must therefore still be judged on its merits,
+    not waved through — which is precisely the laundering this classification could otherwise
+    become. PARSED with ast, never grepped, so a mention in a comment or a string cannot satisfy
+    it. [[source-reading-guard]]
+    """
+    import ast as _ast
+    import glob as _glob
+    for _f in _glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
+        try:
+            _t = _ast.parse(io.open(_f, encoding="utf-8").read())
+        except Exception:
+            continue
+        for _n in _ast.walk(_t):
+            if isinstance(_n, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and _n.name == name:
+                return True
+    return False
+
+
+def kind_of(src, name, dotted):
+    """classify(), plus the one distinction classify() cannot make. -> str
+
+    Returns FOREIGN only when ALL THREE hold: the target was reached through a receiver
+    (`x.method`), classify could not find a body, and no module in this package defines that name.
+    Anything less stays UNKNOWN, because an unknown that can be talked into being harmless is not
+    an unknown. [[unknown-stays-unknown]]
+    """
+    k = classify(src, name)
+    if k == "UNKNOWN" and name in dotted and not _defined_anywhere(name):
+        return "FOREIGN"
+    return k
+
+
 def classify(src, name):
     """-> 'LOOP' | 'TASK' | 'UNKNOWN'. UNKNOWN when the definition cannot be found, because
     'I could not look' and 'it runs once' are opposite facts."""
@@ -147,16 +184,28 @@ def classify(src, name):
 
 def census(src=None):
     src = src if src is not None else io.open(APP, encoding="utf-8").read()
-    starts, seen = [], set()
+    starts, seen, dotted = [], set(), set()
     for m in re.finditer(r"threading\.Thread\((.{0,200}?)\)", src, re.S):
         blob = m.group(1).replace("\n", " ")
         t = re.search(r"target\s*=\s*([A-Za-z_][\w.]*)", blob)
         if not t:
             continue
+        # ⚠⚠ v3034 — THE RECEIVER IS THROWN AWAY HERE, AND THAT IS WHAT MADE TWO THREADS
+        # UNKNOWN FOREVER. `threading.Thread(target=srv.serve_forever)` and `target=wp.wait`
+        # reduce to `serve_forever` and `wait`, and classify() then looks for a `def` of that
+        # name in control_app.py, finds none, and correctly answers UNKNOWN — "I could not
+        # look". But nobody could ever look, because those names are METHODS ON STDLIB OBJECTS
+        # and no definition of them exists in this repo at all. "I could not find the
+        # definition" and "this code is not ours" are different facts, and only the first is an
+        # unknown. Measured on his live console 2026-09-12: vessels 22, WATCHED 20, DARK 0,
+        # UNKNOWN 2 — and both UNKNOWNs were these. [[unknown-stays-unknown]]
+        _dotted = "." in t.group(1)
         name = t.group(1).split(".")[-1]
         if name in seen:
             continue
         seen.add(name)
+        if _dotted:
+            dotted.add(name)
         starts.append(name)
     rost = re.search(r"roster\s*=\s*\[(.*?)\n    \]", src, re.S)
     registered = dict((fn, lane) for lane, fn in
@@ -170,7 +219,7 @@ def census(src=None):
         # threading.Thread(target=fn), so the 11 supervised lanes hide behind a single local name
         # and the census reported "supervised 0" over a console that supervises eleven. A name is
         # not a thread; expand it to what it actually starts. [[the-unjoined-end]]
-        if n not in registered and registered and classify(src, n) == "UNKNOWN":
+        if n not in registered and registered and kind_of(src, n, dotted) == "UNKNOWN":
             # ⚠ EXPAND ONCE. A first cut expanded for EVERY unresolvable target name and there are
             # two (`fn` and `serve_forever`), so the roster was listed twice and the console read
             # as supervising 22 lanes when it supervises 11. A count that double-counts is the same
@@ -195,7 +244,7 @@ def census(src=None):
         _decl = (n in stamped["declared"]) or (n in stamped["strings"] and _beat is None
                                                and n not in stamped["tick_by_encloser"])
         _sup = (n in registered) or (_beat is not None) or _decl
-        out.append({"fn": n, "kind": classify(src, n),
+        out.append({"fn": n, "kind": kind_of(src, n, dotted),
                     "lane": registered.get(n) or _beat or (n if _decl else None),
                     "supervised": _sup,
                     "credit": ("roster" if n in registered else

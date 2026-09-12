@@ -60,7 +60,13 @@ UNKNOWN = "UNKNOWN"
 #: lane_census itself marks them "a roster entry would be a lie" — they are one-shot work kicked
 #: off by something else and they inherit their caller's vessel. Giving each its own would make the
 #: roster claim more runs without you than there are.
-NOT_A_VESSEL = ("TASK",)
+#: ⚠ v3034 — FOREIGN joins TASK. A FOREIGN row is a thread whose target is a method on another
+#: object (`srv.serve_forever`, `wp.wait`) for which NO module in this package defines a body. It
+#: is not a lane this console owns, so it has no roster entry to lack and no beat to miss. It is
+#: deliberately NOT folded into UNKNOWN: unknown means nobody looked, and here somebody did look,
+#: across the whole package, and found the code is not ours. The narrowness is enforced in
+#: lane_census.kind_of — receiver, no body, and undefined everywhere, or it stays UNKNOWN.
+NOT_A_VESSEL = ("TASK", "FOREIGN")
 
 
 def _census():
