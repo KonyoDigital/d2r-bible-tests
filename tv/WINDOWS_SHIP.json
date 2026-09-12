@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3034",
+  "ver": "v3035",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3034: the census called two stdlib methods UNKNOWN forever because it threw away the receiver, and the console cursor routed through var() so an unresolvable image-set became a plain arrow instead of falling back",
+  "note": "v3035: the fleet xref could only be closed by its own tiny cross while covering the whole console, its reachability was never once proven by clicking anything, and the river lane headers ate 57 percent of the band above the first reel card",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

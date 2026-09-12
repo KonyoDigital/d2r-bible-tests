@@ -2109,8 +2109,19 @@
      He was right — /api/river has published four lanes all along and the shelf rendered the nine
      stations flat. The lane banner is deliberately heavier than a station header: it is the part
      of the picture he asked for, and a station now reads as a step INSIDE a lane. */
+  /* ⚠⚠ v3035 — DENSITY, MEASURED, AND AIMED WHERE HE AIMED IT. Grok bot on his live console
+     2026-09-12, shelf open at vh=923: `scrollTop 0 · firstCardTop 531 · clientH 553` — 531px of
+     head above the first reel card in a 553px body, so the panel named after its cards showed
+     barely one. His own breakdown of that band: ~57% river lane/station headers INSIDE the grid,
+     ~16% .sh-head, ~16% .sh-search-wrap, ~11% .sh-filter-bar — and his instruction with it:
+     "the fix should chase River headers above the first card, not a title trim."
+     So the title, the search and the filter bar are deliberately NOT touched here.
+     Each lane header carried 28px of vertical margin and 17px of padding around a label and a
+     full-width sentence; this trims the box, never the sentence. The lane's own `shg-lanewhy`
+     stays — it is the backend's words for why the lane exists and is the reason the header earns
+     its place at all. [[unknown-stays-unknown]] */
   #th-shelfov .sh-riverlane { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px;
-    flex-wrap: wrap; margin: 22px 0 6px; padding: 9px 12px 8px; border-radius: 10px;
+    flex-wrap: wrap; margin: 10px 0 5px; padding: 7px 12px 6px; border-radius: 10px;
     border: 1px solid rgba(240,192,96,.22);
     background: linear-gradient(180deg, rgba(240,192,96,.10), rgba(240,192,96,.02)); }
   #th-shelfov .sh-riverlane:first-child { margin-top: 4px; }
@@ -2119,7 +2130,7 @@
   #th-shelfov .sh-riverlane .shg-n { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);
     color: #d9c9a0; letter-spacing: var(--ls-tight); }
   /* the lane's own sentence, from the backend — why this lane exists, in its words not mine */
-  #th-shelfov .sh-riverlane .shg-lanewhy { flex: 1 1 100%; font: var(--fw-medium) var(--fs-xs)/1.45 var(--mono);
+  #th-shelfov .sh-riverlane .shg-lanewhy { flex: 1 1 100%; font: var(--fw-medium) var(--fs-xs)/1.3 var(--mono);
     color: rgba(217,201,160,.72); letter-spacing: var(--ls-tight); }
   /* ⚠ THE KEY STAYS VISIBLE, DIMMED. The label is what he reads; the key is what the stores, the
      journal and every log line still say. Hiding it would make his screen and his data disagree
@@ -13666,6 +13677,32 @@ window._lockMark = function(isOpen, px, label){
     document.addEventListener('keydown', function(ev){
       if (ev.key === 'Escape') _verXrefClose();
     });
+
+    /* ⚠⚠ v3035 — #fleet-xref IS THE ORIGINAL OF THESE THREE PANELS AND THE ONLY ONE THAT COULD
+       NOT BE DISMISSED. #heart-ov and #ver-xref both got a backdrop click and an Escape when they
+       copied this shell; the panel they copied FROM kept only its ✕. It is `position:fixed;
+       inset:0; z-index:940`, so once open it covers the entire console until that one small
+       button is found.
+
+       MEASURED by the Grok bot on his live screen, 2026-09-12: opening THE SHELF showed a
+       centered "yours vs theirs" dialog over the reel stage, with the shelf chrome visible around
+       it. Nothing opens this dialog automatically — all three call sites are explicit clicks — so
+       what it actually recorded is a dialog left open from earlier that nothing could close.
+
+       Exactly the shape of the same day's CSS defect: the two later panels were given the fix and
+       the original they were copied from was not. [[the-unjoined-end]] [[sweep-dont-ask]] */
+    var _fxOv = document.getElementById('fleet-xref');
+    if (_fxOv) {
+      /* addEventListener, never .onclick — the ✕ buttons carry their own inline handlers and an
+         assignment here would silently replace whatever else is bound. */
+      _fxOv.addEventListener('click', function(ev){
+        /* the backdrop only; clicks inside the window must not close it mid-read */
+        if (ev.target === _fxOv) _fxOv.hidden = true;
+      });
+      document.addEventListener('keydown', function(ev){
+        if (ev.key === 'Escape' && !_fxOv.hidden) _fxOv.hidden = true;
+      });
+    }
   } catch (e) {}
 
   function _shLiveRender(st){

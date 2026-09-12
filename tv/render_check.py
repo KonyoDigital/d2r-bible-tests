@@ -1370,14 +1370,42 @@ TARGETS = {
               }
               return _f.apply(this, arguments);
             };
+            // ⚠⚠ v3035 — AND THE ROSTER IS STUBBED TOO, BECAUSE THIS TARGET NOW OPENS THE
+            // DIALOG THE WAY HE DOES: BY CLICKING A FLEET ROW. The Grok bot tapped the Dean row,
+            // the Dean eye, the Wife row and double-clicked Dean on his live console and NO
+            // dialog appeared — while his own screenshot from earlier the same day shows it open
+            // and populated. Calling _fleetCompare() directly, as the first cut did, proves the
+            // dialog RENDERS and says nothing about whether anything can OPEN it, which is
+            // exactly the half that was in doubt. [[the-unjoined-end]]
+            if (String(u).indexOf('/api/fleet') === 0) {
+                return Promise.resolve(new Response(JSON.stringify({
+                  ok: true,
+                  online: [{machine:'Dean', ver:'v3033'}, {machine:'Konyo', ver:'v3033'}],
+                  offline: [{machine:'Wife PC', ver:'v2101'}]
+                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+              }
             var _b = document.getElementById('fleet-xref');
             if (_b) { _b.innerHTML = ''; _b.hidden = true; }
-            if (window._fleetCompare) { try { window._fleetCompare('Dean', 'uniques'); } catch(e){} }
+            var _l = document.getElementById('fleet-list');
+            if (_l) _l.innerHTML = '';
+            if (window._fleetRefresh) { try { window._fleetRefresh(); } catch(e){} }
             return 1;
           })()""",
+        # ⚠ THE CLICK LIVES IN THE ACTIVATION, NOT THE SEED, because the seed runs once and the
+        # rows arrive asynchronously after _fleetRefresh(). Activation is polled, so it can wait
+        # for a row to exist and then click it exactly once — which makes REACHABILITY part of
+        # what this target refuses on, not an assumption behind it.
         "activate": """(function(){
             var box = document.getElementById('fleet-xref');
-            if (!box || box.hidden) return false;
+            if (!box) return false;
+            if (!window.__fxClicked) {
+              var row = document.querySelector('.fleet-row[data-fleet-machine]');
+              if (!row) return false;
+              window.__fxClicked = 1;
+              row.click();
+              return false;
+            }
+            if (box.hidden) return false;
             var cols = box.querySelector('.fx-cols'), foot = box.querySelector('.fx-foot');
             var hs = box.querySelectorAll('.fx-col-h');
             if (!cols || !foot || hs.length !== 3) return false;
