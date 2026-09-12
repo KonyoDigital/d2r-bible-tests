@@ -109,13 +109,32 @@ def waking(lane):
         _DORMANT.pop(str(lane or "").strip(), None)
 
 
-def tick(lane, every_s=None):
+def tick(lane, every_s=None, dead_after_s=None):
     """Record that `lane` just ran a cycle. Called from inside the loop, once per turn.
 
     `every_s` is the loop's OWN sleep interval, passed from the loop that owns it rather than
     inferred here — see the module docstring for why a single global threshold is wrong by three
     orders of magnitude. Pass None when the interval is computed at runtime; that is UNTIMED, and
     it is an honest answer.
+
+    ⚠⚠ v2994 — `dead_after_s` EXISTS BECAUSE ONE FIELD WAS CARRYING TWO QUESTIONS, and a lane that
+    could not answer the first lost the second as the price. `every_s` answers *how often does this
+    run* — it is what prints "against its own 30s period - 2 missed cycles". LATE actually needs a
+    different question: *how long may this be silent before the THREAD is dead*. For a fixed-sleep
+    lane the two coincide and `every_s * STALE_SLACK` serves both. For a computed-sleep lane they
+    come apart, and there was no way to say "no fixed period, but certainly dead after 60s" — so
+    the three loops that sleep on a branch were handed `every_s=None` and became permanently
+    UNTIMED, which is honest about the period and silently gives up the red path.
+
+    Measured on his console 2026-09-12, over a 90s window: `_bridge_prober` ticks every 1.2s,
+    `_engine_driver` every 2.0s, `_kai_closer_loop` every 30.0s — and all three reported UNTIMED,
+    so no silence, of any length, could ever turn them red. 3 of 20 lanes, each one alive and each
+    one unfalsifiable.
+
+    ⚠ DO NOT "FIX" THIS BY PADDING `every_s` INSTEAD. A ceiling passed as a period makes the report
+    print a period the lane does not have — `_bridge_prober` would read "its own 30s period" about a
+    loop that sleeps 1.2s. That is [[label-outlived-referent]] with the number still technically
+    correct, which is the version of it that survives review.
     """
     lane = str(lane or "").strip()
     if not lane:
@@ -126,10 +145,16 @@ def tick(lane, every_s=None):
         every = None
     if every is not None and every <= 0:
         every = None
+    try:
+        dead = float(dead_after_s) if dead_after_s is not None else None
+    except (TypeError, ValueError):
+        dead = None
+    if dead is not None and dead <= 0:
+        dead = None
     with _LOCK:
         row = _TICKS.get(lane)
         if row is None:
-            row = {"mono": None, "everyS": every, "n": 0}
+            row = {"mono": None, "everyS": every, "deadAfterS": dead, "n": 0}
             _TICKS[lane] = row
         row["mono"] = time.monotonic()
         row["n"] += 1
@@ -137,16 +162,25 @@ def tick(lane, every_s=None):
         # interval is env-tunable would otherwise be graded forever against whatever it happened to
         # hold the first time it ran. [[label-outlived-referent]]
         row["everyS"] = every
+        # ⚠ SAME REASON AS THE LINE ABOVE — taken from the most recent stamp, so a bound that is
+        # widened or tightened in code is not graded against whatever it held at first sight.
+        row["deadAfterS"] = dead
 
 
 def _row(lane, row, now):
     age = None if row.get("mono") is None else max(0.0, now - row["mono"])
     every = row.get("everyS")
+    dead = row.get("deadAfterS")
+    # v2994 — the silence bound, and which of the two questions produced it. A period implies a
+    # bound (period x slack); a declared bound stands on its own and implies NO period.
+    _bound = (round(every * STALE_SLACK, 1) if every is not None
+              else (round(dead, 1) if dead is not None else None))
     out = {"lane": lane, "ticks": int(row.get("n") or 0), "everyS": every,
+           "deadAfterS": dead,
            "tickAgeS": (None if age is None else round(age, 1)),
            # ⚠ REG-547 SHAPE LAW — `bound` is present on every path, so "no bound" and "never
            # computed" cannot render identically.
-           "boundS": (None if every is None else round(every * STALE_SLACK, 1))}
+           "boundS": _bound}
     if age is None:
         with _LOCK:
             _why = _DORMANT.get(lane)
@@ -161,9 +195,26 @@ def _row(lane, row, now):
                       "be switched off, or the console may never have started it. Nobody looked.")
         return out
     if every is None:
+        # ⚠⚠ v2994 — A COMPUTED SLEEP IS NOT A REASON TO BE UNFALSIFIABLE. A lane may honestly have
+        # no fixed period and STILL know a length of silence it can never legitimately reach. When
+        # it declares one, staleness IS decidable and this stops being UNTIMED.
+        if dead is not None:
+            if age > dead:
+                out["state"] = LATE
+                out["why"] = ("it last ran %.0fs ago. It declares no fixed period - its sleep is "
+                              "chosen per branch - but no path through it can be silent for %.0fs, "
+                              "which is its own declared bound. That is silence from the THREAD, "
+                              "not a slow turn." % (age, dead))
+                return out
+            out["state"] = FLOWING
+            out["why"] = ("it ran %.0fs ago. It declares no fixed period (its sleep is computed), "
+                          "so this is measured against the longest silence it says is possible, "
+                          "%.0fs." % (age, dead))
+            return out
         out["state"] = UNTIMED
-        out["why"] = ("it last ran %.0fs ago, and it declares no fixed period (its sleep is "
-                      "computed), so whether that is late cannot be decided from here" % age)
+        out["why"] = ("it last ran %.0fs ago, it declares no fixed period (its sleep is "
+                      "computed) AND no bound on how long it may be silent, so whether that is "
+                      "late cannot be decided from here" % age)
         return out
     if age > every * STALE_SLACK:
         out["state"] = LATE
@@ -206,7 +257,8 @@ def report(now=None):
                "console that has just started looks like, and also what a console whose loops "
                "never started looks like - the two are not distinguishable from here.")
     elif counts["late"]:
-        why = ("%d lane(s) have missed more than %g of their own periods"
+        why = ("%d lane(s) are silent past their own bound (a period x%g, or a declared "
+               "maximum silence for the lanes whose sleep is computed)"
                % (counts["late"], STALE_SLACK))
     else:
         why = "%d lane(s) ticking within their own periods" % counts["flowing"]

@@ -2790,7 +2790,11 @@ def _bridge_prober():
     while True:
         try:
             now = time.time()
-            _lane_tick('_bridge_prober', None)
+            # v2994 — no fixed period to declare: one fixed 1.2s sleep, but its turn also does the bridge
+            #   HTTP fetches this thread exists to absorb, and its own docstring records those choking under
+            #   full D2R load. Measured idle 2026-09-12: every tick 1.20s. 30s is ~25x that and far past any
+            #   loaded turn.
+            _lane_tick('_bridge_prober', None, dead_after_s=30)
             # v1435 — prefer single /state; fall back to ping-only keepalive
             st_new = _bridge_state()
             if st_new is not None:
@@ -9575,7 +9579,10 @@ def _kai_closer_loop():
     while True:
         try:
             time.sleep(30.0)
-            _lane_tick('_kai_closer_loop', None)
+            # v2994 — no fixed period to declare: eight sleeps, 0.08s to 30.0s; a single turn taking the
+            #   slow branches is ~79s of sleeping alone. Measured 2026-09-12: every tick 30.0s. 240s is 3x
+            #   the worst path.
+            _lane_tick('_kai_closer_loop', None, dead_after_s=240)
             if not os.path.isdir(hist):
                 continue
             # v937.3 (Grok gate #1/#2) — KAI works ONLY between sessions: closing a reel
@@ -10922,7 +10929,10 @@ def _engine_driver():
     while True:
         try:
             time.sleep(2.0)
-            _lane_tick('_engine_driver', None)
+            # v2994 — no fixed period to declare: sleeps 2.0s at the top and 1.0s/3.0s on branches, then
+            #   drives evaluate_js into a WKWebView that can be slow to answer. Worst sleep path ~6s.
+            #   Measured 2026-09-12: every tick 2.00s.
+            _lane_tick('_engine_driver', None, dead_after_s=60)
             # v1410 — window ✕: exit cleanly. Never evaluate_js a dead WKWebView (hang class).
             if not globals().get("_WINDOW_LIVE"):
                 print("🔌 engine driver stop — window gone (✕)", flush=True)
@@ -13101,7 +13111,7 @@ def _lane_waking(lane):
         pass
 
 
-def _lane_tick(lane, every_s=None):
+def _lane_tick(lane, every_s=None, dead_after_s=None):
     """Stamp that a background loop just ran a cycle. Never raises into the loop.
 
     ⚠⚠ THIS IS NOT THE HEARTBEAT HIS A1 RULING CANCELLED, and the difference is the whole reason
@@ -13121,10 +13131,17 @@ def _lane_tick(lane, every_s=None):
     ⚠ The period is passed BY THE LOOP because the loops differ by 1,800x — `_mini_watchdog`
     sleeps 0.5s, `_retention_loop` sleeps 900s. See lane_liveness for why one constant cannot
     serve both. [[feedback-threshold-above-the-ceiling]]
+
+    ⚠⚠ v2994 — PASS `dead_after_s` WHEN THE SLEEP IS CHOSEN PER BRANCH AND `every_s` CANNOT BE
+    ANSWERED. Three loops here sleep on a branch, so they correctly passed `every_s=None` — and
+    UNTIMED can never go red, so all three were alive and unfalsifiable at once. A lane that
+    cannot answer "how often" can still answer "how long may I be silent before I am dead"; that
+    second answer is what LATE actually needs. Never pad `every_s` to fake it — the report would
+    print a period the loop does not have. [[label-outlived-referent]]
     """
     try:
         import lane_liveness as _ll
-        _ll.tick(lane, every_s)
+        _ll.tick(lane, every_s, dead_after_s)
     except Exception:
         # ⚠ A LIVENESS STAMP MAY NEVER KILL THE LANE IT IS WATCHING. If this raised inside the
         # try of a supervisor loop it would be caught by that loop's own handler and look like a
@@ -26639,7 +26656,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2993",
+        "ver": "v2994",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

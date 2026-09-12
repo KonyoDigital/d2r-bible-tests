@@ -1084,9 +1084,30 @@ GATES = [
              "(that would be UNKNOWN in a calmer word), a declared lane must produce a ROW or the "
              "declaration is plumbing with no tap, and a lane that ticks is never reported dormant "
              "— a declaration must never outrank a measurement. ⚠ The three UNTIMED lanes were "
-             "deliberately left alone: _engine_driver has four different sleeps and lane_liveness "
-             "calls UNTIMED 'a third answer, not a soft version of either other one'. Declaring a "
-             "period they do not have would manufacture false LATEs.",
+             "left alone HERE, and that reasoning still holds: _engine_driver has four different "
+             "sleeps, lane_liveness calls UNTIMED 'a third answer, not a soft version of either "
+             "other one', and declaring a period they do not have would manufacture false LATEs. "
+             "SUPERSEDED IN PART by v2994 — the right move was never a period but a BOUND: see "
+             "test_a_lane_with_no_period_can_still_go_red, which keeps every_s=None on all three "
+             "and gives them a declared maximum silence instead, so they can finally go red "
+             "without printing a period they do not have.",
+         skip_ok=()),
+    Gate("test_a_lane_with_no_period_can_still_go_red",
+         [sys.executable, os.path.join(HERE, "test_a_lane_with_no_period_can_still_go_red.py")], 60,
+         why="A COMPUTED SLEEP IS NOT A LICENCE TO BE UNFALSIFIABLE. lane_liveness had ONE field "
+             "carrying TWO questions: every_s answers 'how often does this run' (it prints "
+             "'against its own 30s period'), while LATE actually needs 'how long may this be "
+             "silent before the THREAD is dead'. They coincide for a fixed-sleep lane and come "
+             "apart for a loop that sleeps on a branch — so those three passed every_s=None, "
+             "became permanently UNTIMED, and no silence of any length could turn them red. "
+             "MEASURED on his console 2026-09-12 over 90s: _bridge_prober ticked every 1.2s, "
+             "_engine_driver every 2.0s, _kai_closer_loop every 30.0s — all three UNTIMED. Three "
+             "of twenty lanes, each alive and each unfalsifiable. ⚠ The tempting wrong fix is to "
+             "pad every_s, which buys the red path by printing a period the loop does not have; "
+             "one test refuses that, and another refuses a bound BELOW the loop's own worst "
+             "sleep, which would report a healthy turn as a dead thread. Proven red three ways: "
+             "disabling the bounded path, stripping a real call site's bound, and setting a bound "
+             "under the loop's own 30.0s sleep.",
          skip_ok=()),
     Gate("test_a_witness_written_for_the_rescue_is_called_by_it",
          [sys.executable, os.path.join(HERE, "test_a_witness_written_for_the_rescue_is_called_by_it.py")], 90,
