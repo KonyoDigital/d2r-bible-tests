@@ -50,11 +50,31 @@ function node(o){
     scrollTop: o.scrollTop === undefined ? 0 : o.scrollTop,
     getBoundingClientRect: function(){ return o.rect || {height:0,width:0,top:0,bottom:0,left:0,right:0}; },
     getClientRects: o.noRects ? undefined : function(){ return new Array(o.boxes === undefined ? 1 : o.boxes); },
-    querySelectorAll: function(){ return new Array(o.cards === undefined ? 0 : o.cards); },
-    querySelector: function(){
-      if (o.firstCardTop === undefined || o.firstCardTop === null) return null;
+    /* ⚠ CARDS ARE MODELLED WITH A `style.display`, because _shFilter hides filtered-out cards
+       that way and the shipped block now filters on it. A stub of bare array slots could not tell
+       a hidden card from a shown one, which is exactly the blind spot that let a negative
+       firstCardTop ship. `hidden` = how many of the cards are display:none. */
+    querySelectorAll: function(sel){
+      var n = o.cards === undefined ? 0 : o.cards;
+      var hid = o.hiddenCards === undefined ? 0 : o.hiddenCards;
       var base = (o.rect && o.rect.top) || 0;
-      return { getBoundingClientRect: function(){ return { top: base + o.firstCardTop }; } };
+      var out = [];
+      for (var i = 0; i < n; i++){
+        out.push({
+          style: { display: i < hid ? 'none' : '' },
+          getBoundingClientRect: (function(idx){ return function(){
+            /* a display:none node reports an all-zero rect in a real browser */
+            if (idx < hid) return { top: 0, height: 0, width: 0 };
+            var ft = (o.firstCardTop === undefined || o.firstCardTop === null) ? 0 : o.firstCardTop;
+            return { top: base + ft };
+          }; })(i)
+        });
+      }
+      return out;
+    },
+    querySelector: function(sel){
+      if (String(sel).indexOf('sh-empty-hero') >= 0) return o.emptyHero ? {} : null;
+      return null;
     }
   };
 }
@@ -145,6 +165,31 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         o = self._run(rect=self.BIG, boxes=1, cards=535, preShelf=dict(self.PRE))
         self.assertEqual(sh(o).get("box"), "shown")
 
+    def test_a_filtered_card_is_not_counted_as_on_screen(self):
+        """⚠⚠ THE DEFECT THIS PINS. `_shFilter` sets `display:none` on filtered-out cards, and a
+        hidden node reports an ALL-ZERO rect — so taking the first `.sh-card` blindly produced
+        `firstCardTop = 0 - 102 + 0 = -102`, which is less than any clientH, so the
+        OPENS-ON-NOTHING check silently could not fire for as long as a filter was on. A shelf
+        showing him zero reels read as healthy."""
+        o = self._run(rect=self.BIG, boxes=1, cards=535, hiddenCards=535,
+                      preShelf=dict(self.PRE), scrollH=21000, clientH=361, scrollTop=0,
+                      firstCardTop=957)
+        got = sh(o)
+        self.assertEqual(got.get("gridCards"), 535, "they are still BUILT")
+        self.assertEqual(got.get("visibleCards"), 0, "and none of them is on screen")
+        self.assertIsNone(got.get("firstCardTop"),
+                          "with no visible card there is no first card top — and it must be null, "
+                          "never a negative number that quietly satisfies every threshold")
+
+    def test_the_empty_hero_is_reported_so_no_runs_yet_is_not_a_fault(self):
+        """`filled` is always true while open (the overlay ships its own chrome, and _txt > 40),
+        so the doctor cannot use it to tell an honestly-empty shelf from a broken one."""
+        o = self._run(rect=self.BIG, boxes=1, cards=0, emptyHero=True, preShelf=dict(self.PRE),
+                      clientH=361, scrollTop=0)
+        self.assertIs(sh(o).get("emptyHero"), True,
+                      "a console with no runs yet renders the empty hero, and that is a correct "
+                      "state the heart must not call a fault")
+
     # ── the false red it must never produce ───────────────────────────────────────────────────
     def test_a_closed_shelf_is_not_a_fault(self):
         """⚠ THE TRAP. The `panels` roster calls a hidden panel DARK — "the fault, and only this".
@@ -201,6 +246,8 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         o = self._run(rect=self.BIG, boxes=1, cards=535, preShelf=dict(self.PRE),
                       scrollH=21000, clientH=361, scrollTop=0, firstCardTop=957)
         got = sh(o)
+        self.assertEqual(got.get("visibleCards"), 535,
+                         "with no filter active every built card is visible")
         self.assertEqual(got.get("scrollH"), 21000)
         self.assertEqual(got.get("clientH"), 361)
         self.assertEqual(got.get("firstCardTop"), 957,
@@ -237,9 +284,9 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         blk = _block()
         if blk is None:
             self.skipTest("the shelf geometry block moved — a skip is NOT a pass")
-        key = "o.shelf.gridCards = ov.querySelectorAll("
+        key = "var _all = [].slice.call(ov.querySelectorAll("
         a = blk.find(key)
-        self.assertGreater(a, -1, "gridCards is no longer assigned from a querySelectorAll")
+        self.assertGreater(a, -1, "the grid card list is no longer built from a querySelectorAll")
         b = blk.find(")", a + len(key))
         self.assertGreater(b, a, "the gridCards selector is unterminated")
         sel = blk[a + len(key):b].strip().strip("'\"")
@@ -332,11 +379,12 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "dropping firstCardTop removes the one number that tells a furniture problem from a "
-               "paint failure, and the shelf opens on nothing again with every reading green",
+        "why": "taking the first card without checking display:none is the defect verbatim: a "
+               "filtered-out card reports an all-zero rect, firstCardTop goes NEGATIVE, and the "
+               "OPENS-ON-NOTHING check silently cannot fire while any filter is on",
         "file": "control_ui.html",
-        "find": "                  var _fc = ov.querySelector('.sh-grid .sh-card');",
-        "replace": "                  var _fc = null;",
+        "find": "                    if (_cs[_i].style.display !== 'none'){ _fc = _cs[_i]; break; }",
+        "replace": "                    if (true){ _fc = _cs[_i]; break; }",
         "matches": 1,
     },
     {
@@ -366,16 +414,16 @@ RED_PROOF = [
         "why": "dropping the card count leaves a rect with no fill beside it, so the two halves "
                "can never contradict one another and the corroborator pair is gone",
         "file": "control_ui.html",
-        "find": "                try { o.shelf.gridCards = ov.querySelectorAll('.sh-grid .sh-card').length; }",
-        "replace": "                try { o.shelf.gridCardsGONE = 0; }",
+        "find": "                  var _vis = _all.filter(function(c){ return c.style.display !== 'none'; });",
+        "replace": "                  var _vis = _all;",
         "matches": 1,
     },
     {
         "why": "putting the render target's clip-watching selector back makes gridCards count 2-3 "
                "elements per card again — the 535 vs 1208 his console actually published",
         "file": "control_ui.html",
-        "find": "ov.querySelectorAll('.sh-grid .sh-card').length",
-        "replace": "ov.querySelectorAll('.shc-hero, .shc-sess, .shc-area').length",
+        "find": "                  var _all = [].slice.call(ov.querySelectorAll('.sh-grid .sh-card'));",
+        "replace": "                  var _all = [].slice.call(ov.querySelectorAll('.shc-hero, .shc-sess, .shc-area'));",
         "matches": 1,
     },
     {

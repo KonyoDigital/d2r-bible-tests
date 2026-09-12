@@ -9579,10 +9579,20 @@ def _kai_closer_loop():
     while True:
         try:
             time.sleep(30.0)
-            # v2994 — no fixed period to declare: eight sleeps, 0.08s to 30.0s; a single turn taking the
-            #   slow branches is ~79s of sleeping alone. Measured 2026-09-12: every tick 30.0s. 240s is 3x
-            #   the worst path.
-            _lane_tick('_kai_closer_loop', None, dead_after_s=240)
+            # ⚠⚠ v3001 — THE v2994 BOUND HERE WAS A FALSE RED AND IT IS WITHDRAWN. That comment
+            #   said "~79s of sleeping alone", taken from the largest single time.sleep() literal.
+            #   It is wrong: five of the eight sleeps sit INSIDE inner loops. sleep(6.0) runs under
+            #   `while monotonic - t0 < 120.0` which is itself inside `for _ff in _frames_q[:4]`, so
+            #   that ONE path is up to 480s; sleep(5.0) runs under `while ... < 40.0`. Loop-aware,
+            #   the derived worst path is 609s against a 240s bound — so a perfectly healthy turn
+            #   would have been reported as a dead thread.
+            #   AND IT CANNOT BE FIXED BY A BIGGER NUMBER: four of those sleeps are under UNBOUNDED
+            #   `for` loops (`for it in frames`, `for _sc in _super_cands`, ...), so there is no
+            #   static ceiling to derive. UNTIMED is the honest state for this lane — lane_liveness
+            #   calls it "a third answer, not a soft version of either other one" — and a bound that
+            #   cries wolf on a healthy turn is one he learns to skip, which costs more than the red
+            #   path it buys. [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+            _lane_tick('_kai_closer_loop', None)
             if not os.path.isdir(hist):
                 continue
             # v937.3 (Grok gate #1/#2) — KAI works ONLY between sessions: closing a reel
@@ -26656,7 +26666,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3000",
+        "ver": "v3001",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

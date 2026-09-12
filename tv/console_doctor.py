@@ -2921,13 +2921,26 @@ def _check_the_shelf_is_where_it_says_it_is():
         # verdict in `why` ("the shelf overlay is open and carries no cards and no text") and this
         # file had ZERO readers of it. A corroborator whose second half never reaches the verdict
         # is one half wearing the name of two. [[the-unjoined-end]] [[plumbing-with-no-tap]]
-        _empty = (shelf.get("filled") is False) or (cards == 0 and grid == 0)
+        # ⚠⚠ v3001 — THE v2998 PREDICATE FIRED ON A CORRECT UI STATE AND COULD NOT FIRE ON THE
+        # REAL ONE. `filled` is `!!(_cards > 0 || _txt > 40)` and the overlay always ships its own
+        # heading and status chrome, so `filled` is ALWAYS true while open and `why` is ALWAYS
+        # null — the first disjunct was unreachable, and the second (`cards == 0 and grid == 0`)
+        # matches the DELIBERATE "No runs recorded yet" hero. So it reported MISSING about a
+        # console behaving correctly, while printing "the page itself says: filled=false" over a
+        # payload that said filled=true. A row that cries wolf is one he learns to skip.
+        _vis = shelf.get("visibleCards")
+        if shelf.get("emptyHero") is True:
+            return OK, ("the shelf is open and on screen and has no runs to show yet — the empty "
+                        "hero is rendered, which is the correct state, not a fault")
+        _empty = (isinstance(_vis, int) and _vis == 0) or (cards == 0 and grid == 0)
         if _empty:
-            return MISSING, ("THE SHELF IS OPEN AND ON SCREEN AND CARRIES NOTHING — %sx%s at top "
-                             "%s, and the page itself says: %s. The box is real, so this is not a "
-                             "layout fault; nothing was put in it."
+            return MISSING, ("THE SHELF IS OPEN AND ON SCREEN AND SHOWS NO REEL — %sx%s at top %s; "
+                             "%s card(s) built, %s visible. The box is real and the empty-hero is "
+                             "NOT rendered, so this is neither a layout fault nor an honest empty "
+                             "shelf: something was built and none of it is on screen."
                              % (shelf.get("w"), shelf.get("h"), shelf.get("top"),
-                                shelf.get("why") or "filled=false with no reason given"))
+                                "UNKNOWN" if grid is None else grid,
+                                "UNKNOWN" if _vis is None else _vis))
         # ⚠⚠ v2999 — A REAL BOX WITH EVERY CARD BELOW ITS OWN FOLD IS THE FAULT HE PHOTOGRAPHED.
         # v2996 proved the overlay is `shown`; his eyes still read an empty dark stage, and the two
         # were both honest because nothing asked where the first CARD sits inside the scroller.

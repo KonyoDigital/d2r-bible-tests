@@ -24587,7 +24587,17 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                    361px box. A furniture problem and a paint failure look identical from outside
                    and this tells them apart without eyes. */
                 try {
-                  var _fc = ov.querySelector('.sh-grid .sh-card');
+                  /* ⚠ COMPUTES ITS OWN VISIBLE LIST. A first cut read a `_firstVisible` field set
+                     by the card-count block THIRTY-FIVE LINES BELOW this one, so it was always
+                     undefined and firstCardTop was permanently null — the v2999 instrument dead on
+                     arrival, with every other reading still green. Order-dependence between two
+                     blocks in one object literal is not worth the shared work.
+                     [[the-unjoined-end]] */
+                  var _fc = null;
+                  var _cs = ov.querySelectorAll('.sh-grid .sh-card');
+                  for (var _i = 0; _i < _cs.length; _i++){
+                    if (_cs[_i].style.display !== 'none'){ _fc = _cs[_i]; break; }
+                  }
                   o.shelf.firstCardTop = (_fc && r)
                     ? Math.round(_fc.getBoundingClientRect().top - r.top + (ov.scrollTop || 0))
                     : null;
@@ -24608,8 +24618,24 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                    .sh-card/.shs-wrow/.sh-run anywhere in the overlay. Two selectors asking the
                    same question two ways: agreement is a corroboration, and a DISAGREEMENT means
                    cards exist outside the grid, which is worth seeing. */
-                try { o.shelf.gridCards = ov.querySelectorAll('.sh-grid .sh-card').length; }
-                catch(e){ o.shelf.gridCards = null; }
+                try {
+                  var _all = [].slice.call(ov.querySelectorAll('.sh-grid .sh-card'));
+                  /* \u26a0\u26a0 v3001 \u2014 A FILTERED CARD IS STILL IN THE DOM AND IS NOT ON HIS SCREEN.
+                     `_shFilter` sets `c.style.display = hit ? '' : 'none'` on every card, so with a
+                     search or filter active a COUNT of .sh-card still returns all of them and
+                     `querySelector` hands back a HIDDEN first card whose rect is all zeros \u2014 which
+                     made firstCardTop negative (-102 measured) and quietly disabled the
+                     OPENS-ON-NOTHING check for as long as a filter was on. The correct predicate
+                     was one function away the whole time: `_shGroups` already filters on
+                     `c.style.display !== 'none'`. Both numbers are published because they answer
+                     different questions: built vs on screen. */
+                  var _vis = _all.filter(function(c){ return c.style.display !== 'none'; });
+                  o.shelf.gridCards = _all.length;
+                  o.shelf.visibleCards = _vis.length;
+                } catch(e){ o.shelf.gridCards = null; o.shelf.visibleCards = null; }
+                /* the legitimate empty state, so a console with NO RUNS YET is never called a fault */
+                try { o.shelf.emptyHero = !!ov.querySelector('.sh-empty-hero'); }
+                catch(e){ o.shelf.emptyHero = null; }
               })();
               return o;
             })()

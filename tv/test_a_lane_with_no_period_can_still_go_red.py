@@ -83,35 +83,88 @@ def _literal_seconds(node):
     return []
 
 
+def _loop_context(fn):
+    """-> {node: (multiplier, clock_cap, unbounded)} for every sleep call in `fn`."""
+    parents = {}
+    for n in ast.walk(fn):
+        for c in ast.iter_child_nodes(n):
+            parents[c] = n
+    return parents
+
+
+def _slice_bound(node):
+    """`for x in SEQ[:N]` -> N. Anything else -> None, meaning the count is not knowable here."""
+    if isinstance(node, ast.For) and isinstance(node.iter, ast.Subscript):
+        sl = node.iter.slice
+        if isinstance(sl, ast.Slice) and isinstance(sl.upper, ast.Constant):
+            return sl.upper.value
+    return None
+
+
+def _while_seconds(node):
+    """`while monotonic() - t0 < T:` -> T, the wall-clock cap on that level."""
+    if isinstance(node, ast.While):
+        for c in ast.walk(node.test):
+            if isinstance(c, ast.Constant) and isinstance(c.value, (int, float)) and c.value >= 1:
+                return float(c.value)
+    return None
+
+
 def _worst_sleep_path_in(tree, fname):
-    """-> an upper bound on how long ONE turn of this loop can spend sleeping, or None.
+    """-> (seconds, unbounded) — how long ONE turn can spend sleeping, and whether that is knowable.
 
-    ⚠⚠ v2998 — THIS TOOK THE LARGEST SINGLE `time.sleep()` AND THAT IS NOT THE QUANTITY THE LAW
-    NEEDS. control_app.py's own v2994 comment says `_kai_closer_loop` has "eight sleeps, 0.08s to
-    30.0s; a single turn taking the slow branches is ~79s of sleeping alone" — while the largest
-    single literal is 30.0. So a bound of 31 would have PASSED this law and then reported a
-    perfectly healthy 79s turn as a dead thread: the exact false-LATE the law exists to refuse,
-    admitted by the law itself. The guard's threshold was smaller than the defect it guards.
+    ⚠⚠ v3001 — THE v2998 VERSION COUNTED EACH `time.sleep()` ONCE AND WAS WRONG BY 6x ON A LIVE
+    LANE. Five of `_kai_closer_loop`'s eight sleeps sit INSIDE inner loops: sleep(6.0) runs under
+    `while monotonic - t0 < 120.0`, itself inside `for _ff in _frames_q[:4]` — that ONE path is up
+    to 480s. Summing the literals gave 99.08s and blessed a 240s bound; loop-aware the derived path
+    is 609s, so the law certified a bound that would report a HEALTHY turn as a dead thread. The
+    guard's own threshold was smaller than the defect, in the opposite direction from v2998's fix.
 
-    SEPARATE STATEMENTS ADD; the branches of one IfExp are exclusive, so those take the larger.
-    That over-counts a turn that cannot reach every sleep, which is the safe direction for a
-    CEILING — a bound must clear the worst case, and over-estimating the worst case only ever
-    makes the law stricter. None means it could not be read, which the caller treats as a refusal
-    rather than a pass. [[feedback-threshold-above-the-ceiling]] [[source-reading-guard]]
+    ⚠ AND `unbounded` IS THE LOAD-BEARING HALF. Four of those sleeps are under `for it in frames` /
+    `for _sc in _super_cands` — no literal caps them, so there is NO static ceiling to derive. A
+    number returned for such a loop would be a guess wearing a measurement's clothes, and the
+    caller must refuse to bless any bound at all rather than pick a bigger one.
+    [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
     """
     for fn in ast.walk(tree):
-        if isinstance(fn, ast.FunctionDef) and fn.name == fname:
-            total = 0.0
-            seen = False
-            for n in ast.walk(fn):
-                if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                        and n.func.attr == "sleep" and n.args):
-                    vals = _literal_seconds(n.args[0])
-                    if vals:
-                        seen = True
-                        total += max(vals)      # one call contributes once, at its largest branch
-            return total if seen else None
-    return None
+        if not (isinstance(fn, ast.FunctionDef) and fn.name == fname):
+            continue
+        parents = _loop_context(fn)
+        total, seen, unbounded = 0.0, False, False
+        for n in ast.walk(fn):
+            if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr == "sleep" and n.args):
+                continue
+            vals = _literal_seconds(n.args[0])
+            if not vals:
+                continue
+            seen = True
+            contrib, mult, p = max(vals), 1, parents.get(n)
+            while p is not None and p is not fn:
+                if isinstance(p, ast.While):
+                    cap = _while_seconds(p)
+                    if cap:
+                        contrib = max(contrib, cap)     # the while's clock caps that level
+                elif isinstance(p, ast.For):
+                    b = _slice_bound(p)
+                    if b is None:
+                        unbounded = True
+                    else:
+                        mult *= b
+                p = parents.get(p)
+            total += contrib * mult
+        return (total, unbounded) if seen else (None, False)
+    return (None, False)
+
+
+def _periodless_tick_lanes(tree):
+    """-> {lane: call} for every _lane_tick that passes every_s=None (positionally or by name)."""
+    out = {}
+    for lane, call in _tick_calls(tree).items():
+        every = call.args[1] if len(call.args) > 1 else _kw(call, "every_s")
+        if every is None or (isinstance(every, ast.Constant) and every.value is None):
+            out[lane] = call
+    return out
 
 
 class ALaneWithNoPeriodCanStillGoRed(unittest.TestCase):
@@ -172,19 +225,30 @@ class ALaneWithNoPeriodCanStillGoRed(unittest.TestCase):
                          "a period still implies period x slack, untouched by the new field")
 
     # ── the console's own three ───────────────────────────────────────────────────────────────
-    def test_the_computed_sleep_lanes_each_declare_a_bound(self):
-        calls = _tick_calls(_control_tree())
-        missing = []
+    def test_every_boundable_periodless_lane_declares_a_bound(self):
+        """A lane that CAN be bounded and is not is an UNTIMED lane, which can never go red.
+
+        ⚠ "CAN BE" IS DERIVED, NOT ASSUMED. v2994 required a bound from all three periodless lanes
+        including `_kai_closer_loop`, whose sleeps run under unbounded `for` loops — so the law
+        demanded a number that could only ever be a guess, and the guess it got was 240s against a
+        derivable 609s path. A lane is required to declare a bound only where one can be derived.
+        """
+        tree = _control_tree()
+        calls = _tick_calls(tree)
         for lane in COMPUTED_SLEEP_LANES:
             self.assertIn(lane, calls, "%s no longer stamps a tick at all" % lane)
-            v = _kw(calls[lane], "dead_after_s")
+        missing = []
+        for lane, call in _periodless_tick_lanes(tree).items():
+            worst, unbounded = _worst_sleep_path_in(tree, lane)
+            if unbounded or worst is None:
+                continue                                  # honestly UNTIMED — the next law pins it
+            v = _kw(call, "dead_after_s")
             if not (isinstance(v, ast.Constant) and isinstance(v.value, (int, float))
                     and v.value > 0):
-                missing.append(lane)
+                missing.append("%s (worst path %.2fs, so a bound IS derivable)" % (lane, worst))
         self.assertEqual(missing, [],
-                         "these lanes pick their sleep per branch, so they cannot declare a "
-                         "period — without dead_after_s they are UNTIMED, which can never go "
-                         "red: %s" % ", ".join(missing))
+                         "these lanes can be bounded and are not, so nothing can ever report them "
+                         "late: %s" % ", ".join(missing))
 
     def test_no_lane_fakes_a_period_to_get_a_bound(self):
         """Padding every_s would buy the red path by printing a period the loop does not have."""
@@ -197,25 +261,108 @@ class ALaneWithNoPeriodCanStillGoRed(unittest.TestCase):
                             "%s must keep every_s=None — its sleep is chosen per branch, so any "
                             "number here is a period it does not have" % lane)
 
-    def test_each_bound_is_above_its_own_loops_worst_sleep(self):
-        """A bound under the loop's own sleep fires on a healthy turn, and a gate that cries wolf
-        is one he learns to skip. [[feedback-threshold-above-the-ceiling]]"""
+    def test_each_bound_clears_its_own_loops_worst_sleep_path(self):
+        """⚠ DERIVED, NOT LISTED. Every periodless lane is checked, so a NEW one cannot arrive with
+        a guessed bound and no law noticing."""
         tree = _control_tree()
-        calls = _tick_calls(tree)
         bad = []
-        for lane in COMPUTED_SLEEP_LANES:
-            bound = _kw(calls[lane], "dead_after_s")
+        for lane, call in _periodless_tick_lanes(tree).items():
+            bound = _kw(call, "dead_after_s")
             bound = bound.value if isinstance(bound, ast.Constant) else None
-            worst = _worst_sleep_path_in(tree, lane)
-            if bound is None or worst is None or bound <= worst:
+            worst, unbounded = _worst_sleep_path_in(tree, lane)
+            if bound is None:
+                continue                       # the next law governs whether that is allowed
+            if unbounded:
+                bad.append("%s: declares bound=%s while its worst sleep path is UNBOUNDED" % (lane, bound))
+            elif worst is None or bound <= worst:
                 bad.append("%s: bound=%s worst sleep PATH=%s" % (lane, bound, worst))
         self.assertEqual(bad, [],
-                         "a silence bound must exceed the longest a single turn can spend "
-                         "SLEEPING — not merely its largest single sleep — or it reports a healthy "
-                         "slow turn as a dead thread: %s" % "; ".join(bad))
+                         "a silence bound must clear the longest a single turn can spend SLEEPING, "
+                         "counting sleeps inside INNER loops — %s" % "; ".join(bad))
+
+    def test_the_reader_multiplies_a_sleep_by_its_enclosing_for_slice(self):
+        """⚠⚠ GRADED ON A FIXTURE, BECAUSE NO LIVE LANE EXERCISES IT. heart2 called the
+        for-slice red-proof BLIND: removing the multiplier changed nothing, since
+        `_kai_closer_loop` is UNBOUNDED either way and the other two periodless lanes contain no
+        for-slices at all. The law was right and the sabotage was pointing at a path no lane
+        walks. A property worth guarding needs a case that exercises it.
+        [[sabotage-is-usually-the-wrong-one]] [[gate-blind-to-unexercised-input]]"""
+        src = ("import time\n"
+               "def _loopy():\n"
+               "    while True:\n"
+               "        for x in jobs[:5]:\n"
+               "            time.sleep(3.0)\n")
+        worst, unbounded = _worst_sleep_path_in(ast.parse(src), "_loopy")
+        self.assertFalse(unbounded, "jobs[:5] is a literal cap, so this IS derivable")
+        self.assertEqual(worst, 15.0,
+                         "a 3.0s sleep inside `for x in jobs[:5]` is 15s of sleeping per turn, "
+                         "not 3s — counting the call once is the v2998 undercount that blessed a "
+                         "240s bound against a 609s path; got %s" % worst)
+
+    def test_the_reader_takes_an_enclosing_while_clock_as_the_cap(self):
+        """`while monotonic() - t0 < 120.0: time.sleep(6.0)` sleeps up to 120s, not 6s."""
+        src = ("import time\n"
+               "def _waity():\n"
+               "    while True:\n"
+               "        while time.monotonic() - t0 < 120.0:\n"
+               "            time.sleep(6.0)\n")
+        worst, _u = _worst_sleep_path_in(ast.parse(src), "_waity")
+        self.assertEqual(worst, 120.0,
+                         "the inner while's own clock caps that level at 120s; got %s" % worst)
+
+    def test_an_unbounded_for_makes_the_path_unknowable(self):
+        src = ("import time\n"
+               "def _endless():\n"
+               "    while True:\n"
+               "        for x in everything:\n"
+               "            time.sleep(2.0)\n")
+        _w, unbounded = _worst_sleep_path_in(ast.parse(src), "_endless")
+        self.assertTrue(unbounded,
+                        "`for x in everything` has no literal cap, so no ceiling can be derived "
+                        "and any bound would be a guess wearing a measurement's clothes")
+
+    def test_a_lane_whose_worst_path_is_unbounded_declares_no_bound(self):
+        """⚠⚠ THE v2994 BOUND ON _kai_closer_loop WAS A FALSE RED THAT SHIPPED. Four of its sleeps
+        run under unbounded `for` loops, so no static ceiling exists; the 240s it carried was below
+        even the DERIVABLE 609s path. A bound that fires on a healthy turn costs more than the red
+        path it buys, and UNTIMED is the honest state lane_liveness keeps for exactly this."""
+        tree = _control_tree()
+        bad = []
+        for lane, call in _periodless_tick_lanes(tree).items():
+            _w, unbounded = _worst_sleep_path_in(tree, lane)
+            if unbounded and _kw(call, "dead_after_s") is not None:
+                bad.append(lane)
+        self.assertEqual(bad, [],
+                         "these lanes sleep inside unbounded loops, so any bound is a guess "
+                         "wearing a measurement's clothes: %s" % ", ".join(bad))
 
 
 RED_PROOF = [
+    {
+        "why": "restoring the withdrawn 240s bound on _kai_closer_loop is the false red verbatim: "
+               "a lane whose derivable sleep path is 609s, with four more paths under unbounded "
+               "for loops, reported as a dead thread on a healthy turn",
+        "file": "control_app.py",
+        "find": "            _lane_tick('_kai_closer_loop', None)",
+        "replace": "            _lane_tick('_kai_closer_loop', None, dead_after_s=240)",
+        "matches": 1,
+    },
+    {
+        "why": "taking the bound off a lane that CAN be bounded returns it to UNTIMED, where no "
+               "silence of any length can turn it red",
+        "file": "control_app.py",
+        "find": "_lane_tick('_bridge_prober', None, dead_after_s=30)",
+        "replace": "_lane_tick('_bridge_prober', None)",
+        "matches": 1,
+    },
+    {
+        "why": "ignoring the multiplier from an enclosing for-slice restores the v2998 undercount "
+               "that blessed 240s against a 609s path",
+        "file": "test_a_lane_with_no_period_can_still_go_red.py",
+        "find": "                    else:\n                        mult *= b",
+        "replace": "                    else:\n                        mult *= 1",
+        "matches": 1,
+    },
     {
         "why": "disabling the bounded path returns these lanes to UNTIMED, which is exactly the "
                "hole this gate exists to close: silence of any length stops being decidable",
@@ -232,10 +379,12 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a bound BELOW the loop's own 30.0s sleep would report a perfectly healthy turn as "
-               "a dead thread; the ceiling law must catch it",
+        "why": "a bound BELOW the loop's own worst sleep path would report a perfectly healthy turn "
+               "as a dead thread; the ceiling law must catch it. Retargeted at v3001 onto "
+               "_engine_driver, because the 240s bound this used to sabotage was itself withdrawn "
+               "as a false red — a proof whose anchor no longer exists proves nothing.",
         "file": "control_app.py",
-        "find": "dead_after_s=240)",
+        "find": "dead_after_s=60)",
         "replace": "dead_after_s=1)",
         "matches": 1,
     },
