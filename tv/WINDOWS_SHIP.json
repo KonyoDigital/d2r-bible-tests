@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3032",
+  "ver": "v3033",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3032: when the guard lifts, the true newest-before is pruned and an older daily keeper inherits the role; the helper still finds a predating file so it never says UNKNOWN, it just answers with a smaller older number.",
+  "note": "v3033: the fleet dialog inherited a grid rail for a drill it does not own, so the stats line rendered beside the columns instead of beneath them - third occurrence, now refused by the class not an id list, and photographed by a new render target whose activation is geometric",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

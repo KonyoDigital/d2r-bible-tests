@@ -1325,6 +1325,78 @@ TARGETS = {
         "warmup": 10.0,
     },
 
+    # ── v3033 (#82) — THE CROSS-REFERENCE DIALOG, WHICH NOTHING HAS EVER PHOTOGRAPHED ─────────
+    # He reported this panel's layout THREE times in one session — "symetric", "+ typography",
+    # "its like not aligned" — and every instrument called the console clean, because there was a
+    # `fleet-list` target and no target for the DIALOG. A surface only he can see is a surface he
+    # is the detector for, which is the one arrangement `visual-regression-detector` forbids.
+    #
+    # ⚠ THE ACTIVATION IS GEOMETRIC, NOT "is the box full". The defect was never missing content —
+    # every column rendered, with correct text, and `require_filled` would have passed it every
+    # time. `.fx-body` is a two-column grid whose right rail belongs to an `.fx-drill` this dialog
+    # does not own, so `.fx-foot` fell into that rail and rendered BESIDE the columns instead of
+    # beneath them. That is a fact about rectangles, so this refuses until the rectangles are
+    # right: the footer below the columns, and the three column headers sharing one baseline.
+    # It can therefore go red on the exact regression rather than merely holding a picture of it.
+    # [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+    #
+    # ⚠ THE PAYLOAD IS STUBBED, so this proves the RENDER and never the wire — same limit the
+    # `advanced-fleet-down` target states above, and for the same reason. `neitherHas` is null on
+    # purpose: that is the state his own screenshot was in, it is the longest text the third
+    # column can carry, and it is the one `col()` must draw as an em-dash with a reason rather
+    # than a confident zero. [[unknown-stays-unknown]]
+    "fleet-xref": {
+        "serve": True,
+        "why": "THE FLEET CROSS-REFERENCE DIALOG — three columns, a stats footer, and a third "
+               "column that must say UNKNOWN rather than 0. The surface he reported three times "
+               "and no instrument could see",
+        # clear, stub, then RE-ASK — the page has already settled by the time a seed runs, so a
+        # stub installed without re-calling the opener changes nothing. That lesson is the
+        # `advanced-fleet-down` comment above, learned the hard way.
+        "seed": """(function(){
+            var _f = window.fetch;
+            window.fetch = function(u, o){
+              if (String(u).indexOf('/api/fleet_compare') === 0) {
+                return Promise.resolve(new Response(JSON.stringify({
+                  ok: true,
+                  theyHaveIDont: ["Death's Web", "Griffon's Eye", "Mara's Kaleidoscope"],
+                  iHaveTheyDont: ["Arachnid Mesh", "Herald of Zakarum"],
+                  neitherHas: null,
+                  neitherWhy: "your roster carries 398 of a posted 403, so five pinned names "
+                              + "could never appear here \u2014 this is UNKNOWN, not zero",
+                  mineN: 292, theirsN: 281, both: 274, showN: 403,
+                  mineAt: Date.now() - 46000, theirAt: Date.now() - 240000
+                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+              }
+              return _f.apply(this, arguments);
+            };
+            var _b = document.getElementById('fleet-xref');
+            if (_b) { _b.innerHTML = ''; _b.hidden = true; }
+            if (window._fleetCompare) { try { window._fleetCompare('Dean', 'uniques'); } catch(e){} }
+            return 1;
+          })()""",
+        "activate": """(function(){
+            var box = document.getElementById('fleet-xref');
+            if (!box || box.hidden) return false;
+            var cols = box.querySelector('.fx-cols'), foot = box.querySelector('.fx-foot');
+            var hs = box.querySelectorAll('.fx-col-h');
+            if (!cols || !foot || hs.length !== 3) return false;
+            var c = cols.getBoundingClientRect(), f = foot.getBoundingClientRect();
+            /* THE REGRESSION ITSELF: the footer in the drill's rail sits beside the columns. */
+            if (f.top < c.bottom - 2) return false;
+            /* HIS "its like not aligned": the three headers must share one baseline, whatever
+               line count each title wraps to. */
+            var bs = [], i;
+            for (i = 0; i < hs.length; i++) bs.push(hs[i].getBoundingClientRect().bottom);
+            if (Math.max.apply(null, bs) - Math.min.apply(null, bs) > 1.5) return false;
+            return true;
+          })()""",
+        "sel": "#fleet-xref .fx-cols, #fleet-xref .fx-foot, #fleet-xref .fx-col-h, "
+               "#fleet-xref .fx-name, #fleet-xref .fx-why",
+        "settles": False,
+        "warmup": 10.0,
+    },
+
     "inbox": {
         "why": "the chronicle inbox — the rows he answers",
         "seed": """(function(){

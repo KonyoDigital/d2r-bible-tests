@@ -2211,6 +2211,24 @@ GATES = [
              "11 laws; sabotage-proven 3 ways (inert fold 5 red, unjoined merge 1 red, fuzzy fold "
              "2 red)."),
 
+    Gate("test_a_reused_shell_must_not_inherit_a_grid_it_has_no_tenant_for",
+         [sys.executable, os.path.join(HERE,
+          "test_a_reused_shell_must_not_inherit_a_grid_it_has_no_tenant_for.py")], 120,
+         why="HE REPORTED IT THREE TIMES — 'symetric', '+ typography', 'its like not aligned' — "
+             "and the cause was a grid column reserved for a panel that is not there. `.fx-body` "
+             "is a two-column grid whose right rail belongs to the `.fx-drill` read-trail aside; "
+             "three dialogs reuse the `.fleet-xref` shell for its DESIGN and own no drill, so that "
+             "rail has no tenant and whatever child comes second falls into it. Measured at 1080 "
+             "on #fleet-xref: the body is `.fx-cols` + `.fx-foot`, exactly two children, so the "
+             "STATS LINE rendered beside the 'you both need' heading and squeezed the third column "
+             "to a sliver. THIRD OCCURRENCE — v2384 hit #ver-xref, v2443 hit #heart-ov and its own "
+             "comment reads 'the warning was already written directly above and I walked into it "
+             "anyway'. Both fixes were written as an ID LIST, so each new panel had to be "
+             "remembered into it and #fleet-xref, the original owner of the class, never was. This "
+             "gate therefore refuses the id-list SHAPE, not a missing id: the override must be "
+             "selected by the class so membership is automatic. It parses the stylesheet by "
+             "brace-matching rather than grepping, so a rule buried in an unrelated @media block "
+             "cannot satisfy it."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

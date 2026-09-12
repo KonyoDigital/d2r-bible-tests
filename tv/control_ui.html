@@ -5660,7 +5660,18 @@
      1440 the diagram was squeezed to its 640px min-width and THE VALVES were stranded in the
      right column with a horizontal scrollbar under everything. The warning was already written
      directly above and I walked into it anyway. One selector, both panels. */
-  #ver-xref .fx-body, #heart-ov .fx-body { display: block; }
+  /* ⚠⚠ v3033 — AND #fleet-xref, THE ORIGINAL, WAS NEVER IN THIS LIST. The comment above says
+     "The warning was already written directly above and I walked into it anyway"; this is the
+     THIRD time. Measured at 1080: .fx-body computed `701px 330px`, and the JS body is
+     `.fx-cols` + `.fx-foot` with NO drill, so the two children became the two grid items and the
+     STATS LINE rendered in the drill's right column — beside "you both need", squeezing the third
+     column to a sliver. That is what he reported three times as "symetric" / "its like not
+     aligned". Konyo, 2026-09-12.
+     ⚠ SELECTOR IS THE CLASS, NOT AN ID LIST. An id list is precisely what decayed twice: every
+     panel reusing .fleet-xref wants this shell's DESIGN and reads top-to-bottom. Only a panel that
+     actually owns an .fx-drill wants the grid, and none of the three do — the static drill at
+     #fx-drill lives in the main fleet window, which is not a .fleet-xref. */
+  .fleet-xref .fx-body { display: block; }
   #ver-xref .fx-head, #heart-ov .fx-head { position: relative; padding-right: 40px; }
   #ver-xref .fx-head .th-x, #heart-ov .fx-head .th-x { position: absolute; right: 0; top: -2px; }
   #ver-xref .vx-sec { margin: 0 0 18px; }
@@ -5846,11 +5857,17 @@
   .fleet-xref .fx-col-unknown .fx-col-h { color: #8a7e68; }
   .fx-none.fx-unknown { font-style: italic; color: #8a7e68; line-height: 1.45; }
   .fx-col { min-width: 0; }
-  .fx-col-h { display: flex; align-items: baseline; gap: 5px; font-size: var(--fs-2xs);
+  /* ⚠ v3033 — BOTTOM-ALIGNED AND FLOOR-HEIGHTED, so the rule under every column title sits at
+     ONE y and the three item lists start level regardless of how many lines each title wraps to.
+     `baseline` aligned the title against its own count and nothing across columns; the floor is
+     two lines of this size, which is the widest any of the three titles wraps to at 1080. */
+  .fx-col-h { display: flex; align-items: flex-end; gap: 5px; font-size: var(--fs-2xs);
+    min-height: 2.65em; text-wrap: balance;
     color: var(--text-muted, #b5a48a); text-transform: uppercase; letter-spacing: .5px;
     border-bottom: 1px solid var(--edge, rgba(255,255,255,.1)); padding-bottom: 3px;
     margin-bottom: 4px; }
-  .fx-n { margin-left: auto; color: var(--gold-bright, #f0c060); font-family: var(--mono, monospace); }
+  .fx-n { margin-left: auto; color: var(--gold-bright, #f0c060); font-family: var(--mono, monospace);
+    font-variant-numeric: tabular-nums; letter-spacing: 0; }
   .fx-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; min-width: 0; }
   .fx-img { width: 22px; height: 22px; object-fit: contain; flex: none; }
   .fx-noimg { width: 22px; text-align: center; flex: none; opacity: .4; }
