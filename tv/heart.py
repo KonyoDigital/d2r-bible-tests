@@ -194,6 +194,20 @@ def vessels():
                         "why": "the census could not classify this, which is not the same as "
                                "harmless — it may run forever and nothing would know"})
             continue
+        # ⚠⚠ v3007 — `supervises` RIDES ON EVERY LOOP ROW, not on the DARK branch. It used to
+        # be computed only under `if not watcher:` because before v2994 the supervisors WERE dark
+        # ("nothing watches the watchman" — v2610's measurement). v3003 taught the census that a
+        # lane_liveness stamp is a watcher; the six supervisors stopped being DARK — and the fact
+        # that they ARE supervisors vanished with the branch they left. test_control's
+        # six-SUPERVISORS law read "no supervisors at all" over a tree where all six are alive
+        # and watched. A property of the LANE must not live on a property of its WATCHEDNESS.
+        # [[label-outlived-referent]] [[the-unjoined-end]]
+        _sup, _sup_why = False, ""
+        try:
+            import lane_census as _lc
+            _sup = bool(_lc._is_supervisor(name))
+        except Exception as _e:
+            _sup_why = " (whether it supervises could not be asked: %s)" % str(_e)[:50]
         if not watcher:
             # ⚠⚠ v2610 — DARK COLLAPSED TWO FACTS AND THE COUNT READ AS EIGHT GAPS. Measured on
             # his tree: 8 DARK, and SIX of them are the supervisors themselves — _bridge_prober,
@@ -210,12 +224,6 @@ def vessels():
             #
             # ⚠ QUOTED, NOT RE-DERIVED. lane_census owns the supervisor set and has the guard that
             # keeps it honest (supervisor_set_is_current). A second copy here would drift.
-            _sup, _sup_why = False, ""
-            try:
-                import lane_census as _lc
-                _sup = bool(_lc._is_supervisor(name))
-            except Exception as _e:
-                _sup_why = " (whether it supervises could not be asked: %s)" % str(_e)[:50]
             # ⚠⚠ THE DARK ROWS NEED THIS MOST, AND THE FIRST CUT LEFT THEM OUT — the branch
             # `continue`s before the liveness lookup, so the six SUPERVISORS came back live=None.
             # `_console_rescue_loop` is one of them, and it is the loop that rescues his window:
@@ -240,12 +248,14 @@ def vessels():
         sc = scored.get(watcher)
         if isinstance(sc, (int, float)) and sc > 0:
             out.append({"name": name, "kind": kind, "state": FLOWING, "watcher": watcher,
+                        "supervises": _sup,
                         "score": round(float(sc), 4),
                         "why": "watched, and a sabotage has proven the watcher can refuse",
                         "live": _live["state"], "liveWhy": _live["why"],
                         "tickAgeS": _live["tickAgeS"]})
         else:
             out.append({"name": name, "kind": kind, "state": WATCHED, "watcher": watcher,
+                        "supervises": _sup,
                         "score": None,
                         "scorable": _scorable,
                         "why": ("watched, but nothing has ever tried to break the watcher — that "
