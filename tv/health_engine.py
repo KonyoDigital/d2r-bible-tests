@@ -557,8 +557,47 @@ def check_self_arming():
                 surfaces=[l.get("lock") for l in locks if l.get("lock")])
 
 
+def check_lane_liveness():
+    """Which THREADS this watchdog can see beat, named one by one. -> row
+
+    ⚠⚠ v3046 — IT WATCHED TWENTY AND THE ORGAN TABLE SAID IT NAMED THREE. Measured on his live
+    console: all 20 vessels carry a watcher with `via: lane_liveness`, so this organ genuinely
+    covers every one of them — and organ_matrix still counted 15 as "named by NO organ", because
+    every row here describes a SUBSYSTEM (lanes, readers, orphans) rather than the individual
+    threads. Real supervision, unnamed, and therefore invisible to the table whose whole job is
+    asking who covers what. [[the-unjoined-end]]
+
+    ⚠ DERIVED FROM SOURCE, NOT FROM `_TICKS`. That dict is PROCESS MEMORY — rich inside
+    control_app, EMPTY everywhere else — so a row built from it would name twenty surfaces on his
+    console and none in any gate or matrix run. A parse of who calls `_lane_tick('name')` answers
+    the same question from anywhere, and "anywhere" is where this table is read.
+    [[feedback-suspect-the-instrument]]
+    """
+    try:
+        import lane_liveness as _ll
+        m = _ll.stamping_functions()
+    except Exception as e:
+        return _row("laneLiveness", UNKNOWN,
+                    "the liveness reader would not load — %s" % str(e)[:70])
+    failed = m.get("__failed__") if isinstance(m, dict) else None
+    if failed:
+        return _row("laneLiveness", UNKNOWN,
+                    "the lanes could not be read from source (%s), so which threads this "
+                    "watchdog can see is UNKNOWN rather than none" % str(failed)[:60])
+    fns = sorted(k for k in m if k != "__failed__")
+    if not fns:
+        return _row("laneLiveness", WARN,
+                    "no function in the console stamps a lane, so nothing here can be seen to "
+                    "beat at all", surfaces=[])
+    ev = ["%s -> %s" % (k, ", ".join(m[k])) for k in fns[:12]]
+    return _row("laneLiveness", OK,
+                "%d thread(s) stamp a lane this watchdog can read" % len(fns),
+                ev, surfaces=fns)
+
+
 CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans,
-          check_shadow_watch, check_readers_agree, check_self_arming]
+          check_shadow_watch, check_readers_agree, check_self_arming,
+          check_lane_liveness]
 
 
 def report(evaluate=None, board=None):

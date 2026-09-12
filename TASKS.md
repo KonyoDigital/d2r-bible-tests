@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3045** | `(this commit)` | v3045 — three vessels reported no tick has been stamped while stamping perfectly well, because two of them file the tick under the lane name rather than the function name and the census only ever asked for the function |
+| **v3046** | `(this commit)` | v3046 — it watched twenty vessels and the organ table said it named three, because every row described a subsystem rather than the individual threads - derived from source so it answers from any process, since the tick store is process memory and empty outside the console |
+| **v3045** | `e87aad27` | v3045 — three vessels reported no tick has been stamped while stamping perfectly well, because two of them file the tick under the lane name rather than the function name and the census only ever asked for the function |
 | **v3044** | `d9c9c5f9` | v3044 — the heart legend printed flowing 0 while every vessel row said nothing can score this watcher, and the organ rows it scores from carry no score field at all so even a perfect key match returns None - and the legend was photographed by nothing until the target selector was widened |
 | **v3043** | `d1c41eca` | v3043 — one frame carries one scene and a list of names so every item inherited the frame label, and in D2R the stash and inventory are open together - eleven names that can never be a holding were counted as panel and fifty six inventory items were filed under stash |
 | **v3042** | `068e571a` | v3042 — may refused every lock whenever the heart census went stale and the census goes stale whenever a gate file changes, so writing one gate shut nineteen locks - the split is by reversibility now, irreversible doors keep the whole guarantee and ordinary ones refuse on merit alone |

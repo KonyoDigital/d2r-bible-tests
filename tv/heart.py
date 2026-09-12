@@ -136,41 +136,26 @@ def _stamps_of(name):
     with ast from each function's own body, so a lane named in a comment or a docstring cannot
     satisfy it. [[source-reading-guard]] [[the-unjoined-end]]
     """
-    import ast as _ast
-    import io as _io
+    # ⚠ ONE PARSE, ONE OWNER. lane_liveness owns the concept of a lane and now publishes
+    # stamping_functions(); keeping a second ast walk here would be two readers of the same
+    # truth, drifting the moment one is corrected. [[copy-drift]]
     key = str(name or "")
     if not key:
         return []
     cache = globals().setdefault("_STAMPS_CACHE", {})
     if not cache:
         try:
-            # ⚠⚠ `io` IS NOT IMPORTED IN THIS MODULE — it imports only os and sys — and the first
-            # cut called io.open() here. The NameError was swallowed by the except below and this
-            # returned [], which reads as "that function stamps no lanes" rather than "the reader
-            # broke". A silent empty from a broken reader is indistinguishable from a measured
-            # absence, which is the whole failure this file exists to refuse.
-            # [[zero-needs-a-denominator]]
-            src = _io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-            tree = _ast.parse(src)
+            import lane_liveness as _ll
+            _m = _ll.stamping_functions()
+            if isinstance(_m, dict) and not _m.get("__failed__"):
+                cache.update(_m)
+                return list(cache.get(key) or [])
+            globals()["_STAMPS_CACHE"] = {"__failed__": (_m or {}).get("__failed__")
+                                          or "the lane reader returned nothing"}
+            return []
         except Exception as _e:
-            # keep the REASON, so a caller can tell a broken reader from an empty one
             globals()["_STAMPS_CACHE"] = {"__failed__": "%s: %s" % (type(_e).__name__, str(_e)[:80])}
             return []
-        for node in _ast.walk(tree):
-            if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
-                continue
-            lanes = []
-            for call in _ast.walk(node):
-                if not isinstance(call, _ast.Call):
-                    continue
-                fname = getattr(call.func, "id", None) or getattr(call.func, "attr", None)
-                if fname != "_lane_tick" or not call.args:
-                    continue
-                a0 = call.args[0]
-                if isinstance(a0, _ast.Constant) and isinstance(a0.value, str) and a0.value:
-                    lanes.append(a0.value)
-            if lanes:
-                cache[node.name] = lanes
     return list(cache.get(key) or [])
 
 

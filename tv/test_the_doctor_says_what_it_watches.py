@@ -110,7 +110,13 @@ class TestTheDoctorSaysWhatItWatches(unittest.TestCase):
         self.assertTrue(rows, "health_engine.report() returned no rows")
         ids = {r.get("id") for r in rows}
         declared = set(HE.WATCHES)
-        derives = {"selfArming"}
+        # ⚠ TWO ROWS DERIVE NOW, and both earn it the same way — by naming what they actually
+        # read rather than what someone wrote down beside them. `selfArming` names the locks it
+        # judged; `laneLiveness` names the functions that stamp a lane, parsed from source so it
+        # answers from ANY process (its `_TICKS` are process memory and empty outside the
+        # console). A row in here is claiming the stronger evidence, which is why the law also
+        # refuses one that both derives AND declares.
+        derives = {"selfArming", "laneLiveness"}
         missing = sorted(ids - declared - derives)
         self.assertEqual(
             missing, [],
@@ -143,6 +149,28 @@ class TestTheDoctorSaysWhatItWatches(unittest.TestCase):
             "selfArming names only %d surface(s); it judges every lock in the registry and "
             "should name them all — a shrunk list means it stopped reading the whole set" % len(got))
 
+    def test_the_watchdog_derives_laneLiveness_from_source_not_process_memory(self):
+        """The row that names the THREADS this organ can see beat. It must derive from SOURCE:
+        `_TICKS` is process memory — rich inside control_app, EMPTY in every gate and matrix run —
+        so a row built from it names twenty threads on his console and NONE anywhere this table is
+        actually read. heart2 caught the first cut of this law BLIND for exactly that: the tamper
+        swapped the source parse for a `rows()` read, the row fell back to an empty list, and the
+        law passed because it only checked that the flag was listed as deriving.
+        [[feedback-suspect-the-instrument]] [[feedback-blind-fixture-green-gate]]"""
+        rows = (HE.report() or {}).get("rows") or []
+        ll = [r for r in rows if r.get("id") == "laneLiveness"]
+        self.assertTrue(ll, "the laneLiveness flag is gone from health_engine")
+        got = set(ll[0].get("surfaces") or [])
+        self.assertGreater(
+            len(got), 5,
+            "laneLiveness names only %d surface(s). This process has an EMPTY _TICKS, so a number "
+            "this low means the row is reading process memory instead of parsing the source — and "
+            "it would publish nothing in every gate and matrix run." % len(got))
+        self.assertTrue(
+            got & self.registry,
+            "laneLiveness publishes %d surface(s) and NONE is in the registry, so the threads it "
+            "watches still read as covered by no organ" % len(got))
+
     def test_every_watchdog_declared_surface_is_real(self):
         bogus = sorted({s for v in HE.WATCHES.values() for s in v} - self.registry)
         self.assertEqual(bogus, [],
@@ -150,6 +178,15 @@ class TestTheDoctorSaysWhatItWatches(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "makes the laneLiveness row read its coverage from `_TICKS` — PROCESS MEMORY, rich "
+               "inside the console and EMPTY in every gate and matrix run — so the watchdog would "
+               "name twenty threads on his screen and none anywhere the table is actually read",
+        "file": "health_engine.py",
+        "find": "        m = _ll.stamping_functions()",
+        "replace": "        m = dict((r.get('lane'), [r.get('lane')]) for r in _ll.rows())",
+        "matches": 1,
+    },
     {
         "why": "removes one check's declaration, which is the failure this law exists for: a check "
                "with no entry reads ABSENT in the organ table, a claim nobody made",

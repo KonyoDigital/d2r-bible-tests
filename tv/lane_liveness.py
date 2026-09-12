@@ -241,6 +241,58 @@ def _row(lane, row, now):
     return out
 
 
+def stamping_functions(src_path=None):
+    """Which functions stamp a lane, and which lane each stamps. -> {function: [lane, ...]}
+
+    ⚠⚠ v3046 — THE WATCHDOG WATCHES TWENTY VESSELS AND THE ORGAN TABLE SAID IT NAMED THREE.
+    Measured on his live console: all 20 vessels carry a watcher, `via: lane_liveness` — this
+    module genuinely watches every one of them. organ_matrix still counted 15 of them as "named
+    by NO organ", because naming happens in health_engine's rows and those rows describe
+    SUBSYSTEMS (lanes, readers, orphans) rather than the individual threads. Real supervision,
+    unnamed, therefore invisible to the table that asks who covers what. [[the-unjoined-end]]
+
+    ⚠ DERIVED FROM SOURCE, NOT FROM `_TICKS`, AND THAT IS THE WHOLE DESIGN. `_TICKS` is PROCESS
+    MEMORY: lanes stamp into it while the console runs, so `rows()` answers richly inside
+    control_app and returns ZERO ROWS in any other process. Measured the hard way today — a cold
+    read reported all 20 vessels `live: UNKNOWN` and I nearly filed that as a finding about his
+    lanes when it was a fact about my reader, the same shape as the eagle asked through a cold
+    import in v3036. A parse of the source says the same thing from anywhere, and a gate or a
+    matrix run is always "anywhere". [[feedback-suspect-the-instrument]]
+
+    ⚠ PARSED WITH ast, so a lane named in a comment or a docstring cannot satisfy it, and only a
+    STRING LITERAL first argument counts — a lane whose name is computed is not a name this can
+    honestly report. [[source-reading-guard]]
+    """
+    import ast as _ast
+    import io as _io
+    import os as _os
+    path = src_path or _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                     "control_app.py")
+    try:
+        tree = _ast.parse(_io.open(path, encoding="utf-8").read())
+    except Exception as e:
+        # ⚠ the REASON, never a silent {} — an empty map from a broken reader is
+        # indistinguishable from a console that stamps nothing. [[zero-needs-a-denominator]]
+        return {"__failed__": "%s: %s" % (type(e).__name__, str(e)[:90])}
+    out = {}
+    for node in _ast.walk(tree):
+        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            continue
+        lanes = []
+        for call in _ast.walk(node):
+            if not isinstance(call, _ast.Call):
+                continue
+            fname = getattr(call.func, "id", None) or getattr(call.func, "attr", None)
+            if fname not in ("_lane_tick", "tick") or not call.args:
+                continue
+            a0 = call.args[0]
+            if isinstance(a0, _ast.Constant) and isinstance(a0.value, str) and a0.value:
+                lanes.append(a0.value)
+        if lanes:
+            out[node.name] = lanes
+    return out
+
+
 def rows(now=None):
     """-> [row], one per lane that has ever been registered, newest-known first by lane name."""
     now = time.monotonic() if now is None else now

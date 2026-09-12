@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3045",
+  "ver": "v3046",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3045: three vessels reported no tick has been stamped while stamping perfectly well, because two of them file the tick under the lane name rather than the function name and the census only ever asked for the function",
+  "note": "v3046: it watched twenty vessels and the organ table said it named three, because every row described a subsystem rather than the individual threads - derived from source so it answers from any process, since the tick store is process memory and empty outside the console",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
