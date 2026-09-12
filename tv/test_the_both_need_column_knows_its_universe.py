@@ -24,6 +24,7 @@ is a lie with a number on it. [[zero-needs-a-denominator]] [[unknown-stays-unkno
 
 ⚠ EVERY LAW HERE ASSERTS A REFUSAL AS WELL AS A PASS. A guard only ever seen say yes is not a guard.
 """
+import io
 import os
 import sys
 import unittest
@@ -142,7 +143,149 @@ class TheBothNeedColumnKnowsItsUniverse(unittest.TestCase):
                          "against" % (seen.get("uniques"),))
 
 
+class TheThirdColumnRendersItsRefusal(unittest.TestCase):
+    """The CLIENT half: a refused column must be DRAWN, and a tile must never state a fact it
+    cannot know.
+
+    ⚠⚠ THE TWO WAYS THIS COLUMN COULD LIE ON SCREEN, both live before v3022:
+
+    1. `tile(n, mine)` was a BOOLEAN helper for a two-column panel, and its hover card read
+       facts: [[mine ? 'you have it' : 'they have it', ...]]. A both-need item passed with
+       mine=false would have stated "they have it / you do not" — a confident false claim about
+       the cousin's inventory, in a tooltip, which is the one place a reader trusts completely.
+
+    2. `|| []` on the payload. The other two lists coalesce because a missing difference really is
+       an empty difference. The complement must not: the server answers null when the roster is
+       not known to be the universe, and `|| []` turns that refusal into "0 items you both need".
+
+    ⚠ THESE RUN THE REAL FUNCTIONS IN NODE rather than reading the source for a string. A law that
+    greps for `side === 'neither'` passes on a file where the branch is dead.
+    [[unknown-stays-unknown]] [[source-reading-guard]]
+
+    ⚠ OWED, and recorded rather than hidden: this is the FIFTH copy of the extract-and-run-node
+    boilerplate in this suite (test_the_ledger_says_where_the_item_actually_landed.py carries three
+    of them, test_fleet_mask.py another). A post-ship review already flagged the duplication. A
+    shared `_run_node(js, prefix)` helper is owed; adding a fifth copy silently would have been the
+    worse of the two, so it is named here.
+    """
+
+    def _run(self, js):
+        """Extract the panel's own helpers and drive them in a real JS engine. -> parsed last line"""
+        import json as _json
+        import re as _re
+        import subprocess
+        import tempfile
+        src = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+
+        def _between(start_pat, end_pat, what):
+            m = _re.search(start_pat, src)
+            self.assertIsNotNone(m, "could not find %s in control_ui.html — this law is reading "
+                                    "nothing and must fail rather than skip" % what)
+            j = src.find(end_pat, m.start())
+            self.assertGreater(j, m.start(), "could not find the end of %s" % what)
+            return src[m.start():j + len(end_pat)]
+
+        col = _between(r"var col = function \(title, names, why, side\) \{", "\n    };", "col()")
+        d = tempfile.mkdtemp(prefix="fxcol.")
+        self.addCleanup(__import__("shutil").rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(
+            "var escC = function (x) { return String(x); };\n"
+            "var tile = function (n, side) { return '[' + n + '|' + side + ']'; };\n"
+            + col + "\n" + js)
+        r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, "node refused the extracted panel code: %s"
+                         % (r.stderr or "")[:300])
+        last = [l for l in (r.stdout or "").strip().splitlines() if l.strip()]
+        self.assertTrue(last, "the runner printed nothing")
+        return _json.loads(last[-1])
+
+    def test_a_NULL_list_is_drawn_as_a_refusal_and_never_as_zero(self):
+        out = self._run(
+            "var h = col('you both need', null, 'the roster carries 398 and the board posts 403', "
+            "'neither');\n"
+            "console.log(JSON.stringify({html: h}));")
+        h = out["html"]
+        self.assertIn("fx-col-unknown", h,
+                      "a refused column is not marked as unknown, so it looks like an ordinary "
+                      "empty one: %s" % h[:200])
+        self.assertIn("398", h, "the refusal does not carry its reason onto the screen")
+        self.assertNotIn(">0<", h,
+                         "a refused column printed a ZERO count — 'we cannot tell you' rendered as "
+                         "'there are none': %s" % h[:200])
+
+    def test_an_EMPTY_list_is_a_measured_zero_and_looks_different_from_a_refusal(self):
+        """⚠ THE OTHER DIRECTION. An empty complement is a real finding — you genuinely both own
+        everything on the roster — and it must NOT be dressed as unknown."""
+        out = self._run(
+            "var h = col('you both need', [], 'there is nothing neither of you has', 'neither');\n"
+            "console.log(JSON.stringify({html: h}));")
+        h = out["html"]
+        self.assertNotIn("fx-col-unknown", h,
+                         "a measured-empty column was marked UNKNOWN, which hides a real result")
+        self.assertIn(">0<", h, "a measured-empty column must show its zero: %s" % h[:200])
+
+    def test_a_populated_column_tiles_every_name_with_the_neither_side(self):
+        out = self._run(
+            "var h = col('you both need', ['Shako', 'Occy'], 'x', 'neither');\n"
+            "console.log(JSON.stringify({html: h}));")
+        h = out["html"]
+        self.assertIn("[Shako|neither]", h, "a both-need tile was not given the 'neither' side")
+        self.assertIn("[Occy|neither]", h)
+        self.assertIn(">2<", h, "the column count does not match the names it drew")
+
+    def test_the_tile_helper_is_no_longer_a_TWO_STATE_boolean(self):
+        """⚠ PARSED, not grepped for a happy string: the signature itself must have stopped being
+        (n, mine), because a boolean cannot express a third state at all."""
+        src = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertNotIn("var tile = function (n, mine) {", src,
+                         "tile() is still a two-state boolean helper, so the third column's hover "
+                         "card would state a fact about the other machine that nobody measured")
+        self.assertIn("var tile = function (n, side) {", src,
+                      "tile() no longer takes a side — the three states have no carrier")
+
+    def test_the_payload_is_not_coalesced_into_an_empty_list(self):
+        """⚠ `j.neitherHas || []` would turn the server's refusal into a confident zero. This reads
+        the render line itself, because the defect is exactly one operator wide."""
+        src = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        self.assertNotIn("j.neitherHas || []", src,
+                         "the both-need payload is coalesced with || [], which renders the "
+                         "server's UNKNOWN as 'there are none'")
+        self.assertIn("col('you both need', j.neitherHas,", src,
+                      "the third column no longer passes the payload through unchanged")
+
+
 RED_PROOF = [
+    {
+        #: ⚠ THE TWO-STATE TILE, RESTORED. A boolean cannot express "neither", so the third
+        #: column's hover card states a fact about the other machine that nobody measured.
+        "why": "returning tile() to a boolean makes every both-need row claim 'they have it / you "
+               "do not' in its tooltip — a confident false statement about the cousin's inventory",
+        "file": "control_ui.html",
+        "find": "    var tile = function (n, side) {",
+        "replace": "    var tile = function (n, mine) {",
+        "matches": 1,
+    },
+    {
+        #: ⚠ THE COALESCE, RESTORED. One operator wide, and it converts the server's refusal into
+        #: a confident zero on the one column that can be falsified by a wrong universe.
+        "why": "coalescing the payload with || [] renders the server's UNKNOWN as 'there are 0 "
+               "items you both need', which is the lie the whole guard exists to refuse",
+        "file": "control_ui.html",
+        "find": "      + col('you both need', j.neitherHas,",
+        "replace": "      + col('you both need', j.neitherHas || [],",
+        "matches": 1,
+    },
+    {
+        #: ⚠ THE COLUMN THAT VANISHES. Without the null branch a refused column draws as an
+        #: ordinary empty one, so two columns look like the whole answer.
+        "why": "removing the known/unknown split makes a refused column indistinguishable from an "
+               "empty one, hiding the single thing the guard exists to say",
+        "file": "control_ui.html",
+        "find": "      var known = Array.isArray(names);",
+        "replace": "      var known = true;",
+        "matches": 1,
+    },
     {
         "why": "a guard that always says yes lets the uniques column claim to be exhaustive over a "
                "roster 5 names short of his own posted universe — the exact lie this file exists "

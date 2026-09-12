@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3021",
+  "ver": "v3022",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3021: a complement is a claim about the whole universe where the two columns beside it are differences that hold over any roster; his uniques roster carries 398 against a posted total of 403, so five of his own pinned names could never appear in a list claiming to be exhaustive.",
+  "note": "v3022: a tile helper that took a boolean could not say the third thing and would have claimed they have it on every both-need row; and coalescing the payload with an empty list would have rendered the servers UNKNOWN as a confident zero.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

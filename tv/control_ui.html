@@ -5814,8 +5814,24 @@
   @media (min-width: 1200px) { .fx-cols { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } }
   /* v2329 — inside the window the width is the WINDOW's, not the rail's, so the old 1200px
      viewport breakpoint no longer describes the space this grid actually has. */
-  .fleet-xref .fx-cols { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
+  /* ⚠⚠ v3022 — THREE TRACKS, because the panel gained a third column ("you both need"). Four
+     declarations govern this grid and they are NOT redundant: :5813 is the 1-track base, the
+     1200px query widens the generic case, THIS window-scoped rule is what the dialog actually
+     uses, and the 760px query collapses it. Changing only one of them is how a column lands on
+     top of another at one width and looks fine at the next. [[copy-drift]]
+     ⚠ minmax(0,1fr) not 1fr — a bare 1fr refuses to shrink below its content and pushes the last
+     track off the edge, which is exactly REG-621's shape and cost a 455px overflow at 1120. */
+  .fleet-xref .fx-cols { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+  /* two tracks before three columns will fit, one before two — measured against the 18px gap and
+     the ~180px a column needs before its names start ellipsising */
+  @media (max-width: 1080px) { .fleet-xref .fx-cols { grid-template-columns: repeat(2, minmax(0,1fr)); } }
   @media (max-width: 760px) { .fleet-xref .fx-cols { grid-template-columns: minmax(0,1fr); } }
+  /* ⚠ THE REFUSED COLUMN MUST LOOK REFUSED, not empty. An em-dash count and a dimmed, italic
+     reason — so "we cannot tell you this, and here is why" never reads as "there is nothing".
+     [[unknown-stays-unknown]] */
+  .fleet-xref .fx-col-unknown { opacity: .72; }
+  .fleet-xref .fx-col-unknown .fx-col-h { color: #8a7e68; }
+  .fx-none.fx-unknown { font-style: italic; color: #8a7e68; line-height: 1.45; }
   .fx-col { min-width: 0; }
   .fx-col-h { display: flex; align-items: baseline; gap: 5px; font-size: var(--fs-2xs);
     color: var(--text-muted, #b5a48a); text-transform: uppercase; letter-spacing: .5px;
@@ -22133,7 +22149,14 @@ function escC(s) {
        looks like patience. Whatever breaks below, he now gets a sentence instead of a wait. */
     try {
     thArtInit();                       // the board may still be booting; it retries and repaints
-    var tile = function (n, mine) {
+    /* ⚠⚠ v3022 — `side`, NOT A BOOLEAN. This took (n, mine) and wrote its hover facts from it:
+       facts: [[mine ? 'you have it' : 'they have it', mine ? 'they do not' : 'you do not']].
+       That is a two-state helper for a two-column panel, and it CANNOT say the third thing. A
+       "both need" item passed with mine=false would have stated "they have it / you do not" — a
+       confident false claim about the cousin's inventory on every row of the new column, in a
+       tooltip, which is the one place a reader trusts completely.
+       'mine' | 'theirs' | 'neither'. [[label-outlived-referent]] [[unknown-stays-unknown]] */
+    var tile = function (n, side) {
       /* n is the KEY. Display may strip the slot via the board's _pieceLabel; lookup
          (art, rarity, itip name) never does. [[N-2]] */
       var u = thArt(n) || '';
@@ -22146,18 +22169,28 @@ function escC(s) {
       } catch (e) {}
       var itip = _itipAttr({
         name: n, rarity: rar, art: u,
-        facts: [[mine ? 'you have it' : 'they have it', mine ? 'they do not' : 'you do not']]
+        facts: [side === 'neither' ? ['neither of you has it', 'you both still need it']
+                : side === 'mine' ? ['you have it', 'they do not']
+                : ['they have it', 'you do not']]
       });
       return '<div class="fx-item"' + itip + '>'
         + (u ? '<img class="fx-img" src="/' + escC(u) + '" alt="" loading="lazy">'
              : '<span class="fx-noimg">◻</span>')
         + '<span class="fx-name">' + escC(shown) + '</span></div>';
     };
-    var col = function (title, names, why, mine) {
-      return '<div class="fx-col"><div class="fx-col-h">' + escC(title)
-        + '<span class="fx-n">' + names.length + '</span></div>'
-        + (names.length ? names.map(function (n) { return tile(n, mine); }).join('')
-                        : '<div class="fx-none">' + escC(why) + '</div>') + '</div>';
+    var col = function (title, names, why, side) {
+      /* ⚠ v3022 — `names` MAY BE null, and null is not empty. The both-need column is REFUSED
+         when the roster is not known to be the universe, and a refused column must still be
+         DRAWN, carrying its reason — a column that silently vanishes hides the one thing the
+         guard exists to say, and leaves two columns looking like the whole answer.
+         [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+      var known = Array.isArray(names);
+      return '<div class="fx-col' + (known ? '' : ' fx-col-unknown') + '">'
+        + '<div class="fx-col-h">' + escC(title)
+        + '<span class="fx-n">' + (known ? names.length : '—') + '</span></div>'
+        + (!known ? '<div class="fx-none fx-unknown">' + escC(why) + '</div>'
+                  : names.length ? names.map(function (n) { return tile(n, side); }).join('')
+                                 : '<div class="fx-none">' + escC(why) + '</div>') + '</div>';
     };
     var age = function (ms) {
       if (!ms) return 'unknown';
@@ -22176,8 +22209,17 @@ function escC(s) {
     };
     box.innerHTML = '<div class="fxr-win">' + head
       + '<div class="fx-body"><div class="fx-cols">'
-      + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', false)
-      + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', true)
+      + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', 'theirs')
+      + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', 'mine')
+      /* ⚠⚠ v3022 — THE THIRD COLUMN, AND IT PASSES `j.neitherHas` STRAIGHT THROUGH WITHOUT `|| []`.
+         The other two coalesce because a missing difference really is an empty difference. This one
+         must NOT: the server answers null when the roster is not known to be the whole universe
+         (his uniques roster carries 398 against a posted total of 403, so five of his own pinned
+         names could never appear), and `|| []` would turn that refusal into a confident "0 items
+         you both need". Null reaches col() and is drawn as an em-dash with the reason.
+         [[unknown-stays-unknown]] */
+      + col('you both need', j.neitherHas,
+            j.neitherWhy || 'there is nothing neither of you has', 'neither')
       + '</div>'
       /* ⚠⚠ `showN`, NOT `rosterN`. This printed the roster length — 398 for uniques — and
          bible.html:3757 says of that number: "produced by neither, and NO array on the page is
