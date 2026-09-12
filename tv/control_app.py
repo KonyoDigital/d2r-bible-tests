@@ -19874,8 +19874,102 @@ def _ledger_backup_loop():
             _LEDGER_BACKUP_STATE["why"] = why if not path else _LEDGER_BACKUP_STATE["why"]
             if path:
                 print("  \U0001f9fe ledger backup: %s" % os.path.basename(path), flush=True)
+                # v3009 — retention runs ONLY after a successful new snapshot, so the corpus can
+                # never shrink except in the same breath it grew. A prune that runs on its own
+                # clock could fire during a long window outage and eat history with nothing new
+                # arriving behind it.
+                try:
+                    _pr = _ledger_backup_prune()
+                    if _pr.get("pruned"):
+                        print("  \U0001f9fe ledger retention: %s" % _pr.get("why"), flush=True)
+                except Exception:
+                    pass
         except Exception:
             pass
+
+
+def _ledger_backup_prune(bdir=None, now=None):
+    """Retention for the ledger snapshots. -> {kept, keepers, pruned, protected, why}
+
+    ⚠⚠ v3009 (#81) — SIZED FROM HIS OWN LOSS, NOT FROM TASTE. The 2026-09-08 emptying was noticed
+    ~3 days late, and the oldest backup then on disk was 69 HOURS TOO YOUNG to answer "which
+    backup predates the loss". His ruling: "it gets auto saved daily in a ledger just incase if
+    needed to restore." So:
+      · every snapshot younger than 48h is KEPT (the rolling window, ~10min grain),
+      · the FIRST snapshot of each UTC day is a DAILY KEEPER, kept 90 days — a loss noticed even
+        weeks late still has a predating backup,
+      · everything else is pruned.
+    Cost, measured before writing: 353K a snapshot -> the whole policy tops out around ~45M
+    rolling + ~32M keepers against 36Gi free. Disk is not the constraint; forgetting is.
+
+    ⚠⚠ THE EPISODE GUARD, and it outranks every rule above: if the NEWEST snapshot records an
+    OPEN d2r_storeEmptied episode (no recoveredAt), the newest backup OLDER than that episode's
+    `at` is PROTECTED whatever its age — it is the one file that answers "which backup predates
+    the loss", and a prune that could eat it while the loss is still open would be the backup
+    system deleting its own reason to exist. [[stale-reading]]
+
+    ⚠ Deletion is the irreversible act here, so every branch is conservative: unreadable names,
+    unparseable timestamps and a missing dir all count and report rather than guess.
+    [[unknown-stays-unknown]]
+    """
+    import datetime as _dt
+    import glob as _g
+    import json as _json
+    bdir = bdir or _LEDGER_BACKUP_DIR
+    now = time.time() if now is None else now
+    out = {"kept": 0, "keepers": 0, "pruned": 0, "protected": None, "why": ""}
+    if not os.path.isdir(bdir):
+        out["why"] = "no backup dir — nothing measured, nothing deleted"
+        return out
+    snaps = sorted(_g.glob(os.path.join(bdir, "ledger_*.json")))
+    if not snaps:
+        out["why"] = "0 snapshots — measured-empty, nothing deleted"
+        return out
+
+    # the open-episode guard reads the NEWEST snapshot's own record
+    protected = None
+    try:
+        newest = max(snaps, key=os.path.getmtime)
+        doc = _json.load(io.open(newest, encoding="utf-8"))
+        raw = doc.get("d2r_storeEmptied")
+        ev = _json.loads(raw) if isinstance(raw, str) else raw
+        if isinstance(ev, dict) and ev.get("at") and not ev.get("recoveredAt"):
+            older = [pp for pp in snaps if os.path.getmtime(pp) * 1000.0 < float(ev["at"])]
+            if older:
+                protected = max(older, key=os.path.getmtime)
+                out["protected"] = os.path.basename(protected)
+    except Exception:
+        pass                                # an unreadable record protects nothing extra, and says so via counts
+
+    ROLLING_S = 48 * 3600.0
+    KEEPER_S = 90 * 24 * 3600.0
+    first_of_day = {}
+    for pp in snaps:
+        d = _dt.datetime.utcfromtimestamp(os.path.getmtime(pp)).strftime("%Y-%m-%d")
+        if d not in first_of_day or os.path.getmtime(pp) < os.path.getmtime(first_of_day[d]):
+            first_of_day[d] = pp
+    keepers = set(first_of_day.values())
+    for pp in snaps:
+        age = now - os.path.getmtime(pp)
+        if pp == protected:
+            out["kept"] += 1
+            continue
+        if age <= ROLLING_S:
+            out["kept"] += 1
+            continue
+        if pp in keepers and age <= KEEPER_S:
+            out["keepers"] += 1
+            continue
+        try:
+            os.remove(pp)
+            out["pruned"] += 1
+        except Exception:
+            out["kept"] += 1                # a file that would not delete is still ON DISK; count it
+    out["why"] = ("%d rolling + %d daily keeper(s) kept, %d pruned%s"
+                  % (out["kept"], out["keepers"], out["pruned"],
+                     (", 1 protected as the last backup predating an OPEN loss (%s)"
+                      % out["protected"]) if out["protected"] else ""))
+    return out
 
 
 def _restore_current_from_board():
@@ -26666,7 +26760,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3008",
+        "ver": "v3009",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

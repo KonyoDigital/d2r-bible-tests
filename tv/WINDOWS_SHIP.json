@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3008",
+  "ver": "v3009",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3008: one name clears two witnesses and sits unbanked correctly; first-match rostering swallowed the runeword referent so the hold read as owed work, and now the door names its reasons",
+  "note": "v3009: 48h rolling plus first-of-day keepers for 90 days, and while an emptying episode is open the newest backup predating it is protected whatever its age",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

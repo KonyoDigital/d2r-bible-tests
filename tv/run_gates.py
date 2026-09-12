@@ -1092,6 +1092,20 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_backup_prune_never_orphans_a_loss",
+         [sys.executable, os.path.join(HERE, "test_the_backup_prune_never_orphans_a_loss.py")], 60,
+         why="RETENTION SIZED FROM HIS OWN LOSS (#81). The 2026-09-08 emptying was noticed ~3 "
+             "days late and the oldest backup was 69 HOURS too young to say which backup predates "
+             "the loss. His ruling: 'auto saved daily in a ledger just incase'. Policy: 48h "
+             "rolling + first-of-day keepers for 90 days + THE EPISODE GUARD — while a "
+             "d2r_storeEmptied episode is OPEN, the newest backup older than its `at` is "
+             "protected whatever its age, because pruning it would be the backup system deleting "
+             "its own reason to exist. Retention runs only after a successful new snapshot, so "
+             "the corpus never shrinks except in the breath it grew. Every law drives the "
+             "SHIPPED function on a fixture dir and counts what survived; deletion is the "
+             "irreversible act so unreadables count as kept. Proven red three ways: dropping the "
+             "keeper branch, dropping the episode guard, a zero rolling window.",
+         skip_ok=()),
     Gate("test_the_auto_door_says_why_it_holds_a_name",
          [sys.executable, os.path.join(HERE, "test_the_auto_door_says_why_it_holds_a_name.py")], 90,
          why="A CORRECT HOLD WAS WEARING A FAULT'S CLOTHES (#77). One name clears two witnesses "
