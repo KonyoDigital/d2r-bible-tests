@@ -43,7 +43,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'console_doctor.py',
-        "find": 'printer reach',
+        "find": '("printer reach", _check_the_printer_can_reach_the_corpus)',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

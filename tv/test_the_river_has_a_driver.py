@@ -279,10 +279,19 @@ class TheRiverHasADriver(unittest.TestCase):
 
 RED_PROOF = [
     {
-        'why': 'arming the prune lock is the one change these laws exist to refuse; test_the_prune_lock_is_STILL_false must go red the instant it flips',
+        # ⚠⚠ RE-ANCHORED. The old proof was INHERITED FROM ANOTHER LAW — its own `why` names
+        # `test_the_prune_lock_is_STILL_false`, and it anchored `_PRUNE_SAFE_TO_RUN = False`.
+        # v2984 armed the prune deliberately ("the prune is armed, and the argument against it
+        # was about the other deleter"), so that text has not existed for many versions and the
+        # tamper matched 0 times. A proof that matches nothing is not a proof that passed; it is
+        # one that was never applied, and it is why this gate counted as blind.
+        # This law is about the river having a DRIVER, so the tamper takes the drive away.
+        # [[label-outlived-referent]] [[source-reading-guard]]
+        'why': 'removes the only call that drives the lane, so the triage loop observes a river '
+               'nothing is routing and test_something_actually_CALLS_the_lane must go red',
         'file': 'control_app.py',
-        'find': '_PRUNE_SAFE_TO_RUN = False',
-        'replace': '_PRUNE_SAFE_TO_RUN = True',
+        'find': '_rl = _rrl.apply(by="loop:tvd-retro-triage", limit=_ROUTE_LANE_MAX_PER_TICK)',
+        'replace': '_rl = None  # _HEART2_TAMPERED_ — nothing drives the lane',
         'matches': 1,
     },
 ]

@@ -172,9 +172,20 @@ class TheLaneCensusCanReportTheDark(unittest.TestCase):
         self.assertNotIn("lane_census", called,
                          "the check RE-RUNS the producer inside a doctor pass — that adds the "
                          "lane walk to every request precisely when the console is degraded")
-        self.assertTrue(any(n for n, _f in CD.CHECKS if "shelf" in n.lower()),
-                        "the check exists and is not registered in CHECKS — an unjoined end "
-                        "inside the fix for an unjoined end")
+        # ⚠⚠ NAME THE ROW, DO NOT SUBSTRING-MATCH THE REGISTRY. This asked whether ANY check
+        # had "shelf" in its name — and there are TWO ("shelf lanes reading" and "shelf is where
+        # it says"), so deleting the one this law is about left the other behind and the
+        # assertion stayed true. heart2 caught it: RED_PROOF[15] unregisters exactly this row and
+        # the gate survived its own defeat. A law that guards one joint must name that joint.
+        # Measured at the time of writing: 2 registered checks contain "shelf".
+        # [[the-unjoined-end]] [[regression-guard]]
+        bound = [f.__name__ for n, f in CD.CHECKS if n == "shelf lanes reading"]
+        print("   CHECKS rows named 'shelf lanes reading': %d" % len(bound))
+        self.assertEqual(
+            bound, ["_check_the_shelf_lanes_are_still_reading"],
+            "the check exists and is not registered in CHECKS under its own name — an unjoined "
+            "end inside the fix for an unjoined end. Registered rows bound to that name: %r"
+            % (bound,))
 
     def test_a_lane_with_work_owed_and_no_unit_of_work_is_DARK(self):
         """⚠⚠ THE STATE `vaultAutoread` SAT IN FOR WEEKS. Work is owed, the lane's own durable
@@ -619,8 +630,13 @@ RED_PROOF = [
     {
         "why": "declaring durability instead of measuring it. A heartbeat whose unit count survives a restart and whose clock reading does not is then reported fully durable — the chronicle lane's exact shape, and #60 one level up. Reddens test_durability_is_measured_from_the_store_and_needs_BOTH_halves.",
         "file": 'shelf_driver.py',
-        "find": '    out["durable"] = bool(out["durableWorks"] and out["durableLast"])',
-        "replace": '    out["durable"] = True',
+        # ⚠ ANCHORED TO THE LINE BOUNDARY. Without the leading newline this matched TWICE —
+        # once as the real line at 4 spaces, and once as a SUBSTRING of the same statement
+        # nested deeper in the same function. heart2 refused it as INVALID, correctly: a tamper
+        # that hits two places is not the sabotage the `why` describes.
+        # [[sabotage-is-usually-the-wrong-one]] [[source-window-shortcut]]
+        "find": '\n    out["durable"] = bool(out["durableWorks"] and out["durableLast"])',
+        "replace": '\n    out["durable"] = True',
         "matches": 1,
     },
     {

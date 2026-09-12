@@ -158,7 +158,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'console_doctor.py',
-        "find": 'IDENTICAL',
+        "find": 'the throw bar and the keep bar are IDENTICAL on both axes',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

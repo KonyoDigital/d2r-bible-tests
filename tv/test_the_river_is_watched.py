@@ -63,8 +63,12 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in corroborate.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'corroborate.py',
-        "find": 'router-and-shelf-agree',
-        "replace": '_HEART2_TAMPERED_',
+        # ⚠ the tamper must still PARSE. Replacing the whole `("router-and-shelf-agree",`
+        # left `return _HEART2_TAMPERED_` followed by the call's remaining arguments, so
+        # heart2 reported INVALID (unexpected indent) rather than RED — a sabotage that
+        # cannot compile proves nothing about the law. Rename the witness, keep the syntax.
+        "find": '("router-and-shelf-agree",',
+        "replace": '("_HEART2_TAMPERED_",',
         "matches": 1,
     },
 ]

@@ -306,7 +306,7 @@ RED_PROOF = [
     {
         "why": "v2925/B \u2014 puts the tap back behind the refusal, so a width whose selector failed to settle hands back NO reading. The widths that struggle are the narrow ones, and 375x800 is where REG-928 says the collisions are worst: the one width the instrument exists for is the one that drops out.",
         "file": "render_check.py",
-        "find": "                _take_report(w, h)      # \u26a0 v2925 \u2014 the fan's attribute does not need the selector\n",
+        "find": "                 _take_report(w, h)      # \u26a0 v2925 \u2014 the fan's attribute does not need the selector\n",
         "replace": "",
         "matches": 1,
     },

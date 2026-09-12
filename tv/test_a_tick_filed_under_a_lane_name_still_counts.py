@@ -126,9 +126,21 @@ RED_PROOF = [
     {
         "why": "makes the lane reader swallow its own failure again and return an empty map, so "
                "every function reads as stamping nothing and a broken reader looks like absence",
-        "file": "heart.py",
-        "find": '            src = _io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()',
-        "replace": '            src = _io.open(os.path.join(HERE, "no_such_file.py"), encoding="utf-8").read()',
+        # ⚠ RE-ANCHORED. This pointed at a line in heart.py that no longer exists: the lane
+        # reader moved into lane_liveness.stamping_functions(). A proof whose `find` matches 0
+        # times is not a passing proof, it is an ABSENT one — heart2 called it INVALID and the
+        # gate counted as blind for it. The law is unchanged; what it tampers is the REASON the
+        # reader hands back, which is the real thing here: a silent {} from a broken reader is
+        # indistinguishable from a console that stamps nothing.
+        "file": "lane_liveness.py",
+        # ⚠⚠ AND THE SECOND TRY WAS WRONG TOO, for the reason this repo keeps re-learning:
+        # a green sabotage is usually the SABOTAGE's fault. I first pointed this at the
+        # `return {"__failed__": ...}` line — but that sits in an `except` branch which never
+        # runs in a healthy read, so the tamper changed nothing and heart2 correctly reported
+        # BLIND. Breaking the PATH is what exercises the failure the law is about.
+        # [[sabotage-is-usually-the-wrong-one]]
+        "find": '                                     "control_app.py")',
+        "replace": '                                     "no_such_file.py")',
         "matches": 1,
     },
 ]

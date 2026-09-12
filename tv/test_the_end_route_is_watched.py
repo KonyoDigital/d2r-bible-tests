@@ -51,7 +51,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'console_doctor.py',
-        "find": 'end routes reachable',
+        "find": '("end routes reachable", _check_every_reel_can_still_reach_an_end_route)',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

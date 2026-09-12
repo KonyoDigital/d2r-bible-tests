@@ -338,7 +338,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'console_doctor.py',
-        "find": 'river joints',
+        "find": '("river joints", _check_the_river_joints_carry)',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
