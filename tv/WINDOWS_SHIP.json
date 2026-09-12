@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3007",
+  "ver": "v3008",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3007: the register returns label never name so v3000 compared the raw TV string; measured-false keeps its own value, a null store cannot erase testimony, and the destination speaks the new vocabulary",
+  "note": "v3008: one name clears two witnesses and sits unbanked correctly; first-match rostering swallowed the runeword referent so the hold read as owed work, and now the door names its reasons",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

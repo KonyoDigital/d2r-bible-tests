@@ -2530,11 +2530,16 @@ def _check_read_names_lane(*_a, **_k):
     discipline as `_BY_DESIGN_STATIONS` on the river row: an exemption with a stated reason, so it
     can be audited instead of silently growing.
 
-    ⚠ WHAT WOULD MAKE IT RED: a name that CLEARS the witness bar, IS on a roster, and still is not
-    banked. That is the auto lane owing work it can do for free — the reads are already paid for.
-    Today that count is 0, and the reason is the finding: the only three names clearing the bar are
-    locked-inventory fixtures (Horadric Cube and the two Tomes), which are 58 of 110 sightings and
-    can never tick.
+    ⚠ WHAT WOULD MAKE IT RED: a name that CLEARS the witness bar, IS on a roster, has ONE
+    referent, and still is not banked — the auto lane owing work it can do for free.
+
+    ⚠ v3008 — HELD IS NOT OWED, AND THE DOOR NOW SAYS WHY. Measured live: ONE name clears the bar
+    (Crescent Moon), and its name has multiple referents (two uniques share it, plus the
+    Shael+Um+Tir runeword) — two witnesses corroborate a NAME, not an ITEM, so auto-banking would
+    pick one of three referents on evidence that cannot distinguish them. The refusal was always
+    correct; before this, the row reported it as owed work ("can take those for free"), which is
+    a correct hold wearing a fault's clothes. (The earlier docstring's "today that count is 0"
+    was measured true when written and is not now — judge the measurement, not the prose.)
     """
     try:
         import read_names_lane as _RNL
@@ -2555,10 +2560,30 @@ def _check_read_names_lane(*_a, **_k):
     auto_t = sp.get("autoTickable") or 0
     tick = sp.get("tickable") or 0
     furn = sp.get("furniture") or 0
-    if auto_t:
-        return MISSING, ("%d read name(s) clear %d witness(es), are on a roster, and are still not "
-                         "banked - the auto door (vault_apply) can take those for free, because "
-                         "the reading is already paid for" % (auto_t, sp.get("minWitnesses")))
+    _owed = sp.get("autoOwed")
+    _held = sp.get("autoHeld")
+    if _owed is None or _held is None:
+        # an older lane (or an unreadable roster) cannot say held-vs-owed — fall back to the
+        # blunt count rather than inventing the distinction
+        if auto_t:
+            return MISSING, ("%d read name(s) clear %d witness(es), are on a roster, and are "
+                             "still not banked - and this lane predates the held/owed split, so "
+                             "WHY cannot be told from here" % (auto_t, sp.get("minWitnesses")))
+    else:
+        if _owed:
+            return MISSING, ("%d read name(s) clear %d witness(es), are on a roster with ONE "
+                             "referent each, and are still not banked - the auto door can take "
+                             "%s for free, the reading is already paid for"
+                             % (len(_owed), sp.get("minWitnesses"), ", ".join(_owed[:6])))
+        if _held:
+            _v = "; ".join("%s (%d referents: %s)"
+                           % (h.get("name"), len(h.get("referents") or []),
+                              "/".join(h.get("referents") or []))
+                           for h in _held[:4])
+            return OK, ("the auto door is HOLDING %d name(s), and says why: %s. Two witnesses "
+                        "corroborate a NAME, not an ITEM - banking would pick one referent on "
+                        "evidence that cannot distinguish them. Correct hold, not owed work; his "
+                        "hand stays the only door for these." % (len(_held), _v))
     return OK, ("no read name is owed to the auto lane. %d of %d read name(s) could ever tick and "
                 "all of them fall to HIS hand (single-sighting, which is the normal case for a "
                 "rare); %d more are locked-inventory fixtures that can never tick and account for "

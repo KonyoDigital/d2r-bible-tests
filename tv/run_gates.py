@@ -1092,6 +1092,21 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_auto_door_says_why_it_holds_a_name",
+         [sys.executable, os.path.join(HERE, "test_the_auto_door_says_why_it_holds_a_name.py")], 90,
+         why="A CORRECT HOLD WAS WEARING A FAULT'S CLOTHES (#77). One name clears two witnesses "
+             "and sits unbanked: Crescent Moon — and the refusal is CORRECT, because the name has "
+             "multiple referents (two uniques share it, plus the Shael+Um+Tir runeword) and two "
+             "witnesses corroborate a NAME, not an ITEM. But ledger_of returns the FIRST roster "
+             "hit, so nothing downstream could know about the second referent, and the doctor "
+             "reported the hold as owed work ('the auto door can take those for free'). v3008: "
+             "referents_of reports EVERY hit, split() separates autoHeld from autoOwed, and the "
+             "doctor names the hold and its reasons — measured live: 'HOLDING 1 name(s): Crescent "
+             "Moon (2 referents: UNIQUE/RUNEWORD)'. Owed (single-referent, cleared, unbanked) "
+             "stays MISSING; an older lane without the split SAYS it cannot tell. Proven red "
+             "three ways: early-returning the first hit, a threshold no name reaches, dropping "
+             "the held branch.",
+         skip_ok=()),
     Gate("test_the_waiting_on_you_reaches_the_inbox",
          [sys.executable, os.path.join(HERE, "test_the_waiting_on_you_reaches_the_inbox.py")], 90,
          why="THE 15 WAITING ON YOU NEVER REACHED HIS INBOX (#77). The console's watchdog has "

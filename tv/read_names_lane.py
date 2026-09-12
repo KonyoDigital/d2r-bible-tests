@@ -258,6 +258,33 @@ def ledger_of(name, rost):
     return "NEITHER"
 
 
+def referents_of(name, rost):
+    """EVERY ledger this name matches, in roster order. -> list | None
+
+    ⚠⚠ v3008 (#77) — `ledger_of` returns the FIRST match, and that first-match is itself where
+    the ambiguity hides: Crescent Moon matches UNIQUE and the RUNEWORD hit is never reported, so
+    nothing downstream could ever KNOW the name has three referents (two uniques share the name,
+    plus the Shael+Um+Tir runeword). Two witnesses corroborate a NAME, not an ITEM — and a name
+    with multiple referents cannot be auto-banked on evidence that does not distinguish them. The
+    door refusing it was always right; this is what lets the door SAY SO. bible.html has ruled on
+    this exact name in its own words ("the honest case: two different uniques carry that name").
+    """
+    if not rost:
+        return None
+    try:
+        import chronicle_resolve as CR
+    except Exception:
+        return None
+    out = []
+    if CR.canonical(name, rost.get("UNIQUE") or {}):
+        out.append("UNIQUE")
+    if CR.canonical(name, rost.get("SET") or {}):
+        out.append("SET")
+    if CR._norm(name) in (rost.get("RUNEWORD") or {}):
+        out.append("RUNEWORD")
+    return out
+
+
 def _containers(items):
     """Where the ITEM was, from the producer's per-name map. -> dict
 
@@ -328,6 +355,7 @@ def split(evidence_by_name=None, min_witnesses=None, conf_floor=None):
                # sighting agrees; when they disagree it stays None and `containers` carries the
                # split, because "it moved" and "the reader is unsure" must not be flattened into a
                # confident single word. [[unknown-stays-unknown]]
+               "referents": referents_of(nm, rost),
                **_containers(evidence_by_name[nm])}
         (auto if v.get("pass") else manual).append(row)
     return {"ok": True, "state": "MEASURED", "auto": auto, "manual": manual,
@@ -344,6 +372,19 @@ def split(evidence_by_name=None, min_witnesses=None, conf_floor=None):
             "autoTickable": (None if rost is None else
                              len([r for r in auto if r.get("ledger") not in
                                   (None, "NEITHER", "FURNITURE")])),
+            # ⚠ v3008 — THE DOOR'S VOICE. A name that clears the bar AND is on a roster AND has
+            # MULTIPLE referents is HELD, not owed: auto-banking it would pick one of N referents
+            # on evidence that cannot distinguish them. Held and owed are different answers and
+            # the doctor must never report a correct hold as owed work. [[unknown-stays-unknown]]
+            "autoHeld": (None if rost is None else
+                         [{"name": r["name"], "referents": r.get("referents") or []}
+                          for r in auto
+                          if r.get("ledger") not in (None, "NEITHER", "FURNITURE")
+                          and len(r.get("referents") or []) > 1]),
+            "autoOwed": (None if rost is None else
+                         [r["name"] for r in auto
+                          if r.get("ledger") not in (None, "NEITHER", "FURNITURE")
+                          and len(r.get("referents") or []) <= 1]),
             # ⚠ v2983 — THE HEADLINE HIS RULING EARNED. Not a ratio: the raw pair, so a reader
             # can see the denominator. [[zero-needs-a-denominator]]
             "frameItemDisagree": sum(r.get("frameDisagreed") or 0 for r in auto + manual),
