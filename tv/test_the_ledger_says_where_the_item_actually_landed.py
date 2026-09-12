@@ -131,30 +131,54 @@ console.log(JSON.stringify(storeFor(%s, %s)));
     def test_a_throwout_is_not_called_owned(self):
         """A throw-out is the one decision with no undo and the one most worth his eye."""
         self.assertEqual(
-            self._store(self.OWNED, {"ok": True, "mode": "throwout", "name": "Shako"}),
+            self._store(self.OWNED, {"ok": True, "mode": "throwout", "label": "Shako"}),
             "throwout-review")
 
-    def test_a_name_the_store_does_not_hold_is_not_called_owned(self):
-        self.assertIsNone(
-            self._store(json.dumps(["Occulus"]), {"ok": True, "mode": "new", "name": "Shako"}),
-            "the register reported ok, but d2r_owned does not hold the name — the row must not "
-            "say it does")
+    def test_a_name_the_store_does_not_hold_is_the_contradiction_not_null(self):
+        """⚠ v3007 — measured-FALSE used to collapse into the same null as UNKNOWN, destroying at
+        write time the exact contradiction (register ok, store provably lacks the name) the
+        11-of-360 measurement was made of. It now has its own value."""
+        self.assertEqual(
+            self._store(json.dumps(["Occulus"]), {"ok": True, "mode": "new", "label": "Shako"}),
+            "missing-from-store",
+            "register ok + store measurably lacking the name is the highest-value signal this "
+            "ledger carries; null would erase it")
+
+    def test_the_canonical_label_is_what_gets_compared(self):
+        """⚠⚠ THE v3000 BLINDNESS, PINNED. The inner register returns `label:` — the canonical
+        string the store was written with — and NEVER `name:`. v3000 consulted r.name, always
+        fell back to the RAW TV string, and published store:null on genuinely landed items. This
+        fixture is the real producer shape: label canonical, nm raw, store holding the canonical."""
+        self.assertEqual(
+            self._store(json.dumps(["Rattlecage"]),
+                        {"ok": True, "mode": "new", "label": "Rattlecage"}, nm="Battlecage"),
+            "owned",
+            "the store holds the canonical name the register wrote; comparing the raw TV read "
+            "instead is how landed items published store:null")
 
     # ── and it must still say 'owned' when that is true ───────────────────────────────────────
     def test_a_real_arrival_is_owned(self):
         self.assertEqual(
-            self._store(self.OWNED, {"ok": True, "mode": "new", "name": "Shako"}), "owned")
+            self._store(self.OWNED, {"ok": True, "mode": "new", "label": "Shako"}), "owned")
 
     def test_a_repeat_sighting_is_owned(self):
         self.assertEqual(
-            self._store(self.OWNED, {"ok": True, "mode": "already", "name": "Shako"}), "owned")
+            self._store(self.OWNED, {"ok": True, "mode": "already", "label": "Shako"}), "owned")
 
     def test_the_comparison_matches_the_chronicle_helper(self):
-        """_chSetHas compares trimmed and lowercased on an array. Diverging would make this row
-        disagree with every other store check in the file."""
+        """⚠ v3007 — _chSetHas lowers the STORED element and does NOT trim it (only the query is
+        trimmed). My v3000 cut trimmed both sides, so on a padded store entry this row and every
+        other store check in the file gave OPPOSITE answers — two normalisers folding differently,
+        re-shipped inside the fix for that class. The fixtures below are the exact inputs where
+        they used to disagree."""
         self.assertEqual(
-            self._store(json.dumps(["  shako "]), {"ok": True, "mode": "new", "name": "Shako"}),
-            "owned")
+            self._store(json.dumps(["Shako"]), {"ok": True, "mode": "new", "label": "SHAKO"}),
+            "owned", "query trimmed+lowered vs stored lowered — a case variant is a hit")
+        self.assertEqual(
+            self._store(json.dumps(["  shako "]), {"ok": True, "mode": "new", "label": "Shako"}),
+            "missing-from-store",
+            "a PADDED stored entry misses in _chSetHas, so it must miss here too — agreement "
+            "with the file's other store checks outranks generosity")
 
     # ── not knowing must never resolve to a verdict ───────────────────────────────────────────
     def _owned_now(self, raw, nm="Shako"):
@@ -202,9 +226,31 @@ console.log(JSON.stringify(_ownedNow(%s)));
         self.assertIs(self._owned_now(json.dumps(["Occulus"])), False,
                       "a store read fine that lacks the name is a measured FALSE, not unknown")
 
+    def test_a_missing_transport_is_unknown_not_a_denial(self):
+        """⚠ v3007 — with window.LSR ABSENT nothing was read, and v3000 answered a confident
+        false ('the item is not in his vault') about a read that never happened. The review's
+        exact finding, made executable: no LSR -> null."""
+        src = _reader()
+        if src is None:
+            self.fail("the reader moved — a skip is NOT a pass")
+        js = ("var window = {};\n" + src +
+              "\nconsole.log(JSON.stringify(_ownedNow('Shako')));")
+        d = tempfile.mkdtemp(prefix="nolsr_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        except Exception:
+            self.fail("node is REQUIRED and is not on PATH — a law that does not run is not a pass")
+        if r.returncode != 0:
+            self.fail("the reader would not execute: %s" % (r.stderr or "")[:200])
+        self.assertIsNone(json.loads(r.stdout.strip().splitlines()[-1]),
+                          "no transport means nothing was read — null, never false")
+
     def test_a_store_of_the_wrong_shape_is_unknown(self):
         self.assertIsNone(self._store(json.dumps({"a": 1}),
-                                      {"ok": True, "mode": "new", "name": "Shako"}))
+                                      {"ok": True, "mode": "new", "label": "Shako"}))
 
     # ── the cross-block trap ──────────────────────────────────────────────────────────────────
     def test_the_reader_does_not_call_a_helper_from_another_script_block(self):
@@ -247,6 +293,93 @@ console.log(JSON.stringify(_ownedNow(%s)));
                           "mention %s" % (val[:60], token))
 
 
+class TheLedgerNeverErasesTestimonyWithAnUnknown(unittest.TestCase):
+    """⚠⚠ v3007 — since v3000 `store` can honestly be null (UNKNOWN), and _chLogUpsert's
+    Object.assign copied that null over a previously VERIFIED store on the permanent per-name
+    ledger — durable erasure, never repaired because re-annotation skips settled rows. A MEASURED
+    value still overwrites (a measured contradiction is the finding); only not-knowing is refused.
+    EXECUTES the shipped merge. [[unknown-stays-unknown]]"""
+
+    def _merge(self, prev, row):
+        a = BIBLE.find("    var next = Object.assign({}, prev || {}, row, {")
+        if a < 0:
+            self.fail("the upsert merge moved — this law is grading nothing")
+        b = BIBLE.find("\n    });", a)
+        if b < a:
+            self.fail("the upsert merge's close moved")
+        block = BIBLE[a:b + len("\n    });")]
+        js = ("var window = { _chBatchTs: 5 };\n"
+              "var prev = %s, row = %s;\n" % (json.dumps(prev), json.dumps(row))
+              ) + block + "\nconsole.log(JSON.stringify(next));"
+        d = tempfile.mkdtemp(prefix="upsert_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        except Exception:
+            self.fail("node is REQUIRED and is not on PATH")
+        if r.returncode != 0:
+            self.fail("the shipped merge would not execute: %s" % (r.stderr or "")[:250])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_null_store_does_not_erase_a_verified_one(self):
+        got = self._merge({"name": "Shako", "store": "foundLog", "status": "accepted"},
+                          {"name": "Shako", "store": None, "status": "vault-unknown"})
+        self.assertEqual(got.get("store"), "foundLog",
+                         "an UNKNOWN readback must not erase testimony on the permanent ledger")
+
+    def test_a_measured_store_still_overwrites(self):
+        got = self._merge({"name": "Shako", "store": "foundLog"},
+                          {"name": "Shako", "store": "missing-from-store"})
+        self.assertEqual(got.get("store"), "missing-from-store",
+                         "a MEASURED contradiction is the finding and must land")
+
+    def test_a_fresh_row_takes_its_own_store(self):
+        got = self._merge(None, {"name": "Shako", "store": "owned"})
+        self.assertEqual(got.get("store"), "owned")
+
+
+class TheDestinationSpeaksTheNewVocabulary(unittest.TestCase):
+    """v3007 — the write site taught the new STATUS to _CH_PILL_MAP and nobody taught the new
+    STORE values to DEST, so throw-outs rendered a raw slug in a panel where every other
+    destination is prose. EXECUTES the shipped renderer."""
+
+    def _dest(self, store, status=""):
+        a = BIBLE.find("    var DEST = function(store, status){")
+        if a < 0:
+            self.fail("DEST moved — this law is grading nothing")
+        b = BIBLE.find("    };", a)
+        block = BIBLE[a:b + len("    };")]
+        js = (block + "\nconsole.log(JSON.stringify(DEST(%s, %s)));"
+              % (json.dumps(store), json.dumps(status)))
+        d = tempfile.mkdtemp(prefix="dest_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        except Exception:
+            self.fail("node is REQUIRED and is not on PATH")
+        if r.returncode != 0:
+            self.fail("DEST would not execute: %s" % (r.stderr or "")[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_throwout_renders_as_prose_not_a_slug(self):
+        got = self._dest("throwout-review")
+        self.assertNotEqual(got, "\u2192 throwout-review",
+                            "a raw internal token in a panel where everything else speaks")
+        self.assertIn("throw-out review", got)
+
+    def test_the_contradiction_store_names_itself(self):
+        got = self._dest("missing-from-store")
+        self.assertIn("NOT found", got,
+                      "the highest-value signal must say what it is, not render a slug")
+
+    def test_owned_still_renders(self):
+        self.assertEqual(self._dest("owned"), "\u2192 owned")
+
+
 RED_PROOF = [
     {
         "why": "restoring the flat literal is the defect verbatim: a route-failed row claiming the "
@@ -265,11 +398,43 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "reading raw localStorage instead of window.LSR bypasses the transport every other "
-               "store check in this file uses",
+        "why": "answering false when the transport is ABSENT turns 'nothing was read' into 'the "
+               "item is not in his vault' — the v3000 collapse, restored",
         "file": "bible.html",
-        "find": "        var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem('d2r_owned') : null;",
-        "replace": "        var raw = localStorage.getItem('d2r_owned');",
+        "find": "        if (!(window.LSR && window.LSR.getItem)) return null;   /* could not read \\u2014 UNKNOWN */",
+        "replace": "        if (!(window.LSR && window.LSR.getItem)) return false;",
+        "matches": 1,
+    },
+    {
+        "why": "consulting r.name again — a field the register never returns — makes the readback "
+               "compare the raw TV string and publish store:null on landed items",
+        "file": "bible.html",
+        "find": "                   : (function(){ var _o = _ownedNow((r && r.label) || nm);",
+        "replace": "                   : (function(){ var _o = _ownedNow((r && r.name) || nm);",
+        "matches": 1,
+    },
+    {
+        "why": "collapsing measured-false back into null destroys the register-ok-but-absent "
+               "contradiction at write time",
+        "file": "bible.html",
+        "find": "                                       : (_o === false ? 'missing-from-store' : null); })())",
+        "replace": "                                       : null; })())",
+        "matches": 1,
+    },
+    {
+        "why": "letting Object.assign copy a null store over a verified one is durable erasure of "
+               "testimony on the permanent ledger",
+        "file": "bible.html",
+        "find": "      store: (row.store != null) ? row.store : ((prev && prev.store != null) ? prev.store : row.store),",
+        "replace": "      store: row.store,",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the throwout prose returns the raw slug to a panel where every other "
+               "destination speaks",
+        "file": "bible.html",
+        "find": "      if (store === 'throwout-review')   return '\\u2192 \\ud83d\\uddd1 throw-out review';",
+        "replace": "",
         "matches": 1,
     },
 ]

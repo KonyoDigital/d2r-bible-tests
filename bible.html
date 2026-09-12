@@ -36948,14 +36948,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        same class of lie as the literal it replaces. */
     function _ownedNow(n){
       try {
-        var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem('d2r_owned') : null;
+        /* \u26a0\u26a0 v3007 \u2014 TRANSPORT-ABSENT IS NOT MEASURED-EMPTY. The v3000 cut collapsed
+           "window.LSR does not exist" (nothing was read \u2014 the contract two lines up says null)
+           into the same raw==null as "read fine, key absent" (a real measured-empty) \u2014 so with
+           the transport missing it answered a confident false. Found by the post-ship review. */
+        if (!(window.LSR && window.LSR.getItem)) return null;   /* could not read \u2014 UNKNOWN */
+        var raw = window.LSR.getItem('d2r_owned');
         if (raw == null) return false;                 /* read fine, key absent \u2014 measured-empty */
         var arr = JSON.parse(raw);
         if (!Array.isArray(arr)) return null;          /* shape is not what we grade \u2014 UNKNOWN */
         var low = String(n || '').trim().toLowerCase();
         if (!low) return null;
-        /* same comparison _chSetHas makes on an array: trimmed, lowercased, no apostrophe fold */
-        return arr.some(function(x){ return String(x).trim().toLowerCase() === low; });
+        /* \u26a0 v3007 \u2014 EXACTLY _chSetHas's comparison: query trimmed+lowered, STORED element
+           lowered but NOT trimmed. My v3000 cut trimmed the stored side too, so on a padded store
+           entry this row and every other store check in the file gave OPPOSITE answers \u2014 two
+           normalisers that fold differently, re-shipped inside the fix for that exact class. */
+        return arr.some(function(x){ return String(x).toLowerCase() === low; });
       } catch(e){ return null; }                       /* could not read \u2014 UNKNOWN, never false */
     }
     function _known(n){
@@ -37034,10 +37042,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                AFTER `_inner` returned, so it reports what landed instead of what was intended.
                `ledger`/`target` stay literal on purpose: those are the ROUTE that was attempted,
                which is true whatever the outcome. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+            /* \u26a0\u26a0 v3007 \u2014 TWO CORRECTIONS FROM THE POST-SHIP REVIEW, both verified by
+               reading the inner register. (1) It returns `label:`, NEVER `name:` \u2014 and `label`
+               IS the canonical string the store was written with (`name` is reassigned to
+               _hitV.n/_pV.piece before owned.add). v3000 consulted r.name, always fell back to
+               the RAW TV string, and published store:null on genuinely landed items whenever
+               canonicalisation changed the name. (2) Measured-FALSE was collapsed into the same
+               null as UNKNOWN \u2014 destroying at write time the exact contradiction ("register ok
+               but the store provably lacks the name") the 11-of-360 measurement was made of.
+               'missing-from-store' keeps it visible. [[unknown-stays-unknown]] */
             store: (r && r.ok)
               ? (r.mode === 'throwout'
                    ? 'throwout-review'
-                   : (_ownedNow((r && r.name) || nm) === true ? 'owned' : null))
+                   : (function(){ var _o = _ownedNow((r && r.label) || nm);
+                                  return _o === true ? 'owned'
+                                       : (_o === false ? 'missing-from-store' : null); })())
               : null,
             ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: true,
             why: (r && r.ok)
@@ -50067,7 +50086,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3006', name:'v3006 - the waiting-on-you rows finally reach his inbox', date:'2026-09-12', note:'the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting' };
+  window.D2R_BUILD = { id:'v3007', name:'v3007 - the readback compares the name the store was actually written with', date:'2026-09-12', note:'the register returns label never name so v3000 compared the raw TV string; measured-false keeps its own value, a null store cannot erase testimony, and the destination speaks the new vocabulary' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -50399,6 +50418,13 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
     }
     var prev = ix >= 0 ? log[ix] : null;
     var next = Object.assign({}, prev || {}, row, {
+      /* \u26a0 v3007 \u2014 A NULL store MUST NOT ERASE TESTIMONY. Since v3000 `store` can honestly be
+         null (UNKNOWN \u2014 the readback could not run), and Object.assign copied that null over a
+         previously VERIFIED store on this permanent per-name ledger \u2014 durable erasure, and the
+         re-annotation skips accepted/dismissed rows so it was never repaired. A MEASURED value
+         ('owned', 'missing-from-store', 'throwout-review') still overwrites, because a measured
+         contradiction is the finding; only not-knowing is refused. [[unknown-stays-unknown]] */
+      store: (row.store != null) ? row.store : ((prev && prev.store != null) ? prev.store : row.store),
       name: String(row.name).trim(),
       /* v1765 — ONE SWEEP, ONE STAMP. Stamping each row with its own Date.now() meant a 17-row
          apply that straddled a millisecond split into two timestamp groups, and the panel (which
@@ -51137,6 +51163,12 @@ window._CH_PILL_MAP = {
       if (store === 'foundLog')     return '\u2192 chronicle';
       if (store === 'grailUnfound') return '\u2192 your un-tick';
       if (store === 'rwMade')       return '\u2192 runewords';
+      /* v3007 \u2014 the v3000 store vocabulary, in prose like every other destination. The write
+         site taught the new STATUS to _CH_PILL_MAP and nobody taught the new STORE values here,
+         so throw-outs rendered a raw slug in a panel where everything else speaks. */
+      if (store === 'throwout-review')   return '\u2192 \ud83d\uddd1 throw-out review';
+      if (store === 'missing-from-store') return '\u2192 \u26a0 registered ok, yet NOT found in the '
+        + 'vault store \u2014 the contradiction is the finding';
       if (store)                    return '\u2192 ' + store;
       return status === 'dismissed' ? '\u2192 nowhere' : '';
     };

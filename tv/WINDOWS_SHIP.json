@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3006",
+  "ver": "v3007",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3006: the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting",
+  "note": "v3007: the register returns label never name so v3000 compared the raw TV string; measured-false keeps its own value, a null store cannot erase testimony, and the destination speaks the new vocabulary",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

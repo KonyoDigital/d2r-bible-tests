@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3006** | `(this commit)` | v3006 — the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting |
+| **v3007** | `(this commit)` | v3007 — the register returns label never name so v3000 compared the raw TV string; measured-false keeps its own value, a null store cannot erase testimony, and the destination speaks the new vocabulary |
+| **v3006** | `60c2ab90` | v3006 — the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting |
 | **v3005** | `848d9410` | v3005 — delete the load-time recoveredAt stamp and every reader-side law stayed green; now that sabotage goes red, and the recovered verdict carries its counts so one name cannot pass for four hundred |
 | **v3004** | `9c2d7900` | v3004 — a recoveredAt closes an episode so a new empty starts a new record with the old one kept as history, and the doctor now reads the counts it always had instead of demanding a reload |
 | **v3003** | `7a2ec7d4` | v3003 — supervised meant in-the-roster-literal, and a lane that stamps a tick is watched with no roster row; eight of twenty reported gaps were invented and the genuinely unwatched count was zero |
