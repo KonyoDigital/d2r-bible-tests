@@ -2645,21 +2645,28 @@ def _check_the_river_walk_is_walking(*_a, **_k):
     goes red on the WATCHING stopping, not on the water being calm.
     [[feedback-silence-is-not-evidence]] [[unknown-stays-unknown]]
     """
-    try:
-        import control_app as _CA
-    except Exception as exc:
-        return UNKNOWN, ("control_app could not be imported (%s), so whether the river is being "
-                         "walked is UNKNOWN" % type(exc).__name__)
-    try:
-        st = _CA.river_walk_state()
-    except Exception as exc:
-        return UNKNOWN, "the river walk state raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+    # ⚠⚠ v3012 — THIS ROW MEASURED A DEAD TWIN FOR ITS ENTIRE LIFE. It did `import control_app`
+    # and read `river_walk_state()` — a MODULE GLOBAL. The console runs control_app as its own
+    # process entry, so that import builds a SECOND module instance whose _RIVER_WALK is the empty
+    # literal: at=None, in every process, since the row was born. PROVEN by one payload read two
+    # ways at the same instant: /api/status.riverWalk said walks=13, at 15s old, while this row's
+    # eagle copy said "has not completed a tick in this process — unaskable for 4d (1468
+    # attempts)". Four days of UNKNOWN about a walk that ran the whole time. The WIRE is the one
+    # authority — the serving process publishes its own _RIVER_WALK there — and it is honest from
+    # a standalone doctor process too, which the import never was.
+    # [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+    _stw = _get("/api/status") or {}
+    st = _stw.get("riverWalk")
+    if st is None:
+        return UNKNOWN, ("the console did not answer (or predates the riverWalk field), so "
+                         "whether the river is being walked is UNKNOWN")
     if not isinstance(st, dict):
         return UNKNOWN, "the river walk state is unreadable"
     if st.get("at") is None:
-        # ⚠ NEVER "no movement". Nobody has looked yet in this process.
-        return UNKNOWN, str(st.get("why") or "the river walk has never completed a tick here")
-    age = st.get("ageS")
+        # ⚠ NEVER "no movement". Nobody has looked yet in that process.
+        return UNKNOWN, str(st.get("why") or "the river walk has never completed a tick there")
+    import time as _t
+    age = round(max(0.0, _t.time() - float(st["at"])), 1)
     if st.get("ok") is False:
         return MISSING, ("the last river walk FAILED %ss ago: %s"
                          % (age, str(st.get("why"))[:150]))

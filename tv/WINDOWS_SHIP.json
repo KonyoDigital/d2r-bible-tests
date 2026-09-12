@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3011",
+  "ver": "v3012",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3011: his tombstone rule re-derived from the reels own evidence; the first predicate went red-wrong on live data within a minute and the conjunction is what survived",
+  "note": "v3012: the river walk row imported a second control_app instance whose globals were the empty literals, four days of unknown about a walk running every ninety seconds; it reads the wire now",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

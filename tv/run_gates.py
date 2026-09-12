@@ -1092,6 +1092,20 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_doctor_reads_the_console_not_a_twin",
+         [sys.executable, os.path.join(HERE, "test_the_doctor_reads_the_console_not_a_twin.py")], 60,
+         why="A DOCTOR ROW MEASURED A DEAD TWIN FOR ITS ENTIRE LIFE (#80). The river-walk row did "
+             "`import control_app` and read a MODULE GLOBAL — but the console runs control_app "
+             "as its own process entry, so the import builds a SECOND instance whose _RIVER_WALK "
+             "is the empty literal: at=None, every process, since birth. Proven by ONE payload "
+             "read two ways at the same instant: /api/status.riverWalk said walks=13 / at 15s "
+             "old while the eagle's copy of the row said 'has not completed a tick in this "
+             "process — unaskable for 4d (1468 attempts)'. Four days of UNKNOWN about a walk "
+             "running every 90s. The row now reads THE WIRE, honest from standalone processes "
+             "too; an ast law forbids the import returning. Found by the read-only army's "
+             "hygiene agent flagging the row, then diagnosed live. Proven red both ways: the "
+             "twin's exact face substituted for the wire, and the staleness branch disabled.",
+         skip_ok=()),
     Gate("test_the_outlet_pair_rederives_his_rule",
          [sys.executable, os.path.join(HERE, "test_the_outlet_pair_rederives_his_rule.py")], 60,
          why="THE OUTLET'S CORROBORATOR (#80): his rule re-derived from the reels' own evidence, "
