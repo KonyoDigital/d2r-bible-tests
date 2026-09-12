@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3012",
+  "ver": "v3013",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3012: the river walk row imported a second control_app instance whose globals were the empty literals, four days of unknown about a walk running every ninety seconds; it reads the wire now",
+  "note": "v3013: a heartbeat credits its enclosing function under the name it stamps, a spawn-site declaration stays a declaration, and a roster row says roster; three evidences no longer fold into one green",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

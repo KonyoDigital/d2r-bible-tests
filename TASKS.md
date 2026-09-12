@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3012** | `(this commit)` | v3012 — the river walk row imported a second control_app instance whose globals were the empty literals, four days of unknown about a walk running every ninety seconds; it reads the wire now |
+| **v3013** | `(this commit)` | v3013 — a heartbeat credits its enclosing function under the name it stamps, a spawn-site declaration stays a declaration, and a roster row says roster; three evidences no longer fold into one green |
+| **v3012** | `e29b5d2b` | v3012 — the river walk row imported a second control_app instance whose globals were the empty literals, four days of unknown about a walk running every ninety seconds; it reads the wire now |
 | **v3011** | `e5cc2d26` | v3011 — his tombstone rule re-derived from the reels own evidence; the first predicate went red-wrong on live data within a minute and the conjunction is what survived |
 | **v3010** | `63be698e` | v3010 — my defects are held out and named, the badge punches the collapsed card, a crashed watchdog is not dressed as a young one, and a file board probes its own console |
 | **v3009** | `5c5a7481` | v3009 — 48h rolling plus first-of-day keepers for 90 days, and while an emptying episode is open the newest backup predating it is protected whatever its age |

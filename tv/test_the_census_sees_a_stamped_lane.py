@@ -38,6 +38,15 @@ def _stamped_loop():
         _lane_tick('_stamped_loop', 5)
         time.sleep(5)
 
+def _tvd_stamper():
+    while True:
+        _lane_tick('tvd-planted', 5)
+        time.sleep(5)
+
+def _elsewhere_loop():
+    while True:
+        time.sleep(5)
+
 def _unwatched_loop():
     # _lane_tick('_ghost_loop', 5)   <- prose. crediting this is the defect the ghost law pins
     while True:
@@ -47,8 +56,11 @@ def start():
     roster = [
         ("tvd-rostered", _rostered_loop),
     ]
+    _lane_dormant('_elsewhere_loop', 'its stamps go to another process by design')
     threading.Thread(target=_rostered_loop).start()
     threading.Thread(target=_stamped_loop).start()
+    threading.Thread(target=_tvd_stamper).start()
+    threading.Thread(target=_elsewhere_loop).start()
     threading.Thread(target=_unwatched_loop).start()
 '''
 
@@ -92,10 +104,36 @@ class TheCensusSeesAStampedLane(unittest.TestCase):
         """⚠ THE GHOST. `# _lane_tick('_ghost_loop', 5)` is prose. The regex fallback would credit
         it; the ast path must not. If this goes red, the parse path has silently become a grep."""
         stamped = LC._lane_stamps(FIXTURE)
-        self.assertIn("_stamped_loop", stamped)
-        self.assertNotIn("_ghost_loop", stamped,
+        self.assertIn("_stamped_loop", stamped["strings"])
+        self.assertNotIn("_ghost_loop", stamped["strings"],
                          "a lane name that appears only inside a comment was credited as a real "
                          "stamp — the census is reading prose as code")
+
+    def test_a_loop_stamping_a_name_other_than_its_own_is_credited(self):
+        """⚠⚠ v3013 — THE LATENT GAP THE ARMY MEASURED: 11 of 20 live stamp strings are
+        roster-style tvd-* names, all rescued today only by roster expansion. A future
+        NON-rostered loop stamping 'tvd-foo' read unsupervised under string-equality — the
+        invented-gap class reborn one naming convention away. The heartbeat credits its
+        ENCLOSING function, under the name it actually stamps."""
+        r = _row(self.rows, "_tvd_stamper")
+        self.assertIsNotNone(r)
+        self.assertTrue(r["supervised"],
+                        "it beats _lane_tick('tvd-planted') from its own body — lane_liveness "
+                        "watches it under that name whatever the function is called")
+        self.assertEqual(r["lane"], "tvd-planted",
+                         "the lane name is what lane_liveness watches, not the def's name")
+        self.assertEqual(r.get("credit"), "heartbeat")
+
+    def test_a_spawn_site_declaration_is_credited_as_declared_not_heartbeat(self):
+        """A _lane_dormant made by the SPAWNER is a claim, not a beat — _orphan_watch's real
+        stamps go to another process. Supervised yes; but the evidence class must stay visible,
+        because a declaration cannot go LATE. [[unknown-stays-unknown]]"""
+        r = _row(self.rows, "_elsewhere_loop")
+        self.assertIsNotNone(r)
+        self.assertTrue(r["supervised"])
+        self.assertEqual(r.get("credit"), "declared",
+                         "folding a declaration into the same word as a heartbeat is how "
+                         "'watched' quietly loses its meaning")
 
     def test_the_live_source_has_no_stamping_lane_reported_unsupervised(self):
         """The defect pinned on the REAL source, not just the fixture: every thread target that
@@ -103,7 +141,8 @@ class TheCensusSeesAStampedLane(unittest.TestCase):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         rows = LC.census(src)
         stamped = LC._lane_stamps(src)
-        wrong = [r["fn"] for r in rows if r["fn"] in stamped and not r["supervised"]]
+        _watched = set(stamped["tick_by_encloser"]) | stamped["declared"]
+        wrong = [r["fn"] for r in rows if r["fn"] in _watched and not r["supervised"]]
         self.assertEqual(wrong, [],
                          "these stamp a lane tick and are still reported unsupervised: %s"
                          % ", ".join(wrong))
@@ -114,8 +153,8 @@ RED_PROOF = [
         "why": "narrowing supervised back to the roster literal reinvents the eight gaps the "
                "instrument was reporting about lanes lane_liveness already watches",
         "file": "lane_census.py",
-        "find": '                    "supervised": (n in registered) or _stamp,',
-        "replace": '                    "supervised": (n in registered),',
+        "find": '        _sup = (n in registered) or (_beat is not None) or _decl',
+        "replace": '        _sup = (n in registered)',
         "matches": 1,
     },
     {
@@ -131,8 +170,8 @@ RED_PROOF = [
                "supervised lane — roster and lane_liveness are different places to look for the "
                "tick",
         "file": "lane_census.py",
-        "find": '                    "via": "lane_liveness" if (_stamp and n not in registered) else None})',
-        "replace": '                    "via": None})',
+        "find": '                    "credit": ("roster" if n in registered else',
+        "replace": '                    "credit": (None if True else',
         "matches": 1,
     },
 ]

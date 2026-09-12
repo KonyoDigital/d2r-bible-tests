@@ -179,47 +179,83 @@ def census(src=None):
                 expanded = True
                 for fn_, lane in sorted(registered.items(), key=lambda kv: kv[1]):
                     out.append({"fn": fn_, "kind": classify(src, fn_), "lane": lane,
-                                "supervised": True, "via": n})
+                                "supervised": True, "credit": "roster", "via": n})
             else:
                 out.append({"fn": n, "kind": "UNKNOWN", "lane": None,
                             "supervised": False, "via": None})
             continue
-        # ⚠⚠ v3003 — "SUPERVISED" MEANT "IN THE roster LITERAL", AND THAT STOPPED BEING THE ONLY
-        # WAY TO BE WATCHED AT v2994. A lane that stamps _lane_tick (with a period or a declared
-        # silence bound) is watched by lane_liveness without any roster row — and this census kept
-        # calling it unsupervised. MEASURED on the live source 2026-09-12: 20 rows reported
-        # unsupervised, 8 of them stamping a lane tick, and the number of GENUINELY unwatched
-        # loops was ZERO. The instrument #80 uses to report supervision gaps was inventing them.
+        # ⚠⚠ v3003 — "SUPERVISED" MEANT "IN THE roster LITERAL"; v3013 — AND THEN "STAMPS ITS
+        # OWN NAME", both too narrow. The census now credits three distinct evidences and SAYS
+        # which: a roster row, a HEARTBEAT (a _lane_tick in the loop's own body, under whatever
+        # name it stamps — that name is what lane_liveness actually watches), or a DECLARATION
+        # (_lane_dormant, a claim that may be made at the spawn site and is weaker than a beat).
+        # Folding the three into one green is how "watched" quietly loses its meaning.
         # [[label-outlived-referent]] [[feedback-suspect-the-instrument]]
-        _stamp = n in stamped
+        _beat = stamped["tick_by_encloser"].get(n)
+        _decl = (n in stamped["declared"]) or (n in stamped["strings"] and _beat is None
+                                               and n not in stamped["tick_by_encloser"])
+        _sup = (n in registered) or (_beat is not None) or _decl
         out.append({"fn": n, "kind": classify(src, n),
-                    "lane": registered.get(n) or (n if _stamp else None),
-                    "supervised": (n in registered) or _stamp,
-                    "via": "lane_liveness" if (_stamp and n not in registered) else None})
+                    "lane": registered.get(n) or _beat or (n if _decl else None),
+                    "supervised": _sup,
+                    "credit": ("roster" if n in registered else
+                               ("heartbeat" if _beat is not None else
+                                ("declared" if _decl else None))),
+                    "via": ("lane_liveness" if (_sup and n not in registered) else None)})
     return out
 
 
 def _lane_stamps(src):
-    """-> the set of lane names that stamp _lane_tick / _lane_dormant / _lane_waking in `src`.
+    """-> {"tick_by_encloser": {def_name: stamp_string}, "declared": set, "strings": set}
 
     ⚠ PARSED, NOT GREPPED, because this file's own docstrings write those call names in prose —
-    a substring search would credit a lane for a comment. Falls back to a regex ONLY when the
-    source does not parse (a fixture fragment), and says nothing extra about it: a fixture that
-    wants stamp-credit can include a real call. [[source-reading-guard]]
+    a substring search would credit a lane for a comment. [[source-reading-guard]]
+
+    ⚠⚠ v3013 — ATTRIBUTION, NOT A FLAT SET, because a flat set answered the wrong question two
+    ways (found latent by the read-only army, verified by ast over the live source):
+      · a loop that stamps a NAME OTHER THAN ITS OWN (`_foo_loop` stamping 'tvd-foo' — the
+        convention every ROSTERED lane already uses) matched nothing and read unsupervised: the
+        invented-gap class v3003 exists to end, reborn one naming convention away. 11 of the 20
+        distinct live stamp strings are tvd-* names, all rescued today only by roster expansion.
+      · a DECLARATION made at the SPAWN SITE (`_lane_dormant('_orphan_watch', ...)` inside
+        start_background_watchers — deliberate, its own comment says the loop's real stamps go
+        to ANOTHER PROCESS) credited the spawner's string with no way to say the evidence is a
+        declaration rather than a heartbeat.
+    So: a _lane_tick/_lane_waking credits its ENCLOSING function (the def whose body makes the
+    call — a heartbeat is evidence about the loop that beats); _lane_dormant strings land in
+    `declared` wherever they appear (a declaration is a claim, made anywhere, and stays
+    distinguishable from a heartbeat). The regex fallback (a fixture fragment that does not
+    parse) puts its strings in BOTH declared and strings so no caller branches on which path ran.
     """
     import ast
-    names = ("_lane_tick", "_lane_dormant", "_lane_waking")
+    beat_names = ("_lane_tick", "_lane_waking")
     try:
         tree = ast.parse(src)
     except SyntaxError:
-        return set(re.findall(r"_lane_(?:tick|dormant|waking)\(\s*['\"]([^'\"]+)['\"]", src))
-    out = set()
-    for node in ast.walk(tree):
-        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                and node.func.id in names and node.args
-                and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)):
-            out.add(node.args[0].value)
+        flat = set(re.findall(r"_lane_(?:tick|dormant|waking)\(\s*['\"]([^'\"]+)['\"]", src))
+        return {"tick_by_encloser": {}, "declared": set(flat), "strings": set(flat)}
+    out = {"tick_by_encloser": {}, "declared": set(), "strings": set()}
+
+    def _walk(node, stack):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.FunctionDef):
+                _walk(child, stack + [child.name])
+                continue
+            if (isinstance(child, ast.Call) and isinstance(child.func, ast.Name)
+                    and child.func.id in beat_names + ("_lane_dormant",)
+                    and child.args and isinstance(child.args[0], ast.Constant)
+                    and isinstance(child.args[0].value, str)):
+                nm = child.args[0].value
+                out["strings"].add(nm)
+                if child.func.id == "_lane_dormant":
+                    out["declared"].add(nm)
+                elif stack:
+                    # the LEAF def owns the heartbeat; a nested helper still credits itself,
+                    # which is the honest reading — the beat proves THAT body runs.
+                    out["tick_by_encloser"].setdefault(stack[-1], nm)
+            _walk(child, stack)
+
+    _walk(tree, [])
     return out
 
 
