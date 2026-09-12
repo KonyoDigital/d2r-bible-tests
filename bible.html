@@ -20730,6 +20730,25 @@ window.renderHighValueFinds = renderHighValueFinds;
          means the store did NOT start empty — it BECAME empty, which no new install can do. */
       var _hadRun = !!(LS.getItem('d2r_pieceAlias_v2') || LS.getItem('d2r_chronSyncMerged_v1')
                        || LS.getItem('d2r_installIdCache'));
+      /* ⚠⚠ v2993 — AND CLOSE IT WHEN IT RECOVERS. The record had no exit: `restore_ledger.py
+         --apply` is a merge-max chronicleApply — it puts the NAMES back and never removes
+         `d2r_storeEmptied` — so once written, the doctor reported MISSING for ever, including
+         after a successful recovery. A permanent alarm is one he learns to ignore, which is worse
+         than no alarm. Found by the cross-family eye on v2990.
+         ⚠ THE RECORD IS NOT DELETED. It is his evidence of what happened and when — the very
+         field v2990 exists to protect. `recoveredAt` is stamped beside it instead, so the history
+         survives and the verdict can still change. [[unknown-stays-unknown]] */
+      if (!_wasEmpty) {
+        try {
+          var _rp = JSON.parse(LS.getItem('d2r_storeEmptied') || 'null');
+          if (_rp && typeof _rp === 'object' && !_rp.recoveredAt) {
+            _rp.recoveredAt = Date.now();
+            LS.setItem('d2r_storeEmptied', JSON.stringify(_rp));
+            try { console.warn('[ledger] the store has contents again — the emptied record is '
+                  + 'kept as history and marked recovered.'); } catch(e){}
+          }
+        } catch(e){}
+      }
       if (_wasEmpty && _hadRun) {
         /* ⚠⚠ v2990 — KEEP THE FIRST `at`. FOUND BY THE CROSS-FAMILY EYE ON v2988, i.e. on the
            fix I shipped hours earlier. `at: Date.now()` was written on EVERY boot that found the
@@ -49981,7 +50000,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2992', name:'v2992 - one story snapshot per printer reading, not two', date:'2026-09-12', note:'' };
+  window.D2R_BUILD = { id:'v2993', name:'v2993 - the fields reach the doctor, and a recovered store stops crying', date:'2026-09-12', note:'' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

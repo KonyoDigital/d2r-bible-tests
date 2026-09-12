@@ -146,6 +146,50 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
                       "the doctor no longer says the floor REFUSED, so 'empty' and 'seeded over' "
                       "read the same on the one surface that is supposed to tell them apart")
 
+    def test_the_transport_carries_every_field_the_doctor_reads(self):
+        """⚠⚠ I BUILT A READER FOR FIELDS THE TRANSPORT DROPPED. v2990 added
+        {at, seenAgainAt, boots, recoveredAt}; v2991's doctor reads `boots`; and
+        `control_app.board_ownership` copied storeEmptied through a WHITELIST of two keys, so
+        `boots` was in localStorage, in every ledger backup, and absent from the ONE api the doctor
+        feeds from. Its "still empty N boots later" could never print. The eye named the join:
+        "the two readers of the same key do not share a shape." [[plumbing-with-no-tap]]
+
+        ⚠ It stays a whitelist on purpose — `restore` is a COMMAND STRING and the console must
+        never carry a command up out of board storage. Widened by name, never made a passthrough.
+        """
+        ca = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = ca.find("storeEmptied={at:")
+        self.assertGreater(i, 0, "the board_ownership copy of storeEmptied is gone")
+        seg = ca[i:i + 420]
+        for field in ("boots", "seenAgainAt", "recoveredAt"):
+            self.assertIn(field + ":", seg,
+                          "board_ownership drops %r, so any doctor line reading it is dead on "
+                          "arrival" % field)
+        self.assertNotIn("restore:", seg,
+                         "the command string `restore` is being carried up from board storage — "
+                         "the console must never do that")
+
+    def test_a_recovered_store_stops_reading_as_missing(self):
+        """⚠ THE RECORD HAD NO EXIT. The advertised restore (`restore_ledger.py --apply`, a
+        merge-max chronicleApply) puts the NAMES back and never removes `d2r_storeEmptied`, so the
+        doctor reported MISSING for ever — including after a successful recovery. A permanent alarm
+        is one he learns to ignore, which is worse than no alarm. Found by the cross-family eye.
+        ⚠ And the record is NOT deleted: it is the evidence of what happened and when, which is the
+        very thing v2990 exists to protect. `recoveredAt` is stamped beside it."""
+        doc = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        i = doc.find("def _check_the_board_store_did_not_come_up_empty")
+        j = doc.find("\ndef ", i + 10)
+        body = doc[i:j]
+        self.assertIn('ev.get("recoveredAt")', body,
+                      "the doctor never looks for a recovery, so a restored store keeps reporting "
+                      "MISSING for ever")
+        self.assertIn("has contents again since", body,
+                      "there is no OK verdict for a store that recovered — the row can only ever "
+                      "say MISSING once it has fired")
+        self.assertNotIn("removeItem('d2r_storeEmptied')", BIBLE,
+                         "the emptied record is being DELETED on recovery — that erases the one "
+                         "field that says which backup predates the loss")
+
     def test_the_flag_is_raised_where_the_loss_is_detected(self):
         i = BIBLE.find("the found ledger was EMPTY on a load that had already")
         self.assertGreater(i, 0, "the emptied-store detector is gone")
@@ -212,6 +256,22 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "if (!_rwFreshFlag && !_emptiedLoss && window.D2R_PROFILE !== 'ladder'",
         "replace": "if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder'",
+        "matches": 1,
+    },
+    {
+        "why": "narrowing the transport back to two keys makes the doctor's boots line dead on "
+               "arrival — the field exists everywhere except the api it is read from",
+        "file": "control_app.py",
+        "find": "\"boots:(typeof _se.boots==='number'?_se.boots:null),\"",
+        "replace": "\"\"",
+        "matches": 1,
+    },
+    {
+        "why": "removing the recovery verdict makes a restored store report MISSING for ever, and "
+               "a permanent alarm is one he learns to ignore",
+        "file": "console_doctor.py",
+        "find": '    _rec = ev.get("recoveredAt") if isinstance(ev, dict) else None',
+        "replace": "    _rec = None",
         "matches": 1,
     },
     {

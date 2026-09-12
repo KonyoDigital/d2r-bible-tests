@@ -1244,6 +1244,19 @@ def _check_the_board_store_did_not_come_up_empty():
     # ⚠ The WRITER's two sentences were corrected in v2990 and this READER was not — a
     # caller/callee split where the contract changed and the surface describing it did not.
     # [[label-outlived-referent]] [[the-unjoined-end]]
+    # ⚠⚠ v2993 — A RECOVERED STORE MUST STOP READING AS MISSING. The record had no exit: the
+    # advertised restore (`restore_ledger.py --apply`, a merge-max chronicleApply) puts the NAMES
+    # back and never removes `d2r_storeEmptied`, so this row reported MISSING for ever — including
+    # after a successful recovery. A permanent alarm is one he learns to ignore, which is worse
+    # than no alarm at all. bible.html now stamps `recoveredAt` when the store has contents again,
+    # and keeps the record as history rather than deleting his evidence.
+    _rec = ev.get("recoveredAt") if isinstance(ev, dict) else None
+    if isinstance(_rec, (int, float)) and _rec > 0:
+        import datetime as _dt2
+        return OK, ("the board's store came up empty once and has contents again since %s UTC. "
+                    "The record is kept as history — it is what says which backup predates the "
+                    "loss — and no longer needs action."
+                    % _dt2.datetime.utcfromtimestamp(_rec / 1000.0).strftime("%Y-%m-%d %H:%M"))
     _at = ev.get("at") if isinstance(ev, dict) else None
     _boots = ev.get("boots") if isinstance(ev, dict) else None
     _when = ""

@@ -12416,7 +12416,19 @@ def board_ownership(sample=0, dump_stores=False):
           # found the number 3 and learned nothing. [[the-unjoined-end]]
           "var storeEmptied=null;"
           "try{var _se=raw('d2r_storeEmptied');"
-          "if(_se&&typeof _se==='object')storeEmptied={at:_se.at||null,why:String(_se.why||'')};}catch(_se2){}"
+          # ⚠⚠ v2993 — THIS WHITELIST DROPPED THE FIELDS v2990 ADDED, AND v2991 BUILT A READER FOR
+          # THEM. The record is {at, seenAgainAt, boots, why, restore}; this copied two of five, so
+          # `boots` and `seenAgainAt` were present in localStorage AND in every ledger backup and
+          # absent from the ONE api the doctor feeds from. The doctor's "still empty N boots later"
+          # could therefore never print — a reader built on a field the transport silently removes.
+          # Found by the cross-family eye on v2990, which put the join precisely: "the two readers
+          # of the same key do not share a shape." [[plumbing-with-no-tap]] [[the-unjoined-end]]
+          # ⚠ Still a whitelist, not a passthrough: `restore` is a COMMAND STRING and the console
+          # must never hand a command up from board storage. Widened by name, deliberately.
+          "if(_se&&typeof _se==='object')storeEmptied={at:_se.at||null,why:String(_se.why||''),"
+          "boots:(typeof _se.boots==='number'?_se.boots:null),"
+          "seenAgainAt:(typeof _se.seenAgainAt==='number'?_se.seenAgainAt:null),"
+          "recoveredAt:(typeof _se.recoveredAt==='number'?_se.recoveredAt:null)};}catch(_se2){}"
           # ⚠ v2731 — THE CONTENTS OF d2r_rwMade, WHICH NOTHING EVER FETCHED. `rwMade` above is a
           # COUNT (Object.keys().length); `gameFound` below is already the whole object. So his 99
           # runewords could be COUNTED but never COPIED, and the automatic backup carried neither
@@ -26627,7 +26639,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2992",
+        "ver": "v2993",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
