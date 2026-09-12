@@ -2362,6 +2362,26 @@ GATES = [
              "failure REASON now. ⚠ And the half that must not soften: a vessel whose lanes are "
              "genuinely silent still reads UNKNOWN, or this would turn every unwatched thread "
              "green."),
+    Gate("test_a_lock_that_gates_nothing_is_not_a_lock",
+         [sys.executable, os.path.join(HERE, "test_a_lock_that_gates_nothing_is_not_a_lock.py")], 120,
+         why="NINETEEN LOCKS SCORED, DISPLAYED, AND GATED NOTHING. self_arming.may() was consulted "
+             "at exactly THREE call sites in the whole tree — all three about console.pixel_rescue "
+             "— while nineteen locks computed Wilson scores, drew padlocks on the heart, and "
+             "stopped nothing. The arithmetic was real; the authority was imaginary. ⚠ And it "
+             "could not simply be wired, which is why it sat: may() asks the heart first and that "
+             "fails closed on a STALE census, which happens whenever a GATE FILE changes — "
+             "measured FOUR times in one session of writing gates, every lock answering may=False "
+             "about the census rather than itself. v3042's reversibility split is what made wiring "
+             "safe. This gate pins the SEATS, one per lock, at the place state actually changes: "
+             "printer.stream in printer.stream(), reel.route in reel_route_lane.apply() (NOT "
+             "reel_router.route(), which derives a station and writes nothing — a guard on a "
+             "thought is not a guard), vault.sweep_start in chronicle_sweep_start(), and "
+             "prune.reports inside the CLAIM test in disk_history_append(), because that lock "
+             "guards the REPORT while prune.arm guards the deletion and a guard on the whole "
+             "function would stop him seeing his own free space. ⚠ It also refuses a "
+             "vault.sweep_start refusal that wears the `busy` shape: callers treat busy as "
+             "contention and RETRY, so a locked door in that shape is retried forever. Parsed with "
+             "ast — a lock named in a comment must not satisfy a law about whether the code ASKS."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

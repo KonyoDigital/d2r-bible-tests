@@ -329,6 +329,30 @@ def stream(reel=None):
                 "owners": {k: v[0] for k, v in STATION_OWNER.items()},
                 "questions": {k: v[1] for k, v in STATION_OWNER.items()}, "why": why}
 
+    # ⚠⚠ v3049 — THE LOCK, ASKED HERE, AND UNTIL TODAY NOTHING ASKED IT. `printer.stream` has
+    # existed, scored and displayed while `may()` was consulted at exactly THREE call sites in the
+    # whole tree — eighteen locks gated nothing at all. A scouted pass found this function is the
+    # one chokepoint: river_walk, blueprint, reel_router, engine_joins, console_doctor and the
+    # wilson driver are all CALLERS of stream(), not alternate implementations, so one check here
+    # covers every door.
+    #
+    # ⚠ IT REFUSES THROUGH `_unknown()`, NOT A BESPOKE DICT. REG-546 above is explicit that every
+    # return carries the same keys, and it was written because an UNKNOWN return that omitted
+    # `walked`/`stations`/`owners` made consumers raise on exactly the path meaning "nothing was
+    # established". A refusal is that path, so it takes that shape.
+    #
+    # ⚠ ORDINARY, not destructive — self_arming's own note says this lock "earns trust in what it
+    # PRINTS rather than permission to act". So under v3042's split it refuses on MERIT only, and
+    # a census gone stale from a gate edit cannot stop him reading the river. [[stale-reading]]
+    try:
+        import self_arming as _sa
+        _ok, _lw = _sa.may("printer.stream")
+    except Exception as _e:
+        _ok, _lw = False, ("the lock could not be read (%s), which is UNKNOWN and fails closed"
+                           % type(_e).__name__)
+    if not _ok:
+        return _unknown("printer.stream is LOCKED — %s" % _lw)
+
     src, whys = _sources()
     # ⚠ ONE reading, taken where every other owner's is taken, so the per-row station and
     # the shelf-wide census can never disagree about the same ledger.

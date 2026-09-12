@@ -147,6 +147,19 @@ def plan(rep=None, path=None):
 def apply(by, rep=None, limit=None, path=None):
     """Stamp each routable reel ROUTED, as an ACTOR. -> dict
 
+    ⚠⚠ v3049 — THIS ASKS `may("reel.route")` NOW, and until today nothing did. The lock existed,
+    scored, and displayed for 19 surfaces while `may()` was consulted at exactly THREE call sites
+    in the whole tree — so eighteen locks gated nothing at all. A scouted pass found this is the
+    ONE place state changes: reel_router.route()/_station_of DERIVE each reel's station and write
+    nothing; the stamp into the append-only actor ledger happens only here, and both live entry
+    points (control_app's triage tick and this module's CLI) funnel through it. plan() writes
+    nothing and needs no guard.
+
+    ⚠ `reel.route` is ORDINARY, not destructive: it DECIDES where a reel is, and the actual
+    deleters (frame.release, prune.arm) keep their own fail-closed guards, so defence in depth
+    holds. That matters because may() refuses on a STALE census too, and the census goes stale
+    whenever a gate file changes — v3042's split means an ordinary lock like this one refuses on
+    MERIT only, so writing a gate cannot stop his reels being routed. [[stale-reading]]
     ⚠ `by` IS REQUIRED, exactly as `river_stamp.run()` requires it — a row that cannot say what
     moved the reel does not carry the fact it exists to carry.
 
@@ -160,6 +173,18 @@ def apply(by, rep=None, limit=None, path=None):
     if not out["by"]:
         out["why"] = ("apply() needs a `by` — the lane that stamps must name itself or the rows it "
                       "writes cannot say what moved anything")
+        return out
+    # ⚠⚠ THE LOCK, ASKED AT THE ONE PLACE THAT WRITES. See the docstring for why this is the only
+    # seat: plan() and reel_router.route() decide and write nothing, so a guard there would refuse
+    # a thought rather than an act.
+    try:
+        import self_arming as _sa
+        _ok, _lw = _sa.may("reel.route")
+    except Exception as _e:
+        # ⚠ AN UNREADABLE LOCK IS NOT AN OPEN ONE, but neither is it a reason to lose the reason.
+        _ok, _lw = False, "the lock could not be read (%s), which is UNKNOWN and fails closed" % type(_e).__name__
+    if not _ok:
+        out["why"] = "reel.route is LOCKED — %s" % _lw
         return out
     p = plan(rep, path=path)
     if not p["ok"]:

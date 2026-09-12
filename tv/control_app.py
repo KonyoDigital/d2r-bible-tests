@@ -14500,6 +14500,28 @@ def disk_history_append(free_gb, floor_gb, hist_bytes=None, reels=None, eligible
     # None/None = nobody measured · a number = a measurement · None/"…" = a claim we REFUSED.
     # A row that silently became None would be indistinguishable from one nobody looked at.
     _pruned, _pruned_why = credible_pruned_mb(pruned_mb, hist_bytes)
+    # ⚠⚠ v3049 — THE LOCK, ASKED ONLY OF THE CLAIM. `prune.reports` guards the REPORT, not the
+    # deleter — self_arming's own note is explicit that prune.arm guards the deletion — so this
+    # gates rows that assert "this much was freed" and leaves plain free-space readings alone. A
+    # guard on the whole function would stop him seeing his own disk, which the lock never claimed
+    # to be about.
+    #
+    # ⚠ THE REFUSAL USES THE SAME THREE-STATE FIELD ALREADY HERE, not a fourth shape. The comment
+    # above keeps None/None = nobody measured, a number = a measurement, None/"…" = a claim we
+    # REFUSED. A locked claim IS a refused claim, so it takes the refused shape and stays
+    # distinguishable from a row nobody looked at. [[unknown-stays-unknown]]
+    #
+    # ⚠ ORDINARY: this reports, it does not delete, so under v3042's split it refuses on MERIT
+    # only and a census staled by a gate edit cannot blank his freed-space figures.
+    if _pruned is not None:
+        try:
+            import self_arming as _sa_pr
+            _pr_ok, _pr_why = _sa_pr.may("prune.reports")
+        except Exception as _pr_e:
+            _pr_ok, _pr_why = False, ("the lock could not be read (%s), which is UNKNOWN and "
+                                      "fails closed" % type(_pr_e).__name__)
+        if not _pr_ok:
+            _pruned, _pruned_why = None, "prune.reports is LOCKED — %s" % _pr_why
     row = {"at": int(time.time() * 1000), "freeGb": round(float(free_gb), 2),
            "floorGb": floor_gb, "histBytes": hist_bytes, "reels": reels,
            "eligibleMb": eligible_mb, "prunedMb": _pruned, "prunedWhy": _pruned_why}
@@ -25007,6 +25029,27 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
         if hist_dir is not None and not os.path.isdir(str(hist_dir)):
             return {"ok": False, "why": "there is no history directory at %r — a sweep there could "
                                         "not read a single reel" % (hist_dir,)}
+        # ⚠⚠ v3049 — THE LOCK, ASKED ON THE DOOR THAT SPENDS MONEY. `vault.sweep_start` has
+        # existed, scored and displayed while may() was consulted at THREE call sites in the whole
+        # tree. A scouted pass found this function is the single chokepoint: the POST route, both
+        # internal ticks and the external one-reel script all call it, and only it spawns the
+        # threads that spend paid reads.
+        #
+        # ⚠⚠ NOT THE `busy` SHAPE. Callers treat `busy: True` as contention and RETRY, so a locked
+        # door wearing that shape would be retried forever. A plain ok:False with a why, exactly
+        # like the refusals around it.
+        #
+        # ⚠ DESTRUCTIVE: money spent cannot be unspent, so under v3042's split this fails closed
+        # on ANY refusal, a stale census included — a prover that has not caught up is reason
+        # enough not to spend.
+        try:
+            import self_arming as _sa_sweep
+            _sw_ok, _sw_why = _sa_sweep.may("vault.sweep_start")
+        except Exception as _sw_e:
+            _sw_ok, _sw_why = False, ("the lock could not be read (%s), which is UNKNOWN and "
+                                      "fails closed" % type(_sw_e).__name__)
+        if not _sw_ok:
+            return {"ok": False, "why": "vault.sweep_start is LOCKED — %s" % _sw_why}
         lanes = _chron_lanes()
         if "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
@@ -27087,7 +27130,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3048",
+        "ver": "v3049",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
