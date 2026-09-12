@@ -2264,6 +2264,25 @@ GATES = [
              "with a reason and never an empty set, because 'the console was off' and 'the eagle "
              "watches nothing' are opposite facts and only one is a defect. Parsed with ast, so a "
              "mention in a comment can neither satisfy nor defeat it."),
+    Gate("test_the_doctor_says_what_it_watches",
+         [sys.executable, os.path.join(HERE, "test_the_doctor_says_what_it_watches.py")], 180,
+         why="THE DOCTOR WORKED PERFECTLY AND ITS WHOLE COLUMN READ UNKNOWN, because nobody had "
+             "said what it watches in the words the table uses. organ_matrix measured it: 'doctor "
+             "names 59 thing(s), and NONE of them resolves to any of the 58 surfaces — it is "
+             "naming a different KIND of thing (concerns, not code objects)'. A check is called "
+             "'shelf lanes reading'; a surface is called 'shelf-cards'. ⚠ IT CANNOT BE DERIVED, "
+             "and that was MEASURED before it was authored: a parser over each check's body for "
+             "unambiguous surface-shaped tokens found, on a 12-check sample, 4 reaching anything "
+             "at all and not one registry surface — it returned control_app.py, status, per-lane, "
+             "REG-415. The relationship is not in the code, so the deriver was thrown away rather "
+             "than shipped as noise, and WATCHES states it instead. This gate is what keeps a "
+             "STATED thing honest: every check must appear (silence is not 'covers nothing' — a "
+             "check added next week with no entry would inherit an empty list and read ABSENT, a "
+             "claim nobody made); a check that truly watches no surface declares an EMPTY tuple "
+             "deliberately, because under-claiming is the intended bias; and a declared name that "
+             "is not in the registry FAILS, since a typo would sit there forever matching nothing "
+             "and looking like considered coverage. Measured after: surfaces named by NO "
+             "comparable organ went 49 -> 29, and comparable organs 1 -> 2."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

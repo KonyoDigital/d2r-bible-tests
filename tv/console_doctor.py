@@ -3512,7 +3512,13 @@ def run(include_slow=True, include_periodic=None):
                 state, why = fn()
             except Exception as e:
                 state, why = UNKNOWN, "this check itself threw: %s" % str(e)[:120]
-            rows.append({"check": name, "state": state, "why": why})
+            # ⚠ THE SAME DECLARATION run() PUBLISHES, because the EAGLE is this doctor's
+            # run output: control_app._eagle_once() calls _cd.run() and stores the rows,
+            # and organ_matrix reads them as the eagle's answer. Without this the eagle
+            # column stays UNKNOWN forever while the doctor's resolves — two columns
+            # disagreeing about one organ's vocabulary. [[copy-drift]]
+            rows.append({"check": name, "state": state, "why": why,
+                         "surfaces": list(WATCHES.get(name, ()))})
     if include_slow:
         _persist_slow(rows)
     try:
@@ -3521,6 +3527,89 @@ def run(include_slow=True, include_periodic=None):
     except Exception:
         pass
     return rows
+
+
+#: ══ WHAT EACH CHECK WATCHES, IN THE REGISTRY'S OWN WORDS ═════════════════════════════════════
+#: organ_matrix measured the gap plainly: "doctor names 59 thing(s), and NONE of them resolves to
+#: any of the 58 surfaces — it is naming a different KIND of thing (concerns, not code objects)".
+#: A check is called "shelf lanes reading"; a surface is called "shelf-cards". Those never meet,
+#: so the doctor's entire column read UNKNOWN while the doctor itself worked perfectly.
+#:
+#: ⚠⚠ IT CANNOT BE DERIVED, AND THAT WAS MEASURED BEFORE IT WAS AUTHORED. A first attempt parsed
+#: each check's body for unambiguous surface-shaped tokens (dotted, hyphenated, /api/ and #id
+#: forms). Result on a 12-check sample: 4 reached anything at all, and what they reached was
+#: `control_app.py`, `status`, `per-lane`, `REG-415` — not one registry surface. The relationship
+#: simply is not present in the code, so no parser can find it. It has to be stated.
+#:
+#: ⚠ SO EVERY ENTRY HERE IS A CLAIM, AND THE RULES KEEP IT HONEST:
+#:   · a check absent from this map FAILS THE GATE — silence is never "covers nothing";
+#:   · a check that genuinely watches no registry surface declares an EMPTY tuple, on purpose,
+#:     and reads ABSENT. Under-claiming is the intended bias: organ_matrix's own rule is that a
+#:     table reporting coverage it cannot demonstrate is worse than the empty one he was shown;
+#:   · a declared name that is not in the registry FAILS THE GATE — a typo would otherwise sit
+#:     here forever matching nothing and looking like considered coverage.
+#: [[unknown-stays-unknown]] [[the-unjoined-end]] [[source-reading-guard]]
+WATCHES = {
+    "running code matches disk":   (),                       # code integrity, not a surface
+    "shelf lanes reading":         ("shelf-cards",),
+    "fleet reachable":             ("advanced-fleet", "advanced-fleet-down"),
+    "armed migration":             (),
+    "extraction lanes":            (),
+    "shadow watch":                ("advanced-shadow", "_shadow_watch_loop"),
+    "readers agree":               (),
+    "board join":                  (),
+    "stray processes":             ("_orphan_watch", "_orphan_exit_loop"),
+    "engines corroborate":         (),
+    "panels on screen":            ("console", "page"),
+    "test venue":                  (),
+    "river joints":                ("river-strip",),
+    "river outlet":                ("river-strip",),
+    "vault proposal":              ("vault.apply",),
+    "console UI faults":           ("console",),
+    "version drift":               ("_drift_loop",),
+    "behind the fleet":            ("advanced-fleet",),
+    "lane intent":                 (),
+    "what runs without you":       (),
+    "disk headroom":               ("prune.reports",),
+    "subscription":                (),
+    "unattended reel":             (),
+    "reel extract":                ("reel.route",),
+    "hunt economy":                (),
+    "sweep would find":            ("vault.sweep_start",),
+    "board is claimed":            (),
+    "ledger provenance":           (),
+    "ledger staleness":            ("_ledger_backup_loop",),
+    "visual lock":                 (),
+    "art corpus":                  (),
+    "footage has a reel":          ("reel.route",),
+    "vault stores":                ("vault", "vault-full"),
+    "evidence ledger":             (),
+    "ledger backup":               ("_ledger_backup_loop",),
+    "backup loop":                 ("_ledger_backup_loop",),
+    "console painted whole":       ("console", "page"),
+    "names banked":                (),
+    "read names lane":             (),
+    "stage shows the dom":         (),
+    "river walk":                  ("river-strip",),
+    "route stash":                 (),
+    "route chronicle \u00b7 sets":    ("chronicle.set",),
+    "route chronicle \u00b7 uniques": ("chronicle.unique",),
+    "route inventory":             (),
+    "printer reach":               ("printer.stream",),
+    "end routes reachable":        (),
+    "the river":                   ("river-strip",),
+    "screen still painting":       ("console",),
+    "shelf is where it says":      ("shelf-cards",),
+    "progress number":             (),
+    "ledger entries":              (),
+    "store emptied":               (),
+    "shadow gate":                 ("advanced-shadow",),
+    "locked lanes":                ("locks",),
+    "his gear":                    ("vault",),
+    "tooltip finder":              (),
+    "surfaces agree":              (),
+    "the other doctors":           (),
+}
 
 
 def report(deep=False):
@@ -3556,6 +3645,11 @@ def report(deep=False):
             # synonym list belongs in the READER, or every organ ends up carrying a second
             # copy of its own name for each consumer. [[copy-drift]] §1
             "check": name,
+            # ⚠ THE ORGAN'S OWN ANSWER TO "WHAT DO YOU WATCH", in the registry's vocabulary.
+            # Declared in WATCHES above, never inferred here: an empty list means this check
+            # genuinely covers no registry surface, and a MISSING key fails the gate rather
+            # than defaulting to empty. [[unknown-stays-unknown]]
+            "surfaces": list(WATCHES.get(name, ())),
             "slow": name in SLOW,
             "owner": owner_of(name),
             "state": UNMEASURED,

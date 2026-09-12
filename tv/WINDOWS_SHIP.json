@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3039",
+  "ver": "v3040",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3039: ev stashes the exception and the seed sites must refuse on it but only one of the two did, a re-preparation that threw was stamped prepared and measured, and a refused seed was still photographed under the targets own name",
+  "note": "v3040: the doctor worked perfectly and its whole column read UNKNOWN because a check is called shelf lanes reading while a surface is called shelf-cards, and nothing in the code joins the two - a deriver was measured, found to reach nothing, and thrown away before the map was authored",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

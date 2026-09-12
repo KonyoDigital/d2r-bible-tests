@@ -51,6 +51,16 @@ def _names_from(rows, keys=("id", "key", "lane", "route", "name", "surface", "lo
     out = set()
     for r in (rows or []):
         if isinstance(r, dict):
+            # ⚠⚠ v3040 — A LIST UNDER `surfaces` IS THE ORGAN ANSWERING IN THIS TABLE'S OWN
+            # VOCABULARY, and it was silently ignored: every key below is read only when its
+            # value is a STRING, so a row saying surfaces: ["heart", "locks"] contributed
+            # nothing. One check can legitimately watch several surfaces, so the plural has to
+            # be a list — and the reader has to accept one. [[the-unjoined-end]]
+            _sf = r.get("surfaces")
+            if isinstance(_sf, (list, tuple)):
+                for _v in _sf:
+                    if isinstance(_v, str) and _v:
+                        out.add(_v)
             for k in keys:
                 v = r.get(k)
                 if isinstance(v, str) and v:
