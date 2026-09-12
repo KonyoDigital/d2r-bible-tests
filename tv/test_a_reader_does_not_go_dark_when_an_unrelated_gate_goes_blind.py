@@ -33,6 +33,13 @@ import io
 import os
 import unittest
 
+# ⚠ this file PRINTS non-ASCII (· and ⚠) in its own measurements, and his Windows console is
+# cp1255 — printing one of those there raises while REPORTING, so a clean tree would look like a
+# crash. The suite has a law for exactly this and it caught me on the first push.
+from console_safe import enable as _console_safe_enable
+
+_console_safe_enable()
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
