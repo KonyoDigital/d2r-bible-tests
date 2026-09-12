@@ -75,12 +75,45 @@ def _ask(mod_name, attr, extract):
         return None, "%s.%s() raised (%s)" % (mod_name, attr, str(e)[:50])
 
 
+def _ask_live_eagle():
+    """The eagle as the RUNNING console holds it. -> (set_of_names|None, why_unknown)
+
+    ⚠ A cold import cannot answer this and must not pretend to. If the console is not up, this
+    returns None with the reason — UNKNOWN, never an empty set, because "the console was not
+    running" and "the eagle watches nothing" are opposite facts and only one of them is a defect.
+    [[unknown-stays-unknown]]
+    """
+    import json as _json
+    import urllib.request as _rq
+    try:
+        with _rq.urlopen("http://127.0.0.1:17772/api/status", timeout=6) as _r:
+            _d = _json.loads(_r.read().decode("utf-8", "replace"))
+    except Exception as e:
+        return None, ("the running console did not answer on :17772 (%s), and a cold import of "
+                      "control_app holds only the unfilled _EAGLE literal" % str(e)[:44])
+    _e = _d.get("eagle")
+    if not isinstance(_e, dict):
+        return None, "the console answered but published no eagle block"
+    _rows = (_e.get("rows") or []) + (_e.get("slowRows") or [])
+    if not _rows:
+        return None, ("the console answered and the eagle block carried NO rows — %s"
+                      % str(_e.get("say") or "no reason given")[:60])
+    return _names_from(_rows), ""
+
+
 def organ_coverage():
     """What each organ actually names. -> {organ: (names|None, why_unknown)}"""
     out = {}
-    # EAGLE — the watchdog's last look at the running system, published on the status poll.
-    out["eagle"] = _ask("control_app", "eagle_state",
-                        lambda r: _names_from((r or {}).get("rows") or (r or {}).get("checks")))
+    # ⚠⚠ v3036 — THE EAGLE WAS ASKED COLD, SO ITS COLUMN COULD NEVER BE ANYTHING BUT EMPTY.
+    # `_ask` does `__import__("control_app")` and calls `eagle_state()` on a FRESHLY IMPORTED
+    # module, where `_EAGLE` is still its literal initial value — `{"rows": [], "say": "not
+    # measured yet"}`. That dict is only ever filled by the RUNNING console's background loop, in
+    # another process. Measured 2026-09-12: the live console publishes 58 eagle rows on
+    # /api/status while this table reported "eagle answered, and named nothing at all" — which the
+    # table itself flagged as indistinguishable from "watches nothing". It was neither: nobody had
+    # asked the process that knows. An organ judged by an instrument that cannot reach it has not
+    # been shown to miss anything. [[feedback-suspect-the-instrument]] [[the-unjoined-end]]
+    out["eagle"] = _ask_live_eagle()
     # WATCHDOG — the health engine's own check rows.
     out["watchdog"] = _ask("health_engine", "report",
                            lambda r: _names_from((r or {}).get("rows") if isinstance(r, dict) else r))

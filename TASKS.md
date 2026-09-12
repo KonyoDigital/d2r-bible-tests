@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3035** | `(this commit)` | v3035 — the fleet xref could only be closed by its own tiny cross while covering the whole console, its reachability was never once proven by clicking anything, and the river lane headers ate 57 percent of the band above the first reel card |
+| **v3036** | `(this commit)` | v3036 — the organ table asked the eagle through a cold import of control_app where the state dict is still its unfilled literal, so its column was empty for every tree no matter how well the eagle worked, and the table reported that as a fact about the eagle |
+| **v3035** | `a0170b7d` | v3035 — the fleet xref could only be closed by its own tiny cross while covering the whole console, its reachability was never once proven by clicking anything, and the river lane headers ate 57 percent of the band above the first reel card |
 | **v3034** | `fb62788e` | v3034 — the census called two stdlib methods UNKNOWN forever because it threw away the receiver, and the console cursor routed through var() so an unresolvable image-set became a plain arrow instead of falling back |
 | **v3033** | `1fce201e` | v3033 — the fleet dialog inherited a grid rail for a drill it does not own, so the stats line rendered beside the columns instead of beneath them - third occurrence, now refused by the class not an id list, and photographed by a new render target whose activation is geometric |
 | **v3032** | `2d2e76a4` | v3032 — when the guard lifts, the true newest-before is pruned and an older daily keeper inherits the role; the helper still finds a predating file so it never says UNKNOWN, it just answers with a smaller older number. |

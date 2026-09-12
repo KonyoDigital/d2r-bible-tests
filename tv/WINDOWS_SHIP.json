@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3035",
+  "ver": "v3036",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3035: the fleet xref could only be closed by its own tiny cross while covering the whole console, its reachability was never once proven by clicking anything, and the river lane headers ate 57 percent of the band above the first reel card",
+  "note": "v3036: the organ table asked the eagle through a cold import of control_app where the state dict is still its unfilled literal, so its column was empty for every tree no matter how well the eagle worked, and the table reported that as a fact about the eagle",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

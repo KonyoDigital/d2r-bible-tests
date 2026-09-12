@@ -2246,6 +2246,24 @@ GATES = [
              "A target with no receiver stays UNKNOWN however unresolvable, and a target whose "
              "method IS defined anywhere in this package stays UNKNOWN even through a receiver. "
              "Both red-proofs delete one of those conditions rather than the feature."),
+    Gate("test_the_eagle_is_asked_where_it_lives",
+         [sys.executable, os.path.join(HERE, "test_the_eagle_is_asked_where_it_lives.py")], 120,
+         why="THE EAGLE'S COLUMN COULD NEVER HAVE BEEN ANYTHING BUT EMPTY, AND THE TABLE BLAMED "
+             "THE EAGLE FOR IT. organ_matrix asked the eagle by doing __import__('control_app') "
+             "and calling eagle_state() on a FRESHLY IMPORTED module, where _EAGLE is still the "
+             "literal it is defined as — rows: [], say: 'not measured yet'. That dict is only "
+             "filled by the RUNNING console's loop, in another process, so the answer was [] for "
+             "every tree regardless of how well the eagle worked. Measured 2026-09-12: the live "
+             "console published 58 eagle rows on /api/status in the same minute the table printed "
+             "'eagle answered, and named nothing at all — which cannot tell watches-nothing apart "
+             "from had-nothing-to-say'. It was neither; nobody had asked the process that knows. "
+             "Pointed at the console, the same organ names 59. ⚠ The failure was invisible because "
+             "it looked like a FINDING: an empty answer reads as a verdict about the organ and was "
+             "a verdict about the reader, which is why this gate checks the READER. Its second "
+             "half is equally load-bearing — with the console down the reader must answer UNKNOWN "
+             "with a reason and never an empty set, because 'the console was off' and 'the eagle "
+             "watches nothing' are opposite facts and only one is a defect. Parsed with ast, so a "
+             "mention in a comment can neither satisfy nor defeat it."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "
