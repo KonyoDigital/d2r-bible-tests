@@ -285,7 +285,7 @@ def vessels():
 
 
 def _read_census_row(row):
-    """One census row. -> (name, kind, watcher|None)
+    """One census row. -> (name, kind, watcher|None, via|None)
 
     The shape is lane_census.census()'s own: {fn, kind, lane, supervised, via}. It is read
     LITERALLY rather than sniffed — a tolerant parser over another module's output is how a shape
@@ -293,7 +293,14 @@ def _read_census_row(row):
     A row that is not that shape becomes UNKNOWN, which is visible.
     """
     if not isinstance(row, dict) or "fn" not in row:
-        return str(row)[:40], "UNKNOWN", None
+        # ⚠⚠ v3018 — FOUR, NOT THREE. v3014 added `via` to the two happy returns and left this one
+        # at three, and both callers unpack four — so a row that is not the expected shape raised
+        # `ValueError: not enough values to unpack` instead of becoming UNKNOWN. The branch whose
+        # entire job is "a malformed row must be VISIBLE rather than silently reclassified" was the
+        # one turned into a crash, and the docstring three lines up still promised the old arity.
+        # Found by the post-ship review of v3014 and reproduced against 'not-a-dict', {} with no
+        # "fn", 42 and None — all four raised. [[label-outlived-referent]] [[unknown-stays-unknown]]
+        return str(row)[:40], "UNKNOWN", None, None
     name = str(row.get("fn") or "?")
     kind = str(row.get("kind") or "UNKNOWN").upper()
     # `supervised` is the census's own verdict and `lane` is the roster name it was registered

@@ -218,6 +218,29 @@ LANES = {
         "dormantWhy": ("the prune is armed by Konyo and is not armed. Reels may sit releasable "
                        "indefinitely and that is a decision, not a stall"),
     },
+    # ⚠⚠ v3018 — THE FOURTH LANE, AND THE ONE THAT COULD NOT BE CAUGHT IDLE. tvd-retro-triage had
+    # a heartbeat and no work-level supervision: the thread being alive was the only thing anyone
+    # could see, so "running and doing nothing" was invisible — the exact shape vaultAutoread died
+    # in, beating happily for 5.7 days without sweeping a reel. It could not be declared before now
+    # because every other lane takes its work-list from RETENTION TAGS, and retro_triage walks
+    # frames structurally BEFORE any tag exists, so there was no tag to map. It answers for itself
+    # instead (`owedFrom: "own"` -> retro_triage.owed()), and its store is one row per reel with no
+    # tally and no top-level clock, which is what `worksAs: "storeLen"` and `lastAs: "maxRowTs"`
+    # are for. Live at declaration: owed 0 of 24 on disk, 455 rows remembered.
+    "triage": {
+        "what": "walks a reel's frames structurally so the other lanes know what is worth reading",
+        "owedFrom": "own",
+        "owner": "retro_triage",
+        "store": "_store_path",
+        "worksKey": None,
+        "worksAs": "storeLen",
+        "lastKey": None,
+        "lastAs": "maxRowTs",
+        "lastWhy": "",
+        "boundS": None,
+        "armedFrom": None,
+    },
+
 }
 
 
@@ -241,7 +264,13 @@ LANES = {
 #:     tvd-eagle-watch     a supervisor, not a worker
 #:     tvd-runaway-watch   a supervisor, not a worker
 #: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
-NOT_SHELF_LANES = ("tvd-retro-triage", "tvd-shadow-watch", "tvd-stash-watch", "tvd-rolling-prune",
+# ⚠⚠ v3018 — "tvd-retro-triage" REMOVED FROM THIS LIST, because it is now a declared shelf lane.
+# It sat here because every lane the driver supervised took its work-list from retention TAGS, and
+# retro_triage walks frames structurally BEFORE any tag exists — so there was nothing to map it to,
+# and being unmappable got written down as being out of scope. It has run with liveness-only
+# supervision ever since. `owedFrom: "own"` gives it a real work-list, so the exclusion is no longer
+# true. Declared AND excused is the one state this census must never be in.
+NOT_SHELF_LANES = ("tvd-shadow-watch", "tvd-stash-watch", "tvd-rolling-prune",
                    "tvd-ledger-backup", "tvd-space-warden", "tvd-version-drift",
                    "tvd-eagle-watch", "tvd-runaway-watch")
 
@@ -383,6 +412,40 @@ def lane_beat(lane, decl=None, allow_import=False):
                           ("only the clock reading survives a restart; the unit count does not"
                            if out["durableLast"] else
                            "neither the unit count nor a clock reading survives a restart")))
+    # ⚠⚠ v3018 — A STORE CAN BE ITS OWN RECORD. Every lane declared before this one keeps a COUNT
+    # under a key; retro_triage keeps one ROW PER REEL and no tally anywhere, so `worksKey` had
+    # nothing to point at and the reader would have called a fully-working lane UNKNOWN forever.
+    # `worksAs: "storeLen"` says the document itself is the count — and durability is TRUE by
+    # construction there, because the rows ARE the persistence rather than a number beside them.
+    if decl.get("worksAs") == "storeLen":
+        out["durableWorks"] = True
+        out["works"] = len(doc or {})
+        # ⚠ AND THE CLOCK COMES FROM THE ROWS. Same reason: there is no top-level stamp, but every
+        # row carries its own `ts`, so "when did this lane last work" is the newest of them. A lane
+        # whose rows carry no ts at all leaves this None — UNKNOWN, never 0. [[stale-reading]]
+        if decl.get("lastAs") == "maxRowTs":
+            _ts = []
+            for _r in (doc or {}).values():
+                if isinstance(_r, dict):
+                    try:
+                        _v = int(_r.get("ts") or 0)
+                    except Exception:
+                        _v = 0
+                    if _v > 0:
+                        _ts.append(_v)
+            out["lastWorkAt"] = max(_ts) if _ts else None
+            out["durableLast"] = bool(_ts)
+            out["durable"] = bool(out["durableWorks"] and out["durableLast"])
+            out["durableWhy"] = ("both halves survive a restart: the rows ARE the record and each "
+                                 "carries its own stamp" if out["durable"] else
+                                 "the rows survive a restart but none carries a stamp, so WHEN "
+                                 "this lane last worked is UNKNOWN after one")
+            if out["lastWorkAt"] is None:
+                out["why"] = ("this lane's rows carry no readable stamp, so WHEN it last worked "
+                              "is UNKNOWN")
+            return out
+        out["why"] = decl.get("lastWhy") or ""
+        return out
     if raw is None:
         out["why"] = ("this lane's store carries no %r key, so how much it has done is UNKNOWN and "
                       "does not survive a restart" % wkey)
@@ -520,7 +583,35 @@ def lane_census(hist=None, work_=None, beats=None, now_ms=None, allow_import=Fal
     for lane in sorted(LANES):
         decl = LANES[lane]
         b = dict(beats.get(lane) or {})
-        if decl.get("owedFrom") == "releasable":
+        if decl.get("owedFrom") == "own":
+            # ⚠⚠ v3018 — SOME LANES ARE NOT IN RETENTION'S PLAN AT ALL. The three lanes declared
+            # before this one all take their work-list from retention tags, so a lane that
+            # retention has no tag for could not be supervised at work level however alive it was.
+            # tvd-retro-triage is exactly that: it walks frames STRUCTURALLY, before any tag
+            # exists, which is why "running and doing nothing" was invisible for it — the shape
+            # vaultAutoread died in. This asks the lane itself, and an owner that cannot answer
+            # leaves owed None so _lane_state renders UNKNOWN rather than IDLE.
+            _mod, _mwhy = _owner_module(decl.get("owner"), allow_import=allow_import)
+            if _mod is None or not hasattr(_mod, "owed"):
+                owed = None
+                owed_why = _mwhy or ("%s declares owedFrom 'own' and exposes no owed() — how much "
+                                     "it owes is UNKNOWN" % decl.get("owner"))
+            else:
+                try:
+                    _o = _mod.owed()
+                except Exception as _e:
+                    owed, owed_why = None, ("%s.owed() raised %s — UNKNOWN, never zero"
+                                            % (decl.get("owner"), type(_e).__name__))
+                else:
+                    if not isinstance(_o, dict) or not _o.get("ok"):
+                        owed = None
+                        owed_why = str((_o or {}).get("why") or "the lane could not measure its own work")
+                    else:
+                        owed = _o.get("owed")
+                        owed_why = "" if owed is not None else str(_o.get("why") or "")
+                        if on_disk is None:
+                            on_disk = _o.get("onDisk")
+        elif decl.get("owedFrom") == "releasable":
             owed = None if owed_all is None else len(w.get("releasable") or [])
         elif owed_all is None:
             owed = None

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3017** | `(this commit)` | v3017 — 36 of 59 checks sat in neither registry, so a joint covering a check and nobody ever looking were the same silent state; two more keys named checks that have never existed. 59 of 59 explained now, and a gate keeps it that way. |
+| **v3018** | `(this commit)` | v3018 — tvd-retro-triage had a heartbeat and no work-level supervision, so running and doing nothing was invisible; it could not be declared because every other lane takes its work-list from retention tags and this one walks frames before any tag exists. Also a malformed census row raised instead of reporting UNKNOWN. |
+| **v3017** | `ed81b6b0` | v3017 — 36 of 59 checks sat in neither registry, so a joint covering a check and nobody ever looking were the same silent state; two more keys named checks that have never existed. 59 of 59 explained now, and a gate keeps it that way. |
 | **v3016** | `2dce55d4` | v3016 — TOMBSTONE reads 0 on every station census and always will, because a released reel has been deleted and is not on the shelf; 445 releases and 9.8 GB had no surface anywhere. A Released panel now reads the tombstone ledger with its own denominators. |
 | **v3015** | `626556d0` | v3015 — a 60-file count cap deleted what the retention prune promised to keep, so 48h and 90-day keepers could not exist; the open-episode guard read a level the writer never writes to; and the tombstone pair published a zero for reels it never saw. |
 | **v3014** | `1a6444b5` | v3014 — sweep would find moved from SLOW to PERIODIC - SLOW means never runs unattended, so the one sweep-shaped check ran only when someone pressed a button; measured 1.66s, the same class as engines corroborate. The census credit now reaches the heart: via rides onto the wire so a watched lane can say WHICH evidence made it watched. |

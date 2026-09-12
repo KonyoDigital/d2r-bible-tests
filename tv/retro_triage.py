@@ -205,6 +205,61 @@ def worth_reading(reel_dir, root=None):
     return bool(row.get("panels"))
 
 
+def owed(hist=None):
+    """Reels whose frames this lane has never walked IN FULL. -> dict
+
+    ⚠⚠ v3018 — THE LANE THAT COULD NOT BE CAUGHT IDLE. tvd-retro-triage had liveness (a heartbeat
+    says the thread is alive) and no WORK-LEVEL supervision, so "running and doing nothing" was
+    invisible — the exact shape vaultAutoread died in, where a lane beat happily for 5.7 days
+    without sweeping a single reel. A heartbeat answers "is the thread alive"; this answers "is
+    there work it is not doing", and only the second one notices a lane that has quietly stopped
+    mattering. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ UNKNOWN IS NOT ZERO, and here the distinction is the whole point: a missing reel directory
+    or an unreadable store returns owed None with a why, never 0. A confident "nothing owed" from
+    a lane that could not look is precisely the reading that lets a dead lane wear a clean bill.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+    ⚠ `full` IS THE BAR, NOT PRESENCE. A reel remembered from a PARTIAL walk still owes a full
+    one — `remember()` records `full` per reel, and counting a partial record as done would make
+    the lane look caught up on reels it only glanced at.
+    """
+    #: ⚠ the module defines no HERE — it resolves against __file__ each time (see _store_path),
+    #: and TV_HIST is honoured so a harness can never be pointed at his live shelf.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    h = hist or (os.environ.get("TV_HIST") or "").strip() or os.path.join(_here, "frames", "hist")
+    out = {"ok": False, "owed": None, "walked": None, "partial": None, "onDisk": None,
+           "reels": [], "why": ""}
+    if not os.path.isdir(h):
+        out["why"] = ("no reel directory at %s — UNKNOWN, which is not the same as nothing owed"
+                      % os.path.basename(h.rstrip("/") or h))
+        return out
+    try:
+        store, store_ok = load()
+    except Exception as e:
+        out["why"] = ("the survey store could not be read (%s) — UNKNOWN" % type(e).__name__)
+        return out
+    if not store_ok:
+        out["why"] = "the survey store did not read back cleanly — UNKNOWN, never zero"
+        return out
+    dirs = [d for d in sorted(glob.glob(os.path.join(h, "reel_*"))) if os.path.isdir(d)]
+    walked, partial, owing = 0, 0, []
+    for d in dirs:
+        rec = store.get(os.path.basename(d))
+        if isinstance(rec, dict) and rec.get("full"):
+            walked += 1
+        else:
+            if isinstance(rec, dict):
+                partial += 1
+            owing.append(os.path.basename(d))
+    out.update({"ok": True, "owed": len(owing), "walked": walked, "partial": partial,
+                "onDisk": len(dirs), "reels": owing[:50]})
+    out["why"] = ("%d of %d reel(s) on the shelf carry no FULL survey record%s"
+                  % (len(owing), len(dirs),
+                     ("; %d of those were walked only in part" % partial) if partial else ""))
+    return out
+
+
 def unread_reels(hist_dir, sealed):
     """Reels the chronicle/vault lanes have never sealed. -> [dir, ...] oldest first."""
     out = []

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3017",
+  "ver": "v3018",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3017: 36 of 59 checks sat in neither registry, so a joint covering a check and nobody ever looking were the same silent state; two more keys named checks that have never existed. 59 of 59 explained now, and a gate keeps it that way.",
+  "note": "v3018: tvd-retro-triage had a heartbeat and no work-level supervision, so running and doing nothing was invisible; it could not be declared because every other lane takes its work-list from retention tags and this one walks frames before any tag exists. Also a malformed census row raised instead of reporting UNKNOWN.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -19,7 +19,70 @@ UI = os.path.join(HERE, "control_ui.html")
 APP = os.path.join(HERE, "control_app.py")
 
 
+class TheCensusRowReaderAnswersEverySHAPE(unittest.TestCase):
+    """⚠⚠ v3018 — A MALFORMED ROW MUST BECOME UNKNOWN, NOT AN EXCEPTION.
+
+    `_read_census_row` has one branch whose whole job is "a row that is not the expected shape
+    becomes UNKNOWN, which is visible". v3014 added `via` to the two happy returns and left that
+    branch returning THREE values while both callers unpack FOUR, so the row that was supposed to
+    be safely visible was the one that raised `ValueError: not enough values to unpack`. The
+    docstring three lines above it still promised the old arity.
+
+    Found by the post-ship review of v3014 — the arity is invisible to every test that only ever
+    feeds WELL-FORMED rows, which is the whole reason the malformed ones are fed here.
+    [[unknown-stays-unknown]] [[label-outlived-referent]] [[gate-blind-to-unexercised-input]]"""
+
+    #: shapes a real census could emit if lane_census changed, plus the plainly wrong ones
+    SHAPES = ("not-a-dict", {}, {"kind": "LOOP"}, 42, None, [], {"fn": None})
+
+    def test_every_shape_returns_the_same_arity(self):
+        import heart
+        arities = {}
+        for shape in self.SHAPES:
+            r = heart._read_census_row(shape)
+            arities[repr(shape)[:24]] = len(r)
+        self.assertEqual(
+            sorted(set(arities.values())), [4],
+            "_read_census_row returns different arities for different row shapes (%s) — every "
+            "caller unpacks a fixed number, so the odd one out raises ValueError instead of "
+            "reporting UNKNOWN" % arities)
+
+    def test_a_malformed_row_reports_UNKNOWN_rather_than_raising(self):
+        import heart
+        for shape in self.SHAPES:
+            try:
+                name, kind, watcher, via = heart._read_census_row(shape)
+            except Exception as e:
+                self.fail("a row of shape %r raised %s: %s — a census row this reader cannot "
+                          "parse must become a VISIBLE UNKNOWN, never an exception that takes the "
+                          "whole heart down" % (shape, type(e).__name__, e))
+            self.assertEqual(kind, "UNKNOWN",
+                             "a row of shape %r was classified %r rather than UNKNOWN" % (shape, kind))
+            self.assertIsNone(watcher, "a malformed row named a watcher (%r)" % (watcher,))
+            self.assertIsNone(via, "a malformed row carried a via (%r)" % (via,))
+
+    def test_a_well_formed_supervised_row_still_carries_via(self):
+        """⚠ the other direction — the arity fix must not flatten a real row into UNKNOWN."""
+        import heart
+        name, kind, watcher, via = heart._read_census_row(
+            {"fn": "x", "kind": "LOOP", "supervised": True, "lane": "lane-x", "via": "roster"})
+        self.assertEqual((name, kind, watcher, via), ("x", "LOOP", "lane-x", "roster"),
+                         "a well-formed supervised row no longer reads back intact")
+
+
 RED_PROOF = [
+    {
+        #: ⚠ THE v3014 DEFECT, RESTORED EXACTLY. Dropping the fourth value returns this branch to
+        #: three while both callers unpack four, so a malformed census row raises instead of
+        #: reporting UNKNOWN. Measured before the fix: 'not-a-dict', {} with no "fn", 42 and None
+        #: all raised ValueError.
+        "why": "returning three values from the malformed-row branch makes the one path whose job "
+               "is to render a bad row VISIBLE the path that crashes the heart instead",
+        "file": "heart.py",
+        "find": '        return str(row)[:40], "UNKNOWN", None, None',
+        "replace": '        return str(row)[:40], "UNKNOWN", None',
+        "matches": 1,
+    },
     {
         "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'control_ui.html',
