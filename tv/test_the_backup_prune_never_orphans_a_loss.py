@@ -208,6 +208,57 @@ class TheBackupPruneNeverOrphansALoss(unittest.TestCase):
             "understates what was lost and flatters the recovery" % got.get("foundLog"))
         self.assertIn("near", str(why), "the reason does not name which backup answered: %r" % why)
 
+    def test_the_denominator_says_HOW_CLOSE_it_was_to_the_loss(self):
+        """⚠⚠ v3032 — THE DENOMINATOR DEGRADES SILENTLY AND UPWARD, and only its DISTANCE from the
+        loss can detect it. Found by the post-ship review of v3030, and the path is specific:
+
+          · the true newest-before is a mid-day snapshot; the day's FIRST snapshot is the keeper
+          · the episode CLOSES, so the open-episode guard lifts its protection
+          · the mid-day file is now past 48h and is not first-of-day, so the prune takes it
+          · the OLD keeper survives on the 90-day rule and inherits the role
+
+        `ledger_counts_before` still finds a predating file, so it never answers UNKNOWN — it just
+        returns a smaller, older number. The count itself cannot reveal that; a snapshot minutes
+        before the emptying is the store as it stood, one eleven hours before is a different day's
+        store, and both are "a backup predating the loss". [[zero-needs-a-denominator]]"""
+        now = self.PINNED_NOW
+        # the degraded case: only an OLD keeper survives, hours before the loss
+        pp = os.path.join(self.d, "ledger_keeper.json")
+        with io.open(pp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"counts": {"foundLog": 400, "setPieces": 120}, "allStores": {}}))
+        os.utime(pp, (now - 12 * 3600.0, now - 12 * 3600.0))
+        got, why = CA.ledger_counts_before(now * 1000.0, bdir=self.d)
+        self.assertIsInstance(got, dict, "no predating backup found: %s" % why)
+        self.assertIn("before the loss", why,
+                      "the answer does not say how close the snapshot was: %r" % why)
+        self.assertIn("UNDERSTATED", why,
+                      "a denominator 12h before the loss was reported without qualification, so a "
+                      "degraded keeper reads exactly like the true before-picture: %r" % why)
+
+    def test_a_CLOSE_denominator_is_not_dressed_as_suspect(self):
+        """⚠ THE OTHER SIDE. A snapshot minutes before the loss IS the store as it stood, and
+        qualifying it would train the reader to ignore the warning that matters."""
+        now = self.PINNED_NOW
+        pp = os.path.join(self.d, "ledger_close.json")
+        with io.open(pp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"counts": {"foundLog": 445, "setPieces": 129}, "allStores": {}}))
+        os.utime(pp, (now - 600.0, now - 600.0))          # ten minutes before
+        got, why = CA.ledger_counts_before(now * 1000.0, bdir=self.d)
+        self.assertIsInstance(got, dict, why)
+        self.assertIn("min before the loss", why, "a close snapshot does not state its gap: %r" % why)
+        self.assertNotIn("UNDERSTATED", why,
+                         "a snapshot 10 minutes before the loss was flagged as understating, which "
+                         "makes the real warning noise: %r" % why)
+
+    def test_an_unusable_timestamp_is_UNKNOWN_not_an_exception(self):
+        """⚠ v3032 — the contract says '(dict|None, why)'. getmtime and float() sat OUTSIDE the
+        try, so a file deleted between the glob and the compare, or an at_ms that will not parse,
+        raised straight out of a function every caller reads as total. A helper whose failure mode
+        is an exception is one every caller must wrap."""
+        got, why = CA.ledger_counts_before("not a number", bdir=self.d)
+        self.assertIsNone(got)
+        self.assertIn("UNKNOWN", why, "an unparseable timestamp did not report UNKNOWN: %r" % why)
+
     def test_a_backup_NEWER_than_the_loss_is_never_used_as_the_before(self):
         """⚠ A snapshot taken AFTER the store emptied holds the EMPTIED state. Using it would make
         'you had almost nothing' the denominator, and any recovery would look total."""
@@ -321,6 +372,17 @@ class TheBackupPruneNeverOrphansALoss(unittest.TestCase):
 
 RED_PROOF = [
     {
+        #: ⚠ WITHOUT THE GAP the denominator degrades in silence: a keeper hours older than the
+        #: loss answers exactly like the true newest-before, and "440 of 400" reads as a complete
+        #: recovery.
+        "why": "dropping the distance-from-the-loss qualifier lets a degraded older keeper stand "
+               "in for the true before-picture with nothing on screen to say so",
+        "file": "control_app.py",
+        "find": "                  \"\" if _gap_s < 7200 else",
+        "replace": "                  \"\" if True else",
+        "matches": 1,
+    },
+    {
         #: ⚠ TAKING THE OLDEST PREDATING BACKUP INSTEAD OF THE NEWEST understates what was lost and
         #: flatters the recovery — the direction that must never be allowed to be wrong.
         "why": "using the oldest snapshot before the loss as the before-picture makes the store "
@@ -336,8 +398,12 @@ RED_PROOF = [
         "why": "comparing against snapshots newer than the loss makes the EMPTIED state the "
                "before-picture, and any recovery then looks complete",
         "file": "control_app.py",
-        "find": "    older = [x for x in snaps if os.path.getmtime(x) * 1000.0 < float(at_ms)]",
-        "replace": "    older = list(snaps)",
+        #: ⚠ v3032 — RE-ANCHORED. v3032 moved this line INSIDE the try (so a file deleted between
+        #: the glob and the compare answers UNKNOWN instead of raising) and renamed float(at_ms) to
+        #: _at, which left this proof matching 0 and measuring INVALID on the very next drill. The
+        #: law was never wrong; the sabotage pointed at bytes that had moved.
+        "find": "        older = [x for x in snaps if os.path.getmtime(x) * 1000.0 < _at]",
+        "replace": "        older = list(snaps)",
         "matches": 1,
     },
     {

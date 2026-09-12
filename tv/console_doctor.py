@@ -1286,8 +1286,25 @@ def _check_the_board_store_did_not_come_up_empty():
                     _mag.append("%s of UNKNOWN %s" % (_said(_n), _lbl))
             _gap = ""
             _fn, _fm = _c2.get("foundLog"), _before.get("foundLog")
-            if isinstance(_fn, (int, float)) and isinstance(_fm, (int, float)) and _fm > _fn:
-                _gap = (" ⚠ %d name(s) have NOT come back." % int(_fm - _fn))
+            if isinstance(_fn, (int, float)) and isinstance(_fm, (int, float)):
+                if _fm > _fn:
+                    _gap = (" ⚠ %d name(s) have NOT come back." % int(_fm - _fn))
+                elif _fm < _fn:
+                    # ⚠⚠ v3032 — "440 of 400" IS NOT A COMPLETE RECOVERY, IT IS A BROKEN
+                    # DENOMINATOR. Found by the post-ship review of v3030: once the episode CLOSES
+                    # the open-episode guard lifts, the true newest-before snapshot ages past 48h
+                    # and is pruned, and an older FIRST-OF-DAY keeper inherits the role. The helper
+                    # still finds a predating file so it never says UNKNOWN — it just answers with
+                    # a smaller, older number, and the shortfall test above is False, so a degraded
+                    # comparison reads as a MORE than full recovery with no warning.
+                    # A before-picture smaller than the present cannot measure a shortfall. It may
+                    # be innocent (he found new items after recovering) or it may be the degraded
+                    # keeper — and those are different facts, so this says which it cannot tell.
+                    # [[zero-needs-a-denominator]] [[stale-reading]]
+                    _gap = (" ⚠ the before-picture holds FEWER (%d) than the store does now, so "
+                            "this is not a shortfall measure: either names arrived after the "
+                            "recovery, or the closest snapshot before the loss has been pruned "
+                            "and an older keeper is standing in for it." % int(_fm))
             return OK, ("the board's store came up empty once and has contents again since %s UTC "
                         "— %s, against what it held before the loss (%s).%s The record is kept as "
                         "history — it is what says which backup predates the loss."

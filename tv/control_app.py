@@ -26191,11 +26191,36 @@ def ledger_counts_before(at_ms, bdir=None):
         snaps = [x for x in _g.glob(os.path.join(_d, "ledger_*.json")) if os.path.isfile(x)]
     except Exception as e:
         return None, "the backup directory could not be listed (%s) — UNKNOWN" % type(e).__name__
-    older = [x for x in snaps if os.path.getmtime(x) * 1000.0 < float(at_ms)]
+    # ⚠ v3032 — INSIDE THE CONTRACT. getmtime on a file deleted between the glob and this line, or
+    # an at_ms that will not float, both raised straight out of a function documented to answer
+    # "(dict|None, why)". A helper whose failure mode is an exception is one every caller must
+    # wrap, and the doctor row that calls this would have surfaced it three layers away.
+    try:
+        _at = float(at_ms)
+        older = [x for x in snaps if os.path.getmtime(x) * 1000.0 < _at]
+    except Exception as e:
+        return None, ("the snapshots could not be compared against the loss (%s) — UNKNOWN"
+                      % type(e).__name__)
     if not older:
         return None, ("no backup predates the loss — every snapshot on disk is NEWER than it, so "
                       "what the store held before is UNKNOWN and not recoverable from here")
     newest = max(older, key=os.path.getmtime)
+    # ⚠⚠ v3032 — HOW OLD THE DENOMINATOR IS, BECAUSE IT DEGRADES SILENTLY AND UPWARD. Found by the
+    # post-ship review of v3030, and the path is specific rather than theoretical:
+    #   · the true newest-before is a mid-day snapshot; the day's FIRST snapshot is the keeper
+    #   · the episode closes, so the open-episode guard lifts its protection
+    #   · the mid-day file is now >48h and is not first-of-day, so the prune takes it
+    #   · the OLD keeper survives on the 90-day rule and becomes the "before"
+    # `ledger_counts_before` still finds a predating file, so it never says UNKNOWN — it just
+    # quietly answers with a smaller, older number. The row then prints "440 of 400" and the
+    # shortfall test (_before > _now) is FALSE, so it reads as a MORE than complete recovery with
+    # no warning at all. That is the flattering direction, reached without anything going wrong.
+    #
+    # The count cannot detect this; only its DISTANCE FROM THE LOSS can. A snapshot minutes before
+    # the emptying is the store as it stood; one eleven hours before is a different day's store.
+    # So the gap ships WITH the number and the caller is forced to qualify it.
+    # [[zero-needs-a-denominator]] [[stale-reading]]
+    _gap_s = max(0.0, (_at / 1000.0) - os.path.getmtime(newest))
     try:
         doc = json.load(io.open(newest, encoding="utf-8"))
     except Exception as e:
@@ -26205,7 +26230,14 @@ def ledger_counts_before(at_ms, bdir=None):
     if not isinstance(c, dict) or not c:
         return None, ("the predating backup %s carries no counts, so what the store held before is "
                       "UNKNOWN" % os.path.basename(newest))
-    return c, os.path.basename(newest)
+    # ⚠ THE NAME ALONE WAS NOT ENOUGH. It said WHICH file answered and never HOW CLOSE it was.
+    _h = _gap_s / 3600.0
+    _near = ("%.0f min" % (_gap_s / 60.0)) if _gap_s < 5400 else ("%.1f h" % _h)
+    return c, ("%s, taken %s before the loss%s"
+               % (os.path.basename(newest), _near,
+                  "" if _gap_s < 7200 else
+                  " — ⚠ that is not the store as it stood when it emptied, so what was lost is "
+                  "UNDERSTATED by whatever arrived in between"))
 
 
 def _neither_is_publishable(roster_n, show_n, ledger, show_n_why=None):
@@ -27027,7 +27059,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3031",
+        "ver": "v3032",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

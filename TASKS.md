@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3031** | `(this commit)` | v3031 — one misread out of sixteen threw away fifteen agreeing sightings; a majority that carries at least twice the runner-up now names the container, and a bare plurality still states neither. |
+| **v3032** | `(this commit)` | v3032 — when the guard lifts, the true newest-before is pruned and an older daily keeper inherits the role; the helper still finds a predating file so it never says UNKNOWN, it just answers with a smaller older number. |
+| **v3031** | `c8a74a89` | v3031 — one misread out of sixteen threw away fifteen agreeing sightings; a majority that carries at least twice the runner-up now names the container, and a bare plurality still states neither. |
 | **v3030** | `07c5d4f1` | v3030 — the recovered row printed what the store holds now with nothing to hold it against, so 440 back out of 445 and 440 back out of 900 read identically; the predating backup answers what he had. |
 | **v3029** | `19552a82` | v3029 — measured on his live console: the first reel card sat 426px down a 361px viewport, so the panel named after its cards opened showing none of them; it now scrolls to the first card only when that card is actually below the fold. |
 | **v3028** | `79ac2080` | v3028 — measured on his live console with the overlay shut: box closed beside clientH 0 and firstCardTop 0, which reads as the first card being at the very top of a shelf nobody opened. |

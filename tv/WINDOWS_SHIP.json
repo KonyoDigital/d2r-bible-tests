@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3031",
+  "ver": "v3032",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3031: one misread out of sixteen threw away fifteen agreeing sightings; a majority that carries at least twice the runner-up now names the container, and a bare plurality still states neither.",
+  "note": "v3032: when the guard lifts, the true newest-before is pruned and an older daily keeper inherits the role; the helper still finds a predating file so it never says UNKNOWN, it just answers with a smaller older number.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
