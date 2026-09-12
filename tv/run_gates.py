@@ -2303,6 +2303,27 @@ GATES = [
              "self_arming and proves both phrases still live inside _heart_says_watched's own "
              "body: a silent reword would classify every stale census as 'other' and refuse "
              "everything again, quietly."),
+    Gate("test_a_frame_label_is_not_an_item_location",
+         [sys.executable, os.path.join(HERE, "test_a_frame_label_is_not_an_item_location.py")], 120,
+         why="ONE FRAME LABEL WAS STAMPED ONTO A WHOLE LIST OF ITEMS, and that is why the wrong "
+             "things registered. Konyo: 'it was working exactly like that just not registering the "
+             "right items based on the routing.' The defect was one line: `cur[\"panel\"] += "
+             "len(names)` — a deep row carries ONE scene and a LIST of names, and in D2R the stash "
+             "panel and the inventory are open TOGETHER, so a single frame legitimately holds "
+             "items from BOTH containers. read_names_lane was fixed for this in v2983 and RECORDS "
+             "the per-item container; extract_gap never read it (measured: `loc` 0 references, "
+             "`scene` 1). MEASURED on his journal: stash/inventory 56, stash/stash 12, "
+             "inventory/inventory 31, inventory/floor 7, stash/floor 1, stash/equipped 2, "
+             "inventory/equipped 1 — so ELEVEN names that can never be a holding counted as panel "
+             "and FIFTY-SIX inventory items were filed under stash. ⚠ AND `stash` IS NOT A "
+             "CONTAINER AN ITEM IS READ IN: his ruling, 'stash/stash there is no such thing.. when "
+             "stash is open the INVENTORY IS OPEN at the same time' — items already in the stash "
+             "are not what gets read, so such a placement is counted CONTRADICTED and named, never "
+             "folded into panel. ⚠ And the fallback is not uniform: a CHRONICLE frame IS its names "
+             "so falling back is safe (it keeps his 154), while a PANEL frame would pick a "
+             "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
+             "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
+             "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

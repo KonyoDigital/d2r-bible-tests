@@ -180,15 +180,76 @@ def _named_sessions():
                     names = [x for x in (r.get("names") or []) if str(x).strip()]
                     if not names:
                         continue
-                    cur = out.get(sid) or {"names": 0, "panel": 0, "floor": 0, "chronicle": 0}
+                    cur = out.get(sid) or {"names": 0, "panel": 0, "floor": 0,
+                                          "chronicle": 0, "equipped": 0, "contradicted": 0,
+                                          "unplaced": 0}
+                    for _k in ("equipped", "contradicted", "unplaced"):
+                        cur.setdefault(_k, 0)      # older callers built the 4-key shape
                     cur["names"] += len(names)
                     sc = str(r.get("scene") or "").strip().lower()
-                    if sc in PANEL_SCENES:
-                        cur["panel"] += len(names)
-                    elif sc == "chronicle":
-                        cur["chronicle"] += len(names)
-                    elif sc in FLOOR_SCENES:
-                        cur["floor"] += len(names)
+                    # ⚠⚠ v3043 — `cur["panel"] += len(names)` WAS THE WHOLE DEFECT. One frame carries
+                    # ONE `scene` and a LIST of names, so every name inherited the frame's label.
+                    # In D2R the stash panel and the inventory are open TOGETHER, so a single frame
+                    # legitimately holds items from BOTH containers — and this counted all of them
+                    # as whichever panel the frame was called.
+                    #
+                    # read_names_lane was fixed for exactly this in v2983 and RECORDS the per-item
+                    # container in `names_loc`. This module never read it: measured 2026-09-12, it
+                    # referenced `loc` zero times and `scene` once. The producer had the right
+                    # answer and the classifier ignored it. [[the-unjoined-end]]
+                    #
+                    # MEASURED on his journal, frame scene / item names_loc:
+                    #   stash/inventory 56 · stash/stash 12 · inventory/inventory 31
+                    #   inventory/floor 7 · stash/floor 1 · stash/equipped 2 · inventory/equipped 1
+                    #   gameplay/floor 199 (agrees) · chronicle/(unplaced) 154
+                    # So 11 names that can NEVER be a holding were counted as panel, and 56
+                    # inventory items were filed under stash.
+                    #
+                    # ⚠⚠ HIS RULING, 2026-09-12, and it is the reason `stash` is not a container
+                    # here: *"stash/stash there is no such thing.. when stash is open the INVENTORY
+                    # IS OPEN at the same time soo stash/inventory is when we stash items..
+                    # inventory/inventory is just inventory which is sometimes a place before we
+                    # stash the item from inventory to the stash"*. Items already sitting in the
+                    # stash are not what gets read. A name the producer placed in `stash` therefore
+                    # CONTRADICTS the way the panels actually work, and it is counted as such and
+                    # named — never folded into panel, and never silently dropped.
+                    # [[feedback-contradiction-is-the-finding]]
+                    _loc = r.get("names_loc")
+                    _loc = _loc if isinstance(_loc, dict) else {}
+                    for _nm in names:
+                        _own = str(_loc.get(_nm) or "").strip().lower()
+                        if not _own:
+                            # ⚠ UNPLACED. The producer did not place this name, so the frame is
+                            # all that is known — and that is exactly the chronicle case, where
+                            # 154 of 155 unplaced names live. A guess here would be
+                            # indistinguishable from a reading. [[unknown-stays-unknown]]
+                            # ⚠⚠ AND THE FALLBACK IS NOT UNIFORM, because the two frames do not
+                            # know the same thing. A CHRONICLE frame IS its names — the grid is
+                            # the list, so the frame defines them and falling back is safe, which
+                            # is what keeps his 154 chronicle names classified. A PANEL frame
+                            # shows the stash AND the inventory at once, so falling back there
+                            # would pick a container by coin-flip and register a holding nobody
+                            # observed. An unplaced name in a panel frame stays UNPLACED.
+                            # Measured on his journal: 154 of the 155 unplaced names are chronicle
+                            # and one is gameplay — ZERO are in panel frames, so this costs him
+                            # nothing today and refuses to invent one tomorrow.
+                            # [[unknown-stays-unknown]]
+                            if sc in PANEL_SCENES:
+                                cur["unplaced"] += 1
+                            elif sc == "chronicle":
+                                cur["chronicle"] += 1
+                            elif sc in FLOOR_SCENES:
+                                cur["floor"] += 1
+                        elif _own == "inventory":
+                            cur["panel"] += 1          # his, in hand — stashing or pre-stash
+                        elif _own == "stash":
+                            cur["contradicted"] += 1   # cannot happen; see his ruling above
+                        elif _own == "equipped":
+                            cur["equipped"] += 1       # cross-reference only, never authoritative
+                        elif _own == "floor" or _own in FLOOR_SCENES:
+                            cur["floor"] += 1
+                        elif _own == "chronicle":
+                            cur["chronicle"] += 1
                     out[sid] = cur
         except Exception:
             continue

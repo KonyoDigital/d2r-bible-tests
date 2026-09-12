@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3042** | `(this commit)` | v3042 — may refused every lock whenever the heart census went stale and the census goes stale whenever a gate file changes, so writing one gate shut nineteen locks - the split is by reversibility now, irreversible doors keep the whole guarantee and ordinary ones refuse on merit alone |
+| **v3043** | `(this commit)` | v3043 — one frame carries one scene and a list of names so every item inherited the frame label, and in D2R the stash and inventory are open together - eleven names that can never be a holding were counted as panel and fifty six inventory items were filed under stash |
+| **v3042** | `068e571a` | v3042 — may refused every lock whenever the heart census went stale and the census goes stale whenever a gate file changes, so writing one gate shut nineteen locks - the split is by reversibility now, irreversible doors keep the whole guarantee and ordinary ones refuse on merit alone |
 | **v3041** | `408440d5` | v3041 — the watchdog named seven concerns that resolved to none of the 58 surfaces, and selfArming now DERIVES its coverage from the lock list it actually judged rather than declaring it beside the code |
 | **v3040** | `254bcac8` | v3040 — the doctor worked perfectly and its whole column read UNKNOWN because a check is called shelf lanes reading while a surface is called shelf-cards, and nothing in the code joins the two - a deriver was measured, found to reach nothing, and thrown away before the map was authored |
 | **v3039** | `ca511790` | v3039 — ev stashes the exception and the seed sites must refuse on it but only one of the two did, a re-preparation that threw was stamped prepared and measured, and a refused seed was still photographed under the targets own name |
