@@ -82,13 +82,26 @@ def _session_of(reel):
     return r[len("reel_"):] if r.startswith("reel_") else r
 
 
-def river(reel=None):
+def river(reel=None, rows=None):
     """Walk the river. -> {"ok", "rows", "gaps", "why"}
 
     A row per reel, carrying every stage it has reached and, separately, what the FRAME authority
     says. `gaps` holds only same-question disagreements — of which there are, correctly, none.
+
+    ⚠⚠ v2992 — `rows` LETS A CALLER SUPPLY THE SNAPSHOT IT ALREADY TOOK. MEASURED on his tree:
+    one `printer._sources()` ran `reel_story.story()` TWICE — once through here and once through
+    `per_reel_routes.routes()` — and each story() does its own `reel_retention.plan()`. That was
+    2 plan() calls costing 0.174s of a 0.312s snapshot: 56% of the printer's whole reading spent
+    answering the same question twice.
+    ⚠ Optional and defaulted to None, so all 8 existing call sites (none of which pass anything)
+    are untouched. This is the SAME shape `_sources` already uses for `river=` into templates()
+    and gap(): take one reading and share it, so two stations cannot disagree about the same reel
+    because they asked at different moments. [[the-unjoined-end]]
     """
-    rows, why = _story()
+    if rows is None:
+        rows, why = _story()
+    else:
+        why = ""
     if not rows:
         # ⚠ THE FRAMING IS PART OF THE ANSWER AND THE FIRST CUT DROPPED IT. When _story() supplied
         # a reason, that reason was returned verbatim — so "reel_story would not answer" reached

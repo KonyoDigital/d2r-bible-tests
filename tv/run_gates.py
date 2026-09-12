@@ -973,6 +973,15 @@ GATES = [
          "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
          "deep rows carry any coordinate — and test 5 pins that zero.",
          skip_ok=()),
+    Gate("test_one_story_per_snapshot",
+         [sys.executable, os.path.join(HERE, "test_one_story_per_snapshot.py")], 120,
+         why="printer._sources() promises 'every owner's reading, taken ONCE' and was breaking it "
+             "for the story: reel_story.story() ran TWICE per snapshot — via reel_river.river() "
+             "and via per_reel_routes.routes() — each doing its own reel_retention.plan(). Stack "
+             "traces named both. Now one snapshot, threaded; story() 1, plan() 1. The claim is the "
+             "CALL COUNT, not wall-clock: plan() walks the disk so timing swings with the page "
+             "cache, and a first reading looked like a 12x regression that was only a cold run.",
+         skip_ok=()),
     Gate("test_the_journal_is_read_once_per_change",
          [sys.executable, os.path.join(HERE, "test_the_journal_is_read_once_per_change.py")], 120,
          why="the read-only fleet's item 1, and the largest measured win in the repo — three "

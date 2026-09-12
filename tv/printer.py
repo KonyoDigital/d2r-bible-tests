@@ -107,9 +107,29 @@ def _sources():
             whys.append(w)
     except Exception as e:
         whys.append("one_start_point would not import (%s)" % str(e)[:60])
+    # ⚠⚠ v2992 — ONE reel_story.story() FOR THE WHOLE SNAPSHOT. Measured before this: _sources()
+    # ran story() TWICE — through reel_river.river() and through per_reel_routes.routes() — and
+    # each story() does its own reel_retention.plan(). 2 plan() calls, 0.174s of a 0.312s snapshot,
+    # 56% of the printer's entire reading spent answering the same question twice. The stack traces
+    # named it exactly: `river:91 <- _story:65 <- story:115` and `routes:98 <- _story:52 <- story:115`.
+    # ⚠ This is the pattern the file already uses for `river=` into templates() and gap(), and the
+    # docstring's own promise — "taken once and shared, so two stations on the same row cannot
+    # disagree because they asked at different moments" — which story() was quietly breaking.
+    # ⚠ A FAILED snapshot stays None, and both callees then take their own reading exactly as
+    # before. Sharing must never turn "I could not read it" into "there is nothing there".
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _story_rows = None
+    try:
+        import reel_story as _RSTORY
+        _st = _RSTORY.story()
+        if isinstance(_st, dict):
+            _story_rows = _st.get("reels") or []
+    except Exception as e:
+        whys.append("reel_story would not answer for the shared snapshot (%s) — each station will "
+                    "take its own reading" % str(e)[:60])
     try:
         import reel_river as RR
-        out["river"], w = _safe(RR.river)
+        out["river"], w = _safe(RR.river, rows=_story_rows)
         if w:
             whys.append(w)
     except Exception as e:
@@ -148,7 +168,7 @@ def _sources():
         whys.append("reel_templates would not import (%s)" % str(e)[:60])
     try:
         import per_reel_routes as PRR
-        out["routes"], w = _safe(PRR.routes)
+        out["routes"], w = _safe(PRR.routes, _story_rows)
         if w:
             whys.append(w)
     except Exception as e:

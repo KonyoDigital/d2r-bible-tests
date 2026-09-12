@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2991** | `(this commit)` | v2991 — the doctor stops telling him the store was refilled |
+| **v2992** | `(this commit)` | v2992 — one story snapshot per printer reading, not two |
+| **v2991** | `185492d9` | v2991 — the doctor stops telling him the store was refilled |
 | **v2990** | `7e9d1936` | v2990 — the moment of the loss stops walking forward with every boot |
 | **v2989** | `7ce28a3b` | v2989 — the status journal is re-read only when the file changes |
 | **v2988** | `86227ba4` | v2988 — a store that lost its contents is never papered over with seeds |
