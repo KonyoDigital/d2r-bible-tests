@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3046"   # THE WATCHDOG NAMES THE THREADS IT WATCHES
+VERSION = "v3047"   # THE LANE SENTENCE STOPS STACKING AND THE PIXEL SEAT FILLS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

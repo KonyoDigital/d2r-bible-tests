@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3046",
+  "ver": "v3047",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3046: it watched twenty vessels and the organ table said it named three, because every row described a subsystem rather than the individual threads - derived from source so it answers from any process, since the tick store is process memory and empty outside the console",
+  "note": "v3047: the river lane sentence is clamped to one line with the whole text on hover so the box shrinks and no word is lost, and the two empty pixel_rescue seats are filled so the lock opens at wilson 0.893 against a bar of 0.839",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

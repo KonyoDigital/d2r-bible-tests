@@ -2130,7 +2130,30 @@
   #th-shelfov .sh-riverlane .shg-n { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);
     color: #d9c9a0; letter-spacing: var(--ls-tight); }
   /* the lane's own sentence, from the backend — why this lane exists, in its words not mine */
-  #th-shelfov .sh-riverlane .shg-lanewhy { flex: 1 1 100%; font: var(--fw-medium) var(--fs-xs)/1.3 var(--mono);
+  /* ⚠⚠ v3047 — `flex: 1 1 100%` FORCED ITS OWN LINE, and that line was the trim he approved.
+     Konyo, 2026-09-12: "yes river line sentences can be trimmed of course". The sentences are
+     short — INTAKE's is "the reels arrive and get stationed — surveyed, or waiting to be", 62
+     characters — so they only occupied a whole row because the CSS made them, not because they
+     needed it. `1 1 auto` puts the sentence beside the label when it fits and lets it wrap when
+     it does not, which removes a line per lane header without removing a WORD.
+     ⚠ NOT CLIPPED AND NOT HIDDEN. The v2210 scar in this same drawer is nowrap-over-a-sentence
+     cutting 60% of it away at his own window width, with the ellipsis making it look deliberate;
+     and a title-only tooltip would hide the lane's own words from a panel whose whole point is
+     saying why the lane exists. Trimming the BOX is not trimming the SENTENCE. */
+  /* ⚠⚠ v3047 — CLAMPED TO ONE LINE, NOT INLINED. Konyo, 2026-09-12: "YES, trim the river lane
+     sentences. Keep label + count; collapse shg-lanewhy to one clamped line or hover/title only.
+     Don't delete the backend why — just stop it stacking height."
+     ⚠ MY FIRST CUT WAS `flex: 1 1 auto` to put the sentence beside the label, and it broke the
+     panel: the render gate reported every one of 21 river nodes ZERO-SIZE at 1120x628, on a
+     target that was green minutes before. A flex item that may shrink, inside a wrapping row,
+     inside a grid column — collapsed. Reverted to its own full-width row, which is the shape that
+     renders, and the HEIGHT is bounded instead: one line, clamped.
+     The sentence stays in the DOM and stays readable — `-webkit-line-clamp: 1` shows the first
+     line and the JS carries the whole thing as a `title`, so nothing is deleted and nothing is
+     unreachable. Trimming the BOX is not trimming the SENTENCE. */
+  #th-shelfov .sh-riverlane .shg-lanewhy { flex: 1 1 100%; min-width: 0;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+    font: var(--fw-medium) var(--fs-xs)/1.3 var(--mono);
     color: rgba(217,201,160,.72); letter-spacing: var(--ls-tight); }
   /* ⚠ THE KEY STAYS VISIBLE, DIMMED. The label is what he reads; the key is what the stores, the
      journal and every log line still say. Hiding it would make his screen and his data disagree
@@ -16330,7 +16353,10 @@ window._lockMark = function(isOpen, px, label){
               }
               _lh.innerHTML = '<span class="shg-lab">' + esc(String(_ln.name || '')) + '</span>'
                 + '<span class="shg-n">' + _lc + ' reel' + (_lc === 1 ? '' : 's') + '</span>'
-                + (_ln.why ? '<span class="shg-lanewhy">' + esc(String(_ln.why)) + '</span>' : '');
+                /* v3047 — the WHOLE sentence rides as a title, because the visible line is
+                   clamped to one. Clamping the box must never make a word unreachable. */
+                + (_ln.why ? '<span class="shg-lanewhy" title="' + esc(String(_ln.why)) + '">'
+                             + esc(String(_ln.why)) + '</span>' : '');
               grid.insertBefore(_lh, h);
               anchor = _lh;
               break;

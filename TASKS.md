@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3046** | `(this commit)` | v3046 — it watched twenty vessels and the organ table said it named three, because every row described a subsystem rather than the individual threads - derived from source so it answers from any process, since the tick store is process memory and empty outside the console |
+| **v3047** | `(this commit)` | v3047 — the river lane sentence is clamped to one line with the whole text on hover so the box shrinks and no word is lost, and the two empty pixel_rescue seats are filled so the lock opens at wilson 0.893 against a bar of 0.839 |
+| **v3046** | `f50e9fc0` | v3046 — it watched twenty vessels and the organ table said it named three, because every row described a subsystem rather than the individual threads - derived from source so it answers from any process, since the tick store is process memory and empty outside the console |
 | **v3045** | `e87aad27` | v3045 — three vessels reported no tick has been stamped while stamping perfectly well, because two of them file the tick under the lane name rather than the function name and the census only ever asked for the function |
 | **v3044** | `d9c9c5f9` | v3044 — the heart legend printed flowing 0 while every vessel row said nothing can score this watcher, and the organ rows it scores from carry no score field at all so even a perfect key match returns None - and the legend was photographed by nothing until the target selector was widened |
 | **v3043** | `d1c41eca` | v3043 — one frame carries one scene and a list of names so every item inherited the frame label, and in D2R the stash and inventory are open together - eleven names that can never be a holding were counted as panel and fifty six inventory items were filed under stash |
