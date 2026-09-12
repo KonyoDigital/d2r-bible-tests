@@ -24502,6 +24502,71 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
               var _fl = document.getElementById('fleet-list');
               o.advFleetPlaceholder = _fl ? /open .{0,3} ?advanced to check the fleet/i
                                               .test(_fl.textContent || '') : null;
+              /* ══ v2996 (#58/#34) — THE SHELF PUBLISHES A FILL AND NEVER A RECT, AND THAT IS THE
+                 WHOLE REASON HIS BLANK STAGE CANNOT BE EXPLAINED FROM HERE.
+                 GROKBOT, 2026-09-12, ver and liveVer BOTH v2988: the stage is an EMPTY DARK PANEL,
+                 no cards and no headings, and two stage crops 5s apart are BYTE-IDENTICAL so it is
+                 not a slow paint. At that same moment this beat said `filled=true, cards~535,
+                 ink=true` and my headless probe built 530 cards with no JS error. Both readings are
+                 honest: a DOM can be fully built inside a container that occupies no pixels, and
+                 nothing here was ever asked where that container IS.
+
+                 ⚠ IT IS DELIBERATELY NOT A ROW IN THE ROSTER ABOVE. Those four are panels that
+                 belong on their view, so `hidden` earns the name DARK — "has rows and is NOT on
+                 screen. The fault, and only this." The shelf is an ON-DEMAND OVERLAY and is closed
+                 almost always; a roster entry would publish DARK forever and the first thing
+                 anybody did would be to stop believing it. CLOSED IS NOT A FAULT.
+                 [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+
+                 The geometry rules are lifted from the roster because each was paid for: no layout
+                 boxes = an ancestor is display:none (OFF-VIEW) and is NOT the same as a collapsed
+                 box (ZERO-HEIGHT); and a full-height box 1,300px below the window is not SHOWN.
+                 ⚠ getClientRects unavailable must fall through, never resolve to the benign
+                 answer. */
+              (function(){
+                var ov = document.getElementById('th-shelfov');
+                /* ⚠⚠ THIS EXTENDS o.shelf, IT DOES NOT REPLACE IT. The first cut of this block
+                   wrote `o.shelf = st` — a STRING — straight over the {open, filled, cards, why}
+                   object built ~56 lines above, whose own comment says that shape is deliberate:
+                   "SAME SHAPE AS THE THEATRE ON PURPOSE ... so a supervisor can ask both surfaces
+                   one question in one vocabulary". Caught only because the live console answered
+                   the new doctor row with that dict where a state string was expected. A field
+                   that silently changes TYPE is worse than a missing one — every existing reader
+                   keeps working right up until the page reloads. [[copy-drift]] */
+                /* ⚠ o.shelf is ALREADY null when the overlay is not in this build, and null
+                   must stay null — `typeof null === 'object'`, so a careless guard turns the
+                   honest UNKNOWN into an empty object that reads as a measured answer. */
+                if (!ov) { return; }
+                if (!o.shelf || typeof o.shelf !== 'object') { o.shelf = {}; }
+                var r = null; try { r = ov.getBoundingClientRect(); } catch(e){}
+                var h = r ? Math.round(r.height) : -1;
+                var boxes = -1, st;
+                if (ov.hidden) {
+                  st = 'closed';            /* the overlay is shut. A fact, not a fault. */
+                } else {
+                  var canAsk = (typeof ov.getClientRects === 'function');
+                  if (canAsk) { try { boxes = ov.getClientRects().length; } catch(e){ boxes = -1; } }
+                  if (boxes === 0)      st = 'OFF-VIEW';
+                  else if (h <= 2)      st = 'ZERO-HEIGHT';
+                  else {
+                    st = 'shown';
+                    var vh = window.innerHeight || 0, vw = window.innerWidth || 0;
+                    if (r && vh > 0 && (r.top >= vh || r.bottom <= 0))       st = 'BELOW-FOLD';
+                    else if (r && vw > 0 && (r.left >= vw || r.right <= 0))  st = 'OFF-SIDE';
+                  }
+                }
+                o.shelf.box = st;
+                o.shelf.boxes = boxes;
+                o.shelf.h = h;
+                if (r) { o.shelf.top = Math.round(r.top); o.shelf.w = Math.round(r.width); }
+                o.shelf.vh = window.innerHeight || null;
+                /* ⚠ THE FILL TRAVELS WITH THE RECT OR NEITHER CAN CONTRADICT THE OTHER. `cards`
+                   above counts .sh-card/.shs-wrow/.sh-run; this counts the classes the render
+                   target watches. Two counts under two names beats one number whose selector
+                   nobody can see. [[the-unjoined-end]] */
+                try { o.shelf.gridCards = ov.querySelectorAll('.shc-hero, .shc-sess, .shc-area').length; }
+                catch(e){ o.shelf.gridCards = null; }
+              })();
               return o;
             })()
           }})}).catch(function(){});

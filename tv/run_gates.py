@@ -1092,6 +1092,25 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_shelf_publishes_where_it_is_not_just_that_it_is_full",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_publishes_where_it_is_not_just_that_it_is_full.py")], 90,
+         why="A DOM CAN BE FULLY BUILT INSIDE A CONTAINER THAT OCCUPIES NO PIXELS (#58/#34). "
+             "Grokbot 2026-09-12, ver and liveVer BOTH v2988: the shelf stage is an EMPTY DARK "
+             "PANEL — no cards, no headings, and two stage crops 5s apart BYTE-IDENTICAL so it is "
+             "not a slow paint. At that same moment the console's own beat said filled=true, "
+             "cards~535, ink=true, and my headless probe built 530 cards with no JS error. Both "
+             "readings are honest: the beat published a FILL and never a RECT, so nothing in it "
+             "could contradict his eyes — the one question never asked was WHERE the container "
+             "is. The pair is the point: cards>0 with a state that is not `shown` is a built DOM "
+             "nobody can see. ⚠ The shelf is deliberately NOT a row in the panels roster — those "
+             "are panels that belong on their view, so `hidden` earns the name DARK, 'the fault "
+             "and only this'. The shelf is an on-demand overlay, closed almost always, and a "
+             "roster entry would publish a fault forever until he stopped reading it. The gate "
+             "EXECUTES the shipped block in node rather than asserting text is present, because "
+             "a presence check is how a law stays green through its own defeat. Proven red three "
+             "ways: removing the zero-box test, dropping the card count, and calling a closed "
+             "overlay DARK.",
+         skip_ok=()),
     Gate("test_a_frozen_screen_is_never_reported_healthy",
          [sys.executable, os.path.join(HERE, "test_a_frozen_screen_is_never_reported_healthy.py")], 60,
          why="A PAGE THAT ANSWERS 200 CAN PAINT NOTHING (#34). Measured on his machine "

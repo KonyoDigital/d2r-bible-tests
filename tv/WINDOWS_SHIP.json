@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2995",
+  "ver": "v2996",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2995: every other doctor check can be answered 200 by a console painting nothing; this one hashes screencaptures of the real window, and its own first run produced three false positives that all looked like a dead console",
+  "note": "v2996: a DOM can be fully built inside a container that occupies no pixels; the beat published a fill and never a rect, so nothing in it could contradict his eyes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

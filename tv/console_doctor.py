@@ -2873,6 +2873,65 @@ def _check_the_running_code_is_the_code_on_disk():
     return OK, ("the console is running exactly what %s holds on disk (%s...)" % (name, disk[:10]))
 
 
+def _check_the_shelf_is_where_it_says_it_is():
+    """THE CORROBORATOR FOR HIS BLANK STAGE — a fill and a rect that can contradict each other.
+
+    GROKBOT, 2026-09-12, with `ver` and `liveVer` BOTH v2988: the shelf stage is an EMPTY DARK
+    PANEL — no cards, no headings — and two stage crops 5s apart are BYTE-IDENTICAL, so it is not
+    a slow paint. At that same moment the console's own beat said `filled=true, cards~535,
+    ink=true`, and a headless probe against the same server built 530 cards with no JS error.
+
+    Both readings were honest. A DOM can be fully built inside a container that occupies no
+    pixels, and the beat published a FILL and never a RECT — so nothing in it could contradict
+    his eyes. v2996 puts the overlay's rect on the wire; this is the row that reads the two
+    together, because either half alone says nothing. [[the-unjoined-end]]
+
+    ⚠ CLOSED IS NOT A FAULT. The shelf is an on-demand overlay and is shut almost always. This
+    row fires only when it is OPEN and not on screen.
+    """
+    st = _get("/api/status") or {}
+    ub = st.get("uiBeat") if isinstance(st.get("uiBeat"), dict) else None
+    if not ub:
+        return UNKNOWN, "the console did not report a heartbeat, so nothing is known about the shelf"
+    if not ub.get("n"):
+        return UNKNOWN, "no console has ever checked in — headless, not healthy"
+    panels = ub.get("panels")
+    if not isinstance(panels, dict) or not panels:
+        return UNKNOWN, "this console does not report its panels — unknown, not clear"
+    shelf = panels.get("shelf")
+    if shelf is None:
+        return UNKNOWN, ("this console reports no shelf overlay at all (o.shelf is null) — it is "
+                         "not in this build, which is not the same as it being fine")
+    if not isinstance(shelf, dict):
+        return UNKNOWN, ("the shelf field is %s, not the {open, filled, cards, why} object this "
+                         "row reads — something changed its TYPE" % type(shelf).__name__)
+    state = shelf.get("box")
+    if state is None:
+        return UNKNOWN, ("this console predates v2996 and publishes a shelf FILL with no RECT — "
+                         "the exact gap that let a blank stage and cards~535 coexist. Restart it, "
+                         "or where the overlay sits stays unmeasurable from here.")
+    if state == "closed":
+        return OK, "the shelf overlay is shut — a fact, not a fault"
+    cards = shelf.get("cards")
+    grid = shelf.get("gridCards")
+    if state == "shown":
+        return OK, ("the shelf is open and on screen (%sx%s at top %s, viewport %s) — %s card(s) "
+                    "by the panel count, %s by the grid count"
+                    % (shelf.get("w"), shelf.get("h"), shelf.get("top"), shelf.get("vh"),
+                       "UNKNOWN" if cards is None else cards,
+                       "UNKNOWN" if grid is None else grid))
+    _n = ("an UNKNOWN number of" if cards is None else ("%d" % cards))
+    _why = ("OFF-VIEW means an ancestor is display:none — the overlay generates no layout boxes "
+            "at all, which is why nothing paints while the DOM is perfectly built"
+            if state == "OFF-VIEW" else
+            "it is laid out, but not where a reader can reach it")
+    return MISSING, ("THE SHELF IS OPEN AND NOT ON SCREEN — %s, holding %s card(s) (%s by the "
+                     "grid count). h=%s top=%s viewport=%s boxes=%s. %s. ⚠ This is the pair his "
+                     "eyes and this beat were disagreeing about."
+                     % (state, _n, "UNKNOWN" if grid is None else grid, shelf.get("h"),
+                        shelf.get("top"), shelf.get("vh"), shelf.get("boxes"), _why))
+
+
 def _check_the_screen_is_still_painting():
     """THE ONE CHECK THAT DOES NOT ASK THE PAGE. (#34)
 
@@ -3023,6 +3082,10 @@ CHECKS = [
     # that is exactly what happened twice in one day. This one hashes screencaptures of the real
     # window. [[the-blank-console-detector]]
     ("screen still painting", _check_the_screen_is_still_painting),
+    # v2996 (#58/#34) — THE FILL AND THE RECT, TOGETHER. Grokbot saw an empty stage while this
+    # same beat reported cards~535; both were honest, because a DOM can be built inside a
+    # container that occupies no pixels and nothing ever asked WHERE it was. [[the-unjoined-end]]
+    ("shelf is where it says", _check_the_shelf_is_where_it_says_it_is),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),
