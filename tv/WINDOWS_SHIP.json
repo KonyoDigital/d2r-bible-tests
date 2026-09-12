@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2994",
+  "ver": "v2995",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2994: three loops sleep on a branch so they honestly passed every_s=None and became permanently UNTIMED, which can never go red; lane_liveness gains dead_after_s, a declared maximum silence, so they go LATE without printing a period they do not have",
+  "note": "v2995: every other doctor check can be answered 200 by a console painting nothing; this one hashes screencaptures of the real window, and its own first run produced three false positives that all looked like a dead console",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

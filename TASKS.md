@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2994** | `(this commit)` | v2994 — three loops sleep on a branch so they honestly passed every_s=None and became permanently UNTIMED, which can never go red; lane_liveness gains dead_after_s, a declared maximum silence, so they go LATE without printing a period they do not have |
+| **v2995** | `(this commit)` | v2995 — every other doctor check can be answered 200 by a console painting nothing; this one hashes screencaptures of the real window, and its own first run produced three false positives that all looked like a dead console |
+| **v2994** | `66014e29` | v2994 — three loops sleep on a branch so they honestly passed every_s=None and became permanently UNTIMED, which can never go red; lane_liveness gains dead_after_s, a declared maximum silence, so they go LATE without printing a period they do not have |
 | **v2993** | `c7834940` | v2993 — the fields reach the doctor, and a recovered store stops crying |
 | **v2992** | `37a1b1f4` | v2992 — one story snapshot per printer reading, not two |
 | **v2991** | `185492d9` | v2991 — the doctor stops telling him the store was refilled |

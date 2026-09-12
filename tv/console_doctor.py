@@ -2873,6 +2873,62 @@ def _check_the_running_code_is_the_code_on_disk():
     return OK, ("the console is running exactly what %s holds on disk (%s...)" % (name, disk[:10]))
 
 
+def _check_the_screen_is_still_painting():
+    """THE ONE CHECK THAT DOES NOT ASK THE PAGE. (#34)
+
+    Measured on his machine 2026-09-10 from Grok Bot's captures: the TV DIABLO window was a DARK
+    BLANK at 19:08 and a WHITE BLANK at 16:16 — titlebar and nothing else — while every text-based
+    check reported health (`GET / 200 in 16ms - 1,744,954 bytes`, `GET /api/status 200 in 68ms`,
+    "quiet hold - HEART census held - did not kill"). A page that answers 200 can paint nothing, so
+    every other check in this file is blind to a dead compositor by construction. This one reads
+    the BYTES of screencaptures of the real window.
+
+    ⚠ FRESHNESS IS PART OF THE ANSWER, NOT A FOOTNOTE. A frozen pair from four hours ago is a true
+    statement about four hours ago and says NOTHING about the screen now. Grok Bot captures on a
+    ~10 minute loop, so once the newest frame is over an hour old nobody is watching and the honest
+    verdict about NOW is UNKNOWN — with the stale finding still reported, because it is evidence.
+    [[stale-reading]] [[unknown-stays-unknown]]
+
+    ⚠ FROZEN is not BLANK. This says two captures are identical; whether the screen is empty is a
+    claim about content that needs an eye on the frame.
+    """
+    try:
+        import frozen_frame_watch as FFW
+    except Exception as e:
+        return UNKNOWN, ("the frozen-frame watch could not be imported (%s), so the pixels went "
+                         "unread" % type(e).__name__)
+    try:
+        r = FFW.report()
+    except Exception as e:
+        return UNKNOWN, "the frozen-frame watch raised %s, so nothing was measured" % type(e).__name__
+
+    c = r.get("counts") or {}
+    if r.get("state") == FFW.UNKNOWN:
+        return UNKNOWN, ("no capture of his window could be compared here (%d png(s), %d window "
+                         "series). That is not a clean bill — it is nobody looking."
+                         % (c.get("pngs") or 0, c.get("standing") or 0))
+
+    frozen = [x for x in (r.get("series") or []) if x.get("state") == FFW.FROZEN]
+    newest = min([x.get("ageS") for x in (r.get("series") or [])
+                  if isinstance(x.get("ageS"), (int, float))] or [None])
+    STALE_S = 3600.0
+    if newest is not None and newest > STALE_S:
+        _f = ("the last comparison DID find a frozen window (%s, identical across %.0fs)"
+              % (frozen[0].get("geom"), frozen[0].get("gapS") or 0)) if frozen else \
+             "the last comparison found the screen painting"
+        return UNKNOWN, ("the newest capture of his window is %.1fh old, so nothing is known about "
+                         "the screen NOW — %s. Grok Bot captures on a ~10 minute loop; this old "
+                         "means it is not watching." % (newest / 3600.0, _f))
+    if frozen:
+        f = frozen[0]
+        return MISSING, ("HIS SCREEN STOPPED PAINTING — %s is byte-identical across %.0fs (%s, "
+                         "newest capture %.0fs old). A live console never captures twice to the "
+                         "same bytes. ⚠ FROZEN is measured; BLANK is not — go look at the frame."
+                         % (f.get("geom"), f.get("gapS") or 0, f.get("sha"), f.get("ageS") or 0))
+    return OK, ("%d window series compared from %d capture(s), all painting"
+                % (c.get("standing") or 0, c.get("pngs") or 0))
+
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -2962,6 +3018,11 @@ CHECKS = [
     ("printer reach", _check_the_printer_can_reach_the_corpus),
     ("end routes reachable", _check_every_reel_can_still_reach_an_end_route),
     ("the river", _check_the_river_is_moving),
+    # v2995 (#34) — THE ONLY CHECK THAT DOES NOT ASK THE PAGE. Every other entry in this list can
+    # be answered 200 by a console that is painting nothing; measured on his machine 2026-09-10,
+    # that is exactly what happened twice in one day. This one hashes screencaptures of the real
+    # window. [[the-blank-console-detector]]
+    ("screen still painting", _check_the_screen_is_still_painting),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),
     ("store emptied", _check_the_board_store_did_not_come_up_empty),

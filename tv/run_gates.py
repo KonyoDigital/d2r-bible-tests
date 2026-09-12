@@ -1092,6 +1092,24 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_a_frozen_screen_is_never_reported_healthy",
+         [sys.executable, os.path.join(HERE, "test_a_frozen_screen_is_never_reported_healthy.py")], 60,
+         why="A PAGE THAT ANSWERS 200 CAN PAINT NOTHING (#34). Measured on his machine "
+             "2026-09-10 from Grok Bot's captures: the TV DIABLO window was a DARK BLANK at 19:08 "
+             "and a WHITE BLANK at 16:16 — titlebar and nothing else — while every text check "
+             "said healthy (GET / 200 in 16ms, GET /api/status 200, 'quiet hold, HEART census "
+             "held, did not kill'). Every other doctor check is blind to a dead compositor by "
+             "construction. frozen_frame_watch hashes screencaptures of the REAL window instead. "
+             "⚠ THIS GATE EXISTS BECAUSE THE DETECTOR'S FIRST REAL RUN PRODUCED THREE FALSE "
+             "POSITIVES that all looked like a dead console: a FILE COPY (gap 0.0s), two crops "
+             "0.1s apart, and a 280x280 cursor REFERENCE copy. Identical is not the evidence — "
+             "identical ACROSS A GAP IN WHICH A LIVE SCREEN WOULD HAVE CHANGED is, and a crop is "
+             "not a window. It also pins that a missing capture folder (CI, any machine but his) "
+             "is UNKNOWN and never a clean bill, and that FROZEN never claims BLANK — that is a "
+             "claim about content only an eye can make. Proven red three ways: removing the "
+             "independence walk, letting an absent folder report MOVING, and dropping the window "
+             "floor.",
+         skip_ok=()),
     Gate("test_a_lane_with_no_period_can_still_go_red",
          [sys.executable, os.path.join(HERE, "test_a_lane_with_no_period_can_still_go_red.py")], 60,
          why="A COMPUTED SLEEP IS NOT A LICENCE TO BE UNFALSIFIABLE. lane_liveness had ONE field "
