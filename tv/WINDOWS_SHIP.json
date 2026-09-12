@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3016",
+  "ver": "v3017",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3016: TOMBSTONE reads 0 on every station census and always will, because a released reel has been deleted and is not on the shelf; 445 releases and 9.8 GB had no surface anywhere. A Released panel now reads the tombstone ledger with its own denominators.",
+  "note": "v3017: 36 of 59 checks sat in neither registry, so a joint covering a check and nobody ever looking were the same silent state; two more keys named checks that have never existed. 59 of 59 explained now, and a gate keeps it that way.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1124,6 +1124,19 @@ GATES = [
              "conjunction dropped to a constant, and the sealed-only narrowing that produced "
              "the measured false red.",
          skip_ok=()),
+    Gate("test_every_doctor_check_is_explained",
+         [sys.executable, os.path.join(HERE, "test_every_doctor_check_is_explained.py")], 60,
+         why="36 of 59 doctor checks were in NEITHER corroborate registry, so for more than half "
+             "the roster 'a joint corroborates this' and 'nobody ever looked' were the same silent "
+             "state. Two keys pointed the other way — 'reel rungs' and 'cold read exemption' named "
+             "checks that have NEVER existed (git log -S returns one commit, and console_doctor.py "
+             "is not in it), claiming coverage for rows nobody runs. Three laws, read off real "
+             "imported objects rather than source text: every live check explained EXACTLY once, no "
+             "key naming a check that does not exist, and every COVERED_BY claim citing a joint a "
+             "REGISTERED builder actually returns. Live after the backfill: 59 of 59 explained, 0 "
+             "in both, 0 phantoms. Proven red both ways — unexplain a check, and rename a roster "
+             "entry so its key becomes a phantom.",
+         skip_ok=()),
     Gate("test_the_backup_prune_never_orphans_a_loss",
          [sys.executable, os.path.join(HERE, "test_the_backup_prune_never_orphans_a_loss.py")], 60,
          why="RETENTION SIZED FROM HIS OWN LOSS (#81). The 2026-09-08 emptying was noticed ~3 "

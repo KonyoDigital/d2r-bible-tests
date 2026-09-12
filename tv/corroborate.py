@@ -2091,6 +2091,13 @@ BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
 # That is the anti-silence principle turned on this file itself. Without it "4 of 11 joints" is a
 # fact nobody can see, which is precisely the defect a corroborator exists to catch.
 COVERED_BY = {
+    # ⚠⚠ v3017 — THE BACKFILL. 36 of 59 doctor checks carried no entry in EITHER registry, so
+    # "covered by a joint" and "nobody has looked" were indistinguishable for more than half the
+    # roster. Each entry below was classified by reading the check's implementation and every
+    # candidate builder, then every COVERED claim was put to an adversarial pass told to REFUTE it.
+    # That pass killed one of the two: 'readers agree' was claimed covered and refuted, because the
+    # joint reads the same two calibration constants the check already reads. One survived.
+    'shadow watch': ('shadow-armed-is-watching',),
     "reel extract":      ("chronicle-owed", "swept-split-adds-up"),
     "sweep would find":  ("vault-worklist",),
     "shadow gate":       ("shadow-sample-fits",),
@@ -2098,12 +2105,94 @@ COVERED_BY = {
     "ledger entries":    ("owned-is-contained",),
     "hunt economy":      ("hunt-remembers",),
     "engines corroborate": ("eagle-ran-every-check",),
-    "reel rungs":        ("every-rung-is-accounted-for",),
+    # ⚠⚠ v3017 — "reel rungs" REMOVED: it never named a real doctor check. Measured, not argued —
+    # `git log --oneline --all -S "reel rungs"` returns exactly ONE commit repo-wide (e8ba02ac,
+    # v2725), and console_doctor.py is NOT in that commit's file list. It added the builder to
+    # BUILDERS and the key to COVERED_BY in one hop and never added the matching eagle row, so this
+    # entry has claimed coverage for a check that has never existed. Not a rename and not a
+    # removal — a key born pointing at nothing. NO COVERAGE IS LOST by deleting it: the builder
+    # `every-rung-is-accounted-for` is registered and still runs; only the false claim goes.
+    # [[label-outlived-referent]] [[the-unjoined-end]]
     # v2730 — his "so its all not in the dark". 310 names of testimony had NO joint of any kind.
     "evidence ledger":   ("evidence-survived-its-sweep",),
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # ⚠⚠ v3017 — the other 35. The bar for a joint is a GENUINELY INDEPENDENT second source, not a
+    # name that sounds related: a joint whose id mentions "shelf" does not corroborate every check
+    # with "shelf" in its name, and a module reading back its own output is one engine, not two.
+    # Most of these are honestly unjointable — a self-report, a single census, a sole authority —
+    # and saying so is the point. An unexplained check looks exactly like a forgotten one.
+    'armed migration':
+        "a source-level parse of one file; whether the gating flag is actually stamped on his board lives in WebKit localStorage this process does not own, and the check's own docstring says so",
+    'backup loop':
+        "the loop's own liveness and last act, read from the one place that records them; nothing else witnesses whether the backup loop ran",
+    'behind the fleet':
+        'both sides of the count come out of the one .git store, and a second witness of what origin holds would need the network fetch this row exists to avoid',
+    'board join':
+        'one live probe of one window; nothing else independently observes whether the board answers, and the board-flavoured joints compare its DATA, not its reachability',
+    'console painted whole':
+        'per-cell ink of the actual window pixels; no builder reads a screen capture, so there is no second instrument photographing the window to agree with',
+    'end routes reachable':
+        'the end-route report is the only reckoning of which exit doors would take a reel; route-not-ahead-of-extract watches the opposite fault and never asks whether a reel CAN reach a door',
+    'extraction lanes':
+        "each lane's freshness is its own ledger's clock; vault-lane-has-worked reads has-EVER-swept and stays green through a stall, and chronicle-owed grows on both sides during one",
+    'fleet reachable':
+        'it reads the exact cache the fleet card paints, ON PURPOSE by its own docstring, and the remote site is the only authority on its own reachability',
+    'his gear':
+        'the main-character ledger reads back its own accumulation; no second engine observes what he wears',
+    'ledger backup':
+        'it asserts a want-list is PRESENT in the newest backup; the one joint that reads that artifact watches the opposite drift — stores present that restore has never heard of',
+    'ledger provenance':
+        'the row is itself the two-sided comparison, board window against fleet wire; its verdict-bearing quantities are paired by no joint',
+    'ledger staleness':
+        "the drift half already pairs its own two sources internally, and no invariant anywhere measures a figure's AGE — freshness has no second engine to agree with",
+    'names banked':
+        'a stall in the LIVING river, before any close-out; route-not-ahead-of-extract fires only once a reel has been routed, so it cannot speak about names still waiting',
+    'panels on screen':
+        "the page classifies its own panels and the row reads that self-report — the same shape as 'console UI faults', with no second engine grading the same panels",
+    'printer reach':
+        'one reading of one store through one contract; nothing independently measures how much of the corpus the pipeline can act on',
+    'read names lane':
+        'the lane grades its own autoOwed/autoHeld verdict, and read_names_lane appears in no builder — it marks its own homework',
+    'readers agree':
+        '⚠ CLASSIFIED COVERED AND REFUTED ON REVIEW: readers-same-screen reads the SAME two calibration constants the check already reads, so it is one module pair re-derived, not an independent second source',
+    'river joints':
+        "the river reports about itself — the row taps river.py's own trace and summary, an engine's self-diagnosis, and no builder asks river anything",
+    'river outlet':
+        "the quantity is FLOW, a waiting queue against the driver's own counter inside one process; the route joints guard what was already routed and stay green while the river is dead",
+    'river walk':
+        'the walker is the only witness that it looked — the serving process publishing its own global over its own wire, with no second record of when the river was last walked',
+    'route chronicle · sets':
+        'one census from one engine decides whether sets-ledgered reels left on the sets route; chronicle-owed looks related by name but compares reading DEBT',
+    'route chronicle · uniques':
+        'as for sets — reel_templates.route_census is the sole authority on whether uniques-ledgered reels exited intact, and nothing re-derives it',
+    'route inventory':
+        'the same single census judges the inventory route, and no joint pairs it with an independent derivation',
+    'route stash':
+        'one census, one engine: a single walk over templates() judging whether stash-evidence reels came out on the stash route, read by no builder',
+    'running code matches disk':
+        "already two-sided inside the row — the console's report of what it LOADED against the file's bytes; no third engine knows what the console imported, and a second hash would be the disk agreeing with itself",
+    'screen still painting':
+        'the screencaptures are themselves the second eye over every text-based check; there is no third instrument photographing his window for a joint to pair them with',
+    'shelf is where it says':
+        "the rect and the fill it joins are two fields of ONE uiBeat published by the same page — an internal pair, not two engines; same family as 'console UI faults'",
+    'shelf lanes reading':
+        "one reading of the driver's own stored beat; the shelf-named joints count REELS, never whether the driver is still beating",
+    'stage shows the dom':
+        "the row IS the pairing — the DOM's claim held against an actual screen reading — and stage_witness appears in no builder, so nothing re-derives either side",
+    'stray processes':
+        'the process table is the ground truth and no second engine measures what is running on the machine; none of the joints touches processes at all',
+    'test venue':
+        'launchd is the only authority on what is scheduled here; there is no second store of scheduling truth to pair it with',
+    'the river':
+        'the station assignment and the owes field have ONE source — reel_router grades the lanes itself; router-and-shelf-agree only corroborates the denominator, the reel universe',
+    'tooltip finder':
+        "tooltip-finder-refuses reads refused and located out of the SAME report the row reads — one module reading back its own output, a shared-source exception the registry's own audit already names",
+    'vault proposal':
+        "the vault's own gate re-grades the vault's own stored photograph; no invariant reads the proposal, so nothing else says whether the rows still clear the bar",
+    'what runs without you':
+        "promise-versus-body is already the two-sided reading, and ONE reader performs both halves over one module — the same shape as the registered 'lane intent' reason",
     "console UI faults": "the console reports about itself; there is no second engine to agree with",
     # v2726 — DECLARED, NOT SKIPPED. coldread now EXCUSES a missing region when its host declares
     # itself empty, and that exemption decides whether a ship may proceed (the second-eye gate).
@@ -2114,8 +2203,12 @@ NO_JOINT_YET = {
     # name, which is worse than none because it would READ as covered.
     # The gate does the load-bearing work instead: test_coldread_empty_is_not_broken pins that the
     # excused empty branch still EXISTS in bible.html, so the exemption cannot outlive its premise.
-    "cold read exemption": "one instrument photographs a version; nothing else can independently "
-                           "say whether a region was absent because empty or because broken",
+    # ⚠⚠ v3017 — "cold read exemption" REMOVED for the same reason as "reel rungs": it names no
+    # live doctor check and never did. The reason it carried was sound prose about a real
+    # difficulty, but it was filed against a row that was never added to console_doctor.CHECKS, so
+    # nothing was ever explained by it. A registry entry for a check that does not exist is not
+    # documentation — it is a second thing to keep in step, and it inflates the explained count.
+    # If that row is ever built, this entry comes back WITH it. [[label-outlived-referent]]
     "version drift":     "one reading of one number; a joint would need a second source of truth",
     "lane intent":       "intent vs reality is already a two-sided check inside the eagle itself",
     "disk headroom":     "the disk is the ground truth; nothing else independently measures it",
