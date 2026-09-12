@@ -2283,6 +2283,17 @@ GATES = [
              "is not in the registry FAILS, since a typo would sit there forever matching nothing "
              "and looking like considered coverage. Measured after: surfaces named by NO "
              "comparable organ went 49 -> 29, and comparable organs 1 -> 2."),
+    Gate("test_a_reader_does_not_go_dark_when_an_unrelated_gate_goes_blind",
+         [sys.executable, os.path.join(HERE, "test_a_reader_does_not_go_dark_when_an_unrelated_gate_goes_blind.py")], 120,
+         why="NINE BLIND GATES TOOK THE RIVER OFF HIS SCREEN, and none of them watched the river. "
+             "v3049 put a may() seat in printer.stream(), the chokepoint every river caller goes "
+             "through. BLIND never softens — correctly — so when routine U recorded 9 blind "
+             "instruments, /api/river answered lanes.ok:false, 'printer.stream() could not "
+             "answer', and his live console rendered 'the river could not be drawn'. Measured on "
+             ":17772, not a fixture. A surface that ACTS keeps the full guarantee; a surface that "
+             "only SHOWS him what is there must not go blank because an unrelated gate lost its "
+             "red-proof. may_on_merit refuses every destructive lock outright so it can never "
+             "become a soft door."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

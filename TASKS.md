@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3051** | `(this commit)` | v3051 — render targets warm the endpoints they depend on and carry their own activation budget; the render gate now asks the page what it threw; the cross-IIFE diagnosis is recorded as REFUTED |
+| **v3052** | `(this commit)` | v3052 — printer.stream asks may_on_merit, so nine blind instruments that never watched the river can no longer blank it on his console; destructive locks still fail closed |
+| **v3051** | `28e221ee` | v3051 — render targets warm the endpoints they depend on and carry their own activation budget; the render gate now asks the page what it threw; the cross-IIFE diagnosis is recorded as REFUTED |
 | **v3050** | `27e8ee3d` | v3050 — frame.release is described as the last check before deletion and it checked nothing, so the one line that removes frame pixels ran regardless - and the guard must land before the tombstone because the record is written first on purpose |
 | **v3049** | `3ef2c4c9` | v3049 — nineteen locks scored and drew padlocks while may was consulted at three call sites in the whole tree, so the arithmetic was real and the authority was imaginary - four seats wired at the places state actually changes, each proven to permit when open and refuse when shut |
 | **v3048** | `fa942f5b` | v3048 — its own comment recorded this flake already - green at five widths on a quiet machine and every one of 533 nodes zero size under load - and the answer had been a bigger warmup, which is a sleep that is either too short on a busy mac or wasted on a quiet one |

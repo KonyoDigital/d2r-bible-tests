@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3051",
+  "ver": "v3052",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3051: render targets warm the endpoints they depend on and carry their own activation budget; the render gate now asks the page what it threw; the cross-IIFE diagnosis is recorded as REFUTED",
+  "note": "v3052: printer.stream asks may_on_merit, so nine blind instruments that never watched the river can no longer blank it on his console; destructive locks still fail closed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

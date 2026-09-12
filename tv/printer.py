@@ -344,9 +344,20 @@ def stream(reel=None):
     # ⚠ ORDINARY, not destructive — self_arming's own note says this lock "earns trust in what it
     # PRINTS rather than permission to act". So under v3042's split it refuses on MERIT only, and
     # a census gone stale from a gate edit cannot stop him reading the river. [[stale-reading]]
+    # ⚠⚠ v3052 — `may_on_merit`, NOT `may`, AND THE DIFFERENCE WENT DARK ON HIS SCREEN.
+    # The paragraph above claims this seat "refuses on MERIT only" so a stale census cannot stop
+    # him reading the river. It did not do that. v3042's softening clause covers STALE, and
+    # v3050 wrote — correctly — that BLIND never softens and fails closed for everything. So when
+    # routine U re-proved the census at 00:48 and found NINE BLIND instruments, none of which
+    # watch the river, this seat refused. Measured end to end at 01:55, against :17772 itself:
+    #     /api/river -> ok:true, lanes.ok:FALSE, "printer.stream() could not answer", rows 0
+    # and the strip rendered "the river could not be drawn". His console, not a fixture.
+    # The blind rule stays exactly as it is for anything that ACTS; a reader that shows him what
+    # is there must not go blank because an unrelated gate lost its red-proof.
+    # may_on_merit refuses outright for any destructive lock, so this cannot become a soft door.
     try:
         import self_arming as _sa
-        _ok, _lw = _sa.may("printer.stream")
+        _ok, _lw = _sa.may_on_merit("printer.stream")
     except Exception as _e:
         _ok, _lw = False, ("the lock could not be read (%s), which is UNKNOWN and fails closed"
                            % type(_e).__name__)

@@ -1172,6 +1172,48 @@ def heart_block_kind(why):
     return "other"
 
 
+def may_on_merit(lock):
+    """Permission for a READ THAT FEEDS A DISPLAY: this lock's own merit, never the heart's. -> (bool, why)
+
+    ⚠⚠ WHY THIS EXISTS, measured on his live console at 01:55. v3049 put a `may()` seat in
+    `printer.stream()`. Routine U then re-proved the census at 00:48 and found NINE BLIND
+    instruments — none of which watch the river. `may()` fails closed on blindness for
+    EVERYTHING (deliberately: a blind instrument is a gate that cannot fail), so the seat
+    refused, `/api/river` answered `lanes.ok: false — printer.stream() could not answer`, and
+    THE RIVER STRIP WENT DARK ON HIS SCREEN. Measured against :17772 directly: rows=0.
+
+    The rule was not wrong; the place I applied it was. `printer.stream` is not destructive —
+    self_arming's own note says it "earns trust in what it PRINTS rather than permission to
+    act" — and the seat's own comment claims it "refuses on MERIT only". It did not, because
+    BLIND is not STALE and the softening clause only covers stale. A reader that shows him what
+    is there must not go blank because an unrelated gate lost its red-proof; the honest failure
+    for a display is to SHOW the data and say what is unverified, never to show nothing.
+
+    ⚠ THIS CAN NEVER ARM AN ACT. It refuses outright for any lock marked `destructive`, so it
+    cannot be reached for by a caller that wants an easier yes on the vault, the prune or the
+    frame release. Those still go through may(), where blind still fails closed.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    spec = LOCKS.get(lock) or ROUTES.get(lock)
+    if not spec:
+        return False, "no such lock is declared — an undeclared surface is never permitted"
+    if spec.get("destructive"):
+        return False, ("%s is DESTRUCTIVE — merit alone never permits it. Ask may(), where a "
+                       "blind instrument fails closed." % lock)
+    rows, why = _rows()
+    if rows is None:
+        return False, "UNKNOWN: %s. An unreadable proof queue fails CLOSED." % why
+    # the upstream chain still holds: merit includes what feeds this surface, exactly as in may().
+    # Dropping the heart is the ONLY difference between the two functions.
+    for pre in spec["after"]:
+        st = score(pre, rows)
+        if st.get("state") not in (OPEN, HARDENED):
+            return False, ("blocked upstream: %s is %s — %s. Proving this surface in isolation "
+                           "proves nothing about what feeds it." % (pre, st.get("state"), st.get("why")))
+    st = score(lock, rows)
+    return (st.get("state") in (OPEN, HARDENED)), st.get("why")
+
+
 def may(lock):
     """May this surface act right now? -> (bool, why)
 
