@@ -6964,6 +6964,7 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <span class="rs-chevron" aria-hidden="true">▾</span>
     </div>
     <div class="boss-body">
+      <div id="ibx-needsyou" hidden></div>
       <div id="inbox-panel"></div>
     </div>
   </div>
@@ -9191,6 +9192,17 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* the empty state is a SENTENCE, never a bordered void — it names which silence this is */
 .ibx-empty{border:1px dashed var(--border,#3a2f1e);border-radius:8px;padding:12px 14px;
   color:var(--text-dim,#8a7d64);font-size:var(--fs-meta);line-height:1.5}
+/* v3006 (#77) — the waiting-on-you section. Styled at birth: a class with no rule renders as
+   bare text, which is how .ftts-unsynced shipped unstyled and earned its own gate. */
+#ibx-needsyou .ibx-ny{margin:6px 0 8px;padding:7px 10px;border:1px solid rgba(240,192,96,.35);
+  border-radius:8px;background:rgba(240,192,96,.07);font-size:var(--fs-sm);line-height:1.45}
+#ibx-needsyou .ibx-ny-head{font-weight:var(--fw-bold);letter-spacing:.05em;color:#f0c060;margin-bottom:4px}
+#ibx-needsyou .ibx-ny-row{padding:2px 0;border-top:1px dotted rgba(240,192,96,.18)}
+#ibx-needsyou .ibx-ny-row b{color:#e8cf96}
+#ibx-needsyou .ibx-ny-unk{opacity:.75;font-weight:normal}
+#ibx-needsyou .ibx-ny-dim{opacity:.62;border-color:rgba(160,160,160,.3);background:rgba(120,120,120,.06);color:#b9b9b9}
+#ibx-needsyou .ibx-ny-warn{border-color:rgba(240,120,80,.5);background:rgba(240,120,80,.08);color:#f0a060}
+#ibx-needsyou .ibx-ny-ok{opacity:.8;border-color:rgba(120,200,120,.3);background:rgba(120,200,120,.05);color:#a8d8a8}
 .ibx-badge{margin-left:auto;font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:.04em;
   color:#1a1207;background:var(--gold-bright);border-radius:999px;padding:2px 10px;white-space:nowrap;
   box-shadow:0 0 10px rgba(240,192,96,.45)}
@@ -50055,7 +50067,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3005', name:'v3005 - the writer of the recovery stamp finally has a law of its own', date:'2026-09-12', note:'delete the load-time recoveredAt stamp and every reader-side law stayed green; now that sabotage goes red, and the recovered verdict carries its counts so one name cannot pass for four hundred' };
+  window.D2R_BUILD = { id:'v3006', name:'v3006 - the waiting-on-you rows finally reach his inbox', date:'2026-09-12', note:'the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -50991,6 +51003,107 @@ window._CH_PILL_MAP = {
       'retention':       ['🗃 footage that has given up its information', '#9fd4ff'],
       'disk-low':        ['⚠ the disk is near the recording floor', '#f0a060']
     };
+
+  /* \u26a0\u26a0 v3006 (#77) \u2014 THE 15 "WAITING ON YOU" NEVER REACHED HIS INBOX. The console's
+     watchdog has carried them for months (`/api/status` \u2192 eagle.rows, needsYou), the console UI
+     shows "\ud83e\udd85 12 needs you" \u2014 and this file, where the INBOX lives, had never heard of the
+     field. Two halves each built right, never joined. [[the-unjoined-end]]
+
+     \u26a0 THE SECTION IS A SIBLING OF #inbox-panel, NOT INSIDE IT \u2014 renderInbox writes that
+     panel's innerHTML wholesale, and a child would be clobbered on every repaint (v2219's exact
+     class of bug). \u26a0 `onConsole` at ~39038 is a LOCAL in another <script> block and is NOT
+     reachable here \u2014 borrowing it would be a ReferenceError, this file's four-times defect \u2014
+     so the test is computed fresh. \u26a0 An unreachable console reads UNKNOWN, never "nothing
+     waiting": zero is a measurement and this is an absence. [[unknown-stays-unknown]] */
+  var _eagleNY = { st: 'unknown', why: 'not asked yet', needsYou: null, unknown: null,
+                   rows: [], say: '', at: 0 };
+  function _eagleNYPaint(){
+    var host = document.getElementById('ibx-needsyou');
+    if (!host) return;
+    var esc = function(x){ return String(x == null ? '' : x)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    var onConsole = false;
+    try { onConsole = /(:|^)(17772|17771)\b/.test(String(location.host || '')); } catch(e){}
+    if (!onConsole){
+      /* off the console (the public site, a file:// open) there is no watchdog to ask. Saying
+         nothing would read as "nothing waiting"; a dimmed UNKNOWN says why there is no number. */
+      host.hidden = false;
+      host.innerHTML = '<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: UNKNOWN from '
+        + 'here \u2014 this board is not connected to the console</div>';
+      return;
+    }
+    host.hidden = false;
+    if (_eagleNY.st === 'unreachable'){
+      host.innerHTML = '<div class="ibx-ny ibx-ny-warn">\ud83e\udd85 waiting-on-you: UNKNOWN \u2014 the '
+        + 'console did not answer (' + esc(_eagleNY.why) + '). Not zero: nobody could look.</div>';
+      return;
+    }
+    if (_eagleNY.st === 'unmeasured'){
+      host.innerHTML = '<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: the watchdog has '
+        + 'not looked yet this boot \u2014 UNKNOWN, not zero</div>';
+      return;
+    }
+    if (_eagleNY.st === 'rows'){
+      var h = '<div class="ibx-ny"><div class="ibx-ny-head">\ud83e\udd85 WAITING ON YOU \u2014 '
+        + _eagleNY.rows.length
+        + (_eagleNY.unknown ? ' <span class="ibx-ny-unk">(+' + _eagleNY.unknown
+           + ' not measured)</span>' : '') + '</div>';
+      for (var i = 0; i < _eagleNY.rows.length && i < 20; i++){
+        var r = _eagleNY.rows[i] || {};
+        h += '<div class="ibx-ny-row"><b>' + esc(r.check) + '</b> \u2014 '
+          + esc(String(r.why || '').slice(0, 140)) + '</div>';
+      }
+      host.innerHTML = h + '</div>';
+      return;
+    }
+    if (_eagleNY.st === 'clear'){
+      host.innerHTML = '<div class="ibx-ny ibx-ny-ok">\ud83e\udd85 waiting-on-you: none \u2014 the '
+        + 'watchdog measured ' + esc(_eagleNY.say) + '</div>';
+      return;
+    }
+    host.innerHTML = '<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: UNKNOWN</div>';
+  }
+  function _eagleNYFetch(){
+    var onConsole = false;
+    try { onConsole = /(:|^)(17772|17771)\b/.test(String(location.host || '')); } catch(e){}
+    if (!onConsole){ _eagleNYPaint(); return; }
+    try {
+      fetch('/api/status', { cache: 'no-store' }).then(function(r){ return r.json(); })
+        .then(function(d){
+          var e = (d && d.eagle) || {};
+          if (e.needsYou == null){
+            _eagleNY = { st: 'unmeasured', why: '', needsYou: null, unknown: null, rows: [],
+                         say: String(e.say || ''), at: Date.now() };
+          } else {
+            var bad = [];
+            var rows = e.rows || [];
+            for (var i = 0; i < rows.length; i++){
+              if (rows[i] && rows[i].state === 'missing') bad.push(rows[i]);
+            }
+            _eagleNY = { st: (bad.length ? 'rows' : 'clear'), why: '',
+                         needsYou: e.needsYou, unknown: (e.unknown || 0), rows: bad,
+                         say: String(e.say || ''), at: Date.now() };
+          }
+          _eagleNYPaint();
+        })
+        .catch(function(err){
+          _eagleNY = { st: 'unreachable', why: String(err && err.message || 'fetch failed'),
+                       needsYou: null, unknown: null, rows: [], say: '', at: Date.now() };
+          _eagleNYPaint();
+        });
+    } catch(e){
+      _eagleNY = { st: 'unreachable', why: String(e && e.message || 'fetch threw'),
+                   needsYou: null, unknown: null, rows: [], say: '', at: Date.now() };
+      _eagleNYPaint();
+    }
+  }
+  try {
+    _eagleNYPaint();                       /* paint the honest UNKNOWN before the first answer */
+    _eagleNYFetch();
+    /* the eagle itself re-looks every ~600s; polling faster only re-reads the same answer.
+       120s is 5x inside its cadence and far above any answer time. [[poll-slower-than-its-interval]] */
+    setInterval(_eagleNYFetch, 120000);
+  } catch(e){}
 
   window.renderInbox = function(){
     var host = document.getElementById('inbox-panel');

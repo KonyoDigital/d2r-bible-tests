@@ -1092,6 +1092,21 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_waiting_on_you_reaches_the_inbox",
+         [sys.executable, os.path.join(HERE, "test_the_waiting_on_you_reaches_the_inbox.py")], 90,
+         why="THE 15 WAITING ON YOU NEVER REACHED HIS INBOX (#77). The console's watchdog has "
+             "carried them for months (/api/status -> eagle.rows; needsYou=12 measured live), the "
+             "console UI shows the chip — and bible.html, where the INBOX lives (242 inbox refs), "
+             "had never heard of the field. Two halves each built right, never joined. v3006 "
+             "joins them: a sibling #ibx-needsyou section (a CHILD of #inbox-panel would be "
+             "clobbered by renderInbox's innerHTML writes — v2219's class of bug), its own "
+             "painter, a 120s fetch (the eagle re-looks every 600s). ⚠ An unreachable console "
+             "reads UNKNOWN never 'nothing waiting'; a null needsYou is the eagle never having "
+             "looked, unmeasured not clear; only state==='missing' rows are WAITING — an 'ok' row "
+             "in the pile teaches him the pile lies. Every law EXECUTES the shipped painter and "
+             "classifier in node. Proven red three ways: dropping the off-console branch, "
+             "counting every row as waiting, and folding never-looked into all-clear.",
+         skip_ok=()),
     Gate("test_the_census_sees_a_stamped_lane",
          [sys.executable, os.path.join(HERE, "test_the_census_sees_a_stamped_lane.py")], 60,
          why="'SUPERVISED' MEANT 'IN THE roster LITERAL', and that stopped being the only way to "

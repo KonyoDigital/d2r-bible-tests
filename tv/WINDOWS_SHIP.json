@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3005",
+  "ver": "v3006",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3005: delete the load-time recoveredAt stamp and every reader-side law stayed green; now that sabotage goes red, and the recovered verdict carries its counts so one name cannot pass for four hundred",
+  "note": "v3006: the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
