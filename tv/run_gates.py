@@ -973,6 +973,17 @@ GATES = [
          "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
          "deep rows carry any coordinate — and test 5 pins that zero.",
          skip_ok=()),
+    Gate("test_the_journal_is_read_once_per_change",
+         [sys.executable, os.path.join(HERE, "test_the_journal_is_read_once_per_change.py")], 120,
+         why="the read-only fleet's item 1, and the largest measured win in the repo — three "
+             "dimensions found it independently. The status cache was keyed on `_live_mode`, so "
+             "OFF AIR it never applied: ~3.9 of 7.8 points of one core (HALF the idle CPU), ~20 ms "
+             "of a 22.4 ms request, 9.38 GB/hr re-read, 200 of 4,033 rows used, against a journal "
+             "whose mtime was 49.6h old. Now keyed on (mtime_ns, size), which is STRICTLY fresher "
+             "than the 3s window the live path already ships. Pins that a failed stat is never a "
+             "cache hit, and that the walk stays TIMED — untimed is how 20 ms hid in "
+             "unattributedMs while timing.slowest blamed a 1.9 ms section.",
+         skip_ok=()),
     Gate("test_a_lost_store_is_never_seeded_over",
          [sys.executable, os.path.join(HERE, "test_a_lost_store_is_never_seeded_over.py")], 60,
          why="his 2026-09-12 ruling — 'for vault the items should not be seeded like the chronicles "

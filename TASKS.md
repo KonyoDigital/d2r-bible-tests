@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2988** | `(this commit)` | v2988 — a store that lost its contents is never papered over with seeds |
+| **v2989** | `(this commit)` | v2989 — the status journal is re-read only when the file changes |
+| **v2988** | `86227ba4` | v2988 — a store that lost its contents is never papered over with seeds |
 | **v2987** | `aaedb79e` | v2987 — the river has four lanes and the shelf was rendering nine keys |
 | **v2986** | `5f26ac45` | v2986 — arming one of two switches is not arming, and the panel kept the old reason |
 | **v2985** | `25287787` | v2985 — the row names the store it is in, and the reels come before the analysis |

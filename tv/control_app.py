@@ -26538,12 +26538,37 @@ def status_payload():
     try:
         _live_mode = mode in ("live", "stopping") and bridge
         _now_j = time.time()
-        _jh = globals().get("_STATUS_JOURNAL_CACHE") or {"t": 0.0, "h": None, "d": None}
-        if _live_mode and _jh.get("h") is not None and (_now_j - float(_jh.get("t") or 0)) < 3.0:
+        _jh = globals().get("_STATUS_JOURNAL_CACHE") or {"t": 0.0, "h": None, "d": None, "k": None}
+        # ⚠⚠ v2989 — THE CACHE WAS KEYED ON `_live_mode`, SO OFF AIR IT NEVER APPLIED. Measured by
+        # the read-only audit, three ways that agreed: ~3.9 of 7.8 percentage-points of one core
+        # (a ps delta on the live console over 60.0 s) — HALF this console's entire idle CPU; about
+        # 20 ms of a 22.4 ms request, which is exactly the `unattributedMs` of 20.1 ms (90%) the
+        # payload's own ledger reports while its 29 timed sections sum to 2.3 ms; and 9.38 GB/hour
+        # re-read with 14.8M json.loads/hour at the measured 1.02 req/s.
+        # Of 4,033 rows parsed per request, 200 are used — 5.0% — and the journal's mtime was
+        # 49.6 h old, so every one of those reads returned byte-identical content. 0 of 26 timed
+        # requests came in under 20 ms, so the branch was taken every single time.
+        #
+        # ⚠ KEYED ON (mtime_ns, size), NOT ON A LONGER TIMER. Extending the 3 s window to the idle
+        # path is the version that can MISS a row; this one cannot — any append moves both halves
+        # of the key, so it is STRICTLY FRESHER than the 3 s staleness the live path already ships
+        # with. The live 3 s window is kept underneath it, because that path is about smoothness
+        # under ON AIR, not about freshness.
+        # ⚠ A FAILED stat MUST NOT read as "unchanged": `_jkey` is None then, `_jkey_same` is
+        # False, and the walk happens. An unreadable journal is UNKNOWN, never a cache hit.
+        # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        try:
+            _jst = os.stat(_journal_path())
+            _jkey = (int(_jst.st_mtime_ns), int(_jst.st_size))
+        except Exception:
+            _jkey = None
+        _jkey_same = (_jkey is not None and _jh.get("k") == _jkey)
+        if _jh.get("h") is not None and (_jkey_same or (
+                _live_mode and (_now_j - float(_jh.get("t") or 0)) < 3.0)):
             _sess_h = _jh["h"]
             _drv = _jh.get("d") or {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
         else:
-            _jtail = _kai_journal_rows()[-200:]
+            _jtail = _t("journal", _kai_journal_rows)[-200:]
             _sid_now = ""
             for _r in reversed(_jtail):
                 if _r.get("sessionId"):
@@ -26564,7 +26589,8 @@ def status_payload():
             _cn = _newest_completeness()   # v948.13 — film↔registration coverage% (target #2)
             if _cn:
                 _sess_h["completeness"] = _cn
-            globals()["_STATUS_JOURNAL_CACHE"] = {"t": _now_j, "h": _sess_h, "d": _drv}
+            globals()["_STATUS_JOURNAL_CACHE"] = {"t": _now_j, "h": _sess_h, "d": _drv,
+                                                  "k": _jkey}
     except Exception:
         # v1709 — a thrown journal walk is NOT an idle night. idle + zeros is
         # indistinguishable from "nothing happened" and that is how a dead
@@ -26598,7 +26624,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2988",
+        "ver": "v2989",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
