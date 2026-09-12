@@ -2722,6 +2722,25 @@ def _selector_ready(tab, sel, budget=20.0, spec=None, token=None, reprepare=None
             % (sel, budget))
 
 
+_SHARED_CONSOLE = None      # (origin, proc) — one console per RUN, not per target
+
+
+def _console_down():
+    """Stop the shared console by the pid we started. Idempotent. -> None"""
+    global _SHARED_CONSOLE
+    if not _SHARED_CONSOLE:
+        return
+    _p = _SHARED_CONSOLE[1]
+    _SHARED_CONSOLE = None
+    try:
+        _p.terminate(); _p.wait(timeout=8)
+    except Exception:
+        try:
+            _p.kill()
+        except Exception:
+            pass
+
+
 def _serve_console():
     """Boot a PRIVATE control_app on an ephemeral port and return (origin, proc).
 
@@ -2729,6 +2748,22 @@ def _serve_console():
     import socket
     import subprocess
     import urllib.request
+    # ⚠⚠ ONE CONSOLE FOR THE RUN. 15 targets declare `serve: True` and each used to boot its own
+    # at ~1.6-2.2s, then pay the SAME cold costs again — /api/heart is ~14s cold and 0.0s warm,
+    # and it was being computed THREE times for one identical census. Measured full runs:
+    # 335s per-target against a pre-push render budget of 300s (hooks/pre-push:446).
+    # ⚠ I removed this once, blaming it for heart-fan reading 258 nodes against a blessed 270.
+    # That was a misattribution: heart-fan read 258 WITH sharing and 258 WITHOUT it, and the real
+    # cause was printer.stream being LOCKED — with that fixed it reads green either way.
+    # [[ab-against-head-before-blaming-the-room]]
+    # Each target still gets a FRESH TAB and a fresh page load, so no client-side state carries;
+    # what carries is the server-side cache, which is the whole point. TV_RENDER_SHARE_CONSOLE=0
+    # restores a private console per target.
+    global _SHARED_CONSOLE
+    if os.environ.get("TV_RENDER_SHARE_CONSOLE", "1") != "0" and _SHARED_CONSOLE:
+        if _SHARED_CONSOLE[1].poll() is None:       # None == still running
+            return _SHARED_CONSOLE
+        _SHARED_CONSOLE = None
     s_ = socket.socket()
     s_.bind(("127.0.0.1", 0))
     port = s_.getsockname()[1]
@@ -2834,6 +2869,11 @@ def _serve_console():
         time.sleep(0.5)
         try:
             urllib.request.urlopen(origin + "api/status", timeout=2).read(1)
+            # remembering is a SIDE EFFECT; the real pair is always what we return. Returning
+            # the global unconditionally is how the first cut of this handed back None when
+            # sharing was off and killed every served target at once.
+            if os.environ.get("TV_RENDER_SHARE_CONSOLE", "1") != "0":
+                _SHARED_CONSOLE = (origin, proc)
             return origin, proc
         except Exception:
             if proc.poll() is not None:
@@ -3380,7 +3420,9 @@ def check(name, spec, shots=True):
             # what stops the next reader treating silence here as "nobody was listening".
             out["pageErrors"] = 0
         tab.close()
-        if _console is not None:
+        # ⚠ the shared console OUTLIVES this target — it is stopped once, by _console_down().
+        # Only a PRIVATE console (the TV_RENDER_SHARE_CONSOLE=0 path) is this function's to kill.
+        if _console is not None and _console is not (_SHARED_CONSOLE or (None, None))[1]:
             # the pid THIS function started, and only that one. [[process-port-discipline]]
             try:
                 _console.terminate()
@@ -3948,3 +3990,7 @@ if __name__ == "__main__":
         sys.exit(main(sys.argv[1:]))
     finally:
         _chrome_down()
+        # ⚠ and the console, for the same reason written above: this gate runs under
+        # `perl alarm`, and a SIGALRM never runs atexit. An orphaned control_app holding an
+        # ephemeral port is the same litter as a surviving Chrome. [[i-own-everything-i-start]]
+        _console_down()
