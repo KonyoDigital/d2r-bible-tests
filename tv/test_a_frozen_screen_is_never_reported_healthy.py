@@ -164,7 +164,88 @@ class AFrozenScreenIsNeverReportedHealthy(unittest.TestCase):
                       "so a reader cannot promote it into a claim about content")
 
 
+class TheDoctorActuallyAsksTheDetector(unittest.TestCase):
+    """⚠⚠ v2998 — BOTH v2995 GATES TESTED THE DETECTOR AND NEITHER TOUCHED THE DOCTOR. All three
+    of this file's red-proofs targeted frozen_frame_watch.py alone, so deleting the CHECKS row
+    would have left every test green with the detector built and nobody calling it — this repo's
+    single most repeated defect, shipped inside the very gate meant to close it. The STALE_S
+    freshness rule had no test AT ALL, which is why the bug below lived long enough to reach main.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
+
+    ROW = "screen still painting"
+
+    def test_the_doctor_carries_a_screen_painting_row(self):
+        """⚠ IMPORTED AND READ AS DATA, NOT GREPPED — the words appear in prose all over that
+        file. CHECKS is what the runner consumes. [[source-reading-guard]]"""
+        import console_doctor as cd
+        names = [n for n, _fn in cd.CHECKS]
+        self.assertEqual(names.count(self.ROW), 1,
+                         "console_doctor.CHECKS must carry exactly one %r row; it carries %d"
+                         % (self.ROW, names.count(self.ROW)))
+        self.assertTrue(callable([fn for n, fn in cd.CHECKS if n == self.ROW][0]))
+
+    def _verdict(self, series, counts=None):
+        """Run the doctor row against a stubbed detector report. -> (state, why)"""
+        import console_doctor as cd
+        import frozen_frame_watch as FFW
+        rep = {"state": (FFW.FROZEN if any(x["state"] == FFW.FROZEN for x in series)
+                         else FFW.MOVING),
+               "why": "stub", "series": series,
+               "counts": counts or {"pngs": 383, "standing": len(series), "frozen": 0,
+                                    "cropFrames": 0, "cropGeometries": 0}}
+        real = FFW.report
+        FFW.report = lambda *a, **k: rep
+        try:
+            return cd._check_the_screen_is_still_painting()
+        finally:
+            FFW.report = real
+
+    def test_a_stale_freeze_is_not_reported_as_a_live_fault(self):
+        """⚠⚠ THE BUG, REPRODUCED BEFORE IT WAS FIXED. The freshness guard took the MINIMUM ageS
+        across ALL series, so a frozen series five hours old was graded live whenever ANY other
+        geometry had a recent capture: min(120, 18000) = 120, the stale branch never fired, and
+        the doctor returned MISSING 'HIS SCREEN STOPPED PAINTING' about a screen that had been
+        repainting for five hours. The freshness of a verdict is the age of the EVIDENCE IT RESTS
+        ON. [[stale-reading]]"""
+        import frozen_frame_watch as FFW
+        state, why = self._verdict([
+            {"geom": "2376x1456", "frames": 95, "state": FFW.MOVING, "ageS": 120.0, "gapS": 25.0},
+            {"geom": "2940x1846", "frames": 83, "state": FFW.FROZEN, "ageS": 18000.0,
+             "gapS": 30.0, "sha": "deadbeef1234", "newest": "a.png", "previous": "b.png"},
+        ])
+        self.assertEqual(state, "unknown",
+                         "a freeze whose newest frame is 5h old says nothing about the screen NOW, "
+                         "however fresh some unrelated geometry is; got %s — %s" % (state, why))
+
+    def test_a_fresh_freeze_is_still_reported(self):
+        """The other direction, or the fix above would be a way of never firing at all."""
+        import frozen_frame_watch as FFW
+        state, why = self._verdict([
+            {"geom": "2376x1456", "frames": 95, "state": FFW.FROZEN, "ageS": 60.0, "gapS": 25.0,
+             "sha": "deadbeef1234", "newest": "a.png", "previous": "b.png"},
+        ])
+        self.assertEqual(state, "missing",
+                         "a freeze measured a minute ago IS the fault this row exists for; "
+                         "got %s — %s" % (state, why))
+
+
 RED_PROOF = [
+    {
+        "why": "removing the CHECKS row rebuilds the defect this whole file exists to close: the "
+               "detector present, correct, and called by nobody",
+        "file": "console_doctor.py",
+        "find": '    ("screen still painting", _check_the_screen_is_still_painting),\n',
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "grading the freshness from the MIN age across all series returns the false "
+               "MISSING that was reproduced on a report shaped like his shelf",
+        "file": "console_doctor.py",
+        "find": "        newest = frozen[0].get(\"ageS\")",
+        "replace": "        newest = min(_ages) if _ages else None",
+        "matches": 1,
+    },
     {
         "why": "removing the independence walk makes the detector compare the newest frame with "
                "whatever is next in the list — including a copy of itself — so a copied file "

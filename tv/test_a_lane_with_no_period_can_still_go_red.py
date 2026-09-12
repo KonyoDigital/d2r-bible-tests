@@ -83,20 +83,34 @@ def _literal_seconds(node):
     return []
 
 
-def _max_sleep_in(tree, fname):
-    """-> the largest time.sleep() this function can take, or None if NONE could be read.
+def _worst_sleep_path_in(tree, fname):
+    """-> an upper bound on how long ONE turn of this loop can spend sleeping, or None.
 
-    None means the law could not reach an answer, and the caller treats that as a refusal rather
-    than a pass — a guard that fails open on its own blind spot is not a guard.
+    ⚠⚠ v2998 — THIS TOOK THE LARGEST SINGLE `time.sleep()` AND THAT IS NOT THE QUANTITY THE LAW
+    NEEDS. control_app.py's own v2994 comment says `_kai_closer_loop` has "eight sleeps, 0.08s to
+    30.0s; a single turn taking the slow branches is ~79s of sleeping alone" — while the largest
+    single literal is 30.0. So a bound of 31 would have PASSED this law and then reported a
+    perfectly healthy 79s turn as a dead thread: the exact false-LATE the law exists to refuse,
+    admitted by the law itself. The guard's threshold was smaller than the defect it guards.
+
+    SEPARATE STATEMENTS ADD; the branches of one IfExp are exclusive, so those take the larger.
+    That over-counts a turn that cannot reach every sleep, which is the safe direction for a
+    CEILING — a bound must clear the worst case, and over-estimating the worst case only ever
+    makes the law stricter. None means it could not be read, which the caller treats as a refusal
+    rather than a pass. [[feedback-threshold-above-the-ceiling]] [[source-reading-guard]]
     """
     for fn in ast.walk(tree):
         if isinstance(fn, ast.FunctionDef) and fn.name == fname:
-            vals = []
+            total = 0.0
+            seen = False
             for n in ast.walk(fn):
                 if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
                         and n.func.attr == "sleep" and n.args):
-                    vals.extend(_literal_seconds(n.args[0]))
-            return max(vals) if vals else None
+                    vals = _literal_seconds(n.args[0])
+                    if vals:
+                        seen = True
+                        total += max(vals)      # one call contributes once, at its largest branch
+            return total if seen else None
     return None
 
 
@@ -192,12 +206,13 @@ class ALaneWithNoPeriodCanStillGoRed(unittest.TestCase):
         for lane in COMPUTED_SLEEP_LANES:
             bound = _kw(calls[lane], "dead_after_s")
             bound = bound.value if isinstance(bound, ast.Constant) else None
-            worst = _max_sleep_in(tree, lane)
+            worst = _worst_sleep_path_in(tree, lane)
             if bound is None or worst is None or bound <= worst:
-                bad.append("%s: bound=%s worst sleep=%s" % (lane, bound, worst))
+                bad.append("%s: bound=%s worst sleep PATH=%s" % (lane, bound, worst))
         self.assertEqual(bad, [],
-                         "a silence bound must exceed the longest sleep the loop itself can take, "
-                         "or it reports a healthy turn as a dead thread — %s" % "; ".join(bad))
+                         "a silence bound must exceed the longest a single turn can spend "
+                         "SLEEPING — not merely its largest single sleep — or it reports a healthy "
+                         "slow turn as a dead thread: %s" % "; ".join(bad))
 
 
 RED_PROOF = [

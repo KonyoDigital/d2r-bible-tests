@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v2997** | `(this commit)` | v2997 — his console published cards 535 and gridCards 1208 in the same breath; both numbers were right and one was answering a different question than its name |
+| **v2998** | `(this commit)` | v2998 — a frozen series five hours old was graded as a live fault whenever any unrelated geometry had a recent capture, an open and empty shelf read as healthy because its rectangle was real, and neither gate touched the doctor at all |
+| **v2997** | `0cdb05f9` | v2997 — his console published cards 535 and gridCards 1208 in the same breath; both numbers were right and one was answering a different question than its name |
 | **v2996** | `b64b2b48` | v2996 — a DOM can be fully built inside a container that occupies no pixels; the beat published a fill and never a rect, so nothing in it could contradict his eyes |
 | **v2995** | `2cfb51a2` | v2995 — every other doctor check can be answered 200 by a console painting nothing; this one hashes screencaptures of the real window, and its own first run produced three false positives that all looked like a dead console |
 | **v2994** | `66014e29` | v2994 — three loops sleep on a branch so they honestly passed every_s=None and became permanently UNTIMED, which can never go red; lane_liveness gains dead_after_s, a declared maximum silence, so they go LATE without printing a period they do not have |

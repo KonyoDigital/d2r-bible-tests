@@ -2915,6 +2915,19 @@ def _check_the_shelf_is_where_it_says_it_is():
     cards = shelf.get("cards")
     grid = shelf.get("gridCards")
     if state == "shown":
+        # ⚠⚠ v2998 — "THE PAIR IS THE POINT" AND THE PAIR WAS ONLY EVER PRINTED. `box == "shown"`
+        # returned OK whatever the fill said, so an overlay that is open, on screen and EMPTY —
+        # which is the failure he photographed — read as healthy. The page already computes the
+        # verdict in `why` ("the shelf overlay is open and carries no cards and no text") and this
+        # file had ZERO readers of it. A corroborator whose second half never reaches the verdict
+        # is one half wearing the name of two. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        _empty = (shelf.get("filled") is False) or (cards == 0 and grid == 0)
+        if _empty:
+            return MISSING, ("THE SHELF IS OPEN AND ON SCREEN AND CARRIES NOTHING — %sx%s at top "
+                             "%s, and the page itself says: %s. The box is real, so this is not a "
+                             "layout fault; nothing was put in it."
+                             % (shelf.get("w"), shelf.get("h"), shelf.get("top"),
+                                shelf.get("why") or "filled=false with no reason given"))
         return OK, ("the shelf is open and on screen (%sx%s at top %s, viewport %s) — %s card(s) "
                     "by the panel count, %s by the grid count"
                     % (shelf.get("w"), shelf.get("h"), shelf.get("top"), shelf.get("vh"),
@@ -2968,12 +2981,23 @@ def _check_the_screen_is_still_painting():
                          % (c.get("pngs") or 0, c.get("standing") or 0))
 
     frozen = [x for x in (r.get("series") or []) if x.get("state") == FFW.FROZEN]
-    newest = min([x.get("ageS") for x in (r.get("series") or [])
-                  if isinstance(x.get("ageS"), (int, float))] or [None])
+    # ⚠⚠ v2998 — THIS TOOK THE MINIMUM ACROSS *ALL* SERIES AND GRADED THE WRONG THING. A frozen
+    # series five hours old was reported as a live fault whenever ANY other geometry happened to
+    # have a recent capture, because min(120, 18000) = 120 and the stale branch never fired.
+    # Reproduced 2026-09-12 on a report shaped like his shelf: MISSING "HIS SCREEN STOPPED
+    # PAINTING" about a screen that had been repainting for five hours. The freshness of a verdict
+    # is the age of the EVIDENCE THAT VERDICT RESTS ON, never the age of the freshest thing in the
+    # folder. [[stale-reading]] [[zero-needs-a-denominator]]
+    _ages = [x.get("ageS") for x in (r.get("series") or [])
+             if isinstance(x.get("ageS"), (int, float))]
+    if frozen:
+        newest = frozen[0].get("ageS")            # the frozen series' OWN age, nothing else
+    else:
+        newest = min(_ages) if _ages else None    # no fault: the freshest look is the evidence
     STALE_S = 3600.0
     if newest is not None and newest > STALE_S:
-        _f = ("the last comparison DID find a frozen window (%s, identical across %.0fs)"
-              % (frozen[0].get("geom"), frozen[0].get("gapS") or 0)) if frozen else \
+        _f = ("the last comparison DID find %d frozen window series (%s, identical across %.0fs)"
+              % (len(frozen), frozen[0].get("geom"), frozen[0].get("gapS") or 0)) if frozen else \
              "the last comparison found the screen painting"
         return UNKNOWN, ("the newest capture of his window is %.1fh old, so nothing is known about "
                          "the screen NOW — %s. Grok Bot captures on a ~10 minute loop; this old "
@@ -2981,9 +3005,11 @@ def _check_the_screen_is_still_painting():
     if frozen:
         f = frozen[0]
         return MISSING, ("HIS SCREEN STOPPED PAINTING — %s is byte-identical across %.0fs (%s, "
-                         "newest capture %.0fs old). A live console never captures twice to the "
-                         "same bytes. ⚠ FROZEN is measured; BLANK is not — go look at the frame."
-                         % (f.get("geom"), f.get("gapS") or 0, f.get("sha"), f.get("ageS") or 0))
+                         "newest capture %.0fs old); %d of %d comparable window series frozen. A "
+                         "live console never captures twice to the same bytes. ⚠ FROZEN is "
+                         "measured; BLANK is not — go look at the frame."
+                         % (f.get("geom"), f.get("gapS") or 0, f.get("sha"), f.get("ageS") or 0,
+                            len(frozen), (c.get("standing") or 0)))
     return OK, ("%d window series compared from %d capture(s), all painting"
                 % (c.get("standing") or 0, c.get("pngs") or 0))
 

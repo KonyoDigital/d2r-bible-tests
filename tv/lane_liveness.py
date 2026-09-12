@@ -173,8 +173,16 @@ def _row(lane, row, now):
     dead = row.get("deadAfterS")
     # v2994 — the silence bound, and which of the two questions produced it. A period implies a
     # bound (period x slack); a declared bound stands on its own and implies NO period.
-    _bound = (round(every * STALE_SLACK, 1) if every is not None
-              else (round(dead, 1) if dead is not None else None))
+    # ⚠⚠ v2998 — WHEN A CALLER GAVE BOTH, THE BOUND WAS PUBLISHED AND THEN IGNORED. `everyS: 900,
+    # deadAfterS: 120, boundS: 2700` — the field a reader takes for the operative threshold was not
+    # one, which is this repo's own plumbing-with-no-tap wearing a number. The TIGHTER of the two
+    # now governs: a period says "this is how often I run", a declared bound says "I am certainly
+    # dead past here", and honouring the looser one would ignore whichever the author meant.
+    # [[plumbing-with-no-tap]] [[label-outlived-referent]]
+    _period_bound = (every * STALE_SLACK) if every is not None else None
+    _lim = min([x for x in (_period_bound, dead) if x is not None] or [None]) \
+        if (_period_bound is not None or dead is not None) else None
+    _bound = None if _lim is None else round(_lim, 1)
     out = {"lane": lane, "ticks": int(row.get("n") or 0), "everyS": every,
            "deadAfterS": dead,
            "tickAgeS": (None if age is None else round(age, 1)),
@@ -216,14 +224,20 @@ def _row(lane, row, now):
                       "computed) AND no bound on how long it may be silent, so whether that is "
                       "late cannot be decided from here" % age)
         return out
-    if age > every * STALE_SLACK:
+    if age > _lim:
         out["state"] = LATE
-        out["why"] = ("it last ran %.0fs ago against its own %.0fs period - %d missed cycles. A "
-                      "lane with nothing to do still ticks, so this is silence from the THREAD, "
-                      "not from the work." % (age, every, int(age // every)))
+        _by = ("its own %.0fs period - %d missed cycles" % (every, int(age // every))
+               if _lim == _period_bound else
+               "its declared %.0fs maximum silence, which is tighter than its %.0fs period"
+               % (dead, every))
+        out["why"] = ("it last ran %.0fs ago against %s. A lane with nothing to do still ticks, so "
+                      "this is silence from the THREAD, not from the work." % (age, _by))
         return out
     out["state"] = FLOWING
-    out["why"] = "it ran %.0fs ago, within its own %.0fs period" % (age, every)
+    out["why"] = ("it ran %.0fs ago, within its own %.0fs period%s"
+                  % (age, every,
+                     "" if dead is None else
+                     " and within its declared %.0fs maximum silence" % dead))
     return out
 
 
@@ -261,7 +275,18 @@ def report(now=None):
                "maximum silence for the lanes whose sleep is computed)"
                % (counts["late"], STALE_SLACK))
     else:
-        why = "%d lane(s) ticking within their own periods" % counts["flowing"]
+        # ⚠ v2998 — THIS STILL SAID "their own periods" AFTER v2994 MADE FLOWING REACHABLE
+        # WITHOUT ONE. The LATE string in the same commit was corrected and this one was not, so a
+        # clean bill claimed twenty lanes were inside periods when three of them have everyS: null
+        # and were graded against a declared silence bound instead. The number was right and the
+        # word was not — which is precisely what the v2994 docstring warns against two files away.
+        # [[label-outlived-referent]]
+        _bounded = len([r for r in rs if r["state"] == FLOWING and r.get("everyS") is None])
+        why = ("%d lane(s) ticking inside their own bound%s"
+               % (counts["flowing"],
+                  "" if not _bounded else
+                  " (%d of them against a declared maximum silence, having no fixed period)"
+                  % _bounded))
     return {"rows": rs, "counts": counts, "why": why, "slack": STALE_SLACK}
 
 

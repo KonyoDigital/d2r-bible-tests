@@ -230,7 +230,76 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
                              "Selector is %r" % (part, sel))
 
 
+class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
+    """⚠⚠ v2998 — THE GATE TESTED THE PAGE AND NEVER THE DOCTOR, and the doctor was where the
+    corroborator quietly failed to exist. All three original red-proofs targeted control_ui.html
+    alone, so removing the CHECKS row left every test green with the rect on the wire and nobody
+    reading it. Worse, `box == "shown"` returned OK WHATEVER the fill said — so an overlay that is
+    open, on screen and EMPTY (the failure he photographed) read as healthy, while the page had
+    already written the verdict into `why` and this file had zero readers of it. A corroborator
+    whose second half never reaches the verdict is one half wearing the name of two.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
+
+    ROW = "shelf is where it says"
+
+    def test_the_doctor_carries_a_shelf_row(self):
+        import console_doctor as cd
+        names = [n for n, _fn in cd.CHECKS]
+        self.assertEqual(names.count(self.ROW), 1,
+                         "console_doctor.CHECKS must carry exactly one %r row; it carries %d"
+                         % (self.ROW, names.count(self.ROW)))
+
+    def _verdict(self, shelf):
+        import console_doctor as cd
+        real = cd._get
+        cd._get = lambda path, *a, **k: (
+            {"uiBeat": {"n": 7, "panels": {"shelf": shelf}}} if path == "/api/status" else real(path))
+        try:
+            return cd._check_the_shelf_is_where_it_says_it_is()
+        finally:
+            cd._get = real
+
+    def test_an_open_on_screen_shelf_that_carries_nothing_is_not_OK(self):
+        """⚠ THE HOLE. A real rect proves the box exists; it cannot prove anything was put in it.
+        `#th-shelfov` paints its own near-opaque background, so an empty overlay is a perfectly
+        real 811x361 box — exactly the reading his console gave while his eyes saw a dark panel."""
+        state, why = self._verdict({"open": True, "filled": False, "cards": 0, "gridCards": 0,
+                                    "why": "the shelf overlay is open and carries no cards and no "
+                                           "text",
+                                    "box": "shown", "boxes": 1, "w": 811, "h": 361, "top": 102,
+                                    "vh": 628})
+        self.assertEqual(state, "missing",
+                         "an open, on-screen, EMPTY shelf must not read as healthy just because "
+                         "its rectangle is real; got %s — %s" % (state, why))
+
+    def test_a_full_on_screen_shelf_is_OK(self):
+        state, _why = self._verdict({"open": True, "filled": True, "cards": 535, "gridCards": 535,
+                                     "why": None, "box": "shown", "boxes": 1, "w": 811, "h": 361,
+                                     "top": 102, "vh": 628})
+        self.assertEqual(state, "ok")
+
+    def test_a_closed_shelf_is_OK(self):
+        state, _why = self._verdict({"open": False, "filled": None, "cards": None, "why": None,
+                                     "box": "closed", "h": 361})
+        self.assertEqual(state, "ok", "a shut overlay is a fact, not a fault")
+
+
 RED_PROOF = [
+    {
+        "why": "removing the CHECKS row puts the rect back on the wire with nobody reading it",
+        "file": "console_doctor.py",
+        "find": '    ("shelf is where it says", _check_the_shelf_is_where_it_says_it_is),\n',
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the emptiness test restores the hole where an open, on-screen, EMPTY "
+               "shelf reads as healthy because its rectangle is real",
+        "file": "console_doctor.py",
+        "find": "        if _empty:",
+        "replace": "        if False:",
+        "matches": 1,
+    },
     {
         "why": "removing the zero-box test is exactly the blind spot this closes: an overlay whose "
                "ancestor is display:none goes back to reporting itself as on screen",
