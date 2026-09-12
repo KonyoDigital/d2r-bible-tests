@@ -5865,6 +5865,8 @@
   /* ⚠ THE REFUSED COLUMN MUST LOOK REFUSED, not empty. An em-dash count and a dimmed, italic
      reason — so "we cannot tell you this, and here is why" never reads as "there is nothing".
      [[unknown-stays-unknown]] */
+  /* v3044 — an UNMEASURED count is dimmed and italic, so it never reads as a figure. */
+  #heart-ov .lg-unmeasured { font-style: italic; opacity: .66; cursor: help; }
   .fleet-xref .fx-col-unknown { opacity: .72; }
   .fleet-xref .fx-col-unknown .fx-col-h { color: #8a7e68; }
   .fx-none.fx-unknown { font-style: italic; color: #8a7e68; line-height: 1.45; }
@@ -12870,8 +12872,23 @@ window._lockMark = function(isOpen, px, label){
         + _hrtEsc(d.why || 'no reason given') + '<br>This is not “all clear” — nobody could look, '
         + 'which is a different fact from nothing being wrong.</div></div></div>';
     }
+    /* ⚠⚠ v3044 — `(c.FLOWING || 0)` PRINTED A ZERO IT HAD NOT EARNED, and it printed it right
+       here, on his screen. Every vessel row already said the honest thing — "watched, and NOTHING
+       CAN SCORE THIS WATCHER" — while this legend rendered that as `flowing 0`, which reads as
+       "none of them are flowing" rather than "nobody can tell". Those are opposite facts and only
+       one of them is work owed.
+       MEASURED: the organ rows the census scores from carry NO score field at all, so `scored` is
+       {id: null} for all seven and no watcher can be scored by any key. heart.vessels() now sends
+       counts.FLOWING = null with a `flowingWhy` sentence, and this is the surface that must not
+       flatten it back to a number. An em-dash, and the reason on hover.
+       ⚠ The perfusion wash cannot carry this: with FLOWING null it simply draws no flowing stop,
+       which looks IDENTICAL to zero flowing. The words are the only place the difference can
+       live. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+    var _flowN = (typeof c.FLOWING === 'number')
+        ? String(c.FLOWING)
+        : '<span class="lg-unmeasured" title="' + esc(d.flowingWhy || 'not measured') + '">—</span>';
     var legend = '<div class="hrt-legend">'
-      + '<span class="lg-flowing">● flowing <b>' + (c.FLOWING || 0) + '</b></span>'
+      + '<span class="lg-flowing">● flowing <b>' + _flowN + '</b></span>'
       + '<span class="lg-watched">● watched <b>' + (c.WATCHED || 0) + '</b></span>'
       + '<span class="lg-dark">● dark <b>' + (c.DARK || 0) + '</b> — nothing watches these</span>'
       + '<span class="lg-unknown">● unknown <b>' + (c.UNKNOWN || 0) + '</b></span>'

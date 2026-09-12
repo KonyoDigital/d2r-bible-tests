@@ -2324,6 +2324,24 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_flowing_is_unmeasured_not_zero",
+         [sys.executable, os.path.join(HERE, "test_flowing_is_unmeasured_not_zero.py")], 120,
+         why="THE HEART PRINTED `flowing 0` WHILE EVERY VESSEL ROW SAID NOBODY COULD TELL. FLOWING "
+             "means 'it runs, something watches it, AND a sabotage has proven the watcher can "
+             "refuse'. No vessel has ever earned it, and each row said why — 'watched, and NOTHING "
+             "CAN SCORE THIS WATCHER' — while the legend rendered that as a confident zero, which "
+             "reads as 'none are flowing' rather than 'nobody can tell'. ⚠ AND IT CANNOT BE EARNED "
+             "TODAY BY ANY VESSEL: measured 2026-09-12, the organ rows this census scores from "
+             "carry NO score field at all (keys: evidence, id, line, measuredAt, state, surfaces), "
+             "so `scored` is {id: None} for all seven and even a perfect key match returns None. "
+             "The old comment blamed disjoint vocabularies; that is true and not the whole truth. "
+             "It is a MISSING MEASUREMENT, not a missing quality. ⚠ The perfusion wash cannot "
+             "carry the difference — with FLOWING null it draws no flowing stop, which looks "
+             "IDENTICAL to zero — so the words in the legend are the only place it can live, and "
+             "`(c.FLOWING || 0)` flattened them because null || 0 is 0 in JS. ⚠ AND THE LEGEND WAS "
+             "PHOTOGRAPHED BY NOTHING until the heart target's selector was widened past "
+             "`.hrt-h, .hrt-row`: the contradiction between the rows and the count sat on his "
+             "screen and no instrument here could have seen it."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

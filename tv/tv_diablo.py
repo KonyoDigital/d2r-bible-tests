@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3043"   # A FRAME LABEL IS NOT AN ITEM LOCATION
+VERSION = "v3044"   # FLOWING IS UNMEASURED NOT ZERO
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

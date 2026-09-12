@@ -17826,6 +17826,11 @@ def heart_state(force=False):
         "ok": bool(rep.get("ok")),
         "why": rep.get("why", ""),
         "counts": rep.get("counts"),
+        # ⚠ v3044 — AND THE REASON THE COUNT IS NULL. counts[FLOWING] is None when no organ row
+        # carries a score for any watcher, which is UNMEASURED rather than zero. Forwarding the
+        # count without the sentence would leave the panel with a blank it cannot explain — the
+        # same half-join this whole version exists to close. [[zero-needs-a-denominator]]
+        "flowingWhy": rep.get("flowingWhy", ""),
         "notVessels": rep.get("notVessels"),
         "vessels": rep.get("vessels") or [],
         "locks": locks.get("locks") or [],
@@ -27082,7 +27087,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3043",
+        "ver": "v3044",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

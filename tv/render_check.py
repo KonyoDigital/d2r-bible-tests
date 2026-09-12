@@ -1091,7 +1091,15 @@ TARGETS = {
             var secs = ov.querySelectorAll('.hrt-h').length;
             return !!(r.width > 2 && r.height > 2 && secs >= 4
                       && getComputedStyle(ov).display !== 'none'); })()""",
-        "sel": "#heart-ov .hrt-h, #heart-ov .hrt-row",
+        # ⚠⚠ v3044 — THE LEGEND WAS PHOTOGRAPHED BY NOTHING, and it is where the census's own
+        # numbers are printed. The selector was `.hrt-h, .hrt-row` — headers and rows — so the
+        # line reading "● flowing N · ● watched N · ● dark N" was outside every shot this gate
+        # takes. That is the same shape as the v2539 lock-fan finding recorded on this very
+        # target: a half of the panel nothing was looking at. Measured today: the legend printed
+        # `flowing 0` while every vessel row said "NOTHING CAN SCORE THIS WATCHER", and no
+        # instrument here could have caught the contradiction because none of them saw the line.
+        "sel": "#heart-ov .hrt-h, #heart-ov .hrt-row, #heart-ov .hrt-legend, "
+               "#heart-ov .hrt-legend span",
         "settles": False,
         "warmup": 10.0,     # /api/heart re-derives the census and the proof ledger on every open
     },

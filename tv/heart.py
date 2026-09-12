@@ -280,10 +280,32 @@ def vessels():
     for v in out:
         counts[v["state"]] = counts.get(v["state"], 0) + 1
 
+    # ⚠⚠ v3044 — FLOWING WAS PRINTING A ZERO IT HAD NOT EARNED. Every vessel row already said the
+    # honest thing — "watched, and NOTHING CAN SCORE THIS WATCHER" — and then the COUNT above
+    # rendered that as `FLOWING: 0`, which a reader takes as "none of them are flowing" rather
+    # than "nobody can tell". Those are opposite facts and only one of them is work owed.
+    #
+    # MEASURED 2026-09-12: the organ rows this census scores from carry NO `score` field at all
+    # (keys: evidence, id, line, measuredAt, state, surfaces), so `scored` is {id: None} for all
+    # seven and no watcher can be scored by any key. FLOWING therefore cannot be earned today by
+    # any vessel — not because none deserve it, but because no sabotage evidence about a WATCHER
+    # exists anywhere to earn it with.
+    #
+    # A zero needs a denominator. When nothing can score, the count is None and says why.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    _flow_why = ""
+    if not _scorable:
+        counts[FLOWING] = None
+        _flow_why = ("no organ row carries a score for any watcher, so FLOWING is UNMEASURED "
+                     "rather than zero — %d vessel(s) are watched and none of them can be "
+                     "scored. This is a missing measurement, not a missing quality."
+                     % len(out))
+
     return {
         "ok": True,
         "vessels": sorted(out, key=lambda v: (v["state"] != DARK, v["name"])),
         "counts": counts,
+        "flowingWhy": _flow_why,
         "notVessels": not_vessels,
         "locks": locks,
         "why": "; ".join([w for w in (organ_why, lock_why) if w]),
