@@ -108,7 +108,14 @@ console.log(JSON.stringify(storeFor(%s, %s)));
         try:
             out = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
         except Exception:
-            self.skipTest("node unavailable — a skip is NOT a pass")
+            self.fail("node is REQUIRED by this gate and is not on PATH. ⚠⚠ THIS USED TO "
+                      "skipTest, and MEASURED 2026-09-12 with node hidden: the gate printed "
+                      "'OK (skipped=13)' and EXITED 0, so the runner read it as a PASS while 13 "
+                      "of its 21 laws never ran — including every law that guards the shipped "
+                      "block. A venue without node is a venue where these laws are absent, not "
+                      "one where they hold. run_gates only counts a skip as failure when the "
+                      "GATE exits 77; unittest exits 0 when its tests skip, so the skip was "
+                      "invisible to the harness too. [[regression-guard]] [[test-venue]]")
         if out.returncode != 0:
             self.fail("the shipped reader would not execute: %s" % (out.stderr or "")[:300])
         return json.loads(out.stdout.strip().splitlines()[-1])
@@ -167,7 +174,14 @@ console.log(JSON.stringify(_ownedNow(%s)));
         try:
             out = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
         except Exception:
-            self.skipTest("node unavailable — a skip is NOT a pass")
+            self.fail("node is REQUIRED by this gate and is not on PATH. ⚠⚠ THIS USED TO "
+                      "skipTest, and MEASURED 2026-09-12 with node hidden: the gate printed "
+                      "'OK (skipped=13)' and EXITED 0, so the runner read it as a PASS while 13 "
+                      "of its 21 laws never ran — including every law that guards the shipped "
+                      "block. A venue without node is a venue where these laws are absent, not "
+                      "one where they hold. run_gates only counts a skip as failure when the "
+                      "GATE exits 77; unittest exits 0 when its tests skip, so the skip was "
+                      "invisible to the harness too. [[regression-guard]] [[test-venue]]")
         if out.returncode != 0:
             self.fail("the shipped reader would not execute: %s" % (out.stderr or "")[:300])
         return json.loads(out.stdout.strip().splitlines()[-1])

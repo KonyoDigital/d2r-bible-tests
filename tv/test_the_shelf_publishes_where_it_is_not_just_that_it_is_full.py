@@ -66,7 +66,15 @@ function node(o){
             /* a display:none node reports an all-zero rect in a real browser */
             if (idx < hid) return { top: 0, height: 0, width: 0 };
             var ft = (o.firstCardTop === undefined || o.firstCardTop === null) ? 0 : o.firstCardTop;
-            return { top: base + ft };
+            /* ⚠⚠ A REAL CLIENT RECT HAS ALREADY SUBTRACTED scrollTop. Scrolling down by S moves a
+               card's viewport top UP by S, which is why the shipped expression adds scrollTop back
+               and yields a constant offset-in-content. The first harness returned `base + ft`
+               regardless of scroll, so it computed ft + scrollTop — a fiction that would have
+               validated a wrong reading the first time anyone wrote a scrolled test. Nothing
+               exercised scrollTop > 0 through this stub, so the defect was latent rather than
+               loud. [[feedback-blind-fixture-green-gate]] */
+            var st = (o.scrollTop === undefined ? 0 : o.scrollTop);
+            return { top: base + ft - st };
           }; })(i)
         });
       }
@@ -123,7 +131,14 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         try:
             r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
         except Exception:
-            self.skipTest("node unavailable — a skip is NOT a pass")
+            self.fail("node is REQUIRED by this gate and is not on PATH. ⚠⚠ THIS USED TO "
+                      "skipTest, and MEASURED 2026-09-12 with node hidden: the gate printed "
+                      "'OK (skipped=13)' and EXITED 0, so the runner read it as a PASS while 13 "
+                      "of its 21 laws never ran — including every law that guards the shipped "
+                      "block. A venue without node is a venue where these laws are absent, not "
+                      "one where they hold. run_gates only counts a skip as failure when the "
+                      "GATE exits 77; unittest exits 0 when its tests skip, so the skip was "
+                      "invisible to the harness too. [[regression-guard]] [[test-venue]]")
         if r.returncode != 0:
             self.fail("the shipped shelf block would not execute: %s" % (r.stderr or "")[:300])
         return json.loads(r.stdout.strip().splitlines()[-1])
@@ -164,6 +179,22 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
     def test_a_shelf_on_screen_is_shown(self):
         o = self._run(rect=self.BIG, boxes=1, cards=535, preShelf=dict(self.PRE))
         self.assertEqual(sh(o).get("box"), "shown")
+
+    def test_the_first_card_offset_does_not_move_when_he_scrolls(self):
+        """firstCardTop is an offset INSIDE the content, so it must be the same number at rest and
+        scrolled — otherwise the OPENS-ON-NOTHING threshold would drift with his scroll position
+        and the state would mean something different every reading."""
+        at_rest = sh(self._run(rect=self.BIG, boxes=1, cards=535, preShelf=dict(self.PRE),
+                               scrollH=21000, clientH=361, scrollTop=0, firstCardTop=957))
+        scrolled = sh(self._run(rect=self.BIG, boxes=1, cards=535, preShelf=dict(self.PRE),
+                                scrollH=21000, clientH=361, scrollTop=1200, firstCardTop=957))
+        self.assertEqual(at_rest.get("firstCardTop"), 957)
+        self.assertEqual(scrolled.get("firstCardTop"), 957,
+                         "the card's offset in the content does not change because he scrolled; "
+                         "got %s scrolled vs %s at rest"
+                         % (scrolled.get("firstCardTop"), at_rest.get("firstCardTop")))
+        self.assertEqual(scrolled.get("belowFoldPx"), 21000 - 361 - 1200,
+                         "but how much is still BELOW the fold does shrink as he scrolls")
 
     def test_a_filtered_card_is_not_counted_as_on_screen(self):
         """⚠⚠ THE DEFECT THIS PINS. `_shFilter` sets `display:none` on filtered-out cards, and a
