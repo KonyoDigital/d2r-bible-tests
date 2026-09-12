@@ -409,10 +409,23 @@ if [ "$_px_touched" = "1" ]; then
   # browser. Chrome is started fresh for this gate rather than kept warm, because a probe that
   # opens and closes a tab can take an idle headless browser down with it.
   _px_started=0
+  # ⚠⚠ A TEMPORARY PROFILE, LIKE render_check's OWN. This launched Chrome against a PERSISTENT
+  # profile at tv/.render_shots/chrome-profile — and render_check.py:1751 already mkdtemp's its own
+  # precisely because a persistent one "reached 1.4 GB and ENOSPC'd his Mac". That fix could never
+  # run on a push: _chrome_up() returns True the moment 9224 answers, and this block has already
+  # started Chrome before render_check is invoked. So the scar was recorded, the fix was written,
+  # and the gate kept using the thing the fix exists to avoid.
+  # MEASURED 2026-09-12: the profile is 1.7 GB — Default/Cache 1.2 GB, Local Storage 231 MB —
+  # against 443 PNGs / 147 MB of actual output, 11x its own artifacts, and up 15% in 9 days.
+  # ⚠ AND IT WAS COSTING PUSHES, NOT JUST DISK. heart-fan refused with "the panel could not be
+  # ACTIVATED after 12.2s" under this profile while the SAME TREE rendered all 18 targets green in
+  # 264s standalone, where render_check uses its own mkdtemp. Same code, different profile,
+  # opposite verdict. [[ab-against-head-before-blaming-the-room]]
+  _px_profile="$(mktemp -d -t d2r-render-profile)"
   if ! curl -s -m 2 -o /dev/null http://127.0.0.1:9224/json/version; then
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
       --headless=new --remote-debugging-port=9224 \
-      --user-data-dir="$REPO/tv/.render_shots/chrome-profile" \
+      --user-data-dir="$_px_profile" \
       --no-first-run --no-default-browser-check --disable-gpu \
       --window-size=1440,1000 --remote-allow-origins='*' about:blank \
       >/dev/null 2>&1 &
@@ -435,6 +448,11 @@ if [ "$_px_touched" = "1" ]; then
   if [ "$_px_started" = "1" ] && [ -n "${_px_chrome_pid:-}" ]; then
     kill "$_px_chrome_pid" >/dev/null 2>&1 || true
   fi
+  # the temp profile goes with it — that is the whole point of it being temporary. Guarded on the
+  # prefix so a mistyped variable can never hand `rm -rf` something else.
+  case "${_px_profile:-}" in
+    */d2r-render-profile*) rm -rf "$_px_profile" >/dev/null 2>&1 || true ;;
+  esac
   if [ "${_px_fail:-0}" = "1" ]; then
     echo "pre-push: BLOCKED — the rendered page did not pass. LOOK AT THE PNGs in tv/.render_shots."
     exit 1
