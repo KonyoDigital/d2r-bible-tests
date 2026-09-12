@@ -42,6 +42,7 @@ except Exception:
 
 import console_doctor as CD      # noqa: E402
 import organ_matrix as OM        # noqa: E402
+import health_engine as HE       # noqa: E402
 
 
 class TestTheDoctorSaysWhatItWatches(unittest.TestCase):
@@ -97,6 +98,57 @@ class TestTheDoctorSaysWhatItWatches(unittest.TestCase):
             "cosmetic and the doctor's column is still UNKNOWN everywhere")
 
 
+    # ══ THE WATCHDOG, SAME DISCIPLINE, ONE EXTRA RULE ═══════════════════════════════════════
+    # Kept in this file rather than cloned into a sibling: the law is "an organ says what it
+    # watches", and two copies of it would drift the moment one was corrected. [[copy-drift]]
+
+    def test_every_watchdog_flag_declares_or_derives(self):
+        """health_engine's flags face the same gap the doctor did — `shadowWatch` vs
+        `advanced-shadow`. Every flag must be accounted for, and `selfArming` is accounted for by
+        DERIVING rather than declaring, so it must NOT appear in the map."""
+        rows = (HE.report() or {}).get("rows") or []
+        self.assertTrue(rows, "health_engine.report() returned no rows")
+        ids = {r.get("id") for r in rows}
+        declared = set(HE.WATCHES)
+        derives = {"selfArming"}
+        missing = sorted(ids - declared - derives)
+        self.assertEqual(
+            missing, [],
+            "%d watchdog flag(s) neither declare nor derive what they watch: %s. A flag with no "
+            "entry reads ABSENT in the organ table — a claim nobody made." % (len(missing), missing))
+        ghosts = sorted(declared - ids)
+        self.assertEqual(ghosts, [],
+                         "WATCHES declares %d flag(s) that no longer exist: %s" % (len(ghosts), ghosts))
+        overlap = sorted(declared & derives)
+        self.assertEqual(
+            overlap, [],
+            "%s both DERIVES its surfaces and declares them. Two sources for one answer is how "
+            "they drift apart — the derived one reads the locks it actually judged, and a "
+            "declaration beside it would silently disagree." % overlap)
+
+    def test_the_watchdog_derives_selfArming_from_the_locks_it_judged(self):
+        """The strongest cell in the table: not a claim beside the code, but the row naming what
+        it actually read. If this ever stops deriving, the table loses its only demonstrated
+        organ-to-surface link."""
+        rows = (HE.report() or {}).get("rows") or []
+        sa = [r for r in rows if r.get("id") == "selfArming"]
+        self.assertTrue(sa, "the selfArming flag is gone from health_engine")
+        got = set(sa[0].get("surfaces") or [])
+        self.assertTrue(
+            got & self.registry,
+            "selfArming publishes %d surface(s) and NONE is in the registry — it is no longer "
+            "deriving from the lock list it judged" % len(got))
+        self.assertGreater(
+            len(got), 5,
+            "selfArming names only %d surface(s); it judges every lock in the registry and "
+            "should name them all — a shrunk list means it stopped reading the whole set" % len(got))
+
+    def test_every_watchdog_declared_surface_is_real(self):
+        bogus = sorted({s for v in HE.WATCHES.values() for s in v} - self.registry)
+        self.assertEqual(bogus, [],
+                         "%d watchdog declaration(s) name no real surface: %s" % (len(bogus), bogus))
+
+
 RED_PROOF = [
     {
         "why": "removes one check's declaration, which is the failure this law exists for: a check "
@@ -105,6 +157,18 @@ RED_PROOF = [
         "find": '    "locked lanes":                ("locks",),\n',
         "replace": "",
         "matches": 1,
+    },
+    {
+        "why": "stops selfArming DERIVING its surfaces from the locks it judged and leaves it "
+               "declaring nothing — the table's only demonstrated organ-to-surface link, gone",
+        "file": "health_engine.py",
+        # ⚠ TWO MATCHES ON PURPOSE. selfArming derives in BOTH its OK and WARN branches, and the
+        # 16-space form is a substring of the 20-space one, so this tamper hits both. That is the
+        # correct sabotage: a row that derives in one state and not the other would claim
+        # coverage that depends on which way the day went.
+        "find": "                surfaces=[l.get(\"lock\") for l in locks if l.get(\"lock\")])",
+        "replace": "                surfaces=[])",
+        "matches": 2,
     },
     {
         "why": "puts a surface in the map that does not exist in the registry — it can never "

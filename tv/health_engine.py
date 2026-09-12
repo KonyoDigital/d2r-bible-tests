@@ -41,7 +41,31 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OK, WARN, BLOCKED, UNKNOWN = "ok", "warn", "blocked", "unknown"
 
 
-def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None):
+#: ══ WHAT EACH WATCHDOG FLAG WATCHES, IN THE REGISTRY'S OWN WORDS ═════════════════════════════
+#: Same gap organ_matrix measured for the doctor, and the same fix: "watchdog names 7 thing(s),
+#: and NONE of them resolves to any of the 58 surfaces — it is naming a different KIND of thing".
+#: A flag is called `shadowWatch`; a surface is called `advanced-shadow`.
+#:
+#: ⚠ ONE ROW DOES NOT APPEAR HERE ON PURPOSE. `selfArming` DERIVES its surfaces from the lock list
+#: it actually read, not from this map — `[l["lock"] for l in locks]` — so its coverage is
+#: demonstrated by the row's own output rather than asserted beside it. That is strictly better
+#: evidence, and where a row can produce it, it should. This map is for the rows that cannot.
+#:
+#: ⚠ AN EMPTY TUPLE IS A DECLARATION, NOT AN OMISSION, and a MISSING id fails the gate. Under-
+#: claiming is the intended bias: a table reporting coverage it cannot demonstrate is worse than
+#: an empty one. [[unknown-stays-unknown]] [[the-unjoined-end]]
+WATCHES = {
+    "lanes":           (),                     # store agreement, not a rendered surface
+    "armed_migration": (),
+    "board_join":      (),
+    "orphans":         ("_orphan_watch", "_orphan_exit_loop"),
+    "shadowWatch":     ("advanced-shadow", "_shadow_watch_loop"),
+    "readers":         (),
+    # selfArming is DERIVED — see the note above. It must not be listed here.
+}
+
+
+def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None, surfaces=None):
     """One flag. `line` is what he reads; `evidence` is what earned it.
 
     ★ v2438 — WILSON IS THE FIFTH ORGAN OF THE HEART, NOT A SIDE MODULE.
@@ -62,7 +86,11 @@ def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None):
     ⚠ k and n count SABOTAGES ATTEMPTED and REFUSALS EARNED — never runs and passes. A score
     fed by pass-rate rises fastest for the check that is never exercised.
     """
-    row = {"id": cid, "state": state, "line": line,
+    # ⚠ THE ORGAN'S OWN ANSWER TO "WHAT DO YOU WATCH", in the registry's vocabulary. Passed in
+    # when the row can DERIVE it (selfArming reads the locks it judged); otherwise taken from
+    # WATCHES, where a missing id fails the gate rather than defaulting to empty.
+    _sf = list(surfaces) if surfaces is not None else list(WATCHES.get(cid, ()))
+    row = {"id": cid, "state": state, "line": line, "surfaces": _sf,
            "evidence": list(evidence or []), "measuredAt": measured_at or int(time.time() * 1000)}
     if n is not None:
         try:
@@ -513,15 +541,20 @@ def check_self_arming():
              + [e for e in ev if not e.startswith("%s:" % worst.get("lock"))]
         return _row("selfArming", WARN,
                     "%d lock(s) were sabotaged and did not refuse — %s"
-                    % (len(inert), worst.get("lock")), ev)
+                    % (len(inert), worst.get("lock")), ev,
+                    surfaces=[l.get("lock") for l in locks if l.get("lock")])
     # the heart scores this row from the SAME proof queue the locks read — one denominator,
     # not a second tally that could drift from the first
     tot_k = sum(int(l.get("k") or 0) for l in locks)
     tot_n = sum(int(l.get("n") or 0) for l in locks)
+    # ⚠ DERIVED, NOT DECLARED: the surfaces are the locks this row actually judged, taken from
+    # the same list its evidence is built from. A declaration beside the function could drift
+    # from what it reads; this cannot.
     return _row("selfArming", OK,
                 "%d of %d locks open · %d still unproven (nobody has tried to break them yet, "
                 "which is work owed and not a fault)" % (len(opened), len(locks), len(unproven)),
-                ev, k=tot_k, n=tot_n)
+                ev, k=tot_k, n=tot_n,
+                surfaces=[l.get("lock") for l in locks if l.get("lock")])
 
 
 CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans,

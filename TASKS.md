@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3040** | `(this commit)` | v3040 — the doctor worked perfectly and its whole column read UNKNOWN because a check is called shelf lanes reading while a surface is called shelf-cards, and nothing in the code joins the two - a deriver was measured, found to reach nothing, and thrown away before the map was authored |
+| **v3041** | `(this commit)` | v3041 — the watchdog named seven concerns that resolved to none of the 58 surfaces, and selfArming now DERIVES its coverage from the lock list it actually judged rather than declaring it beside the code |
+| **v3040** | `254bcac8` | v3040 — the doctor worked perfectly and its whole column read UNKNOWN because a check is called shelf lanes reading while a surface is called shelf-cards, and nothing in the code joins the two - a deriver was measured, found to reach nothing, and thrown away before the map was authored |
 | **v3039** | `ca511790` | v3039 — ev stashes the exception and the seed sites must refuse on it but only one of the two did, a re-preparation that threw was stamped prepared and measured, and a refused seed was still photographed under the targets own name |
 | **v3038** | `99a87e7a` | v3038 — a negative limit swept all but the last few reels and zero swept everything because the runner sliced on a falsy value, and a history directory that does not exist opened the paid door before discovering emptiness - four distinct attacks now instead of two |
 | **v3037** | `a984b371` | v3037 — the render harness read only result.value from Runtime.evaluate and discarded exceptionDetails, so a seed that threw looked exactly like one that worked - measured on my own fleet-xref seed which threw ReferenceError on every run and still reported green at five widths |
