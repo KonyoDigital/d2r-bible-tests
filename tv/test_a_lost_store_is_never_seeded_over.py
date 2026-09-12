@@ -68,6 +68,57 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
                       "contents is refilled from built-in seeds and then looks full — the exact "
                       "shape in which 17 uniques and 3 set pieces went missing")
 
+    def test_the_first_loss_timestamp_is_never_overwritten(self):
+        """⚠⚠ FOUND BY THE CROSS-FAMILY EYE ON v2988 — on the fix itself, hours after it shipped.
+
+        `at: Date.now()` was written on EVERY boot that found the store still empty, so the
+        recorded moment of the loss walked forward with each restart. That field is the whole
+        point of the record: it is what says WHICH BACKUP PREDATES THE LOSS. On his own data that
+        question decided everything — emptied 2026-09-08 06:28 UTC, oldest backup 2026-09-11
+        03:33, sixty-nine hours later, which is why 17 uniques and 3 set pieces are unrecoverable.
+        A drifting timestamp would have made even that answer unknowable. [[stale-reading]]
+        """
+        # ⚠⚠ THIS CLAUSE WAS BLIND ON ITS FIRST DRILL. It asserted that `var _firstAt` EXISTS and
+        # that `_prevEv` appears nearby — and the tamper `var _firstAt = Date.now(); var _unused =
+        # (_prevEv && ...` satisfies BOTH while destroying the behaviour. A presence check cannot
+        # see a value. So it runs the shipped block instead. [[source-reading-guard]]
+        a = BIBLE.find("        var _prevEv = null;")
+        b = BIBLE.find("? _prevEv.at : Date.now();")
+        if a < 0 or b < a:
+            self.fail("the first-timestamp block moved or was renamed — this law lost its subject")
+        block = BIBLE[a:b + len("? _prevEv.at : Date.now();")]
+        js = ("var STORE = %s;\n"
+              "var LS = { getItem: function(k){ return STORE[k] === undefined ? null : STORE[k]; } };\n"
+              "%s\nconsole.log(JSON.stringify({first: _firstAt}));"
+              % (json.dumps({"d2r_storeEmptied": json.dumps({"at": 1000, "boots": 3})}), block))
+        d = tempfile.mkdtemp(prefix="firstat_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        except Exception:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        self.assertEqual(r.returncode, 0, "the shipped block would not execute: %s" % r.stderr[:220])
+        got = json.loads(r.stdout.strip().splitlines()[-1])["first"]
+        self.assertEqual(
+            got, 1000,
+            "the FIRST loss timestamp was not preserved — got %r, expected the stored 1000. Every "
+            "boot would overwrite the moment of the loss, and the record would stop being able to "
+            "name which backup predates it." % got)
+
+    def test_the_warning_does_not_still_say_it_is_seeding(self):
+        """⚠ MY OWN STALE SENTENCE, ONE VERSION OLD. v2988 made the floor REFUSE to run over a
+        loss, and the warning still announced 'seeding over it'. A message describing behaviour
+        the code no longer has is the defect named most often in this repo.
+        [[label-outlived-referent]]"""
+        i = BIBLE.find("STORE CAME UP EMPTY")
+        self.assertGreater(i, 0, "the emptied-store warning is gone")
+        line = BIBLE[i:BIBLE.find("\n", i)]
+        self.assertNotIn("— seeding over it", line,
+                         "the console still tells him the store is being seeded over, which "
+                         "v2988 made false: %r" % line[:120])
+
     def test_the_flag_is_raised_where_the_loss_is_detected(self):
         i = BIBLE.find("the found ledger was EMPTY on a load that had already")
         self.assertGreater(i, 0, "the emptied-store detector is gone")
@@ -134,6 +185,14 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "if (!_rwFreshFlag && !_emptiedLoss && window.D2R_PROFILE !== 'ladder'",
         "replace": "if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder'",
+        "matches": 1,
+    },
+    {
+        "why": "going back to an unconditional Date.now() makes the loss timestamp walk forward on "
+               "every boot, so the record can no longer name which backup predates the loss",
+        "file": "bible.html",
+        "find": "        var _firstAt = (_prevEv && typeof _prevEv.at === 'number' && _prevEv.at > 0)",
+        "replace": "        var _firstAt = Date.now(); var _unused = (",
         "matches": 1,
     },
     {

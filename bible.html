@@ -20731,14 +20731,35 @@ window.renderHighValueFinds = renderHighValueFinds;
       var _hadRun = !!(LS.getItem('d2r_pieceAlias_v2') || LS.getItem('d2r_chronSyncMerged_v1')
                        || LS.getItem('d2r_installIdCache'));
       if (_wasEmpty && _hadRun) {
-        var _ev = { at: Date.now(), why: 'the found ledger was EMPTY on a load that had already '
-                        + 'run before — the store lost its contents, and the seed floor below is '
-                        + 'about to refill it from the built-in seeds. Anything you had that is in '
-                        + 'no seed will NOT come back on its own.',
+        /* ⚠⚠ v2990 — KEEP THE FIRST `at`. FOUND BY THE CROSS-FAMILY EYE ON v2988, i.e. on the
+           fix I shipped hours earlier. `at: Date.now()` was written on EVERY boot that found the
+           store still empty, so the recorded moment of the loss walked forward with each restart.
+           That is the one field the whole record exists for: it is what says WHICH BACKUP
+           PREDATES THE LOSS. Measured on his own data, that question decided everything — the
+           store emptied 2026-09-08 06:28 UTC and the oldest ledger backup is 2026-09-11 03:33,
+           sixty-nine hours later, which is why those 17 uniques and 3 set pieces are gone. A
+           timestamp that drifts forward would have made even that answer unknowable.
+           `boots` is kept instead, because "still empty after N restarts" is a different and
+           genuinely useful fact from "it happened at T". [[stale-reading]] [[label-outlived-referent]] */
+        var _prevEv = null;
+        try { _prevEv = JSON.parse(LS.getItem('d2r_storeEmptied') || 'null'); } catch(e){}
+        var _firstAt = (_prevEv && typeof _prevEv.at === 'number' && _prevEv.at > 0)
+                         ? _prevEv.at : Date.now();
+        /* ⚠ AND THE SENTENCE ITSELF WAS STALE — MY OWN, ONE VERSION OLD. It still said "the seed
+           floor below is about to refill it from the built-in seeds", which v2988 had just made
+           false: the floor now REFUSES to run over a loss. A warning that describes behaviour the
+           code no longer has is the defect this repo names most often, and I shipped it. */
+        var _ev = { at: _firstAt, seenAgainAt: Date.now(),
+                    boots: (((_prevEv && _prevEv.boots) | 0) + 1),
+                    why: 'the found ledger was EMPTY on a load that had already run before — the '
+                        + 'store lost its contents. The seed floor is REFUSING to run over it, so '
+                        + 'the store stays empty rather than being papered over with defaults: an '
+                        + 'empty store you can see is recoverable, a seeded one is not.',
                     restore: 'python3 ~/d2r_ledger_backups/restore_ledger.py --apply' };
         _emptiedLoss = true;   // v2988 — the seed floor MUST NOT run over this
         try { LS.setItem('d2r_storeEmptied', JSON.stringify(_ev)); } catch(e){}
-        try { console.warn('[ledger] STORE CAME UP EMPTY — seeding over it. ' + _ev.why); } catch(e){}
+        try { console.warn('[ledger] STORE CAME UP EMPTY — NOT seeding over it (boot '
+              + _ev.boots + ', first seen ' + new Date(_ev.at).toISOString() + '). ' + _ev.why); } catch(e){}
       }
     } catch(e){}
     /* v2692 — ...AND ONLY ON THE LEDGER THE SEED WAS WRITTEN FOR. `!_isCousinShell` was never
@@ -49960,7 +49981,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2989', name:'v2989 - the status journal is re-read only when the file changes', date:'2026-09-12', note:'' };
+  window.D2R_BUILD = { id:'v2990', name:'v2990 - the moment of the loss stops walking forward with every boot', date:'2026-09-12', note:'' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
