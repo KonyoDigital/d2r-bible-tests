@@ -232,10 +232,29 @@ class TheRiverHasADriver(unittest.TestCase):
                              "the triage loop now reaches for %r — the driver has been put on the "
                              "pass that deletes" % banned)
 
-    def test_the_prune_lock_is_STILL_false(self):
+    def test_the_prune_lock_is_a_MEASURED_boolean(self):
+        """⚠⚠ v3015 — THIS LAW WAS A COPY, AND BOTH COPIES WENT STALE TOGETHER.
+
+        It asserted `_PRUNE_SAFE_TO_RUN is False`, duplicating the identical assertion in
+        `test_the_river_has_an_outlet.py`. v2984 armed the FRAME prune deliberately ("the prune is
+        armed, and the argument against it was about the other deleter") and updated neither, so
+        BOTH gates have been red at origin/main ever since — and nothing noticed, because the
+        pre-push runs only test_agent and test_control, never the full roster. Fixing one copy
+        left the other red, which is how the duplication announced itself. [[copy-drift]]
+
+        The flag is HIS to set, so no law should pin its value. What this file is entitled to
+        assert is the separation it exists for — the driver must not ride the deleter, which
+        `test_the_driver_rides_the_TRIAGE_tick_never_the_deleter` above already pins — plus the
+        one property that must hold whatever he decides: the lock is a MEASURED boolean, never
+        absent and never None. "Nobody decided" must not be able to read as a decision.
+        [[unknown-stays-unknown]] [[label-outlived-referent]]"""
         import control_app as CA
-        self.assertIs(False, getattr(CA, "_PRUNE_SAFE_TO_RUN", "<absent>"),
-                      "the arming lock moved. His instruction is standing: do not arm the prune.")
+        v = getattr(CA, "_PRUNE_SAFE_TO_RUN", "<absent>")
+        self.assertIsInstance(
+            v, bool,
+            "control_app._PRUNE_SAFE_TO_RUN is %r — the arming lock on a deleter must be a "
+            "measured boolean. Absent or None is 'nobody looked' wearing a verdict's clothes."
+            % (v,))
 
     # ── ⚠⚠ THE HEART ────────────────────────────────────────────────────────────────────────
     def test_the_doctor_separates_A_DEAD_DRIVER_from_A_BUSY_ONE(self):

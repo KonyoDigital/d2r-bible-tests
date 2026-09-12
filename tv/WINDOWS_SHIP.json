@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3015",
+  "ver": "v3016",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3015: a 60-file count cap deleted what the retention prune promised to keep, so 48h and 90-day keepers could not exist; the open-episode guard read a level the writer never writes to; and the tombstone pair published a zero for reels it never saw.",
+  "note": "v3016: TOMBSTONE reads 0 on every station census and always will, because a released reel has been deleted and is not on the shelf; 445 releases and 9.8 GB had no surface anywhere. A Released panel now reads the tombstone ledger with its own denominators.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

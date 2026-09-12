@@ -2765,6 +2765,35 @@
   #th-heatmap-ov { position: fixed; inset: 0; z-index: 972; overflow-y: auto; background: rgba(4,6,5,.985);
     padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px) max(72px, env(safe-area-inset-bottom, 0px)); }
   #th-heatmap-ov[hidden] { display: none !important; }
+  /* v3016 — 🪦 RELEASED. Shares the heatmap's shell so the two read as one family; only the
+     accent differs, because this panel is about footage that is GONE rather than footage he
+     farms. Muted stone rather than gold: it is a record, not a prize. */
+  #th-tomb-ov { position: fixed; inset: 0; z-index: 972; overflow-y: auto; background: rgba(4,6,5,.985);
+    padding: clamp(18px,3vh,46px) clamp(16px,2.4vw,34px) max(72px, env(safe-area-inset-bottom, 0px)); }
+  #th-tomb-ov[hidden] { display: none !important; }
+  .tb-wrap { max-width: 980px; margin: 0 auto; }
+  .tb-kpis { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .tb-kpi { flex: 1 1 150px; border: 1px solid var(--edge); border-radius: 10px; padding: 11px 13px;
+    background: rgba(0,0,0,.28); }
+  .tb-kpi-n { font: var(--fw-bold) var(--fs-lg)/1.1 var(--mono); color: #cbbfa6;
+    font-variant-numeric: tabular-nums; }
+  .tb-kpi-l { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); letter-spacing: var(--ls-snug);
+    color: #7d7361; text-transform: uppercase; margin-top: 3px; }
+  .tb-list { display: flex; flex-direction: column; gap: 7px; }
+  .tb-row { display: grid; grid-template-columns: 9.5em 1fr auto; align-items: baseline; gap: 12px;
+    border-left: 2px solid rgba(180,168,140,.28); padding: 7px 0 7px 11px; }
+  .tb-when { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); color: #8a7e68;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tb-mid { min-width: 0; }
+  .tb-reel { font: var(--fw-semibold) var(--fs-sm)/var(--lh-tight) var(--mono); color: #d8ccb0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb-why { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #6f6a58;
+    letter-spacing: var(--ls-tight); margin-top: 2px; }
+  .tb-size { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); color: #9a8f78;
+    font-variant-numeric: tabular-nums; white-space: nowrap; flex: none; }
+  .tb-focus { color: #7d7361; margin-left: 8px; }
+  .tb-note { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); color: #6f6a58;
+    letter-spacing: var(--ls-tight); margin-top: 16px; }
   .hm-wrap { max-width: 860px; margin: 0 auto; }
   .hm-top { display: flex; margin-bottom: 18px; }
   .hm-back { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3);
@@ -7729,6 +7758,12 @@ body[data-origin="shadow"] #stage::after {
   <div id="th-dossier-ov" hidden></div>
   <div id="th-compare-ov" hidden></div>
   <div id="th-heatmap-ov" hidden></div>
+  <!-- v3016 (🪦 RELEASED · Konyo: "just a history ledger tab here should be inplace for it") — the
+       river's own history. TOMBSTONE reads 0 on every station census and always will: a released
+       reel has been DELETED, so it is not among the reels on the shelf. Measured 2026-09-12: 445
+       releases covering 9.8 GB between 2026-08-28 and 2026-09-10, and no surface anywhere showed
+       any of it. This is that surface. -->
+  <div id="th-tomb-ov" hidden></div>
   <!-- v1361 (🔬 READS FORENSICS · Konyo) — the scanner's X-ray, opened from the 🧾 AI-READS feed. A flat,
        newest-first read stream in THREE status sections (✓ got it right · ⛔ correctly refused · ⚠ needs your
        eye), each read showing its verbatim garble, the fix/refusal transform, the 🧠 synthesis, witnesses, and
@@ -11068,6 +11103,68 @@ window._lockMark = function(isOpen, px, label){
     ov.hidden = false; ov.scrollTop = 0;
   };
   window._hmClose = function(){ var ov = document.getElementById('th-heatmap-ov'); if (ov) ov.hidden = true; };
+
+  /* ⚠⚠ v3016 — 🪦 RELEASED, and it is defined HERE beside _hmOpen on purpose. The markup that
+     calls it is built in a DIFFERENT script block (the shelf overlay builder), and a call across
+     the IIFE boundary in this file is a ReferenceError and a dead render — shipped four separate
+     times. Attaching to `window`, exactly as _hmOpen/_cmpOpen do, is what makes it reachable.
+     [[console-ui-two-script-blocks]]
+
+     ⚠ THE NUMBERS COME FROM THE SERVER, NOT FROM THE SHELF. The shelf only knows reels that still
+     exist; these are the ones that do not. /api/tombstones reads reel_tombstones.json and carries
+     its own denominators, including how many rows it excluded as fixtures. A figure it could not
+     measure arrives as null and is rendered "—", never 0. [[unknown-stays-unknown]] */
+  window._tombClose = function(){ var ov = document.getElementById('th-tomb-ov'); if (ov) ov.hidden = true; };
+  window._tombOpen = function(){
+    var ov = document.getElementById('th-tomb-ov'); if (!ov) return;
+    var back = '<div class="hm-top"><button type="button" class="hm-back" onclick="window._tombClose()">\u2039 back to the shelf</button></div>';
+    ov.innerHTML = '<div class="tb-wrap">' + back + '<div class="hm-head">Released</div>'
+      + '<div class="hm-sub">reading the ledger\u2026</div></div>';
+    ov.hidden = false; ov.scrollTop = 0;
+    fetch('/api/tombstones?limit=300').then(function(r){ return r.json(); }).then(function(d){
+      if (!d || !d.ok){
+        ov.innerHTML = '<div class="tb-wrap">' + back + '<div class="hm-head">Released</div>'
+          + '<div class="hm-empty">' + esc((d && d.why) || 'the release ledger could not be read \u2014 UNKNOWN, which is not the same as nothing released') + '</div></div>';
+        return;
+      }
+      var say = function(v){ return (v === null || v === undefined) ? '\u2014' : v; };
+      var gb = (d.mb === null || d.mb === undefined) ? null : (d.mb / 1024);
+      var kpis = '<div class="tb-kpis">'
+        + '<div class="tb-kpi"><div class="tb-kpi-n">' + say(d.reels) + '</div><div class="tb-kpi-l">reels released</div></div>'
+        + '<div class="tb-kpi"><div class="tb-kpi-n">' + (gb === null ? '\u2014' : gb.toFixed(1) + ' GB') + '</div><div class="tb-kpi-l">footage freed</div></div>'
+        + '<div class="tb-kpi"><div class="tb-kpi-n">' + say(d.pages) + '</div><div class="tb-kpi-l">pages read first</div></div>'
+        + '<div class="tb-kpi"><div class="tb-kpi-n">' + say(d.last7d) + '</div><div class="tb-kpi-l">in the last 7 days</div></div>'
+        + '</div>';
+      var rows = (d.rows || []).map(function(r){
+        var when = r.deletedTs ? new Date(r.deletedTs).toLocaleString([], {year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '\u2014';
+        var mb = (r.mb === null || r.mb === undefined) ? '\u2014' : (Math.round(r.mb * 10) / 10) + ' MB';
+        var foc = r.focus ? '<span class="tb-focus">' + esc(String(r.focus)) + '</span>' : '';
+        return '<div class="tb-row">'
+          + '<div class="tb-when">' + esc(when) + '</div>'
+          + '<div class="tb-mid"><div class="tb-reel">' + esc(String(r.reel || r.session || '?')) + '</div>'
+          + (r.why ? '<div class="tb-why">' + esc(String(r.why)) + '</div>' : '') + '</div>'
+          + '<div class="tb-size">' + mb + foc + '</div></div>';
+      }).join('');
+      /* ⚠ SAY WHAT IS NOT SHOWN. The list is capped; a cap that does not announce itself reads as
+         "this is all of it". [[regression-guard]] */
+      var shown = (d.rows || []).length;
+      var note = 'showing ' + shown + ' of ' + say(d.reels) + ' release(s), newest first'
+        + (d.fixturesExcluded ? ' \u00b7 ' + d.fixturesExcluded + ' non-session row(s) excluded as fixtures' : '')
+        + ((d.stamped !== null && d.stamped !== undefined && d.reels && d.stamped < d.reels)
+            ? ' \u00b7 \u26a0 ' + (d.reels - d.stamped) + ' carry no timestamp, so the date windows above are out of ' + d.stamped
+            : '');
+      ov.innerHTML = '<div class="tb-wrap">' + back
+        + '<div class="hm-head">Released</div>'
+        + '<div class="hm-sub">what the river let go \u00b7 the shelf shows only what remains</div>'
+        + kpis
+        + (shown ? '<div class="tb-list">' + rows + '</div>' : '<div class="hm-empty">No reels have been released yet \u2014 measured, not assumed.</div>')
+        + '<div class="tb-note">' + esc(note) + '</div></div>';
+      ov.scrollTop = 0;
+    }).catch(function(e){
+      ov.innerHTML = '<div class="tb-wrap">' + back + '<div class="hm-head">Released</div>'
+        + '<div class="hm-empty">the release ledger could not be reached (' + esc(String(e && e.name || e)) + ') \u2014 UNKNOWN</div></div>';
+    });
+  };
   // ══ D17 · BEST-RUN / STREAK HIGHLIGHTS — a compact strip of standout runs + a farming streak, at the top
   // of the shelf. Real bests only off the /api/sessions run set (reuses _cmpList); honest "—" / omit when the
   // data can't support a card. Cards that reference a single run are tap-to-dossier. Pure UI. ══
@@ -15476,6 +15573,10 @@ window._lockMark = function(isOpen, px, label){
         + '<option value="found">Most found</option><option value="reads">Most reads</option></select></label>'
         + '<button type="button" class="sh-cmp" id="sh-cmp" title="compare two runs side by side" onclick="window._cmpOpen()">⚖ Compare</button>'
         + '<button type="button" class="sh-cmp" id="sh-heat" title="where you farm most" onclick="window._hmOpen()">🗺 Areas</button>'
+        /* v3016 — the shelf shows reels that EXIST; this shows the ones it let go. Deliberately a
+           sibling of Compare/Areas rather than a filter chip: a released reel has no card to
+           filter, so it cannot live in the same grid. */
+        + '<button type="button" class="sh-cmp" id="sh-tomb" title="reels the river has released" onclick="window._tombOpen()">🪦 Released</button>'
         + '<span class="sh-search-count" id="sh-search-count"></span></div>'
         + '<div class="sh-filter-bar">'
         + '<button type="button" class="sh-chip" data-f="pin">⭐ pinned</button>'

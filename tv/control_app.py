@@ -20320,6 +20320,90 @@ def _vault_store_read(path):
         return None, "unreadable: %s" % str(e)[:90], (st.st_mtime if st else None)
 
 
+# ⚠⚠ v3016 — THE RIVER'S WORK HAD NO SURFACE. His ask, 2026-09-12, on being shown that the
+# station census reads TOMBSTONE 0: *"just a history ledger tab here should be inplace for it."*
+#
+# TOMBSTONE 0 IS CORRECT AND WILL ALWAYS BE. A tombstoned reel has been deleted, so it is not among
+# the reels on the shelf — the station is TRANSIENT, and a census of survivors can only ever show
+# zero there. Measured the same day: the store holds 445 real tombstones covering 9.8 GB of
+# released footage between 2026-08-28 and 2026-09-10. The river has done a great deal of work and
+# every surface showed a 0 for it. [[zero-needs-a-denominator]] [[the-unjoined-end]]
+_TOMBSTONE_SESSION_RE = re.compile(r"^s_\d{13}_\d+$")
+
+
+def tombstone_view(limit=300):
+    """The reel-release history. -> dict. Reads one file, writes nothing, deletes nothing.
+
+    ⚠ EVERY FIGURE CARRIES ITS DENOMINATOR, and an unreadable store is UNKNOWN rather than an
+    empty history — "nothing has ever been released" and "nobody could read the ledger" are
+    opposite facts and must never render the same. [[unknown-stays-unknown]]
+
+    ⚠ THE FIXTURE ROW IS EXCLUDED AND SAID OUT LOUD. reel_retention's own note records 89
+    fixture tombstones once landing in his real store because a path resolved at import time;
+    one such row survives (`s_222_2`). Real sessions are `s_<13 digit ms>_<n>`, so the rule is a
+    parse rather than a guess, and the count of what was dropped is published so the exclusion
+    can never quietly grow.
+    """
+    import reel_retention as _rr
+    out = {"ok": False, "rows": [], "reels": None, "mb": None, "pages": None, "frames": None,
+           "fixturesExcluded": 0, "byFocus": {}, "firstTs": None, "lastTs": None,
+           "last24h": None, "last7d": None, "last30d": None, "why": ""}
+    try:
+        _p = _rr._tombstone_path()
+    except Exception as e:
+        out["why"] = "the tombstone path could not be resolved (%s) — UNKNOWN" % type(e).__name__
+        return out
+    if not os.path.exists(_p):
+        out["why"] = "no tombstone ledger exists yet at %s — measured absent, not empty" % os.path.basename(_p)
+        return out
+    try:
+        doc = json.load(io.open(_p, encoding="utf-8"))
+    except Exception as e:
+        out["why"] = ("the tombstone ledger would not parse (%s) — UNKNOWN, which is not the same "
+                      "as no releases" % type(e).__name__)
+        return out
+    raw = doc.get("reels") if isinstance(doc, dict) else doc
+    if not isinstance(raw, list):
+        out["why"] = "the tombstone ledger is %s, not a list of rows — UNKNOWN" % type(raw).__name__
+        return out
+
+    rows = [r for r in raw if isinstance(r, dict)
+            and _TOMBSTONE_SESSION_RE.match(str(r.get("session") or ""))]
+    out["fixturesExcluded"] = len(raw) - len(rows)
+
+    def _num(r, k):
+        try:
+            return float(r.get(k) or 0)
+        except Exception:
+            return 0.0
+
+    out["reels"] = len(rows)
+    out["mb"] = round(sum(_num(r, "mb") for r in rows), 1)
+    out["pages"] = int(sum(_num(r, "pages") for r in rows))
+    out["frames"] = int(sum(_num(r, "frames") for r in rows))
+    _focus = {}
+    for r in rows:
+        k = str(r.get("focus") or "unstated")
+        _focus[k] = _focus.get(k, 0) + 1
+    out["byFocus"] = _focus
+
+    stamped = sorted(_num(r, "deletedTs") for r in rows if _num(r, "deletedTs") > 0)
+    out["stamped"] = len(stamped)                 # ⚠ the denominator for every window below
+    if stamped:
+        out["firstTs"], out["lastTs"] = stamped[0], stamped[-1]
+        _now = time.time() * 1000.0
+        for _k, _d in (("last24h", 1), ("last7d", 7), ("last30d", 30)):
+            out[_k] = sum(1 for t in stamped if 0 <= (_now - t) < _d * 86400000.0)
+
+    out["rows"] = sorted(rows, key=lambda r: -_num(r, "deletedTs"))[:max(1, int(limit or 300))]
+    out["ok"] = True
+    out["why"] = ("%d reel(s) released, %.1f GB, %d page(s) read before release%s"
+                  % (out["reels"], out["mb"] / 1024.0, out["pages"],
+                     ("; %d non-session row(s) excluded as fixtures" % out["fixturesExcluded"])
+                     if out["fixturesExcluded"] else ""))
+    return out
+
+
 def vault_ledger_view():
     """THE LEDGER, READ-ONLY AND FREE.
 
@@ -26812,7 +26896,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3015",
+        "ver": "v3016",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -29369,6 +29453,24 @@ class Handler(BaseHTTPRequestHandler):
             # v1578 — THE FREE PASS, vault edition. Prices a vault retro sweep on HIS film.
             # Zero model calls, zero writes.
             self._json(200, vault_scan_cost())
+            return
+        if path == "/api/tombstones":
+            # v3016 — THE RIVER'S OWN HISTORY. Reads one file, writes nothing, deletes nothing —
+            # the same standing as /api/vault_ledger: looking at what is gone is free.
+            # ⚠ The station census can only ever read TOMBSTONE 0 (a released reel is deleted and
+            # so is not on the shelf), which made 445 releases and 9.8 GB of freed footage look
+            # like a lane that had never run. This is the surface for it.
+            # ⚠ v3016 — PARSED HERE, NOT INHERITED. The first cut read a bare `qs`, which is
+            # assigned in `_serve_hist()` and NOT in do_GET — every call would have raised
+            # NameError before reaching the view. Same trap `/api/river` records two hundred lines
+            # up, and the neighbouring handlers all import urllib locally for exactly this reason.
+            try:
+                import urllib.parse as _up_tb
+                _lim = int((_up_tb.parse_qs(_up_tb.urlparse(self.path).query or "")
+                            .get("limit") or ["300"])[0])
+            except Exception:
+                _lim = 300
+            self._json(200, tombstone_view(limit=_lim))
             return
         if path == "/api/vault_ledger":
             # v2067 — LOOKING AT THE LEDGER IS FREE. Until now vault_ledger_load() had exactly one
