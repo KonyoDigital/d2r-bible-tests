@@ -191,9 +191,18 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
                          "field that says which backup predates the loss")
 
     def test_the_flag_is_raised_where_the_loss_is_detected(self):
+        """⚠ v3004 — THIS LAW WAS A FIXED-SIZE WINDOW AND IT BROKE ON AN INNOCENT EDIT. It read
+        `i-600 : i+900` around the detector prose, and the v3004 episode-history block pushed
+        `_emptiedLoss = true` past +900 — so a CORRECT tree failed the law. My own carved scar
+        (`src[i:i+N]` past the region reads as ABSENT), shipped inside a gate. Anchored at both
+        ends now: the detection REGION runs from the prose to the console.warn that closes it.
+        [[source-window-shortcut]]"""
         i = BIBLE.find("the found ledger was EMPTY on a load that had already")
         self.assertGreater(i, 0, "the emptied-store detector is gone")
-        near = BIBLE[max(0, i - 600):i + 900]
+        j = BIBLE.find("STORE CAME UP EMPTY", i)
+        self.assertGreater(j, i, "the detector's closing console.warn is gone — the region "
+                                 "cannot be bounded, which is a failure, not a smaller window")
+        near = BIBLE[max(0, i - 600):j]
         self.assertIn("_emptiedLoss = true", near,
                       "nothing SETS _emptiedLoss at the detection site, so the clause guards a "
                       "variable that is never raised — a guard with no tap")
@@ -249,7 +258,113 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
                              "defect from the one this law was written for")
 
 
+class ASecondLossKeepsItsOwnTimestamp(unittest.TestCase):
+    """⚠⚠ v3004 — A SECOND LOSS MUST NOT WEAR THE FIRST LOSS'S TIMESTAMP. Found by the
+    cross-family eye on v2993: `_firstAt` inherited `_prevEv.at` UNCONDITIONALLY, so after
+    empty-at-T1 -> restore -> reload stamps recoveredAt at T2 -> empty again at T3, the record
+    read {at: T1, no recoveredAt} — and "which backup predates the loss" pointed at T1, when the
+    backups that predate THIS loss are the ones between T2 and T3. The exact field v2990 exists
+    to protect, aimed at the wrong episode. EXECUTES the shipped block; prose cannot prove an
+    order. [[feedback-blind-fixture-green-gate]]"""
+
+    def _run(self, prev, now=9000):
+        a = BIBLE.find("        var _prevEv = null;")
+        b = BIBLE.find("try { console.warn('[ledger] STORE CAME UP EMPTY", a)
+        if a < 0 or b < a:
+            self.fail("the episode block moved — this law is grading nothing, which is not a pass")
+        js = ("function run(prev, NOW){\n"
+              "  var stored = null;\n"
+              "  var LS = { getItem: function(){ return prev ? JSON.stringify(prev) : null; },\n"
+              "             setItem: function(k, v){ stored = JSON.parse(v); } };\n"
+              "  var Date = { now: function(){ return NOW; } };\n"
+              "  var _emptiedLoss = false;\n"
+              + BIBLE[a:b] +
+              "\n  return stored;\n}\n"
+              "console.log(JSON.stringify(run(%s, %d)));" % (json.dumps(prev), now))
+        d = tempfile.mkdtemp(prefix="episode_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        except Exception:
+            self.fail("node is REQUIRED by this law and is not on PATH — with it absent the law "
+                      "does not run, and a law that does not run is not a pass")
+        if r.returncode != 0:
+            self.fail("the shipped episode block would not execute: %s" % (r.stderr or "")[:300])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_an_open_episode_still_keeps_the_first_at(self):
+        """v2990's protection, untouched: while the SAME loss is still open, `at` must not walk."""
+        got = self._run({"at": 1000, "boots": 3})
+        self.assertEqual(got["at"], 1000)
+        self.assertEqual(got["boots"], 4)
+
+    def test_a_closed_episode_starts_a_new_one(self):
+        got = self._run({"at": 1000, "boots": 3, "recoveredAt": 2000})
+        self.assertEqual(got["at"], 9000,
+                         "the previous loss was CLOSED at T2; this empty is a NEW loss and its "
+                         "`at` must be now, or the backup question points at the wrong episode")
+        self.assertEqual(got["boots"], 1, "boots is a fact about ONE loss, not a lifetime tally")
+
+    def test_the_closed_episode_survives_as_history(self):
+        got = self._run({"at": 1000, "boots": 3, "recoveredAt": 2000})
+        prev = got.get("prevEpisode") or {}
+        self.assertEqual((prev.get("at"), prev.get("recoveredAt")), (1000, 2000),
+                         "recovering twice must never erase the first loss's record — evidence "
+                         "is superseded, not deleted")
+
+
+class TheDoctorSeesTheStoreRefillWithoutAReload(unittest.TestCase):
+    """⚠⚠ v3004 — HE RAN THE EXACT COMMAND THE MISSING ROW PRINTS AND THE ROW KEPT SAYING MISSING.
+    `--apply` writes names into the ALREADY-LOADED board; `recoveredAt` stamps only at board load.
+    The evidence was in _board_read()'s own `counts` the whole time and the doctor never looked."""
+
+    def _verdict(self, ev, counts):
+        import console_doctor as cd
+        real = cd._board_read
+        cd._board_read = lambda: {"ok": True, "boardLoaded": True,
+                                  "storeEmptied": ev, "counts": counts}
+        try:
+            return cd._check_the_board_store_did_not_come_up_empty()
+        finally:
+            cd._board_read = real
+
+    def test_an_open_event_with_measured_contents_is_not_missing(self):
+        st, why = self._verdict({"at": 1000, "boots": 2}, {"foundLog": 440, "setPieces": 129})
+        self.assertEqual(st, "ok",
+                         "the store measurably holds 440 names; telling him to run --apply again "
+                         "is the permanent alarm this row keeps almost becoming — got %s" % st)
+        self.assertIn("440", why, "and the verdict must carry the number it rests on")
+
+    def test_zero_counts_stay_missing(self):
+        st, _w = self._verdict({"at": 1000, "boots": 2}, {"foundLog": 0, "setPieces": 0})
+        self.assertEqual(st, "missing", "measured-zero is the fault, not recovery")
+
+    def test_absent_counts_never_read_as_contents(self):
+        """Only a MEASURED count exits. 'Could not count' must never become 'has contents'.
+        [[unknown-stays-unknown]]"""
+        st, _w = self._verdict({"at": 1000, "boots": 2}, None)
+        self.assertEqual(st, "missing")
+
+
 RED_PROOF = [
+    {
+        "why": "dropping the recoveredAt clause lets a CLOSED episode donate its timestamp to a "
+               "brand-new loss, and the backup question points at the wrong episode again",
+        "file": "bible.html",
+        "find": "                            && !_prevEv.recoveredAt);",
+        "replace": "                            && true);",
+        "matches": 1,
+    },
+    {
+        "why": "disabling the counts exit returns the doctor to MISSING-until-reload: he runs the "
+               "exact command the row prints and the row keeps printing it",
+        "file": "console_doctor.py",
+        "find": "    if ((isinstance(_fl, (int, float)) and _fl > 0)",
+        "replace": "    if False and ((isinstance(_fl, (int, float)) and _fl > 0)",
+        "matches": 1,
+    },
     {
         "why": "dropping the clause restores the exact behaviour that destroyed 17 uniques and 3 "
                "set pieces — the floor seeding over a store that lost its contents",
@@ -286,8 +401,8 @@ RED_PROOF = [
         "why": "going back to an unconditional Date.now() makes the loss timestamp walk forward on "
                "every boot, so the record can no longer name which backup predates the loss",
         "file": "bible.html",
-        "find": "        var _firstAt = (_prevEv && typeof _prevEv.at === 'number' && _prevEv.at > 0)",
-        "replace": "        var _firstAt = Date.now(); var _unused = (",
+        "find": "        var _firstAt = _sameEpisode ? _prevEv.at : Date.now();",
+        "replace": "        var _firstAt = Date.now();",
         "matches": 1,
     },
     {

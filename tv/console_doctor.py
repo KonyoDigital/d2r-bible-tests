@@ -1257,6 +1257,31 @@ def _check_the_board_store_did_not_come_up_empty():
                     "The record is kept as history — it is what says which backup predates the "
                     "loss — and no longer needs action."
                     % _dt2.datetime.utcfromtimestamp(_rec / 1000.0).strftime("%Y-%m-%d %H:%M"))
+    # ⚠⚠ v3004 — THE ADVERTISED RESTORE COULD NOT CLEAR THE ALARM UNTIL A RELOAD. Found by the
+    # cross-family eye on v2993: `restore_ledger.py --apply` writes names through chronicleApply
+    # into the ALREADY-LOADED board, while `recoveredAt` is stamped only in bible.html's load-time
+    # block — so he runs the exact command the MISSING row prints, the store genuinely refills,
+    # and this row keeps saying MISSING and keeps telling him to run it again for the rest of the
+    # session. The original bug was "forever, across boots"; v2993 made it "until the document
+    # reloads", which --apply does not do. The evidence was in hand the whole time: _board_read()
+    # already carries counts (measured live: foundLog=440 / setPieces=129 beside the event).
+    # ⚠ My first draft of this comment claimed the LIVE event was still open — it was not: an
+    # 80-char print truncation had hidden its recoveredAt, stamped at the 08:11 board reload. The
+    # counts path below is therefore verified by STUB (an open event beside non-zero counts), not
+    # by the live board, and saying otherwise would be a probe artifact wearing a measurement's
+    # clothes. [[source-window-shortcut]] [[inherited-claim-is-not-evidence]]
+    # ⚠ Only a MEASURED count exits; absent counts fall through, because "could not count" must
+    # never read as "has contents". [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _cnt = got.get("counts") if isinstance(got.get("counts"), dict) else {}
+    _fl, _sp = _cnt.get("foundLog"), _cnt.get("setPieces")
+    if ((isinstance(_fl, (int, float)) and _fl > 0)
+            or (isinstance(_sp, (int, float)) and _sp > 0)):
+        return OK, ("the board's store came up empty once and HOLDS CONTENTS AGAIN — measured "
+                    "this read: %s foundLog / %s setPieces. The episode is not closed yet "
+                    "(recoveredAt stamps at board load, and this board has not reloaded since "
+                    "the names came back), so the record stays as history and the next board "
+                    "load closes it. No action needed."
+                    % (_said(_fl), _said(_sp)))
     _at = ev.get("at") if isinstance(ev, dict) else None
     _boots = ev.get("boots") if isinstance(ev, dict) else None
     _when = ""

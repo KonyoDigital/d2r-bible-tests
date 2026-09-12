@@ -20762,19 +20762,38 @@ window.renderHighValueFinds = renderHighValueFinds;
            genuinely useful fact from "it happened at T". [[stale-reading]] [[label-outlived-referent]] */
         var _prevEv = null;
         try { _prevEv = JSON.parse(LS.getItem('d2r_storeEmptied') || 'null'); } catch(e){}
-        var _firstAt = (_prevEv && typeof _prevEv.at === 'number' && _prevEv.at > 0)
-                         ? _prevEv.at : Date.now();
+        /* \u26a0\u26a0 v3004 \u2014 A SECOND LOSS MUST NOT WEAR THE FIRST LOSS'S TIMESTAMP. Found by the
+           cross-family eye on v2993: the line below inherited `_prevEv.at` UNCONDITIONALLY, so
+           after empty-at-T1 \u2192 restore \u2192 reload stamps recoveredAt at T2 \u2192 empty again at T3,
+           the record read {at: T1, no recoveredAt} \u2014 and "which backup predates the loss" pointed
+           at T1, when the backups that actually predate THIS loss are the ones between T2 and T3.
+           That is the exact field v2990 exists to protect, aimed at the wrong episode.
+           A `recoveredAt` CLOSES an episode: inheriting `at` (and boots) is only right while the
+           previous record is the SAME, still-open loss. A closed one is kept as history on the
+           new record rather than erased \u2014 evidence is never deleted, only superseded. */
+        var _sameEpisode = (_prevEv && typeof _prevEv.at === 'number' && _prevEv.at > 0
+                            && !_prevEv.recoveredAt);
+        var _firstAt = _sameEpisode ? _prevEv.at : Date.now();
         /* ⚠ AND THE SENTENCE ITSELF WAS STALE — MY OWN, ONE VERSION OLD. It still said "the seed
            floor below is about to refill it from the built-in seeds", which v2988 had just made
            false: the floor now REFUSES to run over a loss. A warning that describes behaviour the
            code no longer has is the defect this repo names most often, and I shipped it. */
         var _ev = { at: _firstAt, seenAgainAt: Date.now(),
-                    boots: (((_prevEv && _prevEv.boots) | 0) + 1),
+                    /* boots restarts with the episode \u2014 "still empty after N restarts" is a fact
+                       about ONE loss, not a lifetime tally across different ones */
+                    boots: (((_sameEpisode && _prevEv.boots) | 0) + 1),
                     why: 'the found ledger was EMPTY on a load that had already run before — the '
                         + 'store lost its contents. The seed floor is REFUSING to run over it, so '
                         + 'the store stays empty rather than being papered over with defaults: an '
                         + 'empty store you can see is recoverable, a seeded one is not.',
                     restore: 'python3 ~/d2r_ledger_backups/restore_ledger.py --apply' };
+        if (_prevEv && _prevEv.recoveredAt && !_sameEpisode) {
+          /* the CLOSED earlier episode rides along as history, so recovering twice never erases
+             the first loss's record \u2014 and the transport whitelist does not carry it, which is
+             fine: it is forensic, for the store itself. */
+          _ev.prevEpisode = { at: _prevEv.at, recoveredAt: _prevEv.recoveredAt,
+                              boots: (_prevEv.boots | 0) };
+        }
         _emptiedLoss = true;   // v2988 — the seed floor MUST NOT run over this
         try { LS.setItem('d2r_storeEmptied', JSON.stringify(_ev)); } catch(e){}
         try { console.warn('[ledger] STORE CAME UP EMPTY — NOT seeding over it (boot '
@@ -50036,7 +50055,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3003', name:'v3003 - the census was inventing supervision gaps', date:'2026-09-12', note:'supervised meant in-the-roster-literal, and a lane that stamps a tick is watched with no roster row; eight of twenty reported gaps were invented and the genuinely unwatched count was zero' };
+  window.D2R_BUILD = { id:'v3004', name:'v3004 - a second loss no longer wears the first loss timestamp', date:'2026-09-12', note:'a recoveredAt closes an episode so a new empty starts a new record with the old one kept as history, and the doctor now reads the counts it always had instead of demanding a reload' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
