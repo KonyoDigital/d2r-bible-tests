@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2998",
+  "ver": "v2999",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2998: a frozen series five hours old was graded as a live fault whenever any unrelated geometry had a recent capture, an open and empty shelf read as healthy because its rectangle was real, and neither gate touched the doctor at all",
+  "note": "v2999: the box is real and the cards are built, so both halves of the pair read healthy while he opens the shelf and sees furniture",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2928,11 +2928,27 @@ def _check_the_shelf_is_where_it_says_it_is():
                              "layout fault; nothing was put in it."
                              % (shelf.get("w"), shelf.get("h"), shelf.get("top"),
                                 shelf.get("why") or "filled=false with no reason given"))
+        # ⚠⚠ v2999 — A REAL BOX WITH EVERY CARD BELOW ITS OWN FOLD IS THE FAULT HE PHOTOGRAPHED.
+        # v2996 proved the overlay is `shown`; his eyes still read an empty dark stage, and the two
+        # were both honest because nothing asked where the first CARD sits inside the scroller.
+        # firstCardTop >= clientH at rest means he opens THE SHELF and sees no reel at all.
+        _ft, _ch = shelf.get("firstCardTop"), shelf.get("clientH")
+        if (isinstance(_ft, (int, float)) and isinstance(_ch, (int, float)) and _ch > 0
+                and not shelf.get("scrollTop") and _ft >= _ch):
+            return MISSING, ("THE SHELF OPENS ON NOTHING — the box is real (%sx%s) and %s card(s) "
+                             "are built, but the first one starts %dpx down a %dpx window, so at "
+                             "rest he sees only furniture. %dpx of content sits below the fold. "
+                             "This is a LAYOUT fault, not a paint failure — the cards are there."
+                             % (shelf.get("w"), shelf.get("h"),
+                                "UNKNOWN" if cards is None else cards, _ft, _ch,
+                                shelf.get("belowFoldPx") or 0))
         return OK, ("the shelf is open and on screen (%sx%s at top %s, viewport %s) — %s card(s) "
-                    "by the panel count, %s by the grid count"
+                    "by the panel count, %s by the grid count, first card %spx into a %spx window"
                     % (shelf.get("w"), shelf.get("h"), shelf.get("top"), shelf.get("vh"),
                        "UNKNOWN" if cards is None else cards,
-                       "UNKNOWN" if grid is None else grid))
+                       "UNKNOWN" if grid is None else grid,
+                       "UNKNOWN" if _ft is None else _ft,
+                       "UNKNOWN" if _ch is None else _ch))
     _n = ("an UNKNOWN number of" if cards is None else ("%d" % cards))
     _why = ("OFF-VIEW means an ancestor is display:none — the overlay generates no layout boxes "
             "at all, which is why nothing paints while the DOM is perfectly built"

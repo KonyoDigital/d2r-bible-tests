@@ -24560,6 +24560,38 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 o.shelf.h = h;
                 if (r) { o.shelf.top = Math.round(r.top); o.shelf.w = Math.round(r.width); }
                 o.shelf.vh = window.innerHeight || null;
+                /* ⚠⚠ v2999 — A REAL BOX IS NOT A VISIBLE CARD, AND THAT IS THE WHOLE REMAINING
+                   QUESTION. v2996 proved the overlay is `shown` at 811x361; Grok Bot still read an
+                   empty dark stage, and its one scroll attempt moved THE PAGE BEHIND rather than
+                   this container, so "are the cards simply below the fold" came back UNKNOWN from
+                   his eyes. It does not need eyes. A scroll container knows its own content
+                   height: `scrollHeight` far exceeding `clientHeight` at `scrollTop === 0` means
+                   there IS content below the visible region, which is measurable from here and
+                   was never asked. [[unknown-stays-unknown]] [[the-unjoined-end]] */
+                try {
+                  o.shelf.scrollH = Math.round(ov.scrollHeight || 0);
+                  o.shelf.clientH = Math.round(ov.clientHeight || 0);
+                  o.shelf.scrollTop = Math.round(ov.scrollTop || 0);
+                  /* how much of the content is reachable only by scrolling. 0 means it all fits. */
+                  o.shelf.belowFoldPx = Math.max(0, (o.shelf.scrollH - o.shelf.clientH)
+                                                    - o.shelf.scrollTop);
+                } catch (e) {
+                  o.shelf.scrollH = null; o.shelf.clientH = null;
+                  o.shelf.scrollTop = null; o.shelf.belowFoldPx = null;
+                }
+                /* ⚠⚠ THE ONE NUMBER THAT SETTLES IT. Everything above says the container is real
+                   and has content below the fold; none of it says whether a CARD is visible. This
+                   is the first card's top INSIDE the scroll container, so `firstCardTop >= clientH`
+                   at rest means he opens THE SHELF and sees no reel at all — which is exactly what
+                   Grok Bot photographed three times and what my harness measured as y=957 in a
+                   361px box. A furniture problem and a paint failure look identical from outside
+                   and this tells them apart without eyes. */
+                try {
+                  var _fc = ov.querySelector('.sh-grid .sh-card');
+                  o.shelf.firstCardTop = (_fc && r)
+                    ? Math.round(_fc.getBoundingClientRect().top - r.top + (ov.scrollTop || 0))
+                    : null;
+                } catch (e) { o.shelf.firstCardTop = null; }
                 /* ⚠ THE FILL TRAVELS WITH THE RECT OR NEITHER CAN CONTRADICT THE OTHER.
                    [[the-unjoined-end]]
 

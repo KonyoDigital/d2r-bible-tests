@@ -45,9 +45,17 @@ HARNESS = r"""
 function node(o){
   return {
     hidden: !!o.hidden,
+    scrollHeight: o.scrollH === undefined ? 0 : o.scrollH,
+    clientHeight: o.clientH === undefined ? 0 : o.clientH,
+    scrollTop: o.scrollTop === undefined ? 0 : o.scrollTop,
     getBoundingClientRect: function(){ return o.rect || {height:0,width:0,top:0,bottom:0,left:0,right:0}; },
     getClientRects: o.noRects ? undefined : function(){ return new Array(o.boxes === undefined ? 1 : o.boxes); },
-    querySelectorAll: function(){ return new Array(o.cards === undefined ? 0 : o.cards); }
+    querySelectorAll: function(){ return new Array(o.cards === undefined ? 0 : o.cards); },
+    querySelector: function(){
+      if (o.firstCardTop === undefined || o.firstCardTop === null) return null;
+      var base = (o.rect && o.rect.top) || 0;
+      return { getBoundingClientRect: function(){ return { top: base + o.firstCardTop }; } };
+    }
   };
 }
 var CASE = %s;
@@ -186,6 +194,21 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
                          "and it must SAY it could not ask, rather than publishing a 0 that "
                          "reads as measured-and-none")
 
+    def test_the_scroll_geometry_reaches_the_wire(self):
+        """⚠ GROKBOT'S SCROLL ATTEMPT MOVED THE PAGE BEHIND, NOT THE OVERLAY, so "are the cards
+        merely below the fold" came back UNKNOWN from his eyes. A scroll container knows its own
+        content height; this question never needed eyes, and nothing was asking it."""
+        o = self._run(rect=self.BIG, boxes=1, cards=535, preShelf=dict(self.PRE),
+                      scrollH=21000, clientH=361, scrollTop=0, firstCardTop=957)
+        got = sh(o)
+        self.assertEqual(got.get("scrollH"), 21000)
+        self.assertEqual(got.get("clientH"), 361)
+        self.assertEqual(got.get("firstCardTop"), 957,
+                         "the first card's offset INSIDE the scroller is the one number that tells "
+                         "a furniture problem from a paint failure")
+        self.assertEqual(got.get("belowFoldPx"), 21000 - 361,
+                         "and how much content is reachable only by scrolling")
+
     # ── the reading must carry what makes it checkable ────────────────────────────────────────
     def test_the_viewport_travels_with_the_rect(self):
         """A top of 900 is a defect at 800px tall and fine at 1600. A number whose meaning needs a
@@ -272,10 +295,33 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
                          "an open, on-screen, EMPTY shelf must not read as healthy just because "
                          "its rectangle is real; got %s — %s" % (state, why))
 
+    def test_a_shelf_whose_every_card_is_below_its_own_fold_is_not_OK(self):
+        """⚠⚠ THE FAULT HE PHOTOGRAPHED, finally named from data. The box is real and the cards
+        are built, so both halves of the v2996 pair read healthy — and he opens THE SHELF and sees
+        furniture. Measured on his window: first card 957px down a 361px scroller."""
+        state, why = self._verdict({"open": True, "filled": True, "cards": 535, "gridCards": 535,
+                                    "why": None, "box": "shown", "boxes": 1, "w": 811, "h": 361,
+                                    "top": 102, "vh": 628, "scrollH": 21000, "clientH": 361,
+                                    "scrollTop": 0, "belowFoldPx": 20639, "firstCardTop": 957})
+        self.assertEqual(state, "missing",
+                         "every card below the fold at rest is the fault, not a clean bill; "
+                         "got %s — %s" % (state, why))
+        self.assertIn("LAYOUT fault", why,
+                      "and it must say the cards ARE there, so nobody hunts a paint failure")
+
+    def test_a_shelf_scrolled_down_is_not_reported_as_opening_on_nothing(self):
+        """The state is about what he sees AT REST. Once scrolled, below-fold content is normal."""
+        state, _why = self._verdict({"open": True, "filled": True, "cards": 535, "gridCards": 535,
+                                     "why": None, "box": "shown", "boxes": 1, "w": 811, "h": 361,
+                                     "top": 102, "vh": 628, "scrollH": 21000, "clientH": 361,
+                                     "scrollTop": 1200, "belowFoldPx": 19439, "firstCardTop": 957})
+        self.assertEqual(state, "ok")
+
     def test_a_full_on_screen_shelf_is_OK(self):
         state, _why = self._verdict({"open": True, "filled": True, "cards": 535, "gridCards": 535,
                                      "why": None, "box": "shown", "boxes": 1, "w": 811, "h": 361,
-                                     "top": 102, "vh": 628})
+                                     "top": 102, "vh": 628, "clientH": 361, "scrollTop": 0,
+                                     "firstCardTop": 12})
         self.assertEqual(state, "ok")
 
     def test_a_closed_shelf_is_OK(self):
@@ -285,6 +331,14 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "dropping firstCardTop removes the one number that tells a furniture problem from a "
+               "paint failure, and the shelf opens on nothing again with every reading green",
+        "file": "control_ui.html",
+        "find": "                  var _fc = ov.querySelector('.sh-grid .sh-card');",
+        "replace": "                  var _fc = null;",
+        "matches": 1,
+    },
     {
         "why": "removing the CHECKS row puts the rect back on the wire with nobody reading it",
         "file": "console_doctor.py",
