@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3026",
+  "ver": "v3027",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3026: a red-proof aimed at a branch that has been unreachable since v2947 could never go red, so heart2 called the gate blind and the self-arming precondition failed closed on every lock; four now open on merit.",
+  "note": "v3027: the bless raised what could rise and refused to lower fifteen heart floors; one blind instrument renders one row of three spans and the three heart targets count that same row three ways, which is why the deltas were minus one, minus three and minus three.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
