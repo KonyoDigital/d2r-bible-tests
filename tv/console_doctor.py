@@ -3287,7 +3287,13 @@ CHECKS = [
 # It stays on the roster and the full doctor run still performs it (the mirror gate
 # test_a_check_moved_to_SLOW_is_still_RUN_somewhere enforces exactly that); it simply stops
 # running on the ten-minute timer and in the boot path of every console a test spawns.
-SLOW = ("the other doctors", "sweep would find")
+# ⚠ v3014 — "sweep would find" LEFT SLOW FOR PERIODIC. SLOW means NEVER RUNS UNATTENDED
+# (_eagle_once calls include_slow=False), so the one sweep-shaped eagle check ran only when a
+# human pressed the button — the census named it the #3 organ gap. Cost, both figures honest:
+# 16,585 ms once measured on a full shelf (why it went to SLOW), 1,660 ms measured 2026-09-12 on
+# today's 24-reel shelf. At PERIODIC's ~hourly unattended cadence either figure is the same class
+# as 'engines corroborate' (6,638-13,038 ms), which is the precedent tier for exactly this shape.
+SLOW = ("the other doctors",)
 
 # ══ v2802 — A THIRD TIER, AND THE REASON IS A REGRESSION I SHIPPED YESTERDAY ══════════════════
 # v2801 measured `engines corroborate` at 6,638-13,038 ms in the CHEAP subset and moved it into
@@ -3306,7 +3312,7 @@ SLOW = ("the other doctors", "sweep would find")
 # So: SLOW keeps its meaning (on demand only, ~2 minutes, a human is waiting). PERIODIC is the
 # honest tier for a check that is too expensive for every ten-minute tick and too important to go
 # unwatched — it runs unattended on a longer cadence instead of not at all.
-PERIODIC = ("engines corroborate",)
+PERIODIC = ("engines corroborate", "sweep would find")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 

@@ -158,10 +158,24 @@ class TestCF12SlowChecksReachASidecar(unittest.TestCase):
         shutil.rmtree(self.tmp, True)
 
     def test_the_premise_is_true_two_named_slow_checks(self):
-        self.assertEqual(set(self.cd.SLOW), {"the other doctors", "sweep would find"})
+        # v3014 — "sweep would find" moved to PERIODIC so it finally runs unattended (~hourly);
+        # SLOW keeps only the check that genuinely needs a waiting human.
+        self.assertEqual(set(self.cd.SLOW), {"the other doctors"})
+        self.assertIn("sweep would find", self.cd.PERIODIC,
+                      "it left SLOW to RUN, not to vanish — if it is in neither tier the sweep "
+                      "check runs nowhere")
         cheap = [n for n, _ in self.cd.CHECKS if n not in self.cd.SLOW]
         self.assertEqual(len(self.cd.CHECKS) - len(self.cd.SLOW), len(cheap))
-        self.assertEqual(len(self.cd.SLOW), 2)
+        # ⚠ NO HARDCODED TIER SIZE. The original asserted len(SLOW)==2 and that literal is what
+        # broke when a check earned its way OUT of SLOW — a number pinning a membership it was
+        # never about. What matters is the CONTRACT: every SLOW name is on the roster, and no name
+        # is in SLOW and PERIODIC at once (SLOW wins in run(), so the pair would silently mean
+        # never-runs). [[label-outlived-referent]]
+        roster = {n for n, _ in self.cd.CHECKS}
+        for nm in self.cd.SLOW:
+            self.assertIn(nm, roster, "%r is SLOW and not on the roster — it runs nowhere" % nm)
+        self.assertFalse(set(self.cd.SLOW) & set(self.cd.PERIODIC),
+                         "a name in both tiers is SLOW in practice — run() skips it first")
 
     def test_cheap_run_must_not_absorb_the_slow_pair(self):
         """HOW TO PROVE IT RED: append SLOW rows inside run(include_slow=False).
@@ -186,14 +200,19 @@ class TestCF12SlowChecksReachASidecar(unittest.TestCase):
         self.assertTrue(all(r["state"] == self.cd.UNMEASURED for r in rows))
 
     def test_a_stored_full_pass_surfaces_with_age(self):
-        self.cd._persist_slow([
-            {"check": "the other doctors", "state": "ok", "why": "fine"},
-            {"check": "sweep would find", "state": "missing", "why": "owed"},
-        ])
+        """⚠ DERIVED FROM SLOW, NOT FROM TWO TYPED NAMES. The fixture used to name both members
+        literally, so the moment one earned PERIODIC the test KeyError'd on a tree that was
+        perfectly correct. The law is about the SIDECAR mechanism — whatever is SLOW reaches a
+        surface with its age — never about which names those are."""
+        names = list(self.cd.SLOW)
+        self.assertTrue(names, "SLOW is empty — the sidecar has nothing to carry and this law "
+                               "would be vacuous rather than passing")
+        self.cd._persist_slow([{"check": nm, "state": "missing", "why": "owed"} for nm in names])
         rows = {r["check"]: r for r in self.cd.slow_surface()}
-        self.assertEqual(rows["the other doctors"]["state"], "ok")
-        self.assertEqual(rows["sweep would find"]["state"], "missing")
-        self.assertIn("last full pass", rows["sweep would find"]["why"])
+        for nm in names:
+            self.assertEqual(rows[nm]["state"], "missing",
+                             "%r did not come back off the sidecar" % nm)
+            self.assertIn("last full pass", rows[nm]["why"])
 
     def test_control_app_publishes_slowRows_not_into_rows(self):
         src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())

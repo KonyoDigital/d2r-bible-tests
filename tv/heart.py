@@ -178,14 +178,14 @@ def vessels():
     # [[unknown-stays-unknown]] [[the-unjoined-end]]
     _watchers = set()
     for row in rows:
-        _n, _k, _w = _read_census_row(row)
+        _n, _k, _w, _v = _read_census_row(row)
         if _w:
             _watchers.add(_w)
     _scorable = bool(_watchers & set(k for k, v in scored.items() if v is not None))
 
     out, not_vessels = [], 0
     for row in rows:
-        name, kind, watcher = _read_census_row(row)
+        name, kind, watcher, via = _read_census_row(row)
         if kind in NOT_A_VESSEL:
             not_vessels += 1
             continue
@@ -248,6 +248,7 @@ def vessels():
         sc = scored.get(watcher)
         if isinstance(sc, (int, float)) and sc > 0:
             out.append({"name": name, "kind": kind, "state": FLOWING, "watcher": watcher,
+                        "via": via,
                         "supervises": _sup,
                         "score": round(float(sc), 4),
                         "why": "watched, and a sabotage has proven the watcher can refuse",
@@ -255,6 +256,7 @@ def vessels():
                         "tickAgeS": _live["tickAgeS"]})
         else:
             out.append({"name": name, "kind": kind, "state": WATCHED, "watcher": watcher,
+                        "via": via,
                         "supervises": _sup,
                         "score": None,
                         "scorable": _scorable,
@@ -298,8 +300,10 @@ def _read_census_row(row):
     # under. A lane that is supervised but carries no roster name would be a contradiction, so it
     # is reported as UNKNOWN rather than quietly counted either way.
     if row.get("supervised"):
-        return name, kind, (str(row.get("lane")) if row.get("lane") else None)
-    return name, kind, None
+        # v3014 — `via` rides along (the #68 design pass surfaces it; it died here before,
+        # emitted by lane_census and dropped by this very function).
+        return name, kind, (str(row.get("lane")) if row.get("lane") else None), row.get("via")
+    return name, kind, None, None
 
 
 def main(argv):

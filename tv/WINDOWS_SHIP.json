@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3013",
+  "ver": "v3014",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3013: a heartbeat credits its enclosing function under the name it stamps, a spawn-site declaration stays a declaration, and a roster row says roster; three evidences no longer fold into one green",
+  "note": "v3014: sweep would find moved from SLOW to PERIODIC - SLOW means never runs unattended, so the one sweep-shaped check ran only when someone pressed a button; measured 1.66s, the same class as engines corroborate. The census credit now reaches the heart: via rides onto the wire so a watched lane can say WHICH evidence made it watched.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
