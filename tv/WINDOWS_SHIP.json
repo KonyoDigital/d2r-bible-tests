@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3001",
+  "ver": "v3002",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3001: five of eight sleeps sit inside inner loops so the derived worst path is 609s not 99s, and four of them are under unbounded for loops so no ceiling exists at all",
+  "note": "v3002: a sixty-second-old freeze sat in the report and went unreported because an older geometry carried more frames",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3001** | `(this commit)` | v3001 — five of eight sleeps sit inside inner loops so the derived worst path is 609s not 99s, and four of them are under unbounded for loops so no ceiling exists at all |
+| **v3002** | `(this commit)` | v3002 — a sixty-second-old freeze sat in the report and went unreported because an older geometry carried more frames |
+| **v3001** | `5b6a9832` | v3001 — five of eight sleeps sit inside inner loops so the derived worst path is 609s not 99s, and four of them are under unbounded for loops so no ceiling exists at all |
 | **v3000** | `a754e395` | v3000 — status was derived and store was a literal in the same object, so one row could read route-failed and owned in the same breath |
 | **v2999** | `53c9b602` | v2999 — the box is real and the cards are built, so both halves of the pair read healthy while he opens the shelf and sees furniture |
 | **v2998** | `5c517df1` | v2998 — a frozen series five hours old was graded as a live fault whenever any unrelated geometry had a recent capture, an open and empty shelf read as healthy because its rectangle was real, and neither gate touched the doctor at all |

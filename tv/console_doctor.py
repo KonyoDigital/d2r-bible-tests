@@ -2895,6 +2895,20 @@ def _check_the_shelf_is_where_it_says_it_is():
         return UNKNOWN, "the console did not report a heartbeat, so nothing is known about the shelf"
     if not ub.get("n"):
         return UNKNOWN, "no console has ever checked in — headless, not healthy"
+    # ⚠⚠ v3002 — THIS ROW ISSUED TWO BRAND-NEW `MISSING` VERDICTS OFF A BEAT OF UNKNOWN AGE, in
+    # the same file whose sibling row hard-codes STALE_S for exactly this reason. `ub["n"]` only
+    # says a console checked in ONCE, EVER. Close the console with the shelf open and a card below
+    # the fold — or let WebKit suspend the beat's setInterval, the documented v2348 failure — and
+    # three hours later this would still read that frozen panels dict and report THE SHELF OPENS ON
+    # NOTHING about a window that is not on screen at all. [[stale-reading]]
+    _bage = ub.get("ageS")
+    if _bage is None:
+        return UNKNOWN, ("the console reports no beat age, so how old this panels reading is "
+                         "cannot be told — and a verdict on a reading of unknown age is a guess")
+    if _bage > 300.0:
+        return UNKNOWN, ("the console's last beat is %.0fs old, so its panels reading describes a "
+                         "window nobody has heard from since. Nothing is known about the shelf NOW."
+                         % _bage)
     panels = ub.get("panels")
     if not isinstance(panels, dict) or not panels:
         return UNKNOWN, "this console does not report its panels — unknown, not clear"
@@ -2950,11 +2964,11 @@ def _check_the_shelf_is_where_it_says_it_is():
                 and not shelf.get("scrollTop") and _ft >= _ch):
             return MISSING, ("THE SHELF OPENS ON NOTHING — the box is real (%sx%s) and %s card(s) "
                              "are built, but the first one starts %dpx down a %dpx window, so at "
-                             "rest he sees only furniture. %dpx of content sits below the fold. "
+                             "rest he sees only furniture. %spx of content sits below the fold. "
                              "This is a LAYOUT fault, not a paint failure — the cards are there."
                              % (shelf.get("w"), shelf.get("h"),
                                 "UNKNOWN" if cards is None else cards, _ft, _ch,
-                                shelf.get("belowFoldPx") or 0))
+                                _said(shelf.get("belowFoldPx"))))
         return OK, ("the shelf is open and on screen (%sx%s at top %s, viewport %s) — %s card(s) "
                     "by the panel count, %s by the grid count, first card %spx into a %spx window"
                     % (shelf.get("w"), shelf.get("h"), shelf.get("top"), shelf.get("vh"),
@@ -2972,6 +2986,17 @@ def _check_the_shelf_is_where_it_says_it_is():
                      "eyes and this beat were disagreeing about."
                      % (state, _n, "UNKNOWN" if grid is None else grid, shelf.get("h"),
                         shelf.get("top"), shelf.get("vh"), shelf.get("boxes"), _why))
+
+
+def _said(n):
+    """-> the number, or the word UNKNOWN. Never `or 0`.
+
+    ⚠ `x or 0` prints "0 of 0 series frozen" and "0px sits below the fold" when the producer
+    deliberately published null, turning a refusal to measure into an affirmative measurement —
+    inside the very sentence declaring a fault. 0 is measured-and-zero; None is nobody looked.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    return "UNKNOWN" if n is None else n
 
 
 def _check_the_screen_is_still_painting():
@@ -3009,38 +3034,51 @@ def _check_the_screen_is_still_painting():
                          "series). That is not a clean bill — it is nobody looking."
                          % (c.get("pngs") or 0, c.get("standing") or 0))
 
-    frozen = [x for x in (r.get("series") or []) if x.get("state") == FFW.FROZEN]
-    # ⚠⚠ v2998 — THIS TOOK THE MINIMUM ACROSS *ALL* SERIES AND GRADED THE WRONG THING. A frozen
-    # series five hours old was reported as a live fault whenever ANY other geometry happened to
-    # have a recent capture, because min(120, 18000) = 120 and the stale branch never fired.
-    # Reproduced 2026-09-12 on a report shaped like his shelf: MISSING "HIS SCREEN STOPPED
-    # PAINTING" about a screen that had been repainting for five hours. The freshness of a verdict
-    # is the age of the EVIDENCE THAT VERDICT RESTS ON, never the age of the freshest thing in the
-    # folder. [[stale-reading]] [[zero-needs-a-denominator]]
-    _ages = [x.get("ageS") for x in (r.get("series") or [])
-             if isinstance(x.get("ageS"), (int, float))]
-    if frozen:
-        newest = frozen[0].get("ageS")            # the frozen series' OWN age, nothing else
-    else:
-        newest = min(_ages) if _ages else None    # no fault: the freshest look is the evidence
     STALE_S = 3600.0
-    if newest is not None and newest > STALE_S:
-        _f = ("the last comparison DID find %d frozen window series (%s, identical across %.0fs)"
-              % (len(frozen), frozen[0].get("geom"), frozen[0].get("gapS") or 0)) if frozen else \
-             "the last comparison found the screen painting"
-        return UNKNOWN, ("the newest capture of his window is %.1fh old, so nothing is known about "
-                         "the screen NOW — %s. Grok Bot captures on a ~10 minute loop; this old "
-                         "means it is not watching." % (newest / 3600.0, _f))
+    _series = [x for x in (r.get("series") or []) if isinstance(x.get("ageS"), (int, float))]
+    frozen = [x for x in _series if x.get("state") == FFW.FROZEN]
+
+    # ⚠⚠ v2998 GRADED FRESHNESS BY min(ageS) ACROSS *ALL* SERIES, so a five-hour-old freeze read as
+    # a live fault whenever any other geometry had a recent capture. v3001 fixed that by taking
+    # `frozen[0]` — and frozen[0] is the series with the MOST FRAMES, because report() sorts by
+    # -len(rows) and never by age. Reproduced 2026-09-12: a 95-frame freeze 5h old beside a
+    # 12-frame freeze 60 SECONDS old returned UNKNOWN, and the live fault this row exists for was
+    # never reported. Twice now the freshness question has been answered by whichever series
+    # happened to sort first. The evidence for a FAULT is the FRESHEST fault.
+    # [[stale-reading]] [[feedback-suspect-the-instrument]]
     if frozen:
-        f = frozen[0]
+        f = min(frozen, key=lambda x: x.get("ageS"))
+        age = f.get("ageS")
+        if age > STALE_S:
+            return UNKNOWN, ("the freshest frozen window series (%s) was last captured %.1fh ago, "
+                             "so nothing is known about the screen NOW. %d series were frozen when "
+                             "anyone last looked. Grok Bot captures on a ~10 minute loop; this old "
+                             "means it is not watching."
+                             % (f.get("geom"), age / 3600.0, len(frozen)))
         return MISSING, ("HIS SCREEN STOPPED PAINTING — %s is byte-identical across %.0fs (%s, "
-                         "newest capture %.0fs old); %d of %d comparable window series frozen. A "
-                         "live console never captures twice to the same bytes. ⚠ FROZEN is "
-                         "measured; BLANK is not — go look at the frame."
-                         % (f.get("geom"), f.get("gapS") or 0, f.get("sha"), f.get("ageS") or 0,
-                            len(frozen), (c.get("standing") or 0)))
-    return OK, ("%d window series compared from %d capture(s), all painting"
-                % (c.get("standing") or 0, c.get("pngs") or 0))
+                         "captured %.0fs ago); %d of %s comparable window series frozen. A live "
+                         "console never captures twice to the same bytes. ⚠ FROZEN is measured; "
+                         "BLANK is not — go look at the frame."
+                         % (f.get("geom"), f.get("gapS") or 0, f.get("sha"), age, len(frozen),
+                            _said(c.get("standing"))))
+
+    # ⚠⚠ AND THE HEALTHY PATH HAD THE MIRROR OF THE SAME BUG. An OK here is a claim about EVERY
+    # series, so it cannot rest on the freshest one: his console has 8 geometries, and with one
+    # captured 2 minutes ago and another untouched for 5 hours, min(ageS) said 120 and the row
+    # returned "8 window series compared, all painting" — a clean bill for a window nobody had
+    # looked at since morning. A verdict is only as fresh as the OLDEST evidence it covers, so the
+    # stale ones are excluded from the claim and COUNTED rather than quietly included.
+    fresh = [x for x in _series if x.get("ageS") <= STALE_S]
+    stale = [x for x in _series if x.get("ageS") > STALE_S]
+    if not fresh:
+        return UNKNOWN, ("every comparable window series was last captured over %.0fh ago (%d of "
+                         "them), so nothing is known about the screen now"
+                         % (STALE_S / 3600.0, len(stale)))
+    return OK, ("%d window series compared from %s capture(s), all painting%s"
+                % (len(fresh), _said(c.get("pngs")),
+                   "" if not stale else
+                   " — %d further series excluded, last captured over %.0fh ago and too old to "
+                   "speak for now" % (len(stale), STALE_S / 3600.0)))
 
 
 CHECKS = [

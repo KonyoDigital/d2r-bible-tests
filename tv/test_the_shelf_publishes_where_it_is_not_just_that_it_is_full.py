@@ -319,11 +319,12 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
                          "console_doctor.CHECKS must carry exactly one %r row; it carries %d"
                          % (self.ROW, names.count(self.ROW)))
 
-    def _verdict(self, shelf):
+    def _verdict(self, shelf, beat_age=2.0):
         import console_doctor as cd
         real = cd._get
         cd._get = lambda path, *a, **k: (
-            {"uiBeat": {"n": 7, "panels": {"shelf": shelf}}} if path == "/api/status" else real(path))
+            {"uiBeat": {"n": 7, "ageS": beat_age, "panels": {"shelf": shelf}}}
+            if path == "/api/status" else real(path))
         try:
             return cd._check_the_shelf_is_where_it_says_it_is()
         finally:
@@ -368,8 +369,29 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
         state, _why = self._verdict({"open": True, "filled": True, "cards": 535, "gridCards": 535,
                                      "why": None, "box": "shown", "boxes": 1, "w": 811, "h": 361,
                                      "top": 102, "vh": 628, "clientH": 361, "scrollTop": 0,
-                                     "firstCardTop": 12})
+                                     "visibleCards": 535, "firstCardTop": 12})
         self.assertEqual(state, "ok")
+
+    def test_a_verdict_is_refused_on_a_beat_nobody_has_heard_from(self):
+        """⚠⚠ THIS ROW ISSUED TWO BRAND-NEW MISSING VERDICTS OFF A BEAT OF UNKNOWN AGE, in the same
+        file whose sibling row hard-codes a staleness bound for exactly this. `n` only says a
+        console checked in ONCE, EVER. Close the console with the shelf open and a card below the
+        fold — or let WebKit suspend the beat, the documented v2348 failure — and three hours later
+        this would still read that frozen dict and report a fault about a window that is not on
+        screen at all. [[stale-reading]]"""
+        bad = {"open": True, "filled": True, "cards": 535, "gridCards": 535, "visibleCards": 535,
+               "why": None, "box": "shown", "boxes": 1, "w": 811, "h": 361, "top": 102,
+               "vh": 628, "scrollH": 21000, "clientH": 361, "scrollTop": 0, "firstCardTop": 957}
+        fresh, _w = self._verdict(dict(bad), beat_age=2.0)
+        self.assertEqual(fresh, "missing", "with a fresh beat this IS the fault")
+        stale, why = self._verdict(dict(bad), beat_age=9999.0)
+        self.assertEqual(stale, "unknown",
+                         "the same reading from a console nobody has heard from in hours says "
+                         "nothing about the shelf NOW; got %s — %s" % (stale, why))
+        absent, why2 = self._verdict(dict(bad), beat_age=None)
+        self.assertEqual(absent, "unknown",
+                         "and a beat with no age at all is a reading of unknown age, which is a "
+                         "guess, not a verdict")
 
     def test_a_closed_shelf_is_OK(self):
         state, _why = self._verdict({"open": False, "filled": None, "cards": None, "why": None,
@@ -385,6 +407,15 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "                    if (_cs[_i].style.display !== 'none'){ _fc = _cs[_i]; break; }",
         "replace": "                    if (true){ _fc = _cs[_i]; break; }",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the beat-age guard lets the row verdict off a panels dict from a console "
+               "nobody has heard from in hours — a fault reported about a window that is not on "
+               "screen at all",
+        "file": "console_doctor.py",
+        "find": "    if _bage > 300.0:",
+        "replace": "    if False:",
         "matches": 1,
     },
     {

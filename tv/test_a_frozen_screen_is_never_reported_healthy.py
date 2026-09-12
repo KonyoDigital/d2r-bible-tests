@@ -217,6 +217,47 @@ class TheDoctorActuallyAsksTheDetector(unittest.TestCase):
                          "a freeze whose newest frame is 5h old says nothing about the screen NOW, "
                          "however fresh some unrelated geometry is; got %s — %s" % (state, why))
 
+    def test_the_freshest_frozen_series_governs_not_the_one_with_most_frames(self):
+        """⚠⚠ TWICE NOW THE FRESHNESS QUESTION WAS ANSWERED BY WHATEVER SORTED FIRST. v2998 took
+        min(ageS) over ALL series; v3001 took `frozen[0]` — and report() sorts by -len(rows), never
+        by age. Reproduced: a 95-frame freeze 5h old beside a 12-frame freeze 60 SECONDS old
+        returned UNKNOWN, and the live fault this row exists for was never reported."""
+        import frozen_frame_watch as FFW
+        state, why = self._verdict([
+            {"geom": "2376x1456", "frames": 95, "state": FFW.FROZEN, "ageS": 18000.0,
+             "gapS": 30.0, "sha": "stale1234567", "newest": "a", "previous": "b"},
+            {"geom": "2940x1846", "frames": 12, "state": FFW.FROZEN, "ageS": 60.0,
+             "gapS": 30.0, "sha": "live12345678", "newest": "c", "previous": "d"},
+        ])
+        self.assertEqual(state, "missing",
+                         "a freeze measured 60s ago is live evidence however many frames some "
+                         "older geometry has; got %s — %s" % (state, why))
+        self.assertIn("2940x1846", why, "and it must name the FRESH series, not the stale one")
+
+    def test_an_ok_verdict_excludes_series_too_old_to_speak_for_now(self):
+        """⚠ THE MIRROR OF THE SAME BUG. An OK here is a claim about EVERY series, so it cannot
+        rest on the freshest: one window captured 2 minutes ago and another untouched for 5 hours
+        returned 'all painting' — a clean bill for a window nobody had looked at since morning."""
+        import frozen_frame_watch as FFW
+        state, why = self._verdict([
+            {"geom": "2376x1456", "frames": 95, "state": FFW.MOVING, "ageS": 120.0, "gapS": 25.0},
+            {"geom": "2940x1846", "frames": 83, "state": FFW.MOVING, "ageS": 18000.0, "gapS": 30.0},
+        ])
+        self.assertEqual(state, "ok")
+        self.assertIn("1 window series compared", why,
+                      "the claim must cover only what it can actually speak for")
+        self.assertIn("excluded", why,
+                      "and the series it could NOT speak for must be counted out loud, or the "
+                      "denominator is a lie")
+
+    def test_every_series_stale_is_unknown_not_a_clean_bill(self):
+        import frozen_frame_watch as FFW
+        state, _why = self._verdict([
+            {"geom": "2376x1456", "frames": 95, "state": FFW.MOVING, "ageS": 18000.0, "gapS": 25.0},
+        ])
+        self.assertEqual(state, "unknown",
+                         "with nothing recent enough to judge, a clean bill has no evidence")
+
     def test_a_fresh_freeze_is_still_reported(self):
         """The other direction, or the fix above would be a way of never firing at all."""
         import frozen_frame_watch as FFW
@@ -239,11 +280,20 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "grading the freshness from the MIN age across all series returns the false "
-               "MISSING that was reproduced on a report shaped like his shelf",
+        "why": "taking the FIRST frozen series instead of the freshest silences a 60-second-old "
+               "freeze whenever an older geometry happens to carry more frames — report() sorts "
+               "by frame count and never by age",
         "file": "console_doctor.py",
-        "find": "        newest = frozen[0].get(\"ageS\")",
-        "replace": "        newest = min(_ages) if _ages else None",
+        "find": "        f = min(frozen, key=lambda x: x.get(\"ageS\"))",
+        "replace": "        f = frozen[0]",
+        "matches": 1,
+    },
+    {
+        "why": "letting stale series back into the OK claim restores the clean bill for a window "
+               "nobody has looked at in five hours",
+        "file": "console_doctor.py",
+        "find": "    fresh = [x for x in _series if x.get(\"ageS\") <= STALE_S]",
+        "replace": "    fresh = list(_series)",
         "matches": 1,
     },
     {
