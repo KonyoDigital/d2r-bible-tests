@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3036",
+  "ver": "v3037",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3036: the organ table asked the eagle through a cold import of control_app where the state dict is still its unfilled literal, so its column was empty for every tree no matter how well the eagle worked, and the table reported that as a fact about the eagle",
+  "note": "v3037: the render harness read only result.value from Runtime.evaluate and discarded exceptionDetails, so a seed that threw looked exactly like one that worked - measured on my own fleet-xref seed which threw ReferenceError on every run and still reported green at five widths",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

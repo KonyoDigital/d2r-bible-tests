@@ -1368,6 +1368,22 @@ TARGETS = {
                   mineAt: Date.now() - 46000, theirAt: Date.now() - 240000
                 }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
               }
+              // ⚠⚠ INSIDE the wrapper, and AFTER the compare branch. The first cut of this put
+              // the roster stub at the top level of the seed IIFE, where `u` does not exist — so
+              // it threw ReferenceError, the roster was never stubbed, _fleetRefresh() was never
+              // called, and the target went GREEN anyway because the activation found a REAL
+              // fleet row from the live console and clicked that instead. A cross-family review
+              // of the shipped diff caught it; the render gate could not, because a target that
+              // passes for the wrong reason looks exactly like one that passes.
+              // ⚠ Order matters: '/api/fleet_compare' also begins with '/api/fleet', so the short
+              // prefix must be tested second or it swallows the compare call.
+              if (String(u).indexOf('/api/fleet') === 0) {
+                return Promise.resolve(new Response(JSON.stringify({
+                  ok: true,
+                  online: [{machine:'Dean', ver:'v3033'}, {machine:'Konyo', ver:'v3033'}],
+                  offline: [{machine:'Wife PC', ver:'v2101'}]
+                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+              }
               return _f.apply(this, arguments);
             };
             // ⚠⚠ v3035 — AND THE ROSTER IS STUBBED TOO, BECAUSE THIS TARGET NOW OPENS THE
@@ -1377,13 +1393,6 @@ TARGETS = {
             // and populated. Calling _fleetCompare() directly, as the first cut did, proves the
             // dialog RENDERS and says nothing about whether anything can OPEN it, which is
             // exactly the half that was in doubt. [[the-unjoined-end]]
-            if (String(u).indexOf('/api/fleet') === 0) {
-                return Promise.resolve(new Response(JSON.stringify({
-                  ok: true,
-                  online: [{machine:'Dean', ver:'v3033'}, {machine:'Konyo', ver:'v3033'}],
-                  offline: [{machine:'Wife PC', ver:'v2101'}]
-                }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-              }
             var _b = document.getElementById('fleet-xref');
             if (_b) { _b.innerHTML = ''; _b.hidden = true; }
             var _l = document.getElementById('fleet-list');
@@ -1398,14 +1407,21 @@ TARGETS = {
         "activate": """(function(){
             var box = document.getElementById('fleet-xref');
             if (!box) return false;
-            if (!window.__fxClicked) {
-              var row = document.querySelector('.fleet-row[data-fleet-machine]');
+            // ⚠⚠ v3037 — THE LATCH USED TO BE SET BEFORE ANYONE KNEW THE CLICK WORKED. A single
+            // `__fxClicked = 1` meant one attempt, ever: a row that was not yet interactive, or
+            // one carrying a blank machine name, latched the harness into a state it could never
+            // leave, and the target then failed as "the panel could not be ACTIVATED" while
+            // naming nothing about why. Counted attempts instead, and blank machine names are
+            // skipped — the selector requires a name rather than merely the attribute.
+            if (box.hidden) {
+              var _n = window.__fxClicks || 0;
+              if (_n >= 3) return false;
+              var row = document.querySelector('.fleet-row[data-fleet-machine]:not([data-fleet-machine=""])');
               if (!row) return false;
-              window.__fxClicked = 1;
+              window.__fxClicks = _n + 1;
               row.click();
               return false;
             }
-            if (box.hidden) return false;
             var cols = box.querySelector('.fx-cols'), foot = box.querySelector('.fx-foot');
             var hs = box.querySelectorAll('.fx-col-h');
             if (!cols || !foot || hs.length !== 3) return false;
@@ -1920,8 +1936,31 @@ class _Tab(object):
                 return r.get("result", {})
 
     def ev(self, expr):
-        return self.send("Runtime.evaluate", expression=expr, returnByValue=True,
-                         awaitPromise=True).get("result", {}).get("value")
+        """Evaluate in the page. -> the value, and STASH any exception on self.last_exc
+
+        ⚠⚠ v3037 — THIS DISCARDED `exceptionDetails`, SO A SEED THAT THREW LOOKED EXACTLY LIKE ONE
+        THAT WORKED. Runtime.evaluate answers with `result` AND, when the expression raised, an
+        `exceptionDetails` block; reading only `.result.value` turns a thrown seed into a quiet
+        None. Measured 2026-09-12: the fleet-xref seed put `String(u)` outside its own fetch
+        wrapper, threw ReferenceError on every run, never installed the roster stub and never
+        called _fleetRefresh() — and the target reported 🟢 at five widths, because the activation
+        found a REAL row from the live console and clicked that instead. A cross-family review of
+        the shipped diff caught it; this harness could not, by construction.
+
+        The value is still returned so no existing caller changes behaviour. The exception is
+        stashed, and the seed sites refuse on it. [[zero-needs-a-denominator]]
+        [[feedback-blind-fixture-green-gate]]
+        """
+        _r = self.send("Runtime.evaluate", expression=expr, returnByValue=True,
+                       awaitPromise=True)
+        _x = _r.get("exceptionDetails")
+        if _x:
+            _d = (_x.get("exception") or {})
+            self.last_exc = (_d.get("description") or _d.get("value")
+                             or _x.get("text") or "an exception with no description")
+        else:
+            self.last_exc = None
+        return _r.get("result", {}).get("value")
 
     def close(self):
         import urllib.request
@@ -2835,6 +2874,17 @@ def check(name, spec, shots=True):
         _rc_token = "rc%d" % int(time.time() * 1000)
         if spec.get("seed"):
             tab.ev(spec["seed"])
+            # ⚠ A SEED THAT THREW HAS NOT PREPARED THE STATE THIS TARGET IS NAMED FOR. Anything
+            # measured after it is about some other page. Say so rather than photographing it.
+            if getattr(tab, "last_exc", None):
+                _say("     \u26a0 the seed THREW and prepared nothing: %s" % str(tab.last_exc)[:150])
+                _say("       everything measured after this would be about a page the seed never "
+                     "set up, so this target is UNKNOWN rather than clean.")
+                out["ok"] = False
+                out["refusals"].append(
+                    "the seed threw (%s), so the state this target is named for was never "
+                    "prepared and anything measured afterwards is about a different page"
+                    % str(tab.last_exc)[:120])
         tab.ev("window.__rcPrepared = %s;" % json.dumps(_rc_token))
         # ⚠ v2404 — A FIXED SLEEP HERE BLOCKED A LEGITIMATE PUSH. This was `time.sleep(0.6)`, and
         # on the v2403 pre-push the `inbox` target refused with "the panel could not be ACTIVATED"
@@ -2916,6 +2966,9 @@ def check(name, spec, shots=True):
                              deviceScaleFactor=1, mobile=False)
                 if spec.get("seed"):
                     tab.ev(spec["seed"])
+                    if getattr(tab, "last_exc", None):
+                        _say("     \u26a0 the seed THREW and prepared nothing: %s"
+                             % str(tab.last_exc)[:150])
                 tab.ev("window.__rcPrepared = %s;" % json.dumps(_rc_token))
                 _d2 = time.time() + 12.0
                 while time.time() < _d2:
