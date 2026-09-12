@@ -24979,6 +24979,29 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
             # tests this field, so the wording is free to change. [[unknown-stays-unknown]]
             return {"ok": False, "busy": True, "why": "a sweep is already running",
                     "state": dict(_CHRON_JOB)}
+        # ⚠⚠ v3038 — A NEGATIVE LIMIT SWEPT ALMOST THE WHOLE CORPUS ON THE DOOR THAT SPENDS.
+        # The runner slices `reel_dirs(hist)[:limit] if limit else reel_dirs(hist)`, and the value
+        # was never validated: -5 is truthy, `[:-5]` keeps ALL BUT THE LAST FIVE, so a caller
+        # asking for a small bounded sweep got a near-maximal paid one. It is REACHABLE from the
+        # route, which computes `int(body.get("limit") or 0) or None` — that turns 0 into None
+        # deliberately ("no limit given" means all) and passes a negative straight through.
+        # A literal 0 from a Python caller is the same family and worse: falsy, so it also means
+        # "sweep everything" to someone who asked for nothing.
+        # None still means ALL, because that is the route's own deliberate contract.
+        # [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+        if limit is not None and (isinstance(limit, bool) or not isinstance(limit, int)
+                                  or limit <= 0):
+            return {"ok": False, "why": "a sweep needs a positive limit or none at all — %r would "
+                                        "spend a paid read on a request for nothing" % (limit,)}
+        # ⚠⚠ AND A HISTORY DIRECTORY THAT CANNOT HOLD REELS. `hist_dir` was never checked here —
+        # the runner resolves `hist_dir or TV_HIST or frames/hist` and calls reel_dirs() on it, so
+        # a caller naming a path that does not exist got ok:True, a started thread, and a job that
+        # discovered emptiness after the door had already opened. A paid door should refuse a
+        # place that cannot contain what it is paid to read, not find out afterwards.
+        # None stays legal: it means "resolve the default", which is the normal call.
+        if hist_dir is not None and not os.path.isdir(str(hist_dir)):
+            return {"ok": False, "why": "there is no history directory at %r — a sweep there could "
+                                        "not read a single reel" % (hist_dir,)}
         lanes = _chron_lanes()
         if "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
@@ -27059,7 +27082,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3037",
+        "ver": "v3038",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3037** | `(this commit)` | v3037 — the render harness read only result.value from Runtime.evaluate and discarded exceptionDetails, so a seed that threw looked exactly like one that worked - measured on my own fleet-xref seed which threw ReferenceError on every run and still reported green at five widths |
+| **v3038** | `(this commit)` | v3038 — a negative limit swept all but the last few reels and zero swept everything because the runner sliced on a falsy value, and a history directory that does not exist opened the paid door before discovering emptiness - four distinct attacks now instead of two |
+| **v3037** | `a984b371` | v3037 — the render harness read only result.value from Runtime.evaluate and discarded exceptionDetails, so a seed that threw looked exactly like one that worked - measured on my own fleet-xref seed which threw ReferenceError on every run and still reported green at five widths |
 | **v3036** | `e838cb40` | v3036 — the organ table asked the eagle through a cold import of control_app where the state dict is still its unfilled literal, so its column was empty for every tree no matter how well the eagle worked, and the table reported that as a fact about the eagle |
 | **v3035** | `a0170b7d` | v3035 — the fleet xref could only be closed by its own tiny cross while covering the whole console, its reachability was never once proven by clicking anything, and the river lane headers ate 57 percent of the band above the first reel card |
 | **v3034** | `fb62788e` | v3034 — the census called two stdlib methods UNKNOWN forever because it threw away the receiver, and the console cursor routed through var() so an unresolvable image-set became a plain arrow instead of falling back |

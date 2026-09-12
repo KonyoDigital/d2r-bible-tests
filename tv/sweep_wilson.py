@@ -57,9 +57,48 @@ def _attempt_no_lane(ca, n=8):
     return n, caught
 
 
+def _attempt_bad_limit(ca, n=8):
+    """A limit that cannot mean what it says. The runner slices `reel_dirs(hist)[:limit]`, so a
+    NEGATIVE limit kept all but the last few — a caller asking for a small bounded sweep got a
+    near-maximal paid one — and 0 is falsy, which meant "sweep everything" to someone who asked
+    for nothing. Reachable from the route, which passes a negative straight through.
+
+    ⚠ EVERY VALUE HERE MUST BE REFUSED, so this attempt can never open the door. That is the
+    same property the two attempts above have and the reason this harness is safe to run at all:
+    there is no success path in it. `None` is deliberately NOT tested — it legitimately means ALL.
+    """
+    caught = 0
+    bad = (-5, 0, True, False, "x", 2.5, -1, 0.0)
+    for i in range(n):
+        r = ca.chronicle_sweep_start(limit=bad[i % len(bad)])
+        if isinstance(r, dict) and r.get("ok") is False and not r.get("busy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_no_hist(ca, n=8):
+    """A history directory that cannot hold reels. `hist_dir` was never checked at the door — the
+    runner resolved it and called reel_dirs() on it — so naming a path that does not exist got
+    ok:True, a started thread, and a job that discovered emptiness AFTER the paid door had opened.
+
+    ⚠ Every path here is one that cannot exist, so this attempt has no success path either.
+    `None` is deliberately not tested: it means "resolve the default" and is the normal call.
+    """
+    caught = 0
+    for i in range(n):
+        r = ca.chronicle_sweep_start(hist_dir="/nope/not/a/real/path/%d" % i)
+        if isinstance(r, dict) and r.get("ok") is False and not r.get("busy"):
+            caught += 1
+    return n, caught
+
+
 CLAIMS = (
     ("busy", "a second sweep cannot start while one is running — it would double-spend", _attempt_busy),
     ("lane", "a sweep cannot start with no lane to read with — it would spend and learn nothing", _attempt_no_lane),
+    ("limit", "a sweep cannot start on a limit that cannot mean what it says — a negative one swept "
+              "all but the last few, and 0 swept everything", _attempt_bad_limit),
+    ("hist", "a sweep cannot start on a history directory that does not exist — it would open the "
+             "paid door and find emptiness afterwards", _attempt_no_hist),
 )
 
 
@@ -172,6 +211,27 @@ def main(argv=None):
 
 
 RED_PROOF = [
+    {
+        "why": "v3038 — the LIMIT refusal is mislabelled as contention. ⚠ DELIBERATELY NOT the "
+               "guard itself, for the same reason the busy proof below gives: defeating the guard "
+               "would let a real sweep START, and a heart2 sandbox does not set TV_HIST, so it "
+               "could reach his real reels. This tamper leaves the door SHUT and spends nothing — "
+               "it only makes the refusal claim `busy`, which `_attempt_bad_limit` requires to be "
+               "absent. A caller then cannot tell a nonsense limit from a second sweep.",
+        "file": "control_app.py",
+        "find": '            return {"ok": False, "why": "a sweep needs a positive limit or none at all',
+        "replace": '            return {"ok": False, "busy": True, "why": "a sweep needs a positive limit or none at all',
+        "matches": 1,
+    },
+    {
+        "why": "v3038 — the same for the HISTORY DIRECTORY refusal, and for the same safety reason: "
+               "the door stays shut, nothing is spent, and the only thing broken is the caller's "
+               "ability to tell 'that path cannot hold reels' from 'a sweep is already running'.",
+        "file": "control_app.py",
+        "find": '            return {"ok": False, "why": "there is no history directory at',
+        "replace": '            return {"ok": False, "busy": True, "why": "there is no history directory at',
+        "matches": 1,
+    },
     {
         "why": "v2889 — the tamper drops the STRUCTURED `busy` flag while the refusal itself REMAINS, "
                "so a caller can no longer tell contention from any other refusal. That is v2206's "
