@@ -196,6 +196,40 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         self.assertIn("h", sh(o))
 
 
+    def test_the_card_count_counts_CARDS_and_not_card_parts(self):
+        """⚠⚠ MEASURED ON HIS LIVE CONSOLE, 2026-09-12. Grok Bot read this beat and published
+        `cards:535 · gridCards:1208`. Both numbers were correct; one was answering a different
+        question than its name. 1208 = 535 x 2.26, because the first selector asked for
+        `.shc-hero, .shc-sess, .shc-area` — 2-3 elements PER CARD (the hero is one per card,
+        .shc-sess sits INSIDE the hero, .shc-area is optional).
+
+        It was lifted from render_check's `shelf-cards` target, where it is exactly right because
+        those are the elements that can CLIP. It is not a card count anywhere. A number under a
+        word naming another quantity is the defect that produced six ships in one console arc.
+        [[label-outlived-referent]] [[unknown-stays-unknown]]
+
+        ⚠ PARSED FROM THE SHIPPED LINE, anchored at both ends — not a fixed window, which reads as
+        ABSENT past the region and invents a finding. [[source-window-shortcut]]
+        """
+        blk = _block()
+        if blk is None:
+            self.skipTest("the shelf geometry block moved — a skip is NOT a pass")
+        key = "o.shelf.gridCards = ov.querySelectorAll("
+        a = blk.find(key)
+        self.assertGreater(a, -1, "gridCards is no longer assigned from a querySelectorAll")
+        b = blk.find(")", a + len(key))
+        self.assertGreater(b, a, "the gridCards selector is unterminated")
+        sel = blk[a + len(key):b].strip().strip("'\"")
+        self.assertIn(".sh-card", sel,
+                      "a count called gridCards must target the CARD WRAPPER (.sh-card); the "
+                      "selector is %r" % sel)
+        for part in (".shc-hero", ".shc-sess", ".shc-area", ".shc-when", ".shc-foot"):
+            self.assertNotIn(part, sel,
+                             "%s occurs 1-3 times PER CARD, so counting it inflates a 'cards' "
+                             "number by ~2.26x — exactly the 535 vs 1208 his console published. "
+                             "Selector is %r" % (part, sel))
+
+
 RED_PROOF = [
     {
         "why": "removing the zero-box test is exactly the blind spot this closes: an overlay whose "
@@ -209,8 +243,16 @@ RED_PROOF = [
         "why": "dropping the card count leaves a rect with no fill beside it, so the two halves "
                "can never contradict one another and the corroborator pair is gone",
         "file": "control_ui.html",
-        "find": "                try { o.shelf.gridCards = ov.querySelectorAll('.shc-hero, .shc-sess, .shc-area').length; }",
+        "find": "                try { o.shelf.gridCards = ov.querySelectorAll('.sh-grid .sh-card').length; }",
         "replace": "                try { o.shelf.gridCardsGONE = 0; }",
+        "matches": 1,
+    },
+    {
+        "why": "putting the render target's clip-watching selector back makes gridCards count 2-3 "
+               "elements per card again — the 535 vs 1208 his console actually published",
+        "file": "control_ui.html",
+        "find": "ov.querySelectorAll('.sh-grid .sh-card').length",
+        "replace": "ov.querySelectorAll('.shc-hero, .shc-sess, .shc-area').length",
         "matches": 1,
     },
     {

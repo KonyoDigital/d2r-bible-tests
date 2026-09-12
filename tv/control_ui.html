@@ -24560,11 +24560,23 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                 o.shelf.h = h;
                 if (r) { o.shelf.top = Math.round(r.top); o.shelf.w = Math.round(r.width); }
                 o.shelf.vh = window.innerHeight || null;
-                /* ⚠ THE FILL TRAVELS WITH THE RECT OR NEITHER CAN CONTRADICT THE OTHER. `cards`
-                   above counts .sh-card/.shs-wrow/.sh-run; this counts the classes the render
-                   target watches. Two counts under two names beats one number whose selector
-                   nobody can see. [[the-unjoined-end]] */
-                try { o.shelf.gridCards = ov.querySelectorAll('.shc-hero, .shc-sess, .shc-area').length; }
+                /* ⚠ THE FILL TRAVELS WITH THE RECT OR NEITHER CAN CONTRADICT THE OTHER.
+                   [[the-unjoined-end]]
+
+                   ⚠⚠ v2997 — THE FIRST CUT COUNTED CARD PARTS AND CALLED THEM CARDS. It asked for
+                   `.shc-hero, .shc-sess, .shc-area`, which is 2-3 elements PER CARD: the hero is
+                   one per card, .shc-sess sits INSIDE the hero, and .shc-area is optional. Grok
+                   Bot read it off his live console and published `cards:535 · gridCards:1208` —
+                   535 x 2.26. Both numbers were correct and one of them was answering a different
+                   question than its name. I lifted the selector from render_check's `shelf-cards`
+                   target, where it is exactly right because those are the elements that can CLIP;
+                   it is not a card count anywhere. [[label-outlived-referent]]
+
+                   Now it counts `.sh-card` INSIDE the grid, while `cards` above counts
+                   .sh-card/.shs-wrow/.sh-run anywhere in the overlay. Two selectors asking the
+                   same question two ways: agreement is a corroboration, and a DISAGREEMENT means
+                   cards exist outside the grid, which is worth seeing. */
+                try { o.shelf.gridCards = ov.querySelectorAll('.sh-grid .sh-card').length; }
                 catch(e){ o.shelf.gridCards = null; }
               })();
               return o;
