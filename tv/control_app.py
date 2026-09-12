@@ -20989,6 +20989,22 @@ def river_mouth(limit=12, path=None):
             "why": ""}
 
 
+def _river_labels():
+    """Station key -> the name he reads. -> dict (never raises)
+
+    ⚠ IMPORTED HERE, NOT ASSUMED IN SCOPE. The first cut wrote `_rr.labels()` inside the /api/river
+    handler, where no such alias exists — nothing in that block imports reel_router at all. That is
+    a NameError on the one route the shelf depends on, and his console execs this working tree, so
+    it would have gone straight to his screen. Caught by grepping for the alias instead of trusting
+    that it was there. [[plumbing-with-no-tap]]
+    """
+    try:
+        import reel_router as _rr
+        return _rr.labels() if hasattr(_rr, "labels") else {}
+    except Exception:
+        return {}
+
+
 def _river_vocab_facts():
     """The river's own honesty, for any surface that draws it. -> dict
 
@@ -26582,7 +26598,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2986",
+        "ver": "v2987",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28964,6 +28980,12 @@ class Handler(BaseHTTPRequestHandler):
                     # which is a rendering gap and NOT a leak: `mouth` above reads the terminus
                     # from the ledger, where 446 reels have genuinely finished.
                     # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+                    # v2987 — THE NAMES HE READS, published beside the keys rather than typed
+                    # into the shelf. reel_router.labels() is the one map: his rulings (INTAKE ->
+                    # FRESH, STATION -> ANALYZE, TOMBSTONE -> DELETED) over the name each station's
+                    # own OWES text already opens with. A second list in control_ui.html is exactly
+                    # what the STATIONS comment warns against. [[copy-drift]]
+                    "labels": _river_labels(),
                     "vocab": _river_vocab_facts(),
                     # ⚠ NOT an empty list dressed as zero: a station no reel has EVER reached is
                     # the actionable half of this whole picture.

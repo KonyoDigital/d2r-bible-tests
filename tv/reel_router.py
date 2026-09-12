@@ -63,6 +63,58 @@ if HERE not in sys.path:
 STATIONS = ("INTAKE", "TRIAGE", "EMPTY", "STATION", "PRINTER", "JOIN", "CAPTURE",
             "ROUTED", "TOMBSTONE")
 
+#: ⚠⚠ v2987 — HIS RULING, 2026-09-12, ON A SCREENSHOT OF HIS OWN SHELF: *"EMPTY and STATION aren't
+#: river stages — remove it then.. it is confusing"*, and before that *"i want it down a river lane.
+#: from top to bottom intake/WHATEVER IS REALLY FIRST and then tombstone at the bottom of it all"*.
+#:
+#: He was right that the screen was nonsense and wrong about the cause, which is why nothing is
+#: removed here. EMPTY and STATION are REAL stages holding real reels (measured on his river the
+#: same minute: EMPTY 0, STATION 6). What is wrong is that the SHELF PRINTS THE KEY. Every one of
+#: these stations already carries its human name as the first word of its own OWES text, and SIX
+#: OF NINE disagree with the key:
+#:      INTAKE -> SURVEY · EMPTY -> ROUTE · STATION -> READ · PRINTER -> SEAL · ROUTED -> TOMBSTONE
+#: and the key TOMBSTONE is the AFTER-state ("nothing — it is released, and the stamp is its
+#: record"). So the section he reads as "TOMBSTONE · 0 · NEVER REACHED" is not the mouth of the
+#: river at all — the mouth is the section labelled ROUTED, and it holds 20 of his reels.
+#: Deleting two stations would have orphaned six reels and left the real defect in place.
+#:
+#: ⚠ ONE LIST, DERIVED, NOT A SECOND ONE TYPED OUT. The label is taken FROM `OWES` at import, so a
+#: station whose description is reworded cannot drift from its own label — two hand-kept lists is
+#: exactly the failure `STATIONS` itself is commented against. [[copy-drift]] [[label-outlived-referent]]
+def _label_of(station, text):
+    """The human stage name a station's own OWES text opens with. -> str
+
+    Falls back to the KEY when the text does not open with a name, which is honest: a station
+    nobody has described yet should read as its key rather than as a guess.
+    """
+    import re as _re
+    m = _re.match(r"\s*([A-Z][A-Z \-]*[A-Z])\s*[\u2014-]", str(text or ""))
+    return m.group(1).strip() if m else station
+
+
+#: ⚠⚠ HIS NAMES WIN. Konyo, 2026-09-12, naming the stages on his own screen: *"for th elast oone
+#: shows tombstone reads deleted.. and for shows station should read analyze for intake it should
+#: read FRESH"*. Those three are HIS words and they are not negotiable against a derivation; the
+#: rest fall back to the name each station's own OWES text already opens with.
+#:
+#: The river then reads, in lane order, exactly the way he asked for it — arrivals at the top and
+#: the end of the journey at the bottom:
+#:      FRESH · TRIAGE · ANALYZE · ROUTE   |  SEAL  |  CAPTURE · JOIN  |  TOMBSTONE · DELETED
+#: ⚠ ROUTED IS THE REAL TOMBSTONE and the key TOMBSTONE is what follows it — the reels that have
+#: LEFT THE DISK. That is why his screen showed "TOMBSTONE 0 NEVER REACHED" while 20 reels sat one
+#: section above it under another name. [[label-outlived-referent]]
+HIS_LABELS = {"INTAKE": "FRESH", "STATION": "ANALYZE", "TOMBSTONE": "DELETED"}
+
+
+def labels():
+    """Station key -> the name HE reads on the shelf. -> dict
+
+    ⚠ ONE MAP, BUILT HERE. The shelf must never keep a second list of names: `STATIONS` already
+    carries the comment about why two lists drift, and a label list is the same hazard wearing a
+    friendlier word. [[copy-drift]]
+    """
+    return dict((st, HIS_LABELS.get(st) or _label_of(st, OWES.get(st))) for st in STATIONS)
+
 #: ⚠ NOT a station in the list above, and deliberately so. UNKNOWN means the evidence could not be
 #: read — never "nothing was found". It is reported beside the totals and never inside them, so a
 #: shelf nobody could measure cannot be mistaken for a shelf with no work waiting.

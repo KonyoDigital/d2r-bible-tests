@@ -1481,7 +1481,16 @@ TARGETS = {
     # — was unexported for exactly the same reason `thShelf` was. Fixing one and not the other
     # fixes half a chain. Both exported in v2805; measured ACTIVATE TRUE at 1440, 901 and 375.
     "shelf-cards": {
-        "serve": True, "path": "", "warmup": 14.0, "settles": False,
+        # ⚠⚠ `settles`, NOT A FIXED WARMUP — AND I LEARNED THIS THE WAY THE FILE ALREADY RECORDS.
+        # Copied `warmup: 14.0` from river-strip, which watches ~21 nodes. This grid builds 533
+        # CARDS. Measured twice on the SAME HEAD: 🟢 533/533 at all five widths on a quiet machine,
+        # then 🔴 with "every one of 533 node(s) is ZERO-SIZE" at 901x900 and two widths that never
+        # matched at all — while the second eye held the load average at 4.68. Same tree, opposite
+        # verdicts, so it is the room and not the code. That is v2404's scar verbatim ("A FIXED
+        # SLEEP HERE BLOCKED A LEGITIMATE PUSH ... the SAME tree rendered all six targets green
+        # minutes later on a quiet machine"), and a flaky target is worse than no target because it
+        # teaches people to re-run until green. [[ab-against-head-before-blaming-the-room]]
+        "serve": True, "path": "", "settles": True,
         "why": "\U0001f4da THE SHELF'S REEL CARDS \u2014 the things the panel is NAMED after, and "
                "nothing has ever photographed them. Every existing shelf target aims at the "
                "analytics: `river-strip` watches #sh-lanes, and the grid itself had no selector in "
@@ -1497,8 +1506,17 @@ TARGETS = {
                "is still broken \u2014 but any y reported here is an UPPER BOUND on what he sees, "
                "never his everyday state.",
         "seed": """(function(){ return 1; })()""",
-        "sel": "#th-shelfov .sh-grid .shc-hero, #th-shelfov .sh-grid .shc-sess, "
-               "#th-shelfov .sh-grid .shc-area",
+        # ⚠⚠ BOUNDED TO THE FIRST THREE CARDS, AND THAT IS THE WHOLE QUESTION. The first cut
+        # selected every card in the grid — 533 nodes, 1438 text leaves — to answer "is a card on
+        # screen when the panel opens", which the FIRST card answers on its own. Measuring 533
+        # made the target flaky under load rather than more truthful: same HEAD, 🟢 at five widths
+        # on a quiet machine and 🔴 "every one of 533 node(s) is ZERO-SIZE" while the second eye
+        # held the load at 4.68. A gate that depends on how busy the Mac is teaches people to
+        # re-run until green, which is worse than not having it.
+        # ⚠ It still measures the REAL grid in the REAL panel — only the count is bounded.
+        "sel": "#th-shelfov .sh-grid > *:nth-child(-n+3) .shc-hero, "
+               "#th-shelfov .sh-grid > *:nth-child(-n+3) .shc-sess, "
+               "#th-shelfov .sh-grid > *:nth-child(-n+3) .shc-area",
         # ⚠ ONLY THE TWO CLASSES THAT DECLARE AN ELLIPSIS. Both set `white-space:nowrap;
         # overflow:hidden; text-overflow:ellipsis` in control_ui.html (.shc-area at :2106-2107,
         # .shc-headfind at its own rule), so the cut is DESIGNED and he can SEE it. Anything else

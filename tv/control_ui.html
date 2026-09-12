@@ -2103,6 +2103,29 @@
   .shc-body { display: flex; flex-direction: column; gap: 7px; padding: 11px 13px 13px; }
   .shc-when { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #b9c9be; }
   .shc-when .shc-dur { color: #8a7e68; }
+  /* ══ v2987 — THE RIVER AS FOUR LANES, named the way he names them ═══════════════════════
+     Konyo, 2026-09-12: "i want it down a river lane. from top to bottom intake/WHATEVER IS REALLY
+     FIRST and then tombstone at the bottom of it all", and "but i think we had 4 ... check to se".
+     He was right — /api/river has published four lanes all along and the shelf rendered the nine
+     stations flat. The lane banner is deliberately heavier than a station header: it is the part
+     of the picture he asked for, and a station now reads as a step INSIDE a lane. */
+  #th-shelfov .sh-riverlane { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px;
+    flex-wrap: wrap; margin: 22px 0 6px; padding: 9px 12px 8px; border-radius: 10px;
+    border: 1px solid rgba(240,192,96,.22);
+    background: linear-gradient(180deg, rgba(240,192,96,.10), rgba(240,192,96,.02)); }
+  #th-shelfov .sh-riverlane:first-child { margin-top: 4px; }
+  #th-shelfov .sh-riverlane .shg-lab { font: var(--fw-bold) var(--fs-lg)/1.15 var(--serif);
+    letter-spacing: var(--ls-wide); color: #f0c060; }
+  #th-shelfov .sh-riverlane .shg-n { font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);
+    color: #d9c9a0; letter-spacing: var(--ls-tight); }
+  /* the lane's own sentence, from the backend — why this lane exists, in its words not mine */
+  #th-shelfov .sh-riverlane .shg-lanewhy { flex: 1 1 100%; font: var(--fw-medium) var(--fs-xs)/1.45 var(--mono);
+    color: rgba(217,201,160,.72); letter-spacing: var(--ls-tight); }
+  /* ⚠ THE KEY STAYS VISIBLE, DIMMED. The label is what he reads; the key is what the stores, the
+     journal and every log line still say. Hiding it would make his screen and his data disagree
+     on the name of the same thing, which is the defect this whole change exists to end. */
+  #th-shelfov .shg-key { font: var(--fw-medium) var(--fs-2xs, var(--fs-xs))/1 var(--mono);
+    color: rgba(217,201,160,.34); letter-spacing: var(--ls-tight); }
   .shc-area { font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); letter-spacing: var(--ls-tight); color: #d9c9a0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .shc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 1px 0 2px; }
@@ -15635,6 +15658,8 @@ window._lockMark = function(isOpen, px, label){
      ORDER from the backend. null means NOT YET ASKED, which is not the same as an empty river,
      and the header says which. [[unknown-stays-unknown]] */
   var SHELF_RIVER = null, SHELF_RIVER_ORDER = null, SHELF_RIVER_WHY = '';
+  var SHELF_RIVER_LANES = null;   // v2987 — the FOUR lanes /api/river already publishes
+  var SHELF_RIVER_LABELS = null;  // v2987 — station key -> the name HE reads (his rulings)
   /* THE MOUTH — reels that finished the journey and were closed out. `null` until /api/river has
      answered, which is NOT the same as an empty ledger and must never render as "0 finished". */
   var SHELF_MOUTH = null;
@@ -15706,6 +15731,14 @@ window._lockMark = function(isOpen, px, label){
                      at: (hops.length ? hops[hops.length - 1].at : null), hops: hops.length };
         });
         SHELF_RIVER = m; SHELF_RIVER_ORDER = d.stations || null; SHELF_RIVER_WHY = '';
+        /* v2987 — THE RIVER HAS FOUR LANES AND THE SHELF WAS THROWING THEM AWAY. Konyo,
+           2026-09-12, on a screenshot of his own shelf: "i want it down a river lane. from
+           top to bottom intake/WHATEVER IS REALLY FIRST and then tombstone at the bottom of
+           it all", then "but i think we had 4 ... check to se". He was right: /api/river
+           publishes `lanes.lanes` = INTAKE / PRINTER / CAPTURE / TOMBSTONE, each naming the
+           stations it owns, and this reader kept only the FLAT station list. */
+        try { SHELF_RIVER_LANES = (d.lanes && d.lanes.lanes) || null; } catch(e){ SHELF_RIVER_LANES = null; }
+        try { SHELF_RIVER_LABELS = d.labels || null; } catch(e){ SHELF_RIVER_LABELS = null; }
         SHELF_MOUTH = d.mouth || null;
       }
       try { if (then) then(); } catch (e) {}
@@ -15823,7 +15856,26 @@ window._lockMark = function(isOpen, px, label){
                vis.length, vis[0], ' sh-rivergroup sh-riverunknown');
         return;
       }
-      var ordG = SHELF_RIVER_ORDER || [];
+      /* ⚠⚠ v2987 — THE STATION ORDER COMES FROM THE LANES, NOT THE FLAT LIST. They disagree,
+         and the flat one is not a river: /api/river's `stations` runs
+         INTAKE,TRIAGE,EMPTY,STATION,PRINTER,JOIN,CAPTURE,ROUTED,TOMBSTONE while the LANES declare
+         INTAKE[INTAKE,TRIAGE,STATION,EMPTY] PRINTER[PRINTER] CAPTURE[CAPTURE,JOIN]
+         TOMBSTONE[ROUTED,TOMBSTONE]. Two stations are transposed in each of two places, so a
+         lane's own sections were not even adjacent on screen. Flattening the lanes fixes the
+         order AND makes each lane contiguous, which is what lets a lane header mean anything.
+         ⚠ Falls back to the flat list when the lanes are absent — an older console, or a river
+         that answered without them, must still render. [[unknown-stays-unknown]] */
+      var ordG = null;
+      if (SHELF_RIVER_LANES && SHELF_RIVER_LANES.length){
+        ordG = [];
+        for (var _li = 0; _li < SHELF_RIVER_LANES.length; _li++){
+          var _ls = (SHELF_RIVER_LANES[_li] || {}).stations || [];
+          for (var _si = 0; _si < _ls.length; _si++){
+            if (ordG.indexOf(_ls[_si]) < 0) ordG.push(_ls[_si]);
+          }
+        }
+      }
+      if (!ordG || !ordG.length) ordG = SHELF_RIVER_ORDER || [];
       var byStation = {}; vis.forEach(function(c){
         var st = _shStationOf(c)
                  || (_shSidAmbiguous(c) ? '\u2014 shared id, cannot place'
@@ -15973,7 +16025,15 @@ window._lockMark = function(isOpen, px, label){
                      + (newest ? ' \u00b7 ' + esc(_ago(newest)) : ''));
         }
         if (mouthBit) { _bits.push(mouthBit); }
-        h.innerHTML = '<span class="shg-lab">' + esc(st) + '</span>'
+        /* v2987 — PRINT THE NAME, NOT THE KEY. His words on his own screen: "EMPTY and
+           STATION aren't river stages ... it is confusing", and then the names themselves —
+           INTAKE reads FRESH, STATION reads ANALYZE, TOMBSTONE reads DELETED. The map arrives
+           from /api/river (reel_router.labels()), so there is no second list here to drift.
+           ⚠ Falls back to the KEY when the map is absent, which is honest: a station nobody has
+           named should read as its key rather than as a blank. [[unknown-stays-unknown]] */
+        var _lab = (SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
+        h.innerHTML = '<span class="shg-lab">' + esc(_lab) + '</span>'
+          + (_lab !== st ? '<span class="shg-key">' + esc(st) + '</span>' : '')
           + '<span class="shg-n">' + _bits.join(' \u00b7 ') + '</span>';
           /* ══ v2950 — THE JOURNEYS, LISTED. Task #58. ═════════════════════════════════════
              SHELF_MOUTH.recent is ALREADY populated from /api/river — no backend change, no new
@@ -16018,6 +16078,29 @@ window._lockMark = function(isOpen, px, label){
         else if (anchor) { grid.insertBefore(h, anchor); }
         else { grid.appendChild(h); }
         anchor = h;
+        /* v2987 — THE LANE HEADER, above the first station it owns. The walk is BACKWARDS, so a
+           lane's first station is reached LAST of that lane's sections and `h` is already the
+           topmost of them — inserting before `h` puts the lane banner in the right place without
+           a second pass. [[the-unjoined-end]] */
+        if (SHELF_RIVER_LANES && SHELF_RIVER_LANES.length){
+          for (var _lj = 0; _lj < SHELF_RIVER_LANES.length; _lj++){
+            var _ln = SHELF_RIVER_LANES[_lj] || {}, _lst = _ln.stations || [];
+            if (_lst.length && _lst[0] === st){
+              var _lh = document.createElement('div');
+              _lh.className = 'sh-daygroup sh-riverlane';
+              var _lc = 0;
+              for (var _lk = 0; _lk < _lst.length; _lk++){
+                _lc += ((byStation[_lst[_lk]] || []).length);
+              }
+              _lh.innerHTML = '<span class="shg-lab">' + esc(String(_ln.name || '')) + '</span>'
+                + '<span class="shg-n">' + _lc + ' reel' + (_lc === 1 ? '' : 's') + '</span>'
+                + (_ln.why ? '<span class="shg-lanewhy">' + esc(String(_ln.why)) + '</span>' : '');
+              grid.insertBefore(_lh, h);
+              anchor = _lh;
+              break;
+            }
+          }
+        }
       });
       return;
     }

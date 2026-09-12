@@ -973,6 +973,17 @@ GATES = [
          "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
          "deep rows carry any coordinate — and test 5 pins that zero.",
          skip_ok=()),
+    Gate("test_the_river_reads_as_four_lanes",
+         [sys.executable, os.path.join(HERE, "test_the_river_reads_as_four_lanes.py")], 60,
+         why="his 2026-09-12 rulings on a screenshot of his own shelf — 'i want it down a river "
+             "lane ... tombstone at the bottom of it all', 'but i think we had 4', and the names "
+             "themselves (INTAKE reads FRESH, STATION reads ANALYZE, TOMBSTONE reads DELETED). "
+             "/api/river published four lanes all along and the shelf rendered nine stations FLAT, "
+             "in an order where a lane's own sections were not even adjacent. Six of nine keys "
+             "disagree with the name in their own OWES text, worst of all ROUTED — which IS the "
+             "tombstone and holds 20 reels while the section reading 'TOMBSTONE 0 NEVER REACHED' "
+             "is the after-state. Nothing was removed: STATION holds 6 reels.",
+         skip_ok=()),
     Gate("test_the_settled_row_names_the_store_it_is_in",
          [sys.executable, os.path.join(HERE, "test_the_settled_row_names_the_store_it_is_in.py")], 90,
          why="his 2026-09-12 ruling — 'leave the keys alone, just fix the store label'. "
