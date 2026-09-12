@@ -193,4 +193,12 @@ RED_PROOF = [
 ]
 
 if __name__ == "__main__":
+    # ⚠ HIS CONSOLE IS cp1255 AND CANNOT ENCODE THE ARROWS AND STARS THIS FILE PRINTS. Without
+    # this, a CORRECT tree reports FAILURE because the process dies inside its own print — the
+    # dangerous direction, because it teaches people to ignore the tool. [[REG-044/054/077]]
+    try:
+        from console_safe import enable
+        enable()
+    except Exception:
+        pass
     unittest.main(verbosity=2)
