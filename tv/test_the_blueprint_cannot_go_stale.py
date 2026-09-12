@@ -92,6 +92,61 @@ class TheBlueprintCannotGoStaleSilently(unittest.TestCase):
         self.assertIn("GROSS vs STRIPPED", t,
                       "the blueprint no longer shows how much footage carries a panel")
 
+    def test_the_map_NAMES_every_gate_and_does_not_merely_count_them(self):
+        """⚠⚠ THE SECTION THAT COST A SESSION. Until v3020 the whole GATES section was:
+
+            ## GATES
+
+                322 registered in tv/run_gates.py
+
+        322 gates, and it named NONE of them. So the one document meant to show the system from
+        above could say HOW MANY laws exist and never WHICH — and on 2026-09-12 that is exactly
+        what happened: I searched for laws about slot identity, tooltips and holdings, concluded
+        none existed, and Konyo corrected me — "im pretty sure we already defined them too so dont
+        duplicate". There were 32, across six files, written to his own 2026-08-29 spec. One
+        `grep BLUEPRINT.md tooltip` would have found them.
+
+        His ruling: "this console is complex already so you wont remember off the bat you need to
+        verify... this is why 4 organs and the blueprints via the heart".
+
+        A COUNT IS NOT KNOWLEDGE. Every gate already carried a `why` — 322 of 322 — so the material
+        was always there and was simply never rendered. [[the-unjoined-end]]
+        [[zero-needs-a-denominator]] [[verify-before-building-console]]"""
+        import run_gates as RG
+        t = io.open(os.path.join(REPO, "BLUEPRINT.md"), encoding="utf-8").read()
+        names = [g.name for g in RG.GATES]
+        self.assertGreater(len(names), 50,
+                           "only %d gates parsed from run_gates — the reader, not the roster"
+                           % len(names))
+        missing = [n for n in names if ("**%s**" % n) not in t]
+        self.assertFalse(
+            missing,
+            "%d of %d registered gate(s) are NOT NAMED in BLUEPRINT.md — the map can say how many "
+            "laws exist and not which, which is the state that let 32 existing laws go unfound: %s"
+            % (len(missing), len(names), missing[:5]))
+
+    def test_the_gate_index_carries_what_each_one_GUARDS(self):
+        """⚠ A list of names is barely better than a count. The index exists so that 'does a law
+        already exist for this?' is answerable by READING, which needs the subject, not just the
+        filename. A gate whose why is empty in the map is a row nobody can search."""
+        import blueprint as BP
+        idx = BP.gate_index()
+        self.assertIsNotNone(idx, "gate_index() could not parse run_gates.py, so the map would "
+                                  "silently fall back to a bare count — the exact regression")
+        empty = [n for n, w in idx if not str(w or "").strip()]
+        self.assertFalse(
+            empty,
+            "%d of %d gate(s) reach the map with NO why, so they are unsearchable by subject: %s"
+            % (len(empty), len(idx), empty[:5]))
+        #: ⚠ TWO READERS, ONE FACT — a regex count and a parsed index. A disagreement means a
+        #: Gate( is written in a shape one of them cannot see, and the map would then be confidently
+        #: incomplete. [[unknown-stays-unknown]]
+        self.assertEqual(
+            len(idx), BP.gate_count(),
+            "the parsed index says %d gates and the regex count says %s — one of the two readers "
+            "cannot see a Gate, so the map is incomplete without saying so"
+            % (len(idx), BP.gate_count()))
+
     # ── ⛔ IT REPORTS; IT NEVER ASSERTS ──────────────────────────────────────────────────────
     def test_an_unreadable_subsystem_says_UNKNOWN_not_zero(self):
         """⛔ The file's own rule: *"Where something cannot be counted it says so rather than
@@ -153,6 +208,17 @@ class TheBlueprintCannotGoStaleSilently(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        #: ⚠ THE v3019-AND-EARLIER STATE, RESTORED. Emptying the index loop returns the GATES
+        #: section to a bare count — the exact shape that let 32 existing laws go unfound on
+        #: 2026-09-12 while the map reported "322 registered" and named none of them.
+        "why": "rendering no gate names returns the blueprint to a COUNT standing where knowledge "
+               "belongs, and 'does a law already exist for this?' stops being answerable by reading",
+        "file": "blueprint.py",
+        "find": "        for _n, _w in idx:",
+        "replace": "        for _n, _w in []:",
+        "matches": 1,
+    },
     {
         "why": "⚠ RE-AIMED — MY FIRST ANCHOR WAS THE WRONG SIDE OF THE DOOR, and heart2 measured it "
                "BLIND (1 match, still green). river() has FOUR why-writes; I picked the one that "

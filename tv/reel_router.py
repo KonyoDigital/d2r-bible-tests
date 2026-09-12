@@ -140,10 +140,34 @@ OWES = {
                  "read from it. THIS is the paid queue.",
     "PRINTER":   "SEAL — the names were read; the session carries no seal to put them in",
     "JOIN":      "JOIN — sealed AND the names are on disk; the seal does not carry them. Code.",
-    "CAPTURE":   "CAPTURE, then ROUTE — sealed and the reader yielded nothing. REG-340: D2R "
-                 "prints the name only on the character panel, which the reel does not film, so "
-                 "this is a capture change and never a paid read. ⚠ Also not an exit: it still "
-                 "owes a route and a stamped tombstone like every other reel.",
+    # ⚠⚠ v3020 — REG-340 WAS THE WRONG CITATION AND IT SENT HIM AT THE WRONG CAMERA.
+    # This said "D2R prints the name only on the character panel, which the reel does not film".
+    # REG-340 is about the CHARACTER name — the mule label — and the character panel carries a
+    # name, a class and stats and NO ITEMS. These reels are missing ITEM names, which is a
+    # different field with a different answer, and printer.py:461-465 already ruled the conflation:
+    # "REG-340 is about the CHARACTER name on the character panel, this is about ITEM names, and
+    # conflating the two left a recoverable gap looking permanent." extract_gap.py says the same,
+    # and test_extract_gap_holding.test_not_a_holding_is_not_a_capture_verdict already guards it
+    # at the verdict layer — so this string contradicted a law that was already passing.
+    #
+    # THE CAPTURE CHANGE THAT WOULD ACTUALLY HELP IS HOVER, NOT THE CHARACTER PANEL. An item's
+    # name is printed in its TOOLTIP; hover_mode.py states the mechanic plainly — "a stash GRID
+    # carries no names; only the tooltip does" — and MINI(AUTOMATIC) already walks each occupied
+    # cell to render one. Filming the character panel would not unblock a single reel here.
+    #
+    # ⚠ AND IT IS PER-REEL, NOT ONE RULING. Measured 2026-09-12 over the nine reels then at this
+    # station, panel frames were 0, 1, 1, 1, 1, 4, 6, 10, 10 — so "little was filmed" and "plenty
+    # was filmed and the read yielded nothing" are both present and want different answers, the
+    # second being a possible throttled read (REG the v1774 scar) rather than a camera problem.
+    # [[label-outlived-referent]] [[unknown-stays-unknown]]
+    "CAPTURE":   "CAPTURE, then ROUTE — sealed and the reader yielded no ITEM name. An item's "
+                 "name lives in its TOOLTIP, and a grid carries none, so what is owed is HOVER "
+                 "coverage (MINI AUTOMATIC) on a future session — not the character panel, which "
+                 "answers REG-340's question about the mule and carries no items at all. ⚠ Read "
+                 "it per reel: few panel frames means little was filmed; many panel frames with "
+                 "no names may be a failed or throttled read, which is payable and retryable. "
+                 "⚠ Also not an exit: it still owes a route and a stamped tombstone like every "
+                 "other reel.",
     "ROUTED":    "TOMBSTONE — the extraction contract is satisfied; it may be released with a stamp",
     "TOMBSTONE": "nothing — it is released, and the stamp is its record",
 }

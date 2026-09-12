@@ -687,7 +687,10 @@ def _check_the_backup_loop_is_actually_WRITING():
 #: instrument is a switched-off instrument, which is how the defects below survived in the first place.
 _BY_DESIGN_STATIONS = {
     "JOIN": "sealed AND the names are on disk; the seal does not carry them — that is a CODE change",
-    "CAPTURE": "the capture itself must change (REG-340), not the lane that reads it",
+    # ⚠ v3020 — NOT REG-340. That rules the CHARACTER name; these reels lack ITEM names, and an
+    # item's name is only ever in its tooltip. The capture that helps is HOVER, not the C panel.
+    "CAPTURE": "the capture itself must change — HOVER coverage so the tooltips that carry item "
+               "names are filmed — not the lane that reads it",
 }
 
 
@@ -1910,8 +1913,9 @@ def _check_the_river_has_an_outlet():
         return UNKNOWN, ("the route lane could not plan (%s)" % str(p.get("why") or "")[:80])
     waiting = len(p.get("route") or [])
     declined = len(p.get("declined") or [])
-    tail = (" · %d at CAPTURE owe a capture change first and no lane can move them (REG-340)"
-            % declined) if declined else ""
+    # ⚠ v3020 — was "(REG-340)", which cites the CHARACTER-name ruling at an ITEM-name problem.
+    tail = (" · %d at CAPTURE owe a capture change first — hover coverage, so the tooltips that "
+            "carry item names are filmed — and no lane can move them" % declined) if declined else ""
     # ⚠⚠ v2770 — ASK THE DRIVER, NOT ONLY THE QUEUE. Until v2770 nothing CALLED the lane, so this
     # row could only ever say "they have not been closed out" without being able to say WHY — and
     # the answer was "because no code anywhere runs it". Now the triage tick drives it, and a

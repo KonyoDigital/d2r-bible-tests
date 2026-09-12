@@ -203,6 +203,64 @@ def gate_count():
     return len(re.findall(r"\n    Gate\(", src)) if src else None
 
 
+def _one_sentence(w):
+    """The first sentence of a gate's why, trimmed for an index line. -> str"""
+    w = re.sub(r"\s+", " ", str(w or "")).strip()
+    if not w:
+        return ""
+    m = re.search(r"(?<=[.;])\s", w)
+    s = w[:m.start()] if (m and m.start() > 40) else w
+    s = s.rstrip(" ,;")
+    return (s[:150].rstrip() + "…") if len(s) > 150 else s
+
+
+def gate_index():
+    """Every registered gate and what it guards. -> [(name, why), ...] | None
+
+    ⚠⚠ v3020 — THIS SECTION WAS A COUNT AND NOTHING ELSE, AND THE COUNT COST A SESSION.
+    It read "322 registered in tv/run_gates.py" and stopped. So the one document meant to show the
+    system from above could say HOW MANY laws exist and not WHICH — and on 2026-09-12 that is
+    exactly what happened: I searched for laws about slot identity, tooltips and holdings,
+    concluded none existed, and was corrected by Konyo — "im pretty sure we already defined them
+    too so dont duplicate". There were 32, across six files, written to his own 2026-08-29 spec.
+    A `grep BLUEPRINT.md tooltip` would have found them in one step; instead it took six searches
+    and nearly produced a duplicate of work that already existed.
+
+    A number is not knowledge. Every gate already carries a `why` — measured, 322 of 322 — so the
+    material was always there and simply never rendered. [[the-unjoined-end]]
+    [[zero-needs-a-denominator]] [[feedback-read-carved-skills-before-briefing]]
+
+    ⚠ PARSED, NEVER GREPPED. A gate's `why` is usually several adjacent string literals, which a
+    regex would cut at the first quote; ast joins them the way Python does. Parsing also keeps
+    this module import-free, exactly as `gate_count()` already is — importing run_gates here would
+    drag the whole suite into a doc generator. [[source-reading-guard]]
+    """
+    src = _src("run_gates.py")
+    if not src:
+        return None
+    import ast as _ast
+    try:
+        tree = _ast.parse(src)
+    except Exception:
+        return None
+    out = []
+    for node in _ast.walk(tree):
+        if not isinstance(node, _ast.Call):
+            continue
+        if getattr(node.func, "id", "") != "Gate":
+            continue
+        name = None
+        if node.args and isinstance(node.args[0], _ast.Constant):
+            name = node.args[0].value
+        why = ""
+        for kw in (node.keywords or []):
+            if kw.arg == "why" and isinstance(kw.value, _ast.Constant):
+                why = kw.value.value
+        if name:
+            out.append((str(name), str(why or "")))
+    return sorted(out, key=lambda r: r[0])
+
+
 def river():
     """The stations a reel passes through, and where his reels actually sit. -> dict|None
 
@@ -534,7 +592,27 @@ def render():
     A("## GATES")
     A("")
     g = gate_count()
-    A("    %s registered in tv/run_gates.py" % (g if g is not None else "UNKNOWN"))
+    idx = gate_index()
+    if idx is None:
+        A("    %s registered in tv/run_gates.py" % (g if g is not None else "UNKNOWN"))
+        A("")
+        A("    ⚠ THE INDEX COULD NOT BE PARSED, so this section is a count and nothing more —")
+        A("    which is the state that let 32 existing laws go unfound on 2026-09-12. Fix the")
+        A("    parse rather than trusting the number.")
+    else:
+        A("    %d registered in tv/run_gates.py — every one named below with what it guards," % len(idx))
+        A("    so that \"does a law already exist for this?\" is answered by reading this file.")
+        # ⚠ TWO READERS, ONE FACT. gate_count() regex-counts `Gate(` and gate_index() parses the
+        # calls; they measure the same thing two ways, so a disagreement means a Gate is written
+        # in a shape one of them cannot see. Printing both is how that stays visible instead of
+        # one silently becoming the truth. [[unknown-stays-unknown]]
+        if g is not None and g != len(idx):
+            A("")
+            A("    ⚠ THE TWO READERS DISAGREE: the regex count says %d and the parsed index says" % g)
+            A("    %d. A Gate( is written in a shape one of them cannot see." % len(idx))
+        A("")
+        for _n, _w in idx:
+            A("- **%s** — %s" % (_n, _one_sentence(_w) or "(no why declared)"))
     A("")
     return "\n".join(L) + "\n"
 
