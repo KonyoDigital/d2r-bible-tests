@@ -1092,6 +1092,24 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_ledger_says_where_the_item_actually_landed",
+         [sys.executable, os.path.join(HERE, "test_the_ledger_says_where_the_item_actually_landed.py")], 90,
+         why="`store` WAS A CLAIM ABOUT WHERE AN ITEM IS, WRITTEN BEFORE ANYONE LOOKED (#74). In "
+             "the tvVaultRegister wrapper `status` is DERIVED and can say 'route-failed', while "
+             "three lines below it in the SAME object literal `store: 'owned'` was asserted on "
+             "every row — so one row could read status:'route-failed' and store:'owned' in the "
+             "same breath. The vault is the store whose mistakes are permanent and the one he has "
+             "been bitten by, and this is the field a reader consults for 'where did it go'. "
+             "Measured previously (labelled, not re-derived): 11 of 360 rows named a store whose "
+             "contents lack the name. ⚠⚠ THE FIX HAD TO AVOID THE TRAP THIS FILE HAS SPRUNG FOUR "
+             "TIMES: _chSetHas/_chLsGet do exactly what the reader needs and live in script block "
+             "#24, while the write site is block #17 with neither exported to window — calling "
+             "them is a ReferenceError that reads as correct in review. It goes through "
+             "window.LSR instead, assigned in block #1, which is what _chLsGet itself reads "
+             "through. Three answers, never two: a store that could not be READ is null, not a "
+             "denial. Proven red three ways: restoring the flat literal, returning false instead "
+             "of null on an unreadable store, and bypassing LSR for raw localStorage.",
+         skip_ok=()),
     Gate("test_the_shelf_publishes_where_it_is_not_just_that_it_is_full",
          [sys.executable, os.path.join(HERE, "test_the_shelf_publishes_where_it_is_not_just_that_it_is_full.py")], 90,
          why="A DOM CAN BE FULLY BUILT INSIDE A CONTAINER THAT OCCUPIES NO PIXELS (#58/#34). "

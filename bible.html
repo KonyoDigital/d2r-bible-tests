@@ -36904,6 +36904,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (typeof _inner !== 'function') return;
     /* Does the board know this name AT ALL — as a unique, a set piece, or anything in ITEMS?
        Deliberately generous: this decides whether to FLAG, never whether to keep. */
+    /* v3000 \u2014 IN THIS BLOCK ON PURPOSE, AND IT MAY NOT BORROW THE CHRONICLE HELPERS.
+       `_chSetHas` / `_chLsGet` are exactly this function, written better, and calling them from
+       here would be a ReferenceError: they are defined in a LATER <script> block and neither is
+       exported to window. A call across that boundary is a dead render, which this file has
+       produced four separate times. `window.LSR` is assigned in the first block and is what
+       `_chLsGet` reads through anyway, so this borrows the TRANSPORT and not the scope.
+
+       \u26a0 THREE ANSWERS, NEVER TWO. true = the name is in the store · false = the store was
+       read and does not hold it · null = THE STORE COULD NOT BE READ. Collapsing null into false
+       would publish a confident `store: null` about a row that may well have landed, which is the
+       same class of lie as the literal it replaces. */
+    function _ownedNow(n){
+      try {
+        var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem('d2r_owned') : null;
+        if (raw == null) return false;                 /* read fine, key absent \u2014 measured-empty */
+        var arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return null;          /* shape is not what we grade \u2014 UNKNOWN */
+        var low = String(n || '').trim().toLowerCase();
+        if (!low) return null;
+        /* same comparison _chSetHas makes on an array: trimmed, lowercased, no apostrophe fold */
+        return arr.some(function(x){ return String(x).trim().toLowerCase() === low; });
+      } catch(e){ return null; }                       /* could not read \u2014 UNKNOWN, never false */
+    }
     function _known(n){
       try {
         if (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i.n === n; })) return true;
@@ -36972,7 +36995,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               ? (r.mode === 'throwout' ? 'throw-suggested'
                                        : (_known(nm) ? 'vault-registered' : 'vault-unknown'))
               : 'route-failed',
-            store: 'owned', ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: true,
+            /* v3000 \u2014 `store` WAS A FLAT LITERAL IN THE SAME OBJECT AS A COMPUTED `status`.
+               Three lines up, `status` is derived from the outcome and can say 'route-failed';
+               `store: 'owned'` was asserted on EVERY row regardless, so one row could read
+               status:'route-failed' and store:'owned' in the same breath \u2014 a claim about where an
+               item IS, written before anyone looked. It is now read back from the store itself
+               AFTER `_inner` returned, so it reports what landed instead of what was intended.
+               `ledger`/`target` stay literal on purpose: those are the ROUTE that was attempted,
+               which is true whatever the outcome. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+            store: (r && r.ok)
+              ? (r.mode === 'throwout'
+                   ? 'throwout-review'
+                   : (_ownedNow((r && r.name) || nm) === true ? 'owned' : null))
+              : null,
+            ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: true,
             why: (r && r.ok)
               ? (r.mode === 'throwout'
                   ? ('the TV saw you pick this up and it went to the \ud83d\uddd1 throw-out review, NOT a mule '
@@ -50000,7 +50036,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2999', name:'v2999 - nothing asked where the first card sits inside the scroller', date:'2026-09-12', note:'the box is real and the cards are built, so both halves of the pair read healthy while he opens the shelf and sees furniture' };
+  window.D2R_BUILD = { id:'v3000', name:'v3000 - the ledger said where an item was before anyone looked', date:'2026-09-12', note:'status was derived and store was a literal in the same object, so one row could read route-failed and owned in the same breath' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

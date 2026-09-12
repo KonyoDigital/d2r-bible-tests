@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v2999",
+  "ver": "v3000",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v2999: the box is real and the cards are built, so both halves of the pair read healthy while he opens the shelf and sees furniture",
+  "note": "v3000: status was derived and store was a literal in the same object, so one row could read route-failed and owned in the same breath",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
