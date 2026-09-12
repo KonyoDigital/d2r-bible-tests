@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3002** | `(this commit)` | v3002 — a sixty-second-old freeze sat in the report and went unreported because an older geometry carried more frames |
+| **v3003** | `(this commit)` | v3003 — supervised meant in-the-roster-literal, and a lane that stamps a tick is watched with no roster row; eight of twenty reported gaps were invented and the genuinely unwatched count was zero |
+| **v3002** | `c7926de8` | v3002 — a sixty-second-old freeze sat in the report and went unreported because an older geometry carried more frames |
 | **v3001** | `5b6a9832` | v3001 — five of eight sleeps sit inside inner loops so the derived worst path is 609s not 99s, and four of them are under unbounded for loops so no ceiling exists at all |
 | **v3000** | `a754e395` | v3000 — status was derived and store was a literal in the same object, so one row could read route-failed and owned in the same breath |
 | **v2999** | `53c9b602` | v2999 — the box is real and the cards are built, so both halves of the pair read healthy while he opens the shelf and sees furniture |

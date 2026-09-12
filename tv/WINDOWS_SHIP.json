@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3002",
+  "ver": "v3003",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3002: a sixty-second-old freeze sat in the report and went unreported because an older geometry carried more frames",
+  "note": "v3003: supervised meant in-the-roster-literal, and a lane that stamps a tick is watched with no roster row; eight of twenty reported gaps were invented and the genuinely unwatched count was zero",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

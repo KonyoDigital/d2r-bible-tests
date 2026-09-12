@@ -162,6 +162,7 @@ def census(src=None):
     registered = dict((fn, lane) for lane, fn in
                       re.findall(r'\("([a-z0-9-]+)",\s*([A-Za-z_]\w*)\)',
                                  rost.group(1) if rost else ""))
+    stamped = _lane_stamps(src)
     out, expanded = [], False
     for n in sorted(starts):
         # ⚠ THE ROSTER IS STARTED THROUGH A GENERIC TARGET, AND A FIRST CUT COUNTED IT AS ONE
@@ -183,8 +184,42 @@ def census(src=None):
                 out.append({"fn": n, "kind": "UNKNOWN", "lane": None,
                             "supervised": False, "via": None})
             continue
+        # ⚠⚠ v3003 — "SUPERVISED" MEANT "IN THE roster LITERAL", AND THAT STOPPED BEING THE ONLY
+        # WAY TO BE WATCHED AT v2994. A lane that stamps _lane_tick (with a period or a declared
+        # silence bound) is watched by lane_liveness without any roster row — and this census kept
+        # calling it unsupervised. MEASURED on the live source 2026-09-12: 20 rows reported
+        # unsupervised, 8 of them stamping a lane tick, and the number of GENUINELY unwatched
+        # loops was ZERO. The instrument #80 uses to report supervision gaps was inventing them.
+        # [[label-outlived-referent]] [[feedback-suspect-the-instrument]]
+        _stamp = n in stamped
         out.append({"fn": n, "kind": classify(src, n),
-                    "lane": registered.get(n), "supervised": n in registered, "via": None})
+                    "lane": registered.get(n) or (n if _stamp else None),
+                    "supervised": (n in registered) or _stamp,
+                    "via": "lane_liveness" if (_stamp and n not in registered) else None})
+    return out
+
+
+def _lane_stamps(src):
+    """-> the set of lane names that stamp _lane_tick / _lane_dormant / _lane_waking in `src`.
+
+    ⚠ PARSED, NOT GREPPED, because this file's own docstrings write those call names in prose —
+    a substring search would credit a lane for a comment. Falls back to a regex ONLY when the
+    source does not parse (a fixture fragment), and says nothing extra about it: a fixture that
+    wants stamp-credit can include a real call. [[source-reading-guard]]
+    """
+    import ast
+    names = ("_lane_tick", "_lane_dormant", "_lane_waking")
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return set(re.findall(r"_lane_(?:tick|dormant|waking)\(\s*['\"]([^'\"]+)['\"]", src))
+    out = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in names and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)):
+            out.add(node.args[0].value)
     return out
 
 

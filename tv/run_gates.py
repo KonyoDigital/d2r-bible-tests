@@ -1092,6 +1092,21 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_census_sees_a_stamped_lane",
+         [sys.executable, os.path.join(HERE, "test_the_census_sees_a_stamped_lane.py")], 60,
+         why="'SUPERVISED' MEANT 'IN THE roster LITERAL', and that stopped being the only way to "
+             "be watched at v2994 (#80). A lane that stamps _lane_tick is watched by "
+             "lane_liveness with no roster row, and the census kept calling it unsupervised. "
+             "MEASURED 2026-09-12: 20 rows reported unsupervised, 8 of them stamping a lane tick, "
+             "and the number of GENUINELY unwatched loops was ZERO — the instrument #80 uses to "
+             "report supervision gaps was inventing eight of them, and my own task text repeated "
+             "the invented number twice before the running system corrected it. The stamps are "
+             "PARSED (ast), not grepped — this repo's own docstrings write _lane_tick('...') in "
+             "prose, and one law plants exactly that ghost in a comment and requires it NOT be "
+             "credited. Proven red three ways: narrowing supervised back to the roster, forcing "
+             "the regex fallback on parseable source (the ghost gets credited), and dropping the "
+             "via field that says WHICH authority watches a lane.",
+         skip_ok=()),
     Gate("test_the_ledger_says_where_the_item_actually_landed",
          [sys.executable, os.path.join(HERE, "test_the_ledger_says_where_the_item_actually_landed.py")], 90,
          why="`store` WAS A CLAIM ABOUT WHERE AN ITEM IS, WRITTEN BEFORE ANYONE LOOKED (#74). In "
