@@ -113,6 +113,67 @@ def _locks():
     return list(rep.get("locks") or []), ""
 
 
+def _stamps_of(name):
+    """The lane names this function actually stamps. -> list
+
+    ⚠⚠ v3045 — A LANE'S TICKS ARE NOT ALWAYS FILED UNDER THE FUNCTION'S OWN NAME, and three
+    vessels read "no tick has been stamped under this name" while stamping perfectly well.
+    MEASURED on his live console, stable across two samples:
+        _retro_triage_loop  stamps 'tvd-retro-triage'
+        _warden_loop        stamps 'tvd-space-warden'
+    `_live_of` tried the watcher name and then the vessel name; neither is `tvd-retro-triage`, so
+    the lookup missed and the miss was reported as an absent tick. The ticks were there the whole
+    time, under the LANE's name rather than the FUNCTION's.
+
+    ⚠ DERIVED, NEVER DECLARED — and the reason is NOT the one I first wrote here. I claimed the
+    warden stamps two lanes and that a declaration therefore could not express it; measured after,
+    ZERO of the 21 stamping functions own more than one lane, and `tvd-rolling-prune` belongs to
+    `_prune_loop`. That claim came from an awk window that read 70 lines past the `def` and spilled
+    into the next function — a fixed-size source window measuring a guess rather than the file.
+    [[source-window-shortcut]]
+    The real reason to derive is duller and better: a table beside the code has to be REMEMBERED
+    into whenever a loop is added, renamed, or re-lettered, and 21 of them stamp today. Parsed
+    with ast from each function's own body, so a lane named in a comment or a docstring cannot
+    satisfy it. [[source-reading-guard]] [[the-unjoined-end]]
+    """
+    import ast as _ast
+    import io as _io
+    key = str(name or "")
+    if not key:
+        return []
+    cache = globals().setdefault("_STAMPS_CACHE", {})
+    if not cache:
+        try:
+            # ⚠⚠ `io` IS NOT IMPORTED IN THIS MODULE — it imports only os and sys — and the first
+            # cut called io.open() here. The NameError was swallowed by the except below and this
+            # returned [], which reads as "that function stamps no lanes" rather than "the reader
+            # broke". A silent empty from a broken reader is indistinguishable from a measured
+            # absence, which is the whole failure this file exists to refuse.
+            # [[zero-needs-a-denominator]]
+            src = _io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+            tree = _ast.parse(src)
+        except Exception as _e:
+            # keep the REASON, so a caller can tell a broken reader from an empty one
+            globals()["_STAMPS_CACHE"] = {"__failed__": "%s: %s" % (type(_e).__name__, str(_e)[:80])}
+            return []
+        for node in _ast.walk(tree):
+            if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                continue
+            lanes = []
+            for call in _ast.walk(node):
+                if not isinstance(call, _ast.Call):
+                    continue
+                fname = getattr(call.func, "id", None) or getattr(call.func, "attr", None)
+                if fname != "_lane_tick" or not call.args:
+                    continue
+                a0 = call.args[0]
+                if isinstance(a0, _ast.Constant) and isinstance(a0.value, str) and a0.value:
+                    lanes.append(a0.value)
+            if lanes:
+                cache[node.name] = lanes
+    return list(cache.get(key) or [])
+
+
 def _live_of(watcher, name):
     """Is this lane's THREAD alive? -> {"state","why","tickAgeS"} — always all three keys.
 
@@ -139,6 +200,23 @@ def _live_of(watcher, name):
         return miss
     r = by.get(str(watcher or "")) or by.get(str(name or ""))
     if not r:
+        # ⚠ AND THE LANES THIS FUNCTION ACTUALLY STAMPS, derived from its own body. Three vessels
+        # reported an absent tick while ticking under a lane name — see _stamps_of(). The FRESHEST
+        # wins: no function owns more than one lane today (measured: 0 of 21), but nothing stops
+        # one from doing so, and the newest beat is the honest answer to "did this run".
+        _best = None
+        for _lane in _stamps_of(name) + _stamps_of(watcher):
+            _r = by.get(_lane)
+            if not _r:
+                continue
+            _age = _r.get("tickAgeS")
+            if _best is None or (isinstance(_age, (int, float))
+                                 and isinstance(_best.get("tickAgeS"), (int, float))
+                                 and _age < _best["tickAgeS"]):
+                _best = _r
+        if _best is not None:
+            return {"state": _best["state"], "why": _best["why"],
+                    "tickAgeS": _best["tickAgeS"]}
         return miss
     return {"state": r["state"], "why": r["why"], "tickAgeS": r["tickAgeS"]}
 

@@ -2342,6 +2342,26 @@ GATES = [
              "PHOTOGRAPHED BY NOTHING until the heart target's selector was widened past "
              "`.hrt-h, .hrt-row`: the contradiction between the rows and the count sat on his "
              "screen and no instrument here could have seen it."),
+    Gate("test_a_tick_filed_under_a_lane_name_still_counts",
+         [sys.executable, os.path.join(HERE,
+          "test_a_tick_filed_under_a_lane_name_still_counts.py")], 120,
+         why="THREE VESSELS REPORTED 'no tick has been stamped under this name' WHILE STAMPING "
+             "PERFECTLY WELL. Measured on his live console 2026-09-12, stable across two "
+             "consecutive samples with zero drift: FLOWING 13, DORMANT 3, UNKNOWN 3, UNTIMED 1 — "
+             "and the three unknowns were _console_beacon_loop, _retro_triage_loop and "
+             "_warden_loop. All three call _lane_tick; two file it under the LANE's name rather "
+             "than the FUNCTION's (_retro_triage_loop -> 'tvd-retro-triage', _warden_loop -> "
+             "'tvd-space-warden'). _live_of looked up the watcher then the vessel name, neither "
+             "of which is 'tvd-retro-triage', so a MISS was rendered as 'never started' about a "
+             "lane that was beating. The lanes are now DERIVED from each function's own body with "
+             "ast — 21 functions stamp today and a table beside the code would have to be "
+             "remembered into every time one is renamed. ⚠ The first cut of that reader returned "
+             "[] for everything SILENTLY: heart.py imports only os and sys, the reader called "
+             "io.open, the NameError was swallowed by a broad except, and every function read as "
+             "stamping no lanes — indistinguishable from a measured absence. The cache keeps the "
+             "failure REASON now. ⚠ And the half that must not soften: a vessel whose lanes are "
+             "genuinely silent still reads UNKNOWN, or this would turn every unwatched thread "
+             "green."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "

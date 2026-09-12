@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3044",
+  "ver": "v3045",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3044: the heart legend printed flowing 0 while every vessel row said nothing can score this watcher, and the organ rows it scores from carry no score field at all so even a perfect key match returns None - and the legend was photographed by nothing until the target selector was widened",
+  "note": "v3045: three vessels reported no tick has been stamped while stamping perfectly well, because two of them file the tick under the lane name rather than the function name and the census only ever asked for the function",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
