@@ -313,18 +313,60 @@ class TheRiverHasAnOutlet(unittest.TestCase):
         So the law is the STRUCTURE, not the runtime value: the flag is False, and the loop still
         refuses on it before reaching any deletion. [[feedback-verify-not-proxy]]
         """
+        #: ⚠⚠ v3015 — THIS LAW PINNED A VALUE AND THE VALUE MOVED WITHOUT IT. v2984 armed the
+        #: FRAME prune deliberately ("the prune is armed, and the argument against it was about
+        #: the other deleter") and did not update this assertion, so the law has been RED at
+        #: origin/main ever since — and nothing caught it, because the pre-push runs only
+        #: test_agent and test_control, never the full roster. It is almost certainly one of the
+        #: four red CI shards measured at e5cc2d26.
+        #:
+        #: THERE ARE TWO DELETERS AND THIS LAW CONFLATED THEM:
+        #:   · `_prune_loop` / `_prune_once` drops DUPLICATE FRAMES inside reels. `_PRUNE_SAFE_TO_RUN`
+        #:     gates that one, and it is now True by his decision.
+        #:   · `reel_retention.apply_plan` removes WHOLE REELS and is the only writer of a
+        #:     TOMBSTONE row. It refuses without an explicit `yes=True`, which is why TOMBSTONE has
+        #:     been 0 forever: no automated caller ever releases a reel.
+        #:
+        #: So the law now pins the STRUCTURE that is actually load-bearing — both deleters still
+        #: refuse by default — instead of a boolean that is his to set. Pinning the number would
+        #: just go stale again the next time he rules. [[regression-guard]] [[label-outlived-referent]]
+        #:
+        #: ⚠ PARSED, NEVER GREPPED. The old cut used casrc.find() between two "def " markers, which
+        #: silently reads the WRONG function the moment a nested def appears. [[source-reading-guard]]
+        import ast as _ast
         import control_app as _ca
         v = getattr(_ca, "_PRUNE_SAFE_TO_RUN", "<absent>")
-        self.assertIs(False, v,
-                      "control_app._PRUNE_SAFE_TO_RUN is %r. His instruction is explicit and "
-                      "standing: do not arm the prune." % (v,))
+        self.assertIsInstance(
+            v, bool,
+            "control_app._PRUNE_SAFE_TO_RUN is %r — the arming lock must be a MEASURED boolean. "
+            "Absent or None is 'nobody decided' wearing a decision's clothes." % (v,))
+
         casrc = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = casrc.find("def _prune_loop():")
-        self.assertGreater(i, 0, "the prune loop is gone — this law inspected nothing")
-        j = casrc.find("\ndef ", i + 1)
-        self.assertIn("if not _PRUNE_SAFE_TO_RUN:", casrc[i:j],
-                      "the prune loop no longer refuses on the arming lock, so the flag being "
-                      "False stops nothing")
+        loop = None
+        for _fn in _ast.walk(_ast.parse(casrc)):
+            if isinstance(_fn, _ast.FunctionDef) and _fn.name == "_prune_loop":
+                loop = _ast.get_source_segment(casrc, _fn) or ""
+        self.assertIsNotNone(loop, "_prune_loop is gone — this law inspected nothing")
+        self.assertIn("if not _PRUNE_SAFE_TO_RUN:", loop,
+                      "the frame prune no longer refuses on its arming lock, so the flag stops "
+                      "nothing whatever it is set to")
+
+        #: THE REEL DELETER — the one that writes a tombstone — must keep refusing by default.
+        rsrc = io.open(os.path.join(HERE, "reel_retention.py"), encoding="utf-8").read()
+        ap = None
+        for _fn in _ast.walk(_ast.parse(rsrc)):
+            if isinstance(_fn, _ast.FunctionDef) and _fn.name == "apply_plan":
+                ap = _fn
+        self.assertIsNotNone(ap, "reel_retention.apply_plan is gone — nothing deletes reels, or "
+                                 "something else does and this law is no longer watching it")
+        _defaults = {a.arg: d for a, d in zip(ap.args.args[-len(ap.args.defaults):],
+                                              ap.args.defaults)} if ap.args.defaults else {}
+        self.assertIn("yes", _defaults,
+                      "apply_plan no longer takes a defaulted `yes` — the reel deleter's refusal "
+                      "is the only thing standing between a plan and an irreversible rmtree")
+        self.assertIs(getattr(_defaults["yes"], "value", "<not-a-constant>"), False,
+                      "apply_plan's `yes` no longer defaults to False, so a caller that forgets "
+                      "the flag now DELETES REELS instead of being refused")
 
     def test_the_lane_stamps_as_an_ACTOR(self):
         """The row must carry a causal claim the lane is entitled to make — and it is the only kind
@@ -423,6 +465,49 @@ class TheRiverHasAnOutlet(unittest.TestCase):
             self.assertTrue(str(rep.get("outletWhy") or ""),
                             "the outlet could not be read on the path CI takes and nothing says "
                             "why, so its verdict cannot be acted on")
+
+    def test_the_tombstone_pair_with_NOTHING_gradable_is_UNMEASURED_not_zero(self):
+        """⚠⚠ THE ZERO THAT SPOKE FOR REELS IT NEVER SAW. v3011's pair skipped every routed reel
+        whose extract evidence was gone and published the survivors' count as the verdict.
+        MEASURED on his live tree: 20 routed, 16 absent, FOUR graded — reported as "0, agree".
+
+        And the absence is not neutral. Evidence vanishes when the deleter runs, so a reel
+        tombstoned ahead of extraction becomes ungradable exactly when the violation completes;
+        the pair was structurally green through the terminal state of the pipeline it guards.
+
+        Both directions are pinned here, because "return None" alone would be a different lie:
+        nothing gradable must read UNMEASURED, and a reel that IS gradable and clean must still
+        read 0. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]"""
+        import corroborate as C
+        real_r, real_e = RR._routed_by_a_lane, RR._evidence
+
+        def _left_with(routed, ev):
+            try:
+                RR._routed_by_a_lane = lambda *a, **k: (routed, "")
+                RR._evidence = lambda hist=None: (ev, "")
+                return C._inv_a_tombstone_is_never_ahead_of_extraction()[4]()
+            finally:
+                RR._routed_by_a_lane, RR._evidence = real_r, real_e
+
+        nothing = _left_with(["reel_a", "reel_b"], {})
+        self.assertIsNone(
+            nothing,
+            "two reels were routed and NEITHER had surviving evidence, so nothing could be "
+            "graded — the pair answered %r instead of UNMEASURED. A zero here claims two reels "
+            "were checked and cleared when none was looked at." % (nothing,))
+
+        clean = _left_with(["reel_a"], {"reel_a": {"sealed": True, "worthReading": True}})
+        self.assertEqual(
+            clean, 0,
+            "a routed reel WITH surviving evidence, sealed and worth reading, is a genuine "
+            "measured zero — the pair answered %r, so the UNMEASURED guard has swallowed real "
+            "coverage as well." % (clean,))
+
+        caught = _left_with(["reel_a"], {"reel_a": {"sealed": False, "worthReading": True}})
+        self.assertEqual(
+            caught, 1,
+            "a worth-reading reel closed out UNSEALED is the violation this pair exists for; "
+            "it answered %r." % (caught,))
 
 RED_PROOF = [
     {

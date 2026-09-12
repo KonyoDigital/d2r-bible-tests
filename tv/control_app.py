@@ -19750,11 +19750,31 @@ _LEDGER_BACKUP_EVERY_S = 600.0
 # world and dies twenty minutes later used to leave no receipt at all. `_LEDGER_BACKUP_FIRST_S`
 # gives the main window time to exist and the board time to be asked.
 _LEDGER_BACKUP_FIRST_S = 45.0
-# v2050 — 60, raised with the interval. Tightening 1800s -> 600s tripled the rate, and keeping 20
-# would have shrunk the history from ~10 hours to ~3 for no reason: a snapshot is ~14 KB and only
-# written when the COUNTS CHANGE, so 60 of them is under a megabyte and usually spans days.
-# Depth is what lets him go back past a bad day, and this is the file that made one survivable.
-_LEDGER_BACKUP_KEEP = 60
+# ⚠⚠ v3015 — THE POLICY LIVES HERE, IN ONE PLACE, BECAUSE TWO DELETERS DISAGREED AND THE WRONG
+# ONE WON. v3009 shipped a retention policy (48h rolling + one daily keeper per UTC day for 90
+# days + an open-episode guard) into `_ledger_backup_prune`, and it was DEAD ON ARRIVAL: the
+# count cap below runs inside `_ledger_snapshot_once` on every successful write, BEFORE the loop
+# ever calls the prune, and it deletes oldest-first by name sort.
+#
+# MEASURED 2026-09-12 on his live ~/d2r_ledger_backups: exactly 60 files spanning
+# 2026-09-11 15:06 -> 2026-09-12 11:56 — 20.8 HOURS, against a policy advertising 48h + 90 days.
+# Snapshot cadence measured from the same dir: median gap 901s (min 301, max 12610). So a 48h
+# rolling window needs 191 snapshots at the median and 574 at the fastest observed cadence; the
+# full policy needs ~664. A cap of 60 binds first by 4.7x at the median. The 2026-09-08 loss was
+# noticed ~3 days late; under this cap the predating backup is gone in under a day, which is the
+# exact failure v3009 was sized from. [[two-fixes-broke-each-other]] [[the-unjoined-end]]
+#
+# The fix is NOT a bigger number — it is one authority. The policy constants below are the only
+# retention policy; the cap is demoted to a FAILSAFE against runaway growth and is sized so it can
+# never be the binding constraint. `test_the_backup_prune_never_orphans_a_loss` pins that
+# relationship as a LAW rather than pinning the number, so raising the cadence can never silently
+# re-strangle the policy the way tightening 1800s -> 600s did in v2050.
+_LEDGER_ROLLING_S = 48 * 3600.0          # every snapshot younger than this is kept, whatever else
+_LEDGER_KEEPER_S = 90 * 24 * 3600.0      # the first snapshot of each UTC day, kept this long
+_LEDGER_MIN_CADENCE_S = 300.0            # the floor the writing loop can achieve (measured min 301)
+# FAILSAFE ONLY. Must stay far above (_LEDGER_ROLLING_S / _LEDGER_MIN_CADENCE_S) + 90 = ~666.
+# At ~14 KB a snapshot, 2000 is ~28 MB — cheap against losing the backup that answers a loss.
+_LEDGER_BACKUP_KEEP = 2000
 _LEDGER_BACKUP_STATE = {"last": "", "counts": None, "writes": 0, "why": "",
                         # ⚠⚠ v2736 — WHEN THE LOOP LAST *TRIED*, not when it last SUCCEEDED.
                         # Without this the doctor row could only read `why`, and `why` is
@@ -19849,8 +19869,18 @@ def _ledger_snapshot_once(force=False):
         _LEDGER_BACKUP_STATE["why"] = "wrote %s" % os.path.basename(out)
         try:
             import glob as _lg
+            # ⚠⚠ v3015 — A FAILSAFE, NOT THE POLICY. This used to be the only deleter and it
+            # silently overrode v3009's retention (see the note on _LEDGER_BACKUP_KEEP). It stays
+            # ONLY to bound runaway growth if the real prune stops running; at 2000 it cannot bind
+            # before the policy does. Anything it removes here is a bug worth seeing, so it says so.
             keep = sorted(_lg.glob(os.path.join(_LEDGER_BACKUP_DIR, "ledger_*.json")))
-            for old in keep[:-_LEDGER_BACKUP_KEEP]:
+            _over = keep[:-_LEDGER_BACKUP_KEEP]
+            if _over:
+                _LEDGER_BACKUP_STATE["why"] = (
+                    "wrote %s — ⚠ FAILSAFE removed %d snapshot(s) over the %d cap; the retention "
+                    "prune is not keeping up and the policy is no longer what is on disk"
+                    % (os.path.basename(out), len(_over), _LEDGER_BACKUP_KEEP))
+            for old in _over:
                 os.remove(old)
         except Exception:
             pass
@@ -19931,7 +19961,27 @@ def _ledger_backup_prune(bdir=None, now=None):
     try:
         newest = max(snaps, key=os.path.getmtime)
         doc = _json.load(io.open(newest, encoding="utf-8"))
+        # ⚠⚠ v3015 — LOOK WHERE THE WRITER PUTS IT, NOT WHERE THE FIXTURE PUT IT. v3009 read only
+        # the TOP LEVEL, and `_ledger_snapshot_once` nests every store key under "allStores"
+        # (it writes `"allStores": got.get("fullStores")`, the whole store dict). MEASURED on a
+        # real snapshot: top-level keys are ['allStores','counts','ledger','route','source',
+        # 'takenAt'] and doc.get("d2r_storeEmptied") is None, while
+        # allStores["d2r_storeEmptied"] carries the episode. So the guard that exists to save the
+        # one backup predating an OPEN loss had NEVER ONCE ENGAGED on a real snapshot.
+        #
+        # It stayed green through 20 laws and 9 red-proofs because MY FIXTURE INVENTED A SHAPE THE
+        # WRITER NEVER PRODUCES — a top-level dict. The sabotage deleted something real, so the
+        # proof passed; it just proved a branch no live snapshot reaches.
+        # [[feedback-blind-fixture-green-gate]] [[the-unjoined-end]]
+        #
+        # Top level is still tried FIRST so an older snapshot written before the nesting, or a
+        # hand-made one, still protects. The JSON-string decode below was already correct and is
+        # load-bearing: allStores values are serialised strings, not dicts.
         raw = doc.get("d2r_storeEmptied")
+        if raw is None:
+            _al = doc.get("allStores")
+            if isinstance(_al, dict):
+                raw = _al.get("d2r_storeEmptied")
         ev = _json.loads(raw) if isinstance(raw, str) else raw
         if isinstance(ev, dict) and ev.get("at") and not ev.get("recoveredAt"):
             older = [pp for pp in snaps if os.path.getmtime(pp) * 1000.0 < float(ev["at"])]
@@ -19941,8 +19991,10 @@ def _ledger_backup_prune(bdir=None, now=None):
     except Exception:
         pass                                # an unreadable record protects nothing extra, and says so via counts
 
-    ROLLING_S = 48 * 3600.0
-    KEEPER_S = 90 * 24 * 3600.0
+    # ⚠ v3015 — READ FROM THE MODULE, never re-declared here. These were locals, so the count cap
+    # at the snapshot site could contradict them with nothing to notice. One authority.
+    ROLLING_S = _LEDGER_ROLLING_S
+    KEEPER_S = _LEDGER_KEEPER_S
     first_of_day = {}
     for pp in snaps:
         d = _dt.datetime.utcfromtimestamp(os.path.getmtime(pp)).strftime("%Y-%m-%d")
@@ -26760,7 +26812,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3014",
+        "ver": "v3015",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

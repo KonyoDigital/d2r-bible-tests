@@ -1116,8 +1116,11 @@ GATES = [
              "EMPTY OF VALUE where nothing was ever sealed because there was nothing to seal, "
              "and routing them is exactly right. The violation is the CONJUNCTION (worth reading "
              "AND unsealed AND routed); an unmeasured half counts neither way; a routed reel "
-             "absent from the evidence walk is the deleter's documented wake. Live after the "
-             "fix: 0 of 20 routed reels in violation, state agree. Proven red both ways: the "
+             "absent from the evidence walk is the deleter's documented wake. ⚠ v3015 — that "
+             "wake is a BLIND SPOT, not a footnote: measured 20 routed and only 4 gradable, so "
+             "the old note's '0 of 20' overstated coverage 5x. left() now returns UNMEASURED "
+             "when nothing is gradable and the label names the population it counts. Proven "
+             "red both ways: the "
              "conjunction dropped to a constant, and the sealed-only narrowing that produced "
              "the measured false red.",
          skip_ok=()),

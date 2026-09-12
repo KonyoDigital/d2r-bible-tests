@@ -242,6 +242,13 @@ def _inv_a_tombstone_is_never_ahead_of_extraction():
             WORTH READING and are MEASURED-unsealed — worth extracting, never sealed, routed
             anyway. right = 0.
 
+    ⚠⚠ WHAT THIS PAIR CANNOT SEE, SAID OUT LOUD. It grades only routed reels whose extract
+    evidence is still on disk. The deleter removes that evidence, so a reel tombstoned ahead of
+    extraction stops being gradable at the moment the violation finishes — this pair can catch the
+    act in flight and never after the fact. Measured 2026-09-12: 20 routed, 4 gradable. It is a
+    real check with a real blind spot, and the blind spot is now in the label rather than hidden
+    behind a confident 0.
+
     ⚠⚠ THE FIRST PREDICATE WAS WRONG AND WENT RED ON HIS LIVE DATA WITHIN A MINUTE. `sealed is
     False` alone read 4 violations — and all four were `worthReading=False, surveyed=True,
     names=0`: reels the template station surveyed and judged EMPTY OF VALUE, where nothing was
@@ -259,13 +266,32 @@ def _inv_a_tombstone_is_never_ahead_of_extraction():
         ev, _ewhy = rr._evidence()
         if not isinstance(ev, dict):
             return None                      # no evidence walk — unmeasured, never zero
-        bad = 0
+        # ⚠⚠ v3015 — THE ZERO HAD NO DENOMINATOR, AND THE COMMENT BELOW WAS THE TELL.
+        # "absent by design, not silent" described the INTENT and then did the silent thing: the
+        # absent reels were dropped and the survivors' count was published as if it spoke for all
+        # of them. MEASURED on his live tree: 20 routed reels, 16 absent from the evidence walk,
+        # so FOUR were graded and the row said "0 — agree". 20% coverage wearing a 100% verdict.
+        #
+        # Worse, the absence is not random. Evidence disappears when the deleter runs, so a reel
+        # that WAS tombstoned ahead of extraction becomes ungradable at exactly the moment the
+        # violation completes. The pair stayed green through the terminal state of the pipeline it
+        # guards. [[zero-needs-a-denominator]] [[label-outlived-referent]]
+        #
+        # Two fixes, and neither invents coverage that does not exist:
+        #   · graded == 0 returns None — UNMEASURED, never a clean zero. `_reading` turns that
+        #     into an honest "cannot be corroborated" instead of an agreement nobody earned.
+        #   · the LEFT LABEL below now names the population it actually counts, so the number is
+        #     read against the right denominator even when most reels are gone.
+        graded, bad = 0, 0
         for reel in routed:
             e = ev.get(str(reel))
             if e is None:
-                continue                     # deleted after routing: absent by design, not silent
+                continue                     # deleted after routing — ungradable, not innocent
+            graded += 1
             if e.get("sealed") is False and e.get("worthReading") is True:
                 bad += 1
+        if graded == 0:
+            return None                      # nothing survived to grade; 0 here would be a lie
         return bad
 
     def right():
@@ -278,7 +304,8 @@ def _inv_a_tombstone_is_never_ahead_of_extraction():
             "freely because its contract is vacuously satisfied",
             "route one worth-reading reel whose extract read sealed:false and this goes red "
             "without asking the lane that did it",
-            "worth-reading reels closed out unsealed", left, "0 allowed", right, "<=")
+            "worth-reading reels closed out unsealed, among those whose extract evidence "
+            "still exists", left, "0 allowed", right, "<=")
 
 
 def _inv_swept_memory_matches_the_disk():

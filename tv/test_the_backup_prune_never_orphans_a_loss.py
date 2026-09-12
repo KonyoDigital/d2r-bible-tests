@@ -175,6 +175,80 @@ class TheBackupPruneNeverOrphansALoss(unittest.TestCase):
                          "stable, but not the keeper policy — expected each old day to keep its "
                          "OWN first (2 kept, 2 pruned, both firsts alive); got %r" % (distinct[0],))
 
+    def test_the_failsafe_cap_can_never_bind_before_the_policy(self):
+        """⚠⚠ THE DEFECT THIS FILE EXISTED THROUGH. v3009 shipped a 48h + 90-day retention policy
+        that was DEAD ON ARRIVAL: a 60-file count cap inside `_ledger_snapshot_once` ran on every
+        write, before the prune, deleting oldest-first. Measured on his live dir: 60 files spanning
+        20.8 HOURS against a policy advertising 48h + 90 days.
+
+        This pins the RELATIONSHIP, not the number — raising the write cadence is exactly what
+        broke it in v2050 (1800s -> 600s), and a law pinned to `60` or to `2000` would have gone on
+        passing. [[regression-guard]] [[feedback-threshold-above-the-ceiling]]"""
+        rolling_needs = CA._LEDGER_ROLLING_S / CA._LEDGER_MIN_CADENCE_S
+        keeper_needs = CA._LEDGER_KEEPER_S / 86400.0
+        need = rolling_needs + keeper_needs
+        self.assertGreater(
+            CA._LEDGER_BACKUP_KEEP, need,
+            "the failsafe cap (%d) is at or below what the POLICY itself needs (%.0f = %.0f "
+            "rolling snapshots at the %.0fs cadence floor + %.0f daily keepers). The cap will "
+            "delete what the policy promised to keep, and the prune will never see those files."
+            % (CA._LEDGER_BACKUP_KEEP, need, rolling_needs, CA._LEDGER_MIN_CADENCE_S, keeper_needs))
+
+    def test_the_guard_reads_the_shape_the_writer_actually_writes(self):
+        """⚠⚠ THE BLIND FIXTURE, MADE INTO ITS OWN LAW.
+
+        The open-episode guard read `doc.get("d2r_storeEmptied")` at the TOP LEVEL for its whole
+        life. `_ledger_snapshot_once` nests every store key under "allStores". MEASURED on a real
+        snapshot: top-level keys are ['allStores','counts','ledger','route','source','takenAt'] and
+        the top-level lookup is None, while allStores["d2r_storeEmptied"] carries the episode. The
+        guard that protects the one backup predating an OPEN loss had never once engaged.
+
+        Twenty laws and nine red-proofs stayed green because the fixture INVENTED a top-level dict
+        the writer never produces. So this law does not hand-write the shape: it PARSES the
+        writer's own `json.dump` dict literal and builds the fixture from those keys. Change the
+        writer's nesting and this goes red rather than drifting quietly.
+        [[feedback-blind-fixture-green-gate]] [[source-reading-guard]]"""
+        import ast as _ast
+        src = io.open(os.path.join(os.path.dirname(os.path.abspath(CA.__file__)),
+                                   "control_app.py"), encoding="utf-8").read()
+        keys = None
+        for fn in _ast.walk(_ast.parse(src)):
+            if isinstance(fn, _ast.FunctionDef) and fn.name == "_ledger_snapshot_once":
+                for node in _ast.walk(fn):
+                    if (isinstance(node, _ast.Call) and isinstance(node.func, _ast.Attribute)
+                            and node.func.attr == "dump" and node.args
+                            and isinstance(node.args[0], _ast.Dict)):
+                        keys = [k.value for k in node.args[0].keys
+                                if isinstance(k, _ast.Constant)]
+        self.assertIsNotNone(
+            keys, "could not PARSE the writer's json.dump dict — this law cannot derive the shape "
+                  "it is supposed to pin, so it must fail rather than assume one")
+        self.assertIn("allStores", keys,
+                      "the writer no longer nests stores under 'allStores' (keys now %s); the "
+                      "guard's lookup must be updated to match" % sorted(keys))
+
+        # build the fixture from the PARSED keys, with the episode where the writer puts it —
+        # nested, and JSON-ENCODED, because allStores values are serialised strings not dicts
+        loss_at = (self.now - 7 * DAY) * 1000.0
+        episode = {"at": loss_at, "why": "measured", "restore": "..."}   # OPEN: no recoveredAt
+        for name, age in (("ledger_predates.json", 10 * DAY), ("ledger_after.json", 5 * DAY)):
+            body = dict((k, None) for k in keys)
+            body["allStores"] = {"d2r_storeEmptied": json.dumps(episode)}
+            body["counts"] = {}
+            pp = os.path.join(self.d, name)
+            with io.open(pp, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(body))
+            os.utime(pp, (self.now - age, self.now - age))
+
+        r = CA._ledger_backup_prune(self.d, now=self.now)
+        self.assertEqual(
+            r.get("protected"), "ledger_predates.json",
+            "the guard did not find an OPEN episode written in the writer's own shape — it "
+            "protected %r. The one backup that answers 'which predates the loss' is deletable."
+            % (r.get("protected"),))
+        self.assertTrue(os.path.exists(os.path.join(self.d, "ledger_predates.json")),
+                        "the predating backup was DELETED while a loss was open")
+
     def test_an_empty_dir_is_measured_empty_not_an_error(self):
         r = CA._ledger_backup_prune(self.d, now=self.now)
         self.assertEqual(r["pruned"], 0)
@@ -207,8 +281,12 @@ RED_PROOF = [
         "why": "a zero rolling window prunes snapshots minutes old — the corpus can no longer "
                "answer even a same-day question",
         "file": "control_app.py",
-        "find": "    ROLLING_S = 48 * 3600.0",
-        "replace": "    ROLLING_S = 0.0",
+        #: ⚠ v3015 — RE-ANCHORED. This pointed at the local `ROLLING_S = 48 * 3600.0`, which v3015
+        #: replaced with a read of the module constant. The proof matched 0 the moment the refactor
+        #: landed and would have reported INVALID on the next census. Anchored to the policy
+        #: constant itself now, which is where the number actually lives.
+        "find": "_LEDGER_ROLLING_S = 48 * 3600.0",
+        "replace": "_LEDGER_ROLLING_S = 0.0",
         "matches": 1,
     },
     {
@@ -222,6 +300,26 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": '        d = _dt.datetime.utcfromtimestamp(os.path.getmtime(pp)).strftime("%Y-%m-%d")',
         "replace": '        d = _dt.datetime.utcfromtimestamp(now).strftime("%Y-%m-%d")',
+        "matches": 1,
+    },
+    {
+        #: ⚠ THE REAL DEFECT, RESTORED. 60 was the shipped value and it strangled the whole v3009
+        #: policy for its entire life — measured 20.8h of history against a 48h + 90-day promise.
+        "why": "putting the count cap back under what the policy needs makes the cap the deleter "
+               "again; the retention prune never sees the files it promised to keep",
+        "file": "control_app.py",
+        "find": "_LEDGER_BACKUP_KEEP = 2000",
+        "replace": "_LEDGER_BACKUP_KEEP = 60",
+        "matches": 1,
+    },
+    {
+        #: ⚠ THE BLIND LOOKUP, RESTORED. Deleting the nested read returns the guard to reading only
+        #: the top level — where a real snapshot never carries the episode.
+        "why": "without the allStores lookup the open-episode guard reads a level the writer never "
+               "writes to, and the one backup predating an OPEN loss becomes deletable",
+        "file": "control_app.py",
+        "find": '            _al = doc.get("allStores")',
+        "replace": '            _al = None',
         "matches": 1,
     },
 ]
