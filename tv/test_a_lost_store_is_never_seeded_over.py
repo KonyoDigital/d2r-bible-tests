@@ -119,6 +119,33 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
                          "the console still tells him the store is being seeded over, which "
                          "v2988 made false: %r" % line[:120])
 
+    def test_the_doctor_does_not_still_say_the_store_was_refilled(self):
+        """⚠⚠ THE READER, NOT THE WRITER — and I fixed only the writer in v2990.
+
+        The cross-family eye on v2988 named this precisely: the floor's contract changed and the
+        surfaces describing it did not. `console_doctor` still told him the store "was refilled
+        from the built-in seeds" while v2988 had made the floor REFUSE to run — so the board would
+        show 0 and the doctor would report a plausible 383/117. Its words: "the operator is
+        pointed at 17 items missing from a full-looking store when the actual state is an
+        obviously empty board." [[label-outlived-referent]] [[the-unjoined-end]]
+
+        ⚠ SCOPED TO THE LIVE SENTENCE, NOT THE FILE. The comment above it QUOTES the old wording on
+        purpose, and a file-wide search would be satisfied by that quote — the same way an earlier
+        law in this session went red on its own prose. Read the return, not the module.
+        [[source-reading-guard]]
+        """
+        doc = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        i = doc.find("THE BOARD'S STORE CAME UP EMPTY")
+        self.assertGreater(i, 0, "the emptied-store verdict is gone from the doctor")
+        sentence = doc[i:i + 500]
+        self.assertNotIn("was refilled from the built-in seeds", sentence,
+                         "the doctor still tells him the store was refilled from seeds, which "
+                         "v2988 made false — he would be handed the old diagnosis for a board "
+                         "that is visibly empty")
+        self.assertIn("REFUSING", sentence,
+                      "the doctor no longer says the floor REFUSED, so 'empty' and 'seeded over' "
+                      "read the same on the one surface that is supposed to tell them apart")
+
     def test_the_flag_is_raised_where_the_loss_is_detected(self):
         i = BIBLE.find("the found ledger was EMPTY on a load that had already")
         self.assertGreater(i, 0, "the emptied-store detector is gone")
@@ -185,6 +212,14 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "if (!_rwFreshFlag && !_emptiedLoss && window.D2R_PROFILE !== 'ladder'",
         "replace": "if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder'",
+        "matches": 1,
+    },
+    {
+        "why": "putting the old sentence back into the doctor hands him the pre-v2988 diagnosis "
+               "for a board that is visibly empty",
+        "file": "console_doctor.py",
+        "find": "                     \"EMPTY rather than being papered over with defaults: an empty store you can \"",
+        "replace": "                     \"and was refilled from the built-in seeds. \"",
         "matches": 1,
     },
     {

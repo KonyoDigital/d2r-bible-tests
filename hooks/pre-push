@@ -421,6 +421,12 @@ if [ "$_px_touched" = "1" ]; then
   # ACTIVATED after 12.2s" under this profile while the SAME TREE rendered all 18 targets green in
   # 264s standalone, where render_check uses its own mkdtemp. Same code, different profile,
   # opposite verdict. [[ab-against-head-before-blaming-the-room]]
+  # ⚠ SWEEP WHAT EARLIER RUNS LEFT. The persistent profile this replaced reached 1.7 GB precisely
+  # because nothing ever removed it; a temporary one that leaks on a race is the same disease with
+  # a slower clock. Bounded to this exact prefix, and only dirs older than a day so a CONCURRENT
+  # push's profile is never taken out from under it.
+  find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'd2r-render-profile*' -mtime +0 \
+       -exec rm -rf {} + >/dev/null 2>&1 || true
   _px_profile="$(mktemp -d -t d2r-render-profile)"
   if ! curl -s -m 2 -o /dev/null http://127.0.0.1:9224/json/version; then
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
@@ -447,6 +453,18 @@ if [ "$_px_touched" = "1" ]; then
   # kill by PID, never by name: :17772 is his live console and pkill -f cannot tell it from ours
   if [ "$_px_started" = "1" ] && [ -n "${_px_chrome_pid:-}" ]; then
     kill "$_px_chrome_pid" >/dev/null 2>&1 || true
+    # ⚠⚠ WAIT FOR IT TO ACTUALLY DIE BEFORE REMOVING ITS PROFILE. The first cut removed the dir
+    # on the line after `kill`, and Chrome is still shutting down then: the rm took what it could
+    # and Chrome RE-CREATED files on its way out, leaving an 8 KB skeleton behind. Measured twice,
+    # two pushes apart — 8.0 KB each, with no open handles by the time anyone looked, which is
+    # exactly what a race leaves and nothing like a permission failure.
+    # Bounded, and on the PID rather than a name: a pattern matches this shell's own siblings.
+    # [[wait-on-a-pid-not-a-pattern]]
+    _px_w=0
+    while kill -0 "$_px_chrome_pid" >/dev/null 2>&1 && [ "$_px_w" -lt 50 ]; do
+      sleep 0.1
+      _px_w=$((_px_w + 1))
+    done
   fi
   # the temp profile goes with it — that is the whole point of it being temporary. Guarded on the
   # prefix so a mistyped variable can never hand `rm -rf` something else.

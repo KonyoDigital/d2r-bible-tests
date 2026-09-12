@@ -12405,8 +12405,11 @@ def board_ownership(sample=0, dump_stores=False):
           "var rwMade=(function(){try{var m=raw('d2r_rwMade');"
           "if(Array.isArray(m))return m.length;"
           "if(m&&typeof m==='object')return Object.keys(m).length;return null;}catch(e){return null;}})();"
-          # v2216 — DID THIS STORE COME UP EMPTY? bible.html writes d2r_storeEmptied when the boot
-          # seed floor refills a store that had plainly run before. That is the event that cost him
+          # v2216 — DID THIS STORE COME UP EMPTY? bible.html writes d2r_storeEmptied when a store
+          # that had plainly run before comes up empty.
+          # ⚠ v2991 — this used to say "when the boot seed floor REFILLS a store". v2988 made the
+          # floor refuse to run over such a store, so the sentence outlived its referent by three
+          # versions. The event now means "it emptied and we did NOT paper over it". That is the event that cost him
           # 17 uniques on 2026-08-28 while the board displayed a plausible 383/117, and it was
           # written down nowhere a person would look. A first-class field, not a corner of `stores`
           # — that map is only populated on request and holds COUNTS, so a reader there would have
@@ -26624,7 +26627,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v2990",
+        "ver": "v2991",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1235,11 +1235,32 @@ def _check_the_board_store_did_not_come_up_empty():
     ev = got.get("storeEmptied")
     if not ev:
         return OK, "the board's store has not come up empty"
-    return MISSING, ("THE BOARD'S STORE CAME UP EMPTY and was refilled from the built-in seeds. "
-                     "Anything he held that is in no seed did NOT come back — that is how 17 "
-                     "uniques and 3 set pieces went missing on 2026-08-28 while the board read a "
-                     "plausible 383/117. Recover with: "
-                     "python3 ~/d2r_ledger_backups/restore_ledger.py --apply")
+    # ⚠⚠ v2991 — THIS SENTENCE DESCRIBED BEHAVIOUR v2988 REMOVED, AND IT IS THE ONE HE READS.
+    # It said the store "was refilled from the built-in seeds". Since v2988 the floor REFUSES to
+    # run over a store that became empty, so the board shows 0 — while this row told him it had
+    # been refilled to a plausible 383/117. The eye put the cost plainly: "the operator is pointed
+    # at 17 items missing from a full-looking store when the actual state is an obviously empty
+    # board." Restore was still the right action; the diagnosis was the old one.
+    # ⚠ The WRITER's two sentences were corrected in v2990 and this READER was not — a
+    # caller/callee split where the contract changed and the surface describing it did not.
+    # [[label-outlived-referent]] [[the-unjoined-end]]
+    _at = ev.get("at") if isinstance(ev, dict) else None
+    _boots = ev.get("boots") if isinstance(ev, dict) else None
+    _when = ""
+    if isinstance(_at, (int, float)) and _at > 0:
+        import datetime as _dt
+        _when = (" First seen %s UTC"
+                 % _dt.datetime.utcfromtimestamp(_at / 1000.0).strftime("%Y-%m-%d %H:%M"))
+        if isinstance(_boots, int) and _boots > 1:
+            _when += " and still empty %d boots later" % _boots
+        _when += "."
+    return MISSING, ("THE BOARD'S STORE CAME UP EMPTY — it lost its contents on a load that had "
+                     "run before. The seed floor is REFUSING to run over it, so the store stays "
+                     "EMPTY rather than being papered over with defaults: an empty store you can "
+                     "see is recoverable, a seeded one is not.%s That is how 17 uniques and 3 set "
+                     "pieces went missing on 2026-08-28 while the board still read a plausible "
+                     "383/117. Recover with: "
+                     "python3 ~/d2r_ledger_backups/restore_ledger.py --apply" % _when)
 
 
 def _check_the_shadow_gate_is_learning():
