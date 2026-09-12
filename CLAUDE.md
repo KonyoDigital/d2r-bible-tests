@@ -32,7 +32,7 @@ check; loading it at step 0 shapes the build.
 
 | The moment | Load |
 |---|---|
-| ANY UI, layout, screenshot, "how it looks" | **visual-regression-detector** · chrome-cdp-mac · grok-second-eye |
+| ANY UI, layout, screenshot, "how it looks" | **visual-regression-detector** · chrome-cdp-mac · grok-second-eye · gpt-eye |
 | building ANY engine, lane, filter, gate or analyzer | **heart-first** — the corroborator/watchdog/eagle-eye/doctor are built WITH it, never after |
 | a guard that greps SOURCE text, or a test reading a file | **source-reading-guard** |
 | a number he acts on, a default, a freshness badge | unknown-stays-unknown · **stale-reading** |
@@ -42,6 +42,7 @@ check; loading it at step 0 shapes the build.
 | after ANY `git push`, or a version stamp moving | **review-after-ship** (MANDATORY) |
 | finishing a fix, before saying "done" | **sweep-dont-ask** — sweep for siblings of the same defect |
 | a claim can only be settled by looking at HIS screen | **human-eyes-harness** (project skill) |
+| a second/third opinion, "does it agree", a cross-family check | **grok-second-eye** (Grok) · **gpt-eye** (Codex/OpenAI) — three families, and the contradiction IS the finding |
 | before launching ANY Workflow / fan-out | **workflow-topology** + the cost gate |
 | finishing serious work | ship-skill · self-improvement |
 | 3+ scars piled up in one territory | carving-skill |
