@@ -1262,12 +1262,43 @@ def _check_the_board_store_did_not_come_up_empty():
         # whether the recovery is real; a claim without its number cannot be argued with.
         # [[zero-needs-a-denominator]]
         _c2 = got.get("counts") if isinstance(got.get("counts"), dict) else {}
+        # ⚠⚠ v3030 (#81) — AND NOW THE DENOMINATOR, because v3005's own sentence named the gap it
+        # could not close: "one recovered name stamps it just as fully as four hundred". It printed
+        # what the store holds NOW with nothing to hold it against, so 440-back-out-of-445 and
+        # 440-back-out-of-900 read identically. The number he needs is what he HAD, and it is on
+        # disk: v3009's retention keeps the newest snapshot PREDATING the episode alive for exactly
+        # this question. [[zero-needs-a-denominator]]
+        _before, _bwhy = (None, "")
+        try:
+            import control_app as _ca2
+            _before, _bwhy = _ca2.ledger_counts_before(ev.get("at") if isinstance(ev, dict) else None)
+        except Exception as _e2:
+            _before, _bwhy = None, "the predating backup could not be read (%s)" % type(_e2).__name__
+        # ⚠ AN UNREADABLE DENOMINATOR IS SAID, NEVER SUBSTITUTED. Falling back to the current
+        # counts would make every recovery look total, which is the flattering direction.
+        if isinstance(_before, dict):
+            _mag = []
+            for _k, _lbl in (("foundLog", "foundLog"), ("setPieces", "setPieces")):
+                _n, _m = _c2.get(_k), _before.get(_k)
+                if isinstance(_n, (int, float)) and isinstance(_m, (int, float)) and _m > 0:
+                    _mag.append("%d of %d %s" % (int(_n), int(_m), _lbl))
+                else:
+                    _mag.append("%s of UNKNOWN %s" % (_said(_n), _lbl))
+            _gap = ""
+            _fn, _fm = _c2.get("foundLog"), _before.get("foundLog")
+            if isinstance(_fn, (int, float)) and isinstance(_fm, (int, float)) and _fm > _fn:
+                _gap = (" ⚠ %d name(s) have NOT come back." % int(_fm - _fn))
+            return OK, ("the board's store came up empty once and has contents again since %s UTC "
+                        "— %s, against what it held before the loss (%s).%s The record is kept as "
+                        "history — it is what says which backup predates the loss."
+                        % (_dt2.datetime.utcfromtimestamp(_rec / 1000.0).strftime("%Y-%m-%d %H:%M"),
+                           " / ".join(_mag), _bwhy, _gap))
         return OK, ("the board's store came up empty once and has contents again since %s UTC — "
-                    "now %s foundLog / %s setPieces. The record is kept as history — it is what "
-                    "says which backup predates the loss. Judge the counts, not the flag: one "
-                    "recovered name stamps it just as fully as four hundred."
+                    "now %s foundLog / %s setPieces. ⚠ What it held BEFORE the loss is UNKNOWN "
+                    "(%s), so how much came back cannot be judged from here — one recovered name "
+                    "stamps the flag just as fully as four hundred. The record is kept as history."
                     % (_dt2.datetime.utcfromtimestamp(_rec / 1000.0).strftime("%Y-%m-%d %H:%M"),
-                       _said(_c2.get("foundLog")), _said(_c2.get("setPieces"))))
+                       _said(_c2.get("foundLog")), _said(_c2.get("setPieces")), _bwhy))
     # ⚠⚠ v3004 — THE ADVERTISED RESTORE COULD NOT CLEAR THE ALARM UNTIL A RELOAD. Found by the
     # cross-family eye on v2993: `restore_ledger.py --apply` writes names through chronicleApply
     # into the ALREADY-LOADED board, while `recoveredAt` is stamped only in bible.html's load-time

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3029",
+  "ver": "v3030",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3029: measured on his live console: the first reel card sat 426px down a 361px viewport, so the panel named after its cards opened showing none of them; it now scrolls to the first card only when that card is actually below the fold.",
+  "note": "v3030: the recovered row printed what the store holds now with nothing to hold it against, so 440 back out of 445 and 440 back out of 900 read identically; the predating backup answers what he had.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

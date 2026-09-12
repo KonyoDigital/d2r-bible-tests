@@ -175,6 +175,65 @@ class TheBackupPruneNeverOrphansALoss(unittest.TestCase):
                          "stable, but not the keeper policy — expected each old day to keep its "
                          "OWN first (2 kept, 2 pruned, both firsts alive); got %r" % (distinct[0],))
 
+    def test_the_predating_backup_answers_what_the_store_HELD(self):
+        """⚠⚠ v3030 (#81) — THE DENOMINATOR A RECOVERY IS JUDGED AGAINST.
+
+        v3005 made the recovered row publish what the store holds NOW and said in its own words
+        what it could not do: "one recovered name stamps it just as fully as four hundred." A count
+        with nothing to compare it to cannot be argued with — 440 back out of 445 and 440 back out
+        of 900 print identically.
+
+        The number is on disk. v3009's retention keeps the newest snapshot PREDATING an open
+        episode alive for exactly this question, and this reads it.
+
+        ⚠ NEWEST-BEFORE, NOT OLDEST — an older snapshot understates what was lost and makes the
+        recovery look better than it was, which is the flattering direction and therefore the one
+        that must be refused. [[zero-needs-a-denominator]]"""
+        now = self.PINNED_NOW
+        # three snapshots, all older than the loss, with DIFFERENT counts
+        for name, age, fl in (("ledger_old.json", 6 * DAY, 300),
+                              ("ledger_mid.json", 4 * DAY, 400),
+                              ("ledger_near.json", 2 * DAY, 445)):
+            pp = os.path.join(self.d, name)
+            with io.open(pp, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"counts": {"foundLog": fl, "setPieces": 129},
+                                     "allStores": {}}))
+            os.utime(pp, (now - age, now - age))
+        loss_at = (now - 1 * DAY) * 1000.0
+        got, why = CA.ledger_counts_before(loss_at, bdir=self.d)
+        self.assertIsInstance(got, dict, "no predating backup was found: %s" % why)
+        self.assertEqual(
+            got.get("foundLog"), 445,
+            "it answered %r — the NEWEST snapshot before the loss holds 445; anything older "
+            "understates what was lost and flatters the recovery" % got.get("foundLog"))
+        self.assertIn("near", str(why), "the reason does not name which backup answered: %r" % why)
+
+    def test_a_backup_NEWER_than_the_loss_is_never_used_as_the_before(self):
+        """⚠ A snapshot taken AFTER the store emptied holds the EMPTIED state. Using it would make
+        'you had almost nothing' the denominator, and any recovery would look total."""
+        now = self.PINNED_NOW
+        pp = os.path.join(self.d, "ledger_after.json")
+        with io.open(pp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"counts": {"foundLog": 1, "setPieces": 0}, "allStores": {}}))
+        os.utime(pp, (now - 1 * DAY, now - 1 * DAY))
+        loss_at = (now - 3 * DAY) * 1000.0          # the loss PREDATES the only snapshot
+        got, why = CA.ledger_counts_before(loss_at, bdir=self.d)
+        self.assertIsNone(got,
+                          "a backup NEWER than the loss was used as the before-picture (%r) — the "
+                          "emptied state would become the denominator" % (got,))
+        self.assertIn("UNKNOWN", why, "the refusal must say UNKNOWN, not imply an empty store: %r" % why)
+
+    def test_a_backup_with_NO_counts_is_UNKNOWN_not_an_empty_store(self):
+        """⚠ 'I cannot say what you had' must never render as 'you had nothing'."""
+        now = self.PINNED_NOW
+        pp = os.path.join(self.d, "ledger_nocounts.json")
+        with io.open(pp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"allStores": {}}))
+        os.utime(pp, (now - 4 * DAY, now - 4 * DAY))
+        got, why = CA.ledger_counts_before((now - 1 * DAY) * 1000.0, bdir=self.d)
+        self.assertIsNone(got, "a countless backup produced a counts dict: %r" % (got,))
+        self.assertIn("UNKNOWN", why)
+
     def test_the_failsafe_cap_can_never_bind_before_the_policy(self):
         """⚠⚠ THE DEFECT THIS FILE EXISTED THROUGH. v3009 shipped a 48h + 90-day retention policy
         that was DEAD ON ARRIVAL: a 60-file count cap inside `_ledger_snapshot_once` ran on every
@@ -261,6 +320,26 @@ class TheBackupPruneNeverOrphansALoss(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        #: ⚠ TAKING THE OLDEST PREDATING BACKUP INSTEAD OF THE NEWEST understates what was lost and
+        #: flatters the recovery — the direction that must never be allowed to be wrong.
+        "why": "using the oldest snapshot before the loss as the before-picture makes the store "
+               "look smaller than it was, so a partial recovery reads as a complete one",
+        "file": "control_app.py",
+        "find": "    newest = max(older, key=os.path.getmtime)",
+        "replace": "    newest = min(older, key=os.path.getmtime)",
+        "matches": 1,
+    },
+    {
+        #: ⚠ DROPPING THE PREDATES TEST lets a snapshot taken AFTER the emptying become the
+        #: denominator, so "you had almost nothing" and every recovery looks total.
+        "why": "comparing against snapshots newer than the loss makes the EMPTIED state the "
+               "before-picture, and any recovery then looks complete",
+        "file": "control_app.py",
+        "find": "    older = [x for x in snaps if os.path.getmtime(x) * 1000.0 < float(at_ms)]",
+        "replace": "    older = list(snaps)",
+        "matches": 1,
+    },
     {
         "why": "dropping the keeper branch deletes every daily save past 48h — the exact 'noticed "
                "days late with no predating backup' failure the policy exists to end",

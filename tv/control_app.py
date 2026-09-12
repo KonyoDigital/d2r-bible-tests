@@ -26159,6 +26159,55 @@ def fleet_presence_last_good():
     return d, round(max(0.0, time.time() - float(_FLEET_PRESENCE_CACHE.get("goodT") or 0.0)), 1)
 
 
+def ledger_counts_before(at_ms, bdir=None):
+    """What the store held BEFORE a loss, from the newest backup that predates it. -> (dict|None, why)
+
+    ⚠⚠ v3030 (#81) — A RECOVERY WITHOUT ITS DENOMINATOR CANNOT BE JUDGED. v3005 made the recovered
+    row publish the counts it has now — "now 440 foundLog / 129 setPieces" — and said in as many
+    words that "one recovered name stamps it just as fully as four hundred". That was honest about
+    the flag and still left him a number with nothing to compare it to: 440 back out of 445 and
+    440 back out of 900 print identically.
+
+    The denominator already exists on disk. v3009's retention keeps the newest snapshot PREDATING
+    an open episode alive precisely because it is the one that answers "what did I have before" —
+    this reads it. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+    ⚠ NEWEST-BEFORE, NOT OLDEST. The backup immediately before the loss is the closest picture of
+    the store as it stood; an older one would understate what was lost and make the recovery look
+    better than it was — which is the flattering direction and therefore the one to refuse.
+
+    ⚠ UNKNOWN IS NOT ZERO HERE EITHER. No predating backup, an unreadable one, or a snapshot
+    carrying no counts all return None with a reason. "I cannot say what you had" must never
+    render as "you had nothing", which would make any recovery look total.
+    """
+    _d = bdir or _LEDGER_BACKUP_DIR
+    if not at_ms:
+        return None, "the episode carries no timestamp, so nothing can say which backup predates it"
+    if not os.path.isdir(_d):
+        return None, ("no backup directory at %s — UNKNOWN, which is not the same as an empty store"
+                      % os.path.basename(str(_d).rstrip("/") or _d))
+    try:
+        import glob as _g
+        snaps = [x for x in _g.glob(os.path.join(_d, "ledger_*.json")) if os.path.isfile(x)]
+    except Exception as e:
+        return None, "the backup directory could not be listed (%s) — UNKNOWN" % type(e).__name__
+    older = [x for x in snaps if os.path.getmtime(x) * 1000.0 < float(at_ms)]
+    if not older:
+        return None, ("no backup predates the loss — every snapshot on disk is NEWER than it, so "
+                      "what the store held before is UNKNOWN and not recoverable from here")
+    newest = max(older, key=os.path.getmtime)
+    try:
+        doc = json.load(io.open(newest, encoding="utf-8"))
+    except Exception as e:
+        return None, ("the predating backup %s would not parse (%s) — UNKNOWN"
+                      % (os.path.basename(newest), type(e).__name__))
+    c = doc.get("counts")
+    if not isinstance(c, dict) or not c:
+        return None, ("the predating backup %s carries no counts, so what the store held before is "
+                      "UNKNOWN" % os.path.basename(newest))
+    return c, os.path.basename(newest)
+
+
 def _neither_is_publishable(roster_n, show_n, ledger, show_n_why=None):
     """May a "both need" list be shown for this ledger? -> (bool, why)
 
@@ -26978,7 +27027,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3029",
+        "ver": "v3030",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
