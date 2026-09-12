@@ -232,6 +232,92 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         self.assertNotIn(sh(o).get("box"), ("DARK", "OFF-VIEW", "ZERO-HEIGHT"),
                          "closed must never borrow a fault name")
 
+    def _open_case(self, client_h, first_card_top):
+        """Drive the REAL scroll-on-open block from control_ui.html. -> {"scrollTop": n}
+
+        ⚠ EXTRACTED, NOT RETYPED. A copy of the logic here would be a second thing to keep in step,
+        and this suite has already been bitten by a law grading its own copy. The block is found by
+        its two anchors and fails rather than skips if they move — a skip is not a pass.
+        [[source-reading-guard]] [[regression-guard]]"""
+        import re as _re
+        import subprocess
+        ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        #: ⚠ START AT THE `try {`, not inside it. My first cut anchored on `var _firstCard` and
+        #: extracted the BODY without its opening brace, so node refused the block with a dangling
+        #: `} catch` — a fixture that cannot even parse is the same defect one layer up.
+        m = _re.search(r"    try \{\n      var _firstCard = null;.*?\n    \} catch \(e\) \{\}",
+                       ui, _re.S)
+        self.assertIsNotNone(m, "the scroll-on-open block could not be located in control_ui.html "
+                                "— this law is reading nothing and must fail, not skip")
+        blk = m.group(0)
+        fc = "null" if first_card_top is None else (
+            "{ style:{display:''}, getBoundingClientRect:function(){ return {top:%d}; } }"
+            % first_card_top)
+        js = (
+            "var _cardList = %s;\n"
+            "var ov = {\n"
+            "  clientHeight: %d, scrollTop: 0,\n"
+            "  getBoundingClientRect: function(){ return {top: 0}; },\n"
+            "  querySelectorAll: function(){ return _cardList; }\n"
+            "};\n"
+            "%s\n"
+            "console.log(JSON.stringify({scrollTop: ov.scrollTop}));\n"
+            % (("[]" if first_card_top is None else "[" + fc + "]"), client_h, blk))
+        d = tempfile.mkdtemp(prefix="shopen_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0,
+                         "node refused the extracted open block: %s" % (r.stderr or "")[:300])
+        lines = [l for l in (r.stdout or "").strip().splitlines() if l.strip()]
+        self.assertTrue(lines, "the runner printed nothing")
+        return json.loads(lines[-1])
+
+    def test_the_shelf_opens_SCROLLED_when_the_first_card_is_below_the_fold(self):
+        """⚠⚠ v3029 (#58) — THE PANEL NAMED AFTER ITS CARDS OPENED SHOWING NONE OF THEM.
+
+        MEASURED on his live console at 1120x660, shelf open and `measurable` true:
+            clientH 361 · firstCardTop 426   -> the first reel card sits 65px BELOW THE FOLD
+
+        Grok Bot photographed that three times and read it as a blank stage; "BLANK" and
+        "below-fold" were one defect all along.
+
+        ⚠ THIS LAW DRIVES THE REAL OPEN PATH, extracted from control_ui.html, rather than asserting
+        that some string is present. A law that greps for `ov.scrollTop =` passes on a file where
+        the branch never runs. [[source-reading-guard]]
+
+        ⚠ AND IT PINS BOTH DIRECTIONS, because a scroll-on-open that always fires is its own defect:
+        at 1470x923 the same shelf reads firstCardTop 320 in a 622px viewport and the card is
+        ALREADY visible — scrolling there would throw away the head he just used."""
+        out = self._open_case(client_h=361, first_card_top=426)
+        self.assertGreater(
+            out["scrollTop"], 0,
+            "the first card was 426px down a 361px viewport and the shelf still opened at "
+            "scrollTop 0 — he opens the shelf and sees furniture")
+        self.assertLessEqual(
+            out["scrollTop"], 426,
+            "the shelf scrolled PAST the first card (%r) — the point is to show it, not to skip it"
+            % out["scrollTop"])
+
+    def test_a_shelf_whose_card_is_ALREADY_visible_is_left_alone(self):
+        """⚠ THE OVER-CORRECTION. At his wider window the card is already on screen; a scroll there
+        would hide the search box and filters he just touched, to fix a problem that is not
+        present. [[feedback-blind-fixture-green-gate]]"""
+        out = self._open_case(client_h=622, first_card_top=320)
+        self.assertEqual(
+            out["scrollTop"], 0,
+            "a shelf whose first card was already visible (320 in a 622px viewport) was scrolled "
+            "to %r anyway" % out["scrollTop"])
+
+    def test_a_shelf_with_NO_visible_card_does_not_scroll_on_a_guess(self):
+        """⚠ An empty or fully-filtered shelf has no card to bring into view. Scrolling by some
+        default would move a panel that has nothing to show, and the all-zero rect of a hidden node
+        would compute a confident 0. [[unknown-stays-unknown]]"""
+        out = self._open_case(client_h=361, first_card_top=None)
+        self.assertEqual(out["scrollTop"], 0,
+                         "a shelf with no visible card scrolled to %r" % out["scrollTop"])
+
     def test_a_CLOSED_shelf_reports_UNKNOWN_geometry_and_never_ZEROS(self):
         """⚠⚠ v3028 — MEASURED ON HIS LIVE CONSOLE AT v3027, WITH THE OVERLAY SHUT:
 
@@ -477,6 +563,17 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        #: ⚠ THE SHIPPED STATE, RESTORED: the shelf opens at the top and he sees furniture. The
+        #: guard is the comparison, so neutering it returns the panel to opening on nothing while
+        #: every other reading stays green — which is exactly how #58 survived this long.
+        "why": "removing the below-the-fold test makes the shelf open at scrollTop 0 again, so the "
+               "panel named after its reel cards shows none of them at his real width",
+        "file": "control_ui.html",
+        "find": "        if (_ovH > 0 && _top >= _ovH){",
+        "replace": "        if (false){",
+        "matches": 1,
+    },
     {
         #: ⚠ THE SHIPPED STATE, RESTORED. Without the gate a closed overlay reports clientH 0,
         #: firstCardTop 0, scrollH 0 and belowFoldPx 0 — measured on his live console at v3027 —

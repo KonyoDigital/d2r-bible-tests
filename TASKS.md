@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3028** | `(this commit)` | v3028 — measured on his live console with the overlay shut: box closed beside clientH 0 and firstCardTop 0, which reads as the first card being at the very top of a shelf nobody opened. |
+| **v3029** | `(this commit)` | v3029 — measured on his live console: the first reel card sat 426px down a 361px viewport, so the panel named after its cards opened showing none of them; it now scrolls to the first card only when that card is actually below the fold. |
+| **v3028** | `79ac2080` | v3028 — measured on his live console with the overlay shut: box closed beside clientH 0 and firstCardTop 0, which reads as the first card being at the very top of a shelf nobody opened. |
 | **v3027** | `7496a6a7` | v3027 — the bless raised what could rise and refused to lower fifteen heart floors; one blind instrument renders one row of three spans and the three heart targets count that same row three ways, which is why the deltas were minus one, minus three and minus three. |
 | **v3026** | `edfcad31` | v3026 — a red-proof aimed at a branch that has been unreachable since v2947 could never go red, so heart2 called the gate blind and the self-arming precondition failed closed on every lock; four now open on merit. |
 | **v3025** | `40e84f39` | v3025 — v3019 fixed one stale count and left two others in the same file naming five modals beside a floor of six, so the next person to add an overlay would have counted wrong and left the floor too low. |

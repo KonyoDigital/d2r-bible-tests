@@ -15683,6 +15683,40 @@ window._lockMark = function(isOpen, px, label){
       + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
       + _shHighlights() + timelineDiv;
     ov.hidden = false;
+    /* ⚠⚠ v3029 (#58) — OPEN ON A REEL, NOT ON FURNITURE. MEASURED on his live console at 1120x660
+       with the shelf open and measurable: clientH 361, firstCardTop 426 — the first reel card sits
+       65px BELOW THE FOLD, so opening the panel NAMED after its cards showed none of them. Grok
+       Bot photographed the same thing three times and called it blank; "BLANK" and "below-fold"
+       were one defect.
+       ⚠ THE BURIAL IS WIDTH-DEPENDENT, which is why this is computed and not a constant: at
+       1470x923 the same shelf reads firstCardTop 320 in a 622px viewport and the card is already
+       visible. A hardcoded offset would scroll a healthy shelf away from its own head.
+       ⚠ AND IT IS AN OPENING OFFSET, NOT SURGERY: 65px against a scrollH of ~61k. This removes
+       nothing from the head, so the transport-deck ruling (:1738) and the empty-stations ruling
+       (:4219) are both untouched — they constrain what may be DELETED from the top of the shelf,
+       and this deletes nothing.
+       ⚠ NOTHING TO FIGHT: every other overlay resets `scrollTop = 0` on open; this one never set
+       it at all, so there is no restore being overridden. Checked before writing.
+       [[zero-needs-a-denominator]] [[visual-regression-detector]] */
+    try {
+      var _firstCard = null;
+      var _cds = ov.querySelectorAll('.sh-grid .sh-card');
+      for (var _ci = 0; _ci < _cds.length; _ci++){
+        if (_cds[_ci].style.display !== 'none'){ _firstCard = _cds[_ci]; break; }
+      }
+      if (_firstCard){
+        /* force layout before measuring — the overlay was display:none one statement ago and an
+           unlaid-out rect reads all-zero, which would compute a confident scroll of 0. */
+        var _ovH = ov.clientHeight || 0;
+        var _r0 = ov.getBoundingClientRect();
+        var _top = Math.round(_firstCard.getBoundingClientRect().top - _r0.top + (ov.scrollTop || 0));
+        /* only when it is ACTUALLY below the fold, and leave a little of the head showing so the
+           filters he just used do not vanish. A shelf whose card is already visible is left alone. */
+        if (_ovH > 0 && _top >= _ovH){
+          ov.scrollTop = Math.max(0, _top - Math.round(_ovH * 0.18));
+        }
+      }
+    } catch (e) {}
     try { _shLiveRender(window.__lastStatus); } catch(e){}   // D24 — populate the live "recording now" card from the last poll (shown only on-air)
     /* v2383 — fill the pipeline board, through window.* rather than a bare call.
        ⚠ AND THE REASON IS NOT THE ONE I FIRST WROTE HERE. I claimed this call crossed the

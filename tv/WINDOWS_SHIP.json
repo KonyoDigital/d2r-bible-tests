@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3028",
+  "ver": "v3029",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3028: measured on his live console with the overlay shut: box closed beside clientH 0 and firstCardTop 0, which reads as the first card being at the very top of a shelf nobody opened.",
+  "note": "v3029: measured on his live console: the first reel card sat 426px down a 361px viewport, so the panel named after its cards opened showing none of them; it now scrolls to the first card only when that card is actually below the fold.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
