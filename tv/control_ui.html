@@ -4221,6 +4221,19 @@
     background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 999px; padding: 7px 12px; cursor: pointer;
     text-transform: uppercase; white-space: nowrap; transition: color .15s, border-color .15s, box-shadow .15s; }
   .sh-cmp:hover { color: var(--gold); border-color: var(--gold-antique); box-shadow: 0 0 10px rgba(240,192,96,.15); }
+  /* ⚠⚠ v3024 — THE THIRD BUTTON WRAPPED AT HIS REAL WIDTH, AND ONLY AT HIS REAL WIDTH.
+     GB-L-TOMB-2 measured the console at 1120x660 and found 🪦 RELEASED was NOT on the
+     Compare/Areas row — AX placed it on a wrapped second row at 213,406. At 1470x923 the same
+     three buttons sit together, which is exactly why a look at the wider window said nothing
+     about the state he actually uses. v3016 added a third .sh-cmp to a row that was already at
+     capacity, and `flex-wrap: wrap` did the only thing it could.
+     THE SEARCH FIELD IS THE THING THAT SHOULD YIELD, not the controls: it already carries
+     `min-width: 0` and an ellipsising placeholder, so shrinking its basis costs a few characters
+     of hint text, while a wrapped control row costs a whole line of vertical space at the top of
+     a shelf whose first card is ALREADY below the fold (firstCardTop 442 in a 361px viewport,
+     measured the same tick). [[visual-regression-detector]] [[borrowed-surface]] */
+  @media (max-width: 1260px) { .sh-search { flex: 1 1 150px; } }
+  @media (max-width: 900px)  { .sh-search { flex: 1 1 110px; } }
   .sh-cmp:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(6,5,4,.9), 0 0 0 3px rgba(240,192,96,.55); }
   /* D17 · best-run / streak HIGHLIGHTS strip — read-only overview at the top of the shelf */
   .sh-hi { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 10px; margin: 0 0 16px; }

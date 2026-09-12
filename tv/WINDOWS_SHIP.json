@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3023",
+  "ver": "v3024",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3023: test_a_SIXTH_collapsed_node_goes_RED kept its name after v3019 raised the live floor to six, so a green test described a boundary that had moved; the law itself was always correct because it drives the pure verdict with its own fixture.",
+  "note": "v3024: at 1470 the three controls sat together and at his real 1120x660 the Released button was pushed to a second row; the search field now yields instead of the controls, because a wrapped control row costs a whole line above a shelf whose first card is already below the fold.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
