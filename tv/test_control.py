@@ -43141,7 +43141,19 @@ class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
     #: materially wrong is worse than none, because it reads as considered.** The sweep walks the
     #: module's AST now, so nested functions are covered and this needs no exemption at all.
     #: What remains are the two the census cannot classify, which are not loops of ours.
-    NOT_IN_THIS_MODULE = {"serve_forever", "wait"}
+    #: ⚠⚠ v3035 — THIS SET IS EMPTY NOW, AND THAT IS THE POINT. The comment above already knew
+    #: the truth — "the two the census cannot classify, which are not loops of ours" — but it was
+    #: knowledge held in a hand-maintained list on the TEST side, which is exactly the kind that
+    #: goes stale without anyone noticing. `serve_forever` and `wait` are methods on stdlib
+    #: objects (`srv.serve_forever`, `wp.wait`) and no module in this package defines them, so
+    #: lane_census now classifies them FOREIGN and heart.NOT_A_VESSEL excludes them. The census
+    #: SAYS it rather than this list REMEMBERING it.
+    #: ⚠ An empty set would make the loop below pass over nothing, so the check moved rather than
+    #: vanished: FOREIGN_EXPECTED asserts the census still accounts for exactly those two, and the
+    #: UNKNOWN assertion is the stronger property that made the exemptions unnecessary at all.
+    #: [[zero-needs-a-denominator]]
+    NOT_IN_THIS_MODULE = set()
+    FOREIGN_EXPECTED = {"serve_forever", "wait"}
 
     def _body_of(self, name):
         """The source of a function called `name` ANYWHERE in control_app, nested included.
@@ -43206,6 +43218,25 @@ class TestV2630EveryVesselTheCensusNamesCanStamp(unittest.TestCase):
             self.assertIsNone(self._body_of(name),
                               "%s is exempted as 'not in this module' but the AST finds it — it "
                               "owes a stamp like everything else" % name)
+
+        # ⚠⚠ v3035 — WHERE THAT EXEMPTION WENT. The two names are no longer excused vessels; they
+        # are not vessels. Assert the census still SAYS so, by name, so the classification cannot
+        # quietly stop applying and leave two threads accounted for by nobody.
+        import lane_census
+        kinds = {r["fn"]: r["kind"] for r in lane_census.census()}
+        self.assertGreater(len(kinds), 25,
+                           "only %d thread target(s) parsed — the census stopped matching the "
+                           "file it reads, so everything below is UNKNOWN not clean" % len(kinds))
+        for name in self.FOREIGN_EXPECTED:
+            self.assertEqual(
+                kinds.get(name), "FOREIGN",
+                "%s is %r, not FOREIGN. It is a method on a stdlib object that no module here "
+                "defines; if the census stopped classifying it, it is unaccounted for rather "
+                "than fine." % (name, kinds.get(name)))
+        self.assertEqual(
+            sorted(f for f, k in kinds.items() if k == "UNKNOWN"), [],
+            "a thread target is UNCLASSIFIED again. That is what the old exemption list existed "
+            "to paper over, and the whole reason it could be emptied is that nothing is unknown.")
 
     def test_the_six_SUPERVISORS_are_covered(self):
         """★ The ones A11 is actually about — the loops with no watcher at all, where a stamp is
