@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3022",
+  "ver": "v3023",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3022: a tile helper that took a boolean could not say the third thing and would have claimed they have it on every both-need row; and coalescing the payload with an empty list would have rendered the servers UNKNOWN as a confident zero.",
+  "note": "v3023: test_a_SIXTH_collapsed_node_goes_RED kept its name after v3019 raised the live floor to six, so a green test described a boundary that had moved; the law itself was always correct because it drives the pure verdict with its own fixture.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

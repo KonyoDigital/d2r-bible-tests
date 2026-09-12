@@ -207,9 +207,34 @@ class ADeclaredFloorReportsAndDoesNotBLOCK(unittest.TestCase):
         self.assertTrue(hurt, "a fully collapsed page passed under the zero floor")
         self.assertIn("every one of", hurt[0])
 
-    def test_a_SIXTH_collapsed_node_goes_RED(self):
-        _, hurt = self._split(zero=6)
-        self.assertTrue(hurt, "a sixth top-level node collapsing was excused by the floor")
+    def test_ONE_MORE_THAN_THE_FLOOR_goes_RED(self):
+        """⚠⚠ v3023 — RENAMED. This was `test_a_SIXTH_collapsed_node_goes_RED`, and the word SIXTH
+        stopped being true: v3019 raised the live page floor from 5 to 6 (a sixth closed modal was
+        added by v3016), so on his actual console a sixth collapsed node is now ALLOWED. The test
+        itself was never wrong — `_split` passes `self.KNOWN` (floor 5) straight into the pure
+        `verdict`, deliberately independent of the live TARGETS, exactly as this class's docstring
+        says: "pin the LAW, not the number". But the NAME described the console rather than the
+        fixture, so a reader checking the live boundary against it would have been misled by a
+        green test. Right law, stale label. [[label-outlived-referent]]
+
+        ⚠ The fixture floor stays 5 ON PURPOSE and must NOT be chased to match the live one. The
+        law here is "one more than whatever the floor is refuses", and pinning it to the live
+        number would make this file go red every time a modal is added — which is how a law stops
+        being about behaviour and starts being a second copy of a constant. [[copy-drift]]"""
+        floor = self.KNOWN["zero"]
+        _, hurt = self._split(zero=floor + 1)
+        self.assertTrue(hurt, "one more collapsed node than the declared floor (%d) was excused"
+                        % floor)
+
+    def test_EXACTLY_the_floor_is_allowed_so_the_boundary_is_pinned_from_both_sides(self):
+        """⚠ THE OTHER SIDE OF THE SAME LINE. A refusal law that only ever tests the failing side
+        cannot tell a correct floor from one set to zero — both refuse the case above. Measured
+        here: at exactly the floor, `zero` must NOT appear among the refusals."""
+        floor = self.KNOWN["zero"]
+        _, hurt = self._split(zero=floor)
+        self.assertFalse([h for h in hurt if "zero-size" in str(h) or "collaps" in str(h)],
+                         "the declared floor of %d was itself refused, so the floor excuses "
+                         "nothing and the number is decorative: %s" % (floor, hurt))
 
     def test_a_field_with_NO_floor_still_refuses_on_ANY(self):
         """⚠ The floor is per-field and per-width. `covered` has none, so one is news."""
