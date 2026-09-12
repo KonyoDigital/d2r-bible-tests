@@ -1394,7 +1394,12 @@ TARGETS = {
             // dialog RENDERS and says nothing about whether anything can OPEN it, which is
             // exactly the half that was in doubt. [[the-unjoined-end]]
             var _b = document.getElementById('fleet-xref');
-            if (_b) { _b.innerHTML = ''; _b.hidden = true; }
+            // ⚠ v3039 — RESET THE CLICK CAP WITH THE DIALOG. `__fxClicks` lives for the TAB, and
+            // this seed runs again on every re-preparation: it hides the dialog and clears the
+            // list, so activate must click afresh — but the cap of 3 was carried over from the
+            // previous preparation and the third reopen could exhaust it. A counter that outlives
+            // the thing it counts is a latch again, which is the defect it replaced.
+            if (_b) { _b.innerHTML = ''; _b.hidden = true; window.__fxClicks = 0; }
             var _l = document.getElementById('fleet-list');
             if (_l) _l.innerHTML = '';
             if (window._fleetRefresh) { try { window._fleetRefresh(); } catch(e){} }
@@ -2967,8 +2972,21 @@ def check(name, spec, shots=True):
                 if spec.get("seed"):
                     tab.ev(spec["seed"])
                     if getattr(tab, "last_exc", None):
-                        _say("     \u26a0 the seed THREW and prepared nothing: %s"
+                        # ⚠⚠ v3039 — THIS LOGGED AND THEN CARRIED ON, WHICH IS THE SAME LIE ev()
+                        # WAS FIXED TO STOP TELLING. A cross-family review of v3037: "ev()'s new
+                        # contract is stash the exception, and the seed sites refuse on it. Only
+                        # one of the two sites does." Correct. The first seed can succeed and this
+                        # RE-preparation run later (after a navigation, or once __rcPrepared is
+                        # gone) can throw — and the page was then stamped prepared and measured
+                        # anyway. Refuse here too: no stamp, no poll, no picture.
+                        _say("     \u26a0 the seed THREW on re-preparation and prepared nothing: %s"
                              % str(tab.last_exc)[:150])
+                        out["ok"] = False
+                        out["refusals"].append(
+                            "the seed threw while re-preparing the page (%s), so what followed "
+                            "would have been measured against a page it never set up"
+                            % str(tab.last_exc)[:110])
+                        return False
                 tab.ev("window.__rcPrepared = %s;" % json.dumps(_rc_token))
                 _d2 = time.time() + 12.0
                 while time.time() < _d2:
@@ -3046,92 +3064,103 @@ def check(name, spec, shots=True):
                                 _rep[_nk] = _nv
                     out.setdefault("report", {})["%dx%d" % (w, h)] = _rep
 
-        for w, h in WIDTHS:
-            tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
-                     deviceScaleFactor=1, mobile=False)
-            # ⚠ v2331 — AND AGAIN AFTER EVERY RESIZE, which the first cut of this fix missed.
-            # v2330 waited for the selector once, after activation, and the gate still blocked a
-            # push with "matched NOTHING" — this time at ALL FOUR widths, and WITHOUT the new
-            # refusal message, which is what pinned it: the wait had passed, so the panel existed
-            # and then went away. A resize re-renders these panels, and the loop answered that
-            # with a fixed 0.6s exactly as the activation step used to.
-            #
-            # One fixed sleep replaced, its sibling two lines below left in place. That is the
-            # same defect surviving in the same function, which is the whole of
-            # [[feedback-generalize-fixes]]: fix the CLASS, not the site that happened to fail.
-            why_w = _selector_ready(tab, spec["sel"], budget=12.0, spec=spec,
-                                    token=_rc_token,
-                                    reprepare=(lambda _w=w, _h=h: _reprepare(_w, _h)))
-            if why_w:
-                out["ok"] = False
-                out["refusals"].append("%dx%d: %s" % (w, h, why_w))
-                _take_report(w, h)      # ⚠ v2925 — the fan's attribute does not need the selector
-                continue
-            _take_report(w, h)
-            # ⚠ MEASURE REACHABILITY BEFORE SCROLLING TO IT — see _REACH. After the
-            # scrollIntoView below, every target is on screen by construction.
-            reach = tab.ev("%s(%s)" % (_REACH, json.dumps(spec["sel"])))
-            if isinstance(reach, dict):
-                out.setdefault("reach", {})["%dx%d" % (w, h)] = reach
-                if reach.get("state") == "UNREACHABLE":
-                    out["ok"] = False
-                    out["refusals"].append(
-                        "%dx%d: the panel is at y=%s in a %spx viewport and the %s scroller only "
-                        "travels %spx — it is not scrolled off, it is UNREACHABLE. Nothing he can "
-                        "do with a mouse brings it on screen."
-                        % (w, h, reach.get("top"), reach.get("vh"), reach.get("scroller"),
-                           reach.get("max")))
-            tab.ev("(function(){var e=document.querySelector(%s); if(e) "
-                   "e.scrollIntoView({block:'center'}); return 1;})()" % json.dumps(spec["sel"]))
-            time.sleep(0.35)
-            raw = tab.ev(_PROBE % (json.dumps(spec["sel"]),
-                                   json.dumps(sorted(spec.get("truncation_ok") or {}))))
-            m = json.loads(raw) if raw else {"found": 0}
-            key = "%dx%d" % (w, h)
-            out["widths"][key] = m
+        # ⚠⚠ v3039 — A REFUSED SEED MUST NOT BE PHOTOGRAPHED. A cross-family review of v3037:
+        # "after a thrown seed it does not return out. It still stamps __rcPrepared, still
+        # polls activate for 12s, still photographs five widths." The verdict was already
+        # red, so this is not about the verdict — it is about the PICTURES, which carry the
+        # target's name and are the thing he actually looks at. A shot of a page the seed
+        # never prepared, filed under `fleet-xref_1440x1000.png`, is worse than no shot.
+        # ⚠ A GUARD, NOT AN EARLY RETURN: the served console is torn down at the end of
+        # check(), so returning here would leak a server process for every refused seed.
+        if not out["ok"] and any("the seed threw" in str(r) for r in out["refusals"]):
+            _say("     \u26a0 not photographing a page the seed never prepared — the shots would carry this target's name and show something else.")
+        else:
+         for w, h in WIDTHS:
+             tab.send("Emulation.setDeviceMetricsOverride", width=w, height=h,
+                      deviceScaleFactor=1, mobile=False)
+             # ⚠ v2331 — AND AGAIN AFTER EVERY RESIZE, which the first cut of this fix missed.
+             # v2330 waited for the selector once, after activation, and the gate still blocked a
+             # push with "matched NOTHING" — this time at ALL FOUR widths, and WITHOUT the new
+             # refusal message, which is what pinned it: the wait had passed, so the panel existed
+             # and then went away. A resize re-renders these panels, and the loop answered that
+             # with a fixed 0.6s exactly as the activation step used to.
+             #
+             # One fixed sleep replaced, its sibling two lines below left in place. That is the
+             # same defect surviving in the same function, which is the whole of
+             # [[feedback-generalize-fixes]]: fix the CLASS, not the site that happened to fail.
+             why_w = _selector_ready(tab, spec["sel"], budget=12.0, spec=spec,
+                                     token=_rc_token,
+                                     reprepare=(lambda _w=w, _h=h: _reprepare(_w, _h)))
+             if why_w:
+                 out["ok"] = False
+                 out["refusals"].append("%dx%d: %s" % (w, h, why_w))
+                 _take_report(w, h)      # ⚠ v2925 — the fan's attribute does not need the selector
+                 continue
+             _take_report(w, h)
+             # ⚠ MEASURE REACHABILITY BEFORE SCROLLING TO IT — see _REACH. After the
+             # scrollIntoView below, every target is on screen by construction.
+             reach = tab.ev("%s(%s)" % (_REACH, json.dumps(spec["sel"])))
+             if isinstance(reach, dict):
+                 out.setdefault("reach", {})["%dx%d" % (w, h)] = reach
+                 if reach.get("state") == "UNREACHABLE":
+                     out["ok"] = False
+                     out["refusals"].append(
+                         "%dx%d: the panel is at y=%s in a %spx viewport and the %s scroller only "
+                         "travels %spx — it is not scrolled off, it is UNREACHABLE. Nothing he can "
+                         "do with a mouse brings it on screen."
+                         % (w, h, reach.get("top"), reach.get("vh"), reach.get("scroller"),
+                            reach.get("max")))
+             tab.ev("(function(){var e=document.querySelector(%s); if(e) "
+                    "e.scrollIntoView({block:'center'}); return 1;})()" % json.dumps(spec["sel"]))
+             time.sleep(0.35)
+             raw = tab.ev(_PROBE % (json.dumps(spec["sel"]),
+                                    json.dumps(sorted(spec.get("truncation_ok") or {}))))
+             m = json.loads(raw) if raw else {"found": 0}
+             key = "%dx%d" % (w, h)
+             out["widths"][key] = m
 
-            # ⚠⚠ A REPORT IS NOT A REFUSAL, and conflating them is how a declared floor turns
-            # into a permanently-red gate anyway. `verdict` returns two kinds of line now: real
-            # refusals, and ⓘ lines that state something the reader must SEE but that decides
-            # nothing — a count within its declared floor, a count that has IMPROVED and wants the
-            # floor lowered, and a count that moves between runs and therefore cannot be judged.
-            # Both go into `refusals` so nothing is hidden from the printout; only the first kind
-            # sets ok:False. ⚠ The marker is the leading ⓘ, which `verdict` alone writes.
-            # ⚠ THE LIST IS THE REFUSALS; `.notes` is what must be SEEN but decides nothing.
-            # My first cut had this line sniff for a `ⓘ` inside the message to tell them apart —
-            # a gate's block-or-allow decision resting on detecting a character in prose. Found
-            # reviewing my own pushed bytes; the split is structural now. [[source-reading-guard]]
-            hurt = verdict(key, m, spec["sel"], (spec.get("known") or {}).get(key))
-            out["refusals"].extend(list(hurt) + list(getattr(hurt, "notes", ())))
-            if hurt:
-                out["ok"] = False
-            # the first three refusals mean every later number is meaningless — do not shoot it
-            if not m.get("found") or not m.get("painted"):
-                continue
+             # ⚠⚠ A REPORT IS NOT A REFUSAL, and conflating them is how a declared floor turns
+             # into a permanently-red gate anyway. `verdict` returns two kinds of line now: real
+             # refusals, and ⓘ lines that state something the reader must SEE but that decides
+             # nothing — a count within its declared floor, a count that has IMPROVED and wants the
+             # floor lowered, and a count that moves between runs and therefore cannot be judged.
+             # Both go into `refusals` so nothing is hidden from the printout; only the first kind
+             # sets ok:False. ⚠ The marker is the leading ⓘ, which `verdict` alone writes.
+             # ⚠ THE LIST IS THE REFUSALS; `.notes` is what must be SEEN but decides nothing.
+             # My first cut had this line sniff for a `ⓘ` inside the message to tell them apart —
+             # a gate's block-or-allow decision resting on detecting a character in prose. Found
+             # reviewing my own pushed bytes; the split is structural now. [[source-reading-guard]]
+             hurt = verdict(key, m, spec["sel"], (spec.get("known") or {}).get(key))
+             out["refusals"].extend(list(hurt) + list(getattr(hurt, "notes", ())))
+             if hurt:
+                 out["ok"] = False
+             # the first three refusals mean every later number is meaningless — do not shoot it
+             if not m.get("found") or not m.get("painted"):
+                 continue
 
-            if shots:
-                os.makedirs(SHOTS, exist_ok=True)
-                d = tab.send("Page.captureScreenshot", format="png", captureBeyondViewport=False)
-                png = base64.b64decode(d.get("data") or "")
-                # ⚠ v2407 — THE NAME MUST CARRY THE HEIGHT, OR TWO VIEWPORTS FIGHT OVER ONE FILE.
-                # This was "%s_%d.png" % (name, w) — width only — which was unambiguous for as
-                # long as every entry in WIDTHS had a distinct width. v2406 added his real window
-                # (1120, 628) beside the existing (1120, 900), and both promptly wrote
-                # `state-panel_1120.png`: whichever ran last silently won, and the surviving PNG
-                # could not say which viewport it showed. A screenshot that cannot name its own
-                # viewport is useless for the visual pass it exists to serve, and the loss is
-                # SILENT — the run still reports both sizes as rendered.
-                # Found immediately, by looking at the file listing rather than at the green line.
-                p = os.path.join(SHOTS, "%s_%dx%d.png" % (name, w, h))
-                with open(p, "wb") as fh:
-                    fh.write(png)
-                m["shot"] = os.path.relpath(p, REPO)
-                if _looks_black(png, w, h):
-                    out["ok"] = False
-                    out["refusals"].append(
-                        "%s: the capture is effectively BLANK (%d bytes). A black rectangle is "
-                        "what a bad clip produces and it reads exactly like an empty panel — "
-                        "refusing rather than handing over a plausible image." % (key, len(png)))
+             if shots:
+                 os.makedirs(SHOTS, exist_ok=True)
+                 d = tab.send("Page.captureScreenshot", format="png", captureBeyondViewport=False)
+                 png = base64.b64decode(d.get("data") or "")
+                 # ⚠ v2407 — THE NAME MUST CARRY THE HEIGHT, OR TWO VIEWPORTS FIGHT OVER ONE FILE.
+                 # This was "%s_%d.png" % (name, w) — width only — which was unambiguous for as
+                 # long as every entry in WIDTHS had a distinct width. v2406 added his real window
+                 # (1120, 628) beside the existing (1120, 900), and both promptly wrote
+                 # `state-panel_1120.png`: whichever ran last silently won, and the surviving PNG
+                 # could not say which viewport it showed. A screenshot that cannot name its own
+                 # viewport is useless for the visual pass it exists to serve, and the loss is
+                 # SILENT — the run still reports both sizes as rendered.
+                 # Found immediately, by looking at the file listing rather than at the green line.
+                 p = os.path.join(SHOTS, "%s_%dx%d.png" % (name, w, h))
+                 with open(p, "wb") as fh:
+                     fh.write(png)
+                 m["shot"] = os.path.relpath(p, REPO)
+                 if _looks_black(png, w, h):
+                     out["ok"] = False
+                     out["refusals"].append(
+                         "%s: the capture is effectively BLANK (%d bytes). A black rectangle is "
+                         "what a bad clip produces and it reads exactly like an empty panel — "
+                         "refusing rather than handing over a plausible image." % (key, len(png)))
     finally:
         tab.close()
         if _console is not None:
