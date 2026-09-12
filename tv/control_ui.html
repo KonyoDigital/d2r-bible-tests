@@ -12909,7 +12909,37 @@ window._lockMark = function(isOpen, px, label){
        live. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
     var _flowN = (typeof c.FLOWING === 'number')
         ? String(c.FLOWING)
-        : '<span class="lg-unmeasured" title="' + esc(d.flowingWhy || 'not measured') + '">—</span>';
+        /* ⚠⚠ v3051 — READ THIS BEFORE "SIMPLIFYING" IT BACK TO esc(...). It is inlined because it
+           cannot depend on anything, NOT because esc() is unreachable. I claimed exactly that and
+           I was wrong, so the refutation is recorded here rather than quietly dropped.
+
+           THE STORY I TOLD: all three heart targets failed the render gate with "the panel could
+           not be ACTIVATED after 12.2s". `esc` is defined at line ~8096, `_hrtBuild` at ~12887,
+           and an IIFE opens between them — so I read it as the carved cross-IIFE dead-render scar
+           and called it the fifth occurrence. Reverting this one line did turn the gate green.
+
+           THE MEASUREMENT THAT KILLED IT: served the real console and asked the page, with the
+           cross-IIFE call restored and the branch FORCED so esc() had to run —
+               typeof esc                -> "undefined"   (at global scope)
+               typeof window._heartRender -> "function"
+               window._heartRender({counts:{}, flowingWhy:'why here'}) -> BUILT OK, 506 chars
+           It built. `esc` is undefined GLOBALLY and still reachable from inside `_hrtBuild`,
+           which is the whole point of a closure — so there was never a ReferenceError, and
+           "reverting turned it green" was a single run of a target that is measurably flaky.
+           [[ab-against-head-before-blaming-the-room]] [[sabotage-is-usually-the-wrong-one]]
+
+           SO WHAT ACTUALLY BROKE THE THREE TARGETS IS **UNKNOWN**, and saying so is the honest
+           report. A sandbox re-run refused the CLEAN file too, so that venue cannot arbitrate it
+           either. Tracked with the shelf-cards 375x800 zero-size flake, which smells the same.
+           [[unknown-stays-unknown]]
+
+           The inlined escape stays only because it is unconditionally correct and depends on no
+           helper 4,800 lines away. It is not a fix for anything, and it is not evidence of one. */
+        : '<span class="lg-unmeasured" title="'
+          + String(d.flowingWhy || 'not measured')
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          + '">—</span>';
     var legend = '<div class="hrt-legend">'
       + '<span class="lg-flowing">● flowing <b>' + _flowN + '</b></span>'
       + '<span class="lg-watched">● watched <b>' + (c.WATCHED || 0) + '</b></span>'

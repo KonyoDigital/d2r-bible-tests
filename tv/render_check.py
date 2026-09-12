@@ -872,6 +872,7 @@ TARGETS = {
     # the panel paints its unreachable branch, so a file:// target would refuse on every run — the
     # mistake the `tvd` target already made and got deleted for, recorded above.
     "heart-fan": {
+        "warm": ["/api/heart"],
         # #53 — the solver's own record, written by `_hrtFanFit` onto the overlay. `reverted` is
         # the whole question: false means it found a placement and KEPT it; true means it found one
         # and put everything back, which is the all-or-nothing revert the task names.
@@ -988,6 +989,7 @@ TARGETS = {
         },
     },
     "heart-stored": {
+        "warm": ["/api/heart"],
         "serve": True,
         # ⚠ SAME VENUE DECLARATIONS AS ITS SIBLINGS, AND MY FIRST CUT OMITTED BOTH. This panel
         # ANIMATES — the chip beats and the fan draws — so a settle-by-size check can never
@@ -1058,6 +1060,7 @@ TARGETS = {
                 "#hrt-instruments .hrt-w > i"),
     },
     "heart": {
+        "warm": ["/api/heart"],
         "serve": True,
         "why": "♥ THE HEART — the panel that says which vessels are alive, which valves are open, "
                "which promises a lane can still break, and (v2539) which recorded fields have "
@@ -1635,6 +1638,13 @@ TARGETS = {
     # — was unexported for exactly the same reason `thShelf` was. Fixing one and not the other
     # fixes half a chain. Both exported in v2805; measured ACTIVATE TRUE at 1440, 901 and 375.
     "shelf-cards": {
+        # measured at 15.8s / 14.5s cold; 40s is ~2.5x, not a number that happened to fit
+        "activate_budget": 40.0,
+        # ⚠ v3051 — measured cold on a fresh console: /api/sessions 3.6s + /api/river 5.4s = ~9s
+        # of a 12.0s activation budget spent before this grid starts building its 533 cards. That
+        # is not the whole story here the way it was for the heart (17.4s against 12.2s), but it
+        # is most of the budget, and none of it is what this target exists to measure.
+        "warm": ["/api/sessions", "/api/river"],
         # ⚠⚠ `settles`, NOT A FIXED WARMUP — AND I LEARNED THIS THE WAY THE FILE ALREADY RECORDS.
         # Copied `warmup: 14.0` from river-strip, which watches ~21 nodes. This grid builds 533
         # CARDS. Measured twice on the SAME HEAD: 🟢 533/533 at all five widths on a quiet machine,
@@ -1732,6 +1742,13 @@ TARGETS = {
             /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
                since the wait node disappears the moment the strip renders */
             if (el.querySelector('.shr-wait')) {
+                /* ⚠ v3051 — I RATE-LIMITED THIS KICK AND THEN TOOK IT BACK OUT. The theory was
+                   that polling every 0.4s fired ~30 racing /api/river fetches and none finished.
+                   It is a plausible story and it is NOT what was wrong: measured, both targets
+                   activate at 14.5-15.8s against a 12.0s bound, so the BOUND was the defect and
+                   it now lives in `activate_budget`. Shipping the rate-limit as well would have
+                   been an unproven change riding along with a proven one — and river-strip went
+                   red the moment it landed. [[sabotage-is-usually-the-wrong-one]] */
                 try { (window._shLanesLoad || function(){})(); } catch (e) {}
                 return false;                 /* not ready, and NOT a pass */
             }
@@ -1750,6 +1767,15 @@ TARGETS = {
         })()""",
     },
     "river-strip": {
+        # ⚠ v3051 — warmed for the same measured reason as the heart targets: cold
+        # /api/river is 5.4s, and this target RACES it. Caught red once and green on the
+        # very next run with 21/21 at all five widths — the classic shape of a gate whose
+        # subject is still loading, which the file already records ("painted 0/21 on the
+        # FIRST width while the other four read 21/21"). Warming does not loosen anything;
+        # it removes the cold cost from the race instead of widening a bound to hide it.
+        "warm": ["/api/river"],
+        # measured at 15.8s / 14.5s cold; 40s is ~2.5x, not a number that happened to fit
+        "activate_budget": 40.0,
         "serve": True,
         "path": "",
         "warmup": 14.0,
@@ -1798,6 +1824,13 @@ TARGETS = {
             /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
                since the wait node disappears the moment the strip renders */
             if (el.querySelector('.shr-wait')) {
+                /* ⚠ v3051 — I RATE-LIMITED THIS KICK AND THEN TOOK IT BACK OUT. The theory was
+                   that polling every 0.4s fired ~30 racing /api/river fetches and none finished.
+                   It is a plausible story and it is NOT what was wrong: measured, both targets
+                   activate at 14.5-15.8s against a 12.0s bound, so the BOUND was the defect and
+                   it now lives in `activate_budget`. Shipping the rate-limit as well would have
+                   been an unproven change riding along with a proven one — and river-strip went
+                   red the moment it landed. [[sabotage-is-usually-the-wrong-one]] */
                 try { (window._shLanesLoad || function(){})(); } catch (e) {}
                 return false;                 /* not ready, and NOT a pass */
             }
@@ -1932,6 +1965,15 @@ class _Tab(object):
         self.ws = websocket.create_connection(info["webSocketDebuggerUrl"],
                                               origin="http://127.0.0.1:%d" % PORT)
         self.n = 0
+        # ⚠⚠ v3051 — THE PAGE'S OWN UNCAUGHT ERRORS. `Runtime.enable` is already sent (see the
+        # heart target below), so Chrome has been BROADCASTING every uncaught exception in the
+        # page this whole time and `send()` threw them away as "not my reply". Measured today:
+        # a legend line called `esc()` across an IIFE boundary, `_hrtBuild` died mid-build, and
+        # all three heart targets reported "the panel could not be ACTIVATED after 12.2s" — a
+        # message about POLLING, which reads as load and cost about forty minutes of A/B before
+        # the real sentence (`ReferenceError: esc is not defined`) was found by hand. The browser
+        # knew the answer at the first failure. Nothing asked it. [[the-unjoined-end]]
+        self.page_errors = []
 
     def send(self, method, **params):
         self.n += 1
@@ -1940,6 +1982,16 @@ class _Tab(object):
             r = json.loads(self.ws.recv())
             # ⚠ a native dialog blocks the renderer AND every Runtime.evaluate with it; the socket
             # just goes quiet, which reads exactly like a crashed tab
+            if r.get("method") == "Runtime.exceptionThrown":
+                _e = ((r.get("params") or {}).get("exceptionDetails") or {})
+                _o = (_e.get("exception") or {})
+                _txt = (_o.get("description") or _o.get("value") or _e.get("text")
+                        or "an uncaught exception with no description")
+                # keep the first 12 — a broken render can throw on every animation frame, and a
+                # thousand copies of one sentence is not more information than one copy of it
+                if len(self.page_errors) < 12:
+                    self.page_errors.append(str(_txt).splitlines()[0][:200])
+                continue
             if r.get("method") == "Page.javascriptDialogOpening":
                 self.n += 1
                 self.ws.send(json.dumps({"id": self.n, "method": "Page.handleJavaScriptDialog",
@@ -1971,6 +2023,15 @@ class _Tab(object):
             _d = (_x.get("exception") or {})
             self.last_exc = (_d.get("description") or _d.get("value")
                              or _x.get("text") or "an exception with no description")
+            # ⚠⚠ v3051 — AND RECORD IT WHERE THE WHOLE TARGET CAN SEE IT, not just the caller.
+            # There are TWO ways the page can hand us an error and I only joined one of them
+            # first: a broadcast `Runtime.exceptionThrown` (collected in send()), and THIS — an
+            # exception that propagates out of the expression we evaluated. The activation step
+            # clicks through `ev()`, so a handler that throws lands HERE and never as an event,
+            # which is why the first cut of this collector stayed empty through the very defect
+            # it was written for. `last_exc` is left exactly as it was so no caller changes.
+            if len(self.page_errors) < 12:
+                self.page_errors.append(str(self.last_exc).splitlines()[0][:200])
         else:
             self.last_exc = None
         return _r.get("result", {}).get("value")
@@ -2845,12 +2906,86 @@ def check(name, spec, shots=True):
                                    "UNKNOWN, not a pass." % str(e)[:160])
             return out
         _url = _origin + (spec.get("path") or "")
+        # ⚠⚠ v3051 — WARM THE ENDPOINTS THIS TARGET DEPENDS ON, BEFORE ITS CLOCK STARTS.
+        #
+        # THE MEASUREMENT, and it settles a flake that has been misread three times today alone:
+        #     /api/heart, first call on a fresh console -> 17.4s   (35,160 bytes)
+        #     /api/heart, immediately after             ->  0.0s
+        # and the activation poll for a panel is 12.2s. So a heart target on a COLD console
+        # cannot pass — the panel is still waiting on its own fetch when the poll gives up — and
+        # on a warm one it passes instantly. That is the whole "flake": not load, not randomness,
+        # a dependency whose cold cost is larger than the bound it is judged against.
+        #
+        # It has been expensive. The same failure was read as machine load, then as a call across
+        # an IIFE boundary (a real carved scar, wrong here — the refutation is in control_ui.html
+        # beside the line I changed for it), and an A/B that "turned green on revert" was really
+        # a second run against a console something else had already warmed.
+        #
+        # Warming from PYTHON rather than in the seed on purpose: the seed is evaluated with
+        # awaitPromise, so a 17s fetch there just moves the same stall somewhere with an even less
+        # obvious error. Doing it here makes the activation bound mean what it says — how long
+        # the PANEL takes to build — instead of silently also timing a cold cache.
+        # [[stale-reading]] [[ab-against-head-before-blaming-the-room]] [[zero-needs-a-denominator]]
+        import urllib.request      # module-level import is local-only elsewhere in this file
+        for _w in (spec.get("warm") or ()):
+            _t0 = time.time()
+            try:
+                urllib.request.urlopen(_origin + _w, timeout=180).read()
+                _say("     warmed %s in %.1fs (its cold cost is NOT this target's to pay)"
+                     % (_w, time.time() - _t0))
+            except Exception as _e:
+                # a failed warm is not fatal — the target may still pass — but it must be SAID,
+                # or the next cold-cache refusal looks like a surface defect all over again
+                out["refusals"].append(
+                    "could not warm %s (%s after %.1fs). This target's activation bound is about "
+                    "the PANEL, and an unwarmed endpoint makes it about a cold cache too — so a "
+                    "refusal below may be about that, not about the surface."
+                    % (_w, type(_e).__name__, time.time() - _t0))
     else:
         _url = "file://" + os.path.join(REPO, spec.get("page") or "bible.html")
     tab = _Tab(_url)
     try:
         tab.send("Page.enable")
         tab.send("Runtime.enable")
+        # ⚠⚠ v3051 — ASK THE PAGE, BECAUSE CDP DOES NOT VOLUNTEER THIS ONE.
+        #
+        # Measured, dumping every event on the socket for a whole heart run: Chrome emitted
+        # frameNavigated, executionContext*, loadEventFired, one consoleAPICalled — and ZERO
+        # `Runtime.exceptionThrown`. That matters because the panels this gate checks raise the
+        # one shape CDP stays quiet about: `_heartOpen` is `fetch().then(...)` ending in
+        # `['finally'](...)` with no `.catch`, so anything thrown in the builder becomes an
+        # unhandled promise REJECTION, and this build does not broadcast those. Two collectors
+        # written on the assumption that it would — an event listener in send(), and the
+        # evaluate-exception path in ev() — were both silent against a deliberately rejected
+        # promise. A listener installed IN the page is the only one of the three that saw it.
+        #
+        # PROVEN, not assumed. Against the real served console, with this exact hook text read
+        # back out of this file rather than retyped:
+        #     window.__rcErrHooked === 1                        -> True
+        #     (window.__rcErrors||[]).length, before anything    -> 0
+        #     after a page-originated rejection + an uncaught throw:
+        #         "unhandled rejection: Error: PROOF unhandled rejection"
+        #         "Uncaught Error: PROOF uncaught error"
+        # ⚠ The first attempt at that proof fooled ITSELF: rejecting inside the evaluate makes
+        # CDP's own `awaitPromise` the handler, so the rejection never becomes unhandled and the
+        # hook correctly saw nothing. The rejection has to originate in PAGE code.
+        # [[sabotage-is-usually-the-wrong-one]]
+        #
+        # A listener installed IN the page catches it, because addEventListener is additive: it
+        # works whether or not the page has its own handler, and it does not depend on Chrome
+        # choosing to report anything. Installed on new documents so it survives a navigation.
+        # ⚠ Known limit, stated rather than hidden: the array lives on `window`, so errors from
+        # BEFORE a navigation are lost. Targets here do not navigate between widths.
+        _ERR_HOOK = ("(function(){if(window.__rcErrHooked)return;window.__rcErrHooked=1;"
+                     "window.__rcErrors=window.__rcErrors||[];"
+                     "var p=function(m){if(window.__rcErrors.length<12)"
+                     "window.__rcErrors.push(String(m).slice(0,400));};"
+                     "window.addEventListener('error',function(e){p((e&&(e.message||(e.error&&"
+                     "e.error.message)))||'an error event with no message');},true);"
+                     "window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;"
+                     "p('unhandled rejection: '+((r&&(r.stack||r.message))||r));});})();")
+        tab.send("Page.addScriptToEvaluateOnNewDocument", source=_ERR_HOOK)
+        tab.ev(_ERR_HOOK)   # and the document already open, which the line above cannot reach
         # ⚠ v2379 — A LIVE CONSOLE NEVER SETTLES, AND THAT IS NOT A FAULT TO REPORT. Its clock
         # ticks every second and its CSS animations are infinite, so readyState/size never stop
         # moving — the exact reason Playwright's screenshot hangs on it (chrome-cdp-mac). A
@@ -2912,7 +3047,22 @@ def check(name, spec, shots=True):
         # until it answers true or the budget runs out, and the refusal below then means the panel
         # really did not come up rather than that the machine was busy.
         act, _t0 = False, time.time()
-        _deadline = _t0 + 12.0
+        # ⚠⚠ v3051 — THE BUDGET IS PER TARGET, BECAUSE 12.0s WAS NOT A MEASUREMENT.
+        #
+        # It was one number for every panel, and two panels have been quietly losing to it:
+        #     shelf-cards  activate goes true at 15.8s   (bound 12.0s)
+        #     river-strip  activate goes true at 14.5s   (bound 12.0s)
+        # Both measured from a cold console with the endpoints already warmed, so that time is
+        # the PAGE building: the shelf lays out 533 cards before `#sh-lanes` even exists — it is
+        # MISSING for the first ~8s of polling — and only then does the river strip load.
+        #
+        # A bound a target misses by 3s is the worst kind: it passes on a quiet machine and fails
+        # on a busy one, which reads as a flake and trains everyone to re-run the gate until it
+        # agrees. That is the failure this file already names two comments down ("a gate that
+        # fails under load teaches him to re-run it until it agrees — which is how a gate stops
+        # being evidence"). The number moves to where the evidence is, per target, and stays 12.0
+        # for everything that has never needed more. [[regression-guard]] [[stale-reading]]
+        _deadline = _t0 + float(spec.get("activate_budget") or 12.0)
         while time.time() < _deadline:
             act = tab.ev(spec["activate"])
             if act:
@@ -3170,6 +3320,58 @@ def check(name, spec, shots=True):
                          "what a bad clip produces and it reads exactly like an empty panel — "
                          "refusing rather than handing over a plausible image." % (key, len(png)))
     finally:
+        # ⚠⚠ v3051 — AN UNCAUGHT PAGE EXCEPTION IS A REFUSAL BY ITSELF, ON EVERY TARGET.
+        #
+        # This sits in the `finally` on purpose: `out` is a dict, so mutating it here still
+        # reaches the caller even on the early `return out` paths above, and this must not be
+        # possible to miss by leaving through a door that forgot to ask.
+        #
+        # WHY IT IS NOT ENOUGH TO ASK ONLY WHEN ACTIVATION FAILS, which is where I first put it:
+        # a page that throws part-way through building a panel does not reliably fail activation.
+        # Measured while chasing the heart targets: the same tree produced "could not be
+        # ACTIVATED" on one run and a 🟢 target with a coverage shortfall (83 nodes against a
+        # blessed 90) on the next. Whichever symptom lands, the honest fact is the same — part of
+        # the page died — and it should be reported by the check that KNOWS it, not inferred from
+        # whichever downstream gate happened to notice. [[regression-guard]] [[the-unjoined-end]]
+        # ⚠⚠ v3051 — DID THE COLLECTOR ITSELF INSTALL? A 0 from a hook that never ran is not a
+        # clean target, it is an unasked question — and this is not hypothetical: the first cut of
+        # the hook above was built by generating JS from a Python string, one level of escaping was
+        # lost in the generation, and the source arrived in the page with a real newline inside a
+        # JS quote. It threw SyntaxError, installed nothing, and the drain then reported a tidy
+        # `pageErrors: 0` for a page that was provably broken. Source generating source is the one
+        # place where reading either file alone cannot show you the defect.
+        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        try:
+            _hooked = tab.ev("window.__rcErrHooked === 1")
+        except Exception:
+            _hooked = None
+        if _hooked is not True:
+            out["ok"] = False
+            out["refusals"].append(
+                "the in-page error collector did NOT install (window.__rcErrHooked is %r), so "
+                "this target cannot say whether the page threw. That is UNKNOWN, not clean — and "
+                "the collector is a few lines of generated JS, so suspect its own syntax first."
+                % (_hooked,))
+        # drain the in-page collector and merge it with anything the CDP paths did catch
+        try:
+            for _m in (tab.ev("(window.__rcErrors||[]).slice(0,12)") or []):
+                _m = str(_m).splitlines()[0][:200] if str(_m).strip() else str(_m)[:200]
+                if _m not in tab.page_errors and len(tab.page_errors) < 12:
+                    tab.page_errors.append(_m)
+        except Exception:
+            pass    # a dead tab cannot answer; the refusals it already earned still stand
+        _perr = list(getattr(tab, "page_errors", ()) or ())
+        if _perr:
+            out["ok"] = False
+            out["refusals"].append(
+                "the page threw %d uncaught error(s) while this target ran. Whatever else this "
+                "target reported, something in the page DIED mid-build, so every measurement "
+                "after that point is about a half-built surface: %s"
+                % (len(_perr), " \u00b7 ".join(_perr[:3])))
+        else:
+            # 0 needs a denominator. This 0 is measured — the collector ran — and saying so is
+            # what stops the next reader treating silence here as "nobody was listening".
+            out["pageErrors"] = 0
         tab.close()
         if _console is not None:
             # the pid THIS function started, and only that one. [[process-port-discipline]]
