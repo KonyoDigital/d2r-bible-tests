@@ -662,8 +662,9 @@ TARGETS = {
         # `test_activation_is_proven_from_the_RECT_not_from_the_call_returning` took it RED for
         # exactly the right reason: *"target 'page' calls a painter and trusts it. A painter that
         # runs and paints nothing must not read the same as an open panel."* A document can have
-        # eight children and lay out none of them — measured on this very page, 5 of its 8
-        # top-level children are zero-size (five closed modals) — so a COUNT cannot tell a
+        # eight children and lay out none of them — measured on this very page, 6 of its 9
+        # top-level children are zero-size (six closed modals, the sixth added by v3016) — so a
+        # COUNT cannot tell a
         # rendered console from a collapsed one, which is the false green a whole-page target
         # would multiply across the document.
         # So: the body must have real area, and at least two top-level children must have real
@@ -739,12 +740,29 @@ TARGETS = {
         # ⚠ This does NOT excuse the backlog. 55 elements are still cut at 375 and fixing them is
         # still its own task with its own pixels and its own second eye.
         # [[regression-guard]] [[feedback-blind-fixture-green-gate]] [[unknown-stays-unknown]]
+        # ⚠⚠ v3019 — `zero` 5 -> 6: A SIXTH CLOSED MODAL EXISTS. The floor of 5 was never an
+        # arbitrary tolerance — the note above states exactly what it counts: "5 of its 8 top-level
+        # children are zero-size (five closed modals)". v3016 added a sixth, `#th-tomb-ov`, the
+        # Released panel's overlay, and it is byte-for-byte the same shape as the three it sits
+        # beside (`th-dossier-ov`, `th-compare-ov`, `th-heatmap-ov`): an empty div carrying `hidden`
+        # until its opener fills it.
+        #
+        # MEASURED, so the raise is not taken on trust: empty hidden overlay divs number 3 at
+        # origin/main and 4 in this tree, and the page target reported "6 of 9 node(s) are
+        # ZERO-SIZE ... DECLARED FLOOR IS 5, this is 1 MORE". One node, one modal, accounted for.
+        #
+        # ⚠ RAISED BY HAND RATHER THAN BY `--bless`, deliberately. --bless refused this very run —
+        # "this run did not report every target, and a partial run must never write a LOWER floor" —
+        # because `page` was the red target, so blessing could not run until the thing it would fix
+        # was already fixed. Raising the one value the measurement names keeps every OTHER floor
+        # exactly where it is; a blanket bless would also have moved five coverage floors in the
+        # same commit and buried this one-node change among them. [[regression-guard]]
         "known": {
-            "1440x1000": {"clipped": 1, "broken": None, "zero": 5},
-            "1120x900":  {"clipped": 1, "broken": None, "zero": 5},
-            "1120x628":  {"clipped": 1, "broken": None, "zero": 5},
-            "901x900":   {"clipped": 6, "broken": None, "zero": 5},
-            "375x800":   {"clipped": 55, "broken": None, "zero": 5},
+            "1440x1000": {"clipped": 1, "broken": None, "zero": 6},
+            "1120x900":  {"clipped": 1, "broken": None, "zero": 6},
+            "1120x628":  {"clipped": 1, "broken": None, "zero": 6},
+            "901x900":   {"clipped": 6, "broken": None, "zero": 6},
+            "375x800":   {"clipped": 55, "broken": None, "zero": 6},
         },
         "settles": True,
         # ⚠ THE SHAPE PREDICATE, not the byte-length one. This page carries a live clock and

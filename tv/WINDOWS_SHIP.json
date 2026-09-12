@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3018",
+  "ver": "v3019",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3018: tvd-retro-triage had a heartbeat and no work-level supervision, so running and doing nothing was invisible; it could not be declared because every other lane takes its work-list from retention tags and this one walks frames before any tag exists. Also a malformed census row raised instead of reporting UNKNOWN.",
+  "note": "v3019: the render gate refused a sixth zero-size node; the floor of 5 was never a tolerance, it counts closed modals, and v3016 added one. Raised by hand rather than by bless, because bless refuses to write from a partial run and the red target was the thing it would have fixed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
