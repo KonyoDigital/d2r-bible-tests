@@ -1693,6 +1693,32 @@ TARGETS = {
         # all five widths for "never matched", which is the honest answer to a selector that
         # describes nothing. Back to the whole grid: the count is what made it slow, never what
         # made it wrong, and the warmup above is what pays for the count.
+        # ⚠⚠ v3048 — AND AN ACTIVATION, BECAUSE `warmup` IS A SLEEP AND THE FLAKE ABOVE IS A RACE.
+        # The comment already records this exact failure — 🟢 at five widths quiet, 🔴 "every one
+        # of 533 node(s) is ZERO-SIZE" under load — and the answer was a bigger warmup, which is
+        # "wait longer and hope". It happened again on 2026-09-12 during a push (0 of 533 at
+        # 375x800) and passed on the same tree seconds later on an idle machine.
+        #
+        # A fixed sleep cannot be right: it is either too short on a busy Mac or wasted on a quiet
+        # one, and the target cannot tell "the cards have not painted YET" from "there are no
+        # cards". Every other slow surface here refuses until its own state is true instead. So
+        # this polls for the thing it is named after — a reel card with a REAL rectangle — and
+        # only then lets the widths be measured. Same question, asked when it can be answered.
+        # ⚠ It refuses rather than passing empty: a shelf with no painted card is exactly the
+        # emptiness this target exists to catch, and 12s of polling distinguishes that from a slow
+        # paint far better than 14s of sleeping ever could.
+        # [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+        "activate": """(function(){
+            var g = document.querySelector('#th-shelfov .sh-grid');
+            if (!g) return false;
+            var cards = g.querySelectorAll('.shc-hero, .shc-sess, .shc-area');
+            if (!cards.length) return false;
+            for (var i = 0; i < cards.length; i++) {
+              var r = cards[i].getBoundingClientRect();
+              if (r.width > 0 && r.height > 0) return true;
+            }
+            return false;
+          })()""",
         "sel": "#th-shelfov .sh-grid .shc-hero, #th-shelfov .sh-grid .shc-sess, "
                "#th-shelfov .sh-grid .shc-area",
         # ⚠ ONLY THE TWO CLASSES THAT DECLARE AN ELLIPSIS. Both set `white-space:nowrap;

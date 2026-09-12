@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3047",
+  "ver": "v3048",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3047: the river lane sentence is clamped to one line with the whole text on hover so the box shrinks and no word is lost, and the two empty pixel_rescue seats are filled so the lock opens at wilson 0.893 against a bar of 0.839",
+  "note": "v3048: its own comment recorded this flake already - green at five widths on a quiet machine and every one of 533 nodes zero size under load - and the answer had been a bigger warmup, which is a sleep that is either too short on a busy mac or wasted on a quiet one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
