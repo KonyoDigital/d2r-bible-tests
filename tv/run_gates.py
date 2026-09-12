@@ -1092,6 +1092,21 @@ GATES = [
              "and gives them a declared maximum silence instead, so they can finally go red "
              "without printing a period they do not have.",
          skip_ok=()),
+    Gate("test_the_outlet_pair_rederives_his_rule",
+         [sys.executable, os.path.join(HERE, "test_the_outlet_pair_rederives_his_rule.py")], 60,
+         why="THE OUTLET'S CORROBORATOR (#80): his rule re-derived from the reels' own evidence, "
+             "so a tombstone ahead of extraction goes red INDEPENDENTLY of the acting lane — a "
+             "check inside the actor is the actor grading itself. ⚠ THE FIRST PREDICATE WENT RED "
+             "ON HIS LIVE DATA WITHIN A MINUTE AND THE RED WAS WRONG: `sealed is False` alone "
+             "counted 4 violations, all four worthReading=False/surveyed/names=0 — reels judged "
+             "EMPTY OF VALUE where nothing was ever sealed because there was nothing to seal, "
+             "and routing them is exactly right. The violation is the CONJUNCTION (worth reading "
+             "AND unsealed AND routed); an unmeasured half counts neither way; a routed reel "
+             "absent from the evidence walk is the deleter's documented wake. Live after the "
+             "fix: 0 of 20 routed reels in violation, state agree. Proven red both ways: the "
+             "conjunction dropped to a constant, and the sealed-only narrowing that produced "
+             "the measured false red.",
+         skip_ok=()),
     Gate("test_the_backup_prune_never_orphans_a_loss",
          [sys.executable, os.path.join(HERE, "test_the_backup_prune_never_orphans_a_loss.py")], 60,
          why="RETENTION SIZED FROM HIS OWN LOSS (#81). The 2026-09-08 emptying was noticed ~3 "

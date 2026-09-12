@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3010",
+  "ver": "v3011",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3010: my defects are held out and named, the badge punches the collapsed card, a crashed watchdog is not dressed as a young one, and a file board probes its own console",
+  "note": "v3011: his tombstone rule re-derived from the reels own evidence; the first predicate went red-wrong on live data within a minute and the conjunction is what survived",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

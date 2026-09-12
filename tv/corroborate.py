@@ -229,6 +229,58 @@ def _inv_shadow_names_fit_the_universe():
             "shadow_ledger.names", left, "the item universe", right, "<=")
 
 
+def _inv_a_tombstone_is_never_ahead_of_extraction():
+    """v3011 (#80) — HIS RULE ON THE OUTLET, AS AN INVARIANT TWO ENGINES MUST AGREE ON.
+
+    "most important is the reels coming in the data and information being extracted on the way..
+    make sure that stamps/verification is happening obviously before they go to tombstone and then
+    deleted." The route lane already CHECKS this before acting — but a check inside the actor is
+    the actor grading itself. This pair re-derives the answer from the reels' OWN evidence, so a
+    tombstone ahead of extraction goes red INDEPENDENTLY of whichever lane did it.
+
+    left  = closed-out reels (actor rows, reel_router._routed_by_a_lane) that were MEASURED
+            WORTH READING and are MEASURED-unsealed — worth extracting, never sealed, routed
+            anyway. right = 0.
+
+    ⚠⚠ THE FIRST PREDICATE WAS WRONG AND WENT RED ON HIS LIVE DATA WITHIN A MINUTE. `sealed is
+    False` alone read 4 violations — and all four were `worthReading=False, surveyed=True,
+    names=0`: reels the template station surveyed and judged EMPTY OF VALUE, where nothing was
+    ever sealed because there was nothing to seal, and routing them is exactly right. A reel with
+    nothing to extract satisfies the extraction contract vacuously. The violation is the
+    CONJUNCTION: worth reading AND unsealed AND routed. sealed=None or worthReading=None is an
+    unmeasured half and counts NEITHER way — the `what` says so out loud.
+    [[unknown-stays-unknown]] [[sabotage-is-usually-the-wrong-one]]
+    """
+    def left():
+        import reel_router as rr
+        routed, _why = rr._routed_by_a_lane()
+        if routed is None:
+            return None                      # the stamp store could not be read — unmeasured
+        ev, _ewhy = rr._evidence()
+        if not isinstance(ev, dict):
+            return None                      # no evidence walk — unmeasured, never zero
+        bad = 0
+        for reel in routed:
+            e = ev.get(str(reel))
+            if e is None:
+                continue                     # deleted after routing: absent by design, not silent
+            if e.get("sealed") is False and e.get("worthReading") is True:
+                bad += 1
+        return bad
+
+    def right():
+        return 0
+
+    return ("route-not-ahead-of-extract",
+            "no reel that was MEASURED worth reading is closed out unsealed — his rule, "
+            "re-derived from the reels' own evidence rather than trusted from the acting lane; "
+            "an unmeasured seal or worth counts neither way, and a judged-empty reel routes "
+            "freely because its contract is vacuously satisfied",
+            "route one worth-reading reel whose extract read sealed:false and this goes red "
+            "without asking the lane that did it",
+            "worth-reading reels closed out unsealed", left, "0 allowed", right, "<=")
+
+
 def _inv_swept_memory_matches_the_disk():
     """36 vs 30: true, unlabelled, and it nearly got six read-records deleted."""
     import control_app as ca
@@ -1973,6 +2025,7 @@ def _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE():
 
 
 BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
+            _inv_a_tombstone_is_never_ahead_of_extraction,
             _inv_every_seed_the_authority_NAMES_has_a_door_that_can_REMOVE_it,
             _inv_a_posted_COUNT_and_its_own_MASK_agree,
             _inv_every_figure_pair_under_ONE_NAME_reads_ONE_STORE,
