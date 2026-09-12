@@ -53,6 +53,7 @@ SEATS = {
     "reel.route":        ("reel_route_lane.py",  "apply",                  False),
     "vault.sweep_start": ("control_app.py",      "chronicle_sweep_start",  True),
     "prune.reports":     ("control_app.py",      "disk_history_append",    False),
+    "frame.release":     ("reel_retention.py",   "apply_plan",             True),
 }
 
 
@@ -139,6 +140,50 @@ class TestALockThatGatesNothingIsNotALock(unittest.TestCase):
             "plain free-space readings that make no claim about what was freed, which is the one "
             "thing this lock was never about.")
 
+    def test_the_deleter_is_gated_BEFORE_it_records_the_deletion(self):
+        """v2069 writes the tombstone FIRST on purpose — a crash halfway then over-records rather
+        than under-records. A refusal must therefore land before it, or a locked door writes a
+        record for footage nobody touched and the ledger claims deletions that never happened."""
+        node = _fn_node("reel_retention.py", "apply_plan")
+        self.assertIsNotNone(node, "apply_plan is gone")
+        ask = tomb = rm = None
+        for n in ast.walk(node):
+            if isinstance(n, ast.Call):
+                nm = getattr(n.func, "attr", None) or getattr(n.func, "id", None)
+                if nm == "may" and ask is None:
+                    ask = n.lineno
+                if nm == "_tombstone" and tomb is None:
+                    tomb = n.lineno
+                if nm == "rmtree" and rm is None:
+                    rm = n.lineno
+        self.assertIsNotNone(ask, "apply_plan does not ask may() at all — the deleter is ungated")
+        self.assertIsNotNone(rm, "apply_plan no longer deletes; this law is reading the wrong thing")
+        # ⚠⚠ ASKING IS NOT REFUSING, and heart2 proved it: a tamper that wrapped the refusal in
+        # `if False:` left the may() call exactly where it was, so an order-only check sailed
+        # through while the guard could no longer stop anything. What must precede the tombstone
+        # is a REACHABLE RETURN, not a question. [[feedback-blind-fixture-green-gate]]
+        refusal = None
+        for n in ast.walk(node):
+            if not isinstance(n, ast.If):
+                continue
+            if isinstance(n.test, ast.Constant) and not n.test.value:
+                continue                       # `if False:` — dead code, guards nothing
+            dump = ast.dump(n)
+            if "frame.release is LOCKED" not in dump:
+                continue
+            if any(isinstance(x, ast.Return) for x in ast.walk(n)):
+                refusal = n.lineno if refusal is None else min(refusal, n.lineno)
+        self.assertIsNotNone(
+            refusal,
+            "apply_plan asks may() but no REACHABLE refusal returns on it. A guard that asks and "
+            "carries on is not a guard — the rmtree below runs either way.")
+        if tomb is not None:
+            self.assertLess(refusal, tomb,
+                            "the refusal returns at line %s, AFTER the tombstone at %s — a locked "
+                            "door would record a deletion it never made" % (refusal, tomb))
+        self.assertLess(refusal, rm,
+                        "the refusal returns at line %s, AFTER the rmtree at %s" % (refusal, rm))
+
     def test_a_destructive_seat_refuses_without_the_busy_shape(self):
         """vault.sweep_start's refusal must not wear `busy`: callers treat that as contention and
         RETRY, so a locked door in that shape is retried forever."""
@@ -154,6 +199,15 @@ class TestALockThatGatesNothingIsNotALock(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "moves the frame.release refusal AFTER the tombstone, so a locked door still "
+               "records a deletion it never made — v2069 writes the record first on purpose, and "
+               "a guard behind it would make the ledger claim footage that was never touched",
+        "file": "reel_retention.py",
+        "find": '        return {"ok": False, "why": "frame.release is LOCKED',
+        "replace": '        pass\n    if False:\n        return {"ok": False, "why": "frame.release is LOCKED',
+        "matches": 1,
+    },
     {
         "why": "removes the seat from the one place reels are stamped, so reel.route scores and "
                "draws a padlock while gating nothing — the state this whole law exists to end",

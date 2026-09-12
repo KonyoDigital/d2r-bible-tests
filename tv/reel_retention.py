@@ -1067,6 +1067,29 @@ def apply_plan(p, yes=False):
     """Delete what plan() selected. Refuses without an explicit yes — this is not undoable."""
     if not yes:
         return {"ok": False, "why": "refusing to delete without --yes; run without --apply to read the plan"}
+    # ⚠⚠ v3050 — THE LOCK, ON THE ONE LINE THAT DELETES HIS FOOTAGE. `frame.release` is described
+    # by self_arming as "the last check before deletion" and until now it checked nothing: it
+    # scored, drew a padlock, and the rmtree below ran regardless. A scouted pass found this is
+    # the only deleter — `shutil.rmtree(path)` a few lines down is the single line that removes
+    # frame pixels, and both live doors (the auto-prune tick and the CLI) funnel through here.
+    #
+    # ⚠ BEFORE THE TOMBSTONE, NOT AFTER. v2069 put the record down first so a crash halfway leaves
+    # a tombstone for MORE reels than were removed rather than fewer — deliberately erring toward
+    # over-recording. A refusal must land BEFORE that, or a locked door still writes a tombstone
+    # for footage that was never touched, and the ledger would claim deletions that never happened.
+    #
+    # ⚠ DESTRUCTIVE — "deletes footage — there is no undo" in its sibling's words — so under
+    # v3042's split this fails closed on ANY refusal, a stale census included. A prover that has
+    # not caught up is reason enough not to delete.
+    try:
+        import self_arming as _sa_fr
+        _fr_ok, _fr_why = _sa_fr.may("frame.release")
+    except Exception as _fr_e:
+        _fr_ok, _fr_why = False, ("the lock could not be read (%s), which is UNKNOWN and fails "
+                                  "closed" % type(_fr_e).__name__)
+    if not _fr_ok:
+        return {"ok": False, "why": "frame.release is LOCKED — %s" % _fr_why,
+                "removed": [], "failed": [], "tombstone": None}
     # v2069 — THE RECORD GOES DOWN FIRST. Written before a single rmtree, so a crash halfway leaves
     # a tombstone for more reels than were actually removed rather than for fewer.
     tomb, tomb_why = None, None
