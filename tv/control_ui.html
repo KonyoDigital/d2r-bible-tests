@@ -12524,10 +12524,26 @@ window._lockMark = function(isOpen, px, label){
       }
       var undec = /UNDECIDED/.test(parts.join(' '));
       var unk = /UNKNOWN/.test(parts.join(' '));
-      var cls = undec ? 'st-WATCHED' : (unk ? 'st-UNKNOWN' : 'st-FLOWING');
+      /* ⚠⚠ AN EMPTY STATION WAS PAINTING ITSELF *FLOWING*. If `keys` is empty then `parts` is
+         empty, `parts.join(...)` is the empty string, NEITHER regex above matches it, and the
+         ternary fell through to its last arm — so a station with nothing counted rendered as a
+         `st-FLOWING` cell containing no text at all. Green, and silent, for the one state that
+         is neither healthy nor unhealthy but UNMEASURED.
+         MEASURED, and this is how it was caught: the render gate refused heart-fan with
+         `7 of 258 node(s) are ZERO-SIZE ... DECLARED FLOOR IS 2`, and every one of the seven was
+         `hrt-s st-FLOWING` with `text=""`. A cell with no text has no height, so the collapse was
+         the only visible symptom of a wrong COLOUR — the ratchet caught a colour bug by its
+         geometry. Nothing else would have: a zero-size element reports no clipping, no
+         truncation, and no contrast problem.
+         An empty set is UNKNOWN and it says so out loud.
+         [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+      var cls = !parts.length ? 'st-UNKNOWN'
+              : (undec ? 'st-WATCHED' : (unk ? 'st-UNKNOWN' : 'st-FLOWING'));
       h += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(st.toUpperCase()) + ' · '
         + _hrtEsc((d.owners || {})[st] || '?') + '</span>'
-        + '<span class="hrt-s ' + cls + '">' + _hrtEsc(parts.join(' \u00b7 ')) + '</span>'
+        + '<span class="hrt-s ' + cls + '">'
+        + (parts.length ? _hrtEsc(parts.join(' \u00b7 ')) : 'UNKNOWN \u2014 nothing counted')
+        + '</span>'
         + '<span class="hrt-w">' + _hrtEsc((d.questions || {})[st] || '') + '</span></div>';
     }
     return h + '</div>';

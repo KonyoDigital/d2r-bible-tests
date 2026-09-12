@@ -1638,13 +1638,9 @@ TARGETS = {
     # — was unexported for exactly the same reason `thShelf` was. Fixing one and not the other
     # fixes half a chain. Both exported in v2805; measured ACTIVATE TRUE at 1440, 901 and 375.
     "shelf-cards": {
-        # measured at 15.8s / 14.5s cold; 40s is ~2.5x, not a number that happened to fit
-        "activate_budget": 40.0,
         # ⚠ v3051 — measured cold on a fresh console: /api/sessions 3.6s + /api/river 5.4s = ~9s
         # of a 12.0s activation budget spent before this grid starts building its 533 cards. That
         # is not the whole story here the way it was for the heart (17.4s against 12.2s), but it
-        # is most of the budget, and none of it is what this target exists to measure.
-        "warm": ["/api/sessions", "/api/river"],
         # ⚠⚠ `settles`, NOT A FIXED WARMUP — AND I LEARNED THIS THE WAY THE FILE ALREADY RECORDS.
         # Copied `warmup: 14.0` from river-strip, which watches ~21 nodes. This grid builds 533
         # CARDS. Measured twice on the SAME HEAD: 🟢 533/533 at all five widths on a quiet machine,
@@ -1742,13 +1738,14 @@ TARGETS = {
             /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
                since the wait node disappears the moment the strip renders */
             if (el.querySelector('.shr-wait')) {
-                /* ⚠ v3051 — I RATE-LIMITED THIS KICK AND THEN TOOK IT BACK OUT. The theory was
-                   that polling every 0.4s fired ~30 racing /api/river fetches and none finished.
-                   It is a plausible story and it is NOT what was wrong: measured, both targets
-                   activate at 14.5-15.8s against a 12.0s bound, so the BOUND was the defect and
-                   it now lives in `activate_budget`. Shipping the rate-limit as well would have
-                   been an unproven change riding along with a proven one — and river-strip went
-                   red the moment it landed. [[sabotage-is-usually-the-wrong-one]] */
+                /* ⚠ v3051 — a rate-limit lived here for one afternoon. Two theories, both
+                   measured and both WRONG: that ~30 racing /api/river fetches were the cause
+                   (rate-limited -> still red), and that pairing it with a wider bound would fix
+                   it (~100 fetches -> still red at 40.3s). What is true and worth keeping is the
+                   arithmetic: this poll STARTS WORK, so the fetch count is the activation budget
+                   divided by 0.4, and widening that bound multiplies the work rather than just
+                   waiting longer. The cause of the flake is still UNKNOWN.
+                   [[sabotage-is-usually-the-wrong-one]] [[unknown-stays-unknown]] */
                 try { (window._shLanesLoad || function(){})(); } catch (e) {}
                 return false;                 /* not ready, and NOT a pass */
             }
@@ -1772,10 +1769,6 @@ TARGETS = {
         # very next run with 21/21 at all five widths — the classic shape of a gate whose
         # subject is still loading, which the file already records ("painted 0/21 on the
         # FIRST width while the other four read 21/21"). Warming does not loosen anything;
-        # it removes the cold cost from the race instead of widening a bound to hide it.
-        "warm": ["/api/river"],
-        # measured at 15.8s / 14.5s cold; 40s is ~2.5x, not a number that happened to fit
-        "activate_budget": 40.0,
         "serve": True,
         "path": "",
         "warmup": 14.0,
@@ -1824,13 +1817,14 @@ TARGETS = {
             /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
                since the wait node disappears the moment the strip renders */
             if (el.querySelector('.shr-wait')) {
-                /* ⚠ v3051 — I RATE-LIMITED THIS KICK AND THEN TOOK IT BACK OUT. The theory was
-                   that polling every 0.4s fired ~30 racing /api/river fetches and none finished.
-                   It is a plausible story and it is NOT what was wrong: measured, both targets
-                   activate at 14.5-15.8s against a 12.0s bound, so the BOUND was the defect and
-                   it now lives in `activate_budget`. Shipping the rate-limit as well would have
-                   been an unproven change riding along with a proven one — and river-strip went
-                   red the moment it landed. [[sabotage-is-usually-the-wrong-one]] */
+                /* ⚠ v3051 — a rate-limit lived here for one afternoon. Two theories, both
+                   measured and both WRONG: that ~30 racing /api/river fetches were the cause
+                   (rate-limited -> still red), and that pairing it with a wider bound would fix
+                   it (~100 fetches -> still red at 40.3s). What is true and worth keeping is the
+                   arithmetic: this poll STARTS WORK, so the fetch count is the activation budget
+                   divided by 0.4, and widening that bound multiplies the work rather than just
+                   waiting longer. The cause of the flake is still UNKNOWN.
+                   [[sabotage-is-usually-the-wrong-one]] [[unknown-stays-unknown]] */
                 try { (window._shLanesLoad || function(){})(); } catch (e) {}
                 return false;                 /* not ready, and NOT a pass */
             }
@@ -2731,18 +2725,6 @@ def _selector_ready(tab, sel, budget=20.0, spec=None, token=None, reprepare=None
 def _serve_console():
     """Boot a PRIVATE control_app on an ephemeral port and return (origin, proc).
 
-    ⚠ WHY THIS EXISTS. This harness loaded `file://` and nothing else, which is right for
-    bible.html — it assembles itself out of localStorage, so a target seeds a store and the page
-    renders. It is IMPOSSIBLE for the console's own panels: THE SHELF, the pipeline board, THE
-    FLEET and the BEST RUN / STREAK strip are filled from /api/sessions and /api/status, so under
-    file:// they render "Loading runs…" and nothing else.
-
-    That is not a small hole. Every one of the nine defects Konyo reported on 2026-09-01 lives on
-    one of those surfaces, and NOT ONE was found by a gate — because a surface with no target is
-    unmeasured, and unmeasured reads identically to clean in a green run. gh #208.
-
-    ⚠ NEVER :17772. The port is taken from the kernel, and the process this starts is the ONLY one
-    it ever kills — by the pid it holds, never by name. [[process-port-discipline]]
     """
     import socket
     import subprocess
@@ -2978,10 +2960,15 @@ def check(name, spec, shots=True):
         # BEFORE a navigation are lost. Targets here do not navigate between widths.
         _ERR_HOOK = ("(function(){if(window.__rcErrHooked)return;window.__rcErrHooked=1;"
                      "window.__rcErrors=window.__rcErrors||[];"
+                     "window.__rcResErr=window.__rcResErr||0;"
                      "var p=function(m){if(window.__rcErrors.length<12)"
                      "window.__rcErrors.push(String(m).slice(0,400));};"
-                     "window.addEventListener('error',function(e){p((e&&(e.message||(e.error&&"
-                     "e.error.message)))||'an error event with no message');},true);"
+                     "window.addEventListener('error',function(e){"
+                     "var m=(e&&(e.message||(e.error&&e.error.message)))||'';"
+                     "if(m){p(m);return;}"
+                     "var t=e&&e.target;"
+                     "if(t&&t.tagName){window.__rcResErr++;return;}"
+                     "p('an error event with no message and no target');},true);"
                      "window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;"
                      "p('unhandled rejection: '+((r&&(r.stack||r.message))||r));});})();")
         tab.send("Page.addScriptToEvaluateOnNewDocument", source=_ERR_HOOK)
@@ -3360,6 +3347,26 @@ def check(name, spec, shots=True):
                     tab.page_errors.append(_m)
         except Exception:
             pass    # a dead tab cannot answer; the refusals it already earned still stand
+        # ⚠⚠ v3051 follow-up — A BROKEN IMAGE IS NOT A DEAD PAGE, and the first version of this said it was.
+        # The listener above is registered with capture:true, which is the only way to see resource
+        # failures — and it therefore ALSO sees them. A failed <img> fires a plain Event on its
+        # element with no `message` and no `error`, so it arrived as "an error event with no
+        # message" and failed the target. Caught on the very first gate run this shipped in:
+        # `🔴 console  the page threw 1 uncaught error(s)` on a target whose own subtree reports
+        # `imgs 0/0 broken` — while the `page` target, which covers the whole document, reports
+        # `imgs 10/2471 broken`. The gate already counts broken images and deliberately REPORTS
+        # rather than JUDGES them, because that count moves between runs of the same tree. So a
+        # resource failure is counted here and a SCRIPT error refuses; conflating them would have
+        # made this collector fail every push for something already known and already forgiven.
+        # [[zero-needs-a-denominator]] [[gate-blind-to-unexercised-input]]
+        try:
+            _res = tab.ev("window.__rcResErr || 0") or 0
+        except Exception:
+            _res = None
+        if _res:
+            out["resourceErrors"] = _res
+            _say("     ⓘ %d resource load failure(s) (images/scripts that 404'd). REPORTED, "
+                 "NOT JUDGED — the same reason the broken-image count is not judged." % _res)
         _perr = list(getattr(tab, "page_errors", ()) or ())
         if _perr:
             out["ok"] = False
