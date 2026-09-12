@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3009** | `(this commit)` | v3009 — 48h rolling plus first-of-day keepers for 90 days, and while an emptying episode is open the newest backup predating it is protected whatever its age |
+| **v3010** | `(this commit)` | v3010 — my defects are held out and named, the badge punches the collapsed card, a crashed watchdog is not dressed as a young one, and a file board probes its own console |
+| **v3009** | `5c5a7481` | v3009 — 48h rolling plus first-of-day keepers for 90 days, and while an emptying episode is open the newest backup predating it is protected whatever its age |
 | **v3008** | `ddf3153d` | v3008 — one name clears two witnesses and sits unbanked correctly; first-match rostering swallowed the runeword referent so the hold read as owed work, and now the door names its reasons |
 | **v3007** | `63e9a90c` | v3007 — the register returns label never name so v3000 compared the raw TV string; measured-false keeps its own value, a null store cannot erase testimony, and the destination speaks the new vocabulary |
 | **v3006** | `60c2ab90` | v3006 — the watchdog carried them for months and the inbox had never heard of the field; joined as a sibling section with UNKNOWN never reading as nothing-waiting |

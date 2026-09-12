@@ -50086,7 +50086,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3009', name:'v3009 - the backup prune cannot orphan an open loss', date:'2026-09-12', note:'48h rolling plus first-of-day keepers for 90 days, and while an emptying episode is open the newest backup predating it is protected whatever its age' };
+  window.D2R_BUILD = { id:'v3010', name:'v3010 - the waiting pile stops lying in four different ways', date:'2026-09-12', note:'my defects are held out and named, the badge punches the collapsed card, a crashed watchdog is not dressed as a young one, and a file board probes its own console' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -51048,11 +51048,11 @@ window._CH_PILL_MAP = {
     if (!host) return;
     var esc = function(x){ return String(x == null ? '' : x)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
-    var onConsole = false;
-    try { onConsole = /(:|^)(17772|17771)\b/.test(String(location.host || '')); } catch(e){}
-    if (!onConsole){
-      /* off the console (the public site, a file:// open) there is no watchdog to ask. Saying
-         nothing would read as "nothing waiting"; a dimmed UNKNOWN says why there is no number. */
+    if (_eagleNYBase() === null){
+      /* the public site or an unknown host \u2014 no watchdog to ask, and no loopback to probe.
+         Saying nothing would read as "nothing waiting"; a dimmed UNKNOWN says why. A file://
+         board is NOT this case any more: it probes the loopback and earns rows or the honest
+         unreachable state. \u2014 v3010 */
       host.hidden = false;
       host.innerHTML = '<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: UNKNOWN from '
         + 'here \u2014 this board is not connected to the console</div>';
@@ -51065,49 +51065,98 @@ window._CH_PILL_MAP = {
       return;
     }
     if (_eagleNY.st === 'unmeasured'){
-      host.innerHTML = '<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: the watchdog has '
-        + 'not looked yet this boot \u2014 UNKNOWN, not zero</div>';
+      /* the two absences, told apart by the server's own say \u2014 v3010 */
+      var _crash = /could not run|raised|error/i.test(String(_eagleNY.why || ''));
+      host.innerHTML = _crash
+        ? ('<div class="ibx-ny ibx-ny-warn">\ud83e\udd85 waiting-on-you: UNKNOWN \u2014 the watchdog '
+           + 'REPORTS A FAULT OF ITS OWN: ' + esc(String(_eagleNY.why).slice(0, 160))
+           + '. A dead watchdog is not a young one.</div>')
+        : ('<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: the watchdog has '
+           + 'not looked yet this boot \u2014 UNKNOWN, not zero</div>');
       return;
     }
     if (_eagleNY.st === 'rows'){
+      /* \u26a0 every dynamic value is esc'd, the not-measured count says UNKNOWN when it IS
+         unknown, MY held-out defects are named as mine, and a capped list says what it elided. */
+      var _unkBit = (_eagleNY.unknown == null)
+        ? ' <span class="ibx-ny-unk">(not-measured count UNKNOWN)</span>'
+        : (_eagleNY.unknown ? ' <span class="ibx-ny-unk">(+' + esc(_eagleNY.unknown)
+           + ' not measured)</span>' : '');
+      var _mineBit = _eagleNY.mine
+        ? ' <span class="ibx-ny-unk">(+' + esc(_eagleNY.mine)
+          + ' held out \u2014 Claude\u2019s own defects, not yours to fix)</span>' : '';
       var h = '<div class="ibx-ny"><div class="ibx-ny-head">\ud83e\udd85 WAITING ON YOU \u2014 '
-        + _eagleNY.rows.length
-        + (_eagleNY.unknown ? ' <span class="ibx-ny-unk">(+' + _eagleNY.unknown
-           + ' not measured)</span>' : '') + '</div>';
+        + _eagleNY.rows.length + _unkBit + _mineBit + '</div>';
       for (var i = 0; i < _eagleNY.rows.length && i < 20; i++){
         var r = _eagleNY.rows[i] || {};
         h += '<div class="ibx-ny-row"><b>' + esc(r.check) + '</b> \u2014 '
           + esc(String(r.why || '').slice(0, 140)) + '</div>';
       }
+      if (_eagleNY.rows.length > 20){
+        h += '<div class="ibx-ny-row ibx-ny-unk">\u2026 and ' + (_eagleNY.rows.length - 20)
+          + ' more \u2014 the header counts them all</div>';
+      }
       host.innerHTML = h + '</div>';
+      try { window.renderInboxBadge && window.renderInboxBadge(); } catch(e){}
       return;
     }
     if (_eagleNY.st === 'clear'){
       host.innerHTML = '<div class="ibx-ny ibx-ny-ok">\ud83e\udd85 waiting-on-you: none \u2014 the '
         + 'watchdog measured ' + esc(_eagleNY.say) + '</div>';
+      try { window.renderInboxBadge && window.renderInboxBadge(); } catch(e){}
       return;
     }
     host.innerHTML = '<div class="ibx-ny ibx-ny-dim">\ud83e\udd85 waiting-on-you: UNKNOWN</div>';
   }
-  function _eagleNYFetch(){
-    var onConsole = false;
-    try { onConsole = /(:|^)(17772|17771)\b/.test(String(location.host || '')); } catch(e){}
-    if (!onConsole){ _eagleNYPaint(); return; }
+  function _eagleNYBase(){
+    /* -> the console base URL to ask, or null when there is no console to ask.
+       \u26a0 v3010 \u2014 THE REAL BOARD IS NOT ALWAYS ON :17772. When pywebview is unavailable the
+       console opens this same file as file:// (its no-webview fallback), location.host is ''
+       and v3006 painted "not connected" FOREVER on a board sitting one absolute URL from its own
+       console. A file:// page may PROBE the loopback \u2014 worst case the fetch fails and the
+       honest unreachable state paints. The PUBLIC site (https, some other host) still never
+       probes a laptop that is not there. */
     try {
-      fetch('/api/status', { cache: 'no-store' }).then(function(r){ return r.json(); })
+      if (/(:|^)(17772|17771)\b/.test(String(location.host || ''))) return '';
+      if (String(location.protocol || '') === 'file:') return 'http://127.0.0.1:17772';
+    } catch(e){}
+    return null;
+  }
+  function _eagleNYFetch(){
+    var base = _eagleNYBase();
+    if (base === null){ _eagleNYPaint(); return; }
+    try {
+      fetch(base + '/api/status', { cache: 'no-store' }).then(function(r){ return r.json(); })
         .then(function(d){
           var e = (d && d.eagle) || {};
           if (e.needsYou == null){
-            _eagleNY = { st: 'unmeasured', why: '', needsYou: null, unknown: null, rows: [],
-                         say: String(e.say || ''), at: Date.now() };
+            /* \u26a0 v3010 \u2014 A DEAD WATCHDOG MUST NOT DRESS AS A YOUNG ONE. needsYou:null covers
+               two states the server distinguishes in `say`: never-ran-this-boot, and RAN AND
+               CRASHED ("the eagle could not run: ..."). The say rides into the cache so the
+               painter can tell him which absence this is. [[unknown-stays-unknown]] */
+            _eagleNY = { st: 'unmeasured', why: String(e.say || ''), needsYou: null,
+                         unknown: null, mine: null, rows: [], say: String(e.say || ''),
+                         at: Date.now() };
           } else {
+            /* \u26a0\u26a0 v3010 \u2014 THE MINE PARTITION IS THE SERVER'S CONTRACT, AND v3006 IGNORED
+               IT. needsYou = missing rows NOT owned by Claude (control_app computes it against
+               console_doctor.MINE, the v2284 rule: my defects are never billed to him). Counting
+               every missing row painted "WAITING ON YOU \u2014 13" while the chip said 11, the two
+               extra being MY bugs he cannot act on. Measured live: mineWhat carried
+               ['extraction lanes', 'board join'] at that exact moment. */
+            var mineW = e.mineWhat || [];
             var bad = [];
             var rows = e.rows || [];
             for (var i = 0; i < rows.length; i++){
-              if (rows[i] && rows[i].state === 'missing') bad.push(rows[i]);
+              if (rows[i] && rows[i].state === 'missing'
+                  && mineW.indexOf(rows[i].check) < 0) bad.push(rows[i]);
             }
             _eagleNY = { st: (bad.length ? 'rows' : 'clear'), why: '',
-                         needsYou: e.needsYou, unknown: (e.unknown || 0), rows: bad,
+                         needsYou: e.needsYou,
+                         /* null stays null \u2014 an absent not-measured count is UNKNOWN, not 0 */
+                         unknown: (e.unknown == null ? null : e.unknown),
+                         mine: (e.mine == null ? (mineW.length || null) : e.mine),
+                         rows: bad,
                          say: String(e.say || ''), at: Date.now() };
           }
           _eagleNYPaint();
@@ -51828,10 +51877,23 @@ window._CH_PILL_MAP = {
     if (!el) return 0;
     var n = 0;
     try { n = (window.kaiChronicleInbox({ sync: false }) || []).length; } catch(e){ n = 0; }
-    if (n > 0){
-      el.textContent = n + ' waiting';
-      el.title = n + (n === 1 ? ' read the system could not call' : ' reads the system could not call')
-               + ' — open to rule on ' + (n === 1 ? 'it' : 'them');
+    /* \u26a0\u26a0 v3010 \u2014 THE CARD SHIPS COLLAPSED, AND THE BADGE IS THE ONLY ELEMENT THAT
+       PUNCHES THROUGH THE COLLAPSE. v3006 painted the waiting-on-you rows into the card BODY \u2014
+       display:none under `.collapsible.collapsed` \u2014 so 12 waiting rows changed NOTHING on
+       screen until he happened to expand a card whose own v1760 comment says "a queue you must
+       remember to check is not a queue". The badge now carries the eagle count too, so the
+       collapsed card SAYS there is something inside. */
+    var w = 0;
+    try { if (typeof _eagleNY === 'object' && _eagleNY && _eagleNY.st === 'rows')
+            w = _eagleNY.rows.length; } catch(e){}
+    if (n > 0 || w > 0){
+      el.textContent = (n > 0 ? (n + ' waiting') : '')
+                     + (n > 0 && w > 0 ? ' \u00b7 ' : '')
+                     + (w > 0 ? ('\ud83e\udd85 ' + w + ' need you') : '');
+      el.title = (n > 0 ? (n + (n === 1 ? ' read the system could not call' : ' reads the system could not call')
+               + ' — open to rule on ' + (n === 1 ? 'it' : 'them')) : '')
+               + (n > 0 && w > 0 ? '. ' : '')
+               + (w > 0 ? (w + ' check(s) from the console watchdog are waiting on you.') : '');
       el.hidden = false;
     } else {
       el.textContent = '';

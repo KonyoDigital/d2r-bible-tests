@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3009",
+  "ver": "v3010",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3009: 48h rolling plus first-of-day keepers for 90 days, and while an emptying episode is open the newest backup predating it is protected whatever its age",
+  "note": "v3010: my defects are held out and named, the badge punches the collapsed card, a crashed watchdog is not dressed as a young one, and a file board probes its own console",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
