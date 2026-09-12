@@ -44,6 +44,12 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 REPO = os.path.dirname(HERE)
 BIBLE = io.open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
 

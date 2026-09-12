@@ -20715,6 +20715,15 @@ window.renderHighValueFinds = renderHighValueFinds;
        the thing it is repairing. This records the event so it can be seen and acted on; it does not
        refuse to seed, because a board that will not start is worse than one that says what it did.
        [[feedback-silence-is-not-evidence]] [[unknown-stays-unknown]] */
+    /* ⚠⚠ v2988 — HIS RULING, 2026-09-12: "for vault the items should not be seeded like the
+       chronicles are.. it should be able to be saved. or it gets auto saved daily in a ledger just
+       incase if needed to restore."
+       This flag is what the seed floor below now obeys. Before it, the block underneath DETECTED a
+       real loss, RECORDED it, NAMED the restore command — and seeded over it anyway, which is how
+       17 uniques and 3 set pieces went missing with nothing looking wrong afterwards: once the
+       seeds land the store looks FULL again. Detected-then-overwritten is worse than undetected,
+       because it destroys the evidence along with the data. */
+    var _emptiedLoss = false;
     try {
       var _wasEmpty = !LS.getItem('d2r_foundLog') && !LS.getItem('d2r_setPieces');
       /* these one-time flags are BARE keys written on earlier loads. Present with an empty ledger
@@ -20727,6 +20736,7 @@ window.renderHighValueFinds = renderHighValueFinds;
                         + 'about to refill it from the built-in seeds. Anything you had that is in '
                         + 'no seed will NOT come back on its own.',
                     restore: 'python3 ~/d2r_ledger_backups/restore_ledger.py --apply' };
+        _emptiedLoss = true;   // v2988 — the seed floor MUST NOT run over this
         try { LS.setItem('d2r_storeEmptied', JSON.stringify(_ev)); } catch(e){}
         try { console.warn('[ledger] STORE CAME UP EMPTY — seeding over it. ' + _ev.why); } catch(e){}
       }
@@ -20734,7 +20744,17 @@ window.renderHighValueFinds = renderHighValueFinds;
     /* v2692 — ...AND ONLY ON THE LEDGER THE SEED WAS WRITTEN FOR. `!_isCousinShell` was never
        enough: claiming a browser makes anyone not-a-cousin, and the floor then hands them
        Konyo's 245 finds. */
-    if (!_rwFreshFlag && window.D2R_PROFILE !== 'ladder' && !window._isCousinShell
+    /* ⚠⚠ v2988 — `!_emptiedLoss` IS THE NEW CLAUSE, AND IT IS THE WHOLE FIX. A store that
+       BECAME empty is not a store that needs a floor; it is a store that needs its contents back.
+       Seeding it replaces what he actually held with built-in defaults and then LOOKS correct,
+       which is exactly why the 2026-09-08 06:28 loss went unnoticed for days.
+       ⚠ A FRESH INSTALL IS UNAFFECTED, by construction: `_emptiedLoss` can only be true when
+       `_hadRun` is true, and `_hadRun` reads bare keys that no new install has ever written. The
+       floor still does its job for everyone it was written for.
+       ⚠ AND THE EMPTY STORE IS LEFT EMPTY ON PURPOSE. An empty store he can SEE is recoverable
+       from ~/d2r_ledger_backups (60 snapshots, every ~5 min, 76 stores each, restore_ledger.py);
+       a seeded one is not, because the seeds hide the hole. [[unknown-stays-unknown]] */
+    if (!_rwFreshFlag && !_emptiedLoss && window.D2R_PROFILE !== 'ladder' && !window._isCousinShell
         && window._D2R_LEDGER === _GRAIL_SEED_LEDGER) {   // v663 — the chronicle floor is the OWNER's
       var _gUn = _safeJsonParse(LS.getItem('d2r_grailUnfound'), {}) || {};
       /* v2021 — FREE THE ENTRIES ALREADY TRAPPED. The fix above stops new ones; his board already
@@ -49940,7 +49960,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v2987', name:'v2987 - the river has four lanes and the shelf was rendering nine keys', date:'2026-09-12', note:'' };
+  window.D2R_BUILD = { id:'v2988', name:'v2988 - a store that lost its contents is never papered over with seeds', date:'2026-09-12', note:'' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

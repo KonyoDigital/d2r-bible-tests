@@ -973,6 +973,16 @@ GATES = [
          "inventory on all 58, scene said stash on 34. The slot half stays UNBUILT — 0 of 151 "
          "deep rows carry any coordinate — and test 5 pins that zero.",
          skip_ok=()),
+    Gate("test_a_lost_store_is_never_seeded_over",
+         [sys.executable, os.path.join(HERE, "test_a_lost_store_is_never_seeded_over.py")], 60,
+         why="his 2026-09-12 ruling — 'for vault the items should not be seeded like the chronicles "
+             "are'. bible.html DETECTED a store that had lost its contents, RECORDED it, NAMED the "
+             "restore command, and seeded over it anyway: once the seeds land the store looks FULL, "
+             "so the hole is invisible. That is how 17 uniques and 3 set pieces went missing, "
+             "unnoticed from 2026-09-08 06:28 UTC. Pins BOTH directions — a lost store is left "
+             "alone AND a genuine fresh install still gets its seeds, which is his 'it doesnt start "
+             "fresh with 0 items everytime'.",
+         skip_ok=()),
     Gate("test_the_river_reads_as_four_lanes",
          [sys.executable, os.path.join(HERE, "test_the_river_reads_as_four_lanes.py")], 60,
          why="his 2026-09-12 rulings on a screenshot of his own shelf — 'i want it down a river "

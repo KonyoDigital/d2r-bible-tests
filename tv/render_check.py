@@ -1490,7 +1490,16 @@ TARGETS = {
         # SLEEP HERE BLOCKED A LEGITIMATE PUSH ... the SAME tree rendered all six targets green
         # minutes later on a quiet machine"), and a flaky target is worse than no target because it
         # teaches people to re-run until green. [[ab-against-head-before-blaming-the-room]]
-        "serve": True, "path": "", "settles": True,
+        # ⚠⚠ WARMUP, NOT `settles` — AND I SWAPPED THE WRONG WAY ONCE ALREADY. A fixed 14s went
+        # flaky under load, so I moved to `settles: True`; the bless then refused with "the page
+        # never settled in 25s — readyState/size kept moving". That is not load, it is this panel:
+        # the shelf fills ASYNCHRONOUSLY from four directions (_shLanesLoad, _shStoryRender,
+        # _shHighlights, the timeline), so the document is never quiet and a global settle can
+        # never be satisfied here. `river-strip` watches the SAME overlay on a fixed warmup and is
+        # green in every run — so the mechanism was proven on this panel and I left it for the one
+        # thing it cannot do. Back to a warmup, with real headroom for a 530-card grid instead of
+        # the 14s copied from a target that watches ~21 nodes.
+        "serve": True, "path": "", "warmup": 24.0, "settles": False,
         "why": "\U0001f4da THE SHELF'S REEL CARDS \u2014 the things the panel is NAMED after, and "
                "nothing has ever photographed them. Every existing shelf target aims at the "
                "analytics: `river-strip` watches #sh-lanes, and the grid itself had no selector in "
@@ -1514,9 +1523,14 @@ TARGETS = {
         # held the load at 4.68. A gate that depends on how busy the Mac is teaches people to
         # re-run until green, which is worse than not having it.
         # ⚠ It still measures the REAL grid in the REAL panel — only the count is bounded.
-        "sel": "#th-shelfov .sh-grid > *:nth-child(-n+3) .shc-hero, "
-               "#th-shelfov .sh-grid > *:nth-child(-n+3) .shc-sess, "
-               "#th-shelfov .sh-grid > *:nth-child(-n+3) .shc-area",
+        # ⚠ THE BOUNDED SELECTOR WAS WRONG AND MATCHED NOTHING. `.sh-grid > *:nth-child(-n+3)`
+        # takes the first three CHILDREN of the grid — and since v2987 those are the lane banner
+        # and station headers, which are siblings of the cards, not their parents. It went red at
+        # all five widths for "never matched", which is the honest answer to a selector that
+        # describes nothing. Back to the whole grid: the count is what made it slow, never what
+        # made it wrong, and the warmup above is what pays for the count.
+        "sel": "#th-shelfov .sh-grid .shc-hero, #th-shelfov .sh-grid .shc-sess, "
+               "#th-shelfov .sh-grid .shc-area",
         # ⚠ ONLY THE TWO CLASSES THAT DECLARE AN ELLIPSIS. Both set `white-space:nowrap;
         # overflow:hidden; text-overflow:ellipsis` in control_ui.html (.shc-area at :2106-2107,
         # .shc-headfind at its own rule), so the cut is DESIGNED and he can SEE it. Anything else
