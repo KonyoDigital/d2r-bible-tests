@@ -265,7 +265,14 @@ def decode(mask, roster, fingerprint, side="that machine"):
 def compare(mine, theirs, roster, fingerprint):
     """The whole point: what THEY have that I do not, and what I have that THEY do not.
 
-    -> {"ok", "why", "theyHaveIDont": [...], "iHaveTheyDont": [...], "both": n, "mineN", "theirsN"}
+    -> {"ok", "why", "theyHaveIDont": [...], "iHaveTheyDont": [...], "neitherHas": [...],
+        "rosterN": n, "both": n, "mineN", "theirsN"}
+
+    ⚠ `neitherHas` IS A DIFFERENT KIND OF CLAIM from the two lists beside it — a COMPLEMENT, true
+    only if the roster is the whole universe, where a DIFFERENCE is true over any roster. It ships
+    with `rosterN` so no caller can render it without the denominator it is valid against, and the
+    caller must refuse to show it when a posted ledger total disagrees with that number. See the
+    note on the return statement.
 
     ⚠ EITHER SIDE UNKNOWN MAKES THE ANSWER UNKNOWN. Subtracting a list I could not read from one I
     could produces a complete, confident, wrong answer — every one of my items would look like
@@ -282,9 +289,32 @@ def compare(mine, theirs, roster, fingerprint):
     if b is None:
         return {"ok": False, "why": "THEIR side is the one missing: %s." % why_b}
     sa, sb = set(a), set(b)
+    # ⚠⚠ v3021 — `neitherHas` IS NOT THE SAME KIND OF STATEMENT AS THE TWO LISTS ABOVE IT, and the
+    # difference decides whether it can be published. His ask: "tell me the items we BOTH need
+    # combined not only the items we each have that the other doesnt".
+    #
+    # A DIFFERENCE IS SAFE OVER ANY ROSTER. `theyHaveIDont` asks "which roster names are in their
+    # mask and not mine" — true whatever exists OUTSIDE the roster, because a name nobody enrolled
+    # simply never enters the question.
+    #
+    # A COMPLEMENT IS A CLAIM ABOUT THE WHOLE UNIVERSE. "Neither of us has X" is only true if the
+    # roster IS the universe. MEASURED 2026-09-12: sets roster 135 against his board's posted total
+    # 135 (safe), but uniques roster 398 against a posted total of 403 (NOT safe) — five names he
+    # has pinned could never appear in a list claiming to be exhaustive. So this list is the first
+    # thing in this panel a wrong denominator can falsify, and the two beside it never were.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    #
+    # ⚠ THE GUARD IS NOT HERE ON PURPOSE. This module holds no board totals — it is handed two
+    # masks and a roster and nothing else, and inventing a totals read here would give it a second
+    # job and a second way to be wrong. It returns the complement over the roster it was given,
+    # which is exactly true of that roster, and publishes `rosterN` BESIDE it so the caller cannot
+    # render the list without the denominator it is only valid against. control_app.fleet_compare
+    # owns the decision to show it or to answer None. [[the-unjoined-end]]
     return {"ok": True, "why": None,
             "theyHaveIDont": [n for n in roster if n in sb and n not in sa],
             "iHaveTheyDont": [n for n in roster if n in sa and n not in sb],
+            "neitherHas": [n for n in roster if n not in sa and n not in sb],
+            "rosterN": len(roster),
             "both": len(sa & sb), "mineN": len(sa), "theirsN": len(sb)}
 
 

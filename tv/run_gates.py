@@ -1124,6 +1124,19 @@ GATES = [
              "conjunction dropped to a constant, and the sealed-only narrowing that produced "
              "the measured false red.",
          skip_ok=()),
+    Gate("test_the_both_need_column_knows_its_universe",
+         [sys.executable, os.path.join(HERE, "test_the_both_need_column_knows_its_universe.py")], 60,
+         why="his third fleet column — the items BOTH machines lack — is a COMPLEMENT, and a "
+             "complement is a claim about the whole universe where the two columns beside it are "
+             "DIFFERENCES that hold over any roster. MEASURED on his tree: sets roster 135 against "
+             "a posted total of 135 (safe), uniques roster 398 against 403 (NOT safe) — five of his "
+             "own pinned names could never appear in a list claiming to be exhaustive. The guard "
+             "refuses the column unless the roster and the posted total agree, reports UNKNOWN "
+             "rather than assuming agreement when either is missing, and must never blank the two "
+             "difference columns while doing it. No live probe: the total comes from board_tally, "
+             "per REG-952. Proven red both ways — a guard that always says yes, and a compare() "
+             "that stops returning the complement.",
+         skip_ok=()),
     Gate("test_every_doctor_check_is_explained",
          [sys.executable, os.path.join(HERE, "test_every_doctor_check_is_explained.py")], 60,
          why="36 of 59 doctor checks were in NEITHER corroborate registry, so for more than half "

@@ -26159,6 +26159,54 @@ def fleet_presence_last_good():
     return d, round(max(0.0, time.time() - float(_FLEET_PRESENCE_CACHE.get("goodT") or 0.0)), 1)
 
 
+def _neither_is_publishable(roster_n, show_n, ledger, show_n_why=None):
+    """May a "both need" list be shown for this ledger? -> (bool, why)
+
+    ⚠⚠ v3021 — A COMPLEMENT IS NOT A DIFFERENCE, AND ONLY ONE OF THEM SURVIVES A WRONG ROSTER.
+    The two columns this panel already shows are DIFFERENCES ("in their mask, not in mine"), and a
+    difference is true whatever exists outside the roster — a name nobody enrolled never enters the
+    question. "Neither of us has it" is a COMPLEMENT, and it is only true if the roster IS the
+    universe.
+
+    MEASURED 2026-09-12, which is why this is a refusal and not a warning:
+        sets     roster 135  ·  board posts 135  -> equal, the roster is the universe
+        uniques  roster 398  ·  board posts 403  -> FIVE of his own pinned names sit outside the
+                                                    roster and could never appear in a list that
+                                                    claims to be exhaustive
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+    ⚠ NO LIVE PROBE — show_n comes from board_tally.json via _fleet_show_total, never grail_tally().
+    REG-952: a comparable verdict may not depend on a live probe of THIS console, because two
+    machines can post different totals for one ledger and a probe answers for only one of them.
+
+    ⚠ AND WHAT IT DOES NOT CHECK: the OTHER machine's posted total. Their row carries a `tally`, but
+    v2814 is the scar that field earned — Dean's beacon published masks.uniques have 0 beside
+    tally.uniques have 249, a stale seed. Guarding on a field a scar already distrusts would buy
+    confidence, not safety. That exposure stays UNKNOWN and is named in the why below rather than
+    quietly assumed away.
+    """
+    if roster_n is None:
+        return False, ("the roster size is UNKNOWN, so nothing can say whether it is the whole "
+                       "universe — and \"neither of you has it\" is a claim about a universe")
+    if show_n is None:
+        return False, ("this board has not posted a total for %s, so whether the %d-name roster is "
+                       "the whole universe is UNKNOWN. %s"
+                       % (ledger, int(roster_n), str(show_n_why or "").strip()))
+    try:
+        _s, _r = int(show_n), int(roster_n)
+    except (TypeError, ValueError):
+        return False, ("the totals could not be read as numbers (roster %r, posted %r), which is "
+                       "UNKNOWN and not agreement" % (roster_n, show_n))
+    if _s != _r:
+        return False, ("the roster carries %d name(s) and this board posts %d for %s, so %d sit "
+                       "outside the roster and could never appear. A both-need list would claim to "
+                       "be exhaustive while being unable to mention them. The two columns beside it "
+                       "are unaffected — a difference of two masks is true whatever lies outside "
+                       "the roster." % (_r, _s, ledger, abs(_s - _r)))
+    return True, ("the roster and this board agree at %d, so it is the universe for %s. ⚠ the other "
+                  "machine's own total is not checked here and stays UNKNOWN." % (_r, ledger))
+
+
 def _fleet_show_total(ledger):
     """The denominator to SHOW him for this ledger, or None with a reason. -> (int|None, str)
 
@@ -26319,6 +26367,40 @@ def fleet_compare(machine, ledger="sets"):
     # in its place would silently reinstate the exact defect this removes — and it would look
     # right. A missing denominator is a thing to say, not a thing to substitute.
     out["showN"], out["showNWhy"] = _fleet_show_total(ledger)
+
+    # ⚠⚠ v3021 — THE "BOTH NEED" LIST IS REFUSED UNLESS THE ROSTER IS KNOWN TO BE THE UNIVERSE.
+    # His ask was a third column: "the items we BOTH need combined". fleet_mask returns it as a
+    # true complement over the roster it was handed — but a COMPLEMENT is a claim about the WHOLE
+    # universe, where the two lists beside it are DIFFERENCES and are true over any roster at all.
+    #
+    # MEASURED 2026-09-12, and this is why the guard exists rather than the column shipping bare:
+    #     sets     roster 135  ·  his board posts total 135   -> the roster IS the universe, safe
+    #     uniques  roster 398  ·  his board posts total 403   -> FIVE names he has pinned could
+    #                                                            never appear in a list claiming
+    #                                                            to be exhaustive
+    # On the uniques tab an unguarded column would confidently name "everything neither of you
+    # has" while being structurally unable to mention five of his own. That is a lie with a number
+    # on it, and it is the first thing in this panel a wrong denominator can falsify.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    #
+    # ⚠ NO LIVE PROBE. `showN` comes from board_tally.json via _fleet_show_total, never from
+    # grail_tally() — test_the_cross_reference_asks_one_question pins that a comparable verdict may
+    # not depend on a live probe of THIS console, because two machines can post different totals
+    # for one ledger and a probe answers for only one of them. REG-952.
+    #
+    # ⚠ WHAT THIS DOES **NOT** CHECK, said out loud rather than left implied: the OTHER machine's
+    # posted total. Their row carries a `tally`, but v2814 is exactly the scar that field earned —
+    # Dean's beacon published masks.uniques have 0 beside tally.uniques have 249, a stale seed, and
+    # `_fleet_reconcile_tally_with_masks` exists to correct records holding two answers to one
+    # question. Guarding on a field a scar already distrusts would buy confidence, not safety. His
+    # own total catches the measured danger; the remaining exposure is a roster that matches HIS
+    # universe and not THEIRS, which stays UNKNOWN here and is named as such in the why.
+    if out.get("ok"):
+        _keep, _why = _neither_is_publishable(out.get("rosterN"), out.get("showN"), ledger,
+                                              out.get("showNWhy"))
+        if not _keep:
+            out["neitherHas"] = None
+        out["neitherWhy"] = _why
     if not out.get("ok") and their_mask is None:
         # v2329 — the ledger names itself here too. "which pieces it holds" is set wording, and
         # printing it on a UNIQUES comparison is a label describing the wrong thing at exactly the
@@ -26896,7 +26978,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3020",
+        "ver": "v3021",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
