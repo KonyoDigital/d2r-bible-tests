@@ -307,7 +307,43 @@ def _containers(items):
         sc = str(it.get("scene") or "").strip().lower()
         if sc and sc != loc:
             dis += 1
-    return {"container": (list(locs)[0] if len(locs) == 1 else None),
+    # ⚠⚠ v3031 — A MINORITY READING NO LONGER SILENCES A NAME. His ruling, 2026-09-12, on being
+    # shown that Tome of Town Portal read {inventory: 15, equipped: 1}: *"a logic of like winning
+    # just like the wilson score it should prove itself.. in this case it proves itself more to
+    # inventory so by default it should choose this"*.
+    #
+    # Until now ANY disagreement set `container` to None, so one misread out of sixteen threw away
+    # fifteen agreeing sightings. MEASURED over his live evidence: 41 of 42 located names were
+    # unanimous, and the single exception is exactly the one he ruled on — so this recovers one
+    # name today and, more to the point, stops the next misread costing a whole name.
+    #
+    # ⚠ IT MUST PROVE ITSELF, WHICH IS NOT THE SAME AS WINNING. A bare plurality is not evidence:
+    # 8-vs-7 is a genuine contradiction and must stay None. The bar is the majority being at least
+    # TWICE the runner-up — 15-vs-1 clears it easily, 8-vs-7 does not, and the boundary is stated
+    # rather than felt.
+    #
+    # ⚠ THE MINORITY IS NEVER DELETED. `containers` still carries the full tally, so the
+    # disagreement stays legible and a reader can always see what was outvoted. Publishing the
+    # winner and hiding the count is how a majority becomes a fact nobody can argue with.
+    # [[the-contradiction-is-the-finding]] [[zero-needs-a-denominator]]
+    _container, _agreed, _why = None, None, ""
+    if len(locs) == 1:
+        _container, _agreed = list(locs)[0], True
+        _why = "every one of the %d placed sighting(s) says %s" % (placed, _container)
+    elif len(locs) > 1:
+        _ranked = sorted(locs.items(), key=lambda kv: -kv[1])
+        _top, _n = _ranked[0]
+        _second = _ranked[1][1]
+        if _n >= 2 * _second:
+            _container, _agreed = _top, False
+            _why = ("%s wins %d to %d over %s — it carries at least twice the runner-up, so the "
+                    "minority reads as a misread rather than a second opinion"
+                    % (_top, _n, _second, _ranked[1][0]))
+        else:
+            _why = ("%s %d vs %s %d is too close to call — a bare majority is not evidence, so "
+                    "this stays UNPLACED and the tally below is the finding"
+                    % (_top, _n, _ranked[1][0], _second))
+    return {"container": _container, "containerAgreed": _agreed, "containerWhy": _why,
             "containers": locs, "placed": placed, "unplaced": unplaced,
             "frameDisagreed": dis}
 

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3030",
+  "ver": "v3031",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3030: the recovered row printed what the store holds now with nothing to hold it against, so 440 back out of 445 and 440 back out of 900 read identically; the predating backup answers what he had.",
+  "note": "v3031: one misread out of sixteen threw away fifteen agreeing sightings; a majority that carries at least twice the runner-up now names the container, and a bare plurality still states neither.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
