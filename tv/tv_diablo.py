@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3041"   # ALL FOUR ORGANS SPEAK ONE VOCABULARY
+VERSION = "v3042"   # A STALE PROVER IS NOT A SAFETY VERDICT
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

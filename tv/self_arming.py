@@ -140,11 +140,13 @@ LOCKS = {
     # step 1 — the printer and the reels
     "vault.sweep_start": {
         "surface": "VAULT", "acts": "starts a paid sweep",
+        "destructive": True,   # money spent cannot be unspent
         "bar": 0.510, "kinds_bar": 1.0, "after": [],
     },
     # step 1 — the actions that change his ledger
     "vault.apply": {
         "surface": "VAULT", "acts": "mules items between characters",
+        "destructive": True,   # it rewrites his ledger
         "bar": 0.722, "kinds_bar": 1.3, "after": ["vault.sweep_start"],
     },
     # ⚠⚠ THIS ONE CAN NEVER BE PROVEN, AND THAT IS A PROPERTY OF THE DOOR, NOT A MISSING HARNESS.
@@ -188,6 +190,7 @@ LOCKS = {
     },
     "vault.forget": {
         "surface": "VAULT", "acts": "drops the ledger",
+        "destructive": True,   # there is nothing to drop it back from
         "bar": 0.722, "kinds_bar": 1.3, "after": ["vault.sweep_start"],
         "unprovable": ("the door has no refusal path by design — clearing a rebuildable "
                        "optimisation is a button, and gating it would be a cage. There is no "
@@ -227,6 +230,7 @@ LOCKS = {
     "frame.release": {
         "surface": "THE RIVER",
         "acts": "decides whether a frame's pixels may be released — the last check before deletion",
+        "destructive": True,   # it is the last check before deletion
         "bar": 0.722, "kinds_bar": 1.3, "after": [],
     },
     # ⚠⚠ v2784 — HIS RULING, 2026-09-08: *"if they are hardened and tested and prove themselves
@@ -257,6 +261,7 @@ LOCKS = {
     },
     "prune.arm": {
         "surface": "THE RIVER", "acts": "deletes footage — there is no undo",
+        "destructive": True,   # its own words: there is no undo
         "bar": 0.839, "kinds_bar": 1.8,
         # ⚠⚠ v2570 — `printer.stream` ADDED, and this is the wiring he asked for. His order is
         # "printer + reels -> theatre + shelf -> routing -> the deleter", and this module's own
@@ -1143,6 +1148,30 @@ def _heart_says_watched():
                   % (_st.get("proved"), _st.get("total")))
 
 
+#: the two phrases _heart_says_watched() uses for the two failures that mean different things.
+#: ⚠ THEY ARE MATCHED AS TEXT, AND test_the_stale_prover_is_not_a_safety_verdict PARSES THIS FILE
+#: TO PROVE BOTH STILL EXIST IN THE BRANCHES THEY CAME FROM. A silent reword would otherwise turn
+#: every stale census back into a refusal for every lock — the exact outage this split exists to
+#: prevent — and nothing would say so. [[source-reading-guard]]
+_HEART_STALE_PHRASE = "census is STALE"
+_HEART_BLIND_PHRASE = "are BLIND"
+
+
+def heart_block_kind(why):
+    """Which KIND of heart failure is this? -> 'stale' | 'blind' | 'other'
+
+    STALE means the prover has not caught up with the code. BLIND means a gate cannot fail at all.
+    Only one of those is a fact about the SURFACE; the other is a fact about the INSTRUMENT, and
+    conflating them is why writing a single gate could shut nineteen locks at once.
+    """
+    w = str(why or "")
+    if _HEART_STALE_PHRASE in w:
+        return "stale"
+    if _HEART_BLIND_PHRASE in w:
+        return "blind"
+    return "other"
+
+
 def may(lock):
     """May this surface act right now? -> (bool, why)
 
@@ -1159,7 +1188,22 @@ def may(lock):
     # v2861 — AND THE HEART, in the same chain and for the same reason. See _heart_says_watched().
     _hok, _hwhy = _heart_says_watched()
     if not _hok:
-        return False, _hwhy
+        # ⚠⚠ v3042 — A STALE PROVER IS NOT A SAFETY VERDICT ABOUT AN ORDINARY ACT. The census
+        # goes stale whenever a GATE FILE changes, which is whenever anyone writes a gate — it
+        # happened four separate times in one session of doing exactly that, and each time every
+        # one of the nineteen locks answered may=False. Wiring ordinary actions to that would
+        # mean editing a test takes features off his console until a ~38-minute re-prove.
+        #
+        # So the split is by REVERSIBILITY, and it is his ruling: an act that cannot be undone
+        # keeps the full guarantee — a prover that has not caught up is reason enough to refuse
+        # to delete footage, drop a ledger, mule items or spend money. An act that reports,
+        # walks or decides refuses on MERIT alone, because "the instrument is out of date" says
+        # nothing about whether THAT surface has earned the right to act.
+        #
+        # ⚠ BLIND IS NOT STALE AND NEVER SOFTENS. A blind instrument is a gate that cannot fail;
+        # that IS a fact about supervision, and it fails closed for everything. [[stale-reading]]
+        if not (heart_block_kind(_hwhy) == "stale" and not spec.get("destructive")):
+            return False, _hwhy
     for pre in spec["after"]:
         s = score(pre, rows)
         if s.get("state") not in (OPEN, HARDENED):

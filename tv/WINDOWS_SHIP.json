@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3041",
+  "ver": "v3042",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3041: the watchdog named seven concerns that resolved to none of the 58 surfaces, and selfArming now DERIVES its coverage from the lock list it actually judged rather than declaring it beside the code",
+  "note": "v3042: may refused every lock whenever the heart census went stale and the census goes stale whenever a gate file changes, so writing one gate shut nineteen locks - the split is by reversibility now, irreversible doors keep the whole guarantee and ordinary ones refuse on merit alone",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

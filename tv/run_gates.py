@@ -2283,6 +2283,26 @@ GATES = [
              "is not in the registry FAILS, since a typo would sit there forever matching nothing "
              "and looking like considered coverage. Measured after: surfaces named by NO "
              "comparable organ went 49 -> 29, and comparable organs 1 -> 2."),
+    Gate("test_a_stale_prover_is_not_a_safety_verdict",
+         [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
+         why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "
+             "to anything. may() asks _heart_says_watched() before it asks about the surface, and "
+             "that fails closed when the census is STALE — which it becomes the moment any GATE "
+             "FILE changes. Measured 2026-09-12 in one session of writing gates: the census staled "
+             "FOUR times and every lock answered may=False with the census sentence rather than "
+             "anything about itself. Wiring may() into action sites on top of that would mean "
+             "editing a test takes features off his console until a ~38-minute re-prove. His "
+             "ruling splits by REVERSIBILITY: an act that cannot be undone keeps the whole "
+             "guarantee (five locks carry destructive:True, each justified by its own `acts` "
+             "string — 'deletes footage — there is no undo', 'drops the ledger', 'the last check "
+             "before deletion', 'mules items between characters', 'starts a paid sweep'), while an "
+             "act that reports, walks or decides refuses on MERIT alone, because an out-of-date "
+             "instrument says nothing about whether THAT surface earned the right to act. ⚠ BLIND "
+             "IS NOT STALE and never softens — a gate that cannot fail is a fact about supervision "
+             "and refuses everything. ⚠ heart_block_kind() matches TEXT, so this gate PARSES "
+             "self_arming and proves both phrases still live inside _heart_says_watched's own "
+             "body: a silent reword would classify every stale census as 'other' and refuse "
+             "everything again, quietly."),
     Gate("test_the_cross_reference_asks_one_question",
          [sys.executable, os.path.join(HERE, "test_the_cross_reference_asks_one_question.py")], 180,
          why="HIS CROSS-REFERENCE READ 160/398 BESIDE A BOARD THAT SAYS 292/403 — TWO WRONG "
