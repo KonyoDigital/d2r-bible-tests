@@ -1,5 +1,5 @@
 {
-  "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless\nv3027 — heart/heart-fan/heart-stored LOWERED BY HAND (93->92, 278->275, 21->18) because v3026 removed the ONE blind instrument, and a blind instrument renders exactly one .hrt-row carrying three spans (.hrt-k/.hrt-s/.hrt-w). The three targets count that same row three ways, which is why the deltas are -1, -3 and -3. The bless refused to lower these on its own — 'a floor may only RISE' — and it was right to: in a green run a silent drop reads exactly like clean.",
+  "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless\nv3027 — heart/heart-fan/heart-stored LOWERED BY HAND (93->92, 278->275, 21->18) because v3026 removed the ONE blind instrument, and a blind instrument renders exactly one .hrt-row carrying three spans (.hrt-k/.hrt-s/.hrt-w). The three targets count that same row three ways, which is why the deltas are -1, -3 and -3. The bless refused to lower these on its own — 'a floor may only RISE' — and it was right to: in a green run a silent drop reads exactly like clean.\nv3035 — heart/heart-fan LOWERED BY HAND (92->90, 275->270) because v3034 stopped counting two threads as vessels. `srv.serve_forever` and `wp.wait` are methods on stdlib objects that no module in this package defines; the census now classifies them FOREIGN and the heart renders a row per VESSEL, so two rows went. Measured in the same run: 0 render failures and every target green at every width — only these two floors moved, and heart-stored did not, which fits, because it counts the census row rather than the vessels. heart counts one node per row (-2); heart-fan counts the rows' spans and those two carried 5 between them (-5). The bless refuses to lower a floor on its own — 'a floor may only RISE' — and it is right to: in a green run a silent drop reads exactly like clean. This is the v3027 case repeating, for the same reason and by the same hand-written route.",
   "floor": {
     "advanced": {
       "1120x628": 1,
@@ -51,18 +51,18 @@
       "901x900": 10
     },
     "heart": {
-      "1120x628": 92,
-      "1120x900": 92,
-      "1440x1000": 92,
-      "375x800": 92,
-      "901x900": 92
+      "1120x628": 90,
+      "1120x900": 90,
+      "1440x1000": 90,
+      "375x800": 90,
+      "901x900": 90
     },
     "heart-fan": {
-      "1120x628": 275,
-      "1120x900": 275,
-      "1440x1000": 275,
-      "375x800": 275,
-      "901x900": 275
+      "1120x628": 270,
+      "1120x900": 270,
+      "1440x1000": 270,
+      "375x800": 270,
+      "901x900": 270
     },
     "heart-stored": {
       "1120x628": 18,
