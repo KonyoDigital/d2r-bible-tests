@@ -35,8 +35,8 @@ import re
 import sys
 import unittest
 
-HERE_ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE_)
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 
 try:
     from console_safe import enable
@@ -44,7 +44,6 @@ try:
 except Exception:
     pass
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 UI = os.path.join(HERE, "control_ui.html")
 
 
