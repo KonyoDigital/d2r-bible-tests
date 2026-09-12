@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3004** | `(this commit)` | v3004 — a recoveredAt closes an episode so a new empty starts a new record with the old one kept as history, and the doctor now reads the counts it always had instead of demanding a reload |
+| **v3005** | `(this commit)` | v3005 — delete the load-time recoveredAt stamp and every reader-side law stayed green; now that sabotage goes red, and the recovered verdict carries its counts so one name cannot pass for four hundred |
+| **v3004** | `9c2d7900` | v3004 — a recoveredAt closes an episode so a new empty starts a new record with the old one kept as history, and the doctor now reads the counts it always had instead of demanding a reload |
 | **v3003** | `7a2ec7d4` | v3003 — supervised meant in-the-roster-literal, and a lane that stamps a tick is watched with no roster row; eight of twenty reported gaps were invented and the genuinely unwatched count was zero |
 | **v3002** | `c7926de8` | v3002 — a sixty-second-old freeze sat in the report and went unreported because an older geometry carried more frames |
 | **v3001** | `5b6a9832` | v3001 — five of eight sleeps sit inside inner loops so the derived worst path is 609s not 99s, and four of them are under unbounded for loops so no ceiling exists at all |

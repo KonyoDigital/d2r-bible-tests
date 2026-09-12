@@ -348,7 +348,75 @@ class TheDoctorSeesTheStoreRefillWithoutAReload(unittest.TestCase):
         self.assertEqual(st, "missing")
 
 
+class TheRecoveredAtWriterActuallyWrites(unittest.TestCase):
+    """⚠⚠ v3005 — EYE FINDING 4, VERBATIM: "delete the load-time stamp and every new test stays
+    green. The doctor's OK branch is dead on arrival. The permanent alarm this version exists to
+    close comes back." Every earlier law pinned the READER and the EMPTY-branch writer; the
+    recoveredAt-stamping branch had no executing law at all. This EXECUTES it."""
+
+    def _run(self, store, now=7777):
+        a = BIBLE.find("      var _wasEmpty = !LS.getItem('d2r_foundLog')")
+        b = BIBLE.find("      if (_wasEmpty && _hadRun) {", a)
+        if a < 0 or b < a:
+            self.fail("the recovery-stamp region moved — this law is grading nothing")
+        js = ("function run(store, NOW){\n"
+              "  var LS = { getItem: function(k){ return (k in store) ? store[k] : null; },\n"
+              "             setItem: function(k, v){ store[k] = v; } };\n"
+              "  var Date = { now: function(){ return NOW; } };\n"
+              "  var _emptiedLoss = false;\n"
+              + BIBLE[a:b] +
+              "\n  return store;\n}\n"
+              "console.log(JSON.stringify(run(%s, %d)));" % (json.dumps(store), now))
+        d = tempfile.mkdtemp(prefix="recstamp_")
+        self.addCleanup(shutil.rmtree, d, True)
+        f = os.path.join(d, "t.js")
+        io.open(f, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
+        except Exception:
+            self.fail("node is REQUIRED by this law and is not on PATH — a law that does not "
+                      "run is not a pass")
+        if r.returncode != 0:
+            self.fail("the shipped recovery-stamp block would not execute: %s"
+                      % (r.stderr or "")[:300])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_contents_beside_an_open_event_stamp_recoveredAt(self):
+        store = {"d2r_foundLog": "[\"Shako\"]",
+                 "d2r_storeEmptied": json.dumps({"at": 1000, "boots": 2})}
+        got = json.loads(self._run(store)["d2r_storeEmptied"])
+        self.assertEqual(got.get("recoveredAt"), 7777,
+                         "the store has contents and the event is open — the writer must CLOSE "
+                         "the episode, or the doctor's OK branch is dead on arrival and the "
+                         "permanent alarm returns")
+        self.assertEqual(got.get("at"), 1000, "and the record is kept, never deleted")
+
+    def test_a_closed_event_is_not_restamped(self):
+        """A second stamp would move the recovery moment — the T2 that bounds which backups
+        predate the NEXT loss. [[stale-reading]]"""
+        store = {"d2r_foundLog": "[\"Shako\"]",
+                 "d2r_storeEmptied": json.dumps({"at": 1000, "recoveredAt": 2000})}
+        got = json.loads(self._run(store)["d2r_storeEmptied"])
+        self.assertEqual(got.get("recoveredAt"), 2000,
+                         "recoveredAt was already stamped at T2 and must not walk forward")
+
+    def test_no_event_means_nothing_is_written(self):
+        store = {"d2r_foundLog": "[\"Shako\"]"}
+        out = self._run(store)
+        self.assertNotIn("d2r_storeEmptied", out,
+                         "a store that never came up empty must not grow an emptied record")
+
+
 RED_PROOF = [
+    {
+        "why": "deleting the load-time stamp is eye finding 4 verbatim: the doctor's OK branch "
+               "goes dead on arrival and the permanent alarm returns, while every reader-side "
+               "law stays green",
+        "file": "bible.html",
+        "find": "            _rp.recoveredAt = Date.now();",
+        "replace": "            ;",
+        "matches": 1,
+    },
     {
         "why": "dropping the recoveredAt clause lets a CLOSED episode donate its timestamp to a "
                "brand-new loss, and the backup question points at the wrong episode again",

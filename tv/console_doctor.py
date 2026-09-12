@@ -1253,10 +1253,18 @@ def _check_the_board_store_did_not_come_up_empty():
     _rec = ev.get("recoveredAt") if isinstance(ev, dict) else None
     if isinstance(_rec, (int, float)) and _rec > 0:
         import datetime as _dt2
-        return OK, ("the board's store came up empty once and has contents again since %s UTC. "
-                    "The record is kept as history — it is what says which backup predates the "
-                    "loss — and no longer needs action."
-                    % _dt2.datetime.utcfromtimestamp(_rec / 1000.0).strftime("%Y-%m-%d %H:%M"))
+        # ⚠ v3005 — THE COUNTS RIDE WITH THE CLAIM. Eye finding 3: `recoveredAt` means "a ledger
+        # key exists", which one hand-added name satisfies — so "no longer needs action" could
+        # stand over a store holding 1 of 20 lost items. The magnitude is what lets HIM judge
+        # whether the recovery is real; a claim without its number cannot be argued with.
+        # [[zero-needs-a-denominator]]
+        _c2 = got.get("counts") if isinstance(got.get("counts"), dict) else {}
+        return OK, ("the board's store came up empty once and has contents again since %s UTC — "
+                    "now %s foundLog / %s setPieces. The record is kept as history — it is what "
+                    "says which backup predates the loss. Judge the counts, not the flag: one "
+                    "recovered name stamps it just as fully as four hundred."
+                    % (_dt2.datetime.utcfromtimestamp(_rec / 1000.0).strftime("%Y-%m-%d %H:%M"),
+                       _said(_c2.get("foundLog")), _said(_c2.get("setPieces"))))
     # ⚠⚠ v3004 — THE ADVERTISED RESTORE COULD NOT CLEAR THE ALARM UNTIL A RELOAD. Found by the
     # cross-family eye on v2993: `restore_ledger.py --apply` writes names through chronicleApply
     # into the ALREADY-LOADED board, while `recoveredAt` is stamped only in bible.html's load-time
