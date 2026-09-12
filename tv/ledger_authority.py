@@ -1763,11 +1763,25 @@ def surface_pairs():
             _why = ("the mask counts %s and the tally counts %s — two questions under one label, "
                     "so their numbers are not comparable and a cross-reference names the wrong "
                     "ledger" % (ms, ts))
-        elif _univ_ok is False:      # a FACT for the reader; the per-row gate lives downstream
-            _why = ("both sides read %s, but the tally counts out of %s while the mask can only "
-                    "represent %s roster names — so their COUNTS are not comparable. 403 is his "
-                    "pinned ruling; 398 is the size the page itself says is produced by neither"
-                    % (ts, _tot, _rn))
+        elif _univ_ok is False:
+            # ⚠⚠ v3026 — THIS BRANCH IS UNREACHABLE AND HAS BEEN SINCE v2947, WHICH IS WHY A
+            # RED_PROOF POINTED AT IT AND MEASURED **BLIND**. `_tot` is hardcoded None twelve lines
+            # up — v2947 removed the live probe on purpose ("comparable MUST NOT DEPEND ON A LIVE
+            # PROBE OF *THIS* CONSOLE") and moved the universe question per-ROW into
+            # mask_cross_check, where each machine's own posted `total` lives. With `_tot` always
+            # None, `_univ_ok` is always None, so `_univ_ok is False` can never be true.
+            #
+            # THE COST WAS NOT COSMETIC: heart2 reported this whole gate BLIND, and
+            # self_arming._heart_says_watched() fails closed on any blind instrument — so ONE dead
+            # branch closed ALL TEN self-arming locks. A proof aimed at code that cannot run is a
+            # proof that can never go red, and a gate that cannot go red is measuring nothing.
+            #
+            # KEPT, NOT DELETED, and kept EMPTY: if a future change ever restores a local total,
+            # this is where the reason belongs — and leaving the old sentence here would have it
+            # read as live prose describing a rule that moved. The live reason is in
+            # mask_cross_check below. [[the-unjoined-end]] [[gate-blind-to-unexercised-input]]
+            _why = ("the universes disagree, and this branch cannot currently be reached — the "
+                    "per-row universe gate lives in mask_cross_check, which names both numbers")
         else:
             _why = ("whether these two figures are comparable is UNKNOWN: store %s, tally total "
                     "%r, roster %r" % ("ok" if _store_ok else "unmeasured", _tot, _rn))

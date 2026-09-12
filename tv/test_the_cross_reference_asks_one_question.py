@@ -283,16 +283,85 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
 
     def test_a_pair_ruled_NOT_comparable_NAMES_BOTH_NUMBERS(self):
         """An exemption nobody can audit is an exemption that grows. A ledger excluded from the
-        cross-check must say which two universes disagree, in digits, so the next reader can tell
-        `403 vs 398` from `the instrument is broken`."""
+        cross-check must say which two universes disagree, IN DIGITS, so the next reader can tell
+        `403 vs 398` from `the instrument is broken`.
+
+        ⚠⚠ v3026 — THIS LAW PASSED VACUOUSLY AND ITS PROOF MEASURED **BLIND**, and the two facts
+        were the same fact. Measured: surface_pairs() returns 2 pairs and `comparable is False` for
+        ZERO of them, so the old loop body never executed. Worse, the branch its RED_PROOF tampered
+        with is DEAD — v2947 hardcoded `_tot = None` and moved the universe question per-ROW into
+        mask_cross_check, so `_univ_ok is False` can never be true. A proof aimed at unreachable
+        code can never go red.
+
+        THE COST WAS NOT LOCAL. heart2 reported the whole gate BLIND, and
+        self_arming._heart_says_watched() fails closed on any blind instrument — so this one law
+        closed ALL TEN self-arming locks.
+
+        ⚠ AND THE OLD ASSERTION CHECKED ONE NUMBER WHILE ITS OWN NAME SAID **BOTH**: it looped over
+        `(p.get("maskRosterN"),)` — a one-tuple — so even had it run, the tally total it was written
+        to protect was never asserted.
+
+        It now DRIVES the live path with a constructed fleet rather than waiting for his data to
+        produce a disagreement, and asserts both numbers.
+        [[gate-blind-to-unexercised-input]] [[zero-needs-a-denominator]] [[the-unjoined-end]]"""
+        roster_n = None
         for p in (LA.surface_pairs() or []):
-            if p.get("comparable") is not False:
-                continue
-            why = str(p.get("why") or "")
-            for n in (p.get("maskRosterN"),):
-                self.assertIn(str(n), why,
-                              "%s is not comparable and its reason does not name %r: %r"
-                              % (p.get("ledger"), n, why))
+            if p.get("ledger") == "uniques" and isinstance(p.get("maskRosterN"), int):
+                roster_n = p["maskRosterN"]
+        if roster_n is None:
+            self.skipTest("no uniques roster size on this venue, so the live path cannot be driven")
+
+        #: a machine posting a total that disagrees with the roster — the ONE state that must
+        #: produce an auditable exemption. The mask is irrelevant here: the row is excluded before
+        #: it is ever decoded.
+        bad_total = roster_n + 5
+        fleet = {"online": [{"machine": "testbox", "nickname": "testbox",
+                             "tally": {"uniques": {"have": 7, "total": bad_total}},
+                             #: ⚠ the mask must be a DICT — mask_cross_check skips the row before the universe
+                             #: check when it is not, which is what made my first fixture silently
+                             #: unreachable and the law green for the wrong reason
+                             "masks": {"uniques": {"b": ""}}}],
+                 "offline": []}
+        out = LA.mask_cross_check(fleet=fleet) or {}
+        excluded = list(out.get("excluded") or [])
+        mine = [e for e in excluded if str(e.get("ledger")) == "uniques"]
+        self.assertTrue(
+            mine,
+            "a machine posting %d against a %d-name roster was NOT excluded from the cross-check, "
+            "so two incomparable universes would be compared as if they matched. excluded=%r"
+            % (bad_total, roster_n, excluded))
+
+        why = str(mine[0].get("why") or "")
+        for n in (bad_total, roster_n):
+            self.assertIn(str(n), why,
+                          "the exemption does not name %r, so nobody can tell %d-vs-%d from a "
+                          "broken instrument: %r" % (n, bad_total, roster_n, why))
+
+    def test_a_MATCHING_total_is_not_excluded_so_the_gate_is_not_simply_off(self):
+        """⚠ THE OTHER SIDE. A law that only ever sees the exclusion cannot tell a working gate
+        from one that excludes everything — and excluding everything is exactly how the cross-check
+        went DARK before v2947. [[feedback-blind-fixture-green-gate]]"""
+        roster_n = None
+        for p in (LA.surface_pairs() or []):
+            if p.get("ledger") == "uniques" and isinstance(p.get("maskRosterN"), int):
+                roster_n = p["maskRosterN"]
+        if roster_n is None:
+            self.skipTest("no uniques roster size on this venue")
+        fleet = {"online": [{"machine": "testbox", "nickname": "testbox",
+                             "tally": {"uniques": {"have": 7, "total": roster_n}},
+                             #: ⚠ the mask must be a DICT — mask_cross_check skips the row before the universe
+                             #: check when it is not, which is what made my first fixture silently
+                             #: unreachable and the law green for the wrong reason
+                             "masks": {"uniques": {"b": ""}}}],
+                 "offline": []}
+        out = LA.mask_cross_check(fleet=fleet) or {}
+        mine = [e for e in (out.get("excluded") or [])
+                if str(e.get("ledger")) == "uniques"
+                and "can only represent" in str(e.get("why") or "")]
+        self.assertFalse(
+            mine, "a machine whose posted total MATCHES the roster (%d) was excluded for a universe "
+                  "mismatch, so the gate excludes regardless and measures nothing: %r"
+                  % (roster_n, mine))
 
     def test_the_cross_check_EXCLUDES_with_a_REASON_at_both_levels(self):
         """THE GATE HAS TWO LEVELS AND THIS LAW NAMES BOTH, because v2947 moved one of them.
@@ -388,8 +457,13 @@ RED_PROOF = [
     {
         "why": 'law: a pair ruled not-comparable names BOTH numbers. Dropping the tally total from the reason leaves an exemption nobody can audit',
         "file": 'ledger_authority.py',
-        "find": 'but the tally counts out of %s while the mask can only ',
-        "replace": 'but the tally counts out of a different number while the mask can only ',
+        #: ⚠⚠ v3026 — RE-ANCHORED FROM DEAD CODE TO THE LIVE PATH. This tampered a string inside
+        #: surface_pairs()'s `_univ_ok is False` branch, which has been UNREACHABLE since v2947
+        #: hardcoded `_tot = None` — so the proof could never go red and heart2 called the whole
+        #: gate BLIND, which closed all ten self-arming locks. The universe question moved per-ROW
+        #: into mask_cross_check; this now tampers the reason that actually gets built.
+        "find": '"%s posts %s out of %d while the %s mask can only represent %d roster names, "',
+        "replace": '"%s posts %s while the %s mask can only represent %d roster names, "',
         "matches": 1,
     },
 ]

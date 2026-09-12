@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3025",
+  "ver": "v3026",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3025: v3019 fixed one stale count and left two others in the same file naming five modals beside a floor of six, so the next person to add an overlay would have counted wrong and left the floor too low.",
+  "note": "v3026: a red-proof aimed at a branch that has been unreachable since v2947 could never go red, so heart2 called the gate blind and the self-arming precondition failed closed on every lock; four now open on merit.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
