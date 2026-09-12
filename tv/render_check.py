@@ -1499,7 +1499,17 @@ TARGETS = {
         # green in every run — so the mechanism was proven on this panel and I left it for the one
         # thing it cannot do. Back to a warmup, with real headroom for a 530-card grid instead of
         # the 14s copied from a target that watches ~21 nodes.
-        "serve": True, "path": "", "warmup": 24.0, "settles": False,
+        # ⚠⚠ 14s, AND THE CEILING IS THE GATE'S BUDGET, NOT THIS TARGET'S COMFORT. hooks/pre-push
+        # runs `render_check.py` with NO arguments under a 300s kill (`gate_run "render" ... 300`),
+        # so the WHOLE 18-target pass must finish inside it. Measured: a full pass takes ~4-5 min,
+        # already at the edge — and at warmup 24 this one target spends 24s x 5 widths = 120s of
+        # pure sleeping, 40% of the entire budget. The push died at target 17 of 18 with
+        # "⏱ render HUNG — killed after 300s", and that was my doing: v2984 passed this step fine.
+        # 14s is the value that rendered 533/533 green at all five widths on a quiet machine; the
+        # earlier flakiness at 14 was the second eye holding the load at 4.68, which is a room
+        # problem I now fix by not running the eye during a push rather than by paying 10 extra
+        # seconds five times over. [[ab-against-head-before-blaming-the-room]]
+        "serve": True, "path": "", "warmup": 14.0, "settles": False,
         "why": "\U0001f4da THE SHELF'S REEL CARDS \u2014 the things the panel is NAMED after, and "
                "nothing has ever photographed them. Every existing shelf target aims at the "
                "analytics: `river-strip` watches #sh-lanes, and the grid itself had no selector in "
