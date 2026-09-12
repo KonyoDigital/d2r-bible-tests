@@ -24724,13 +24724,36 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                    height: `scrollHeight` far exceeding `clientHeight` at `scrollTop === 0` means
                    there IS content below the visible region, which is measurable from here and
                    was never asked. [[unknown-stays-unknown]] [[the-unjoined-end]] */
+                /* ⚠⚠ v3028 — A CLOSED SHELF MUST NOT REPORT ZEROS, AND IT DID. Measured on his
+                   live console at v3027 with the overlay shut: box "closed" beside clientH 0,
+                   firstCardTop 0, scrollH 0, belowFoldPx 0. Read naively that says "the viewport
+                   is zero-high and the first card is at the very top and it all fits" — the
+                   OPPOSITE of the state this instrument exists to detect, and indistinguishable
+                   from a real measurement.
+                   `filled` already answered null when shut, so the payload disagreed with itself
+                   about what a closed panel knows. A closed container has no geometry; the honest
+                   answer is UNKNOWN, and the reader downstream must be forced to say so rather
+                   than dividing by a zero that looks clean.
+                   ⚠ It nearly poisoned my own #58 reading this tick: firstCardTop 0 against
+                   clientH 0 would have read as "the card is visible" on a shelf that was never
+                   open. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+                var _measurable = (st !== 'closed' && st !== 'OFF-VIEW' && st !== 'ZERO-HEIGHT');
+                o.shelf.measurable = _measurable;
+                o.shelf.measurableWhy = _measurable ? '' :
+                  ('the shelf is ' + st + ', so it has no geometry to report — these fields are '
+                   + 'UNKNOWN, not zero');
                 try {
+                  if (!_measurable) {
+                    o.shelf.scrollH = null; o.shelf.clientH = null;
+                    o.shelf.scrollTop = null; o.shelf.belowFoldPx = null;
+                  } else {
                   o.shelf.scrollH = Math.round(ov.scrollHeight || 0);
                   o.shelf.clientH = Math.round(ov.clientHeight || 0);
                   o.shelf.scrollTop = Math.round(ov.scrollTop || 0);
                   /* how much of the content is reachable only by scrolling. 0 means it all fits. */
                   o.shelf.belowFoldPx = Math.max(0, (o.shelf.scrollH - o.shelf.clientH)
                                                     - o.shelf.scrollTop);
+                  }
                 } catch (e) {
                   o.shelf.scrollH = null; o.shelf.clientH = null;
                   o.shelf.scrollTop = null; o.shelf.belowFoldPx = null;
@@ -24754,7 +24777,11 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                   for (var _i = 0; _i < _cs.length; _i++){
                     if (_cs[_i].style.display !== 'none'){ _fc = _cs[_i]; break; }
                   }
-                  o.shelf.firstCardTop = (_fc && r)
+                  /* ⚠ v3028 — AND THE SAME FOR THE ONE NUMBER THAT SETTLES IT. The cards stay in
+                     the DOM while the overlay is shut, so `_fc` is found and this computed
+                     0 - 0 + 0 = 0 — a confident "the first card is at the top" about a shelf
+                     nobody opened. */
+                  o.shelf.firstCardTop = (_measurable && _fc && r)
                     ? Math.round(_fc.getBoundingClientRect().top - r.top + (ov.scrollTop || 0))
                     : null;
                 } catch (e) { o.shelf.firstCardTop = null; }

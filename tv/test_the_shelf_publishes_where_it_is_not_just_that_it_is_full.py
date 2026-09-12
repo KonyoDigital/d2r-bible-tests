@@ -232,6 +232,52 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         self.assertNotIn(sh(o).get("box"), ("DARK", "OFF-VIEW", "ZERO-HEIGHT"),
                          "closed must never borrow a fault name")
 
+    def test_a_CLOSED_shelf_reports_UNKNOWN_geometry_and_never_ZEROS(self):
+        """⚠⚠ v3028 — MEASURED ON HIS LIVE CONSOLE AT v3027, WITH THE OVERLAY SHUT:
+
+            box "closed" · clientH 0 · firstCardTop 0 · scrollH 0 · belowFoldPx 0
+
+        Read at face value that says "the viewport is zero-high, the first card is at the very top,
+        and it all fits" — the OPPOSITE of the state this instrument exists to detect, and
+        indistinguishable from a real measurement of a healthy shelf.
+
+        `filled` already answered null when shut, so the payload disagreed with ITSELF about what a
+        closed panel can know. A closed container has no geometry, and the honest answer is UNKNOWN.
+
+        ⚠ THE CARDS STAY IN THE DOM WHILE THE OVERLAY IS SHUT, which is why firstCardTop was 0
+        rather than null: the first card was found, and `0 - 0 + 0` is 0. So this is not a missing
+        guard, it is a computation that silently succeeds on meaningless inputs.
+        [[zero-needs-a-denominator]] [[unknown-stays-unknown]]"""
+        o = self._run(hidden=True, rect=self.BIG, cards=535)
+        g = sh(o)
+        self.assertEqual(g.get("box"), "closed", "fixture did not produce a closed shelf: %r" % g)
+        self.assertIs(g.get("measurable"), False,
+                      "a closed shelf claims to be measurable, so every number below it reads as a "
+                      "reading: %r" % g.get("measurable"))
+        for k in ("clientH", "scrollH", "scrollTop", "belowFoldPx", "firstCardTop"):
+            self.assertIsNone(
+                g.get(k), "a CLOSED shelf reports %s=%r — a zero here is a confident claim about a "
+                          "panel nobody opened, and 'the card is at the top' is the exact opposite "
+                          "of what a shut shelf means" % (k, g.get(k)))
+        self.assertTrue(str(g.get("measurableWhy") or ""),
+                        "the refusal carries no reason, so a reader sees nulls with no way to tell "
+                        "'shut' from 'the instrument broke'")
+
+    def test_an_OPEN_shelf_still_reports_its_real_geometry(self):
+        """⚠ THE OTHER SIDE, and the one that matters most: the guard must not blank a shelf that
+        IS open. A law that only ever sees the nulls cannot tell a working instrument from one that
+        reports UNKNOWN for everything — and an instrument that always says UNKNOWN is exactly as
+        useless as one that always says 0. [[feedback-blind-fixture-green-gate]]"""
+        o = self._run(rect=self.BIG, cards=535, scrollH=61382, clientH=361, scrollTop=0)
+        g = sh(o)
+        self.assertEqual(g.get("box"), "shown", "fixture did not produce a shown shelf: %r" % g)
+        self.assertIs(g.get("measurable"), True,
+                      "an OPEN shelf was marked unmeasurable, so the guard has swallowed the real "
+                      "reading it was written to protect")
+        self.assertIsNotNone(g.get("clientH"),
+                             "an open shelf reports clientH None — the guard is firing on the "
+                             "wrong state")
+
     def test_a_missing_overlay_leaves_the_shelf_null(self):
         """o.shelf is ALREADY null when the overlay is not in this build, and null must stay null.
         ⚠ typeof null === 'object', so a careless guard turns that honest UNKNOWN into an empty
@@ -431,6 +477,18 @@ class TheDoctorActuallyReadsBothHalves(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        #: ⚠ THE SHIPPED STATE, RESTORED. Without the gate a closed overlay reports clientH 0,
+        #: firstCardTop 0, scrollH 0 and belowFoldPx 0 — measured on his live console at v3027 —
+        #: which reads as "the first card is at the very top and it all fits" about a shelf nobody
+        #: opened.
+        "why": "removing the measurable gate makes a CLOSED shelf publish confident zeros for a "
+               "geometry it cannot have, which is indistinguishable from a healthy open shelf",
+        "file": "control_ui.html",
+        "find": "                var _measurable = (st !== 'closed' && st !== 'OFF-VIEW' && st !== 'ZERO-HEIGHT');",
+        "replace": "                var _measurable = true;",
+        "matches": 1,
+    },
     {
         "why": "taking the first card without checking display:none is the defect verbatim: a "
                "filtered-out card reports an all-zero rect, firstCardTop goes NEGATIVE, and the "

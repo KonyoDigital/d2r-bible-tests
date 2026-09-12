@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3027"   # fifteen floors lowered by hand, because the gate would not do it
+VERSION = "v3028"   # a closed shelf was reporting zeros for a geometry it cannot have
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
