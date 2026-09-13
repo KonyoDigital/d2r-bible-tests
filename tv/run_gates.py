@@ -2294,6 +2294,15 @@ GATES = [
              "only SHOWS him what is there must not go blank because an unrelated gate lost its "
              "red-proof. may_on_merit refuses every destructive lock outright so it can never "
              "become a soft door."),
+    Gate("test_a_test_seam_never_softens_the_real_lock",
+         [sys.executable, os.path.join(HERE, "test_a_test_seam_never_softens_the_real_lock.py")], 120,
+         why="A SEAM THAT LETS TESTS ASSUME SUPERVISION MUST NEVER LET THE LOCK'S OWN LAW ASSUME "
+             "IT. self_arming reads TV_HEART_CENSUS so tests about SWEEP LOGIC stop depending on "
+             "whether his census happens to be fresh — measured: 16 gate-file edits staled it, "
+             "closed vault.sweep_start and failed 20 tests that were not about supervision. But a "
+             "seam into a safety path is the thing that quietly stops guarding, so this refuses "
+             "two rots: the lock's own law using the seam (it would prove nothing), and the seam "
+             "returning anything but CLOSED on an absent census."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "
