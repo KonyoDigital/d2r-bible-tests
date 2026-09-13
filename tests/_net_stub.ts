@@ -55,6 +55,28 @@ export const test = base.extend({
     await page.route('**://fonts.gstatic.com/**', (r) =>
       r.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.alloc(0) })
     );
+    /* ⚠⚠ v3058 — THE LOOPBACK CONSOLE PROBE, AND IT COST 15 CONSECUTIVE PUBLISH RUNS.
+       v3010 added `_eagleNYBase()`, which for a `file://` page returns `http://127.0.0.1:17772`
+       so a board opened by the console's no-webview fallback can still reach its own console.
+       That is correct, and its own comment says the worst case is "the fetch fails and the honest
+       unreachable state paints".
+
+       Every spec here loads bible.html as `file://`. On a CI runner nothing listens on 17772, so
+       the probe logs `net::ERR_CONNECTION_REFUSED`, and three specs assert the console is EMPTY.
+       MEASURED 2026-09-13: Publish failed on 15 consecutive ships — every one since 2026-09-12
+       07:14 — and the live site sat at v3006 while the tree reached v3057. Fifty-one versions of
+       green local gates that never reached the site. [[the-unjoined-end]]
+
+       FULFILLED, NOT ABORTED, for the reason this fixture already records two rules above: an
+       abort is itself a failed request and logs. `{}` is valid JSON with no `eagle` key, so the
+       page takes its REAL unmeasured path and paints the honest "no console" state — which is
+       exactly true on a runner. This stubs the TRANSPORT, never the verdict. */
+    await page.route('**://127.0.0.1:17772/**', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    );
+    await page.route('**://127.0.0.1:17771/**', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    );
     await use(page);
   },
 });
