@@ -2402,6 +2402,16 @@ GATES = [
              "be a contradiction (a loop running and producing nothing), and an UNREADABLE tick "
              "read as a dead loop - lane_liveness._TICKS is in-process on a monotonic clock, so "
              "any other process sees it empty and would otherwise report healthy loops broken."),
+    Gate("test_a_lock_may_not_bank_more_attacks_than_it_declares",
+         [sys.executable, os.path.join(HERE, "test_a_lock_may_not_bank_more_attacks_than_it_declares.py")], 120,
+         why="A SOURCE MAY NOT BANK MORE ATTACKS THAN IT DECLARES - the arithmetic his vault rests "
+             "on. score() clears a bar on wilson_lower(min(k, attacks), attacks), computed on "
+             "DISTINCT attacks because Wilson cannot tell 83 independent looks from one attack run "
+             "83 times; an overstated `attacks` buys a lock open on refusals nobody earned, and "
+             "that same arithmetic took vault.apply from locked to OPEN. Compared PER SOURCE, "
+             "never per lock: reel.route's 34 is 7 from reel_router_wilson plus 27 from "
+             "rung_accounting_wilson, and a per-lock total would flag a HARDENED lock as 5x "
+             "inflated. An unreadable declaration is UNKNOWN, never a violation."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

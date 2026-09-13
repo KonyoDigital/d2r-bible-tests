@@ -213,6 +213,17 @@ def organ_coverage():
                 names.add(str(_s))
         except Exception:
             pass
+        # ⚠⚠ v3071 — AND THE LOCKS, cross-witnessed on the arithmetic that decides whether his
+        # vault may write: a source's BANKED attack count against the claims it DECLARES.
+        # Compared PER SOURCE, never per lock — reel.route's 34 is 7 from reel_router_wilson plus
+        # 27 from rung_accounting_wilson, and a per-lock total would have flagged a HARDENED lock
+        # as 5x inflated. [[feedback-suspect-the-instrument]]
+        try:
+            import lock_evidence_corroborate as _le
+            for _s in (_le.SURFACES or ()):
+                names.add(str(_s))
+        except Exception:
+            pass
         return names
     out["corroborator"] = (_corr(None), "") if _corr(None) else (None, "no route set answered")
     return out

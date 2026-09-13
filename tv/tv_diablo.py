@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3070"   # THE STOP SENTENCE WAS HONEST AND THE FIELDS CONTRADICTED IT
+VERSION = "v3071"   # A LOCK MAY NOT BANK MORE ATTACKS THAN IT DECLARES
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
