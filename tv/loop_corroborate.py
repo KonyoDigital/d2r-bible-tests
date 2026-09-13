@@ -67,8 +67,14 @@ LOOPS = {
     # ticks every 5 s but throttles its trace to 30 s, and `_orphan_watch` ticks every 20 s and
     # throttles to 20 s. Declaring the tick period for a throttled writer would make a correctly
     # working loop read as stale inside one window. [[feedback-threshold-above-the-ceiling]]
+    # ⚠⚠ 300, NOT 30. `_DRIFT_EVERY_S` defaults to 300 and this loop writes once per cycle with
+    # no throttle, so its TRACE period is 300s. Declared at 30 the stale window was 30*6 = 180s,
+    # and a perfectly healthy console read DISAGREE — "it is running and producing nothing" — for
+    # the last ~120s of every 5-minute cycle, flapping AGREE/DISAGREE for ever. Found by the
+    # cross-family second eye on the shipped v3076 diff. A fabricated alarm about a working
+    # machine is the worst thing this organ can emit. [[feedback-threshold-above-the-ceiling]]
     "_drift_loop": ("tvd-version-drift",
-                    os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 30.0),
+                    os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 300.0),
     "_shadow_watch_loop": ("tvd-shadow-watch",
                            os.path.join(HERE, ".lane_trace", "tvd-shadow-watch.json"), 30.0),
     "_orphan_exit_loop": ("_orphan_exit_loop",

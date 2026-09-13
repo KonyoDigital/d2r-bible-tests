@@ -32373,6 +32373,55 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-991 — v3076 moved the console's ORPHAN KILLER inside an exception handler, and it SHIPPED (task #92 — v3079)
+
+**Found by the cross-family second eye reading the PUSHED v3076 diff**, reproduced here by AST
+before it was believed.
+
+`board_window._orphan_watch` polls the control server and calls `os._exit(0)` once it has been
+unreachable for ~100s. That is the guard that stops a board window outliving the console that
+spawned it — the orphaned-process case that made his Mac hot (three full consoles at PPID 1, load
+average 5.42 → 3.08 the moment they were killed).
+
+v3076 inserted a `try`/`except` around a `lane_trace.note` call immediately above the guard, and the
+old `if misses >= 5: … os._exit(0)` **kept its indentation** — becoming the second statement of that
+`except`, after `pass`:
+
+    os._exit  ancestry BEFORE:  FunctionDef > While > Try > ExceptHandler > If
+    os._exit  ancestry AFTER :  FunctionDef > While > If
+
+⚠⚠ **`lane_trace.note` catches every exception and returns False — it never raises.** So the
+self-close could effectively NEVER run: a board window whose control server had died would poll for
+ever, `misses` climbing past 5, and stay up. **The inversion is the worst part — a WORKING
+corroborator is what disabled the killer**, so the healthier the machine, the more certainly the
+guard was dead.
+
+⚠ **AND THE EXISTING COVERAGE GATE STAYED GREEN.** `test_the_nested_KILLER_thread_is_covered`
+asserts `_lane_tick` appears in the function's AST dump; `os._exit` was still in the tree, so
+nothing failed. A guard that asks only "is the name present" cannot see the name move into a branch
+that never runs. [[source-reading-guard]]
+
+**Two more from the same review, both real, both fixed:**
+- **HIGH — a healthy `_drift_loop` read as "running and producing nothing".** `_DRIFT_EVERY_S`
+  defaults to **300** and the loop writes once per cycle with no throttle, so its trace period is
+  300s. It was declared at **30**, making the stale window `30 × 6 = 180s` — so for the last ~120s
+  of every 5-minute cycle the organ reported a contradiction about a perfectly healthy console, and
+  flapped AGREE → DISAGREE → AGREE for ever. My own period guard was blind to it because it only
+  inspected `min_gap_s=`, and drift has no throttle. The gate now resolves each lane's **tick**
+  period from `_lane_tick(lane, X)` — following module-level constants like `_DRIFT_EVERY_S` — and
+  refuses a declaration shorter than it. Proven red by putting 30 back.
+- **MEDIUM — `bool(d)` turned UNMEASURED drift into "no drift".** `_drift_once()` answers
+  True/False/**None**, where None is the unmeasured branch. `bool(None)` is False, so the artefact
+  stated a verdict nobody measured — the exact fabrication `lane_trace`'s own docstring cites
+  [[unknown-stays-unknown]] to forbid. Now `drift=d`, so None stays JSON null.
+
+Gate: `test_the_orphan_guard_is_never_inside_a_handler` (350 registered), red-proof PROVEN.
+⚠ It took **four** attempts and heart2 refused every wrong one, which is the point of the drill: a
+`\U0001f4fa` escape where the file carries a literal emoji (0 matches, INVALID); `if False:`, which
+leaves the call where it is so a POSITION law correctly stayed green (BLIND); a re-indent that did
+not parse (INVALID — "a gate reddened by a SyntaxError proves nothing"); and finally a tamper built
+from the file's own bytes that MOVES the guard into a handler and parses. Match count 1.
+
 ## REG-990 — a failed classify CALL was written as a verdict on his FILM, and held reels for ever (task #89 — v3078)
 
 `_classify` wrapped `_tv.claude_read(p)` in a bare `except Exception: return None`. `_surface_of(None)`
@@ -32447,8 +32496,21 @@ and `data-fstate` on the DOM so an outside reader can measure it instead of judg
 
 Collapsing them would let a run that was never filmed wear the badge of one that finished properly.
 
-Population context, same measurement: 2,893 sessions on the shelf, 219 claiming frames, **24 reels
+Population context, same measurement: 2,893 sessions journaled, 219 claiming frames, **24 reels
 actually on disk**, shelf scroller travelling 55,514px.
+
+⚠⚠ **AND A CLAIM OF MINE IS RETRACTED HERE.** While diagnosing this I wrote that the shelf renders
+~2,334 filmless rows as browsable cards. **It does not.** GROKBOT read the overlay's own chip:
+
+    2,468 empty runs — hidden          (2,893 journaled - 425 shown = 2,468)
+
+The shelf ALREADY filters empty runs out and states how many it hid. I reached "it renders
+everything" from the API payload — `/api/sessions` genuinely returns all 2,893 — without checking
+what the overlay does with them, which is the same mistake as reading a count for a behaviour. The
+defect this entry records is real and narrower than I first described: of the **425 that ARE shown**,
+the INTAKE/TRIAGE ones carry chrome, title, date and `clean` with a black thumb, and that is what
+the badge fixes. INTAKE itself renders an empty-section hero, not a row of blank cards.
+[[verify-before-building-console]]
 
 Gate: `test_a_card_with_no_film_says_so` (348 registered), both red-proofs PROVEN.
 

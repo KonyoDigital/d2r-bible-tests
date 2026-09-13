@@ -2391,6 +2391,21 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_the_orphan_guard_is_never_inside_a_handler",
+         [sys.executable, os.path.join(HERE, "test_the_orphan_guard_is_never_inside_a_handler.py")], 120,
+         why="THE THREAD THAT CAN END THE CONSOLE MUST NOT HAVE ITS TRIGGER INSIDE AN EXCEPTION "
+             "HANDLER. board_window._orphan_watch calls os._exit(0) once the control server has "
+             "been unreachable ~100s - the guard that stops a board window outliving its console, "
+             "the orphaned-process case that made his Mac hot (three consoles at PPID 1, load 5.42 "
+             "-> 3.08 when killed). v3076 inserted a try/except around a lane_trace.note call above "
+             "it and the old `if misses >= 5: os._exit(0)` KEPT ITS INDENT, becoming the second "
+             "statement of that except after `pass`. Reproduced by AST: FunctionDef > While > Try "
+             "> ExceptHandler > If. lane_trace.note swallows everything and returns False, so it "
+             "never raises - the self-close could effectively NEVER run, and the inversion is that "
+             "a WORKING corroborator was what disabled the killer. It SHIPPED, and the existing "
+             "coverage gate stayed green because it only asserts `_lane_tick` appears in the AST "
+             "dump and os._exit was still in the tree. Found by the cross-family second eye "
+             "reading the pushed diff."),
     Gate("test_a_failed_call_is_not_a_verdict_on_the_film",
          [sys.executable, os.path.join(HERE, "test_a_failed_call_is_not_a_verdict_on_the_film.py")], 120,
          why="A CLASSIFY CALL THAT FAILED IS NOT A FRAME THAT COULD NOT BE CLASSIFIED. `_classify` "

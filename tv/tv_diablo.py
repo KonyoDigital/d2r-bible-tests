@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3078"   # A FAILED CALL IS NOT A VERDICT ON THE FILM
+VERSION = "v3079"   # THE ORPHAN KILLER IS NOT INSIDE A HANDLER
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

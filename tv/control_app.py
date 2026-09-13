@@ -17267,7 +17267,12 @@ def _drift_loop():
             # in-process dict; nothing outside this interpreter can see that this loop ran, so the
             # corroborator had one witness and no second. What it decided is the trace.
             import lane_trace as _lt
-            _lt.note('tvd-version-drift', drift=bool(d))
+            # ⚠ `drift=d`, NOT `bool(d)`. `_drift_once()` answers True / False / None, and None is
+            # the UNMEASURED branch (running or disk stamp missing). `bool(None)` is False, so the
+            # artefact would state "no drift" about something nobody measured — the fabrication
+            # this module's own docstring cites [[unknown-stays-unknown]] to forbid. JSON keeps
+            # None as null, which reads as absent rather than negative. v3079, second eye.
+            _lt.note('tvd-version-drift', drift=d)
             if not d:
                 announced = None
                 continue
@@ -27460,7 +27465,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3078",
+        "ver": "v3079",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -31798,10 +31803,25 @@ def board_window():
                 _lt.note('_orphan_watch', min_gap_s=20.0, reached=_reached, misses=int(misses))
             except Exception:
                 pass
-                if misses >= 5:
-                    print(f"📺 board window: control server unreachable for ~{misses * 20}s — "
-                          f"self-closing (orphan guard).", flush=True)
-                    os._exit(0)
+            # ⚠⚠ v3079 — THIS `if` MUST STAY AT THE LOOP BODY, NEVER INSIDE A HANDLER ABOVE IT.
+            # v3076 inserted the lane_trace try/except immediately above and the old `if misses >= 5`
+            # kept its indent, becoming the SECOND STATEMENT OF THAT `except`, after `pass`. Found by
+            # the cross-family second eye on the SHIPPED v3076 diff and reproduced by AST: os._exit
+            # sat at FunctionDef > While > Try > ExceptHandler > If.
+            #
+            # `lane_trace.note` catches everything and returns False, so it never raises — meaning
+            # the self-close could effectively NEVER run. A board window whose control server had
+            # died would poll for ever, `misses` climbing past 5, and stay up: exactly the orphaned
+            # console that made his Mac hot, with the inversion that a WORKING corroborator is what
+            # disabled the killer.
+            #
+            # De-dented rather than restored inside the urlopen handler: `misses` is reset to 0 on
+            # every success, so testing it once per iteration is equivalent, and the trace above now
+            # records the final count BEFORE the process ends.
+            if misses >= 5:
+                print(f"📺 board window: control server unreachable for ~{misses * 20}s — "
+                      f"self-closing (orphan guard).", flush=True)
+                os._exit(0)
     threading.Thread(target=_orphan_watch, daemon=True).start()
     # v774 🌙 — same-origin host + deep-link hash (--hash=forge etc.)
     tab = "session"

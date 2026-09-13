@@ -88,6 +88,53 @@ class TestADeclaredTraceMustBeOneTheLoopWrites(unittest.TestCase):
                              % vessel)
         print("declared paths match lane_trace.path_of for all %d lane(s)" % len(self.declared))
 
+    def test_a_declared_period_is_never_shorter_than_the_loops_own_tick(self):
+        """The hole the second eye found in the test BELOW this one.
+
+        The throttle check only inspects `min_gap_s=`. `_drift_loop` has no throttle — it writes
+        once per cycle — so its trace period is its TICK period, `_DRIFT_EVERY_S`, which defaults
+        to 300. It was declared at 30, making the stale window 30*6 = 180s, and a perfectly healthy
+        console read DISAGREE ("running and producing nothing") for the last ~120s of every
+        5-minute cycle, flapping for ever. A writer with no throttle was invisible to the guard.
+        """
+        import ast as _ast
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = _ast.parse(fh.read())
+        consts = {}
+        for n in tree.body:
+            if (isinstance(n, _ast.Assign) and len(n.targets) == 1
+                    and getattr(n.targets[0], "id", None)):
+                v = n.value
+                if isinstance(v, _ast.Constant) and isinstance(v.value, (int, float)):
+                    consts[n.targets[0].id] = float(v.value)
+                elif isinstance(v, _ast.Call):          # float(os.environ.get(..., "300") or 300)
+                    for a in list(v.args) + [k.value for k in v.keywords]:
+                        if isinstance(a, _ast.BoolOp):
+                            for vv in a.values:
+                                if isinstance(vv, _ast.Constant) and isinstance(vv.value, (int, float)):
+                                    consts[n.targets[0].id] = float(vv.value)
+        ticks = {}
+        for n in _ast.walk(tree):
+            if (isinstance(n, _ast.Call)
+                    and getattr(n.func, "id", getattr(n.func, "attr", None)) == "_lane_tick"
+                    and len(n.args) >= 2 and isinstance(n.args[0], _ast.Constant)):
+                a = n.args[1]
+                if isinstance(a, _ast.Constant) and isinstance(a.value, (int, float)):
+                    ticks[n.args[0].value] = float(a.value)
+                elif isinstance(a, _ast.Name) and a.id in consts:
+                    ticks[n.args[0].value] = consts[a.id]
+        print("tick periods parsed: %s" % {k: v for k, v in sorted(ticks.items())})
+        self.assertTrue(ticks, "no _lane_tick period could be resolved — measuring nothing")
+        for vessel, (lane, _pat, every) in sorted(self.declared.items()):
+            t = ticks.get(lane)
+            if t is None:
+                continue                      # UNKNOWN period, not a violation
+            self.assertGreaterEqual(
+                float(every), t,
+                "%s ticks every %.0fs but declares a %.0fs trace period — its trace can only be as "
+                "fresh as its tick, so a healthy loop would read DISAGREE inside one stale window"
+                % (vessel, t, every))
+
     def test_a_declared_period_is_never_shorter_than_the_writers_throttle(self):
         throttle = {}
         for _f, lane, kw in self.calls:
@@ -147,8 +194,8 @@ RED_PROOF = [
                "one-character typo that makes the row UNKNOWN for ever while the census goes on "
                "counting the organ as COVERED, with nothing anywhere showing red",
         "file": "loop_corroborate.py",
-        "find": 'os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 30.0),',
-        "replace": 'os.path.join(HERE, ".lane_trace", "tvd-version-drfit.json"), 30.0),',
+        "find": 'os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 300.0),',
+        "replace": 'os.path.join(HERE, ".lane_trace", "tvd-version-drfit.json"), 300.0),',
         "matches": 1,
     },
     {
