@@ -27286,7 +27286,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3062",
+        "ver": "v3063",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28253,7 +28253,7 @@ def doctor_payload():
 
 # ── HTTP ─────────────────────────────────────────────────────────────────────
 
-def doc_signature(path=None):
+def doc_signature(path=None, body=None):
     """What document this file IS, as one short string. -> str|None
 
     ⚠⚠ THE BYTES, NOT THE LABEL — for the reason `_PROC_SRC_SHA` gives a few hundred lines up.
@@ -28264,10 +28264,23 @@ def doc_signature(path=None):
     None, never a sentinel, when the file cannot be read — two Nones must never compare equal.
     [[unknown-stays-unknown]]
     """
+    # ⚠⚠ v3063 — THE BYTES ALONE, AND THE CROSS-FAMILY EYE IS WHY. v3058 signed this as
+    # `version + hash` and a reviewer put the scenario plainly: bump ONLY control_app.py's
+    # version, restart, touch nothing in control_ui.html, reload nothing — the document is
+    # byte-identical and the signature moves anyway, so the doctor reports a stale window
+    # that is not stale. A false alarm on a supervision surface is how a real alarm becomes
+    # furniture. The IDENTITY of a document is its BYTES; the version is context, and
+    # `_app_ver()` is reported beside this rather than mixed into it.
+    if body is not None:
+        try:
+            import hashlib
+            return hashlib.sha1(body).hexdigest()[:12]
+        except Exception:
+            return None
     h = _sha_of(path or UI_PATH)
     if not h:
         return None
-    return "%s+%s" % (_app_ver() or "v?", h[:12])
+    return h[:12]
 
 
 def _read_ui():
@@ -28291,7 +28304,13 @@ def _read_ui():
         return b"<h1>TV DIABLO control_ui.html missing</h1>"
     with open(UI_PATH, "rb") as f:
         body = f.read()
-    sig = doc_signature()
+    # ⚠⚠ SIGNED FROM THE BYTES ACTUALLY BEING SERVED, NOT BY READING THE FILE A SECOND TIME.
+    # The cross-family eye caught this on the shipped v3058 diff: "he saves control_ui.html and
+    # hits reload in the same moment — read 1 gets the old bytes, the save lands, read 2 hashes
+    # the new file". Two reads meant the stamp could describe a document that was never sent.
+    # That is not hypothetical here: his console EXECS THE WORKING TREE, so the file changes
+    # under this server every time anything is saved. One read, one hash, one truth.
+    sig = doc_signature(body=body)
     if not sig:
         return body                       # unreadable signature: ship the page, claim nothing
     # injected right after <head> so it runs before any beat can fire. JSON-quoted, and the

@@ -129,21 +129,21 @@ class TestTheWindowSaysWhichDocumentItRenders(unittest.TestCase):
         import control_app as _ca
         fn = CD._check_the_window_runs_the_document_on_disk
         real_get, real_sig = CD._get, _ca.doc_signature
-        SIG = "v9999+deadbeefcafe"
+        SIG = "deadbeefcafe"
         cases = [
-            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": SIG}}, (lambda p=None: SIG),
+            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": SIG}}, (lambda p=None, body=None: SIG),
              CD.OK, "a window holding the signature this server would serve reads OK"),
-            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": "v9999+0000feedface"}}, (lambda p=None: SIG),
+            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": "0000feedface"}}, (lambda p=None, body=None: SIG),
              CD.MISSING, "a window holding an OLDER signature is the fault this exists for"),
-            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": "v9999"}}, (lambda p=None: SIG),
-             CD.MISSING, "a bare version is NOT the signature — a label must not pass as bytes"),
-            ({"uiBeat": {"n": 4, "ageS": 2.0}}, (lambda p=None: SIG),
+            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": "v9999"}}, (lambda p=None, body=None: SIG),
+             CD.MISSING, "a VERSION is not the signature — a label must never pass as bytes"),
+            ({"uiBeat": {"n": 4, "ageS": 2.0}}, (lambda p=None, body=None: SIG),
              CD.UNKNOWN, "an ABSENT stamp is UNKNOWN and must never read as agreement"),
-            ({"uiBeat": {"n": 4, "ageS": 99999.0, "docVer": SIG}}, (lambda p=None: SIG),
+            ({"uiBeat": {"n": 4, "ageS": 99999.0, "docVer": SIG}}, (lambda p=None, body=None: SIG),
              CD.UNKNOWN, "a stamp from a beat nobody has heard from is UNKNOWN"),
-            ({"uiBeat": {"n": 0, "ageS": 2.0, "docVer": SIG}}, (lambda p=None: SIG),
+            ({"uiBeat": {"n": 0, "ageS": 2.0, "docVer": SIG}}, (lambda p=None, body=None: SIG),
              CD.UNKNOWN, "a console that never checked in is headless, not healthy"),
-            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": SIG}}, (lambda p=None: None),
+            ({"uiBeat": {"n": 4, "ageS": 2.0, "docVer": SIG}}, (lambda p=None, body=None: None),
              CD.UNKNOWN, "an unsignable document on disk is UNKNOWN, never agreement"),
         ]
         try:
@@ -170,6 +170,40 @@ class TestTheWindowSaysWhichDocumentItRenders(unittest.TestCase):
         self.assertEqual(1, len(hits), "the row must be registered in the doctor's own list")
 
 
+    def test_the_stamp_is_signed_from_the_bytes_actually_served(self):
+        """ONE READ, ONE HASH. v3058 read the file twice — once for the body, once for the hash —
+        and a cross-family reviewer named the race: "he saves control_ui.html and hits reload in
+        the same moment; read 1 gets the old bytes, the save lands, read 2 hashes the new file".
+        Not hypothetical here: his console EXECS THE WORKING TREE.
+        """
+        import control_app as ca, hashlib, re as _re
+        body = ca._read_ui()
+        m = _re.search(rb'window\.__DOC_VER__\s*=\s*"([^"]+)"', body)
+        self.assertIsNotNone(m, "the served document carries no stamp at all")
+        stamp = m.group(1).decode()
+        raw = _re.sub(rb'<script>window\.__DOC_VER__=[^<]*</script>', b"", body, count=1)
+        want = hashlib.sha1(raw).hexdigest()[:12]
+        print("stamp %s · sha1 of the served bytes %s" % (stamp, want))
+        self.assertEqual(want, stamp,
+                         "the stamp must be the hash of the bytes that went out, not of a second "
+                         "read that may have caught a different file")
+
+    def test_a_version_only_bump_does_not_move_the_signature(self):
+        """A false alarm on a supervision surface is how a real alarm becomes furniture."""
+        import control_app as ca
+        before = ca.doc_signature()
+        real = ca._app_ver
+        try:
+            ca._app_ver = lambda: "v99999"
+            after = ca.doc_signature()
+        finally:
+            ca._app_ver = real
+        print("signature before %s · after a version-only bump %s" % (before, after))
+        self.assertEqual(before, after,
+                         "the IDENTITY of a document is its BYTES; bumping a version the document "
+                         "does not carry must not report his window stale")
+
+
 RED_PROOF = [
     {
         "why": "the server stops stamping the document it serves, so every window reports null and "
@@ -188,10 +222,11 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "the signature drops the byte hash and becomes a LABEL again, so an unstamped save "
-               "to control_ui.html - which bump_version does not stamp - is undetectable",
+        "why": "the signature stops being the BYTES and becomes the version label again, so an "
+               "unstamped save to control_ui.html - which bump_version does not stamp - is "
+               "undetectable, and a version-only bump false-alarms on a window that is current",
         "file": "control_app.py",
-        "find": '    return "%s+%s" % (_app_ver() or "v?", h[:12])',
+        "find": "    return h[:12]",
         "replace": '    return "%s" % (_app_ver() or "v?")',
         "matches": 1,
     },
