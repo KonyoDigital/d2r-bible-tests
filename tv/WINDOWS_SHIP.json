@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3069",
+  "ver": "v3070",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3069: ten surfaces sat one organ short and all ten were missing the corroborator because that organ needs two independent witnesses and six of the eight loops leave nothing an outside reader can date; the two that do are now covered and the other six stay honestly absent",
+  "note": "v3070: v3068 closed the sentence for an unreadable river and left the arithmetic - a failed snapshot carries empty rules so stillNeverFired emptied and fired became the entire target set, and a caller keying on the fields rather than the sentence saw the terminus that would justify deleting footage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

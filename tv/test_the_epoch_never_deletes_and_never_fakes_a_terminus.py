@@ -189,6 +189,52 @@ class TestTheEpochNeverDeletes(unittest.TestCase):
                       "count' must never render identically")
 
 
+    def test_a_MID_EPOCH_failure_does_not_report_every_rule_as_fired(self):
+        """THE PATH MY OWN TEST COULD NOT REACH, named by the third eye on the shipped v3068.
+
+        v3068 fixed the STOP SENTENCE and left the arithmetic. A failed snapshot carries
+        `rules: {}`, so never_fired({}) is [], `stillNeverFired` empties and `fired` becomes the
+        ENTIRE target set. MEASURED before the fix, first snapshot real and the next unreadable:
+
+            stoppedBecause  "the river became UNREADABLE mid-epoch …"   <- honest
+            fired           all 7 rules                                  <- a lie
+            stillNeverFired []                                           <- a lie
+
+        A caller keying on the FIELDS rather than the sentence saw the terminus that would justify
+        deleting his footage.
+
+        ⚠ The earlier law stubbed BOTH callees to fail immediately, so run() returned at the
+        first-snapshot guard and never reached the post-loop arithmetic. An early-exit test says
+        nothing about a late exit. [[feedback-blind-fixture-green-gate]]
+        """
+        import shelf_driver as SD, river_epoch as RE
+        real = SD.stages
+        calls = {"n": 0}
+
+        def flaky(*a, **k):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return real()
+            return {"ok": False, "rows": None, "onDisk": None, "stageOrder": []}
+        try:
+            SD.stages = flaky
+            ep = RE.run(cycles=3, quiet_for=2)
+        finally:
+            SD.stages = real
+        print("mid-epoch failure -> ok=%s fired=%d stillNeverFired=%d"
+              % (ep.get("ok"), len(ep.get("fired") or []), len(ep.get("stillNeverFired") or [])))
+        self.assertGreater(calls["n"], 1,
+                           "the fixture must get PAST the first snapshot, or it is testing the "
+                           "early exit again")
+        self.assertIs(False, ep.get("ok"))
+        self.assertEqual([], ep.get("fired"),
+                         "a river that became unreadable can have fired NOTHING — the fields must "
+                         "not contradict the stop sentence")
+        self.assertEqual(sorted(ep.get("targetRules") or []),
+                         sorted(ep.get("stillNeverFired") or []),
+                         "every target rule stays unproven when the reading failed")
+
+
 # ⚠ A SABOTAGE ON THE MISSING-COVERAGE GUARD WAS WRITTEN AND WITHDRAWN. heart2 returned BLIND:
 # with `if not isinstance(_cov, dict)` removed, `dict(None)` raises anyway and the except handler
 # still sets ok=False, so the verdict is unchanged. The guard stays because it replaces a bare
@@ -197,6 +243,15 @@ class TestTheEpochNeverDeletes(unittest.TestCase):
 # that cannot change the outcome proves nothing.
 # [[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
 RED_PROOF = [
+    {
+        "why": "a mid-epoch unreadable river goes back to reporting every target rule as FIRED "
+               "and none as still-unproven, so the fields contradict the honest stop sentence "
+               "and a caller keying on them sees a terminus nobody measured",
+        "file": "river_epoch.py",
+        "find": '    if not ep.get("ok") or not prev.get("ok"):',
+        "replace": "    if False:",
+        "matches": 1,
+    },
     {
         "why": "the snapshot stops reading the river's own ok field, so a callee that fails as a "
                "PAYLOAD is read as a successful reading of an empty river",

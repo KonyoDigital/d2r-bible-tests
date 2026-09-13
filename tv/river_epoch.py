@@ -217,6 +217,29 @@ def run(cycles=10, quiet_for=2, apply=False):
     else:
         ep["stoppedBecause"] = "ran out of cycles (%d)" % cycles
     ep["last"] = prev
+    # ⚠⚠ v3070 — THE STOP SENTENCE WAS HONEST AND THESE FIELDS CONTRADICTED IT. Found by the third
+    # eye on the shipped v3068 — the fix for ITS OWN previous finding. v3068 closed the sentence
+    # ("the river became UNREADABLE mid-epoch") and left this arithmetic untouched: a failed
+    # snapshot carries `rules: {}`, so never_fired({}) is [], `stillNeverFired` empties and
+    # `fired` becomes the ENTIRE target set.
+    #
+    # MEASURED, first snapshot real and the next unreadable:
+    #     stoppedBecause  "the river became UNREADABLE mid-epoch …"   <- honest
+    #     fired           all 7 rules                                  <- a lie
+    #     stillNeverFired []                                           <- a lie
+    # A caller keying on `fired` rather than the sentence sees the terminus that would justify
+    # deleting his footage. Two surfaces of one verdict, disagreeing.
+    #
+    # ⚠ AND MY TEST COULD NOT HAVE CAUGHT IT: it stubbed BOTH callees to fail immediately, so
+    # run() returned at the first-snapshot guard and never reached this line. The eye said so
+    # exactly. A law that only exercises the early exit says nothing about the late one.
+    # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+    if not ep.get("ok") or not prev.get("ok"):
+        ep["stillNeverFired"] = list(target)
+        ep["fired"] = []
+        ep["firedWhy"] = ("nothing is claimed: the river could not be read, so no rule can be "
+                          "said to have fired and every target stays unproven")
+        return ep
     still = never_fired(prev.get("rules"))
     ep["stillNeverFired"] = still
     ep["fired"] = sorted(set(target) - set(still))
