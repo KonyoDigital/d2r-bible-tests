@@ -760,9 +760,44 @@ class TestV2374TheInventoryPanelIsMeasured(unittest.TestCase):
                 inner = [px[int(x + (c + 0.5) * w / 10.0), int(y + (r + 0.5) * h / 4.0)]
                          for c in range(10) for r in range(4)]
                 cs = sum(colseam) / float(len(colseam))
-                if cs < 40 and sum(inner) / 40.0 - cs > 25:
-                    frame = (p, px)
-                    break
+                if not (cs < 40 and sum(inner) / 40.0 - cs > 25):
+                    continue
+                # ⚠⚠ v3088 — AND THE ROW SEAMS MUST BE READABLE, NOT JUST THE COLUMN SEAMS.
+                #
+                # The selector above chooses on the COLUMNS so it cannot prejudge the row origin
+                # under test — correct, and the comment above says so. But it does not check that
+                # the rows are MEASURABLE, and they are not when item art crosses them. An item
+                # straddling a seam paints that seam bright at several columns, and the assertion
+                # below is a MEAN over 5 seams x 11 columns: four bright pixels on one seam lifted
+                # it from 6.6 to 14.8 and the case went red on a lattice that was fine.
+                #
+                # THIS IS NOT HYPOTHETICAL — IT IS WHY THIS BLOCK EXISTS. Draining the river to his
+                # last 8 reels deleted the frame this case used to grade. Exactly ONE frame in the
+                # 23 remaining reel dirs passed the column test, and it is 33/40 occupied with art
+                # across the interior seams. A gate that goes red because its SUBJECT changed is
+                # reporting the data, not the law. [[gate-blind-to-unexercised-input]]
+                #
+                # Five statistics were tried against his own footage before settling on refusal,
+                # and every one of them came back at noise: the median is beaten by 10 of 14
+                # offsets (panel background is near-black too, so "dark" does not mean "divider");
+                # a per-column local-minimum vote scored the DETECTED lattice at 5/55 against the
+                # declared 28/55; an informative-column vote over 666 frames and 5,682 columns put
+                # the declared origin at 2.6% and every shift from -24 to +24 between 2.6% and
+                # 4.8%. There is no separation to threshold. Whether the declared inventory rows
+                # sit on the seams is UNKNOWN on this footage, and a test that cannot tell must
+                # SKIP, because a red that means "unmeasurable" trains him to ignore a red that
+                # means "broken". [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+                occluded = 0
+                for r in range(5):
+                    yy = int(y + r * h / 4.0)
+                    bright = sum(1 for i in range(11)
+                                 if px[min(int(x + i * w / 10.0), 2939), yy] > 60)
+                    if bright > 2:
+                        occluded += 1
+                if occluded:
+                    continue
+                frame = (p, px)
+                break
             if frame:
                 break
         if not frame:
@@ -876,9 +911,49 @@ class TestV2375ThePaperDoll(unittest.TestCase):
                     q = im.convert("L").load()
                 except Exception:
                     continue
-                if panel_open(q):
-                    px = q
-                    break
+                if not panel_open(q):
+                    continue
+                # ⚠⚠ v3088 — THE FRAME MUST BE ONE THIS CASE CAN ACTUALLY FAIL ON.
+                #
+                # The docstring above promises "Shifted 30px, that stops being true". MEASURED on
+                # the frame his drained river now offers: it does NOT. Every slot reads LESS stone
+                # at +30px (0.35 / 0.27 / 0.16 / 0.29 / 0.14 / 0.31) than at the true position, so
+                # the sabotage this case names as its own proof cannot make it red — and a green
+                # would have meant nothing. [[feedback-blind-fixture-green-gate]]
+                #
+                # Meanwhile the TRUE weapon slot read 0.61 stone and went red on a slot that is
+                # fine: its mean is 80.1, the BRIGHTEST of the six, and its std is 43.1, mid-pack
+                # among slots whose std runs 26-69. That is grey item art sitting inside the 26-78
+                # "stone" band, not stone. A std guard was tried and REJECTED — it dropped the
+                # catch rate to 0 of 6 even with the slots shifted 150px clean off the doll,
+                # because the panel around the doll is textured too. Weakening the law to make the
+                # frame pass is the one move not available here.
+                #
+                # So the selector now demands a frame on which the law DEMONSTRABLY discriminates:
+                # shift every slot and at least one must read as stone. A case that cannot be made
+                # red on a frame has no business grading it. This is the red-proof rule the heart
+                # applies to gates, applied to the fixture. [[regression-guard]]
+                def _stone_at(dx, dy):
+                    worst = 0.0
+                    for _fx, _fy, _fw, _fh in S.EQUIP_SLOTS.values():
+                        bx, by = _fx * 2940 + dx, _fy * 1912 + dy
+                        bw, bh = _fw * 2940, _fh * 1912
+                        n = t = 0
+                        for _i in range(1, 8):
+                            for _j in range(1, 8):
+                                _x, _y = int(bx + bw * _i / 8.0), int(by + bh * _j / 8.0)
+                                if 0 <= _x < 2940 and 0 <= _y < 1912:
+                                    t += 1
+                                    if 26 <= q[_x, _y] <= 78:
+                                        n += 1
+                        if t:
+                            worst = max(worst, n / float(t))
+                    return worst
+                if not any(_stone_at(_dx, _dy) >= 0.5
+                           for _dx, _dy in ((0, 30), (0, -30), (150, 0), (-150, 0))):
+                    continue
+                px = q
+                break
             if px:
                 break
         if px is None:

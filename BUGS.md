@@ -32374,6 +32374,66 @@ SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) �
 both correct, and confusing them made the reader look broken when it was not.
 
 
+
+## REG-999 — DRAINING THE RIVER CHANGED WHAT TWO GATES GRADE, AND BOTH WENT RED ON GOOD GEOMETRY
+
+**v3088.** `test_slot_identity` is RED on `origin/main` — **not a regression from any commit**, proven
+by A/B: a clean `git archive HEAD` checkout with his footage symlinked in fails identically. It went
+red because its SUBJECT changed. Both failing cases pick their frame by globbing
+`sorted(os.listdir(frames/hist))` and taking the first that qualifies. Draining the river to his last
+8 reels deleted the frame they used to grade; **exactly ONE frame in the 23 remaining reel dirs
+qualifies**, and it is 33/40 occupied with item art across the interior seams.
+[[gate-blind-to-unexercised-input]]
+
+### 1. `test_the_lattice_LANDS_ON_THE_SEAMS` — FIXED by refusing to grade the ungradeable
+
+The case means to ask whether the declared inventory rows sit on the dividers. Its statistic is a
+MEAN over 5 seams x 11 columns. On the new frame, seam r=2 is crossed by item art at 4 of 11 columns
+(123, 134, 136, 56) — **those four pixels alone lift the mean from 6.6 to 14.8** and the case goes
+red on a lattice that is fine.
+
+**Five statistics were tried against his own footage and every one came back at noise:**
+
+| attempt | result |
+|---|---|
+| median instead of mean | beaten by **10 of 14** offsets — the panel background is near-black too, so "dark" does not mean "divider" |
+| per-column local minimum | DETECTED lattice **5/55**, declared 28/55 — inverted, because empty cells are as dark as seams |
+| informative-column vote, 1 frame | denominators of **3 and 7** — [[zero-needs-a-denominator]] |
+| same vote, **666 frames / 5,682 columns** | declared origin **2.6%**, every shift -24..+24 between **2.6% and 4.8%**. No separation to threshold |
+| declared vs detected lattice, **100 frames** | disagree with near-zero variance (row 0 is -5px on *every* frame, row 4 is -10/-11), but direct dark-band measurement says **DECLARED is the better of the two** (mean error 3.8px vs 8.4px) |
+
+⚠ The v2374 comment flags its own unverified assumption — *"THE CELL PITCH WAS NOT RE-DERIVED... the
+stash's measured pitch is reused"* — and `inventory_lattice` does measure a different pitch (85.74 vs
+86.85). **That disagreement is real and is NOT resolved here**; the detector is the less accurate of
+the two against the pixels, so nothing was changed on its word. Whether the declared rows sit on the
+seams is **UNKNOWN on this footage**. [[unknown-stays-unknown]]
+
+**So the selector now refuses a frame whose row seams are occluded, and SKIPS loudly.** A red that
+means "unmeasurable" trains him to ignore a red that means "broken".
+
+### 2. `test_the_slots_LAND_ON_THE_PANEL` — STILL RED, diagnosed, and NOT tuned green
+
+The weapon slot reads 0.61 "stone" against a 0.5 bar. **It is not stone:** its mean is **80.1, the
+brightest of the six slots** (others 19.7-56.2), and its std is 43.1, mid-pack among slots running
+26-69. That is grey item art sitting inside the 26-78 stone band — the metric assumes an item is
+either dark or bright and never mid-grey.
+
+⚠⚠ **AND THE CASE'S OWN RED-PROOF DOES NOT BITE.** Its docstring promises *"Shifted 30px, that stops
+being true."* Measured: at +30px every slot reads **LESS** stone (0.35 / 0.27 / 0.16 / 0.29 / 0.14 /
+0.31) than at the true position. A green on this frame would have proven nothing.
+[[feedback-blind-fixture-green-gate]]
+
+A std guard was tried and **REJECTED** — it dropped the catch rate to **0 of 6 with the slots shifted
+150px clean off the doll**, because the panel around the doll is textured too. Weakening the law to
+make the frame pass is the one move not available.
+
+**Shipped instead:** the selector now demands a frame on which the law DEMONSTRABLY discriminates —
+shift every slot and at least one must read as stone — so a case that cannot be made red never grades
+a frame. The red-proof rule the heart applies to gates, applied to the fixture.
+
+**⚠ THE PUSH IS BLOCKED UNTIL THIS ONE IS RESOLVED**, and it needs a discriminator that separates
+grey item art from stone, not a threshold nudge. Task #93.
+
 ## REG-998 — THE VAULT KNEW WHICH CELLS WERE FULL AND THREW THE ANSWER AWAY AT ONE LINE
 
 **v3087.** His ask, 2026-09-13: *"all on ledger for the slot identity and for the tallied and for the

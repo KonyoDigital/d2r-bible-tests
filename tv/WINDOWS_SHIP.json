@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3087",
+  "ver": "v3088",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3087: the vault sweep now carries the occupied CELLS and their footprints, not just two counts - the grid was always there and one line dropped it. Clusters stay labelled blobs with blobsAreItems false, because touching items merge: 33 cells became 2 blobs on his own frame",
+  "note": "v3088: two slot-identity cases went red because draining the river changed which frame they grade, not because the geometry moved. The row-seam case now refuses frames whose seams are occluded; the paper-doll case now demands a frame it can actually be made red on. The weapon-slot red is diagnosed and left standing rather than tuned green",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
