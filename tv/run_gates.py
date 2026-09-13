@@ -2336,6 +2336,17 @@ GATES = [
              "witness: `frames` counts JOURNAL ROWS IN A GROUP, not frames of film. This refuses "
              "four rots - the corroborator or the watchdog dropping the shelf, the corroborator "
              "losing the ability to say NO, and an unwitnessable shelf reading as agreement."),
+    Gate("test_one_reel_is_one_session_row",
+         [sys.executable, os.path.join(HERE, "test_one_reel_is_one_session_row.py")], 180,
+         why="ONE REEL IS ONE SESSION ROW, however its journal rows interleave. split_sessions cut "
+             "a new session whenever sessionId differed from the PRECEDING row, so two reels "
+             "recording concurrently emitted A,B,A as THREE groups. Measured on his journal: "
+             "11,162 rows -> 3,129 contiguous runs -> 3,128 session rows, 176 sessionIds in more "
+             "than one run, worst reel 16. Each fragment carried its own SHARE of the frames, so "
+             "one reel read frames=10 in one row and frames=0 in another while 19 stills sat on "
+             "disk - he opened the row saying 0 and the player had nothing to play. Fixed: a reel "
+             "is all its rows; unstamped pre-v780 history keeps the silence split. After: 2,893 "
+             "groups, 0 duplicates, every row preserved."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

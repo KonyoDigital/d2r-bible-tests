@@ -10846,7 +10846,26 @@ window._lockMark = function(isOpen, px, label){
                : '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + sm.watchdogViolations + ' flagged</span></span>');
     function tile(label, val){ return '<div class="dsr-stat"><div class="dsr-sv">' + val + '</div><div class="dsr-sl">' + label + '</div></div>'; }
     var found = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || '—');
-    var stats = tile('reads', (sm.reads != null ? sm.reads : '—')) + tile('frames', (sm.frames != null ? sm.frames : '—'))
+    /* ⚠⚠ v3060 — THIS TILE PRINTED THE WRONG WITNESS AND HE CAUGHT IT ON HIS OWN SCREEN.
+       The card said `19 frames · full video`; this dossier said `0 FRAMES`. Same reel.
+       The shelf corroborator compared three independent witnesses and reported 52 of 53 reels
+       disagreeing, with one pattern every time:
+
+           n=9      dossier=5    card=1208  disk=1208
+           n=15     dossier=10   card=19    disk=19
+           n=3128   dossier=0    card=19    disk=19
+
+       `card` and `disk` agree; the DOSSIER is the odd one. `sm.frames` comes from
+       control_app._theatre_sessions as `[r for r in sess if r.get("frameId") and isfile(...)]`
+       — JOURNAL ROWS IN THAT GROUP, not frames of film — and before v3060 split_sessions then
+       divided those rows across duplicate fragments. So it printed a fragment's row tally under
+       the word `frames`. [[label-outlived-referent]]
+
+       `footageN` is counted from the reel directory itself and is the witness that matches disk.
+       Preferred here, with `frames` as the fallback for rows that carry no reel count at all,
+       and an honest — when neither exists. */
+    var _frames = (sm.footageN != null) ? sm.footageN : (sm.frames != null ? sm.frames : '—');
+    var stats = tile('reads', (sm.reads != null ? sm.reads : '—')) + tile('frames', _frames)
               + tile('named', (sm.named != null ? sm.named : '—')) + tile('found', found);
     var findsBody = _findsStrip(sm, 16, true);
     var findsSec = '<div class="dsr-sec"><div class="dsr-h">🏆 What I found</div>'

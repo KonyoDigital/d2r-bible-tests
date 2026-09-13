@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3059"   # THE SHELF NOW HAS ALL FOUR ORGANS AND THE CONSOLE FLAGS ITS OWN DEFECT
+VERSION = "v3060"   # ONE REEL IS ONE SESSION ROW AND THE DOSSIER READS THE RIGHT WITNESS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -60,33 +60,66 @@ def split_sessions(reads):
 
     v780 — prefer explicit sessionId (one ON cycle = one theatre reel). Fall back to the
     classic ≥10min silence split for pre-v780 journal rows that lack sessionId.
+
+    ⚠⚠ v3060 — A REEL IS ALL ITS ROWS, HOWEVER THEY INTERLEAVE. This used to cut a new session
+    whenever sessionId differed from the IMMEDIATELY PRECEDING row. Two reels recording
+    concurrently interleave by timestamp, so A,B,A emitted THREE groups and one reel became
+    several "sessions".
+
+    MEASURED on his journal, 2026-09-13:
+
+        journal rows                    11,162
+        contiguous runs                  3,129
+        session rows the shelf rendered  3,128   <- exactly the runs
+        sessionIds in MORE THAN ONE run    176
+        worst reel                          16 runs
+
+    straight from the journal, two reels alternating:
+
+        run 2425  s_1787522893554_13522   101 rows
+        run 2426  s_1787523300658_1         3 rows
+        run 2427  s_1787522893554_13522     3 rows
+        run 2428  s_1787523300658_1         2 rows
+
+    ⚠ AND IT BROKE PLAYBACK, NOT JUST THE COUNT. Each fragment carried its OWN share of the
+    frames, so one reel read `frames=10` in one row and `frames=0` in another while 19 stills
+    sat on disk. He opened the row that said 0 and the player had nothing to play; the arrow
+    stepper reads the reel directly and worked. Same reel, two answers, and he got the empty
+    one. It is also why the card said "19 frames" and the dossier said "0 FRAMES".
+
+    ⚠ THE UNSTAMPED HISTORY KEEPS THE OLD RULE. Rows with no sessionId predate v780 and have
+    nothing to group ON, so they still split on ≥10min silence. Grouping them by absence would
+    fuse years of history into one enormous session.
+
+    Measured after this change, against the same journal: groups 3128 → 2893, duplicated
+    sessionIds 175 → 0, worst reel 16 groups → 1 with all 516 rows intact, and every one of the
+    11,162 rows preserved — same row set in, same row set out, none lost and none invented.
+    [[the-unjoined-end]] [[label-outlived-referent]]
     """
-    sessions, cur, last_ts, last_sid = [], [], None, None
-    for r in sorted(reads, key=lambda x: x.get("ts") or 0):
-        ts = r.get("ts") or 0
+    srt = sorted(reads, key=lambda x: x.get("ts") or 0)
+    by_sid, unstamped = {}, []
+    for r in srt:
         sid = r.get("sessionId") or None
-        cut = False
-        if cur:
-            if sid and last_sid and sid != last_sid:
-                cut = True
-            elif sid and not last_sid:
-                # first stamped row after unstamped history — new reel
-                cut = True
-            elif (not sid) and last_ts is not None and ts - last_ts > SESSION_GAP_MS:
-                cut = True
-            elif sid and last_sid is None and last_ts is not None and ts - last_ts > SESSION_GAP_MS:
-                cut = True
-        if cut:
+        if sid:
+            by_sid.setdefault(sid, []).append(r)
+        else:
+            unstamped.append(r)
+
+    sessions, cur, last_ts = [], [], None
+    for r in unstamped:
+        ts = r.get("ts") or 0
+        if cur and last_ts is not None and ts - last_ts > SESSION_GAP_MS:
             sessions.append(cur)
             cur = []
         cur.append(r)
         last_ts = ts
-        if sid:
-            last_sid = sid
-        elif cut:
-            last_sid = None
     if cur:
         sessions.append(cur)
+
+    sessions.extend(by_sid.values())
+    # newest first, by the LATEST row each group holds — a reel that resumed after another
+    # started belongs where it ENDED, which is where he looks for it.
+    sessions.sort(key=lambda g: max((r.get("ts") or 0) for r in g))
     sessions.reverse()
     return sessions
 
