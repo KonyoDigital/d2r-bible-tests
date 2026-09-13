@@ -68,14 +68,26 @@ def _fn_node(path, name):
     return None
 
 
+#: ⚠⚠ BOTH DOORS COUNT AS ASKING. v3052 added `self_arming.may_on_merit()` for surfaces that
+#: SHOW rather than ACT, and moved `printer.stream()` onto it — because the old seat let nine
+#: BLIND instruments, none of which watch the river, blank the river strip on his live console.
+#: This reader only knew the name `may`, so from v3052 onward it reported `printer.stream` as a
+#: lock "gating NOTHING" while the seat was right there being consulted. A law that pins the
+#: SPELLING of a call rather than the fact of the call goes red on a correct fix.
+#: [[label-outlived-referent]]
+#: ⚠ It is not a loosening: may_on_merit REFUSES outright for any lock marked `destructive`, so a
+#: seat on the vault, the prune or the frame release cannot satisfy this law through that door.
+_ASK_FNS = ("may", "may_on_merit")
+
+
 def _locks_asked_in(node):
-    """Every lock name passed to a .may(...) call inside this function. -> set"""
+    """Every lock name passed to a may(...) / may_on_merit(...) call in this function. -> set"""
     out = set()
     for c in ast.walk(node):
         if not isinstance(c, ast.Call):
             continue
         fname = getattr(c.func, "attr", None) or getattr(c.func, "id", None)
-        if fname != "may" or not c.args:
+        if fname not in _ASK_FNS or not c.args:
             continue
         a0 = c.args[0]
         if isinstance(a0, ast.Constant) and isinstance(a0.value, str):

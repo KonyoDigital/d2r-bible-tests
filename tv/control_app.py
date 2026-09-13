@@ -5072,6 +5072,10 @@ _VAULT_AUTOREAD_REFRESH = {"running": False}
 _VAULT_AUTOREAD_LOCK = threading.Lock()
 
 
+#: one-shot guard for the re-entry sweep below — the backlog only needs clearing once
+_VAULT_REENTRY_DONE = False
+
+
 def _vault_autoread_kick():
     """Start ONE background refresh of the vault-autoread lamp. Returns immediately.
 
@@ -5080,6 +5084,27 @@ def _vault_autoread_kick():
     [[poll-slower-than-its-interval]] shape, which this repo has already measured once at "172s
     answered every 12s".
     """
+    # ⚠⚠ AND CLEAR THE PARKING BAY ONCE PER PROCESS. `vault_reentry_sweep` was written to send
+    # retired reels that still hold UNEXTRACTED panels back to the top of the lane — and then
+    # nothing called it. A test_reachability law caught it: "control_app.py:vault_reentry_sweep"
+    # with no caller. Built on both ends and never joined, which is this repo's most repeated
+    # defect. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+    #
+    # ONCE, not per tick: the retire path already refuses to park a held-unextracted reel, so the
+    # only thing left to clear is the BACKLOG that predates that fix. Running it every tick would
+    # re-ask the prune about every retirement forever for no new answer.
+    # It never retires and never deletes — the worst it can cost is another read.
+    global _VAULT_REENTRY_DONE
+    if not _VAULT_REENTRY_DONE:
+        _VAULT_REENTRY_DONE = True
+        try:
+            _r = vault_reentry_sweep(dry=False)
+            if _r.get("readmitted"):
+                print("[vault] re-admitted %d retired reel(s) that still owe an extraction"
+                      % len(_r["readmitted"]), flush=True)
+        except Exception as _e:
+            print("[vault] re-entry sweep raised %s — retirements left as they were"
+                  % type(_e).__name__, flush=True)
     with _VAULT_AUTOREAD_LOCK:
         if _VAULT_AUTOREAD_REFRESH["running"]:
             return False

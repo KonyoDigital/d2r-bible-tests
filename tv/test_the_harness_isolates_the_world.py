@@ -149,8 +149,27 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
         body = ast.get_source_segment(src, fn) or ""
         code = "\n".join(l for l in body.split("\n") if not l.strip().startswith("#"))
         self.assertNotIn("copytree", code, "the snapshot uses copytree — that is how tv/ gets copied")
-        self.assertNotIn("glob", code, "the copy list is globbed; a big file added beside the small "
-                                       "ones would be swept in silently")
+        # ⚠⚠ PARSED, NOT SUBSTRING-MATCHED — this went red on the word `global`. The check was
+        # `assertNotIn("glob", code)`, which matches the KEYWORD `global _SHARED_CONSOLE` and
+        # would also match this law's own sentence "NAMED, NOT GLOBBED" if the comment stripper
+        # ever missed a line. A law that reads source must PARSE it; a substring answers about
+        # spelling, not about what the code does. The ENOSPC guard itself is unchanged and just
+        # as strict: an `import glob` or any glob()/iglob() call inside the snapshot still fails.
+        # [[source-reading-guard]]
+        _globbed = []
+        for _n in ast.walk(fn):
+            if isinstance(_n, ast.Import) and any(al.name.split(".")[0] == "glob" for al in _n.names):
+                _globbed.append("import glob")
+            elif isinstance(_n, ast.ImportFrom) and (_n.module or "").split(".")[0] == "glob":
+                _globbed.append("from glob import ...")
+            elif isinstance(_n, ast.Call):
+                _nm = getattr(_n.func, "attr", None) or getattr(_n.func, "id", None)
+                if _nm in ("glob", "iglob"):
+                    _globbed.append("%s(...)" % _nm)
+        print("   glob uses parsed out of the snapshot: %d" % len(_globbed))
+        self.assertEqual([], _globbed,
+                         "the copy list is globbed (%s); a big file added beside the small ones "
+                         "would be swept in silently" % ", ".join(_globbed))
         self.assertIn("1024", code, "the snapshot carries no byte ceiling")
         for banned in ("frames/hist", "HIST_DIR"):
             self.assertNotIn(banned, code,
