@@ -460,7 +460,19 @@ def unextracted_door(reel, src):
             # a claim about his footage sourced from the wrong name. Measured correctly: 21
             # durable sessions, and all 18 of the unexplained rows are in it.
             # [[feedback-suspect-the-instrument]]
-            _sess, _ok, _dwhy = _rr_d._durable_sessions()
+            # ⚠⚠ AND IT MUST ASK ABOUT THE WORLD THIS `src` DESCRIBES. Called bare, this read
+            # the LIVE durable store even when the caller had handed us a fixture — so a test
+            # world's answer came from his real tv/, which is the whole of
+            # [[feedback-fixtures-never-touch-live-data]], in the very door written to respect it.
+            # It is also why no fixture could open this door: the fixture's own stores were never
+            # consulted. The root comes from the paths `sources()` already resolved, so there is
+            # one answer about one world.
+            _root = None
+            try:
+                _root = os.path.dirname((src.get("paths") or {})["vault_swept.json"])
+            except Exception:
+                _root = None
+            _sess, _ok, _dwhy = _rr_d._durable_sessions(_root)
             durable = (_rr_d._reel_ts_key(reel) in _sess) if _ok else None
         except Exception as _e:
             durable = None                                 # cannot ask -> UNKNOWN, never a yes

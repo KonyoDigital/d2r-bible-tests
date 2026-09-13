@@ -161,11 +161,23 @@ RED_PROOF = [
     },
 ]
 
-def _fixture_dir(retro=None, chron=None, vault=None, ledger=None, omit=()):
+#: ⚠⚠ A DURABLE STORE, because without one no fixture can open the `unextracted` door and the
+#: both-directions law is right to refuse it. `frame_authority.witness_index` reads
+#: DURABLE_STORES = ("vault_accum.json", "vault_seen.json") from the SAME root, takes rows from
+#: `owned` or `rows`, and collects `w["session"]` off each witness. `reel_retention._reel_ts_key`
+#: strips the `reel_` prefix, so the session for F_SEMANTIC_WORKED is its bare s_<ms>_<n>.
+#: Shaped from those three readers rather than guessed — a fixture invented from the outside is
+#: how a door gets "exercised" by data the product would never produce.
+DURABLE = {"owned": [{"witnesses": [{"session": F_SEMANTIC_WORKED[len("reel_"):],
+                                     "frame": "f_0001.jpg"}]}]}
+
+
+def _fixture_dir(retro=None, chron=None, vault=None, ledger=None, durable=None, omit=()):
     d = tempfile.mkdtemp(prefix="end_routes_fix_")
     for nm, blob in (("retro_triage.json", RETRO if retro is None else retro),
                      ("chronicle_swept.json", CHRON if chron is None else chron),
                      ("vault_swept.json", VAULT if vault is None else vault),
+                     ("vault_accum.json", DURABLE if durable is None else durable),
                      ("reel_tombstones.json", LEDGER if ledger is None else ledger)):
         if nm in omit:
             continue
