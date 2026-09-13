@@ -202,6 +202,15 @@ def run(cycles=10, quiet_for=2, apply=False):
         if not cur.get("ok"):
             ep["ok"] = False
             ep["why"] = str(cur.get("why") or "")
+            # ⚠ v3072 — AND THE PER-CYCLE LOG, which v3070 left saying the opposite. The eye:
+            # "ep['cycles'][-1]['neverFired'] is still [] — a caller walking the cycle log for
+            # 'a cycle whose neverFired emptied' would still see the terminus the stop sentence
+            # denies." An unreadable snapshot carries rules:{}, and never_fired({}) is []. One
+            # verdict must not have a third surface disagreeing with the other two.
+            if ep["cycles"]:
+                ep["cycles"][-1]["neverFired"] = list(target)
+                ep["cycles"][-1]["neverFiredWhy"] = ("the river could not be read this cycle, so "
+                                                     "no rule can be said to have fired")
             ep["stoppedBecause"] = ("the river became UNREADABLE mid-epoch (%s) — nothing is "
                                     "claimed about where these reels stand"
                                     % str(cur.get("why") or "")[:90])

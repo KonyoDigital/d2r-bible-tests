@@ -206,21 +206,35 @@ class TestTheEpochNeverDeletes(unittest.TestCase):
         ⚠ The earlier law stubbed BOTH callees to fail immediately, so run() returned at the
         first-snapshot guard and never reached the post-loop arithmetic. An early-exit test says
         nothing about a late exit. [[feedback-blind-fixture-green-gate]]
+        SYNTHETIC, NOT LIVE - and the eye is why. The first cut called the REAL stages() for
+        the opening snapshot, so its power depended on his shelf still having unfired gap
+        rules. Its words: "first snapshot succeeds with targetRules == [] ... fired = [] - []
+        is [] with or without the guard, and both the unittest and the RED_PROOF come back
+        blind." That is a law that stops testing exactly when the project SUCCEEDS and the
+        river starts advancing. The payload below pins explicit zero-count gap rules, so the
+        proof holds whatever his coverage does. [[feedback-blind-fixture-green-gate]]
         """
-        import shelf_driver as SD, river_epoch as RE
-        real = SD.stages
+        import shelf_driver as SD, reel_retention as RR, river_epoch as RE
+        real_s, real_p = SD.stages, RR.plan
         calls = {"n": 0}
+        GAPS = {"eligible": 0, "zero-pages": 0, "vault-owes": 0, "recent": 8}
 
         def flaky(*a, **k):
             calls["n"] += 1
             if calls["n"] == 1:
-                return real()
+                return {"ok": True,
+                        "rows": [{"reel": "r1", "stage": "banked", "tag": "recent"}],
+                        "onDisk": 1, "stageOrder": ["banked", "releasable"]}
             return {"ok": False, "rows": None, "onDisk": None, "stageOrder": []}
         try:
             SD.stages = flaky
+            RR.plan = lambda *a, **k: {"ok": True, "coverage": dict(GAPS), "candidates": []}
             ep = RE.run(cycles=3, quiet_for=2)
         finally:
-            SD.stages = real
+            SD.stages, RR.plan = real_s, real_p
+        self.assertEqual(3, len(ep.get("targetRules") or []),
+                         "the fixture must present REAL gap rules, or fired=[]-[] passes with "
+                         "or without the guard and this law proves nothing")
         print("mid-epoch failure -> ok=%s fired=%d stillNeverFired=%d"
               % (ep.get("ok"), len(ep.get("fired") or []), len(ep.get("stillNeverFired") or [])))
         self.assertGreater(calls["n"], 1,
