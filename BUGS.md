@@ -32373,6 +32373,50 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-992 — the no-film badge shipped into the session title's own corner (task #58 — v3080)
+
+**MEASURED by GROKBOT on his live console** (1470x923, pid 88205, after a Cmd-R onto v3079):
+
+> *"Worst case: **poor**. The retired/film string is drawn **on top of** the session title in the
+> same pill, so characters mash."* — OCR'd as `Sepbletréfired` / `SessletreéPired`.
+
+v3077 placed the badge at `top:8px; left:8px` with a comment saying it sat there "to avoid the
+session name and the pin row". That was an **assumption, not a measurement**, and the source says
+otherwise:
+
+    .shc-sess    position: absolute; top: 9px;  left: 12px;   <- the session NAME, same corner
+    .shc-tr      position: absolute; top: 8px;  right: 9px;   <- pin + seal
+    .shc-nofilm  position: absolute; top: 8px;  left: 8px;    <- the badge, v3077
+
+Two absolutely-positioned chips sharing both anchors inside one `position:relative` hero overlap.
+The hero's only free corner is the bottom, where `.shc-body` has not started. Moved to
+`bottom:8px; left:8px; z-index:3`.
+
+⚠ The rest of the badge WORKS and was confirmed on pixels twice — the render gate photographed
+`Session 9 ☆🛡 clean Myth Session 9 —no film` with `shelf-cards` green at **441/441 painted, 0
+clipped**, and GROKBOT read *"film retired / ✓ retired"* on the live TRIAGE cards. Deeper
+ANALYZE/PRINTER-SEAL cards show real thumbs and carry **no** badge, which is correct.
+
+Gate: a third law in `test_a_card_with_no_film_says_so` parses each chip's `(vertical, horizontal)`
+anchor out of the CSS and refuses a shared corner. Corners now measured as badge `(bottom, left)` ·
+title `(top, left)` · pin-row `(top, right)`. All three red-proofs PROVEN, 1 match each.
+
+---
+
+**AND A SEPARATE FINDING FROM THE SAME TICK — the render gate's refusal was LOAD, not a defect.**
+The v3077–v3079 push was BLOCKED with three targets red — `heart-fan`, `heart-stored`,
+`river-strip` — each reporting *"the panel could not be ACTIVATED after 12.1s of polling"*, which
+the gate's own text names as ambiguous and tells the reader to check the load first. Re-run on the
+same tree with the machine quieter, all three are green:
+
+    heart-fan     270/270 painted · 0 clipped   (5 viewports)
+    heart-stored   18/18
+    river-strip    21/21
+
+The load came from an 8-hour orphaned headless Chrome of mine (`--dump-dom`, stuck since morning)
+plus a full `render_check` I started by accident — `render_check.py --help` is not a flag, it RUNS.
+Both are gone; load 6.54 → 4.7. [[ab-against-head-before-blaming-the-room]]
+
 ## REG-991 — v3076 moved the console's ORPHAN KILLER inside an exception handler, and it SHIPPED (task #92 — v3079)
 
 **Found by the cross-family second eye reading the PUSHED v3076 diff**, reproduced here by AST

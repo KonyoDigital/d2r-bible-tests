@@ -2104,7 +2104,13 @@
   .shc-hero.noimg { background: radial-gradient(ellipse at 50% 28%, rgba(240,192,96,.1), transparent 62%), linear-gradient(160deg, #1a160d, #0c0a06); }
   /* v3077 — the no-film badge. Sits top-left of the hero so it never fights the session name
      (.shc-sess) or the pin/seal row (.shc-tr), both of which the hero already carries. */
-  .shc-nofilm { position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex;
+  /* ⚠⚠ v3080 — BOTTOM-left, not top-left. v3077 put this at top:8px/left:8px "to avoid the
+     session name and the pin row", which was an assumption and it was WRONG: `.shc-sess` is
+     `position:absolute; top:9px; left:12px` — the SAME corner — and `.shc-tr` owns top-right.
+     MEASURED by GROKBOT on his live console: the badge drew ON TOP OF the title and the glyphs
+     mashed, OCR-ing as `Sepbletréfired` / `SessletreéPired`. Worst-case legibility: poor. The
+     hero's only free corner is the bottom, where `.shc-body` has not started yet. */
+  .shc-nofilm { position: absolute; bottom: 8px; left: 8px; z-index: 3; display: inline-flex;
     align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
     border: 1px solid var(--edge); background: rgba(8,10,8,.72);
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug);

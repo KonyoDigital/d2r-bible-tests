@@ -97,7 +97,55 @@ class TestACardWithNoFilmSaysSo(unittest.TestCase):
         print("badge CSS present, and retired is styled distinctly")
 
 
+    def test_the_badge_does_not_share_a_corner_with_the_title_or_the_pin_row(self):
+        """The defect GROKBOT found on his live screen, made checkable.
+
+        v3077 placed the badge at top-left "to avoid the session name and the pin row". That was an
+        ASSUMPTION, not a measurement, and it was wrong: `.shc-sess` is `top:9px; left:12px` — the
+        same corner — so the badge drew ON TOP OF the title and the glyphs mashed, OCR-ing as
+        `Sepbletréfired`. Worst-case legibility: poor. `.shc-tr` owns top-right.
+
+        A corner is (vertical anchor, horizontal anchor). Two absolutely-positioned chips sharing
+        both anchors inside one `position:relative` hero WILL overlap. [[visual-regression-detector]]
+        """
+        def corner(sel):
+            for m in re.finditer(re.escape(sel) + r"\s*\{([^}]*)\}", self.src):
+                body = " ".join(m.group(1).split())
+                if "position: absolute" not in body:
+                    continue
+                v = "top" if re.search(r"(^|;|\s)top:", body) else (
+                    "bottom" if re.search(r"(^|;|\s)bottom:", body) else None)
+                h = "left" if re.search(r"(^|;|\s)left:", body) else (
+                    "right" if re.search(r"(^|;|\s)right:", body) else None)
+                if v and h:
+                    return (v, h)
+            return None
+
+        badge = corner(".shc-nofilm")
+        self.assertIsNotNone(badge, ".shc-nofilm is not absolutely positioned in the hero")
+        print("corners — badge %s · title %s · pin-row %s"
+              % (badge, corner(".shc-sess"), corner(".shc-tr")))
+        for other in (".shc-sess", ".shc-tr"):
+            c = corner(other)
+            if c is None:
+                continue
+            self.assertNotEqual(
+                badge, c,
+                "the no-film badge shares the %s-%s corner with %s. Both are absolute inside the "
+                "same hero, so they overlap and the text mashes — which is what shipped in v3077 "
+                "and what his own eyes caught" % (badge[0], badge[1], other))
+
+
 RED_PROOF = [
+    {
+        "why": "the badge goes back to the corner it shipped in — the same top-left the session "
+               "title occupies — so the two absolute chips overlap inside one hero and the glyphs "
+               "mash, exactly as his eyes caught on the live console",
+        "file": "control_ui.html",
+        "find": "  .shc-nofilm { position: absolute; bottom: 8px; left: 8px; z-index: 3;",
+        "replace": "  .shc-nofilm { position: absolute; top: 8px; left: 8px; z-index: 3;",
+        "matches": 1,
+    },
     {
         "why": "the card stops reading footageState, so a run with no film renders the same "
                "silent near-black rectangle as a broken thumbnail and his shelf goes back to "
