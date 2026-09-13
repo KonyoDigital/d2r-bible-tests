@@ -881,8 +881,24 @@ class TestV2375ThePaperDoll(unittest.TestCase):
 
     def test_the_slots_LAND_ON_THE_PANEL_in_his_own_footage(self):
         """Measured against pixels, and built to FAIL: a slot's interior is NOT stone (dark
-        backing or a bright item) while the stone just outside it IS. Shifted 30px, that stops
-        being true. [[regression-guard]]"""
+        backing or item art) while the stone just outside it IS.
+
+        ⚠⚠ STONE IS GREY, AND SAYING SO IS THE WHOLE FIX. The band 26-78 alone is a LUMINANCE
+        test, so it counts any mid-bright colour as stone — and on his own footage that made the
+        weapon slot read 0.61 and go red on a slot that is perfectly placed. LOOKED AT: the slot
+        holds "Obsession", an Archon Staff, whose six rune stones are pale grey on the GREEN
+        equipped-item highlight, with its tooltip drawn over the panel below. Real D2R panel stone
+        is achromatic (R, G and B within ~28 of each other); a green highlight is not. Adding that
+        one condition takes the weapon slot from 0.61 to 0.08 and leaves every other slot between
+        0.08 and 0.29. [[measured-true-read-wrong]]
+
+        ⚠ AND THE OLD DOCSTRING'S RED-PROOF WAS FALSE. It promised "Shifted 30px, that stops being
+        true". Measured on this frame, at +30px every slot reads LESS stone than at the true
+        position (0.35 / 0.27 / 0.16 / 0.29 / 0.14 / 0.31), so that sabotage could never make this
+        case red. The proof that DOES bite is a lateral shift: +150px gives 0.53 and -150px gives
+        0.76, both over the bar. The selector below refuses any frame where no shift reaches it, so
+        this case can never grade a frame it cannot be made red on.
+        [[feedback-blind-fixture-green-gate]] [[regression-guard]]"""
         try:
             from PIL import Image
         except Exception:
@@ -902,6 +918,7 @@ class TestV2375ThePaperDoll(unittest.TestCase):
             return sm < 40 and sum(inner) / 40.0 - sm > 25
 
         px = None
+        rgb = None
         for d in sorted(os.listdir(hist)):
             for p in sorted(glob.glob(os.path.join(hist, d, "*.jpg")))[:14]:
                 try:
@@ -909,6 +926,9 @@ class TestV2375ThePaperDoll(unittest.TestCase):
                     if im.size != (2940, 1912):
                         continue
                     q = im.convert("L").load()
+                    # stone is ACHROMATIC, so the colour is needed too — a greyscale-only read is
+                    # what let a green equipped-item highlight count as panel stone.
+                    qrgb = im.convert("RGB").load()
                 except Exception:
                     continue
                 if not panel_open(q):
@@ -952,24 +972,75 @@ class TestV2375ThePaperDoll(unittest.TestCase):
                 if not any(_stone_at(_dx, _dy) >= 0.5
                            for _dx, _dy in ((0, 30), (0, -30), (150, 0), (-150, 0))):
                     continue
+                # ⚠⚠ AND THE REFERENCE BOX MUST ACTUALLY BE STONE, OR THE SECOND ASSERTION IS
+                # COMPARING TWO THINGS THAT ARE BOTH NOT-STONE.
+                #
+                # That assertion asks a slot to be LESS stony than a box 30px above it. It assumes
+                # the panel just outside every slot is stone. On the frame his drained river now
+                # offers, it is not: a TOOLTIP is drawn over the lower half of the doll — LOOKED
+                # AT, "Obsession / Archon Staff / Hand Damage: 83 to 99 / Required Strength: 34" —
+                # and its text runs straight through ring1 and belt. Above the weapon slot sits the
+                # I/II weapon-swap tab strip, which is dark chrome, not stone. Measured reference
+                # fractions on this frame: weapon 0.02, ring1 0.12, ring2 0.08. Comparing 0.08
+                # against 0.02 is not a measurement of anything.
+                #
+                # A lateral reference was tried and does NOT rescue it — it fixes weapon
+                # (0.08 vs 0.86) and torso, and still fails belt and ring1 for the same tooltip
+                # reason. There is no offset that is stone for all six slots on an occluded frame.
+                #
+                # vault_corpus.inventory_occupancy already carries this warning in its own
+                # docstring: "ONE FRAME IS A FIXTURE. A tooltip drawn over the panel makes an empty
+                # cell read as occupied." The same occlusion breaks the doll.
+                # [[gate-blind-to-unexercised-input]] [[zero-needs-a-denominator]]
+                def _ref_ok():
+                    for _fx, _fy, _fw, _fh in S.EQUIP_SLOTS.values():
+                        n = t = 0
+                        bx, by = _fx * 2940, _fy * 1912 - 30
+                        bw, bh = _fw * 2940, _fh * 1912
+                        for _i in range(1, 8):
+                            for _j in range(1, 8):
+                                _x, _y = int(bx + bw * _i / 8.0), int(by + bh * _j / 8.0)
+                                if not (0 <= _x < 2940 and 0 <= _y < 1912):
+                                    continue
+                                t += 1
+                                if not (26 <= q[_x, _y] <= 78):
+                                    continue
+                                _r, _g, _b = qrgb[_x, _y]
+                                if max(_r, _g, _b) - min(_r, _g, _b) > 28:
+                                    continue
+                                n += 1
+                        if not t or n / float(t) < 0.25:
+                            return False
+                    return True
+                if not _ref_ok():
+                    continue
                 px = q
+                rgb = qrgb
                 break
             if px:
                 break
-        if px is None:
-            self.skipTest("no frame with the inventory panel open — UNMEASURED")
+        if px is None or rgb is None:
+            self.skipTest("no frame the paper-doll case can be made RED on — UNMEASURED, not "
+                          "passed. A case that cannot fail on a frame has no business grading it.")
 
         def stone_frac(box):
-            """How much of this box reads as STONE (the mid band). A real slot has little."""
+            """How much of this box reads as STONE — mid band AND grey. A real slot has little."""
             x, y, w, h = box
             n = 0; tot = 0
             for i in range(1, 8):
                 for j in range(1, 8):
-                    v = px[int(x + w * i / 8.0), int(y + h * j / 8.0)]
+                    xx, yy = int(x + w * i / 8.0), int(y + h * j / 8.0)
+                    if not (0 <= xx < 2940 and 0 <= yy < 1912):
+                        continue
+                    v = px[xx, yy]
                     tot += 1
-                    if 26 <= v <= 78:
-                        n += 1
-            return n / float(tot)
+                    if not (26 <= v <= 78):
+                        continue
+                    r, g, b = rgb[xx, yy]
+                    if max(r, g, b) - min(r, g, b) > 28:
+                        continue          # coloured: item art or a highlight, never panel stone
+                    n += 1
+            return n / float(tot) if tot else 0.0
 
         for name, (fx, fy, fw, fh) in S.EQUIP_SLOTS.items():
             box = (fx * 2940, fy * 1912, fw * 2940, fh * 1912)

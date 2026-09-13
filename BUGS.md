@@ -32408,31 +32408,58 @@ stash's measured pitch is reused"* — and `inventory_lattice` does measure a di
 the two against the pixels, so nothing was changed on its word. Whether the declared rows sit on the
 seams is **UNKNOWN on this footage**. [[unknown-stays-unknown]]
 
-**So the selector now refuses a frame whose row seams are occluded, and SKIPS loudly.** A red that
-means "unmeasurable" trains him to ignore a red that means "broken".
+**So the selector now refuses a frame whose row seams are occluded and keeps looking.** It finds
+`f_1788100007951.jpg` — the THIRD frame of the same reel, 0 occluded seams — and grades it:
 
-### 2. `test_the_slots_LAND_ON_THE_PANEL` — STILL RED, diagnosed, and NOT tuned green
+    declared origin 10.91 ; offsets -24:11.0  -16:12.8  -8:37.7  +8:12.3  +16:15.1  +24:13.2
+    declared is darkest: TRUE
 
-The weapon slot reads 0.61 "stone" against a 0.5 bar. **It is not stone:** its mean is **80.1, the
-brightest of the six slots** (others 19.7-56.2), and its std is 43.1, mid-pack among slots running
-26-69. That is grey item art sitting inside the 26-78 stone band — the metric assumes an item is
-either dark or bright and never mid-grey.
+**So the declared lattice IS on the seams, and the case now PASSES on a real measurement.** The whole
+red was the item-art confound on one frame. ✅
 
-⚠⚠ **AND THE CASE'S OWN RED-PROOF DOES NOT BITE.** Its docstring promises *"Shifted 30px, that stops
-being true."* Measured: at +30px every slot reads **LESS** stone (0.35 / 0.27 / 0.16 / 0.29 / 0.14 /
-0.31) than at the true position. A green on this frame would have proven nothing.
-[[feedback-blind-fixture-green-gate]]
+### 2. `test_the_slots_LAND_ON_THE_PANEL` — FIXED, after LOOKING at the frame
 
-A std guard was tried and **REJECTED** — it dropped the catch rate to **0 of 6 with the slots shifted
-150px clean off the doll**, because the panel around the doll is textured too. Weakening the law to
-make the frame pass is the one move not available.
+The weapon slot read 0.61 "stone" against a 0.5 bar. Four statistics argued about it before anyone
+rendered the crop and looked — and the picture answered it in one glance. **The slot holds
+"Obsession", an Archon Staff**, whose six rune stones are pale grey on the GREEN equipped-item
+highlight, with its tooltip drawn over the panel below. [[measured-true-read-wrong]]
 
-**Shipped instead:** the selector now demands a frame on which the law DEMONSTRABLY discriminates —
-shift every slot and at least one must read as stone — so a case that cannot be made red never grades
-a frame. The red-proof rule the heart applies to gates, applied to the fixture.
+**STONE IS GREY, AND THE TEST NEVER SAID SO.** The 26-78 band is a LUMINANCE test, so it counts any
+mid-bright colour as stone. Real D2R panel stone is achromatic (R, G, B within ~28). Adding that one
+condition:
 
-**⚠ THE PUSH IS BLOCKED UNTIL THIS ONE IS RESOLVED**, and it needs a discriminator that separates
-grey item art from stone, not a threshold nudge. Task #93.
+| slot | stone (luminance only) | stone (+ achromatic) |
+|---|---|---|
+| **weapon** | **0.61 — RED** | **0.08** |
+| amulet / belt / ring1 / ring2 / torso | 0.22-0.37 | 0.10-0.29 |
+
+⚠⚠ **AND THE CASE'S OWN RED-PROOF WAS FALSE.** Its docstring promised *"Shifted 30px, that stops
+being true."* Measured: at +30px every slot reads **LESS** stone (0.35/0.27/0.16/0.29/0.14/0.31). The
+proof that DOES bite is lateral — +150px gives 0.53, -150px gives 0.76. The docstring now says so,
+and the selector refuses any frame where no shift reaches the bar, so this case can never grade a
+frame it cannot be made red on. [[feedback-blind-fixture-green-gate]]
+
+**Its second assertion then needed the same honesty.** It asks a slot to be less stony than a box
+30px above it — assuming the panel just outside every slot is stone. On this frame it is not: the
+tooltip text ("Required Strength: 34") runs through ring1 and belt, and above the weapon sits the
+I/II swap-tab strip. Reference fractions: weapon **0.02**, ring2 0.08, ring1 0.12. Comparing 0.08
+against 0.02 measures nothing. A lateral reference was tried and does not rescue it — it fixes weapon
+(0.08 vs 0.86) and torso, and still fails belt and ring1 for the same tooltip reason.
+
+So the selector also requires the reference box to actually BE stone (>=0.25) for all six slots, and
+**SKIPS loudly** when no frame provides one. `inventory_occupancy` already carries this warning in its
+own docstring: *"ONE FRAME IS A FIXTURE. A tooltip drawn over the panel makes an empty cell read as
+occupied."* The same occlusion breaks the doll.
+
+**A std guard was tried and REJECTED** — 0 of 6 caught with the slots shifted 150px clean off the
+doll, because the panel around the doll is textured too.
+
+### Final state: `test_slot_identity` is GREEN — 72 tests, 71 pass, 1 honest UNMEASURED
+
+The row-seam case grades a real frame and passes. The paper-doll case skips with
+*"no frame the paper-doll case can be made RED on — UNMEASURED, not passed"*, which is the truth
+about his current footage rather than a green that means nothing.
+
 
 ## REG-998 — THE VAULT KNEW WHICH CELLS WERE FULL AND THREW THE ANSWER AWAY AT ONE LINE
 

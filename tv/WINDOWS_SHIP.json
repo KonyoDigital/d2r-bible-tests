@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3088",
+  "ver": "v3089",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3088: two slot-identity cases went red because draining the river changed which frame they grade, not because the geometry moved. The row-seam case now refuses frames whose seams are occluded; the paper-doll case now demands a frame it can actually be made red on. The weapon-slot red is diagnosed and left standing rather than tuned green",
+  "note": "v3089: the paper-doll case called a runeword staff stone because its 26-78 test was luminance-only; real panel stone is achromatic. Adding that takes the weapon slot from 0.61 to 0.08. Four statistics argued about it before anyone rendered the crop and looked",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3088** | `(this commit)` | v3088 — two slot-identity cases went red because draining the river changed which frame they grade, not because the geometry moved. The row-seam case now refuses frames whose seams are occluded; the paper-doll case now demands a frame it can actually be made red on. The weapon-slot red is diagnosed and left standing rather than tuned green |
+| **v3089** | `(this commit)` | v3089 — the paper-doll case called a runeword staff stone because its 26-78 test was luminance-only; real panel stone is achromatic. Adding that takes the weapon slot from 0.61 to 0.08. Four statistics argued about it before anyone rendered the crop and looked |
+| **v3088** | `622f9cce` | v3088 — two slot-identity cases went red because draining the river changed which frame they grade, not because the geometry moved. The row-seam case now refuses frames whose seams are occluded; the paper-doll case now demands a frame it can actually be made red on. The weapon-slot red is diagnosed and left standing rather than tuned green |
 | **v3087** | `55e50f8c` | v3087 — the vault sweep now carries the occupied CELLS and their footprints, not just two counts - the grid was always there and one line dropped it. Clusters stay labelled blobs with blobsAreItems false, because touching items merge: 33 cells became 2 blobs on his own frame |
 | **v3086** | `733a8490` | v3086 — THE FLEET ASKS ON ITS OWN |
 | **v3085** | `a0d09b00` | v3085 — A READ REEL SAYS WHY IT CANNOT SEAL |
