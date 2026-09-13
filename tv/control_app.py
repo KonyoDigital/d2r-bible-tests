@@ -27526,7 +27526,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3085",
+        "ver": "v3086",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -29142,9 +29142,30 @@ class Handler(BaseHTTPRequestHandler):
             # the console hides a reel no test pins or shows one that is a fixture. [[copy-drift]]
             # ⚠ MARKED AFTER THE ROW CACHE so a cached row gets the flag too — the cache is keyed
             # on the reel's own fingerprint and predates this field entirely.
+            # ⚠⚠ v3086 — ONLY A FIXTURE THAT IS ACTUALLY ON DISK. v3083 marked any session whose
+            # id appears in `test_referenced_reels()`, which returns 50 ids — every reel any test
+            # names, including ones whose film is long gone. MEASURED: that matched 16 of his
+            # sessions, not the 9 he asked about, so SEVEN runs of his were being hidden purely
+            # because a test file once mentioned their id. He said "9 test fixtured" and he meant
+            # the nine reels that still exist for the suite to open.
+            #
+            # Caught by the COVERAGE RATCHET refusing the push — shelf-cards fell 441 -> 434 and
+            # the drop did not match the fixtures either way, which is exactly the ambiguity a
+            # ratchet exists to refuse. Blessing it would have buried this. [[regression-guard]]
             try:
+                import glob as _glob
                 import frame_authority as _fa
-                _fixtures = set(_fa.test_referenced_reels() or ())
+                _named = set(_fa.test_referenced_reels() or ())
+                # ⚠ `os`, NOT `_os`. v3086 wrote `_os` — a name bound NOWHERE — and the
+                # `except Exception` below swallowed the NameError, so the fixture set came back
+                # EMPTY and nothing was hidden at all. The code looked wired and did nothing.
+                # Caught by the pre-push unbound-name gate, which says exactly that: "inside a
+                # try/except that is silent forever and the code looks wired". My own check passed
+                # because I ran it in a standalone script that imports `os` — not through this
+                # function. Third silent-except defect today. [[plumbing-with-no-tap]]
+                _live = {os.path.basename(d) for d in
+                         _glob.glob(os.path.join(HIST_DIR, "reel_*")) if os.path.isdir(d)}
+                _fixtures = _named & _live      # named by a test AND still on disk
             except Exception:
                 _fixtures = set()          # UNKNOWN -> mark nothing, show everything. Never hide
                                            # one of his runs because a helper failed.

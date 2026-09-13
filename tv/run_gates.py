@@ -2427,7 +2427,7 @@ GATES = [
          why="A REEL THAT WAS READ AND STILL CANNOT SEAL MUST SAY WHICH CONDITION REFUSED. "
              "vault_seal_is_definitive takes four inputs and returns ONE bool, so a reel read "
              "cleanly that will not release looks identical to one nobody looked at. MEASURED on "
-             "reel_s_1788195270707_36946: the sweep printed '1 panel(s) READ CLEANLY and held no "
+             "the 63-frame held reel (s_1788195270707_36946): the sweep printed '1 panel(s) READ CLEANLY and held no "
              "readable name', classifyError was None and the pixel lane printed nothing - and the "
              "seal still came back examinedEmpty=None. The cause was invisible from outside: "
              "read_ok=1 with an EMPTY reconciled, so len(rec) != read_ok refused. A frame READ but "

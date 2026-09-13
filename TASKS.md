@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3085** | `(this commit)` | v3085 — A READ REEL SAYS WHY IT CANNOT SEAL |
+| **v3086** | `(this commit)` | v3086 — THE FLEET ASKS ON ITS OWN |
+| **v3085** | `a0d09b00` | v3085 — A READ REEL SAYS WHY IT CANNOT SEAL |
 | **v3084** | `ab912914` | v3084 — THE JOURNAL HALF OF THE RIVER, PLAN ONLY |
 | **v3083** | `7804b5f4` | v3083 — THE BACKEND FIXTURES LEAVE HIS CONSOLE |
 | **v3082** | `72917d08` | v3082 — REELS BEFORE ANALYTICS, AND A LAW FOR IT |

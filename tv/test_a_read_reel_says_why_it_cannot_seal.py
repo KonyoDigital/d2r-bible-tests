@@ -4,7 +4,7 @@
 `vault_seal_is_definitive` takes four inputs and returns ONE bool, so a reel read cleanly that
 still will not release looks identical to one nobody looked at.
 
-MEASURED 2026-09-13 on reel_s_1788195270707_36946. The sweep printed "1 panel(s) READ CLEANLY and
+MEASURED 2026-09-13 on the 63-frame held reel (s_1788195270707_36946). The sweep printed "1 panel(s) READ CLEANLY and
 held no readable name", `classifyError` was None, the pixel lane printed nothing — and the seal
 still came back `examinedEmpty=None`, so the reel stayed held. From outside, nothing said why. The
 cause was `read_ok=1` with an EMPTY `reconciled`, so `len(rec) != read_ok` refused: a frame READ
@@ -106,7 +106,7 @@ class TestAReadReelSaysWhyItCannotSeal(unittest.TestCase):
 RED_PROOF = [
     {
         "why": "a frame that was READ but never CROSS-CHECKED stops being named, which is the "
-               "exact state that held reel_s_1788195270707_36946 with nothing on screen saying why",
+               "exact state that held the 63-frame held reel (s_1788195270707_36946) with nothing on screen saying why",
         "file": "control_app.py",
         "find": "    if len(rec) != read_ok:\n        out.append(\"%d frame(s) were READ but only %d were cross-checked",
         "replace": "    if False:\n        out.append(\"%d frame(s) were READ but only %d were cross-checked",

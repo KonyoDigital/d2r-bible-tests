@@ -22464,6 +22464,31 @@ function escC(s) {
     }
   };
 
+  /* ⚠⚠ v3086 — NOBODY EVER ASKED. Konyo, 2026-09-13, screenshot in hand: THE FLEET read
+     "checking who is online…" and stayed there. That is the card's SHIPPED PLACEHOLDER (:7793),
+     not a failure state — which means `_fleetRefresh` had never run at all.
+
+     MEASURED at the same moment: `/api/fleet` answered **200 in 0.02s**, `ok:true`,
+     `fromCache:false`, `lastGoodAgeS 1.5` — 1 online (konyo-3, mac, v3085) and 2 offline
+     (LAPTOP-QNFL860M v3048, AdiJusid v2101). The roster was fresh and complete. Nothing was
+     wrong with the fleet; nothing had asked it.
+
+     THE UNJOINED END: `_fleetRefresh` had exactly TWO call sites — the ↻ button, and the v2851
+     retry ladder, which only fires AFTER a failed fetch and so can never start from a placeholder.
+     Its third trigger used to be the ADVANCED drawer filling, and the card was deliberately moved
+     OUT of that drawer (":7790 — Out here it needs no rule of its own to stay visible in every
+     view"). The card left; its refresh stayed behind. So it could only ever fill if he pressed ↻.
+     [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+     ⚠ v2851's ladder still covers the FAILING case, and a success resets its counter — this only
+     supplies the first ask it was always waiting for. Same readyState pattern the TZ and chronicle
+     wires already use, so there is one idiom here rather than two. */
+  (function _fleetKick() {
+    var go = function () { try { window._fleetRefresh(); } catch (e) {} };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
+    else go();
+  })();
+
   /* ══ v2213 — THE FLEET CROSS-REFERENCE ═══════════════════════════════════════════════════
      Konyo: "for me and my cuzin alone it should cross reference eachother based on what set items
      he has that i dont. and what set items i have that he doesnt obviously... show me what he has
