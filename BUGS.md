@@ -32379,6 +32379,59 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+
+## REG-1005 — THE CHIP COUNTED 2,424 WHEN THE ANSWER WAS 138, IN THE COMMIT THAT ARGUED AGAINST IT
+
+**v3095.** Three defects, all mine, all caught before they reached him — two by his own gate on the
+push that would have shipped them, one by the Grok bot disagreeing with a number I gave it.
+
+### 1. A stub is not a retired reel ⛔ 17x overstatement
+
+v3092 dropped no-film shelf rows into two chips and put that split **above** the stub check. A STUB
+is a run with under three real rows and no reel — it never HAD film — but it also has
+`footageN == 0`, so every stub fell into the no-film branch first and was labelled as though its
+film had been retired after giving up its information.
+
+| chip | v3092 would show | the truth | stubs swept in |
+|---|---|---|---|
+| 📼 retired to history | 450 | **266** | 184 |
+| ❓ no film and no record | **2,424** | **138** | **2,286** |
+
+⚠⚠ **And v3092's own comment argued for the opposite**, insisting the two states be kept apart
+*"because collapsing them would throw away the only fact that says whether the river finished or
+stalled"*. The reasoning was right and the branch order was wrong. **Prose in a commit is not
+evidence about behaviour.**
+
+⚠ **The numbers reported to him (266/138) were measured BEFORE the code and never re-measured
+against it** — correct about the data, describing a program that had not been written yet. Same
+shape as claiming the gold accent "lit on 10 cards" without reading the CSS: a figure derived from
+intent rather than from the artifact. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+
+**How it surfaced:** Grok Bot's live look reported **17 DOM cards / 12 visible** against my predicted
+13. Replicating the build order line by line to explain that gap is what exposed it. The bot could
+not read the chips at all — the console window was `hidden=true, painting=false`, so it answered
+UNKNOWN rather than guessing. **A witness that produces a discrepancy someone has to explain is
+worth more than one that agrees.**
+
+### 2. The new module could not print its own verdict ⛔ caught by the gate
+
+`vault_backup.py` (v3094) prints non-ASCII and never called `console_safe.enable()`. On a non-UTF-8
+console — his Windows box prints cp1255 — it would raise mid-`print`, turning a clean verdict into a
+traceback and a passing tree into a non-zero exit. REG-044's scar, re-made in a new file.
+
+### 3. One token, two colours ⛔ caught by the gate
+
+The v3092 chip CSS wrote `color: var(--warn, #d9a441)`. **`--warn` is defined ZERO times**, and the
+four older rules that use it all fall back to `var(--gold-dim)`. So one undefined token name rendered
+two different colours, and the second was a hex invented at the call site. [[copy-drift]]
+
+### The law
+
+`tv/test_a_chip_counts_only_what_it_can_explain.py`, 4 tests, registered (**358 gates**). Its fourth
+case replicates the branch order over synthetic rows of each kind — no console, no footage — so it
+cannot go blind on CI. The rule it pins is general: **every drop branch must come AFTER the branches
+whose rows it would otherwise absorb.** Red-proof: 1 sabotage, **PROVEN, 1 match**.
+
 ## REG-1004 — THE SCORER ONLY RAN WHEN NOTHING WAS WRONG, AND FLOWING ASKED IN A DEAD LANGUAGE
 
 **v3093.** Tasks #68/#80 say *"0 of 58 surfaces have all four organs; FLOWING stuck at 0 by a

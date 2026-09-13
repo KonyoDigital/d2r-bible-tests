@@ -31,6 +31,17 @@ import os
 import shutil
 import time
 
+# ⚠ REG-044 — THIS FILE PRINTS NON-ASCII, AND A TOOL THAT CRASHES WHILE REPORTING IS WORSE THAN ONE
+# THAT NEVER RAN. On a non-UTF-8 console (his Windows box prints cp1255) the arrows and warning
+# glyphs below would raise mid-`print`, turning a clean verdict into a traceback and a passing tree
+# into a non-zero exit. test_every_cli_that_prints_non_ascii_is_encoding_safe caught this on the
+# push that would have shipped it.
+try:
+    from console_safe import enable as _console_safe_enable
+    _console_safe_enable()
+except Exception:
+    pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKUP_DIR = os.path.join(os.path.expanduser("~"), "d2r_vault_backups")
 

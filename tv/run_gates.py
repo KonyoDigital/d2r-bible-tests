@@ -2437,6 +2437,24 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_a_chip_counts_only_what_it_can_explain",
+         [sys.executable, os.path.join(HERE, "test_a_chip_counts_only_what_it_can_explain.py")], 120,
+         why="A CHIP MAY ONLY COUNT ROWS WHOSE ABSENCE OF FILM IT CAN EXPLAIN, and the defect this "
+             "pins SHIPPED IN THE COMMIT THAT ARGUED AGAINST IT. v3092 dropped no-film rows into "
+             "two chips - 'retired to history' and 'no film and no record' - and put that split "
+             "ABOVE the stub check. A STUB is a run with under three real rows and no reel: it "
+             "never HAD film, but it also has footageN 0, so every stub fell into the no-film "
+             "branch first and was labelled as though its film had been retired after giving up "
+             "its information. MEASURED on his live console over 2,894 rows: the chips would have "
+             "read 450 and 2,424, of which 184 and 2,286 were STUBS - the second chip claiming "
+             "2,424 against a true 138, a 17x overstatement. And that same commit carries a "
+             "comment insisting the two states be kept apart because collapsing them throws away "
+             "the only fact that says whether the river finished or stalled: the reasoning was "
+             "right, the branch order was wrong, and prose in a commit is not evidence about "
+             "behaviour. ⚠ The numbers reported to him (266/138) were measured BEFORE the code and "
+             "never re-measured against it - a figure derived from intent rather than the "
+             "artifact. THE RULE: every drop branch must come AFTER the branches whose rows it "
+             "would otherwise absorb."),
     Gate("test_the_vault_save_can_only_copy",
          [sys.executable, os.path.join(HERE, "test_the_vault_save_can_only_copy.py")], 120,
          why="THE VAULT'S SAVE MAY ONLY COPY, AND A PARTIAL SAVE IS NOT A SAVE. His ask: the vault "

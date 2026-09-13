@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3094",
+  "ver": "v3095",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3094: six vault stores now copy to a timestamped folder that is read back at source size, refusing the whole save on any mismatch. The module cannot delete by construction - no remove, unlink, rmtree, and no store opened for writing - because the wipe he asked for is a separate twice-asking act",
+  "note": "v3095: the no-film split sat above the stub check, so 2286 stub runs that never had film were counted as reels whose film was retired - the chip read 2424 against a true 138. Plus the two failures his own gate caught on the last push: a module that could not print its verdict, and one token rendering two colours",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

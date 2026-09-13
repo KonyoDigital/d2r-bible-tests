@@ -4298,8 +4298,12 @@
      thrown away the only distinction that matters. [[unknown-stays-unknown]] */
   .sh-chip-hist { opacity: .8; cursor: default; color: var(--gold-dim);
                   border-color: rgba(200,180,120,.2); }
-  .sh-chip-unk  { opacity: .9; cursor: default; color: var(--warn, #d9a441);
-                  border-color: rgba(217,164,65,.3); }
+  /* ⚠ v3095 — `--warn` IS NOT A DEFINED TOKEN (0 definitions), and four older rules already fall
+     back to var(--gold-dim). v3092 invented a raw #d9a441 here instead, so ONE token name rendered
+     TWO different colours and test_an_undefined_token_does_not_render_as_two_different_values
+     caught it before it shipped. Same fallback as its siblings, no new colour. [[copy-drift]] */
+  .sh-chip-unk  { opacity: .9; cursor: default; color: var(--warn, var(--gold-dim));
+                  border-color: rgba(160,120,48,.3); }
   .sh-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; }   /* v1283 (D9) — persistent, composable filter row */
   .sh-fdiv { width: 1px; align-self: stretch; margin: 2px 5px; background: rgba(200,180,120,.16); }
   .sh-chip { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim); cursor: pointer;
@@ -15790,11 +15794,20 @@ window._lockMark = function(isOpen, px, label){
     var _shRetiredN = 0, _shUnknownN = 0;
     var cards = (TH.sessions || []).map(function(sm, i){
       if (sm && sm.fixture) { _shFixtureN++; return ''; }
+      /* ⚠⚠ v3095 — THE STUB CHECK MUST COME FIRST, AND v3092 PUT IT LAST. A STUB is a run with
+         under three real rows and no reel — it never HAD film. But a stub also has footageN 0, so
+         with the no-film split above it every stub fell into these two buckets first and was
+         labelled as though its film had been retired after giving up its information.
+         MEASURED on his live console: the chips would have read 450 and 2,424 — of which 184 and
+         2,286 were stubs. The ❓ chip would claim 2,424 when the truth is 138, a 17x overstatement,
+         in the very commit whose comment insisted the two states be kept apart. The numbers I
+         reported (266 / 138) were measured BEFORE the code and never re-measured against it.
+         [[label-outlived-referent]] [[zero-needs-a-denominator]] */
+      if (!_shBuildGhosts && sm && sm.stub) return '';
       if (sm && !(sm.footageN || 0) && !_shBuildGhosts){
         if (String(sm.footageState || '') === 'retired') { _shRetiredN++; return ''; }
         if (String(sm.footageState || '') === 'unknown') { _shUnknownN++; return ''; }
       }
-      if (!_shBuildGhosts && sm && sm.stub) return '';
       var n = sm.n || (i + 1);
       var d0 = sm.t0 ? new Date(sm.t0) : null;
       var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
