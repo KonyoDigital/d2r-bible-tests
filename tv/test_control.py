@@ -5089,13 +5089,57 @@ class TestV2305TheSealRecordsWhatItTook(unittest.TestCase):
         # nothing to do with the function it named. Converting to _between made it fail
         # loudly, which is the entire point of refusing a silent fallback.
         # [[source-reading-guard]] [[feedback-blind-fixture-green-gate]]
-        seg = _between(self, src, "def _vault_sweep_run", "\ndef ", what="_vault_sweep_run")
-        n_seals = seg.count('swept[str(sess)] = {')
-        n_extr = seg.count('"extracted": _ex')
-        self.assertGreaterEqual(n_seals, 3, "the seal sites moved; re-point this guard")
-        self.assertEqual(n_extr, n_seals,
-                         "%d seal site(s) but only %d write `extracted` — the ones that do not can "
-                         "never satisfy the contract" % (n_seals, n_extr))
+        # ⚠⚠ v3076 — RE-POINTED, BY PARSING. This counted the literal text
+        # `swept[str(sess)] = {` and required 3. v3074 had to make one site conditional
+        # (`_rec = {...}` / `_rec["examinedEmpty"] = True` / `swept[str(sess)] = _rec`), which is a
+        # perfectly ordinary refactor and took the count to 2 — so the guard went red for a
+        # STYLE change while a site that genuinely stopped writing the record in that same style
+        # would have been invisible to it. Counting a spelling is not reading a law.
+        #
+        # It now resolves every assignment to `swept[...]` inside the function and checks the
+        # mapping each one writes, following a plain Name binding back to its dict literal. That
+        # catches the defect the law is actually about — a seal site that cannot satisfy the
+        # extraction contract — in whatever style it is written. [[source-reading-guard]]
+        import ast as _ast
+        _fn = None
+        for _n in _ast.walk(_ast.parse(src)):
+            if isinstance(_n, _ast.FunctionDef) and _n.name == "_vault_sweep_run":
+                _fn = _n
+                break
+        self.assertIsNotNone(_fn, "_vault_sweep_run is gone — re-point this guard")
+        _dicts = {}
+        for _n in _ast.walk(_fn):
+            if (isinstance(_n, _ast.Assign) and len(_n.targets) == 1
+                    and isinstance(_n.targets[0], _ast.Name) and isinstance(_n.value, _ast.Dict)):
+                _dicts[_n.targets[0].id] = _n.value
+        _sites = []
+        for _n in _ast.walk(_fn):
+            if isinstance(_n, _ast.Assign) and len(_n.targets) == 1:
+                _t = _n.targets[0]
+                if (isinstance(_t, _ast.Subscript) and isinstance(_t.value, _ast.Name)
+                        and _t.value.id == "swept"):
+                    _sites.append(_n)
+        print("seal sites resolved by parse: %d" % len(_sites))
+        self.assertGreaterEqual(len(_sites), 3,
+                                "only %d site(s) assign into `swept` — the seal sites moved, and "
+                                "this guard must be re-pointed rather than relaxed" % len(_sites))
+        for _s in _sites:
+            _v = _s.value
+            if isinstance(_v, _ast.Name):
+                _v = _dicts.get(_v.id)
+            self.assertIsNotNone(
+                _v, "a seal site on line %d writes a value this guard cannot resolve to a mapping "
+                    "— an unresolvable site is UNKNOWN, not compliant" % getattr(_s, "lineno", -1))
+            _keys = set()
+            for _k in _v.keys:
+                if isinstance(_k, _ast.Constant) and isinstance(_k.value, str):
+                    _keys.add(_k.value)
+            self.assertIn("extracted", _keys,
+                          "the seal site on line %d writes no `extracted` — it can never satisfy "
+                          "the extraction contract, so that path is unsealable for ever"
+                          % getattr(_s, "lineno", -1))
+            self.assertIn("extractedWhy", _keys,
+                          "the seal site on line %d states no reason" % getattr(_s, "lineno", -1))
 
 class TestV2306TheExaminedEmptySealActuallyLands(unittest.TestCase):
     """★ SIX DAYS OF "STARTED BUT NEVER WROTE A RESULT" WAS ONE EMPTY LIST.

@@ -32332,7 +32332,10 @@ the same footage, and a wrong rule here loses runs. Filed, visible, not guessed 
 bucket with the escape `\u2014`, not a literal em-dash. Caught by printing the match count before
 the drill ran - a 0-match tamper would have gone green and proved nothing.
 
-## REG-968 — the tooltip split could remove the LAST candidate, making a short reel permanently unreadable (task #89 — v3075)
+## REG-986 — the tooltip split could remove the LAST candidate, making a short reel permanently unreadable (task #89 — v3075)
+
+> ⚠ Filed as REG-968 first, which was already taken by task #58 (v2965). The v3075 commit message
+> cites the wrong number; this heading is correct.
 
 **v2396 splits a still run on the TOOLTIP** so a hover-by-hover pass stops collapsing into one
 page, and it says of itself that it *"splits on evidence and leaves the rest alone"*. It did not.
@@ -32370,7 +32373,11 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
-## REG-967 — the rule that held his reels never asked the seal that had examined them (task #89 — v3074)
+## REG-985 — the rule that held his reels never asked the seal that had examined them (task #89 — v3074)
+
+> ⚠ Filed as REG-967 first, which was already taken by task #58 (v2964). The commit message for
+> v3074 cites the wrong number; this heading is the correct one. I read `grep | tail -3` of a file
+> that is not ordered and took it for the maximum — the real max was 984.
 
 **The river could not drain, and `eligible` had NEVER fired once.** Seven reels sat on
 `panels-never-banked`, which asks only two questions: does the survey see panels, and is the reel
