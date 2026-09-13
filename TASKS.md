@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3083** | `(this commit)` | v3083 — THE BACKEND FIXTURES LEAVE HIS CONSOLE |
+| **v3084** | `(this commit)` | v3084 — THE JOURNAL HALF OF THE RIVER, PLAN ONLY |
+| **v3083** | `7804b5f4` | v3083 — THE BACKEND FIXTURES LEAVE HIS CONSOLE |
 | **v3082** | `72917d08` | v3082 — REELS BEFORE ANALYTICS, AND A LAW FOR IT |
 | **v3081** | `f5b25a9c` | v3081 — THE CHIP LEAVES THE HERO |
 | **v3080** | `f34cca70` | v3080 — THE BADGE LEAVES THE TITLE ITS CORNER |

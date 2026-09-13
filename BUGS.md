@@ -32373,6 +32373,53 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-996 — the journal half of the river did not exist, so 419 rows outlived their film (task #89 — v3084)
+
+**His instruction, 2026-09-13:** *"it should all go through the river and end up in tombstone and
+then in deleted after being extracted"*, and *"should be left with last 8 sessions/reels"*.
+
+⚠⚠ **THE REEL RIVER WAS ALREADY FINISHED, AND NOBODY COULD SEE IT.** Measured: 20 reels on disk,
+**`ROUTED 20`** — which `reel_router`'s own note calls *"the REAL tombstone"* — and **`TOMBSTONE 0`**,
+meaning none have LEFT THE DISK. That zero is **correct**: the 20 are 8 he asked to keep + 9 the
+test suite pins + 3 still held, and retention refuses all three groups for stated reasons. There
+was nothing left for the reel planner to release.
+
+His shelf nevertheless showed **419 rows**, because the shelf lists JOURNAL sessions and **a row
+outlives its film**:
+
+    2,893 journaled · 2,474 hidden as empty · 419 shown · 20 reels on disk
+
+⚠ **A journal prune genuinely did not exist** — verified by BEHAVIOUR, not by name, after v3082's
+lesson. `river.j_prune()` sounds like it and is a river JOINT PROBE over reels; it calls
+`reel_retention.plan()`. Nothing pruned rows.
+
+**`tv/journal_retention.py`** — `plan()` classifies every row and **writes nothing**, mirroring
+`reel_retention.plan()`'s own contract word for word.
+
+    446    RELEASABLE  footageState "retired" — the retention lane's OWN proof that the film gave
+                       up its information BEFORE it went
+    2,325  held        footageState "unknown" — no film AND no retention record
+       89  held        no session id: neither dateable nor matchable to film
+       15  held        the TEST SUITE opens the reel by name
+        8  held        the newest 8, whatever their state
+        4  held        the reel still holds film on disk
+        1  held        cannot be dated
+
+⚠⚠ **"UNKNOWN" IS NOT "EXTRACTED", AND THAT IS THE WHOLE LAW.** 2,325 rows say `unknown`, which is
+an absence of evidence in BOTH directions. Treating it as permission would delete his history on
+the strength of a blank. Only `retired` counts, because the retention lane produces that state
+itself. [[unknown-stays-unknown]]
+
+⚠ **KEEP_RECENT is IMPORTED from `reel_retention`, never re-typed** — two copies of a retention
+floor is how the two halves of one river start disagreeing. [[copy-drift]]
+
+⚠ **THE PLANNER IS PARSED TO PROVE IT CANNOT WRITE**: no open-for-write, no `remove`, `rename`,
+`rmtree`, `unlink` or `truncate` anywhere in the module. A journal row is his record of a night he
+played and there is no un-delete; the apply half is a separate decision and it is HIS.
+
+Gate: `test_a_journal_row_leaves_only_on_proof` (351 registered), both red-proofs PROVEN, 1 match
+each — one makes `unknown` releasable, one removes the newest-8 protection.
+
 ## REG-995 — the console showed him 9 reels that exist only for the test suite (task #89 — v3083)
 
 **His words, 2026-09-13:** *"9 test fixtured hid compeltely its only for backend and for the ai to

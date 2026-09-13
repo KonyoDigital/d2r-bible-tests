@@ -2422,6 +2422,21 @@ GATES = [
              "the reel RELEASED (panels_never_banked True -> False). The footage was held by a "
              "transient call for as long as nobody could see the difference. Recorded ONCE like "
              "_pix_err, never per frame."),
+    Gate("test_a_journal_row_leaves_only_on_proof",
+         [sys.executable, os.path.join(HERE, "test_a_journal_row_leaves_only_on_proof.py")], 120,
+         why="A JOURNAL ROW MAY LEAVE ONLY ON A PROOF OF EXTRACTION, AND THE PLANNER MAY NEVER "
+             "WRITE. He asked for the river to end in tombstone then deletion 'after being "
+             "extracted' - that last clause is the whole law, and there is no un-delete. MEASURED: "
+             "the REEL river is already finished (20 on disk, ROUTED 20 which the router calls the "
+             "REAL tombstone, TOMBSTONE 0 meaning none have left the disk - correct, since the 20 "
+             "are 8 he keeps + 9 the suite pins + 3 held). His shelf still shows 419 rows because "
+             "it lists JOURNAL sessions and a row outlives its film. plan() reports 446 releasable "
+             "on a `retired` state - the retention lane's own proof that the film gave up its "
+             "information first - and holds 2,325 that say `unknown`, which is no film AND no "
+             "retention record: an absence of evidence in BOTH directions, never permission. Also "
+             "held: the newest 8 whatever their state, rows a test pins by name, rows whose reel "
+             "still has film, and rows that cannot be dated. The planner is PARSED to prove it "
+             "cannot write - no open-for-write, no remove, rename or rmtree anywhere in it."),
     Gate("test_a_card_with_no_film_says_so",
          [sys.executable, os.path.join(HERE, "test_a_card_with_no_film_says_so.py")], 120,
          why="A CARD WITH NO FILM MUST SAY SO, IN WORDS. MEASURED by GROKBOT on his live console "
