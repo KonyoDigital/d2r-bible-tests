@@ -22734,6 +22734,7 @@ def vault_apply(proposal=None):
     # Grok's third-eye pass on v1594 flagged exactly this, and it was right.
     caller_supplied = proposal is not None
     prop = proposal or (st.get("result") if isinstance(st.get("result"), dict) else None)
+    _gated = None        # set to the JUDGED rows on the caller-supplied path; see v3066 below
     if caller_supplied and isinstance(prop, dict):
         try:
             _vr = _vault_retro()
@@ -22757,12 +22758,33 @@ def vault_apply(proposal=None):
             # "latent" is exactly what `vault-owes` was called while it starved 29 reels.
             # ⚠ The third attack (evidence as a string instead of a list) was REFUTED: the gate
             # already refuses it. Recorded so nobody re-derives it. [[sweep-dont-ask]]
-            _kept, _dropped = [], []
+            # ⚠⚠ v3066 — THE GATE JUDGED ONE READ AND THE WRITE TOOK ANOTHER. Found by handing
+            # this function COLD to a different model family, the same method that found the
+            # `unsure` hole in v2641. It returned working payloads:
+            #
+            #     class FlipList(list):
+            #         def __iter__(self):          # first pass: a corroborated decoy
+            #             ...                      # every later pass: the real, evidence-less row
+            #     prop = {"owned": FlipList([{...  "evidence": []}]), ...}
+            #
+            # and the same idea as a dict subclass whose `get("owned")` answers differently each
+            # call. The gate below walked `prop.get(_which)` and saw clean rows; the payload was
+            # then built from a SECOND read of `prop`, and `_kept` — the rows actually approved —
+            # was computed and thrown away. Its verdict: *"Killing this means writing `_kept`, not
+            # re-walking `owned`."* It is right, and that is what this now does.
+            #
+            # ⚠ IN-PROCESS ONLY, AND SAYING SO PRECISELY MATTERS: `json.loads` cannot build a
+            # lying container, so a POSTed body could never carry one. This is not a report of an
+            # exposure. But the whole stated point of this re-gate is that "the gate has to hold
+            # where the WRITE happens", and a gate whose verdict is discarded one line later does
+            # not hold anywhere. Same shape as v3063's two-reads-of-one-file, one level up.
+            # [[the-unjoined-end]] [[label-outlived-referent]]
+            _kept, _dropped = {"owned": [], "unsure": []}, []
             for _which in ("owned", "unsure"):
-                for _r in (prop.get(_which) or []):
+                for _r in list(prop.get(_which) or []):
                     _ev = _r.get("evidence") or _r.get("witnesses") or []
                     _v = _vr.gate(_ev, _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES)
-                    (_kept if _v.get("pass") else _dropped).append(_r)
+                    (_kept[_which] if _v.get("pass") else _dropped).append(_r)
             if _dropped:
                 return {"ok": False,
                         "why": "%d row(s) in that proposal do not clear the gate (%s conf, %s "
@@ -22770,13 +22792,19 @@ def vault_apply(proposal=None):
                                "because the gate has to hold where the WRITE happens"
                                % (len(_dropped), _vr.KEEP_CONF_FLOOR, _vr.KEEP_MIN_WITNESSES),
                         "rejected": [str(_r.get("name") or "?") for _r in _dropped][:20]}
+            # THE SNAPSHOT THE REST OF THIS FUNCTION USES. A plain dict of plain lists, taken at
+            # the moment of judgement, so no later read can be answered by something else.
+            _gated = {"owned": list(_kept["owned"]), "unsure": list(_kept["unsure"]),
+                      "throwOut": list(prop.get("throwOut") or [])}
         except Exception as _e:
             return {"ok": False, "why": "could not re-gate the supplied proposal: %s" % str(_e)[:120]}
     if not prop:
         return {"ok": False, "why": "no vault sweep result to apply — run a sweep first"}
-    owned = prop.get("owned") or []
-    unsure = prop.get("unsure") or []
-    throw = prop.get("throwOut") or []
+    # ⚠ THE ROWS THAT WERE JUDGED, NOT A FRESH READ. `_gated` is set only on the caller-supplied
+    # path; a sweep result was already gated when it was built and is read from here as before.
+    owned = _gated["owned"] if _gated is not None else (prop.get("owned") or [])
+    unsure = _gated["unsure"] if _gated is not None else (prop.get("unsure") or [])
+    throw = _gated["throwOut"] if _gated is not None else (prop.get("throwOut") or [])
     if not owned and not unsure and not throw:
         return {"ok": False, "why": "the sweep grounded nothing — there is nothing to apply"}
     if not owned and not unsure:
@@ -22798,7 +22826,10 @@ def vault_apply(proposal=None):
     # there and never registered. It is deliberately NOT filtered here as well: filtering in two
     # places is how two places drift, and the board is the one that owns the rule.
     try:
-        shaped = _vault_retro().apply_payload(prop)
+        # ⚠ SHAPED FROM THE SNAPSHOT TOO — a third read of `prop` would reopen the same door
+        # from a different side.
+        shaped = _vault_retro().apply_payload(
+            dict(prop, **_gated) if _gated is not None else prop)
     except Exception as e:
         return {"ok": False, "why": "could not shape the proposal: %s" % str(e)[:160]}
     payload = json.dumps(dict(shaped, owned=owned, unsure=unsure, throwOut=throw,
@@ -27286,7 +27317,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3065",
+        "ver": "v3066",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

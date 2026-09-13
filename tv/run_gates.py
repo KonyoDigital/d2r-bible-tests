@@ -2380,6 +2380,17 @@ GATES = [
              "gaining a destructive call (parsed as CALLS, since its prose says delete and retire "
              "repeatedly), `apply` ceasing to default dry, a fixed point reported as success, and "
              "the two excluded rules dropped silently instead of named with their reason."),
+    Gate("test_the_vault_writes_only_what_the_gate_judged",
+         [sys.executable, os.path.join(HERE, "test_the_vault_writes_only_what_the_gate_judged.py")], 120,
+         why="THE VAULT WRITES ONLY THE ROWS THE GATE ACTUALLY JUDGED. Found by handing "
+             "vault_apply COLD to a different model family - the method that found the `unsure` "
+             "hole in v2641. The re-gate collected _kept and _dropped, refused on _dropped, then "
+             "THREW _kept AWAY and built the payload from a SECOND read of the proposal (and a "
+             "THIRD via apply_payload). A list subclass with a lying __iter__, or a dict subclass "
+             "whose get() is not a snapshot, answered the gate with a corroborated decoy and the "
+             "write with an evidence-less row. In-process only - json.loads cannot build a lying "
+             "container - but this re-gate exists because 'the gate has to hold where the WRITE "
+             "happens', and a verdict discarded one line later holds nowhere."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

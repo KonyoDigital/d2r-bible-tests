@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3065",
+  "ver": "v3066",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3065: real reels driven down the river and watched: it converged in two cycles with nothing moving, 0 candidates to release, and seven gap rules still never fired including eligible - the measurement behind the vault never having worked",
+  "note": "v3066: the re-gate collected the approved rows then threw them away and built the payload from a second read of the proposal, so a container answering the gate and the write differently landed an uncorroborated row - found by handing the function cold to another model family",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
