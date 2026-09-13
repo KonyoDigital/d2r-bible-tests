@@ -536,6 +536,21 @@ def check_self_arming():
     inert = [l for l in locks if l.get("state") == SA.LOCKED]
     unproven = [l for l in locks if l.get("state") == SA.UNPROVEN]
     opened = [l for l in locks if l.get("state") == SA.OPEN]
+    # ⚠⚠ v3093 — THE TALLY IS COMPUTED BEFORE THE BRANCHES, BECAUSE IT USED TO REACH ONLY ONE.
+    # `k=tot_k, n=tot_n` were passed on the OK return and on NEITHER of the others. So the moment a
+    # lock actually went inert — the finding this check exists to make — the row lost its proofK,
+    # its proofN and its score entirely, and `_row` computes the Wilson number only when `n` is not
+    # None. MEASURED on his live console: health_engine's selfArming row was `warn` and carried NO
+    # k, NO n and NO score key at all, while heart.vessels() reported FLOWING: None with the reason
+    # "no organ row carries a score for any watcher". The scorer was alive and only ever ran on the
+    # happy path.
+    #
+    # The proof history does not depend on the verdict. A lock that was sabotaged forty times and
+    # refused thirty-eight has that history whether today's answer is OK, WARN or UNKNOWN, and the
+    # heart needs it most precisely when something is wrong. [[the-unjoined-end]]
+    # [[zero-needs-a-denominator]]
+    tot_k = sum(int(l.get("k") or 0) for l in locks)
+    tot_n = sum(int(l.get("n") or 0) for l in locks)
     if inert:
         # tested, and could not refuse. THAT is the finding — a guard that cannot say no.
         worst = inert[0]
@@ -543,12 +558,9 @@ def check_self_arming():
              + [e for e in ev if not e.startswith("%s:" % worst.get("lock"))]
         return _row("selfArming", WARN,
                     "%d lock(s) were sabotaged and did not refuse — %s"
-                    % (len(inert), worst.get("lock")), ev,
+                    % (len(inert), worst.get("lock")), ev, k=tot_k, n=tot_n,
                     surfaces=[l.get("lock") for l in locks if l.get("lock")])
-    # the heart scores this row from the SAME proof queue the locks read — one denominator,
-    # not a second tally that could drift from the first
-    tot_k = sum(int(l.get("k") or 0) for l in locks)
-    tot_n = sum(int(l.get("n") or 0) for l in locks)
+
     # ⚠ DERIVED, NOT DECLARED: the surfaces are the locks this row actually judged, taken from
     # the same list its evidence is built from. A declaration beside the function could drift
     # from what it reads; this cannot.

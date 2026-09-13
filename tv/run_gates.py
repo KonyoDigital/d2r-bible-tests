@@ -2437,6 +2437,26 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_a_proof_history_survives_its_verdict",
+         [sys.executable, os.path.join(HERE, "test_a_proof_history_survives_its_verdict.py")], 180,
+         why="A CHECK'S PROOF HISTORY MUST REACH EVERY BRANCH, AND A VESSEL MUST INHERIT ITS "
+             "WATCHER'S SCORE. Two breaks found together, both the shape this tree keeps making: "
+             "built at both ends, joined on one path only. (1) _row computes the Wilson number "
+             "from k/n in ONE place, correctly - and check_self_arming passed them on its OK "
+             "return and NEITHER other. So the moment a lock went inert, which is the finding that "
+             "check exists to make, the row lost proofK, proofN and score entirely. MEASURED on "
+             "his live console: the selfArming row was state=warn and carried no k, no n and no "
+             "score KEY AT ALL, hiding 564 sabotages of evidence exactly when something was wrong; "
+             "after the fix proofK=556 proofN=564 score=0.9723. A proof history does not depend on "
+             "today's verdict. (2) heart.vessels() asked `scored.get(watcher)` where watcher is a "
+             "LANE name from the census, while `scored` was keyed ONLY on organ ids - lanes, "
+             "readers, selfArming, board_join, laneLiveness. The intersection of those two "
+             "vocabularies is EMPTY, so FLOWING was unreachable by any path for any vessel, ever. "
+             "Keying by each organ's own `surfaces` bridges it: 20 surfaces now resolve to a proven "
+             "score where none did. ⚠ FLOWING is STILL None and that is now the TRUE answer - the "
+             "20 vessels are watched by laneLiveness, which nobody has ever sabotaged, so it is "
+             "UNPROVEN (work owed) and must never be drawn as 0.0, which would mean tested and "
+             "never refused."),
     Gate("test_the_blueprint_names_the_engine",
          [sys.executable, os.path.join(HERE, "test_the_blueprint_names_the_engine.py")], 180,
          why="BLUEPRINT.md MUST NAME EVERY MODULE, AND A CONCEPT MUST FIND ITS OWNER IN ONE GREP. "

@@ -242,7 +242,29 @@ def vessels():
         if not isinstance(r, dict):
             continue
         s = r.get("score")
-        scored[str(r.get("id") or "")] = s if isinstance(s, (int, float)) else None
+        s = s if isinstance(s, (int, float)) else None
+        scored[str(r.get("id") or "")] = s
+        # ⚠⚠ v3093 — AND KEY IT BY WHAT THE ORGAN WATCHES, not only by the organ's own name.
+        # The lookup below is `scored.get(watcher)` where `watcher` is a LANE name from the census
+        # (_drift_loop, _orphan_watch, ...). This dict was keyed ONLY on the organ rows' own ids —
+        # lanes, readers, selfArming, board_join, laneLiveness. MEASURED: the intersection of those
+        # two vocabularies is EMPTY, so the lookup returned None for every vessel that exists and
+        # FLOWING could never be reached by any path. heart.vessels() said FLOWING: None with the
+        # reason "no organ row carries a score for any watcher" — which was true, and true for a
+        # reason no reader could see from either side. [[the-unjoined-end]]
+        #
+        # Every organ row already answers "what do you watch" in `surfaces` (derived, per _row's
+        # own note, so it cannot drift from what the row judged). That IS the bridge: a vessel
+        # inherits the score of the organ that names it. Where two organs name the same surface the
+        # HIGHEST proven score wins — a surface is as proven as its best-proven watcher, and taking
+        # the lowest would let one unproven organ erase another's earned evidence.
+        for _surf in (r.get("surfaces") or []):
+            _k = str(_surf or "")
+            if not _k:
+                continue
+            _prev = scored.get(_k)
+            if _k not in scored or (s is not None and (_prev is None or s > _prev)):
+                scored[_k] = s
 
     # ⚠⚠ CAN A VESSEL EVER BECOME FLOWING? ASK BEFORE TELLING HIM WORK IS OWED.
     # `scored` is keyed on the organ rows' OWN ids — lanes, readers, selfArming, board_join — and

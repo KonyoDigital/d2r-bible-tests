@@ -32378,6 +32378,61 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+
+## REG-1004 — THE SCORER ONLY RAN WHEN NOTHING WAS WRONG, AND FLOWING ASKED IN A DEAD LANGUAGE
+
+**v3093.** Tasks #68/#80 say *"0 of 58 surfaces have all four organs; FLOWING stuck at 0 by a
+vocabulary gap"*. Measured, **all three claims are wrong**, and two of them in ways worth keeping.
+
+| the task says | measured |
+|---|---|
+| 0 of 58 have all four organs | **13 of 58.** The `0` is what the matrix reads **when the console is down** — reproduced exactly by stubbing `_ask_live_eagle` to "console not running" |
+| — | 232 cells: **108 covered · 124 absent · 0 unknown** |
+| FLOWING stuck at **0** | FLOWING is **`None`** — UNMEASURED, which is the opposite fact from zero |
+
+⚠ **And `all four` is itself an overstatement: EAGLE AND DOCTOR ARE THE SAME ORGAN.** Both name 82
+things, the sets are equal (eagle-only `[]`, doctor-only `[]`), and both cover the identical 22
+surfaces. Three independent witnesses and one duplicate are being counted as four.
+[[label-outlived-referent]]
+
+### Break 1 — a proof history that vanished on a bad verdict
+
+`_row` computes the Wilson number from `k`/`n` in ONE place, correctly. `check_self_arming` passed
+them **on its OK return and on neither other**. So the moment a lock actually went inert — the
+finding that check exists to make — the row lost `proofK`, `proofN` and `score` entirely, because
+`_row` only scores when `n is not None`.
+
+    BEFORE   selfArming: state=warn   (no k, no n, no score key at all)
+    AFTER    selfArming: state=warn   proofK=556  proofN=564  score=0.9723
+
+**Five hundred and sixty-four sabotages of evidence, invisible precisely when something was wrong.**
+A proof history does not depend on today's verdict, and the heart needs it MOST when the answer is
+not OK. [[the-unjoined-end]]
+
+### Break 2 — the lookup asked in a vocabulary nothing answered in
+
+`heart.vessels()` asks `scored.get(watcher)` where `watcher` is a LANE name from the census
+(`_drift_loop`, `_orphan_watch`, …). `scored` was keyed **only** on organ ids — `lanes`, `readers`,
+`selfArming`, `board_join`, `laneLiveness`. **The intersection of those two vocabularies is EMPTY**,
+so FLOWING was unreachable by any path, for any vessel, ever — and the reason was invisible from
+either side.
+
+Every organ row already answers *"what do you watch"* in `surfaces`. Keying by that too is the
+bridge: **20 surfaces now resolve to a proven score where none did before.**
+
+### ⚠ FLOWING IS STILL `None`, AND THAT IS NOW THE TRUE ANSWER
+
+The 20 vessels are watched by `laneLiveness`, which carries no score because **nobody has ever
+sabotaged the lane-liveness organ**. That is UNPROVEN — work owed — and it must never be drawn as
+`0.0`, which means *tested and never refused*. The wiring is no longer what stops it.
+[[unknown-stays-unknown]]
+
+**Law:** `tv/test_a_proof_history_survives_its_verdict.py`, 4 tests, registered (**356 gates**). The
+rule it pins is "every return that HAS a proof queue must carry it", not a count threshold — the
+three UNKNOWN returns fire before `locks` is bound and genuinely have nothing to tally, and a
+count-based rule would have let a real verdict branch go naked the moment a fourth UNKNOWN path
+appeared. Red-proof: **2 sabotages, both PROVEN, 1 match each.**
+
 ## REG-1002 — THE CONSOLE'S OWN GUESS WAS REFUSING EVERY GROK READ, AND ONE LANE'S METER HID IT
 
 **v3092.** His screen, on the Tools panel: *"96 reads this hour of 4000 (2.4%) · 96 today of 20000 —
