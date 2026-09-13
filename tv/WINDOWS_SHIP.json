@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3063",
+  "ver": "v3064",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3063: the cross-family eye found two real defects in the shipped v3058 - the stamp was hashed from a separate read so a save mid-request could stamp bytes that were never served, and mixing the version into the signature made a version-only bump report a current window as stale",
+  "note": "v3064: the shelf lane header printed 8 REELS from a count of visible cards while the river strip four inches above printed 4 from the routers own reel count - 425 cards against 16 reels, two populations under one word; the number was never wrong, only the noun",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -16511,8 +16511,27 @@ window._lockMark = function(isOpen, px, label){
               for (var _lk = 0; _lk < _lst.length; _lk++){
                 _lc += ((byStation[_lst[_lk]] || []).length);
               }
+              /* ⚠⚠ v3064 — THIS COUNTED CARDS AND CALLED THEM REELS, ON A SCREEN THAT ALSO
+                 PRINTS A REAL REEL COUNT. `byStation` here is built from `vis` — the VISIBLE
+                 CARDS — at :16271, so `_lc` is a tally of session rows. The river strip four
+                 inches above it prints the lane's REELS from /api/river's own byStation.
+
+                 MEASURED on his console 2026-09-13, the same lane, the same second:
+                     shelf lane header   INTAKE  8 REELS      <- 8 cards
+                     river strip         1 INTAKE  4          <- 4 reels
+                     whole shelf         425 cards            16 reels on the shelf
+                 The two populations differ by 26x and one word covered both.
+
+                 ⚠ THE FIX IS THE NOUN, NOT THE NUMBER. 8 is the correct count of cards in that
+                 lane; it was never a wrong measurement, only a wrong label — the same shape as
+                 `stash x19` counting frames and `frames` counting journal rows. Say RUN, which
+                 is what a card is everywhere else on this shelf ("2,468 empty runs — hidden",
+                 "425 of 425"), and the reel figure keeps its own word on the strip that owns it.
+                 [[label-outlived-referent]] [[zero-needs-a-denominator]] */
               _lh.innerHTML = '<span class="shg-lab">' + esc(String(_ln.name || '')) + '</span>'
-                + '<span class="shg-n">' + _lc + ' reel' + (_lc === 1 ? '' : 's') + '</span>'
+                + '<span class="shg-n" title="runs on the shelf stationed in this lane — the '
+                + 'river strip above counts REELS, which is a different population">'
+                + _lc + ' run' + (_lc === 1 ? '' : 's') + '</span>'
                 /* v3047 — the WHOLE sentence rides as a title, because the visible line is
                    clamped to one. Clamping the box must never make a word unreachable. */
                 + (_ln.why ? '<span class="shg-lanewhy" title="' + esc(String(_ln.why)) + '">'

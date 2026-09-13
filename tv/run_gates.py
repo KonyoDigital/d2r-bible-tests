@@ -2358,6 +2358,17 @@ GATES = [
              ":has(#th-shelfov:not([hidden])) rather than a hand-set class, because the shelf is "
              "opened from several call sites and a class would drift invisibly on the one "
              "somebody forgot."),
+    Gate("test_a_lane_count_names_the_population_it_counted",
+         [sys.executable, os.path.join(HERE, "test_a_lane_count_names_the_population_it_counted.py")], 120,
+         why="A LANE COUNT MUST NAME WHAT IT COUNTED. Measured on his console, same lane, same "
+             "second: the shelf lane header printed 'INTAKE 8 REELS' from a count of visible "
+             "CARDS while the river strip four inches above printed 'INTAKE 4' from /api/river's "
+             "REELS - 425 cards against 16 reels, two populations 26x apart under one word. The "
+             "NUMBER was never wrong, only the noun, the same shape as 'stash x19' counting "
+             "frames and 'frames' counting journal rows. RUN is already this shelf's word for a "
+             "card ('2,468 empty runs', 'Search runs'), so the rename removes a vocabulary rather "
+             "than adding one. Also pins that the river strip's own reel phrase SURVIVES - that "
+             "surface is correct and v2822 already fixed its denominators."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

@@ -3033,7 +3033,9 @@ def _check_the_window_runs_the_document_on_disk():
                          "when it beat. UNKNOWN, which is not the same as in step")
     # ⚠ COMPARE AGAINST THE FILE NOW, NOT AGAINST A VERSION LABEL. control_ui.html is not one of
     # the four surfaces bump_version stamps, so a version alone cannot tell a saved edit from no
-    # edit. doc_signature() is version + hash of the bytes, and it is what the server stamped into
+    # edit. doc_signature() is the hash of the served BYTES — v3063 dropped the version from it, so
+    # a version-only bump cannot false-alarm a window that is current — and it is what the
+    # server stamped into
     # the document it handed this window.
     try:
         import control_app as _ca

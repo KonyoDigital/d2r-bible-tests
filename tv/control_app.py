@@ -27286,7 +27286,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3063",
+        "ver": "v3064",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28258,8 +28258,13 @@ def doc_signature(path=None, body=None):
 
     ⚠⚠ THE BYTES, NOT THE LABEL — for the reason `_PROC_SRC_SHA` gives a few hundred lines up.
     control_ui.html is NOT one of the four surfaces bump_version stamps, and he execs the working
-    tree, so the version alone cannot tell a saved edit from no edit at all. A version PLUS a hash
-    of the served bytes changes on every save, stamped or not.
+    tree, so the version alone cannot tell a saved edit from no edit at all. The hash of the served
+    bytes changes on every save, stamped or not.
+
+    ⚠ v3063 DROPPED THE VERSION FROM THIS STRING and the cross-family eye caught the prose still
+    claiming otherwise — "stale prose still says version PLUS a hash ... leftover commentary, not a
+    failing scenario". It was right that nothing splits on `+` so nothing breaks; it is corrected
+    anyway, because a comment that contradicts its code is what makes the next reader wrong.
 
     None, never a sentinel, when the file cannot be read — two Nones must never compare equal.
     [[unknown-stays-unknown]]
