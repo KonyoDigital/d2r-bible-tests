@@ -22475,6 +22475,12 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 if isinstance(_w, dict) and _w.get("session"):
                     _k = str(_w["session"])
                     _rows_by_sess[_k] = _rows_by_sess.get(_k, 0) + 1
+        # v3074 — HOIST THE DEFINITIVE TEST ABOVE THE SPLIT. It was computed only inside the
+        # `else:` below, so it could answer for a pass that grounded NOTHING and never for the
+        # non-contributing sessions of a pass that grounded SOMETHING. Its four inputs are all
+        # set at 22060-22063 and nothing between here and the old call site reassigns or mutates
+        # them, so hoisting cannot change the verdict it already gave. [[the-unjoined-end]]
+        _definitive = vault_seal_is_definitive(_read_ok[0], _reconciled, _over_read, _pix_err)
         if _rows:
             # v2002 — RECORD WHICH READER SEALED IT. {"ts": ...} alone cannot answer "is this
             # verdict still current", which is why a vault seal used to be permanent.
@@ -22492,13 +22498,38 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 # REFUSED by seal_releases_frames. So a non-contributing session is HELD rather than
                 # released, which is the direction that keeps his footage.
                 _srows = int(_rows_by_sess.get(str(sess), 0))
-                _ex, _exwhy = _seal_extracted(_srows)
-                swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": _srows,
-                                    "promptVer": _pv, "agentVer": _av,
-                                    # what the PASS produced, kept beside the per-session figure so
-                                    # a reader can see both rather than inferring one from the other
-                                    "passRows": int(_rows),
-                                    "extracted": _ex, "extractedWhy": _exwhy}   # v2305
+                # ⚠⚠ v3074 — A NON-CONTRIBUTING SESSION IS NOT AN UNEXAMINED ONE, AND TREATING IT
+                # AS ONE HELD HIS FOOTAGE FOREVER. This sealed rows=0 with no record of what had
+                # been looked at, so seal_verdict scored it EMPTY and seal_releases_frames refused
+                # it — permanently, since no later run re-reads a sealed reel.
+                #
+                # MEASURED 2026-09-13: all 8 reels stuck on `panels-never-banked` were sealed
+                # exactly here — 1 to 10 panels each, every frame read AND cross-checked, one of
+                # them a Shared stash page 5/5 carrying ~25 items. They ground no rows because a
+                # stash GRID prints no names at all (only the hover tooltip does), which
+                # `vault_seal_is_definitive` already rules a COMPLETE answer rather than a failure.
+                #
+                # The asymmetry is the defect: that same reel swept ALONE took the `else:` branch,
+                # sealed definitive, and could release. Swept beside ONE productive session it fell
+                # here and was held. Same footage, same reader, opposite fate — decided entirely by
+                # which neighbour it happened to be swept with.
+                #
+                # Only `_definitive` may unlock this, so every refusal it already makes is kept:
+                # a failed read, a pixel error, an over-read, or any panel whose verdict is not
+                # under-read/agree still holds the reel. UNKNOWN STILL KEEPS THE FOOTAGE.
+                _examined = bool(_srows == 0 and _definitive)
+                _ex, _exwhy = _seal_extracted(_srows, examined_empty=_examined)
+                _rec = {"ts": int(time.time() * 1000), "rows": _srows,
+                        "promptVer": _pv, "agentVer": _av,
+                        # what the PASS produced, kept beside the per-session figure so
+                        # a reader can see both rather than inferring one from the other
+                        "passRows": int(_rows),
+                        "extracted": _ex, "extractedWhy": _exwhy}   # v2305
+                if _examined:
+                    _rec["examinedEmpty"] = True
+                    _rec["why"] = ("read %d panel(s), every one cross-checked, no name to be had"
+                                   % _read_ok[0])
+                swept[str(sess)] = _rec
             _seal_pending = True          # v2060 — persisted only after the ledger is down
         else:
             # ── v2003 — A COMPLETE ANSWER MAY SEAL; AN INCOMPLETE ONE MAY NOT ────────────────
@@ -22545,7 +22576,8 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                     _canary = False
                     print("   \u26a0 the liveness probe itself failed (%s) — refusing to seal on "
                           "an unproven lane" % str(_ce)[:70], flush=True)
-            _definitive = vault_seal_is_definitive(_read_ok[0], _reconciled, _over_read, _pix_err)
+            # v3074 — _definitive is computed once above the split; recomputing it here is
+            # how the two branches would silently drift apart.
             if _definitive:
                 _pv = _av = ""
                 try:
@@ -27377,7 +27409,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3073",
+        "ver": "v3074",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -2391,6 +2391,22 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_an_examined_panel_is_not_an_unread_one",
+         [sys.executable, os.path.join(HERE, "test_an_examined_panel_is_not_an_unread_one.py")], 120,
+         why="A PANEL THAT WAS READ AND HELD NO NAMES IS NOT A PANEL NOBODY READ. The river could "
+             "not drain and `eligible` had NEVER fired once: 8 reels sat on panels-never-banked, "
+             "and the rule holding them asked only whether the survey saw panels and whether the "
+             "reel was in the durable stores - never consulting the seal, though its own comment "
+             "says it exists for 'the state a seal-with-no-rows leaves behind'. A reel whose "
+             "panels carry no readable NAME can never enter those stores, so the answer was True "
+             "forever. Those panels are unreadable CORRECTLY: a stash GRID prints no names at "
+             "all, only the hover tooltip does, and one of the eight is a Shared stash page 5/5 "
+             "with ~25 items on screen. The asymmetry was the defect - the examined_empty flag "
+             "was reachable only from the branch taken when a pass grounded NOTHING, so the same "
+             "reel released when swept alone and was held forever when swept beside one "
+             "productive neighbour. Only frame_authority.seal_releases_frames may lift the hold; "
+             "a default 'nothing was taken' seal and an unreadable store both still KEEP the "
+             "footage, because there is no un-delete."),
     Gate("test_a_loop_that_ticks_must_leave_a_trace",
          [sys.executable, os.path.join(HERE, "test_a_loop_that_ticks_must_leave_a_trace.py")], 120,
          why="A LOOP THAT CLAIMS TO RUN MUST HAVE LEFT SOMETHING BEHIND. Ten surfaces sat at 3 of "

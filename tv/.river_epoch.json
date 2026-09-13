@@ -13,7 +13,6 @@
    },
    "why": "0 retired reel(s) still carry panel frames with no vault row and WOULD BE sent back to the top of the lane; 0 were left retired because they are no longer holding unextracted panels.",
    "neverFired": [
-    "eligible",
     "holds-proof",
     "never-chronicle-swept",
     "no-witness-index",
@@ -35,7 +34,6 @@
    },
    "why": "0 retired reel(s) still carry panel frames with no vault row and WOULD BE sent back to the top of the lane; 0 were left retired because they are no longer holding unextracted panels.",
    "neverFired": [
-    "eligible",
     "holds-proof",
     "never-chronicle-swept",
     "no-witness-index",
@@ -53,14 +51,13 @@
   "recent": 8,
   "never-chronicle-swept": 0,
   "zero-pages": 0,
-  "panels-never-banked": 8,
+  "panels-never-banked": 7,
   "rows-not-banked": 0,
   "vault-owes": 0,
   "target-met": 0,
-  "eligible": 0
+  "eligible": 1
  },
  "targetRules": [
-  "eligible",
   "holds-proof",
   "never-chronicle-swept",
   "no-witness-index",
@@ -80,13 +77,14 @@
   "ok": true,
   "why": "",
   "stations": {
-   "releasable": 16,
-   "banked": 8
+   "releasable": 17,
+   "banked": 7
   },
   "tags": {
    "recent": 8,
-   "panels-never-banked": 8,
-   "test-fixture": 8
+   "panels-never-banked": 7,
+   "test-fixture": 8,
+   "eligible": 1
   },
   "rules": {
    "no-witness-index": 0,
@@ -96,11 +94,11 @@
    "recent": 8,
    "never-chronicle-swept": 0,
    "zero-pages": 0,
-   "panels-never-banked": 8,
+   "panels-never-banked": 7,
    "rows-not-banked": 0,
    "vault-owes": 0,
    "target-met": 0,
-   "eligible": 0
+   "eligible": 1
   },
   "onDisk": 24,
   "order": [
@@ -111,20 +109,21 @@
    "vault-done",
    "releasable"
   ],
-  "candidates": 0,
-  "say": "NOTHING is safe to delete yet — and that is an answer, not a failure. every reel is recent, unread, or still owed to a lane."
+  "candidates": 1,
+  "say": "1 reel(s) may go, freeing 10 MB"
  },
  "last": {
   "ok": true,
   "why": "",
   "stations": {
-   "releasable": 16,
-   "banked": 8
+   "releasable": 17,
+   "banked": 7
   },
   "tags": {
    "recent": 8,
-   "panels-never-banked": 8,
-   "test-fixture": 8
+   "panels-never-banked": 7,
+   "test-fixture": 8,
+   "eligible": 1
   },
   "rules": {
    "no-witness-index": 0,
@@ -134,11 +133,11 @@
    "recent": 8,
    "never-chronicle-swept": 0,
    "zero-pages": 0,
-   "panels-never-banked": 8,
+   "panels-never-banked": 7,
    "rows-not-banked": 0,
    "vault-owes": 0,
    "target-met": 0,
-   "eligible": 0
+   "eligible": 1
   },
   "onDisk": 24,
   "order": [
@@ -149,12 +148,11 @@
    "vault-done",
    "releasable"
   ],
-  "candidates": 0,
-  "say": "NOTHING is safe to delete yet — and that is an answer, not a failure. every reel is recent, unread, or still owed to a lane."
+  "candidates": 1,
+  "say": "1 reel(s) may go, freeing 10 MB"
  },
  "fired": [],
  "stillNeverFired": [
-  "eligible",
   "holds-proof",
   "never-chronicle-swept",
   "no-witness-index",

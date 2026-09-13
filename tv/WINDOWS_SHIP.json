@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3073",
+  "ver": "v3074",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3073: the lock evidence organ painted eight locks covered without asking whether any evidence was readable - three had none at all - and it can only read harnesses that declare a module level CLAIMS, which are exactly the sources that cannot inflate",
+  "note": "v3074: ",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

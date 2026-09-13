@@ -288,6 +288,34 @@ def _panels_never_banked(reel):
             return False                  # not surveyed -> _proven_empty/never-swept rules apply
         if int(rec.get("panels") or 0) <= 0:
             return False                  # genuinely no panels -> nothing to bank -> may retire
+        # ⚠⚠ v3074 — PANELS THAT HOLD NO NAMES ARE NOT PANELS NOBODY READ, AND CONFLATING THEM
+        # MADE THIS RULE A PERMANENT HOLD. This asked only "are there panels, and is the reel in
+        # the durable stores", and a reel whose panels carry no readable NAME can never enter
+        # those stores — so the answer was True forever and no future run could change it. The
+        # rule's own comment says it exists for "the state a seal-with-no-rows leaves behind",
+        # and it never once consulted that seal. [[the-unjoined-end]]
+        #
+        # MEASURED 2026-09-13: this held all 8 reels the river could not drain. One of them is a
+        # Shared stash page 5/5 with ~25 items on screen — genuinely full, and genuinely
+        # unnameable, because a stash GRID prints no names at all; only the hover tooltip does.
+        # The vault reader returning items:[] there is CORRECT, which vault_seal_is_definitive
+        # already rules a complete answer rather than a failure.
+        #
+        # The authority is frame_authority's, not a second opinion invented here:
+        # seal_releases_frames says yes ONLY for a COVERED seal, or an EMPTY one that carries
+        # examinedEmpty — the flag v3074 writes when every panel was read AND cross-checked with
+        # no pixel error and no over-read. A default "nothing was taken" seal still returns False.
+        try:
+            import frame_authority as _fa
+            _seals, _sok = _fa.sealed_sessions()
+            if _sok:
+                _row = _seals.get(reel) or _seals.get(str(reel).replace("reel_", "", 1))
+                if isinstance(_row, dict):
+                    _releases, _ = _fa.seal_releases_frames(_row)
+                    if _releases:
+                        return False      # examined, cross-checked, no name to be had
+        except Exception:
+            pass                          # UNKNOWN KEEPS THE REEL — fall through and hold
         return _reel_ts_key(reel) not in _DURABLE
     except Exception:
         return False

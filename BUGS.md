@@ -32332,6 +32332,52 @@ the same footage, and a wrong rule here loses runs. Filed, visible, not guessed 
 bucket with the escape `\u2014`, not a literal em-dash. Caught by printing the match count before
 the drill ran - a 0-match tamper would have gone green and proved nothing.
 
+## REG-967 — the rule that held his reels never asked the seal that had examined them (task #89 — v3074)
+
+**The river could not drain, and `eligible` had NEVER fired once.** Seven reels sat on
+`panels-never-banked`, which asks only two questions: does the survey see panels, and is the reel
+in the durable stores. A reel whose panels carry no readable NAME can never enter those stores, so
+the answer was True forever and no future run could change it. The rule's own comment says it
+exists for *"the state a seal-with-no-rows leaves behind"* — and it never once consulted that seal.
+[[the-unjoined-end]]
+
+**Those panels are unreadable CORRECTLY.** One of them is a Shared stash page 5/5 carrying ~25
+items — genuinely full, and genuinely unnameable, because a stash GRID prints no item names at
+all; only the hover tooltip does. The vault reader returning `items:[]` is right, which
+`vault_seal_is_definitive` already rules a COMPLETE answer rather than a failure.
+
+**The asymmetry was the defect.** `_seal_extracted`'s `examined_empty` flag was reachable only from
+the branch taken when a pass grounded NOTHING. A pass that grounded one row sealed every
+non-contributing session with no record of what had been looked at — `rows: 0`, `passRows: 1`,
+`extractedWhy: "nothing was taken"`, which is the DEFAULT string for rows==0 and not an
+examination. So the same reel, same footage, same reader, RELEASED when swept alone and was HELD
+forever when swept beside one productive neighbour.
+
+Measured 2026-09-13, all 8 held reels: 1–10 panels each, every one read and cross-checked,
+`rows: 0`, `promptVer vp2017`, and `seal_releases_frames` → False on all of them.
+
+**Fixed in two halves, both required:**
+- `control_app.py` — `_definitive` hoisted above the `if _rows:` split (its four inputs are set
+  ~400 lines earlier and nothing in between reassigns or mutates them, so the verdict it already
+  gave is unchanged), and a non-contributing session now seals with `examinedEmpty` when — and
+  only when — the pass was definitive.
+- `reel_retention.py` — `_panels_never_banked` now asks `frame_authority.seal_releases_frames`
+  before holding. That authority says yes for a COVERED seal or an EMPTY one carrying
+  `examinedEmpty`, and never for a default `"nothing was taken"`.
+
+**UNKNOWN STILL KEEPS THE FOOTAGE.** An unreadable seal store, a missing seal, a failed read, a
+pixel error, an over-read, or any panel verdict outside `under-read`/`agree` all still hold the
+reel. There is no un-delete.
+
+**Proven on his own footage, not a fixture:** `reel_s_1787243026006_12211` already carried
+`examinedEmpty: True` from an older reader (v2391) that happened to take the good branch. The join
+released it immediately — `panels-never-banked` 8 → 7 — and `eligible` fired for the first time.
+
+Gate: `test_an_examined_panel_is_not_an_unread_one` (345 registered). Three red-proofs, all PROVEN,
+1 match each. The second was BLIND on its first drill — the law pinned only the call site
+`examined_empty=_examined`, so setting `_examined = False` defeated the writer while the gate
+stayed green; it now pins the binding itself.
+
 ## REG-966 - THE SHELF looked the river up with the card's ORDINAL, so every reel read "not stamped" (task #58 - v2963)
 
 `_shRiverLoad` builds `SHELF_RIVER` keyed by the reel id minus its `reel_` prefix, which is a
