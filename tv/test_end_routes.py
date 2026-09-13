@@ -203,7 +203,8 @@ class EndRoutePredicate(unittest.TestCase):
         self.assertIsNotNone(_fn("semantic_door"), "semantic_door is gone or renamed")
         self.assertIsNotNone(_fn("verdict"), "verdict is gone or renamed")
         self.assertIsNotNone(_fn("derived_from"), "derived_from is gone or renamed")
-        self.assertEqual(("structural", "semantic"), tuple(ER.DOORS),
+        self.assertIsNotNone(_fn("unextracted_door"), "unextracted_door is gone or renamed")
+        self.assertEqual(("structural", "semantic", "unextracted"), tuple(ER.DOORS),
                          "the doors this gate was written against are not the doors the module "
                          "declares — every law below would be grading a different predicate")
 
@@ -271,10 +272,15 @@ class EndRoutePredicate(unittest.TestCase):
         d = self._fix()
         src = ER.sources(hist_dir=d)
         tally = {"structural": {True: 0, False: 0, None: 0},
-                 "semantic": {True: 0, False: 0, None: 0}}
+                 "semantic": {True: 0, False: 0, None: 0},
+                 "unextracted": {True: 0, False: 0, None: 0}}
         for r in (F_STRUCTURAL_WORKED, F_SEMANTIC_WORKED, F_HELD, F_NEVER_SURVEYED):
             tally["structural"][ER.structural_door(r, src)[0]] += 1
             tally["semantic"][ER.semantic_door(r, src)[0]] += 1
+            # ⚠ the third door is exercised by the SAME fixtures and in both directions:
+            # F_SEMANTIC_WORKED has banked rows and opens it, F_HELD has 123 stash panels with no
+            # vault row and REFUSES it — which is the direction that protects footage.
+            tally["unextracted"][ER.unextracted_door(r, src)[0]] += 1
         for door in ER.DOORS:
             self.assertGreaterEqual(tally[door][True], 1,
                                     "%s: no fixture OPENS this door — %r" % (door, tally[door]))
@@ -324,7 +330,11 @@ class EndRoutePredicate(unittest.TestCase):
         a = ER.verdict(F_STRUCTURAL_WORKED, hist_dir=d)
         b = ER.verdict(F_SEMANTIC_WORKED, hist_dir=d)
         self.assertEqual(["structural"], a["openedDoors"])
-        self.assertEqual(["semantic"], b["openedDoors"])
+        # ⚠ a SUPERSET, not an exact list. This reel was chronicle-read AND has banked vault
+        # rows, so it legitimately opens `unextracted` too. Pinning the exact list would make the
+        # law fail whenever a door is ADDED, which is a fact about the registry, not about the
+        # disjunction it is here to prove. The disjointness assertion below is the real law.
+        self.assertIn("semantic", b["openedDoors"])
         self.assertEqual("QUALIFIED", a["say"])
         self.assertEqual("QUALIFIED", b["say"])
         self.assertEqual(set(), set(a["openedDoors"]) & set(b["openedDoors"]),

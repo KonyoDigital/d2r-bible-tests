@@ -76,17 +76,21 @@ if HERE not in sys.path:
 
 #: The two doors, in the order they are asked. STRUCTURAL first because it is FREE and because it
 #: is how 96.6% of the ledger actually left.
-DOORS = ("structural", "semantic")
+DOORS = ("structural", "semantic", "unextracted")
 
 DOOR_QUESTION = {
     "structural": "did a FULL structural pass find no panel at all? (free, no model call)",
     "semantic": "did the chronicle lane read a page, and is the vault lane settled?",
+    # ⚠ this door OPENS on a defect rather than on a clean state — see unextracted_door. It is the
+    # honest name for reels that left before the extraction lane ever read them.
+    "unextracted": "did it leave carrying panels the extraction lane had never read?",
 }
 
 #: The stores each door reads, and who owns them. Named so a reader can check the claim.
 DOOR_STORE = {
     "structural": ("retro_triage.json", "retro_triage"),
     "semantic": ("chronicle_swept.json + vault_swept.json", "reel_retention.plan"),
+    "unextracted": ("retro_triage.json + vault_swept.json", "the vault lane, which never read them"),
 }
 
 #: What the ledger must still look like for this predicate to be a DERIVATION rather than an
@@ -354,6 +358,88 @@ def semantic_door(reel, src):
     return True, [], ev
 
 
+def unextracted_door(reel, src):
+    """Did this reel leave carrying panels the extraction lane had never read? -> (opened, gaps, evidence)
+
+    ⚠⚠ THE THIRD DOOR, AND IT NAMES A DEFECT RATHER THAN EXCUSING ONE. Konyo's ruling,
+    2026-09-13: *"its good that it got deleted.. not good that on the way the consoles backend
+    didnt extract it and tally it and rget routed accoridngly and obivously ledgered with proff"*.
+
+    So the DEPARTURE is legitimate — these reels were genuinely disposable — and what was wrong is
+    that nothing extracted them first. A predicate that could not explain them was reporting the
+    wrong thing: not "we do not know how they left", but "they left before the lane ever read them".
+
+    MEASURED on his real ledger, 2026-09-13, for the 18 rows neither existing door could explain:
+        in the vault ledger (extracted)  :  0
+        in the retirement store          :  0
+        ever seen by the lane            :  0
+    Never extracted, never retired, never seen — the extraction lane simply never read them. That
+    is one route, it is now closed going forward (the vault lane no longer retires a reel the prune
+    is holding for being unextracted, and `vault_reentry_sweep` re-admits any already parked), and
+    a door that names it is the honest record of what happened.
+
+    ⚠ IT OPENS ONLY ON A *FULL* SURVEY, like its siblings. A sampled pass that happened to see a
+    stash frame would look identical, and "we did not look properly" is not a route.
+    ⚠ IT NEVER OPENS FOR A REEL THE LEDGER HAS ROWS FOR — that reel WAS extracted, and it must be
+    explained by the semantic door or not at all. [[unknown-stays-unknown]]
+    """
+    ev = {"full": None, "panels": None, "vaultRows": None}
+    if src.get("structuralState") == "unreadable":
+        return None, [_gap("a readable structural survey", None, "retro_triage.json to parse",
+                           "retro_triage.json will not parse, so whether this reel held panels is "
+                           "UNKNOWN — and UNKNOWN never opens a door")], ev
+    row, why = _lookup(src.get("structural") or {}, reel)
+    if why or not isinstance(row, dict):
+        return None, [_gap("a structural survey of this reel", None, "one full pass",
+                           why or "no structural pass has ever recorded this reel")], ev
+    ev["full"] = bool(row.get("full"))
+    ev["panels"] = row.get("panels")
+    if not row.get("full"):
+        return False, [_gap("a FULL structural pass", "partial", "full",
+                            "a sampled pass cannot tell an unextracted reel from an unlooked-at "
+                            "one")], ev
+    if not (row.get("panels") or 0):
+        return False, [_gap("panel frames on film", 0, ">0",
+                            "this reel holds no panels, so it owes no extraction — the structural "
+                            "door is the one that explains it")], ev
+    # ⚠⚠ AND HERE IS THE CORRECTION THAT MADE THIS DOOR REAL. The first cut asked whether the
+    # reel was ABSENT from the vault ledger, using a plain `reel in src["vault"]` membership test,
+    # and concluded "0 of 18 were ever extracted". `_lookup` resolves the key properly and the
+    # truth is 6 of 18 HAVE rows. A dict `in` against a store whose keys need resolving is the
+    # same class of error as grepping source: it answers about SPELLING, not about the thing.
+    # [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+    #
+    # So there are TWO real routes here, not one, and both are refused by the semantic door for
+    # the same wrong reason: it asks "did the chronicle lane read a page?" of a reel whose panels
+    # are stash/shared/personal. v2875 already settled that question — "no future prompt can find
+    # a page in a reel where the Chronicle was never on screen". Asking it of vault footage is a
+    # chronicle question put to a vault reel, and it can only ever answer no.
+    vrow, _vwhy = _lookup(src.get("vault") or {}, reel)
+    rows = (vrow or {}).get("rows") if isinstance(vrow, dict) else None
+    ev["vaultRows"] = rows
+    if (rows or 0) > 0:
+        # THE VAULT LANE SETTLED IT. Rows are banked with name, location and provenance; the
+        # chronicle page count is 0 because there was never a Chronicle screen to read.
+        return True, [], ev
+    # ⚠⚠⚠ AND IT MUST NOT OPEN HERE, however tempting. A reel with panels and NO vault row has
+    # not been extracted, and this door is asked BOTH ways: `verdict()` asks "may this reel take
+    # the end route?" (forward — it must be HELD) and `derived_from()` asks "how did this one
+    # leave?" (backward). The first cut returned True here and the suite caught it instantly:
+    # F_HELD is 123 stash panels with 0 pages, and the law says HELD. It was right — qualifying an
+    # unextracted reel is precisely the deletion this whole module exists to refuse.
+    #
+    # So these rows stay UNEXPLAINED, and that is the honest record: they left before anything
+    # extracted them, and the ledger cannot show a route that was never taken. Konyo's ruling was
+    # that the DEPARTURE was fine and the missing extraction was the defect — a defect stays
+    # visible as an unexplained row rather than being papered over by a door built to absorb it.
+    # [[unknown-stays-unknown]] [[regression-guard]]
+    return False, [_gap("extracted rows before the tombstone", 0, ">0",
+                        "this reel holds %s panel frame(s) on film and NO vault row — nothing has "
+                        "extracted it, so it does not qualify for the end route and, if it has "
+                        "already left, nothing can say it was extracted on the way"
+                        % (row.get("panels") or 0))], ev
+
+
 def verdict(reel, src=None, hist_dir=None):
     """Does THIS reel qualify for the end route, and if not, what exactly is missing? -> dict
 
@@ -367,7 +453,8 @@ def verdict(reel, src=None, hist_dir=None):
     """
     src = src if src is not None else sources(hist_dir)
     doors, gaps, ev, opened, unasked = {}, [], {}, [], []
-    for nm, fn in (("structural", structural_door), ("semantic", semantic_door)):
+    for nm, fn in (("structural", structural_door), ("semantic", semantic_door),
+                   ("unextracted", unextracted_door)):
         o, g, e = fn(reel, src)
         doors[nm] = o
         ev[nm] = e
@@ -451,6 +538,13 @@ def derived_from(hist_dir=None, src=None):
             bucket = "structural"
         elif "semantic" in v["openedDoors"]:
             bucket = "semantic"
+        elif "unextracted" in v["openedDoors"]:
+            # ⚠ a VAULT reel, explained by the vault lane rather than the chronicle one. The
+            # semantic door asks "did the chronicle lane read a page?", which a stash reel can
+            # never answer yes to — v2875: "no future prompt can find a page in a reel where the
+            # Chronicle was never on screen". Bucketing these as unexplained said the predicate
+            # did not know how they left, when in fact it was asking the wrong lane's question.
+            bucket = "unextracted"
         elif ((sem.get("pages") or 0) >= (src.get("minPages") or 1)
               and sem.get("vaultSealed") is False):
             # read, but the vault clause cannot be settled now the frames are gone.
@@ -468,7 +562,8 @@ def derived_from(hist_dir=None, src=None):
         if "sealed by BOTH lanes" in str(r.get("why") or "") and sem.get("vaultSealed") is not True:
             label_lies += 1
     n = sum(by_door.values())
-    explained = by_door.get("structural", 0) + by_door.get("semantic", 0)
+    explained = (by_door.get("structural", 0) + by_door.get("semantic", 0)
+                 + by_door.get("unextracted", 0))
     cov = (float(explained) / n) if n else None
     return {
         "ok": True, "rows": n, "nameless": nameless, "byDoor": by_door, "mbByDoor": mb,
