@@ -390,7 +390,7 @@ def unextracted_door(reel, src):
                            "UNKNOWN — and UNKNOWN never opens a door")], ev
     row, why = _lookup(src.get("structural") or {}, reel)
     if why or not isinstance(row, dict):
-        return None, [_gap("a structural survey of this reel", None, "one full pass",
+        return None, [_gap("a structural pass on this reel", None, "one full pass",
                            why or "no structural pass has ever recorded this reel")], ev
     ev["full"] = bool(row.get("full"))
     ev["panels"] = row.get("panels")

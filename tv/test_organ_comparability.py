@@ -125,6 +125,29 @@ class AbsentRequiresAComparableVocabulary(unittest.TestCase):
                         "BASELINE: no organ is comparable, so every cell is UNKNOWN and the law "
                         "would hold vacuously.")
 
+        # ⚠⚠ AND THE MODULE'S OWN ANSWER HAS TO BE PUT ON TRIAL, not just recomputed beside it.
+        # heart2 proved this law BLIND: forcing `hits > 0` to True inside
+        # organ_matrix.comparability() left this file GREEN. The comment above says a sabotage of
+        # either side should be "visible from the other side" — but nothing here ever ASKED the
+        # module what it concluded, so the two sides never met. An independent measurement that is
+        # never compared is a second opinion nobody reads.
+        #
+        # Comparing the live answers is not enough either: all four organs are comparable by
+        # design since v3049-v3052, so module and local agree even when the measurement is gone.
+        # The trial has to put a KNOWN-incomparable organ through the module itself — names that
+        # are a different kind of thing (concerns, not code objects) must come back False.
+        # [[gate-blind-to-unexercised-input]] [[regression-guard]]
+        _victim = OM.ORGANS[0]
+        _synth = dict(cov)
+        _synth[_victim] = (["armed migration concern", "a worry not a surface"], "")
+        _got = OM.comparability(_synth, surf)
+        self.assertIs(
+            False, bool(_got[_victim][0]),
+            "organ_matrix.comparability() called %r COMPARABLE while its only names are concerns "
+            "that resolve to none of the %d surfaces. The measurement that separates 'watches "
+            "nothing' from 'names a different kind of thing' is gone, and every verdict this "
+            "table hands down is unearned." % (_victim, len(surf)))
+
         for o in incomparable:
             verdicts = [r["surface"] for r in rows if r["cells"][o] != OM.UNKNOWN]
             self.assertEqual(
