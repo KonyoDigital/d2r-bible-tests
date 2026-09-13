@@ -4375,8 +4375,18 @@
   .shg-mouth-row .mr-sess { opacity: .78; overflow-wrap: anywhere; }
   .shg-mouth-row .mr-num  { opacity: .62; }
   .shg-mouth-row .mr-foc  { opacity: .52; font-style: italic; }
+  /* ⚠⚠ PINNED, BECAUSE v3054'S CAP PUT THE DENOMINATOR INSIDE THE SCROLLER. A cross-family eye
+     caught it on the shipped diff: this caption reads "N of M shown · oldest first" and it is the
+     FIRST CHILD of `.shg-mouth-rows`, which v3054 gave `max-height: 84px; overflow-y: auto`. My
+     own commit note claimed the summary sat above the detail — only two of its three pieces do.
+     The header keeps "446 closed out · N MB freed" outside, so nothing became a silent zero, but
+     scrolling to row 4 took away the line that says how many of how many you are looking at.
+     That is the "N of M shown" half of [[zero-needs-a-denominator]] scrolling off its own subject.
+     Sticky keeps it on screen for every row; the background stops rows reading through it. */
   .shg-mouth-cap  { color: var(--gold-dim); opacity: .7; font-size: var(--fs-2xs);
-                    letter-spacing: var(--ls-wide); }
+                    letter-spacing: var(--ls-wide);
+                    position: sticky; top: 0; z-index: 1;
+                    background: var(--panel, var(--bg, #100d08)); padding-bottom: 2px; }
   /* UNKNOWN is its own state and must not read as an empty river */
   .sh-daygroup.sh-riverunknown .shg-lab { color: var(--warn, var(--gold-dim)); }
   /* v2746 — THE PER-REEL STAMP ON THE CARD. Konyo: "each reel their accoring stamps so they
