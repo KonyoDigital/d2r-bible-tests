@@ -2391,6 +2391,21 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_a_declared_trace_must_be_one_the_loop_writes",
+         [sys.executable, os.path.join(HERE, "test_a_declared_trace_must_be_one_the_loop_writes.py")], 120,
+         why="A LOOP DECLARED TO LEAVE A TRACE MUST ACTUALLY WRITE THE FILE DECLARED. v3076 gave "
+             "four loops a second witness via lane_trace, taking ALL FOUR organs from 9 surfaces "
+             "to 12 - and every one of those cells is a DECLARATION. A declaration with nothing "
+             "behind it is the coverage v3055 deleted. Worse, the failure is SILENT: if a declared "
+             "path and the path lane_trace writes differ by one character, _trace_age finds no "
+             "artefact and the row reads UNKNOWN for ever, which is not red anywhere - the organ "
+             "would look reasonable while corroborating nothing. This pins the join from both "
+             "ends by PARSING control_app.py (the call, not a string in a comment) and by "
+             "computing the path from lane_trace.path_of rather than re-typing it, and refuses a "
+             "declared period shorter than the writer's own throttle. It also pins the case that "
+             "made his healthiest console read as broken: _orphan_exit_loop is ALWAYS dormant on "
+             "a console nobody started, so DORMANT plus an absent tick is two witnesses AGREEING, "
+             "while dormant-and-ticking is the real defect."),
     Gate("test_the_tooltip_split_may_only_add_pages",
          [sys.executable, os.path.join(HERE, "test_the_tooltip_split_may_only_add_pages.py")], 120,
          why="SPLITTING A RUN ON THE TOOLTIP MAY ONLY EVER ADD PAGES. v2396 splits a still run on "

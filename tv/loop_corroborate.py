@@ -45,7 +45,10 @@ except Exception:
     pass
 
 #: the surfaces this organ speaks for, in the registry's own vocabulary — DECLARED, never guessed
-SURFACES = ("_ledger_backup_loop", "_vault_autoread_loop")
+SURFACES = ("_ledger_backup_loop", "_vault_autoread_loop",
+            # v3076 — four more, once they were given something to witness. Each now writes
+            # WHAT IT DECIDED via lane_trace, so there is a second, cross-process witness.
+            "_drift_loop", "_shadow_watch_loop", "_orphan_exit_loop", "_orphan_watch")
 
 #: vessel -> (lane the tick is stamped under, glob for its trace, declared period in seconds)
 #: ⚠ THE LANE NAME IS NOT THE VESSEL NAME. `_ledger_backup_loop` stamps under
@@ -59,6 +62,19 @@ LOOPS = {
                                          "ledger_*.json"), 600.0),
     "_vault_autoread_loop": ("tvd-vault-autoread",
                              os.path.join(HERE, ".vault_autoread.json"), 45.0),
+    # ── v3076 — the four that used to leave nothing ──────────────────────────────────────────
+    # ⚠ THE DECLARED PERIOD IS THE TRACE PERIOD, NOT ALWAYS THE TICK PERIOD. `_orphan_exit_loop`
+    # ticks every 5 s but throttles its trace to 30 s, and `_orphan_watch` ticks every 20 s and
+    # throttles to 20 s. Declaring the tick period for a throttled writer would make a correctly
+    # working loop read as stale inside one window. [[feedback-threshold-above-the-ceiling]]
+    "_drift_loop": ("tvd-version-drift",
+                    os.path.join(HERE, ".lane_trace", "tvd-version-drift.json"), 30.0),
+    "_shadow_watch_loop": ("tvd-shadow-watch",
+                           os.path.join(HERE, ".lane_trace", "tvd-shadow-watch.json"), 30.0),
+    "_orphan_exit_loop": ("_orphan_exit_loop",
+                          os.path.join(HERE, ".lane_trace", "_orphan_exit_loop.json"), 30.0),
+    "_orphan_watch": ("_orphan_watch",
+                      os.path.join(HERE, ".lane_trace", "_orphan_watch.json"), 20.0),
 }
 
 #: how many declared periods a trace may fall behind before the pair is a contradiction. Generous
@@ -78,6 +94,34 @@ def _trace_age(pattern):
         return (time.time() - os.path.getmtime(newest)), len(fs)
     except Exception:
         return None, 0
+
+
+def _trace_state(pattern):
+    """The state a lane_trace artefact declares, if this pattern names one. -> (state, why)
+
+    ⚠⚠ v3076 — WITHOUT THIS, A DELIBERATELY DORMANT LANE READS AS A DEAD ONE. `_orphan_exit_loop`
+    RETURNS before its while-loop whenever there is no TV_PARENT_PID, which is ALWAYS the case on
+    his primary console: a console nobody started must never self-exit. It therefore never ticks,
+    and never will. Judged by tick-versus-trace alone that is indistinguishable from a loop that
+    died, and the organ would report his healthiest machine as broken for ever.
+
+    Returns ("", "") for any artefact that is not one of ours — a backup file or
+    `.vault_autoread.json` has no state and must keep its existing treatment untouched.
+    """
+    try:
+        import glob as _glob
+        import json as _json
+        fs = [f for f in _glob.glob(pattern) if os.path.isfile(f)]
+        if not fs:
+            return "", ""
+        newest = max(fs, key=os.path.getmtime)
+        with io.open(newest, encoding="utf-8") as fh:
+            blob = _json.load(fh)
+        if not isinstance(blob, dict):
+            return "", ""
+        return str(blob.get("state") or ""), str((blob.get("result") or {}).get("why") or "")
+    except Exception:
+        return "", ""
 
 
 def _tick_age(lane):
@@ -109,6 +153,25 @@ def corroborate(loops=None):
                "traceCount": n,
                "tickAgeS": (round(k_age, 1) if k_age is not None else None),
                "verdict": "", "why": ""}
+        _state, _why = _trace_state(pattern)
+        row["state"] = _state or None
+        if _state == "DORMANT":
+            # ⚠ NO TICK IS THE CONFIRMATION HERE, NOT THE ALARM. The artefact says "I will not
+            # run, and here is why"; the absent tick says "nothing ran". Those are two
+            # independent witnesses AGREEING. A dormant lane that IS ticking is the real defect,
+            # and it falls through to DISAGREE below.
+            if k_age is None:
+                row["verdict"] = "AGREE"
+                row["why"] = ("declared DORMANT and never ticked, which is what dormant means: %s"
+                              % (_why or "no reason recorded")[:150])
+                rows.append(row)
+                continue
+            row["verdict"] = "DISAGREE"
+            row["why"] = ("declared DORMANT but ticked %.0fs ago — it is running while claiming "
+                          "by design not to. %s" % (k_age, (_why or "")[:120]))
+            bad += 1
+            rows.append(row)
+            continue
         if t_age is None:
             row["verdict"] = "UNKNOWN"
             row["why"] = ("no artefact matching this loop's trace exists, so there is nothing to "

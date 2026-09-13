@@ -32373,6 +32373,83 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-987 — four loops computed a verdict and threw it away, so the corroborator column was stuck (task #92 — v3076)
+
+**Six surfaces sat at 3 of 4 organs and every one was missing the SAME organ.** A corroborator
+needs TWO INDEPENDENT witnesses; for a loop that is (a) its tick and (b) the trace it leaves. Two
+of eight loops leave a real artefact. Four more computed something real every cycle — a drift
+verdict, an orphan count, a shadow result — and **threw it away in memory**.
+
+⚠ **The tick is not a second witness.** `lane_liveness._TICKS` is an in-process dict on a
+`time.monotonic()` clock; another process sees it EMPTY. So those loops had ONE witness and no
+outside reader could date them at all.
+
+**`tv/lane_trace.py`** — one small file per lane, written atomically, carrying WHAT THE LOOP
+DECIDED rather than a bare heartbeat. A heartbeat proves only "the thread woke up", which the
+watchdog already answers; a second organ repeating the first is an echo, not corroboration. What
+makes this independent is that a loop running and producing nothing now reads as a
+**contradiction**.
+
+⚠⚠ **DORMANT had to be a first-class answer.** `_orphan_exit_loop` RETURNS before its while-loop
+whenever there is no `TV_PARENT_PID` — **always true on his primary console**, by design, because a
+console nobody started must never self-exit. It never ticks and never will. Judged on
+tick-versus-trace alone that is indistinguishable from a dead loop, and the organ would have
+reported his healthiest machine as broken for ever. A dormant declaration plus an absent tick is
+now two witnesses AGREEING; dormant-while-ticking is the real defect and reads DISAGREE.
+
+⚠ **The declared period is the TRACE period, not always the tick period.** `_orphan_exit_loop`
+ticks every 5 s and throttles its trace to 30 s. Declaring 5 would make a correctly working loop
+read as stale inside one window.
+
+Measured: ALL FOUR organs **9 → 12** of 58 surfaces · census **103 → 107** of 232 (44.4% → 46.1%) ·
+corroborator **18 → 22**. Two loops (`_prune_loop`, `_retention_loop`) remain genuinely traceless
+and stay ABSENT — the hole is smaller, not closed.
+
+Gates: `test_a_declared_trace_must_be_one_the_loop_writes` (347 registered) pins the join from both
+ends — it PARSES the calls out of control_app rather than matching a string that could sit in a
+comment, and COMPUTES the path from `lane_trace.path_of` instead of re-typing it, because a
+one-character difference would make the row read UNKNOWN for ever, and UNKNOWN is not red anywhere.
+`test_a_loop_that_ticks_must_leave_a_trace` was re-pointed: its "six stay absent" law now names the
+two that are still traceless, and its `assertNotEqual(lane, vessel)` proxy was replaced — that was
+generalised from two examples and is simply not a law, since `_orphan_watch` genuinely stamps under
+its own name. It now checks the declared lane against the `_lane_tick` calls actually in the source.
+
+## REG-988 — "may only ever add pages" only restored at ZERO, found by the second eye on the SHIPPED diff (task #89 — v3076)
+
+REG-986 fell back only `if not cands`. The cross-family second eye (grok-4-1-fast-reasoning) read
+the **pushed** v3075 diff and called it: the law is named *"may only ever add pages"* while the code
+restored solely when the split left **zero**.
+
+**REPRODUCED before it was believed** — 8 frames as two held screens of 4, a hover moving inside the
+first screen only:
+
+    no split      runs [4, 4]     -> 2 candidates
+    tooltip split runs [2, 2, 4]  -> 1 candidate
+
+Candidates fell **2 → 1 without ever reaching zero**, so the guard never fired and a whole held
+screen was never classified, never handed to the reader, and never reached the "add tooltip frames
+on top" path. The reel can still bank from the second look, so it does not sit in the river for
+ever — which is why this is not REG-986 again — but a page that existed before the split is gone.
+
+Fixed by comparing COUNTS (`len(_unsplit) > len(cands)`), which makes the grouping monotone — what
+the name claimed all along. `sig_of` is now memoised per reel, since the grouping is computed twice
+and `DEFAULT_SIG` reads the image.
+
+**Two further findings from the same review, both real, both fixed:**
+- *Medium* — the guard that claimed to pin the floor could not see it removed. Its `_between`
+  window STARTS at the split's own `candidate_runs(...)`, which already contains
+  `min_frames=MIN_RUN_FRAMES`, so changing only the fallback to `min_frames=1` left it green — and
+  neither runtime fixture could catch that either, because with the floor dropped the split's
+  1-frame fragments BECOME candidates and the fallback is never entered. Now parsed: exactly one
+  `_unsplit = candidate_runs(...)` site, and its `min_frames` must be the NAME `MIN_RUN_FRAMES`.
+  Proven red by setting it to 1.
+- *Low* — the `TF.locate` stub returned a bare bbox while production unwraps `(rect, why)`, so
+  `_tip_of` was storing `left` as an int. The fixture split only because every `left` differed; a
+  vertical hover would not have split at all. The stub now returns the production shape.
+
+⚠ The eye also noted the payload was **truncated to 8936 of 10507 diff chars** — it reviewed the
+first part only. Its findings stand; its silence about the rest is not a clean bill.
+
 ## REG-985 — the rule that held his reels never asked the seal that had examined them (task #89 — v3074)
 
 > ⚠ Filed as REG-967 first, which was already taken by task #58 (v2964). The commit message for

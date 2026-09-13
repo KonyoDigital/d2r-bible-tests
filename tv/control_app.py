@@ -5509,11 +5509,24 @@ def _orphan_exit_loop():
         _lane_dormant('_orphan_exit_loop',
                       "no TV_PARENT_PID — this console was not started by another process, so it "
                       "must never self-exit. His primary console is always in this state")
+        # ⚠ v3076 — AND SAY SO ON DISK. `_lane_dormant` records this in an in-process dict, so from
+        # outside this lane is indistinguishable from one that died. On HIS console this branch is
+        # ALWAYS taken, so without this the corroborator would report his healthiest machine as
+        # carrying a dead lane, for ever. A fabricated alarm is worse than an honest gap.
+        import lane_trace as _lt
+        _lt.note_dormant('_orphan_exit_loop',
+                         "no TV_PARENT_PID — nobody claimed this console, so it must never "
+                         "self-exit. This is the normal state of his primary console")
         return                      # nobody claimed us, or we ARE his console: never self-exit
     _lane_waking('_orphan_exit_loop')
     while True:
         time.sleep(5)
         _lane_tick('_orphan_exit_loop', 5)
+        # ⚠ THROTTLED TO 30 s, AND loop_corroborate DECLARES 30 — not the 5 s tick period. Writing
+        # a file every 5 s is churn for no added truth, but a trace written every 30 s judged
+        # against a 5 s period would read as stale within one window. v3076
+        import lane_trace as _lt
+        _lt.note('_orphan_exit_loop', min_gap_s=30.0, watching=int(ppid))
         try:
             os.kill(ppid, 0)        # signal 0 = existence check only, delivers nothing
         except ProcessLookupError:
@@ -17250,6 +17263,11 @@ def _drift_loop():
             first = False
             _lane_tick('tvd-version-drift', _DRIFT_EVERY_S)
             d = _drift_once()
+            # v3076 — LEAVE THE VERDICT WHERE ANOTHER PROCESS CAN DATE IT. The tick above is an
+            # in-process dict; nothing outside this interpreter can see that this loop ran, so the
+            # corroborator had one witness and no second. What it decided is the trace.
+            import lane_trace as _lt
+            _lt.note('tvd-version-drift', drift=bool(d))
             if not d:
                 announced = None
                 continue
@@ -21954,6 +21972,10 @@ def _shadow_watch_loop():
             time.sleep(_SHADOW_WATCH_EVERY_S)
             _lane_tick('tvd-shadow-watch', _SHADOW_WATCH_EVERY_S)
             r = shadow_watch_tick()
+            import lane_trace as _lt          # v3076 — see _drift_loop
+            _lt.note('tvd-shadow-watch',
+                     started=bool(isinstance(r, dict) and r.get("started")),
+                     unknown=bool(isinstance(r, dict) and r.get("unknown")))
             if isinstance(r, dict) and (r.get("started") or r.get("unknown")):
                 print("   \U0001f441 shadow watch: %s" % str(r.get("why"))[:140], flush=True)
         except Exception:
@@ -27409,7 +27431,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3075",
+        "ver": "v3076",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -31732,11 +31754,21 @@ def board_window():
             # behind a stated exemption. An exemption that is technically true and materially
             # wrong is worse than no exemption, because it reads as considered.
             _lane_tick('_orphan_watch', 20)
+            _reached = False
             try:
                 with urllib.request.urlopen(f"http://127.0.0.1:{CONTROL_PORT}/api/status", timeout=5):
                     misses = 0
+                    _reached = True
             except Exception:
                 misses += 1
+            # ⚠ v3076 — THIS LANE CAN CALL os._exit(0), AND NOTHING OUTSIDE COULD SEE IT RUN. It
+            # lives in the BOARD WINDOW process, so its trace is genuinely cross-process evidence
+            # about a thread that is able to end the console. misses is the decision, not a beat.
+            try:
+                import lane_trace as _lt
+                _lt.note('_orphan_watch', min_gap_s=20.0, reached=_reached, misses=int(misses))
+            except Exception:
+                pass
                 if misses >= 5:
                     print(f"📺 board window: control server unreachable for ~{misses * 20}s — "
                           f"self-closing (orphan guard).", flush=True)

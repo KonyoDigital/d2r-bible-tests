@@ -80,7 +80,12 @@ class TestTheTooltipSplitMayOnlyAddPages(unittest.TestCase):
         old_probe = CR.live_probe
         old_memo = dict(getattr(VR, "_TOOLTIP_MEMO", {}))
         try:
-            TF.locate = lambda p, *a, **k: tooltips.get(os.path.basename(p))
+            # ⚠ RETURN THE SHAPE PRODUCTION UNWRAPS: `tooltip_find.locate` answers
+            # (rect|None, why), and `_tip_of` takes `r[0] if isinstance(r, tuple) else r`. Stubbed
+            # as a BARE bbox, that unwrapping stored `left` — an int — and this fixture only split
+            # because every `left` happened to differ. A vertical hover (same left, new top) would
+            # not have split at all, so the fixture was not modelling production.
+            TF.locate = lambda p, *a, **k: (tooltips.get(os.path.basename(p)), "stub")
             # ⚠ live_probe rejects a BLANK capture, and these fixture frames are 8-byte stubs. It
             # is a different law with its own gate; stubbing it keeps this one about candidate
             # runs. The alternative — real frames — would make the gate unrunnable on CI, which
@@ -116,25 +121,87 @@ class TestTheTooltipSplitMayOnlyAddPages(unittest.TestCase):
         print("no tooltips -> reader calls=%d" % reads)
         self.assertGreater(reads, 0, "the control case v2396 cites must keep reading")
 
+    def test_the_split_never_yields_FEWER_candidates_than_no_split(self):
+        """The case the cross-family second eye found on the SHIPPED v3075 diff.
+
+        v3075 fell back only `if not cands`, so the law was named "may only ever add pages" while
+        the code restored solely at ZERO. REPRODUCED before it was believed: two held screens of 4
+        frames, a hover moving inside the FIRST screen only, gives runs [4, 4] -> 2 candidates
+        without the split and [2, 2, 4] -> 1 candidate with it. Candidates fell 2 -> 1 without
+        ever reaching zero, so the guard never fired and a whole held screen was never read.
+        [[review-after-ship]]
+
+        Pure — it calls the grouping functions directly, so it needs no reel, no files and no
+        model, and it cannot go blind when his own footage stops exercising the shape.
+        """
+        import chronicle_retro as CR
+        import vault_retro as VR
+        fr = [{"f": "f_%d.jpg" % i, "ts": 1700000000000 + i * 1000} for i in range(8)]
+        one, two = [0.0] * 16, [200.0] * 16
+        sig = {("f_%d.jpg" % i): (one if i < 4 else two) for i in range(8)}
+        tips = {"f_0.jpg": (10, 10, 30, 30), "f_1.jpg": (10, 10, 30, 30),
+                "f_2.jpg": (90, 90, 30, 30), "f_3.jpg": (90, 90, 30, 30)}
+        unsplit = CR.candidate_runs(CR.still_runs(fr, lambda n: sig[n]),
+                                    min_frames=VR.MIN_RUN_FRAMES)
+        split = CR.candidate_runs(
+            CR.still_runs(fr, lambda n: sig[n], tooltip_of=lambda n: tips.get(n)),
+            min_frames=VR.MIN_RUN_FRAMES)
+        print("unsplit cands=%d · split cands=%d (the shape that loses a look)"
+              % (len(unsplit), len(split)))
+        self.assertGreater(len(unsplit), len(split),
+                           "this fixture no longer reproduces the shape it was built for, so the "
+                           "assertion below would pass for the wrong reason")
+        code = _between(io.open(os.path.join(HERE, "vault_retro.py"), encoding="utf-8").read(),
+                        "runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)",
+                        "read_this_reel = False")
+        bare = "\n".join(ln.split("#", 1)[0] for ln in code.splitlines())
+        self.assertNotIn("if not cands:", bare,
+                         "falling back only at ZERO lets the split drop a reel from 2 candidates "
+                         "to 1 and never fire — which is losing a page, not adding one")
+        self.assertIn("len(_unsplit) > len(cands)", bare,
+                      "the grouping must be chosen by COUNT so it can never decrease")
+
     def test_the_fallback_restores_the_floor_rather_than_removing_it(self):
         src = io.open(os.path.join(HERE, "vault_retro.py"), encoding="utf-8").read()
         region = _between(src, "runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)",
                           "read_this_reel = False")
-        code = "\n".join(ln.split("#", 1)[0] for ln in region.splitlines())
-        self.assertIn("min_frames=MIN_RUN_FRAMES", code.replace("\n", " ").replace("  ", " "),
-                      "the fallback must re-apply the SAME floor, not drop it")
-        self.assertIn("if not cands:", code,
-                      "the fallback may only run when the split left nothing at all")
+        # ⚠⚠ PIN THE FALLBACK'S OWN FLOOR, BY PARSE. The first cut asserted the text
+        # `min_frames=MIN_RUN_FRAMES` appeared anywhere in this region — but the region STARTS at
+        # the split's own `candidate_runs(...)` call, which already contains it. Changing only the
+        # fallback to `min_frames=1` left the assertion green, and neither runtime fixture could
+        # catch it either: with the floor dropped, the split's 1-frame fragments BECOME candidates,
+        # the fallback is never entered, and `assertGreater(reads, 0)` still passes. A guard that
+        # cannot see the thing it names is not a guard. [[source-reading-guard]]
+        import ast as _ast
+        with io.open(os.path.join(HERE, "vault_retro.py"), encoding="utf-8") as _fh:
+            _tree = _ast.parse(_fh.read())
+        _found = []
+        for _n in _ast.walk(_tree):
+            if (isinstance(_n, _ast.Assign) and len(_n.targets) == 1
+                    and getattr(_n.targets[0], "id", None) == "_unsplit"
+                    and isinstance(_n.value, _ast.Call)):
+                _found.append(_n.value)
+        print("fallback `_unsplit = candidate_runs(...)` sites: %d" % len(_found))
+        self.assertEqual(len(_found), 1,
+                         "expected exactly one fallback grouping; found %d" % len(_found))
+        _kw = {k.arg: k.value for k in _found[0].keywords if k.arg}
+        self.assertIn("min_frames", _kw,
+                      "the fallback calls candidate_runs with no floor at all — the split's "
+                      "sub-floor fragments would become candidates and it would never fire")
+        self.assertEqual(getattr(_kw["min_frames"], "id", None), "MIN_RUN_FRAMES",
+                         "the fallback must re-apply the SAME floor by name, not a literal that "
+                         "can drift away from it")
 
 
 RED_PROOF = [
     {
-        "why": "the split is allowed to remove the last candidate again, so a short reel with a "
-               "hover in it offers the reader nothing, banks no rows, and is held in the river "
-               "forever — measured on reel_s_1788099999528_42457",
+        "why": "the split may shrink the candidate set again — at zero a short reel with a hover "
+               "in it offers the reader nothing and is held in the river for ever "
+               "(reel_s_1788099999528_42457), and above zero a held screen silently goes unread "
+               "when candidates fall 2 -> 1",
         "file": "vault_retro.py",
-        "find": "        if not cands:\n            _unsplit = _cr.candidate_runs(_cr.still_runs(frames, sig_of),",
-        "replace": "        if False:\n            _unsplit = _cr.candidate_runs(_cr.still_runs(frames, sig_of),",
+        "find": "        if len(_unsplit) > len(cands):",
+        "replace": "        if False:",
         "matches": 1,
     },
 ]

@@ -27,6 +27,24 @@ _console_safe_enable()
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def _ticked_lanes():
+    """Every lane name control_app actually stamps via _lane_tick. -> set
+
+    PARSED, because a law that reads source must not be satisfiable by a mention in a comment.
+    [[source-reading-guard]]
+    """
+    import ast
+    with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    out = set()
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Call)
+                and getattr(n.func, "id", getattr(n.func, "attr", None)) == "_lane_tick"
+                and n.args and isinstance(n.args[0], ast.Constant)):
+            out.add(n.args[0].value)
+    return out
+
+
 class TestALoopThatTicksMustLeaveATrace(unittest.TestCase):
 
     def test_only_loops_with_a_real_trace_are_declared(self):
@@ -36,9 +54,20 @@ class TestALoopThatTicksMustLeaveATrace(unittest.TestCase):
                          "every declared surface must have a trace entry, and vice versa")
         for vessel, (lane, pattern, every) in LC.LOOPS.items():
             self.assertTrue(lane and isinstance(lane, str), "%s: no lane name" % vessel)
-            self.assertNotEqual(lane, vessel,
-                                "%s: the tick is stamped under a LANE name, not the vessel name — "
-                                "if these ever match, re-derive it rather than assuming" % vessel)
+            # ⚠⚠ v3076 — THIS WAS A PROXY, AND THE PROXY WAS WRONG. It asserted the lane name
+            # must DIFFER from the vessel name, generalised from the only two loops that existed
+            # when it was written (`_ledger_backup_loop` stamps `tvd-ledger-backup`). It is not a
+            # law: `_orphan_watch` and `_orphan_exit_loop` genuinely stamp under their own names —
+            # `_lane_tick('_orphan_watch', 20)` is right there in the source. So a correct
+            # declaration went red for breaking a pattern nobody had checked was a rule.
+            #
+            # Replaced with the fact the proxy was standing in for: the declared lane must be one
+            # control_app ACTUALLY stamps. That catches a mistyped lane — which silently makes the
+            # tick unreadable for ever — and it does not care what the name looks like.
+            self.assertIn(lane, _ticked_lanes(),
+                          "%s declares lane %r, which no _lane_tick call in control_app.py ever "
+                          "stamps — the tick would be unreadable and the row UNKNOWN for ever"
+                          % (vessel, lane))
             self.assertTrue(pattern and isinstance(pattern, str), "%s: no trace pattern" % vessel)
             self.assertTrue(isinstance(every, (int, float)) and every > 0,
                             "%s: a period is needed or 'stale' means nothing" % vessel)
@@ -101,15 +130,36 @@ class TestALoopThatTicksMustLeaveATrace(unittest.TestCase):
         self.assertEqual("UNKNOWN", c["rows"][0]["verdict"],
                          "nothing to corroborate against is unmeasured, never a clean bill")
 
-    def test_the_six_traceless_loops_are_not_declared(self):
-        """The honest hole. If one of these ever gains a trace, ADD it — do not invent one."""
+    def test_the_traceless_loops_are_not_declared(self):
+        """The honest hole. If one of these ever gains a trace, ADD it — do not invent one.
+
+        ⚠ v3076 — FOUR OF THE ORIGINAL SIX DID EXACTLY THAT, so this is re-pointed rather than
+        relaxed. `_drift_loop`, `_shadow_watch_loop`, `_orphan_exit_loop` and `_orphan_watch` now
+        record WHAT THEY DECIDED through `lane_trace` — a real artefact another process can date —
+        and are declared on that basis, guarded by
+        `test_a_declared_trace_must_be_one_the_loop_writes`, which parses the calls and computes
+        the path instead of trusting the declaration.
+
+        TWO REMAIN GENUINELY TRACELESS and stay ABSENT. The hole is smaller; it is not closed, and
+        counting it as closed is the coverage v3055 deleted. [[unknown-stays-unknown]]
+        """
         import loop_corroborate as LC
-        for absent in ("_drift_loop", "_orphan_watch", "_orphan_exit_loop",
-                       "_shadow_watch_loop", "_prune_loop", "_retention_loop"):
+        still_traceless = ("_prune_loop", "_retention_loop")
+        for absent in still_traceless:
             self.assertNotIn(absent, LC.LOOPS,
                              "%s leaves nothing datable; declaring it would manufacture the "
                              "coverage v3055 deleted" % absent)
-        print("trace-less loops correctly left ABSENT: 6")
+        # and the four that DID gain one must carry a real trace path, not a bare declaration
+        import lane_trace as LT
+        gained = ("_drift_loop", "_shadow_watch_loop", "_orphan_exit_loop", "_orphan_watch")
+        for v in gained:
+            self.assertIn(v, LC.LOOPS,
+                          "%s was given a trace in v3076; dropping it silently loses a column" % v)
+            lane, pattern, _every = LC.LOOPS[v]
+            self.assertEqual(os.path.abspath(pattern), os.path.abspath(LT.path_of(lane)),
+                             "%s declares a path lane_trace would never write" % v)
+        print("still traceless and correctly ABSENT: %d  ·  gained a real trace: %d"
+              % (len(still_traceless), len(gained)))
 
 
 RED_PROOF = [

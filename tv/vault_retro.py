@@ -1097,7 +1097,14 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         frames = _frame_rows(idx.get("frames"))
         frames_seen += len(frames)
         # BORROWED grouping — chronicle_retro owns STILL_MAX_DIFF / MIN_RUN_FRAMES and the run logic.
-        sig_of = lambda n, _d=reel_dir: sig(os.path.join(_d, n))          # noqa: E731 — per-reel bind
+        # v3076 — MEMOISED, because the grouping is now computed twice per reel (split and
+        # unsplit) and DEFAULT_SIG reads the image. Keyed per reel, so it cannot outlive the loop.
+        _sig_memo = {}
+
+        def sig_of(n, _d=reel_dir):
+            if n not in _sig_memo:
+                _sig_memo[n] = sig(os.path.join(_d, n))
+            return _sig_memo[n]
         # ══ v2396 — SPLIT THE RUN ON THE TOOLTIP, NOT ONLY ON THE GRID ═══════════════════════
         # MEASURED on reel_s_1788099914191_40921: 20 frames, all carrying an open stash panel,
         # median consecutive sig_diff 0.0000, collapsed to ONE run, ONE page read, ZERO rows — while
@@ -1162,11 +1169,19 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         # split can then only ever ADD pages, which is what it was introduced to do. The control
         # case v2396 cites (7 frames, zero tooltips, 1 -> 1) never reaches this branch at all.
         # [[feedback-threshold-above-the-ceiling]]
-        if not cands:
-            _unsplit = _cr.candidate_runs(_cr.still_runs(frames, sig_of),
-                                          min_frames=MIN_RUN_FRAMES)
-            if _unsplit:
-                cands = _unsplit
+        # ⚠⚠ v3076 — "ONLY EVER ADD" MEANS NEVER FEWER, NOT MERELY NEVER ZERO. v3075 fell back
+        # only `if not cands`, which the cross-family second eye called out on the shipped diff:
+        # the law is named "may only ever add pages" and the code restored solely at zero.
+        # REPRODUCED before believing it — 8 frames as two held screens of 4, a hover moving
+        # inside the FIRST screen only:
+        #     no split      runs [4, 4]     -> 2 candidates
+        #     tooltip split runs [2, 2, 4]  -> 1 candidate
+        # Candidates fell 2 -> 1 without ever reaching zero, so the old guard never fired and a
+        # whole held screen was never read. Comparing the COUNTS makes the grouping monotone,
+        # which is what the name claimed all along. [[review-after-ship]]
+        _unsplit = _cr.candidate_runs(_cr.still_runs(frames, sig_of), min_frames=MIN_RUN_FRAMES)
+        if len(_unsplit) > len(cands):
+            cands = _unsplit
         read_this_reel = False
         # v1792 — RE-LOOK BUCKETS. Candidate runs are already separated by a signature change, so a
         # multi-minute gap between two of them is the panel left and returned to rather than one
