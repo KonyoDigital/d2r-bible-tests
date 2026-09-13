@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3055** | `(this commit)` | v3055 — eight heart-matrix cells read MISNAMED - the organ IS watching this under another name - while the eagle and the doctor named nothing at all in the fleet or roster lane; a lane-blind resolver let four surfaces borrow the chronicle lane organs, and the guard now refuses a cross-lane match |
+| **v3056** | `(this commit)` | v3056 — nine stations each printed a full row to say nothing had ever reached them, putting the first reel card 419px down a 361px window - the panel named after its cards opened showing none; every dry station is still NAMED on its lane banner with the same never reached words, costing one line per lane instead of one line each |
+| **v3055** | `1e70398f` | v3055 — eight heart-matrix cells read MISNAMED - the organ IS watching this under another name - while the eagle and the doctor named nothing at all in the fleet or roster lane; a lane-blind resolver let four surfaces borrow the chronicle lane organs, and the guard now refuses a cross-lane match |
 | **v3054** | `35702fd3` | v3054 — the tombstone mouth listed seven deleted reels in 267px above the first reel still on the shelf; capped to 84px with every row still there and scrollable |
 | **v3053** | `660f4938` | v3053 — a vault reel is explained by the vault lane, not by a chronicle question it can never answer; coverage 0.9484 to 0.9619 and the 13 that nothing extracted stay visible |
 | **v3052** | `4da7f367` | v3052 — printer.stream asks may_on_merit, so nine blind instruments that never watched the river can no longer blank it on his console; destructive locks still fail closed |

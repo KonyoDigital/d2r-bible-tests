@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3055"   # THE TABLE CLAIMED WATCHERS IT DID NOT HAVE
+VERSION = "v3056"   # A LANE DRY STATIONS FOLD INTO ITS OWN BANNER
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

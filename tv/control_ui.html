@@ -4340,6 +4340,13 @@
          TOMBSTONE · never reached · 410 closed out
      — the false claim and its own refutation in one line. A section carrying a real terminus is
      not empty and must not be dimmed like one. [[label-outlived-referent]] */
+  /* ⚠ THE DRY-STATION STRIP — v3056. The names of the stations this lane has never reached,
+     on the lane's own banner instead of one row apiece. Dimmed to the same .48 the folded rows
+     carried, so it reads as the same state it replaced and not as a new kind of claim. */
+  #th-shelfov .sh-riverlane .shg-lanedry { flex: 1 1 100%; min-width: 0;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+    font: var(--fw-semibold) var(--fs-2xs)/1.25 var(--mono);
+    color: var(--gold-dim); opacity: .72; letter-spacing: var(--ls-tight); }
   .sh-daygroup.sh-rivermouth { opacity: 1; }
   .sh-daygroup.sh-rivermouth .shg-n::after { content: none; }
   .sh-daygroup.sh-rivergroup .shg-mouth { color: var(--gold-hi); font-variant-numeric: tabular-nums; }
@@ -16272,6 +16279,31 @@ window._lockMark = function(isOpen, px, label){
         c.appendChild(b);
       });
       var anchor = null;
+      /* ══ v3056 — A LANE'S DRY STATIONS FOLD INTO ITS OWN HEADER ════════════════════════════
+         Measured on his console 2026-09-12 (Grokbot, 1120x660): `firstCardTop 419 · clientH 361`
+         — the panel named after its reel cards opened showing NONE of them, because the ladder
+         above the first card ran ~510px: 4 lane banners plus NINE stations that each printed a
+         full row to say nothing had ever reached them.
+
+         ⚠ THE ROWS ARE NOT DELETED AND THE FINDING IS NOT HIDDEN. "an EMPTY station still prints,
+         dimmed — a section that vanishes when empty hides the finding" is the rule this file has
+         carried since the river was drawn, and it still holds: every dry station is NAMED, in
+         order, on its own lane's banner, with the same `never reached` words. What changes is
+         that a lane's dry stations cost ONE line between them instead of one line EACH.
+
+         ⚠ THE MOUTH IS NEVER FOLDED. TOMBSTONE holds no cards because a closed-out reel leaves
+         the disk, not because nothing arrived — `_mouthHasRows` already carries that distinction
+         and a folded mouth would delete 410 finished journeys from the picture.
+         [[unknown-stays-unknown]] [[label-outlived-referent]] */
+      var _dryByLane = {};
+      var _laneOf = function(_st){
+        var L = SHELF_RIVER_LANES || [];
+        for (var i = 0; i < L.length; i++){
+          var ss = (L[i] || {}).stations || [];
+          for (var j = 0; j < ss.length; j++){ if (ss[j] === _st) return String((L[i] || {}).name || i); }
+        }
+        return null;                     /* a station owned by no lane keeps its own row */
+      };
       order.slice().reverse().forEach(function(st){
         var cs = byStation[st] || [];
         /* the newest stamp in this station — his "with timestamps" */
@@ -16404,10 +16436,16 @@ window._lockMark = function(isOpen, px, label){
               + _mr.length + ' of ' + esc(String(SHELF_MOUTH.n)) + ' shown \u00b7 oldest first'
               + '</div>' + _mrh + '</div>');
           }
-        if (cs.length) { grid.insertBefore(h, cs[0]); }
-        else if (anchor) { grid.insertBefore(h, anchor); }
-        else { grid.appendChild(h); }
-        anchor = h;
+        var _dryLane = (!cs.length && !_mouthHasRows) ? _laneOf(st) : null;
+        if (_dryLane !== null){
+          /* folded: the row is not inserted, and the station is named on its lane banner below */
+          (_dryByLane[_dryLane] = _dryByLane[_dryLane] || []).unshift(String(st));
+        } else {
+          if (cs.length) { grid.insertBefore(h, cs[0]); }
+          else if (anchor) { grid.insertBefore(h, anchor); }
+          else { grid.appendChild(h); }
+          anchor = h;
+        }
         /* v2987 — THE LANE HEADER, above the first station it owns. The walk is BACKWARDS, so a
            lane's first station is reached LAST of that lane's sections and `h` is already the
            topmost of them — inserting before `h` puts the lane banner in the right place without
@@ -16428,7 +16466,14 @@ window._lockMark = function(isOpen, px, label){
                    clamped to one. Clamping the box must never make a word unreachable. */
                 + (_ln.why ? '<span class="shg-lanewhy" title="' + esc(String(_ln.why)) + '">'
                              + esc(String(_ln.why)) + '</span>' : '');
-              grid.insertBefore(_lh, h);
+              /* the lane's dry stations, named in river order — the finding, on one line */
+              var _dry = _dryByLane[String(_ln.name || _lj)] || [];
+              if (_dry.length){
+                _lh.insertAdjacentHTML('beforeend',
+                  '<span class="shg-lanedry" title="' + esc(_dry.join(', '))
+                  + '">never reached \u00b7 ' + esc(_dry.join(' \u00b7 ')) + '</span>');
+              }
+              grid.insertBefore(_lh, (h && h.parentNode) ? h : (anchor || null));
               anchor = _lh;
               break;
             }
