@@ -19654,6 +19654,41 @@ def _examined_and_empty(read_ok, not_stash, pix_err, canary_live):
     return bool(read_ok == 0 and not_stash > 0 and not pix_err and canary_live)
 
 
+def why_not_definitive(read_ok, reconciled, over_read, pix_err):
+    """WHICH of vault_seal_is_definitive's conditions refused. -> list of sentences (empty = none).
+
+    ⚠⚠ v3085 — ITS SIBLING RETURNS ONE BOOL FOR FOUR CONDITIONS, so a reel that was read cleanly
+    and still will not release looks identical to one nobody looked at. MEASURED 2026-09-13 on
+    reel_s_1788195270707_36946: the sweep printed "1 panel(s) READ CLEANLY and held no readable
+    name", `classifyError` was None, the pixel lane printed nothing — and the seal still came back
+    `examinedEmpty=None`. The cause was invisible from outside: read_ok was 1 and `reconciled` was
+    EMPTY, so `len(rec) != read_ok` refused. A frame READ but never CROSS-CHECKED is a real state
+    that had no voice. [[zero-needs-a-denominator]]
+
+    PURE, for the same reason its sibling is: the four conditions can then be argued with directly
+    instead of being reconstructed from a 600-line sweep — and tested without a reel.
+
+    ⚠ `pixelLaneError` (v1998) already covers the lane FAILING. This covers the lane running and
+    simply not reconciling a frame, which is a different fact.
+    """
+    out = []
+    if not read_ok:
+        return out                      # nothing was read; "not definitive" is not the story
+    if pix_err:
+        out.append("the pixel lane failed (%s)" % str(pix_err[0])[:60])
+    if over_read:
+        out.append("%d frame(s) named MORE than the panel can hold" % len(over_read))
+    rec = [r for r in (reconciled or []) if isinstance(r, dict)]
+    if len(rec) != read_ok:
+        out.append("%d frame(s) were READ but only %d were cross-checked — a read frame with no "
+                   "cross-check is unmeasured, not empty" % (read_ok, len(rec)))
+    bad = [r for r in rec if str(r.get("verdict") or "") not in ("under-read", "agree")]
+    if bad:
+        out.append("%d cross-check(s) came back %s"
+                   % (len(bad), sorted({str(r.get("verdict")) for r in bad})))
+    return out
+
+
 def vault_seal_is_definitive(read_ok, reconciled, over_read, pix_err):
     """v2003 — may a sweep that grounded NO ROWS seal the reel, or must the footage stay readable?
 
@@ -22537,6 +22572,32 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         # set at 22060-22063 and nothing between here and the old call site reassigns or mutates
         # them, so hoisting cannot change the verdict it already gave. [[the-unjoined-end]]
         _definitive = vault_seal_is_definitive(_read_ok[0], _reconciled, _over_read, _pix_err)
+        # ⚠⚠ v3085 — WHEN A REEL IS READ AND STILL CANNOT SEAL, SAY WHICH CONDITION REFUSED.
+        # `vault_seal_is_definitive` takes four inputs and returns one bool, so a reel that was
+        # read cleanly and still will not release looks identical to one nobody looked at.
+        #
+        # MEASURED 2026-09-13 on reel_s_1788195270707_36946: the sweep printed "1 panel(s) READ
+        # CLEANLY and held no readable name", `classifyError` was None and the pixel lane printed
+        # nothing — yet the seal came back `examinedEmpty=None` and the reel stayed held. The
+        # cause is invisible from outside: read_ok was 1 and `_reconciled` was EMPTY, so
+        # `len(rec) != read_ok` refused. A frame READ but never CROSS-CHECKED is a real state
+        # with no voice, and the 4-frame reel that DID release printed a cross-check line while
+        # this one printed none. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        #
+        # `pixelLaneError` (v1998) already covers the lane FAILING. This covers the lane running
+        # and simply not reconciling a frame, which is a different fact and was silent.
+        if not _definitive:
+            # ⚠ ASK THE PURE FUNCTION, do not re-derive the four conditions here. Two copies of
+            # one rule is how the explanation and the verdict start disagreeing. [[copy-drift]]
+            _nd = why_not_definitive(_read_ok[0], _reconciled, _over_read, _pix_err)
+            if _nd:
+                _say_nd = "; ".join(_nd)
+                with _VAULT_LOCK:
+                    _VAULT_JOB["notDefinitiveWhy"] = _say_nd
+                print("   \u26a0 read %d panel(s) but the seal cannot be definitive: %s"
+                      % (_read_ok[0], _say_nd), flush=True)
+                print("     so this reel stays HELD by the RUN, not by its film \u2014 re-sweep "
+                      "once the missing half answers.", flush=True)
         if _rows:
             # v2002 — RECORD WHICH READER SEALED IT. {"ts": ...} alone cannot answer "is this
             # verdict still current", which is why a vault seal used to be permanent.
@@ -27465,7 +27526,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3084",
+        "ver": "v3085",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

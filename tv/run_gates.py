@@ -2422,6 +2422,21 @@ GATES = [
              "the reel RELEASED (panels_never_banked True -> False). The footage was held by a "
              "transient call for as long as nobody could see the difference. Recorded ONCE like "
              "_pix_err, never per frame."),
+    Gate("test_a_read_reel_says_why_it_cannot_seal",
+         [sys.executable, os.path.join(HERE, "test_a_read_reel_says_why_it_cannot_seal.py")], 120,
+         why="A REEL THAT WAS READ AND STILL CANNOT SEAL MUST SAY WHICH CONDITION REFUSED. "
+             "vault_seal_is_definitive takes four inputs and returns ONE bool, so a reel read "
+             "cleanly that will not release looks identical to one nobody looked at. MEASURED on "
+             "reel_s_1788195270707_36946: the sweep printed '1 panel(s) READ CLEANLY and held no "
+             "readable name', classifyError was None and the pixel lane printed nothing - and the "
+             "seal still came back examinedEmpty=None. The cause was invisible from outside: "
+             "read_ok=1 with an EMPTY reconciled, so len(rec) != read_ok refused. A frame READ but "
+             "never CROSS-CHECKED is a real state that had no voice; pixelLaneError (v1998) covers "
+             "the lane FAILING, not the lane running and skipping a frame. why_not_definitive is "
+             "PURE for the same reason its sibling is, and the law asserts the two AGREE on every "
+             "combination - a silent explanation exactly when the verdict is definitive - because "
+             "two functions deriving one rule is how a console says 'fine' beside a reel it "
+             "refuses to release."),
     Gate("test_a_journal_row_leaves_only_on_proof",
          [sys.executable, os.path.join(HERE, "test_a_journal_row_leaves_only_on_proof.py")], 120,
          why="A JOURNAL ROW MAY LEAVE ONLY ON A PROOF OF EXTRACTION, AND THE PLANNER MAY NEVER "

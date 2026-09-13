@@ -32373,6 +32373,45 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-997 — a reel read cleanly, refused to seal, and nothing said which condition stopped it (task #89 — v3085)
+
+**MEASURED 2026-09-13 on `reel_s_1788195270707_36946`**, found by re-sweeping it after REG-990:
+
+    the sweep printed  "1 panel(s) READ CLEANLY and held no readable name"
+    classifyError      None
+    pixel lane         printed nothing
+    the seal           examinedEmpty=None  ->  seal_releases_frames False  ->  STILL HELD
+
+Every instrument said fine and the reel would not move. `vault_seal_is_definitive` takes four
+inputs and returns ONE bool, so **a reel read cleanly that will not release looks identical to one
+nobody looked at.**
+
+The cause was invisible from outside: `read_ok=1` with an **empty `reconciled`**, so
+`len(rec) != read_ok` refused. **A frame READ but never CROSS-CHECKED** is a real state that had no
+voice — and the only clue was that the 4-frame reel which DID release printed a cross-check line
+while this one printed none. [[zero-needs-a-denominator]]
+
+⚠ `pixelLaneError` (v1998) already covers the pixel lane **failing**. This is the lane **running**
+and simply not reconciling a frame, which is a different fact and was the silent one.
+
+**`why_not_definitive(read_ok, reconciled, over_read, pix_err)`** — PURE, for the same reason its
+sibling says it is pure: the four conditions can be argued with directly instead of reconstructed
+from a 600-line sweep, and tested without a reel. It names whichever refused, the sweep publishes it
+as `_VAULT_JOB["notDefinitiveWhy"]`, and says the reel is held **by the RUN, not by its film**.
+
+⚠⚠ **THE EXPLANATION AND THE VERDICT MAY NEVER DISAGREE.** Two functions deriving one rule is how a
+console ends up saying "everything is fine" beside a reel it refuses to release. The law asserts a
+silent explanation **exactly when** the verdict is definitive, across **all 40** combinations it can
+build, and parses the sweep to prove it ASKS the function rather than re-deriving the conditions
+inline. [[copy-drift]]
+
+⚠ **AND THE REEL IS FLAKY RUN TO RUN, WHICH IS ITS OWN FINDING.** Same reel, same command: one
+sweep read 1 page, the next read 0. That is REG-990's transient classify lane again, and it means
+"held" is not a stable property of this reel — a re-sweep can change it either way.
+
+Gate: `test_a_read_reel_says_why_it_cannot_seal` (352 registered), both red-proofs PROVEN, 1 match
+each.
+
 ## REG-996 — the journal half of the river did not exist, so 419 rows outlived their film (task #89 — v3084)
 
 **His instruction, 2026-09-13:** *"it should all go through the river and end up in tombstone and
