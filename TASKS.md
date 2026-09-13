@@ -1669,7 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3080** | `(this commit)` | v3080 — THE BADGE LEAVES THE TITLE ITS CORNER |
+| **v3080** | `f34cca70` | v3080 — THE BADGE LEAVES THE TITLE ITS CORNER |
 | **v3079** | `8fc4d91b` | v3079 — THE ORPHAN KILLER IS NOT INSIDE A HANDLER |
 | **v3078** | `572aa745` | v3078 — A FAILED CALL IS NOT A VERDICT ON THE FILM |
 | **v3077** | `e87af8a6` | v3077 — A CARD WITH NO FILM SAYS SO |
