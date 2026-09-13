@@ -2303,6 +2303,16 @@ GATES = [
              "seam into a safety path is the thing that quietly stops guarding, so this refuses "
              "two rots: the lock's own law using the seam (it would prove nothing), and the seam "
              "returning anything but CLOSED on an absent census."),
+    Gate("test_an_organ_never_covers_a_lane_it_cannot_name",
+         [sys.executable, os.path.join(HERE, "test_an_organ_never_covers_a_lane_it_cannot_name.py")], 120,
+         why="AN ORGAN'S COVERAGE NEVER CROSSES A LANE. Measured 2026-09-13: the matrix called "
+             "fleet.sets, fleet.uniques, roster.set and roster.unique MISNAMED on both the eagle "
+             "and the doctor — 8 cells, 100% of the MISNAMED in the table — meaning 'the organ IS "
+             "watching that thing under another name'. It was not: both organs name exactly "
+             "chronicle.set and chronicle.unique and NOTHING in the fleet or roster lane. "
+             "one_name.same_thing compares the tail and is lane-blind, so four surfaces borrowed "
+             "chronicle's organs. This does not demand those lanes be covered — they are honestly "
+             "ABSENT — it refuses a table that reports a watcher it does not have."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

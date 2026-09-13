@@ -215,6 +215,50 @@ def surfaces():
     return found
 
 
+def _lane_of(name):
+    """The lane a dotted surface name belongs to, or None if it carries no lane. -> str|None
+
+    `fleet.sets` -> "fleet". `route chronicle · sets` -> None, because an organ that spells a
+    subject in prose has not claimed a lane and must not be judged as though it had.
+    """
+    s = str(name or "").strip().lower()
+    return s.split(".")[0] if "." in s else None
+
+
+def _same_lane(surface, name):
+    """May a name from this organ stand for this surface at all? -> bool
+
+    ⚠⚠ THIS IS THE GUARD THAT STOPPED A TABLE FROM BORROWING ONE LANE'S ORGANS FOR ANOTHER'S.
+    Measured 2026-09-13: the eagle and the doctor each name exactly two route subjects,
+    `chronicle.set` and `chronicle.unique`, and NOTHING in the fleet or roster lane —
+    `lanes.get("fleet")` and `lanes.get("roster")` were both `[]` for both organs. The matrix
+    nevertheless reported `fleet.sets`, `fleet.uniques`, `roster.set` and `roster.unique` as
+    MISNAMED on both columns — 8 cells, 100% of the MISNAMED in the table — because
+    `one_name.same_thing` compares the TAIL and is deliberately lane-blind:
+
+        same_thing("fleet.sets",  "chronicle.set") -> True
+        same_thing("fleet.sets",  "roster.set")    -> True
+
+    MISNAMED means *the organ IS watching this thing and calls it something else* (see the
+    banner this file prints at the bottom). For those 8 cells that sentence was FALSE: nothing
+    was watching them, and the table said something was. That is worse than the empty table this
+    module was written to replace, which is the module's own stated standard.
+
+    All six are separately registered surfaces (`surfaces()` carries `chronicle.set`,
+    `fleet.sets`, `roster.set` and their unique twins, every one with `origin="route"`), so a
+    cross-lane match is not a spelling difference — it is a different subject.
+
+    The rule: when BOTH sides carry a lane, the lanes must agree. When either side carries none —
+    an organ naming a subject in prose, like `route chronicle · sets` — the older tail rule still
+    decides, because a name that never claimed a lane cannot be caught contradicting one.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    a, b = _lane_of(surface), _lane_of(name)
+    if a is None or b is None:
+        return True
+    return a == b
+
+
 def _same_thing(surface, names):
     """Does the organ name this surface under a DIFFERENT string? -> bool
 
@@ -230,7 +274,8 @@ def _same_thing(surface, names):
     except Exception:
         _on = None
     if _on is not None:
-        return any(_on.same_thing(surface, n) for n in (names or ()))
+        return any(_on.same_thing(surface, n) and _same_lane(surface, n)
+                   for n in (names or ()))
     tail = surface.split(".")[-1].strip().lower()
     if not tail:
         return False

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3054",
+  "ver": "v3055",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3054: the tombstone mouth listed seven deleted reels in 267px above the first reel still on the shelf; capped to 84px with every row still there and scrollable",
+  "note": "v3055: eight heart-matrix cells read MISNAMED - the organ IS watching this under another name - while the eagle and the doctor named nothing at all in the fleet or roster lane; a lane-blind resolver let four surfaces borrow the chronicle lane organs, and the guard now refuses a cross-lane match",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
