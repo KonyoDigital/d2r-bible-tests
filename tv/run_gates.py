@@ -2369,6 +2369,17 @@ GATES = [
              "card ('2,468 empty runs', 'Search runs'), so the rename removes a vocabulary rather "
              "than adding one. Also pins that the river strip's own reel phrase SURVIVES - that "
              "surface is correct and v2822 already fixed its denominators."),
+    Gate("test_the_epoch_never_deletes_and_never_fakes_a_terminus",
+         [sys.executable, os.path.join(HERE, "test_the_epoch_never_deletes_and_never_fakes_a_terminus.py")], 120,
+         why="THE EPOCH MAY NEVER DELETE AND MAY NEVER REPORT A TERMINUS IT DID NOT REACH. Its "
+             "first run on his footage converged to a FIXED POINT: 24 reels on disk, 0 candidates "
+             "to release, nothing moved across two cycles, and 7 gap rules STILL never fired - "
+             "eligible among them. Not once has a reel been ruled safe to release, which is the "
+             "measurement behind 'the vault hasnt worked yet'. So nothing may delete on this lane "
+             "until it has been seen to reach its own terminus. Refuses four rots: the harness "
+             "gaining a destructive call (parsed as CALLS, since its prose says delete and retire "
+             "repeatedly), `apply` ceasing to default dry, a fixed point reported as success, and "
+             "the two excluded rules dropped silently instead of named with their reason."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

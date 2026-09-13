@@ -1,0 +1,166 @@
+{
+ "cycles": [
+  {
+   "n": 1,
+   "moved": false,
+   "diffs": [],
+   "reentry": {
+    "ok": true,
+    "checked": 0,
+    "readmitted": [],
+    "kept": 0,
+    "dry": true
+   },
+   "why": "0 retired reel(s) still carry panel frames with no vault row and WOULD BE sent back to the top of the lane; 0 were left retired because they are no longer holding unextracted panels.",
+   "neverFired": [
+    "eligible",
+    "holds-proof",
+    "never-chronicle-swept",
+    "no-witness-index",
+    "rows-not-banked",
+    "vault-owes",
+    "zero-pages"
+   ]
+  },
+  {
+   "n": 2,
+   "moved": false,
+   "diffs": [],
+   "reentry": {
+    "ok": true,
+    "checked": 0,
+    "readmitted": [],
+    "kept": 0,
+    "dry": true
+   },
+   "why": "0 retired reel(s) still carry panel frames with no vault row and WOULD BE sent back to the top of the lane; 0 were left retired because they are no longer holding unextracted panels.",
+   "neverFired": [
+    "eligible",
+    "holds-proof",
+    "never-chronicle-swept",
+    "no-witness-index",
+    "rows-not-banked",
+    "vault-owes",
+    "zero-pages"
+   ]
+  }
+ ],
+ "startedRules": {
+  "no-witness-index": 0,
+  "ledger-unreadable": 0,
+  "holds-proof": 0,
+  "test-fixture": 8,
+  "recent": 8,
+  "never-chronicle-swept": 0,
+  "zero-pages": 0,
+  "panels-never-banked": 8,
+  "rows-not-banked": 0,
+  "vault-owes": 0,
+  "target-met": 0,
+  "eligible": 0
+ },
+ "targetRules": [
+  "eligible",
+  "holds-proof",
+  "never-chronicle-swept",
+  "no-witness-index",
+  "rows-not-banked",
+  "vault-owes",
+  "zero-pages"
+ ],
+ "excluded": [
+  "ledger-unreadable",
+  "target-met"
+ ],
+ "excludedWhy": "cannot fire without a free_mb target; the retention plan does not count them as gaps",
+ "apply": false,
+ "ok": true,
+ "why": "",
+ "first": {
+  "ok": true,
+  "why": "",
+  "stations": {
+   "releasable": 16,
+   "banked": 8
+  },
+  "tags": {
+   "recent": 8,
+   "panels-never-banked": 8,
+   "test-fixture": 8
+  },
+  "rules": {
+   "no-witness-index": 0,
+   "ledger-unreadable": 0,
+   "holds-proof": 0,
+   "test-fixture": 8,
+   "recent": 8,
+   "never-chronicle-swept": 0,
+   "zero-pages": 0,
+   "panels-never-banked": 8,
+   "rows-not-banked": 0,
+   "vault-owes": 0,
+   "target-met": 0,
+   "eligible": 0
+  },
+  "onDisk": 24,
+  "order": [
+   "filmed",
+   "triaged",
+   "swept",
+   "banked",
+   "vault-done",
+   "releasable"
+  ],
+  "candidates": 0,
+  "say": "NOTHING is safe to delete yet — and that is an answer, not a failure. every reel is recent, unread, or still owed to a lane."
+ },
+ "last": {
+  "ok": true,
+  "why": "",
+  "stations": {
+   "releasable": 16,
+   "banked": 8
+  },
+  "tags": {
+   "recent": 8,
+   "panels-never-banked": 8,
+   "test-fixture": 8
+  },
+  "rules": {
+   "no-witness-index": 0,
+   "ledger-unreadable": 0,
+   "holds-proof": 0,
+   "test-fixture": 8,
+   "recent": 8,
+   "never-chronicle-swept": 0,
+   "zero-pages": 0,
+   "panels-never-banked": 8,
+   "rows-not-banked": 0,
+   "vault-owes": 0,
+   "target-met": 0,
+   "eligible": 0
+  },
+  "onDisk": 24,
+  "order": [
+   "filmed",
+   "triaged",
+   "swept",
+   "banked",
+   "vault-done",
+   "releasable"
+  ],
+  "candidates": 0,
+  "say": "NOTHING is safe to delete yet — and that is an answer, not a failure. every reel is recent, unread, or still owed to a lane."
+ },
+ "fired": [],
+ "stillNeverFired": [
+  "eligible",
+  "holds-proof",
+  "never-chronicle-swept",
+  "no-witness-index",
+  "rows-not-banked",
+  "vault-owes",
+  "zero-pages"
+ ],
+ "stoppedBecause": "nothing moved for 2 consecutive cycle(s) — a fixed point. The river cannot advance these reels any further on its own."
+}

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3064",
+  "ver": "v3065",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3064: the shelf lane header printed 8 REELS from a count of visible cards while the river strip four inches above printed 4 from the routers own reel count - 425 cards against 16 reels, two populations under one word; the number was never wrong, only the noun",
+  "note": "v3065: real reels driven down the river and watched: it converged in two cycles with nothing moving, 0 candidates to release, and seven gap rules still never fired including eligible - the measurement behind the vault never having worked",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
