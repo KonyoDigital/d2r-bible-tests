@@ -2325,6 +2325,17 @@ GATES = [
              "uiBeat.docVer, and a doctor row compares it to disk. This refuses all three rots: "
              "the page going quiet, the server not publishing, and the doctor calling an older "
              "document - or an ABSENT stamp - agreement."),
+    Gate("test_the_shelf_is_watched_by_all_four_organs",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_is_watched_by_all_four_organs.py")], 180,
+         why="THE SHELF MUST BE WATCHED BY ALL FOUR ORGANS. Measured 2026-09-13: it had 8 of 16 "
+             "organ cells and NO CORROBORATOR ON ANY SURFACE - which is exactly how a card could "
+             "print '19 frames - full video' while the dossier printed '0 FRAMES' for the same "
+             "reel and nothing noticed. An eagle watches cheaply, a watchdog asks if a thing is "
+             "alive, a doctor asks if a check passes; only a corroborator compares witnesses. On "
+             "its first run the new one reported 52 of 53 reels disagreeing and named the odd "
+             "witness: `frames` counts JOURNAL ROWS IN A GROUP, not frames of film. This refuses "
+             "four rots - the corroborator or the watchdog dropping the shelf, the corroborator "
+             "losing the ability to say NO, and an unwitnessable shelf reading as agreement."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

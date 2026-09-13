@@ -182,6 +182,24 @@ def organ_coverage():
                             forms.add(f)
                 for f in (forms or {n}):
                     names.add("%s.%s" % (lane, f))
+        # ⚠⚠ v3059 — THE CORROBORATOR COVERED 9 OF 58 SURFACES AND THAT WAS THE HOLE.
+        # Measured 2026-09-13: this organ named ONLY the nine route subjects, so 49 surfaces
+        # had no cross-witness at all — including the shelf, where a card said "19 frames"
+        # and the dossier said "0 FRAMES" for the same reel and nothing noticed. An eagle
+        # watches cheaply, a watchdog asks if a thing is alive, a doctor asks if a check
+        # passes; only a corroborator compares two witnesses. On its first run the shelf
+        # corroborator reported 52 of 53 reels disagreeing.
+        #
+        # ⚠ IT DECLARES ITS SURFACES. shelf_corroborate.SURFACES names them in the registry's
+        # own vocabulary rather than being matched by resemblance — v3055 deleted a resolver
+        # that matched on the tail and manufactured 8 cells of coverage that did not exist.
+        # [[copy-drift]] [[the-unjoined-end]]
+        try:
+            import shelf_corroborate as _sc
+            for _s in (_sc.SURFACES or ()):
+                names.add(str(_s))
+        except Exception:
+            pass                      # an organ that cannot be asked adds nothing and says nothing
         return names
     out["corroborator"] = (_corr(None), "") if _corr(None) else (None, "no route set answered")
     return out

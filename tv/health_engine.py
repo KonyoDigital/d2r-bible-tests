@@ -61,6 +61,8 @@ WATCHES = {
     "orphans":         ("_orphan_watch", "_orphan_exit_loop"),
     "shadowWatch":     ("advanced-shadow", "_shadow_watch_loop"),
     "readers":         (),
+    # v3059 — the shelf's two rendered surfaces, declared because this row cannot derive them
+    "shelfWitness":    ("shelf-cards", "river-strip"),
     # selfArming is DERIVED — see the note above. It must not be listed here.
 }
 
@@ -595,7 +597,53 @@ def check_lane_liveness():
                 ev, surfaces=fns)
 
 
+def check_shelf_witnesses():
+    """Is the shelf being WITNESSED at all? -> row
+
+    ⚠ THIS IS NOT THE CORROBORATOR'S QUESTION AND MUST NOT BECOME IT. Whether the witnesses
+    AGREE is `shelf_corroborate`'s verdict and it has its own organ. A watchdog asks whether
+    the thing is alive: can the shelf be read, is any reel still witnessable, did the organ
+    actually run. Collapsing the two would leave the shelf with one organ wearing two hats,
+    which is exactly the coverage illusion organ_matrix exists to refuse.
+
+    ⚠ ZERO WITNESSABLE REELS IS NOT HEALTH. A shelf with no film on disk cannot be
+    corroborated by anything, so a clean-looking "0 disagreements" would be a verdict with no
+    denominator. That case reports WARN with the count beside it.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    try:
+        import shelf_corroborate as _sc
+    except Exception as e:
+        return _row("shelfWitness", UNKNOWN,
+                    "the shelf corroborator could not be loaded (%s), so nothing is witnessing "
+                    "the shelf — unknown, not clear" % type(e).__name__)
+    try:
+        rep = _sc.report()
+    except Exception as e:
+        return _row("shelfWitness", UNKNOWN,
+                    "the shelf corroborator raised %s, so its reading is UNKNOWN"
+                    % type(e).__name__)
+    checked = rep.get("checked") or 0
+    bad = rep.get("disagreed") or 0
+    if not checked:
+        return _row("shelfWitness", WARN,
+                    "0 reel(s) on disk could be witnessed, so the shelf is UNCORROBORATED — "
+                    "that is unmeasured, not agreement",
+                    evidence={"checked": 0, "disagreed": 0})
+    if bad:
+        return _row("shelfWitness", WARN,
+                    "%d of %d witnessable reel(s) disagree with themselves about their own "
+                    "frame count — the shelf is watched and it is reporting a contradiction"
+                    % (bad, checked),
+                    evidence={"checked": checked, "disagreed": bad})
+    return _row("shelfWitness", OK,
+                "%d witnessable reel(s), every one agreeing across dossier, card and disk"
+                % checked,
+                evidence={"checked": checked, "disagreed": 0})
+
+
 CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans,
+          check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
           check_lane_liveness]
 

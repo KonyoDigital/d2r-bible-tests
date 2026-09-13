@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3058",
+  "ver": "v3059",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3058: v3057 asked the console for window.D2R_BUILD, which is assigned in bible.html and never in control_ui.html - 0 assignments against 1 guarded read - so the stamp was structurally always null and the doctor row could only ever say UNKNOWN; the server now stamps the document at serve time with the signature of the exact bytes it hands over",
+  "note": "v3059: the shelf had 8 of 16 organ cells and no corroborator on any surface, which is how a card printed 19 frames while the dossier printed 0 FRAMES for the same reel and nothing noticed; the new corroborator reported 52 of 53 reels disagreeing on its first run and named the odd witness",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
