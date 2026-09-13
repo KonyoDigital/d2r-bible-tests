@@ -12905,8 +12905,8 @@ def ui_beat_record(state=None):
         # v3057 — WHICH DOCUMENT IS ON SCREEN. The page sends its own D2R_BUILD id; this is the
         # only reading here that describes the RENDERED page rather than the tree this process
         # imports. None means the page did not say — UNKNOWN, never "the same".
-        _b = state.get("build")
-        _UI_BEAT["build"] = _b if (isinstance(_b, str) and _b.strip()) else None
+        _b = state.get("docVer")
+        _UI_BEAT["docVer"] = _b if (isinstance(_b, str) and _b.strip()) else None
         # v2393 — the paint witness. Kept here rather than in ui_rescue_due because the strike
         # count is a property of the BEAT SEQUENCE, and the rescue check runs on its own 10s
         # timer that does not line up with the 5s beats.
@@ -27411,7 +27411,7 @@ def status_payload():
                    # RAW beside the disk stamp rather than as a derived boolean, for the reason
                    # the v2457 note below records: shipping a verdict without the number it
                    # derives from lets a supervisor read a conclusion he cannot check.
-                   "docVer": _UI_BEAT.get("build"),
+                   "docVer": _UI_BEAT.get("docVer"),
                    # ⚠⚠ v2457 — PUBLISHED HERE, AND I ALMOST REPEATED THE EXACT MISTAKE THE v2435
                    # COMMENT TWELVE LINES BELOW IS ABOUT. I recorded the paint witness, added it to
                    # the CF-4 forensic snapshot, and shipped nothing to the surface a supervisor

@@ -54,17 +54,17 @@ class TestTheWindowSaysWhichDocumentItRenders(unittest.TestCase):
         """PARSED out of the beat payload, not grepped from the file. [[source-reading-guard]]"""
         body = _between(UI, "fetch('/api/ui_alive'", "})")
         self.assertIsNotNone(body, "the ui_alive beat could not be located at all")
-        hits = re.findall(r"\bbuild:\s*\(\(\s*window\.D2R_BUILD\s*&&\s*window\.D2R_BUILD\.id\s*\)"
+        hits = re.findall(r"\bdocVer:\s*\(\(\s*window\.D2R_BUILD\s*&&\s*window\.D2R_BUILD\.id\s*\)"
                           r"\s*\|\|\s*null\s*\)", body)
         print("build-stamp expressions inside the ui_alive payload: %d" % len(hits))
         self.assertEqual(1, len(hits),
-                         "the beat must send the document's OWN D2R_BUILD id, falling back to "
+                         "the beat must send the document's OWN D2R_BUILD id under the SAME name the status payload publishes it under, falling back to "
                          "null — never to a guess, and never to a server-side version")
 
     def test_the_server_publishes_it_raw(self):
         app = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        rec = re.findall(r'_UI_BEAT\["build"\]\s*=', app)
-        pub = re.findall(r'"docVer":\s*_UI_BEAT\.get\("build"\)', app)
+        rec = re.findall(r'_UI_BEAT\["docVer"\]\s*=', app)
+        pub = re.findall(r'"docVer":\s*_UI_BEAT\.get\("docVer"\)', app)
         print("beat recorders: %d · status publishers: %d" % (len(rec), len(pub)))
         self.assertEqual(1, len(rec), "the beat must record what the page sent")
         self.assertEqual(1, len(pub), "the status payload must publish it RAW, not as a boolean")
@@ -116,7 +116,7 @@ RED_PROOF = [
         "why": "the page stops sending its own build stamp, so nothing on the wire describes the "
                "rendered document and the question goes back to being unanswerable",
         "file": "control_ui.html",
-        "find": "            build: ((window.D2R_BUILD && window.D2R_BUILD.id) || null),",
+        "find": "            docVer: ((window.D2R_BUILD && window.D2R_BUILD.id) || null),",
         "replace": "",
         "matches": 1,
     },
@@ -124,7 +124,7 @@ RED_PROOF = [
         "why": "the server stops publishing it, which is the unjoined end: measured on one side, "
                "never reaching the surface a supervisor reads",
         "file": "control_app.py",
-        "find": '                   "docVer": _UI_BEAT.get("build"),',
+        "find": '                   "docVer": _UI_BEAT.get("docVer"),',
         "replace": "",
         "matches": 1,
     },
