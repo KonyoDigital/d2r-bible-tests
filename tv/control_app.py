@@ -27465,7 +27465,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3082",
+        "ver": "v3083",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -29065,6 +29065,33 @@ class Handler(BaseHTTPRequestHandler):
                             "frameWant": want, "frameMissing": miss,
                             "archiveOk": miss == 0 and len(frames) > 0}
                 out.append(_theatre_row_cache_put(_ck, _row))
+            # ⚠⚠ v3083 — THE BACKEND'S OWN FIXTURES ARE NOT HIS REELS. Konyo, 2026-09-13:
+            # "9 test fixtured hid compeltely its only for backend and for the ai to use not for
+            # me too in the console." Nine reels on disk — 1,194 MB, the BULK of the footage — exist
+            # only because the TEST SUITE opens them by name, and retention already refuses to
+            # delete them for that reason ("the TEST SUITE opens this reel by name"). They are the
+            # single biggest thing standing between him and "left with the last 8".
+            #
+            # They stay ON DISK: deleting one silently turns a real check into a permanent skip,
+            # which frame_authority.test_referenced_reels documents happening THREE times before it
+            # existed. What changes is that they stop being presented to HIM as his own runs.
+            #
+            # ⚠ ASK frame_authority, DO NOT KEEP A SECOND LIST. It derives the set by reading what
+            # the tests actually name; a hand-maintained copy here is how the two drift, and then
+            # the console hides a reel no test pins or shows one that is a fixture. [[copy-drift]]
+            # ⚠ MARKED AFTER THE ROW CACHE so a cached row gets the flag too — the cache is keyed
+            # on the reel's own fingerprint and predates this field entirely.
+            try:
+                import frame_authority as _fa
+                _fixtures = set(_fa.test_referenced_reels() or ())
+            except Exception:
+                _fixtures = set()          # UNKNOWN -> mark nothing, show everything. Never hide
+                                           # one of his runs because a helper failed.
+            if _fixtures:
+                for _r in out:
+                    _sid = str((_r or {}).get("sessionId") or "")
+                    if _sid and ("reel_" + _sid) in _fixtures or _sid in _fixtures:
+                        _r["fixture"] = True
             return out
         except Exception as e:
             return {"error": str(e)}

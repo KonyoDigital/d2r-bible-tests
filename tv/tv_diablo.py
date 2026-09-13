@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3082"   # REELS BEFORE ANALYTICS, AND A LAW FOR IT
+VERSION = "v3083"   # THE BACKEND FIXTURES LEAVE HIS CONSOLE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

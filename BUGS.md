@@ -32373,7 +32373,85 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
-## REG-994 — the shelf had no law stopping its analytics from burying its reels, and that has shipped twice (task #58 — v3082)
+## REG-995 — the console showed him 9 reels that exist only for the test suite (task #89 — v3083)
+
+**His words, 2026-09-13:** *"9 test fixtured hid compeltely its only for backend and for the ai to
+use not for me too in the console."*
+
+Nine reels on disk — **1,194 MB, the bulk of the footage** — exist only because the TEST SUITE
+opens them by name. Retention already refuses to delete them for exactly that reason, and it is
+right to: `frame_authority.test_referenced_reels` records a prune that removed three test-named
+reels and turned real checks into **permanent skips**, because those tests skipTest when the
+footage is absent. *"A gate that always skips is the same defect as one that is always green."*
+
+So they were the single biggest thing between him and "left with the last 8" — and they are not his
+runs at all.
+
+**They stay ON DISK. They stop being shown to him.** `_theatre_sessions` marks a row `fixture: True`
+when its reel is one the suite names, and the shelf drops those from the card build.
+
+⚠ **THE SET IS ASKED FOR, NOT COPIED.** `frame_authority.test_referenced_reels()` derives it by
+reading what the tests actually name. A hand-kept list here is how the two drift, and then the
+console hides a reel no test pins, or shows one that is a fixture. [[copy-drift]]
+
+**Two independent witnesses agree exactly, 9 of 9, zero drift:**
+
+    on disk AND named by a test      9
+    retention's own `test-fixture`   9
+    agree 9 · frame_authority only: none · retention only: none
+
+⚠ **COUNTED, NEVER SILENTLY DROPPED.** A chip beside "N empty runs — hidden" reads
+`🔧 9 backend fixtures — hidden`. A list that quietly omits rows is the same lie as a heading that
+contradicts it, which this shelf has already been caught doing once.
+
+⚠ The flag is applied AFTER the row cache — that cache is keyed on the reel's own fingerprint and
+predates the field, so a cached row would otherwise never receive it.
+
+⚠ **AND IT CANNOT BE SEEN ON HIS RUNNING CONSOLE UNTIL IT RELAUNCHES.** `control_ui.html` is
+re-read per request; `control_app.py` was imported into memory at startup. Measured: the live
+`/api/sessions` returned `marked fixture: 0` while the same logic run in-process marked **9 of 9**.
+Reading the live endpoint as the verdict on a Python change is a stale reading with a fresh
+timestamp. [[stale-reading]]
+
+## REG-994 — WITHDRAWN: I wrote a law that already existed, and its stated reason was false (task #58 — v3082, withdrawn v3083)
+
+⚠⚠ **THIS ENTRY IS A RETRACTION.** v3082 shipped `test_the_shelf_shows_reels_before_analytics`
+claiming *"nothing in the repo refused either one"*. **That sentence is false.**
+
+`test_the_shelf_shows_reels_before_analysis` — **analysis**, not **analytics** — was already
+registered and required, and already pinned the same assembly order:
+
+    test_the_grid_is_assembled_before_every_analytic_block
+    test_the_controls_still_precede_the_list_they_filter
+    test_nothing_was_dropped_to_buy_the_space
+    + 3 RED_PROOF tampers
+
+It uses TIGHTER tokens than mine (`id="sh-lanes"` against my bare `sh-lanes`) and carries two
+checks mine lacked. **A third reorder of that concat would already have gone red there.** Mine was
+a weaker subset.
+
+**How I missed it:** I searched the test suite for `firstCardTop` and `furniture`, found nothing,
+and concluded no law existed. The real law contains neither word, and differs from the name I
+invented by one: *analysis* / *analytics*. That is precisely the scar that says search for the
+BEHAVIOUR in the codebase's own vocabulary, never for the name you would have given it.
+[[verify-before-building-console]]
+
+**Found by the cross-family second eye on the shipped v3082 diff**, which also named two ways my
+version could be defeated and one way it could go falsely red:
+- a bare `find("sh-lanes")` hits the block's name **inside the existing comment**, so documenting
+  the code the obvious way would have turned test 1 red on a correct, unchanged concat
+- copying the strip into `searchBar` while leaving the original after the list keeps every
+  assertion green while a heavy block sits above the grid with a duplicate id
+
+**Withdrawn in v3083:** the file is deleted and the gate unregistered. 351 → 350. The surviving law
+is the one that was always there, and it is the stronger of the two.
+
+The MEASUREMENTS quoted in the original entry remain true and are worth keeping: v2965 put the
+analytics above the list and the first card sat at y=2491 with 530 cards and none on screen; v2985
+reversed it on 549px of furniture inside a ~449px stage. What was false was my claim that nothing
+guarded it.
+
+
 
 Not a new defect — a **missing guard** for one that has landed on his console **twice**, both times
 caught only by measuring pixels after the fact.

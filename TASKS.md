@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3082** | `(this commit)` | v3082 — REELS BEFORE ANALYTICS, AND A LAW FOR IT |
+| **v3083** | `(this commit)` | v3083 — THE BACKEND FIXTURES LEAVE HIS CONSOLE |
+| **v3082** | `72917d08` | v3082 — REELS BEFORE ANALYTICS, AND A LAW FOR IT |
 | **v3081** | `f5b25a9c` | v3081 — THE CHIP LEAVES THE HERO |
 | **v3080** | `f34cca70` | v3080 — THE BADGE LEAVES THE TITLE ITS CORNER |
 | **v3079** | `8fc4d91b` | v3079 — THE ORPHAN KILLER IS NOT INSIDE A HANDLER |

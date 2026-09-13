@@ -4289,6 +4289,8 @@
     background: rgba(0,0,0,.4); border: 1px solid var(--edge); border-radius: 10px; padding: 11px 14px; }
   .sh-search::placeholder { color: #7a7160; }
   .sh-search:focus { outline: none; border-color: var(--gold-antique); box-shadow: 0 0 0 1px rgba(200,160,74,.3); }
+  /* v3083 — the fixture chip reads as a STATEMENT, not a control: no hover, no pointer. */
+  .sh-chip-fx { opacity: .72; cursor: default; }
   .sh-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; }   /* v1283 (D9) — persistent, composable filter row */
   .sh-fdiv { width: 1px; align-self: stretch; margin: 2px 5px; background: rgba(200,180,120,.16); }
   .sh-chip { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim); cursor: pointer;
@@ -15743,7 +15745,19 @@ window._lockMark = function(isOpen, px, label){
        `ov.innerHTML =` (replaces) and re-opening adds 0. It builds huge ONCE, which is a
        different defect with a different fix. [[feedback-suspect-the-instrument]] */
     var _shBuildGhosts = !(SHELF_F && SHELF_F.ghosts === false);
+    /* ⚠⚠ v3083 — THE BACKEND'S FIXTURES ARE NEVER HIS REELS. Konyo, 2026-09-13: "9 test
+       fixtured hid compeltely its only for backend and for the ai to use not for me too in the
+       console." Nine reels on disk — 1,194 MB, the BULK of the footage — exist only because the
+       TEST SUITE opens them by name, and they are the biggest thing between him and "left with
+       the last 8".
+       They stay ON DISK (deleting one turns a real check into a permanent skip, which
+       frame_authority.test_referenced_reels records happening three times). They simply stop
+       being shown to him. The server marks them; this drops them from the build.
+       ⚠ COUNTED, NOT SILENTLY DROPPED — the count goes on a chip beside "N empty runs — hidden".
+       A list that quietly omits rows is the same lie as a heading that contradicts it. */
+    var _shFixtureN = 0;
     var cards = (TH.sessions || []).map(function(sm, i){
+      if (sm && sm.fixture) { _shFixtureN++; return ''; }
       if (!_shBuildGhosts && sm && sm.stub) return '';
       var n = sm.n || (i + 1);
       var d0 = sm.t0 ? new Date(sm.t0) : null;
@@ -15902,6 +15916,11 @@ window._lockMark = function(isOpen, px, label){
         + '<button type="button" class="sh-chip" data-f="pin">⭐ pinned</button>'
         + '<button type="button" class="sh-chip" data-f="chronicle">🏆 chronicle</button>'
         + '<button type="button" class="sh-chip" data-f="ghosts" id="sh-chip-ghosts">👻 empty runs</button>'
+        /* v3083 — says what was hidden on his behalf. Not a toggle: these are the suite's
+           fixtures, not his runs, and he asked for them gone from the console entirely. */
+        + (_shFixtureN ? '<span class="sh-chip sh-chip-fx" title="reels the test suite opens by '
+            + 'name — kept on disk for the suite, never shown as your runs">\ud83d\udd27 '
+            + _shFixtureN + ' backend fixture' + (_shFixtureN === 1 ? '' : 's') + ' — hidden</span>' : '')
         + '<span class="sh-fdiv"></span>'
         + '<button type="button" class="sh-chip" data-f="verdict:clean">🛡 clean</button>'
         + '<button type="button" class="sh-chip" data-f="verdict:flagged">🚨 flagged</button>'

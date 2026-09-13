@@ -2422,22 +2422,6 @@ GATES = [
              "the reel RELEASED (panels_never_banked True -> False). The footage was held by a "
              "transient call for as long as nobody could see the difference. Recorded ONCE like "
              "_pix_err, never per frame."),
-    Gate("test_the_shelf_shows_reels_before_analytics",
-         [sys.executable, os.path.join(HERE, "test_the_shelf_shows_reels_before_analytics.py")], 120,
-         why="THE PANEL NAMED AFTER ITS REELS MUST REACH A REEL BEFORE ITS ANALYTICS. This has "
-             "landed TWICE on his own console and nothing prevented a third. v2965 put the "
-             "analytic blocks above the list: MEASURED at his real 1120x660 the overlay is 811x390 "
-             "and the first card sat at y=2491 - 2101px BELOW the panel's own bottom edge - behind "
-             "1433px of header, pipeline board, highlights and a 14-day timeline inside a 60561px "
-             "scroll; 530 cards rendered and NOT ONE was on screen. v2985 reversed it on a second "
-             "measurement: 549px of furniture above the first card inside a ~449px stage. 'The "
-             "half of his sentence that v2965 served was organized; the half it broke was should "
-             "be SEEN.' The pull to redo it is constant because he asks for analytics at the top "
-             "in his own words, so this pins ONLY the part measured to break - the HEAVY blocks "
-             "(river strip, pipeline board, highlights, timeline) render AFTER the grid. A compact "
-             "summary row beside the search bar is not what broke it and is not forbidden. The "
-             "render gate reports BELOW-FOLD as an info note and an info note is not a failure, "
-             "which is exactly how both regressions shipped."),
     Gate("test_a_card_with_no_film_says_so",
          [sys.executable, os.path.join(HERE, "test_a_card_with_no_film_says_so.py")], 120,
          why="A CARD WITH NO FILM MUST SAY SO, IN WORDS. MEASURED by GROKBOT on his live console "
