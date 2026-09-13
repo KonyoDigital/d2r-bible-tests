@@ -158,6 +158,9 @@ class ReadNamesLane(unittest.TestCase):
             "ok": True, "state": "MEASURED", "names": 42, "minWitnesses": 3,
             "tickable": 16, "autoTickable": 1, "furniture": 3,
             "auto": [{"name": "Harlequin Crest", "ledger": "UNIQUE", "witnesses": 3}],
+            # v3049+ vocabulary: the doctor decides held-vs-owed from these keys; a single-referent
+            # owed name is the RED this law exists to prove.
+            "autoOwed": ["Harlequin Crest"], "autoHeld": [],
             "manual": [], "rosterWhy": ""}
         try:
             st, say = _verdict()

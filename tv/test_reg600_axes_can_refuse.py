@@ -638,9 +638,28 @@ class NothingHereArmsAnything(unittest.TestCase):
         # ⚠ AND EVERY OTHER CALL SITE IS DECLARED, so a second one has to be argued in rather than
         # appear — the same discipline store_owners applies to a store's writers. An undeclared
         # call still fails this test.
-        DELETERS = ("reel_retention.py", "prune_shadow.py", "prune_wilson.py", "river.py",
-                    "reel_route_lane.py", "frame_authority.py", "disk_report_crossfamily.py")
+        # ══ v3050 — THE LOCK MOVED ONTO THE DELETING LINE. reel_retention.apply_plan() and
+        # reel_route_lane.apply() now ASK may() at the one line that acts and FAIL CLOSED on any
+        # refusal (an unreadable lock included). A deleter that asks and is refused-by-default is
+        # the lock EXISTING, not the lock opening — _PRUNE_SAFE_TO_RUN stays his to flip by hand,
+        # so those two moved from the banned list into DECLARED below.
+        DELETERS = ("prune_shadow.py", "prune_wilson.py", "river.py",
+                    "frame_authority.py", "disk_report_crossfamily.py")
         DECLARED = {
+            "reel_retention.py": (
+                "v3050 — apply_plan() asks may('frame.release') BEFORE the tombstone and the "
+                "rmtree, and fails closed on ANY refusal, a stale census included. Until then the "
+                "padlock was decorative: it scored, drew a lock, and the rmtree ran regardless."),
+            "reel_route_lane.py": (
+                "v3050 — apply() asks may('reel.route') at the one seat that writes; plan() and "
+                "reel_router.route() decide and write nothing, so they still do not ask. Fails "
+                "closed, and the refusal reason is kept on the row."),
+            "pixel_witness_crossfamily.py": (
+                "REPORTS ONLY, inside the `--bank` CLI branch: prints what the lock says right "
+                "after banking, the same shape as pixel_witness_wilson. It gates nothing."),
+            "pixel_witness_live.py": (
+                "REPORTS ONLY, inside the `--bank` CLI branch: prints what the lock says right "
+                "after banking a live-look run. It gates nothing."),
             "control_app.py": (
                 "the pixel rescue asks whether it may act on a console that its own PIXELS say is "
                 "blank. This is the designed consumer: the lock refuses until the sabotages have "

@@ -110,10 +110,17 @@ class AbsentRequiresAComparableVocabulary(unittest.TestCase):
         # BASELINE — the case must be distinguishable, or a green here means nothing.
         # There must be at least one organ of each kind in play; otherwise this test would pass
         # on a matrix where the question never arises. [[regression-guard]] §5
-        self.assertTrue(incomparable,
-                        "BASELINE: no organ is incomparable right now, so this test cannot "
-                        "distinguish a matrix that honours the law from one that ignores it. That "
-                        "is an UNKNOWN result, not a pass.")
+        if not incomparable:
+            # v3049-v3052 (deliberate): console_doctor gained a WATCHES map and
+            # health_engine/heart gained surface vocabulary, so ALL FOUR organs are now
+            # comparable BY DESIGN. Keep the law distinguishable with a SYNTHETIC organ
+            # whose names are a different KIND of thing: the same resolver must count it
+            # as zero-overlap, or the comparability measurement itself has been disabled.
+            self.assertEqual(
+                _overlap(["armed migration concern", "a worry not a surface"]), 0,
+                "the synthetic concern-vocabulary resolved to a surface — the overlap "
+                "measurement no longer distinguishes kinds, so a wrong classification "
+                "would be invisible here.")
         self.assertTrue(comparable,
                         "BASELINE: no organ is comparable, so every cell is UNKNOWN and the law "
                         "would hold vacuously.")

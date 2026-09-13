@@ -41,7 +41,7 @@ class FleetXrefUsesTheBoardResolver(unittest.TestCase):
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_ui.html")
         with open(path, encoding="utf-8") as fh:
             ui = fh.read()
-        i = ui.find("var tile = function (n, mine)")
+        i = ui.find("var tile = function (n, side)")
         self.assertGreater(i, 0)
         blk = ui[i:ui.find("var col = function", i)]
         self.assertIn("_artRarity(n)", blk)

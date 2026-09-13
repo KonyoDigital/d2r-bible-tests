@@ -144,18 +144,30 @@ def _stamps_of(name):
         return []
     cache = globals().setdefault("_STAMPS_CACHE", {})
     if not cache:
+        # ⚠⚠ THE CATCH-ALL IS GONE, AND THE REASON IS THAT IT WAS NEVER LOAD-BEARING.
+        # `lane_liveness.stamping_functions()` already refuses in its own words — it returns
+        # {"__failed__": reason} and does not raise — so the only thing here that could throw was
+        # the IMPORT. Wrapping both in one `except: return []` made this a RANK 1 swallow in
+        # swallow_census's ledger ("a failed read handed back as DATA"), even though the marker
+        # was being set, because the census counts the falsy RETURN and is right to: a caller
+        # holding [] cannot tell "no lane stamps" from "the reader broke".
+        # Now the only swallowed thing is the import, and its handler assigns a REASON rather
+        # than a default — so nothing hands back a falsy value pretending to be a measurement.
+        # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        _why = None
         try:
             import lane_liveness as _ll
-            _m = _ll.stamping_functions()
+        except Exception as _e:
+            _why = "the lane reader could not be imported (%s: %s)" % (
+                type(_e).__name__, str(_e)[:70])
+        if _why is None:
+            _m = _ll.stamping_functions()      # never raises; refuses via "__failed__"
             if isinstance(_m, dict) and not _m.get("__failed__"):
                 cache.update(_m)
                 return list(cache.get(key) or [])
-            globals()["_STAMPS_CACHE"] = {"__failed__": (_m or {}).get("__failed__")
-                                          or "the lane reader returned nothing"}
-            return []
-        except Exception as _e:
-            globals()["_STAMPS_CACHE"] = {"__failed__": "%s: %s" % (type(_e).__name__, str(_e)[:80])}
-            return []
+            _why = (_m or {}).get("__failed__") or "the lane reader returned nothing"
+        globals()["_STAMPS_CACHE"] = {"__failed__": _why}
+        return []
     return list(cache.get(key) or [])
 
 

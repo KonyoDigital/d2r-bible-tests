@@ -20398,13 +20398,36 @@ def tombstone_view(limit=300):
             and _TOMBSTONE_SESSION_RE.match(str(r.get("session") or ""))]
     out["fixturesExcluded"] = len(raw) - len(rows)
 
+    # ⚠⚠ THIS USED TO SWALLOW. It was `try: float(r.get(k) or 0) except: return 0.0`, so an
+    # unreadable field became 0.0 and was SUMMED — one garbage `mb` made the total silently
+    # UNDER-REPORT, with nothing on the screen saying a value had been lost. That is RANK 1 in
+    # swallow_census's own words: "the caller cannot tell the difference between a measured zero
+    # and could not ask". A counter in the except body would not have fixed it either — the
+    # census counts any falsy RETURN, and rightly, because the number still lies.
+    # So there is no exception to swallow now: absence is a measured zero, a real number is used,
+    # and anything else is COUNTED and reported beside the totals as `unreadableFields`.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    _unreadable = []
+
     def _num(r, k):
-        try:
-            return float(r.get(k) or 0)
-        except Exception:
+        v = r.get(k)
+        if v is None or v == "":
+            return 0.0                      # absent — a measured zero, not a failed read
+        if isinstance(v, bool):             # True would otherwise arrive as 1.0
+            _unreadable.append(k)
             return 0.0
+        if isinstance(v, (int, float)):
+            return float(v)
+        _s = str(v).strip()
+        if re.match(r"^[+-]?\d+(\.\d+)?$", _s):
+            return float(_s)
+        _unreadable.append(k)
+        return 0.0
 
     out["reels"] = len(rows)
+    # how many fields could not be read at all — a total built on N unreadable values is not a
+    # measured total, and this is the only place that difference is visible.
+    out["unreadableFields"] = len(_unreadable)
     out["mb"] = round(sum(_num(r, "mb") for r in rows), 1)
     out["pages"] = int(sum(_num(r, "pages") for r in rows))
     out["frames"] = int(sum(_num(r, "frames") for r in rows))
@@ -25356,8 +25379,18 @@ def _chron_known_from_journal(limit=500):
                 # overwrites a real ledger word.
                 if ledger or str(fr) not in known:
                     known[str(fr)] = ledger
-    except Exception:
-        return {}
+    except Exception as _e:
+        # ⚠⚠ IT USED TO `return {}` HERE, AND THAT THREW AWAY TWO THINGS AT ONCE. The docstring
+        # above is right that a journal which cannot be read must degrade the sweep rather than
+        # abort it — but {} also discards every mark ALREADY gathered before the failure, and it
+        # is indistinguishable from a journal that is genuinely empty. swallow_census ranks that 1
+        # for exactly that reason: "the caller cannot tell a measured zero from could not ask".
+        # Degrading now means handing back the PARTIAL map (strictly more than {}) and recording
+        # why it is partial, where a reader can find it. Nothing downstream is entitled to depend
+        # on these marks — that is unchanged — but nothing is now told a lie about them either.
+        # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        globals()["_CHRON_KNOWN_PARTIAL"] = "%s: %s (kept %d mark(s) read before the failure)" % (
+            type(_e).__name__, str(_e)[:70], len(known))
     return known
 
 

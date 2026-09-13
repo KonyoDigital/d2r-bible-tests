@@ -99,7 +99,8 @@ class TestFlowingIsUnmeasuredNotZero(unittest.TestCase):
         """An em-dash with no explanation is a different kind of silence."""
         self.assertIn("lg-unmeasured", self.src,
                       "the unmeasured marker is gone from the legend")
-        m = re.search(r"lg-unmeasured[^\n]*title=[^\n]*flowingWhy", self.src)
+        m = re.search(  # v3049+: the marker's title= and String(d.flowingWhy) now sit on adjacent lines (escaping was added), so the law spans a bounded few lines instead of one
+            r"lg-unmeasured[^\n]*title=(?:[^\n]*\n){0,4}[^\n]*flowingWhy", self.src)
         self.assertIsNotNone(
             m, "the unmeasured marker no longer carries `flowingWhy` as its title, so the reason "
                "the count is blank reaches nobody")

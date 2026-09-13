@@ -88,7 +88,7 @@ RED_PROOF = [
         "file": 'control_ui.html',
         "find": 'window._heartRender',
         "replace": '_HEART2_TAMPERED_',
-        "matches": 1,
+        "matches": 3,   # measured: window._heartRender occurs 3x in control_ui.html
     },
 ]
 
@@ -164,6 +164,16 @@ class TestABorrowedShellBringsItsLayout(unittest.TestCase):
                 m = re.search(r"#([a-z0-9\-]+)\s+\.fx-body\s*$", part.strip())
                 if m:
                     overridden.add(m.group(1))
+                # ⚠⚠ AND THE CLASS FORM, which is how this is actually written now. v3033 replaced
+                # the per-id list with ONE rule — `.fleet-xref .fx-body { display: block }` at
+                # control_ui.html:5709 — that covers every borrower at once and cannot be
+                # forgotten when a new panel borrows the shell. That is strictly STRONGER than
+                # naming ids, and this law could only see ids, so it reported heart-ov and
+                # ver-xref as un-overridden while their grid was in fact overridden. Measured:
+                # 3 borrowers, 0 per-id rules, 1 class rule. The law was pinning the old spelling
+                # of a fix rather than the fix. [[label-outlived-referent]]
+                if re.search(r"\.fleet-xref\s+\.fx-body\s*$", part.strip()):
+                    overridden |= borrowers
         missing = sorted(b for b in borrowers if b not in overridden)
         self.assertEqual(missing, [],
                          "%s reuse(s) the fleet shell without overriding `.fx-body`'s two-column "
@@ -786,7 +796,16 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
             watched[0].get("scorable"), bool(ids & names),
             "the scorable flag disagrees with whether any watcher name appears among the organ "
             "ids — it is being asserted rather than derived")
-        self.assertIsInstance(counts.get("FLOWING"), int)
+        if watched[0].get("scorable"):
+            self.assertIsInstance(counts.get("FLOWING"), int)
+        else:
+            # v3044 — FLOWING is UNMEASURED when nothing can score a watcher: None plus a
+            # published reason, never a 0 nobody earned. [[zero-needs-a-denominator]]
+            self.assertIsNone(counts.get("FLOWING"),
+                              "no watcher can be scored, yet FLOWING prints a number it "
+                              "could not have measured")
+            self.assertTrue(rep.get("flowingWhy"),
+                            "FLOWING is None but the census publishes no reason why")
 
 
 

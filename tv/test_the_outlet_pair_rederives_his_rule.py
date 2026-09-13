@@ -61,9 +61,11 @@ class TheOutletPairRederivesHisRule(unittest.TestCase):
                                     {"r1": {"sealed": True, "worthReading": True, "names": 9}}), 0)
 
     def test_a_deleted_reel_absent_from_evidence_is_the_deleters_wake(self):
-        self.assertEqual(self._left({"gone": {}}, {}), 0,
-                         "tombstoned reels leave the evidence walk entirely — absence there is "
-                         "the deleter's documented shape, not silence")
+        self.assertIsNone(self._left({"gone": {}}, {}),
+                          "when EVERY routed reel is absent from the evidence walk nothing "
+                          "survived to grade — the pair reports UNMEASURED (None), never a "
+                          "clean 0 with no denominator; the old clean-zero here was the exact "
+                          "20%-coverage-wearing-a-100%-verdict defect the source fix abolished")
 
     def test_unreadable_stores_are_unmeasured_never_zero(self):
         self.assertIsNone(self._left(None, {}),

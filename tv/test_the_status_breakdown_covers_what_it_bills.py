@@ -55,7 +55,9 @@ EXEMPT = {
     "_session_health_from_rows": "pure function over rows already read",
     "_newest_gate_count":       "pure function over rows already read",
     "_newest_completeness":     "pure function over rows already read",
-    "_kai_journal_rows":        "reads the journal tail already loaded for this request",
+    # v3049+ — the journal cache keys on (mtime_ns, size); this is that key's single stat syscall.
+    # _kai_journal_rows is no longer exempt: its only call is now wrapped in _t("journal", ...).
+    "stat":                     "a single os.stat() on the journal file to key the cache — microseconds",
     "_intake_lease_status":     "in-memory lease dict",
     "getsize":                  "a single os.path.getsize stat() call, microseconds",
     "isfile":                   "a single os.path.isfile stat() call, microseconds",

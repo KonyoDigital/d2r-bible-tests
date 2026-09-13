@@ -137,7 +137,10 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
         doc = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
         i = doc.find("THE BOARD'S STORE CAME UP EMPTY")
         self.assertGreater(i, 0, "the emptied-store verdict is gone from the doctor")
-        sentence = doc[i:i + 500]
+        j = doc.find("\ndef ", i)
+        self.assertGreater(j, i, "no def follows the emptied-store verdict, so its function has "
+                                 "no real end boundary to anchor to")
+        sentence = doc[i:j]
         self.assertNotIn("was refilled from the built-in seeds", sentence,
                          "the doctor still tells him the store was refilled from seeds, which "
                          "v2988 made false — he would be handed the old diagnosis for a board "
@@ -160,7 +163,10 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
         ca = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         i = ca.find("storeEmptied={at:")
         self.assertGreater(i, 0, "the board_ownership copy of storeEmptied is gone")
-        seg = ca[i:i + 420]
+        j = ca.find("}catch(_se2)", i)
+        self.assertGreater(j, i, "the storeEmptied copy no longer closes with its own catch, so "
+                                 "there is no real end boundary to anchor to")
+        seg = ca[i:j]
         for field in ("boots", "seenAgainAt", "recoveredAt"):
             self.assertIn(field + ":", seg,
                           "board_ownership drops %r, so any doctor line reading it is dead on "

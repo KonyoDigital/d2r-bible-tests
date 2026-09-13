@@ -132,7 +132,9 @@ class TheShelfLandsOnTheRiver(unittest.TestCase):
         """⚠ [[zero-needs-a-denominator]]. A station no reel has reached is the actionable half of
         the picture — ROUTED and TOMBSTONE are both empty today. A section that vanishes when empty
         hides exactly the thing he is trying to see."""
-        i = CODE.find("var ordG = SHELF_RIVER_ORDER")
+        # v2987+ lanes rework: the grouping now flattens the backend's LANES first and only
+        # falls back to the flat SHELF_RIVER_ORDER list; the anchor moved, the behaviour did not.
+        i = CODE.find("var ordG = null")
         self.assertGreater(i, 0, "the river grouping block is gone")
         seg = CODE[i:i + 2600]
         self.assertIn("ordG", seg,

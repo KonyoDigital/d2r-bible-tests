@@ -78,8 +78,8 @@ RED_PROOF = [
         "why": "un-asking the heart returns the lock to what it was — a surface that can arm itself "
                "while the gates that would catch its failure are blind",
         "file": "self_arming.py",
-        "find": "    _hok, _hwhy = _heart_says_watched()\n    if not _hok:\n        return False, _hwhy",
-        "replace": "    _hok, _hwhy = _heart_says_watched()",
+        "find": "    _hok, _hwhy = _heart_says_watched()\n    if not _hok:",
+        "replace": "    _hok, _hwhy = (True, \"\")\n    if not _hok:",
         "matches": 1,
     },
     {
@@ -281,11 +281,15 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         st["gatesFingerprint"] = "0" * 32          # a census proved against DIFFERENT instruments
         with _Census(json.dumps(st)):
             ok, why = SA._heart_says_watched()
-            locked, lwhy = SA.may("printer.stream")
+            # v3049 — STALE softens for NON-destructive surfaces (the river-strip live-bug fix:
+            # a display must not go blank because the prover has not caught up). The guarantee
+            # this law protects survives where it matters: an IRREVERSIBLE act still fails
+            # closed on a stale census, so assert it on a destructive lock.
+            locked, lwhy = SA.may("vault.apply")
         self.assertFalse(ok, "a census whose fingerprint does not match the gates on disk still "
                              "read as authoritative")
         self.assertIn("STALE", why)
-        self.assertFalse(locked, "the lock armed on a stale census")
+        self.assertFalse(locked, "a DESTRUCTIVE lock armed on a stale census")
         self.assertIn("STALE", lwhy)
 
     def test_the_staleness_bar_is_CONTENT_not_mtime(self):

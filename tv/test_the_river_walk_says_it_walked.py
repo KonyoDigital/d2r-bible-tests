@@ -74,12 +74,22 @@ def _row():
 
 
 def _with(**kw):
-    """Force a walk state and read the doctor row."""
+    """Force a walk state and read the doctor row.
+
+    ⚠ v3012 made the WIRE the one authority: the row reads /api/status.riverWalk and never the
+    module global (an imported control_app is a dead twin, empty in every process). So the
+    fixture publishes the forced state over a stubbed wire — the same pattern the doctor's other
+    guards use with _post — routed through river_walk_state() so the payload keeps its real
+    shape, including the 'not a still river' why on a never-walked state."""
     real = dict(CA._RIVER_WALK)
+    real_get = D._get
     CA._RIVER_WALK.update(kw)
+    D._get = lambda path, timeout=4: ({"riverWalk": CA.river_walk_state()}
+                                      if path == "/api/status" else None)
     try:
         return _row()
     finally:
+        D._get = real_get
         CA._RIVER_WALK.clear()
         CA._RIVER_WALK.update(real)
 

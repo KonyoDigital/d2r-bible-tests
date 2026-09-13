@@ -147,7 +147,8 @@ class AReadVerdictIsNeverStored(unittest.TestCase):
 
         poisoned = state({"ok": False, "why": "the shadow reader is switched off",
                           "lookedAt": 1789166507974})
-        healed = state({"why": "the shadow reader is switched off", "lookedAt": 1789166507974})
+        healed = state({"why": "the shadow reader is switched off",
+                        "lookedAt": int(__import__("time").time() * 1000)})  # FRESH, not a frozen instant: the OK path requires a look within 10 min, so a hardcoded timestamp rots the law 10 minutes after it is written
         self.assertEqual(poisoned, "unknown",
                          "the poisoned shape no longer reaches UNKNOWN, so this test has stopped "
                          "measuring the defect it was written for — re-derive it, do not delete it")
