@@ -32373,6 +32373,42 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-994 — the shelf had no law stopping its analytics from burying its reels, and that has shipped twice (task #58 — v3082)
+
+Not a new defect — a **missing guard** for one that has landed on his console **twice**, both times
+caught only by measuring pixels after the fact.
+
+    v2965  analytic blocks moved ABOVE the list. MEASURED at his real 1120x660: the overlay is
+           811x390 and the first card sat at y=2491 — 2101px BELOW the panel's own bottom edge —
+           behind 1433px of header, pipeline board, highlights, controls and a 14-day timeline,
+           inside a 60561px scroll. 530 cards rendered and NOT ONE was on screen.
+    v2985  reversed it. MEASURED: 549px of furniture above the first reel card inside a ~449px
+           stage. Its own words: "the half of his sentence that v2965 served was 'organized'; the
+           half it broke was 'should be SEEN'."
+
+⚠⚠ **NOTHING IN THE REPO REFUSED EITHER ONE.** The `shelf-cards` render target prints
+`BELOW-FOLD at load: y=…` as an **ⓘ note**, and an ⓘ is not a failure — so the panel could be
+measured showing zero of its 530 cards and still pass. A number nobody can fail on is
+documentation, not a guard. [[regression-guard]]
+
+**The law pins the DOM assembly order**, parsed from the overlay build: the heavy analytic blocks —
+`sh-lanes` (river strip), `sh-story` (pipeline board), `_shHighlights()`, `timelineDiv` — are
+assembled AFTER the grid, and nothing analytic sits between the title and the list. The live
+"recording now" card is explicitly allowed in the head: it is one row and it is the run he is
+recording NOW, not analysis.
+
+⚠ **AND THE LAW IS DELIBERATELY NARROW, BECAUSE HIS ASK IS NOT WRONG.** He has asked, in his own
+words, for the diagnostics "at the top of the SHELF section along with the other diagnosics and
+search bar". Both halves of that are real. This pins only the part that was MEASURED to break — the
+tall blocks. A COMPACT summary row beside the search bar is not what broke it and this law does not
+forbid it.
+
+⚠ The head-region check ignores comments: that region carries the v2965/v2985 rulings, which NAME
+those blocks in prose, and the first cut failed on the documentation explaining why the blocks are
+where they are. [[measured-true-read-wrong]]
+
+Gate: `test_the_shelf_shows_reels_before_analytics` (351 registered), red-proof PROVEN, 1 match.
+
 ## REG-993 — the chip left one collision for another, so it left the hero entirely (task #58 — v3081)
 
 **Found by the cross-family second eye on the SHIPPED v3080 diff**, reproduced by parsing the
