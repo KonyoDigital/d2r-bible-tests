@@ -1754,6 +1754,38 @@
   #th-shelfov { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(54px, 9vh, 72px); z-index: 14; overflow-y: auto; background: rgba(4,6,5,.985); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
     padding: clamp(16px,3vh,30px); display: block; }
   #th-shelfov[hidden] { display: none !important; }
+  /* ⚠⚠ v3061 — THE TRANSPORT MAY NOT OFFER PLAYBACK FOR A REEL HE HAS NOT OPENED.
+     Konyo, 2026-09-13, scrolling THE SHELF with no session open: "its like showing me buttons
+     for a video on the bottom left ... but i still havent clicked a session im not in one yet
+     ... its confusing".
+
+     He is right, and it is deliberate geometry rather than a render fault: #th-shelfov stops
+     clamp(54px,9vh,72px) short of the bottom so the strip stays reachable, and its own
+     padding-bottom exists so "tall cards scroll fully clear of the transport" (v1275). The
+     reservation is fine. WHAT SITS IN IT is not: while the shelf is a PICKER, play/pause,
+     step, the timeline, mode, speed and fullscreen all act on nothing, and hovering one fires
+     "Next screenshot (→) — steps every real photo" over a reel that was never opened.
+
+     ⚠ THE SHELF TOGGLE STAYS. Hiding the whole strip would take away the 📚 button that got
+     him here; the shelf's own sticky ✕ closes it, but removing a control he is mid-gesture
+     toward is its own defect. Only the controls that need a LOADED REEL are hidden.
+     [[label-outlived-referent]] [[the-unjoined-end]]
+
+     ⚠ KEYED OFF THE OVERLAY ITSELF, NOT A CLASS SOMEBODY MUST REMEMBER TO SET. The shelf is
+     opened and closed from several call sites (thShelf, the dossier hand-off at :10572, the
+     theatre re-entry); a body class maintained by hand would drift out of sync on whichever
+     path someone forgot, and the drift would be invisible until he saw the buttons again.
+     `:has()` reads the overlay's REAL state, so there is one source of truth and no call site
+     to keep honest. If an engine does not support :has() the rule simply does not apply and
+     the strip stays as it was — degrading to today's behaviour, never to a broken one. */
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-prev-b,
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-next-b,
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-play,
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-timeline,
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-mode,
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-speed,
+  body:has(#th-shelfov:not([hidden])) .th-strip #th-fs { display: none !important; }
+
   #th-shelfov .sh-head { font: var(--fw-bold) var(--fs-xl)/var(--lh-snug) var(--serif); color: #e8cf96; letter-spacing: var(--ls-wider); margin-bottom: 14px; padding-right: 48px; }
   #th-shelfov .sh-x { position: sticky; float: right; top: 0; margin: -4px 0 0 0; z-index: 4; }
   /* ══ v2383 — THE PIPELINE BOARD ═══════════════════════════════════════════════════════════

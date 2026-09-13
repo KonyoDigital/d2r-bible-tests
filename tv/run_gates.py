@@ -2347,6 +2347,17 @@ GATES = [
              "disk - he opened the row saying 0 and the player had nothing to play. Fixed: a reel "
              "is all its rows; unstamped pre-v780 history keeps the silence split. After: 2,893 "
              "groups, 0 duplicates, every row preserved."),
+    Gate("test_the_transport_offers_no_playback_without_a_reel",
+         [sys.executable, os.path.join(HERE, "test_the_transport_offers_no_playback_without_a_reel.py")], 120,
+         why="THE TRANSPORT MAY NOT OFFER PLAYBACK FOR A REEL HE HAS NOT OPENED. He reported it "
+             "scrolling the shelf with no session open: play/pause, step, timeline, mode, speed "
+             "and fullscreen all showing, and hovering one fired 'Next screenshot' over a reel "
+             "that was never opened. The band itself is deliberate - #th-shelfov stops 54-72px "
+             "short so the strip stays reachable - so this hides only the controls that need a "
+             "LOADED REEL and keeps the shelf toggle and session steppers. Keyed off "
+             ":has(#th-shelfov:not([hidden])) rather than a hand-set class, because the shelf is "
+             "opened from several call sites and a class would drift invisibly on the one "
+             "somebody forgot."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

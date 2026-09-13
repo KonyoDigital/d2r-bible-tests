@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3060"   # ONE REEL IS ONE SESSION ROW AND THE DOSSIER READS THE RIGHT WITNESS
+VERSION = "v3061"   # THE TRANSPORT NO LONGER OFFERS PLAYBACK FOR A REEL HE NEVER OPENED
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
