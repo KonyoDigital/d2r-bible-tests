@@ -200,6 +200,19 @@ def organ_coverage():
                 names.add(str(_s))
         except Exception:
             pass                      # an organ that cannot be asked adds nothing and says nothing
+        # ⚠⚠ v3069 — AND THE TWO LOOPS THAT LEAVE A TRACE. Ten surfaces sat at 3 of 4 organs, all
+        # missing this one, because a corroborator needs TWO INDEPENDENT witnesses and six of the
+        # eight loops leave nothing an outside reader can date. These two do:
+        #     _ledger_backup_loop   106 backup files, newest datable
+        #     _vault_autoread_loop  .vault_autoread.json
+        # The other six stay honestly ABSENT rather than filled — inventing a trace for them is
+        # the coverage v3055 deleted. [[unknown-stays-unknown]] [[the-unjoined-end]]
+        try:
+            import loop_corroborate as _lc
+            for _s in (_lc.SURFACES or ()):
+                names.add(str(_s))
+        except Exception:
+            pass
         return names
     out["corroborator"] = (_corr(None), "") if _corr(None) else (None, "no route set answered")
     return out

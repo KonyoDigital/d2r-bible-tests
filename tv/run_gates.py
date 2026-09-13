@@ -2391,6 +2391,17 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_a_loop_that_ticks_must_leave_a_trace",
+         [sys.executable, os.path.join(HERE, "test_a_loop_that_ticks_must_leave_a_trace.py")], 120,
+         why="A LOOP THAT CLAIMS TO RUN MUST HAVE LEFT SOMETHING BEHIND. Ten surfaces sat at 3 of "
+             "4 organs, ALL missing the corroborator, because that organ needs TWO independent "
+             "witnesses and six of the eight loops leave nothing an outside reader can date. Two "
+             "do - the ledger backup loop and the vault autoread loop - and this covers exactly "
+             "those two, leaving the other six honestly ABSENT rather than filled with an "
+             "invented trace. It refuses two rots: a fresh tick with an ancient trace ceasing to "
+             "be a contradiction (a loop running and producing nothing), and an UNREADABLE tick "
+             "read as a dead loop - lane_liveness._TICKS is in-process on a monotonic clock, so "
+             "any other process sees it empty and would otherwise report healthy loops broken."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "
