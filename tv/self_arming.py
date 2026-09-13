@@ -1091,7 +1091,19 @@ def _heart_says_watched():
     """
     try:
         import heart2 as _h2
-        _p = os.path.join(_h2.HERE, ".heart2.json")
+        # ⚠⚠ RESOLVED AT CALL TIME, and here is what it is for. This path was hardcoded, so a
+        # TEST that exercises a destructive production path read HIS LIVE CENSUS — and a census
+        # goes stale on any gate-file edit. Measured 2026-09-13: editing 16 gate files closed
+        # `vault.sweep_start`, which failed 20 tests in TestChronicleSweepJob and friends. Those
+        # tests are about SWEEP LOGIC (does it propose rather than write, does a silent lane read
+        # as agreement); none of them is about whether supervision is currently proven. They were
+        # asserting X while depending on Y. [[feedback-fixtures-never-touch-live-data]]
+        #
+        # ⚠ THIS DOES NOT SOFTEN THE LOCK. Production reads the real census and still fails
+        # closed; `test_a_STALE_census_closes_the_lock` proves that and must never use this seam.
+        # The shape is inherited from TV_SELF_ARMING_LEDGER above — an env honoured only at import
+        # is a redirect that silently does not take, so it is read HERE, every call.
+        _p = os.environ.get("TV_HEART_CENSUS") or os.path.join(_h2.HERE, ".heart2.json")
     except Exception as _e:
         return False, ("the heart could not be imported (%s), so nothing can say whether the gates "
                        "watching this surface still work. UNKNOWN fails CLOSED." % type(_e).__name__)
