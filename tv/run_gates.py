@@ -2437,6 +2437,24 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_the_vault_save_can_only_copy",
+         [sys.executable, os.path.join(HERE, "test_the_vault_save_can_only_copy.py")], 120,
+         why="THE VAULT'S SAVE MAY ONLY COPY, AND A PARTIAL SAVE IS NOT A SAVE. His ask: the vault "
+             "'can be restored or wiped clean with a safeguarded button that asks twice', brought "
+             "back 'based on like last recent save ledger wise.. by day and timestamp'. The wipe is "
+             "the most destructive act in this console - six stores gone on a click - and the only "
+             "thing that makes it safe to build is a save already proven to work. So the module may "
+             "not contain a delete BY CONSTRUCTION, the way hover_drive never BUILDS a mouse-down: "
+             "no remove, unlink, rmtree, truncate, and no store opened for writing, asserted by "
+             "PARSE rather than grep because a grep is satisfied by the word appearing in a comment "
+             "saying it must not. A PARTIAL save is the dangerous shape, not a failed one - five of "
+             "six stores copied silently restores as a complete-looking vault that is short, at the "
+             "one moment nobody can check, so every file is read back at its source size and any "
+             "mismatch fails the WHOLE save. Stores are NAMED not globbed (a vault*.json glob would "
+             "sweep whatever a future feature calls vault-something). And the retention is REUSED, "
+             "not re-derived: 48h rolling + one keeper per UTC day for 90 days is "
+             "_ledger_backup_prune's policy, sized in v3009 from his real 2026-09-08 loss where the "
+             "oldest backup on disk was 69 HOURS too young to answer which save predates it."),
     Gate("test_a_proof_history_survives_its_verdict",
          [sys.executable, os.path.join(HERE, "test_a_proof_history_survives_its_verdict.py")], 180,
          why="A CHECK'S PROOF HISTORY MUST REACH EVERY BRANCH, AND A VESSEL MUST INHERIT ITS "

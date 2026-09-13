@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3093",
+  "ver": "v3094",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3093: the wilson scorer passed k and n on the OK branch only, so a lock going inert erased 564 sabotages of evidence exactly when something was wrong. And FLOWING asked for lane names in a dict keyed by organ ids - an empty intersection, unreachable by any path",
+  "note": "v3094: six vault stores now copy to a timestamped folder that is read back at source size, refusing the whole save on any mismatch. The module cannot delete by construction - no remove, unlink, rmtree, and no store opened for writing - because the wipe he asked for is a separate twice-asking act",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
