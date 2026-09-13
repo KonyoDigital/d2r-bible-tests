@@ -35,10 +35,31 @@ THE EXTRACTION RULE, and it is deliberately strict:
     · any row that cannot be dated, because "newest 8" is meaningless without an order
 """
 import io
+import json
 import os
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _journal_path():
+    """The journal this tree is actually using. -> path
+
+    ⚠ ASK tv_diablo, do not hardcode. Its JOURNAL/STATE/HIST are chosen AT IMPORT from the TV_*
+    env, which is how the CI harness and an isolated-hist run point the whole engine at a fixture
+    tree. A module that hardcodes tv/sessions.jsonl would back up one file and rewrite another the
+    moment anyone runs it under a redirect — and this module REWRITES, so the wrong path is the
+    difference between a release and losing his history.
+    """
+    try:
+        import tv_diablo as _tvd
+        p = getattr(_tvd, "JOURNAL", None)
+        if p:
+            return p
+    except Exception:
+        pass
+    return os.path.join(HERE, "sessions.jsonl")
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
@@ -121,6 +142,112 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
             "counts": {"release": len(release), "keep": len(keep)},
             "say": ("%d of %d journal row(s) have a proof of extraction and could be released; "
                     "%d stay. NOTHING was written." % (len(release), len(rows), len(keep)))}
+
+
+BACKUP_DIR = os.path.join(os.path.expanduser("~"), "d2r_journal_backups")
+
+
+def backup(journal_path=None, stamp=None):
+    """Copy the whole journal aside BEFORE anything leaves it. -> (path, rows) or (None, why)
+
+    ⚠⚠ THIS IS WHAT MAKES THE RELEASE REVERSIBLE, AND REVERSIBILITY IS WHY THIS LANE MAY RUN AT
+    ALL. reel_retention.apply_plan deletes PIXELS — "there is no undo" in its own words — so it is
+    gated behind self_arming's `frame.release` lock and fails closed on any refusal. A journal row
+    is different in exactly one way that matters: a timestamped copy of the file restores it
+    perfectly. So the bar here is an explicit yes AND a verified backup, not a lock, and the
+    difference is the undo rather than a judgement that rows matter less.
+
+    Konyo asked for precisely this shape on the vault: "able to be brought back based on like last
+    recent save ledger wise.. by day and timestamp". Same mechanism, one lane earlier.
+    """
+    src = journal_path or _journal_path()
+    if not os.path.exists(src):
+        return None, "there is no journal at %s to back up" % src
+    try:
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+    except OSError as exc:
+        return None, "could not make %s (%s)" % (BACKUP_DIR, exc)
+    stamp = stamp or time.strftime("%Y-%m-%d_%H%M%S")
+    dst = os.path.join(BACKUP_DIR, "sessions.%s.jsonl" % stamp)
+    try:
+        with io.open(src, encoding="utf-8", errors="replace") as fh:
+            body = fh.read()
+        tmp = dst + ".part"
+        with io.open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        os.replace(tmp, dst)
+    except Exception as exc:
+        return None, "the backup did not write (%s: %s)" % (type(exc).__name__, exc)
+    # ⚠ VERIFY IT LANDED. A backup nobody read back is a promise, not a safety net, and this is the
+    # one line standing between a release and losing his history.
+    try:
+        n = sum(1 for _ln in io.open(dst, encoding="utf-8", errors="replace") if _ln.strip())
+    except Exception as exc:
+        return None, "the backup could not be read back (%s)" % exc
+    if n == 0:
+        return None, "the backup read back EMPTY — refusing to release anything against it"
+    return dst, n
+
+
+def apply_plan(p, yes=False, journal_path=None):
+    """Remove the released sessions' rows from the journal. -> dict
+
+    ⚠ REFUSES WITHOUT AN EXPLICIT YES, and refuses again if the backup did not verify. The order is
+    deliberate and is reel_retention's: the recoverable record goes down FIRST, so a crash halfway
+    leaves a backup covering MORE than was removed rather than fewer.
+    """
+    if not yes:
+        return {"ok": False, "why": "refusing to rewrite the journal without yes=True; "
+                                    "call plan() alone to read what WOULD go"}
+    if not isinstance(p, dict) or not p.get("ok"):
+        return {"ok": False, "why": "that is not a plan this module produced"}
+    doomed = {str(r.get("sessionId") or "") for r in (p.get("release") or []) if r.get("sessionId")}
+    if not doomed:
+        return {"ok": True, "removedRows": 0, "removedSessions": 0,
+                "why": "the plan released nothing, so nothing was written"}
+    src = journal_path or _journal_path()
+    where, n_backed = backup(src)
+    if where is None:
+        return {"ok": False, "why": "NOT touching the journal — %s" % n_backed}
+
+    kept, dropped, sids = [], 0, set()
+    try:
+        with io.open(src, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                raw = line.strip()
+                if not raw:
+                    continue
+                try:
+                    sid = str((json.loads(raw) or {}).get("sessionId") or "")
+                except Exception:
+                    kept.append(line)          # unparseable stays: it is not ours to judge
+                    continue
+                if sid and sid in doomed:
+                    dropped += 1
+                    sids.add(sid)
+                else:
+                    kept.append(line)
+    except Exception as exc:
+        return {"ok": False, "why": "the journal could not be read (%s) — nothing written" % exc}
+
+    # ⚠ ATOMIC. A plain open(path, "w") TRUNCATES before anything is written, so a crash between
+    # those two moments leaves him with an empty history and a backup he does not know to look for.
+    tmp = src + ".part"
+    try:
+        with io.open(tmp, "w", encoding="utf-8") as fh:
+            fh.writelines(kept)
+        os.replace(tmp, src)
+    except Exception as exc:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return {"ok": False, "why": "the rewrite failed (%s) — the journal is untouched, and the "
+                                    "backup is at %s" % (exc, where)}
+    return {"ok": True, "removedRows": dropped, "removedSessions": len(sids),
+            "keptRows": len(kept), "backup": where, "backedUpRows": n_backed,
+            "say": "released %d row(s) across %d session(s); %d row(s) remain. Restore with: "
+                   "cp %s %s" % (dropped, len(sids), len(kept), where, src)}
 
 
 def main(argv=None):

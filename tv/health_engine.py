@@ -642,7 +642,50 @@ def check_shelf_witnesses():
                 evidence={"checked": checked, "disagreed": 0})
 
 
-CHECKS = [check_lanes, check_armed_migrations, check_board_join, check_orphans,
+def check_read_lanes_at_cap():
+    """A vision lane sitting at its ceiling — refusing every read while looking merely idle.
+
+    ⚠⚠ THE FAILURE THIS EXISTS FOR, MEASURED THE DAY IT WAS WRITTEN. The GROK lane had recorded
+    201 calls against a _DAILY_MAX of 200, so `g5_grok_eyes._budget_ok()` returned False on EVERY
+    call and the lane read nothing at all. Nothing said so: the console's meter showed only the
+    Claude lane, and the Grok Bot had been posting "Quartz ON-SCREEN none — seat EMPTY" tick after
+    tick. An exhausted lane and an un-toggled lane produce the identical silence, and only one of
+    them is a fault. [[zero-needs-a-denominator]] [[the-unjoined-end]]
+
+    OFF IS NOT A FAULT. A lane he has not switched on is reported OK — the watchdog's job is to
+    catch a lane that MEANS to work and cannot, not to nag about a switch he chose.
+    """
+    try:
+        import control_app as _ca
+        lanes = (_ca._meter_state() or {}).get("lanes") or {}
+    except Exception as e:
+        return _row("read_lanes_at_cap", UNKNOWN,
+                    "the read meter could not be asked (%s), so whether a lane is capped is "
+                    "UNMEASURED rather than fine" % e)
+    if not lanes:
+        return _row("read_lanes_at_cap", UNKNOWN,
+                    "the meter returned no lanes at all — it used to report a single lane and a "
+                    "reader that finds none cannot say the lanes are healthy")
+    capped, unknown = [], []
+    for name, v in sorted(lanes.items()):
+        if not isinstance(v, dict):
+            continue
+        if v.get("atCap") is None:
+            unknown.append(name)
+        elif v.get("atCap") and v.get("on"):
+            capped.append("%s (%s of %s today)" % (name, v.get("day"), v.get("dailyMax")))
+    if capped:
+        return _row("read_lanes_at_cap", WARN,
+                    "%s is AT ITS CEILING and is refusing every read — which looks exactly like a "
+                    "lane nobody switched on, and is not the same fact" % "; ".join(capped))
+    if unknown:
+        return _row("read_lanes_at_cap", UNKNOWN,
+                    "could not measure the ceiling for: %s" % ", ".join(unknown))
+    return _row("read_lanes_at_cap", OK,
+                "%d read lane(s) measured, none at its ceiling" % len(lanes))
+
+
+CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
           check_lane_liveness]

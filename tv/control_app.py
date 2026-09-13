@@ -27693,7 +27693,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3091",
+        "ver": "v3092",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28782,6 +28782,47 @@ def _meter_state():
     out["hour"] = sum(1 for c in calls if now - c <= 3600)
     out["day"] = sum(1 for c in calls if now - c <= 86400)
     out["lastTs"] = int(max(calls) * 1000) if calls else None
+    # ⚠⚠ v3092 — TWO LANES, AND THE METER SHOWED ONE. Konyo: "it should all be dual.. but both
+    # needs to be first DEFAULTED TO CLAUDE and only when toggled then grok", and "obviously a
+    # meter separately tracking same exact way for GROK with a distinguishable difference".
+    #
+    # THE COST OF SHOWING ONE: measured the moment this was joined, the GROK lane was OVER ITS CAP
+    # and refusing every read — 201 calls against a _DAILY_MAX of 200, so `_budget_ok()` returned
+    # False on every call. Nothing on his console said so, and the Grok Bot had been reporting
+    # "Quartz ON-SCREEN none — seat EMPTY" for tick after tick. A lane at its ceiling looks exactly
+    # like a lane nobody switched on. [[the-unjoined-end]] [[zero-needs-a-denominator]]
+    #
+    # The top-level hour/day/hourlyMax/dailyMax stay CLAUDE so every existing reader keeps working;
+    # `lanes` is additive. Claude carries default:true — it is the lane vision runs on unless he
+    # toggles — and grok carries on:<the toggle> so "off" and "at cap" can never be drawn alike.
+    out["lanes"] = {"claude": {"label": "Claude", "default": True, "on": True,
+                               "unit": "reads", "hour": out["hour"], "day": out["day"],
+                               "hourlyMax": out["hourlyMax"], "dailyMax": out["dailyMax"],
+                               "armed": out["armed"], "lastTs": out["lastTs"],
+                               "atCap": bool(out["armed"] and out["dailyMax"]
+                                             and out["day"] >= out["dailyMax"]),
+                               "why": ""}}
+    try:
+        import g5_grok_eyes as _g5
+        _gh, _gd = _g5._budget_counts()
+        _gst = _g5.status() or {}
+        _gon = bool(_gst.get("on"))
+        _ghm, _gdm = int(_g5._HOURLY_MAX), int(_g5._DAILY_MAX)
+        _at = (_ghm > 0 and _gh >= _ghm) or (_gdm > 0 and _gd >= _gdm)
+        out["lanes"]["grok"] = {
+            "label": "Grok", "default": False, "on": _gon, "unit": "reads",
+            "hour": _gh, "day": _gd, "hourlyMax": _ghm or None, "dailyMax": _gdm or None,
+            "armed": bool(_ghm > 0 and _gdm > 0), "lastTs": None, "atCap": _at,
+            "why": ("this lane is AT ITS CEILING (%d of %d today) and is refusing every read — "
+                    "which is not the same fact as being switched off" % (_gd, _gdm)) if _at
+                   else ("" if _gon else "not toggled on — the lane is idle, not capped")}
+    except Exception as _ge:
+        # honest-absent: a lane we could not ask about is UNKNOWN, never a comfortable zero
+        out["lanes"]["grok"] = {"label": "Grok", "default": False, "on": None, "unit": "reads",
+                                "hour": None, "day": None, "hourlyMax": None, "dailyMax": None,
+                                "armed": None, "lastTs": None, "atCap": None,
+                                "why": "the grok lane could not be read (%s), so its burn is "
+                                       "UNKNOWN rather than zero" % type(_ge).__name__}
     return out
 
 

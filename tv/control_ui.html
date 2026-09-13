@@ -4291,6 +4291,15 @@
   .sh-search:focus { outline: none; border-color: var(--gold-antique); box-shadow: 0 0 0 1px rgba(200,160,74,.3); }
   /* v3083 — the fixture chip reads as a STATEMENT, not a control: no hover, no pointer. */
   .sh-chip-fx { opacity: .72; cursor: default; }
+  /* v3092 — HISTORY vs UNANSWERED, and they must not look alike. `retired` is a story with an
+     ending, so it reads in the calm archival grey the console already uses for retired things;
+     `unknown` is an open question and borrows the warn tone, because a shelf that renders "the
+     river finished with this" and "nobody ever established what happened" in the same colour has
+     thrown away the only distinction that matters. [[unknown-stays-unknown]] */
+  .sh-chip-hist { opacity: .8; cursor: default; color: var(--gold-dim);
+                  border-color: rgba(200,180,120,.2); }
+  .sh-chip-unk  { opacity: .9; cursor: default; color: var(--warn, #d9a441);
+                  border-color: rgba(217,164,65,.3); }
   .sh-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; }   /* v1283 (D9) — persistent, composable filter row */
   .sh-fdiv { width: 1px; align-self: stretch; margin: 2px 5px; background: rgba(200,180,120,.16); }
   .sh-chip { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim); cursor: pointer;
@@ -15764,8 +15773,27 @@ window._lockMark = function(isOpen, px, label){
        ⚠ COUNTED, NOT SILENTLY DROPPED — the count goes on a chip beside "N empty runs — hidden".
        A list that quietly omits rows is the same lie as a heading that contradicts it. */
     var _shFixtureN = 0;
+    /* ⚠⚠ v3092 — A CARD FOR FILM THAT NO LONGER EXISTS IS NOT A RUN HE CAN OPEN. MEASURED: of the
+       417 cards this built, only TWELVE had frames on disk. The other 405 named footage the river
+       had already carried away — each one rendering a hero, a transport bar and a play affordance
+       for a reel that cannot play. That is the shelf teaching him his recorder is broken.
+       Konyo: "make sure those no footage end up tombstoned and then deleted also visually and ends
+       up HISTORY".
+       ⚠ COUNTED AND SPLIT, never silently dropped — and `retired` and `unknown` stay APART. One is
+       a story with an ending (the film gave up its information and was taken); the other is an
+       open question nobody has answered. _footage_why already separates them and the row already
+       carries footageState, so collapsing them here would throw away the only distinction that
+       says whether the river finished or stalled. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+       ⚠ CLIENT SIDE, and `return ''` rather than .filter(): data-n is the card->session join and
+       /api/reel_path indexes sess[n-1] POSITIONALLY, so a server-side cut would desync the dossier,
+       the home digest and the heatmap. */
+    var _shRetiredN = 0, _shUnknownN = 0;
     var cards = (TH.sessions || []).map(function(sm, i){
       if (sm && sm.fixture) { _shFixtureN++; return ''; }
+      if (sm && !(sm.footageN || 0) && !_shBuildGhosts){
+        if (String(sm.footageState || '') === 'retired') { _shRetiredN++; return ''; }
+        if (String(sm.footageState || '') === 'unknown') { _shUnknownN++; return ''; }
+      }
       if (!_shBuildGhosts && sm && sm.stub) return '';
       var n = sm.n || (i + 1);
       var d0 = sm.t0 ? new Date(sm.t0) : null;
@@ -15966,6 +15994,14 @@ window._lockMark = function(isOpen, px, label){
         + (_shFixtureN ? '<span class="sh-chip sh-chip-fx" title="reels the test suite opens by '
             + 'name — kept on disk for the suite, never shown as your runs">\ud83d\udd27 '
             + _shFixtureN + ' backend fixture' + (_shFixtureN === 1 ? '' : 's') + ' — hidden</span>' : '')
+        /* v3092 — HISTORY: runs whose film the river already carried away. Two chips, never one
+           number, because "retired" and "unknown" are different answers about the same absence. */
+        + (_shRetiredN ? '<span class="sh-chip sh-chip-hist" title="the film gave up its '
+            + 'information and was then retired by the river — the run is history, not a reel you '
+            + 'can open">\ud83d\udcfc ' + _shRetiredN + ' retired to history</span>' : '')
+        + (_shUnknownN ? '<span class="sh-chip sh-chip-unk" title="no film and no retention record '
+            + '\u2014 an unanswered question, NOT a finding that nothing was recorded">\u2753 '
+            + _shUnknownN + ' with no film and no record</span>' : '')
         + '<span class="sh-fdiv"></span>'
         + '<button type="button" class="sh-chip" data-f="verdict:clean">🛡 clean</button>'
         + '<button type="button" class="sh-chip" data-f="verdict:flagged">🚨 flagged</button>'

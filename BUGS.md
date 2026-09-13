@@ -32377,6 +32377,74 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+
+## REG-1002 — THE CONSOLE'S OWN GUESS WAS REFUSING EVERY GROK READ, AND ONE LANE'S METER HID IT
+
+**v3092.** His screen, on the Tools panel: *"96 reads this hour of 4000 (2.4%) · 96 today of 20000 —
+this runs on your Claude subscription"*. One lane. There are two.
+
+### The Grok eye was dark because WE turned it off, by arithmetic
+
+    g5_grok_eyes._DAILY_MAX = 200        (a bare default, no comment, no cited xAI limit)
+    ledger                  = 201 calls
+    _budget_ok()            = 201 < 200  ->  FALSE, on every single call
+
+So `grok -p` was refused **before it was ever run**, recorded as `skipped_budget`, which looks
+exactly like a lane nobody switched on. The Grok Bot had been posting **"Quartz ON-SCREEN none —
+seat EMPTY"** tick after tick, and the second eye's empty seats had been read as a dead CLI.
+⚠ **It was never auth.** A cold `grok -p` answered `GROKEYE-OK` in **6.4 s** the moment the ceiling
+moved. Konyo, looking at it: *"i dont have a budget problem now though GROK should be working"*.
+
+**THE ASYMMETRY HAD NO REASON BEHIND IT.** Both lanes are subscription CLIs that bill **no tokens** —
+`claude -p` on his Claude login, `grok -p` on his SuperGrok OIDC login, every API key stripped from
+the child env by design. The Claude lane's ceiling is 4000/hour and 20000/day. This one was a
+hundred times tighter, from two numbers nobody had measured. Now aligned.
+[[feedback-threshold-above-the-ceiling]]
+
+⚠ A real ceiling must come from the PROVIDER. An upstream rate limit arrives as an **error** —
+visible, attributable, with a message. A local guess refuses before the call and is indistinguishable
+from silence.
+
+### The meter is dual, and `off` may never look like `at cap`
+
+`/api/meter` now returns `lanes: {claude, grok}`. Claude carries `default: true` — it is the lane
+vision runs on unless he toggles. Grok carries `on:<the toggle>` and its own `atCap`, so the three
+states stay apart: **running**, **not toggled on**, **at its ceiling and refusing**. The top-level
+fields stay Claude, so every existing reader keeps working. Two chips, styled apart.
+
+### Joined to the heart, which is the half that stops it recurring
+
+`health_engine.check_read_lanes_at_cap` is now in `CHECKS`. On its first run it went **WARN** —
+*"grok (201 of 200 today) is AT ITS CEILING and is refusing every read"* — and after the fix reads
+*"2 read lane(s) measured, none at its ceiling"*. A lane that MEANS to work and cannot is a fault; a
+lane he chose to leave off is not, and the check says so. [[the-unjoined-end]]
+
+## REG-1003 — THE SHELF DREW 405 PLAY BUTTONS FOR FILM THE RIVER HAD ALREADY TAKEN
+
+**v3092.** *"make sure those no footage end up tombstoned and then deleted also visually and ends up
+HISTORY"*.
+
+MEASURED: the shelf built **417** cards and exactly **13** had frames on disk. The other 404 rendered
+a hero, a transport bar and a play affordance for a reel that cannot play — a console teaching him
+his recorder is broken, 404 times.
+
+They are now dropped at the build site and **counted, split, and never collapsed**:
+
+| chip | count | what it means |
+|---|---|---|
+| 📼 retired to history | **266** | the film gave up its information and the river took it — a story with an ending |
+| ❓ no film and no record | **138** | no footage AND no retention record — an open question, not a finding |
+| 🔧 backend fixtures | **8** | his ruling, restored in v3091 |
+
+`retired` and `unknown` are styled apart on purpose. `_footage_why` already separates them and the
+row already ships `footageState`; collapsing them into one grey number would throw away the only
+fact that says whether the river finished or stalled. [[unknown-stays-unknown]]
+
+⚠ **CLIENT SIDE, and `return ''` rather than `.filter()`.** `/api/reel_path` indexes
+`sess[n - 1]` **positionally** and `data-n` is the card→session join, so a server-side cut would
+silently desync the dossier, the home digest, the compare list and the areas heatmap. The recon that
+found this hazard is the reason nothing was truncated upstream.
+
 ## REG-1001 — THE POST-SHIP REVIEW FOUND THE DEFECT MY OWN LAW WAS WRITTEN ABOUT
 
 **v3091.** `/code-review` over the shipped `733a8490..1fd99584` returned 15 findings. Reproduced

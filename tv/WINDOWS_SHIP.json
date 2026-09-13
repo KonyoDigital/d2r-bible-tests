@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3091",
+  "ver": "v3092",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3091: the post-ship review found the 0-vs-None collapse one branch over from where v3090 guarded it, and a gold accent class with no CSS that I claimed a number for without looking at the screen. Both fixed, and the dossier stage labelled chronicle now reads the chronicle too",
+  "note": "v3092: the grok lane was refusing every read against a cap this console invented - 201 against a daily max of 200 - while the meter showed only the claude lane, so an exhausted lane looked exactly like one nobody switched on. Both lanes now render, the watchdog raises on a ceiling, and the shelf drops 404 cards for film the river already took",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

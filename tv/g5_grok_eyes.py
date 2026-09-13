@@ -39,8 +39,27 @@ _STATE_FILE = os.path.join(HERE, "g5_grok_eyes.state")  # gitignored; per-machin
 _SHADOW_LOG = os.path.join(HERE, "g5_shadow.jsonl")    # gitignored; shadow comparisons
 _BUDGET_PATH = os.path.join(HERE, "g5_subscription_budget.json")
 
-_HOURLY_MAX = max(0, int(os.environ.get("G5_GROK_HOURLY_MAX", "30")))
-_DAILY_MAX = max(0, int(os.environ.get("G5_GROK_DAILY_MAX", "200")))
+# ⚠⚠ v3092 — THESE WERE 30/200 AND THE CONSOLE WAS THE ONLY THING REFUSING HIS GROK READS.
+# MEASURED the day this changed: 201 calls recorded against a _DAILY_MAX of 200, so _budget_ok()
+# returned False on EVERY call and the lane read nothing — while the console's meter showed only
+# the Claude lane, so nothing said so, and the Grok Bot posted "Quartz ON-SCREEN none — seat EMPTY"
+# tick after tick. Konyo, looking at it: "i dont have a budget problem now though GROK should be
+# working".
+#
+# He is right, and the asymmetry had no reason behind it. BOTH lanes are subscription CLIs that
+# bill NO tokens — `grok -p` on his SuperGrok OIDC login, `claude -p` on his Claude login, with
+# every API key stripped from the child env by design (see _API_STRIP). The Claude lane's ceiling
+# is 4000/hour and 20000/day. This one was a hundred times tighter, and the two numbers here
+# carried no comment, no measurement and no cited xAI limit — they were a guess that hardened into
+# a throttle. [[feedback-threshold-above-the-ceiling]] [[unknown-stays-unknown]]
+#
+# ⚠ A REAL CEILING MUST COME FROM THE PROVIDER, NOT FROM US. If xAI rate-limits him, that arrives
+# as an ERROR on the call and is recorded as one — visible, attributable, with a message. A local
+# guess refuses BEFORE the call and records `skipped_budget`, which looks identical to an idle
+# lane. The breaker stays (a runaway loop is still worth stopping) but it now sits where the Claude
+# lane's does, so the provider is what limits him.
+_HOURLY_MAX = max(0, int(os.environ.get("G5_GROK_HOURLY_MAX", "4000")))
+_DAILY_MAX = max(0, int(os.environ.get("G5_GROK_DAILY_MAX", "20000")))
 _TIMEOUT_S = float(os.environ.get("G5_GROK_TIMEOUT_S", "140"))
 _MODES = ("off", "shadow", "primary")
 
