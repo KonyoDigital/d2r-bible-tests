@@ -20792,6 +20792,68 @@ def _vault_autoread_path():
     return os.path.join(_fixture_root_for_state(), ".vault_autoread.json")
 
 
+def vault_reentry_sweep(dry=True):
+    """Send retired reels that still hold UNEXTRACTED panels back to the top of the river. -> dict
+
+    ⚠⚠ THE LOOP-BACK. Konyo, 2026-09-13: *"why dont they go through the river from top to bottom
+    ... the river should be a looped and designed system thats working end to end"*.
+
+    A retirement is the lane's decision to stop paying for a reel, and NOTHING has ever cleared
+    one — no expiry, no re-entry, no door back to the top. Combined with `panels-never-banked`,
+    which holds a reel precisely BECAUSE it has not been extracted, that makes a permanent
+    deadlock: held because unextracted, unextractable because retired.
+
+    MEASURED on his tree, 2026-09-13, before this existed:
+        18 reels on disk carry panel frames with NO vault row
+         8 of those were retired from the vault lane
+         8 of those 8 had lastWhy = None — the store's own field for "what the last attempt said"
+           was empty, so not even the reason survived
+    Those 8 could never be read and could never leave. The largest reel on disk in that state
+    carries 1,185 panels.
+
+    ⚠ IT ONLY EVER RE-ADMITS. This clears a retirement so the reel is picked up again; it never
+    retires, never deletes, and never touches the ledger. The worst it can cost is another read.
+    ⚠ `dry=True` by default so a caller must ASK to change anything — the same shape as every
+    other door in this file that spends. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    """
+    out = {"ok": True, "checked": 0, "readmitted": [], "kept": [], "why": "", "dry": bool(dry)}
+    st = _vault_autoread_load()
+    if st is None:
+        out["ok"] = False
+        out["why"] = ("the retirement store could not be read, so which reels are retired is "
+                      "UNKNOWN — re-admitting on a guess would re-buy reels the lane had ruled "
+                      "out deliberately. Refusing.")
+        return out
+    try:
+        import reel_retention as _rr_re
+    except Exception as _e:
+        out["ok"] = False
+        out["why"] = "reel_retention could not be imported (%s), so nothing can say which reels are held UNEXTRACTED" % type(_e).__name__
+        return out
+    with _VAULT_AUTOREAD_LOCK:
+        retired = dict(_VAULT_AUTOREAD.get("retired") or {})
+    for rid in sorted(retired):
+        out["checked"] += 1
+        try:
+            unextracted = bool(_rr_re._panels_never_banked(rid))
+        except Exception:
+            continue                    # cannot ask -> leave it alone, never guess
+        if not unextracted:
+            out["kept"].append(rid)
+            continue
+        out["readmitted"].append(rid)
+        if not dry:
+            with _VAULT_AUTOREAD_LOCK:
+                _VAULT_AUTOREAD["retired"].pop(rid, None)
+                _VAULT_AUTOREAD["tries"][rid] = 0
+            _vault_autoread_save()
+    out["why"] = ("%d retired reel(s) still carry panel frames with no vault row and %s sent back "
+                  "to the top of the lane; %d were left retired because they are no longer holding "
+                  "unextracted panels."
+                  % (len(out["readmitted"]), "WOULD BE" if dry else "were", len(out["kept"])))
+    return out
+
+
 def _vault_autoread_load():
     """Restore what the lane learned. -> True restored · False no store yet · None UNREADABLE
 
@@ -21596,6 +21658,37 @@ def vault_autoreel_tick():
             _said = ("%d attempt(s) ran and this reel is STILL owed afterwards" % (tries - 1))
             _said += ((" — the last one said: %s" % str(_last)[:160]) if _last
                       else " — and no attempt left a reason, so WHY is UNKNOWN, not diagnosed")
+            # ⚠⚠⚠ THE RIVER MUST NOT BE A ONE-WAY CHUTE. Konyo, 2026-09-13: *"why dont they go
+            # through the river from top to bottom ... the river should be a looped and designed
+            # system thats working end to end"*.
+            #
+            # MEASURED, and this is the deadlock it closes. `panels-never-banked` HOLDS a reel that
+            # carries panel frames with no vault row — correctly, because "panels on film with
+            # nothing in the ledger is unextracted information" (v2875). Retirement then strikes
+            # that same reel off the ONLY lane that could extract it, and nothing ever clears a
+            # retirement. So the reel is held because it is unextracted, and unextractable because
+            # it is retired: it can never be released and never be read, for ever.
+            #     18 reels on disk carry panels with no vault row
+            #     8 of those were RETIRED — and every one with lastWhy = None, so the store's own
+            #       field for "what the last attempt said" is empty and the reason is gone
+            # A reel the prune is holding FOR BEING UNEXTRACTED is the one reel the lane must keep
+            # paying for. Retiring it is the lane deciding not to do the only job that would let
+            # the footage leave. [[the-unjoined-end]] [[unknown-stays-unknown]]
+            try:
+                import reel_retention as _rr_hold
+                _held_unextracted = bool(_rr_hold._panels_never_banked(rid))
+            except Exception as _e_hold:
+                # cannot ask -> do NOT retire. Refusing to retire only costs another read;
+                # retiring wrongly costs the extraction for ever.
+                _held_unextracted = True
+            if _held_unextracted:
+                _VAULT_AUTOREAD["tries"][rid] = 0          # back to the top of the river
+                _vault_autoread_save()
+                return {"ok": False, "requeued": rid, "owed": owed,
+                        "why": ("%s — but this reel carries panel frames with NO vault row, so the "
+                                "prune is holding it precisely because it has not been extracted. "
+                                "Retiring it would make that permanent. Sent back to the top of the "
+                                "lane instead." % _said)}
             _VAULT_AUTOREAD["retired"][rid] = {
                 "why": _said, "lastWhy": _last,
                 "tries": tries - 1, "at": int(time.time() * 1000)}
