@@ -143,7 +143,68 @@ class TestTheEpochNeverDeletes(unittest.TestCase):
         print("never_fired: 0 -> gap, non-zero -> fired  (both asserted)")
 
 
+    def test_a_callee_that_fails_as_a_PAYLOAD_is_not_read_as_success(self):
+        """THE ONE MY OWN LAW MISSED, found by the third eye on the shipped v3065.
+
+        Both callees speak failure as a payload rather than an exception:
+            shelf_driver.stages() -> {"ok": False, "rows": None}
+            reel_retention.plan() -> {"ok": False, "candidates": []}   with NO `coverage` key
+        so the try/except never fired, `or []` / `or {}` turned unreadable into measured-zero,
+        and MEASURED: snapshot ok=True, rules={}, never_fired([])=[], and run() announced
+        "every gap rule fired" — a river nobody could read reporting TOTAL SUCCESS, which is the
+        one sentence that would justify deleting his footage.
+        [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        """
+        import shelf_driver as SD, reel_retention as RR, river_epoch as RE
+        real_s, real_p = SD.stages, RR.plan
+        try:
+            SD.stages = lambda *a, **k: {"ok": False, "rows": None, "onDisk": None, "stageOrder": []}
+            RR.plan = lambda *a, **k: {"ok": False, "candidates": [], "kept": []}
+            snap = RE.snapshot()
+            ep = RE.run(cycles=2, quiet_for=2)
+        finally:
+            SD.stages, RR.plan = real_s, real_p
+        print("unreadable river -> snapshot ok=%r · stopped=%s"
+              % (snap.get("ok"), str(ep.get("stoppedBecause"))[:70]))
+        self.assertIs(False, snap.get("ok"),
+                      "a callee that says ok:False must make the snapshot un-ok, even though it "
+                      "never raised")
+        self.assertNotIn("every gap rule fired", str(ep.get("stoppedBecause")),
+                         "a river nobody could read must NEVER report the terminus")
+        self.assertIn("UNREAD", str(snap.get("why")).upper() + str(ep.get("stoppedBecause")).upper(),
+                      "and it must say the reading failed, in those words")
+
+    def test_a_missing_coverage_key_is_unknown_not_empty(self):
+        """`plan()` omits `coverage` entirely on its failure path; `or {}` made that a clean bill."""
+        import reel_retention as RR, river_epoch as RE
+        real_p = RR.plan
+        try:
+            RR.plan = lambda *a, **k: {"ok": True, "candidates": [], "kept": []}   # no coverage
+            snap = RE.snapshot()
+        finally:
+            RR.plan = real_p
+        print("plan without a coverage key -> ok=%r" % snap.get("ok"))
+        self.assertIs(False, snap.get("ok"),
+                      "no rule coverage at all is UNKNOWN — 'nobody counted' and 'nothing to "
+                      "count' must never render identically")
+
+
+# ⚠ A SABOTAGE ON THE MISSING-COVERAGE GUARD WAS WRITTEN AND WITHDRAWN. heart2 returned BLIND:
+# with `if not isinstance(_cov, dict)` removed, `dict(None)` raises anyway and the except handler
+# still sets ok=False, so the verdict is unchanged. The guard stays because it replaces a bare
+# TypeError with "carries no rule coverage at all — UNKNOWN", which is the difference between a
+# reader knowing WHY and guessing. But it improves the MESSAGE, not the outcome, and a sabotage
+# that cannot change the outcome proves nothing.
+# [[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
 RED_PROOF = [
+    {
+        "why": "the snapshot stops reading the river's own ok field, so a callee that fails as a "
+               "PAYLOAD is read as a successful reading of an empty river",
+        "file": "river_epoch.py",
+        "find": '        if isinstance(st, dict) and st.get("ok") is False:',
+        "replace": "        if False:",
+        "matches": 1,
+    },
     {
         "why": "the runner's `apply` stops defaulting to dry, so any caller that forgets the "
                "keyword changes his river instead of reading it",

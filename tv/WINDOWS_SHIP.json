@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3067",
+  "ver": "v3068",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3067: the third eye was handed vault_apply cold and returned five payloads, four of them live against the shipped code; closing them took the lock from six distinct attacks to ten, and at ten of ten refused the wilson lower bound reached 0.723 against a bar of 0.722 and the door opened on its own",
+  "note": "v3068: both callees speak failure as a payload rather than an exception so the epoch try except never fired and an unreadable river produced ok true with empty rules, which made never_fired return nothing and the runner announce every gap rule fired - the one sentence that would justify deleting his footage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

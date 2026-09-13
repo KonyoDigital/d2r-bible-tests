@@ -69,7 +69,31 @@ def snapshot():
         st = SD.stages()
         if isinstance(st, tuple):
             st = st[0]
-        rows = st.get("rows") or []
+        # ⚠⚠ v3068 — THE CALLEES SPEAK FAILURE AS A PAYLOAD, NOT AN EXCEPTION, AND THIS READ IT AS
+        # SUCCESS. Found by the third eye on the shipped v3065. `shelf_driver.stages()` returns
+        # {"ok": False, "rows": None} when it cannot build, and `reel_retention.plan()` on OSError
+        # returns {"ok": False, "candidates": []} with NO `coverage` key at all. Neither raises, so
+        # the try/except below never fired and the `or []` / `or {}` turned an unreadable river
+        # into a measured zero.
+        #
+        # MEASURED, both callees stubbed to their real failure shapes:
+        #     snapshot(): ok=True · rules={} · candidates=0
+        #     run() STOPPED BECAUSE: every gap rule fired
+        # A river nobody could read reported TOTAL SUCCESS — the one sentence that would justify
+        # deleting his footage. This module's own law checked that the two stop sentences were
+        # DISTINCT; it never checked that the snapshot could tell a reading from a silence.
+        # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        if isinstance(st, dict) and st.get("ok") is False:
+            out["ok"] = False
+            out["why"] = ("the river reported it could not be built (%s) — that is UNREADABLE, "
+                          "not an empty river" % (str(st.get("why") or "no reason given")[:90]))
+            return out
+        _rows = st.get("rows")
+        if _rows is None:
+            out["ok"] = False
+            out["why"] = "the river returned no rows at all — UNKNOWN, not zero reels"
+            return out
+        rows = _rows
         for r in rows:
             k = str(r.get("stage"))
             out["stations"][k] = out["stations"].get(k, 0) + 1
@@ -86,7 +110,21 @@ def snapshot():
         plan = RR.plan()
         if isinstance(plan, tuple):
             plan = plan[0]
-        out["rules"] = dict(plan.get("coverage") or {})
+        if isinstance(plan, dict) and plan.get("ok") is False:
+            out["ok"] = False
+            out["why"] = ("the retention plan reported it could not be built (%s) — its rule "
+                          "coverage is UNKNOWN" % (str(plan.get("say") or "no reason given")[:90]))
+            return out
+        # ⚠ A MISSING coverage KEY IS NOT AN EMPTY ONE. `plan()` omits it entirely on its failure
+        # path, and `or {}` would make "nobody counted" indistinguishable from "nothing to count",
+        # which is how `never_fired({})` returns [] and run() declares every rule fired.
+        _cov = plan.get("coverage")
+        if not isinstance(_cov, dict):
+            out["ok"] = False
+            out["why"] = ("the retention plan carries no rule coverage at all — UNKNOWN, and a "
+                          "terminus may never be declared from it")
+            return out
+        out["rules"] = dict(_cov)
         c = plan.get("candidates")
         out["candidates"] = len(c) if isinstance(c, list) else c
         out["say"] = str(plan.get("say") or "")[:300]
@@ -158,6 +196,16 @@ def run(cycles=10, quiet_for=2, apply=False):
                              "neverFired": never_fired(cur.get("rules"))})
         quiet = 0 if did else quiet + 1
         prev = cur
+        # ⚠ SUCCESS IS ONLY SAYABLE FROM A READABLE SNAPSHOT. Without this, a cycle whose
+        # snapshot failed carries `rules = {}`, never_fired returns [], and the loop announces
+        # the terminus it never measured.
+        if not cur.get("ok"):
+            ep["ok"] = False
+            ep["why"] = str(cur.get("why") or "")
+            ep["stoppedBecause"] = ("the river became UNREADABLE mid-epoch (%s) — nothing is "
+                                    "claimed about where these reels stand"
+                                    % str(cur.get("why") or "")[:90])
+            break
         if not never_fired(cur.get("rules")):
             ep["stoppedBecause"] = "every gap rule fired"
             break
