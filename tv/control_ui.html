@@ -4352,8 +4352,23 @@
      ⚠ A CHILD OF THE HEADER NODE ON PURPOSE. _shGroups() clears `.sh-daygroup` and nothing else,
      so a sibling here would re-add on every sort, filter and poll, for ever.
      ⚠ Wraps by design: this region already cost REG-887 and REG-909, both wrap defects. */
+  /* ⚠⚠ CAPPED, AND HERE IS THE MEASUREMENT. The shelf opened with the first REEL HE STILL HAS
+     1,327px down the panel, in a 390px viewport — Grokbot measured the same thing on his own
+     window as firstCardTop 419 against clientH 361. Trimming the lane sentences bought 7px and
+     then 0, because the sentences were never the mass. Measured, above the first card:
+         212px  panel chrome (close, head, search, filters)
+         793px  river ladder inside the grid, of which
+            283px  is THIS block — the DELETED / TOMBSTONE mouth
+               267px of it is `.shg-mouth-rows`, a full list of SEVEN reels that are GONE
+     So the panel led with a quarter-screen of footage he no longer has before showing one frame
+     of footage he does. The summary line above it — "7 closed out · 11 MB freed · 7 of 7 shown"
+     — is the information; the seven rows are the detail behind it.
+     Capped rather than deleted: every row is still there and still reachable, and the count still
+     says how many there are, so nothing is hidden and no number loses its denominator.
+     [[zero-needs-a-denominator]] */
   .shg-mouth-rows { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px;
-                    margin: 6px 0 2px; font-size: var(--fs-2xs); }
+                    margin: 6px 0 2px; font-size: var(--fs-2xs);
+                    max-height: 84px; overflow-y: auto; overscroll-behavior: contain; }
   .shg-mouth-row  { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
                     color: var(--gold-dim); font-variant-numeric: tabular-nums; }
   .shg-mouth-row .mr-at   { color: var(--gold-hi); min-width: 9.5em; }

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3053** | `(this commit)` | v3053 — a vault reel is explained by the vault lane, not by a chronicle question it can never answer; coverage 0.9484 to 0.9619 and the 13 that nothing extracted stay visible |
+| **v3054** | `(this commit)` | v3054 — the tombstone mouth listed seven deleted reels in 267px above the first reel still on the shelf; capped to 84px with every row still there and scrollable |
+| **v3053** | `660f4938` | v3053 — a vault reel is explained by the vault lane, not by a chronicle question it can never answer; coverage 0.9484 to 0.9619 and the 13 that nothing extracted stay visible |
 | **v3052** | `4da7f367` | v3052 — printer.stream asks may_on_merit, so nine blind instruments that never watched the river can no longer blank it on his console; destructive locks still fail closed |
 | **v3051** | `28e221ee` | v3051 — render targets warm the endpoints they depend on and carry their own activation budget; the render gate now asks the page what it threw; the cross-IIFE diagnosis is recorded as REFUTED |
 | **v3050** | `27e8ee3d` | v3050 — frame.release is described as the last check before deletion and it checked nothing, so the one line that removes frame pixels ran regardless - and the guard must land before the tombstone because the record is written first on purpose |
