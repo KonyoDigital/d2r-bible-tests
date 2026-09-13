@@ -7054,6 +7054,81 @@ def _register_is_junk(low):
     return False
 
 
+_CHRON_ROSTERS = {"at": 0, "u": None, "s": None}
+
+
+def _chron_rosters():
+    """(uniques, sets) as {normalised: canonical}, cached — or (None, None) if they cannot load.
+
+    ⚠ (None, None) is NOT two empty dicts. load_roster RAISES rather than returning {} for exactly
+    this reason, in its own words: "an empty roster would silently classify every name as debris",
+    which here would print a confident 0 uniques on every card. A tally that cannot be computed is
+    UNKNOWN, and the caller returns None so the card can say so. [[zero-needs-a-denominator]]
+    """
+    import time as _t
+    if _CHRON_ROSTERS["u"] is not None and (_t.time() - _CHRON_ROSTERS["at"]) < 300:
+        return _CHRON_ROSTERS["u"], _CHRON_ROSTERS["s"]
+    try:
+        import chronicle_resolve as _res
+        u, sr = _res.load_roster(), _res.load_set_roster()
+        if not u or not sr:
+            return None, None
+        _CHRON_ROSTERS.update({"at": _t.time(), "u": u, "s": sr})
+        return u, sr
+    except Exception:
+        return None, None
+
+
+def _chron_tally(finds):
+    """What this reel added to the CHRONICLES: {uniques, sets, other} — or None if unknowable.
+
+    ⚠⚠ WHY THIS EXISTS. Konyo, 2026-09-13, on the reel card's stat grid: "where its says grail.. i
+    want it reading the chronicles.. what does cover even mean? i think it can also be rem[ov]ed
+    visually so i dont see it and see the chronicles sets or uniques instead of it."
+
+    He was right on both counts and the numbers are blunt. MEASURED over the 425 cards the shelf
+    actually renders (not all 2,893 journal rows — the shelf hides empty runs, and the wrong
+    denominator would have overstated this):
+
+      · COVER  had a value on 16 of 425 cards, and TWELVE of those sixteen read 0%. A real figure
+        appeared on FOUR cards in four hundred and twenty-five. It was furniture.
+      · GRAILS counted `tier == "grail"` and found 16 — because the tier field is NEVER SET on
+        194 of the 218 finds (89%). The tile was not measuring rarity, it was measuring whether one
+        optional field happened to be filled in.
+
+    The finds carry a NAME, and the chronicle rosters know what a name IS — 398 uniques, 135 set
+    pieces. Folding the same 218 names against them: 57 uniques + 26 sets = 83 classified, against
+    the old tile's 16. The 135 that match nothing are base items and runewords ("Amulet", "Battle
+    Staff", "Bramble") and are CORRECTLY not chronicle rows. [[the-unjoined-end]]
+
+    ⚠ It folds with chronicle_resolve.canonical, the lane's own resolver, NOT a second comparison
+    written here. Measured before trusting it: exact-fold and canonical() return the IDENTICAL
+    split on his real data (57/26/135, zero drift), so this inherits the near-name calibration and
+    its refusal of ambiguous folds instead of quietly disagreeing with it. A parallel matcher is
+    how a near-twin pair like "Bone Break"/"Latent Bone Break" gets folded two different ways in
+    two places.
+    """
+    u, sr = _chron_rosters()
+    if u is None or sr is None:
+        return None
+    try:
+        import chronicle_resolve as _res
+    except Exception:
+        return None
+    uq = st = ot = 0
+    for f in (finds or []):
+        nm = (f or {}).get("name")
+        if not nm:
+            continue
+        if _res.canonical(nm, u):
+            uq += 1
+        elif _res.canonical(nm, sr):
+            st += 1
+        else:
+            ot += 1
+    return {"uniques": uq, "sets": st, "other": ot}
+
+
 def _register_is_anchor(low):
     # v2319 — the shared law first, then the local set. Konyo: "the horadric cube and tome of
     # identify and tome of town of scrolls portals.. these are locked inventory items within the
@@ -27605,7 +27680,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3089",
+        "ver": "v3090",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -29158,6 +29233,11 @@ class Handler(BaseHTTPRequestHandler):
                             "sceneFingerprint": _session_scene_fingerprint(sess),   # v1326 B8 — farming%/townTrips/portals/topArea (Diablo-native, honest)
                             "judged": len(_keepers), "regrets": _regrets, "registered": _registered,
                             "finds": _finds, "topFind": _topFind,   # v1254 R1 — 📖 what KAI witnessed this session
+                            # v3090 — WHAT THIS REEL PUT IN THE CHRONICLES. His ask: the card's
+                            # grail tile should "read the chronicles". None (not zeros) when the
+                            # rosters cannot load, so the card prints UNKNOWN rather than a
+                            # confident 0. See _chron_tally for the measurement behind it.
+                            "chron": _chron_tally(_finds),
                             "coverage": _coverage, "classFrames": (_class_frames or None),   # v1276 (D5 engine) — decision-story meter + montage
                             "superRecovery": _super_recovery, "missedFrames": _missed_frames,   # v1278 (D6 engine) — recovery badge + missed-text drill
                             "sealMs": _seal_ms, "regretItems": _regret_items,   # v1280 (D7 engine) — seal-latency chip + regret spotlight

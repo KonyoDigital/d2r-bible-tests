@@ -15805,8 +15805,13 @@ window._lockMark = function(isOpen, px, label){
       // ══ D18 — the cinematic card: cover-art hero (reel thumb) + title/seal lower-third + headline grail,
       // then a clean stat grid. Preserves every filter/sort/search data-attr + tap-to-dossier (data-n). ══
       // v1380.2 — keep coverage % and cover ART as separate vars (was reusing _cov → cover stat showed a URL%)
-      var _covPct = (sm.coverage && sm.coverage.total) ? Math.round((sm.coverage.read || 0) / sm.coverage.total * 100) : null;
       var _grailN = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
+      /* v3090 — the gold 'chronicle' accent must read the CHRONICLE. It was driven by _grailN,
+         i.e. tier === 'grail', and tier is unset on 194 of 218 finds (89%) — so a class literally
+         named `chronicle` lit on 10 cards while 25 had put something in the chronicles. A right
+         number under a word that stopped being true. [[label-outlived-referent]]
+         _grailN stays: data-grail is a separate, older contract read by the filters. */
+      var _chronN = sm.chron ? ((sm.chron.uniques || 0) + (sm.chron.sets || 0)) : _grailN;
       var _tf = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0] || (sm.finds || [])[0];
       var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_pieceLabel(_tf.name) || 'a keep') + '</div>' : '';
       var seal = sm.watchdogViolations > 0 ? '<span class="shc-seal flag">🚨 ' + sm.watchdogViolations + '</span>'
@@ -15868,9 +15873,25 @@ window._lockMark = function(isOpen, px, label){
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
       var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
+      /* v3090 — THE LAST TWO TILES NOW READ THE CHRONICLES. Konyo: "where its says grail.. i want
+         it reading the chronicles.. what does cover even mean? i think it can also be rem[ov]ed
+         visually so i dont see it and see the chronicles sets or uniques instead of it."
+
+         MEASURED over the 425 cards the shelf actually renders (NOT all 2,893 journal rows — the
+         shelf hides empty runs, and that wrong denominator would have overstated it):
+           · COVER  had a value on 16 of 425, and TWELVE of those read 0%. Four real figures in 425.
+           · GRAILS counted tier === 'grail' -> 16, because tier is UNSET on 194 of 218 finds (89%).
+         Folding the same names against the rosters (398 uniques / 135 set pieces) gives 57 uniques
+         + 26 sets = 83, and puts a figure on 25 cards where the old tile managed 10.
+
+         '?' and '—' are DIFFERENT ANSWERS and must stay so: '—' is a measured none, '?' is the
+         roster failing to load, which is unknown. A confident 0 over a missing roster is the exact
+         failure load_roster raises to prevent. [[unknown-stays-unknown]] */
+      var _ch = sm.chron || null;
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
-        + _scell(_grailN > 0 ? ('🏆 ' + _grailN) : '—', 'grails') + _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';
-      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_grailN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-sid="' + esc(sm.sessionId || '') + '" data-n="' + n
+        + _scell(_ch ? (_ch.uniques > 0 ? ('🏆 ' + _ch.uniques) : '—') : '?', 'uniques')
+        + _scell(_ch ? (_ch.sets > 0 ? ('🧩 ' + _ch.sets) : '—') : '?', 'sets') + '</div>';
+      return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_chronN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-sid="' + esc(sm.sessionId || '') + '" data-n="' + n
         + '" data-stub="' + (sm.stub ? '1' : '0') + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'

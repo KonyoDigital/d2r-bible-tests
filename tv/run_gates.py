@@ -2437,6 +2437,26 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_a_card_tile_reads_the_chronicles",
+         [sys.executable, os.path.join(HERE, "test_a_card_tile_reads_the_chronicles.py")], 120,
+         why="THE REEL CARD'S LAST TWO TILES MUST READ THE CHRONICLES, AND AN ABSENT ROSTER IS NOT "
+             "A ZERO. His ask: 'where its says grail.. i want it reading the chronicles.. what does "
+             "cover even mean?'. MEASURED over the 425 cards the shelf actually renders - not all "
+             "2,893 journal rows, because the shelf hides empty runs and the wrong denominator "
+             "would have overstated every figure: COVER had a value on 16 of 425 and TWELVE of "
+             "those read 0%, so a real figure appeared on FOUR cards in 425; GRAILS counted "
+             "tier=='grail' and found 16 because tier is UNSET on 194 of the 218 finds (89%), so "
+             "it measured whether an optional field happened to be filled in, not rarity. Every "
+             "find carries a NAME and the rosters know what a name IS (398 uniques, 135 set "
+             "pieces): folding the same 218 names gives 57 uniques + 26 sets = 83 against the old "
+             "tile's 16, and a figure on 25 cards where the old one managed 10. The 135 that match "
+             "nothing are base items and runewords and are correctly not chronicle rows. It folds "
+             "through chronicle_resolve.canonical rather than a second comparison at the call site "
+             "- measured first, exact and canonical() agree 57/26/135 with zero drift - so it "
+             "inherits the near-name calibration that refuses 'Bone Break'/'Latent Bone Break'. "
+             "And '-' and '?' stay DIFFERENT ANSWERS: load_roster RAISES rather than returning {} "
+             "because an empty roster would classify every name as debris, which here would print "
+             "a confident 0 uniques on every card in the shelf."),
     Gate("test_a_blob_of_cells_is_not_an_item",
          [sys.executable, os.path.join(HERE, "test_a_blob_of_cells_is_not_an_item.py")], 120,
          why="THE OCCUPIED CELLS ARE EVIDENCE; THE CLUSTERS THEY FORM ARE NOT ITEMS. He asked for "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3089",
+  "ver": "v3090",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3089: the paper-doll case called a runeword staff stone because its 26-78 test was luminance-only; real panel stone is achromatic. Adding that takes the weapon slot from 0.61 to 0.08. Four statistics argued about it before anyone rendered the crop and looked",
+  "note": "v3090: cover had a real figure on 4 of 425 cards and grails counted a tier field that is unset on 89 percent of finds. Both tiles now fold the find NAMES against the rosters - 57 uniques and 26 sets against the old tile 16",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

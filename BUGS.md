@@ -32375,6 +32375,70 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+
+## REG-1000 — TWO CARD TILES THAT MEASURED NOTHING, AND ONE THAT MEASURED THE WRONG THING
+
+**v3090.** Konyo, 2026-09-13: *"and the photo data anylasis within the video here where its says
+grail.. i want it reading the chronicles.. what does cover even mean? i think it can also be
+rem[ov]ed visually so i dont see it and see the chronicles sets or uniques instead of it. so 4 also"*
+
+He was right twice, and the numbers are blunt. MEASURED over the **425 cards the shelf actually
+renders** — not all 2,893 journal rows, because the shelf hides empty runs and that wrong
+denominator would have overstated every figure below. [[zero-needs-a-denominator]]
+
+| tile | what it did | fill |
+|---|---|---|
+| **COVER** | `coverage.read / coverage.total` | a value on **16 of 425** — and **12 of those 16 read 0%**. A real figure on **4 cards in 425** |
+| **GRAILS** | counted `tier === 'grail'` | **16** — because `tier` is **UNSET on 194 of the 218 finds (89%)** |
+
+So GRAILS was not measuring rarity. It was measuring whether one optional field happened to be
+filled in. [[label-outlived-referent]]
+
+### The join that was sitting right there
+
+Every find carries a **name**. The chronicle rosters know what a name IS — **398 uniques, 135 set
+pieces**, already loaded by `control_app` three times over for other purposes. Folding the same 218
+names against them:
+
+    57 uniques + 26 sets = 83 classified   (against the old tile's 16)
+    135 unmatched — "Amulet", "Ancient Armor", "Battle Staff", "Bramble"
+                    base items and runewords, CORRECTLY not chronicle rows
+    a figure now appears on 25 cards, where the old tile managed 10
+
+The tiles are now **reads · found · 🏆 uniques · 🧩 sets**, his own vocabulary from the chronicle
+tabs. [[the-unjoined-end]]
+
+### Three things done deliberately
+
+**It folds through `chronicle_resolve.canonical`, not a comparison written at the call site.** That
+resolver already handles apostrophe forms, the `(amulet)` suffix, and REFUSES ambiguous near-twins
+("Bone Break" / "Latent Bone Break"). Measured before trusting it: exact-fold and `canonical()`
+return the identical **57/26/135 with zero drift** on his data. A parallel matcher is how one pair
+gets folded two different ways in two places. [[copy-drift]]
+
+**`—` and `?` are different answers.** `—` is a measured none; `?` is the roster failing to load.
+`load_roster` RAISES rather than returning `{}` in its own words — *"an empty roster would silently
+classify every name as debris"* — which here would print a confident **0 uniques on every card in
+the shelf**. `_chron_tally` returns `None`, never a tally of zeros. [[unknown-stays-unknown]]
+
+**The gold `chronicle` card accent now reads the chronicle.** It was driven by the same
+`tier === 'grail'`, so a class literally named *chronicle* lit on 10 cards while 25 had put
+something in the chronicles. `_covPct` is deleted — its only reader was the COVER tile.
+
+### The law
+
+`tv/test_a_card_tile_reads_the_chronicles.py`, registered (**354 gates**). 6 tests, and the last one
+runs on the rosters alone — no footage, no console — so it cannot go blind on CI: *Andariel's
+Visage* must still fold to a unique, and the bare base item *Amulet* must fold to **neither**, or
+the tally would start counting ordinary drops as chronicle rows.
+
+⚠ **Red-proof: 3 sabotages, and the drill caught TWO of them BLIND on the first pass** — both the
+same mistake. `assertIn("'?'", row)` stayed green when the uniques tile was sabotaged, because the
+SETS tile still contained a `'?'`; and "does some `return None` exist" stayed green because the
+`except` handler has one. Both now pin the thing itself — `row.count(": '?'") == 2`, and an AST walk
+to the roster guard asserting *that* branch returns None. **PROVEN, PROVEN, PROVEN, 1 match each.**
+[[sabotage-is-usually-the-wrong-one]]
+
 ## REG-999 — DRAINING THE RIVER CHANGED WHAT TWO GATES GRADE, AND BOTH WENT RED ON GOOD GEOMETRY
 
 **v3088.** `test_slot_identity` is RED on `origin/main` — **not a regression from any commit**, proven
