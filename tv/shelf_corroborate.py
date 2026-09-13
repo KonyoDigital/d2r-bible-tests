@@ -44,6 +44,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ THIS MODULE PRINTS NON-ASCII AND IS AN ENTRY POINT, so stdout must be made encoding-safe or
+# it CRASHES WHILE REPORTING on a non-UTF-8 console — Windows python writes cp1255 here, and a
+# clean tree would then exit non-zero because the organ died mid-sentence. The gate caught this
+# on the first push that carried the file. [[windows-powershell-gotchas]]
+try:
+    from console_safe import enable as _console_safe_enable
+    _console_safe_enable()
+except Exception:
+    pass                      # a reporting aid must never be the thing that stops the report
+
 #: the surfaces this organ speaks for, in the registry's OWN vocabulary — declared, never
 #: guessed from name similarity. v3055 deleted a resolver that matched on the tail and
 #: manufactured 8 cells of coverage that did not exist; an organ must NAME what it covers.
