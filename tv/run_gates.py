@@ -2391,6 +2391,19 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_the_tooltip_split_may_only_add_pages",
+         [sys.executable, os.path.join(HERE, "test_the_tooltip_split_may_only_add_pages.py")], 120,
+         why="SPLITTING A RUN ON THE TOOLTIP MAY ONLY EVER ADD PAGES. v2396 splits a still run on "
+             "the tooltip so a hover-by-hover pass stops collapsing into one page, and claims it "
+             "'splits on evidence and leaves the rest alone'. It did not: MIN_RUN_FRAMES is a "
+             "STILLNESS floor calibrated on UNSPLIT runs, and applied to the fragments it can "
+             "discard every candidate a reel had. MEASURED on reel_s_1788099999528_42457 - 4 "
+             "frames, 1 run and 1 candidate before the split; 2 runs and ZERO after, both under "
+             "the 3-frame floor. A forced re-sweep read 0 pages, called classify 0 times and the "
+             "reader 0 times, while the free structural gate opened all 4 frames as `shared` and "
+             "the survey counted 4 panels. The reel could never bank a row, so the river held it "
+             "forever. The fallback restores the pre-split grouping WITH the same floor - it does "
+             "not remove the floor, and a reel with no candidates either way still reads nothing."),
     Gate("test_an_examined_panel_is_not_an_unread_one",
          [sys.executable, os.path.join(HERE, "test_an_examined_panel_is_not_an_unread_one.py")], 120,
          why="A PANEL THAT WAS READ AND HELD NO NAMES IS NOT A PANEL NOBODY READ. The river could "

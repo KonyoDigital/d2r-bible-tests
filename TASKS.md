@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3074** | `(this commit)` | v3074 — AN EXAMINED PANEL IS NOT AN UNREAD ONE |
+| **v3075** | `(this commit)` | v3075 — THE TOOLTIP SPLIT MAY ONLY ADD PAGES |
+| **v3074** | `739ea5b9` | v3074 — AN EXAMINED PANEL IS NOT AN UNREAD ONE |
 | **v3073** | `56179442` | v3073 — the lock evidence organ painted eight locks covered without asking whether any evidence was readable - three had none at all - and it can only read harnesses that declare a module level CLAIMS, which are exactly the sources that cannot inflate |
 | **v3072** | `ba572e03` | v3072 — the mid-epoch proof called the real stages for its first snapshot so its discriminating power depended on his shelf still having unfired gap rules - a law that stops testing exactly when the project succeeds; the payload is now synthetic and the per-cycle log no longer contradicts the stop sentence |
 | **v3071** | `9e03f803` | v3071 — the wilson bound is computed on distinct attacks so an overstated count buys a lock open on refusals nobody earned - the same arithmetic that took vault apply from locked to open; compared per source because two harnesses bank for one lock and a per-lock total would flag a hardened lock as inflated |

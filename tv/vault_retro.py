@@ -1145,6 +1145,28 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             return v
         runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)
         cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
+        # ⚠⚠ v3075 — THE SPLIT MAY ONLY EVER ADD. v2396 splits a still run on the TOOLTIP so a
+        # hover-by-hover pass stops collapsing into one page, and it says of itself that it
+        # "splits on evidence and leaves the rest alone". It does not: MIN_RUN_FRAMES is a
+        # STILLNESS floor calibrated on UNSPLIT runs, and applying it to the fragments can discard
+        # every candidate a reel had.
+        #
+        # MEASURED 2026-09-13 on reel_s_1788099999528_42457 — 4 frames, 1 run, 1 candidate before
+        # the split; 2 runs and ZERO candidates after it, because both fragments fall under the
+        # 3-frame floor. Nothing was ever offered to the reader: a forced re-sweep of that reel
+        # reported reelsDone=1/1 with pagesRead=0, classify called 0 times, reader 0 times. The
+        # frames are fine — the free structural gate opens all 4 as `shared`, and the survey counts
+        # 4 panels. A short reel with a hover in it was simply unreadable, permanently.
+        #
+        # So: if the split leaves nothing, fall back to the grouping that existed before it. The
+        # split can then only ever ADD pages, which is what it was introduced to do. The control
+        # case v2396 cites (7 frames, zero tooltips, 1 -> 1) never reaches this branch at all.
+        # [[feedback-threshold-above-the-ceiling]]
+        if not cands:
+            _unsplit = _cr.candidate_runs(_cr.still_runs(frames, sig_of),
+                                          min_frames=MIN_RUN_FRAMES)
+            if _unsplit:
+                cands = _unsplit
         read_this_reel = False
         # v1792 — RE-LOOK BUCKETS. Candidate runs are already separated by a signature change, so a
         # multi-minute gap between two of them is the panel left and returned to rather than one

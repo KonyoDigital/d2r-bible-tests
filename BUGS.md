@@ -32332,6 +32332,44 @@ the same footage, and a wrong rule here loses runs. Filed, visible, not guessed 
 bucket with the escape `\u2014`, not a literal em-dash. Caught by printing the match count before
 the drill ran - a 0-match tamper would have gone green and proved nothing.
 
+## REG-968 — the tooltip split could remove the LAST candidate, making a short reel permanently unreadable (task #89 — v3075)
+
+**v2396 splits a still run on the TOOLTIP** so a hover-by-hover pass stops collapsing into one
+page, and it says of itself that it *"splits on evidence and leaves the rest alone"*. It did not.
+`MIN_RUN_FRAMES` is a STILLNESS floor calibrated on UNSPLIT runs; applied to the fragments, it can
+discard every candidate a reel had.
+
+**MEASURED 2026-09-13 on `reel_s_1788099999528_42457`** — 4 frames:
+
+    no split      : 1 run of 4      -> 1 candidate
+    tooltip split : 2 runs (2, 2)   -> 0 candidates
+
+A forced re-sweep of that reel reported `reelsDone=1/1` with **`pagesRead=0`**, classify called
+**0** times and the reader **0** times. Nothing was wrong with the footage: the free structural
+gate `stash_screen_open` opens all 4 frames as `shared`, and the survey counts 4 panels. A short
+reel with a hover in it was simply unreadable, permanently — so it banked no rows, sealed
+`rows: 0`, and REG-967's rule then held it in the river forever.
+
+⚠ **Isolated synthetically, so the gate needs none of his footage:** 4 frames, identical
+signatures, a tooltip moving every frame → `still_runs` 1 → 4, `candidate_runs` 1 → **0**.
+
+**Fixed** in `vault_retro.sweep`: if the split leaves no candidates, fall back to the pre-split
+grouping. The split can then only ever ADD pages, which is what it was introduced to do.
+
+⚠ **The fallback re-applies the SAME floor** — it does not remove it. A reel with no candidates
+either way still reads nothing, which is correct. The control case v2396 cites (7 frames, zero
+tooltips, 1 → 1) never reaches the branch.
+
+Measured after the fix, same reel: reader calls **0 → 1**, `sessionsRead` `[]` → `['s_1788099999528_42457']`.
+
+Gate: `test_the_tooltip_split_may_only_add_pages` (346 registered), red-proof PROVEN, 1 match.
+
+⚠ **Three wrong diagnoses came from the FIXTURE, not the code**, and each is recorded in the gate:
+`still_runs` reads `frames[i]["f"]` and a fixture using `"name"` yields ZERO runs; a sig of `0.0`
+is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `_surface_of` takes
+SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
+both correct, and confusing them made the reader look broken when it was not.
+
 ## REG-967 — the rule that held his reels never asked the seal that had examined them (task #89 — v3074)
 
 **The river could not drain, and `eligible` had NEVER fired once.** Seven reels sat on
