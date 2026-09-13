@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3057"   # THE WINDOW NOW SAYS WHICH DOCUMENT IT RENDERS
+VERSION = "v3058"   # THE DOCUMENT STAMP WAS READING A GLOBAL FROM ANOTHER PAGE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -24729,12 +24729,18 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                A question with no instrument gets answered by the nearest number that looks like
                it, which is how a reading acquires a referent it never had.
 
-               `build` is the document's OWN stamp, sent by the document itself. Compared against
-               the disk stamp by the doctor, "did the reload take?" stops being an argument.
-               ⚠ null, never a guess, if D2R_BUILD has not been assigned yet — an unknown document
-               version is UNKNOWN and must never read as agreement.
+               ⚠⚠ v3058 — THIS READ `window.D2R_BUILD.id` AND THAT WAS INERT. D2R_BUILD is assigned
+               in **bible.html**, a DIFFERENT document; measured on THIS file, 0 assignments and 1
+               guarded read. docVer could only ever be null. The cross-family eye caught it on the
+               shipped diff, and the null had already fooled me once: run live it said "this console
+               predates the field", which is what an absent value always looks like.
+               [[plumbing-with-no-tap]] [[zero-needs-a-denominator]]
+               The document cannot stamp itself, so the SERVER stamps it at serve time with the
+               signature of the exact bytes it hands over (_read_ui -> __DOC_VER__). A window then
+               carries the identity of the document it was GIVEN.
+               ⚠ null, never a guess, if the server did not stamp — UNKNOWN never reads as agreement.
                [[label-outlived-referent]] [[unknown-stays-unknown]] [[the-unjoined-end]] */
-            docVer: ((window.D2R_BUILD && window.D2R_BUILD.id) || null),
+            docVer: (window.__DOC_VER__ || null),
             /* ⚠⚠ v2457 — THE HOLE IN THIS BEAT'S OWN PREMISE, WHICH IT STATES 15 LINES ABOVE:
                "a renderer that has wedged runs no timers, so it stops beating". Measured on his
                machine 2026-09-03 while he was looking at a black window: it beat the whole time.

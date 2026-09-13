@@ -3031,18 +3031,27 @@ def _check_the_window_runs_the_document_on_disk():
         return UNKNOWN, ("this console does not report the document it is rendering (uiBeat.docVer "
                          "is absent) — it predates v3057, or the page had not assigned D2R_BUILD "
                          "when it beat. UNKNOWN, which is not the same as in step")
-    disk = st.get("ver")
+    # ⚠ COMPARE AGAINST THE FILE NOW, NOT AGAINST A VERSION LABEL. control_ui.html is not one of
+    # the four surfaces bump_version stamps, so a version alone cannot tell a saved edit from no
+    # edit. doc_signature() is version + hash of the bytes, and it is what the server stamped into
+    # the document it handed this window.
+    try:
+        import control_app as _ca
+        disk = _ca.doc_signature()
+    except Exception as _e:
+        return UNKNOWN, ("the served document could not be signed here (%s), so there is nothing "
+                         "to compare against" % type(_e).__name__)
     if not disk:
-        return UNKNOWN, "this console does not report its own disk version, so there is nothing to compare"
+        return UNKNOWN, "the console document could not be read from disk, so nothing can be compared"
     if str(doc) == str(disk):
-        return OK, ("the window is rendering %s and the working tree on disk is %s — the page in "
-                    "front of him IS the page on disk" % (doc, disk))
-    return MISSING, ("THE WINDOW IS RUNNING AN OLDER DOCUMENT THAN THE TREE — it is rendering %s "
-                     "while disk is %s. His console execs the working tree, so every UI change "
-                     "since %s is on disk, served by this server, and NOT on his screen. A reload "
-                     "that does not move this number did not take. This is about the DOCUMENT, "
-                     "not about shipping: liveVer trailing disk is a different fact and is normal "
-                     "for unpushed work." % (doc, disk, doc))
+        return OK, ("the window is rendering %s and that is exactly what this server would serve "
+                    "now — the page in front of him IS the page on disk" % doc)
+    return MISSING, ("THE WINDOW IS RUNNING AN OLDER DOCUMENT THAN THE TREE — it was handed %s and "
+                     "this server would now serve %s. His console execs the working tree, so every "
+                     "UI change since then is on disk and NOT on his screen; a reload that does not "
+                     "move this value did not take. This is about the DOCUMENT, not about shipping "
+                     "— liveVer trailing disk is a different fact and is normal for unpushed work."
+                     % (doc, disk))
 
 
 def _check_the_shelf_is_where_it_says_it_is():

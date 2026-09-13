@@ -27286,7 +27286,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3057",
+        "ver": "v3058",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28253,11 +28253,54 @@ def doctor_payload():
 
 # ── HTTP ─────────────────────────────────────────────────────────────────────
 
+def doc_signature(path=None):
+    """What document this file IS, as one short string. -> str|None
+
+    ⚠⚠ THE BYTES, NOT THE LABEL — for the reason `_PROC_SRC_SHA` gives a few hundred lines up.
+    control_ui.html is NOT one of the four surfaces bump_version stamps, and he execs the working
+    tree, so the version alone cannot tell a saved edit from no edit at all. A version PLUS a hash
+    of the served bytes changes on every save, stamped or not.
+
+    None, never a sentinel, when the file cannot be read — two Nones must never compare equal.
+    [[unknown-stays-unknown]]
+    """
+    h = _sha_of(path or UI_PATH)
+    if not h:
+        return None
+    return "%s+%s" % (_app_ver() or "v?", h[:12])
+
+
 def _read_ui():
-    if os.path.isfile(UI_PATH):
-        with open(UI_PATH, "rb") as f:
-            return f.read()
-    return b"<h1>TV DIABLO control_ui.html missing</h1>"
+    """The console document, with the server telling it WHICH document it is. -> bytes
+
+    ⚠⚠ v3058 — WITHOUT THIS THE WHOLE v3057 INSTRUMENT WAS INERT, and the cross-family eye caught
+    it on the shipped diff within the hour. The beat read `window.D2R_BUILD.id` — but D2R_BUILD is
+    assigned in **bible.html**, a DIFFERENT document. Measured on control_ui.html: 0 assignments,
+    1 guarded read. So `docVer` could only ever be null, the doctor row could only ever say
+    UNKNOWN, and the join built to close an unjoined end was itself unjoined. [[plumbing-with-no-tap]]
+
+    ⚠ AND THE NULL LOOKED LIKE AN ANSWER. Run against his live console it returned "this console
+    predates v3057" — plausible, wrong, and it would have stood indefinitely because an absent
+    value reads as "not yet" instead of "never". [[zero-needs-a-denominator]]
+
+    The document cannot stamp itself, so the SERVER stamps it at serve time with the signature of
+    the exact bytes going out. A window then carries the identity of the document it was handed,
+    and comparing that to the file NOW answers: is the page in front of him the page on disk?
+    """
+    if not os.path.isfile(UI_PATH):
+        return b"<h1>TV DIABLO control_ui.html missing</h1>"
+    with open(UI_PATH, "rb") as f:
+        body = f.read()
+    sig = doc_signature()
+    if not sig:
+        return body                       # unreadable signature: ship the page, claim nothing
+    # injected right after <head> so it runs before any beat can fire. JSON-quoted, and the
+    # signature is [\w+] only, so it cannot break out of the literal.
+    tag = ('<script>window.__DOC_VER__=%s;</script>' % json.dumps(sig)).encode("utf-8")
+    i = body.find(b"<head>")
+    if i < 0:
+        return body                       # no head: do not guess where to put it
+    return body[:i + len(b"<head>")] + tag + body[i + len(b"<head>"):]
 
 
 
