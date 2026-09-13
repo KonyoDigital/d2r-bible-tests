@@ -32373,6 +32373,49 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-990 — a failed classify CALL was written as a verdict on his FILM, and held reels for ever (task #89 — v3078)
+
+`_classify` wrapped `_tv.claude_read(p)` in a bare `except Exception: return None`. `_surface_of(None)`
+is the **same None** a frame gets when it genuinely is not an ownership surface — so two opposite
+facts produced one verdict, and `vault_retro.sweep` wrote:
+
+    "a still run in <sid> (frame <f>) could not be classified — held rather than guessed onto a shelf"
+
+A sentence about the FILM, describing something that had happened to the RUN. Nothing prompted a
+retry, because nobody was told there was anything to retry.
+
+**MEASURED 2026-09-13 on `reel_s_1788099999528_42457`.** Two consecutive sweeps reported
+`classified=2` — so the call WAS made — and held the run as unclassifiable. Calling
+`tv_diablo.claude_read()` on the very same frame directly returned
+`{'scene': 'stash', 'stashTab': 'shared', 'names': [...]}`, and `_surface_of()` of that dict
+resolves to `'stash'`. I then looked at the frame: an unambiguous **Shared stash page 5/5, ~25
+items, inventory open beside it** — exactly the template the vault gate was written for. Nothing
+was wrong with the film. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+**Fixed:** the handler binds its exception and records the cause ONCE (the same shape as `_pix_err`
+beside it — a per-frame record would turn one dead lane into thousands of identical lines), and the
+sweep publishes it as `_VAULT_JOB["classifyError"]` plus a line saying that any reel held this run
+is held **by the run, not by its film**.
+
+**THE END-TO-END PROOF, once the lane answered again** — the same reel, the same command:
+
+    pagesRead 0 -> 1
+    "1 panel(s) READ CLEANLY and held no readable name"
+    "33 item(s) VISIBLY THERE — stash f_1788100004704.jpg — 33 occupied / 7 free"
+    seal: rows=0 agentVer=v3077 examinedEmpty=True
+          "read 1 panel(s), every one cross-checked, no name to be had"
+    seal_releases_frames  False -> True
+    panels_never_banked   True  -> False        RELEASED
+
+River tags moved **`panels-never-banked` 7 → 3**. This is REG-985 (the seal join), REG-986/988 (the
+tooltip split) and REG-990 working together on his real film — the first time the chain has run
+clean from candidate runs through classify, read, cross-check, seal and release.
+
+Gate: `test_a_failed_call_is_not_a_verdict_on_the_film` (349 registered), both red-proofs PROVEN.
+⚠ The second was BLIND first: it asserted the substring `classifyError`, and renaming the key to
+`_classifyError_unpublished` still contained it. Now it parses `_VAULT_JOB[...]` assignments and
+matches the exact key.
+
 ## REG-989 — the shelf drew a black box where it should have said "no film" (task #58 — v3077)
 
 **MEASURED 2026-09-13 by GROKBOT on his live console** (1470x923, pid 46822, shelf opened by a CG

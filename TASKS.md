@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3077** | `(this commit)` | v3077 — A CARD WITH NO FILM SAYS SO |
+| **v3078** | `(this commit)` | v3078 — A FAILED CALL IS NOT A VERDICT ON THE FILM |
+| **v3077** | `e87af8a6` | v3077 — A CARD WITH NO FILM SAYS SO |
 | **v3076** | `1107dced` | v3076 — THE LOOPS LEAVE A TRACE, AND THE SPLIT ONLY ADDS |
 | **v3075** | `de27da01` | v3075 — THE TOOLTIP SPLIT MAY ONLY ADD PAGES |
 | **v3074** | `739ea5b9` | v3074 — AN EXAMINED PANEL IS NOT AN UNREAD ONE |

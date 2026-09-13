@@ -22082,6 +22082,20 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         _reconciled = []    # v1994 — every read frame, names-vs-cells, whichever way it came out
         _over_read = []     # v1994 — the subset where the model named MORE than the panel can hold
         _pix_err = []       # v1998 — why the pixel lane went quiet, if it did. Once, not per frame.
+        # ⚠⚠ v3078 — WHY THE CLASSIFY LANE WENT QUIET, IF IT DID. `_classify` wrapped
+        # `_tv.claude_read(p)` in a bare `except Exception: return None`, and `_surface_of(None)`
+        # is the same None a frame gets when it genuinely is not an ownership surface. So a CALL
+        # that failed and a FRAME that is not a stash produced the identical verdict, and the reel
+        # was held with "could not be classified" — a sentence about the FILM describing something
+        # that happened to the RUN.
+        #
+        # MEASURED 2026-09-13 on reel_s_1788099999528_42457: the sweep reported `classified=2`
+        # (so the call was made, twice) and held the run as unclassifiable, while calling
+        # `tv_diablo.claude_read()` on the SAME frame directly returned
+        # {'scene': 'stash', 'stashTab': 'shared', names:[...]}. The frame is an unambiguous Shared
+        # stash page 5/5 with ~25 items and the inventory open beside it. Nothing was wrong with
+        # the film. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        _cls_err = []       # v3078 — recorded ONCE, like _pix_err; never per frame
         _read_ok = [0]      # v2003 — frames that came back a READ, not a refusal. The denominator.
         _panels = []        # v2004 — paths whose panel MEASURED, so the room can be mapped at the end
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
@@ -22130,7 +22144,11 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             _tick(classified=1)
             try:
                 return _tv.claude_read(p)
-            except Exception:
+            except Exception as _ce:
+                # v3078 — SAY WHY. Returning a bare None here is what made a failed call
+                # indistinguishable from "this frame is not an ownership surface".
+                if not _cls_err:
+                    _cls_err.append("%s: %s" % (type(_ce).__name__, str(_ce)[:160]))
                 return None
 
         # v1853 — THE GATE HAS TO BE ON THE READER TOO, which v1850 got wrong.
@@ -22288,6 +22306,17 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         _prior_seen = vault_seen_load()
         prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
                          panel_gate=stash_screen_open_cached, prior_seen=_prior_seen)
+        # ⚠⚠ v3078 — A FAILED CALL IS NOT A PROPERTY OF THE FILM, AND IT MUST SAY SO OUT LOUD.
+        # `sweep()` only ever sees None from `_classify` and writes "could not be classified —
+        # held rather than guessed onto a shelf", which reads as a verdict about the footage. When
+        # the cause is a raised call, that sentence names the wrong thing and no future run is
+        # prompted to retry. The reason lives in this closure, so it is published from here.
+        if _cls_err:
+            with _VAULT_LOCK:
+                _VAULT_JOB["classifyError"] = _cls_err[0]
+            print("   \u26a0 the CLASSIFY lane failed: %s" % _cls_err[0], flush=True)
+            print("      any reel held as 'could not be classified' in this run is held by the "
+                  "RUN, not by its film \u2014 re-sweep once the lane answers again.", flush=True)
         # Remember this run's ungrounded sightings, minus anything that has now GROUNDED — a name
         # in `owned` no longer needs corroborating and would otherwise be folded in forever.
         try:
@@ -27431,7 +27460,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3077",
+        "ver": "v3078",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

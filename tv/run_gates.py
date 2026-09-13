@@ -2391,6 +2391,22 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_a_failed_call_is_not_a_verdict_on_the_film",
+         [sys.executable, os.path.join(HERE, "test_a_failed_call_is_not_a_verdict_on_the_film.py")], 120,
+         why="A CLASSIFY CALL THAT FAILED IS NOT A FRAME THAT COULD NOT BE CLASSIFIED. `_classify` "
+             "wrapped claude_read in a bare `except Exception: return None`, and _surface_of(None) "
+             "is the SAME None a frame gets when it genuinely is not an ownership surface - so two "
+             "opposite facts produced one verdict and sweep() wrote 'could not be classified - "
+             "held rather than guessed onto a shelf', a sentence about the FILM describing "
+             "something that happened to the RUN. Nothing prompted a retry because nobody was told "
+             "there was anything to retry. MEASURED on reel_s_1788099999528_42457: two sweeps "
+             "reported classified=2 and held the run, while calling tv_diablo.claude_read() on the "
+             "SAME frame directly returned scene='stash' with names - the frame is a Shared stash "
+             "page 5/5 with ~25 items and the inventory open beside it. After the lane recovered "
+             "the same sweep read it: pagesRead=1, 33 occupied / 7 free, sealed examinedEmpty, and "
+             "the reel RELEASED (panels_never_banked True -> False). The footage was held by a "
+             "transient call for as long as nobody could see the difference. Recorded ONCE like "
+             "_pix_err, never per frame."),
     Gate("test_a_card_with_no_film_says_so",
          [sys.executable, os.path.join(HERE, "test_a_card_with_no_film_says_so.py")], 120,
          why="A CARD WITH NO FILM MUST SAY SO, IN WORDS. MEASURED by GROKBOT on his live console "
