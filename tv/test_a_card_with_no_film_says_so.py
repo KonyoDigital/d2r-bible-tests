@@ -97,53 +97,70 @@ class TestACardWithNoFilmSaysSo(unittest.TestCase):
         print("badge CSS present, and retired is styled distinctly")
 
 
-    def test_the_badge_does_not_share_a_corner_with_the_title_or_the_pin_row(self):
-        """The defect GROKBOT found on his live screen, made checkable.
+    def test_the_chip_is_not_an_overlay_in_the_hero_at_all(self):
+        """Two versions of whack-a-mole ended here.
 
-        v3077 placed the badge at top-left "to avoid the session name and the pin row". That was an
-        ASSUMPTION, not a measurement, and it was wrong: `.shc-sess` is `top:9px; left:12px` — the
-        same corner — so the badge drew ON TOP OF the title and the glyphs mashed, OCR-ing as
-        `Sepbletréfired`. Worst-case legibility: poor. `.shc-tr` owns top-right.
+        v3077 put the chip at (top,left) — onto `.shc-sess`, the session title. GROKBOT saw the
+        glyphs mash on his live console. v3080 moved it to (bottom,left) — onto `.shc-headfind`,
+        which is `absolute; left:12px; right:12px; bottom:8px`, a FULL-WIDTH bar carrying the run's
+        top find; the cross-family second eye caught that on the shipped diff. Every hero anchor is
+        taken: (top,left) title · (top,right) pin+seal · (bottom, full width) headline find.
 
-        A corner is (vertical anchor, horizontal anchor). Two absolutely-positioned chips sharing
-        both anchors inside one `position:relative` hero WILL overlap. [[visual-regression-detector]]
+        ⚠ AND THE TWO CO-OCCUR IN THE COMMON CASE. A RETIRED run is by definition one that gave up
+        its information, so it is exactly the run with a find to headline. A third position would
+        be a third guess. The chip lives in the card BODY, in normal flow, where it cannot overlap
+        anything and does not depend on another chip's geometry staying put.
         """
-        def corner(sel):
-            for m in re.finditer(re.escape(sel) + r"\s*\{([^}]*)\}", self.src):
-                body = " ".join(m.group(1).split())
-                if "position: absolute" not in body:
-                    continue
-                v = "top" if re.search(r"(^|;|\s)top:", body) else (
-                    "bottom" if re.search(r"(^|;|\s)bottom:", body) else None)
-                h = "left" if re.search(r"(^|;|\s)left:", body) else (
-                    "right" if re.search(r"(^|;|\s)right:", body) else None)
-                if v and h:
-                    return (v, h)
-            return None
+        rule = re.search(r"\.shc-nofilm\s*\{([^}]*)\}", self.src)
+        self.assertTrue(rule, ".shc-nofilm has no CSS rule at all")
+        body = " ".join(rule.group(1).split())
+        print("  .shc-nofilm { %s }" % body[:90])
+        self.assertNotIn("position: absolute", body,
+                         "the chip is an overlay again. Every corner of the hero is occupied and "
+                         "two of them have already been shipped into — put it in the body flow")
+        for prop in ("top:", "bottom:", "left:", "right:"):
+            self.assertNotIn(prop, body,
+                             "the chip anchors itself with %s, which only means something for an "
+                             "overlay — the whole point is that it flows" % prop)
 
-        badge = corner(".shc-nofilm")
-        self.assertIsNotNone(badge, ".shc-nofilm is not absolutely positioned in the hero")
-        print("corners — badge %s · title %s · pin-row %s"
-              % (badge, corner(".shc-sess"), corner(".shc-tr")))
-        for other in (".shc-sess", ".shc-tr"):
-            c = corner(other)
-            if c is None:
-                continue
-            self.assertNotEqual(
-                badge, c,
-                "the no-film badge shares the %s-%s corner with %s. Both are absolute inside the "
-                "same hero, so they overlap and the text mashes — which is what shipped in v3077 "
-                "and what his own eyes caught" % (badge[0], badge[1], other))
+    def test_the_chip_is_rendered_in_the_body_not_the_hero(self):
+        """⚠ This replaced a law that PASSED FOR THE WRONG REASON. It searched the region between
+        `var heroOpen` and `var whenTxt` for the class name — and after the move, the
+        `var noFilmLine = …` declaration still sits inside that window, so it kept matching while
+        the chip had left the hero entirely. Anchor on what actually renders it.
+        [[source-reading-guard]]"""
+        hero = _between(self.src, "var heroOpen = _coverArt", "var noFilmLine")
+        self.assertTrue(hero, "could not locate the hero template")
+        self.assertIn("noimg", hero, "the no-image branch must still exist")
+        self.assertIn("data-fstate", hero,
+                      "the state must still reach the DOM so it can be measured, not eyeballed")
+        self.assertNotIn("shc-nofilm", hero,
+                         "the chip is being emitted into the hero again")
+        # ⚠ ANCHOR BY POSITION, NOT BY A WINDOW. The first cut fell back to a `_between` on the
+        # bare word "shc-when" and matched the CSS RULE `.shc-when { … }` instead of the template,
+        # so it judged a stylesheet and failed for a reason that had nothing to do with the card.
+        body_at = self.src.find('<div class="shc-body">')
+        line_at = self.src.find("+ noFilmLine")
+        print("  shc-body at %d · '+ noFilmLine' at %d" % (body_at, line_at))
+        self.assertGreater(line_at, 0,
+                           "the chip is never rendered, so it appears nowhere at all")
+        self.assertGreater(body_at, 0, "could not locate the card body template")
+        self.assertGreater(line_at, body_at,
+                           "the chip is emitted before the card body opens — it would land back "
+                           "in the hero, which is the overlay this law exists to prevent")
+        print("chip renders in the body, hero keeps data-fstate")
 
 
 RED_PROOF = [
     {
-        "why": "the badge goes back to the corner it shipped in — the same top-left the session "
-               "title occupies — so the two absolute chips overlap inside one hero and the glyphs "
-               "mash, exactly as his eyes caught on the live console",
+        "why": "the chip becomes an overlay in the hero again. Both corners it has been shipped "
+               "into are occupied — (top,left) by the session title, which GROKBOT saw mash on his "
+               "live console, and (bottom) by the full-width .shc-headfind carrying the run's top "
+               "find, which the second eye caught on the shipped diff. A RETIRED run is by "
+               "definition one WITH a find to headline, so they collide in the common case",
         "file": "control_ui.html",
-        "find": "  .shc-nofilm { position: absolute; bottom: 8px; left: 8px; z-index: 3;",
-        "replace": "  .shc-nofilm { position: absolute; top: 8px; left: 8px; z-index: 3;",
+        "find": "  .shc-nofilm { display: inline-flex; margin: 2px 0 0;",
+        "replace": "  .shc-nofilm { position: absolute; bottom: 8px; left: 8px; display: inline-flex;",
         "matches": 1,
     },
     {

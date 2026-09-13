@@ -2110,7 +2110,7 @@
      MEASURED by GROKBOT on his live console: the badge drew ON TOP OF the title and the glyphs
      mashed, OCR-ing as `Sepbletréfired` / `SessletreéPired`. Worst-case legibility: poor. The
      hero's only free corner is the bottom, where `.shc-body` has not started yet. */
-  .shc-nofilm { position: absolute; bottom: 8px; left: 8px; z-index: 3; display: inline-flex;
+  .shc-nofilm { display: inline-flex; margin: 2px 0 0;
     align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
     border: 1px solid var(--edge); background: rgba(8,10,8,.72);
     font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug);
@@ -15829,13 +15829,28 @@ window._lockMark = function(isOpen, px, label){
         : (_fState === 'unknown'
             ? { cls: 'unknown', icon: '\u2014', txt: 'no film' }
             : { cls: 'none', icon: '\u2014', txt: 'no film' });
+      // ⚠⚠ v3081 — THE HERO HAS NO FREE CORNER, SO THE CHIP LEAVES THE HERO.
+      // v3077 put it top-left, onto `.shc-sess` (the title). v3080 moved it bottom-left, onto
+      // `.shc-headfind` — which is `absolute; left:12px; right:12px; bottom:8px`, a FULL-WIDTH bar
+      // printing the run's top find. Found by the cross-family second eye on the shipped v3080
+      // diff; the title collision was found by GROKBOT on his live screen one version earlier.
+      //
+      // Every anchor in the hero is taken: (top,left) title · (top,right) pin+seal · (bottom,
+      // full width) headline find. And the two states co-occur in the COMMON case — a RETIRED run
+      // is by definition one that gave up its information, so it is exactly the run with a find to
+      // headline. Hunting for a fifth position would be a third guess.
+      //
+      // So the state moves into the card BODY, in normal flow beside the date, where it cannot
+      // overlap anything and does not depend on any other chip's geometry staying put.
+      // `data-fstate` stays on the hero so an outside reader can still measure the state.
       var heroOpen = _coverArt
         ? '<div class="shc-hero" style="background-image:url(' + _coverArt + '?w=440)">'
-        : '<div class="shc-hero noimg" data-fstate="' + esc(_fState || 'none') + '">'
-            + '<div class="shc-nofilm shc-nf-' + _noFilm.cls + '"'
-            + (_fWhy ? ' title="' + esc(_fWhy) + '"' : '') + '>'
-            + '<span class="shc-nf-i">' + _noFilm.icon + '</span>'
-            + '<span class="shc-nf-t">' + esc(_noFilm.txt) + '</span></div>';
+        : '<div class="shc-hero noimg" data-fstate="' + esc(_fState || 'none') + '">';
+      var noFilmLine = _coverArt ? '' :
+        ('<div class="shc-nofilm shc-nf-' + _noFilm.cls + '"'
+         + (_fWhy ? ' title="' + esc(_fWhy) + '"' : '') + '>'
+         + '<span class="shc-nf-i">' + _noFilm.icon + '</span>'
+         + '<span class="shc-nf-t">' + esc(_noFilm.txt) + '</span></div>');
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
       var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
@@ -15851,6 +15866,7 @@ window._lockMark = function(isOpen, px, label){
         + '</div>'
         + '<div class="shc-body">'
           + '<div class="shc-when">' + whenTxt + (durTxt ? ' <span class="shc-dur">· ' + durTxt + '</span>' : '') + '</div>'
+          + noFilmLine
           + ((sm.areas || []).length ? '<div class="shc-area">📍 ' + esc(sm.areas.slice(0, 2).join(' · ')) + '</div>' : '')
           + statRow
           + (vparts.length ? '<span class="sh-verdict">' + vparts.join(' · ') + '</span>' : '')

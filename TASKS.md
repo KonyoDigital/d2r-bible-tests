@@ -1669,6 +1669,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
+| **v3081** | `(this commit)` | v3081 — THE CHIP LEAVES THE HERO |
 | **v3080** | `f34cca70` | v3080 — THE BADGE LEAVES THE TITLE ITS CORNER |
 | **v3079** | `8fc4d91b` | v3079 — THE ORPHAN KILLER IS NOT INSIDE A HANDLER |
 | **v3078** | `572aa745` | v3078 — A FAILED CALL IS NOT A VERDICT ON THE FILM |

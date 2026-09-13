@@ -32373,6 +32373,53 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-993 — the chip left one collision for another, so it left the hero entirely (task #58 — v3081)
+
+**Found by the cross-family second eye on the SHIPPED v3080 diff**, reproduced by parsing the
+stylesheet before it was believed.
+
+REG-992 moved the no-film chip from `(top,left)` — the session title — to `(bottom,left)`. That is
+where **`.shc-headfind`** lives:
+
+    .shc-headfind { position: absolute; left: 12px; right: 12px; bottom: 8px; z-index: 2; ... }
+
+A **full-width bar** carrying the run's top find. Every anchor in the hero is occupied:
+
+    (top, left)          .shc-sess       the session title      <- v3077 shipped into this
+    (top, right)         .shc-tr         pin + seal
+    (bottom, full width) .shc-headfind   the headline find      <- v3080 shipped into this
+
+⚠⚠ **AND THE TWO CO-OCCUR IN THE COMMON CASE.** A **retired** run is by definition one that gave up
+its information — so it is exactly the run that HAS a find to headline. This was not a rare overlap.
+
+**A third position would have been a third guess**, so the chip leaves the hero: it now renders in
+the card BODY, in normal flow beside the date, where it cannot overlap anything and does not depend
+on another chip's geometry staying put. `data-fstate` stays on the hero so the state is still
+measurable rather than eyeballed.
+
+⚠ **THE SECOND EYE'S OTHER FINDING WAS ABOUT MY GATE, AND IT WAS RIGHT.** REG-992's law compared the
+chip's corner against a hand-listed `.shc-sess` and `.shc-tr` and **never asked `.shc-headfind`** —
+and its `corner()` helper prefers `left` when a rule sets both `left:` and `right:`, so headfind
+would have reported `(bottom,left)`, equal to the badge, and gone unchecked. It also `continue`d on
+a missing peer, i.e. **fail-open**. An inventory a human maintains by hand is a guard that decays.
+
+Replaced with a law that needs no inventory at all: **the chip may not be absolutely positioned**,
+and may not set `top/bottom/left/right`. That refuses the entire class rather than one corner.
+
+⚠ **AND ONE OF MY LAWS HAD BEEN PASSING FOR THE WRONG REASON.**
+`test_the_no_film_badge_is_actually_emitted_into_the_hero` searched between `var heroOpen` and
+`var whenTxt` for the class name. After the move, the `var noFilmLine = …` declaration still sat
+inside that window, so it kept matching while the chip had left the hero. Re-pointed to assert the
+chip renders AFTER the card body opens, anchored by position rather than a fragile window — the
+first attempt at that fell back to a `_between` on the bare word `shc-when` and matched the CSS
+RULE, judging a stylesheet instead of a template. [[source-reading-guard]]
+
+Gates: 3 red-proofs, all PROVEN, 1 match each. JS syntax gate green.
+
+⚠ The eye scoped itself honestly and that is worth recording: *"I did not render the shelf, so I am
+not claiming a measured mash on a live card — only that the stylesheet and the template place both
+chips on the same edge, and that the new guard cannot see it."* Both halves were true.
+
 ## REG-992 — the no-film badge shipped into the session title's own corner (task #58 — v3080)
 
 **MEASURED by GROKBOT on his live console** (1470x923, pid 88205, after a Cmd-R onto v3079):
