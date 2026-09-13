@@ -32373,6 +32373,47 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+## REG-989 — the shelf drew a black box where it should have said "no film" (task #58 — v3077)
+
+**MEASURED 2026-09-13 by GROKBOT on his live console** (1470x923, pid 46822, shelf opened by a CG
+click — AXPress alone did not open it): the top INTAKE/TRIAGE cards paint chrome, titles, dates and
+READS/FOUND rows, and their thumbnail slot is **continuous black**. Deeper ANALYZE/STATION cards
+show real thumbnails — stash grids, a dungeon frame, a portal — so it is not a render fault. Those
+runs genuinely have no film.
+
+⚠⚠ **EVERY INSTRUMENT CALLED THE SHELF GREEN.** GET reported `shelf.open true · cards 430 ·
+gridCards 425 · visibleCards 425 · filled true · emptyHero false`, and the theatre's own
+`painted`/`ink` were true. A card that is present, measurable and EMPTY is the one shape a
+GET-based check cannot fail on. Only eyes could see it. [[zero-needs-a-denominator]]
+
+**THE JOIN THAT WAS MISSING.** `/api/sessions` has always carried a per-run `footageState`
+(`retired` | `unknown`) and a `footageWhy` sentence. Measured: `footageState` appeared in **ZERO**
+html files. The server knew and the screen never asked. [[the-unjoined-end]]
+
+The `noimg` branch existed and its comment promised a "placeholder gradient". It has one —
+`linear-gradient(160deg, #1a160d, #0c0a06)`, near-black browns carrying **no text**. So "no film"
+and "the image failed to load" render as the same black rectangle, and neither says anything.
+
+**Fixed:** the no-film hero now carries a badge naming the state, with `footageWhy` as its tooltip
+and `data-fstate` on the DOM so an outside reader can measure it instead of judging a colour.
+
+⚠ **RETIRED AND UNKNOWN ARE NOT ONE FACT, and the gate refuses to let them share a label:**
+
+    retired   film gave up its information and was THEN released — the lifecycle that WORKED.  449 runs
+    unknown   no film and no retention record at all — absence of evidence, not a completed life. 2,423 runs
+
+Collapsing them would let a run that was never filmed wear the badge of one that finished properly.
+
+Population context, same measurement: 2,893 sessions on the shelf, 219 claiming frames, **24 reels
+actually on disk**, shelf scroller travelling 55,514px.
+
+Gate: `test_a_card_with_no_film_says_so` (348 registered), both red-proofs PROVEN.
+
+⚠ **AND MY OWN CLAIM WAS PARTLY REFUTED.** I predicted the blanks would cluster at the OLDEST end.
+They cluster at the TOP, in INTAKE/TRIAGE, and the earlier "whole stage forever black" reading from
+a smaller window did not reproduce on the taller console. The eye was right and the theory was half
+wrong; the fix follows the measurement.
+
 ## REG-987 — four loops computed a verdict and threw it away, so the corroborator column was stuck (task #92 — v3076)
 
 **Six surfaces sat at 3 of 4 organs and every one was missing the SAME organ.** A corroborator

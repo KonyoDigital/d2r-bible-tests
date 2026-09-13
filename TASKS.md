@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3076** | `(this commit)` | v3076 — THE LOOPS LEAVE A TRACE, AND THE SPLIT ONLY ADDS |
+| **v3077** | `(this commit)` | v3077 — A CARD WITH NO FILM SAYS SO |
+| **v3076** | `1107dced` | v3076 — THE LOOPS LEAVE A TRACE, AND THE SPLIT ONLY ADDS |
 | **v3075** | `de27da01` | v3075 — THE TOOLTIP SPLIT MAY ONLY ADD PAGES |
 | **v3074** | `739ea5b9` | v3074 — AN EXAMINED PANEL IS NOT AN UNREAD ONE |
 | **v3073** | `56179442` | v3073 — the lock evidence organ painted eight locks covered without asking whether any evidence was readable - three had none at all - and it can only read harnesses that declare a module level CLAIMS, which are exactly the sources that cannot inflate |

@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3076"   # THE LOOPS LEAVE A TRACE, AND THE SPLIT ONLY ADDS
+VERSION = "v3077"   # A CARD WITH NO FILM SAYS SO
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

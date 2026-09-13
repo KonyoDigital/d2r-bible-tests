@@ -2391,6 +2391,23 @@ GATES = [
              "write with an evidence-less row. In-process only - json.loads cannot build a lying "
              "container - but this re-gate exists because 'the gate has to hold where the WRITE "
              "happens', and a verdict discarded one line later holds nowhere."),
+    Gate("test_a_card_with_no_film_says_so",
+         [sys.executable, os.path.join(HERE, "test_a_card_with_no_film_says_so.py")], 120,
+         why="A CARD WITH NO FILM MUST SAY SO, IN WORDS. MEASURED by GROKBOT on his live console "
+             "at 1470x923: the top INTAKE/TRIAGE cards paint chrome, titles, dates and "
+             "READS/FOUND rows while the thumbnail slot is CONTINUOUS BLACK; deeper cards show "
+             "real thumbs, so those runs simply have no film. Every instrument called the shelf "
+             "green - GET reported shelf.open true, 430 cards, 425 visible, filled true, "
+             "emptyHero false, theatre painted+ink true - because a card that is present, "
+             "measurable and EMPTY is the one shape a GET check cannot fail on. Only eyes saw it. "
+             "The answer was already on the wire: /api/sessions carries footageState "
+             "(retired|unknown) and a footageWhy sentence, and `footageState` appeared in ZERO "
+             "html files. The `noimg` branch's 'placeholder gradient' is #1a160d -> #0c0a06 with "
+             "no text, so 'no film' and 'the image failed' render identically and neither speaks. "
+             "RETIRED and UNKNOWN must never share a label: retired means the film gave up its "
+             "information and was then released - the lifecycle that WORKED, 449 of his runs - "
+             "while unknown means no film and no retention record at all, 2,423 runs. Collapsing "
+             "them lets a run that was never filmed wear the badge of one that finished."),
     Gate("test_a_declared_trace_must_be_one_the_loop_writes",
          [sys.executable, os.path.join(HERE, "test_a_declared_trace_must_be_one_the_loop_writes.py")], 120,
          why="A LOOP DECLARED TO LEAVE A TRACE MUST ACTUALLY WRITE THE FILE DECLARED. v3076 gave "

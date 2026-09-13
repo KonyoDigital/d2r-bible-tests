@@ -2102,6 +2102,18 @@
   .shc-hero { position: relative; height: clamp(104px, 13vh, 140px); flex: none; overflow: hidden;
     background-size: cover; background-position: center; transition: transform .35s ease; }
   .shc-hero.noimg { background: radial-gradient(ellipse at 50% 28%, rgba(240,192,96,.1), transparent 62%), linear-gradient(160deg, #1a160d, #0c0a06); }
+  /* v3077 — the no-film badge. Sits top-left of the hero so it never fights the session name
+     (.shc-sess) or the pin/seal row (.shc-tr), both of which the hero already carries. */
+  .shc-nofilm { position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex;
+    align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid var(--edge); background: rgba(8,10,8,.72);
+    font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug);
+    color: var(--muted); text-transform: none; pointer-events: auto; }
+  .shc-nf-i { opacity: .85; }
+  /* RETIRED is the lifecycle that COMPLETED — it reads as calm, not as a warning. */
+  .shc-nf-retired { color: #cfe6cf; border-color: rgba(120,180,120,.42); }
+  /* UNKNOWN is an absence of evidence. Muted on purpose: it must not look like a fault he caused. */
+  .shc-nf-unknown, .shc-nf-none { color: #cbbf9a; border-color: rgba(240,192,96,.3); }
   .shc-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(180deg, rgba(6,8,6,.4) 0%, transparent 28%, transparent 54%, rgba(6,8,6,.92) 100%); }
   .shc-sess { position: absolute; top: 9px; left: 12px; z-index: 2; font: var(--fw-bold) var(--fs-sm)/1 var(--serif);
@@ -15782,9 +15794,42 @@ window._lockMark = function(isOpen, px, label){
       var _pin = _sesPinned(sm.sessionId);   // D26 — favorite/pin state
       var pinBtn = '<button type="button" class="shc-pin' + (_pin ? ' on' : '') + '" data-pin-sid="' + esc(sm.sessionId || '') + '" title="' + (_pin ? 'unpin this run' : 'pin to the top') + '" aria-label="pin run">' + (_pin ? '★' : '☆') + '</button>';
       var _coverArt = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder gradient
+      // ══ v3077 — A CARD WITH NO FILM MUST SAY SO, IN WORDS ═════════════════════════════════
+      // MEASURED 2026-09-13 by GROKBOT on his live console (1470x923, pid 46822): the top
+      // INTAKE/TRIAGE cards paint chrome, titles, dates and READS/FOUND rows, and their thumbnail
+      // slot is CONTINUOUS BLACK. Deeper ANALYZE/STATION cards show real thumbs, so it is not a
+      // render fault — those runs genuinely have no film.
+      //
+      // The `noimg` branch already existed and its comment promised a "placeholder gradient". It
+      // has one: `linear-gradient(160deg, #1a160d, #0c0a06)` — near-black browns carrying NO TEXT.
+      // So "no film" and "the image failed to load" render as the same black rectangle, and
+      // neither says anything. Every instrument called the shelf green because GET reports the
+      // card as filled and painted; only eyes could see it. [[zero-needs-a-denominator]]
+      //
+      // The answer was already on the wire and nobody read it: /api/sessions carries a per-run
+      // `footageState` ("retired" | "unknown") and a `footageWhy` sentence. MEASURED: the word
+      // `footageState` appeared in ZERO html files. Both halves built, never joined.
+      // [[the-unjoined-end]]
+      //
+      // ⚠ RETIRED AND UNKNOWN ARE NOT THE SAME FACT and must never share a label. "retired" means
+      // the film gave up its information and was then released — the end state that WORKED, and
+      // 449 of his runs are in it. "unknown" means no film and no retention record at all; that is
+      // an absence of evidence, not a completed lifecycle. Collapsing them would let a run that
+      // was never filmed wear the badge of one that finished properly.
+      var _fState = String(sm.footageState || '');
+      var _fWhy = String(sm.footageWhy || '');
+      var _noFilm = _fState === 'retired'
+        ? { cls: 'retired', icon: '\u2713', txt: 'film retired' }
+        : (_fState === 'unknown'
+            ? { cls: 'unknown', icon: '\u2014', txt: 'no film' }
+            : { cls: 'none', icon: '\u2014', txt: 'no film' });
       var heroOpen = _coverArt
         ? '<div class="shc-hero" style="background-image:url(' + _coverArt + '?w=440)">'
-        : '<div class="shc-hero noimg">';
+        : '<div class="shc-hero noimg" data-fstate="' + esc(_fState || 'none') + '">'
+            + '<div class="shc-nofilm shc-nf-' + _noFilm.cls + '"'
+            + (_fWhy ? ' title="' + esc(_fWhy) + '"' : '') + '>'
+            + '<span class="shc-nf-i">' + _noFilm.icon + '</span>'
+            + '<span class="shc-nf-t">' + esc(_noFilm.txt) + '</span></div>';
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
       var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
       function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
