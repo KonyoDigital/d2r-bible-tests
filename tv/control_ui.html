@@ -2095,8 +2095,8 @@
   #th-shelfov .sh-card:hover { border-color: var(--gold-antique); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,.5); }
   #th-shelfov .sh-card:hover .shc-hero { transform: scale(1.045); }
   #th-shelfov .sh-card.cur { border-color: #7ddca0; box-shadow: inset 0 0 0 1px rgba(125,220,160,.45); }
-  #th-shelfov .sh-card.grail { border-color: rgba(240,192,96,.42); box-shadow: 0 0 0 1px rgba(240,192,96,.14), 0 8px 24px rgba(0,0,0,.4); }
-  #th-shelfov .sh-card.grail:hover { box-shadow: 0 0 20px rgba(240,192,96,.22), 0 12px 30px rgba(0,0,0,.5); }
+  #th-shelfov .sh-card.chronicle { border-color: rgba(240,192,96,.42); box-shadow: 0 0 0 1px rgba(240,192,96,.14), 0 8px 24px rgba(0,0,0,.4); }
+  #th-shelfov .sh-card.chronicle:hover { box-shadow: 0 0 20px rgba(240,192,96,.22), 0 12px 30px rgba(0,0,0,.5); }
   #th-shelfov .sh-card.stub { opacity: .5; filter: saturate(.45); }
   /* the cover-art hero (reel thumb) — scrim top+bottom for legibility, gentle zoom on hover */
   .shc-hero { position: relative; height: clamp(104px, 13vh, 140px); flex: none; overflow: hidden;
@@ -2214,7 +2214,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .shc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 1px 0 2px; }
   .shc-stat { text-align: center; padding: 7px 3px; border: 1px solid rgba(240,192,96,.12); border-radius: 8px; background: rgba(255,255,255,.02); }
-  .sh-card.grail .shc-stat { border-color: rgba(240,192,96,.2); }
+  .sh-card.chronicle .shc-stat { border-color: rgba(240,192,96,.2); }
   .shc-sv { font: var(--fw-bold) var(--fs-sm)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .shc-sl { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #7d7358; margin-top: 4px; }
   #th-shelfov .sh-card .sh-verdict { font: var(--fw-normal) var(--fs-2xs)/var(--lh-normal) var(--mono); letter-spacing: var(--ls-tight); color: #94a89c; display: block; }
@@ -10627,7 +10627,15 @@ window._lockMark = function(isOpen, px, label){
   function _dossierDecision(sm){
     var reads = sm.reads || 0, named = sm.named || 0;
     var reg = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);
-    var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
+    /* v3091 — THE STAGE IS LABELLED 'chronicle' AND WAS COUNTING tier === 'grail', which is unset
+       on 194 of 218 finds. Caught by the post-ship review of v3090, which put it exactly right:
+       the identical defect the card was fixed for, left unswept one function away in the same
+       file and reached by tapping the very card that was fixed — the dossier would read
+       `chronicles 0` for the same reel whose card now shows 🏆 4 · 🧩 2. Falls back to the old
+       count only when the server sent no tally, so a reel nobody read still reports the old
+       answer rather than a confident 0. [[sweep-dont-ask]] [[label-outlived-referent]] */
+    var grails = sm.chron ? ((sm.chron.uniques || 0) + (sm.chron.sets || 0))
+                          : (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
     if (!reads && !reg) return '<div class="dsr-empty">— no reads on this reel —</div>';
     var stages = [
       { n: reads, ic: '👁', lab: 'read' },
@@ -15800,7 +15808,14 @@ window._lockMark = function(isOpen, px, label){
       (sm.areas || []).forEach(function(a){ _sq.push(a); });
       var _verd = sm.watchdogViolations > 0 ? 'flagged' : (sm.kaiMissed != null ? 'clean' : 'unsealed');
       _sq.push(_verd === 'unsealed' ? '' : _verd);
-      var _hasGrail = (sm.finds || []).some(function(f){ return f.tier === 'grail'; }) ? '1' : '0';   // v1283 (D9) — filter attrs
+      /* v3091 — the chip is LABELLED 'chronicle' (see _shChip: f === 'chronicle' && SHELF_F.grail)
+         and was filtered on tier === 'grail', which is unset on 194 of 218 finds. So clicking
+         CHRONICLE hid 15 of the 25 cards that had actually put something in the chronicles, and
+         hid them while they wore the gold accent. The attribute keeps its old NAME (data-grail is
+         a shipped contract read at 16740) but now carries the chronicle answer, so the chip, the
+         accent and the two tiles finally agree on one set of cards. */
+      var _hasGrail = (sm.chron ? ((sm.chron.uniques || 0) + (sm.chron.sets || 0)) > 0
+                                : (sm.finds || []).some(function(f){ return f.tier === 'grail'; })) ? '1' : '0';
       var _foundN = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);   // v1284 (D11) — sort keys
       // ══ D18 — the cinematic card: cover-art hero (reel thumb) + title/seal lower-third + headline grail,
       // then a clean stat grid. Preserves every filter/sort/search data-attr + tap-to-dossier (data-n). ══
@@ -15872,7 +15887,14 @@ window._lockMark = function(isOpen, px, label){
          + '<span class="shc-nf-t">' + esc(_noFilm.txt) + '</span></div>');
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
       var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
-      function _scell(v, l){ return '<div class="shc-stat"><div class="shc-sv">' + v + '</div><div class="shc-sl">' + l + '</div></div>'; }
+      /* v3091 — the two chronicle tiles must carry the QUALITY COLOUR, not lean on an emoji.
+         This file's v1634 block states the law ("Every surface in this document that NAMES a
+         quality or a chronicle now reads a --rar-* token") and v1635 re-gated it after four
+         surfaces were found missing it. The tiles that replaced the grail tile were the fifth.
+         --rar-unique and --rar-set are already bound to these exact two concepts in .mini-foc. */
+      function _scell(v, l, tone){ return '<div class="shc-stat"><div class="shc-sv"'
+        + (tone ? ' style="color:var(--rar-' + tone + ')"' : '') + '>' + v + '</div>'
+        + '<div class="shc-sl">' + l + '</div></div>'; }
       /* v3090 — THE LAST TWO TILES NOW READ THE CHRONICLES. Konyo: "where its says grail.. i want
          it reading the chronicles.. what does cover even mean? i think it can also be rem[ov]ed
          visually so i dont see it and see the chronicles sets or uniques instead of it."
@@ -15889,8 +15911,10 @@ window._lockMark = function(isOpen, px, label){
          failure load_roster raises to prevent. [[unknown-stays-unknown]] */
       var _ch = sm.chron || null;
       var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
-        + _scell(_ch ? (_ch.uniques > 0 ? ('🏆 ' + _ch.uniques) : '—') : '?', 'uniques')
-        + _scell(_ch ? (_ch.sets > 0 ? ('🧩 ' + _ch.sets) : '—') : '?', 'sets') + '</div>';
+        + _scell(_ch ? (_ch.uniques > 0 ? ('🏆 ' + _ch.uniques) : '—') : '?', 'uniques',
+                 _ch && _ch.uniques > 0 ? 'unique' : '')
+        + _scell(_ch ? (_ch.sets > 0 ? ('🧩 ' + _ch.sets) : '—') : '?', 'sets',
+                 _ch && _ch.sets > 0 ? 'set' : '') + '</div>';
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_chronN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-sid="' + esc(sm.sessionId || '') + '" data-n="' + n
         + '" data-stub="' + (sm.stub ? '1' : '0') + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN

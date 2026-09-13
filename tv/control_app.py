@@ -7108,6 +7108,19 @@ def _chron_tally(finds):
     how a near-twin pair like "Bone Break"/"Latent Bone Break" gets folded two different ways in
     two places.
     """
+    # ⚠⚠ v3091 — `None` FINDS AND `[]` FINDS ARE DIFFERENT ANSWERS, and v3090 collapsed them.
+    # `_finds` is initialised to None (line ~28998) and only becomes a list once a register report
+    # exists, so an unsealed reel, a stub, or a failed reel_report leaves it None. v3090 iterated
+    # `(finds or [])`, fell through the loop and returned {0,0,0} — a dict that is TRUTHY in JS, so
+    # the card printed the measured-none dash and asserted "this reel put nothing in the
+    # chronicles" about a reel nobody ever read.
+    #
+    # Caught by the post-ship review, and it is the SAME defect this function's own law was
+    # written about one branch over: v3090 pinned the ROSTER branch and never the FINDS branch.
+    # A guard that covers one of the two ways a number can be unknown is not a guard.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    if finds is None:
+        return None
     u, sr = _chron_rosters()
     if u is None or sr is None:
         return None
@@ -27680,7 +27693,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3090",
+        "ver": "v3091",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

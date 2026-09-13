@@ -166,21 +166,59 @@ class TestACardTileReadsTheChronicles(unittest.TestCase):
         print("Andariel's Visage -> unique · Amulet -> neither (correctly not a chronicle row)")
 
 
+    def test_a_reel_nobody_read_is_not_a_reel_with_nothing(self):
+        """⚠⚠ THE SECOND WAY THE NUMBER CAN BE UNKNOWN, WHICH v3090's LAW MISSED.
+
+        Found by the post-ship review, not by this file. v3090 guarded the ROSTER branch —
+        "the rosters would not load" — and never the FINDS branch. But `_finds` is initialised to
+        None in control_app (~:28998) and only becomes a list once a register report exists, so an
+        unsealed reel, a stub, or a failed reel_report leaves it None. `(finds or [])` then fell
+        through the loop and returned {0,0,0}, which is TRUTHY in JS — so the card printed the
+        measured-none dash and asserted "this reel put nothing in the chronicles" about a reel
+        nobody had ever read.
+
+        A guard that covers one of the two ways a number can be unknown is not a guard. The two
+        cases are DIFFERENT ANSWERS and this pins both:
+            finds is None  -> None       nobody looked
+            finds == []    -> {0,0,0}    looked, found nothing
+        [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        """
+        import control_app as CA
+        self.assertIsNone(CA._chron_tally(None),
+                          "a reel whose finds were never built reports a tally of zeros — the card "
+                          "then says it added nothing to the chronicles about a reel nobody read")
+        empty = CA._chron_tally([])
+        self.assertIsInstance(empty, dict,
+                              "an EMPTY find list is a real measurement and must stay a tally, not "
+                              "collapse into the same UNKNOWN as a reel nobody read")
+        self.assertEqual((empty.get("uniques"), empty.get("sets")), (0, 0))
+        print("finds None -> None (nobody looked) · finds [] -> %s (measured none)" % empty)
+
+
 RED_PROOF = [
     {
         "why": "the dead COVER tile comes back — a figure that was absent on 409 of 425 cards and "
                "read 0% on 12 of the 16 that had one",
         "file": "control_ui.html",
-        "find": "+ _scell(_ch ? (_ch.sets > 0 ? ('\U0001f9e9 ' + _ch.sets) : '—') : '?', 'sets') + '</div>';",
-        "replace": "+ _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';",
+        "find": "        + _scell(_ch ? (_ch.sets > 0 ? ('🧩 ' + _ch.sets) : '—') : '?', 'sets',",
+        "replace": "        + _scell(_covPct != null ? (_covPct + '%') : '—', 'cover') + '</div>';",
         "matches": 1,
     },
     {
         "why": "the UNKNOWN branch collapses into the measured-none dash, so a roster that failed "
                "to load prints a confident '—' and every card claims it added nothing",
         "file": "control_ui.html",
-        "find": "+ _scell(_ch ? (_ch.uniques > 0 ? ('\U0001f3c6 ' + _ch.uniques) : '—') : '?', 'uniques')",
-        "replace": "+ _scell(_ch && _ch.uniques > 0 ? ('\U0001f3c6 ' + _ch.uniques) : '—', 'uniques')",
+        "find": "        + _scell(_ch ? (_ch.uniques > 0 ? ('🏆 ' + _ch.uniques) : '—') : '?', 'uniques',",
+        "replace": "        + _scell(_ch && _ch.uniques > 0 ? ('🏆 ' + _ch.uniques) : '—', 'uniques',",
+        "matches": 1,
+    },
+    {
+        "why": "the None-finds guard is removed, so a reel whose finds were never built reports a "
+               "tally of zeros and the card claims it put nothing in the chronicles — the exact "
+               "0-vs-None collapse the post-ship review caught in v3090",
+        "file": "control_app.py",
+        "find": "    if finds is None:\n        return None\n    u, sr = _chron_rosters()",
+        "replace": "    u, sr = _chron_rosters()",
         "matches": 1,
     },
     {

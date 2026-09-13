@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3090",
+  "ver": "v3091",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3090: cover had a real figure on 4 of 425 cards and grails counted a tier field that is unset on 89 percent of finds. Both tiles now fold the find NAMES against the rosters - 57 uniques and 26 sets against the old tile 16",
+  "note": "v3091: the post-ship review found the 0-vs-None collapse one branch over from where v3090 guarded it, and a gold accent class with no CSS that I claimed a number for without looking at the screen. Both fixed, and the dossier stage labelled chronicle now reads the chronicle too",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

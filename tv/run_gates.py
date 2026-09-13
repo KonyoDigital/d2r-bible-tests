@@ -2414,7 +2414,7 @@ GATES = [
              "opposite facts produced one verdict and sweep() wrote 'could not be classified - "
              "held rather than guessed onto a shelf', a sentence about the FILM describing "
              "something that happened to the RUN. Nothing prompted a retry because nobody was told "
-             "there was anything to retry. MEASURED on reel_s_1788099999528_42457: two sweeps "
+             "there was anything to retry. MEASURED on the reel s_1788099999528_42457: two sweeps "
              "reported classified=2 and held the run, while calling tv_diablo.claude_read() on the "
              "SAME frame directly returned scene='stash' with names - the frame is a Shared stash "
              "page 5/5 with ~25 items and the inventory open beside it. After the lane recovered "
@@ -2437,6 +2437,25 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_the_blueprint_names_the_engine",
+         [sys.executable, os.path.join(HERE, "test_the_blueprint_names_the_engine.py")], 180,
+         why="BLUEPRINT.md MUST NAME EVERY MODULE, AND A CONCEPT MUST FIND ITS OWNER IN ONE GREP. "
+             "His ask: 'make sure the blueprint is updated accordignly so you dont need to ask "
+             "these questions in the future and the blueprints speaks for itself'. This is "
+             "test_the_blueprint_cannot_go_stale's sibling one rung down: that one keeps the GATES "
+             "section honest, this one keeps the CODE section honest - and the code section did "
+             "not exist until v3091 while the tree held 178 modules and 1,045 public functions "
+             "that this document said nothing about. MEASURED the day it was built: `footprint`, a "
+             "function shipped hours earlier in slot_identity.py that REFUSES an item overhanging "
+             "the grid, scored ZERO hits anywhere in BLUEPRINT.md - and so did occupancy, "
+             "names_loc, terror zone, lattice and slot identity, every one a shipped tested "
+             "behaviour the map could not find. The section splits DERIVED (which modules exist, "
+             "which are imported - parsed every render, so it cannot go stale) from CURATED "
+             "(purpose, territory, gotcha in tv/engine_index.json, because a sentence about what a "
+             "module MEANS cannot come from an AST), and this law guards the DRIFT between them: a "
+             "module on disk with no entry, or an entry whose file is gone, must be REPORTED. A "
+             "map that silently omits a module is worse than no map. It also pins determinism, "
+             "because a clock leaking into render() makes every tree look stale."),
     Gate("test_a_card_tile_reads_the_chronicles",
          [sys.executable, os.path.join(HERE, "test_a_card_tile_reads_the_chronicles.py")], 120,
          why="THE REEL CARD'S LAST TWO TILES MUST READ THE CHRONICLES, AND AN ABSENT ROSTER IS NOT "
@@ -2529,7 +2548,7 @@ GATES = [
              "the tooltip so a hover-by-hover pass stops collapsing into one page, and claims it "
              "'splits on evidence and leaves the rest alone'. It did not: MIN_RUN_FRAMES is a "
              "STILLNESS floor calibrated on UNSPLIT runs, and applied to the fragments it can "
-             "discard every candidate a reel had. MEASURED on reel_s_1788099999528_42457 - 4 "
+             "discard every candidate a reel had. MEASURED on the reel s_1788099999528_42457 - 4 "
              "frames, 1 run and 1 candidate before the split; 2 runs and ZERO after, both under "
              "the 3-frame floor. A forced re-sweep read 0 pages, called classify 0 times and the "
              "reader 0 times, while the free structural gate opened all 4 frames as `shared` and "

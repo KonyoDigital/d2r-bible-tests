@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3090** | `(this commit)` | v3090 — cover had a real figure on 4 of 425 cards and grails counted a tier field that is unset on 89 percent of finds. Both tiles now fold the find NAMES against the rosters - 57 uniques and 26 sets against the old tile 16 |
+| **v3091** | `(this commit)` | v3091 — the post-ship review found the 0-vs-None collapse one branch over from where v3090 guarded it, and a gold accent class with no CSS that I claimed a number for without looking at the screen. Both fixed, and the dossier stage labelled chronicle now reads the chronicle too |
+| **v3090** | `1fd99584` | v3090 — cover had a real figure on 4 of 425 cards and grails counted a tier field that is unset on 89 percent of finds. Both tiles now fold the find NAMES against the rosters - 57 uniques and 26 sets against the old tile 16 |
 | **v3089** | `463c96ac` | v3089 — the paper-doll case called a runeword staff stone because its 26-78 test was luminance-only; real panel stone is achromatic. Adding that takes the weapon slot from 0.61 to 0.08. Four statistics argued about it before anyone rendered the crop and looked |
 | **v3088** | `622f9cce` | v3088 — two slot-identity cases went red because draining the river changed which frame they grade, not because the geometry moved. The row-seam case now refuses frames whose seams are occluded; the paper-doll case now demands a frame it can actually be made red on. The weapon-slot red is diagnosed and left standing rather than tuned green |
 | **v3087** | `55e50f8c` | v3087 — the vault sweep now carries the occupied CELLS and their footprints, not just two counts - the grid was always there and one line dropped it. Clusters stay labelled blobs with blobsAreItems false, because touching items merge: 33 cells became 2 blobs on his own frame |

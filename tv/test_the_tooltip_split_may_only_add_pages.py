@@ -197,7 +197,7 @@ RED_PROOF = [
     {
         "why": "the split may shrink the candidate set again — at zero a short reel with a hover "
                "in it offers the reader nothing and is held in the river for ever "
-               "(reel_s_1788099999528_42457), and above zero a held screen silently goes unread "
+               "(s_1788099999528_42457), and above zero a held screen silently goes unread "
                "when candidates fall 2 -> 1",
         "file": "vault_retro.py",
         "find": "        if len(_unsplit) > len(cands):",

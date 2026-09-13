@@ -407,6 +407,83 @@ def code_only(text):
     return "\n".join(out)
 
 
+def engine_index():
+    """Every non-test module in tv/, what it does, and what a reader gets wrong. -> (rows, drift)
+
+    ⚠⚠ WHY THIS EXISTS, and it is the same failure `gate_index` above was written for one rung up.
+    That one fixed "322 registered" standing where the NAMES of the laws belonged. This one fixes
+    the same shape for the CODE: 178 modules and 1,045 public functions, and nothing in this
+    document said what any of them were. Konyo, 2026-09-13, after I asked him a question the tree
+    already answered: *"so why are you not checkig blueprints before hand :)?"* and then *"make
+    sure the blueprint is updated accordignly so you dont need to ask these questions in the future
+    and the blueprints speaks for itself."*
+
+    MEASURED before building it, which is the point: `footprint` — a function shipped that same day
+    in slot_identity.py that REFUSES an item overhanging the grid — scored **zero hits** anywhere in
+    this document. So did `occupancy`, `names_loc`, `terror zone` and five more. The index is
+    accepted only when a reader can grep a CONCEPT and land on the owning module in one step; that
+    is asserted by test_the_blueprint_names_the_engine.py, not hoped for.
+
+    ⚠ DERIVED AND CURATED ARE DIFFERENT, AND THE SPLIT IS THE WHOLE DESIGN.
+      · DERIVED here, every render: which modules exist on disk, and which are imported by another
+        module. Those cannot go stale because nothing stores them.
+      · CURATED in `tv/engine_index.json`: purpose, territory, gotcha, entry points. A sentence
+        about what a module MEANS cannot be re-derived from its AST, so it is written down.
+    A curated line CAN go stale, so the drift between the two is reported rather than hidden: a
+    module on disk with no entry is UNINDEXED, an entry whose file is gone is STALE. Both are
+    printed. A map that quietly omits a module is the failure this whole section exists about.
+
+    ⚠ `noPyImporter` says EXACTLY what it measures — no other module in tv/ imports it — and not
+    "dead". Two earlier scans of mine disagreed 12-vs-15 on a "deadEnd" flag, and the cause was one
+    of them counting a module's name inside a `why=` PROSE STRING in run_gates.py as a real
+    reference. A CLI tool, a hook and a routine are all invoked without an import, so an
+    unimported module is a question, never a verdict. [[label-outlived-referent]]
+    """
+    import ast as _ast
+    import json as _json          # per-callsite, this module's own convention
+    try:
+        with io.open(os.path.join(HERE, "engine_index.json"), encoding="utf-8") as fh:
+            curated = _json.load(fh)
+    except Exception:
+        return None, None
+    on_disk = sorted(f for f in os.listdir(HERE)
+                     if f.endswith(".py") and not f.startswith("test_"))
+    # DERIVED: who imports whom, parsed — never grepped, because a name in a comment or a
+    # docstring is not an import and reading it as one is how the 12-vs-15 disagreement happened.
+    stems = {f[:-3] for f in on_disk}
+    imported = set()
+    for f in sorted(os.listdir(HERE)):
+        if not f.endswith(".py"):
+            continue
+        try:
+            with io.open(os.path.join(HERE, f), encoding="utf-8") as fh:
+                tree = _ast.parse(fh.read())
+        except Exception:
+            continue
+        for node in _ast.walk(tree):
+            names = []
+            if isinstance(node, _ast.Import):
+                names = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, _ast.ImportFrom) and node.module:
+                names = [node.module.split(".")[0]]
+            for b in names:
+                if b in stems and b != f[:-3]:
+                    imported.add(b)
+    rows = []
+    for f in on_disk:
+        c = curated.get(f)
+        if not c:
+            continue
+        rows.append({"module": f, "territory": c.get("territory") or "unknown",
+                     "purpose": c.get("purpose") or "", "gotcha": c.get("gotcha") or "",
+                     "entryPoints": c.get("entryPoints") or [],
+                     "noPyImporter": f[:-3] not in imported})
+    rows.sort(key=lambda d: (d["territory"], d["module"]))
+    drift = {"unindexed": sorted(set(on_disk) - set(curated)),
+             "stale": sorted(set(curated) - set(on_disk))}
+    return rows, drift
+
+
 def render():
     L = []
     A = L.append
@@ -613,6 +690,55 @@ def render():
         A("")
         for _n, _w in idx:
             A("- **%s** — %s" % (_n, _one_sentence(_w) or "(no why declared)"))
+    A("")
+    A("## THE ENGINE — every module, what it does, and what a reader gets wrong")
+    A("")
+    _rows, _drift = engine_index()
+    if _rows is None:
+        A("    tv/engine_index.json could not be read, so this section is UNKNOWN — not empty.")
+    else:
+        A("Grep a CONCEPT here and land on the module that owns it. That is the whole job, and it is")
+        A("asserted by a gate rather than hoped for: `footprint`, `occupancy`, `names_loc`, `terror")
+        A("zone`, `slot identity` and `lattice` all scored ZERO hits in this document the day before")
+        A("this section existed, while every one of them was a shipped, tested behaviour.")
+        A("")
+        A("DERIVED every render: which modules exist, and which are imported by another module.")
+        A("CURATED in `tv/engine_index.json`: purpose, territory, gotcha, entry points — a sentence")
+        A("about what a module MEANS cannot be re-derived from its AST. The drift between the two is")
+        A("printed below rather than hidden, because a map that quietly drops a module is the exact")
+        A("failure this section was written about.")
+        A("")
+        A("    %d modules · %d unindexed · %d stale entr%s"
+          % (len(_rows), len(_drift["unindexed"]), len(_drift["stale"]),
+             "y" if len(_drift["stale"]) == 1 else "ies"))
+        if _drift["unindexed"]:
+            A("")
+            A("    ⚠ UNINDEXED — on disk with no entry, so this map does NOT describe them:")
+            for _m in _drift["unindexed"]:
+                A("        %s" % _m)
+        if _drift["stale"]:
+            A("")
+            A("    ⚠ STALE — an entry whose file is gone:")
+            for _m in _drift["stale"]:
+                A("        %s" % _m)
+        A("")
+        A("`no importer` means no OTHER MODULE IN tv/ IMPORTS IT — measured by parsing, never by")
+        A("grepping a name that may be sitting inside a comment. It is not `dead`: a CLI tool, a")
+        A("hook and a routine are all reached without an import, so it is a question, not a verdict.")
+        _terr = None
+        for _r in _rows:
+            if _r["territory"] != _terr:
+                _terr = _r["territory"]
+                _n = sum(1 for _x in _rows if _x["territory"] == _terr)
+                A("")
+                A("### %s (%d)" % (_terr, _n))
+                A("")
+            A("- **%s** — %s%s" % (_r["module"], _r["purpose"],
+                                   "  ·  *no importer*" if _r["noPyImporter"] else ""))
+            if _r["entryPoints"]:
+                A("      ↪ %s" % " · ".join(_r["entryPoints"]))
+            if _r["gotcha"]:
+                A("      ⚠ %s" % _r["gotcha"])
     A("")
     return "\n".join(L) + "\n"
 

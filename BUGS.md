@@ -32376,6 +32376,57 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+
+## REG-1001 — THE POST-SHIP REVIEW FOUND THE DEFECT MY OWN LAW WAS WRITTEN ABOUT
+
+**v3091.** `/code-review` over the shipped `733a8490..1fd99584` returned 15 findings. Reproduced
+before believing, per the standing rule, and the split is the point: **2 confirmed, 1 half-wrong.**
+
+### 1. A REEL NOBODY READ REPORTED THAT IT ADDED NOTHING ⛔ CONFIRMED
+
+`_finds` is initialised to `None` (control_app ~:28998) and only becomes a list once a register
+report exists, so an unsealed reel, a stub, or a failed `reel_report` leaves it **None**. v3090's
+`_chron_tally` iterated `(finds or [])`, fell through, and returned `{0,0,0}` — **truthy in JS** —
+so the card printed the measured-none dash and asserted *"this reel put nothing in the chronicles"*
+about a reel nobody had ever read.
+
+⚠⚠ **This is the exact defect v3090's own law exists to prevent, one branch over.** That law pinned
+the ROSTER branch ("the rosters would not load") and never the FINDS branch. **A guard that covers
+one of the two ways a number can be unknown is not a guard.** Now `finds is None -> None` (nobody
+looked) and `finds == [] -> {0,0,0}` (looked, found nothing), with a law and a sabotage on each.
+[[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+### 2. THE GOLD ACCENT WAS DEAD, AND I CLAIMED A NUMBER FOR IT ⛔ CONFIRMED
+
+`.sh-card.chronicle` has **zero** CSS rules. The gold accent rules are `.sh-card.grail` — and
+**nothing ever puts `grail` on a card** (the two ` grail'` hits are `.shc-headfind` and the recap).
+So the accent lit on **zero** cards before v3090 and zero after. My commit note said it *"lit on 10
+cards while 25 had put something in the chronicles"* — **I read that off the code and never looked
+at the screen.** REG-1000 now carries the correction. Fixed by renaming the CSS to the class that is
+actually emitted. [[visual-regression-detector]]
+
+### 3. "BOTH PIXEL LAWS NOW MEASURE NOTHING" ✅ HALF WRONG
+
+The review said both `test_slot_identity` cases skip. **Measured: the row-seam case PASSES**, grading
+`f_1788100007951.jpg` with the declared origin darkest at every offset in ±24. Only the paper-doll
+case skips, and it says so loudly. A reviewer earns a measurement, not obedience.
+
+### Also swept, because it was the same defect one tap away
+
+The dossier funnel's stage **labelled `chronicle`** still counted `tier === 'grail'`, so tapping the
+card that now reads `🏆 4 · 🧩 2` opened a dossier reading `chronicles 0`. And the shelf's filter
+chip **labelled CHRONICLE** filtered on `data-grail`, hiding 15 of the 25 cards that had actually
+put something in the chronicles — while they wore the gold accent. Both now read the tally.
+
+The two tiles also now carry `--rar-unique` / `--rar-set`, which this file's own v1634 law requires
+of *"every surface that NAMES a quality or a chronicle"* — v1635 re-gated it after four surfaces
+were found missing it, and these were the fifth.
+
+⚠ **Red-proof: 4 sabotages, all PROVEN, 1 match each** — after two came back **INVALID** because my
+own UI edits had moved the lines the older anchors pointed at, and my repair of them ate a trailing
+comma, throwing a `SyntaxError` at the innocent next entry. Both are carved scars and both bit again
+in one sitting. [[sabotage-is-usually-the-wrong-one]] [[gate-insert-missing-comma]]
+
 ## REG-1000 — TWO CARD TILES THAT MEASURED NOTHING, AND ONE THAT MEASURED THE WRONG THING
 
 **v3090.** Konyo, 2026-09-13: *"and the photo data anylasis within the video here where its says
@@ -32422,8 +32473,15 @@ classify every name as debris"* — which here would print a confident **0 uniqu
 the shelf**. `_chron_tally` returns `None`, never a tally of zeros. [[unknown-stays-unknown]]
 
 **The gold `chronicle` card accent now reads the chronicle.** It was driven by the same
-`tier === 'grail'`, so a class literally named *chronicle* lit on 10 cards while 25 had put
-something in the chronicles. `_covPct` is deleted — its only reader was the COVER tile.
+`tier === 'grail'`.
+
+> ⚠ **CORRECTION, v3091.** This paragraph originally said the accent *"lit on 10 cards while 25 had
+> put something in the chronicles"*. **That was wrong and I never checked it.** The post-ship review
+> found `.sh-card.chronicle` has **no CSS rule at all** — grep returns 0 — and the gold accent rules
+> are `.sh-card.grail`, a class **nothing ever puts on a card**. So the accent lit on **zero** cards
+> before the change and zero after: I swapped one dead class name for another and asserted a
+> behavioural result from reading the code instead of looking at the pixels. Fixed in v3091 by
+> renaming the CSS to the class that is actually emitted. [[visual-regression-detector]] `_covPct` is deleted — its only reader was the COVER tile.
 
 ### The law
 
