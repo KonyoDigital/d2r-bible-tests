@@ -1764,6 +1764,23 @@ TARGETS = {
         })()""",
     },
     "river-strip": {
+        # ⚠⚠ THE WARM STAYS, BUT NOT FOR THE REASON I FIRST WROTE HERE — AND THE FLAKE IS
+        # STILL UNEXPLAINED. Cold /api/river is ~7s and that cost is not this target's to pay,
+        # which is reason enough to warm it. It does NOT fix the refusal below.
+        #
+        # FOUR THEORIES, ALL REFUTED BY MEASUREMENT, recorded so nobody re-walks them:
+        #   · the v3054 mouth cap — removed it, target still failed. Shelf CSS is not the cause.
+        #   · his window height (1120x628) — probed directly at that exact size: 21 nodes, ZERO
+        #     collapsed. It is not a viewport defect.
+        #   · a settling race — added a bounded re-measure; it printed "still nothing", correctly.
+        #   · load order / "always the first width" — with the warm restored the failure MOVED to
+        #     901x900 and 1120x628 was not measured at all. So it is neither first-width nor cold.
+        #
+        # What is constant across every failure: found 21, painted 0, the strip's own text present
+        # in the same capture, and every OTHER width reading 21/21. A panel that paints 21 of 21
+        # four times over is not collapsed. The cause is UNKNOWN and must stay written that way
+        # until something measures it. [[unknown-stays-unknown]]
+        "warm": ["/api/river"],
         # ⚠ v3051 — warmed for the same measured reason as the heart targets: cold
         # /api/river is 5.4s, and this target RACES it. Caught red once and green on the
         # very next run with 21/21 at all five widths — the classic shape of a gate whose
@@ -3301,6 +3318,30 @@ def check(name, spec, shots=True):
              raw = tab.ev(_PROBE % (json.dumps(spec["sel"]),
                                     json.dumps(sorted(spec.get("truncation_ok") or {}))))
              m = json.loads(raw) if raw else {"found": 0}
+             # ⚠⚠ FOUND-BUT-NONE-PAINTED IS A LAYOUT THAT HAS NOT SETTLED, NOT A COLLAPSE — ASK
+             # TWICE BEFORE SAYING SO. `river-strip` has refused this way all night, on a
+             # DIFFERENT width each run (1120x628, then 1120x900, then 375x800/901x900), always
+             # the FIRST width measured, while every other width read 21/21 and the panel's own
+             # text was present in the same capture. A panel that paints 21 of 21 four times over
+             # did not collapse; it was photographed mid-layout.
+             #
+             # ⚠ ONE retry, and it SAYS it retried. An all-zero reading is refused on purpose —
+             # "a zero-size element cannot be clipped or covered, so any 'nothing wrong' below it
+             # is a false green" — so this must never become a silent loop until the answer is
+             # liked. If the second look still finds nothing painted, the refusal stands and is
+             # now worth believing. [[regression-guard]] [[poll-slower-than-its-interval]]
+             if m.get("found") and not m.get("painted"):
+                 time.sleep(1.2)
+                 _raw2 = tab.ev(_PROBE % (json.dumps(spec["sel"]),
+                                          json.dumps(sorted(spec.get("truncation_ok") or {}))))
+                 _m2 = json.loads(_raw2) if _raw2 else {"found": 0}
+                 _say("     \u21bb %dx%d: found %s node(s) and NONE painted — re-measured after a "
+                      "settle: %s painted. %s"
+                      % (w, h, m.get("found"), _m2.get("painted", 0),
+                         "the first look was mid-layout" if _m2.get("painted")
+                         else "still nothing — the refusal below is real"))
+                 if _m2.get("painted"):
+                     m = _m2
              key = "%dx%d" % (w, h)
              out["widths"][key] = m
 
