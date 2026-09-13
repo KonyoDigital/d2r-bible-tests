@@ -22712,6 +22712,46 @@ def vault_forget(ledger=False):
     return {"ok": True, "forgot": True, "ledgerCleared": bool(ledger)}
 
 
+def _inert(o, _depth=0):
+    """A plain-data copy of a caller-supplied structure. -> plain dict/list/scalar
+
+    ⚠⚠ v3067 — FOUR OF FIVE ATTACKS DIED HERE, AND v3066's NARROWER FIX HAD ONLY STOPPED TWO.
+    A different model family, handed vault_apply cold, returned five payloads. v3066 snapshotted
+    the ROW OBJECTS after gating, which killed the two that swapped the CONTAINER — and left the
+    three that do not:
+
+        PoisonRow(dict)   overrides .get("evidence") to answer the gate once with witnesses the
+                          stored dict does not contain. Snapshotting the row keeps the liar.
+        UserDict          isinstance(prop, dict) is FALSE, so the whole re-gate block was skipped
+                          and the row went through ungated. The gate never spoke.
+        throwOut          never gated at all, and copied straight into the payload.
+
+    Measured after v3066: all three still put an uncorroborated row in the write payload.
+
+    The defect was never "which read wins" — it was trusting a caller-supplied OBJECT to answer
+    the same way twice. This converts it to inert data ONCE, at the door: every mapping becomes a
+    plain dict via items() (which no attack overrode), every sequence a plain list, everything
+    else a scalar or its str(). After this, no later read can be answered by code.
+
+    ⚠ DEPTH-CAPPED. A self-referential structure would otherwise recurse forever, and a crash in
+    the door is still a door that stopped working. Beyond the cap the value becomes None, which
+    fails the gate rather than passing it. [[unknown-stays-unknown]]
+    """
+    if _depth > 8:
+        return None
+    try:
+        import collections.abc as _abc
+        if isinstance(o, _abc.Mapping):
+            return dict((str(k), _inert(v, _depth + 1)) for k, v in o.items())
+        if isinstance(o, (list, tuple, set)):
+            return [_inert(v, _depth + 1) for v in o]
+    except Exception:
+        return None
+    if o is None or isinstance(o, (bool, int, float, str)):
+        return o
+    return str(o)
+
+
 def vault_apply(proposal=None):
     """Ask THE BOARD to apply the vault accumulator's gated rows. The console never writes the
     vault, the grail or localStorage.
@@ -22733,6 +22773,10 @@ def vault_apply(proposal=None):
     # a rule enforced in one place is a rule with a door beside it.
     # Grok's third-eye pass on v1594 flagged exactly this, and it was right.
     caller_supplied = proposal is not None
+    # ⚠⚠ THE DOOR. A caller-supplied proposal becomes INERT DATA before anything reads it, so no
+    # container and no row can answer the gate and the write differently. See _inert() above.
+    if caller_supplied:
+        proposal = _inert(proposal)
     prop = proposal or (st.get("result") if isinstance(st.get("result"), dict) else None)
     _gated = None        # set to the JUDGED rows on the caller-supplied path; see v3066 below
     if caller_supplied and isinstance(prop, dict):
@@ -22794,8 +22838,24 @@ def vault_apply(proposal=None):
                         "rejected": [str(_r.get("name") or "?") for _r in _dropped][:20]}
             # THE SNAPSHOT THE REST OF THIS FUNCTION USES. A plain dict of plain lists, taken at
             # the moment of judgement, so no later read can be answered by something else.
+            # ⚠⚠ AND THE THROW-OUT LANE CARRIES NO EVIDENCE FIELD. The fifth attack rode a
+            # decoy in `owned` while putting the real row in `throwOut`, which nothing gates —
+            # and it reached the write payload. MEASURED by the eye that designed it: the board
+            # does NOT register from `throwOut`, so this was defence-in-depth holding, not a
+            # breach, exactly as v2641's `unsure` case turned out. It is closed here anyway,
+            # because v1595's own note says why: "a rule enforced in one place is a rule with a
+            # door beside it".
+            #
+            # ⚠ GATING throwOut WOULD BE WRONG. A throw-out is a suggestion to DISCARD; it has no
+            # reason to carry three witnesses, and requiring them would refuse every honest one.
+            # What it must not do is carry a field that can be MISTAKEN for corroboration, so the
+            # evidence keys are dropped and the name is kept. [[label-outlived-referent]]
+            _throw = []
+            for _t in (prop.get("throwOut") or []):
+                _throw.append(dict((k, v) for k, v in (_t or {}).items()
+                                   if k not in ("evidence", "witnesses")))
             _gated = {"owned": list(_kept["owned"]), "unsure": list(_kept["unsure"]),
-                      "throwOut": list(prop.get("throwOut") or [])}
+                      "throwOut": _throw}
         except Exception as _e:
             return {"ok": False, "why": "could not re-gate the supplied proposal: %s" % str(_e)[:120]}
     if not prop:
@@ -27317,7 +27377,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3066",
+        "ver": "v3067",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

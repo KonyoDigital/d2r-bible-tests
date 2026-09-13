@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3066** | `(this commit)` | v3066 — the re-gate collected the approved rows then threw them away and built the payload from a second read of the proposal, so a container answering the gate and the write differently landed an uncorroborated row - found by handing the function cold to another model family |
+| **v3067** | `(this commit)` | v3067 — the third eye was handed vault_apply cold and returned five payloads, four of them live against the shipped code; closing them took the lock from six distinct attacks to ten, and at ten of ten refused the wilson lower bound reached 0.723 against a bar of 0.722 and the door opened on its own |
+| **v3066** | `3da4d60e` | v3066 — the re-gate collected the approved rows then threw them away and built the payload from a second read of the proposal, so a container answering the gate and the write differently landed an uncorroborated row - found by handing the function cold to another model family |
 | **v3065** | `16aae9d7` | v3065 — real reels driven down the river and watched: it converged in two cycles with nothing moving, 0 candidates to release, and seven gap rules still never fired including eligible - the measurement behind the vault never having worked |
 | **v3064** | `6b3939d8` | v3064 — the shelf lane header printed 8 REELS from a count of visible cards while the river strip four inches above printed 4 from the routers own reel count - 425 cards against 16 reels, two populations under one word; the number was never wrong, only the noun |
 | **v3063** | `527bb365` | v3063 — the cross-family eye found two real defects in the shipped v3058 - the stamp was hashed from a separate read so a save mid-request could stamp bytes that were never served, and mixing the version into the signature made a version-only bump report a current window as stale |

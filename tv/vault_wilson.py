@@ -53,11 +53,140 @@ def _attempt_empty(ca, n=8):
     return n, caught
 
 
+
+# ══ v3067 — FOUR ATTACKS DESIGNED BY A DIFFERENT MODEL FAMILY ═══════════════════════════════
+# `vault_apply` was handed COLD — comments stripped, no premise — to the third eye, the same
+# method that found the `unsure` hole in v2641. It returned five payloads and had run them.
+# FOUR of the five were LIVE against the shipped code; every one is now refused.
+#
+# ⚠ THESE ARE FOUR DISTINCT MECHANISMS, NOT ONE IDEA IN FOUR COATS, and that distinction is the
+# whole arithmetic: self_arming scores on wilson_lower(min(k, attacks), attacks), so looping one
+# attack buys nothing. They fail at four different joints — the container, the row, the type
+# check, and an ungated lane.
+# ⚠ NOTHING REACHES HIS LEDGER. Each attempt runs with the board eval stubbed, and a refusal
+# never reaches the window at all.
+
+def _stub_board():
+    """Return (restore_fn, sent) — the board's eval replaced by a recorder."""
+    import control_app as ca
+    sent = {}
+    real = (getattr(ca, "_ejs", None), ca.__dict__.get("_BOARD_WIN"), ca.__dict__.get("_WINDOW_LIVE"))
+
+    def _fake(w, js, timeout=8.0):
+        sent["js"] = js
+        return '{"ok":true,"applied":{}}'
+
+    ca._ejs = _fake
+    ca._BOARD_WIN = object()
+    ca._WINDOW_LIVE = True
+
+    def restore():
+        if real[0] is not None:
+            ca._ejs = real[0]
+        ca._BOARD_WIN, ca._WINDOW_LIVE = real[1], real[2]
+    return restore, sent
+
+
+_CLEAN_EV = [{"session": "s%d" % i, "witness": "s%d#0" % i, "conf": 0.9} for i in range(3)]
+_DIRTY = {"name": "SABOTAGE Shako — no evidence, must never be written", "lane": "stash",
+          "kind": "item", "count": 1, "evidence": []}
+
+
+def _leaked(ca, proposal, needle):
+    restore, sent = _stub_board()
+    try:
+        ca.vault_apply(proposal=proposal)
+        return needle in (sent.get("js") or "")
+    finally:
+        restore()
+
+
+def _attempt_poison_row(ca, n=6):
+    """A ROW that lies about its own evidence — .get() answers the gate once, stores nothing."""
+    class PoisonRow(dict):
+        def get(self, k, default=None):
+            if k in ("evidence", "witnesses") and not getattr(self, "_fed", False):
+                self._fed = True
+                return list(_CLEAN_EV)
+            return dict.get(self, k, default)
+    caught = 0
+    for _ in range(n):
+        prop = {"ok": True, "owned": [PoisonRow({"name": "SABOTAGE Poison Shako",
+                                                 "lane": "stash", "kind": "item", "count": 1})],
+                "unsure": [], "throwOut": []}
+        if not _leaked(ca, prop, "SABOTAGE Poison Shako"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_flip_container(ca, n=6):
+    """A CONTAINER that answers the gate and the write differently."""
+    class FlipList(list):
+        def __iter__(self):
+            if not getattr(self, "_g", False):
+                self._g = True
+                return iter([{"name": "decoy", "lane": "stash", "kind": "rune", "count": 1,
+                              "evidence": list(_CLEAN_EV)}])
+            return list.__iter__(self)
+    caught = 0
+    for _ in range(n):
+        prop = {"ok": True, "owned": FlipList([dict(_DIRTY)]), "unsure": [], "throwOut": []}
+        if not _leaked(ca, prop, "SABOTAGE Shako"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_non_dict_mapping(ca, n=6):
+    """A Mapping that is not a dict subclass — isinstance(prop, dict) was the whole on-switch."""
+    from collections import UserDict
+    caught = 0
+    for _ in range(n):
+        prop = UserDict({"ok": True, "owned": [dict(_DIRTY)], "unsure": [], "throwOut": []})
+        if not _leaked(ca, prop, "SABOTAGE Shako"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_throwout_evidence(ca, n=6):
+    """An ungated lane must not carry a field that can be mistaken for corroboration."""
+    caught = 0
+    for _ in range(n):
+        prop = {"ok": True,
+                "owned": [{"name": "decoy", "lane": "stash", "kind": "rune", "count": 1,
+                           "evidence": list(_CLEAN_EV)}],
+                "unsure": [],
+                "throwOut": [dict(_DIRTY)]}
+        restore, sent = _stub_board()
+        try:
+            ca.vault_apply(proposal=prop)
+            js = sent.get("js") or ""
+            import re as _re
+            m = _re.search(r'"throwOut":\s*(\[.*?\])', js)
+            t = m.group(1) if m else ""
+            # ⚠ THE KEY, NOT THE WORD. The first cut searched for the substring "evidence" and
+            # reported 0 of 6 caught — because _DIRTY's own NAME is "SABOTAGE Shako — no evidence,
+            # must never be written", so the needle matched my own label. The door was correct
+            # the whole time. [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+            if t and '"evidence"' not in t and '"witnesses"' not in t:
+                caught += 1
+        finally:
+            restore()
+    return n, caught
+
+
 CLAIMS = (
     ("ungated", "a hand-supplied proposal whose rows clear no witness gate must be refused AT THE "
                 "WRITE, not only at the sweep", _attempt_ungated),
     ("empty", "an empty proposal must refuse rather than fall through to whatever was last swept",
      _attempt_empty),
+    ("poison-row", "a ROW whose .get('evidence') answers the gate once must not reach the board — "
+                   "the stored dict carries no witnesses at all", _attempt_poison_row),
+    ("flip-container", "a CONTAINER that answers the gate and the write differently must not land "
+                       "the row it hid", _attempt_flip_container),
+    ("non-dict-mapping", "a Mapping that is not a dict subclass must not skip the re-gate — "
+                         "isinstance(prop, dict) was the entire on-switch", _attempt_non_dict_mapping),
+    ("throwout-evidence", "the ungated throw-out lane must not carry an evidence field that can be "
+                          "mistaken for corroboration", _attempt_throwout_evidence),
 )
 
 

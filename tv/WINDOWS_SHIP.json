@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3066",
+  "ver": "v3067",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3066: the re-gate collected the approved rows then threw them away and built the payload from a second read of the proposal, so a container answering the gate and the write differently landed an uncorroborated row - found by handing the function cold to another model family",
+  "note": "v3067: the third eye was handed vault_apply cold and returned five payloads, four of them live against the shipped code; closing them took the lock from six distinct attacks to ten, and at ten of ten refused the wilson lower bound reached 0.723 against a bar of 0.722 and the door opened on its own",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

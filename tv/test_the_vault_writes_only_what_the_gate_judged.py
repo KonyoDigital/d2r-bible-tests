@@ -57,6 +57,15 @@ class FlipList(list):
         return list.__iter__(self)
 
 
+class PoisonRow(dict):
+    """Attack 3: the ROW lies about its own evidence — snapshotting the row keeps the liar."""
+    def get(self, k, default=None):
+        if k in ("evidence", "witnesses") and not getattr(self, "_fed", False):
+            self._fed = True
+            return list(CORROBORATED["evidence"])
+        return dict.get(self, k, default)
+
+
 class FlipMap(dict):
     """The same idea one level up: `get` is not a snapshot."""
     def get(self, key, default=None):
@@ -128,26 +137,80 @@ class TestTheVaultWritesOnlyWhatTheGateJudged(unittest.TestCase):
         self.assertEqual("", js, "nothing may reach the board when the gate refuses")
 
 
+    def test_a_row_cannot_lie_about_its_own_evidence(self):
+        """Attack 3. v3066 snapshotted the ROW OBJECTS, which keeps a row that lies."""
+        v, js = _drive({"ok": True,
+                        "owned": [PoisonRow({"name": "Poison Shako", "lane": "stash",
+                                             "kind": "item", "count": 1})],
+                        "unsure": [], "throwOut": []})
+        refused = isinstance(v, dict) and v.get("ok") is False
+        print("PoisonRow -> refused=%s leaked=%s" % (refused, "Poison Shako" in js))
+        self.assertNotIn("Poison Shako", js,
+                         "a row whose .get('evidence') answers the gate once must not reach the "
+                         "board — the stored dict carries no witnesses at all")
+        self.assertTrue(refused, "and it must be refused, not silently dropped")
+
+    def test_a_non_dict_mapping_cannot_skip_the_gate(self):
+        """Attack 4. `isinstance(prop, dict)` was the whole on-switch, and UserDict is not a dict."""
+        from collections import UserDict
+        v, js = _drive(UserDict({"ok": True, "owned": [dict(DIRTY)],
+                                 "unsure": [], "throwOut": []}))
+        refused = isinstance(v, dict) and v.get("ok") is False
+        print("UserDict  -> refused=%s leaked=%s" % (refused, DIRTY["name"] in js))
+        self.assertNotIn(DIRTY["name"], js,
+                         "a Mapping that is not a dict subclass skipped the re-gate entirely and "
+                         "its row went through ungated")
+        self.assertTrue(refused, "the gate must SPEAK for any caller-supplied mapping")
+
+    def test_the_throwout_lane_carries_no_evidence_field(self):
+        """Attack 5. Never gated, and it reached the payload.
+
+        ⚠ THE ROW IS NOT REMOVED, AND THAT IS DELIBERATE: a throw-out is a suggestion to DISCARD
+        and has no reason to carry three witnesses; requiring them would refuse every honest one.
+        What it must not do is carry a field that can be MISTAKEN for corroboration.
+        """
+        _v, js = _drive({"ok": True, "owned": [dict(CORROBORATED)], "unsure": [],
+                         "throwOut": [dict(DIRTY)]})
+        import re as _re
+        m = _re.search(r'"throwOut":\s*(\[.*?\])', js)
+        t = m.group(1) if m else ""
+        print("throwOut payload: %s" % t[:110])
+        self.assertTrue(t, "the throw-out lane vanished entirely — that is a different defect")
+        self.assertNotIn("evidence", t, "a throw-out must not carry an evidence key")
+        self.assertNotIn("witnesses", t, "nor a witnesses key")
+        self.assertIn(DIRTY["name"], t, "the NAME is the point of a throw-out and must survive")
+
+
 RED_PROOF = [
     {
-        "why": "the payload goes back to a SECOND read of the proposal, so a container that "
-               "answers the gate and the write differently lands an uncorroborated row",
+        "why": "the caller-supplied proposal is no longer converted to inert data, so a row that "
+               "lies about its own evidence, and a Mapping that is not a dict, both get through",
         "file": "control_app.py",
-        "find": '    owned = _gated["owned"] if _gated is not None else (prop.get("owned") or [])',
-        "replace": '    owned = prop.get("owned") or []',
+        "find": "    if caller_supplied:\n        proposal = _inert(proposal)",
+        "replace": "    if caller_supplied:\n        pass",
         "matches": 1,
     },
     {
-        "why": "the shaper is handed the raw proposal again — the same door from a third side",
+        "why": "the throw-out lane carries its evidence keys into the payload again, where they "
+               "can be mistaken for corroboration",
         "file": "control_app.py",
-        "find": "        shaped = _vault_retro().apply_payload(\n"
-                "            dict(prop, **_gated) if _gated is not None else prop)",
-        "replace": "        shaped = _vault_retro().apply_payload(prop)",
+        "find": '                _throw.append(dict((k, v) for k, v in (_t or {}).items()\n'
+                '                                   if k not in ("evidence", "witnesses")))',
+        "replace": "                _throw.append(_t)",
         "matches": 1,
     },
 ]
 
-# ⚠⚠ A THIRD SABOTAGE WAS WRITTEN AND WITHDRAWN, AND THAT IS RECORDED RATHER THAN QUIETLY DROPPED.
+# ⚠⚠ THREE SABOTAGES WERE WRITTEN AND WITHDRAWN, and the reason is worth more than the proofs.
+#
+# Two of them reverted v3066's snapshot — the `_gated` substitution and the shaper's `dict(prop,
+# **_gated)`. heart2 returned BLIND on both. It is right: once v3067 converts a caller-supplied
+# proposal to INERT DATA at the door, no later read can be answered by code, so undoing the
+# snapshot defeats nothing. v3066's fix was correct for the two attacks it was written against
+# and was SUPERSEDED by the narrower door a version later. The snapshot stays because it states
+# intent and costs nothing, but it is no longer load-bearing and is not claimed as proof.
+#
+# A THIRD SABOTAGE WAS ALSO WITHDRAWN, AND THAT IS RECORDED RATHER THAN QUIETLY DROPPED.
 # It reverted `for _r in list(prop.get(_which) or [])` to the bare `prop.get(...)`, on the theory
 # that materialising the walked rows was load-bearing. heart2 returned BLIND — "stayed GREEN
 # through its own defeat". It is right: with `_gated` snapshotting the judged rows, the `list()` no
