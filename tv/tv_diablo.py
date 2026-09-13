@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3061"   # THE TRANSPORT NO LONGER OFFERS PLAYBACK FOR A REEL HE NEVER OPENED
+VERSION = "v3062"   # THE CONSOLE NOW FLAGS A TOWN FRAME FILED AS STASH
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

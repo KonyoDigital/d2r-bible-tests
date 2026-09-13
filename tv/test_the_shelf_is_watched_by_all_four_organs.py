@@ -118,6 +118,45 @@ class TestTheShelfIsWatchedByAllFourOrgans(unittest.TestCase):
                       "a check nobody runs is an unjoined end")
 
 
+    def test_the_scene_corroborator_catches_a_town_frame_filed_as_stash(self):
+        """The second pair of witnesses — about WHICH SCENE, not how many frames.
+
+        He opened frame 6/20 of a reel, saw THE ROGUE ENCAMPMENT and said "its not related at
+        all to stash! so this was wrongly stashed". `kaiClasses` collapses to
+        stash/gameplay/tooltip and has NO TOWN BUCKET; `sceneReads` carries the journal's real
+        Diablo vocabulary. Measured live: 148 of 160 sessions name different scenes.
+        """
+        import shelf_corroborate as SC
+        agree = [{"n": 1, "sessionId": "a", "kaiClasses": {"stash": 3},
+                  "sceneReads": {"stash": 3}}]
+        town = [{"n": 2, "sessionId": "b", "kaiClasses": {"stash": 19},
+                 "sceneReads": {"town": 19}}]
+        one = [{"n": 3, "sessionId": "c", "kaiClasses": {"stash": 5}}]     # one witness only
+        a1 = SC.scene_witnesses(agree)
+        a2 = SC.scene_witnesses(town)
+        a3 = SC.scene_witnesses(one)
+        print("agreeing scenes  -> checked %s disagreed %s" % (a1["checked"], a1["disagreed"]))
+        print("town-as-stash    -> checked %s disagreed %s" % (a2["checked"], a2["disagreed"]))
+        print("single witness   -> checked %s" % a3["checked"])
+        self.assertEqual(0, a1["disagreed"], "two tallies naming the same scene is NOT a finding")
+        self.assertEqual(1, a2["disagreed"],
+                         "a reel the journal calls TOWN and the collapse calls STASH must refuse")
+        self.assertEqual(0, a3["checked"],
+                         "one tally cannot corroborate anything and must not be counted")
+
+    def test_an_unwitnessable_scene_is_unmeasured_not_agreement(self):
+        import shelf_corroborate as SC
+        r = SC.scene_witnesses([])
+        print("no scene witnesses -> checked %s" % r["checked"])
+        self.assertEqual(0, r["checked"])
+        self.assertIn("UNMEASURED", r["say"].upper())
+
+    def test_the_scene_surface_is_declared(self):
+        import shelf_corroborate as SC
+        self.assertIn("shelf.scene", SC.SURFACES)
+        print("declared surfaces now: %s" % list(SC.SURFACES))
+
+
 RED_PROOF = [
     {
         "why": "the corroborator stops covering the shelf, so the surface that printed 19 frames "
@@ -150,6 +189,15 @@ RED_PROOF = [
         "file": "shelf_corroborate.py",
         "find": '        out["ok"] = None',
         "replace": '        out["ok"] = True',
+        "matches": 1,
+    },
+    {
+        "why": "the scene corroborator can no longer refuse, so a reel the journal calls TOWN and "
+               "the 3-bucket collapse calls STASH reads as agreement — the exact mislabel he "
+               "caught by eye on frame 6/20",
+        "file": "shelf_corroborate.py",
+        "find": "        if a != b:",
+        "replace": "        if False:",
         "matches": 1,
     },
 ]

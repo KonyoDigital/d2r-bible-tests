@@ -47,7 +47,7 @@ if HERE not in sys.path:
 #: the surfaces this organ speaks for, in the registry's OWN vocabulary — declared, never
 #: guessed from name similarity. v3055 deleted a resolver that matched on the tail and
 #: manufactured 8 cells of coverage that did not exist; an organ must NAME what it covers.
-SURFACES = ("shelf-cards", "river-strip", "shelf.rows")
+SURFACES = ("shelf-cards", "river-strip", "shelf.rows", "shelf.scene")
 
 HIST_DIR = os.path.join(HERE, "frames", "hist")
 
@@ -128,6 +128,59 @@ def corroborate(sessions, hist=None):
     return out
 
 
+def scene_witnesses(sessions):
+    """The two scene tallies, compared. -> {checked, disagreed, findings, say}
+
+    ⚠⚠ A SECOND PAIR OF WITNESSES, ABOUT A DIFFERENT FACT. Konyo opened frame 6/20 of one reel,
+    saw THE ROGUE ENCAMPMENT, and said *"i made sure and its not related at all to stash! so this
+    was wrongly stashed"*. He was right.
+
+    The console carries TWO scene tallies and they are not the same measurement:
+
+        kaiClasses   the 3-bucket collapse — stash / gameplay / tooltip. control_app says so in
+                     its own comment: "richer scene breakdown ALONGSIDE kaiClasses (which
+                     collapses to stash/gameplay/tooltip)". THERE IS NO TOWN BUCKET, so a town
+                     frame has nowhere else to go.
+        sceneReads   the journal's own `scene` field per deep read — transition, town, loot,
+                     gameplay, stash — the real Diablo vocabulary.
+
+    MEASURED 2026-09-13: of 148 sessions carrying BOTH, **137 name different scenes** (93%).
+    One example straight out of his shelf:
+
+        kaiClasses ['gameplay','stash','tooltip']   vs   sceneReads ['transition']
+
+    ⚠ THE ROOT CAUSE IS UPSTREAM AND THIS DOES NOT PRETEND OTHERWISE. His frame's native read was
+    `{'kind': 'menu', 'label': 'STASH'}` — produced by the capture/classify lane, not by the
+    console. Renaming a label here would be cosmetic. What the console CAN do is stop the
+    contradiction being invisible, which is this organ's whole job. [[unknown-stays-unknown]]
+    """
+    rows, bad = 0, []
+    for s in (sessions or []):
+        kc = s.get("kaiClasses")
+        sr = s.get("sceneReads")
+        if not isinstance(kc, dict) or not kc or not isinstance(sr, dict) or not sr:
+            continue                      # only one tally is not a corroboration
+        rows += 1
+        a = set(k for k, v in kc.items() if v)
+        b = set(k for k, v in sr.items() if v)
+        if a != b:
+            bad.append({"n": s.get("n"), "sessionId": s.get("sessionId"),
+                        "kaiClasses": sorted(a), "sceneReads": sorted(b)})
+    out = {"checked": rows, "disagreed": len(bad), "findings": bad[:40], "say": ""}
+    if not rows:
+        out["say"] = ("no session carries BOTH scene tallies, so none could be corroborated — "
+                      "UNMEASURED, not agreement")
+        return out
+    if bad:
+        out["say"] = ("%d of %d session(s) have two scene tallies that name DIFFERENT scenes. "
+                      "kaiClasses collapses to stash/gameplay/tooltip and has no TOWN bucket, so "
+                      "a town frame is filed under whichever of the three is nearest."
+                      % (len(bad), rows))
+    else:
+        out["say"] = "all %d session(s) agree across both scene tallies" % rows
+    return out
+
+
 def report(sessions=None, hist=None):
     """The organ row the heart reads. -> {rows, findings, say}
 
@@ -137,10 +190,12 @@ def report(sessions=None, hist=None):
     if sessions is None:
         sessions = _live_sessions()
     c = corroborate(sessions, hist)
+    sc = scene_witnesses(sessions)
     return {
         "rows": [{"surface": s, "organ": "corroborator", "ok": c["ok"],
                   "checked": c["checked"], "disagreed": c["disagreed"], "why": c["say"]}
                  for s in SURFACES],
+        "scene": sc,
         "findings": c["findings"],
         "checked": c["checked"],
         "disagreed": c["disagreed"],
