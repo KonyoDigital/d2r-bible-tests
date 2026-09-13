@@ -3340,6 +3340,46 @@ def check(name, spec, shots=True):
                       % (w, h, m.get("found"), _m2.get("painted", 0),
                          "the first look was mid-layout" if _m2.get("painted")
                          else "still nothing — the refusal below is real"))
+                 if not _m2.get("painted"):
+                     # ⚠⚠ MAKE THE FAILURE DESCRIBE ITSELF. river-strip has refused this way all
+                     # night and four theories died on measurement — the mouth cap, his window
+                     # height, a settling race, and first-width/cold-data. Every one was chased by
+                     # REPRODUCING in a cleaner world than the one that failed, and a fresh panel
+                     # opened directly never fails. So stop asking it afterwards and ask it HERE,
+                     # in the exact state that refused: what do the zero-size nodes look like, and
+                     # is the thing that holds them still on the page at all.
+                     # Costs nothing when green; the next red arrives carrying its own evidence.
+                     try:
+                         _d = tab.ev(
+                             "(function(){var N=document.querySelectorAll(%s);"
+                             "if(!N.length) return 'selector matched nothing';"
+                             "var e=N[0],r=e.getBoundingClientRect(),cs=getComputedStyle(e);"
+                             "var p=e.parentElement,pr=p?p.getBoundingClientRect():null,"
+                             "pcs=p?getComputedStyle(p):null;"
+                             "return 'first node .'+String(e.className).slice(0,40)"
+                             "+' rect '+Math.round(r.width)+'x'+Math.round(r.height)"
+                             "+' disp='+cs.display+' vis='+cs.visibility+' opac='+cs.opacity"
+                             "+' | parent .'+(p?String(p.className).slice(0,34):'none')"
+                             "+(pr?(' rect '+Math.round(pr.width)+'x'+Math.round(pr.height)):'')"
+                             "+(pcs?(' disp='+pcs.display):'')"
+                             "+' | inDoc='+document.contains(e)"
+                             # walk up: a 0x0 node whose PARENT is also 0x0 is not styled away —
+                             # an ancestor collapsed, and only naming which one turns this from a
+                             # mystery into a defect. Reports the first ancestor that still has a
+                             # box, and flags any `hidden` on the way — the state the harness
+                             # already warns about: "a hidden pane reports zero clipping".
+                             "+' | chain '+(function(){var a=e,out=[],n=0;"
+                             "while(a&&n<8){var ar=a.getBoundingClientRect();"
+                             "out.push((a.id?('#'+a.id):('.'+String(a.className).split(' ')[0]))"
+                             "+(a.hidden?'[hidden]':'')+':'+Math.round(ar.width)+'x'+Math.round(ar.height));"
+                             "if(ar.width>0&&ar.height>0) break; a=a.parentElement; n++;} "
+                             "return out.join(' < ');})()"
+                             "+' scrollTop='+((document.getElementById('th-shelfov')||{}).scrollTop);})()"
+                             % json.dumps(spec["sel"]))
+                         _say("       evidence: %s" % str(_d)[:200])
+                     except Exception as _de:
+                         _say("       evidence could not be taken (%s) — UNKNOWN, not clean"
+                              % type(_de).__name__)
                  if _m2.get("painted"):
                      m = _m2
              key = "%dx%d" % (w, h)
