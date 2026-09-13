@@ -81,9 +81,14 @@ DOORS = ("structural", "semantic", "unextracted")
 DOOR_QUESTION = {
     "structural": "did a FULL structural pass find no panel at all? (free, no model call)",
     "semantic": "did the chronicle lane read a page, and is the vault lane settled?",
-    # ⚠ this door OPENS on a defect rather than on a clean state — see unextracted_door. It is the
-    # honest name for reels that left before the extraction lane ever read them.
-    "unextracted": "did it leave carrying panels the extraction lane had never read?",
+    # ⚠⚠ THIS QUESTION WAS THE OPPOSITE OF THE DOOR, and a cross-family eye caught it on the
+    # shipped v3053 diff. I wrote it while the door opened on "nothing was banked"; the F_HELD
+    # fixture then proved that version qualified unextracted footage for deletion, so the door was
+    # flipped to open on rows > 0 — and this sentence was not. A right door under a word that
+    # stopped being true, published in report()["questions"] for every future reader.
+    # [[label-outlived-referent]] [[review-after-ship]]
+    "unextracted": "did the VAULT lane settle it — panels on film and rows banked, with no "
+                   "chronicle page to read?",
 }
 
 #: The stores each door reads, and who owns them. Named so a reader can check the claim.
@@ -383,7 +388,18 @@ def unextracted_door(reel, src):
     ⚠ IT NEVER OPENS FOR A REEL THE LEDGER HAS ROWS FOR — that reel WAS extracted, and it must be
     explained by the semantic door or not at all. [[unknown-stays-unknown]]
     """
-    ev = {"full": None, "panels": None, "vaultRows": None}
+    ev = {"full": None, "panels": None, "vaultRows": None, "durable": None}
+    # ⚠⚠ FINDING 3 from the cross-family eye on the shipped v3053 diff: this never asked whether
+    # the VAULT store was readable, so an unparseable vault_swept.json fell through to `False`
+    # with a gap whose `measured` was the literal 0 — a settled refusal built on a store nobody
+    # could read. `verdict` would then say HELD with "no door was left unasked", which is the one
+    # thing this module's own rule forbids. semantic_door already asks this; this door did not.
+    # UNKNOWN must travel. [[unknown-stays-unknown]]
+    if src.get("vaultState") == "unreadable":
+        return None, [_gap("a readable vault ledger", None, "vault_swept.json to parse",
+                           "vault_swept.json exists and will not parse, so whether this reel was "
+                           "extracted is UNKNOWN — and an unasked door must not read as a refusal"
+                           )], ev
     if src.get("structuralState") == "unreadable":
         return None, [_gap("a readable structural survey", None, "retro_triage.json to parse",
                            "retro_triage.json will not parse, so whether this reel held panels is "
@@ -398,7 +414,14 @@ def unextracted_door(reel, src):
         return False, [_gap("a FULL structural pass", "partial", "full",
                             "a sampled pass cannot tell an unextracted reel from an unlooked-at "
                             "one")], ev
-    if not (row.get("panels") or 0):
+    # ⚠ FINDING 5: `or 0` let any TRUTHY non-number through. structural_door already refuses a
+    # non-int panel count (REG-573 — bool is a subclass of int, so True would read as 1 panel).
+    _p = row.get("panels")
+    if isinstance(_p, bool) or not isinstance(_p, int):
+        return None, [_gap("an integer panel count", _p, "an int",
+                           "the survey's panel count is %r, which is not a number this door can "
+                           "reason about — UNKNOWN, not zero" % (_p,))], ev
+    if not _p:
         return False, [_gap("panel frames on film", 0, ">0",
                             "this reel holds no panels, so it owes no extraction — the structural "
                             "door is the one that explains it")], ev
@@ -417,10 +440,43 @@ def unextracted_door(reel, src):
     vrow, _vwhy = _lookup(src.get("vault") or {}, reel)
     rows = (vrow or {}).get("rows") if isinstance(vrow, dict) else None
     ev["vaultRows"] = rows
+    # ⚠⚠⚠ FINDING 2 from the cross-family eye, and it is the one that mattered. This opened on a
+    # bare `rows > 0` — but the DELETER one module over does not treat a row count as extraction.
+    # `reel_retention._panels_never_banked` asks `_reel_ts_key(reel) not in _DURABLE`, and
+    # `rows-not-banked` exists precisely for the case where rows EXIST and none of them reached a
+    # store that outlives the frames. So a reel with 7 rows that never became durable would be
+    # called QUALIFIED here while the deleter still refuses to release it — supervision going
+    # green on a predicate the safety ladder does not share, which is the dangerous direction.
+    # The question this door publishes says "rows banked", so it must ask the same thing the
+    # banker asks, from the banker itself rather than a second copy of the rule. [[copy-drift]]
+    durable = None
     if (rows or 0) > 0:
-        # THE VAULT LANE SETTLED IT. Rows are banked with name, location and provenance; the
-        # chronicle page count is 0 because there was never a Chronicle screen to read.
-        return True, [], ev
+        try:
+            import reel_retention as _rr_d
+            # ⚠⚠ USE THE RETURN VALUE. The first cut called _durable_sessions() and then tested
+            # the module-level `_DURABLE`, which it does NOT populate — so every reel read as
+            # not-durable, this door opened for nothing, and coverage fell to 0.9484. I then
+            # reported that empty global as "nothing has ever been durably extracted", which was
+            # a claim about his footage sourced from the wrong name. Measured correctly: 21
+            # durable sessions, and all 18 of the unexplained rows are in it.
+            # [[feedback-suspect-the-instrument]]
+            _sess, _ok, _dwhy = _rr_d._durable_sessions()
+            durable = (_rr_d._reel_ts_key(reel) in _sess) if _ok else None
+        except Exception as _e:
+            durable = None                                 # cannot ask -> UNKNOWN, never a yes
+        ev["durable"] = durable
+        if durable is True:
+            return True, [], ev
+        if durable is None:
+            return None, [_gap("a readable durability answer", None, "reel_retention to answer",
+                               "the ledger holds %s row(s) but whether any of them became DURABLE "
+                               "could not be asked (%s) — UNKNOWN, and UNKNOWN never opens a door"
+                               % (rows, type(_e).__name__ if '_e' in dir() else "no reason"))], ev
+        return False, [_gap("rows that outlived the frames", 0, ">0",
+                            "the ledger holds %s row(s) from this reel and NONE of them reached a "
+                            "store that outlives the footage — the deleter calls that "
+                            "rows-not-banked and still refuses to release it, so this door must "
+                            "not call it settled" % rows)], ev
     # ⚠⚠⚠ AND IT MUST NOT OPEN HERE, however tempting. A reel with panels and NO vault row has
     # not been extracted, and this door is asked BOTH ways: `verdict()` asks "may this reel take
     # the end route?" (forward — it must be HELD) and `derived_from()` asks "how did this one
