@@ -24714,6 +24714,27 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
             hidden: (document.visibilityState !== 'visible'),
             view: document.body.getAttribute('data-view') || '',
             els: document.querySelectorAll('body *').length,
+            /* ⚠⚠ v3057 — THE ONE VERSION NOBODY WAS MEASURING: THE DOCUMENT ON SCREEN.
+               The console publishes FOUR version readings — `ver` (the working tree this process
+               executes), `liveVer` (what origin/main last shipped), `bibleVer`, `agentVer` — and
+               not one of them can answer the question that matters when every save is a deploy:
+               IS THE PAGE IN FRONT OF HIM THE PAGE ON DISK?
+
+               v2708 fixed exactly this shape one level down, in its own words: "THE CONSOLE
+               REPORTED THREE VERSIONS AND ALL THREE READ THE WORKING TREE ... nothing on any
+               screen could answer 'is the page in front of me the page that shipped?'". The same
+               hole survived for the RENDERED DOCUMENT, and it cost real time: on 2026-09-12 and
+               again 2026-09-13 a stale-looking `liveVer` was read as "the reload did not take",
+               when `liveVer` lagging the tree is CORRECT and expected for every unpushed commit.
+               A question with no instrument gets answered by the nearest number that looks like
+               it, which is how a reading acquires a referent it never had.
+
+               `build` is the document's OWN stamp, sent by the document itself. Compared against
+               the disk stamp by the doctor, "did the reload take?" stops being an argument.
+               ⚠ null, never a guess, if D2R_BUILD has not been assigned yet — an unknown document
+               version is UNKNOWN and must never read as agreement.
+               [[label-outlived-referent]] [[unknown-stays-unknown]] [[the-unjoined-end]] */
+            build: ((window.D2R_BUILD && window.D2R_BUILD.id) || null),
             /* ⚠⚠ v2457 — THE HOLE IN THIS BEAT'S OWN PREMISE, WHICH IT STATES 15 LINES ABOVE:
                "a renderer that has wedged runs no timers, so it stops beating". Measured on his
                machine 2026-09-03 while he was looking at a black window: it beat the whole time.

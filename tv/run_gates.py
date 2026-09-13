@@ -2313,6 +2313,18 @@ GATES = [
              "one_name.same_thing compares the tail and is lane-blind, so four surfaces borrowed "
              "chronicle's organs. This does not demand those lanes be covered — they are honestly "
              "ABSENT — it refuses a table that reports a watcher it does not have."),
+    Gate("test_the_window_says_which_document_it_renders",
+         [sys.executable, os.path.join(HERE, "test_the_window_says_which_document_it_renders.py")], 120,
+         why="IS THE PAGE IN FRONT OF HIM THE PAGE ON DISK? His console execs the working tree, so "
+             "every save is a deploy - and until v3057 nothing could answer that. The console "
+             "published FOUR versions (ver, liveVer, bibleVer, agentVer) and every one described a "
+             "FILE, never the rendered document. The absence was not silent: on 2026-09-12 and "
+             "again 2026-09-13 a liveVer trailing the tree was read as 'the reload did not take', "
+             "which is wrong - liveVer lagging disk is correct for unpushed work. The page now "
+             "sends its own D2R_BUILD id on the beat, the server publishes it RAW as "
+             "uiBeat.docVer, and a doctor row compares it to disk. This refuses all three rots: "
+             "the page going quiet, the server not publishing, and the doctor calling an older "
+             "document - or an ABSENT stamp - agreement."),
     Gate("test_a_stale_prover_is_not_a_safety_verdict",
          [sys.executable, os.path.join(HERE, "test_a_stale_prover_is_not_a_safety_verdict.py")], 120,
          why="WRITING ONE GATE SHUT NINETEEN LOCKS, and that is why most of them were never wired "

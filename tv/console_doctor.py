@@ -2990,6 +2990,61 @@ def _check_the_running_code_is_the_code_on_disk():
     return OK, ("the console is running exactly what %s holds on disk (%s...)" % (name, disk[:10]))
 
 
+def _check_the_window_runs_the_document_on_disk():
+    """IS THE PAGE IN FRONT OF HIM THE PAGE ON DISK? -> (state, why)
+
+    ⚠⚠ THE QUESTION FOUR VERSION READINGS COULD NOT ANSWER. This console publishes `ver` (the
+    working tree this process imports), `liveVer` (what origin/main last shipped), `bibleVer` and
+    `agentVer` — and every one of them describes a FILE. None describes the DOCUMENT the webview
+    is actually rendering, which is the only one that matters here, because his console execs the
+    working tree and every save is a deploy.
+
+    It cost real time. On 2026-09-12 and again on 2026-09-13 a `liveVer` trailing the tree was
+    read — by me, and repeated back through the eyes queue — as "the reload did not take". It was
+    nothing of the kind: `liveVer` lagging disk is CORRECT and EXPECTED for every commit not yet
+    pushed, and `test_live_version_is_not_the_working_tree` exists to keep it that way. A question
+    with no instrument gets answered by the nearest number that resembles one.
+    [[label-outlived-referent]] [[inherited-claim-is-not-evidence]] [[unknown-stays-unknown]]
+
+    v3057 puts the document's own D2R_BUILD id on the beat, so this row compares like with like.
+    """
+    st = _get("/api/status") or {}
+    ub = st.get("uiBeat") if isinstance(st.get("uiBeat"), dict) else None
+    if not ub:
+        return UNKNOWN, "the console did not report a heartbeat, so no document version is known"
+    if not ub.get("n"):
+        return UNKNOWN, "no console has ever checked in — headless, not healthy"
+    # ⚠ ITS OWN CONSTANT, DELIBERATELY. The 3600.0 twelve hundred lines below is a LOCAL inside
+    # another check, so referencing it here would have raised NameError on the first live call —
+    # caught before this shipped. 300s, not an hour: a document stamp answers "is what he is
+    # looking at current", and a five-minute-old beat is already too old to say that.
+    _DOC_STALE_S = 300.0
+    age = ub.get("ageS")
+    if age is None:
+        return UNKNOWN, ("the console reports no beat age, so how old this document reading is "
+                         "cannot be told — and a verdict on a reading of unknown age is a guess")
+    if age > _DOC_STALE_S:
+        return UNKNOWN, ("the console's last beat is %.0fs old, so its document stamp describes a "
+                         "window nobody has heard from since" % age)
+    doc = ub.get("docVer")
+    if not doc:
+        return UNKNOWN, ("this console does not report the document it is rendering (uiBeat.docVer "
+                         "is absent) — it predates v3057, or the page had not assigned D2R_BUILD "
+                         "when it beat. UNKNOWN, which is not the same as in step")
+    disk = st.get("ver")
+    if not disk:
+        return UNKNOWN, "this console does not report its own disk version, so there is nothing to compare"
+    if str(doc) == str(disk):
+        return OK, ("the window is rendering %s and the working tree on disk is %s — the page in "
+                    "front of him IS the page on disk" % (doc, disk))
+    return MISSING, ("THE WINDOW IS RUNNING AN OLDER DOCUMENT THAN THE TREE — it is rendering %s "
+                     "while disk is %s. His console execs the working tree, so every UI change "
+                     "since %s is on disk, served by this server, and NOT on his screen. A reload "
+                     "that does not move this number did not take. This is about the DOCUMENT, "
+                     "not about shipping: liveVer trailing disk is a different fact and is normal "
+                     "for unpushed work." % (doc, disk, doc))
+
+
 def _check_the_shelf_is_where_it_says_it_is():
     """THE CORROBORATOR FOR HIS BLANK STAGE — a fill and a rect that can contradict each other.
 
@@ -3295,6 +3350,7 @@ CHECKS = [
     # v2996 (#58/#34) — THE FILL AND THE RECT, TOGETHER. Grokbot saw an empty stage while this
     # same beat reported cards~535; both were honest, because a DOM can be built inside a
     # container that occupies no pixels and nothing ever asked WHERE it was. [[the-unjoined-end]]
+    ("window runs the document on disk", _check_the_window_runs_the_document_on_disk),
     ("shelf is where it says", _check_the_shelf_is_where_it_says_it_is),
     ("progress number", _check_his_progress_number_has_not_been_overwritten),
     ("ledger entries", _check_no_ledger_ENTRY_has_silently_vanished),

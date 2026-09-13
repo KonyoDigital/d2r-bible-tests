@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3056",
+  "ver": "v3057",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3056: nine stations each printed a full row to say nothing had ever reached them, putting the first reel card 419px down a 361px window - the panel named after its cards opened showing none; every dry station is still NAMED on its lane banner with the same never reached words, costing one line per lane instead of one line each",
+  "note": "v3057: the console published four version readings and every one described a FILE - none described the page the webview is actually rendering, which is the only one that matters when every save is a deploy; the page now sends its own build id on the beat, the server publishes it raw, and a doctor row compares it to disk",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
