@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3095",
+  "ver": "v3096",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3095: the no-film split sat above the stub check, so 2286 stub runs that never had film were counted as reels whose film was retired - the chip read 2424 against a true 138. Plus the two failures his own gate caught on the last push: a module that could not print its verdict, and one token rendering two colours",
+  "note": "v3096: the meter returned two lanes since v3092 and rendered one - the panel lives in bible.html and I searched control_ui.html. And a windowed console goes dark within twenty seconds of losing focus, which is every black stage the eyes lane ever reported",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

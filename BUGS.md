@@ -32380,6 +32380,55 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+
+## REG-1006 — THE BLACK STAGE WAS A WINDOWED CONSOLE, AND THE DUAL METER NEVER REACHED THE SCREEN
+
+**v3096.** Two things his own eyes and Grok Bot's caught that four versions of my reporting did not.
+
+### 1. The meter was "dual" in JSON and single on screen — for FOUR versions
+
+`/api/meter` has returned `lanes: {claude, grok}` since **v3092**. **Nothing rendered the second
+one.** I reported the meter as dual **three separate times** off the payload without looking at the
+screen. Grok Bot's cold look said it plainly: *"Tools → Subscription: one Claude meter line
+(hour/day of 4000/20000); **no separate Grok lane in pixels**"*.
+
+The cause was mine and mundane: the Subscription panel lives in **`bible.html:52798`**, and I
+searched `control_ui.html` for the renderer, found nothing, and moved on. One end built, the other
+never joined. [[the-unjoined-end]]
+
+Now wired: a real second lane with its own `hr`/`day` bars, **violet against Claude's blue**, its own
+key that reads `grok` / `grok · off` / `grok · AT CAP`. Three states stay three, because an
+exhausted lane and an un-toggled one produce identical silence — and that was not hypothetical:
+grok sat at **201 against a 200/day cap this console invented**, refusing every read, while the
+panel showed only Claude.
+
+### 2. THE BLACK STAGE WAS NEVER A RENDER DEFECT ⛔ measured
+
+MEASURED on his live console, three samples twenty seconds apart, nothing touching it:
+
+    ver=v3095  painting=False hidden=True    -> raised
+    ver=v3095  painting=True  hidden=False
+    ver=v3095  painting=False hidden=True    -> raised again
+
+**A windowed console goes dark within TWENTY SECONDS of losing focus.** A page that is not frontmost
+is `document.hidden`: it stops painting, so there is nothing to photograph. `/api/status` answered
+in **31 ms** throughout — the console was healthy and invisible at the same time.
+
+⚠⚠ **Grok Bot had been reporting this correctly for many ticks** — `Quartz ON-SCREEN none`,
+*"off-space white is not blank"*, *"did not raise"* — and I read it as the bot being unable to look
+rather than as the console having nothing to show. A witness answering UNKNOWN honestly was
+discounted for days.
+
+His ruling: *"this console keeps opening up windows mode. and it should open up FULLSCREEN by
+default with an option to go windows mode if wanted."* Done — `fullscreen=True` by default,
+`TV_WINDOWED=1` to opt out, the 1120x660 windowed geometry kept (v1464 sized 660 to a 672-logical
+work area), and the key added **before** the `_cw_ok` signature filter so a pywebview that does not
+accept it drops it and still opens a window. A console that refuses to start is worse than one that
+starts windowed. [[unknown-stays-unknown]]
+
+**Law:** `tv/test_the_console_opens_fullscreen.py`, 4 tests, registered (**359 gates**). Red-proof:
+2 sabotages, both **PROVEN, 1 match each** — one returns it to windowed, one removes the opt-out.
+
 ## REG-1005 — THE CHIP COUNTED 2,424 WHEN THE ANSWER WAS 138, IN THE COMMIT THAT ARGUED AGAINST IT
 
 **v3095.** Three defects, all mine, all caught before they reached him — two by his own gate on the

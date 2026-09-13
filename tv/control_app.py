@@ -5682,6 +5682,25 @@ def open_control_window():
     # both give ~672 logical), and the window stays freely resizable for bigger screens. No
     # API guessing on the window-creation path — REG-051 and REG-053 were both cosmetics that
     # cost the window, and this is the same blast radius.
+    # ⚠⚠ v3096 — FULLSCREEN BY DEFAULT. Konyo: "this console keeps opening up windows mode. and it
+    # should open up FULLSCREEN by default with an option to go windows mode if wanted."
+    #
+    # It is not only a preference. MEASURED tonight, three samples 20s apart with nothing touching
+    # it: a windowed console reads hidden=true painting=false, goes painting=true for a few seconds
+    # when raised, and is dark again within TWENTY SECONDS. A page that is not frontmost is
+    # `document.hidden`, so it stops painting, so there is nothing to photograph — and that is the
+    # black stage the eyes lane has been reporting for tick after tick, on a console that was
+    # perfectly healthy over HTTP the whole time (/api/status in 31ms). A floating window loses
+    # focus to anything; a fullscreen one owns its Space and keeps painting.
+    #
+    # THE OPT-OUT IS REAL, because he asked for one and because a default nobody can leave is a
+    # trap: TV_WINDOWED=1 starts windowed at the old 1120x660. The height 660 stays as the windowed
+    # geometry (v1464 sized it to a 672-logical work area) — fullscreen does not discard it.
+    #
+    # ⚠ `fullscreen` is dropped automatically by the _cw_ok filter below on any pywebview that does
+    # not take it, so an older build still gets a window rather than a TypeError. That filter is why
+    # this is safe to add without version-sniffing. [[unknown-stays-unknown]]
+    _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
     kwargs = dict(
         title="TV DIABLO",
         url=url,
@@ -5693,6 +5712,8 @@ def open_control_window():
         confirm_close=False,
         easy_drag=False,
     )
+    if not _windowed:
+        kwargs["fullscreen"] = True
 
     # v1462 — pywebview 6 MOVED icon= off create_window() and onto start(icon=).
     # The old code passed icon= to create_window and caught TypeError into a hardcoded
@@ -27693,7 +27714,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3095",
+        "ver": "v3096",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

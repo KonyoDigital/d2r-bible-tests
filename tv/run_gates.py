@@ -2437,6 +2437,24 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_the_console_opens_fullscreen",
+         [sys.executable, os.path.join(HERE, "test_the_console_opens_fullscreen.py")], 120,
+         why="THE CONSOLE OPENS FULLSCREEN, AND A WINDOWED ONE STOPS PAINTING WITHIN TWENTY "
+             "SECONDS. His ask: 'this console keeps opening up windows mode. and it should open up "
+             "FULLSCREEN by default with an option to go windows mode if wanted.' It is not only a "
+             "preference - it is the cause of every black stage the eyes lane has reported. "
+             "MEASURED on his live console, three samples 20s apart with nothing touching it: "
+             "hidden=true painting=false, then painting=true after a raise, then dark again within "
+             "TWENTY SECONDS. A page that is not frontmost is document.hidden, so it stops "
+             "painting, so there is nothing to photograph - while /api/status answered in 31ms the "
+             "whole time. Grok Bot reported 'Quartz ON-SCREEN none' and 'off-space white is not "
+             "blank' tick after tick and I read it as the bot being unable to look, when it was "
+             "reporting that there was nothing on screen to look AT. ⚠ The opt-out stays REAL "
+             "(TV_WINDOWED=1 starts windowed at the old 1120x660, which v1464 sized to a "
+             "672-logical work area) because a default nobody can leave is a trap. ⚠ And the key "
+             "is added BEFORE the _cw_ok signature filter, so a pywebview build that does not "
+             "accept `fullscreen` drops it and still gets a window - a console that refuses to "
+             "start is worse than one that starts windowed."),
     Gate("test_a_chip_counts_only_what_it_can_explain",
          [sys.executable, os.path.join(HERE, "test_a_chip_counts_only_what_it_can_explain.py")], 120,
          why="A CHIP MAY ONLY COUNT ROWS WHOSE ABSENCE OF FILM IT CAN EXPLAIN, and the defect this "

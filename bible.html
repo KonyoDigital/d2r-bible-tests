@@ -3674,6 +3674,20 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 #tab-tools .sm-bar.sm-hot  i{background:linear-gradient(90deg,#e06a6a,#ff9f9f)}
 #tab-tools .sm-v{font-size:10px;color:#9fb6cc;width:52px;flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 #tab-tools .sub-meter.sm-unknown{border-color:rgba(255,255,255,.14)}
+/* v3096 — THE GROK LANE, and it must be TOLD APART from Claude's at a glance, not merely present.
+   Claude's lane is the panel's own blue; grok's carries xAI's violet and its own key label, so the
+   two can never be read as one set of numbers. Konyo asked for "a distinguishable difference within
+   the meter visually rendering" and the reason is concrete: a lane at its CEILING refusing every
+   read looks identical to a lane nobody switched on unless the panel says which. */
+#tab-tools .sm-lane{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:14px;padding-left:14px;border-left:1px solid rgba(255,255,255,.10)}
+#tab-tools .sm-lane[hidden]{display:none}
+#tab-tools .sm-lane-k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(186,150,255,.86);white-space:nowrap}
+#tab-tools .sm-lane-grok .sm-bar i{background:linear-gradient(90deg,rgba(150,110,235,.95),rgba(186,150,255,.95))}
+/* AT CAP is a fault and reads like one — it is refusing every read. OFF is his choice and stays quiet. */
+#tab-tools .sm-lane-capped .sm-lane-k{color:#e0a34a}
+#tab-tools .sm-lane-capped .sm-bar i{background:linear-gradient(90deg,rgba(224,163,74,.95),rgba(240,192,96,.95))}
+#tab-tools .sm-lane-off{opacity:.55}
+#tab-tools .sm-lane-off .sm-lane-k{color:rgba(255,255,255,.45)}
 #tab-tools .sub-meter.sm-unknown .sm-bar i{background:rgba(255,255,255,.18)}
 @media (max-width:560px){
   /* v2023.1 — MEASURED AT 375px: the full sentence wrapped to four lines and RAN PAST the row's
@@ -5821,6 +5835,25 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
       <span class="sm-tracks">
         <span class="sm-row"><span class="sm-k">hr</span><span class="sm-bar" id="sm-bar-h"><i id="sm-fill-h"></i></span><span class="sm-v" id="sm-v-h">–</span></span>
         <span class="sm-row"><span class="sm-k">day</span><span class="sm-bar" id="sm-bar-d"><i id="sm-fill-d"></i></span><span class="sm-v" id="sm-v-d">–</span></span>
+      </span>
+      <!-- v3096 — THE SECOND LANE. Konyo: "it should all be dual.. but both needs to be first
+           DEFAULTED TO CLAUDE and only when toggled then grok", and "obviously a meter separately
+           tracking same exact way for GROK with a distinguishable difference within the meter
+           visually rendering".
+           ⚠ /api/meter has returned lanes:{claude,grok} since v3092 and NOTHING RENDERED IT — I
+           reported the meter as dual off the JSON and never looked at the screen. Grok Bot's cold
+           look said it plainly: "one Claude meter line; no separate Grok lane in pixels". One end
+           built, the other never joined, for four versions. [[the-unjoined-end]]
+           ⚠ It carries its OWN label and its own bars rather than sharing Claude's, because the
+           whole point is that a lane at its ceiling must never look like a lane nobody switched
+           on — and that was not hypothetical: grok sat at 201 of a 200/day cap WE invented,
+           refusing every read, while this panel showed only Claude. -->
+      <span class="sm-lane sm-lane-grok" id="sm-grok" hidden>
+        <span class="sm-lane-k" id="sm-grok-k">grok</span>
+        <span class="sm-tracks">
+          <span class="sm-row"><span class="sm-k">hr</span><span class="sm-bar" id="sm-bar-gh"><i id="sm-fill-gh"></i></span><span class="sm-v" id="sm-v-gh">–</span></span>
+          <span class="sm-row"><span class="sm-k">day</span><span class="sm-bar" id="sm-bar-gd"><i id="sm-fill-gd"></i></span><span class="sm-v" id="sm-v-gd">–</span></span>
+        </span>
       </span>
     </div>
   </div>
@@ -50086,7 +50119,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3095', name:'v3095 - A CHIP COUNTS ONLY WHAT IT CAN EXPLAIN', date:'2026-09-14', note:'the no-film split sat above the stub check, so 2286 stub runs that never had film were counted as reels whose film was retired - the chip read 2424 against a true 138. Plus the two failures his own gate caught on the last push: a module that could not print its verdict, and one token rendering two colours' };
+  window.D2R_BUILD = { id:'v3096', name:'v3096 - FULLSCREEN AND THE SECOND LANE', date:'2026-09-14', note:'the meter returned two lanes since v3092 and rendered one - the panel lives in bible.html and I searched control_ui.html. And a windowed console goes dark within twenty seconds of losing focus, which is every black stage the eyes lane ever reported' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -52803,6 +52836,32 @@ window.renderSubMeter = function(){
     var narrow = (window.innerWidth || 9999) <= 560;
     if (say){ say.textContent = narrow ? SHORT : LONG; }
     host.setAttribute('title', LONG);
+    /* v3096 — THE GROK LANE, painted from the same payload and never folded into Claude's numbers.
+       THREE states stay three, because collapsing them is what hid a real fault for days:
+         not toggled on  → the lane is idle and that is HIS choice, not a fault
+         at its ceiling  → it is refusing EVERY read, and that looks identical to idle
+         running         → hour/day against its own caps
+       Measured when this was wired: grok read 201 against a _DAILY_MAX of 200 — a cap this console
+       invented, not one xAI imposed — so every read was refused while the panel showed only
+       Claude. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+    try {
+      var gl = (j.lanes && j.lanes.grok) || null, ghost = document.getElementById('sm-grok');
+      var gk = document.getElementById('sm-grok-k');
+      if (ghost){
+        ghost.hidden = !gl;
+        if (gl){
+          paint('sm-bar-gh','sm-fill-gh','sm-v-gh', gl.hour, gl.hourlyMax);
+          paint('sm-bar-gd','sm-fill-gd','sm-v-gd', gl.day, gl.dailyMax);
+          ghost.classList.toggle('sm-lane-capped', !!gl.atCap);
+          ghost.classList.toggle('sm-lane-off', gl.on === false);
+          ghost.classList.toggle('sm-unknown', gl.on === null || gl.hour === null);
+          if (gk) gk.textContent = gl.atCap ? 'grok · AT CAP' : (gl.on === false ? 'grok · off' : 'grok');
+          ghost.setAttribute('title', (gl.why || '')
+            || (gl.hour + '/' + gl.hourlyMax + ' this hour, ' + gl.day + '/' + gl.dailyMax
+                + ' today — a separate subscription CLI, billing no tokens'));
+        }
+      }
+    } catch(e){}
     return j;
   }).catch(function(e){
     var say = document.getElementById('sm-say');
