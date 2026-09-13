@@ -22322,11 +22322,90 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                                 # a REFUSAL stays a refusal — lattice and occupancy both say no
                                 # often, and each no is a real failure seen on his film.
                                 if _occ.get("ok") and _occ.get("occupied"):
+                                    # ⚠⚠ v3087 — CARRY THE CELLS, NOT JUST THE COUNT. Konyo,
+                                    # 2026-09-13: "all on ledger for the slot identity and for the
+                                    # tallied and for the witness count and footprint and
+                                    # everything need to be ledgered meaning information based
+                                    # item wise".
+                                    #
+                                    # MEASURED: every piece already existed and this one line threw
+                                    # the useful half away. `inventory_occupancy` returns
+                                    # {ok, occupied, free, cells, grid} where `grid` is a row-major
+                                    # 2D array of taken/None — the per-cell truth, read from pixels
+                                    # on a bimodal signal (empty mean 4.3 std 0.6-1.0; occupied
+                                    # 31-169 std 20-78). Only the two COUNTS were kept, so
+                                    # slot_identity.item_groups — which groups adjacent cells into
+                                    # ITEMS with footprints, "a bow is 1x4, a breastplate 2x3" —
+                                    # was never handed anything, and the vault row could say
+                                    # "Bone Break, stash" and never WHERE in the grid it sat.
+                                    # [[the-unjoined-end]]
+                                    #
+                                    # ⚠ ADDITIVE AND NEVER AUTHORITATIVE. This adds evidence to a
+                                    # sighting; it never names an item and never creates a row. A
+                                    # cell count is not a claim about WHICH item is in it.
+                                    _cells, _groups, _gwhy = [], [], ""
+                                    try:
+                                        _grid = _occ.get("grid") or []
+                                        for _ri, _line in enumerate(_grid):
+                                            for _ci, _taken in enumerate(_line or []):
+                                                if _taken:
+                                                    _cells.append([_ci, _ri])
+                                        # ⚠⚠ THESE ARE BLOBS, NOT ITEMS, AND THE NAME MUST SAY
+                                        # SO. `item_groups` groups ADJACENT occupied cells, and in
+                                        # a packed panel two items that touch become one group.
+                                        # MEASURED on his own frame f_1788100004704.jpg: 33
+                                        # occupied cells collapsed to 2 groups, the larger holding
+                                        # 25 of 33 cells with a 7x4 footprint — plainly many items,
+                                        # not one. Storing that under "items" would be a label that
+                                        # outlived its referent. [[label-outlived-referent]]
+                                        #
+                                        # ⚠⚠ THE CONTAINER IS "inventory", NOT `surface`, AND THAT
+                                        # IS NOT A DETAIL. `surface` names the SCREEN he is on —
+                                        # and every frame reaching here passed stash_screen_open(),
+                                        # so it is very nearly always "stash". The CELLS, though,
+                                        # come from inventory_occupancy, which reads INV_CROP =
+                                        # (0.595, 0.495, 0.915, 0.7) -> x 1749..2690 of 2940. That
+                                        # is the INVENTORY panel; panel_box_for("stash") is at
+                                        # x 281..1149, a different region of the screen entirely.
+                                        # This is his stash template exactly as he described it:
+                                        # "i CLICK stash and am in my stash with my inventory open
+                                        # at the same time".
+                                        #
+                                        # MEASURED, and it settles it: the read returns 40 cells
+                                        # (33 occupied + 7 free). GRIDS["inventory"] is (10, 4) =
+                                        # 40; GRIDS["stash"] is (10, 10) = 100. Passing `surface`
+                                        # declared a 10x4 read to be a 10x10 grid — stamping the
+                                        # FRAME's label onto items that live somewhere else, the
+                                        # same defect test_a_frame_label_is_not_an_item_location.py
+                                        # already pins on the naming lane. It is silent rather than
+                                        # loud: item_groups filters cells to the container's bounds
+                                        # and 4 rows fit inside 10, so nothing is dropped and every
+                                        # footprint would simply carry the wrong container forever.
+                                        # And any surface outside GRIDS ("gameplay", "stash-runes")
+                                        # returns ([], "unknown container ...") — blobs silently
+                                        # empty. [[label-outlived-referent]] [[the-unjoined-end]]
+                                        import slot_identity as _si
+                                        _groups, _gwhy = _si.item_groups(
+                                            [(c, r) for c, r in _cells], "inventory")
+                                    except Exception as _se:
+                                        # a failed grouping must not cost the occupancy count
+                                        _gwhy = "%s: %s" % (type(_se).__name__, str(_se)[:70])
+                                        _groups = []
                                     _glimpsed.append({
                                         "frame": os.path.basename(p),
                                         "surface": surface,
                                         "occupied": _occ.get("occupied"),
                                         "free": _occ.get("free"),
+                                        # the CELLS are the reliable half: 33 derived == 33
+                                        # occupied on his frame, no inference in between.
+                                        "cells": _cells,
+                                        "cellsN": len(_cells),
+                                        # the BLOBS are a hint only — adjacent-occupied clusters,
+                                        # coarse wherever items touch. Never read as item count.
+                                        "blobs": _groups,
+                                        "blobsN": len(_groups or []),
+                                        "blobsAreItems": False,
+                                        "blobsWhy": _gwhy or "adjacent occupied cells; touching items merge",
                                     })
                     except Exception as _ge:
                         if not _pix_err:      # v1998 — same lane, same one-line record
@@ -27526,7 +27605,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3086",
+        "ver": "v3087",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

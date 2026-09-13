@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3086** | `(this commit)` | v3086 — THE FLEET ASKS ON ITS OWN |
+| **v3087** | `(this commit)` | v3087 — the vault sweep now carries the occupied CELLS and their footprints, not just two counts - the grid was always there and one line dropped it. Clusters stay labelled blobs with blobsAreItems false, because touching items merge: 33 cells became 2 blobs on his own frame |
+| **v3086** | `733a8490` | v3086 — THE FLEET ASKS ON ITS OWN |
 | **v3085** | `a0d09b00` | v3085 — A READ REEL SAYS WHY IT CANNOT SEAL |
 | **v3084** | `ab912914` | v3084 — THE JOURNAL HALF OF THE RIVER, PLAN ONLY |
 | **v3083** | `7804b5f4` | v3083 — THE BACKEND FIXTURES LEAVE HIS CONSOLE |

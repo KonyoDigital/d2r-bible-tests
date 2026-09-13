@@ -32373,6 +32373,63 @@ is falsy and reads as unreadable; `live_probe` rejects stub bytes. Separately, `
 SURFACE names (`stash`) while `stash_screen_open` returns TAB names (`shared`) — two vocabularies,
 both correct, and confusing them made the reader look broken when it was not.
 
+
+## REG-998 — THE VAULT KNEW WHICH CELLS WERE FULL AND THREW THE ANSWER AWAY AT ONE LINE
+
+**v3087.** His ask, 2026-09-13: *"all on ledger for the slot identity and for the tallied and for the
+witness count and footprint and everything need to be ledgered meaning information based item wise"*.
+
+⚠⚠ **NOTHING NEEDED BUILDING. The whole chain already existed and one line dropped the useful half.**
+`vault_corpus.inventory_occupancy(frame, lat)` returns `{ok, occupied, free, cells, grid}`, where
+`grid` is a row-major array of taken/None read from PIXELS on a genuinely bimodal signal (an empty
+cell is uniformly near-black, mean 4.3 / std 0.6-1.0; an occupied one is 31-169 / std 20-78, and
+three independent threshold pairs return the same answer). `slot_identity.item_groups(cells,
+container)` turns those cells into footprints with `col/row/w/h`. Both shipped long ago.
+
+`control_app.py`'s glimpse kept **only `occupied` and `free`** — two integers — and discarded `grid`.
+So `item_groups` was never handed anything, and the vault ledger's rows carry
+`conf · count · kind · lane · lastSeenTs · name · witnesses` with **no slot identity at all** and
+`count: null`. A row could say "Bone Break, stash" and know nothing about WHERE in the panel it sat.
+Classic [[the-unjoined-end]]: built on both ends, never joined.
+
+**FIXED** — the glimpse now derives `cells` from the grid and calls `item_groups`, carrying
+`cells · cellsN · blobs · blobsN` per frame.
+
+### ⚠ AND THE CLUSTERS ARE NOT ITEMS — measured, not assumed
+
+`item_groups` joins **adjacent** occupied cells, so in a packed panel two items that touch become one
+cluster. Measured on his own frame `frames/hist/reel_s_1788099999528_42457/f_1788100004704.jpg`:
+
+    lattice ok=True · occupancy ok=True · occupied=33 free=7
+    cells derived from the grid: 33   <- equals occupied, so the derivation is exact
+    clusters: 2
+      cluster 1: 25 of 33 cells, footprint col=0 row=0 w=7 h=4   <- plainly many items
+      cluster 2:  8 cells,       footprint col=8 row=0 w=2 h=4
+
+Storing those under the word `items` would be a right number beneath a word that stopped being true
+([[label-outlived-referent]]), so they are stored as **`blobs`** with **`blobsAreItems: False`** and a
+`blobsWhy` sentence beside them. The split this pins:
+
+| | verdict |
+|---|---|
+| **cells** | reliable — derived count == the occupancy count, no inference in between |
+| **blobs** | a hint — coarse wherever items touch, never a tally of items |
+
+### The law
+
+`tv/test_a_blob_of_cells_is_not_an_item.py`, registered in `run_gates.py` (**353 gates**). Five tests:
+the cells are carried and come from `_occ["grid"]`; a cluster is never stored under the word `items`;
+**the merge is re-measured on CI with no footage** — a synthetic touching 2x2 pair gives 1 cluster, the
+same pair with a one-cell gap gives 2 — so if the grouping ever stops merging, the law that exists to
+describe the coarseness fails instead of quietly describing something untrue; a footprint carries
+`col/row/w/h`; and the derivation cannot synthesise a cell from a range.
+
+Red-proof: **2 sabotages, PROVEN, 1 match each** — one restores the count-only glimpse, one flips
+`blobsAreItems` to True.
+
+⚠ **Still not done:** the blobs are computed and carried but the vault LEDGER row still has no slot
+field. This REG joins the sweep to the geometry; writing it onto the row is the next ship.
+
 ## REG-997 — a reel read cleanly, refused to seal, and nothing said which condition stopped it (task #89 — v3085)
 
 **MEASURED 2026-09-13 on `reel_s_1788195270707_36946`**, found by re-sweeping it after REG-990:

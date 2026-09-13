@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3086",
+  "ver": "v3087",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3086: ",
+  "note": "v3087: the vault sweep now carries the occupied CELLS and their footprints, not just two counts - the grid was always there and one line dropped it. Clusters stay labelled blobs with blobsAreItems false, because touching items merge: 33 cells became 2 blobs on his own frame",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

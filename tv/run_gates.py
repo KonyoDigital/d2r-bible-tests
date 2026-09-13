@@ -2437,6 +2437,25 @@ GATES = [
              "combination - a silent explanation exactly when the verdict is definitive - because "
              "two functions deriving one rule is how a console says 'fine' beside a reel it "
              "refuses to release."),
+    Gate("test_a_blob_of_cells_is_not_an_item",
+         [sys.executable, os.path.join(HERE, "test_a_blob_of_cells_is_not_an_item.py")], 120,
+         why="THE OCCUPIED CELLS ARE EVIDENCE; THE CLUSTERS THEY FORM ARE NOT ITEMS. He asked for "
+             "the ledger to carry slot identity, footprint, witness count and container 'item wise'. "
+             "Every piece already existed and ONE LINE threw the useful half away: "
+             "vault_corpus.inventory_occupancy returns {ok, occupied, free, cells, grid} - grid "
+             "being a row-major array of taken/None read from PIXELS on a bimodal signal - and the "
+             "sweep kept only the two COUNTS, so slot_identity.item_groups was never handed anything "
+             "and a vault row could say 'Bone Break, stash' while knowing nothing about WHERE in the "
+             "panel it sat. This law pins the join: cells are carried, derived from the grid, never "
+             "synthesised from a range. AND IT PINS THE CAVEAT, because item_groups joins ADJACENT "
+             "cells so touching items merge. MEASURED on his own f_1788100004704.jpg: 33 occupied "
+             "cells -> 2 clusters, one of them 25 of 33 cells with a 7x4 footprint, which is plainly "
+             "many items. Storing that under the word ITEMS would be a right number beneath a word "
+             "that stopped being true, so they are blobs, carrying blobsAreItems=False. The third "
+             "test re-measures the merge on a synthetic 2x2 pair - touching gives 1 cluster, a "
+             "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
+             "grouping ever stops merging, the law that exists to describe it fails instead of "
+             "quietly describing something untrue."),
     Gate("test_a_journal_row_leaves_only_on_proof",
          [sys.executable, os.path.join(HERE, "test_a_journal_row_leaves_only_on_proof.py")], 120,
          why="A JOURNAL ROW MAY LEAVE ONLY ON A PROOF OF EXTRACTION, AND THE PLANNER MAY NEVER "
