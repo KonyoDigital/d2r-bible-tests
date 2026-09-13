@@ -220,7 +220,10 @@ def organ_coverage():
         # as 5x inflated. [[feedback-suspect-the-instrument]]
         try:
             import lock_evidence_corroborate as _le
-            for _s in (_le.SURFACES or ()):
+            # ⚠ covered(), NOT SURFACES. v3071 unioned the DECLARED scope and painted three locks
+            # COVERED that the organ had read nothing about. Scope is an intention; coverage is a
+            # reading. [[unknown-stays-unknown]]
+            for _s in (_le.covered() or ()):
                 names.add(str(_s))
         except Exception:
             pass

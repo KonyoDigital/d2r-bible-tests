@@ -43,9 +43,43 @@ try:
 except Exception:
     pass
 
-#: the surfaces this organ speaks for, DECLARED in the registry's own vocabulary
-SURFACES = ("vault.apply", "printer.stream", "reel.route", "prune.reports",
-            "vault.sweep_start", "prune.arm", "frame.release", "console.pixel_rescue")
+#: the locks this organ LOOKS AT. Declaring scope is not the same as covering it — see covered().
+SCOPE = ("vault.apply", "printer.stream", "reel.route", "prune.reports",
+         "vault.sweep_start", "prune.arm", "frame.release", "console.pixel_rescue")
+
+#: ⚠⚠ v3073 — SURFACES IS NO LONGER A LIST OF INTENTIONS. The cross-family eye read the shipped
+#: v3071 and found this organ painting EIGHT locks COVERED without asking whether any evidence was
+#: readable. MEASURED on the live queue:
+#:
+#:     console.pixel_rescue   AGREE 0  UNKNOWN 3
+#:     frame.release          AGREE 0  UNKNOWN 2
+#:     printer.stream         AGREE 0  UNKNOWN 1
+#:
+#: Three cells claimed by an organ that had read nothing about them — a hollow cell in a guard
+#: whose entire subject is overclaiming. Its other finding is the sharper one: `_declared` only
+#: understands a module-level CLAIMS, and the AGGREGATE harnesses (rung_accounting 27,
+#: pixel_witness 16, frame_release 12) declare their attacks as `attacks=n` on one bank() row and
+#: have none. So the organ checks exactly the sources that CANNOT inflate without adding a visible
+#: bank() call, and is blind to the ones that can.
+#:
+#: A surface is therefore covered only when at least ONE source there carries a declaration this
+#: reader can actually count. The rest go back to ABSENT, which is what they always were.
+#: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+def covered(locks=None):
+    """The locks this organ can actually speak about. -> tuple"""
+    try:
+        c = corroborate(locks or SCOPE)
+    except Exception:
+        return ()
+    good = set()
+    for r in c.get("rows") or []:
+        if r.get("verdict") in ("AGREE", "OVERCLAIM"):
+            good.add(str(r.get("lock")))
+    return tuple(sorted(good))
+
+
+#: kept for readers that want the scope; organ_matrix asks covered() instead
+SURFACES = SCOPE
 
 
 def _declared(src):
@@ -122,7 +156,7 @@ def corroborate(locks=None):
 def report(locks=None):
     c = corroborate(locks)
     return {"rows": [{"surface": s, "organ": "corroborator", "checked": c["checked"],
-                      "disagreed": c["overclaimed"], "why": c["say"]} for s in SURFACES],
+                      "disagreed": c["overclaimed"], "why": c["say"]} for s in covered()],
             "detail": c["rows"], "checked": c["checked"], "overclaimed": c["overclaimed"],
             "unknown": c["unknown"], "say": c["say"]}
 

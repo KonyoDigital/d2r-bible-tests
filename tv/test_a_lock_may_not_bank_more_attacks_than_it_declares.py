@@ -97,8 +97,67 @@ class TestALockMayNotBankMoreAttacksThanItDeclares(unittest.TestCase):
                       "rows counts history twice")
         print("uses _fold(): yes")
 
+    def test_a_surface_is_covered_only_where_something_was_read(self):
+        """SCOPE IS AN INTENTION; COVERAGE IS A READING.
+
+        v3071 unioned the DECLARED scope into the matrix and painted eight locks COVERED without
+        asking whether any evidence was readable. MEASURED on the live queue at the time:
+            console.pixel_rescue  AGREE 0  UNKNOWN 3
+            frame.release         AGREE 0  UNKNOWN 2
+            printer.stream        AGREE 0  UNKNOWN 1
+        Three hollow cells, in a guard whose entire subject is overclaiming.
+        [[unknown-stays-unknown]]
+        """
+        import lock_evidence_corroborate as LE
+        import organ_matrix as OM
+        c = LE.corroborate(LE.SCOPE)
+        readable = {r["lock"] for r in c["rows"] if r["verdict"] in ("AGREE", "OVERCLAIM")}
+        cov = set(LE.covered())
+        self.assertEqual(set(), cov - readable,
+                         "the organ may only claim a lock where at least one source carries a "
+                         "declaration this reader can count")
+        self.assertTrue(cov, "0 covered is UNMEASURED — the queue was unreadable")
+
+        # ⚠⚠ AND THE CENSUS ITSELF, not just the organ. The first cut asserted only on
+        # LE.covered(), so a sabotage that made organ_matrix union the DECLARED scope instead
+        # changed nothing this law could see — heart2 returned BLIND. A guard on the producer
+        # says nothing about the consumer. [[the-unjoined-end]]
+        rows, _why = OM.matrix()
+        by = dict((r.get("surface"), r) for r in rows)
+        hollow = []
+        for lock in LE.SCOPE:
+            r = by.get(lock)
+            if r is None:
+                continue
+            if (r.get("cells") or {}).get("corroborator") == "COVERED" and lock not in readable:
+                hollow.append(lock)
+        print("scope %d · organ covers %d · census hollow cells %d"
+              % (len(LE.SCOPE), len(cov), len(hollow)))
+        self.assertEqual([], hollow,
+                         "the CENSUS marks these corroborator-COVERED while nothing readable was "
+                         "ever read about them: %r" % (hollow,))
+
+    def test_unknown_sources_are_reported_not_hidden(self):
+        """The eye's sharper point: the sources that CAN inflate are the ones read as UNKNOWN."""
+        import lock_evidence_corroborate as LE
+        c = LE.corroborate(LE.SCOPE)
+        unk = [r for r in c["rows"] if r["verdict"] == "UNKNOWN"]
+        print("sources UNKNOWN to this reader: %d of %d" % (len(unk), c["checked"]))
+        self.assertIn("unknown", c, "the count of unreadable sources must be published")
+        for r in unk:
+            self.assertTrue(r.get("why"), "every UNKNOWN must say WHY it could not be read")
+            self.assertIn(r["src"], r["why"], "and name the source it could not count")
+
 
 RED_PROOF = [
+    {
+        "why": "coverage goes back to the DECLARED scope, so locks the organ read nothing about "
+               "are painted COVERED again - a hollow cell in a guard about overclaiming",
+        "file": "organ_matrix.py",
+        "find": "            for _s in (_le.covered() or ()):",
+        "replace": "            for _s in (_le.SURFACES or ()):",
+        "matches": 1,
+    },
     {
         "why": "an overclaiming source stops being caught, so a lock can be bought open on more "
                "distinct attacks than any harness ever ran",
