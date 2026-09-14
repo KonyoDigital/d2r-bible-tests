@@ -31,6 +31,7 @@ A check returns one of four states and UNKNOWN IS FIRST-CLASS:
     unknown  COULD NOT BE MEASURED — never renders as ok. "The board is not open so its store
              cannot be asked" is not "the store is fine". [[unknown-stays-unknown]]
 """
+import hashlib as _hashlib
 import io
 import json
 import os
@@ -632,21 +633,38 @@ def _attack_rollup():
         # window where a stale answer is served. `st_mtime_ns`, not `int(st_mtime)`: a second's
         # truncation left byte-size as the only real invalidator for a ledger edit.
         # [[stale-reading]] [[zero-needs-a-denominator]]
-        _sig = 0
-        _cnt = 0
+        # ⚠⚠⚠ v3141 — XOR CANCELS, AND ONE FILE IS LISTED TWICE. v3140 folded the roster with
+        # `_sig ^= mtime_ns ^ (size << 1)`, which is a fingerprint of TERMS, not of files: any
+        # path `gate_files()` yields an EVEN number of times contributes exactly NOTHING, and
+        # `_cnt` counts both visits so it does not save you. MEASURED: the roster is 368 entries
+        # over 367 distinct files, and `lane_census.py` appears TWICE — so editing that one file
+        # could never move the key, and the v3140 High it was written to close stayed open for it.
+        # A sorted digest over (path, mtime_ns, size) cannot cancel and does not care about order.
+        # [[zero-needs-a-denominator]]
+        _seen = {}
         for _gn, _gf in _h2.gate_files(say=lambda *a, **k: None):
-            try:
-                _gs = os.stat(os.path.join(HERE, str(_gf)))
-            except Exception:
+            _rel = str(_gf)
+            if _rel in _seen:
                 continue
-            _sig ^= _gs.st_mtime_ns ^ (_gs.st_size << 1)
-            _cnt += 1
+            try:
+                _gs = os.stat(os.path.join(HERE, _rel))
+            except Exception:
+                _seen[_rel] = (None, None)
+                continue
+            _seen[_rel] = (_gs.st_mtime_ns, _gs.st_size)
+        _digest = _hashlib.sha1(
+            repr(sorted(_seen.items())).encode("utf-8", "replace")).hexdigest()
         _key = (_st.st_mtime_ns, int(_st.st_size),
-                str(_store.get("gatesFingerprint") or ""), _cnt, _sig)
+                str(_store.get("gatesFingerprint") or ""), len(_seen), _digest)
     except Exception:
         return None, False
-    if _ATK_CACHE.get("key") == _key and _ATK_CACHE.get("per_file") is not None:
-        return _ATK_CACHE["per_file"], True
+    # ⚠ v3141 — SNAPSHOT, BECAUSE THE READER HAD THE WINDOW TOO. v3140 replaced the dict in one
+    # binding on the WRITE side and left the READ as two lookups: a writer swapping the dict
+    # between them returns the NEW payload against the OLD key's test. One local reference is what
+    # "one binding" actually requires.
+    _snap = _ATK_CACHE
+    if _snap.get("key") == _key and _snap.get("per_file") is not None:
+        return _snap["per_file"], True
     _proved = set(_store.get("provedGates") or [])
     _ran = _proved | set(_store.get("blind") or [])
     per = {}
