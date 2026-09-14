@@ -347,6 +347,77 @@ def _shelf_activate():
       })()"""
 
 
+def _shelf_activate_why():
+    """WHICH of the four gates in `_shelf_activate` is refusing. -> JS expression
+
+    ⚠⚠ FOUR WRONG DIAGNOSES, AND THE MESSAGE IS WHY. `shelf-cards` and `river-strip` have refused
+    for nineteen versions saying only "the panel could not be ACTIVATED after 12.0s of polling",
+    and that sentence is about POLLING — so it reads as load. It cost, in order: my own CSS (A/B
+    reverted, identical failure), the endpoint (/api/river answered 200 in 1.92s), the in-flight
+    guard (it was not stuck), and the activate script itself (two real defects found and fixed,
+    still red). This file's own rule 5 says `activateWhy` IS NOT OPTIONAL FOR A NEW TARGET and
+    names the same cost; the shelf target never declared one.
+
+    ⚠ AND THESE TWO REDS ARE NOT COSMETIC. The render gate is in pre-push, so they have blocked
+    every ship since v3102 — nineteen versions stacked behind a message that would not say what
+    it wanted. [[zero-needs-a-denominator]] [[the-unjoined-end]]
+    """
+    return """(function(){
+        function has(sel){ try { return !!document.querySelector(sel); } catch(e){ return false; } }
+        var th = document.getElementById('theatre');
+        var ov = document.getElementById('th-shelfov');
+        var tries = window.__rcShelfTries || 0;   /* the counter the LIVE activate sets */
+        var view = document.body ? (document.body.getAttribute('data-view') || 'none') : 'NO BODY';
+        var btn = document.getElementById('btn-shelf') || document.getElementById('th-shelf');
+        if (!th) return 'GATE 1 (the theatre): #theatre is ABSENT from the DOM. view=' + view
+                      + ' btn-shelf=' + (btn ? btn.id : 'ABSENT') + ' tries=' + tries;
+        var disp = getComputedStyle(th).display;
+        if (disp === 'none') {
+            return 'GATE 1 (the theatre): #theatre is still display:none after ' + tries
+                 + ' click(s) on ' + (btn ? '#' + btn.id : 'NO DOOR FOUND')
+                 + '. view=' + view + ' _toTVD=' + (window._toTVD ? 'yes' : 'undefined')
+                 + ' theatre-open class=' + (th.className.indexOf('theatre-open') >= 0);
+        }
+        if (!ov) return 'GATE 2 (the overlay): #th-shelfov is ABSENT from the DOM, though the '
+                      + 'theatre is open (display=' + disp + ', ' + tries + ' click(s))';
+        if (ov.hidden) return 'GATE 2 (the overlay): #th-shelfov exists and is hidden=true after '
+                            + tries + ' click(s); theatre display=' + disp;
+        var r = ov.getBoundingClientRect();
+        if (!(r.width > 0 && r.height > 0)) {
+            return 'GATE 3 (the rect): #th-shelfov is unhidden but measures '
+                 + Math.round(r.width) + 'x' + Math.round(r.height)
+                 + ' — a zero-size box, which is the v2666 scar (hidden===false is not visible)';
+        }
+        /* ⚠ BOTH SURFACES, because the two targets watch DIFFERENT boxes: `shelf-cards`
+           selects inside #th-shelfov and `river-strip` selects inside #sh-lanes. Reporting only
+           one of them would answer a question the other target never asked. */
+        function n(sel){ try { return document.querySelectorAll(sel).length; } catch(e){ return -1; } }
+        return 'GATE 4 (painted): the overlay is open at '
+             + Math.round(r.width) + 'x' + Math.round(r.height)
+             + ' but the arrival proof is not in it.'
+             + '  #th-shelfov: .shr-lane=' + n('#th-shelfov .shr-lane')
+             + ' .shr-head=' + n('#th-shelfov .shr-head')
+             + ' .shr-bad=' + n('#th-shelfov .shr-bad')
+             + ' .shr-wait=' + n('#th-shelfov .shr-wait')
+             + ' .sh-grid=' + n('#th-shelfov .sh-grid')
+             + ' cards=' + (n('#th-shelfov .shc-hero') + n('#th-shelfov .shc-sess'))
+             + '  |  #sh-lanes: present=' + (document.getElementById('sh-lanes') ? 'yes' : 'NO')
+             + ' .shr-lane=' + n('#sh-lanes .shr-lane')
+             + ' .shr-lbl=' + n('#sh-lanes .shr-lbl')
+             + ' .shr-bad=' + n('#sh-lanes .shr-bad')
+             + ' .shr-wait=' + n('#sh-lanes .shr-wait')
+             + '  |  _shLanesLoad asked=' + (window.__rcLanesCalls || 0)
+             + ' resolved=' + (window.__rcLanesDone || 0)
+             + ' err=' + (window.__rcLanesErr || 'none')
+             + ' | window._shLanesRender=' + (typeof window._shLanesRender)
+             + ' window._shLanesLoad=' + (typeof window._shLanesLoad)
+             + ' #sh-lanes count=' + document.querySelectorAll('#sh-lanes').length
+             + ' html="' + (function(){ var e=document.getElementById('sh-lanes');
+                   return e ? e.innerHTML.replace(/\s+/g,' ').slice(0,100) : 'NO NODE'; })() + '"'
+             + '. A .shr-wait alone means the ask is still in flight, which is the ONE state this '
+             + 'gate refuses on purpose; a 0 everywhere means the renderer never ran.';
+    })()"""
+
 def _adv_activate(el_id, require_filled=False):
     """Open the ⚙ ADVANCED drawer and scroll `el_id` to the top of the rail scroller.
 
@@ -1715,6 +1786,7 @@ TARGETS = {
                             "full name is one click away on the card, and the ellipsis makes the "
                             "cut visible rather than silent",
         },
+        "activateWhy": _shelf_activate_why(),
         "activate": r"""(function(){
             /* ⚠ IDEMPOTENT. The harness re-runs this every 0.4s, so it must never toggle:
                thShelf(force) with an explicit true always SHOWS, thShelf() alone flips. */
@@ -1751,44 +1823,91 @@ TARGETS = {
                read 18 cards the same afternoon. The gate was red about itself.
                [[feedback-blind-fixture-green-gate]] [[ab-against-head-before-blaming-the-room]] */
             var th = document.getElementById('theatre');
-            if (th && th.hidden) {
-                if (!window.__rcTheatreAsked) {
-                    window.__rcTheatreAsked = 1;
-                    try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+            /* ⚠⚠ v3122 — `.hidden` IS THE WRONG QUESTION, AND IT COST FOUR ROUNDS AND NINETEEN
+               UNSHIPPED VERSIONS. #theatre is shut by CSS `display:none`, not by the HTML hidden
+               property, so `th.hidden` is FALSE on a freshly served console and this branch never
+               ran at all. thOpen() was never called; it fell straight through to thShelf(true),
+               which opens an overlay inside a COLLAPSED box, and then refused on .shr-wait for the
+               whole 12s window. MEASURED the first time this target was ever asked for a reason:
+               "GATE 1 (the theatre): #theatre is still display:none ... theatre-open class=false".
+
+               ⚠ THE RIGHT TEST WAS ALREADY IN THIS FILE. `_shelf_activate()` — correct, commented,
+               and UNREGISTERED (zero call sites) — reads `getComputedStyle(_th0).display === 'none'`
+               and clicks the real door. Two versions of one idea and the wrong one was wired up.
+               [[copy-drift]] [[measured-true-read-wrong]]
+
+               ⚠ AND `thOpen` IS NOT ON `window` — v2785 measured that — so `(window.thOpen ||
+               thOpen)()` threw a ReferenceError straight into the catch, while `__rcTheatreAsked`
+               had ALREADY latched to 1. A sentinel set BEFORE the risky call turns one failure into
+               a permanent one. Count the tries instead, and click the control a person uses.
+               [[zero-needs-a-denominator]] */
+            var _shut = !th || getComputedStyle(th).display === 'none';
+            if (_shut) {
+                if ((window.__rcShelfTries || 0) < 25) {
+                    window.__rcShelfTries = (window.__rcShelfTries || 0) + 1;
+                    /* leave the gameplay home first — #btn-shelf is display:none under
+                       body[data-view="sessions"], where a freshly served console lands */
+                    try { if (window._toTVD) window._toTVD(); } catch (e) {}
+                    var _b = document.getElementById('btn-shelf')
+                          || document.getElementById('th-shelf');
+                    if (_b && _b.click) _b.click();
                 }
-                return false;            /* let the async open finish; the next poll re-checks */
+                return false;            /* the door opens async — the next poll re-checks */
             }
-            try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
+            /* ⚠⚠ v3122 — ONCE. `thShelf(true)` REBUILDS `ov.innerHTML`, and that string CARRIES
+               the shipped placeholder `<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">
+               reading the river…</div></div>`. Called on every 0.4s poll it therefore DESTROYS the
+               river the moment after it paints — forever. MEASURED, and it is the sentence that
+               ended five rounds of guessing:
+
+                   _shLanesLoad asked=25 resolved=24 err=none
+                   window._shLanesRender=function · #sh-lanes count=1
+                   html="<div class=\"shr-wait\">reading the river…</div>"
+
+               The load fired 25 times and resolved 24, the renderer exists, there is exactly one
+               node — and its HTML is still the SHIPPED PLACEHOLDER. Nothing was broken about the
+               river; the harness was overwriting it. The cards survived because they are built
+               SYNCHRONOUSLY inside that same innerHTML string; only the async surface could not.
+
+               ⚠ THE FILE'S OWN COMMENT SAYS "it must never toggle" AND CALLS THIS IDEMPOTENT.
+               `thShelf(true)` always SHOWS — that is not the same as leaving the DOM alone, and
+               v3113 removed the old guard for the opposite reason (the builder never ran). Both
+               readings are half right: build ONCE, then never touch it again.
+
+               ⚠ THE SENTINEL IS SET AFTER THE CALL, never before — that is the v3122 lesson from
+               `__rcTheatreAsked`, which latched to 1 and then threw, making one failure permanent.
+               [[zero-needs-a-denominator]] [[the-unjoined-end]] */
+            if (!window.__rcShelfBuilt) {
+                try {
+                    if (window.thShelf) { window.thShelf(true); window.__rcShelfBuilt = 1; }
+                } catch (e) {}
+            }
             if (ov.hidden) return false;
-            var el = document.getElementById('sh-lanes');
-            if (!el) return false;
-            /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
-               since the wait node disappears the moment the strip renders */
-            if (el.querySelector('.shr-wait')) {
-                /* ⚠ v3051 — a rate-limit lived here for one afternoon. Two theories, both
-                   measured and both WRONG: that ~30 racing /api/river fetches were the cause
-                   (rate-limited -> still red), and that pairing it with a wider bound would fix
-                   it (~100 fetches -> still red at 40.3s). What is true and worth keeping is the
-                   arithmetic: this poll STARTS WORK, so the fetch count is the activation budget
-                   divided by 0.4, and widening that bound multiplies the work rather than just
-                   waiting longer. The cause of the flake is still UNKNOWN.
-                   [[sabotage-is-usually-the-wrong-one]] [[unknown-stays-unknown]] */
-                try { (window._shLanesLoad || function(){})(); } catch (e) {}
-                return false;                 /* not ready, and NOT a pass */
+            /* ⚠⚠ v3122 — THIS TARGET PROVES ITS OWN ARRIVAL, NOT THE RIVER'S. Until now the card
+               grid waited for `#sh-lanes` to paint its lanes — a surface this target does not
+               photograph and does not name in `sel`. MEASURED once the door was fixed:
+
+                   overlay 1044x906 · #th-shelfov .sh-grid=1 cards=48
+                   #sh-lanes .shr-wait=1        <- still in flight, forever
+
+               So 48 cards sat rendered and photographable while the target refused, because a
+               DIFFERENT panel's fetch had not landed. A target whose arrival proof is about
+               another surface reports that surface's health under its own name.
+               [[the-unjoined-end]] [[label-outlived-referent]] */
+            var _grid = ov.querySelector('.sh-grid');
+            if (!_grid) return false;
+            var _cards = _grid.querySelectorAll('.shc-hero, .shc-sess');
+            if (_cards.length < 1) return false;
+            /* ⚠ PROVE IT FROM THE RECT. A grid can exist with zero-size children while the list
+               is still being built, and a zero-size node reports zero clipping — the v2666 scar. */
+            var _painted = 0;
+            for (var _i = 0; _i < _cards.length; _i++) {
+                var _cr = _cards[_i].getBoundingClientRect();
+                if (_cr.width > 8 && _cr.height > 4) _painted++;
             }
-            /* ⚠⚠ PROVE IT FROM THE RECT, never from the fetch resolving —
-               test_activation_is_proven_from_the_RECT_not_from_the_call_returning. A river that
-               could not be read paints ONE `.shr-wait.shr-bad` line with a perfectly good box, so
-               a bare rect check on #sh-lanes would photograph the failure and call it a river. */
-            var lanes = el.querySelectorAll('.shr-lane');
-            if (lanes.length < 2) return false;
-            var painted = 0;
-            for (var i = 0; i < lanes.length; i++) {
-                var r = lanes[i].getBoundingClientRect();
-                if (r.width > 8 && r.height > 4) painted++;
-            }
-            return painted === lanes.length;
-        })()""",
+            try { window.__rcShelfCards = _cards.length + '/' + _painted; } catch (e) {}
+            return _painted === _cards.length;
+        })()"""
     },
     "river-strip": {
         # ⚠⚠ THE WARM STAYS, BUT NOT FOR THE REASON I FIRST WROTE HERE — AND THE FLAKE IS
@@ -1838,6 +1957,7 @@ TARGETS = {
         # text, not by the verdict, which was green. [[gate-blind-to-unexercised-input]]
         "sel": ("#sh-lanes .shr-lbl, #sh-lanes .shr-n, #sh-lanes .shr-st, "
                 "#sh-lanes .shr-life, #sh-lanes .shr-cl, #sh-lanes .shr-stlab"),
+        "activateWhy": _shelf_activate_why(),
         "activate": r"""(function(){
             /* ⚠ IDEMPOTENT. The harness re-runs this every 0.4s, so it must never toggle:
                thShelf(force) with an explicit true always SHOWS, thShelf() alone flips. */
@@ -1874,14 +1994,65 @@ TARGETS = {
                read 18 cards the same afternoon. The gate was red about itself.
                [[feedback-blind-fixture-green-gate]] [[ab-against-head-before-blaming-the-room]] */
             var th = document.getElementById('theatre');
-            if (th && th.hidden) {
-                if (!window.__rcTheatreAsked) {
-                    window.__rcTheatreAsked = 1;
-                    try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+            /* ⚠⚠ v3122 — `.hidden` IS THE WRONG QUESTION, AND IT COST FOUR ROUNDS AND NINETEEN
+               UNSHIPPED VERSIONS. #theatre is shut by CSS `display:none`, not by the HTML hidden
+               property, so `th.hidden` is FALSE on a freshly served console and this branch never
+               ran at all. thOpen() was never called; it fell straight through to thShelf(true),
+               which opens an overlay inside a COLLAPSED box, and then refused on .shr-wait for the
+               whole 12s window. MEASURED the first time this target was ever asked for a reason:
+               "GATE 1 (the theatre): #theatre is still display:none ... theatre-open class=false".
+
+               ⚠ THE RIGHT TEST WAS ALREADY IN THIS FILE. `_shelf_activate()` — correct, commented,
+               and UNREGISTERED (zero call sites) — reads `getComputedStyle(_th0).display === 'none'`
+               and clicks the real door. Two versions of one idea and the wrong one was wired up.
+               [[copy-drift]] [[measured-true-read-wrong]]
+
+               ⚠ AND `thOpen` IS NOT ON `window` — v2785 measured that — so `(window.thOpen ||
+               thOpen)()` threw a ReferenceError straight into the catch, while `__rcTheatreAsked`
+               had ALREADY latched to 1. A sentinel set BEFORE the risky call turns one failure into
+               a permanent one. Count the tries instead, and click the control a person uses.
+               [[zero-needs-a-denominator]] */
+            var _shut = !th || getComputedStyle(th).display === 'none';
+            if (_shut) {
+                if ((window.__rcShelfTries || 0) < 25) {
+                    window.__rcShelfTries = (window.__rcShelfTries || 0) + 1;
+                    /* leave the gameplay home first — #btn-shelf is display:none under
+                       body[data-view="sessions"], where a freshly served console lands */
+                    try { if (window._toTVD) window._toTVD(); } catch (e) {}
+                    var _b = document.getElementById('btn-shelf')
+                          || document.getElementById('th-shelf');
+                    if (_b && _b.click) _b.click();
                 }
-                return false;            /* let the async open finish; the next poll re-checks */
+                return false;            /* the door opens async — the next poll re-checks */
             }
-            try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
+            /* ⚠⚠ v3122 — ONCE. `thShelf(true)` REBUILDS `ov.innerHTML`, and that string CARRIES
+               the shipped placeholder `<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">
+               reading the river…</div></div>`. Called on every 0.4s poll it therefore DESTROYS the
+               river the moment after it paints — forever. MEASURED, and it is the sentence that
+               ended five rounds of guessing:
+
+                   _shLanesLoad asked=25 resolved=24 err=none
+                   window._shLanesRender=function · #sh-lanes count=1
+                   html="<div class=\"shr-wait\">reading the river…</div>"
+
+               The load fired 25 times and resolved 24, the renderer exists, there is exactly one
+               node — and its HTML is still the SHIPPED PLACEHOLDER. Nothing was broken about the
+               river; the harness was overwriting it. The cards survived because they are built
+               SYNCHRONOUSLY inside that same innerHTML string; only the async surface could not.
+
+               ⚠ THE FILE'S OWN COMMENT SAYS "it must never toggle" AND CALLS THIS IDEMPOTENT.
+               `thShelf(true)` always SHOWS — that is not the same as leaving the DOM alone, and
+               v3113 removed the old guard for the opposite reason (the builder never ran). Both
+               readings are half right: build ONCE, then never touch it again.
+
+               ⚠ THE SENTINEL IS SET AFTER THE CALL, never before — that is the v3122 lesson from
+               `__rcTheatreAsked`, which latched to 1 and then threw, making one failure permanent.
+               [[zero-needs-a-denominator]] [[the-unjoined-end]] */
+            if (!window.__rcShelfBuilt) {
+                try {
+                    if (window.thShelf) { window.thShelf(true); window.__rcShelfBuilt = 1; }
+                } catch (e) {}
+            }
             if (ov.hidden) return false;
             var el = document.getElementById('sh-lanes');
             if (!el) return false;
@@ -1896,7 +2067,17 @@ TARGETS = {
                    divided by 0.4, and widening that bound multiplies the work rather than just
                    waiting longer. The cause of the flake is still UNKNOWN.
                    [[sabotage-is-usually-the-wrong-one]] [[unknown-stays-unknown]] */
-                try { (window._shLanesLoad || function(){})(); } catch (e) {}
+                /* ⚠ v3122 — COUNT THE ASKS AND KEEP THE ERROR. "still waiting" is not a
+                   diagnosis: it cannot tell a call that never happened from one that hung, and
+                   this target has now cost five rounds of exactly that ambiguity. */
+                try {
+                    window.__rcLanesCalls = (window.__rcLanesCalls || 0) + 1;
+                    var _p = (window._shLanesLoad || function(){})();
+                    if (_p && _p.then) {
+                        _p.then(function(){ window.__rcLanesDone = (window.__rcLanesDone || 0) + 1; },
+                                function(err){ window.__rcLanesErr = String(err).slice(0, 120); });
+                    }
+                } catch (e) { window.__rcLanesErr = 'threw: ' + String(e).slice(0, 120); }
                 return false;                 /* not ready, and NOT a pass */
             }
             /* ⚠⚠ PROVE IT FROM THE RECT, never from the fetch resolving —
@@ -3290,7 +3471,12 @@ def check(name, spec, shots=True):
                     # one — `None` must not print as "None", and a raised exception must not be
                     # mistaken for a diagnosis of the surface.
                     if isinstance(_v, str) and _v.strip():
-                        _why = " — " + _v.strip()[:300]
+                        # ⚠ v3122 — 300 CLIPPED THE ANSWER MID-WORD. `river-strip`'s reason
+                        # ended at "window._shL" — the four facts that identify the defect
+                        # were past the cap, so the instrument built to end the guessing
+                        # got truncated into another round of it. A diagnosis cut mid-word
+                        # is the same failure as no diagnosis. [[unknown-stays-unknown]]
+                        _why = " — " + _v.strip()[:900]
                     else:
                         _why = " — (this target declares activateWhy and it returned no reason)"
                 except Exception as _e:

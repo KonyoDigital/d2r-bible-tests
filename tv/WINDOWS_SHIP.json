@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3121",
+  "ver": "v3122",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3121: The second eye on v3120. Both shelf-order proofs deleted their marker instead of moving it, so uniqueness failed with occurs 0 time(s) and index() raised ValueError — heart2 stamped PROVEN because SOME test exited non-zero, never having seen the order law fail. A flipped assertLess would have proven just as well. The sabotages now REORDER: one sends ACTIVITY to the back of the band, one moves the cards below it, and both were run by hand to confirm which assertion goes red. Also: the window used to end at the highlights call, which is itself a BAND entry, so highlights-come-last could never fail on its own — it now ends on the statement after the expression. And ensure_ascii=False, because an astral emoji round-tripped through json.dumps as a surrogate pair and stopped matching itself.",
+  "note": "v3122: shelf-cards and river-strip have blocked every push since v3102 — nineteen versions — saying only that the panel could not be ACTIVATED, which reads as load. Three real defects, found once the target was finally asked for a reason. ONE: the door. The activate tested th.hidden, but #theatre is shut by CSS display none, so the branch never ran, thOpen was never called, and it fell through to open an overlay inside a collapsed box. The correct test already existed in this file in the UNREGISTERED _shelf_activate. TWO: shelf-cards waited for the RIVER lanes, a surface it does not photograph — 48 cards sat rendered while it refused. THREE: thShelf(true) on every poll REBUILDS ov.innerHTML, which carries the reading-the-river placeholder, so the harness destroyed the river 0.4s after every paint. Cards survived because they are built synchronously in that same string. Both targets now green at all five widths.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
