@@ -20,6 +20,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+try:
+    from console_safe import enable
+    enable()
+except Exception:
+    pass
+
 import health_engine as HE  # noqa: E402
 from confidence import wilson_lower  # one home for the maths — never a copy  # noqa: E402
 
