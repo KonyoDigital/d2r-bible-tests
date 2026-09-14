@@ -84,6 +84,43 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
             out.append(str((json.loads(line) or {}).get("sessionId") or ""))
         return out
 
+    def _during_the_rewrite_of(self, path, fn):
+        """Fire `fn` the instant apply_plan finishes writing `path`'s replacement and BEFORE it
+        renames it — the exact window `tv_diablo._journal_write` appends and rotates into.
+
+        ⚠ IT PATCHES `JD.io`, NEVER `io.open` ITSELF. Rebinding the global would put a hook under
+        every reader in the process, including this test's own assertions."""
+        real_io, want, fired = io, path + ".part", []
+
+        class _Fires(object):
+            def __init__(self, fh):
+                self._fh = fh
+
+            def __enter__(self):
+                return self._fh.__enter__()
+
+            def __exit__(self, *e):
+                r = self._fh.__exit__(*e)
+                if not fired:
+                    fired.append(1)
+                    fn()
+                return r
+
+        class _Shim(object):
+            def __getattr__(self, k):
+                return getattr(real_io, k)
+
+            def open(self, *a, **kw):
+                fh = real_io.open(*a, **kw)
+                mode = a[1] if len(a) > 1 else kw.get("mode", "r")
+                if a and a[0] == want and "w" in mode:
+                    return _Fires(fh)
+                return fh
+
+        JD.io = _Shim()
+        self.addCleanup(lambda: setattr(JD, "io", real_io))
+        return fired
+
     # ── 1. the reader exposes the ring once, and uses it ──────────────────────────────────────
     def test_load_journal_asks_journal_paths(self):
         with io.open(os.path.join(HERE, "replay.py"), encoding="utf-8") as fh:
@@ -264,6 +301,69 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
                          "a late row for a doomed session was carried forward, resurrecting the "
                          "very session the plan released")
 
+    # ── 10. the JOINT, not the helper: apply_plan itself must carry and must fail closed ──────
+    def test_apply_plan_itself_carries_a_row_that_arrives_mid_rewrite(self):
+        """⚠⚠ THE SECOND EYE'S MEDIUM ON v3114, AND IT IS THE ONE THAT MATTERS. The v3114 laws
+        called `_late_lines` directly with a hardcoded count and never drove `apply_plan`. So the
+        helper was tested and the REWRITE was not: drop the call, pass the wrong count, or move it
+        after the rename, and every one of those laws stays green while the v3113 loss — a row
+        written between the read and the `os.replace`, with a backup that predates it — is back.
+        [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
+        rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertTrue(p["release"], "fixture released nothing")
+        fired = self._during_the_rewrite_of(self.live, lambda: io.open(
+            self.live, "a", encoding="utf-8").write(
+                json.dumps(_row("s_arrived_mid_drain", 1_900_000_000_000)) + "\n"))
+        r = JD.apply_plan(p, yes=True)
+        on_disk = self._ids(self.live)
+        print("   mid-rewrite append: hook fired=%d ok=%s carriedForward=%s live rows=%d"
+              % (len(fired), r.get("ok"), r.get("carriedForward"), len(on_disk)))
+        self.assertEqual(len(fired), 1, "the hook never fired — this test proved nothing")
+        self.assertTrue(r.get("ok"), r.get("why"))
+        self.assertIn("s_arrived_mid_drain", on_disk,
+                      "apply_plan published away a row the recorder wrote during its own rewrite; "
+                      "the backup predates that row, so a restore does not bring it back either")
+        # ⚠ and the report must describe the file he actually has
+        live_row = [w for w in (r.get("rewrote") or []) if w["path"] == self.live]
+        self.assertEqual(len(live_row), 1, "the live file is not in `rewrote`")
+        self.assertEqual(live_row[0]["kept"], len(on_disk),
+                         "the apply reports %d row(s) kept in %s and the file holds %d — a later "
+                         "reader that trusts the result disagrees with the corpus that shipped"
+                         % (live_row[0]["kept"], os.path.basename(self.live), len(on_disk)))
+        self.assertEqual(r.get("keptRows"),
+                         len(on_disk) + len(self._ids(self.rot)),
+                         "keptRows does not count the carried row, so it under-reports the corpus")
+
+    def test_a_rotation_mid_rewrite_is_refused_rather_than_published_over(self):
+        """⚠⚠ `tv_diablo._journal_write` ROTATES AT 4MB — `os.replace(JOURNAL, sessions.1.jsonl)`
+        and then the next record recreates the live file with ONE row. If that lands inside the
+        rewrite window, renaming our replacement over the fresh generation destroys its row AND
+        puts every released session back. An empty carry-forward list must never be the answer to
+        "the file shrank": that reads "nothing to carry" and proceeds to rename. [[zero-needs-a-denominator]]"""
+        rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertTrue(p["release"], "fixture released nothing")
+
+        def _rotate():
+            os.replace(self.live, os.path.join(self.d, "sessions.2.jsonl"))
+            io.open(self.live, "w", encoding="utf-8").write(
+                json.dumps(_row("s_after_rotation", 1_900_000_000_001)) + "\n")
+
+        fired = self._during_the_rewrite_of(self.live, _rotate)
+        r = JD.apply_plan(p, yes=True)
+        after = self._ids(self.live)
+        print("   rotation mid-rewrite: fired=%d ok=%s live now=%s" % (len(fired), r.get("ok"), after))
+        self.assertEqual(len(fired), 1, "the hook never fired — this test proved nothing")
+        self.assertFalse(r.get("ok"),
+                         "the drain renamed its rewrite over a generation that rotated in "
+                         "underneath it — the new row is gone and the released sessions are back")
+        self.assertEqual(after, ["s_after_rotation"],
+                         "the fresh generation was overwritten: %r" % (after,))
+        self.assertIn(os.path.basename(self.live), r.get("why", ""))
+
     def test_backup_refuses_without_an_explicit_path(self):
         """⚠ THE TWO RESOLVERS ARE NOT THE SAME FILE. `_journal_path()` honours TV_HIST;
         `replay.journal_paths()` does not. An argument-less backup snapshotted the LIVE file while
@@ -274,6 +374,33 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.assertIn("needs the file to copy", str(why))
 
 RED_PROOF = [
+    {
+        "why": "apply_plan stops asking for the late rows, so a row the recorder appended during "
+               "the rewrite is renamed away — and the backup predates it, so a restore does not "
+               "bring it back either. This is the v3113 loss, and the helper's own laws stay green",
+        "file": "journal_drain.py",
+        "find": "            _late = _late_lines(t, _read_lines, doomed)",
+        "replace": "            _late = []",
+        "matches": 1,
+    },
+    {
+        "why": "a file that SHRANK reads as 'nothing was appended', so a 4MB rotation landing "
+               "inside the rewrite window is published over: the new generation's row is "
+               "destroyed and every released session is resurrected",
+        "file": "journal_drain.py",
+        "find": "    if len(lines) < read_lines:",
+        "replace": "    if False:",
+        "matches": 1,
+    },
+    {
+        "why": "the apply reports the rows it PLANNED to write instead of the rows on disk, so a "
+               "carried row is missing from keptRows and rewrote[].kept — a later reader that "
+               "trusts the result disagrees with the corpus that actually shipped",
+        "file": "journal_drain.py",
+        "find": "        _on_disk = len(kept) + len(_late or [])",
+        "replace": "        _on_disk = len(kept)",
+        "matches": 1,
+    },
     {
         "why": "the applier goes back to rewriting the live file only, so every release against a "
                "session in the rotated half is a silent no-op that reports success — 2,483 of his "
@@ -303,8 +430,8 @@ RED_PROOF = [
         "why": "a row the recorder appends DURING the rewrite is published away — the drain "
                "destroying a row that was never in the plan, with a backup that predates it",
         "file": "journal_drain.py",
-        "find": "    if len(lines) <= read_lines:\n        return []",
-        "replace": "    if True:\n        return []",
+        "find": "    for raw_line in lines[read_lines:]:",
+        "replace": "    for raw_line in []:",
         "matches": 1,
     },
     {

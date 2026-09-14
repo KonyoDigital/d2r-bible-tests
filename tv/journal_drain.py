@@ -110,7 +110,15 @@ def backup(journal_path=None, stamp=None):
 
 
 def _late_lines(path, read_lines, doomed):
-    """Rows appended to `path` after the first `read_lines` lines were read. -> [line]
+    """Rows appended to `path` after the first `read_lines` lines were read. -> [line] | None
+
+    ⚠⚠ v3115 — `None` MEANS "I CANNOT TELL", AND IT IS NOT THE SAME ANSWER AS `[]`. The second
+    eye's High on v3114: an empty list was returned for three different facts — nothing was
+    appended, the file SHRANK under us, and the re-read RAISED — and the caller treated all three
+    as "carry nothing, now rename". The shrink is the real one: `tv_diablo._journal_write` rotates
+    at 4MB with `os.replace(JOURNAL, sessions.1.jsonl)` and then recreates the live file with one
+    row. Renaming our rewrite over THAT publishes away the new generation's row and puts the
+    released sessions back. `None` is fail-CLOSED: the caller must abort and leave the file alone.
 
     ⚠⚠ v3114 — THE CARRY-FORWARD, EXTRACTED SO A LAW CAN DRIVE IT. The second eye's High on v3113:
     `tv_diablo._journal_write` appends with NO LOCK, so a row written between the drain's read and
@@ -130,8 +138,10 @@ def _late_lines(path, read_lines, doomed):
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.readlines()
     except Exception:
-        return []
-    if len(lines) <= read_lines:
+        return None                     # ⚠ NOT []: we did not read it, so we do not know
+    if len(lines) < read_lines:
+        return None                     # ⚠ THE FILE MOVED — a rotation, not an empty append
+    if len(lines) == read_lines:
         return []
     for raw_line in lines[read_lines:]:
         raw = raw_line.strip()
@@ -280,6 +290,19 @@ def apply_plan(p, yes=False, journal_path=None):
             # zero without a lock the writer does not take. Said out loud rather than implied.
             # [[unknown-stays-unknown]] [[the-unjoined-end]]
             _late = _late_lines(t, _read_lines, doomed)
+            if _late is None:
+                # ⚠ v3115 — FAIL CLOSED. The source shrank or could not be re-read, so it is not
+                # the file we measured. Renaming our rewrite over a fresh generation would destroy
+                # its rows AND resurrect the released ones. Leave it exactly as it is.
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                return {"ok": False,
+                        "why": "%s changed underneath the rewrite (it shrank or could not be "
+                               "re-read) — it was left untouched, %d file(s) already rewritten; "
+                               "backups at %s" % (t, len(wrote), BACKUP_DIR),
+                        "backups": backups, "rewrote": wrote}
             if _late:
                 with io.open(tmp, "a", encoding="utf-8") as fh:
                     fh.writelines(_late)
@@ -293,8 +316,11 @@ def apply_plan(p, yes=False, journal_path=None):
             return {"ok": False, "why": "the rewrite of %s failed (%s) — that file is untouched; "
                                         "backups at %s" % (t, exc, BACKUP_DIR),
                     "backups": backups, "rewrote": wrote}
-        kept_total += len(kept)
-        wrote.append({"path": t, "kept": len(kept)})
+        # ⚠ v3115 — COUNT WHAT IS ON DISK, NOT WHAT WE PLANNED TO WRITE. A carried row is in the
+        # published file; reporting `len(kept)` tells him a corpus that is not the one he has.
+        _on_disk = len(kept) + len(_late or [])
+        kept_total += _on_disk
+        wrote.append({"path": t, "kept": _on_disk, "carried": len(_late or [])})
 
     return {"ok": True, "removedRows": dropped, "removedSessions": len(sids),
             "carriedForward": carried,
