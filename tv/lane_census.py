@@ -197,7 +197,12 @@ def _all_defined_names():
         try:
             with io.open(_f, encoding="utf-8") as _fh:
                 _t = _ast.parse(_fh.read())
-        except (SyntaxError, UnicodeDecodeError):
+        except (SyntaxError, ValueError):
+            # ⚠ ValueError, NOT UnicodeDecodeError — that one is a ValueError SUBCLASS, and the
+            # superclass is what a NUL byte raises: ast.parse says "source code string cannot
+            # contain null bytes", which io.open never sees because NUL is valid UTF-8. Naming
+            # only the subclass let a NUL-bearing file fall to the broad handler and reinstate the
+            # exact stall this branch exists to prevent. Found by the second eye on v3154.
             # ⚠⚠ A FILE THAT WILL NOT PARSE IS A COMPLETE ANSWER ABOUT THESE BYTES, and must not
             # be confused with one that could not be READ. Its failure is deterministic: the same
             # bytes fail the same way forever, and the moment it is fixed its mtime moves and the

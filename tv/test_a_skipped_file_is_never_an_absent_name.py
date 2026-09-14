@@ -82,8 +82,10 @@ class TestASkippedFileIsNeverAnAbsentName(unittest.TestCase):
         tv/*.py (tests included) stopped the cache being written at all: the 11s heart.vessels()
         stall came back for the whole process, and FOREIGN could never fire, so `serve_forever`
         and `wait` would be taken for vessels to watch."""
+        import shutil
         import tempfile
         d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)   # a law that leaks temp dirs is a law with a cost
         bad = os.path.join(d, "zz_broken.py")
         io.open(bad, "w", encoding="utf-8").write("def oops(:\n")
         LC._DEFINED_CACHE = {"key": None, "names": None}
@@ -100,13 +102,31 @@ class TestASkippedFileIsNeverAnAbsentName(unittest.TestCase):
             "FOREIGN became unreachable because one file would not parse — every dotted stdlib "
             "target then reads UNKNOWN and is taken for a vessel to watch")
 
+    def test_a_NUL_byte_is_a_parse_failure_too(self):
+        """The second eye on v3154. NUL is VALID UTF-8, so io.open succeeds and ast.parse raises
+        ValueError — not SyntaxError, and not UnicodeDecodeError. Naming only the subclass let a
+        NUL-bearing file fall to the broad handler and reinstate the whole-package stall."""
+        import shutil
+        import tempfile
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        bad = os.path.join(d, "zz_nul.py")
+        io.open(bad, "w", encoding="utf-8").write("x = 1\x00\n")
+        LC._DEFINED_CACHE = {"key": None, "names": None}
+        LC._package_files = lambda: self._real() + [bad]
+        _names, complete = LC._all_defined_names()
+        self.assertTrue(complete,
+                        "a NUL byte was treated as an unreadable file, so the cache is never "
+                        "written and the whole-package walk returns on every call")
+        self.assertIsNotNone(LC._DEFINED_CACHE.get("names"), "not cached — the stall is back")
+
 RED_PROOF = [
     {
         "why": "folds a PARSE failure back into the unreadable path, so one saved syntax error in "
                "any tv/*.py stops the cache being written at all — the 11s heart.vessels() stall "
                "returns for the whole process and FOREIGN can never fire again",
         "file": "lane_census.py",
-        "find": "        except (SyntaxError, UnicodeDecodeError):",
+        "find": "        except (SyntaxError, ValueError):",
         "replace": "        except (ZeroDivisionError,):",
         "matches": 1,
     },

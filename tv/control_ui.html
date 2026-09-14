@@ -22765,6 +22765,40 @@ function escC(s) {
     var go = function () { try { window._fleetRefresh(); } catch (e) {} };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);
     else go();
+
+    /* ══ v3155 — AND ASK AGAIN WHEN HE COMES BACK TO LOOK ════════════════════════════════════
+       Konyo, on a card reading SETS 131/135 while his board held 132: "it didnt sync it and
+       refresh as fast as it should... it feels stale". It was. Every trigger this card had
+       painted it ONCE and never again: the kick above fires at load, the v2851 ladder only
+       after a FAILED fetch, and the button only when he presses it. A number true at load and
+       shown in the present tense is REG-815 again, and the card has already lost a trigger once
+       before — it used to refresh when the ADVANCED drawer filled, the card was moved out of
+       that drawer, and its refresh stayed behind. [[stale-reading]] [[the-unjoined-end]]
+
+       ⚠ NOT A SHORTER POLL — his own ruling, and the right one. A tighter interval re-asks
+       hundreds of times to catch a change that happens a few times an evening, and a poll slower
+       than its interval saturates the machine (measured: a 172s answer on a 12s timer). These
+       are EVENTS: they cost nothing while he is elsewhere and fire exactly when the card is
+       about to be read. Same pair the v2348 heartbeat uses, for the reason recorded there —
+       WebKit suspends timers in a hidden window, so the event is the only thing that still
+       arrives. One idiom here, not two. [[copy-drift]] [[poll-slower-than-its-interval]]
+
+       ⚠ THROTTLED, because focus and visibilitychange both fire on a single alt-tab and a
+       window manager can repeat them. 10s is far below the rate his tally actually moves and
+       far above the rate a window can bounce. */
+    var _lastFleetAsk = 0;
+    var _fleetAskAgain = function () {
+      var now = Date.now();
+      if (now - _lastFleetAsk < 10000) return;
+      _lastFleetAsk = now;
+      go();
+    };
+    try {
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) _fleetAskAgain();
+      });
+      window.addEventListener('focus', _fleetAskAgain);
+    } catch (e) {}
   })();
 
   /* ══ v2213 — THE FLEET CROSS-REFERENCE ═══════════════════════════════════════════════════

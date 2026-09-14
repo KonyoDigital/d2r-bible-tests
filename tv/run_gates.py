@@ -2906,6 +2906,19 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_the_fleet_card_is_asked_again_when_he_looks",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_card_is_asked_again_when_he_looks.py")], 120,
+         why="#82 — HIS CARD READ SETS 131/135 WHILE HIS BOARD HELD 132. Every trigger it had "
+             "painted it ONCE: _fleetKick at load, the v2851 ladder only AFTER a failed fetch so "
+             "never from a good-but-old reading, and the button only when pressed. A number true "
+             "at load, shown in the present tense — REG-815 again, and this card has already lost "
+             "a trigger once before (it refreshed when the ADVANCED drawer filled, the card was "
+             "moved OUT of that drawer, and its refresh stayed behind). ⚠ THE FIX IS AN EVENT, "
+             "NEVER A SHORTER POLL — his ruling. visibilitychange + focus cost nothing while he "
+             "is elsewhere and fire exactly when the card is about to be read; the same pair the "
+             "v2348 heartbeat uses, because WebKit suspends timers in a hidden window. This law "
+             "holds all four halves: both triggers, the throttle that stops one alt-tab firing "
+             "twice, and a standing refusal to put the card on a timer."),
     Gate("test_the_restore_proposal_reaches_the_board",
          [sys.executable, os.path.join(HERE, "test_the_restore_proposal_reaches_the_board.py")], 120,
          why="#81 — THE RESTORE'S TWO HALVES WERE JOINED BY A COMMENT. ledger_restore builds the "
