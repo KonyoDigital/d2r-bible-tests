@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3096",
+  "ver": "v3097",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3096: the meter returned two lanes since v3092 and rendered one - the panel lives in bible.html and I searched control_ui.html. And a windowed console goes dark within twenty seconds of losing focus, which is every black stage the eyes lane ever reported",
+  "note": "v3097: shelf-cards was red for six versions and the product was fine: the sandbox points TV_HIST at an empty frames dir, and since v3092 a film-less run is routed out of the grid into the history chips, so the card branch was unreachable BY CONSTRUCTION. Measured 357 of 357 sessions footageState unknown, 0 of 357 rendering a card. render_check now seeds 285 bytes x 3 stills on the newest 24 runs, into the sandbox only. 49 of 49 painted at all five widths; the floor comes down 441 to 48 by hand, which is the structural minimum of 2 unconditional nodes per card.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2758,6 +2758,88 @@ def _console_down():
             pass
 
 
+# ⚠ THE 285-BYTE STILL. An 8x8 JPEG, embedded rather than generated, so this never depends on
+# Pillow being installed — CI has no PIL and a seed that silently no-ops there would hand the
+# shelf target a permanently empty grid on the only machine that is allowed to run browser suites.
+_FILM_STILL_B64 = (
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQ"
+    "c1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSk"
+    "pKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAA"
+    "AAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAf/EABQRAQAAAAAAAAAAAAAAAAAA"
+    "AAD/2gAMAwEAAhEDEQA/AIAAL//Z")
+
+# ⚠ 24 RUNS, NOT ALL 357, AND THE SMALL NUMBER IS DELIBERATE. This file already paid for a
+# 533-card grid: "\U0001f7e2 533/533 at all five widths on a quiet machine, then \U0001f534 ... while the second
+# eye held the load average at 4.68". The defect `shelf-cards` exists to catch is the FIRST card
+# being trapped below 549px of furniture, and one card answers that as well as five hundred.
+# [[ab-against-head-before-blaming-the-room]]
+FILM_RUNS, FILM_FRAMES = 24, 3
+
+
+def _seed_film(sand, hist, runs=FILM_RUNS, frames=FILM_FRAMES):
+    """Give the newest `runs` sessions synthetic film. -> (filmed, total_runs_seen)
+
+    ⚠⚠ v3097 (#58) — SYNTHETIC, FOR THE SAME REASON THE TOMBSTONE LEDGER IS SYNTHETIC, and it is
+    the MEASURED cause of a red `shelf-cards` rather than a guess. Booted that exact sandbox and
+    asked it: /api/sessions returned **357 rows, and all 357 carried `footageState: "unknown"` with
+    `footageN: 0`**. Correct for this world, and fatal for that target. `_reeln` in control_app
+    counts `f_*.jpg` under `<TV_HIST>/reel_<sessionId>/`; TV_HIST is a deliberately EMPTY frames
+    dir; and since v3092 the shelf's card builder routes every film-less run OUT of the grid into
+    the history chips (control_ui.html, `footageState === 'retired' -> return ''`, and the same
+    line again for `'unknown'`). He asked for exactly that — *"make sure those no footage end up
+    tombstoned and then deleted also visually and ends up HISTORY"*. The consequence nobody
+    measured: in THIS world the grid is empty BY CONSTRUCTION, so the target refused with "never
+    matched a painted element in 20s", which is the FIXTURE being unable to exercise the branch
+    and not the product being broken. A cross-family LOOK at his live console the same night
+    (#180, 2026-09-14) counted 17 cards / 12 visible.
+    [[gate-blind-to-unexercised-input]] [[feedback-blind-fixture-green-gate]]
+
+    ⚠ SEEDED, NEVER COPIED — tv/frames/hist is 5.6 GB and `_serve_console`'s ⛔ holds without
+    exception. This writes 285 bytes x `frames` per run into the sandbox, which is removed at exit.
+    Nothing here can reach his tree. [[feedback-fixtures-never-touch-live-data]]
+    
+    ⚠ AND THE FLOOR IS 48 WHILE THE RUN MEASURES 49 — ONE NODE OF DELIBERATE SLACK, SAID OUT LOUD
+    RATHER THAN BLESSED AWAY. `.shc-hero` and `.shc-sess` are unconditional per card in the builder,
+    so `2 x runs` is STRUCTURAL; `.shc-area` is guarded by `(sm.areas || []).length` and the newest
+    24 runs are whichever 24 he last recorded, so the optional line's count moves with his data. A
+    floor pinned at 49 would go red the first night a run has no area — a gate that depends on what
+    he happened to film is the flake this file already refuses elsewhere. The cost is stated by the
+    harness itself on every run: "this ratchet cannot fire until 2 of the 49 nodes it photographs
+    are gone". One node of blindness, bought knowingly, against a target that would otherwise be
+    unreliable. [[unknown-stays-unknown]] [[ab-against-head-before-blaming-the-room]]
+    """
+    still = base64.b64decode(_FILM_STILL_B64)
+    sids, seen = [], set()
+    try:
+        with io.open(os.path.join(sand, "sessions.jsonl"), encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except Exception:
+                    continue
+                s = row.get("sessionId")
+                if s and s not in seen:
+                    seen.add(s)
+                    sids.append(s)
+    except Exception:
+        return 0, 0
+    filmed = 0
+    for s in sids[-runs:] if runs else []:
+        try:
+            rd = os.path.join(hist, "reel_" + str(s))
+            os.makedirs(rd, exist_ok=True)
+            for k in range(frames):
+                with open(os.path.join(rd, "f_%04d.jpg" % k), "wb") as fh2:
+                    fh2.write(still)
+            filmed += 1
+        except Exception:
+            continue
+    return filmed, len(sids)
+
+
 def _serve_console():
     """Boot a PRIVATE control_app on an ephemeral port and return (origin, proc).
 
@@ -2868,6 +2950,23 @@ def _serve_console():
              "pages": 0, "frames": 8, "focus": None, "startedTs": 1700000000000 + i,
              "deletedTs": 1700000100000 + i,
              "why": "render fixture — not a real closure"} for i in range(7)]}))
+    # ⚠⚠ v3097 (#58) — SYNTHETIC FILM, FOR THE SAME REASON THE TOMBSTONE LEDGER ABOVE IS
+    # SYNTHETIC. Without it EVERY session in this world is film-less, and since v3092 a film-less
+    # run is routed OUT of the shelf grid into the history chips — so `shelf-cards` photographs an
+    # empty room by construction. The measurement, the ⛔ that keeps this seeded rather than
+    # copied, and why it is 24 runs and not 357, all live on `_seed_film` above. One place.
+    _filmed, _allruns = _seed_film(_sand, _hist)
+    if _filmed:
+        # ⚠ [[zero-needs-a-denominator]] — say the denominator out loud. "seeded 24" alone cannot
+        # be told apart from "seeded 24 of 24", and the second would mean the copy list had failed.
+        print("   \u2139 render sandbox seeded film on %d of %d run(s) x %d still(s) — the shelf "
+              "grid drops every film-less run since v3092, so without this its card branch is "
+              "UNREACHABLE in this world" % (_filmed, _allruns, FILM_FRAMES), flush=True)
+    else:
+        # ⚠ LOUD. A silent failure here renders an empty grid, and an empty grid photographed is
+        # [[unknown-stays-unknown]] wearing a green coat.
+        print("   \u26a0 render sandbox seeded film on 0 of %d run(s) — `shelf-cards` will measure "
+              "an EMPTY grid, which is UNKNOWN rather than clean" % _allruns, flush=True)
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
                TV_PARENT_PID=str(os.getpid()),
                TV_HIST=_hist,

@@ -2569,6 +2569,30 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_the_render_fixture_can_reach_the_card_branch",
+         [sys.executable, os.path.join(HERE, "test_the_render_fixture_can_reach_the_card_branch.py")], 120,
+         why="A FIXTURE THAT CANNOT EXERCISE THE BRANCH DOES NOT GO QUIETLY GREEN - IT GOES LOUDLY "
+             "RED AT THE PRODUCT, AND SOMEONE EVENTUALLY BLESSES OVER IT. The `shelf-cards` render "
+             "target refused for six versions with 'never matched a painted element in 20s', and "
+             "the product was fine the whole time: a cross-family LOOK at his live console the same "
+             "night counted 17 cards / 12 visible. Booting the render sandbox and asking it settled "
+             "it in one call - /api/sessions returns 357 rows and ALL 357 carry "
+             "footageState:'unknown' with footageN:0, so 0 of 357 would render a card. Two correct "
+             "decisions had met: since v3092 the shelf routes a film-less run OUT of the grid into "
+             "the history chips, which is what he asked for ('make sure those no footage end up "
+             "tombstoned and then deleted also visually and ends up HISTORY'), and _serve_console "
+             "points TV_HIST at an EMPTY frames dir because tv/frames/hist is 5.6 GB and copying it "
+             "is an ENOSPC incident this repo has already paid for. The card branch was therefore "
+             "unreachable BY CONSTRUCTION. render_check now seeds synthetic film - 285 bytes x 3 on "
+             "the newest 24 runs, into the sandbox only, never his tree - and this law pins all "
+             "five halves of it: the stills are written in the shape control_app COUNTS, on the "
+             "NEWEST runs because the grid is newest-first and a card at the bottom of a 4,120px "
+             "scroller cannot measure the fold defect, as real JPEG bytes rather than empty files, "
+             "with the join pinned from control_app's own side by PARSE so renaming `reel_` or "
+             "`f_` fails HERE instead of silently emptying the grid again, and with the blessed "
+             "floor held between the structural minimum (2 unconditional nodes per card) and what "
+             "the world can paint with every optional line present. MEASURED after the seed: "
+             "\U0001f7e2 49/49 painted, 0 clipped, 0 off, 0 covered, at all five widths."),
     Gate("test_a_journal_row_leaves_only_on_proof",
          [sys.executable, os.path.join(HERE, "test_a_journal_row_leaves_only_on_proof.py")], 120,
          why="A JOURNAL ROW MAY LEAVE ONLY ON A PROOF OF EXTRACTION, AND THE PLANNER MAY NEVER "
