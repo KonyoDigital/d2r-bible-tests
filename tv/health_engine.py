@@ -591,6 +591,61 @@ def check_self_arming():
                 ev, k=tot_k, n=tot_n,
                 surfaces=[l.get("lock") for l in locks if l.get("lock")])
 
+#: One walk of the gate roster, memoised on the ledger's mtime. See `_attack_tally`.
+_ATK_CACHE = {"key": None, "per_file": None}
+
+
+def _attack_rollup():
+    """Attacks per PROOF FILE, from one walk of the roster. -> ({file: (k, n)} , ok)
+
+    ⚠⚠⚠ v3139 — THE TALLY COST 1,020 ms A CALL AND THE CHEAP SUBSET RUNS IT TWICE. MEASURED after
+    v3138: one `_attack_tally()` = 1020 ms, three organs = 2265 ms per health pass, and
+    `test_the_cheap_subset_is_actually_CHEAP` blocked the push at 10,062 ms against a 9,000 ms
+    budget — a path that runs at EVERY console boot. Walking 368 gates and AST-parsing each, three
+    times over, for an answer that changes only when the ledger or a gate file changes.
+
+    ⚠ THE GATE CAUGHT A REAL REGRESSION I SHIPPED. `heart-first` says build the organ WITH the
+    thing; it does not say make his console boot 2.3s slower to do it. [[poll-slower-than-its-interval]]
+
+    So: ONE walk, keyed on `.heart2.json`'s mtime+size and the roster's own fingerprint, rolled up
+    per proof FILE so every hint is answered from the same pass. A stale key simply recomputes;
+    nothing is served from a cache that cannot prove it is current. [[stale-reading]]
+    """
+    try:
+        import json as _json
+        import heart2 as _h2
+        _sp = os.path.join(HERE, ".heart2.json")
+        _st = os.stat(_sp)
+        with io.open(_sp, encoding="utf-8") as fh:
+            _store = _json.load(fh) or {}
+        _key = (int(_st.st_mtime), int(_st.st_size), str(_store.get("gatesFingerprint") or ""))
+    except Exception:
+        return None, False
+    if _ATK_CACHE.get("key") == _key and _ATK_CACHE.get("per_file") is not None:
+        return _ATK_CACHE["per_file"], True
+    _proved = set(_store.get("provedGates") or [])
+    _ran = _proved | set(_store.get("blind") or [])
+    per = {}
+    try:
+        for _name, _fn in _h2.gate_files():
+            _proofs = _h2.red_proofs_in(_fn) or []
+            if not _proofs:
+                continue
+            _files = {str(_p.get("file") or "") for _p in _proofs}
+            _single = len(_files) == 1
+            for _f in _files:
+                _mine = sum(1 for _p in _proofs if str(_p.get("file") or "") == _f)
+                k, n = per.get(_f, (0, 0))
+                if _name in _proved:
+                    per[_f] = (k + _mine, n + _mine)   # proven ⇒ each went red ⇒ each a refusal
+                elif _name in _ran and _single:
+                    per[_f] = (k, n + 1)               # ONE gate, ONE failed attempt
+    except Exception:
+        return None, False
+    _ATK_CACHE["key"], _ATK_CACHE["per_file"] = _key, per
+    return per, True
+
+
 def _attack_tally(*module_hints):
     """Sabotages fired at the lane-liveness machinery, and how many earned a refusal. -> (k, n)
 
@@ -617,64 +672,14 @@ def _attack_tally(*module_hints):
     -> (None, None) when the record cannot be read, because an unreadable ledger is UNKNOWN and
     must never stand as "zero attacks". [[zero-needs-a-denominator]]
     """
-    try:
-        import json as _json
-        import heart2 as _h2
-        with io.open(os.path.join(HERE, ".heart2.json"), encoding="utf-8") as fh:
-            _store = _json.load(fh) or {}
-        _proved = set(_store.get("provedGates") or [])
-        # ⚠⚠ v3136 — A GATE WITH NO VERDICT WAS NEVER ATTACKED, so its declared proofs are not
-        # attempts. v3135 counted every RED_PROOF in source as `n` and only `provedGates` as `k`,
-        # so a store that exists but has not yet run these gates gave n=2, k=0 → `score: 0.0`,
-        # which `_row` means as INERT: "it WAS tested and never refused". That is the most
-        # dangerous reading on the panel, and it would be drawn for work that is merely UNPROVEN.
-        # `n` must be attempts, so only gates carrying a VERDICT count — proved, or run and blind.
-        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
-        _ran = _proved | set(_store.get("blind") or [])
-    except Exception:
+    per, ok = _attack_rollup()
+    if not ok or per is None:
         return None, None
     k = n = 0
-    try:
-        # ⚠⚠⚠ heart2 STORES ONE VERDICT PER GATE; THIS COUNTS PER PROOF. The grain mismatch fails
-        # OPEN toward INERT. heart2 aggregates all-or-nothing: a gate is PROVEN only when NOT ONE
-        # of its proofs came back BLIND/INVALID/UNPROVABLE.
-        #
-        # THE ASYMMETRY IS THE FIX (v3137). Upward attribution is safe: gate PROVEN ⇒ every proof
-        # in it went red ⇒ this module's proof went red. Downward is not: a failed gate says
-        # something broke, never WHICH. So a failing gate counts only when SINGLE-FILE, where the
-        # failure is unambiguously this module's; a failing MIXED gate leaves this module UNKNOWN.
-        # MEASURED: lane_liveness has ZERO single-file gates and TWO mixed, so without this one
-        # sibling drift in control_app.py published proofK 0, proofN 2 — `score: 0.0` = INERT,
-        # "tested and never refused" — while this organ's own sabotage refused perfectly well.
-        #
-        # ⚠⚠ AND THE FAILURE COUNTS A GATE, NOT ITS PROOFS (v3138). The branch below used to
-        # increment once per matching proof while its own comment was gate-shaped. heart2 knows
-        # ONE verdict per gate, so a five-proof gate going blind is ONE failed attempt, not five.
-        # MEASURED on the live roster: `test_his_console_is_never_mine_to_kill` declares 5 proofs,
-        # all on my_orphans.py, so a single drift would have published k=1 n=6 (wilson ≈ 0.030)
-        # where the truth is k=1 n=2 (≈ 0.095). A PROVEN gate still counts per proof, which is
-        # right: proven means every one of them went red, so each is a real refusal.
-        #
-        # ⚠ ONE WALK. The pre-pass that built the file sets called `gate_files()` a second time,
-        # and that is NOT a pure read — it prints a dropped-gate warning through `say=print`. Three
-        # organs per health pass made six identical "⚠ registered gate(s) have no python file"
-        # lines and AST-parsed every gate twice per organ. I saw those six lines in my own sandbox
-        # output and read past them. The file set comes from the same `red_proofs_in` result this
-        # loop already walks. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
-        for _name, _fn in _h2.gate_files():
-            _proofs = _h2.red_proofs_in(_fn) or []
-            _mine = [_p for _p in _proofs
-                     if any(h in str(_p.get("file") or "") for h in module_hints)]
-            if not _mine:
-                continue
-            if _name in _proved:
-                n += len(_mine)       # PROVEN ⇒ each of these went red ⇒ each is a refusal
-                k += len(_mine)
-            elif _name in _ran and len({str(_p.get("file") or "") for _p in _proofs}) == 1:
-                n += 1                # ONE gate, ONE failed attempt — the store knows no more
-            # else: ran and mixed, or never ran -> UNKNOWN, counted nowhere
-    except Exception:
-        return None, None
+    for _f, (_k, _n) in per.items():
+        if any(h in _f for h in module_hints):
+            k += _k
+            n += _n
     return (k, n) if n else (None, None)
 
 def check_lane_liveness():
