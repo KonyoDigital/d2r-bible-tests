@@ -108,7 +108,55 @@ class TestTheFleetCardIsAskedAgainWhenHeLooks(unittest.TestCase):
                 "own interval saturates the machine. He ruled this out by name." % bad)
 
 
+    def test_only_the_newest_ask_may_paint(self):
+        """Found by the CODEX eye, a different family from the usual one — which was out of credit
+        and recorded an EMPTY SEAT rather than agreement.
+
+        _fleetRefresh is 38k characters with one fetch and two awaits and no abort. Two overlapping
+        calls race and whichever resolves LAST paints. Until the focus/visibility triggers landed
+        that was almost unreachable; they make it ordinary — an ask stalls, he returns past the
+        throttle, the second ask paints CURRENT numbers, then the first resolves and paints OLDER
+        ones over them. The stale card, arriving by a new road.
+
+        ⚠ COUNTED, NOT MERELY PRESENT. One guard is not enough: every await is a place the world
+        can move on, so a third await added later must come with a third guard or the race is
+        silently reopened."""
+        h = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        m = re.search(r"window\._fleetRefresh\s*=\s*async function\s*\(", h)
+        self.assertIsNotNone(m, "_fleetRefresh is gone — this law reads the wrong thing")
+        i = m.start()
+        j = h.find("{", i)
+        depth, k = 0, j
+        while k < len(h):
+            if h[k] == "{":
+                depth += 1
+            elif h[k] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            k += 1
+        body = _code_only(h[i:k + 1])
+        self.assertIn("window._fleetGen", body,
+                      "no generation stamp — nothing can tell an old response from a new one")
+        awaits = len(re.findall(r"\bawait\b", body))
+        guards = len(re.findall(r"_gen\s*!==\s*window\._fleetGen", body))
+        self.assertGreaterEqual(
+            guards, awaits,
+            "%d await(s) but only %d generation check(s). Every await is a point where a newer "
+            "ask can overtake this one, so an unguarded await lets an older response paint over "
+            "fresher numbers." % (awaits, guards))
+
 RED_PROOF = [
+    {
+        "why": "drops the guard after the json await, so a stalled older ask resolves last and "
+               "paints OLDER fleet numbers over the fresher ones a newer ask already rendered — "
+               "the stale card this whole version set out to fix, by a new road",
+        "file": "control_ui.html",
+        "find": "      var j = await r.json();\n      if (_gen !== window._fleetGen) return;",
+        "replace": "      var j = await r.json();",
+        "matches": 1,
+    },
+
     {
         "why": "drops the visibility trigger, so the card goes back to being painted once at load "
                "and left standing in the present tense — the 131-while-the-board-held-132 defect",

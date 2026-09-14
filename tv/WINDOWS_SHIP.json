@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3155",
+  "ver": "v3156",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3155: the fleet card asks again when he looks; NUL is a parse failure too",
+  "note": "v3156: only the newest fleet ask may paint",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

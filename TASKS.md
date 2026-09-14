@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3155** | `(this commit)` | v3155 — the fleet card asks again when he looks; NUL is a parse failure too |
+| **v3156** | `(this commit)` | v3156 — only the newest fleet ask may paint |
+| **v3155** | `8f29a259` | v3155 — the fleet card asks again when he looks; NUL is a parse failure too |
 | **v3154** | `e5bf18a4` | v3154 — a file that will not parse is a complete answer, not an unreadable one |
 | **v3153** | `fe460154` | v3153 — the restore proposal and the board are joined by a measurement, not a comment |
 | **v3152** | `7b52b6be` | v3152 — a file the package could not read is not a name that does not exist |

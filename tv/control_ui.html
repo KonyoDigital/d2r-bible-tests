@@ -22209,9 +22209,28 @@ function escC(s) {
   window._fleetRefresh = async function () {
     var box = document.getElementById('fleet-list');
     if (!box) return;
+    /* ══ v3156 — ONLY THE NEWEST ASK MAY PAINT ═══════════════════════════════════════════════
+       Found by the CODEX eye (a different family from the usual one, which was out of credit and
+       recorded an EMPTY SEAT rather than agreement). This function is 38k characters with one
+       fetch and two awaits and had NO generation guard, no abort, no in-flight flag — so two
+       overlapping calls race and whichever resolves LAST paints.
+
+       ⚠ THE EXPOSURE IS MINE, FROM THE VERSION BEFORE THIS ONE. Until v3155 the only triggers
+       were the load kick, the ↻ button and the post-failure ladder, so two calls almost never
+       overlapped. Adding focus + visibilitychange makes it ordinary: one ask stalls, he leaves
+       and comes back past the 10s throttle, the second ask returns CURRENT data and paints, then
+       the first resolves and paints OLDER numbers over it. That is the exact stale card v3155
+       set out to fix, arriving by a new road. [[stale-reading]]
+
+       A ticket, not an abort: the fetch is cheap and already in flight, and an AbortController
+       would need unwinding through every early return in this function. The stale response is
+       still read — it simply may not paint. */
+    var _gen = (window._fleetGen = (window._fleetGen || 0) + 1);
     try {
       var r = await fetch('/api/fleet', { cache: 'no-store' });
+      if (_gen !== window._fleetGen) return;
       var j = await r.json();
+      if (_gen !== window._fleetGen) return;
       if (!j || j.ok === false) {
         /* ── v2843 — UNREACHABLE IS NOT THE SAME AS NOTHING TO SHOW ─────────────────────────
            His screenshot, 2026-09-09 11:07: this card printed
