@@ -1200,8 +1200,24 @@ TARGETS = {
         # target: a half of the panel nothing was looking at. Measured today: the legend printed
         # `flowing 0` while every vessel row said "NOTHING CAN SCORE THIS WATCHER", and no
         # instrument here could have caught the contradiction because none of them saw the line.
+        # ⚠⚠⚠ v3143 — `.lg-unmeasured` IS A CENSUS-STATE BIT, NOT A SURFACE, AND COUNTING IT MADE
+        # THE FLOOR RIGHT FOR ONLY ONE OF TWO LEGAL DOMs. The legend renders the FLOWING count as
+        # a number when there is one and otherwise as `<span class="lg-unmeasured">—</span>`, so
+        # `.hrt-legend span` was 5 while the census was unscorable and 4 once it scored. v3142
+        # lowered the floor 96 -> 95 for the scored shape, which leaves this hole:
+        #
+        #     FLOWING 8      found 95, floor 95   green, tight
+        #     FLOWING None   found 96, floor 95   a ratchet never refuses an INCREASE — 1 slack
+        #     …and in THAT state one real .hrt-row vanishes -> found 95, floor 95 -> GREEN
+        #
+        # The placeholder CANCELS a real loss, which is precisely the failure this ratchet exists
+        # to prevent. `heart.vessels()` still legally returns FLOWING None when nothing is
+        # scorable, and `test_flowing_is_unmeasured_not_zero` guards that state, so both DOMs stay
+        # reachable — the floor cannot be calibrated to both. Excluding the placeholder makes the
+        # count invariant to census state, so the floor means "surfaces", which is the only thing
+        # it can honestly ratchet. [[zero-needs-a-denominator]] [[stale-reading]]
         "sel": "#heart-ov .hrt-h, #heart-ov .hrt-row, #heart-ov .hrt-legend, "
-               "#heart-ov .hrt-legend span",
+               "#heart-ov .hrt-legend span:not(.lg-unmeasured)",
         "settles": False,
         "warmup": 10.0,     # /api/heart re-derives the census and the proof ledger on every open
     },
