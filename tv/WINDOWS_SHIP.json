@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3132",
+  "ver": "v3133",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3132: The second eye on v3131 applied my own find and replace to the real source and PARSED the result, which is the check I skipped. My re-anchor covered only the first line of a two-line condition while the replace stayed a complete elif False, so the tampered source read elif False followed by an orphaned and-not clause. That matches once — past the matched-zero-times INVALID I was fixing — and then dies on the parse gate, so the proof never runs and any earlier verdict is revoked. Strictly worse than the stale anchor it replaced. The find now covers the whole condition through its colon, verified by applying the tamper and parsing it, and the gate proves 2 of 2.",
+  "note": "v3133: 368 declared, 361 proved, 0 blind. Ten of the fifteen went PROVEN under a sabotage that deletes the real thing. TWO were RED ON HEAD while the store called them unrun and are now green. THREE are UNPROVABLE for VENUE, not for defect, and each was verified green in the real tree: test_control is a 2235-test browser suite the safe_copy sandbox cannot host and the pre-push gate runs it green on this exact tree; test_one_name passes 16 tests in 31s clean but its tampered run exceeds the 60s bound under sandbox load; swallow_ratchet exits 0 in the real tree. Saying UNPROVABLE-for-venue is the honest verdict — counting them as proven would be the green that lies. The whole drain found FIVE gates rotted on HEAD and every single one was a stale anchor or a stale model, never a wrong law, and four of the five were mine.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
