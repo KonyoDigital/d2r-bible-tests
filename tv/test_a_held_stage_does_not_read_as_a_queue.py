@@ -56,17 +56,26 @@ def _rail_source():
     builder = _between(src, "    var _shHeld = {};", "    }).join('');")
     tail = _between(src, "    var _shHeldAll = reels.length > 0",
                     "return !!(r && r.held); });")
-    return stages + "\n" + builder + "\n" + tail
+    # ⚠⚠ v3119 — THE HEADING IS THE SENTENCE HE READS, AND v3117 NEVER EVALUATED IT. The second
+    # eye on v3117: this extract stopped at the `_shHeldAll` ASSIGNMENT, so every assertion read
+    # the BOOLEAN and none read the string built from it. Revert the ternary to always say "each
+    # stage counts the reels that get no further than it", leave `_shHeldAll` computed, and the
+    # whole gate stays green while his console shows the original lie over twelve held reels.
+    # Both halves looked wired and the pixels were not in the loop. [[the-unjoined-end]]
+    headline = _between(src, "'<div class=\"shs-railh\">where the ' + reels.length",
+                        "+   '</div>'")
+    return (stages + "\n" + builder + "\n" + tail
+            + "\n    var railh = " + headline + ";")
 
 
 def _run(reels, stages):
-    """Evaluate the REAL rail builder against these reels. -> {rail, heldAll}"""
+    """Evaluate the REAL rail builder AND the heading against these reels. -> {rail, heldAll, railh}"""
     js = """
     var esc = function(x){ return String(x); };
     var reels = %s;
     var stg = %s;
     %s
-    console.log(JSON.stringify({rail: rail, heldAll: _shHeldAll}));
+    console.log(JSON.stringify({rail: rail, heldAll: _shHeldAll, railh: railh}));
     """ % (json.dumps(reels), json.dumps(stages), _rail_source())
     r = subprocess.run([shutil.which("node"), "-e", js],
                        capture_output=True, text=True, timeout=60)
@@ -140,6 +149,33 @@ class TestAHeldStageDoesNotReadAsAQueue(unittest.TestCase):
         self.assertIn("7 of them held", rail,
                       "a partially held stage says nothing about its 7 holds")
 
+    def test_the_HEADING_he_reads_says_nothing_can_move(self):
+        """⚠⚠ THE SECOND EYE ON v3117, AND IT IS THIS FILE'S OWN FAILURE MODE. v3117 asserted the
+        BOOLEAN `_shHeldAll` and never the sentence built from it. Revert the ternary to always
+        emit the queue wording, leave the boolean computed and the per-stage badges alone, and
+        every assertion here still passed — while his console showed the original lie over twelve
+        held reels. The variable was wired; the pixels were not. [[the-unjoined-end]]"""
+        out = _run(HIS_LIVE, HIS_STAGES)
+        h = out["railh"]
+        print("   heading: %s" % h[:104])
+        self.assertIn("none of them is free to move", h,
+                      "the heading still offers to explain which reels get 'no further' while "
+                      "not one of the twelve can move at all")
+        self.assertNotIn("no further", h,
+                         "the queue wording survived in the heading: %r" % (h[:140],))
+
+    def test_the_heading_keeps_the_queue_wording_while_a_reel_is_free(self):
+        """The mirror: with one reel free the heading must go back to describing a queue, because
+        that is what it then is."""
+        reels = [dict(r) for r in HIS_LIVE]
+        reels[0] = dict(reels[0]); reels[0]["held"] = False; reels[0]["holdKind"] = None
+        h = _run(reels, HIS_STAGES)["railh"]
+        print("   heading with one free reel: %s" % h[:104])
+        self.assertIn("no further", h,
+                      "a shelf with a free reel is a queue and the heading no longer says so")
+        self.assertNotIn("none of them is free to move", h,
+                         "one reel is free and the heading claims none is")
+
     def test_a_stage_with_no_reels_is_not_held(self):
         """⚠ A ZERO NEEDS A DENOMINATOR. `0 >= 0` is true, and an empty stage marked held would
         be the emptiest possible claim. [[zero-needs-a-denominator]]"""
@@ -150,6 +186,16 @@ class TestAHeldStageDoesNotReadAsAQueue(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "the heading goes back to always offering to explain which reels get 'no further' "
+               "while not one of the twelve can move — the exact sentence his console showed over "
+               "a figure pinned at 8 for a week, and v3117's laws all stayed green through it "
+               "because they read the boolean and never the string",
+        "file": "control_ui.html",
+        "find": "                 +   (_shHeldAll",
+        "replace": "                 +   (false",
+        "matches": 1,
+    },
     {
         "why": "a stage every one of whose reels is held goes back to drawing a plain gold count, "
                "so his 8 RELEASABLE — the newest-8 floor, pinned at 8 forever — reads as a queue "
