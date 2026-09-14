@@ -90,6 +90,41 @@ def _film_on_disk(sid, hist_dir):
     return n > 0, n
 
 
+_PAYLOAD_FIELDS = ("finds", "tallies", "intakes", "named", "chron", "registered",
+                   "judged", "topFind")
+
+
+def _carries_payload(s):
+    """Which fields of this row still hold something. -> sorted list of names."""
+    return sorted(k for k in _PAYLOAD_FIELDS if s.get(k))
+
+
+def _banked_reels():
+    """The reels a durable bank still names. -> (set | None, why_unknown | None)
+
+    ⚠⚠ DELEGATE, DO NOT RE-DERIVE THE PATH. control_app's own v2139.1 scar is explicit about this
+    exact file: a third reader joined `chronicle_swept.json` from HERE and thereby ignored
+    TV_CHRON_SWEPT, ignored a mock.patch.object on _CHRON_SWEPT_PATH and ignored TV_HIST — all
+    three of which `_chron_swept_path()` honours on purpose, in that precedence. Two fixtures that
+    patched the path still got the LIVE memory, so a reel set up as unswept read as swept.
+    `_chron_swept_mem()` is the one reader that gets it right.
+    [[copy-drift]] [[feedback-fixtures-never-touch-live-data]]
+
+    ⚠ None IS NOT AN EMPTY SET. A bank we could not read means "UNKNOWN whether it was banked",
+    and on a DELETION path unknown must hold, never release. [[unknown-stays-unknown]]
+    """
+    try:
+        import control_app as _ca
+        mem = _ca._chron_swept_mem() or {}
+    except Exception as e:
+        return None, "the sweep memory could not be read (%s)" % type(e).__name__
+    out = set()
+    for k in mem:
+        k = str(k)
+        out.add(k[len("reel_"):] if k.startswith("reel_") else k)
+    return out, None
+
+
 def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
     """Classify every journal row. -> dict. WRITES NOTHING.
 
@@ -106,6 +141,21 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
     dated = [s for s in rows if isinstance(s.get("t0"), (int, float))]
     dated.sort(key=lambda s: s.get("t0") or 0, reverse=True)
     newest = {str(s.get("sessionId") or "") for s in dated[:max(0, int(keep_recent))]}
+
+    # ⚠⚠ v3105 — KONYO'S CONDITION, MADE A RULE INSTEAD OF A ONE-OFF CHECK. He approved the
+    # deletion with one string attached: *"just make sure before it was tallied and extracted
+    # properly"*. Measured on his live journal before writing this: of 447 releasable rows, 245
+    # still carried payload (finds, tallies, intakes, named, chron, registered, topFind), 207 of
+    # those had their reel recorded in the sweep memory — so the read survives the row — and
+    # **38 appeared in no bank at all**, several of them carrying `finds` and `topFind`. Deleting
+    # those 38 throws away the only trace of what they found.
+    #
+    # The film gate already enforces his rule on the OTHER side: reel_retention refuses to
+    # tombstone on `zero-pages` ("that is 'this reader found nothing', not 'done'") and on
+    # `panels-never-banked`, which quotes him directly — *"all of the reels get extracted with
+    # information thats needed"* BEFORE the tombstone. This is the same sentence applied to the
+    # journal ROW, which is what survives the film. [[join-gate-heart]]
+    banked, bank_why = _banked_reels()
 
     release, keep = [], []
     for s in rows:
@@ -129,6 +179,14 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
                 why = ("footageState is %r, not %r — no film is not the same fact as extracted, "
                        "and an absence of evidence is not a proof"
                        % (str(s.get("footageState") or "none"), EXTRACTED))
+            elif _carries_payload(s) and banked is None:
+                why = ("this row still carries %s and %s, so whether any of it was banked is "
+                       "UNKNOWN — and unknown holds on a path that deletes"
+                       % (", ".join(_carries_payload(s)), bank_why))
+            elif _carries_payload(s) and sid not in banked:
+                why = ("this row still carries %s and NO bank names its reel — the sweep memory "
+                       "has no record of it being read, so deleting the row throws away the only "
+                       "trace of what it found" % ", ".join(_carries_payload(s)))
         if why is None:
             release.append({"sessionId": sid, "t0": s.get("t0"),
                             "why": "film was retired after giving up its information: %s"

@@ -2569,6 +2569,26 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_a_row_that_is_the_only_trace_is_never_released",
+         [sys.executable, os.path.join(HERE, "test_a_row_that_is_the_only_trace_is_never_released.py")], 180,
+         why="A JOURNAL ROW THAT IS THE ONLY TRACE OF WHAT A REEL FOUND MAY NEVER BE RELEASED. He "
+             "approved the river's deletion on 2026-09-14 with one string attached - 'i agree "
+             "delete.. just make sure before it was tallied and extracted properly' - and this is "
+             "that sentence as a RULE rather than a check somebody ran once. MEASURED on his live "
+             "journal before the rule existed: of 447 rows the planner would have released, 245 "
+             "still carried payload (finds, tallies, intakes, named, chron, registered, topFind), "
+             "207 of those had their reel recorded in the sweep memory so the READ survives the "
+             "row, and 38 appeared in NO bank at all - several carrying finds and topFind. The film "
+             "is already gone for every one of them, so the row is what is left and nothing else "
+             "names the reel; deleting it is not tidying, it is forgetting. The film gate already "
+             "enforces the same sentence one step upstream: reel_retention refuses to tombstone on "
+             "zero-pages ('that is this reader found nothing, not done') and on panels-never-banked, "
+             "whose comment quotes him directly. UNKNOWN HOLDS - a bank that could not be read is "
+             "not an empty bank, and on a path that deletes those must never share a branch. And "
+             "the bank reader DELEGATES to control_app._chron_swept_mem rather than joining the "
+             "path itself, because control_app's own v2139.1 scar names this exact file: a third "
+             "reader joined it from HERE and bypassed TV_CHRON_SWEPT, _CHRON_SWEPT_PATH and "
+             "TV_HIST, so two fixtures that patched the path still read LIVE data."),
     Gate("test_the_bump_refuses_a_tree_that_does_not_parse",
          [sys.executable, os.path.join(HERE, "test_the_bump_refuses_a_tree_that_does_not_parse.py")], 300,
          why="THE VERSION STAMP IS THE MOMENT THE TREE BECOMES SOMETHING HE EXECUTES, SO IT MUST "

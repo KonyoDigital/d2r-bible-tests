@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3104",
+  "ver": "v3105",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3104: the second eye found the hole in v3103 the same night it shipped: a note carrying a script close tag is perfectly valid JavaScript in isolation and still ends the block it lands in, so the line check passed while the extractor saw an unterminated string. The bump now parses the SPLICED page through the same extractor the gate uses. Also scoped the ship row to the root it was given.",
+  "note": "v3105: he approved the river deletion with one condition - make sure it was tallied and extracted properly. Measured on his live journal: of 447 releasable rows 245 still carried payload, 207 had their reel in the sweep memory so the read survives, and 38 appeared in NO bank at all with several carrying finds and topFind. Those 38 are now held. Unknown holds too - a bank that could not be read is not an empty bank.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
