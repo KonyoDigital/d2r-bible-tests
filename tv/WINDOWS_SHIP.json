@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3122",
+  "ver": "v3123",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3122: shelf-cards and river-strip have blocked every push since v3102 — nineteen versions — saying only that the panel could not be ACTIVATED, which reads as load. Three real defects, found once the target was finally asked for a reason. ONE: the door. The activate tested th.hidden, but #theatre is shut by CSS display none, so the branch never ran, thOpen was never called, and it fell through to open an overlay inside a collapsed box. The correct test already existed in this file in the UNREGISTERED _shelf_activate. TWO: shelf-cards waited for the RIVER lanes, a surface it does not photograph — 48 cards sat rendered while it refused. THREE: thShelf(true) on every poll REBUILDS ov.innerHTML, which carries the reading-the-river placeholder, so the harness destroyed the river 0.4s after every paint. Cards survived because they are built synchronously in that same string. Both targets now green at all five widths.",
+  "note": "v3123: tv/shadow_watch.json is ignored and its .tmp partner was TRACKED, so his running console created and deleted a tracked file underneath a 12-minute pre-push gate. Measured twice: once as fatal unable to stat tv/.subscription_budget.json.tmp killing a commit outright, and once as a phantom deletion in a tree that was supposed to be clean. The .board_identity entry states the rule in as many words — the .tmp is the atomic-write partner and must go too — and four siblings already follow it. This was the one file the sweep missed. Tracked .tmp files: 1 to 0.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

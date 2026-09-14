@@ -149,6 +149,14 @@ tv/retro_triage.json
 # v2304 — the shadow watcher's own record: per-machine runtime state,
 # exactly like the two sweep ledgers above it. Never source.
 tv/shadow_watch.json
+# v3123 — THE ATOMIC-WRITE PARTNER, WHICH THE SWEEP ABOVE MISSED ON EXACTLY THIS ONE FILE.
+# The .board_identity note twelve lines up states the rule — "The .tmp is the atomic-write
+# partner and must go too" — and four siblings follow it. This one was TRACKED, so his
+# running console created and deleted a tracked file underneath a 12-minute pre-push gate:
+# measured once as `fatal: unable to stat 'tv/.subscription_budget.json.tmp'` killing a
+# commit outright, and once as a phantom ` D ` in a tree that was supposed to be clean.
+# [[sweep-dont-ask]] [[the-unjoined-end]]
+tv/shadow_watch.json.tmp
 tv/capture_doors.json
 tv/retro_gate.json
 tv/main_character.json
