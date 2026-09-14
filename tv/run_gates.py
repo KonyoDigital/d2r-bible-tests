@@ -2906,6 +2906,18 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_lane_attacks_are_per_lane",
+         [sys.executable, os.path.join(HERE, "test_lane_attacks_are_per_lane.py")], 120,
+         why="#80 — TWELVE WATCHER LANES COULD NOT BE SCORED AT ALL, because no organ row named a "
+             "single `tvd-*` lane and a vessel inherits the score of the organ that names it. The "
+             "fix is a routing organ, and the trap it must never fall into is the cheap version of "
+             "itself: 163 RED_PROOFs name control_app.py and exactly SIX land inside one of the "
+             "twelve watcher-loop def spans. Handing every lane the file's tally would have "
+             "published FLOWING 20/20 out of evidence that never touched nine of them. This law "
+             "holds the three properties that keep it honest — a sabotage credits ONLY the lane "
+             "whose def span it lands in, the published score is the WEAKEST named lane's rather "
+             "than the sum, and a lane attacked-and-never-refused is never named as a surface so "
+             "it cannot inherit a proven lane's score."),
     Gate("test_flowing_is_unmeasured_not_zero",
          [sys.executable, os.path.join(HERE, "test_flowing_is_unmeasured_not_zero.py")], 120,
          why="THE HEART PRINTED `flowing 0` WHILE EVERY VESSEL ROW SAID NOBODY COULD TELL. FLOWING "

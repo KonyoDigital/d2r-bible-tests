@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3144",
+  "ver": "v3145",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3144: the unmeasured-flow decision is pure so its law can drive both branches",
+  "note": "v3145: a watcher lane is as proven as its own sabotages, never its neighbours",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

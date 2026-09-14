@@ -596,6 +596,68 @@ def check_self_arming():
 _ATK_CACHE = {"key": None, "per_file": None}
 
 
+def _lane_spans():
+    """The console's watcher lanes and where each one's code actually lives.
+    -> {fn_name: (lane, first_line, last_line)}
+
+    ⚠ PARSED FROM THE REGISTRY, NEVER A LIST HERE. control_app.py pairs every lane name with the
+    function that runs it in one (name, fn) table; a copy in this file is a second source that
+    goes stale the first time a lane is renamed. [[copy-drift]] [[source-reading-guard]]
+    """
+    import ast as _ast
+    _src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+    _tree = _ast.parse(_src)
+    _lanes = {}
+    for _n in _ast.walk(_tree):
+        if (isinstance(_n, _ast.Tuple) and len(_n.elts) == 2
+                and isinstance(_n.elts[0], _ast.Constant)
+                and isinstance(_n.elts[0].value, str)
+                and _n.elts[0].value.startswith("tvd-")
+                and isinstance(_n.elts[1], _ast.Name)):
+            _lanes[_n.elts[1].id] = _n.elts[0].value
+    out = {}
+    for _n in _ast.walk(_tree):
+        if isinstance(_n, _ast.FunctionDef) and _n.name in _lanes:
+            out[_n.name] = (_lanes[_n.name], _n.lineno, _n.end_lineno or _n.lineno)
+    return out, _src
+
+
+def _attribute_to_lanes(hits):
+    """Which WATCHER LANE each sabotage actually struck. -> {lane: (k, n)}
+
+    ⚠⚠ PER LANE, NEVER PER FILE — this is the whole point and the easy way to get it wrong.
+    MEASURED: 163 RED_PROOFs name control_app.py and only 6 of them land inside one of the twelve
+    watcher loops. Crediting every lane with the file's tally would publish FLOWING 20/20 out of
+    evidence that never touched nine of them. An n inflated by REPETITION is fake confluence, and
+    a heart that overstates its own supervision is worse than one that admits the gap.
+    So a proof counts for a lane only when its `find` lands INSIDE that lane's def span.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    per = {}
+    if not hits:
+        return per
+    try:
+        spans, src = _lane_spans()
+    except Exception:
+        return per
+    for _proven, _ran, _single, _find in hits:
+        if not _find:
+            continue
+        _i = src.find(_find)
+        if _i < 0:                       # a dead anchor strikes nothing and earns nothing
+            continue
+        _ln = src.count("\n", 0, _i) + 1
+        for _fn, (_lane, _a, _b) in spans.items():
+            if _a <= _ln <= _b:
+                k, n = per.get(_lane, (0, 0))
+                if _proven:
+                    per[_lane] = (k + 1, n + 1)
+                elif _ran and _single:
+                    per[_lane] = (k, n + 1)
+                break
+    return per
+
+
 def _attack_rollup():
     """Attacks per PROOF FILE, from one walk of the roster. -> ({file: (k, n)} , ok)
 
@@ -654,8 +716,13 @@ def _attack_rollup():
             _seen[_rel] = (_gs.st_mtime_ns, _gs.st_size)
         _digest = _hashlib.sha1(
             repr(sorted(_seen.items())).encode("utf-8", "replace")).hexdigest()
+        # ⚠ AND control_app.py, because the per-LANE rollup below attributes a proof by the
+        # DEF SPAN it lands in. Edit that file and every span moves; a key blind to it would keep
+        # publishing attacks credited to whichever lane used to own those lines.
+        _ca = os.stat(os.path.join(HERE, "control_app.py"))
         _key = (_st.st_mtime_ns, int(_st.st_size),
-                str(_store.get("gatesFingerprint") or ""), len(_seen), _digest)
+                str(_store.get("gatesFingerprint") or ""), len(_seen), _digest,
+                _ca.st_mtime_ns, int(_ca.st_size))
     except Exception:
         return None, False
     # ⚠ v3141 — SNAPSHOT, BECAUSE THE READER HAD THE WINDOW TOO. v3140 replaced the dict in one
@@ -663,11 +730,12 @@ def _attack_rollup():
     # between them returns the NEW payload against the OLD key's test. One local reference is what
     # "one binding" actually requires.
     _snap = _ATK_CACHE
-    if _snap.get("key") == _key and _snap.get("per_file") is not None:
+    if (_snap.get("key") == _key and _snap.get("per_file") is not None
+            and _snap.get("per_lane") is not None):
         return _snap["per_file"], True
     _proved = set(_store.get("provedGates") or [])
     _ran = _proved | set(_store.get("blind") or [])
-    per = {}
+    per, _ca_hits = {}, []
     try:
         for _name, _fn in _h2.gate_files():
             _proofs = _h2.red_proofs_in(_fn) or []
@@ -675,6 +743,10 @@ def _attack_rollup():
                 continue
             _files = {str(_p.get("file") or "") for _p in _proofs}
             _single = len(_files) == 1
+            for _p in _proofs:
+                if "control_app" in str(_p.get("file") or ""):
+                    _ca_hits.append((_name in _proved, _name in _ran, _single,
+                                     str(_p.get("find") or "")))
             for _f in _files:
                 _mine = sum(1 for _p in _proofs if str(_p.get("file") or "") == _f)
                 k, n = per.get(_f, (0, 0))
@@ -689,7 +761,8 @@ def _attack_rollup():
     # THREADED — the eagle timer and a request can both be in here — so a reader hitting that gap
     # publishes the previous gate's k/n under the new ledger's identity. Replacing the module dict
     # in a single binding closes the window in CPython.
-    globals()["_ATK_CACHE"] = {"key": _key, "per_file": per}
+    globals()["_ATK_CACHE"] = {"key": _key, "per_file": per,
+                               "per_lane": _attribute_to_lanes(_ca_hits)}
     return per, True
 
 
@@ -879,10 +952,60 @@ def check_read_lanes_at_cap():
                 "%d read lane(s) measured, none at its ceiling" % len(lanes))
 
 
+def check_lane_attacks():
+    """Which of the console's twelve watcher LANES has ever been sabotaged, and refused. -> row
+
+    ⚠⚠ #80 — THIS IS THE HALF heart.vessels() COULD NOT REACH. Twelve vessels sat at WATCHED with
+    `score: None` because NO organ row named a single `tvd-*` lane in its surfaces, and a vessel
+    inherits its score from the organ that names it. Not scored low — unscorable, forever.
+
+    ⚠⚠ THE SCORE PUBLISHED IS THE WEAKEST NAMED LANE'S, NOT THE SUM. Summing the three proven
+    lanes gives (6, 6) -> 0.6097 and would credit each of them with the other two's sabotages;
+    every named lane really has (2, 2) -> 0.3424. Since `heart.scored` hands one row's score to
+    every surface it names, the only number that overstates nobody is the MINIMUM. A surface is
+    as proven as ITS OWN evidence. [[unknown-stays-unknown]]
+
+    ⚠ AND A LANE THAT WAS ATTACKED AND NEVER REFUSED IS NOT NAMED AT ALL. Publishing it here
+    would hand it the group's earned score; it is a WARN in the line instead, because `score: 0.0`
+    means INERT and that claim belongs to the lane that earned it, not to its neighbours.
+    """
+    per, ok = _attack_rollup()
+    _lanes = (_ATK_CACHE.get("per_lane") if ok else None)
+    try:
+        _all = sorted(set(l for (l, _a, _b) in _lane_spans()[0].values()))
+    except Exception:
+        _all = []
+    if not ok or _lanes is None or not _all:
+        return _row("laneAttacks", UNKNOWN,
+                    "the sabotage ledger or the lane registry could not be read, so nothing is "
+                    "known about who has ever attacked the console's watcher lanes - which is "
+                    "not the same as nobody having attacked them")
+    _proven = sorted(l for l, (k, n) in _lanes.items() if k > 0)
+    _inert = sorted(l for l, (k, n) in _lanes.items() if n > 0 and k == 0)
+    _never = sorted(l for l in _all if l not in _lanes)
+    _k = min((_lanes[l][0] for l in _proven), default=None)
+    _n = min((_lanes[l][1] for l in _proven), default=None)
+    line = ("%d of %d watcher lane(s) have earned a refusal under sabotage (weakest %s/%s, and "
+            "that is the score published so none is credited with another's proof)"
+            % (len(_proven), len(_all), _k, _n))
+    state = OK
+    if _inert:
+        state = WARN
+        line += "; %d ATTACKED AND NEVER REFUSED: %s" % (len(_inert), ", ".join(_inert))
+    if _never:
+        state = WARN if _inert else UNKNOWN
+        line += ("; %d have never been attacked at all, so they are UNMEASURED rather than "
+                 "clean: %s" % (len(_never), ", ".join(_never)))
+    return _row("laneAttacks", state, line,
+                evidence={"proven": _proven, "inert": _inert, "neverAttacked": _never,
+                          "perLane": dict((l, list(v)) for l, v in sorted(_lanes.items()))},
+                k=_k, n=_n, surfaces=_proven)
+
+
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
-          check_lane_liveness]
+          check_lane_liveness, check_lane_attacks]
 
 
 def report(evaluate=None, board=None):
