@@ -188,7 +188,49 @@ class TestFlowingIsUnmeasuredNotZero(unittest.TestCase):
                       "one genuinely vanished row." % sel)
 
 
+    def test_the_unmeasured_reason_counts_only_vessels_something_watches(self):
+        """The eye on v3144 caught this: `n_watched` was receiving `len(out)`, and the DARK rows
+        are appended to that same list. DARK means "it runs and NOTHING watches it", so the reason
+        would have said "N vessel(s) are watched" while counting vessels nobody watches.
+
+        ⚠ DRIVEN, BECAUSE DARK IS 0 TODAY. len(out) and the watched count agree on the live tree
+        right now, so a law that read the census would pass through the defect and through its own
+        sabotage. [[label-outlived-referent]] [[gate-blind-to-unexercised-input]]"""
+        rows = [{"watcher": "w1"}, {"watcher": "w2"}, {"watcher": None}, {}]
+        self.assertEqual(
+            heart.watched_count(rows), 2,
+            "counted %r of 4 rows, 2 of which carry no watcher at all — an unwatched vessel must "
+            "never be counted as watched." % (heart.watched_count(rows),))
+        self.assertEqual(heart.watched_count([]), 0)
+        self.assertEqual(heart.watched_count(None), 0)
+
+        # and the joint: vessels() must hand the flow reason THAT number, not the list length.
+        _hsrc = io.open(os.path.join(HERE, "heart.py"), encoding="utf-8").read()
+        _v = next((n for n in _ast.parse(_hsrc).body
+                   if isinstance(n, _ast.FunctionDef) and n.name == "vessels"), None)
+        self.assertIsNotNone(_v, "heart.vessels is gone — this law reads the wrong thing")
+        _call = next((c for c in _ast.walk(_v) if isinstance(c, _ast.Call)
+                      and getattr(c.func, "id", "") == "flow_or_unmeasured"), None)
+        self.assertIsNotNone(_call, "vessels() no longer asks flow_or_unmeasured anything")
+        _last = _call.args[-1] if _call.args else None
+        self.assertTrue(
+            isinstance(_last, _ast.Call) and getattr(_last.func, "id", "") == "watched_count",
+            "vessels() passes %s as the watched count — the DARK rows are in that list and they "
+            "are by definition unwatched."
+            % (_ast.dump(_last)[:60] if _last is not None else "nothing"))
+
+
 RED_PROOF = [
+    {
+        "why": "counts every row instead of only the watched ones, so the unmeasured-flow reason "
+               "says 'N vessel(s) are watched' while counting DARK rows — which this file defines "
+               "as the ones NOTHING watches. A right number under a word that stopped being true",
+        "file": "heart.py",
+        "find": '    return len([r for r in (rows or []) if (r or {}).get("watcher")])',
+        "replace": "    return len(rows or [])",
+        "matches": 1,
+    },
+
     {
         "why": "the heart selector goes back to counting `.lg-unmeasured` — a span that exists "
                "ONLY while the census is unscorable — so the node count tracks the CENSUS STATE "

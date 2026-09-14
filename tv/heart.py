@@ -218,6 +218,18 @@ def _live_of(watcher, name):
     return {"state": r["state"], "why": r["why"], "tickAgeS": r["tickAgeS"]}
 
 
+def watched_count(rows):
+    """How many vessels something ACTUALLY watches. -> int
+
+    ⚠ NOT len(out). The DARK rows are appended to that same list and DARK means, in this file's
+    own words, "it runs and NOTHING watches it" — so `len(out)` is a different quantity wearing
+    the same word, and the unmeasured-flow reason would say "N vessel(s) are watched" while
+    counting vessels nobody watches. Today DARK is 0 and the two agree, which is precisely why a
+    law driven on the LIVE census could never catch it. [[label-outlived-referent]]
+    """
+    return len([r for r in (rows or []) if (r or {}).get("watcher")])
+
+
 def flow_is_measurable(watchers, scored):
     """Can FLOWING be a NUMBER at all? True iff some WATCHER carries a real score."""
     return bool(set(watchers or ()) & set(k for k, v in (scored or {}).items() if v is not None))
@@ -412,7 +424,7 @@ def vessels():
     # A zero needs a denominator. When nothing can score, the count is None and says why.
     # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
     counts[FLOWING], _flow_why = flow_or_unmeasured(
-        counts[FLOWING], _watchers, scored, len(out))
+        counts[FLOWING], _watchers, scored, watched_count(out))
 
     return {
         "ok": True,
