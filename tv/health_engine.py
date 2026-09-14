@@ -983,8 +983,16 @@ def check_lane_attacks():
     _proven = sorted(l for l, (k, n) in _lanes.items() if k > 0)
     _inert = sorted(l for l, (k, n) in _lanes.items() if n > 0 and k == 0)
     _never = sorted(l for l in _all if l not in _lanes)
-    _k = min((_lanes[l][0] for l in _proven), default=None)
-    _n = min((_lanes[l][1] for l in _proven), default=None)
+    # ⚠⚠ THE WEAKEST LANE, NOT THE WEAKEST NUMERATOR AND THE WEAKEST DENOMINATOR. The second eye
+    # on v3145 caught this and it reproduces: min(k) and min(n) taken INDEPENDENTLY can invent a
+    # pair no lane actually holds. Lane A (2,5) and lane B (2,2) -> componentwise (2,2) -> 0.3424,
+    # while A's own evidence supports 0.1176. A three-fold overstatement, published by the very
+    # organ written to refuse overstatement. Today every lane is (2,2) so the two agree — which is
+    # exactly why the law drives it instead of reading the live ledger.
+    # [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]]
+    from confidence import wilson_lower          # one home for the maths — never a copy
+    _weak = min(_proven, key=lambda l: wilson_lower(_lanes[l][0], _lanes[l][1])) if _proven else None
+    _k, _n = _lanes[_weak] if _weak else (None, None)
     line = ("%d of %d watcher lane(s) have earned a refusal under sabotage (weakest %s/%s, and "
             "that is the score published so none is credited with another's proof)"
             % (len(_proven), len(_all), _k, _n))

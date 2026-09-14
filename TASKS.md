@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3146** | `(this commit)` | v3146 — the unmeasured-flow reason counts only vessels something watches |
+| **v3147** | `(this commit)` | v3147 — the weakest lane is by score, not by each number separately |
+| **v3146** | `9d41909c` | v3146 — the unmeasured-flow reason counts only vessels something watches |
 | **v3145** | `8c94038f` | v3145 — a watcher lane is as proven as its own sabotages, never its neighbours |
 | **v3144** | `f69fd215` | v3144 — the unmeasured-flow decision is pure so its law can drive both branches |
 | **v3143** | `c51b993a` | v3143 — The second eye on v3142. The heart selector counted hrt-legend span, and one of those spans is lg-unmeasured — the placeholder the legend renders INSTEAD of the FLOWING number whenever the census is unscorable. So the node count was 5 while FLOWING was None and 4 once it scored, and v3142 lowered the floor to the scored shape. That leaves the hole this ratchet exists to close: with FLOWING None the count is 96 against a floor of 95, a ratchet never refuses an increase, and in that state one real hrt-row vanishing brings it back to 95 and reads GREEN. The placeholder cancels a real loss. heart.vessels legally returns FLOWING None when nothing is scorable and a law guards that state, so both DOMs stay reachable and no single floor can be right for both. The placeholder is a census-state bit and not a surface, so it is excluded: the count is now invariant to census state and the floor means surfaces. Verified: heart still 95 of 95 at all five widths, exit 0. |

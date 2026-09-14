@@ -57,6 +57,25 @@ class TestLaneAttacksArePerLane(unittest.TestCase):
             row.get("score"), wilson_lower(2, 2), places=4,
             msg="the score is not the weakest lane's — %r" % (row.get("score"),))
 
+    def test_the_weakest_lane_is_by_SCORE_not_by_each_number_separately(self):
+        """The second eye's High on v3145. min(k) and min(n) taken independently invent a pair no
+        lane holds: (2,5) and (2,2) -> (2,2) -> 0.3424, while the (2,5) lane's own evidence
+        supports 0.1176. A three-fold overstatement out of the organ written to refuse it.
+
+        ⚠ Every live lane is (2,2) today, so componentwise and by-score agree on the real tree.
+        Driven, or this law would be green against its own defect. [[unknown-stays-unknown]]"""
+        a, b = self.lanes[0], self.lanes[1]
+        row = _drive({a: (2, 5), b: (2, 2)})
+        self.assertEqual(
+            (row.get("proofK"), row.get("proofN")), (2, 5),
+            "published %r/%r — the (2,5) lane holds the weakest evidence and must set the score, "
+            "but componentwise minima hand it the (2,2) lane's."
+            % (row.get("proofK"), row.get("proofN")))
+        self.assertAlmostEqual(row.get("score"), wilson_lower(2, 5), places=4)
+        self.assertLess(row.get("score"), wilson_lower(2, 2),
+                        "the published score is not below the stronger lane's — nobody is "
+                        "protected from inheriting evidence they never earned")
+
     def test_a_lane_attacked_and_never_refused_is_never_named_as_a_surface(self):
         """(0, n) is INERT — tested and never refused. Naming it would hand it the group's earned
         score, turning the most damning reading in the system into a passing one."""
@@ -103,14 +122,15 @@ class TestLaneAttacksArePerLane(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "sums the named lanes instead of taking the weakest, so three lanes at (2,2) each "
-               "publish (6,6) and every one of them is credited with the other two's sabotages — "
-               "the exact fake-confluence this organ was built to refuse",
+        "why": "takes min(k) and min(n) INDEPENDENTLY, which invents a pair no lane holds: a "
+               "(2,5) lane beside a (2,2) lane publishes (2,2) = 0.3424 while the first lane's "
+               "own evidence supports 0.1176 — a three-fold overstatement out of the organ "
+               "written to refuse overstatement",
         "file": "health_engine.py",
-        "find": "    _k = min((_lanes[l][0] for l in _proven), default=None)\n"
-                "    _n = min((_lanes[l][1] for l in _proven), default=None)",
-        "replace": "    _k = sum((_lanes[l][0] for l in _proven))\n"
-                   "    _n = sum((_lanes[l][1] for l in _proven))",
+        "find": "    _weak = min(_proven, key=lambda l: wilson_lower(_lanes[l][0], _lanes[l][1])) if _proven else None\n"
+                "    _k, _n = _lanes[_weak] if _weak else (None, None)",
+        "replace": "    _k = min((_lanes[l][0] for l in _proven), default=None)\n"
+                   "    _n = min((_lanes[l][1] for l in _proven), default=None)",
         "matches": 1,
     },
     {
