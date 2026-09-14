@@ -1849,8 +1849,17 @@
      already has a scar at, one pixel above a breakpoint.
      ⚠ THE RENDERED WIDTH DOES NOT CHANGE ANYWHERE. `flex-grow: 1` means the basis is only the
      no-wrap threshold; the lanes still fill the row. Lowering it removes a wrap, not a size. */
-  #th-shelfov .shr-lane { flex: 1 1 104px; min-width: 0; padding: 8px 10px; border-radius: 8px;
-    border: 1px solid rgba(240,192,96,.20); background: rgba(240,192,96,.05); }
+  /* ⚠⚠ v3112 (#58) — THE LANE WEARS THE PIPELINE'S CELL, SO THE SHELF READS AS ONE ENGINE.
+     Konyo, 2026-09-14: *"its almost like 3 sections all literally almost showing the same thing
+     .. visually speaking it should be simpler maybe so its more clear"*, and on the pipeline
+     itself *"i love it the way its already structured"*. v3110 removed the printer spine; this
+     removes the second IDIOM. The lane was gold-tinted and horizontal (ordinal+name on one line,
+     count below, chips under that) while `.shs-stage` twelve pixels down is a neutral centred
+     column — same data shape, two visual languages, which is what made one surface read as two.
+     Border, background, radius, padding and flex-basis are now `.shs-stage`'s exactly. */
+  #th-shelfov .shr-lane { display: flex; flex-direction: column; align-items: center; gap: 1px;
+    flex: 1 1 84px; min-width: 84px; padding: 7px 4px; border-radius: 9px;
+    border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
   /* an empty lane is DIMMED, never hidden — a stage nothing reaches is the actionable half */
   #th-shelfov .shr-lane.shr-empty { opacity: .5; border-color: var(--edge);
     background: rgba(255,255,255,.02); }
@@ -1859,17 +1868,25 @@
      NOTHING replaced them: four tiles in a block, no direction, reads as a scoreboard — four
      independent tallies — rather than one river with a first and a last. That is the same
      meaning-loss the 901px wrap caused, arriving by a different route.
-     THE STRIP NOW BORROWS THE BOARD 12px BELOW IT, which has numbered its stations 1-7 since
-     v2587 (`.shp-st b u`). Same glyph, same weight, same dimmed gold, same 5px gap — so the two
-     boards read as one engine instead of two idioms stacked. The numeral is present at EVERY
+     THE STRIP BORROWS THE BOARD 12px BELOW IT. ⚠ v3112 — it used to say "which has numbered its
+     stations 1-7 since v2587 (`.shp-st b u`)", and v3110 DELETED that board: the printer spine no
+     longer draws, so the sentence named a surface that was gone. It now borrows `.shs-step` from
+     THE PIPELINE, which is the board that survived — same glyph, same weight, same dimmed gold.
+     [[label-outlived-referent]] The numeral is present at EVERY
      width, not only where the arrows vanish: an ordinal that appears only under a breakpoint is
      a second idiom, not a fallback. */
-  #th-shelfov .shr-n { font: var(--fw-bold) var(--fs-2xs)/var(--lh-tight) var(--mono);
-    letter-spacing: var(--ls-wide); color: #e8cf96;
-    display: flex; align-items: baseline; gap: 5px; }
+  /* the lane's name row now sets like `.shs-sl`: uppercase, muted, centred, wrapping inside its
+     own cell rather than widening it */
+  #th-shelfov .shr-n { font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
+    text-transform: uppercase; color: var(--muted); text-align: center;
+    overflow-wrap: anywhere; line-height: 1.25;
+    display: flex; align-items: baseline; justify-content: center; gap: 5px; order: 3; }
   #th-shelfov .shr-n u { text-decoration: none; color: rgba(200,180,120,.45);
     font-variant-numeric: tabular-nums; font-weight: var(--fw-normal); }
-  #th-shelfov .shr-c { font: var(--fw-bold) var(--fs-lg)/1.05 var(--serif); color: #fff;
+  /* the count sets like `.shs-n` — same size, same gold, same tabular figures, and it sits
+     ABOVE its label the way every pipeline cell does */
+  #th-shelfov .shr-c { font-size: var(--fs-lg); font-weight: var(--fw-bold); order: 2;
+    font-variant-numeric: tabular-nums; color: var(--gold); line-height: 1.1;
     font-variant-numeric: tabular-nums; margin: 2px 0 4px; }
   /* ⚠⚠ v2773 — TWO STATION TALLIES SIDE BY SIDE PARSED AS ONE PHRASE, AND THE OBVIOUS FIX WAS
      THE WRONG ONE. The chips were separated by nothing but an 8px gap — at this size barely

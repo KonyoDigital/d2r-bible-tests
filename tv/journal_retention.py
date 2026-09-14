@@ -175,6 +175,47 @@ def _banked_reels():
     return cited, None
 
 
+def _ledger_began():
+    """When the retention ledger's FIRST deletion was recorded. -> (ms | None, why_unknown | None)
+
+    ⚠⚠ v3113 — THE BOUNDARY OF KONYO'S AMNESTY, AND IT IS THE LEDGER'S OWN FIRST ENTRY ON PURPOSE.
+    His ruling, 2026-09-14, after being shown that "drain to 8" and his own condition contradict
+    each other for 2,385 rows: *"it can go.. whatever was in the past for here specifically its
+    fine.. just make sure forward it is all working"*.
+
+    MEASURED before asking him: `reel_tombstones.json`'s earliest deletion is 2026-08-24 23:49, and
+    **2,385 of the 2,424 `unknown` rows (98.4%) are runs that STARTED BEFORE THAT**. Their film was
+    gone before any instrument existed to record it going, so no record was ever written and none
+    can be manufactured — which is exactly why his condition could never be satisfied for them and
+    exactly what he is waiving.
+
+    ⚠ THE CUTOFF IS DERIVED, NEVER A CONSTANT. A hardcoded date would be a number nobody could
+    re-derive, and it would keep being true as the tree moves. Reading the ledger's own first entry
+    means the amnesty covers precisely "older than the instrument" and cannot creep: the day a
+    reel is tombstoned earlier, the boundary moves with it, and a run that started after the
+    ledger existed is NEVER covered no matter how old it gets. That is the "just make sure forward
+    it is all working" half, enforced by arithmetic rather than by intention.
+
+    ⚠ DELEGATE. reel_retention owns the path. [[copy-drift]] [[unknown-stays-unknown]]
+    """
+    try:
+        import reel_retention as _rr
+        with io.open(_rr._tombstone_path(), encoding="utf-8") as fh:
+            doc = json.load(fh) or {}
+    except Exception as e:
+        return None, "the retention ledger could not be read (%s)" % type(e).__name__
+    stamps = []
+    for e in (doc.get("reels") or []):
+        if isinstance(e, dict) and e.get("deletedTs"):
+            try:
+                stamps.append(int(e["deletedTs"]))
+            except Exception:
+                continue
+    if not stamps:
+        return None, "the retention ledger records no deletion at all, so it has no beginning yet"
+    return min(stamps), None
+
+
 def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
     """Classify every journal row. -> dict. WRITES NOTHING.
 
@@ -206,6 +247,7 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
     # information thats needed"* BEFORE the tombstone. This is the same sentence applied to the
     # journal ROW, which is what survives the film. [[join-gate-heart]]
     banked, bank_why = _banked_reels()
+    began, began_why = _ledger_began()
 
     release, keep = [], []
     for s in rows:
@@ -225,7 +267,15 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
             has, n = _film_on_disk(sid, hist_dir)
             if has:
                 why = "its reel still holds %d frame(s) on disk — the river has not finished with it" % n
-            elif str(s.get("footageState") or "") != EXTRACTED:
+            elif (str(s.get("footageState") or "") != EXTRACTED
+                  and not (began and isinstance(s.get("t0"), (int, float)) and s["t0"] < began)):
+                # ⚠ KONYO'S AMNESTY IS THE `not (...)` ABOVE, AND IT IS DELIBERATELY NARROW. A run
+                # that started BEFORE the retention ledger's first entry could never have been
+                # recorded by it, so holding it for a missing record holds it forever. Everything
+                # AFTER that instant is judged exactly as before — his "just make sure forward it
+                # is all working". The only-trace hold below is NOT waived by this: a row that is
+                # the only copy of a find is a different concern from a row with no retention
+                # record, and he ruled on the second.
                 why = ("footageState is %r, not %r — no film is not the same fact as extracted, "
                        "and an absence of evidence is not a proof"
                        % (str(s.get("footageState") or "none"), EXTRACTED))

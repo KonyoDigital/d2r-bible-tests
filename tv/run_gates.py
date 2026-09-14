@@ -2606,6 +2606,27 @@ GATES = [
              "because 'sessions.<stamp>.jsonl' is fine for one file and silently collides the "
              "moment two ring generations are backed up in the same second, leaving the earlier one "
              "with no backup while the log says it has one."),
+    Gate("test_the_amnesty_covers_only_the_past",
+         [sys.executable, os.path.join(HERE, "test_the_amnesty_covers_only_the_past.py")], 180,
+         why="KONYO'S AMNESTY COVERS WHAT PREDATES THE INSTRUMENT, AND NOTHING AFTER IT. His ruling "
+             "2026-09-14, after being shown that 'drain to 8' and his own earlier condition "
+             "contradict each other: 'it can go.. whatever was in the past for here specifically "
+             "its fine.. just make sure forward it is all working'. MEASURED before asking him: "
+             "reel_tombstones.json's earliest deletion is 2026-08-24 23:49 and 2,385 of the 2,424 "
+             "unknown rows - 98.4% - are runs that STARTED BEFORE THAT, so their film was gone "
+             "before any instrument existed to record it going. No record was ever written and none "
+             "can be manufactured, which is why his condition could never be satisfied for them and "
+             "why they would be held forever. THE CUTOFF IS DERIVED FROM THE LEDGER'S OWN FIRST "
+             "ENTRY, never a constant: a hardcoded date is a number nobody can re-derive and one "
+             "that keeps being true as the tree moves, while reading the ledger means the amnesty "
+             "covers precisely 'older than the instrument' and a run that started after it existed "
+             "is NEVER covered however old it later becomes - the forward half enforced by "
+             "arithmetic rather than intention. Measured after: releasable 215 -> 2,292, and 30 "
+             "unknown rows that post-date the ledger are STILL HELD. An unreadable ledger grants NO "
+             "amnesty, because a boundary nobody can compute may not be assumed on a path that "
+             "deletes. And the amnesty does NOT waive the only-trace hold: a row that is the only "
+             "copy of a find is a different concern from a row with no retention record, and he "
+             "ruled on the second."),
     Gate("test_a_row_that_is_the_only_trace_is_never_released",
          [sys.executable, os.path.join(HERE, "test_a_row_that_is_the_only_trace_is_never_released.py")], 180,
          why="A JOURNAL ROW THAT IS THE ONLY TRACE OF WHAT A REEL FOUND MAY NEVER BE RELEASED. He "

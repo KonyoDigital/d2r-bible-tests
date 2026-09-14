@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3111",
+  "ver": "v3112",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3111: his report: the eye box opens into the console dom where it is cut and unreadable, and the entire sentence should just be synced/unsynced. It was pinned left:0 so it grew rightward off the rail it lives in, and each row carried a full explanatory sentence. Also hardened the one-flow-strip law after the eye found its stripper ate https:// and its orphan clause counted uses in unstripped text.",
+  "note": "v3112: two halves. The river lane now wears the pipeline cell exactly - border background radius padding flex-basis and type scale - so the shelf reads as one engine rather than two idioms stacked, and the v2773 note naming a board v3110 deleted is corrected. And his ruling landed as a bounded amnesty: rows that started before the retention ledger existed may go, the cutoff is READ from the ledger first entry rather than hardcoded, and a run the ledger could have recorded is never covered.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
