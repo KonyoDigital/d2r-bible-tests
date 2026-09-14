@@ -2586,6 +2586,18 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_the_shelf_shows_reels_before_it_shows_charts",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_shows_reels_before_it_shows_charts.py")], 120,
+         why="THE CARDS COME FIRST AND ACTIVITY LEADS THE ANALYTIC BAND BEHIND THEM - two of his "
+             "asks pulling opposite ways, one of them a measured scar. He asked for the ACTIVITY "
+             "chart 'uptop organized with the other data/anlytics TOP of the SHELF section'. Read "
+             "literally that is above the list, and v2985 MEASURED what that costs at his real "
+             "1120x660: the overlay is trapped in a grid row worth ~449px of a 660px window and "
+             "549px of furniture above the first card put every reel off-screen - the panel named "
+             "'your reels' showed none of them, photographed as blank three times. So the list "
+             "precedes every analytic block and ACTIVITY leads the band rather than trailing it. "
+             "Reads the assembly order, and counts each marker first because two matches would "
+             "make the index comparison meaningless."),
     Gate("test_a_held_stage_does_not_read_as_a_queue",
          [sys.executable, os.path.join(HERE, "test_a_held_stage_does_not_read_as_a_queue.py")], 120,
          why="A STAGE WHOSE EVERY REEL IS HELD MUST NOT RENDER AS A PLAIN COUNT. His own words at "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3119",
+  "ver": "v3120",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3119: The second eye on v3117. My law extracted the rail builder and stopped at the _shHeldAll ASSIGNMENT, so every assertion read the BOOLEAN and none read the heading built from it. Its scenario: revert the ternary to always emit the queue wording, leave _shHeldAll computed and the per-stage badges alone — and all four laws stay green while his console shows the original lie over twelve held reels. Both halves looked wired and the pixels he actually reads were not in the loop. The extract now carries the heading expression too, and two laws drive it: with twelve holds it must say none of them is free to move, with one free reel it must go back to describing a queue.",
+  "note": "v3120: The second eye on v3118: my clause walked every ast.Name and accepted any assigned name ending in st that appeared anywhere in the function. ast.walk collects the assignment own STORE node, so the assignment satisfied its own check — _st = os.fstat(fh.fileno()) followed by if ident is None: return None passed every assertion while the handle inode was never compared. A measurement taken and dropped, and a guard that said otherwise. It now finds the fstat target and requires a Compare node that reads it on one side and ident on the other. ALSO v3121 work folded in: ACTIVITY leads the analytic band per his ask, with v2985 scar pinned so the cards can never be re-buried.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

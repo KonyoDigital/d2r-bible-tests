@@ -16213,9 +16213,22 @@ window._lockMark = function(isOpen, px, label){
          an ORDER change only, and _shLanesLoad/_shLanesRender find it by getElementById exactly as
          before. It now sits with the other analytic blocks (pipeline board, highlights, timeline)
          that v2965 itself placed below the list. */
+      /* ⚠⚠ v3121 (#58) — ACTIVITY LEADS THE ANALYTIC BAND, AND THAT IS AS HIGH AS IT MAY GO.
+         Konyo: *"for the ACTIVITY section i like i just want it stretched from top to bottom more
+         so its more representing chart and uptop organized with the other data/anlytics TOP of the
+         SHELF section move"*. Read literally that is "above the list", and v2985 already MEASURED
+         what that costs at his real 1120x660: the overlay is trapped inside `.stage` — a grid row
+         worth ~449px of a 660px window — and 549px of furniture above the first card put every
+         reel off-screen, so the panel named "your reels" showed none of them. A scar outranks a
+         layout preference, so the half of his sentence this serves is "organized WITH the other
+         data/analytics": the chart moves to the FRONT of the band instead of the back of it.
+         ⚠ ORDER ONLY. No id moves, nothing is removed, and `_shTimeline`/`_shLanesLoad`/
+         `_shStoryRender` each still find their block by getElementById exactly as before.
+         [[borrowed-surface]] [[visual-regression-detector]] */
+      + timelineDiv
       + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
       + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
-      + _shHighlights() + timelineDiv;
+      + _shHighlights();
     ov.hidden = false;
     /* ⚠⚠ v3029 (#58) — OPEN ON A REEL, NOT ON FURNITURE. MEASURED on his live console at 1120x660
        with the shelf open and measurable: clientH 361, firstCardTop 426 — the first reel card sits

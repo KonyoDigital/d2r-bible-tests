@@ -534,12 +534,37 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
                         and isinstance(arg.func, ast.Attribute)
                         and arg.func.attr == "fileno",
                         "os.fstat is not being handed a file descriptor from the open handle")
-        # ⚠ and the comparison must USE it, not compute it and drop it
-        names = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
-        assigned = [t.id for st in ast.walk(fn) if isinstance(st, ast.Assign)
-                    for t in st.targets if isinstance(t, ast.Name)]
-        self.assertTrue(any(a in names for a in assigned if a.endswith("st")),
-                        "the fstat result is never read again — a measurement taken and dropped")
+        # ⚠⚠ v3120 — AND IT MUST BE COMPARED AGAINST `ident`, NOT MERELY ASSIGNED. The second eye
+        # on v3118: the clause here walked every `ast.Name` and accepted any assigned name ending
+        # in "st" that appeared "anywhere in the function". `ast.walk` collects the assignment's
+        # own STORE node, so the assignment satisfied its own check —
+        #
+        #     _st = os.fstat(fh.fileno())
+        #     if ident is None: return None          <- the inode is never compared
+        #     lines = fh.readlines()
+        #
+        # passed every assertion in this law. A measurement taken and dropped, and a guard that
+        # said otherwise. So find the fstat's target and require a COMPARISON that reads it on one
+        # side and `ident` on the other. [[zero-needs-a-denominator]] [[source-reading-guard]]
+        target = next((t.id for a in ast.walk(fn) if isinstance(a, ast.Assign)
+                       for t in a.targets if isinstance(t, ast.Name)
+                       and any(c is fstats[0] for c in ast.walk(a))), None)
+        self.assertIsNotNone(target, "the os.fstat result is not assigned to anything at all")
+        loads = [n for n in ast.walk(fn) if isinstance(n, ast.Name)
+                 and n.id == target and isinstance(n.ctx, ast.Load)]
+        joined = [c for c in ast.walk(fn) if isinstance(c, ast.Compare)
+                  and any(isinstance(n, ast.Name) and n.id == target
+                          and isinstance(n.ctx, ast.Load) for n in ast.walk(c))
+                  and any(isinstance(n, ast.Name) and n.id == "ident" for n in ast.walk(c))]
+        print("   %s: %d load(s) · %d comparison(s) against ident"
+              % (target, len(loads), len(joined)))
+        self.assertTrue(loads,
+                        "%s is assigned and never read — the handle's identity is measured and "
+                        "thrown away" % target)
+        self.assertTrue(joined,
+                        "no comparison reads %s on one side and `ident` on the other, so the "
+                        "inode this function opened is never checked against the one it was told "
+                        "to expect" % target)
 
     def test_the_ring_rotating_between_the_reread_and_the_RENAME_is_refused(self):
         """⚠ THE LAST MILLIMETRE, AND IT IS NARROWED NOT CLOSED. `os.replace` is the one call that
@@ -589,6 +614,15 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.assertIn("needs the file to copy", str(why))
 
 RED_PROOF = [
+    {
+        "why": "the handle's inode is measured and then never compared against the one the caller "
+               "said to expect — the fstat call stays, the path-stat ban stays, and the rotation "
+               "this whole version exists to refuse walks straight through",
+        "file": "journal_drain.py",
+        "find": "            if ident is None or (_st.st_dev, _st.st_ino) != ident:",
+        "replace": "            if ident is None:",
+        "matches": 1,
+    },
     {
         "why": "identity goes back to being asked of the PATH instead of the open handle, so a "
                "rotation landing between the stat and the read matches the old inode and reads "
