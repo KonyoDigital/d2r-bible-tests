@@ -2046,20 +2046,10 @@
   #th-shelfov .shs-stage.shs-unknown { border-color: rgba(233,185,110,.5); opacity: 1; }
   #th-shelfov .shs-stage.shs-unknown .shs-n { color: #e9b96e; }
   /* v2587 — the printer's stations, drawn as one spine above the retention stages */
-  #th-shelfov .shp-spine { display: grid; gap: 1px 0;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    margin: 2px 0 6px; border: 1px solid rgba(200,180,120,.20);
-    border-radius: 3px; background: rgba(255,255,255,.02); overflow: hidden; }
-  #th-shelfov .shp-st { display: flex; flex-direction: column; gap: 2px; min-width: 0;
-    padding: 7px 10px; border-left: 2px solid rgba(200,180,120,.28); }
-  #th-shelfov .shp-st:first-child { border-left-color: rgba(143,230,160,.55); }
-  #th-shelfov .shp-st b { font-size: var(--fs-2xs); letter-spacing: .08em; color: #e4d2a4;
-    font-weight: var(--fw-bold); display: flex; align-items: baseline; gap: 5px; }
-  #th-shelfov .shp-st b u { text-decoration: none; color: rgba(200,180,120,.45);
-    font-variant-numeric: tabular-nums; font-weight: var(--fw-normal); }
-  #th-shelfov .shp-st i { font-style: normal; font-size: var(--fs-2xs); color: #9aa6b2;
-    font-variant-numeric: tabular-nums; line-height: 1.35; }
-  #th-shelfov .shp-why { font-size: var(--fs-2xs); color: #7f8a95; margin: -2px 0 8px; }
+  /* ⚠ v3110 — THE PRINTER SPINE'S RULES ARE GONE WITH ITS RENDERER. Removing the markup and
+     leaving the stylesheet is the shape Konyo named: *"nothing is just created ontop of
+     wiring"*. Dead CSS is wiring with nothing on the other end, and the law that replaced
+     v2819 caught these the first time it ran. [[the-unjoined-end]] */
 
   #th-shelfov .shs-worst { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.07);
     padding-top: 9px; }
@@ -5886,11 +5876,10 @@
      and it was right: a raw size is invisible to the type system, so the next global scale change
      would leave this label behind while every other size moved. --fs-2xs is the smallest token in
      the scale, which is what this label wants. [[regression-guard]] */
-  .shr-src, .shp-head .shr-src {
+  .shr-src {
     font-size: var(--fs-2xs); letter-spacing: .04em; text-transform: uppercase;
     opacity: .55; margin-left: auto; padding-left: 10px; white-space: nowrap;
   }
-  .shp-head { display: flex; justify-content: flex-end; margin: 2px 0 -2px; }
   #heart-ov svg.hrt { display: block; width: 100%; min-width: 640px; height: auto; }
   #heart-ov .hrt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 2px;
     font-size: var(--fs-2xs); letter-spacing: var(--ls-label); text-transform: uppercase; }
@@ -11637,36 +11626,33 @@ window._lockMark = function(isOpen, px, label){
        and if the printer could not be walked this says so instead of drawing a blank spine. */
     /* v2819 (#43) — and the spine names ITS source, for the reason above: it is a different
        module counting in a different vocabulary, drawn to look like the same axis. */
-    var _spine = '';
-    if (st.printerStations && st.printerStations.length){
-      var pc = st.printerCounts || {};
-      /* ⚠ NO ARROW GLYPHS BETWEEN CELLS. The first cut joined the stations with '›' and the strip
-         WRAPPED at 939px, leaving an arrow dangling at the end of each wrapped line — after
-         'swept 28' and after 'policy 12'. It read as three broken fragments instead of one river,
-         which is the opposite of what it is for. A grid cannot orphan a separator: the flow is
-         carried by an ordinal and a left rule on every cell, so it reads the same on one row or
-         three. [[visual-regression-detector]] — I looked at the pixels and this is what they
-         showed. */
-      var _srcTag = '<span class="shr-src" title="printer.stream()\u2019s own 7 stations, from '
-                  + '/api/reel_story \u2014 a different vocabulary from the router lanes above">'
-                  + 'source \u00b7 the printer</span>';
-      var cells = st.printerStations.map(function(k, ix){
-        var c = pc[k] || {}, parts = [];
-        Object.keys(c).sort().forEach(function(v){ parts.push(esc(v) + ' ' + c[v]); });
-        return '<span class="shp-st"><b><u>' + (ix + 1) + '</u>' + esc(k.toUpperCase()) + '</b>'
-             + '<i>' + (parts.join(' · ') || '—') + '</i></span>';
-      });
-      /* ⚠ _srcTag IS RENDERED HERE, and the first cut of v2819 BUILT IT AND NEVER USED IT —
-         the plumbing-with-no-tap shape, caught before it shipped only because I went looking for
-         the join. A source label that exists in a variable and not on the screen is the same
-         thing as no source label. [[the-unjoined-end]] */
-      _spine = '<div class="shp-head">' + _srcTag + '</div>'
-             + '<div class="shp-spine" role="img" aria-label="the printer, station by station">'
-             + cells.join('') + '</div>'
-             + '<div class="shp-why">' + esc(st.printerWhy || '') + '</div>';
-    } else if (st.printerWhy){
-      _spine = '<div class="shs-wait shs-bad">' + esc(st.printerWhy) + '</div>';
-    }
+    /* ⚠⚠ v3110 — THE PRINTER SPINE IS GONE FROM THE SHELF, AND THIS IS A VISUAL CUT ONLY.
+       Konyo, 2026-09-14, pointing at his own screen: *"here from the river and for in funnel
+       template and route thats like two diffrent sections rendering the same"*, then *"and then we
+       have pipeline.. its a third section representing the other two"*, and finally *"i would want
+       it unified only visually obivously"*.
+
+       He is right, and the code already argued with itself about it once. v2587's note says *"ONE
+       ENGINE, NOT TWO. His ask: 'make this engine work as a whole. and also look like one.'"* —
+       and its answer was to keep both strips and LABEL their sources. Naming three sources does
+       not stop three axes reading as three engines; a `source · the printer` tag explains the
+       duplication rather than removing it.
+
+       Three tellings of the same 12 reels stood here:
+           THE RIVER     router    INTAKE → PRINTER → CAPTURE → TOMBSTONE     where it IS
+           THE PRINTER   printer   IN → FUNNEL → TEMPLATE → ROUTE → …         what was DECIDED
+           THE PIPELINE  retention FILMED → TRIAGED → SWEPT → BANKED → …      how far THROUGH
+
+       ⚠ THE BACKEND IS UNTOUCHED. `/api/reel_story` still returns `printerStations` and
+       `printerCounts`; `st.printer*` is simply not drawn. Nothing that computes a verdict changed,
+       which is exactly the scope he set.
+
+       ⚠ AND THIS ONE COULD GO WHILE THE RIVER COULD NOT — measured, not assumed. `render_check`'s
+       targets were searched for every selector in this region: `shp-`, `shs-` and `sh-story`
+       appear in ZERO targets, while `sh-lanes`/`shr-lane` carry THREE (console-tabs, river-strip,
+       shelf-cards — the last uses `.shr-lane` rects as its activation proof). Deleting the river
+       strip blind would have taken out three gates; deleting this one costs nothing.
+       [[the-unjoined-end]] [[regression-guard]] */
 
     /* ── 1. the yield bar ─────────────────────────────────────────────────────────────────── */
     var yieldBlock;
@@ -11770,7 +11756,7 @@ window._lockMark = function(isOpen, px, label){
         }).join('')
       + '</div>';
 
-    el.innerHTML = _spine + '<div class="shs-head">⚙ THE PIPELINE — what the reels have given up</div>'
+    el.innerHTML = '<div class="shs-head">⚙ THE PIPELINE — what the reels have given up</div>'
                  + yieldBlock
                  + '<div class="shs-railh">where the ' + reels.length + ' reels stand \u2014 '
                  +   'each stage counts the reels that get <b>no further</b> than it</div>'

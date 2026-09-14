@@ -1332,20 +1332,37 @@ GATES = [
              "ReferenceError thrown while BUILDING the row would have taken the whole ledger "
              "down, so one law pins that the escaper it uses is actually in scope.",
          skip_ok=()),
-    Gate("test_each_flow_strip_names_its_own_engine",
-         [sys.executable,
-          os.path.join(HERE, "test_each_flow_strip_names_its_own_engine.py")], 90,
-         why="THE SHELF stacks two flow strips in one overlay, deliberately styled to read as one "
-             "engine, and they are drawn from DIFFERENT modules with DIFFERENT vocabularies: "
-             "#sh-lanes from /api/river (river_lanes + reel_router, 4 lanes over 9 stations) and "
-             ".shp-spine from /api/reel_story (printer.stream, 7 stations). Both say PRINTER and "
-             "mean different things — one router station holding N reels versus a seven-step "
-             "internal pipeline — and the join happens at the endpoint for display only, so the "
-             "two can diverge with neither surface flagging it. The freshness convention already "
-             "existed in the same file (.ftt-age) and measured 3 hits, NONE in the shelf code. "
-             "★ The law is the JOIN, not the string: the first cut BUILT _srcTag and never "
-             "rendered it, which is the same as no label at all, so this asserts the tag is USED.",
-         skip_ok=()),
+    # ⚠⚠ v3110 — `test_each_flow_strip_names_its_own_engine` IS RETIRED, NOT DELETED, AND THIS
+    # NOTE IS THE RECORD. That law's subject was the shelf stacking TWO flow strips: its own
+    # docstring said "THE SHELF stacks two 'flow' strips in one overlay ... Both use the word
+    # PRINTER and mean different things". v2819's answer to that duplication was to make each
+    # strip NAME ITS SOURCE. Konyo's ruling on 2026-09-14 was that labelling them never stopped
+    # them reading as separate engines - "two diffrent sections rendering the same", "i would want
+    # it unified only visually obivously" - so the printer spine is gone from the shelf and a law
+    # requiring a SECOND strip to name a SECOND engine is a law about a world that no longer
+    # exists. Its surviving clauses (the strip names its engine; the tag has a CSS rule; a tag
+    # built and never rendered is no tag) moved into the replacement below, which ALSO pins the
+    # removal so the duplication cannot come back. A red law deleted to make a change land is the
+    # green that lies; a red law replaced by the true one is the change being finished.
+    Gate("test_the_shelf_shows_one_flow_strip",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_shows_one_flow_strip.py")], 120,
+         why="THE SHELF SHOWS ONE FLOW STRIP, AND IT NAMES THE ENGINE BEHIND IT. Replaces "
+             "test_each_flow_strip_names_its_own_engine, whose subject was the shelf stacking TWO "
+             "flow strips drawn from different modules in different vocabularies - river_lanes' 4 "
+             "lanes over 9 router stations against printer.stream()'s 7 stations, both using the "
+             "word PRINTER for different things. v2819 answered that by labelling each source; his "
+             "2026-09-14 ruling is that labels never stopped three axes reading as three engines, "
+             "so the printer spine no longer draws on the shelf. SURVIVING clauses are kept: the "
+             "strip must name its engine, the tag must carry a CSS rule or nobody sees it, and a "
+             "source tag BUILT into a variable and never concatenated into markup is the same as "
+             "no tag (v2819's own near-miss, now generalised to any spelling rather than the one "
+             "name it used). NEW clause: the spine may not come back - a removed section without a "
+             "guard is a ruling that has to be made twice. ⚠ THE BACKEND IS UNTOUCHED and that is "
+             "the scope he set: /api/reel_story still returns printerStations and printerCounts "
+             "and printer.py still walks every station; only the drawing changed. ⚠ AND IT READS "
+             "EXECUTABLE TEXT ONLY - the first run went red on a v2587 COMMENT mentioning "
+             "`.shp-st b u` while the markup was already gone, which is the mirror of v3102's "
+             "BLIND proof where a comment quoting an expression satisfied the check about it."),
     Gate("test_a_declared_station_can_be_reached",
          [sys.executable,
           os.path.join(HERE, "test_a_declared_station_can_be_reached.py")], 120,
