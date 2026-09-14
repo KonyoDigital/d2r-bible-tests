@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3113",
+  "ver": "v3114",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3113: five measured things: the writer split into journal_drain because the planner own law forbids any write in its module and I had broken it for several versions; the amnesty release no longer wears the proof label on the line he reads before approving a deletion; the river loader can no longer race itself; stash takes the headline cell on session cards with its source and its open-defect caveat; and the activity chart gets a sqrt scale at 108px because linear against a 62-run spike put 1 and 5 runs on the same floored stub.",
+  "note": "v3114: the second eye HIGH on v3113 and the worst failure this module could have: tv_diablo journal_write appends with no lock, so a row written between the drain read and its os.replace was published away - and the backup predates that row, so a restore would not bring it back. The drain would destroy a row that was never in the plan, at the realistic time to run one, while a session records. Also backup with no argument resolved a different file than the drain rewrites.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -49,7 +49,20 @@ def backup(journal_path=None, stamp=None):
     Konyo asked for precisely this shape on the vault: "able to be brought back based on like last
     recent save ledger wise.. by day and timestamp". Same mechanism, one lane earlier.
     """
-    src = journal_path or _jr()._journal_path()
+    # ⚠⚠ v3114 — NO DEFAULT PATH, BECAUSE THE TWO RESOLVERS ARE NOT THE SAME FILE. A
+    # cross-family read of v3113 caught it: `_journal_path()` goes to tv_diablo.JOURNAL, which
+    # honours TV_HIST for an isolated-hist run, while `_journal_paths()` goes to
+    # replay.journal_paths(), which does NOT. So `backup()` with no argument snapshotted the LIVE
+    # file while `apply_plan` went on to rewrite the whole ring — the rotated half with no backup
+    # at all — and under TV_HIST they can be different files entirely. Every internal caller
+    # already passes an explicit path; the ambiguous door is simply shut.
+    # [[copy-drift]] [[unknown-stays-unknown]]
+    if not journal_path:
+        return None, ("backup() needs the file to copy — the planner and the drain resolve "
+                      "'the journal' differently (tv_diablo.JOURNAL honours TV_HIST, "
+                      "replay.journal_paths() does not), so a default here would snapshot one "
+                      "file while the drain rewrote another")
+    src = journal_path
     if not os.path.exists(src):
         return None, "there is no journal at %s to back up" % src
     try:
@@ -94,6 +107,44 @@ def backup(journal_path=None, stamp=None):
         return None, ("the backup holds %d row(s) and the source holds %d — refusing to release "
                       "anything against a copy that does not match" % (n, src_n))
     return dst, n
+
+
+def _late_lines(path, read_lines, doomed):
+    """Rows appended to `path` after the first `read_lines` lines were read. -> [line]
+
+    ⚠⚠ v3114 — THE CARRY-FORWARD, EXTRACTED SO A LAW CAN DRIVE IT. The second eye's High on v3113:
+    `tv_diablo._journal_write` appends with NO LOCK, so a row written between the drain's read and
+    its `os.replace` is published away — and the backup predates that row, so a restore does not
+    bring it back. The drain would destroy a row that was never in the plan, and the realistic time
+    to run a drain is while a session is recording.
+
+    ⚠ IT DOES NOT CLOSE THE WINDOW AND MUST NOT CLAIM TO. Re-reading here narrows the gap from "the
+    whole rewrite" to "between this call and the rename". A row landing inside THAT is still lost
+    and cannot be saved without a lock the writer does not take. [[unknown-stays-unknown]]
+
+    ⚠ AND A LATE ROW IS STILL JUDGED. If the recorder appends a row for a session the plan doomed,
+    carrying it forward would resurrect exactly what the drain was asked to remove.
+    """
+    out = []
+    try:
+        with io.open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.readlines()
+    except Exception:
+        return []
+    if len(lines) <= read_lines:
+        return []
+    for raw_line in lines[read_lines:]:
+        raw = raw_line.strip()
+        if not raw:
+            continue
+        try:
+            sid = str((json.loads(raw) or {}).get("sessionId") or "")
+        except Exception:
+            out.append(raw_line)        # unparseable stays: it is not ours to judge
+            continue
+        if not (sid and sid in doomed):
+            out.append(raw_line)
+    return out
 
 
 def apply_plan(p, yes=False, journal_path=None):
@@ -166,7 +217,7 @@ def apply_plan(p, yes=False, journal_path=None):
     # reporting success. [[unknown-stays-unknown]]
     _want = {s.get("path"): s.get("rows") for s in (p.get("sources") or [])}
 
-    dropped, sids, kept_total, wrote = 0, set(), 0, []
+    dropped, sids, kept_total, wrote, carried = 0, set(), 0, [], 0
     for t in targets:
         if not journal_path and t in _want:
             try:
@@ -185,9 +236,11 @@ def apply_plan(p, yes=False, journal_path=None):
                                % (t, _want[t], _now_n, len(wrote), BACKUP_DIR),
                         "backups": backups, "rewrote": wrote}
         kept = []
+        _read_lines = 0
         try:
             with io.open(t, encoding="utf-8", errors="replace") as fh:
                 for line in fh:
+                    _read_lines += 1
                     raw = line.strip()
                     if not raw:
                         continue
@@ -212,6 +265,25 @@ def apply_plan(p, yes=False, journal_path=None):
         try:
             with io.open(tmp, "w", encoding="utf-8") as fh:
                 fh.writelines(kept)
+            # ⚠⚠ v3114 — CARRY FORWARD ANYTHING THE RECORDER APPENDED WHILE WE WERE WRITING.
+            # The second eye's High on v3113, and it is the worst failure this module could have:
+            # `tv_diablo._journal_write` appends with NO LOCK, so a row written between our read
+            # and this `os.replace` is published away — and the backup was taken BEFORE that row
+            # existed, so a restore does not bring it back either. The drain would destroy a row
+            # that was never in the plan. That is the realistic case: he runs this while a session
+            # is recording.
+            #
+            # ⚠ THIS DOES NOT CLOSE THE WINDOW AND MUST NOT CLAIM TO. It re-reads the source after
+            # writing the replacement and appends any line that arrived since, which narrows the
+            # gap from "the whole rewrite" to "between this re-read and the rename" — microseconds
+            # instead of seconds. A row landing inside THAT is still lost, and it cannot be made
+            # zero without a lock the writer does not take. Said out loud rather than implied.
+            # [[unknown-stays-unknown]] [[the-unjoined-end]]
+            _late = _late_lines(t, _read_lines, doomed)
+            if _late:
+                with io.open(tmp, "a", encoding="utf-8") as fh:
+                    fh.writelines(_late)
+                carried += len(_late)
             os.replace(tmp, t)
         except Exception as exc:
             try:
@@ -225,6 +297,7 @@ def apply_plan(p, yes=False, journal_path=None):
         wrote.append({"path": t, "kept": len(kept)})
 
     return {"ok": True, "removedRows": dropped, "removedSessions": len(sids),
+            "carriedForward": carried,
             "keptRows": kept_total, "backups": backups, "rewrote": wrote,
             "say": "released %d row(s) across %d session(s) from %d file(s); %d row(s) remain. "
                    "Restore with: %s"

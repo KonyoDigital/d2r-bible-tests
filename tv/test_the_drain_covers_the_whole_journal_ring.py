@@ -237,6 +237,42 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
                          "plan — a rotation between the backup and the write is then reported as "
                          "success" % len(guards))
 
+    # ── 8. a row the recorder appends MID-DRAIN must survive ─────────────────────────────────
+    def test_a_row_appended_during_the_drain_is_carried_forward(self):
+        """⚠⚠ THE SECOND EYE'S HIGH ON v3113, AND THE WORST FAILURE THIS MODULE COULD HAVE.
+        `tv_diablo._journal_write` appends with NO LOCK. A row written between the drain's read and
+        its `os.replace` is published away — and the backup was taken BEFORE that row existed, so a
+        restore does not bring it back either. The drain would destroy a row that was never in the
+        plan, and the realistic time to run a drain is while a session is recording."""
+        io.open(self.live, "a", encoding="utf-8").write(
+            json.dumps(_row("s_arrived_mid_drain", 1_900_000_000_000)) + "\n")
+        late = JD._late_lines(self.live, 13, set())     # 13 lines were read before the append
+        got = [json.loads(x)["sessionId"] for x in late]
+        print("   appended mid-drain -> carried: %s" % got)
+        self.assertEqual(got, ["s_arrived_mid_drain"],
+                         "a row the recorder wrote during the rewrite was not carried forward — "
+                         "it would be published away with no backup holding it")
+
+    def test_a_late_row_for_a_doomed_session_is_not_resurrected(self):
+        """The mirror error: carrying everything forward would put back exactly what the drain was
+        asked to remove."""
+        io.open(self.rot, "a", encoding="utf-8").write(
+            json.dumps(_row("s_rotated", 1_700_000_000_009)) + "\n")
+        late = JD._late_lines(self.rot, 2, {"s_rotated"})
+        print("   late row for a DOOMED session -> carried: %d" % len(late))
+        self.assertEqual(late, [],
+                         "a late row for a doomed session was carried forward, resurrecting the "
+                         "very session the plan released")
+
+    def test_backup_refuses_without_an_explicit_path(self):
+        """⚠ THE TWO RESOLVERS ARE NOT THE SAME FILE. `_journal_path()` honours TV_HIST;
+        `replay.journal_paths()` does not. An argument-less backup snapshotted the LIVE file while
+        the drain rewrote the whole ring, leaving the rotated half with no backup at all."""
+        where, why = JD.backup()
+        print("   backup() with no path -> %r" % (str(why)[:64],))
+        self.assertIsNone(where, "an ambiguous argument-less backup still resolves a path")
+        self.assertIn("needs the file to copy", str(why))
+
 RED_PROOF = [
     {
         "why": "the applier goes back to rewriting the live file only, so every release against a "
@@ -261,6 +297,30 @@ RED_PROOF = [
         "file": "journal_drain.py",
         "find": '    dst = os.path.join(BACKUP_DIR, "%s.%s" % (os.path.basename(src), stamp))',
         "replace": '    dst = os.path.join(BACKUP_DIR, "sessions.%s.jsonl" % stamp)',
+        "matches": 1,
+    },
+    {
+        "why": "a row the recorder appends DURING the rewrite is published away — the drain "
+               "destroying a row that was never in the plan, with a backup that predates it",
+        "file": "journal_drain.py",
+        "find": "    if len(lines) <= read_lines:\n        return []",
+        "replace": "    if True:\n        return []",
+        "matches": 1,
+    },
+    {
+        "why": "a late row for a DOOMED session is carried forward, resurrecting the very session "
+               "the plan released",
+        "file": "journal_drain.py",
+        "find": "        if not (sid and sid in doomed):\n            out.append(raw_line)",
+        "replace": "        out.append(raw_line)",
+        "matches": 1,
+    },
+    {
+        "why": "backup() resolves a default path again, so it snapshots the live file while the "
+               "drain rewrites the whole ring and the rotated half has no backup",
+        "file": "journal_drain.py",
+        "find": "    if not journal_path:\n        return None, (\"backup() needs the file to copy",
+        "replace": "    if False:\n        return None, (\"backup() needs the file to copy",
         "matches": 1,
     },
     {
