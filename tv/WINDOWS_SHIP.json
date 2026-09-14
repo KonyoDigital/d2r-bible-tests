@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3105",
+  "ver": "v3106",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3105: he approved the river deletion with one condition - make sure it was tallied and extracted properly. Measured on his live journal: of 447 releasable rows 245 still carried payload, 207 had their reel in the sweep memory so the read survives, and 38 appeared in NO bank at all with several carrying finds and topFind. Those 38 are now held. Unknown holds too - a bank that could not be read is not an empty bank.",
+  "note": "v3106: this is why the river could not drain and it was invisible for six versions: load_journal has read a generation ring since v779 while journal_retention asked for the live file alone, so every release against a session in the rotated half was a silent no-op that reported success. 2483 of 2840 sessions were unreachable. One function now spells the ring and both ends ask it, the plan names the corpus it judged, and the apply refuses when that corpus moved.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

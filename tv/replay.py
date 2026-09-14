@@ -29,15 +29,37 @@ HIST = os.path.join(HERE, "frames", "hist")
 SESSION_GAP_MS = 10 * 60 * 1000   # ≥10min silence = a new session
 
 
+def journal_paths(path=None):
+    """Every file the journal is READ from, oldest first. -> [path]
+
+    ⚠⚠ v3106 — THIS EXISTS BECAUSE THE READER AND THE WRITER DISAGREED ABOUT WHAT "THE JOURNAL" IS.
+    `load_journal` has read a generation ring since v779 — `.5 … .1` then the live file — while
+    `journal_retention` asked `tv_diablo.JOURNAL` and got the LIVE FILE ALONE. So the river's
+    planner judged 2,895 sessions across the ring and its applier could only rewrite one file of
+    it. MEASURED on his tree:
+
+        sessions.1.jsonl   7,103 rows   2,483 sessions   <- the applier never touched this
+        sessions.jsonl     5,093 rows     357 sessions   <- the only file it rewrote
+
+    Every release against a session living in the rotated half was a silent no-op, which is the
+    whole reason the river could not drain. One function, asked by both ends.
+    [[copy-drift]] [[the-unjoined-end]]
+
+    ⚠ IT RETURNS THE PATHS THAT EXIST, in read order. A caller that needs "what would be read"
+    gets exactly that, and cannot drift from what `load_journal` does one line below.
+    """
+    if path is not None:
+        return [path]
+    _root, _ext = os.path.splitext(JOURNAL)
+    # v811 — generation ring: oldest first (.5 … .1), then the live file
+    ring = [_root + ".%d" % g + _ext for g in range(5, 0, -1)] + [JOURNAL]
+    return [p for p in ring if os.path.exists(p)]
+
+
 def load_journal(path=None):
     # v779 (Grok R5/R7) — read the ROTATED half first, then the live file, concatenated in
     # chronological order, so a rotation (sessions.jsonl → sessions.1.jsonl) never hides history.
-    if path is not None:
-        paths = [path]
-    else:
-        _root, _ext = os.path.splitext(JOURNAL)
-        # v811 — generation ring: oldest first (.5 … .1), then the live file
-        paths = [_root + ".%d" % g + _ext for g in range(5, 0, -1)] + [JOURNAL]
+    paths = journal_paths(path)
     reads = []
     for p in paths:
         try:

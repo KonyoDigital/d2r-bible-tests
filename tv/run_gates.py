@@ -2569,6 +2569,26 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_the_drain_covers_the_whole_journal_ring",
+         [sys.executable, os.path.join(HERE, "test_the_drain_covers_the_whole_journal_ring.py")], 180,
+         why="THE DRAIN MUST COVER EVERY FILE THE JOURNAL IS READ FROM, OR REFUSE TO RUN - and this "
+             "is why the river could not drain, invisible for six versions. replay.load_journal has "
+             "read a GENERATION RING since v779 (.5 through .1 then the live file) while "
+             "journal_retention asked tv_diablo.JOURNAL and got the live file ALONE, so the planner "
+             "judged the whole journal and the applier rewrote one file of it. MEASURED on his "
+             "tree: sessions.1.jsonl holds 7,103 rows and 2,483 sessions the applier never touched, "
+             "against sessions.jsonl's 5,093 rows and 357 sessions. Every release against a session "
+             "in the rotated half was a SILENT NO-OP that reported success - removedSessions 324 "
+             "looked like progress while 2,483 sessions were unreachable. replay.journal_paths() is "
+             "now the one place the ring is spelled and both ends ask it. AND A PLAN IS A JUDGEMENT "
+             "ABOUT A SET OF FILES: applying it to a different set is how a correct decision lands "
+             "on the wrong rows, which is not hypothetical - on 2026-09-14 a plan computed over the "
+             "ring was applied to the live file alone, and nothing was lost only because the backup "
+             "was written and verified first. The plan now names the corpus it judged and the apply "
+             "refuses when that corpus moved. Also pinned: a backup name must carry its SOURCE, "
+             "because 'sessions.<stamp>.jsonl' is fine for one file and silently collides the "
+             "moment two ring generations are backed up in the same second, leaving the earlier one "
+             "with no backup while the log says it has one."),
     Gate("test_a_row_that_is_the_only_trace_is_never_released",
          [sys.executable, os.path.join(HERE, "test_a_row_that_is_the_only_trace_is_never_released.py")], 180,
          why="A JOURNAL ROW THAT IS THE ONLY TRACE OF WHAT A REEL FOUND MAY NEVER BE RELEASED. He "

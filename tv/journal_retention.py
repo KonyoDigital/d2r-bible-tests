@@ -90,6 +90,27 @@ def _film_on_disk(sid, hist_dir):
     return n > 0, n
 
 
+def _journal_paths():
+    """Every file the journal is READ from, oldest first. -> [path]
+
+    ⚠⚠ DELEGATE. `_journal_path()` below returns the LIVE file, which is what a single-file
+    rewrite needs — and for six versions this module used it as though it were the whole journal.
+    It is not: `replay.load_journal` has read a generation ring since v779. The planner was fed
+    the ring (via /api/sessions) and the applier rewrote one file of it, so every release against
+    a session in the rotated half was a SILENT NO-OP. Measured: 2,483 of 2,840 sessions live in
+    `sessions.1.jsonl`. That is why the river could not drain. [[copy-drift]] [[the-unjoined-end]]
+    """
+    try:
+        import replay as _rp
+        paths = list(_rp.journal_paths() or [])
+        if paths:
+            return paths
+    except Exception:
+        pass
+    p = _journal_path()
+    return [p] if os.path.exists(p) else []
+
+
 _PAYLOAD_FIELDS = ("finds", "tallies", "intakes", "named", "chron", "registered",
                    "judged", "topFind")
 
@@ -195,8 +216,19 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
             keep.append({"sessionId": sid, "t0": s.get("t0"), "why": why})
 
     release.sort(key=lambda r: r.get("t0") or 0)          # oldest first, like reel_retention
+    # ⚠ v3106 — THE PLAN NAMES THE CORPUS IT JUDGED, so `apply_plan` can refuse when the files
+    # moved underneath it. A plan is a judgement ABOUT a set of files; applying it to a different
+    # set is how a correct decision lands on the wrong rows.
+    sources = []
+    for _p in _journal_paths():
+        try:
+            sources.append({"path": _p, "rows": sum(1 for _l in
+                                                    io.open(_p, encoding="utf-8", errors="replace")
+                                                    if _l.strip())})
+        except Exception:
+            sources.append({"path": _p, "rows": None})
     return {"ok": True, "keepRecent": keep_recent, "rows": len(rows),
-            "release": release, "keep": keep,
+            "release": release, "keep": keep, "sources": sources,
             "counts": {"release": len(release), "keep": len(keep)},
             "say": ("%d of %d journal row(s) have a proof of extraction and could be released; "
                     "%d stay. NOTHING was written." % (len(release), len(rows), len(keep)))}
@@ -226,7 +258,11 @@ def backup(journal_path=None, stamp=None):
     except OSError as exc:
         return None, "could not make %s (%s)" % (BACKUP_DIR, exc)
     stamp = stamp or time.strftime("%Y-%m-%d_%H%M%S")
-    dst = os.path.join(BACKUP_DIR, "sessions.%s.jsonl" % stamp)
+    # ⚠ v3106 — THE SOURCE'S OWN NAME, OR A RING BACKUP OVERWRITES ITSELF. This was
+    # "sessions.%s.jsonl" % stamp, which is fine for ONE file and silently collides the moment
+    # two ring generations are backed up in the same second — the second copy would land on the
+    # first and the earlier file would have no backup at all while the log said it did.
+    dst = os.path.join(BACKUP_DIR, "%s.%s" % (os.path.basename(src), stamp))
     try:
         with io.open(src, encoding="utf-8", errors="replace") as fh:
             body = fh.read()
@@ -248,11 +284,18 @@ def backup(journal_path=None, stamp=None):
 
 
 def apply_plan(p, yes=False, journal_path=None):
-    """Remove the released sessions' rows from the journal. -> dict
+    """Remove the released sessions' rows from EVERY file the journal is read from. -> dict
 
-    ⚠ REFUSES WITHOUT AN EXPLICIT YES, and refuses again if the backup did not verify. The order is
-    deliberate and is reel_retention's: the recoverable record goes down FIRST, so a crash halfway
-    leaves a backup covering MORE than was removed rather than fewer.
+    ⚠ REFUSES WITHOUT AN EXPLICIT YES, refuses if the backup did not verify, and — v3106 — refuses
+    if the corpus MOVED since the plan judged it. The order is deliberate and is reel_retention's:
+    every recoverable record goes down FIRST, so a crash halfway leaves backups covering MORE than
+    was removed rather than fewer.
+
+    ⚠⚠ v3106 — IT USED TO REWRITE ONE FILE OF A RING. `plan()` is fed the whole journal, which
+    `replay.load_journal` has read as a generation ring since v779; this rewrote `tv_diablo.JOURNAL`
+    alone. MEASURED on his tree: 2,483 of 2,840 sessions live in `sessions.1.jsonl`, so a release
+    against any of them was a SILENT NO-OP that reported success. The river could not drain and
+    nothing said why. [[the-unjoined-end]]
     """
     if not yes:
         return {"ok": False, "why": "refusing to rewrite the journal without yes=True; "
@@ -263,49 +306,91 @@ def apply_plan(p, yes=False, journal_path=None):
     if not doomed:
         return {"ok": True, "removedRows": 0, "removedSessions": 0,
                 "why": "the plan released nothing, so nothing was written"}
-    src = journal_path or _journal_path()
-    where, n_backed = backup(src)
-    if where is None:
-        return {"ok": False, "why": "NOT touching the journal — %s" % n_backed}
 
-    kept, dropped, sids = [], 0, set()
-    try:
-        with io.open(src, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                raw = line.strip()
-                if not raw:
-                    continue
-                try:
-                    sid = str((json.loads(raw) or {}).get("sessionId") or "")
-                except Exception:
-                    kept.append(line)          # unparseable stays: it is not ours to judge
-                    continue
-                if sid and sid in doomed:
-                    dropped += 1
-                    sids.add(sid)
-                else:
-                    kept.append(line)
-    except Exception as exc:
-        return {"ok": False, "why": "the journal could not be read (%s) — nothing written" % exc}
+    targets = [journal_path] if journal_path else _journal_paths()
+    if not targets:
+        return {"ok": False, "why": "there is no journal to rewrite"}
 
-    # ⚠ ATOMIC. A plain open(path, "w") TRUNCATES before anything is written, so a crash between
-    # those two moments leaves him with an empty history and a backup he does not know to look for.
-    tmp = src + ".part"
-    try:
-        with io.open(tmp, "w", encoding="utf-8") as fh:
-            fh.writelines(kept)
-        os.replace(tmp, src)
-    except Exception as exc:
+    # ⚠⚠ THE CORPUS MUST BE THE ONE THE PLAN JUDGED. A plan is a judgement ABOUT a set of files;
+    # applying it to a different set is how a correct decision lands on the wrong rows. This is
+    # not hypothetical — it is exactly what happened on 2026-09-14, when a plan computed over the
+    # ring was applied to the live file alone.
+    if not journal_path:
+        want = {(s.get("path"), s.get("rows")) for s in (p.get("sources") or [])}
+        have = set()
+        for t in targets:
+            try:
+                have.add((t, sum(1 for l in io.open(t, encoding="utf-8", errors="replace")
+                                 if l.strip())))
+            except Exception:
+                have.add((t, None))
+        if not want:
+            return {"ok": False, "why": "this plan does not name the files it judged (it predates "
+                                        "v3106) — re-run plan() before applying it"}
+        if want != have:
+            return {"ok": False,
+                    "why": "the journal MOVED since this plan judged it — refusing.\n"
+                           "   planned over: %s\n   on disk now  : %s"
+                           % (sorted(want), sorted(have))}
+
+    # ── every backup first, then every rewrite ──────────────────────────────────────────────
+    stamp = time.strftime("%Y-%m-%d_%H%M%S")
+    backups = []
+    for t in targets:
+        where, n_backed = backup(t, stamp=stamp)
+        if where is None:
+            return {"ok": False, "why": "NOT touching the journal — %s" % n_backed,
+                    "backups": backups}
+        backups.append({"of": t, "at": where, "rows": n_backed})
+
+    dropped, sids, kept_total, wrote = 0, set(), 0, []
+    for t in targets:
+        kept = []
         try:
-            os.remove(tmp)
-        except OSError:
-            pass
-        return {"ok": False, "why": "the rewrite failed (%s) — the journal is untouched, and the "
-                                    "backup is at %s" % (exc, where)}
+            with io.open(t, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    raw = line.strip()
+                    if not raw:
+                        continue
+                    try:
+                        sid = str((json.loads(raw) or {}).get("sessionId") or "")
+                    except Exception:
+                        kept.append(line)      # unparseable stays: it is not ours to judge
+                        continue
+                    if sid and sid in doomed:
+                        dropped += 1
+                        sids.add(sid)
+                    else:
+                        kept.append(line)
+        except Exception as exc:
+            return {"ok": False, "why": "%s could not be read (%s) — %d file(s) already rewritten, "
+                                        "backups at %s" % (t, exc, len(wrote), BACKUP_DIR),
+                    "backups": backups, "rewrote": wrote}
+        # ⚠ ATOMIC. A plain open(path, "w") TRUNCATES before anything is written, so a crash
+        # between those two moments leaves him with an empty history and a backup he does not
+        # know to look for.
+        tmp = t + ".part"
+        try:
+            with io.open(tmp, "w", encoding="utf-8") as fh:
+                fh.writelines(kept)
+            os.replace(tmp, t)
+        except Exception as exc:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            return {"ok": False, "why": "the rewrite of %s failed (%s) — that file is untouched; "
+                                        "backups at %s" % (t, exc, BACKUP_DIR),
+                    "backups": backups, "rewrote": wrote}
+        kept_total += len(kept)
+        wrote.append({"path": t, "kept": len(kept)})
+
     return {"ok": True, "removedRows": dropped, "removedSessions": len(sids),
-            "keptRows": len(kept), "backup": where, "backedUpRows": n_backed,
-            "say": "released %d row(s) across %d session(s); %d row(s) remain. Restore with: "
-                   "cp %s %s" % (dropped, len(sids), len(kept), where, src)}
+            "keptRows": kept_total, "backups": backups, "rewrote": wrote,
+            "say": "released %d row(s) across %d session(s) from %d file(s); %d row(s) remain. "
+                   "Restore with: %s"
+                   % (dropped, len(sids), len(targets), kept_total,
+                      " && ".join("cp %s %s" % (b["at"], b["of"]) for b in backups))}
 
 
 def main(argv=None):
