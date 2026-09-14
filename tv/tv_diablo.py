@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3112"   # the lane wears the pipeline cell, and the amnesty covers only the past
+VERSION = "v3113"   # the drain moves out of the planner, and the activity chart can be read
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

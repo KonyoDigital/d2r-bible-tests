@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3112",
+  "ver": "v3113",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3112: two halves. The river lane now wears the pipeline cell exactly - border background radius padding flex-basis and type scale - so the shelf reads as one engine rather than two idioms stacked, and the v2773 note naming a board v3110 deleted is corrected. And his ruling landed as a bounded amnesty: rows that started before the retention ledger existed may go, the cutoff is READ from the ledger first entry rather than hardcoded, and a run the ledger could have recorded is never covered.",
+  "note": "v3113: five measured things: the writer split into journal_drain because the planner own law forbids any write in its module and I had broken it for several versions; the amnesty release no longer wears the proof label on the line he reads before approving a deletion; the river loader can no longer race itself; stash takes the headline cell on session cards with its source and its open-defect caveat; and the activity chart gets a sqrt scale at 108px because linear against a 62-run spike put 1 and 5 runs on the same floored stub.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

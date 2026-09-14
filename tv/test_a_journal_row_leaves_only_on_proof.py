@@ -35,6 +35,21 @@ _console_safe_enable()
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 #: a row shaped like /api/sessions, one per case the law names
+# ⚠⚠ v3113 — THE AMNESTY BOUNDARY IS PINNED HERE, AND THAT IS THE POINT OF THIS BLOCK.
+# v3112 gave `plan()` a waiver for runs that started BEFORE the retention ledger's first entry.
+# These fixtures used `t0=1000`, which is before ANY real deletion stamp — so on his Mac, where
+# `reel_tombstones.json` exists, the waiver fired and every `unknown`/`none`/`""` row was released
+# and this law went RED. On CI the ledger is GITIGNORED and absent, `_ledger_began` returns None,
+# the waiver is off, and the very same test went GREEN.
+#
+# **CI would have certified a law that production no longer follows.** A verdict that depends on
+# which machine ran it is not a verdict, and an absent fixture file is the quietest way to get one.
+# Both halves are fixed: the fixtures now sit AFTER the boundary, so they test the rule rather than
+# the waiver, and the boundary itself is patched to a constant so no venue can move it.
+# [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+BEGAN = 1_787_604_588_927          # the real ledger's first deletion, frozen for fixture arithmetic
+
+
 def _row(sid, t0=1_700_000_000_000, state="retired", **kw):
     r = {"sessionId": sid, "t0": t0, "footageState": state, "footageWhy": "x"}
     r.update(kw)
@@ -44,14 +59,22 @@ def _row(sid, t0=1_700_000_000_000, state="retired", **kw):
 class TestAJournalRowLeavesOnlyOnProof(unittest.TestCase):
 
     def setUp(self):
+        # the venue may not decide the verdict: freeze the boundary for every case below
+        # ⚠ imported HERE because this file imports the planner inside its test methods, not at
+        # module scope — a setUp that assumed otherwise raised UnboundLocalError on all five.
+        import journal_retention as JR
+        self._began = JR._ledger_began
+        self.addCleanup(lambda _m=JR, _v=self._began: setattr(_m, "_ledger_began", _v))
+        JR._ledger_began = lambda: (BEGAN, None)
+
         import journal_retention as JR
         self.JR = JR
 
     def test_only_a_retired_row_is_releasable(self):
-        rows = [_row("s_old_%d" % i, t0=1000 + i, state=s)
+        rows = [_row("s_old_%d" % i, t0=BEGAN + 1000 + i, state=s)
                 for i, s in enumerate(("retired", "unknown", "none", "", "RETIRED"))]
         # 8 newer rows so none of the above are protected by the recent window
-        rows += [_row("s_new_%d" % i, t0=9_000_000 + i) for i in range(8)]
+        rows += [_row("s_new_%d" % i, t0=BEGAN + 9_000_000 + i) for i in range(8)]
         p = self.JR.plan(rows, hist_dir=os.path.join(HERE, "__no_such_dir__"))
         got = {r["sessionId"] for r in p["release"]}
         print("releasable: %s" % sorted(got))

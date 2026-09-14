@@ -131,7 +131,46 @@ class TestTheAmnestyCoversOnlyThePast(unittest.TestCase):
                       "_ledger_began does not ask reel_retention for the ledger path")
 
 
+    # ── the label on the delete path must not claim a proof the waiver replaced ───────────────
+    def test_an_amnesty_release_does_not_claim_a_proof(self):
+        """⚠⚠ THE ONE LINE HE READS BEFORE APPROVING A DELETION. Every release used to say "film
+        was retired after giving up its information" — with an EMPTY tail, because a waived row has
+        no `footageWhy` — and the summary said they "have a proof of extraction". Measured on a
+        fixture: `5 of 13 … have a proof of extraction` when four had one and the fifth was the
+        waiver. The waiver is precisely the case where no proof exists.
+        [[label-outlived-referent]] [[zero-needs-a-denominator]]"""
+        row = _row("s_before", BEGAN - 1)
+        p = self._plan([row])
+        got = next(r for r in p["release"] if r["sessionId"] == "s_before")
+        print("   amnesty row why: %r" % got["why"][:70])
+        self.assertTrue(got.get("amnesty"), "the release does not mark itself as a waiver")
+        self.assertNotIn("giving up its information", got["why"],
+                         "a waived row claims the proof label of a genuinely retired one")
+        self.assertIn("WAIVER and not a proof", p["say"],
+                      "the summary folds waivers and proofs into one count: %r" % p["say"])
+        self.assertEqual(p.get("amnesty"), 1,
+                         "the plan does not report how many of its releases are waivers")
+
+    def test_a_genuine_proof_is_still_called_a_proof(self):
+        """The correction may not turn every release into a waiver — that would be the same
+        conflation pointing the other way."""
+        row = _row("s_real", BEGAN + 5, state=JR.EXTRACTED, footageWhy="read and sealed")
+        p = self._plan([row])
+        got = next(r for r in p["release"] if r["sessionId"] == "s_real")
+        print("   retired row why: %r" % got["why"][:70])
+        self.assertFalse(got.get("amnesty"))
+        self.assertIn("giving up its information", got["why"])
+
 RED_PROOF = [
+    {
+        "why": "an amnesty release goes back to wearing the proof label, so the one line he reads "
+               "before approving a deletion says extraction happened for rows where it provably "
+               "never did",
+        "file": "journal_retention.py",
+        "find": "            _amnesty = (str(s.get(\"footageState\") or \"\") != EXTRACTED)",
+        "replace": "            _amnesty = False",
+        "matches": 1,
+    },
     {
         "why": "the amnesty stops checking the boundary, so every row with no retention record is "
                "released regardless of when it ran — his ruling covered the past and this would "

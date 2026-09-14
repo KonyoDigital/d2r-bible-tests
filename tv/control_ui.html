@@ -4529,7 +4529,12 @@
   .shtl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
   .shtl-lab { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--gold-dim); }
   .shtl-sum { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: #8a7e68; font-variant-numeric: tabular-nums; }
-  .shtl-bars { display: flex; align-items: flex-end; gap: 3px; height: 42px; }
+  /* ⚠ v3113 — 42px COULD NOT CARRY THE SCALE ABOVE. At 42px a 13% bar is 5px and a 40% bar is
+     17px, and the shortest were floored into one indistinguishable stub. He asked for it
+     "stretched from top to bottom more so its more representing chart". 108px gives the same
+     ratios 14px and 43px — a difference readable at a glance without the strip dominating the
+     analytics row it sits in. */
+  .shtl-bars { display: flex; align-items: flex-end; gap: 3px; height: 108px; }
   .shtl-bar { flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; border-radius: 3px;
     background: linear-gradient(180deg, transparent 55%, rgba(200,180,120,.05)); }
   .shtl-bar > i { display: block; width: 100%; min-height: 0; background: rgba(200,180,120,.42); border-radius: 3px 3px 0 0; transition: height .35s ease; }
@@ -11786,7 +11791,31 @@ window._lockMark = function(isOpen, px, label){
                  + worstBlock;
   }
 
+  /* ⚠⚠ v3113 — ONE ASK AT A TIME, BECAUSE THIS FUNCTION WAS RACING ITSELF AND LOSING.
+     Konyo photographed his console reading *"River — the river did not answer within 12s, so what
+     it holds is UNKNOWN"*. MEASURED against the same endpoint from outside at the same moment:
+
+         GET /api/river   ->  http 200 in 1.92s   62,320 bytes   ok:true   61 reels · 10 stations
+
+     The endpoint was never slow and never broken. The ACTIVATION POLL calls this every 0.4s for as
+     long as a `.shr-wait` node is present — render_check's own note does the arithmetic, "this
+     poll STARTS WORK, so the fetch count is the activation budget divided by 0.4" — and each call
+     opened its OWN fetch with its OWN 12s abort. Thirty concurrent asks queue on a single-threaded
+     console at ~1.9s each; the first one's timer expires long before the queue drains, it aborts,
+     it paints the refusal, the refusal KEEPS the wait node on screen, and the poll fires again.
+     A feedback loop that manufactures the very silence it reports.
+
+     That is the flake render_check has carried as unexplained since v3051 — "two theories, both
+     measured and both WRONG ... the cause of the flake is still UNKNOWN". It was never the machine
+     being loaded. It was this function with no in-flight guard.
+
+     ⚠ THE GUARD RETURNS THE RUNNING PROMISE rather than dropping the call, so every caller still
+     gets an answer and none of them starts a second queue. [[the-unjoined-end]] */
+  var _shLanesFlight = null;
+
   async function _shLanesLoad(){
+    if (_shLanesFlight) { return _shLanesFlight; }
+    _shLanesFlight = (async function(){
     /* ⚠ THROUGH window.*, NOT THE BARE NAME. Its sibling _shStoryLoad calls its renderer bare and
        works, so this is belt-and-braces rather than a known fix — but this file has shipped a DEAD
        RENDER from a bare cross-scope call five times, and the export costs nothing.
@@ -11825,6 +11854,9 @@ window._lockMark = function(isOpen, px, label){
          a timeout paints the stated refusal instead of leaving the box mid-sentence. */
       R(null);
     }
+    })();
+    try { return await _shLanesFlight; }
+    finally { _shLanesFlight = null; }
   }
   window._shLanesLoad = _shLanesLoad;
 
@@ -15941,7 +15973,8 @@ window._lockMark = function(isOpen, px, label){
          quality or a chronicle now reads a --rar-* token") and v1635 re-gated it after four
          surfaces were found missing it. The tiles that replaced the grail tile were the fifth.
          --rar-unique and --rar-set are already bound to these exact two concepts in .mini-foc. */
-      function _scell(v, l, tone){ return '<div class="shc-stat"><div class="shc-sv"'
+      function _scell(v, l, tone, tip){ return '<div class="shc-stat"'
+        + (tip ? ' title="' + esc(tip) + '"' : '') + '><div class="shc-sv"'
         + (tone ? ' style="color:var(--rar-' + tone + ')"' : '') + '>' + v + '</div>'
         + '<div class="shc-sl">' + l + '</div></div>'; }
       /* v3090 — THE LAST TWO TILES NOW READ THE CHRONICLES. Konyo: "where its says grail.. i want
@@ -15959,7 +15992,29 @@ window._lockMark = function(isOpen, px, label){
          roster failing to load, which is unknown. A confident 0 over a missing roster is the exact
          failure load_roster raises to prevent. [[unknown-stays-unknown]] */
       var _ch = sm.chron || null;
-      var statRow = '<div class="shc-stats">' + _scell(_kpiFmt(sm.reads || 0), 'reads') + _scell(_foundN, 'found')
+      /* ⚠⚠ v3113 — STASH TAKES THE HEADLINE CELL AND READS STEPS DOWN, at his request:
+         *"instead of READS it can be stash along with uniques and sets and found"*, with reads
+         *"alot smaller and under it with the other data"*. The four cells are what he hunts for —
+         what was stashed, what was found, and how much of it is chronicle — and a read count is
+         the machine's effort rather than his result.
+
+         ⚠ THE NUMBER IS LABELLED, NOT LAUNDERED. It is the sum of every `stash*` bucket in
+         `kaiClasses`, and TASK #87 IS OPEN AGAINST EXACTLY THAT BUCKET: "kaiClasses has 3 buckets
+         and no TOWN, so a town frame reads as stash". Promoting a known over-count to a headline
+         without saying so would be putting a confident figure over an open defect, so the cell's
+         own title names the source and the caveat. When #87 lands the number tightens and this
+         label stops needing the warning. [[unknown-stays-unknown]] [[label-outlived-referent]] */
+      var _kc = (sm.kaiClasses && typeof sm.kaiClasses === 'object') ? sm.kaiClasses : null;
+      var _stashN = null;
+      if (_kc){
+        _stashN = 0;
+        for (var _kk in _kc){
+          if (String(_kk).indexOf('stash') === 0) { _stashN += (_kc[_kk] || 0); }
+        }
+      }
+      var _stashCell = (_stashN === null) ? '?' : (_stashN > 0 ? ('🎒 ' + _kpiFmt(_stashN)) : '—');
+      var statRow = '<div class="shc-stats">' + _scell(_stashCell, 'stash', '',
+                 'frames this run that the reader classified as a stash panel — the sum of every stash* bucket in kaiClasses, including the gem, rune and material tabs. \u26a0 it can over-count: kaiClasses carries no TOWN bucket, so a town frame lands here too (open defect #87). Reads for this run: ' + _kpiFmt(sm.reads || 0)) + _scell(_foundN, 'found')
         + _scell(_ch ? (_ch.uniques > 0 ? ('🏆 ' + _ch.uniques) : '—') : '?', 'uniques',
                  _ch && _ch.uniques > 0 ? 'unique' : '')
         + _scell(_ch ? (_ch.sets > 0 ? ('🧩 ' + _ch.sets) : '—') : '?', 'sets',
@@ -16788,7 +16843,25 @@ window._lockMark = function(isOpen, px, label){
     var max = 1; buckets.forEach(function(b){ if (b.runs > max) max = b.runs; });
     var totR = 0, totG = 0; buckets.forEach(function(b){ totR += b.runs; totG += b.grails; });
     var bars = buckets.map(function(b, i){
-      var h = b.runs ? Math.max(9, Math.round(b.runs / max * 100)) : 0;
+      /* ⚠⚠ v3113 — A SQUARE-ROOT SCALE, BECAUSE LINEAR MADE 1 RUN AND 10 RUNS THE SAME PICTURE.
+         Konyo: *"its so compacted its not understood or seen if its 10 or 1 run it looks the
+         same visually"*. He is describing arithmetic, not taste. MEASURED against his own
+         14-day window, whose busiest day holds 62 runs:
+
+             runs    linear      sqrt
+                1      9%  (floored)   13%
+                2      9%  (floored)   18%
+                5      9%  (floored)   28%
+               10     16%              40%
+               20     32%              57%
+               62    100%             100%
+
+         Linear puts everything from 1 to 5 runs on the SAME floored stub — the floor that exists
+         so a non-zero day is visible is also what erases the difference between them. A sqrt
+         scale spreads the low end where his days actually live while keeping the busiest day at
+         full height, and it stays honest: it is monotonic, 0 is still 0, and the tooltip carries
+         the true count. The floor drops to 6% because sqrt no longer needs it to make 1 visible. */
+      var h = b.runs ? Math.max(6, Math.round(Math.sqrt(b.runs / max) * 100)) : 0;
       var d = new Date(b.start);
       var tip = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + b.runs + ' run' + (b.runs === 1 ? '' : 's') + (b.grails ? ' · ' + b.grails + ' chronicle' + (b.grails === 1 ? '' : 's') : '');
       return '<span class="shtl-bar' + (b.grails > 0 ? ' shtl-grail' : '') + (i === DAYS - 1 ? ' shtl-today' : '') + '" title="' + esc(tip) + '"><i style="height:' + h + '%"></i></span>';

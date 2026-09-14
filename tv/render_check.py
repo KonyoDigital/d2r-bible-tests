@@ -1724,14 +1724,41 @@ TARGETS = {
                CDP: with #theatre hidden, every lane rect is 0x0 while the DOM is perfectly
                correct — 4 lanes, no wait node, real content. A rect check alone would then
                report "painted 0 of 4" and a bare existence check would have passed. */
+            /* ⚠⚠ v3113 — ASK THE THEATRE ONCE, AND ASK THE SHELF ALWAYS. MEASURED with the
+               harness's own expression driven at its own 0.4s cadence against a live sandbox:
+
+                   activate -> False on every poll for 16s
+                   final state: thHidden TRUE · ovHidden false · lanes 0 · no #sh-lanes
+
+               Two defects, and this block warns about one of them two lines above while
+               committing the other.
+
+               (1) `thOpen()` IS ASYNC and this re-invoked it every 0.4s. The door awaits it
+                   (`await thOpen()`); here it was called and its result checked on the NEXT LINE,
+                   so the check always failed and the next poll called it again. Measured: called
+                   ONCE and left alone, the theatre is open 4s later. Driven at 0.4s it ends
+                   CLOSED — thirty overlapping opens toggle it shut. The comment above says
+                   "it must never toggle" about `thShelf` and nobody applied it to `thOpen`.
+
+               (2) `thShelf(true)` WAS SKIPPED WHENEVER THE OVERLAY WAS ALREADY UNHIDDEN — and
+                   `thOpen()` unhides it. So the shelf BUILDER never ran, `#sh-lanes` was never
+                   created, and the poll then hunted for an element nothing had made. `thShelf`
+                   with an explicit `true` is idempotent BY DESIGN (its own note: "always SHOWS"),
+                   so the guard bought nothing and cost the whole target.
+
+               ⚠ THIS IS A HARNESS DEFECT, NOT A PRODUCT ONE. The same shelf, probed directly,
+               paints four lanes at 210x184 with 24 cards. A cross-family look at his live console
+               read 18 cards the same afternoon. The gate was red about itself.
+               [[feedback-blind-fixture-green-gate]] [[ab-against-head-before-blaming-the-room]] */
             var th = document.getElementById('theatre');
             if (th && th.hidden) {
-                try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+                if (!window.__rcTheatreAsked) {
+                    window.__rcTheatreAsked = 1;
+                    try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+                }
+                return false;            /* let the async open finish; the next poll re-checks */
             }
-            if (th && th.hidden) return false;
-            if (ov.hidden) {
-                try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
-            }
+            try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
             if (ov.hidden) return false;
             var el = document.getElementById('sh-lanes');
             if (!el) return false;
@@ -1820,14 +1847,41 @@ TARGETS = {
                CDP: with #theatre hidden, every lane rect is 0x0 while the DOM is perfectly
                correct — 4 lanes, no wait node, real content. A rect check alone would then
                report "painted 0 of 4" and a bare existence check would have passed. */
+            /* ⚠⚠ v3113 — ASK THE THEATRE ONCE, AND ASK THE SHELF ALWAYS. MEASURED with the
+               harness's own expression driven at its own 0.4s cadence against a live sandbox:
+
+                   activate -> False on every poll for 16s
+                   final state: thHidden TRUE · ovHidden false · lanes 0 · no #sh-lanes
+
+               Two defects, and this block warns about one of them two lines above while
+               committing the other.
+
+               (1) `thOpen()` IS ASYNC and this re-invoked it every 0.4s. The door awaits it
+                   (`await thOpen()`); here it was called and its result checked on the NEXT LINE,
+                   so the check always failed and the next poll called it again. Measured: called
+                   ONCE and left alone, the theatre is open 4s later. Driven at 0.4s it ends
+                   CLOSED — thirty overlapping opens toggle it shut. The comment above says
+                   "it must never toggle" about `thShelf` and nobody applied it to `thOpen`.
+
+               (2) `thShelf(true)` WAS SKIPPED WHENEVER THE OVERLAY WAS ALREADY UNHIDDEN — and
+                   `thOpen()` unhides it. So the shelf BUILDER never ran, `#sh-lanes` was never
+                   created, and the poll then hunted for an element nothing had made. `thShelf`
+                   with an explicit `true` is idempotent BY DESIGN (its own note: "always SHOWS"),
+                   so the guard bought nothing and cost the whole target.
+
+               ⚠ THIS IS A HARNESS DEFECT, NOT A PRODUCT ONE. The same shelf, probed directly,
+               paints four lanes at 210x184 with 24 cards. A cross-family look at his live console
+               read 18 cards the same afternoon. The gate was red about itself.
+               [[feedback-blind-fixture-green-gate]] [[ab-against-head-before-blaming-the-room]] */
             var th = document.getElementById('theatre');
             if (th && th.hidden) {
-                try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+                if (!window.__rcTheatreAsked) {
+                    window.__rcTheatreAsked = 1;
+                    try { (window.thOpen || thOpen)(); } catch (e) { return false; }
+                }
+                return false;            /* let the async open finish; the next poll re-checks */
             }
-            if (th && th.hidden) return false;
-            if (ov.hidden) {
-                try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
-            }
+            try { (window.thShelf || thShelf)(true); } catch (e) { return false; }
             if (ov.hidden) return false;
             var el = document.getElementById('sh-lanes');
             if (!el) return false;

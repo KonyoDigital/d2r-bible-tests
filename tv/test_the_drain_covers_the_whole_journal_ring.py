@@ -40,6 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import journal_retention as JR      # noqa: E402
+import journal_drain as JD          # noqa: E402
 import replay as RP                 # noqa: E402
 
 EXTRACTED = JR.EXTRACTED
@@ -59,11 +60,11 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.live = os.path.join(self.d, "sessions.jsonl")
         self.rot = os.path.join(self.d, "sessions.1.jsonl")
         self._jr = RP.JOURNAL
-        self._bd = JR.BACKUP_DIR
+        self._bd = JD.BACKUP_DIR
         self.addCleanup(lambda: setattr(RP, "JOURNAL", self._jr))
         self.addCleanup(lambda: setattr(JR, "BACKUP_DIR", self._bd))
         RP.JOURNAL = self.live
-        JR.BACKUP_DIR = os.path.join(self.d, "backups")
+        JD.BACKUP_DIR = os.path.join(self.d, "backups")
         # 12 recent runs in the LIVE file so the "newest 8" hold is never what does the work,
         # and one old run in the ROTATED file — the half the applier could not reach.
         with io.open(self.live, "w", encoding="utf-8") as fh:
@@ -126,7 +127,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         rel = {r["sessionId"] for r in p["release"]}
         self.assertIn("s_rotated", rel, "the fixture did not release the rotated run, so this "
                                         "test would prove nothing")
-        r = JR.apply_plan(p, yes=True)
+        r = JD.apply_plan(p, yes=True)
         print("   apply over the ring: ok=%s removedRows=%s files=%s"
               % (r.get("ok"), r.get("removedRows"), len(r.get("rewrote") or [])))
         self.assertTrue(r.get("ok"), r.get("why"))
@@ -145,7 +146,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.assertTrue(p["release"], "fixture released nothing")
         with io.open(self.live, "a", encoding="utf-8") as fh:      # the journal moves underneath
             fh.write(json.dumps(_row("s_new_arrival", 1_900_000_000_000)) + "\n")
-        r = JR.apply_plan(p, yes=True)
+        r = JD.apply_plan(p, yes=True)
         print("   moved corpus refused: %s" % (not r.get("ok")))
         self.assertFalse(r.get("ok"),
                          "a plan was applied to a journal that changed after it was judged")
@@ -153,8 +154,8 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
 
     # ── 5. two ring backups in one second must not collide ───────────────────────────────────
     def test_ring_backups_do_not_collide(self):
-        a, na = JR.backup(self.live, stamp="SAME")
-        b, nb = JR.backup(self.rot, stamp="SAME")
+        a, na = JD.backup(self.live, stamp="SAME")
+        b, nb = JD.backup(self.rot, stamp="SAME")
         print("   backups: %s · %s" % (os.path.basename(a or ""), os.path.basename(b or "")))
         self.assertTrue(a and b, "a backup did not write: %r %r" % (na, nb))
         self.assertNotEqual(a, b,
@@ -177,7 +178,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
         self.assertIn("s_old_live", {r["sessionId"] for r in p["release"]},
                       "fixture released nothing, so this proves nothing")
-        r = JR.apply_plan(p, yes=True)
+        r = JD.apply_plan(p, yes=True)
         print("   with an EMPTY generation in the ring: ok=%s why=%r"
               % (r.get("ok"), (r.get("why") or "")[:70]))
         self.assertTrue(r.get("ok"),
@@ -187,7 +188,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
     def test_a_backup_of_an_empty_file_is_a_backup(self):
         """The honest question is whether the COPY matches the SOURCE, not whether it is non-zero."""
         io.open(self.rot, "w", encoding="utf-8").close()
-        where, n = JR.backup(self.rot, stamp="EMPTY")
+        where, n = JD.backup(self.rot, stamp="EMPTY")
         print("   backup of an empty source -> %r rows=%r" % (bool(where), n))
         self.assertTrue(where, "backing up a legitimately empty file was refused: %r" % n)
         self.assertEqual(n, 0)
@@ -201,7 +202,11 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         between two statements without a hook the writer does not offer, so this asserts the
         re-check EXISTS inside the rewrite loop rather than pretending to race it.
         [[unknown-stays-unknown]]"""
-        with io.open(os.path.join(HERE, "journal_retention.py"), encoding="utf-8") as fh:
+        # ⚠ v3113 — apply_plan LIVES IN `journal_drain.py` NOW. The planner's own law forbids any
+        # write-capable call in its module ("the apply half is a separate decision"), and I had put
+        # the writer there. A structural test that keeps reading the old file reports the function
+        # as GONE rather than as moved, which is a false alarm indistinguishable from a real one.
+        with io.open(os.path.join(HERE, "journal_drain.py"), encoding="utf-8") as fh:
             tree = ast.parse(fh.read())
         fn = next((n for n in ast.walk(tree)
                    if isinstance(n, ast.FunctionDef) and n.name == "apply_plan"), None)
@@ -237,15 +242,15 @@ RED_PROOF = [
         "why": "the applier goes back to rewriting the live file only, so every release against a "
                "session in the rotated half is a silent no-op that reports success — 2,483 of his "
                "2,840 sessions permanently undrainable",
-        "file": "journal_retention.py",
-        "find": "    targets = [journal_path] if journal_path else _journal_paths()",
-        "replace": "    targets = [journal_path] if journal_path else [_journal_path()]",
+        "file": "journal_drain.py",
+        "find": "    targets = [journal_path] if journal_path else _jr()._journal_paths()",
+        "replace": "    targets = [journal_path] if journal_path else [_jr()._journal_path()]",
         "matches": 1,
     },
     {
         "why": "the corpus guard is removed, so a plan judged over one set of files is applied to "
                "another — a correct decision landing on the wrong rows",
-        "file": "journal_retention.py",
+        "file": "journal_drain.py",
         "find": "        if want != have:",
         "replace": "        if False:",
         "matches": 1,
@@ -253,7 +258,7 @@ RED_PROOF = [
     {
         "why": "the backup name stops carrying its source, so two ring generations backed up in "
                "the same second collide and one is left with no backup at all",
-        "file": "journal_retention.py",
+        "file": "journal_drain.py",
         "find": '    dst = os.path.join(BACKUP_DIR, "%s.%s" % (os.path.basename(src), stamp))',
         "replace": '    dst = os.path.join(BACKUP_DIR, "sessions.%s.jsonl" % stamp)',
         "matches": 1,
@@ -262,7 +267,7 @@ RED_PROOF = [
         "why": "an empty ring generation is treated as a FAILED backup again, so the moment one "
                "generation drains to nothing every later apply dies at the backup step and the "
                "doomed live rows stay forever — the river-cannot-drain bug one layer down",
-        "file": "journal_retention.py",
+        "file": "journal_drain.py",
         "find": "    if n != src_n:",
         "replace": "    if n == 0:",
         "matches": 1,
@@ -271,7 +276,7 @@ RED_PROOF = [
         "why": "the rewrite stops re-checking its own file, so a ring rotation landing between the "
                "backup and the write is reported as success while the doomed generation is still "
                "in the ring",
-        "file": "journal_retention.py",
+        "file": "journal_drain.py",
         "find": "        if not journal_path and t in _want:",
         "replace": "        if False:",
         "matches": 1,
