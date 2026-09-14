@@ -249,8 +249,15 @@ def declared_surfaces():
         COVERED total 24  =  9 route  +  15 declared  +  0 with no basis
 
     Every one of the 11 the law called over-reach is in a registry:
-        loop_corroborate.SURFACES        the 6 loops (_drift_loop, _orphan_watch, …)
-        lock_evidence_corroborate.SURFACES  the 5 valves (vault.apply, prune.arm, …)
+        loop_corroborate.SURFACES           the 6 loops (_drift_loop, _orphan_watch, …)
+        lock_evidence_corroborate.SURFACES  the 8 locks it LOOKS AT (its SCOPE)
+
+    ⚠ `SURFACES` IS THE DECLARATION, NOT THE COVERAGE. `lock_evidence_corroborate` covers 5 of its
+    8 — `covered()` returns only the locks with readable AGREE/OVERCLAIM evidence, and v3073 made
+    `_corr()` use that for exactly this reason (console.pixel_rescue, frame.release and
+    printer.stream are declared and unread). An allow-list wants the DECLARATION, which is right;
+    calling it the coverage set is what would invite someone to "make it consistent" and let three
+    unread locks read as covered. Named here so that edit is never made by accident.
 
     So the honest question is not "is this a route" but "did any corroborator SAY it watches
     this". A claim with a declaration behind it is coverage; a claim without one is invention.
@@ -297,12 +304,18 @@ def surfaces():
     # vessels; they are surfaces a corroborator DECLARES it watches. Calling them "route" to make
     # the over-reach law quieter would be picking a label for its effect on a test rather than for
     # what the thing is. [[the-unjoined-end]] [[label-outlived-referent]]
-    try:
-        import shelf_corroborate as SHC
-        for k in (getattr(SHC, "SURFACES", ()) or ()):
-            found.setdefault(str(k), "declared surface")
-    except Exception:
-        pass
+    # ⚠ v3136 — THE SAME ROSTER, NOT A SECOND COPY OF IT. v3134 added `declared_surfaces()` over
+    # CORROBORATORS and then hardcoded `shelf_corroborate` alone twenty lines below, so a dotted
+    # name added to `loop_corroborate.SURFACES` would be allow-listed by the law and still have no
+    # row here — STRAY, "invented lane(s) that do not exist", the exact false accusation v3134
+    # exists to stop, fixed for shelf and left standing for everyone else. Caught by the second
+    # eye in one read. I fixed a copy-drift by writing a new one. [[copy-drift]]
+    for _m in CORROBORATORS:
+        try:
+            for k in (getattr(__import__(_m), "SURFACES", ()) or ()):
+                found.setdefault(str(k), "declared surface")
+        except Exception:
+            continue
     try:
         import heart as H
         for v in (H.vessels().get("vessels") or []):

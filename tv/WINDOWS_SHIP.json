@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3135",
+  "ver": "v3136",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3135: FLOWING was None for all 20 because no organ published a score, and a row earns one only when it carries k and n — sabotages ATTEMPTED and refusals EARNED. Three organs now carry real tallies read from heart2 own proof record rather than from a second attack engine: laneLiveness 2 of 2, orphans 6 of 6, shelfWitness 3 of 3. shadowWatch carries None because no sabotage has ever been aimed at its module, which is UNKNOWN and not zero. Computed BEFORE the branches so a bad verdict cannot cost a row its proof history — the v3093 scar, which its own sibling had already paid for. Counts went FLOWING None to FLOWING 8, WATCHED 12, DARK 0. And the twelve name a real gap: their watchers are tvd- launchd daemons, a different supervision family, and NO organ names a single one of them. laneLiveness reads _lane_tick call sites in python source so it structurally cannot see a launchd job.",
+  "note": "v3136: The second eye on v3135, one Critical and one Medium, both mine. CRITICAL: check_orphans already had a local _n — the count of processes scanned, hundreds on a Mac — and my tally landed on top of it, so the OK return published proofN 250 and wilson_lower(6,250) as this organ score, about 0.008. Worse, with the tally unknown, k None becomes zero against n 250, so the row published score 0.0, which _row means as INERT, it WAS tested and never refused. That is exactly the UNKNOWN _attack_tally returns (None, None) to protect, and a name collision turned the safest answer into the most dangerous one. Renamed to _atkK and _atkN across fourteen sites, zero leftovers, and only check_orphans ever had the collision. MEDIUM: n counted DECLARATIONS from source while k counted gates in provedGates, so a store that exists without these gates gave n 2 k 0 and the same INERT 0.0 for work that is merely unproven. n now counts only gates carrying a verdict — proved, or run and blind — so it means attempts.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

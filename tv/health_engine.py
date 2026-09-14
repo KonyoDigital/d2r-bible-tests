@@ -431,12 +431,21 @@ def check_orphans():
     # ⚠ v3135 (#80) — the same join as laneLiveness: attacks that ACTUALLY RAN against
     # this organ's own module, read from heart2's record. Computed BEFORE the branches so
     # a bad verdict cannot cost the row its proof history. [[the-unjoined-end]]
-    _k, _n = _attack_tally("my_orphans")
+    # ⚠⚠⚠ v3136 — NAMED _atkK/_atkN BECAUSE `_n` ALREADY MEANT SOMETHING HERE, AND I CLOBBERED IT.
+    # This function's OK path sets `_n = len(_cpu_sample())` — the number of PROCESSES SCANNED,
+    # hundreds on a Mac — and then returns. v3135 passed `n=_n` on that return, so `proofN` became
+    # the process count and `wilson_lower(6, 250)` published ~0.008 as this organ's score.
+    # WORSE: with the tally unknown, `k=None` becomes `int(None or 0) == 0` against n=250, so the
+    # row published `score: 0.0` — INERT, "it WAS tested and never refused" — which is exactly the
+    # UNKNOWN that `_attack_tally` returns (None, None) to protect. A name collision turned the
+    # safest answer into the most dangerous one. Caught by the second eye; I had edited a function
+    # without reading its whole body. [[source-window-shortcut]]
+    _atkK, _atkN = _attack_tally("my_orphans")
     """Anything of ours busy AND old — the 28-hour core-burner class."""
     try:
         import my_orphans as MO
     except Exception as e:
-        return _row("orphans", UNKNOWN, "the orphan sweep could not be loaded — %s" % e, k=_k, n=_n)
+        return _row("orphans", UNKNOWN, "the orphan sweep could not be loaded — %s" % e, k=_atkK, n=_atkN)
     rows = MO.suspects()
     # ⚠⚠ A ROW WITH NO PID IS NOT A PROCESS — IT IS THE SWEEP SAYING IT COULD NOT JUDGE.
     # `suspects()` uses that shape for "ps could not be asked" and, since v2848, for "only one CPU
@@ -451,7 +460,7 @@ def check_orphans():
     if _unmeasured and not rows:
         return _row("orphans", UNKNOWN,
                     "the sweep could not judge yet — %s"
-                    % str(_unmeasured[0].get("why"))[:170], k=_k, n=_n)
+                    % str(_unmeasured[0].get("why"))[:170], k=_atkK, n=_atkN)
     if not rows:
         # ⚠ v2847 — THE ZERO CARRIES ITS DENOMINATOR. "Nothing busy and old" was a clean-looking 0
         # with nothing behind it: it could not be told from a sweep that scanned nothing, used a
@@ -481,7 +490,7 @@ def check_orphans():
                     "Processes on his ports (%s) and their children are excluded by name, never "
                     "counted as mine."
                     % ("UNKNOWN" if _n is None else _n, MO.BUSY_PCT, MO.OLD_MIN,
-                       ", ".join(":%d" % p for p in MO.HIS_PORTS)), k=_k, n=_n)
+                       ", ".join(":%d" % p for p in MO.HIS_PORTS)), k=_atkK, n=_atkN)
 
     # ⚠⚠ v2744 — TWO ANSWERS, NOT ONE, AND THE OLD ONE CLAIMED SOMETHING IT NEVER TESTED.
     # This row said "nothing of OURS is both busy and old" while `my_orphans` had no ownership test
@@ -509,12 +518,12 @@ def check_orphans():
                     % (len(mine),
                        ("; %d more busy and old that nobody can attribute" % len(unattributed))
                        if unattributed else ""),
-                    [_fmt(r) for r in mine] + [_fmt(r) for r in unattributed], k=_k, n=_n)
+                    [_fmt(r) for r in mine] + [_fmt(r) for r in unattributed], k=_atkK, n=_atkN)
     return _row("orphans", UNKNOWN,
                 "%d process(es) busy and old, and nothing can say whose they are — not in the "
                 "spawn ledger, not naming this tree, holding none of our ports. UNATTRIBUTED is "
                 "not the same as ours, and not the same as fine." % len(unattributed),
-                [_fmt(r) for r in unattributed], k=_k, n=_n)
+                [_fmt(r) for r in unattributed], k=_atkK, n=_atkN)
 
 
 def check_self_arming():
@@ -612,7 +621,16 @@ def _attack_tally(*module_hints):
         import json as _json
         import heart2 as _h2
         with io.open(os.path.join(HERE, ".heart2.json"), encoding="utf-8") as fh:
-            _proved = set((_json.load(fh) or {}).get("provedGates") or [])
+            _store = _json.load(fh) or {}
+        _proved = set(_store.get("provedGates") or [])
+        # ⚠⚠ v3136 — A GATE WITH NO VERDICT WAS NEVER ATTACKED, so its declared proofs are not
+        # attempts. v3135 counted every RED_PROOF in source as `n` and only `provedGates` as `k`,
+        # so a store that exists but has not yet run these gates gave n=2, k=0 → `score: 0.0`,
+        # which `_row` means as INERT: "it WAS tested and never refused". That is the most
+        # dangerous reading on the panel, and it would be drawn for work that is merely UNPROVEN.
+        # `n` must be attempts, so only gates carrying a VERDICT count — proved, or run and blind.
+        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        _ran = _proved | set(_store.get("blind") or [])
     except Exception:
         return None, None
     k = n = 0
@@ -622,6 +640,8 @@ def _attack_tally(*module_hints):
                 _f = str(_pr.get("file") or "")
                 if not any(h in _f for h in module_hints):
                     continue
+                if _name not in _ran:
+                    continue          # never attacked — not an attempt, not a refusal
                 n += 1
                 if _name in _proved:
                     k += 1
@@ -653,39 +673,39 @@ def check_lane_liveness():
     # not depend on today's verdict: a watcher sabotaged twice and refused twice has that history
     # whether this run says OK, WARN or UNKNOWN, and the heart needs it most when something is
     # wrong. [[the-unjoined-end]] [[zero-needs-a-denominator]]
-    _k, _n = _attack_tally("lane_liveness")
+    _atkK, _atkN = _attack_tally("lane_liveness")
     try:
         import lane_liveness as _ll
         m = _ll.stamping_functions()
     except Exception as e:
         return _row("laneLiveness", UNKNOWN,
-                    "the liveness reader would not load — %s" % str(e)[:70], k=_k, n=_n)
+                    "the liveness reader would not load — %s" % str(e)[:70], k=_atkK, n=_atkN)
     failed = m.get("__failed__") if isinstance(m, dict) else None
     if failed:
         return _row("laneLiveness", UNKNOWN,
                     "the lanes could not be read from source (%s), so which threads this "
                     "watchdog can see is UNKNOWN rather than none" % str(failed)[:60],
-                    k=_k, n=_n)
+                    k=_atkK, n=_atkN)
     fns = sorted(k for k in m if k != "__failed__")
     if not fns:
         return _row("laneLiveness", WARN,
                     "no function in the console stamps a lane, so nothing here can be seen to "
-                    "beat at all", k=_k, n=_n, surfaces=[])
+                    "beat at all", k=_atkK, n=_atkN, surfaces=[])
     ev = ["%s -> %s" % (k, ", ".join(m[k])) for k in fns[:12]]
     return _row("laneLiveness", OK,
                 "%d thread(s) stamp a lane this watchdog can read · %s"
                 % (len(fns),
                    ("%d of %d sabotage(s) against this watchdog earned a refusal"
-                    % (_k, _n)) if _n else
+                    % (_atkK, _atkN)) if _atkN else
                    "NO sabotage has been fired at this watchdog yet — work owed, not a fault"),
-                ev, k=_k, n=_n, surfaces=fns)
+                ev, k=_atkK, n=_atkN, surfaces=fns)
 
 
 def check_shelf_witnesses():
     # ⚠ v3135 (#80) — the same join as laneLiveness: attacks that ACTUALLY RAN against
     # this organ's own module, read from heart2's record. Computed BEFORE the branches so
     # a bad verdict cannot cost the row its proof history. [[the-unjoined-end]]
-    _k, _n = _attack_tally("shelf_corroborate")
+    _atkK, _atkN = _attack_tally("shelf_corroborate")
     """Is the shelf being WITNESSED at all? -> row
 
     ⚠ THIS IS NOT THE CORROBORATOR'S QUESTION AND MUST NOT BECOME IT. Whether the witnesses
@@ -704,30 +724,30 @@ def check_shelf_witnesses():
     except Exception as e:
         return _row("shelfWitness", UNKNOWN,
                     "the shelf corroborator could not be loaded (%s), so nothing is witnessing "
-                    "the shelf — unknown, not clear" % type(e).__name__, k=_k, n=_n)
+                    "the shelf — unknown, not clear" % type(e).__name__, k=_atkK, n=_atkN)
     try:
         rep = _sc.report()
     except Exception as e:
         return _row("shelfWitness", UNKNOWN,
                     "the shelf corroborator raised %s, so its reading is UNKNOWN"
-                    % type(e).__name__, k=_k, n=_n)
+                    % type(e).__name__, k=_atkK, n=_atkN)
     checked = rep.get("checked") or 0
     bad = rep.get("disagreed") or 0
     if not checked:
         return _row("shelfWitness", WARN,
                     "0 reel(s) on disk could be witnessed, so the shelf is UNCORROBORATED — "
                     "that is unmeasured, not agreement",
-                    evidence={"checked": 0, "disagreed": 0}, k=_k, n=_n)
+                    evidence={"checked": 0, "disagreed": 0}, k=_atkK, n=_atkN)
     if bad:
         return _row("shelfWitness", WARN,
                     "%d of %d witnessable reel(s) disagree with themselves about their own "
                     "frame count — the shelf is watched and it is reporting a contradiction"
                     % (bad, checked),
-                    evidence={"checked": checked, "disagreed": bad}, k=_k, n=_n)
+                    evidence={"checked": checked, "disagreed": bad}, k=_atkK, n=_atkN)
     return _row("shelfWitness", OK,
                 "%d witnessable reel(s), every one agreeing across dossier, card and disk"
                 % checked,
-                evidence={"checked": checked, "disagreed": 0}, k=_k, n=_n)
+                evidence={"checked": checked, "disagreed": 0}, k=_atkK, n=_atkN)
 
 
 def check_read_lanes_at_cap():
