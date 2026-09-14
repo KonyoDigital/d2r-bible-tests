@@ -3641,7 +3641,18 @@ def check(name, spec, shots=True):
                             % str(tab.last_exc)[:110])
                         return False
                 tab.ev("window.__rcPrepared = %s;" % json.dumps(_rc_token))
-                _d2 = time.time() + 12.0
+                # ⚠⚠ v3126 — THE SAME BUDGET THE TARGET DECLARED, NOT A SECOND OPINION ABOUT IT.
+                # The second eye on v3125: `activate_budget` was consumed in exactly one place and
+                # this sibling — polling the SAME `activate` expression after a re-prepare — kept a
+                # hardcoded 12.0. So `shelf-cards` and `river-strip` declared 30s because the door's
+                # own path (`await thOpen()`: /api/sessions 8s abort, then thLoadSession 12s abort)
+                # cannot fit in 12, and then got 12 anyway on this route. One consumer honouring a
+                # key and its sibling ignoring it is the shape REG-713 already records: "v2228
+                # bounded one fetch; its sibling eleven lines away was never swept".
+                # Dormant on the happy path — `_toTVD()` is same-document and these targets do not
+                # navigate between widths — and a disagreement a reader cannot see is the kind that
+                # surfaces as a flake nobody can reproduce. [[copy-drift]] [[the-unjoined-end]]
+                _d2 = time.time() + float(spec.get("activate_budget") or 12.0)
                 while time.time() < _d2:
                     if tab.ev(spec["activate"]):
                         return True
