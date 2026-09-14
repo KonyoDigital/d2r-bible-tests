@@ -156,12 +156,29 @@ def _late_lines(path, read_lines, doomed, ident=None):
     carrying it forward would resurrect exactly what the drain was asked to remove.
     """
     out = []
-    # ⚠⚠ v3116 — IDENTITY FIRST. A rotation that REPLACES this path (live → .1) leaves a bigger
-    # file wearing the same name, and every count-based test reads that as appends.
-    if ident is not None and _ident(path) != ident:
-        return None
+    # ⚠⚠ v3118 — FSTAT THE HANDLE WE READ, NOT THE PATH WE HOPE TO READ. v3116 stat'd the path and
+    # THEN opened it, so the rotation could land in between: `_ident(path)` matched the old inode,
+    # the `open` that followed got the NEW one, and a whole night came back as "late appends"
+    # again — the v3116 failure in a shorter window. A name is not a file. Open, ask the FD what
+    # it is, and only then read; the lines are then from the inode we accepted, never from
+    # whoever won the path afterwards. [[stale-reading]] [[the-unjoined-end]]
+    #
+    # ⚠ AND NO `ident` MEANS REFUSE, NOT "SKIP THE CHECK". v3116 read `None` as "do not check",
+    # so a capture that could not stat (the path gone for an instant between rotations) silently
+    # disarmed the one guard this function exists for — and any future caller that omitted the
+    # argument got the pre-v3116 behaviour back by default. [[zero-needs-a-denominator]]
     try:
-        with io.open(path, encoding="utf-8", errors="replace") as fh:
+        fh = io.open(path, encoding="utf-8", errors="replace")
+    except Exception:
+        return None                     # ⚠ NOT []: we did not read it, so we do not know
+    try:
+        with fh:
+            try:
+                _st = os.fstat(fh.fileno())
+            except Exception:
+                return None
+            if ident is None or (_st.st_dev, _st.st_ino) != ident:
+                return None
             lines = fh.readlines()
     except Exception:
         return None                     # ⚠ NOT []: we did not read it, so we do not know
@@ -274,6 +291,13 @@ def apply_plan(p, yes=False, journal_path=None):
         kept = []
         _read_lines = 0
         _ident_at_read = _ident(t)      # ⚠ v3116 — WHICH file, so a rotation cannot pass as growth
+        if _ident_at_read is None:
+            # ⚠ v3118 — we could not say WHICH file this is, so we may not publish over it.
+            return {"ok": False,
+                    "why": "%s could not be identified before the rewrite (it vanished or could "
+                           "not be stat'd) — it was left untouched, %d file(s) already rewritten; "
+                           "backups at %s" % (t, len(wrote), BACKUP_DIR),
+                    "backups": backups, "rewrote": wrote}
         try:
             with io.open(t, encoding="utf-8", errors="replace") as fh:
                 for line in fh:
@@ -335,6 +359,21 @@ def apply_plan(p, yes=False, journal_path=None):
                 with io.open(tmp, "a", encoding="utf-8") as fh:
                     fh.writelines(_late)
                 carried += len(_late)
+            # ⚠ v3118 — ASK AGAIN AT THE RENAME. Between the re-read and this line the ring can
+            # still rotate, and `os.replace` is the one call that can destroy the file that just
+            # arrived. Re-checking narrows that gap the way the row-count recheck narrowed the
+            # backup-to-rewrite gap. IT DOES NOT CLOSE IT — that needs a lock the writer does not
+            # take, and saying otherwise would be the claim v3114 already refused to make.
+            if _ident(t) != _ident_at_read:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                return {"ok": False,
+                        "why": "%s was replaced between the re-read and the rename — it was left "
+                               "untouched, %d file(s) already rewritten; backups at %s"
+                               % (t, len(wrote), BACKUP_DIR),
+                        "backups": backups, "rewrote": wrote}
             os.replace(tmp, t)
         except Exception as exc:
             try:

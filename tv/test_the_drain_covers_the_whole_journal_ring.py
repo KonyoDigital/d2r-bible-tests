@@ -283,7 +283,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         plan, and the realistic time to run a drain is while a session is recording."""
         io.open(self.live, "a", encoding="utf-8").write(
             json.dumps(_row("s_arrived_mid_drain", 1_900_000_000_000)) + "\n")
-        late = JD._late_lines(self.live, 13, set())     # 13 lines were read before the append
+        late = JD._late_lines(self.live, 13, set(), JD._ident(self.live))   # 13 read before
         got = [json.loads(x)["sessionId"] for x in late]
         print("   appended mid-drain -> carried: %s" % got)
         self.assertEqual(got, ["s_arrived_mid_drain"],
@@ -295,7 +295,7 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         asked to remove."""
         io.open(self.rot, "a", encoding="utf-8").write(
             json.dumps(_row("s_rotated", 1_700_000_000_009)) + "\n")
-        late = JD._late_lines(self.rot, 2, {"s_rotated"})
+        late = JD._late_lines(self.rot, 2, {"s_rotated"}, JD._ident(self.rot))
         print("   late row for a DOOMED session -> carried: %d" % len(late))
         self.assertEqual(late, [],
                          "a late row for a doomed session was carried forward, resurrecting the "
@@ -458,6 +458,127 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
                          "a file truncated in place under the rewrite was renamed over anyway")
         self.assertEqual(after, ["s_only_one_left"], "the truncating writer's row was lost: %r" % (after,))
 
+    def test_a_caller_that_cannot_NAME_the_file_is_refused(self):
+        """⚠ NO `ident` MEANS REFUSE, NOT 'SKIP THE CHECK'. v3116 read `None` as 'do not check', so
+        a capture that could not stat silently disarmed the one guard the function exists for —
+        and any future caller omitting the argument got the pre-v3116 behaviour back by default.
+        [[zero-needs-a-denominator]]"""
+        io.open(self.live, "a", encoding="utf-8").write(
+            json.dumps(_row("s_late", 1_900_000_000_000)) + "\n")
+        with_id = JD._late_lines(self.live, 13, set(), JD._ident(self.live))
+        without = JD._late_lines(self.live, 13, set(), None)
+        print("   ident given -> %r · ident absent -> %r"
+              % (len(with_id) if with_id is not None else None, without))
+        self.assertEqual(len(with_id or []), 1, "the fixture appended nothing to carry")
+        self.assertIsNone(without,
+                          "a caller that cannot name the file still got a carry-forward list, so "
+                          "the identity guard is optional — which is the defect it replaced")
+
+    def test_a_path_whose_FILE_was_swapped_is_refused(self):
+        """⚠ A NAME IS NOT A FILE. The bytes are identical and the path still resolves; only the
+        inode changed. A drain that trusts the name pastes its carry-forward onto a rewrite of a
+        file that no longer exists under it.
+
+        ⚠ THIS PROVES IDENTITY IS CHECKED, NOT THAT IT COMES FROM THE HANDLE. The swap here happens
+        before the call, so a path-stat would also catch it. The handle binding is pinned by
+        `test_identity_is_read_from_the_open_HANDLE` below, which parses the function."""
+        ident = JD._ident(self.live)
+        os.replace(self.live, os.path.join(self.d, "sessions.3.jsonl"))
+        shutil.copy(os.path.join(self.d, "sessions.3.jsonl"), self.live)   # same bytes, NEW inode
+        same_name = os.path.exists(self.live)
+        got = JD._late_lines(self.live, 2, set(), ident)
+        print("   path swapped after capture: exists=%s -> %r" % (same_name, got))
+        self.assertTrue(same_name, "the fixture removed the path instead of replacing it")
+        self.assertIsNone(got,
+                          "the file behind the name was replaced between the capture and the read "
+                          "and the drain still returned rows to paste onto its rewrite")
+
+    def test_identity_is_read_from_the_open_HANDLE(self):
+        """⚠⚠ THE TOCTOU THE BEHAVIOURAL LAW ABOVE CANNOT REACH. v3116 stat'd the PATH and then
+        opened it; a rotation landing between those two lines matched the old inode and read the
+        new file, so a whole night came back as 'late appends' — the same failure in a shorter
+        window. No fixture can reliably land inside two adjacent statements, so this law reads the
+        FUNCTION: the value compared against `ident` must come from `os.fstat` of the handle that
+        was opened, and nothing may stat the path ahead of it.
+
+        ⚠ IT PARSES, IT DOES NOT GREP. A guard looking for the string `fstat` passes on a comment
+        and passes on a call whose result is thrown away. [[source-reading-guard]]"""
+        tree = ast.parse(io.open(os.path.join(HERE, "journal_drain.py"), encoding="utf-8").read())
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "_late_lines"), None)
+        self.assertIsNotNone(fn, "_late_lines is gone — this law is reading the wrong thing")
+
+        def _calls(node, name):
+            out = []
+            for n in ast.walk(node):
+                if not isinstance(n, ast.Call):
+                    continue
+                f = n.func
+                dotted = ("%s.%s" % (getattr(f.value, "id", ""), f.attr)
+                          if isinstance(f, ast.Attribute) else getattr(f, "id", ""))
+                if dotted == name:
+                    out.append(n)
+            return out
+
+        fstats = _calls(fn, "os.fstat")
+        path_stats = _calls(fn, "os.stat") + _calls(fn, "_ident")
+        print("   _late_lines: os.fstat=%d · path-stat/_ident=%d" % (len(fstats), len(path_stats)))
+        self.assertEqual(len(path_stats), 0,
+                         "_late_lines asks the PATH what it is (%d call(s)) — that is the stat the "
+                         "rotation slips between" % len(path_stats))
+        self.assertEqual(len(fstats), 1,
+                         "expected exactly one os.fstat of the opened handle, found %d"
+                         % len(fstats))
+        arg = fstats[0].args[0] if fstats[0].args else None
+        self.assertTrue(isinstance(arg, ast.Call)
+                        and isinstance(arg.func, ast.Attribute)
+                        and arg.func.attr == "fileno",
+                        "os.fstat is not being handed a file descriptor from the open handle")
+        # ⚠ and the comparison must USE it, not compute it and drop it
+        names = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name)}
+        assigned = [t.id for st in ast.walk(fn) if isinstance(st, ast.Assign)
+                    for t in st.targets if isinstance(t, ast.Name)]
+        self.assertTrue(any(a in names for a in assigned if a.endswith("st")),
+                        "the fstat result is never read again — a measurement taken and dropped")
+
+    def test_the_ring_rotating_between_the_reread_and_the_RENAME_is_refused(self):
+        """⚠ THE LAST MILLIMETRE, AND IT IS NARROWED NOT CLOSED. `os.replace` is the one call that
+        can destroy the file that just arrived, and it happens after the carry-forward has already
+        been decided. Asking identity once more immediately before it shrinks the window the way
+        the row-count recheck shrank the backup-to-rewrite gap. A row landing inside what remains
+        is still lost and cannot be saved without a lock the writer does not take — said out loud
+        rather than implied. [[unknown-stays-unknown]]"""
+        rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertTrue(p["release"], "fixture released nothing")
+        before = self._ids(self.live)
+
+        real_late = JD._late_lines
+        fired = []
+
+        def _late_then_rotate(path, read_lines, doomed, ident=None):
+            got = real_late(path, read_lines, doomed, ident)
+            if path == self.live and not fired:        # ⚠ AFTER the decision, BEFORE the rename
+                fired.append(1)
+                os.replace(self.live, os.path.join(self.d, "sessions.4.jsonl"))
+                io.open(self.live, "w", encoding="utf-8").write(
+                    json.dumps(_row("s_brand_new_generation", 1_900_000_000_003)) + "\n")
+            return got
+
+        JD._late_lines = _late_then_rotate
+        self.addCleanup(lambda: setattr(JD, "_late_lines", real_late))
+        r = JD.apply_plan(p, yes=True)
+        after = self._ids(self.live)
+        print("   rotated between re-read and rename: fired=%d ok=%s live now=%s (was %d rows)"
+              % (len(fired), r.get("ok"), after, len(before)))
+        self.assertEqual(len(fired), 1, "the hook never fired — this test proved nothing")
+        self.assertFalse(r.get("ok"),
+                         "the drained rewrite was renamed over a generation that arrived after the "
+                         "carry-forward was decided")
+        self.assertEqual(after, ["s_brand_new_generation"],
+                         "the generation that arrived in that window was overwritten: %r" % (after,))
+
     def test_backup_refuses_without_an_explicit_path(self):
         """⚠ THE TWO RESOLVERS ARE NOT THE SAME FILE. `_journal_path()` honours TV_HIST;
         `replay.journal_paths()` does not. An argument-less backup snapshotted the LIVE file while
@@ -469,13 +590,41 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "the file's IDENTITY stops being checked, so a rotation that REPLACES this path "
-               "(live -> sessions.1.jsonl) reads as growth: a whole night is pasted onto the "
-               "rewrite of the old generation and renamed over the night that just arrived, while "
-               "the refusal names the LIVE file instead",
+        "why": "identity goes back to being asked of the PATH instead of the open handle, so a "
+               "rotation landing between the stat and the read matches the old inode and reads "
+               "the new file — a whole night returned as late appends, the v3116 failure in a "
+               "shorter window",
         "file": "journal_drain.py",
-        "find": "    if ident is not None and _ident(path) != ident:",
-        "replace": "    if False:",
+        "find": "                _st = os.fstat(fh.fileno())",
+        "replace": "                _st = os.stat(path)",
+        "matches": 1,
+    },
+    {
+        "why": "a missing `ident` goes back to meaning 'skip the check' instead of 'refuse', so a "
+               "capture that could not stat silently disarms the guard and any future caller that "
+               "omits the argument gets the pre-v3116 behaviour by default",
+        "file": "journal_drain.py",
+        "find": "            if ident is None or (_st.st_dev, _st.st_ino) != ident:",
+        "replace": "            if ident is not None and (_st.st_dev, _st.st_ino) != ident:",
+        "matches": 1,
+    },
+    {
+        "why": "identity stops being re-asked immediately before os.replace, so a rotation landing "
+               "after the carry-forward was decided is published over — the one call that can "
+               "destroy the generation that just arrived",
+        "file": "journal_drain.py",
+        "find": "            if _ident(t) != _ident_at_read:",
+        "replace": "            if False:",
+        "matches": 1,
+    },
+    {
+        "why": "_ident stops distinguishing files — every path answers the same tuple — so a "
+               "rotation that REPLACES this path (live -> sessions.1.jsonl) reads as growth: a "
+               "whole night is pasted onto the rewrite of the old generation and renamed over the "
+               "night that just arrived, while the refusal names the LIVE file instead",
+        "file": "journal_drain.py",
+        "find": "    return (st.st_dev, st.st_ino)",
+        "replace": "    return (0, 0)",
         "matches": 1,
     },
     {
@@ -485,7 +634,7 @@ RED_PROOF = [
         "file": "journal_drain.py",
         "find": "        return None                     # \u26a0 NOT []: we did not read it, so we do not know",
         "replace": "        return []",
-        "matches": 1,
+        "matches": 2,
     },
     {
         "why": "apply_plan stops asking for the late rows, so a row the recorder appended during "
