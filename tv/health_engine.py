@@ -634,44 +634,48 @@ def _attack_tally(*module_hints):
     except Exception:
         return None, None
     k = n = 0
-    _files_of = {}
     try:
+        # ⚠⚠⚠ heart2 STORES ONE VERDICT PER GATE; THIS COUNTS PER PROOF. The grain mismatch fails
+        # OPEN toward INERT. heart2 aggregates all-or-nothing: a gate is PROVEN only when NOT ONE
+        # of its proofs came back BLIND/INVALID/UNPROVABLE.
+        #
+        # THE ASYMMETRY IS THE FIX (v3137). Upward attribution is safe: gate PROVEN ⇒ every proof
+        # in it went red ⇒ this module's proof went red. Downward is not: a failed gate says
+        # something broke, never WHICH. So a failing gate counts only when SINGLE-FILE, where the
+        # failure is unambiguously this module's; a failing MIXED gate leaves this module UNKNOWN.
+        # MEASURED: lane_liveness has ZERO single-file gates and TWO mixed, so without this one
+        # sibling drift in control_app.py published proofK 0, proofN 2 — `score: 0.0` = INERT,
+        # "tested and never refused" — while this organ's own sabotage refused perfectly well.
+        #
+        # ⚠⚠ AND THE FAILURE COUNTS A GATE, NOT ITS PROOFS (v3138). The branch below used to
+        # increment once per matching proof while its own comment was gate-shaped. heart2 knows
+        # ONE verdict per gate, so a five-proof gate going blind is ONE failed attempt, not five.
+        # MEASURED on the live roster: `test_his_console_is_never_mine_to_kill` declares 5 proofs,
+        # all on my_orphans.py, so a single drift would have published k=1 n=6 (wilson ≈ 0.030)
+        # where the truth is k=1 n=2 (≈ 0.095). A PROVEN gate still counts per proof, which is
+        # right: proven means every one of them went red, so each is a real refusal.
+        #
+        # ⚠ ONE WALK. The pre-pass that built the file sets called `gate_files()` a second time,
+        # and that is NOT a pure read — it prints a dropped-gate warning through `say=print`. Three
+        # organs per health pass made six identical "⚠ registered gate(s) have no python file"
+        # lines and AST-parsed every gate twice per organ. I saw those six lines in my own sandbox
+        # output and read past them. The file set comes from the same `red_proofs_in` result this
+        # loop already walks. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
         for _name, _fn in _h2.gate_files():
-            _files_of[_name] = {str(_p.get("file") or "") for _p in (_h2.red_proofs_in(_fn) or [])}
-        for _name, _fn in _h2.gate_files():
-            for _pr in (_h2.red_proofs_in(_fn) or []):
-                _f = str(_pr.get("file") or "")
-                if not any(h in _f for h in module_hints):
-                    continue
-                # ⚠⚠⚠ v3137 — heart2 STORES ONE VERDICT PER GATE; THIS COUNTS PER PROOF, AND THE
-                # GRAIN MISMATCH FAILS OPEN TOWARD INERT. heart2 aggregates all-or-nothing:
-                # a gate is PROVEN only when NOT ONE of its proofs came back BLIND/INVALID/
-                # UNPROVABLE. MEASURED on HEAD: `lane_liveness` has ZERO single-file gates and
-                # TWO mixed ones — test_a_lane_with_no_period_can_still_go_red carries proofs
-                # against control_app.py and its own test file too, and
-                # test_a_tick_filed_under_a_lane_name_still_counts carries heart.py. So ONE
-                # sibling find-string drifting — this tree's most common blind cause — writes the
-                # whole GATE to `blind`, and v3136's filter would then count n += 1 with k
-                # unchanged: proofK 0, proofN 2, `score: 0.0` = INERT, "it WAS tested and never
-                # refused", while THIS organ's own sabotage refused perfectly well. Same collapse
-                # v3136 exists to stop, arriving through a sibling instead of an unrun gate.
-                #
-                # THE ASYMMETRY IS THE FIX. Upward attribution is safe: gate PROVEN ⇒ every proof
-                # in it went red ⇒ this module's proof went red. Downward is not: gate NOT proven
-                # tells you something failed, never WHICH. So a failing gate counts only when it
-                # is SINGLE-FILE, where the failure is unambiguously this module's; a failing
-                # MIXED gate leaves this module UNKNOWN and is skipped entirely rather than
-                # counted as a refusal that never came. [[zero-needs-a-denominator]]
-                if _name in _proved:
-                    n += 1
-                    k += 1
-                elif _name in _ran and len(_files_of.get(_name) or ()) == 1:
-                    n += 1            # it ran, it failed, and only this module could have failed
-                # else: ran and mixed, or never ran -> UNKNOWN, counted nowhere
+            _proofs = _h2.red_proofs_in(_fn) or []
+            _mine = [_p for _p in _proofs
+                     if any(h in str(_p.get("file") or "") for h in module_hints)]
+            if not _mine:
+                continue
+            if _name in _proved:
+                n += len(_mine)       # PROVEN ⇒ each of these went red ⇒ each is a refusal
+                k += len(_mine)
+            elif _name in _ran and len({str(_p.get("file") or "") for _p in _proofs}) == 1:
+                n += 1                # ONE gate, ONE failed attempt — the store knows no more
+            # else: ran and mixed, or never ran -> UNKNOWN, counted nowhere
     except Exception:
         return None, None
     return (k, n) if n else (None, None)
-
 
 def check_lane_liveness():
     """Which THREADS this watchdog can see beat, named one by one. -> row
