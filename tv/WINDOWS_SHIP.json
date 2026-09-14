@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3149",
+  "ver": "v3150",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3149: three sabotages my own edits had quietly disarmed",
+  "note": "v3150: the idempotence law judged threads it never armed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

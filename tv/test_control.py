@@ -22320,11 +22320,28 @@ class TestV2079EveryWatcherStartsInBothModes(unittest.TestCase):
         genuinely DIED is correct behaviour, not a defect — that is recovery.
         """
         import threading as _th
+        # ⚠⚠ v3150 — THE RACE THE DOCSTRING ABOVE DESCRIBES WAS ONLY HALF FIXED. `started` stopped
+        # being a proxy, but BOTH readings below still enumerated threads PROCESS-GLOBALLY, and
+        # threading.enumerate() returns every leftover `tvd-*` watcher an earlier test in this
+        # process armed. One of those alive under a name this test also arms counts as a duplicate
+        # `start()` never created — and the same leftover in `before` can flag a legitimate restart
+        # as a re-arm. MEASURED on a clean tree: 2 OK, 1 FAILED in three consecutive runs, and it
+        # blocked a ship on `['tvd-orphan-exit']` having found no defect at all.
+        # The threads THIS test armed are the only ones it may judge; holding the pre-existing
+        # objects in a set (rather than their ids) also stops a recycled id from re-introducing it.
+        # A genuine doubling is still caught: both threads would be new, so both are counted.
+        # [[feedback-suspect-the-instrument]] [[gate-blind-to-unexercised-input]]
+        _pre = set(_th.enumerate())
+
+        def _mine():
+            return [t for t in _th.enumerate()
+                    if t.name.startswith("tvd-") and t.is_alive() and t not in _pre]
+
         with inert_roster() as start:
             start("first")
-            before = set(t.name for t in _th.enumerate() if t.name.startswith("tvd-") and t.is_alive())
+            before = set(t.name for t in _mine())
             again = start("second")
-            after = [t.name for t in _th.enumerate() if t.name.startswith("tvd-") and t.is_alive()]
+            after = [t.name for t in _mine()]
 
         doubled = sorted(n for n in set(after) if after.count(n) > 1)
         self.assertEqual(doubled, [],
