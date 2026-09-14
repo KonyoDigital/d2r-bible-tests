@@ -2906,6 +2906,20 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_a_skipped_file_is_never_an_absent_name",
+         [sys.executable, os.path.join(HERE, "test_a_skipped_file_is_never_an_absent_name.py")], 120,
+         why="FOUND BY THE SECOND EYE ON THE SHIPPED v3151 DIFF, and it was damage from that "
+             "ship's own fix. v3151 memoised `_defined_anywhere` because it re-parsed every "
+             "tv/*.py per NAME — 11.0s of a 12.7s heart.vessels(), which is what had been "
+             "dropping the heart targets out of the render gate. But the cache key is built from "
+             "os.stat BEFORE the parse loop, so a file that stats and then fails to OPEN was "
+             "dropped from the set and that short set was stored as a finished answer. `kind_of` "
+             "returns FOREIGN — not ours, stop watching — only when `_defined_anywhere` is False, "
+             "so an fd-exhausted console would cache an EMPTY set and classify every dotted "
+             "in-package target FOREIGN for the rest of the process, with the census reading "
+             "complete the whole time and no stat able to move to let it recover. The pre-v3151 "
+             "code swallowed the same exception PER CALL and a later census still saw the file — "
+             "caching is what turned transient into permanent."),
     Gate("test_every_lane_stamps_its_own_beat",
          [sys.executable, os.path.join(HERE, "test_every_lane_stamps_its_own_beat.py")], 120,
          why="#80 — EVERY WATCHER LANE IS A `while True` LOOP WHOSE WORK SITS INSIDE "

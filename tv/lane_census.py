@@ -145,14 +145,27 @@ def _defined_anywhere(name):
     become. PARSED with ast, never grepped, so a mention in a comment or a string cannot satisfy
     it. [[source-reading-guard]]
     """
-    return name in _all_defined_names()
+    _names, _complete = _all_defined_names()
+    if name in _names:
+        return True
+    # ⚠⚠ A SKIPPED FILE IS NOT AN ABSENT NAME. `kind_of` turns a False here into FOREIGN — "not
+    # ours, stop watching" — so answering False on a package we could not fully read would retire
+    # a real lane on the strength of a failed open. "I could not look" and "it is not there" are
+    # opposite facts. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    return not _complete
 
 
 _DEFINED_CACHE = {"key": None, "names": None}
 
 
+def _package_files():
+    """Every .py in this package, sorted. A seam so a law can drive an unreadable one."""
+    import glob as _glob
+    return sorted(_glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")))
+
+
 def _all_defined_names():
-    """Every function name defined anywhere in this package. -> set
+    """Every function name defined anywhere in this package. -> (set, complete)
 
     ⚠⚠ ONE PARSE FOR THE WHOLE PACKAGE, NOT ONE PER NAME. `_defined_anywhere` re-parsed every
     tv/*.py for EVERY name it was asked about. MEASURED: 4 calls per census at ~2.7 s each —
@@ -165,10 +178,8 @@ def _all_defined_names():
     and nothing is served from a stale tree. [[stale-reading]]
     """
     import ast as _ast
-    import glob as _glob
     import hashlib as _hashlib
-    _here = os.path.dirname(os.path.abspath(__file__))
-    _files = sorted(_glob.glob(os.path.join(_here, "*.py")))
+    _files = _package_files()
     _sig = []
     for _f in _files:
         try:
@@ -179,19 +190,28 @@ def _all_defined_names():
     _key = _hashlib.sha1(repr(_sig).encode("utf-8", "replace")).hexdigest()
     _snap = _DEFINED_CACHE
     if _snap.get("key") == _key and _snap.get("names") is not None:
-        return _snap["names"]
+        return _snap["names"], True
     _names = set()
+    _complete = True
     for _f in _files:
         try:
             with io.open(_f, encoding="utf-8") as _fh:
                 _t = _ast.parse(_fh.read())
         except Exception:
+            # ⚠⚠ A FILE THAT STATS AND THEN WILL NOT OPEN MUST NOT BE CACHED AS ANSWERED. The
+            # key is built from os.stat BEFORE this loop, so storing a short set here would
+            # freeze a transient failure — an fd-exhausted console would classify every dotted
+            # in-package target FOREIGN for the rest of the process, and no stat would move to
+            # let it recover. The old per-call version swallowed the same exception and a later
+            # census could still see the file. Caching is what made it permanent.
+            _complete = False
             continue
         for _n in _ast.walk(_t):
             if isinstance(_n, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
                 _names.add(_n.name)
-    globals()["_DEFINED_CACHE"] = {"key": _key, "names": _names}   # ONE binding: threaded reader
-    return _names
+    if _complete:
+        globals()["_DEFINED_CACHE"] = {"key": _key, "names": _names}   # ONE binding: threaded
+    return _names, _complete
 
 
 def kind_of(src, name, dotted):
