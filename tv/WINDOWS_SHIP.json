@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3131",
+  "ver": "v3132",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3131: Draining the last 15. Two more gates were RED ON HEAD while the store called them unrun. test_the_heart_can_see_its_own_instruments failed twice: its sandbox-escape law re-implemented the engine path logic and declared three LEGAL proofs escapes — resolve_proof_target own docstring records this same file doing exactly that once before, so it is copy-drift twice in one place. The law now CALLS resolve_proof_target, verified to still refuse two-levels-up and absolute paths. And two red proofs matched ZERO times: _record_ship_in_tasks gained a repo argument, and my own v3105 amnesty split the footageState branch. Both re-anchored, counted. test_every_doctor_check_is_explained failed because I shipped the check window runs the document on disk into WATCHES and never filed it in either registry, so for one version it was indistinguishable from a check nobody had looked at. Filed in NO_JOINT_YET with the real reason: it is a self-report and every other version reading here describes a FILE, not the rendered DOCUMENT.",
+  "note": "v3132: The second eye on v3131 applied my own find and replace to the real source and PARSED the result, which is the check I skipped. My re-anchor covered only the first line of a two-line condition while the replace stayed a complete elif False, so the tampered source read elif False followed by an orphaned and-not clause. That matches once — past the matched-zero-times INVALID I was fixing — and then dies on the parse gate, so the proof never runs and any earlier verdict is revoked. Strictly worse than the stale anchor it replaced. The find now covers the whole condition through its colon, verified by applying the tamper and parsing it, and the gate proves 2 of 2.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

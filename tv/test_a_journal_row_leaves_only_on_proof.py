@@ -146,7 +146,7 @@ RED_PROOF = [
                "means no film AND no retention record, which is an absence of evidence in both "
                "directions rather than a proof that anything was extracted",
         "file": "journal_retention.py",
-        "find": "            elif (str(s.get(\"footageState\") or \"\") != EXTRACTED",
+        "find": "            elif (str(s.get(\"footageState\") or \"\") != EXTRACTED\n                  and not (began and isinstance(s.get(\"t0\"), (int, float)) and s[\"t0\"] < began)):",
         "replace": '            elif False:',
         "matches": 1,
     },
