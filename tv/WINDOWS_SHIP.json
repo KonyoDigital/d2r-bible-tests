@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3116",
+  "ver": "v3117",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3116: The second eye on v3115: a line count cannot see a rotation. v3115 read fewer-lines as moved and everything else as appends — true of the LIVE file, false of the rest of the ring. _journal_write rotates with os.replace(JOURNAL, sessions.1.jsonl), so after a drain .1 is small and live is thousands of rows: the rotation makes .1 GROW. The drain read a whole night as late appends, pasted it onto the rewrite of the old .1, and renamed that hybrid over the night that had just arrived — then refused at the live file, naming LIVE while the file that lost rows was .1. os.replace swaps the inode, so _late_lines now pins (st_dev, st_ino) captured at the read. The shrink compare stays for the one failure identity cannot see: an in-place truncation.",
+  "note": "v3117: His words at his console: this 8 releasable has been stale for like a week. He was right and it was not stale data — it was a figure that cannot move. Measured on GET /api/reel_story: onDisk 12, releasable 8, banked 4, and ALL TWELVE held — the 8 by the newest-8 floor (holdKind policy, why: one of the 8 most recent, kept so a re-sweep always has real footage), the 4 for missing evidence. reel_story.TAG_STAGE maps the recent tag onto the releasable stage, so that 8 IS the floor, counted, pinned at 8 forever, drawn in plain gold under a heading about what gets no further. The rail now reads in the hold palette the waiting rows already speak, carries the reason into the title, and the heading says none of them is free to move. One free reel and the stage is not held.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2586,6 +2586,18 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_a_held_stage_does_not_read_as_a_queue",
+         [sys.executable, os.path.join(HERE, "test_a_held_stage_does_not_read_as_a_queue.py")], 120,
+         why="A STAGE WHOSE EVERY REEL IS HELD MUST NOT RENDER AS A PLAIN COUNT. His own words at "
+             "his console: 'this 8 releasable has been stale for like a week im pretty sure'. He "
+             "was right, and it was not stale data - it was a figure that CANNOT MOVE. Measured "
+             "on GET /api/reel_story: onDisk 12, releasable 8, banked 4, and all twelve held - the "
+             "8 by the newest-8 floor (holdKind policy), the 4 for missing evidence. reel_story "
+             "maps the 'recent' tag onto the 'releasable' stage, so that 8 IS the floor, counted, "
+             "pinned at 8 forever, drawn in plain gold under a heading about what gets 'no "
+             "further'. The number was right and the word above it had stopped being true. This "
+             "law extracts the real rail builder and runs it under node against his own reel "
+             "shapes - it does not grep for the word 'held', which a comment would satisfy."),
     Gate("test_the_drain_covers_the_whole_journal_ring",
          [sys.executable, os.path.join(HERE, "test_the_drain_covers_the_whole_journal_ring.py")], 180,
          why="THE DRAIN MUST COVER EVERY FILE THE JOURNAL IS READ FROM, OR REFUSE TO RUN - and this "

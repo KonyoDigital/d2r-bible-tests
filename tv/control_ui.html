@@ -2032,6 +2032,19 @@
     flex: 1 1 84px; min-width: 84px; padding: 7px 4px; border-radius: 9px;
     border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
   #th-shelfov .shs-stage.zero { opacity: .38; }
+  /* v3117 — a stage every one of whose reels is held reads in the hold palette, not in the
+     shelf's gold: gold says "this many are here", amber/red says "and not one of them can
+     leave". Same two tones as `.shs-wtag`, so the rail and the waiting rows agree. */
+  #th-shelfov .shs-stage.held { border-color: rgba(233,185,110,.30);
+    background: rgba(233,185,110,.055); }
+  #th-shelfov .shs-stage.held .shs-n,
+  #th-shelfov .shs-stage.held .shs-hold { color: #e9b96e; }
+  #th-shelfov .shs-stage.held.shs-hk-evidence { border-color: rgba(217,143,143,.32);
+    background: rgba(217,143,143,.055); }
+  #th-shelfov .shs-stage.held.shs-hk-evidence .shs-n,
+  #th-shelfov .shs-stage.held.shs-hk-evidence .shs-hold { color: #d98f8f; }
+  #th-shelfov .shs-hold { font-size: var(--fs-2xs); letter-spacing: var(--ls-label);
+    text-transform: uppercase; line-height: 1; opacity: .92; }
   #th-shelfov .shs-ic { font-size: var(--fs-md); line-height: 1; }
   #th-shelfov .shs-n { font-size: var(--fs-lg); font-weight: var(--fw-bold);
     font-variant-numeric: tabular-nums; color: var(--gold); line-height: 1.1; }
@@ -11717,15 +11730,65 @@ window._lockMark = function(isOpen, px, label){
        visually legible... creating an orphan element." A separator between flex items cannot
        survive a wrap; a number inside each item can. And numbering is honest here rather than
        decorative — this IS a sequence, and the order is the information. */
+    /* ⚠⚠ v3117 — A STAGE FULL OF HELD REELS IS NOT A QUEUE, AND THE WORD SAID IT WAS.
+       Konyo, on his own screen: *"this 8 releasable has been stale for like a week im pretty
+       sure"*. He was right, and it is not stale DATA — it is a figure that CANNOT MOVE.
+       MEASURED on his live console, GET /api/reel_story:
+
+           onDisk 12 · banked 4 · releasable 8 · unknown-stage 0
+           all 8 at releasable:  held=true  holdKind=policy
+             why "one of the 8 most recent — kept so a re-sweep always has real footage"
+           all 4 at banked:      held=true  holdKind=evidence
+
+       `reel_story.TAG_STAGE` maps the `recent` tag onto the `releasable` stage and `POLICY_HOLDS`
+       holds it there, so that 8 IS the newest-8 floor, counted — pinned at 8 forever. Twelve
+       reels, twelve holds, and the rail drew plain gold counts under a heading that says each
+       stage counts what gets "no further" than it. Right number, and the word above it stopped
+       being true. [[label-outlived-referent]] [[stale-reading]] [[unknown-stays-unknown]]
+
+       ⚠ THE TONE IS THE ONE THE WAITING ROWS ALREADY USE — amber for a deliberate policy hold,
+       red for missing evidence. A second vocabulary for the same fact is how these two halves
+       drift apart. [[copy-drift]] */
+    var _shHeld = {};
+    reels.forEach(function(r){
+      var k = r && r.stage;
+      if (!k) return;
+      var b = _shHeld[k] || (_shHeld[k] = { n: 0, kind: {}, why: {} });
+      if (!r.held) return;
+      b.n++;
+      var hk = r.holdKind || 'none';
+      b.kind[hk] = (b.kind[hk] || 0) + 1;
+      var w = String(r.why || '');
+      if (w) b.why[w] = (b.why[w] || 0) + 1;
+    });
+    function _shTop(o){
+      var ks = Object.keys(o || {});
+      ks.sort(function(a, b){ return o[b] - o[a]; });
+      return ks[0] || '';
+    }
     var rail = _SH_STAGES.map(function(s, i){
       var n = stg[s[0]] || 0;
-      return '<div class="shs-stage' + (n ? '' : ' zero') + '" title="'
-           + (n ? (n + ' reel(s) get no further than ' + s[2]) : ('no reel is waiting at ' + s[2]))
-           + '"><span class="shs-step">' + (i + 1) + '</span>'
+      var h = _shHeld[s[0]] || { n: 0, kind: {}, why: {} };
+      /* "held" is EVERY reel at this stage, never a majority: a stage with one free reel can
+         still move, and painting it as stuck would be the same lie in the other direction. */
+      var allHeld = n > 0 && h.n >= n;
+      var kind = _shTop(h.kind) || 'none';
+      var why  = _shTop(h.why);
+      var tip = !n ? ('no reel is waiting at ' + s[2])
+              : allHeld ? (n + ' reel(s) reached ' + s[2] + ' and are HELD — '
+                           + (why || 'no reason recorded') + '. This count cannot move until '
+                           + 'that hold lifts.')
+              : (n + ' reel(s) get no further than ' + s[2]
+                 + (h.n ? (' — ' + h.n + ' of them held') : ''));
+      return '<div class="shs-stage' + (n ? '' : ' zero')
+           + (allHeld ? (' held shs-hk-' + kind) : '') + '" title="' + esc(tip) + '">'
+           + '<span class="shs-step">' + (i + 1) + '</span>'
            + '<span class="shs-ic">' + s[1] + '</span>'
            + '<span class="shs-n">' + n + '</span>'
+           + (allHeld ? '<span class="shs-hold">held</span>' : '')
            + '<span class="shs-sl">' + s[2] + '</span></div>';
     }).join('');
+    var _shHeldAll = reels.length > 0 && reels.every(function(r){ return !!(r && r.held); });
     var unknownN = stg['unknown-stage'] || 0;
     if (unknownN){
       /* a verdict the board was never taught. It must be LOUD — silently bucketing it into
@@ -11786,7 +11849,11 @@ window._lockMark = function(isOpen, px, label){
     el.innerHTML = '<div class="shs-head">⚙ THE PIPELINE — what the reels have given up</div>'
                  + yieldBlock
                  + '<div class="shs-railh">where the ' + reels.length + ' reels stand \u2014 '
-                 +   'each stage counts the reels that get <b>no further</b> than it</div>'
+                 +   (_shHeldAll
+                       ? ('<b>none of them is free to move</b> \u2014 every one is held, so '
+                          + 'these counts stand still by design, not by neglect')
+                       : 'each stage counts the reels that get <b>no further</b> than it')
+                 +   '</div>'
                  + '<div class="shs-rail">' + rail + '</div>'
                  + worstBlock;
   }
