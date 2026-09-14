@@ -1,0 +1,192 @@
+# -*- coding: utf-8 -*-
+"""THE VERSION STAMP IS THE MOMENT THE TREE BECOMES SOMETHING HE EXECUTES, SO IT MUST PARSE FIRST.
+
+⚠⚠ THIS EXISTS BECAUSE I PUT A SyntaxError ON HIS LIVE SCREEN THROUGH THIS EXACT DOOR.
+2026-09-14: a splice in bible.html used `} catch(e){}` as its END anchor and left it behind, so the
+file carried a bare catch closing nothing. I then ran `bump_version.py`, which cheerfully stamped
+v3100 onto a file the browser refuses to parse — and HIS CONSOLE EXECS THE WORKING TREE, so
+`window.renderSubMeter` was never assigned on his screen until the second eye found it on the
+shipped diff.
+
+**The gate that catches this already existed.** `js-syntax` is registered in run_gates and parses
+every surface in a real engine. I ran `visual_lock_invariant` after the edit — because that is what
+had refused the push — and not the one that asks whether the file still parses. A law nobody runs
+is a law nobody applied, and no amount of adding laws fixes that.
+[[carved-skill-unloaded-is-unapplied]] [[execs-the-working-tree]]
+
+⚠ SO THE CHECK MOVED TO THE CHOKE POINT INSTEAD. Every change passes through the version bump — the
+four stamps move together or none do — and the block there already promised *"nothing touches disk
+until all four are known good"*. Until v3103 "known good" meant only that a regex matched. Parsing
+is what that sentence was always claiming. [[the-unjoined-end]]
+
+⚠ AND IT PARSES THE ONE LINE THE TOOL ITSELF WRITES. `note` is free text landing inside a
+single-quoted JS string literal. Two guards above it refuse an apostrophe and a callable CSS token
+— the two spellings that have actually bitten — but neither is a parser, and a guard list of past
+accidents does not cover the next one.
+"""
+import ast
+import io
+import os
+import sys
+import unittest
+
+from console_safe import enable as _console_safe_enable
+
+_console_safe_enable()
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+import bump_version as B        # noqa: E402
+
+
+class TestTheBumpRefusesATreeThatDoesNotParse(unittest.TestCase):
+
+    # ── 1. the tree as it stands is accepted ──────────────────────────────────────────────────
+    def test_the_preflight_accepts_a_parsing_tree(self):
+        """And when it is sabotaged, THIS is the assertion that goes red."""
+        try:
+            B._preflight()
+        except SystemExit as e:
+            self.fail("the bump refuses to stamp the CURRENT tree — something in it does not "
+                      "parse:\n%s" % e)
+        print("   preflight: the working tree parses, so a stamp is allowed")
+
+    # ── 2. the line the tool generates is itself parsed ───────────────────────────────────────
+    def test_the_generated_build_line_is_parsed(self):
+        good = "  window.D2R_BUILD = { id:'v1', name:'a', date:'b', note:'c' };"
+        bad = "  window.D2R_BUILD = { id:'v1' ;"
+        g, b = B._parses_as_js(good), B._parses_as_js(bad)
+        print("   generated-line parser: good=%r · bad=%r" % (g, (b or "")[:60]))
+        self.assertIsNone(g, "a well-formed D2R_BUILD line was rejected: %r" % g)
+        self.assertTrue(b, "a MALFORMED D2R_BUILD line was accepted — the note lands inside a JS "
+                           "string literal and nothing would be parsing it")
+        self.assertIn("SyntaxError", b)
+
+    # ── 3. and it runs BEFORE anything is computed or written ─────────────────────────────────
+    def test_the_preflight_runs_before_the_first_write(self):
+        """⚠ ORDER IS THE WHOLE POINT. A check after the writes is a report about damage already
+        done, on a tree his console is already executing."""
+        with io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "bump"), None)
+        self.assertIsNotNone(fn, "bump() is gone")
+        pre_lines = [n.lineno for n in ast.walk(fn)
+                     if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                     and n.func.id == "_preflight"]
+        append_lines = [n.lineno for n in ast.walk(fn)
+                        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                        and n.func.attr == "append"
+                        and isinstance(n.func.value, ast.Name) and n.func.value.id == "pending"]
+        print("   _preflight() call line(s): %s · first pending.append at %s"
+              % (pre_lines, min(append_lines) if append_lines else None))
+        self.assertEqual(len(pre_lines), 1,
+                         "bump() calls _preflight %d time(s) — expected exactly once"
+                         % len(pre_lines))
+        self.assertTrue(append_lines, "bump() no longer builds a pending list")
+        self.assertLess(pre_lines[0], min(append_lines),
+                        "_preflight runs AFTER the first pending write is computed — a check that "
+                        "lands after the damage is a report, not a guard")
+
+    # ── 4. it reuses the existing parser rather than growing a second one ─────────────────────
+    def test_it_reuses_the_js_syntax_gate(self):
+        with io.open(os.path.join(HERE, "bump_version.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        tree = ast.parse(src)
+        imports = [n for n in ast.walk(tree)
+                   if isinstance(n, ast.Import)
+                   and any(a.name == "js_syntax_gate" for a in n.names)]
+        print("   `import js_syntax_gate` sites in bump_version: %d" % len(imports))
+        self.assertGreaterEqual(
+            len(imports), 1,
+            "bump_version no longer reuses js_syntax_gate — a second copy of the <script> block "
+            "extractor is exactly the drift that lets two parsers disagree about one file")
+
+
+    # ── 5. AND IT REFUSES A BROKEN ONE — the half the first cut could not prove ────────────────
+    def _temp_repo(self):
+        """A throwaway tree holding only the four files the bump touches."""
+        import shutil
+        import tempfile
+        d = tempfile.mkdtemp(prefix="bumptree-")
+        self.addCleanup(shutil.rmtree, d, True)
+        os.makedirs(os.path.join(d, "tv"), exist_ok=True)
+        for rel in ("bible.html", "tv/control_app.py", "tv/tv_diablo.py", "tv/WINDOWS_SHIP.json"):
+            shutil.copy2(os.path.join(B.REPO, rel), os.path.join(d, rel))
+        return d
+
+    def test_the_preflight_refuses_the_v3100_defect(self):
+        """⚠⚠ THE FIRST CUT OF THIS LAW HAD TWO **BLIND** RED-PROOFS, AND THE REASON IS worth more
+        than the fix: every assertion only checked that the guard PASSES on a good tree, so
+        disabling the guard changed nothing observable. A check you never see REFUSE is a check you
+        have not tested. [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+        """
+        d = self._temp_repo()
+        bib = os.path.join(d, "bible.html")
+        s = io.open(bib, encoding="utf-8").read()
+        broken = s.replace("    paintGrok();\n    return j;",
+                           "    paintGrok();\n    } catch(e){}\n    return j;", 1)
+        self.assertNotEqual(broken, s, "the fixture did not actually break anything — the anchor "
+                                       "it splices on has moved, so this test proves nothing")
+        io.open(bib, "w", encoding="utf-8").write(broken)
+        with self.assertRaises(SystemExit) as cm:
+            B._preflight(d)
+        msg = str(cm.exception)
+        print("   broken tree refused: %s" % msg.splitlines()[0][:90])
+        self.assertIn("does not parse", msg)
+        self.assertIn("bible.html", msg)
+
+    def test_the_bump_refuses_a_note_that_breaks_the_build_line(self):
+        """A trailing backslash escapes the closing quote of the JS string `note` lands in. It
+        contains no apostrophe and no CSS token, so BOTH existing guards wave it through — which is
+        why a parser had to sit behind them rather than a third spelling."""
+        d = self._temp_repo()
+        before = io.open(os.path.join(d, "bible.html"), encoding="utf-8").read()
+        with self.assertRaises(SystemExit) as cm:
+            B.bump("v99999", "fixture", "ends with a backslash \\", repo=d)
+        msg = str(cm.exception)
+        print("   bad note refused: %s" % msg.splitlines()[0][:90])
+        self.assertIn("does not parse as JS", msg)
+        self.assertEqual(io.open(os.path.join(d, "bible.html"), encoding="utf-8").read(), before,
+                         "the bump REFUSED and still wrote — 'nothing written' must mean nothing")
+
+RED_PROOF = [
+    {
+        "why": "the EXACT v3100 defect is put back into bible.html — a bare `} catch(e){}` closing "
+               "nothing — and the bump must refuse to stamp it. This is the shape that reached his "
+               "live console and stayed there until a cross-family review of the shipped diff "
+               "found it",
+        "file": "../bible.html",
+        "find": "    paintGrok();\n    return j;",
+        "replace": "    paintGrok();\n    } catch(e){}\n    return j;",
+        "matches": 1,
+    },
+    {
+        "why": "the preflight stops looking at bible.html, so a broken page can be stamped and "
+               "handed to a console that execs the working tree",
+        "file": "bump_version.py",
+        "find": '        probs, why = _js.check_with_node(["bible.html"])',
+        "replace": '        probs, why = [], None',
+        "matches": 1,
+    },
+    {
+        "why": "the generated D2R_BUILD line stops being parsed, so a note that breaks the JS "
+               "string literal it lands in goes in unchecked",
+        "file": "bump_version.py",
+        "find": "    _line_problem = _parses_as_js(new_line)",
+        "replace": "    _line_problem = None",
+        "matches": 1,
+    },
+    {
+        "why": "the preflight moves AFTER the pending writes are computed, which is a report about "
+               "damage rather than a guard against it",
+        "file": "bump_version.py",
+        "find": "    _preflight(repo)\n\n    today = datetime.date.today().isoformat()",
+        "replace": "    today = datetime.date.today().isoformat()",
+        "matches": 1,
+    },
+]
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

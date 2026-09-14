@@ -2569,6 +2569,28 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_the_bump_refuses_a_tree_that_does_not_parse",
+         [sys.executable, os.path.join(HERE, "test_the_bump_refuses_a_tree_that_does_not_parse.py")], 300,
+         why="THE VERSION STAMP IS THE MOMENT THE TREE BECOMES SOMETHING HE EXECUTES, SO IT MUST "
+             "PARSE FIRST. This exists because I put a SyntaxError on his LIVE screen through this "
+             "exact door: a splice in bible.html used `}} catch(e){{}}` as its END anchor and left it "
+             "behind, then bump_version happily stamped v3100 onto a file the browser refuses to "
+             "parse - and HIS CONSOLE EXECS THE WORKING TREE, so window.renderSubMeter was never "
+             "assigned on his screen until the second eye found it on the shipped diff. The gate "
+             "that catches this ALREADY EXISTED: js-syntax is registered here and parses every "
+             "surface in a real engine. I ran visual_lock_invariant after the edit, because that is "
+             "what had refused the push, and not the one that asks whether the file still parses. "
+             "Adding laws does not fix a law nobody runs, so the check moved to the CHOKE POINT: "
+             "every change passes through the version bump, four stamps move together or none do, "
+             "and that block already promised 'nothing touches disk until all four are known good' "
+             "while 'known good' meant only that a regex matched. It now ast.parses the two python "
+             "surfaces, json.loads WINDOWS_SHIP, and hands bible.html to js_syntax_gate itself "
+             "rather than growing a second copy of the script extractor. It also parses the ONE "
+             "line the tool generates, because `note` is free text landing inside a single-quoted "
+             "JS string and the two guards above it (apostrophe, callable CSS token) are a list of "
+             "past accidents rather than a parser. ORDER IS PINNED TOO - a check after the writes "
+             "is a report about damage, not a guard - and the first red-proof puts the literal "
+             "v3100 defect back into bible.html and demands the bump refuse it."),
     Gate("test_the_grok_chip_paints_on_every_path",
          [sys.executable, os.path.join(HERE, "test_the_grok_chip_paints_on_every_path.py")], 120,
          why="THE GROK CHIP MUST PAINT WHEN CLAUDE IS UNMEASURED, AND A CEILING OF 0 MUST NOT LOOK "

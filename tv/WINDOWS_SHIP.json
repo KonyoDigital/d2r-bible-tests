@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3102",
+  "ver": "v3103",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3102: the second eye second and third findings on v3100, both mine: my own gate counted paintGrok() which the DECLARATION contains, so deleting the real call stayed green; and capWindow circuit means at least one max is 0 while the renderer overwrote BOTH bars, printing a denominator that was not the hours. The gate now extracts paint and paintGrok and runs them in node against a stub DOM, so it judges the rendered text rather than the source it is written beside.",
+  "note": "v3103: the choke point had no check and I put a SyntaxError on his live screen through it: bump_version stamped v3100 onto a bible.html the browser refuses to parse, and his console execs the working tree. The gate that catches it already existed and I did not run it, so the check moved to the one door every change passes through. Also joined the producer to the renderer end to end, which the second eye named as the remaining gap.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

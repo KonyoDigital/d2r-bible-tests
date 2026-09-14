@@ -312,6 +312,81 @@ class TestTheGrokChipPaintsOnEveryPath(unittest.TestCase):
         self.assertTrue(got["hidden"], "with no grok lane the chip must be hidden, not blank")
 
 
+    # ── 7. THE JOIN: the REAL producer's payload into the REAL renderer ───────────────────────
+    def test_the_real_payload_reaches_the_real_renderer(self):
+        """⚠⚠ THE SECOND EYE'S FINDING ON v3102, AND IT NAMED THE GAP EXACTLY: *"the two new
+        runtime tests are each joined to their own half and unjoined from each other."* They were.
+        `test_a_zero_ceiling_is_published_as_zero` asked `_meter_lanes` for a circuit and never
+        checked that the OTHER window's ceiling survived; the node test built its lane BY HAND. So
+        a producer that smeared the circuit across both maxes would pass the publisher test, pass
+        the renderer test on its synthetic payload, and paint the healthy window as `/0` on his
+        screen — the v3102 bug, at the other end of the wire. [[the-unjoined-end]]
+
+        This one takes what `_meter_lanes` ACTUALLY returns and feeds it to the extracted renderer.
+        """
+        import json as _json
+        import shutil
+        import subprocess
+        import tempfile
+        import g5_grok_eyes as G5
+
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed — the RUNTIME half of this law is UNMEASURED")
+
+        h0, d0, c0 = G5._HOURLY_MAX, G5._DAILY_MAX, G5._budget_counts
+        try:
+            # a DAILY circuit with a healthy hourly ceiling — the exact cell that was mispainted
+            G5._HOURLY_MAX, G5._DAILY_MAX = 4000, 0
+            G5._budget_counts = lambda: (70, 1035)
+            lane = (CA._meter_lanes({"hour": 1, "day": 1, "hourlyMax": 4000,
+                                     "dailyMax": 20000, "armed": True}) or {}).get("grok") or {}
+        finally:
+            G5._HOURLY_MAX, G5._DAILY_MAX, G5._budget_counts = h0, d0, c0
+
+        print("   producer said: hourlyMax=%r dailyMax=%r capWindow=%r"
+              % (lane.get("hourlyMax"), lane.get("dailyMax"), lane.get("capWindow")))
+        self.assertEqual(lane.get("hourlyMax"), 4000,
+                         "the producer smeared the circuit onto the HEALTHY window — hourlyMax "
+                         "came back %r with _HOURLY_MAX=4000" % (lane.get("hourlyMax"),))
+        self.assertEqual(lane.get("dailyMax"), 0)
+
+        paint_body, _a, _b = _block(self.src, "function paint(barId, fillId, vId, used, max)")
+        grok_body, _c, _d = _block(self.src, "function paintGrok()")
+        harness = """
+        var els = {};
+        function el(id){
+          if (!els[id]) els[id] = {id:id, textContent:'', hidden:false, style:{},
+                                   classList:{toggle:function(){}, add:function(){},
+                                              remove:function(){}, contains:function(){return false;}},
+                                   getBoundingClientRect:function(){
+                                     return {width:120,height:8,top:0,left:0,right:120,bottom:8};},
+                                   setAttribute:function(){}, appendChild:function(){}};
+          return els[id];
+        }
+        var document = { getElementById: el };
+        var j = JSON.parse(process.argv[2]);
+        function paint(barId, fillId, vId, used, max)%s
+        function paintGrok()%s
+        paintGrok();
+        console.log(JSON.stringify({hour: els['sm-v-gh'].textContent,
+                                    day: els['sm-v-gd'].textContent,
+                                    key: els['sm-grok-k'].textContent}));
+        """ % (paint_body, grok_body)
+        d = tempfile.mkdtemp(prefix="grokjoin-")
+        self.addCleanup(shutil.rmtree, d, True)
+        s = os.path.join(d, "h.js")
+        with io.open(s, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+        out = subprocess.check_output([node, s, _json.dumps({"lanes": {"grok": lane}})],
+                                      stderr=subprocess.STDOUT, timeout=60)
+        got = _json.loads(out.decode("utf-8").strip().splitlines()[-1])
+        print("   renderer drew: %r / %r  key=%r" % (got["hour"], got["day"], got["key"]))
+        self.assertEqual(got["day"], "1035/0", "the DAY is the circuit and must say so")
+        self.assertEqual(got["hour"], "70/4k",
+                         "the HOUR has a 4000 ceiling and is NOT the circuit — it drew %r"
+                         % got["hour"])
+
 RED_PROOF = [
     {
         "why": "the grok chip stops being painted when Claude is unmeasured — the producer fix in "

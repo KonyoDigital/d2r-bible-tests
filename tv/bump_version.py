@@ -18,7 +18,7 @@ notice afterwards.
 Each stamp is verified after writing: a silent no-op replace would leave the tree half-bumped,
 which is the exact failure this tool exists to prevent.
 """
-import datetime, io, json, os, re, sys, tempfile
+import ast, datetime, io, json, os, re, subprocess, sys, tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -32,7 +32,98 @@ except Exception:
     pass
 
 
-def bump(ver, name, note):
+def _parses_as_js(text):
+    """-> a problem string, or None. Parses `text` as a classic script with node."""
+    try:
+        sys.path.insert(0, os.path.join(REPO, "tv"))
+        import js_syntax_gate as _js
+        node = _js._node_bin()
+        if not node:
+            return None                       # no node: UNMEASURED, and _preflight already said so
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+            fh.write(text)
+            tmp = fh.name
+        try:
+            r = subprocess.run([node, "--check", tmp], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=30)
+            if r.returncode != 0:
+                lines = (r.stderr or "").strip().splitlines()
+                return next((l for l in lines if "SyntaxError" in l),
+                            lines[0] if lines else "node --check exited %d" % r.returncode).strip()
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+    except Exception as e:
+        return None                            # cannot measure is not the same as broken
+    return None
+
+
+def _preflight(repo=None):
+    """Refuse to stamp a tree that does not PARSE. Raises SystemExit; writes nothing.
+
+    ⚠⚠ v3103 — THE CHOKE POINT HAD NO CHECK, AND I PUT A SyntaxError ON HIS SCREEN THROUGH IT.
+    On 2026-09-14 a splice left a bare `} catch(e){}` in bible.html. I then ran this tool, which
+    happily stamped v3100 onto a file the browser refuses to parse — and because HIS CONSOLE EXECS
+    THE WORKING TREE, `window.renderSubMeter` was never assigned on his live screen until the
+    second eye found it on the shipped diff. The gate that catches exactly this (`js-syntax`,
+    registered in run_gates) already existed. I did not run it. A law nobody runs is a law nobody
+    applied. [[carved-skill-unloaded-is-unapplied]] [[execs-the-working-tree]]
+
+    ⚠ THIS BELONGS HERE RATHER THAN IN ANOTHER GATE. The version bump is the ONE door every change
+    passes through — four stamps move together or none do — and it is the moment the tree becomes
+    something he executes. The block below already promises "nothing touches disk until all four
+    are known good"; until now "known good" meant only that a regex matched. Parsing is what that
+    sentence was always claiming. [[the-unjoined-end]]
+
+    ⚠ AND IT REUSES `js_syntax_gate`, never a second copy of the block extractor. One parser, one
+    vocabulary. [[copy-drift]]
+    """
+    # ⚠ v3103b — A ROOT, BECAUSE OTHERWISE THE LAW CANNOT SEE ITS OWN DEFEAT. Two red-proofs came
+    # back BLIND: disabling a check that would have PASSED anyway changes nothing observable, so
+    # the only way to prove this guard can fire is to hand it a tree that is genuinely broken —
+    # which means a temp copy, which means a root. [[feedback-blind-fixture-green-gate]]
+    repo = repo or REPO
+    bad = []
+    for rel in ("tv/control_app.py", "tv/tv_diablo.py"):
+        try:
+            ast.parse(io.open(os.path.join(repo, rel), encoding="utf-8").read())
+        except SyntaxError as e:
+            bad.append("%s: %s (line %s)" % (rel, e.msg, e.lineno))
+    try:
+        json.load(io.open(os.path.join(repo, "tv", "WINDOWS_SHIP.json"), encoding="utf-8"))
+    except Exception as e:
+        bad.append("tv/WINDOWS_SHIP.json: %s" % e)
+    try:
+        sys.path.insert(0, os.path.join(REPO, "tv"))
+        import js_syntax_gate as _js
+        # ⚠ ONE PARSER, FILES FROM THE GIVEN ROOT. The module is imported once from this repo —
+        # never copied — and only the root it reads from is redirected. [[copy-drift]]
+        _old_root = _js.REPO
+        try:
+            _js.REPO = repo
+            probs, why = _js.check_with_node(["bible.html"])
+        finally:
+            _js.REPO = _old_root
+        if why:
+            # ⚠ A SKIP IS NOT A PASS, and it says which half went unmeasured rather than implying
+            # the file is fine. [[unknown-stays-unknown]]
+            print("   \u26a0 bump preflight could NOT parse bible.html (%s) — its syntax is "
+                  "UNMEASURED for this stamp, not clean" % why, flush=True)
+        bad.extend(probs)
+    except Exception as e:
+        print("   \u26a0 bump preflight could not run the JS parser (%s) — bible.html syntax is "
+              "UNMEASURED for this stamp" % type(e).__name__, flush=True)
+    if bad:
+        raise SystemExit(
+            "refusing to stamp a tree that does not parse — NOTHING WRITTEN.\n   "
+            + "\n   ".join(bad)
+            + "\n   His console EXECS this working tree, so a stamped broken file is a broken "
+              "console. Fix the parse error, then bump.")
+
+
+def bump(ver, name, note, repo=None):
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
 
@@ -74,10 +165,13 @@ def bump(ver, name, note):
     # over a v1616.1 tree: two files moved, two did not.)
     # Every replacement is now resolved against the ORIGINAL text first; nothing touches disk until
     # all four are known good. The failure mode becomes "nothing happened", which is recoverable.
+    repo = repo or REPO
+    _preflight(repo)
+
     today = datetime.date.today().isoformat()
     pending = []          # [(path, new_text)]
 
-    p = os.path.join(REPO, "bible.html")
+    p = os.path.join(repo, "bible.html")
     s = io.open(p, encoding="utf-8").read()
     a = s.index("  window.D2R_BUILD = { id:'")
     b = s.index("\n", a)
@@ -90,15 +184,22 @@ def bump(ver, name, note):
     cur = _m.group(1)
     new_line = ("  window.D2R_BUILD = { id:'%s', name:'%s - %s', date:'%s', note:'%s' };"
                 % (ver, ver, name, today, note))
+    # ⚠ AND PARSE THE ONE LINE THIS TOOL ITSELF GENERATES. `note` is free text that lands inside a
+    # single-quoted JS string literal; the guards above refuse an apostrophe and a callable CSS
+    # token, which are the two that have bitten, but neither is a parser. This is.
+    _line_problem = _parses_as_js(new_line)
+    if _line_problem:
+        raise SystemExit("the D2R_BUILD line this bump would write does not parse as JS — NOTHING "
+                         "WRITTEN.\n   %s\n   line: %s" % (_line_problem, new_line[:200]))
     pending.append((p, s[:a] + new_line + s[b:]))
 
-    p = os.path.join(REPO, "tv", "control_app.py")
+    p = os.path.join(repo, "tv", "control_app.py")
     s = io.open(p, encoding="utf-8").read()
     if s.count('"ver": "%s"' % cur) != 1:
         raise SystemExit("control_app.py stamp not found at %s — nothing written" % cur)
     pending.append((p, s.replace('"ver": "%s"' % cur, '"ver": "%s"' % ver)))
 
-    p = os.path.join(REPO, "tv", "tv_diablo.py")
+    p = os.path.join(repo, "tv", "tv_diablo.py")
     s = io.open(p, encoding="utf-8").read()
     # tolerant read here too — the trailing comment is free text, and the version may be dotted
     s2, n = re.subn(r'VERSION = "v\d+(?:\.\d+)*"   # .*',
@@ -107,7 +208,7 @@ def bump(ver, name, note):
         raise SystemExit("tv_diablo.py VERSION line did not match — nothing written")
     pending.append((p, s2))
 
-    p = os.path.join(REPO, "tv", "WINDOWS_SHIP.json")
+    p = os.path.join(repo, "tv", "WINDOWS_SHIP.json")
     d = json.load(io.open(p, encoding="utf-8"))
     d["ver"] = ver
     d["note"] = "%s: %s" % (ver, note)
