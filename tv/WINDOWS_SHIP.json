@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3106",
+  "ver": "v3107",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3106: this is why the river could not drain and it was invisible for six versions: load_journal has read a generation ring since v779 while journal_retention asked for the live file alone, so every release against a session in the rotated half was a silent no-op that reported success. 2483 of 2840 sessions were unreachable. One function now spells the ring and both ends ask it, the plan names the corpus it judged, and the apply refuses when that corpus moved.",
+  "note": "v3107: the second eye found that key presence in chronicle_swept proved a reel was LOOKED AT and never that what it found was banked - the record holds ts, classified, pages, promptVer, agentVer and no finds at all, 395 of 422 carry pages 0, and of 207 payload rows only 12 had pages >= 1. Releasable 409 to 214. Also his two label reports: a lane header spoke for members 8 days apart, and a card stamp read as the session date when it is the flow time.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

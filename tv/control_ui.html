@@ -16505,7 +16505,12 @@ window._lockMark = function(isOpen, px, label){
            on his design. */
         if (r.why) b.title = String(r.why);
         b.innerHTML = '<span class="shcr-st">' + esc(r.station || '\u2014') + '</span>'
-          + (r.at ? '<span class="shcr-at">' + esc(_ago(r.at)) + '</span>' : '')
+          /* ⚠ v3107 — NAME THE EVENT. `r.at` is the last HOP's timestamp — when the reel flowed
+             INTO this station — and a bare '4d ago' beside a card dated 31 Aug reads as the
+             session's age. Konyo: *"says 4 days ago here.. but the dates are from much more then
+             that.. maybe just showing less information about it and more just when it flowed
+             through"*. Same number, now answering the question it was always answering. */
+          + (r.at ? '<span class="shcr-at">flowed ' + esc(_ago(r.at)) + '</span>' : '')
           + (r.hops > 1 ? '<span class="shcr-hops">' + r.hops + ' hops</span>' : '');
         c.appendChild(b);
       });
@@ -16537,12 +16542,24 @@ window._lockMark = function(isOpen, px, label){
       };
       order.slice().reverse().forEach(function(st){
         var cs = byStation[st] || [];
-        /* the newest stamp in this station — his "with timestamps" */
-        var newest = 0;
+        /* ⚠⚠ v3107 — THE LANE MAY NOT SPEAK FOR MEMBERS THAT DISAGREE. Konyo, 2026-09-14, on
+           his own screen: *"says here 10 hours ago and also says 8 days ago for printer..
+           confusing make sure its a synced logic"*. The header printed the NEWEST member's stamp
+           as if it described the lane, so `SEAL · PRINTER 2 REELS · 10H AGO` sat directly above a
+           card reading `PRINTER 8d ago`. Both numbers were right and the header's was answering a
+           different question. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+           His instruction for the fix was to show LESS: when the members' stamps span more than a
+           day, the lane prints no age at all rather than a confident wrong one. */
+        var newest = 0, oldest = 0;
         cs.forEach(function(c){
           var r = SHELF_RIVER[c.getAttribute('data-sid')];
-          if (r && r.at && r.at > newest) newest = r.at;
+          if (r && r.at){
+            if (r.at > newest) newest = r.at;
+            if (!oldest || r.at < oldest) oldest = r.at;
+          }
         });
+        var _spanMs = (newest && oldest) ? (newest - oldest) : 0;
+        var _laneAgrees = _spanMs <= 86400000;
         var h = document.createElement('div');
         var _mouthHasRows = (String(st).toUpperCase() === 'TOMBSTONE')
                             && SHELF_MOUTH && SHELF_MOUTH.ok !== false
@@ -16615,7 +16632,7 @@ window._lockMark = function(isOpen, px, label){
         var _bits = [];
         if (!(_mouthSpeaks && cs.length === 0)){
           _bits.push(cs.length + ' reel' + (cs.length === 1 ? '' : 's')
-                     + (newest ? ' \u00b7 ' + esc(_ago(newest)) : ''));
+                     + ((newest && _laneAgrees) ? ' \u00b7 flowed ' + esc(_ago(newest)) : ''));
         }
         if (mouthBit) { _bits.push(mouthBit); }
         /* v2987 — PRINT THE NAME, NOT THE KEY. His words on his own screen: "EMPTY and
