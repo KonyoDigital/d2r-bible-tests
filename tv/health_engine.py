@@ -618,7 +618,31 @@ def _attack_rollup():
         _st = os.stat(_sp)
         with io.open(_sp, encoding="utf-8") as fh:
             _store = _json.load(fh) or {}
-        _key = (int(_st.st_mtime), int(_st.st_size), str(_store.get("gatesFingerprint") or ""))
+        # ⚠⚠⚠ v3140 — THE KEY MUST COVER WHAT THE WALK READS, AND v3139's DID NOT. It keyed on
+        # `.heart2.json` alone while the walk PARSES LIVE GATE SOURCE for every RED_PROOF's `file`.
+        # Repoint a proof from my_orphans.py to lane_liveness.py without re-proving and the ledger
+        # never moves: the organ keeps publishing the old k/n — including `score: 0.0` = INERT if
+        # that is what the stale tuple held. And `_ATK_CACHE` is PROCESS-LIFETIME and never
+        # cleared, so his running console would hold that answer until it restarts.
+        # `console_doctor.py` already recorded this shape and forbade it: share for ONE TICK, never
+        # as a process-lifetime memo, because a later caller gets the previous answer.
+        #
+        # MEASURED: `gate_files()` + `os.stat` on all 368 sources is 7 ms against a 1,020 ms walk —
+        # under 1% — so the key can cover the real inputs exactly, with no TTL to guess and no
+        # window where a stale answer is served. `st_mtime_ns`, not `int(st_mtime)`: a second's
+        # truncation left byte-size as the only real invalidator for a ledger edit.
+        # [[stale-reading]] [[zero-needs-a-denominator]]
+        _sig = 0
+        _cnt = 0
+        for _gn, _gf in _h2.gate_files(say=lambda *a, **k: None):
+            try:
+                _gs = os.stat(os.path.join(HERE, str(_gf)))
+            except Exception:
+                continue
+            _sig ^= _gs.st_mtime_ns ^ (_gs.st_size << 1)
+            _cnt += 1
+        _key = (_st.st_mtime_ns, int(_st.st_size),
+                str(_store.get("gatesFingerprint") or ""), _cnt, _sig)
     except Exception:
         return None, False
     if _ATK_CACHE.get("key") == _key and _ATK_CACHE.get("per_file") is not None:
@@ -642,7 +666,12 @@ def _attack_rollup():
                     per[_f] = (k, n + 1)               # ONE gate, ONE failed attempt
     except Exception:
         return None, False
-    _ATK_CACHE["key"], _ATK_CACHE["per_file"] = _key, per
+    # ⚠ v3140 — ONE ASSIGNMENT, NOT TWO. `_ATK_CACHE["key"], _ATK_CACHE["per_file"] = ...` is two
+    # STORE_SUBSCRs, and between them the dict reads {new key, OLD per_file}. control_app is
+    # THREADED — the eagle timer and a request can both be in here — so a reader hitting that gap
+    # publishes the previous gate's k/n under the new ledger's identity. Replacing the module dict
+    # in a single binding closes the window in CPython.
+    globals()["_ATK_CACHE"] = {"key": _key, "per_file": per}
     return per, True
 
 
