@@ -32,32 +32,49 @@ except Exception:
     pass
 
 
-def _parses_as_js(text):
-    """-> a problem string, or None. Parses `text` as a classic script with node."""
+def _parses_as_page(html_text, label="bible.html"):
+    """Parse the ARTIFACT THAT WILL HIT DISK, through the SAME <script> extractor the gate uses.
+
+    ⚠⚠ v3104 — CHECKING THE LINE WAS NOT CHECKING THE FILE, and a cross-family read of v3103 found
+    the hole the same night it shipped. `note` lands inside a `<script>` block, so a note
+    containing `</script>` is PERFECTLY VALID JAVASCRIPT in isolation and still ends the block.
+    Measured:
+
+        _parses_as_js("... note:'closed the </script> tag' };")   -> None      (valid JS)
+        the extractor then feeds node:  "(function(){ ... note:'closed the "  (unterminated)
+
+    An unterminated string and an unclosed IIFE — the board blanks. That is the v1478 apostrophe
+    failure wearing an HTML tag instead of a quote, and it walked straight past a guard written
+    the same day to stop exactly this class. Two checks that are each correct, never meeting at
+    the artifact. `</SCRIPT>` and `</script >` take the same path.
+    [[the-unjoined-end]] [[source-reading-guard]]
+
+    ⚠ ONE EXTRACTOR. It writes the pending text to a temp root and points `js_syntax_gate` at it,
+    rather than growing a second `<script>` regex here. [[copy-drift]]
+
+    -> a problem string, or None (None also means UNMEASURED — `_preflight` says so out loud).
+    """
+    import shutil
+    import tempfile
+    d = tempfile.mkdtemp(prefix="bumpcheck-")
     try:
+        with io.open(os.path.join(d, label), "w", encoding="utf-8") as fh:
+            fh.write(html_text)
         sys.path.insert(0, os.path.join(REPO, "tv"))
         import js_syntax_gate as _js
-        node = _js._node_bin()
-        if not node:
-            return None                       # no node: UNMEASURED, and _preflight already said so
-        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
-            fh.write(text)
-            tmp = fh.name
+        _old = _js.REPO
         try:
-            r = subprocess.run([node, "--check", tmp], capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=30)
-            if r.returncode != 0:
-                lines = (r.stderr or "").strip().splitlines()
-                return next((l for l in lines if "SyntaxError" in l),
-                            lines[0] if lines else "node --check exited %d" % r.returncode).strip()
+            _js.REPO = d
+            probs, why = _js.check_with_node([label])
         finally:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-    except Exception as e:
-        return None                            # cannot measure is not the same as broken
-    return None
+            _js.REPO = _old
+        if why:
+            return None                    # cannot measure is not the same as broken
+        return "; ".join(probs) if probs else None
+    except Exception:
+        return None
+    finally:
+        shutil.rmtree(d, True)
 
 
 def _preflight(repo=None):
@@ -187,11 +204,12 @@ def bump(ver, name, note, repo=None):
     # ⚠ AND PARSE THE ONE LINE THIS TOOL ITSELF GENERATES. `note` is free text that lands inside a
     # single-quoted JS string literal; the guards above refuse an apostrophe and a callable CSS
     # token, which are the two that have bitten, but neither is a parser. This is.
-    _line_problem = _parses_as_js(new_line)
-    if _line_problem:
-        raise SystemExit("the D2R_BUILD line this bump would write does not parse as JS — NOTHING "
-                         "WRITTEN.\n   %s\n   line: %s" % (_line_problem, new_line[:200]))
-    pending.append((p, s[:a] + new_line + s[b:]))
+    _new_page = s[:a] + new_line + s[b:]
+    _page_problem = _parses_as_page(_new_page)
+    if _page_problem:
+        raise SystemExit("the bible.html this bump would write does not parse — NOTHING WRITTEN."
+                         "\n   %s\n   line: %s" % (_page_problem, new_line[:200]))
+    pending.append((p, _new_page))
 
     p = os.path.join(repo, "tv", "control_app.py")
     s = io.open(p, encoding="utf-8").read()
@@ -235,7 +253,7 @@ def bump(ver, name, note, repo=None):
         # them. [[open-for-write-truncates-first]] [[stale-render]]
         atomic_write(path, text, nl)
 
-    _record_ship_in_tasks(ver, name, note)
+    _record_ship_in_tasks(ver, name, note, repo)
 
     _drop_stale_bytecode([p for p, _t in pending])
 
@@ -351,7 +369,7 @@ def atomic_write(path, text, nl=""):
             pass
 
 
-def _record_ship_in_tasks(ver, name, note):
+def _record_ship_in_tasks(ver, name, note, repo=None):
     """Write the ship's row into TASKS.md, because remembering to has failed THREE times.
 
     TASKS.md documents the workflow in its own words: **bump -> record the row here -> commit**,
@@ -373,7 +391,10 @@ def _record_ship_in_tasks(ver, name, note):
     prevents.
     """
     try:
-        p = os.path.join(REPO, "TASKS.md")
+        # ⚠ v3104 — THE ROOT IT WAS GIVEN. With repo= pointed at a fixture tree, a completed
+        # bump still wrote a ship row into the REAL TASKS.md. Latent (no test completes a
+        # successful bump on a temp root) and cheap to close. [[feedback-fixtures-never-touch-live-data]]
+        p = os.path.join(repo or REPO, "TASKS.md")
         s = io.open(p, encoding="utf-8").read()
         if ver in s:
             return                              # already recorded by hand; do not duplicate

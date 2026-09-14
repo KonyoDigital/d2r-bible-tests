@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3103",
+  "ver": "v3104",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3103: the choke point had no check and I put a SyntaxError on his live screen through it: bump_version stamped v3100 onto a bible.html the browser refuses to parse, and his console execs the working tree. The gate that catches it already existed and I did not run it, so the check moved to the one door every change passes through. Also joined the producer to the renderer end to end, which the second eye named as the remaining gap.",
+  "note": "v3104: the second eye found the hole in v3103 the same night it shipped: a note carrying a script close tag is perfectly valid JavaScript in isolation and still ends the block it lands in, so the line check passed while the extractor saw an unterminated string. The bump now parses the SPLICED page through the same extractor the gate uses. Also scoped the ship row to the root it was given.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

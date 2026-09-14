@@ -52,16 +52,30 @@ class TestTheBumpRefusesATreeThatDoesNotParse(unittest.TestCase):
                       "parse:\n%s" % e)
         print("   preflight: the working tree parses, so a stamp is allowed")
 
-    # ── 2. the line the tool generates is itself parsed ───────────────────────────────────────
-    def test_the_generated_build_line_is_parsed(self):
-        good = "  window.D2R_BUILD = { id:'v1', name:'a', date:'b', note:'c' };"
-        bad = "  window.D2R_BUILD = { id:'v1' ;"
-        g, b = B._parses_as_js(good), B._parses_as_js(bad)
-        print("   generated-line parser: good=%r · bad=%r" % (g, (b or "")[:60]))
-        self.assertIsNone(g, "a well-formed D2R_BUILD line was rejected: %r" % g)
-        self.assertTrue(b, "a MALFORMED D2R_BUILD line was accepted — the note lands inside a JS "
-                           "string literal and nothing would be parsing it")
-        self.assertIn("SyntaxError", b)
+    # ── 2. the ARTIFACT is parsed, not a line of it ───────────────────────────────────────────
+    def test_the_spliced_page_is_parsed_not_just_the_line(self):
+        """⚠⚠ v3103 CHECKED THE LINE AND THAT WAS NOT THE FILE. A cross-family read found it the
+        same night it shipped: `note` lands inside a `<script>` block, so a note containing
+        `</script>` is PERFECTLY VALID JAVASCRIPT in isolation and still ends the block. The old
+        `_parses_as_js` returned None for it while the extractor fed node an unterminated string
+        and an unclosed IIFE. The v1478 apostrophe failure wearing an HTML tag.
+        [[the-unjoined-end]]"""
+        s = io.open(os.path.join(B.REPO, "bible.html"), encoding="utf-8").read()
+        a = s.index("  window.D2R_BUILD = { id:'")
+        b = s.index("\n", a)
+        def spliced(note):
+            return s[:a] + ("  window.D2R_BUILD = { id:'v1', name:'a', date:'b', note:'%s' };"
+                            % note) + s[b:]
+        ok = B._parses_as_page(spliced("a clean note"))
+        tag = B._parses_as_page(spliced("closed the </script> tag"))
+        esc = B._parses_as_page(spliced("ends with a backslash \\"))
+        print("   spliced page: clean=%r · </script>=%r · backslash=%r"
+              % (ok, (tag or "")[:48], (esc or "")[:48]))
+        self.assertIsNone(ok, "a clean note was rejected: %r" % ok)
+        self.assertTrue(tag, "a note containing </script> was ACCEPTED — it is valid JS in "
+                             "isolation and terminates the script block in the page")
+        self.assertTrue(esc, "a note ending in a backslash was ACCEPTED — it escapes the closing "
+                             "quote of the string it lands in")
 
     # ── 3. and it runs BEFORE anything is computed or written ─────────────────────────────────
     def test_the_preflight_runs_before_the_first_write(self):
@@ -137,17 +151,17 @@ class TestTheBumpRefusesATreeThatDoesNotParse(unittest.TestCase):
         self.assertIn("does not parse", msg)
         self.assertIn("bible.html", msg)
 
-    def test_the_bump_refuses_a_note_that_breaks_the_build_line(self):
+    def test_the_bump_refuses_a_note_that_breaks_the_page(self):
         """A trailing backslash escapes the closing quote of the JS string `note` lands in. It
         contains no apostrophe and no CSS token, so BOTH existing guards wave it through — which is
         why a parser had to sit behind them rather than a third spelling."""
         d = self._temp_repo()
         before = io.open(os.path.join(d, "bible.html"), encoding="utf-8").read()
         with self.assertRaises(SystemExit) as cm:
-            B.bump("v99999", "fixture", "ends with a backslash \\", repo=d)
+            B.bump("v99999", "fixture", "closed the </script> tag", repo=d)
         msg = str(cm.exception)
         print("   bad note refused: %s" % msg.splitlines()[0][:90])
-        self.assertIn("does not parse as JS", msg)
+        self.assertIn("does not parse", msg)
         self.assertEqual(io.open(os.path.join(d, "bible.html"), encoding="utf-8").read(), before,
                          "the bump REFUSED and still wrote — 'nothing written' must mean nothing")
 
@@ -171,11 +185,11 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "the generated D2R_BUILD line stops being parsed, so a note that breaks the JS "
-               "string literal it lands in goes in unchecked",
+        "why": "the spliced page stops being parsed, so a note carrying `</script>` — valid JS "
+               "in isolation — terminates the script block and blanks the board",
         "file": "bump_version.py",
-        "find": "    _line_problem = _parses_as_js(new_line)",
-        "replace": "    _line_problem = None",
+        "find": "    _page_problem = _parses_as_page(_new_page)",
+        "replace": "    _page_problem = None",
         "matches": 1,
     },
     {
