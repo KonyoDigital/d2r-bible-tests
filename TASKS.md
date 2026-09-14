@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3150** | `(this commit)` | v3150 — the idempotence law judged threads it never armed |
+| **v3151** | `(this commit)` | v3151 — the heart cost 12.7s because one lookup reparsed the package per name |
+| **v3150** | `fc5fc7e9` | v3150 — the idempotence law judged threads it never armed |
 | **v3149** | `f58881f1` | v3149 — three sabotages my own edits had quietly disarmed |
 | **v3148** | `ac6a86ee` | v3148 — every watcher lane has been attacked in its own body — FLOWING 20 of 20 |
 | **v3147** | `b989860e` | v3147 — the weakest lane is by score, not by each number separately |

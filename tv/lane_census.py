@@ -145,17 +145,53 @@ def _defined_anywhere(name):
     become. PARSED with ast, never grepped, so a mention in a comment or a string cannot satisfy
     it. [[source-reading-guard]]
     """
+    return name in _all_defined_names()
+
+
+_DEFINED_CACHE = {"key": None, "names": None}
+
+
+def _all_defined_names():
+    """Every function name defined anywhere in this package. -> set
+
+    ⚠⚠ ONE PARSE FOR THE WHOLE PACKAGE, NOT ONE PER NAME. `_defined_anywhere` re-parsed every
+    tv/*.py for EVERY name it was asked about. MEASURED: 4 calls per census at ~2.7 s each —
+    5.4M ast nodes walked and `compile` called 2,098 times — which is 11.0 s of a 12.7 s
+    heart.vessels(), and why the render gate reported `warmed /api/heart in 20.7s` and then
+    dropped the heart targets entirely. A surface that stops being checked is UNMEASURED.
+
+    The semantics are unchanged: still ast, never grep, so a name in a comment or a string
+    cannot satisfy it. Keyed on (path, mtime_ns, size) across the package, so any edit re-parses
+    and nothing is served from a stale tree. [[stale-reading]]
+    """
     import ast as _ast
     import glob as _glob
-    for _f in _glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*.py")):
+    import hashlib as _hashlib
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _files = sorted(_glob.glob(os.path.join(_here, "*.py")))
+    _sig = []
+    for _f in _files:
         try:
-            _t = _ast.parse(io.open(_f, encoding="utf-8").read())
+            _st = os.stat(_f)
+            _sig.append((_f, _st.st_mtime_ns, _st.st_size))
+        except Exception:
+            _sig.append((_f, None, None))
+    _key = _hashlib.sha1(repr(_sig).encode("utf-8", "replace")).hexdigest()
+    _snap = _DEFINED_CACHE
+    if _snap.get("key") == _key and _snap.get("names") is not None:
+        return _snap["names"]
+    _names = set()
+    for _f in _files:
+        try:
+            with io.open(_f, encoding="utf-8") as _fh:
+                _t = _ast.parse(_fh.read())
         except Exception:
             continue
         for _n in _ast.walk(_t):
-            if isinstance(_n, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and _n.name == name:
-                return True
-    return False
+            if isinstance(_n, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                _names.add(_n.name)
+    globals()["_DEFINED_CACHE"] = {"key": _key, "names": _names}   # ONE binding: threaded reader
+    return _names
 
 
 def kind_of(src, name, dotted):

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3150",
+  "ver": "v3151",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3150: the idempotence law judged threads it never armed",
+  "note": "v3151: the heart cost 12.7s because one lookup reparsed the package per name",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

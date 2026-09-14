@@ -606,8 +606,16 @@ def check_self_arming():
 _ATK_CACHE = {"key": None, "per_file": None}
 
 
+_LANE_SPAN_CACHE = {"key": None, "val": None}
+
+
 def _lane_spans():
     """The console's watcher lanes and where each one's code actually lives.
+
+    ⚠ MEMOISED ON control_app.py's OWN stat, because parsing 19k lines costs ~260 ms and this is
+    called on every health report — which his console renders on a timer. Keyed on (mtime_ns,
+    size) so an edit re-parses and nothing is ever served from a stale tree. Not a TTL: there is
+    no interval to guess and no window where the answer is wrong. [[stale-reading]]
     -> {fn_name: (lane, first_line, last_line)}
 
     ⚠ PARSED FROM THE REGISTRY, NEVER A LIST HERE. control_app.py pairs every lane name with the
@@ -615,7 +623,14 @@ def _lane_spans():
     goes stale the first time a lane is renamed. [[copy-drift]] [[source-reading-guard]]
     """
     import ast as _ast
-    _src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+    _p = os.path.join(HERE, "control_app.py")
+    with io.open(_p, encoding="utf-8") as _fh:
+        _src = _fh.read()
+        _st = os.fstat(_fh.fileno())        # the handle actually read, never a second stat
+    _key = (_st.st_mtime_ns, int(_st.st_size))
+    _snap = _LANE_SPAN_CACHE
+    if _snap.get("key") == _key and _snap.get("val") is not None:
+        return _snap["val"], _src
     _tree = _ast.parse(_src)
     _lanes = {}
     for _n in _ast.walk(_tree):
@@ -629,6 +644,7 @@ def _lane_spans():
     for _n in _ast.walk(_tree):
         if isinstance(_n, _ast.FunctionDef) and _n.name in _lanes:
             out[_n.name] = (_lanes[_n.name], _n.lineno, _n.end_lineno or _n.lineno)
+    globals()["_LANE_SPAN_CACHE"] = {"key": _key, "val": out}   # ONE binding: control_app is threaded
     return out, _src
 
 
