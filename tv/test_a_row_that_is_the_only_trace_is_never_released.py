@@ -59,16 +59,16 @@ class TestARowThatIsTheOnlyTraceIsNeverReleased(unittest.TestCase):
 
     def test_a_banked_payload_row_is_released(self):
         row = _row("s_banked_1", 1_700_000_000_000, finds=[{"name": "x"}], named=3)
-        p = self._plan([row], ({"s_banked_1": 3}, None))
+        p = self._plan([row], ({"s_banked_1"}, None))
         rel = {r["sessionId"] for r in p["release"]}
         print("   banked payload row released: %s" % ("s_banked_1" in rel))
         self.assertIn("s_banked_1", rel,
-                      "a row whose reel yielded PAGES has a surviving trace and "
+                      "a row whose reel IS CITED in the evidence ledger has a surviving trace and "
                       "may go — holding it would make the river undrainable")
 
     def test_an_unbanked_payload_row_is_held(self):
         row = _row("s_orphan_1", 1_700_000_000_001, finds=[{"name": "x"}], topFind="Shako")
-        p = self._plan([row], ({"someone_else": 2}, None))
+        p = self._plan([row], ({"someone_else"}, None))
         rel = {r["sessionId"] for r in p["release"]}
         held = {r["sessionId"]: r["why"] for r in p["keep"]}
         print("   unbanked payload row released: %s" % ("s_orphan_1" in rel))
@@ -78,58 +78,56 @@ class TestARowThatIsTheOnlyTraceIsNeverReleased(unittest.TestCase):
         self.assertIn("s_orphan_1", held)
         self.assertIn("only trace", held["s_orphan_1"])
 
-    def test_a_row_swept_for_zero_pages_is_held(self):
-        """⚠⚠ THE HOLE THE SECOND EYE FOUND IN v3105, AND THE FILE SETTLES IT. A sweep record is
-        `{ts, classified, pages, promptVer, agentVer}` — there are no finds, no topFind, no names
-        in chronicle_swept.json at all. Key presence proves the reel was LOOKED AT and says nothing
-        about whether what it found was written down. MEASURED on his tree: 395 of 422 records
-        carry `pages: 0`, and of the 207 payload rows the old rule released, only 12 had
-        `pages >= 1`. `pages >= 1` is reel_retention's own bar, not one invented here."""
-        row = _row("s_looked_1", 1_700_000_000_004, finds=[{"name": "Shako"}], topFind="Shako")
-        p = self._plan([row], ({"s_looked_1": 0}, None))
-        rel = {r["sessionId"] for r in p["release"]}
-        held = {r["sessionId"]: r["why"] for r in p["keep"]}
-        print("   swept-for-0-pages row released: %s" % ("s_looked_1" in rel))
-        self.assertNotIn("s_looked_1", rel,
-                         "a row whose reel was swept for ZERO pages was released — the sweep "
-                         "proves a read ATTEMPT, never a durable copy, and this row held the only "
-                         "register of a Shako")
-        self.assertIn("0 PAGES", held["s_looked_1"])
+    def test_the_bank_is_the_evidence_ledger_not_the_sweep(self):
+        """⚠⚠ THREE ARTEFACTS WERE TRIED AND ONLY THE THIRD HOLDS THESE FIELDS.
 
-    def test_the_bank_reader_detects_an_unreadable_store(self):
-        """⚠ `_chron_swept_mem()` CAN NEVER RETURN None — `_json_store_load` marks the path in
-        `control_app._UNREADABLE` and returns `{}`. So the UNKNOWN branch was reachable only if the
-        call RAISED, and a corrupt bank quietly became an EMPTY one, which on a delete path is the
-        difference between holding and releasing."""
+            v3105  a sweep KEY          -> the reel was READ            (a look, not a bank)
+            v3107  sweep `pages >= 1`   -> a CHRONICLE page landed      (not these fields)
+            v3109  evidence citation    -> the find itself is on record
+
+        `_PAYLOAD_FIELDS` are finds, tallies, intakes, named, chron, registered, judged, topFind,
+        and NONE of them appears in `chronicle_swept.json`, whose records are
+        `{ts, classified, pages, promptVer, agentVer}`. A session can drop a Shako into the journal
+        row AND bank a Chronicle page: `pages >= 1` released it while the sweep file still did not
+        contain the Shako."""
         import ast
         import io as _io
         with _io.open(os.path.join(HERE, "journal_retention.py"), encoding="utf-8") as fh:
             tree = ast.parse(fh.read())
         fn = next((n for n in ast.walk(tree)
                    if isinstance(n, ast.FunctionDef) and n.name == "_banked_reels"), None)
-        # ⚠ BOTH SPELLINGS. It is reached as `getattr(_ca, "_UNREADABLE", ())` — a defensive read
-        # so an older control_app cannot raise — so the name is a STRING CONSTANT, not an
-        # Attribute. A walk that only collects `.attr` reports it absent from code that uses it.
-        names = {n.attr for n in ast.walk(fn) if isinstance(n, ast.Attribute)}
-        # ⚠⚠ AND THE DOCSTRING IS EXCLUDED, because it MENTIONS `_UNREADABLE` by name. Leaving it
-        # in makes the assertion satisfiable by PROSE — the exact trap that made a v3102 red-proof
-        # come back BLIND, where a comment quoting an expression satisfied the check about it.
-        # [[source-reading-guard]] [[measured-true-read-wrong]]
-        _doc = fn.body[0] if fn.body else None
-        _doc = _doc.value if (isinstance(_doc, ast.Expr)
-                              and isinstance(getattr(_doc, "value", None), ast.Constant)) else None
-        names |= {n.value for n in ast.walk(fn)
-                  if isinstance(n, ast.Constant) and isinstance(n.value, str) and n is not _doc}
-        print("   _banked_reels consults: %s"
-              % sorted(n for n in names if "UNREAD" in n.upper() or "swept" in n))
-        self.assertIn("_UNREADABLE", names,
-                      "_banked_reels never consults control_app._UNREADABLE, so a corrupt "
-                      "chronicle_swept.json reads as an empty one instead of as UNKNOWN")
+        attrs = [n.attr for n in ast.walk(fn) if isinstance(n, ast.Attribute)]
+        print("   _banked_reels reads: %s" % sorted(set(a for a in attrs if a.startswith("_chron"))))
+        self.assertIn("_chron_evidence_load", attrs,
+                      "_banked_reels does not read the EVIDENCE ledger, which is the only artefact "
+                      "that holds a find")
+        self.assertNotIn("_chron_swept_mem", attrs,
+                         "_banked_reels is back on the SWEEP memory — a key there is a look and a "
+                         "page-count there is a chronicle yield; neither contains a find")
+
+    def test_both_reel_id_spellings_are_accepted(self):
+        """⚠⚠ control_app's v2800 scar MEASURED THIS EXACT FILE: 4,106 witness rows carry
+        `reel_`-prefixed ids and 4,411 carry BARE ones — a near 50/50 split of two conventions in
+        one field, and 'every lookup whose spelling did not match its directory reported the photo
+        as ABSENT'. A walker that accepts one spelling under-counts the bank."""
+        import control_app as CA
+        real = CA._chron_evidence_load
+        CA._chron_evidence_load = lambda: {
+            "uniques": {"Shako": [{"reel": "reel_s_prefixed_1", "frame": "f_1.jpg"},
+                                  {"reel": "s_bare_2", "frame": "f_2.jpg"}]}}
+        try:
+            cited, why = JR._banked_reels()
+        finally:
+            CA._chron_evidence_load = real
+        print("   both spellings -> %s (why=%r)" % (sorted(cited or []), why))
+        self.assertIsNone(why)
+        self.assertEqual(cited, {"s_prefixed_1", "s_bare_2"},
+                         "one of the two id spellings in chron_evidence was dropped")
 
     def test_a_row_with_no_payload_still_goes(self):
         """The rule may not become 'nothing is ever deletable'."""
         row = _row("s_empty_1", 1_700_000_000_002)
-        p = self._plan([row], ({}, None))
+        p = self._plan([row], (set(), None))
         rel = {r["sessionId"] for r in p["release"]}
         print("   empty row released: %s" % ("s_empty_1" in rel))
         self.assertIn("s_empty_1", rel,
@@ -161,13 +159,13 @@ class TestARowThatIsTheOnlyTraceIsNeverReleased(unittest.TestCase):
         self.assertIsNotNone(fn, "_banked_reels is gone")
         calls = [n for n in ast.walk(fn)
                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                 and n.func.attr == "_chron_swept_mem"]
+                 and n.func.attr == "_chron_evidence_load"]
         joins = [n for n in ast.walk(fn)
                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
                  and n.func.attr == "join"]
         print("   _banked_reels: %d delegate call(s) · %d path join(s)" % (len(calls), len(joins)))
         self.assertEqual(len(calls), 1,
-                         "_banked_reels must ask control_app._chron_swept_mem() exactly once")
+                         "_banked_reels must ask control_app._chron_evidence_load() exactly once")
         self.assertEqual(len(joins), 0,
                          "_banked_reels joins a path itself — that is the v2139.1 defect verbatim, "
                          "and it makes every fixture that patches the path read LIVE data")
@@ -183,12 +181,12 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "'looked at' goes back to counting as 'banked', so a row whose reel was swept for "
-               "ZERO pages is released — 195 of his rows, several holding the only register of a "
-               "real find",
+        "why": "only ONE of the two reel-id spellings in chron_evidence is accepted, so half the "
+               "bank goes unseen — control_app's v2800 scar measured 4,106 prefixed rows against "
+               "4,411 bare ones in this very file",
         "file": "journal_retention.py",
-        "find": "            elif _carries_payload(s) and int(banked.get(sid) or 0) < 1:",
-        "replace": "            elif False:",
+        "find": "                cited.add(r[len(\"reel_\"):] if r.startswith(\"reel_\") else r)",
+        "replace": "                cited.add(r)",
         "matches": 1,
     },
     {
@@ -211,8 +209,8 @@ RED_PROOF = [
         "why": "_banked_reels re-derives the sweep path instead of delegating — control_app's "
                "v2139.1 scar verbatim, which made fixtures read LIVE data",
         "file": "journal_retention.py",
-        "find": "        mem = _ca._chron_swept_mem()",
-        "replace": "        mem = json.load(io.open(os.path.join(HERE, 'chronicle_swept.json')))",
+        "find": "        ev = _ca._chron_evidence_load()",
+        "replace": "        ev = json.load(io.open(os.path.join(HERE, 'chron_evidence.json')))",
         "matches": 1,
     },
 ]

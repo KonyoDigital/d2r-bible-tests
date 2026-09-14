@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3108",
+  "ver": "v3109",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3108: the second eye found the river-cannot-drain bug one layer down: backup refused any 0-row copy, which is right for a failed copy and wrong for a ring generation legitimately drained to nothing - so the moment one generation empties, every later apply dies at the backup step before the live file is touched. It now compares the copy to its SOURCE. Also narrowed the rotation race by re-checking each file immediately before its rewrite.",
+  "note": "v3109: third artefact and the first that actually holds these fields. v3105 read a sweep KEY as a bank (a look), v3107 read sweep pages (CHRONICLE pages, not these fields). A session can drop a Shako into the journal row AND bank a chronicle page, so pages >= 1 released it while the sweep file never contained the Shako. chron_evidence carries per-sighting reel citations and that is what is read now, accepting BOTH id spellings per the v2800 scar.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

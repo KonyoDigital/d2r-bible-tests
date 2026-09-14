@@ -121,54 +121,58 @@ def _carries_payload(s):
 
 
 def _banked_reels():
-    """What each reel's sweep record says it YIELDED. -> ({sid: pages} | None, why_unknown | None)
+    """The reels whose finds are BANKED IN THE EVIDENCE LEDGER. -> (set | None, why_unknown | None)
 
-    ⚠⚠ v3107 — THIS RETURNED A SET AND I READ KEY PRESENCE AS PROOF OF BANKING. A cross-family
-    read of v3105 caught it, and the file settles it outright: a sweep record is
+    ⚠⚠ v3109 — THE THIRD ARTEFACT, AND THE FIRST ONE THAT ACTUALLY HOLDS THESE FIELDS. This asked
+    `chronicle_swept.json` twice and both readings were wrong about the same thing:
 
-        {'ts': …, 'classified': 1, 'pages': 0, 'promptVer': 'p1839', 'agentVer': 'v2162'}
+        v3105  key present          -> "the reel was READ"        (a look, not a bank)
+        v3107  pages >= 1           -> "the reel yielded pages"   (CHRONICLE pages, not these fields)
 
-    There are no `finds`, no `topFind`, no `named`, no tallies in `chronicle_swept.json` at all.
-    Membership proves the reel was LOOKED AT. It says nothing about whether what it found was
-    written down anywhere. MEASURED on his tree: 395 of 422 sweep records carry `pages: 0`, and of
-    the 207 payload-carrying rows the old rule released, only **12** had `pages >= 1`.
+    A cross-family read of v3107 named the remaining hole exactly: `pages` counts chronicle pages
+    landing in the EVIDENCE ledger, and `_PAYLOAD_FIELDS` — finds, tallies, intakes, named, chron,
+    registered, judged, topFind — are not in `chronicle_swept.json` at all. A session can drop a
+    Shako into the journal row AND have a Chronicle panel that banked a page: `pages >= 1` releases
+    the row, and the sweep file still does not contain the Shako.
 
-    So the scenario the eye described is real: a gameplay reel registers a Shako, the full survey
-    finds no Chronicle panel so `_proven_empty` fires, the sweep writes `pages: 0`, retention
-    tombstones the reel and `kai_report.json` dies with the directory — and the row holding the
-    register was released because its key was present. The only copy, gone.
+    So this reads the place those finds are ACTUALLY written: `chron_evidence.json`, whose
+    `uniques`/`sets` entries carry per-sighting rows `{reel, frame, witness, conf, lane}`.
+    MEASURED on his tree: it cites 29 distinct reels, and all 12 of the payload-carrying rows the
+    planner would release are among them — so today the answer is unchanged and the MECHANISM is
+    finally the right one, which is what matters when the two stop coinciding.
 
-    ⚠ `pages >= 1` IS THE FILM GATE'S OWN BAR, not one invented here. `reel_retention` refuses to
-    tombstone on `pages < MIN_PAGES` unless `_proven_empty`/`_no_chronicle_to_find` also fire, and
-    `_chron_reel_owes_a_read` treats `pages >= 1` as done. Same question, one lane later.
+    ⚠⚠ BOTH SPELLINGS. control_app's v2800 scar measured this exact file: 4,106 witness rows carry
+    `reel_`-prefixed ids and 4,411 carry BARE ones — a near 50/50 split of two conventions in one
+    field — and "every lookup whose spelling did not match its directory reported the photo as
+    ABSENT". A walker that accepts one spelling under-counts the bank and holds rows that are
+    safe; on the other side of a different rule it would RELEASE rows that are not.
 
-    ⚠ AND UNREADABLE IS DETECTED FOR REAL NOW. `_chron_swept_mem()` can never return None —
-    `_json_store_load` marks the path in `control_app._UNREADABLE` and returns `{}` — so the old
-    `None` branch was reachable only if the call RAISED, and a corrupt bank quietly became an
-    empty one. The path is checked against that set instead. [[unknown-stays-unknown]]
+    ⚠ DELEGATE. `control_app._chron_evidence_load()` is the reader; this joins no path of its own.
+    [[copy-drift]] [[unknown-stays-unknown]]
     """
     try:
         import control_app as _ca
-        mem = _ca._chron_swept_mem()
-        if not isinstance(mem, dict):
-            return None, "the sweep memory came back as %s, not a mapping" % type(mem).__name__
-        try:
-            if _ca._chron_swept_path() in getattr(_ca, "_UNREADABLE", ()):
-                return None, ("chronicle_swept.json exists and could not be parsed, so its "
-                              "contents are UNKNOWN rather than empty")
-        except Exception:
-            pass
+        ev = _ca._chron_evidence_load()
+        if not isinstance(ev, dict):
+            return None, "the evidence ledger came back as %s, not a mapping" % type(ev).__name__
     except Exception as e:
-        return None, "the sweep memory could not be read (%s)" % type(e).__name__
-    out = {}
-    for k, v in mem.items():
-        k = str(k)
-        sid = k[len("reel_"):] if k.startswith("reel_") else k
-        try:
-            out[sid] = int((v or {}).get("pages") or 0) if isinstance(v, dict) else 0
-        except Exception:
-            out[sid] = 0
-    return out, None
+        return None, "the evidence ledger could not be read (%s)" % type(e).__name__
+    cited = set()
+
+    def _walk(o):
+        if isinstance(o, dict):
+            r = o.get("reel")
+            if isinstance(r, str) and r.strip():
+                r = r.strip()
+                cited.add(r[len("reel_"):] if r.startswith("reel_") else r)
+            for v in o.values():
+                _walk(v)
+        elif isinstance(o, list):
+            for x in o:
+                _walk(x)
+
+    _walk(ev)
+    return cited, None
 
 
 def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
@@ -230,16 +234,11 @@ def plan(sessions, hist_dir=None, keep_recent=KEEP_RECENT):
                        "UNKNOWN — and unknown holds on a path that deletes"
                        % (", ".join(_carries_payload(s)), bank_why))
             elif _carries_payload(s) and sid not in banked:
-                why = ("this row still carries %s and NO bank names its reel — nothing recorded "
-                       "reading it at all, so deleting the row throws away the only trace of what "
-                       "it found" % ", ".join(_carries_payload(s)))
-            elif _carries_payload(s) and int(banked.get(sid) or 0) < 1:
-                # ⚠ LOOKED AT IS NOT BANKED. chronicle_swept holds {ts, classified, pages,
-                # promptVer, agentVer} and no finds whatsoever, so a key proves a READ ATTEMPT and
-                # never a durable copy. `pages >= 1` is reel_retention's own bar.
-                why = ("this row still carries %s and its reel was swept for 0 PAGES — the sweep "
-                       "record proves it was looked at, never that what it found was written down "
-                       "anywhere else" % ", ".join(_carries_payload(s)))
+                # ⚠ THE EVIDENCE LEDGER IS THE ONLY ARTEFACT THAT HOLDS THESE FIELDS. A sweep key
+                # is a look; a sweep page-count is a CHRONICLE yield; neither contains a find.
+                why = ("this row still carries %s and the evidence ledger does not cite its reel — "
+                       "nothing else holds what it found, so deleting the row throws away the only "
+                       "trace of it" % ", ".join(_carries_payload(s)))
         if why is None:
             release.append({"sessionId": sid, "t0": s.get("t0"),
                             "why": "film was retired after giving up its information: %s"
