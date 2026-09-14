@@ -310,8 +310,22 @@ def backup(journal_path=None, stamp=None):
         n = sum(1 for _ln in io.open(dst, encoding="utf-8", errors="replace") if _ln.strip())
     except Exception as exc:
         return None, "the backup could not be read back (%s)" % exc
-    if n == 0:
-        return None, "the backup read back EMPTY — refusing to release anything against it"
+    # ⚠⚠ v3108 — "EMPTY COPY" AND "EMPTY SOURCE" ARE DIFFERENT FACTS, AND CONFLATING THEM BROUGHT
+    # THE RIVER-CANNOT-DRAIN BUG BACK ONE LAYER DOWN. A cross-family read of v3106 found it: this
+    # refused any 0-row backup, which is the right guard for "we failed to copy a file that HAD
+    # rows" and the wrong one for a ring generation that was legitimately drained to nothing.
+    # Once `sessions.1.jsonl` holds only doomed rows and is rewritten empty, EVERY later
+    # apply_plan dies here — at the backup step, before the live file is touched — so the doomed
+    # live rows stay forever and the drain reports a refusal it cannot explain.
+    # The honest question is whether the COPY matches the SOURCE, not whether it is non-zero.
+    # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    try:
+        src_n = sum(1 for _ln in io.open(src, encoding="utf-8", errors="replace") if _ln.strip())
+    except Exception as exc:
+        return None, "the source could not be counted for comparison (%s)" % exc
+    if n != src_n:
+        return None, ("the backup holds %d row(s) and the source holds %d — refusing to release "
+                      "anything against a copy that does not match" % (n, src_n))
     return dst, n
 
 
@@ -375,8 +389,34 @@ def apply_plan(p, yes=False, journal_path=None):
                     "backups": backups}
         backups.append({"of": t, "at": where, "rows": n_backed})
 
+    # ⚠⚠ v3108 — THE CORPUS IS RE-CHECKED PER FILE, IMMEDIATELY BEFORE ITS REWRITE. The snapshot
+    # above is taken once and `tv_diablo._journal_write` rotates the ring with `os.replace` and no
+    # lock — live -> .1 -> .2 — so a rotation landing between the check and the write leaves this
+    # rewriting the OLD paths while the doomed rows have moved a generation along. The eye
+    # reproduced it: `ok: True` while the doomed generation is still in the ring. This cannot close
+    # the window entirely without a lock the writer does not take, but it narrows it from "the
+    # whole backup pass" to "between two statements", and a rotation caught here ABORTS instead of
+    # reporting success. [[unknown-stays-unknown]]
+    _want = {s.get("path"): s.get("rows") for s in (p.get("sources") or [])}
+
     dropped, sids, kept_total, wrote = 0, set(), 0, []
     for t in targets:
+        if not journal_path and t in _want:
+            try:
+                _now_n = sum(1 for _l in io.open(t, encoding="utf-8", errors="replace")
+                             if _l.strip())
+            except Exception as exc:
+                return {"ok": False, "why": "%s vanished between the backup and the rewrite (%s) — "
+                                            "%d file(s) already rewritten, backups at %s"
+                                            % (t, exc, len(wrote), BACKUP_DIR),
+                        "backups": backups, "rewrote": wrote}
+            if _now_n != _want[t]:
+                return {"ok": False,
+                        "why": "%s changed between the backup and the rewrite (%s rows planned, "
+                               "%s now) — the ring rotated underneath this apply. %d file(s) "
+                               "already rewritten, backups at %s"
+                               % (t, _want[t], _now_n, len(wrote), BACKUP_DIR),
+                        "backups": backups, "rewrote": wrote}
         kept = []
         try:
             with io.open(t, encoding="utf-8", errors="replace") as fh:

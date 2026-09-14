@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3107",
+  "ver": "v3108",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3107: the second eye found that key presence in chronicle_swept proved a reel was LOOKED AT and never that what it found was banked - the record holds ts, classified, pages, promptVer, agentVer and no finds at all, 395 of 422 carry pages 0, and of 207 payload rows only 12 had pages >= 1. Releasable 409 to 214. Also his two label reports: a lane header spoke for members 8 days apart, and a card stamp read as the session date when it is the flow time.",
+  "note": "v3108: the second eye found the river-cannot-drain bug one layer down: backup refused any 0-row copy, which is right for a failed copy and wrong for a ring generation legitimately drained to nothing - so the moment one generation empties, every later apply dies at the backup step before the live file is touched. It now compares the copy to its SOURCE. Also narrowed the rotation race by re-checking each file immediately before its rewrite.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

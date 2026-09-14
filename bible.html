@@ -50119,7 +50119,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3107', name:'v3107 - looked at is not banked, and a stamp says which event it means', date:'2026-09-14', note:'the second eye found that key presence in chronicle_swept proved a reel was LOOKED AT and never that what it found was banked - the record holds ts, classified, pages, promptVer, agentVer and no finds at all, 395 of 422 carry pages 0, and of 207 payload rows only 12 had pages >= 1. Releasable 409 to 214. Also his two label reports: a lane header spoke for members 8 days apart, and a card stamp read as the session date when it is the flow time.' };
+  window.D2R_BUILD = { id:'v3108', name:'v3108 - an emptied generation must not block the drain', date:'2026-09-14', note:'the second eye found the river-cannot-drain bug one layer down: backup refused any 0-row copy, which is right for a failed copy and wrong for a ring generation legitimately drained to nothing - so the moment one generation empties, every later apply dies at the backup step before the live file is touched. It now compares the copy to its SOURCE. Also narrowed the rotation race by re-checking each file immediately before its rewrite.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

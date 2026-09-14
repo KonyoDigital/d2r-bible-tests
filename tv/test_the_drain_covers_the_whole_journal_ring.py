@@ -164,6 +164,74 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
         self.assertEqual(nb, 2)
 
 
+    # ── 6. a generation drained to NOTHING must not block every later drain ───────────────────
+    def test_an_empty_generation_does_not_block_the_drain(self):
+        """⚠⚠ THE RIVER-CANNOT-DRAIN BUG, ONE LAYER DOWN, FOUND BY THE SECOND EYE ON v3106.
+        `backup()` refused any 0-row copy — the right guard for "we failed to copy a file that HAD
+        rows", the wrong one for a ring generation legitimately drained to nothing. Once
+        `sessions.1.jsonl` holds only doomed rows and is rewritten empty, EVERY later apply dies at
+        the backup step, before the live file is touched, and the doomed live rows stay forever."""
+        io.open(self.rot, "w", encoding="utf-8").close()          # a generation drained to zero
+        rows = [_row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertIn("s_old_live", {r["sessionId"] for r in p["release"]},
+                      "fixture released nothing, so this proves nothing")
+        r = JR.apply_plan(p, yes=True)
+        print("   with an EMPTY generation in the ring: ok=%s why=%r"
+              % (r.get("ok"), (r.get("why") or "")[:70]))
+        self.assertTrue(r.get("ok"),
+                        "an empty ring generation blocked the whole drain: %s" % r.get("why"))
+        self.assertNotIn("s_old_live", self._ids(self.live))
+
+    def test_a_backup_of_an_empty_file_is_a_backup(self):
+        """The honest question is whether the COPY matches the SOURCE, not whether it is non-zero."""
+        io.open(self.rot, "w", encoding="utf-8").close()
+        where, n = JR.backup(self.rot, stamp="EMPTY")
+        print("   backup of an empty source -> %r rows=%r" % (bool(where), n))
+        self.assertTrue(where, "backing up a legitimately empty file was refused: %r" % n)
+        self.assertEqual(n, 0)
+
+    # ── 7. the rewrite re-checks its own file, because the ring can rotate mid-apply ──────────
+    def test_the_rewrite_rechecks_each_file(self):
+        """⚠ STRUCTURAL, AND SAID SO. `tv_diablo._journal_write` rotates with `os.replace` and no
+        lock, so a rotation landing between the corpus snapshot and a rewrite leaves this editing
+        the OLD paths while the doomed rows moved a generation along — the eye reproduced
+        `ok: True` with the doomed generation still in the ring. A test cannot land a rotation
+        between two statements without a hook the writer does not offer, so this asserts the
+        re-check EXISTS inside the rewrite loop rather than pretending to race it.
+        [[unknown-stays-unknown]]"""
+        with io.open(os.path.join(HERE, "journal_retention.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "apply_plan"), None)
+        self.assertIsNotNone(fn, "apply_plan is gone")
+        loops = [n for n in ast.walk(fn) if isinstance(n, ast.For)]
+        rewrite = [l for l in loops
+                   if any(isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute)
+                          and x.func.attr == "replace" for x in ast.walk(l))]
+        self.assertTrue(rewrite, "no loop in apply_plan performs the atomic replace")
+        inner = rewrite[0]
+        # ⚠⚠ THE GUARD'S **TEST**, NOT MERELY THE NAME. A first cut asked whether `_want` appeared
+        # anywhere in the loop, and the red-proof that replaces the condition with `if False:`
+        # came back BLIND — the dead branch still MENTIONS `_want` in its body. A check that a
+        # name is present cannot tell reachable code from unreachable code.
+        # [[sabotage-is-usually-the-wrong-one]] [[regression-guard]]
+        # ⚠ THE OUTER GUARD, NAMED BY BOTH ITS OPERANDS. The block holds TWO ifs testing `_want`
+        # — the entry guard and the mismatch check inside it — so a sabotage that kills only the
+        # entry guard still leaves one, and the first two cuts of this assertion came back BLIND
+        # for exactly that reason. The entry guard is the one that tests `journal_path` too.
+        def _tests(n, *names):
+            got = {x.id for x in ast.walk(n.test) if isinstance(x, ast.Name)}
+            return all(nm in got for nm in names)
+        guards = [n for n in ast.walk(inner) if isinstance(n, ast.If)
+                  and _tests(n, "_want", "journal_path")]
+        print("   rewrite loop: %d entry guard(s) testing _want AND journal_path" % len(guards))
+        self.assertEqual(len(guards), 1,
+                         "the rewrite loop has %d entry guard(s) re-checking its file against the "
+                         "plan — a rotation between the backup and the write is then reported as "
+                         "success" % len(guards))
+
 RED_PROOF = [
     {
         "why": "the applier goes back to rewriting the live file only, so every release against a "
@@ -188,6 +256,24 @@ RED_PROOF = [
         "file": "journal_retention.py",
         "find": '    dst = os.path.join(BACKUP_DIR, "%s.%s" % (os.path.basename(src), stamp))',
         "replace": '    dst = os.path.join(BACKUP_DIR, "sessions.%s.jsonl" % stamp)',
+        "matches": 1,
+    },
+    {
+        "why": "an empty ring generation is treated as a FAILED backup again, so the moment one "
+               "generation drains to nothing every later apply dies at the backup step and the "
+               "doomed live rows stay forever — the river-cannot-drain bug one layer down",
+        "file": "journal_retention.py",
+        "find": "    if n != src_n:",
+        "replace": "    if n == 0:",
+        "matches": 1,
+    },
+    {
+        "why": "the rewrite stops re-checking its own file, so a ring rotation landing between the "
+               "backup and the write is reported as success while the doomed generation is still "
+               "in the ring",
+        "file": "journal_retention.py",
+        "find": "        if not journal_path and t in _want:",
+        "replace": "        if False:",
         "matches": 1,
     },
     {
