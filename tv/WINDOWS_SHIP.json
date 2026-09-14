@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3100",
+  "ver": "v3101",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3100: the second eye two HIGHs on v3099: the producer was fixed and the consumer still bailed - renderSubMeter returned on not-known before the grok paint, so on the exact machine v3099 exists for the payload arrived and the chip was never drawn. And a ceiling of 0 was published as None, so the circuit that refuses every read was drawn like a lane nobody measured. Also the raw 10px the visual-lock ratchet refused, swapped to the token that is exactly 10px.",
+  "note": "v3101: my v3100 splice used the old block closing catch as its END anchor and left it behind, so bible.html carried a bare } catch(e){} after paintGrok() - a SyntaxError, which means the browser refuses the WHOLE script and renderSubMeter is never assigned. His console execs this working tree, so it was live. The second eye caught it on the shipped diff; the js-syntax gate would have caught it too and I did not run it before committing.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
