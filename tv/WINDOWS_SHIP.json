@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3152",
+  "ver": "v3153",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3152: a file the package could not read is not a name that does not exist",
+  "note": "v3153: the restore proposal and the board are joined by a measurement, not a comment",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

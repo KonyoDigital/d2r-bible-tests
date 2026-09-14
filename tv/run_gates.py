@@ -2906,6 +2906,20 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_the_restore_proposal_reaches_the_board",
+         [sys.executable, os.path.join(HERE, "test_the_restore_proposal_reaches_the_board.py")], 120,
+         why="#81 — THE RESTORE'S TWO HALVES WERE JOINED BY A COMMENT. ledger_restore builds the "
+             "proposal and the board's `window.chronicleApply` is the only door it may travel "
+             "through, and between them sat one sentence in a test — 'the board reads "
+             "proposal.wouldAdd and nothing else' — asserted nowhere. Rename that key on EITHER "
+             "side and the old shape law stays green while the apply posts a payload the board "
+             "reads as EMPTY and reports the board's own ok. This law measures the join: the key "
+             "the restore writes against the key the board's own source reads, brace-matched so a "
+             "fixed window cannot report a key as absent that is merely past its end. ⚠ It does "
+             "NOT prove an end-to-end apply: chronicle_apply calls the live board WINDOW and "
+             "cannot be sandboxed, and the board is whole (missingTotal 0 against 446/446), so a "
+             "real apply would mean deleting one of his finds to manufacture a gap. That half "
+             "stays honestly UNPROVEN rather than faked."),
     Gate("test_a_skipped_file_is_never_an_absent_name",
          [sys.executable, os.path.join(HERE, "test_a_skipped_file_is_never_an_absent_name.py")], 120,
          why="FOUND BY THE SECOND EYE ON THE SHIPPED v3151 DIFF, and it was damage from that "

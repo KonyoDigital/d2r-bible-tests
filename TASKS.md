@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3152** | `(this commit)` | v3152 — a file the package could not read is not a name that does not exist |
+| **v3153** | `(this commit)` | v3153 — the restore proposal and the board are joined by a measurement, not a comment |
+| **v3152** | `7b52b6be` | v3152 — a file the package could not read is not a name that does not exist |
 | **v3151** | `697bb968` | v3151 — the heart cost 12.7s because one lookup reparsed the package per name |
 | **v3150** | `fc5fc7e9` | v3150 — the idempotence law judged threads it never armed |
 | **v3149** | `f58881f1` | v3149 — three sabotages my own edits had quietly disarmed |
