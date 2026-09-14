@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3148",
+  "ver": "v3149",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3148: every watcher lane has been attacked in its own body — FLOWING 20 of 20",
+  "note": "v3149: three sabotages my own edits had quietly disarmed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

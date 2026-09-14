@@ -1000,8 +1000,9 @@ def check_lane_attacks():
     # organ written to refuse overstatement. Today every lane is (2,2) so the two agree — which is
     # exactly why the law drives it instead of reading the live ledger.
     # [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]]
-    from confidence import wilson_lower          # one home for the maths — never a copy
-    _weak = min(_proven, key=lambda l: wilson_lower(_lanes[l][0], _lanes[l][1])) if _proven else None
+    import confidence as _conf                   # one home for the maths — never a copy
+    _weak = min(_proven,
+                key=lambda l: _conf.wilson_lower(_lanes[l][0], _lanes[l][1])) if _proven else None
     _k, _n = _lanes[_weak] if _weak else (None, None)
     line = ("%d of %d watcher lane(s) have earned a refusal under sabotage (weakest %s/%s, and "
             "that is the score published so none is credited with another's proof)"
@@ -1021,7 +1022,7 @@ def check_lane_attacks():
                 # each lane carries ITS OWN number: the row-wide weakest is the honest answer only
                 # while nothing better is known, and here something better IS known.
                 surface_scores=dict(
-                    (l, wilson_lower(_lanes[l][0], _lanes[l][1])) for l in _proven))
+                    (l, _conf.wilson_lower(_lanes[l][0], _lanes[l][1])) for l in _proven))
 
 
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,

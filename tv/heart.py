@@ -221,8 +221,8 @@ def _live_of(watcher, name):
 def watched_count(rows):
     """How many vessels something ACTUALLY watches. -> int
 
-    ⚠ NOT len(out). The DARK rows are appended to that same list and DARK means, in this file's
-    own words, "it runs and NOTHING watches it" — so `len(out)` is a different quantity wearing
+    ⚠ NOT len(out). The DARK rows are appended to that same list, and DARK is by this file's own
+    definition the state where no watcher covers the vessel — so `len(out)` is a different quantity wearing
     the same word, and the unmeasured-flow reason would say "N vessel(s) are watched" while
     counting vessels nobody watches. Today DARK is 0 and the two agree, which is precisely why a
     law driven on the LIVE census could never catch it. [[label-outlived-referent]]

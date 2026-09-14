@@ -133,7 +133,8 @@ RED_PROOF = [
                "own evidence supports 0.1176 — a three-fold overstatement out of the organ "
                "written to refuse overstatement",
         "file": "health_engine.py",
-        "find": "    _weak = min(_proven, key=lambda l: wilson_lower(_lanes[l][0], _lanes[l][1])) if _proven else None\n"
+        "find": "    _weak = min(_proven,\n"
+                "                key=lambda l: _conf.wilson_lower(_lanes[l][0], _lanes[l][1])) if _proven else None\n"
                 "    _k, _n = _lanes[_weak] if _weak else (None, None)",
         "replace": "    _k = min((_lanes[l][0] for l in _proven), default=None)\n"
                    "    _n = min((_lanes[l][1] for l in _proven), default=None)",
@@ -143,8 +144,8 @@ RED_PROOF = [
         "why": "names every lane in the ledger as a surface, so a lane ATTACKED AND NEVER REFUSED "
                "inherits the proven lanes' score and reads as supervised",
         "file": "health_engine.py",
-        "find": "                k=_k, n=_n, surfaces=_proven)",
-        "replace": "                k=_k, n=_n, surfaces=sorted(_lanes))",
+        "find": "                k=_k, n=_n, surfaces=_proven,",
+        "replace": "                k=_k, n=_n, surfaces=sorted(_lanes),",
         "matches": 1,
     },
     {
