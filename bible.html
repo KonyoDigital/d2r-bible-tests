@@ -3681,7 +3681,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
    read looks identical to a lane nobody switched on unless the panel says which. */
 #tab-tools .sm-lane{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-left:14px;padding-left:14px;border-left:1px solid rgba(255,255,255,.10)}
 #tab-tools .sm-lane[hidden]{display:none}
-#tab-tools .sm-lane-k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:rgba(186,150,255,.86);white-space:nowrap}
+#tab-tools .sm-lane-k{font-size:var(--fs-micro);letter-spacing:.08em;text-transform:uppercase;color:rgba(186,150,255,.86);white-space:nowrap}
 #tab-tools .sm-lane-grok .sm-bar i{background:linear-gradient(90deg,rgba(150,110,235,.95),rgba(186,150,255,.95))}
 /* AT CAP is a fault and reads like one — it is refusing every read. OFF is his choice and stays quiet. */
 #tab-tools .sm-lane-capped .sm-lane-k{color:#e0a34a}
@@ -50119,7 +50119,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3099', name:'v3099 - the meter publishes both lanes even when claude has never read', date:'2026-09-14', note:'the second eye HIGH on v3098, reproduced before the fix: the lanes were built behind claude ledger check, so on a machine where claude has never read the GROK lane was not published at all - and grok records into a different file entirely. Also drove the claude half of the join for real, and the boundary red-proof came back BLIND until the clock was held still.' };
+  window.D2R_BUILD = { id:'v3100', name:'v3100 - the grok chip paints when claude is unmeasured', date:'2026-09-14', note:'the second eye two HIGHs on v3099: the producer was fixed and the consumer still bailed - renderSubMeter returned on not-known before the grok paint, so on the exact machine v3099 exists for the payload arrived and the chip was never drawn. And a ceiling of 0 was published as None, so the circuit that refuses every read was drawn like a lane nobody measured. Also the raw 10px the visual-lock ratchet refused, swapped to the token that is exactly 10px.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -52819,6 +52819,7 @@ window.renderSubMeter = function(){
       paint('sm-bar-d','sm-fill-d','sm-v-d', null, null);
       if (say) say.textContent = 'not measured — ' + ((j && j.why) || 'no reading available')
         + ' · this lane bills NO API tokens, it runs on your Claude subscription';
+      paintGrok();          /* ⚠ v3100 — CLAUDE unmeasured says NOTHING about the GROK lane */
       return j;
     }
     paint('sm-bar-h','sm-fill-h','sm-v-h', j.hour, j.hourlyMax);
@@ -52844,23 +52845,45 @@ window.renderSubMeter = function(){
        Measured when this was wired: grok read 201 against a _DAILY_MAX of 200 — a cap this console
        invented, not one xAI imposed — so every read was refused while the panel showed only
        Claude. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
-    try {
-      var gl = (j.lanes && j.lanes.grok) || null, ghost = document.getElementById('sm-grok');
-      var gk = document.getElementById('sm-grok-k');
-      if (ghost){
+    /* ⚠⚠ v3100 — A FUNCTION, CALLED ON BOTH PATHS, BECAUSE THE FIX ONE VERSION AGO ONLY MOVED
+       THE PRODUCER. v3099 made `_meter_lanes` run on every return of `_meter_state`, so
+       /api/meter now carries lanes.grok on a machine where CLAUDE has never read. A cross-family
+       read of that diff found the other half still shut: this block sat BELOW the `if (!known)
+       ... return j`, so on exactly the machine v3099 existed for — grok primary or shadow, a
+       fresh checkout, CI — the payload arrived and the chip was never drawn. The same unjoined
+       end, one layer down. [[the-unjoined-end]] [[plumbing-with-no-tap]] */
+    function paintGrok(){
+      try {
+        var gl = (j.lanes && j.lanes.grok) || null, ghost = document.getElementById('sm-grok');
+        var gk = document.getElementById('sm-grok-k');
+        if (!ghost) return;
         ghost.hidden = !gl;
-        if (gl){
-          paint('sm-bar-gh','sm-fill-gh','sm-v-gh', gl.hour, gl.hourlyMax);
-          paint('sm-bar-gd','sm-fill-gd','sm-v-gd', gl.day, gl.dailyMax);
-          ghost.classList.toggle('sm-lane-capped', !!gl.atCap);
-          ghost.classList.toggle('sm-lane-off', gl.on === false);
-          ghost.classList.toggle('sm-unknown', gl.on === null || gl.hour === null);
-          if (gk) gk.textContent = gl.atCap ? 'grok · AT CAP' : (gl.on === false ? 'grok · off' : 'grok');
-          ghost.setAttribute('title', (gl.why || '')
-            || (gl.hour + '/' + gl.hourlyMax + ' this hour, ' + gl.day + '/' + gl.dailyMax
-                + ' today — a separate subscription CLI, billing no tokens'));
+        if (!gl) return;
+        /* ⚠⚠ A CEILING OF 0 IS A MEASURED CONFIGURATION, NOT AN UNMEASURED VALUE, AND `paint`
+           CANNOT TELL THEM APART — it treats any falsey `max` as "nothing to divide by" and
+           writes the same `–` it writes for null. So the circuit that refuses EVERY read looked
+           identical to a lane nobody has measured. Three facts, two of them sharing pixels.
+           The server now publishes the real integer (0 stays 0; only the unreadable path is
+           null), and this names it. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+        var circuit = (gl.capWindow === 'circuit');
+        paint('sm-bar-gh','sm-fill-gh','sm-v-gh', gl.hour, gl.hourlyMax);
+        paint('sm-bar-gd','sm-fill-gd','sm-v-gd', gl.day, gl.dailyMax);
+        if (circuit){
+          var vh = document.getElementById('sm-v-gh'), vd = document.getElementById('sm-v-gd');
+          if (vh) vh.textContent = (gl.hour === null ? '?' : gl.hour) + '/0';
+          if (vd) vd.textContent = (gl.day === null ? '?' : gl.day) + '/0';
         }
-      }
+        ghost.classList.toggle('sm-lane-capped', !!gl.atCap);
+        ghost.classList.toggle('sm-lane-off', gl.on === false);
+        ghost.classList.toggle('sm-unknown', gl.on === null || gl.hour === null);
+        if (gk) gk.textContent = circuit ? 'grok · CEILING 0'
+          : (gl.atCap ? 'grok · AT CAP' : (gl.on === false ? 'grok · off' : 'grok'));
+        ghost.setAttribute('title', (gl.why || '')
+          || (gl.hour + '/' + gl.hourlyMax + ' this hour, ' + gl.day + '/' + gl.dailyMax
+              + ' today — a separate subscription CLI, billing no tokens'));
+      } catch(e){}
+    }
+    paintGrok();
     } catch(e){}
     return j;
   }).catch(function(e){

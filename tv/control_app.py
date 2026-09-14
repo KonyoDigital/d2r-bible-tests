@@ -27714,7 +27714,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3099",
+        "ver": "v3100",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28874,7 +28874,13 @@ def _meter_lanes(out):
         _at, _gwin, _gtxt = _cap_state(_gh, _gd, _ghm, _gdm)
         lanes["grok"] = {
             "label": "Grok", "default": False, "on": _gon, "unit": "reads",
-            "hour": _gh, "day": _gd, "hourlyMax": _ghm or None, "dailyMax": _gdm or None,
+            # ⚠ v3100 — `or None` ERASED THE DIFFERENCE BETWEEN "ceiling 0" AND "not measured".
+            # `_ghm`/`_gdm` are already ints from `int(_g5._HOURLY_MAX)`, so 0 means CONFIGURED TO
+            # ZERO — the circuit that refuses every read — and never "unknown"; only the except
+            # path below is allowed to publish None. The UI's `paint()` treats any falsey max as
+            # nothing-to-divide-by and writes the same `–` it writes for null, so the two shared
+            # pixels. [[zero-needs-a-denominator]]
+            "hour": _gh, "day": _gd, "hourlyMax": _ghm, "dailyMax": _gdm,
             "armed": bool(_ghm > 0 and _gdm > 0), "lastTs": None, "atCap": _at,
             "capWindow": _gwin, "capText": _gtxt,
             "why": ("this lane is AT ITS CEILING (%s) and is refusing every read — "

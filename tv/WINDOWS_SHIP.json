@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3099",
+  "ver": "v3100",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3099: the second eye HIGH on v3098, reproduced before the fix: the lanes were built behind claude ledger check, so on a machine where claude has never read the GROK lane was not published at all - and grok records into a different file entirely. Also drove the claude half of the join for real, and the boundary red-proof came back BLIND until the clock was held still.",
+  "note": "v3100: the second eye two HIGHs on v3099: the producer was fixed and the consumer still bailed - renderSubMeter returned on not-known before the grok paint, so on the exact machine v3099 exists for the payload arrived and the chip was never drawn. And a ceiling of 0 was published as None, so the circuit that refuses every read was drawn like a lane nobody measured. Also the raw 10px the visual-lock ratchet refused, swapped to the token that is exactly 10px.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2569,6 +2569,25 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_the_grok_chip_paints_on_every_path",
+         [sys.executable, os.path.join(HERE, "test_the_grok_chip_paints_on_every_path.py")], 120,
+         why="THE GROK CHIP MUST PAINT WHEN CLAUDE IS UNMEASURED, AND A CEILING OF 0 MUST NOT LOOK "
+             "UNMEASURED. The second eye's two HIGHs on the shipped v3099 diff, both verified in "
+             "the file before a line changed. v3099 fixed the PRODUCER - _meter_lanes now runs on "
+             "every return of _meter_state, so /api/meter carries lanes.grok even where claude has "
+             "never written its ledger - and the CONSUMER was still shut: bible.html's "
+             "renderSubMeter did `if (!known){ ... return j; }` at 52817-52822 and the grok paint "
+             "sat at 52848, below it. So on exactly the machine v3099 exists for (grok primary, "
+             "grok shadow, a fresh checkout, CI) the payload arrived and the chip was never drawn - "
+             "the same unjoined end, one layer down. Second: `_ghm or None` turned a ceiling of 0 "
+             "into None while paint() writes the same '-' for any falsey max, so the circuit that "
+             "refuses EVERY read was drawn identically to a lane nobody measured - off, unknown and "
+             "switched-off-at-the-budget are three facts and two shared pixels. THIRD, WHICH NOBODY "
+             "REPORTED AND IS MINE: the early call is legal only because paintGrok is a hoisted "
+             "function DECLARATION; rewriting it as `const paintGrok = () =>` - the modern habit, "
+             "and a change any reviewer waves through - throws a TDZ ReferenceError inside a try, "
+             "killing the chip silently on the one path this exists to fix. All three pinned, the "
+             "block located by BRACE MATCHING rather than a fixed window."),
     Gate("test_the_cap_names_the_window_that_tripped",
          [sys.executable, os.path.join(HERE, "test_the_cap_names_the_window_that_tripped.py")], 120,
          why="A CAPPED READ LANE MUST NAME THE WINDOW THAT IS FULL, AND `atCap` MUST MIRROR THE "
