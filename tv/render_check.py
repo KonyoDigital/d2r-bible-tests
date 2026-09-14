@@ -373,10 +373,16 @@ def _shelf_activate_why():
                       + ' btn-shelf=' + (btn ? btn.id : 'ABSENT') + ' tries=' + tries;
         var disp = getComputedStyle(th).display;
         if (disp === 'none') {
+            var _th2 = null; try { _th2 = window.TH || null; } catch (e) {}
             return 'GATE 1 (the theatre): #theatre is still display:none after ' + tries
                  + ' click(s) on ' + (btn ? '#' + btn.id : 'NO DOOR FOUND')
                  + '. view=' + view + ' _toTVD=' + (window._toTVD ? 'yes' : 'undefined')
-                 + ' theatre-open class=' + (th.className.indexOf('theatre-open') >= 0);
+                 + ' theatre-open class=' + (th.className.indexOf('theatre-open') >= 0)
+                 /* ⚠ v3125 — SAY WHETHER THE DOOR IS IDLE. TH.open false with the overlay UP means
+                    thOpen() failed and returned quietly, and the harness is refusing to retry. */
+                 + ' TH.open=' + (_th2 ? _th2.open : 'TH UNREACHABLE')
+                 + ' ovHidden=' + (ov ? ov.hidden : 'NO OVERLAY')
+                 + ' sessions=' + (_th2 && _th2.sessions ? _th2.sessions.length : 'n/a');
         }
         if (!ov) return 'GATE 2 (the overlay): #th-shelfov is ABSENT from the DOM, though the '
                       + 'theatre is open (display=' + disp + ', ' + tries + ' click(s))';
@@ -1762,6 +1768,15 @@ TARGETS = {
         # earlier flakiness at 14 was the second eye holding the load at 4.68, which is a room
         # problem I now fix by not running the eye during a push rather than by paying 10 extra
         # seconds five times over. [[ab-against-head-before-blaming-the-room]]
+        # ⚠⚠ v3125 — 12s CANNOT COVER THE DOOR'S OWN PATH. Since v3124 the harness no longer
+        # builds the shelf; it clicks #btn-shelf and waits, and that handler does
+        # `await thOpen()` BEFORE `thShelf(true)`. thOpen awaits /api/sessions (8s abort)
+        # and THEN thLoadSession (12s abort) — up to 20s before the shelf is even asked to
+        # build, against a default activate_budget of 12.0. This file already measured the
+        # FASTER path (harness thShelf straight after the theatre opened) going true at
+        # 15.8s and 14.5s against that same bound. Widening is the honest fix here because
+        # the harness no longer STARTS the work — it waits on a door a person also waits on.
+        "activate_budget": 30.0,
         "serve": True, "path": "", "warmup": 14.0, "settles": False,
         "why": "\U0001f4da THE SHELF'S REEL CARDS \u2014 the things the panel is NAMED after, and "
                "nothing has ever photographed them. Every existing shelf target aims at the "
@@ -1872,7 +1887,19 @@ TARGETS = {
                    the whole 12s oscillating — while GATE 1 truthfully reports "display:none after N
                    clicks" and never says the door is shutting itself. The overlay being hidden is
                    the one state in which that branch cannot fire. [[zero-needs-a-denominator]] */
-                if (ov.hidden && (window.__rcShelfTries || 0) < 25) {
+                /* ⚠⚠ v3125 — THE DOOR'S OWN PREDICATE, NOT A PROXY FOR IT. v3124 suppressed the
+                   click whenever the overlay was visible, which is NOT the same question the
+                   handler asks. `thOpen()` can fail on /api/sessions, set TH.open = false, re-hide
+                   #theatre and RETURN WITHOUT THROWING — the handler still runs thShelf(true), so
+                   the overlay ends up unhidden inside a CLOSED theatre. A click there would not
+                   close anything (TH.open is false); it would retry thOpen, which is exactly what
+                   is needed. v3124's guard blocked that retry for the rest of the window and GATE 1
+                   said only "display:none after N clicks". `window.TH` is exposed (v948.8, as a
+                   debugger handle), so ask the real question. [[zero-needs-a-denominator]] */
+                var _TH = null; try { _TH = window.TH || null; } catch (e) {}
+                var _wouldClose = _TH ? !!(_TH.open && ov && !ov.hidden)
+                                      : !ov.hidden;   /* no TH -> the conservative proxy */
+                if (!_wouldClose && (window.__rcShelfTries || 0) < 25) {
                     window.__rcShelfTries = (window.__rcShelfTries || 0) + 1;
                     /* leave the gameplay home first — #btn-shelf is display:none under
                        body[data-view="sessions"], where a freshly served console lands */
@@ -1970,6 +1997,15 @@ TARGETS = {
         # FIRST width while the other four read 21/21"). Warming does not loosen anything;
         "serve": True,
         "path": "",
+        # ⚠⚠ v3125 — 12s CANNOT COVER THE DOOR'S OWN PATH. Since v3124 the harness no longer
+        # builds the shelf; it clicks #btn-shelf and waits, and that handler does
+        # `await thOpen()` BEFORE `thShelf(true)`. thOpen awaits /api/sessions (8s abort)
+        # and THEN thLoadSession (12s abort) — up to 20s before the shelf is even asked to
+        # build, against a default activate_budget of 12.0. This file already measured the
+        # FASTER path (harness thShelf straight after the theatre opened) going true at
+        # 15.8s and 14.5s against that same bound. Widening is the honest fix here because
+        # the harness no longer STARTS the work — it waits on a door a person also waits on.
+        "activate_budget": 30.0,
         "warmup": 14.0,
         "settles": False,
         "why": ("🌊 THE RIVER — the lanes painted into #sh-lanes from /api/river, and the surface "
@@ -2057,7 +2093,19 @@ TARGETS = {
                    the whole 12s oscillating — while GATE 1 truthfully reports "display:none after N
                    clicks" and never says the door is shutting itself. The overlay being hidden is
                    the one state in which that branch cannot fire. [[zero-needs-a-denominator]] */
-                if (ov.hidden && (window.__rcShelfTries || 0) < 25) {
+                /* ⚠⚠ v3125 — THE DOOR'S OWN PREDICATE, NOT A PROXY FOR IT. v3124 suppressed the
+                   click whenever the overlay was visible, which is NOT the same question the
+                   handler asks. `thOpen()` can fail on /api/sessions, set TH.open = false, re-hide
+                   #theatre and RETURN WITHOUT THROWING — the handler still runs thShelf(true), so
+                   the overlay ends up unhidden inside a CLOSED theatre. A click there would not
+                   close anything (TH.open is false); it would retry thOpen, which is exactly what
+                   is needed. v3124's guard blocked that retry for the rest of the window and GATE 1
+                   said only "display:none after N clicks". `window.TH` is exposed (v948.8, as a
+                   debugger handle), so ask the real question. [[zero-needs-a-denominator]] */
+                var _TH = null; try { _TH = window.TH || null; } catch (e) {}
+                var _wouldClose = _TH ? !!(_TH.open && ov && !ov.hidden)
+                                      : !ov.hidden;   /* no TH -> the conservative proxy */
+                if (!_wouldClose && (window.__rcShelfTries || 0) < 25) {
                     window.__rcShelfTries = (window.__rcShelfTries || 0) + 1;
                     /* leave the gameplay home first — #btn-shelf is display:none under
                        body[data-view="sessions"], where a freshly served console lands */

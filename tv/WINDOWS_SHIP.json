@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3124",
+  "ver": "v3125",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3124: The second eye on v3122, four findings, all real. ONE (High): v3122 made the thShelf nudge one-shot, which silenced the HARNESS wipe and left the PRODUCT one — the door handler awaits thOpen then calls thShelf(true) itself, rebuilding ov.innerHTML and restoring the reading-the-river placeholder over lanes already loaded. Two builders, no shared sentinel. The harness now never calls thShelf at all; the door does everything, which is the contract the unregistered _shelf_activate always had. TWO: the retry clicked a TOGGLE — btn-shelf first branch is thClose when the overlay is visible — so a half-open door could be shut and reopened for the whole window. It now clicks only while the overlay is hidden, the one state that branch cannot fire in. THREE: the diagnostic reported river counters at a CARDS failure, and counted card nodes while the gate counts painted rects. FOUR: the three terminal river refusals are shr-wait shr-bad, so a bare shr-wait test re-asked an honest refusal for 12s instead of photographing it.",
+  "note": "v3125: The second eye on v3124. ONE (High): dropping the harness thShelf was right, and it moved activation onto the DOOR path — btn-shelf awaits thOpen() before thShelf(true), and thOpen awaits /api/sessions (8s abort) then thLoadSession (12s abort), so up to 20s can pass before the shelf is even asked to build, against a default activate_budget of 12.0. This file had already measured the FASTER path going true at 15.8s and 14.5s against that same bound. Both targets now declare activate_budget 30.0, and widening is honest here because the harness no longer starts the work — it waits on a door a person also waits on. TWO: the click suppression used the overlay visibility as a proxy for the door close predicate, and they are not the same question. thOpen can fail, set TH.open false, re-hide the theatre and return WITHOUT throwing, leaving the overlay up inside a closed theatre — where a click would retry rather than close, and v3124 blocked it. window.TH is exposed, so it now asks the real question.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
