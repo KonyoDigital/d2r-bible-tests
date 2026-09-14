@@ -197,6 +197,16 @@ def _all_defined_names():
         try:
             with io.open(_f, encoding="utf-8") as _fh:
                 _t = _ast.parse(_fh.read())
+        except (SyntaxError, UnicodeDecodeError):
+            # ⚠⚠ A FILE THAT WILL NOT PARSE IS A COMPLETE ANSWER ABOUT THESE BYTES, and must not
+            # be confused with one that could not be READ. Its failure is deterministic: the same
+            # bytes fail the same way forever, and the moment it is fixed its mtime moves and the
+            # key invalidates. Treating it as incomplete is what the second eye caught on v3152 —
+            # ONE saved syntax error in any tv/*.py (tests included) would stop the cache being
+            # written at all, reinstating the 11s heart.vessels() stall this memo exists to kill,
+            # AND suppress FOREIGN for the whole process, so `serve_forever` and `wait` would be
+            # taken for vessels to watch. A broken file defines no names that can run anyway.
+            continue
         except Exception:
             # ⚠⚠ A FILE THAT STATS AND THEN WILL NOT OPEN MUST NOT BE CACHED AS ANSWERED. The
             # key is built from os.stat BEFORE this loop, so storing a short set here would

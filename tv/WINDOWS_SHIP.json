@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3153",
+  "ver": "v3154",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3153: the restore proposal and the board are joined by a measurement, not a comment",
+  "note": "v3154: a file that will not parse is a complete answer, not an unreadable one",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

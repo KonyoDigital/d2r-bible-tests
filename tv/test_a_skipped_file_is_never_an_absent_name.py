@@ -14,6 +14,7 @@ while the heart quietly stopped watching a real lane. No stat would move to let 
 The pre-v3151 code swallowed the same exception PER CALL, so a later census still saw the file.
 Caching is what turned a transient failure permanent. [[unknown-stays-unknown]] [[stale-reading]]
 """
+import io
 import os
 import sys
 import unittest
@@ -74,7 +75,42 @@ class TestASkippedFileIsNeverAnAbsentName(unittest.TestCase):
             "That retires a live lane on the strength of a failed open.")
 
 
+    def test_a_file_that_will_not_PARSE_never_disables_the_cache(self):
+        """The second eye's High on v3152. A parse failure is DETERMINISTIC for those bytes — the
+        same file fails the same way forever, and fixing it moves its mtime — so it is a complete
+        answer, not an unreadable one. Treating the two alike meant ONE saved syntax error in any
+        tv/*.py (tests included) stopped the cache being written at all: the 11s heart.vessels()
+        stall came back for the whole process, and FOREIGN could never fire, so `serve_forever`
+        and `wait` would be taken for vessels to watch."""
+        import tempfile
+        d = tempfile.mkdtemp()
+        bad = os.path.join(d, "zz_broken.py")
+        io.open(bad, "w", encoding="utf-8").write("def oops(:\n")
+        LC._DEFINED_CACHE = {"key": None, "names": None}
+        LC._package_files = lambda: self._real() + [bad]
+        names, complete = LC._all_defined_names()
+        self.assertTrue(complete,
+                        "a file that will not PARSE was reported as an incomplete READ. That "
+                        "stops the cache ever being written and brings the whole-package walk "
+                        "back on every call.")
+        self.assertIsNotNone(LC._DEFINED_CACHE.get("names"),
+                             "the set was not cached, so the stall returns for the process")
+        self.assertFalse(
+            LC._defined_anywhere("zzz_no_such_function_zzz"),
+            "FOREIGN became unreachable because one file would not parse — every dotted stdlib "
+            "target then reads UNKNOWN and is taken for a vessel to watch")
+
 RED_PROOF = [
+    {
+        "why": "folds a PARSE failure back into the unreadable path, so one saved syntax error in "
+               "any tv/*.py stops the cache being written at all — the 11s heart.vessels() stall "
+               "returns for the whole process and FOREIGN can never fire again",
+        "file": "lane_census.py",
+        "find": "        except (SyntaxError, UnicodeDecodeError):",
+        "replace": "        except (ZeroDivisionError,):",
+        "matches": 1,
+    },
+
     {
         "why": "caches the set even when a file could not be opened, so a transient failure is "
                "frozen under a stat key that cannot move — an fd-exhausted console classifies "
