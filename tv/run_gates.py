@@ -2569,6 +2569,26 @@ GATES = [
              "one-cell gap gives 2 - so the caveat is proven on CI with no footage, and if the "
              "grouping ever stops merging, the law that exists to describe it fails instead of "
              "quietly describing something untrue."),
+    Gate("test_the_cap_names_the_window_that_tripped",
+         [sys.executable, os.path.join(HERE, "test_the_cap_names_the_window_that_tripped.py")], 120,
+         why="A CAPPED READ LANE MUST NAME THE WINDOW THAT IS FULL, AND `atCap` MUST MIRROR THE "
+             "LANE'S OWN REFUSAL. Found by the second eye on the SHIPPED v3092 diff and both halves "
+             "reproduced before a line was changed. The meter grew a second lane precisely so that "
+             "'switched off' and 'at its ceiling' could never be drawn alike - after the Grok lane "
+             "sat at 201 of a 200 daily cap refusing every read while the console showed nothing - "
+             "and the lane it added carried the same class of defect twice. MEASURED against the "
+             "real predicates: tv_diablo._sub_budget_check and g5_grok_eyes._budget_ok both refuse "
+             "on ANY max <= 0, on hour >= hourly, and on day >= daily; the meter asked only "
+             "'armed and day >= dailyMax' for claude and required the tripped max to be > 0 for "
+             "grok. So an HOURLY exhaustion read as healthy on the Claude lane, and a ceiling of 0 "
+             "- the state where every read is rejected outright - read as healthy on BOTH. And "
+             "when it did fire the sentence named the wrong window, printing 'grok (4000 of 20000 "
+             "today) is AT ITS CEILING' for an exhausted HOUR: a correct number under a word that "
+             "had stopped being true, on the one line whose whole job is to say there is no "
+             "headroom. This law tests the JOIN rather than a copy of the rule - it drives "
+             "_budget_ok itself across a ten-cell grid and demands _cap_state agree on every cell, "
+             "so moving either side fails here. It also pins the mirror-image lie: an unarmed lane "
+             "refuses nothing and must never read as capped."),
     Gate("test_the_render_fixture_can_reach_the_card_branch",
          [sys.executable, os.path.join(HERE, "test_the_render_fixture_can_reach_the_card_branch.py")], 120,
          why="A FIXTURE THAT CANNOT EXERCISE THE BRANCH DOES NOT GO QUIETLY GREEN - IT GOES LOUDLY "

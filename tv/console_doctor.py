@@ -3618,6 +3618,13 @@ def run(include_slow=True, include_periodic=None):
 #: [[unknown-stays-unknown]] [[the-unjoined-end]] [[source-reading-guard]]
 WATCHES = {
     "running code matches disk":   (),                       # code integrity, not a surface
+    # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
+    # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never
+    # involves a screen. This check compares the DOCUMENT THE WEBVIEW IS RENDERING to the file on
+    # disk — the only reading that can tell him the page in front of him is stale — so the panels
+    # it can speak for are the rendered console itself. Missing entirely until now, which left
+    # `test_the_doctor_says_what_it_watches` RED on the tree.
+    "window runs the document on disk": ("console", "page"),
     "shelf lanes reading":         ("shelf-cards",),
     "fleet reachable":             ("advanced-fleet", "advanced-fleet-down"),
     "armed migration":             (),

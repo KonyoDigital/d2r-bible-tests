@@ -63,6 +63,14 @@ WATCHES = {
     "readers":         (),
     # v3059 — the shelf's two rendered surfaces, declared because this row cannot derive them
     "shelfWitness":    ("shelf-cards", "river-strip"),
+    # ⚠ v3098 — AN EMPTY TUPLE HERE IS A MEASUREMENT, NOT A SHRUG. This flag watches the read
+    # METER, and the meter's panel (bible.html Tools -> Subscription) has NO render target in
+    # organ_matrix — checked: 58 surfaces, none of them the meter. So it genuinely covers no
+    # REGISTRY surface today, which is what the law asks an empty tuple to say. The gap is the
+    # missing render target, and leaving the key out instead would have hidden it behind an
+    # ABSENT row nobody could act on. This entry was missing entirely in v3092 and
+    # `test_the_doctor_says_what_it_watches` was RED on the tree for six versions.
+    "read_lanes_at_cap": (),
     # selfArming is DERIVED — see the note above. It must not be listed here.
 }
 
@@ -685,7 +693,14 @@ def check_read_lanes_at_cap():
         if v.get("atCap") is None:
             unknown.append(name)
         elif v.get("atCap") and v.get("on"):
-            capped.append("%s (%s of %s today)" % (name, v.get("day"), v.get("dailyMax")))
+            # ⚠ v3098 — THE WINDOW THAT TRIPPED, NOT ALWAYS THE DAILY ONE. This formatted
+            # `day`/`dailyMax` unconditionally while `atCap` is true if EITHER window is full, so
+            # an hour at 4000/4000 printed "(4000 of 20000 today) is AT ITS CEILING" — a correct
+            # number under a word that had stopped being true, on the one line whose whole job is
+            # to say there is no headroom. `capText` is computed once in control_app._cap_state
+            # and says which window. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+            capped.append("%s (%s)" % (name, v.get("capText")
+                                       or "at its ceiling, window UNKNOWN"))
     if capped:
         return _row("read_lanes_at_cap", WARN,
                     "%s is AT ITS CEILING and is refusing every read — which looks exactly like a "

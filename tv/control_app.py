@@ -27714,7 +27714,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3097",
+        "ver": "v3098",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28767,6 +28767,55 @@ except Exception:
     _G5 = None
 
 
+def _cap_state(hour, day, hourly_max, daily_max, enforced=True):
+    """Is this read lane REFUSING right now, and WHICH window says so?
+
+    -> (atCap, window, text) where window is one of "hour" | "day" | "both" | "circuit" | None
+
+    ⚠⚠ v3098 — THE METER'S `atCap` DID NOT MIRROR EITHER LANE'S OWN REFUSAL, AND A CROSS-FAMILY
+    READ OF THE v3092 DIFF FOUND BOTH HOLES. Reproduced against the real predicates:
+
+        tv_diablo._sub_budget_check   refuses on  ANY max <= 0  ·  hour >= hourly  ·  day >= daily
+        g5_grok_eyes._budget_ok       refuses on  ANY max <= 0  ·  hour >= hourly  ·  day >= daily
+        the meter said, for claude    armed and dailyMax and day >= dailyMax
+        the meter said, for grok      (hm > 0 and h >= hm) or (dm > 0 and d >= dm)
+
+    So an HOURLY exhaustion on the Claude lane read as healthy, and a ceiling configured to 0 —
+    which makes both lanes refuse every single read — read as healthy on BOTH. That is the exact
+    failure `check_read_lanes_at_cap` was written for, wearing a different costume: a lane that
+    means to work and cannot, looking like a lane nobody switched on. [[the-unjoined-end]]
+
+    ⚠ AND THE SENTENCE MUST NAME THE WINDOW THAT TRIPPED. The old text always formatted the DAILY
+    fraction, so an hour at its ceiling printed "grok (4000 of 20000 today) is AT ITS CEILING" —
+    a true number under a word that stopped being true, which reads as headroom on the one line
+    that exists to say there is none. [[label-outlived-referent]]
+
+    ⚠ `enforced=False` IS NOT "no cap reached", IT IS "THE CAP DOES NOT APPLY". The Claude lane
+    disarms under TV_STUB and against a fake binary (`_vision_budget_armed`), and an unarmed lane
+    genuinely refuses nothing. The Grok lane has no such seam, so it is always enforced.
+    """
+    if not enforced:
+        return False, None, ""
+    try:
+        hm = int(hourly_max or 0)
+        dm = int(daily_max or 0)
+    except Exception:
+        return None, None, ""
+    if hm <= 0 or dm <= 0:
+        return True, "circuit", ("its ceiling is set to 0, so it refuses every read — that is a "
+                                 "lane switched OFF at the budget, not a lane at rest")
+    if hour is None or day is None:
+        return None, None, ""
+    h_full, d_full = int(hour) >= hm, int(day) >= dm
+    if h_full and d_full:
+        return True, "both", "%d of %d this hour AND %d of %d today" % (hour, hm, day, dm)
+    if h_full:
+        return True, "hour", "%d of %d this hour" % (hour, hm)
+    if d_full:
+        return True, "day", "%d of %d today" % (day, dm)
+    return False, None, ""
+
+
 def _meter_state():
     """Subscription burn, as READS against the window — never a token or dollar figure.
 
@@ -28816,26 +28865,38 @@ def _meter_state():
     # The top-level hour/day/hourlyMax/dailyMax stay CLAUDE so every existing reader keeps working;
     # `lanes` is additive. Claude carries default:true — it is the lane vision runs on unless he
     # toggles — and grok carries on:<the toggle> so "off" and "at cap" can never be drawn alike.
+    # ⚠ v3098 — BOTH LANES ANSWER THROUGH `_cap_state`, which mirrors each lane's OWN refusal
+    # predicate and NAMES the window that tripped. The hand-rolled expression that used to sit
+    # here read only the DAILY window, so a Claude hour at 4000/4000 refused every read while
+    # this said healthy.
+    _cc_at, _cc_win, _cc_txt = _cap_state(out["hour"], out["day"],
+                                          out["hourlyMax"], out["dailyMax"],
+                                          enforced=bool(out["armed"]))
     out["lanes"] = {"claude": {"label": "Claude", "default": True, "on": True,
                                "unit": "reads", "hour": out["hour"], "day": out["day"],
                                "hourlyMax": out["hourlyMax"], "dailyMax": out["dailyMax"],
                                "armed": out["armed"], "lastTs": out["lastTs"],
-                               "atCap": bool(out["armed"] and out["dailyMax"]
-                                             and out["day"] >= out["dailyMax"]),
-                               "why": ""}}
+                               "atCap": _cc_at, "capWindow": _cc_win, "capText": _cc_txt,
+                               "why": ("this lane is AT ITS CEILING (%s) and is refusing every "
+                                       "read — which is not the same fact as being switched off"
+                                       % _cc_txt) if _cc_at else ""}}
     try:
         import g5_grok_eyes as _g5
         _gh, _gd = _g5._budget_counts()
         _gst = _g5.status() or {}
         _gon = bool(_gst.get("on"))
         _ghm, _gdm = int(_g5._HOURLY_MAX), int(_g5._DAILY_MAX)
-        _at = (_ghm > 0 and _gh >= _ghm) or (_gdm > 0 and _gd >= _gdm)
+        # ⚠ v3098 — `_budget_ok` refuses outright when EITHER max is <= 0, and the expression
+        # that used to live here required the tripped max to be > 0 — so a ceiling of 0 made the
+        # lane refuse every read while the meter reported it as having headroom.
+        _at, _gwin, _gtxt = _cap_state(_gh, _gd, _ghm, _gdm)
         out["lanes"]["grok"] = {
             "label": "Grok", "default": False, "on": _gon, "unit": "reads",
             "hour": _gh, "day": _gd, "hourlyMax": _ghm or None, "dailyMax": _gdm or None,
             "armed": bool(_ghm > 0 and _gdm > 0), "lastTs": None, "atCap": _at,
-            "why": ("this lane is AT ITS CEILING (%d of %d today) and is refusing every read — "
-                    "which is not the same fact as being switched off" % (_gd, _gdm)) if _at
+            "capWindow": _gwin, "capText": _gtxt,
+            "why": ("this lane is AT ITS CEILING (%s) and is refusing every read — "
+                    "which is not the same fact as being switched off" % _gtxt) if _at
                    else ("" if _gon else "not toggled on — the lane is idle, not capped")}
     except Exception as _ge:
         # honest-absent: a lane we could not ask about is UNKNOWN, never a comfortable zero
