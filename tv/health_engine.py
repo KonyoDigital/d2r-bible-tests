@@ -76,7 +76,8 @@ WATCHES = {
 }
 
 
-def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None, surfaces=None):
+def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None, surfaces=None,
+         surface_scores=None):
     """One flag. `line` is what he reads; `evidence` is what earned it.
 
     ★ v2438 — WILSON IS THE FIFTH ORGAN OF THE HEART, NOT A SIDE MODULE.
@@ -110,6 +111,15 @@ def _row(cid, state, line, evidence=None, measured_at=None, k=None, n=None, surf
             n_i, k_i = 0, 0
         row["proofK"] = k_i
         row["proofN"] = n_i
+        # ⚠ PER-SURFACE SCORES, when the organ can tell them apart. One row carries ONE score, and
+        # heart hands it to EVERY surface the row names — so a row naming twelve lanes must either
+        # publish the weakest (understating the strong ones) or the strongest (crediting the weak
+        # ones with evidence they never earned). Neither is true when the per-lane numbers are
+        # known. A lane is as proven as ITS OWN sabotages, so the row may say so lane by lane.
+        if isinstance(surface_scores, dict) and surface_scores:
+            row["surfaceScores"] = dict(
+                (str(_s), (round(float(_v), 4) if isinstance(_v, (int, float)) else None))
+                for _s, _v in surface_scores.items())
         if n_i > 0:
             try:
                 from confidence import wilson_lower     # one home for the maths — never a copy
@@ -1007,7 +1017,11 @@ def check_lane_attacks():
     return _row("laneAttacks", state, line,
                 evidence={"proven": _proven, "inert": _inert, "neverAttacked": _never,
                           "perLane": dict((l, list(v)) for l, v in sorted(_lanes.items()))},
-                k=_k, n=_n, surfaces=_proven)
+                k=_k, n=_n, surfaces=_proven,
+                # each lane carries ITS OWN number: the row-wide weakest is the honest answer only
+                # while nothing better is known, and here something better IS known.
+                surface_scores=dict(
+                    (l, wilson_lower(_lanes[l][0], _lanes[l][1])) for l in _proven))
 
 
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,

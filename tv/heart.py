@@ -291,13 +291,23 @@ def vessels():
         # inherits the score of the organ that names it. Where two organs name the same surface the
         # HIGHEST proven score wins — a surface is as proven as its best-proven watcher, and taking
         # the lowest would let one unproven organ erase another's earned evidence.
+        # ⚠ AND A ROW MAY SCORE ITS SURFACES ONE BY ONE. Taking the row's single score for every
+        # surface forces a false choice when the per-surface numbers differ: publish the weakest
+        # and the well-proven surfaces are understated, publish the strongest and the weak ones
+        # are credited with evidence they never earned. `surfaceScores` lets the organ say what it
+        # actually measured per surface; the row score stays the fallback for organs that cannot
+        # tell their surfaces apart. [[unknown-stays-unknown]]
+        _per = r.get("surfaceScores")
+        _per = _per if isinstance(_per, dict) else {}
         for _surf in (r.get("surfaces") or []):
             _k = str(_surf or "")
             if not _k:
                 continue
+            _s = _per.get(_k, s)
+            _s = _s if isinstance(_s, (int, float)) else None
             _prev = scored.get(_k)
-            if _k not in scored or (s is not None and (_prev is None or s > _prev)):
-                scored[_k] = s
+            if _k not in scored or (_s is not None and (_prev is None or _s > _prev)):
+                scored[_k] = _s
 
     # ⚠⚠ CAN A VESSEL EVER BECOME FLOWING? ASK BEFORE TELLING HIM WORK IS OWED.
     # `scored` is keyed on the organ rows' OWN ids — lanes, readers, selfArming, board_join — and
@@ -387,6 +397,14 @@ def vessels():
                         "via": via,
                         "supervises": _sup,
                         "score": round(float(sc), 4),
+                        # ⚠ A FLOWING ROW CARRIES THIS TOO, AND FOR 20 VERSIONS IT DID NOT. Only
+                        # the WATCHED branch published `scorable`, so the field vanished from the
+                        # payload exactly as the census got healthy: with every vessel FLOWING, NOT
+                        # ONE row said it could be scored, and the law that reads the PAIR reported
+                        # "FLOWING is 20 while not one of the 20 vessels is scorable". The count was
+                        # right and the field was missing — a reader cannot tell those apart.
+                        # It is True by construction here: this row HAS a score above zero.
+                        "scorable": True,
                         "why": "watched, and a sabotage has proven the watcher can refuse",
                         "live": _live["state"], "liveWhy": _live["why"],
                         "tickAgeS": _live["tickAgeS"]})

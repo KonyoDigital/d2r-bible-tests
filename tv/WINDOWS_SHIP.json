@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3147",
+  "ver": "v3148",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3147: the weakest lane is by score, not by each number separately",
+  "note": "v3148: every watcher lane has been attacked in its own body — FLOWING 20 of 20",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3147** | `(this commit)` | v3147 — the weakest lane is by score, not by each number separately |
+| **v3148** | `(this commit)` | v3148 — every watcher lane has been attacked in its own body — FLOWING 20 of 20 |
+| **v3147** | `b989860e` | v3147 — the weakest lane is by score, not by each number separately |
 | **v3146** | `9d41909c` | v3146 — the unmeasured-flow reason counts only vessels something watches |
 | **v3145** | `8c94038f` | v3145 — a watcher lane is as proven as its own sabotages, never its neighbours |
 | **v3144** | `f69fd215` | v3144 — the unmeasured-flow decision is pure so its law can drive both branches |

@@ -2906,6 +2906,19 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_every_lane_stamps_its_own_beat",
+         [sys.executable, os.path.join(HERE, "test_every_lane_stamps_its_own_beat.py")], 120,
+         why="#80 — EVERY WATCHER LANE IS A `while True` LOOP WHOSE WORK SITS INSIDE "
+             "`except Exception: pass`, so the beat it stamps is the ONLY thing that makes it "
+             "visible to lane_liveness and through it to the heart. Delete the beat and the lane "
+             "keeps running, keeps failing silently, and reports UNKNOWN forever — nobody looked, "
+             "which reads as fine and is worse. Twelve lanes had no sabotage evidence of their own "
+             "because evidence is credited per DEF SPAN and only six of the 163 proofs naming "
+             "control_app.py landed inside a watcher loop. The twelve proofs here each delete ONE "
+             "lane's beat, so each counts for that lane and no other. ⚠ The second assertion was "
+             "MEASURED before it was written: tvd-runaway-watch really does stamp its function "
+             "name and tvd-ledger-backup really does sleep on a computed wait — both legal, and a "
+             "law demanding the registry name would have flagged correct design as a defect."),
     Gate("test_lane_attacks_are_per_lane",
          [sys.executable, os.path.join(HERE, "test_lane_attacks_are_per_lane.py")], 120,
          why="#80 — TWELVE WATCHER LANES COULD NOT BE SCORED AT ALL, because no organ row named a "
