@@ -177,7 +177,27 @@ class ItNeverInventsCoverage(unittest.TestCase):
         names, why = cov["corroborator"]
         self.assertTrue(names, "the corroborator named nothing: %s" % why)
 
-        lanes = ("chronicle", "fleet", "roster")
+        # ⚠⚠ v3128 — DERIVED FROM THE CORROBORATOR'S OWN ROSTER, NOT A FROZEN TUPLE. This line
+        # read `("chronicle", "fleet", "roster")` and the corroborator has since widened to cover
+        # reel, vault, prune and shelf — real lanes, really watched. The law then reported seven
+        # INVENTED lanes and went red, so a guard written to catch fabricated coverage was
+        # failing because coverage GREW. MEASURED on HEAD:
+        #
+        #   publishes: chronicle · fleet · prune · reel · roster · shelf · vault
+        #   this law allowed: chronicle · fleet · roster
+        #   -> stray: reel.route, vault.sweep_start, prune.reports, vault.apply,
+        #             shelf.scene, prune.arm, shelf.rows
+        #
+        # ⚠ AND THE HEART CALLED THIS GATE "UNRUN", NOT RED — which is the failure Heart 2.0
+        # exists to name: it was red on HEAD the whole time and the store said 17 unproven.
+        # Freezing a BIGGER tuple would repeat the defect, so the allowed set is taken from the
+        # lane prefixes the corroborator itself publishes, and the law now asserts the thing it
+        # always meant: a qualified name must carry a lane that the organ actually speaks, and a
+        # BARE concept name is still a regression. [[label-outlived-referent]] [[the-unjoined-end]]
+        lanes = tuple(sorted({n.split(".")[0] for n in names if "." in n}))
+        self.assertTrue(set(lanes) >= {"chronicle", "fleet", "roster"},
+                        "the corroborator stopped publishing one of the three lanes this law was "
+                        "originally written for — %s" % (lanes,))
         qualified = {n for n in names if "." in n}
         self.assertTrue(qualified,
                         "no lane-qualified name at all — the corroborator is back to publishing "

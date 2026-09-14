@@ -692,6 +692,15 @@
   "purpose": "The hardcoded three-class item law — LOCKED furniture (Horadric Cube, tomes, Wirt's Leg, keys), CONSUMABLE (potions, scrolls, gold), and LOOT, the only class worth a register.",
   "territory": "vault"
  },
+ "journal_drain.py": {
+  "entryPoints": [
+   "apply_plan",
+   "backup"
+  ],
+  "gotcha": "It refuses far more often than it writes, and every refusal is deliberate. It will not run without an explicit yes, will not run if a backup did not verify row-for-row, will not run if the corpus moved since the plan judged it, and will not rename its rewrite over a file whose INODE changed — tv_diablo rotates the ring with os.replace, which makes sessions.1.jsonl GROW, so a line count cannot see it. Identity comes from os.fstat of the handle it read, never from the path.",
+  "purpose": "The WRITER half of the journal drain: it backs up every generation of the session journal, removes the rows a plan released, and carries forward anything the recorder appended while it was writing. It exists as its own module because test_a_journal_row_leaves_only_on_proof forbids the PLANNER from holding any write-capable call, so the planner decides and this acts.",
+  "territory": "retention"
+ },
  "journal_retention.py": {
   "entryPoints": [
    "plan",
@@ -1725,6 +1734,18 @@
   "gotcha": "",
   "purpose": "Runs the cold attacks a non-Anthropic family designed against vault.apply's write door (an uncorroborated row under `unsure` bypassing the re-gate; owned=None) and banks them as the cross-family kind.",
   "territory": "second-eye"
+ },
+ "vault_backup.py": {
+  "entryPoints": [
+   "main",
+   "plan_prune",
+   "present",
+   "save",
+   "saves"
+  ],
+  "gotcha": "A backup that was never read back is not a restore. Its copies are only as good as the verification that follows them — see the RESTORE work in task #81, which measured that nothing reads these saves back.",
+  "purpose": "Copies the vault's stores aside before anything mutates them, so a bad apply has somewhere to come back from.",
+  "territory": "vault"
  },
  "vault_corpus.py": {
   "entryPoints": [

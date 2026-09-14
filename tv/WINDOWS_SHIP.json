@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3127",
+  "ver": "v3128",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3127: vault-wilson was the single BLIND entry in the heart store. It was not blind through its own defeat — its sabotage matched ZERO times. A refactor split the approved rows into owned and unsure, so _kept became _kept[_which], and this proof was never swept with it. The gate therefore carried a verdict about a line that no longer existed. Re-anchored against a counted match: 1 match tampered, red. That is the sabotage fault and not the law fault, which is the same shape REG-713 records.",
+  "note": "v3128: Draining #68 17 unrun gates found they were not unrun. test_the_blueprint_names_the_engine was RED ON HEAD because journal_drain.py — the module I added in v3113 — was never indexed, and vault_backup.py with it. Both now carry a real purpose, gotcha and AST-parsed entry points: 180 modules, 0 unindexed, 0 stale, gate GREEN. test_organ_matrix was RED ON HEAD too, for a stale hardcoded lane tuple: the law allowed chronicle, fleet, roster while the corroborator had widened to also publish prune, reel, shelf and vault, so a guard built to catch fabricated coverage was failing because coverage grew. Now derived from what the organ publishes. That unmasked a SECOND failure the law own comment warned about — 13 non-route surfaces read COVERED — which is real, pre-existing, and logged as task 95 rather than weakened into green.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
