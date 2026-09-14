@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3120",
+  "ver": "v3121",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3120: The second eye on v3118: my clause walked every ast.Name and accepted any assigned name ending in st that appeared anywhere in the function. ast.walk collects the assignment own STORE node, so the assignment satisfied its own check — _st = os.fstat(fh.fileno()) followed by if ident is None: return None passed every assertion while the handle inode was never compared. A measurement taken and dropped, and a guard that said otherwise. It now finds the fstat target and requires a Compare node that reads it on one side and ident on the other. ALSO v3121 work folded in: ACTIVITY leads the analytic band per his ask, with v2985 scar pinned so the cards can never be re-buried.",
+  "note": "v3121: The second eye on v3120. Both shelf-order proofs deleted their marker instead of moving it, so uniqueness failed with occurs 0 time(s) and index() raised ValueError — heart2 stamped PROVEN because SOME test exited non-zero, never having seen the order law fail. A flipped assertLess would have proven just as well. The sabotages now REORDER: one sends ACTIVITY to the back of the band, one moves the cards below it, and both were run by hand to confirm which assertion goes red. Also: the window used to end at the highlights call, which is itself a BAND entry, so highlights-come-last could never fail on its own — it now ends on the statement after the expression. And ensure_ascii=False, because an astral emoji round-tripped through json.dumps as a surrogate pair and stopped matching itself.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
