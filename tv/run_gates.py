@@ -2585,10 +2585,22 @@ GATES = [
              "when it did fire the sentence named the wrong window, printing 'grok (4000 of 20000 "
              "today) is AT ITS CEILING' for an exhausted HOUR: a correct number under a word that "
              "had stopped being true, on the one line whose whole job is to say there is no "
-             "headroom. This law tests the JOIN rather than a copy of the rule - it drives "
-             "_budget_ok itself across a ten-cell grid and demands _cap_state agree on every cell, "
-             "so moving either side fails here. It also pins the mirror-image lie: an unarmed lane "
-             "refuses nothing and must never read as capped."),
+             "headroom. This law tests the JOIN rather than a copy of the rule, and BOTH halves are "
+             "now actually driven - the eye caught the first cut claiming both and driving only "
+             "grok: _budget_ok across a ten-cell grid (10 of 10 agree) and _sub_budget_check "
+             "end-to-end on a temp ledger through _meter_state (6 of 6 agree), including the "
+             "boundary cell where a call at EXACTLY 3600.0s old is outside `< 3600` and inside "
+             "`<= 3600` - the old meter said AT ITS CEILING there while every read was allowed. "
+             "v3099 also closes the High the eye found on v3098: the lanes were built BEHIND "
+             "claude's ledger check, so on a machine where claude has never read - grok as "
+             "primary, grok as shadow, a fresh checkout, CI - the GROK lane was not published at "
+             "all, the watchdog said UNKNOWN instead of WARN, and the Tools chip was never drawn. "
+             "Grok records into a DIFFERENT file and its loader already fails open; the dual meter "
+             "was simply one door behind the other lane's ledger. Reproduced before the fix (lanes "
+             "NONE PUBLISHED) and pinned here. It also pins the mirror-image lie - an unarmed lane "
+             "refuses nothing and must never read as capped - and that UNKNOWN is a VALUE rather "
+             "than a missing field, since the honest-absent grok shape used to omit capWindow and "
+             "capText entirely."),
     Gate("test_the_render_fixture_can_reach_the_card_branch",
          [sys.executable, os.path.join(HERE, "test_the_render_fixture_can_reach_the_card_branch.py")], 120,
          why="A FIXTURE THAT CANNOT EXERCISE THE BRANCH DOES NOT GO QUIETLY GREEN - IT GOES LOUDLY "

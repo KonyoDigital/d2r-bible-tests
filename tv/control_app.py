@@ -27714,7 +27714,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3098",
+        "ver": "v3099",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28816,11 +28816,94 @@ def _cap_state(hour, day, hourly_max, daily_max, enforced=True):
     return False, None, ""
 
 
+def _meter_lanes(out):
+    """The per-lane read meter, built from whatever `out` already knows. -> {name: lane}
+
+    ⚠⚠ v3099 — THIS USED TO LIVE AT THE BOTTOM OF `_meter_state`, BEHIND THREE EARLY RETURNS, AND
+    A CROSS-FAMILY READ OF THE v3098 DIFF CAUGHT IT. Reproduced in four lines with Claude's ledger
+    path pointed at a file that does not exist:
+
+        known : False
+        why   : no vision read has been recorded on this machine yet
+        lanes : NONE PUBLISHED
+        watchdog: unknown — "the meter returned no lanes at all"
+
+    The early return is Claude's `_SUB_BUDGET_PATH`. **Grok records into a completely different
+    file** (`g5_grok_eyes._budget_record`), and its own `_budget_load` already fails open. So on a
+    machine where Claude has never read — Grok as `primary`, Grok as `shadow`, a fresh checkout,
+    CI — the Grok lane could be at 4000/4000 or on a `*_MAX=0` circuit, refusing every single
+    read, and the meter published NOTHING about it, the watchdog said UNKNOWN instead of WARN, and
+    the Tools panel drew no Grok chip at all.
+
+    That is the exact costume v3092 was written to remove: a lane that means to work and cannot,
+    looking like a lane nobody switched on. The dual meter was put one door behind the other
+    lane's ledger. [[the-unjoined-end]] [[zero-needs-a-denominator]]
+
+    ⚠ SO IT RUNS ON EVERY RETURN PATH, and every field it cannot measure stays None rather than
+    becoming a comfortable zero.
+
+    The top-level hour/day/hourlyMax/dailyMax stay CLAUDE so every existing reader keeps working;
+    `lanes` is additive. Claude carries default:true — it is the lane vision runs on unless he
+    toggles — and grok carries on:<the toggle> so "off" and "at cap" can never be drawn alike.
+    """
+    # ⚠ v3098 — BOTH LANES ANSWER THROUGH `_cap_state`, which mirrors each lane's OWN refusal
+    # predicate and NAMES the window that tripped. The hand-rolled expression that used to sit
+    # here read only the DAILY window, so a Claude hour at 4000/4000 refused every read while
+    # this said healthy.
+    _cc_at, _cc_win, _cc_txt = _cap_state(out.get("hour"), out.get("day"),
+                                          out.get("hourlyMax"), out.get("dailyMax"),
+                                          enforced=bool(out.get("armed")))
+    lanes = {"claude": {"label": "Claude", "default": True, "on": True,
+                        "unit": "reads", "hour": out.get("hour"), "day": out.get("day"),
+                        "hourlyMax": out.get("hourlyMax"), "dailyMax": out.get("dailyMax"),
+                        "armed": out.get("armed"), "lastTs": out.get("lastTs"),
+                        "atCap": _cc_at, "capWindow": _cc_win, "capText": _cc_txt,
+                        "why": ("this lane is AT ITS CEILING (%s) and is refusing every "
+                                "read — which is not the same fact as being switched off"
+                                % _cc_txt) if _cc_at
+                               else (out.get("why") or "")}}
+    try:
+        import g5_grok_eyes as _g5
+        _gh, _gd = _g5._budget_counts()
+        _gst = _g5.status() or {}
+        _gon = bool(_gst.get("on"))
+        _ghm, _gdm = int(_g5._HOURLY_MAX), int(_g5._DAILY_MAX)
+        # ⚠ v3098 — `_budget_ok` refuses outright when EITHER max is <= 0, and the expression
+        # that used to live here required the tripped max to be > 0 — so a ceiling of 0 made the
+        # lane refuse every read while the meter reported it as having headroom.
+        _at, _gwin, _gtxt = _cap_state(_gh, _gd, _ghm, _gdm)
+        lanes["grok"] = {
+            "label": "Grok", "default": False, "on": _gon, "unit": "reads",
+            "hour": _gh, "day": _gd, "hourlyMax": _ghm or None, "dailyMax": _gdm or None,
+            "armed": bool(_ghm > 0 and _gdm > 0), "lastTs": None, "atCap": _at,
+            "capWindow": _gwin, "capText": _gtxt,
+            "why": ("this lane is AT ITS CEILING (%s) and is refusing every read — "
+                    "which is not the same fact as being switched off" % _gtxt) if _at
+                   else ("" if _gon else "not toggled on — the lane is idle, not capped")}
+    except Exception as _ge:
+        # honest-absent: a lane we could not ask about is UNKNOWN, never a comfortable zero
+        # ⚠ v3099 — AND IT CARRIES THE SAME KEYS AS EVERY OTHER SHAPE. Without capWindow/capText
+        # here, a reader that asks for them has to know which of two shapes it is holding, and the
+        # law that pins the contract went red on a perfectly honest state. UNKNOWN is a VALUE, not
+        # a missing field. [[unknown-stays-unknown]]
+        lanes["grok"] = {"label": "Grok", "default": False, "on": None, "unit": "reads",
+                         "hour": None, "day": None, "hourlyMax": None, "dailyMax": None,
+                         "armed": None, "lastTs": None, "atCap": None,
+                         "capWindow": None, "capText": "",
+                         "why": "the grok lane could not be read (%s), so its burn is "
+                                "UNKNOWN rather than zero" % type(_ge).__name__}
+    return lanes
+
+
 def _meter_state():
     """Subscription burn, as READS against the window — never a token or dollar figure.
 
     Returns known:false rather than zeros when the recorder has never written, so the widget can
-    say "not measured" instead of drawing an empty tank that looks like good news."""
+    say "not measured" instead of drawing an empty tank that looks like good news.
+
+    ⚠ EVERY RETURN PATH PUBLISHES `lanes` — see `_meter_lanes`. Three of them did not, and the
+    Grok lane lives behind a different ledger entirely.
+    """
     out = {"known": False, "why": "", "unit": "reads",
            "hour": None, "day": None, "hourlyMax": None, "dailyMax": None,
            "armed": None, "lastTs": None,
@@ -28829,6 +28912,7 @@ def _meter_state():
         import tv_diablo as _tv
     except Exception as e:
         out["why"] = "tv_diablo unavailable: %s" % str(e)[:120]
+        out["lanes"] = _meter_lanes(out)
         return out
     try:
         out["hourlyMax"] = int(getattr(_tv, "_SUB_HOURLY_MAX", 0)) or None
@@ -28840,73 +28924,37 @@ def _meter_state():
         path = getattr(_tv, "_SUB_BUDGET_PATH", "")
         if not path or not os.path.isfile(path):
             out["why"] = "no vision read has been recorded on this machine yet"
+            out["lanes"] = _meter_lanes(out)
             return out
         with open(path, encoding="utf-8") as fh:
             st = json.load(fh) or {}
-        calls = [float(c) for c in (st.get("calls") or []) if isinstance(c, (int, float))]
     except Exception as e:
         out["why"] = "budget file unreadable: %s" % str(e)[:120]
+        out["lanes"] = _meter_lanes(out)
         return out
     now = time.time()
     out["known"] = True
-    out["hour"] = sum(1 for c in calls if now - c <= 3600)
-    out["day"] = sum(1 for c in calls if now - c <= 86400)
-    out["lastTs"] = int(max(calls) * 1000) if calls else None
-    # ⚠⚠ v3092 — TWO LANES, AND THE METER SHOWED ONE. Konyo: "it should all be dual.. but both
-    # needs to be first DEFAULTED TO CLAUDE and only when toggled then grok", and "obviously a
-    # meter separately tracking same exact way for GROK with a distinguishable difference".
-    #
-    # THE COST OF SHOWING ONE: measured the moment this was joined, the GROK lane was OVER ITS CAP
-    # and refusing every read — 201 calls against a _DAILY_MAX of 200, so `_budget_ok()` returned
-    # False on every call. Nothing on his console said so, and the Grok Bot had been reporting
-    # "Quartz ON-SCREEN none — seat EMPTY" for tick after tick. A lane at its ceiling looks exactly
-    # like a lane nobody switched on. [[the-unjoined-end]] [[zero-needs-a-denominator]]
-    #
-    # The top-level hour/day/hourlyMax/dailyMax stay CLAUDE so every existing reader keeps working;
-    # `lanes` is additive. Claude carries default:true — it is the lane vision runs on unless he
-    # toggles — and grok carries on:<the toggle> so "off" and "at cap" can never be drawn alike.
-    # ⚠ v3098 — BOTH LANES ANSWER THROUGH `_cap_state`, which mirrors each lane's OWN refusal
-    # predicate and NAMES the window that tripped. The hand-rolled expression that used to sit
-    # here read only the DAILY window, so a Claude hour at 4000/4000 refused every read while
-    # this said healthy.
-    _cc_at, _cc_win, _cc_txt = _cap_state(out["hour"], out["day"],
-                                          out["hourlyMax"], out["dailyMax"],
-                                          enforced=bool(out["armed"]))
-    out["lanes"] = {"claude": {"label": "Claude", "default": True, "on": True,
-                               "unit": "reads", "hour": out["hour"], "day": out["day"],
-                               "hourlyMax": out["hourlyMax"], "dailyMax": out["dailyMax"],
-                               "armed": out["armed"], "lastTs": out["lastTs"],
-                               "atCap": _cc_at, "capWindow": _cc_win, "capText": _cc_txt,
-                               "why": ("this lane is AT ITS CEILING (%s) and is refusing every "
-                                       "read — which is not the same fact as being switched off"
-                                       % _cc_txt) if _cc_at else ""}}
+    # ⚠⚠ v3099 — THE SAME OPERANDS THE REFUSAL USES, NOT MERELY THE SAME OPERATORS. This counted
+    # `now - c <= 3600` over a hand-filtered list while `_sub_budget_check` counts
+    # `now - t < 3600` over `_sub_budget_calls(st, now)` — which normalises milliseconds to
+    # seconds, drops timestamps in the future, and windows to < 86400. Two differences, both
+    # able to make the meter and the refusal disagree about the same ledger:
+    #   · a call at age EXACTLY 3600.0 is counted here and not there, so with the rest of the hour
+    #     at hourlyMax-1 the meter says AT ITS CEILING while every read is still allowed
+    #   · a ledger written in MILLISECONDS reads as ~56 years old here and is silently dropped,
+    #     so the meter prints 0 of 4000 for a lane that is actually burning
+    # A gate `why` that claims both predicates are mirrored has to be true of the OPERANDS too.
+    # [[label-outlived-referent]] [[measured-true-read-wrong]]
     try:
-        import g5_grok_eyes as _g5
-        _gh, _gd = _g5._budget_counts()
-        _gst = _g5.status() or {}
-        _gon = bool(_gst.get("on"))
-        _ghm, _gdm = int(_g5._HOURLY_MAX), int(_g5._DAILY_MAX)
-        # ⚠ v3098 — `_budget_ok` refuses outright when EITHER max is <= 0, and the expression
-        # that used to live here required the tripped max to be > 0 — so a ceiling of 0 made the
-        # lane refuse every read while the meter reported it as having headroom.
-        _at, _gwin, _gtxt = _cap_state(_gh, _gd, _ghm, _gdm)
-        out["lanes"]["grok"] = {
-            "label": "Grok", "default": False, "on": _gon, "unit": "reads",
-            "hour": _gh, "day": _gd, "hourlyMax": _ghm or None, "dailyMax": _gdm or None,
-            "armed": bool(_ghm > 0 and _gdm > 0), "lastTs": None, "atCap": _at,
-            "capWindow": _gwin, "capText": _gtxt,
-            "why": ("this lane is AT ITS CEILING (%s) and is refusing every read — "
-                    "which is not the same fact as being switched off" % _gtxt) if _at
-                   else ("" if _gon else "not toggled on — the lane is idle, not capped")}
-    except Exception as _ge:
-        # honest-absent: a lane we could not ask about is UNKNOWN, never a comfortable zero
-        out["lanes"]["grok"] = {"label": "Grok", "default": False, "on": None, "unit": "reads",
-                                "hour": None, "day": None, "hourlyMax": None, "dailyMax": None,
-                                "armed": None, "lastTs": None, "atCap": None,
-                                "why": "the grok lane could not be read (%s), so its burn is "
-                                       "UNKNOWN rather than zero" % type(_ge).__name__}
+        calls = _tv._sub_budget_calls(st, now)
+        out["hour"] = sum(1 for t in calls if now - t < 3600)
+        out["day"] = len(calls)
+        out["lastTs"] = int(max(calls) * 1000) if calls else None
+    except Exception as e:
+        out["known"] = False
+        out["why"] = "budget ledger unreadable: %s" % str(e)[:120]
+    out["lanes"] = _meter_lanes(out)
     return out
-
 
 def _g5_status():
     try:

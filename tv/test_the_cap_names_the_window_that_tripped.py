@@ -141,16 +141,154 @@ class TestTheCapNamesTheWindowThatTripped(unittest.TestCase):
         self.assertNotIn("20000", line,
                          "the WARN prints the DAILY ceiling for an HOURLY refusal: %r" % line)
 
-    # ── 7. and both lanes really carry it, on the live meter ──────────────────────────────────
-    def test_both_lanes_publish_a_cap_window(self):
-        lanes = (CA._meter_state() or {}).get("lanes") or {}
-        self.assertTrue(lanes, "the meter published no lanes at all")
-        missing = sorted(n for n, v in lanes.items()
-                         if isinstance(v, dict) and "capText" not in v)
-        print("   lanes: %s · without capText: %s" % (sorted(lanes), missing or "none"))
-        self.assertEqual(missing, [],
-                         "%d lane(s) do not publish capText, so the watchdog has nothing to name "
-                         "the window with: %s" % (len(missing), missing))
+    # ── 7. the CLAUDE join, driven against its own refusal, not assumed from its shape ────────
+    def test_atcap_mirrors_the_claude_lanes_own_refusal(self):
+        """⚠ THE SECOND EYE CAUGHT THIS GATE OVERCLAIMING. Its `why` said the law "drives
+        `_budget_ok` itself across a ten-cell grid" and that BOTH predicates are mirrored — and
+        only the Grok half was driven. Claude was assumed to match because the operators looked
+        the same. They did not receive the same OPERANDS: the meter counted `now - c <= 3600` over
+        a hand-filtered list, while `_sub_budget_check` counts `now - t < 3600` over
+        `_sub_budget_calls(st, now)`, which normalises milliseconds to seconds and drops the
+        future. A claim in a gate's own prose is still a claim. [[unknown-stays-unknown]]
+
+        This drives the REAL pipeline end to end on a temp ledger: file -> _meter_state -> the
+        lane's atCap, against file -> _sub_budget_check.
+        """
+        import json as _json
+        import shutil
+        import tempfile
+        import time as _time
+        import tv_diablo as TV
+
+        now = _time.time()
+        cases = [
+            # (name, call ages in seconds, hourlyMax, dailyMax, freeze_the_clock)
+            ("quiet",                 [5, 10, 20, 30],                        5, 10, False),
+            ("hour full",             [5, 10, 20, 30, 40],                    5, 10, False),
+            # ⚠⚠ THE BOUNDARY CELL, AND IT ONLY EXISTS WITH THE CLOCK HELD STILL. A call at
+            # EXACTLY 3600.0s old is outside `< 3600` and inside `<= 3600` — the one input where
+            # the two spellings disagree. The first cut wrote `now - 3600.0` against a moving
+            # clock, so by the time either predicate ran the age was already 3600.000004 and BOTH
+            # excluded it: the red-proof that deletes the fix came back **BLIND — stayed GREEN
+            # through its own defeat**, which is the only reason this is written properly.
+            # A fixture that cannot reach the boundary cannot test the boundary.
+            # [[feedback-blind-fixture-green-gate]] [[sabotage-is-usually-the-wrong-one]]
+            ("hour boundary at 3600", [3600.0, 5, 10, 20, 30],                5, 10, True),
+            ("day full",              [4000, 4100, 4200, 4300, 4400,
+                                       4500, 4600, 4700, 4800, 4900],         5, 10, False),
+            ("circuit hourly 0",      [5],                                    0, 10, False),
+            ("circuit daily 0",       [5],                                    5, 0, False),
+        ]
+        sand = tempfile.mkdtemp(prefix="capjoin-")
+        self.addCleanup(shutil.rmtree, sand, True)
+        p0, h0, d0 = TV._SUB_BUDGET_PATH, TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX
+        armed0 = TV._vision_budget_armed
+        disagreed = []
+        try:
+            TV._vision_budget_armed = lambda: True
+            real_time = _time.time
+            for name, ages, hm, dm, freeze in cases:
+                path = os.path.join(sand, "ledger_%s.json" % abs(hash(name)))
+                with io.open(path, "w", encoding="utf-8") as fh:
+                    fh.write(_json.dumps({"calls": [now - a for a in ages]}))
+                TV._SUB_BUDGET_PATH, TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX = path, hm, dm
+                try:
+                    # ⚠ both sides call the SAME stdlib `time.time`, so holding it still is what
+                    # makes "exactly 3600.0 old" a state either predicate can actually be in.
+                    if freeze:
+                        _time.time = (lambda _t=now: _t)
+                    lane_refuses = TV._sub_budget_check() is not None
+                    lane = ((CA._meter_state() or {}).get("lanes") or {}).get("claude") or {}
+                finally:
+                    _time.time = real_time
+                meter_says = lane.get("atCap")
+                if bool(meter_says) != bool(lane_refuses):
+                    disagreed.append((name, lane_refuses, meter_says,
+                                      lane.get("hour"), lane.get("day")))
+                if freeze:
+                    # the cell is only evidence if it really sat ON the boundary
+                    print("   boundary cell: refuses=%r meterAtCap=%r hour=%r (hourlyMax %d)"
+                          % (lane_refuses, meter_says, lane.get("hour"), hm))
+                    self.assertEqual(lane.get("hour"), hm - 1,
+                                     "the boundary fixture did not land where it claims: hour=%r "
+                                     "with hourlyMax=%d — the 3600.0s call must be EXCLUDED, "
+                                     "leaving exactly one slot free" % (lane.get("hour"), hm))
+        finally:
+            TV._SUB_BUDGET_PATH, TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX = p0, h0, d0
+            TV._vision_budget_armed = armed0
+        print("   claude join: %d of %d case(s) agree between _sub_budget_check and the meter"
+              % (len(cases) - len(disagreed), len(cases)))
+        self.assertEqual(
+            disagreed, [],
+            "%d case(s) where the Claude meter and the Claude refusal disagree "
+            "(case, laneRefuses, meterAtCap, hour, day): %s" % (len(disagreed), disagreed))
+
+    # ── 8. lanes are published on EVERY path, including a machine that has never read ──────────
+    def test_the_lanes_are_published_even_with_no_claude_ledger(self):
+        """⚠⚠ THE SECOND EYE'S HIGH FINDING ON v3098, REPRODUCED BEFORE IT WAS FIXED:
+
+            known : False
+            why   : no vision read has been recorded on this machine yet
+            lanes : NONE PUBLISHED
+            watchdog: unknown — "the meter returned no lanes at all"
+
+        The early return is CLAUDE's ledger path. Grok records into a different file entirely, so
+        on a machine where Claude has never read — Grok as primary, Grok as shadow, a fresh
+        checkout, CI — the Grok lane could be refusing every read and the meter said nothing. The
+        dual meter sat one door behind the other lane's ledger. [[the-unjoined-end]]
+
+        ⚠ AND THIS IS ALSO WHY THE OLD TEST 7 WAS WRONG: it asked the LIVE meter for lanes, so it
+        only passed on a machine that had already run Claude vision. `.subscription_budget.json`
+        is gitignored — on CI that assertion was a machine check wearing a law's clothes.
+        """
+        import tv_diablo as TV
+        p0 = TV._SUB_BUDGET_PATH
+        try:
+            TV._SUB_BUDGET_PATH = os.path.join(HERE, "no-such-ledger-%d.json" % os.getpid())
+            st = CA._meter_state() or {}
+            lanes = st.get("lanes") or {}
+            print("   with NO claude ledger -> known=%r lanes=%s"
+                  % (st.get("known"), sorted(lanes)))
+            self.assertFalse(st.get("known"), "the fixture did not actually remove the ledger")
+            self.assertIn("grok", lanes,
+                          "the GROK lane is invisible when CLAUDE has never read — it records "
+                          "into a different file and can be refusing every read")
+            self.assertIn("claude", lanes)
+        finally:
+            TV._SUB_BUDGET_PATH = p0
+
+    # ── 9. every lane shape carries the cap keys, including the honest-absent one ──────────────
+    def test_every_lane_shape_carries_the_cap_keys(self):
+        """UNKNOWN IS A VALUE, NOT A MISSING FIELD. The grok except-path published a lane with no
+        `capWindow`/`capText`, so a reader had to know which of two shapes it held — and the law
+        that pins the contract went red on a perfectly honest state."""
+        import g5_grok_eyes as G5b
+        need = ("atCap", "capWindow", "capText", "on", "label")
+        # the live shape
+        live = (CA._meter_state() or {}).get("lanes") or {}
+        # and the honest-absent shape, forced
+        counts0 = G5b._budget_counts
+        try:
+            def _boom():
+                raise RuntimeError("forced")
+            G5b._budget_counts = _boom
+            absent = (CA._meter_state() or {}).get("lanes") or {}
+        finally:
+            G5b._budget_counts = counts0
+        bad = []
+        for label, lanes in (("live", live), ("grok-unreadable", absent)):
+            for n, v in sorted(lanes.items()):
+                if not isinstance(v, dict):
+                    continue
+                for k in need:
+                    if k not in v:
+                        bad.append("%s/%s missing %s" % (label, n, k))
+        print("   lane shapes checked: live=%s · forced-absent=%s · missing keys=%d"
+              % (sorted(live), sorted(absent), len(bad)))
+        self.assertEqual(bad, [], "lane shapes are not uniform: %s" % bad)
+        self.assertIsNone((absent.get("grok") or {}).get("atCap"),
+                          "a lane that could not be read must be UNKNOWN, never a comfortable "
+                          "False")
 
 
 RED_PROOF = [
@@ -177,6 +315,27 @@ RED_PROOF = [
         "find": '            capped.append("%s (%s)" % (name, v.get("capText")\n'
                 '                                       or "at its ceiling, window UNKNOWN"))',
         "replace": '            capped.append("%s (%s of %s today)" % (name, v.get("day"), v.get("dailyMax")))',
+        "matches": 1,
+    },
+    {
+        "why": "the lanes stop being published when CLAUDE has no ledger, so the GROK lane — which "
+               "records into a different file entirely — goes invisible on exactly the machines "
+               "where it is the lane doing the reading",
+        "file": "control_app.py",
+        "find": '            out["why"] = "no vision read has been recorded on this machine yet"\n'
+                '            out["lanes"] = _meter_lanes(out)\n'
+                '            return out',
+        "replace": '            out["why"] = "no vision read has been recorded on this machine yet"\n'
+                   '            return out',
+        "matches": 1,
+    },
+    {
+        "why": "the Claude meter goes back to counting with its own operands instead of the "
+               "refusal's, so a call at exactly 3600.0s old makes the meter say AT ITS CEILING "
+               "while every read is still allowed",
+        "file": "control_app.py",
+        "find": "        out[\"hour\"] = sum(1 for t in calls if now - t < 3600)",
+        "replace": "        out[\"hour\"] = sum(1 for t in calls if now - t <= 3600)",
         "matches": 1,
     },
     {

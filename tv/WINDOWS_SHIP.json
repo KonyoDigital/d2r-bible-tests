@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3098",
+  "ver": "v3099",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3098: the second eye read the shipped v3092 diff and found two real holes, both reproduced before a line changed: the doctor gate test_the_doctor_says_what_it_watches was RED on the tree because check_read_lanes_at_cap declared no watch, and the meter atCap did not mirror either lane own refusal. An hourly exhaustion read as healthy on the Claude lane, a ceiling of 0 read as healthy on both, and a tripped HOUR printed the DAILY fraction. One helper now answers for both lanes and names the window.",
+  "note": "v3099: the second eye HIGH on v3098, reproduced before the fix: the lanes were built behind claude ledger check, so on a machine where claude has never read the GROK lane was not published at all - and grok records into a different file entirely. Also drove the claude half of the join for real, and the boundary red-proof came back BLIND until the clock was held still.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
