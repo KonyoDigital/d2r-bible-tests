@@ -236,12 +236,35 @@ class ItNeverInventsCoverage(unittest.TestCase):
             % (len(bad), bad[:4]))
 
         # OVER-REACH — a lane-qualified name must not cover a surface belonging to no lane.
+        # ⚠⚠⚠ v3134 — "IS IT A ROUTE" WAS A PROXY, AND THE SYSTEM OUTGREW IT. This flagged every
+        # COVERED surface whose origin was not "route" — a rule written when the corroborator
+        # covered routes and nothing else. `loop_corroborate` and `lock_evidence_corroborate` have
+        # since arrived, each DECLARING its own SURFACES, and every one of the 11 this called
+        # over-reach is in one of those registries. MEASURED on HEAD:
+        #
+        #     COVERED 24  =  route 9  +  declared 15  +  no basis 0
+        #     the 11: loop_corroborate.SURFACES (6 loops)
+        #             lock_evidence_corroborate.SURFACES (5 valves)
+        #
+        # The honest question is not "is this a route" but "did any corroborator SAY it watches
+        # this". A claim with a declaration behind it is COVERAGE; a claim without one is
+        # INVENTION, and that is what this law exists to catch. It is asked of `declared_surfaces()`
+        # so a fifth corroborator cannot be wired into the reader and forgotten here.
+        #
+        # ⚠ THIS IS STRICTER, NOT LOOSER, IN THE DIRECTION THAT MATTERS: coverage now REQUIRES a
+        # declaration. Adding a surface to the corroborator's output without adding it to its
+        # SURFACES goes red — which the old origin test could never see.
+        _declared = OM.declared_surfaces()
+        self.assertTrue(_declared, "no corroborator declares any surface — the allow-list is "
+                                   "empty, so this law would pass by vacuum")
         over = [r["surface"] for r in rows
-                if r["origin"] != "route" and r["cells"]["corroborator"] == OM.COVERED]
+                if r["origin"] != "route" and r["surface"] not in _declared
+                and r["cells"]["corroborator"] == OM.COVERED]
         self.assertFalse(
             over,
-            "%d non-route surface(s) became COVERED by the corroborator: %s. Qualifying names by "
-            "lane must widen the join, never the claim." % (len(over), over[:4]))
+            "%d surface(s) are COVERED by the corroborator with NO BASIS — neither a route nor "
+            "declared in any corroborator's SURFACES: %s. Coverage must be DECLARED; a claim "
+            "without a declaration is invention." % (len(over), over[:4]))
 
     def test_a_surface_with_no_organs_is_not_silently_dropped(self):
         """The whole point is that the holes stay visible."""
@@ -255,6 +278,16 @@ class ItNeverInventsCoverage(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "a corroborator is dropped from the declaration roster while it keeps PUBLISHING "
+               "coverage, so every surface it watches becomes a claim with no declaration behind "
+               "it — the invention this law exists to catch, and the shape the old origin test "
+               "could never see",
+        "file": "organ_matrix.py",
+        "find": 'CORROBORATORS = ("shelf_corroborate", "loop_corroborate", "lock_evidence_corroborate")',
+        "replace": 'CORROBORATORS = ("shelf_corroborate",)',
+        "matches": 1,
+    },
     {
         'why': "The corroborator's coverage answer must keep the LANE it learned each name in. organ_matrix._corr() publishes each route-set name twice — bare, and qualified with its lane (chronicle./fleet./roster.) — because the surface registry identifies route surfaces as `chronicle.runeword`, `fleet.sets`, `roster.unique`. Dropping the qualifier is the exact historical defect: three route modules flatten into one set of bare concept names and all nine route surfaces fall out of COVERED. The anchor deletes the qualification itself (real code, not a comment, not a message string, not a shared constant), and it shrinks only the ORGAN's vocabulary — the surface list comes from self_arming.ROUTES, so this is not the wrong side of a union.  MEASURED: untampered OK — Ran 6 tests in 5.939s, exit 0, green before the edit; tampered (all 1) FAILED (failures=1) — Ran 6 tests in 5.323s; test_the_corroborator_keeps_the_lan; reddened law test_organ_matrix.ItNeverInventsCoverage.test_the_corroborator_keeps_t; ALONE python3 -m unittest test_organ_matrix.ItNeverInventsCoverage.test_the_corroborator_keeps_the_lane_it.",
         'file': 'organ_matrix.py',

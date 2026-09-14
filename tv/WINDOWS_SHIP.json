@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3133",
+  "ver": "v3134",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3133: 368 declared, 361 proved, 0 blind. Ten of the fifteen went PROVEN under a sabotage that deletes the real thing. TWO were RED ON HEAD while the store called them unrun and are now green. THREE are UNPROVABLE for VENUE, not for defect, and each was verified green in the real tree: test_control is a 2235-test browser suite the safe_copy sandbox cannot host and the pre-push gate runs it green on this exact tree; test_one_name passes 16 tests in 31s clean but its tampered run exceeds the 60s bound under sandbox load; swallow_ratchet exits 0 in the real tree. Saying UNPROVABLE-for-venue is the honest verdict — counting them as proven would be the green that lies. The whole drain found FIVE gates rotted on HEAD and every single one was a stale anchor or a stale model, never a wrong law, and four of the five were mine.",
+  "note": "v3134: His ruling: shelf IS a lane. organ_matrix.surfaces() drew from three registries and shelf_corroborate was a FOURTH it never asked, so shelf.rows and shelf.scene had no source and the shelf lane did not exist — STRAY 2, reported as invented lanes it had not invented. Joined, STRAY is 0 and the map carries 11 lanes. That pushed the so-called over-reach from 13 to 15, which is what made the proxy unarguable: the corroborator was being flagged for covering surfaces it DECLARES it watches. organ_coverage reads FOUR corroborator modules while the law checked one registry and tested origin not equal to route — a rule written when the corroborator covered routes and nothing else. Measured: COVERED 24 equals route 9 plus declared 15 plus no basis 0. Every one of the 11 sits in loop_corroborate.SURFACES or lock_evidence_corroborate.SURFACES, added by the six-loops and the locks work. The law now asks whether any corroborator DECLARED it, which is stricter where it matters: coverage now requires a declaration.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

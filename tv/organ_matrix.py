@@ -232,6 +232,38 @@ def organ_coverage():
     return out
 
 
+#: The corroborator modules `organ_coverage()` reads. Kept in ONE place so a fifth corroborator
+#: cannot be added to the reader and forgotten by the law that checks it — which is exactly how
+#: the over-reach check came to test a proxy instead of the question. [[copy-drift]]
+CORROBORATORS = ("shelf_corroborate", "loop_corroborate", "lock_evidence_corroborate")
+
+
+def declared_surfaces():
+    """Every surface a corroborator DECLARES it watches. -> {name}
+
+    ⚠⚠ v3134 — THE OVER-REACH CHECK WAS ASKING A PROXY. `test_organ_matrix` flagged every COVERED
+    surface whose origin was not "route" — a rule written when the corroborator covered routes and
+    nothing else. Since then `loop_corroborate` and `lock_evidence_corroborate` arrived, each
+    declaring its own SURFACES, and `shelf_corroborate` declares four more. MEASURED on HEAD:
+
+        COVERED total 24  =  9 route  +  15 declared  +  0 with no basis
+
+    Every one of the 11 the law called over-reach is in a registry:
+        loop_corroborate.SURFACES        the 6 loops (_drift_loop, _orphan_watch, …)
+        lock_evidence_corroborate.SURFACES  the 5 valves (vault.apply, prune.arm, …)
+
+    So the honest question is not "is this a route" but "did any corroborator SAY it watches
+    this". A claim with a declaration behind it is coverage; a claim without one is invention.
+    """
+    out = set()
+    for m in CORROBORATORS:
+        try:
+            out.update(str(x) for x in (getattr(__import__(m), "SURFACES", ()) or ()))
+        except Exception:
+            continue
+    return out
+
+
 def surfaces():
     """Everything that COULD be covered, derived from what already exists. -> {name: origin}"""
     found = {}
@@ -247,6 +279,28 @@ def surfaces():
             found[k] = "valve"
         for k in getattr(SA, "ROUTES", {}):
             found[k] = "route"
+    except Exception:
+        pass
+    # ⚠⚠ v3134 — A FOURTH REGISTRY THIS MAP WAS NEVER ASKING, AND KONYO RULED ON IT.
+    # `shelf_corroborate.SURFACES` declares FOUR surfaces — ('shelf-cards', 'river-strip',
+    # 'shelf.rows', 'shelf.scene') — and only the two render targets reached this map, because
+    # they happen to also be `render_check.TARGETS`. The two DOTTED ones had no other source, so
+    # the `shelf` lane did not exist here at all, while `vault.apply`, `reel.route`,
+    # `prune.reports`, `printer.stream` and `frame.release` all arrive from `self_arming`.
+    #
+    # MEASURED: test_organ_matrix reported STRAY 2 — shelf.rows, shelf.scene — "the corroborator
+    # invented lane(s) that do not exist". It had not invented them; this map had never been told.
+    # Konyo, 2026-09-14, asked which side was wrong: "YES it is shelf.rows/shelf.scene" — shelf IS
+    # a lane, so the map carries it.
+    #
+    # ⚠ THE ORIGIN IS HONEST ABOUT WHERE IT CAME FROM. These are not render targets, valves or
+    # vessels; they are surfaces a corroborator DECLARES it watches. Calling them "route" to make
+    # the over-reach law quieter would be picking a label for its effect on a test rather than for
+    # what the thing is. [[the-unjoined-end]] [[label-outlived-referent]]
+    try:
+        import shelf_corroborate as SHC
+        for k in (getattr(SHC, "SURFACES", ()) or ()):
+            found.setdefault(str(k), "declared surface")
     except Exception:
         pass
     try:
