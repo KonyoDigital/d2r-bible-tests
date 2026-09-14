@@ -27,6 +27,7 @@ difference can live, which is why this law guards the legend and not the picture
 `.hrt-h, .hrt-row`. The contradiction between the rows and the count sat on his screen and no
 instrument here could have seen it. [[visual-regression-detector]] [[the-unjoined-end]]
 """
+import ast as _ast
 import io
 import os
 import re
@@ -55,6 +56,33 @@ class TestFlowingIsUnmeasuredNotZero(unittest.TestCase):
     def test_the_census_reports_None_not_zero_when_nothing_can_score(self):
         """The data half. If any watcher ever becomes scorable this flips to a real number and the
         law stops applying — which is why it asserts the PAIR, not the value."""
+        # ⚠⚠ DRIVE THE INPUT, DO NOT WAIT FOR IT. This law used to reach the unscorable branch
+        # only when the LIVE census happened to be unscorable. #80 made 8 vessels scorable, the
+        # branch went dead, and heart2 caught this law's own red-proof going BLIND — the tamper
+        # put the zero back and nothing refused it. So the decision is now a PURE pair and the
+        # law drives BOTH sides every run, whatever the live tree looks like.
+        # [[gate-blind-to-unexercised-input]]
+        _n, _why = heart.flow_or_unmeasured(0, set(), {}, 12)
+        self.assertIsNone(_n, "NOT ONE watcher carries a score and the count came back %r. A "
+                              "number here is a figure nobody measured." % (_n,))
+        self.assertTrue(_why.strip(), "unmeasured and no reason given — an unexplained blank is "
+                                      "worse than the zero it replaced.")
+        self.assertEqual(
+            heart.flow_or_unmeasured(7, {"w"}, {"w": 0.5}, 12), (7, ""),
+            "a watcher IS scored, so the real count must pass through untouched and unexplained.")
+
+        # and the joint: vessels() must actually ASK it. A pure function nobody calls is plumbing
+        # with no tap. [[the-unjoined-end]]
+        _hsrc = io.open(os.path.join(HERE, "heart.py"), encoding="utf-8").read()
+        _v = next((n for n in _ast.parse(_hsrc).body
+                   if isinstance(n, _ast.FunctionDef) and n.name == "vessels"), None)
+        self.assertIsNotNone(_v, "heart.vessels is gone — this law reads the wrong thing")
+        _calls = [c for c in _ast.walk(_v) if isinstance(c, _ast.Call)
+                  and getattr(c.func, "id", "") == "flow_or_unmeasured"]
+        self.assertEqual(len(_calls), 1,
+                         "vessels() calls flow_or_unmeasured %d time(s) — the census decides the "
+                         "unmeasured case somewhere this law cannot see." % len(_calls))
+
         rep = heart.vessels()
         counts = rep.get("counts") or {}
         got = counts.get("FLOWING")
@@ -119,8 +147,58 @@ class TestFlowingIsUnmeasuredNotZero(unittest.TestCase):
             "the heart target's selector (%r) does not include .hrt-legend, so the line printing "
             "the census counts is outside every shot this gate takes." % sel)
 
+    def test_the_placeholder_is_never_a_counted_surface(self):
+        """⚠⚠ v3144 — A CENSUS-STATE BIT IN A NODE COUNT MAKES THE FLOOR RIGHT FOR ONLY ONE OF TWO
+        LEGAL DOMs. The legend renders the FLOWING count as a number when there is one and
+        otherwise as `<span class="lg-unmeasured">—</span>`, and the law directly above guards
+        that BOTH states stay reachable. So `.hrt-legend span` is 5 unmeasured and 4 measured:
+
+            FLOWING 8      found 95, floor 95   green, tight
+            FLOWING None   found 96, floor 95   a ratchet never refuses an INCREASE
+            …and in THAT state one real .hrt-row vanishes -> 95 vs 95 -> GREEN
+
+        The placeholder CANCELS a real loss, which is the one thing a ratchet exists to prevent.
+        v3143 excluded it so the count is invariant to census state — and nothing locked that,
+        because the law above only asserts the selector CONTAINS "hrt-legend". A revert of the
+        `:not(...)` clause would reopen the slack with every test still green, which is the gap a
+        cross-family review named. [[regression-guard]] [[zero-needs-a-denominator]]"""
+        # ⚠ PARSE, NEVER GREP, WHEN A LAW READS SOURCE — and this one proved why on its first
+        # run: a regex anchored on "#heart-ov" matched `heart-fan`'s selector, which starts the
+        # same way, and the law failed against a target it was not asking about. TARGETS is read
+        # from the AST so "the heart target" means the heart target. [[source-reading-guard]]
+        _src = io.open(os.path.join(HERE, "render_check.py"), encoding="utf-8").read()
+        _tg = next((n for n in _ast.parse(_src).body
+                    if isinstance(n, _ast.Assign)
+                    and getattr(n.targets[0], "id", "") == "TARGETS"), None)
+        self.assertIsNotNone(_tg, "render_check.TARGETS is gone — this law reads the wrong thing")
+        sel = ""
+        for _k, _v in zip(_tg.value.keys, _tg.value.values):
+            if getattr(_k, "value", None) != "heart":
+                continue
+            for _kk, _vv in zip(_v.keys, _v.values):
+                if getattr(_kk, "value", None) == "sel" and isinstance(_vv, _ast.Constant):
+                    sel = str(_vv.value)
+        self.assertTrue(sel, "the heart target has no `sel` at all")
+        self.assertIn("hrt-legend span", sel,
+                      "the heart selector stopped counting the legend's spans (%r)" % sel)
+        self.assertIn(":not(.lg-unmeasured)", sel,
+                      "the heart selector counts `.lg-unmeasured` (%r) — that span exists ONLY "
+                      "while the census is unscorable, so the node count changes with the census "
+                      "rather than with the surfaces, and one extra placeholder silently cancels "
+                      "one genuinely vanished row." % sel)
+
 
 RED_PROOF = [
+    {
+        "why": "the heart selector goes back to counting `.lg-unmeasured` — a span that exists "
+               "ONLY while the census is unscorable — so the node count tracks the CENSUS STATE "
+               "rather than the surfaces, the floor can be right for only one of two legal DOMs, "
+               "and one extra placeholder silently cancels one genuinely vanished .hrt-row",
+        "file": "render_check.py",
+        "find": '               "#heart-ov .hrt-legend span:not(.lg-unmeasured)",',
+        "replace": '               "#heart-ov .hrt-legend span",',
+        "matches": 1,
+    },
     {
         "why": "restores `(c.FLOWING || 0)`, so an UNMEASURED census prints as a confident zero on "
                "the one line he reads the numbers from",
@@ -133,8 +211,8 @@ RED_PROOF = [
         "why": "makes the census report 0 again instead of None, so the count is a figure nobody "
                "measured",
         "file": "heart.py",
-        "find": "    if not _scorable:\n        counts[FLOWING] = None",
-        "replace": "    if not _scorable:\n        counts[FLOWING] = 0",
+        "find": "        return flow_n, \"\"\n    return None, (",
+        "replace": "        return flow_n, \"\"\n    return 0, (",
         "matches": 1,
     },
     {

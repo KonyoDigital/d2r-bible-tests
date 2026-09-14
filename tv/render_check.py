@@ -441,7 +441,7 @@ def _shelf_activate_why():
              + ' window._shLanesLoad=' + (typeof window._shLanesLoad)
              + ' #sh-lanes count=' + document.querySelectorAll('#sh-lanes').length
              + ' html="' + (function(){ var e=document.getElementById('sh-lanes');
-                   return e ? e.innerHTML.replace(/\s+/g,' ').slice(0,100) : 'NO NODE'; })() + '"'
+                   return e ? e.innerHTML.replace(/\\s+/g,' ').slice(0,100) : 'NO NODE'; })() + '"'
              + '. A .shr-wait alone means the ask is still in flight, which is the ONE state this '
              + 'gate refuses on purpose; a 0 everywhere means the renderer never ran.';
     })()"""

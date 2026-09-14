@@ -218,6 +218,27 @@ def _live_of(watcher, name):
     return {"state": r["state"], "why": r["why"], "tickAgeS": r["tickAgeS"]}
 
 
+def flow_is_measurable(watchers, scored):
+    """Can FLOWING be a NUMBER at all? True iff some WATCHER carries a real score."""
+    return bool(set(watchers or ()) & set(k for k, v in (scored or {}).items() if v is not None))
+
+
+def flow_or_unmeasured(flow_n, watchers, scored, n_watched):
+    """-> (count-or-None, why). A zero needs a denominator: when NOT ONE watcher carries a
+    score, FLOWING is UNMEASURED rather than zero.
+
+    ⚠ PURE ON PURPOSE. This lived inline in vessels() and its law could only reach it when the
+    LIVE census happened to be unscorable. The day #80 made 8 vessels scorable that branch went
+    dead, the law kept passing, and heart2 caught its red-proof going BLIND — the tamper set the
+    count back to 0 and nothing noticed. A law must be able to DRIVE the input it guards.
+    [[gate-blind-to-unexercised-input]] [[zero-needs-a-denominator]] [[unknown-stays-unknown]]"""
+    if flow_is_measurable(watchers, scored):
+        return flow_n, ""
+    return None, ("no organ row carries a score for any watcher, so FLOWING is UNMEASURED "
+                  "rather than zero — %d vessel(s) are watched and none of them can be "
+                  "scored. This is a missing measurement, not a missing quality." % n_watched)
+
+
 def vessels():
     """Everything that runs on its own, in ONE vocabulary. -> dict
 
@@ -284,7 +305,7 @@ def vessels():
         _n, _k, _w, _v = _read_census_row(row)
         if _w:
             _watchers.add(_w)
-    _scorable = bool(_watchers & set(k for k, v in scored.items() if v is not None))
+    _scorable = flow_is_measurable(_watchers, scored)
 
     out, not_vessels = [], 0
     for row in rows:
@@ -390,13 +411,8 @@ def vessels():
     #
     # A zero needs a denominator. When nothing can score, the count is None and says why.
     # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
-    _flow_why = ""
-    if not _scorable:
-        counts[FLOWING] = None
-        _flow_why = ("no organ row carries a score for any watcher, so FLOWING is UNMEASURED "
-                     "rather than zero — %d vessel(s) are watched and none of them can be "
-                     "scored. This is a missing measurement, not a missing quality."
-                     % len(out))
+    counts[FLOWING], _flow_why = flow_or_unmeasured(
+        counts[FLOWING], _watchers, scored, len(out))
 
     return {
         "ok": True,
