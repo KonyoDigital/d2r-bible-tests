@@ -67,6 +67,29 @@ def _block(src, opener):
     raise AssertionError("unbalanced braces after %r" % opener)
 
 
+
+def _executable_js(text):
+    """JS with comments removed. -> str
+
+    ⚠⚠ WITHOUT THIS, THE COMMENT EXPLAINING THE FIX SATISFIES THE ASSERTION ABOUT THE FIX. The
+    red-proof that replaces `var circuit = (gl.capWindow === 'circuit')` with `var circuit = false`
+    came back **BLIND**: the guard asked `assertIn("capWindow === 'circuit'", body)` and matched the
+    `/* ... */` note directly above, which quotes the expression by name. The law was reading prose
+    and calling it code. [[source-reading-guard]] [[measured-true-read-wrong]]
+    """
+    out, i, n = [], 0, len(text)
+    while i < n:
+        if text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        elif text.startswith("//", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+        else:
+            out.append(text[i]); i += 1
+    return "".join(out)
+
+
 class TestTheGrokChipPaintsOnEveryPath(unittest.TestCase):
 
     def setUp(self):
@@ -76,9 +99,14 @@ class TestTheGrokChipPaintsOnEveryPath(unittest.TestCase):
     # ── 1. the chip is painted on the CLAUDE-UNMEASURED path ──────────────────────────────────
     def test_the_grok_chip_is_painted_when_claude_is_unmeasured(self):
         body, _a, end = _block(self.src, "if (!known){")
-        n_in = body.count("paintGrok()")
+        # ⚠⚠ `paintGrok();` WITH THE SEMICOLON, AND THE EYE HAD TO TELL ME. The first cut counted
+        # `paintGrok()` — and `function paintGrok(){` CONTAINS that substring, so the declaration
+        # itself satisfied the count. Deleting the real later call left n_after at 1 and the
+        # assertion named for exactly that failure stayed GREEN. A counter that cannot reach zero
+        # is not a counter. [[sabotage-is-usually-the-wrong-one]] [[source-reading-guard]]
+        n_in = body.count("paintGrok();")
         after = self.src[end:]
-        n_after = after.count("paintGrok()")
+        n_after = after.count("paintGrok();")
         print("   paintGrok() inside the !known block: %d · after it: %d" % (n_in, n_after))
         self.assertGreaterEqual(
             n_in, 1,
@@ -107,7 +135,7 @@ class TestTheGrokChipPaintsOnEveryPath(unittest.TestCase):
 
     # ── 3. the circuit is drawn as a circuit, not as an absence ───────────────────────────────
     def test_a_zero_ceiling_is_not_drawn_like_an_unmeasured_one(self):
-        body, _a, _b = _block(self.src, "function paintGrok()")
+        body = _executable_js(_block(self.src, "function paintGrok()")[0])
         self.assertIn("capWindow === 'circuit'", body,
                       "the renderer does not distinguish a ceiling of 0 from an unmeasured lane, "
                       "so `paint()` writes the same '-' for both")
@@ -137,6 +165,153 @@ class TestTheGrokChipPaintsOnEveryPath(unittest.TestCase):
             G5._HOURLY_MAX, G5._DAILY_MAX = h0, d0
 
 
+    # ── 5. THE RUNTIME, not the source text — the real function in a real engine ───────────────
+    def test_the_real_function_paints_the_real_text(self):
+        """⚠⚠ THE SECOND EYE'S SHARPEST POINT ON v3100, AND IT WAS RIGHT: *"a gate joined to its
+        source text and unjoined from the runtime it claims to protect. All four tests in this
+        file can pass on a page whose meter never executes."* They could — v3100 shipped a bare
+        `} catch(e){}` that made the browser refuse the WHOLE script, and every source assertion
+        here stayed green through it.
+
+        So this one EXTRACTS `paint` and `paintGrok` from bible.html and RUNS them in node against
+        a stub DOM, asserting the text a person would actually read. A SyntaxError anywhere in
+        either function fails here, and so does a wrong denominator.
+        [[the-unjoined-end]] [[feedback-blind-fixture-green-gate]]
+        """
+        import json as _json
+        import shutil
+        import subprocess
+        import tempfile
+
+        node = shutil.which("node")
+        if not node:
+            # ⚠ A SKIP IS NOT A PASS, and it says so out loud rather than going quietly green.
+            self.skipTest("node is not installed — the RUNTIME half of this law is UNMEASURED")
+
+        paint_body, _pa, _pb = _block(self.src, "function paint(barId, fillId, vId, used, max)")
+        grok_body, _ga, _gb = _block(self.src, "function paintGrok()")
+        harness = """
+        var els = {};
+        function el(id){
+          /* ⚠ getBoundingClientRect IS NOT OPTIONAL — the real `paint` calls it, and paintGrok's
+             own `catch(e){}` SWALLOWED the TypeError, so the day bar silently never rendered and
+             the harness looked like a bad selector. That swallow is also why no source-text
+             assertion can ever see a runtime fault in this function. */
+          if (!els[id]) els[id] = {id:id, textContent:'', hidden:false, style:{},
+                                   classList:{toggle:function(){}, add:function(){},
+                                              remove:function(){}, contains:function(){return false;}},
+                                   getBoundingClientRect:function(){
+                                     return {width:120,height:8,top:0,left:0,right:120,bottom:8};},
+                                   setAttribute:function(){}, appendChild:function(){}};
+          return els[id];
+        }
+        var document = { getElementById: el };
+        var j = JSON.parse(process.argv[2]);
+        function paint(barId, fillId, vId, used, max)%s
+        function paintGrok()%s
+        paintGrok();
+        console.log(JSON.stringify({
+          hour: els['sm-v-gh'].textContent, day: els['sm-v-gd'].textContent,
+          key:  els['sm-grok-k'].textContent, hidden: els['sm-grok'].hidden}));
+        """ % (paint_body, grok_body)
+
+        d = tempfile.mkdtemp(prefix="grokchip-")
+        self.addCleanup(shutil.rmtree, d, True)
+        script = os.path.join(d, "h.js")
+        with io.open(script, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+
+        def run(lane):
+            out = subprocess.check_output(
+                [node, script, _json.dumps({"lanes": {"grok": lane}})],
+                stderr=subprocess.STDOUT, timeout=60)
+            return _json.loads(out.decode("utf-8").strip().splitlines()[-1])
+
+        base = {"label": "Grok", "on": True, "atCap": False, "capWindow": None, "capText": "",
+                "hour": 70, "day": 1035, "hourlyMax": 4000, "dailyMax": 20000, "why": ""}
+
+        got = run(dict(base))
+        print("   running lane          -> %r / %r  key=%r" % (got["hour"], got["day"], got["key"]))
+        # ⚠ THE REAL `paint` COMPACTS THE CEILING — "4k"/"20k", by v2027, so the cap fits the
+        # column beside the bar. Asserted against what it actually renders, not what I assumed.
+        self.assertEqual(got["hour"], "70/4k")
+        self.assertEqual(got["day"], "1035/20k")
+        self.assertEqual(got["key"], "grok")
+
+        # ⚠ THE CELL THE EYE FOUND: only the DAY is a circuit. The hour must keep its own
+        # denominator — the first cut overwrote both bars and printed `70/0` for a 4000 ceiling.
+        day0 = run(dict(base, dailyMax=0, atCap=True, capWindow="circuit"))
+        print("   daily ceiling 0       -> %r / %r  key=%r"
+              % (day0["hour"], day0["day"], day0["key"]))
+        self.assertEqual(day0["day"], "1035/0",
+                         "the window that IS the circuit must say so")
+        self.assertEqual(day0["key"], "grok \u00b7 CEILING 0",
+                         "the key must NAME the circuit — it read %r" % day0["key"])
+        self.assertEqual(day0["hour"], "70/4k",
+                         "the HOUR has a 4000 ceiling and is not the circuit — it read %r"
+                         % day0["hour"])
+
+        hr0 = run(dict(base, hourlyMax=0, atCap=True, capWindow="circuit"))
+        print("   hourly ceiling 0      -> %r / %r" % (hr0["hour"], hr0["day"]))
+        self.assertEqual(hr0["key"], "grok \u00b7 CEILING 0",
+                         "the key must NAME the circuit — it read %r" % hr0["key"])
+        self.assertEqual(hr0["hour"], "70/0")
+        self.assertEqual(hr0["day"], "1035/20k",
+                         "the DAY has a 20000 ceiling and is not the circuit — it read %r"
+                         % hr0["day"])
+
+        # and a lane that could not be read stays UNKNOWN on screen, not zero
+        unk = run(dict(base, hour=None, day=None, hourlyMax=None, dailyMax=None,
+                       on=None, atCap=None))
+        print("   unreadable lane       -> %r / %r" % (unk["hour"], unk["day"]))
+        self.assertEqual(unk["hour"], "\u2013")
+        self.assertEqual(unk["day"], "\u2013")
+
+    # ── 6. and the chip is hidden when there is no grok lane at all ────────────────────────────
+    def test_no_grok_lane_hides_the_chip(self):
+        import json as _json
+        import shutil
+        import subprocess
+        import tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed — the RUNTIME half of this law is UNMEASURED")
+        paint_body, _a, _b = _block(self.src, "function paint(barId, fillId, vId, used, max)")
+        grok_body, _c, _d = _block(self.src, "function paintGrok()")
+        harness = """
+        var els = {};
+        function el(id){
+          /* ⚠ getBoundingClientRect IS NOT OPTIONAL — the real `paint` calls it, and paintGrok's
+             own `catch(e){}` SWALLOWED the TypeError, so the day bar silently never rendered and
+             the harness looked like a bad selector. That swallow is also why no source-text
+             assertion can ever see a runtime fault in this function. */
+          if (!els[id]) els[id] = {id:id, textContent:'', hidden:false, style:{},
+                                   classList:{toggle:function(){}, add:function(){},
+                                              remove:function(){}, contains:function(){return false;}},
+                                   getBoundingClientRect:function(){
+                                     return {width:120,height:8,top:0,left:0,right:120,bottom:8};},
+                                   setAttribute:function(){}, appendChild:function(){}};
+          return els[id];
+        }
+        var document = { getElementById: el };
+        var j = JSON.parse(process.argv[2]);
+        function paint(barId, fillId, vId, used, max)%s
+        function paintGrok()%s
+        paintGrok();
+        console.log(JSON.stringify({hidden: els['sm-grok'].hidden}));
+        """ % (paint_body, grok_body)
+        d = tempfile.mkdtemp(prefix="grokchip2-")
+        self.addCleanup(shutil.rmtree, d, True)
+        s = os.path.join(d, "h.js")
+        with io.open(s, "w", encoding="utf-8") as fh:
+            fh.write(harness)
+        out = subprocess.check_output([node, s, _json.dumps({"lanes": {}})],
+                                      stderr=subprocess.STDOUT, timeout=60)
+        got = _json.loads(out.decode("utf-8").strip().splitlines()[-1])
+        print("   no grok lane -> chip hidden: %r" % got["hidden"])
+        self.assertTrue(got["hidden"], "with no grok lane the chip must be hidden, not blank")
+
+
 RED_PROOF = [
     {
         "why": "the grok chip stops being painted when Claude is unmeasured — the producer fix in "
@@ -145,6 +320,16 @@ RED_PROOF = [
         "file": "../bible.html",
         "find": "      paintGrok();          /* ⚠ v3100 — CLAUDE unmeasured says NOTHING about the GROK lane */\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the NORMAL path loses its paint — the chip draws only when Claude is unmeasured, "
+               "which is the inverse of the bug and just as wrong. This is the proof the first "
+               "cut could not go red on, because `function paintGrok(){` contains the substring "
+               "it was counting",
+        "file": "../bible.html",
+        "find": "    paintGrok();\n    return j;",
+        "replace": "    return j;",
         "matches": 1,
     },
     {
@@ -162,6 +347,15 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": '            "hour": _gh, "day": _gd, "hourlyMax": _ghm, "dailyMax": _gdm,',
         "replace": '            "hour": _gh, "day": _gd, "hourlyMax": _ghm or None, "dailyMax": _gdm or None,',
+        "matches": 1,
+    },
+    {
+        "why": "the circuit overwrite goes back to being per-LANE instead of per-WINDOW, so with a "
+               "4000 hourly ceiling and a 0 daily one the HOUR bar prints `70/0` — a denominator "
+               "that is not the hour's, on the window that is not the circuit",
+        "file": "../bible.html",
+        "find": "        if (gl.hourlyMax === 0){",
+        "replace": "        if (circuit){",
         "matches": 1,
     },
     {

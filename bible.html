@@ -50119,7 +50119,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3101', name:'v3101 - the orphaned catch that broke his console script', date:'2026-09-14', note:'my v3100 splice used the old block closing catch as its END anchor and left it behind, so bible.html carried a bare } catch(e){} after paintGrok() - a SyntaxError, which means the browser refuses the WHOLE script and renderSubMeter is never assigned. His console execs this working tree, so it was live. The second eye caught it on the shipped diff; the js-syntax gate would have caught it too and I did not run it before committing.' };
+  window.D2R_BUILD = { id:'v3102', name:'v3102 - the chip gate runs the real function in a real engine', date:'2026-09-14', note:'the second eye second and third findings on v3100, both mine: my own gate counted paintGrok() which the DECLARATION contains, so deleting the real call stayed green; and capWindow circuit means at least one max is 0 while the renderer overwrote BOTH bars, printing a denominator that was not the hours. The gate now extracts paint and paintGrok and runs them in node against a stub DOM, so it judges the rendered text rather than the source it is written beside.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -52865,12 +52865,21 @@ window.renderSubMeter = function(){
            identical to a lane nobody has measured. Three facts, two of them sharing pixels.
            The server now publishes the real integer (0 stays 0; only the unreadable path is
            null), and this names it. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+        /* ⚠ v3102 — PER WINDOW, NOT PER LANE. `capWindow === 'circuit'` means AT LEAST ONE
+           ceiling is 0 (`_cap_state`: `if hm <= 0 or dm <= 0`), and the first cut overwrote BOTH
+           bars with `/0`. With G5_GROK_HOURLY_MAX=4000 and G5_GROK_DAILY_MAX=0 the lane refuses
+           every read and the HOUR bar would have read `201/0` — a denominator that is not the
+           hour's, on the window that is not the circuit. The payload now carries both integers,
+           so each bar answers from its OWN ceiling. [[label-outlived-referent]] */
         var circuit = (gl.capWindow === 'circuit');
         paint('sm-bar-gh','sm-fill-gh','sm-v-gh', gl.hour, gl.hourlyMax);
         paint('sm-bar-gd','sm-fill-gd','sm-v-gd', gl.day, gl.dailyMax);
-        if (circuit){
-          var vh = document.getElementById('sm-v-gh'), vd = document.getElementById('sm-v-gd');
+        if (gl.hourlyMax === 0){
+          var vh = document.getElementById('sm-v-gh');
           if (vh) vh.textContent = (gl.hour === null ? '?' : gl.hour) + '/0';
+        }
+        if (gl.dailyMax === 0){
+          var vd = document.getElementById('sm-v-gd');
           if (vd) vd.textContent = (gl.day === null ? '?' : gl.day) + '/0';
         }
         ghost.classList.toggle('sm-lane-capped', !!gl.atCap);

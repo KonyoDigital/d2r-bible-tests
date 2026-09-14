@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3101",
+  "ver": "v3102",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3101: my v3100 splice used the old block closing catch as its END anchor and left it behind, so bible.html carried a bare } catch(e){} after paintGrok() - a SyntaxError, which means the browser refuses the WHOLE script and renderSubMeter is never assigned. His console execs this working tree, so it was live. The second eye caught it on the shipped diff; the js-syntax gate would have caught it too and I did not run it before committing.",
+  "note": "v3102: the second eye second and third findings on v3100, both mine: my own gate counted paintGrok() which the DECLARATION contains, so deleting the real call stayed green; and capWindow circuit means at least one max is 0 while the renderer overwrote BOTH bars, printing a denominator that was not the hours. The gate now extracts paint and paintGrok and runs them in node against a stub DOM, so it judges the rendered text rather than the source it is written beside.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
