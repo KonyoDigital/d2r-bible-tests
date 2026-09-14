@@ -2123,6 +2123,18 @@ NO_JOINT_YET = {
     # with "shelf" in its name, and a module reading back its own output is one engine, not two.
     # Most of these are honestly unjointable — a self-report, a single census, a sole authority —
     # and saying so is the point. An unexplained check looks exactly like a forgotten one.
+    # ⚠ v3131 — ADDED WITH THE CHECK IT EXPLAINS, WHICH IS THE WHOLE POINT OF THIS REGISTRY.
+    # I shipped `window runs the document on disk` into console_doctor.WATCHES and never filed it
+    # here, so for one version it was indistinguishable from a check nobody had ever looked at —
+    # 1 of 60 in NEITHER registry. The law caught it; the law was itself reported as "unrun".
+    'window runs the document on disk':
+        "a SELF-REPORT with no second witness available inside the console. The check asks the "
+        "webview what document it is rendering and compares that to the file on disk — and every "
+        "other version reading here (ver, liveVer, bibleVer, agentVer) describes a FILE, not the "
+        "rendered DOCUMENT, so none of them can corroborate it. The render gate photographs a "
+        "SANDBOX console rather than his, and Grok Bot photographs his real screen but is not a "
+        "joint this doctor can call. Honestly unjointable until something else witnesses the live "
+        "document; saying so is better than a joint that reads the same source twice.",
     'armed migration':
         "a source-level parse of one file; whether the gating flag is actually stamped on his board lives in WebKit localStorage this process does not own, and the check's own docstring says so",
     'backup loop':

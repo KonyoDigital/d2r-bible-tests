@@ -245,9 +245,27 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                 self.assertFalse(os.path.isabs(rel),
                                  "%s[%d] declares an ABSOLUTE file %r — os.path.join would drop "
                                  "the sandbox and tamper the real tree" % (name, i, rel))
-                joined = os.path.normpath(os.path.join("/sandbox", rel))
-                self.assertTrue(joined.startswith("/sandbox" + os.sep),
-                                "%s[%d] escapes the sandbox via %r -> %r" % (name, i, rel, joined))
+                # ⚠⚠⚠ v3131 — THE BOUNDARY IS THE REPO COPY, NOT tv/, AND THIS LAW HAD THE
+                # SECOND COPY OF THAT RULE. `resolve_proof_target`'s own docstring records this
+                # exact failure once already: "v2821 fixed the resolution inside `_prove_one` and
+                # left test_the_heart_can_see_its_own_instruments joining against tv/ only — so
+                # the ENGINE could apply a proof that its own well-formedness law called
+                # malformed." It happened again, in a different assertion of the same file.
+                #
+                # `_prove_one` sandboxes the copied tv/ dir and deliberately permits ONE level up,
+                # because 59 of 259 gates name `bible.html`, which sits at the repo root: "tv/ is
+                # inside the repo copy, so every previously-legal target stays legal and nothing
+                # new is reachable except files the copy itself contains."
+                #
+                # So `../bible.html` is LEGAL and this law was calling three real proofs escapes.
+                # The fix is not a looser rule — it is to stop re-implementing the engine's path
+                # logic and ASK it, so the two can never disagree again. [[copy-drift]]
+                _tv = os.path.join(os.sep + "sandbox", "repo", "tv")
+                _repo_copy = os.path.dirname(_tv)
+                joined = os.path.normpath(heart2.resolve_proof_target(_tv, rel))
+                self.assertTrue(joined.startswith(_repo_copy + os.sep),
+                                "%s[%d] escapes the sandbox via %r -> %r (the copy root is %r)"
+                                % (name, i, rel, joined, _repo_copy))
 
     def test_the_stored_half_says_how_old_it_is_and_whether_it_was_partial(self):
         """⚠⚠ THE PANEL SAID "derived just now" OVER A CENSUS 49.6 MINUTES OLD.

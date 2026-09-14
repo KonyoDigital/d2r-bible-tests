@@ -181,7 +181,7 @@ RED_PROOF = [
                "still PASSES. It parses for a real Call node outside the def now, so this tamper "
                "reddens it. [[plumbing-with-no-tap]] [[source-reading-guard]]",
         "file": 'bump_version.py',
-        "find": '    _record_ship_in_tasks(ver, name, note)',
+        "find": "    _record_ship_in_tasks(ver, name, note, repo)",
         "replace": '    pass  # _HEART2_TAMPERED_ the row is never recorded',
         "matches": 1,
     },
