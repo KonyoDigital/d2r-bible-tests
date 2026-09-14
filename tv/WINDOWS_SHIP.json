@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3126",
+  "ver": "v3127",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3126: The second eye on v3125: activate_budget was consumed in exactly one place, and the sibling that polls the SAME activate expression after a re-prepare kept a hardcoded 12.0. So shelf-cards and river-strip declared 30s — because the door own path, await thOpen with an 8s /api/sessions abort then a 12s thLoadSession abort, cannot fit in 12 — and then got 12 anyway on that route. One consumer honouring a key while its sibling ignores it is the shape REG-713 already records. Dormant on the happy path since _toTVD is same-document and these targets do not navigate between widths, which is exactly the kind of disagreement that surfaces later as a flake nobody can reproduce.",
+  "note": "v3127: vault-wilson was the single BLIND entry in the heart store. It was not blind through its own defeat — its sabotage matched ZERO times. A refactor split the approved rows into owned and unsure, so _kept became _kept[_which], and this proof was never swept with it. The gate therefore carried a verdict about a line that no longer existed. Re-anchored against a counted match: 1 match tampered, red. That is the sabotage fault and not the law fault, which is the same shape REG-713 records.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

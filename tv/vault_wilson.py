@@ -390,8 +390,12 @@ RED_PROOF = [
                "and `empty` stayed PROVEN 8/8, which is what shows the probe still works rather than "
                "being globally broken. [[sabotage-is-usually-the-wrong-one]]",
         "file": 'control_app.py',
-        "find": '(_kept if _v.get("pass") else _dropped).append(_r)',
-        "replace": '(_kept).append(_r)',
+        # ⚠⚠ v3127 — RE-ANCHORED, COUNTED NOT GUESSED. `_kept` became `_kept[_which]` when the
+        # approved rows were split into owned/unsure, and this proof was never swept with it — so
+        # its `find` matched 0 times and the gate carried a verdict about a line that no longer
+        # exists. That is the sabotage's fault, not the law's. [[sweep-dont-ask]] [[copy-drift]]
+        "find": '(_kept[_which] if _v.get("pass") else _dropped).append(_r)',
+        "replace": '(_kept[_which]).append(_r)',
         "matches": 1,
     },
 ]
