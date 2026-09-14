@@ -194,9 +194,22 @@ class ItNeverInventsCoverage(unittest.TestCase):
         # lane prefixes the corroborator itself publishes, and the law now asserts the thing it
         # always meant: a qualified name must carry a lane that the organ actually speaks, and a
         # BARE concept name is still a regression. [[label-outlived-referent]] [[the-unjoined-end]]
-        lanes = tuple(sorted({n.split(".")[0] for n in names if "." in n}))
+        # ⚠⚠⚠ v3129 — THE ALLOW-LIST MUST COME FROM OUTSIDE THE THING UNDER TEST. v3128 built it
+        # from the prefixes of `names` — the very set `stray` then checks — so every prefix was in
+        # it BY CONSTRUCTION and `stray` could never be non-empty. Measured after that change:
+        # STRAY []. A corroborator that began publishing `fabricated.foo` would have been waved
+        # through. I replaced a stale allow-list with a tautological one and called it progress;
+        # the second eye caught it in a single read. A guard that reads the system's own
+        # classification cannot detect a wrong classification. [[regression-guard]]
+        #
+        # The external source is the SURFACE MAP, which is what a lane has to exist in to be real:
+        #   {_lane_of(k) for k in OM.surfaces()} ->
+        #     chronicle · console · fleet · frame · miniauto · printer · prune · reel · roster · vault
+        # That still accepts prune/reel/vault — the lanes the corroborator legitimately widened
+        # into — and still refuses a lane no surface carries.
+        lanes = tuple(sorted({l for l in (OM._lane_of(k) for k in OM.surfaces()) if l}))
         self.assertTrue(set(lanes) >= {"chronicle", "fleet", "roster"},
-                        "the corroborator stopped publishing one of the three lanes this law was "
+                        "the SURFACE MAP stopped carrying one of the three lanes this law was "
                         "originally written for — %s" % (lanes,))
         qualified = {n for n in names if "." in n}
         self.assertTrue(qualified,

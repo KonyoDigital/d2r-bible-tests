@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3128",
+  "ver": "v3129",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3128: Draining #68 17 unrun gates found they were not unrun. test_the_blueprint_names_the_engine was RED ON HEAD because journal_drain.py — the module I added in v3113 — was never indexed, and vault_backup.py with it. Both now carry a real purpose, gotcha and AST-parsed entry points: 180 modules, 0 unindexed, 0 stale, gate GREEN. test_organ_matrix was RED ON HEAD too, for a stale hardcoded lane tuple: the law allowed chronicle, fleet, roster while the corroborator had widened to also publish prune, reel, shelf and vault, so a guard built to catch fabricated coverage was failing because coverage grew. Now derived from what the organ publishes. That unmasked a SECOND failure the law own comment warned about — 13 non-route surfaces read COVERED — which is real, pre-existing, and logged as task 95 rather than weakened into green.",
+  "note": "v3129: The second eye on v3128, and it caught my own fix being empty. v3128 derived the invented-lane allow-list from the prefixes of the very names stray then checks, so every prefix was in it by construction and stray could NEVER be non-empty — measured STRAY 0. A corroborator publishing fabricated.foo would have been waved through. I removed a stale allow-list and installed a tautological one while congratulating myself for not freezing a bigger tuple. The allow-list now comes from the SURFACE MAP, which is external to the thing under test: chronicle console fleet frame miniauto printer prune reel roster vault. It accepts the lanes the corroborator legitimately widened into and refuses a lane no surface carries, and it detects again — STRAY 2: shelf.rows and shelf.scene. Also filed issue 223, because a known-red recorded as a session task number does not survive a restart.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
