@@ -406,9 +406,31 @@ def _shelf_activate_why():
              + ' .shr-lbl=' + n('#sh-lanes .shr-lbl')
              + ' .shr-bad=' + n('#sh-lanes .shr-bad')
              + ' .shr-wait=' + n('#sh-lanes .shr-wait')
-             + '  |  _shLanesLoad asked=' + (window.__rcLanesCalls || 0)
-             + ' resolved=' + (window.__rcLanesDone || 0)
-             + ' err=' + (window.__rcLanesErr || 'none')
+             /* ⚠⚠ v3124 — REPORT WHAT THE TARGET ACTUALLY PROVES. `shelf-cards` proves arrival
+                from the CARD RECTS and never touches `__rcLanesCalls`, so this diagnostic printed
+                "asked=0 ... the renderer never ran" at a cards failure — a cards problem reported
+                as a river problem, which is the exact misread v3122 was written to stop. And it
+                counted card NODES while the activate counts painted RECTS, so "cards=48" could sit
+                beside a refusal caused by one 0x0 card. Both halves, both measured the way their
+                own gate measures them. [[label-outlived-referent]] */
+             + (function(){
+                   var g = document.querySelector('#th-shelfov .sh-grid');
+                   if (!g) return '  |  cards: NO .sh-grid yet (the shelf has not built its list)';
+                   var c = g.querySelectorAll('.shc-hero, .shc-sess'), pc = 0;
+                   for (var i = 0; i < c.length; i++) {
+                       var cr = c[i].getBoundingClientRect();
+                       if (cr.width > 8 && cr.height > 4) pc++;
+                   }
+                   return '  |  cards found=' + c.length + ' PAINTED=' + pc
+                        + (c.length && pc === c.length ? ' (shelf-cards would pass)'
+                                                       : ' (shelf-cards refuses on this)');
+               })()
+             + (window.__rcLanesCalls
+                  ? ('  |  _shLanesLoad asked=' + window.__rcLanesCalls
+                     + ' resolved=' + (window.__rcLanesDone || 0)
+                     + ' err=' + (window.__rcLanesErr || 'none'))
+                  : '  |  _shLanesLoad NOT ASKED by this target — the river counters below say '
+                    + 'nothing about it')
              + ' | window._shLanesRender=' + (typeof window._shLanesRender)
              + ' window._shLanesLoad=' + (typeof window._shLanesLoad)
              + ' #sh-lanes count=' + document.querySelectorAll('#sh-lanes').length
@@ -1843,7 +1865,14 @@ TARGETS = {
                [[zero-needs-a-denominator]] */
             var _shut = !th || getComputedStyle(th).display === 'none';
             if (_shut) {
-                if ((window.__rcShelfTries || 0) < 25) {
+                /* ⚠⚠ v3124 — CLICK ONLY WHILE THE OVERLAY IS HIDDEN, BECAUSE THE DOOR IS A TOGGLE.
+                   `#btn-shelf`'s FIRST branch is `if (TH.open && _ov0 && !_ov0.hidden) { thClose();
+                   return; }`. So a retry loop that clicks whenever computed display is still `none`
+                   can hit a half-open door and CLOSE it, then reopen it on the next poll, and spend
+                   the whole 12s oscillating — while GATE 1 truthfully reports "display:none after N
+                   clicks" and never says the door is shutting itself. The overlay being hidden is
+                   the one state in which that branch cannot fire. [[zero-needs-a-denominator]] */
+                if (ov.hidden && (window.__rcShelfTries || 0) < 25) {
                     window.__rcShelfTries = (window.__rcShelfTries || 0) + 1;
                     /* leave the gameplay home first — #btn-shelf is display:none under
                        body[data-view="sessions"], where a freshly served console lands */
@@ -1877,11 +1906,18 @@ TARGETS = {
                ⚠ THE SENTINEL IS SET AFTER THE CALL, never before — that is the v3122 lesson from
                `__rcTheatreAsked`, which latched to 1 and then threw, making one failure permanent.
                [[zero-needs-a-denominator]] [[the-unjoined-end]] */
-            if (!window.__rcShelfBuilt) {
-                try {
-                    if (window.thShelf) { window.thShelf(true); window.__rcShelfBuilt = 1; }
-                } catch (e) {}
-            }
+            /* ⚠⚠ v3124 — THE HARNESS DOES NOT BUILD THE SHELF AT ALL. v3122 made this nudge
+               one-shot, which fixed the harness's own repeat-wipe and left the PRODUCT's: the door
+               handler awaits `thOpen()` and THEN calls `thShelf(true)` itself, so when that async
+               open resolves it rebuilds `ov.innerHTML` — restoring the "reading the river…"
+               placeholder over lanes that had already loaded. `__rcShelfBuilt` can only silence
+               the harness caller; two builders with no shared sentinel is still a race, and it is
+               unconditional whenever the click path runs.
+
+               `_shelf_activate()` — the correct, unregistered one — never called `thShelf` at all:
+               click the door, then WAIT for overlay + rect + lanes-or-refusal. That is the whole
+               contract, and the wired copy had bolted a second builder on top of the click.
+               [[the-unjoined-end]] [[copy-drift]] */
             if (ov.hidden) return false;
             /* ⚠⚠ v3122 — THIS TARGET PROVES ITS OWN ARRIVAL, NOT THE RIVER'S. Until now the card
                grid waited for `#sh-lanes` to paint its lanes — a surface this target does not
@@ -2014,7 +2050,14 @@ TARGETS = {
                [[zero-needs-a-denominator]] */
             var _shut = !th || getComputedStyle(th).display === 'none';
             if (_shut) {
-                if ((window.__rcShelfTries || 0) < 25) {
+                /* ⚠⚠ v3124 — CLICK ONLY WHILE THE OVERLAY IS HIDDEN, BECAUSE THE DOOR IS A TOGGLE.
+                   `#btn-shelf`'s FIRST branch is `if (TH.open && _ov0 && !_ov0.hidden) { thClose();
+                   return; }`. So a retry loop that clicks whenever computed display is still `none`
+                   can hit a half-open door and CLOSE it, then reopen it on the next poll, and spend
+                   the whole 12s oscillating — while GATE 1 truthfully reports "display:none after N
+                   clicks" and never says the door is shutting itself. The overlay being hidden is
+                   the one state in which that branch cannot fire. [[zero-needs-a-denominator]] */
+                if (ov.hidden && (window.__rcShelfTries || 0) < 25) {
                     window.__rcShelfTries = (window.__rcShelfTries || 0) + 1;
                     /* leave the gameplay home first — #btn-shelf is display:none under
                        body[data-view="sessions"], where a freshly served console lands */
@@ -2048,17 +2091,38 @@ TARGETS = {
                ⚠ THE SENTINEL IS SET AFTER THE CALL, never before — that is the v3122 lesson from
                `__rcTheatreAsked`, which latched to 1 and then threw, making one failure permanent.
                [[zero-needs-a-denominator]] [[the-unjoined-end]] */
-            if (!window.__rcShelfBuilt) {
-                try {
-                    if (window.thShelf) { window.thShelf(true); window.__rcShelfBuilt = 1; }
-                } catch (e) {}
-            }
+            /* ⚠⚠ v3124 — THE HARNESS DOES NOT BUILD THE SHELF AT ALL. v3122 made this nudge
+               one-shot, which fixed the harness's own repeat-wipe and left the PRODUCT's: the door
+               handler awaits `thOpen()` and THEN calls `thShelf(true)` itself, so when that async
+               open resolves it rebuilds `ov.innerHTML` — restoring the "reading the river…"
+               placeholder over lanes that had already loaded. `__rcShelfBuilt` can only silence
+               the harness caller; two builders with no shared sentinel is still a race, and it is
+               unconditional whenever the click path runs.
+
+               `_shelf_activate()` — the correct, unregistered one — never called `thShelf` at all:
+               click the door, then WAIT for overlay + rect + lanes-or-refusal. That is the whole
+               contract, and the wired copy had bolted a second builder on top of the click.
+               [[the-unjoined-end]] [[copy-drift]] */
             if (ov.hidden) return false;
             var el = document.getElementById('sh-lanes');
             if (!el) return false;
             /* ask again ONLY while it is still waiting — that is what keeps this idempotent,
                since the wait node disappears the moment the strip renders */
-            if (el.querySelector('.shr-wait')) {
+            /* ⚠⚠ v3124 — A REFUSAL IS PAINTED, NOT PENDING. `_shLanesRender`'s three terminal
+               refusals ("could not be read", "could not be drawn", "reported no lanes") are all
+               `<div class="shr-wait shr-bad">`, so a bare `.shr-wait` test matches them too: a
+               river that answered honestly with a reason would be re-asked for the full 12s and
+               then reported as un-activatable, while the very sentence a reader needs is on screen.
+               Those refusal surfaces are exactly the ones that appear when something is wrong.
+               `:not(.shr-bad)` is the difference between "still loading" and "finished, badly".
+               [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+            var _bad = el.querySelector('.shr-bad');
+            if (_bad) {
+                var _br = _bad.getBoundingClientRect();
+                try { window.__rcRiverSaw = 'refusal'; } catch (e) {}
+                return _br.width > 0 && _br.height > 0;
+            }
+            if (el.querySelector('.shr-wait:not(.shr-bad)')) {
                 /* ⚠ v3051 — a rate-limit lived here for one afternoon. Two theories, both
                    measured and both WRONG: that ~30 racing /api/river fetches were the cause
                    (rate-limited -> still red), and that pairing it with a wider bound would fix

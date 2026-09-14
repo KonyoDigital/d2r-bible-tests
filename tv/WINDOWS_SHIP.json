@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3123",
+  "ver": "v3124",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3123: tv/shadow_watch.json is ignored and its .tmp partner was TRACKED, so his running console created and deleted a tracked file underneath a 12-minute pre-push gate. Measured twice: once as fatal unable to stat tv/.subscription_budget.json.tmp killing a commit outright, and once as a phantom deletion in a tree that was supposed to be clean. The .board_identity entry states the rule in as many words — the .tmp is the atomic-write partner and must go too — and four siblings already follow it. This was the one file the sweep missed. Tracked .tmp files: 1 to 0.",
+  "note": "v3124: The second eye on v3122, four findings, all real. ONE (High): v3122 made the thShelf nudge one-shot, which silenced the HARNESS wipe and left the PRODUCT one — the door handler awaits thOpen then calls thShelf(true) itself, rebuilding ov.innerHTML and restoring the reading-the-river placeholder over lanes already loaded. Two builders, no shared sentinel. The harness now never calls thShelf at all; the door does everything, which is the contract the unregistered _shelf_activate always had. TWO: the retry clicked a TOGGLE — btn-shelf first branch is thClose when the overlay is visible — so a half-open door could be shut and reopened for the whole window. It now clicks only while the overlay is hidden, the one state that branch cannot fire in. THREE: the diagnostic reported river counters at a CARDS failure, and counted card nodes while the gate counts painted rects. FOUR: the three terminal river refusals are shr-wait shr-bad, so a bare shr-wait test re-asked an honest refusal for 12s instead of photographing it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
