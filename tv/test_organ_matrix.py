@@ -215,7 +215,13 @@ class ItNeverInventsCoverage(unittest.TestCase):
         self.assertTrue(qualified,
                         "no lane-qualified name at all — the corroborator is back to publishing "
                         "bare concept names, and every route surface will read MISNAMED")
-        stray = {n for n in qualified if n.split(".")[0] not in lanes}
+        # ⚠ v3130 — BOTH SIDES EXTRACT THE LANE THE SAME WAY. The allow-list is built with
+        # `_lane_of`, which strips and lower-cases; this consumer split the raw string, so a name
+        # banked as `Vault.apply` would read as an invented lane while `vault.apply` is a real
+        # surface. No publisher does that today — route lanes come from chronicle/fleet/roster and
+        # the lock and shelf names in this tree are lowercase — so it does not fire; a producer and
+        # a consumer that disagree about what a lane IS is still the defect, not the trigger.
+        stray = {n for n in qualified if OM._lane_of(n) not in lanes}
         self.assertFalse(stray, "the corroborator invented lane(s) that do not exist: %s" % stray)
 
         rows, _w = OM.matrix()
