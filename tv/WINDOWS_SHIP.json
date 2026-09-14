@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3115",
+  "ver": "v3116",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3115: v3114 carry-forward returned [] for three different facts — nothing appended, the file SHRANK, and the re-read RAISED — and apply_plan renamed its rewrite over all three. tv_diablo rotates at 4MB with os.replace(JOURNAL, sessions.1.jsonl) and recreates the live file with one row; landing inside that window destroyed the new generation row AND resurrected every released session. _late_lines now answers None for I-cannot-tell and the drain aborts, leaving the file untouched. The report counts rows on disk, not rows planned. Both new laws drive apply_plan itself — v3114 tested the helper and left the rewrite unjoined.",
+  "note": "v3116: The second eye on v3115: a line count cannot see a rotation. v3115 read fewer-lines as moved and everything else as appends — true of the LIVE file, false of the rest of the ring. _journal_write rotates with os.replace(JOURNAL, sessions.1.jsonl), so after a drain .1 is small and live is thousands of rows: the rotation makes .1 GROW. The drain read a whole night as late appends, pasted it onto the rewrite of the old .1, and renamed that hybrid over the night that had just arrived — then refused at the live file, naming LIVE while the file that lost rows was .1. os.replace swaps the inode, so _late_lines now pins (st_dev, st_ino) captured at the read. The shrink compare stays for the one failure identity cannot see: an in-place truncation.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

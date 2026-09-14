@@ -364,6 +364,100 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
                          "the fresh generation was overwritten: %r" % (after,))
         self.assertIn(os.path.basename(self.live), r.get("why", ""))
 
+    def test_the_ring_rotating_ONTO_a_generation_being_rewritten_is_refused(self):
+        """⚠⚠ THE SECOND EYE ON v3115, AND IT IS THE HALF A LINE COUNT CANNOT SEE. v3115 read
+        "fewer lines than we read" as "the file moved" and everything else as appends. That is
+        true of the LIVE file and FALSE of every other generation: `_journal_write` rotates with
+        `os.replace(JOURNAL, sessions.1.jsonl)`, so after a drain `.1` is small and live is
+        thousands of rows — the rotation makes `.1` GROW. The drain then read a whole night as
+        "late appends", pasted it onto the rewrite of the OLD `.1`, and renamed that hybrid over
+        the night that had just arrived. Worse, the loop reached live next and refused there, so
+        the error named LIVE while the file that lost rows was `.1`. [[stale-reading]]"""
+        rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertTrue(p["release"], "fixture released nothing")
+        before = self._ids(self.live)
+
+        def _rotate_onto_the_rotation():
+            os.replace(self.live, self.rot)        # the REAL dest, and it makes .1 GROW
+
+        fired = self._during_the_rewrite_of(self.rot, _rotate_onto_the_rotation)
+        r = JD.apply_plan(p, yes=True)
+        after = self._ids(self.rot)
+        print("   live rotated ONTO .1 mid-rewrite: fired=%d ok=%s .1 rows=%d (night was %d)"
+              % (len(fired), r.get("ok"), len(after), len(before)))
+        self.assertEqual(len(fired), 1, "the hook never fired — this test proved nothing")
+        self.assertFalse(r.get("ok"),
+                         "the drain renamed a hybrid — the old generation's kept rows plus a slice "
+                         "of the night that replaced it — over a file it never read")
+        self.assertEqual(after, before,
+                         "the rotated-in night lost its prefix: %d row(s) of %d survived"
+                         % (len(after), len(before)))
+        self.assertIn(os.path.basename(self.rot), r.get("why", ""),
+                      "the refusal names %r, not the file that actually moved"
+                      % (str(r.get("why"))[:80],))
+
+    def test_a_re_read_that_RAISES_is_refused_on_its_own(self):
+        """⚠ THE OTHER HALF OF `None`, PINNED SEPARATELY. The second eye's Low on v3115: only the
+        count compare had a law, so restoring `return []` on the `except` alone left every test
+        green while `apply_plan` renamed a drained rewrite onto a generation it could not read.
+        Two reasons, two proofs. [[zero-needs-a-denominator]]"""
+        rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertTrue(p["release"], "fixture released nothing")
+        n_before = len(self._ids(self.live))
+
+        def _make_it_unreadable():
+            # ⚠ the SAME inode — so identity still matches and only the READ can fail
+            os.chmod(self.live, 0)
+
+        self.addCleanup(lambda: os.path.exists(self.live) and os.chmod(self.live, 0o644))
+        fired = self._during_the_rewrite_of(self.live, _make_it_unreadable)
+        r = JD.apply_plan(p, yes=True)
+        os.chmod(self.live, 0o644)
+        after = self._ids(self.live)
+        print("   re-read raises: fired=%d ok=%s live rows=%d (was %d)"
+              % (len(fired), r.get("ok"), len(after), n_before))
+        self.assertEqual(len(fired), 1, "the hook never fired — this test proved nothing")
+        if len(after) != n_before:
+            self.fail("the drain rewrote a file it could not re-read")
+        self.assertFalse(r.get("ok"),
+                         "a re-read that RAISED was treated as 'nothing arrived' and the rewrite "
+                         "was renamed over a file nobody could read")
+
+    def test_a_file_TRUNCATED_IN_PLACE_under_the_rewrite_is_refused(self):
+        """⚠ THE FAILURE IDENTITY CANNOT SEE. `os.replace` swaps the inode, so `_ident` catches
+        every rotation — but a writer doing `open(path, "w")` truncates the SAME inode, and that is
+        not hypothetical here: it is the carved scar that emptied his 6MB bible.html. Same file,
+        fewer rows, and a count is the only witness left. [[open-for-write-truncates-first]]"""
+        rows = [_row("s_rotated", 1_700_000_000_001), _row("s_old_live", 1_700_000_000_000)] + \
+               [_row("s_live_%02d" % i, 1_800_000_000_000 + i) for i in range(12)]
+        p = JR.plan(rows, hist_dir=os.path.join(self.d, "no-frames"))
+        self.assertTrue(p["release"], "fixture released nothing")
+        ino_before = os.stat(self.live).st_ino
+
+        def _truncate_in_place():
+            with open(self.live, "r+") as fh:       # ⚠ r+ — the inode must NOT change
+                fh.seek(0)
+                fh.write(json.dumps(_row("s_only_one_left", 1_900_000_000_002)) + "\n")
+                fh.truncate()
+
+        fired = self._during_the_rewrite_of(self.live, _truncate_in_place)
+        r = JD.apply_plan(p, yes=True)
+        after = self._ids(self.live)
+        same_inode = os.stat(self.live).st_ino == ino_before
+        print("   truncated in place: fired=%d sameInode=%s ok=%s live now=%s"
+              % (len(fired), same_inode, r.get("ok"), after))
+        self.assertEqual(len(fired), 1, "the hook never fired — this test proved nothing")
+        self.assertTrue(same_inode,
+                        "the fixture REPLACED the file, so `_ident` would catch it and this law "
+                        "would pass for a reason that has nothing to do with the count")
+        self.assertFalse(r.get("ok"),
+                         "a file truncated in place under the rewrite was renamed over anyway")
+        self.assertEqual(after, ["s_only_one_left"], "the truncating writer's row was lost: %r" % (after,))
+
     def test_backup_refuses_without_an_explicit_path(self):
         """⚠ THE TWO RESOLVERS ARE NOT THE SAME FILE. `_journal_path()` honours TV_HIST;
         `replay.journal_paths()` does not. An argument-less backup snapshotted the LIVE file while
@@ -375,11 +469,30 @@ class TestTheDrainCoversTheWholeJournalRing(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "the file's IDENTITY stops being checked, so a rotation that REPLACES this path "
+               "(live -> sessions.1.jsonl) reads as growth: a whole night is pasted onto the "
+               "rewrite of the old generation and renamed over the night that just arrived, while "
+               "the refusal names the LIVE file instead",
+        "file": "journal_drain.py",
+        "find": "    if ident is not None and _ident(path) != ident:",
+        "replace": "    if False:",
+        "matches": 1,
+    },
+    {
+        "why": "a re-read that RAISED goes back to reading as 'nothing arrived', so the drained "
+               "rewrite is renamed over a generation nobody could read — the other half of None, "
+               "which the count compare's own proof leaves green",
+        "file": "journal_drain.py",
+        "find": "        return None                     # \u26a0 NOT []: we did not read it, so we do not know",
+        "replace": "        return []",
+        "matches": 1,
+    },
+    {
         "why": "apply_plan stops asking for the late rows, so a row the recorder appended during "
                "the rewrite is renamed away — and the backup predates it, so a restore does not "
                "bring it back either. This is the v3113 loss, and the helper's own laws stay green",
         "file": "journal_drain.py",
-        "find": "            _late = _late_lines(t, _read_lines, doomed)",
+        "find": "            _late = _late_lines(t, _read_lines, doomed, _ident_at_read)",
         "replace": "            _late = []",
         "matches": 1,
     },

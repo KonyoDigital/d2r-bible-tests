@@ -109,7 +109,29 @@ def backup(journal_path=None, stamp=None):
     return dst, n
 
 
-def _late_lines(path, read_lines, doomed):
+def _ident(path):
+    """Which FILE this is, not which NAME. -> (st_dev, st_ino) | None
+
+    ⚠⚠ v3116 — A LINE COUNT CANNOT SEE A ROTATION, AND THE SECOND EYE FOUND THE HALF I MISSED.
+    v3115 read "fewer lines than we read" as "the file moved" and everything else as appends. That
+    is true of the LIVE file and false of every other generation in the ring: `_journal_write`
+    rotates with `os.replace(JOURNAL, sessions.1.jsonl)`, so after a drain `.1` is SMALL and the
+    live file is thousands of rows — the rotation makes `.1` GROW. `_late_lines` then read a whole
+    night as "late appends", pasted it onto the rewrite of the old `.1`, and renamed that hybrid
+    over the night that had just arrived. The loop reached the live file next and refused, so the
+    error named LIVE while the file that lost rows was `.1`.
+
+    `os.replace` swaps the inode. So ask the only question that survives both directions: is this
+    still the same file? [[stale-reading]] [[zero-needs-a-denominator]]
+    """
+    try:
+        st = os.stat(path)
+    except Exception:
+        return None
+    return (st.st_dev, st.st_ino)
+
+
+def _late_lines(path, read_lines, doomed, ident=None):
     """Rows appended to `path` after the first `read_lines` lines were read. -> [line] | None
 
     ⚠⚠ v3115 — `None` MEANS "I CANNOT TELL", AND IT IS NOT THE SAME ANSWER AS `[]`. The second
@@ -134,13 +156,17 @@ def _late_lines(path, read_lines, doomed):
     carrying it forward would resurrect exactly what the drain was asked to remove.
     """
     out = []
+    # ⚠⚠ v3116 — IDENTITY FIRST. A rotation that REPLACES this path (live → .1) leaves a bigger
+    # file wearing the same name, and every count-based test reads that as appends.
+    if ident is not None and _ident(path) != ident:
+        return None
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.readlines()
     except Exception:
         return None                     # ⚠ NOT []: we did not read it, so we do not know
     if len(lines) < read_lines:
-        return None                     # ⚠ THE FILE MOVED — a rotation, not an empty append
+        return None                     # ⚠ it SHRANK in place — a truncation, not an empty append
     if len(lines) == read_lines:
         return []
     for raw_line in lines[read_lines:]:
@@ -247,6 +273,7 @@ def apply_plan(p, yes=False, journal_path=None):
                         "backups": backups, "rewrote": wrote}
         kept = []
         _read_lines = 0
+        _ident_at_read = _ident(t)      # ⚠ v3116 — WHICH file, so a rotation cannot pass as growth
         try:
             with io.open(t, encoding="utf-8", errors="replace") as fh:
                 for line in fh:
@@ -289,7 +316,7 @@ def apply_plan(p, yes=False, journal_path=None):
             # instead of seconds. A row landing inside THAT is still lost, and it cannot be made
             # zero without a lock the writer does not take. Said out loud rather than implied.
             # [[unknown-stays-unknown]] [[the-unjoined-end]]
-            _late = _late_lines(t, _read_lines, doomed)
+            _late = _late_lines(t, _read_lines, doomed, _ident_at_read)
             if _late is None:
                 # ⚠ v3115 — FAIL CLOSED. The source shrank or could not be re-read, so it is not
                 # the file we measured. Renaming our rewrite over a fresh generation would destroy
@@ -299,9 +326,10 @@ def apply_plan(p, yes=False, journal_path=None):
                 except OSError:
                     pass
                 return {"ok": False,
-                        "why": "%s changed underneath the rewrite (it shrank or could not be "
-                               "re-read) — it was left untouched, %d file(s) already rewritten; "
-                               "backups at %s" % (t, len(wrote), BACKUP_DIR),
+                        "why": "%s is no longer the file that was read (it was replaced, "
+                               "truncated, or could not be re-read) — it was left untouched, "
+                               "%d file(s) already rewritten; backups at %s"
+                               % (t, len(wrote), BACKUP_DIR),
                         "backups": backups, "rewrote": wrote}
             if _late:
                 with io.open(tmp, "a", encoding="utf-8") as fh:
