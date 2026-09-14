@@ -58,26 +58,69 @@ def _ui():
 
 
 def _executable(text):
-    """control_ui.html with its /* ... */ and // comments stripped. -> str
+    """control_ui.html with its comments stripped, STRING-AWARE. -> str
 
-    ⚠⚠ WITHOUT THIS, A COMMENT ABOUT THE REMOVED STRIP MAKES THIS LAW RED ON CLEAN CODE. The first
-    run after the cut counted `shp-st` once — in a v2587 NOTE that mentions `.shp-st b u` while
-    explaining a shared glyph. The markup was already gone. A law that reads prose as code is the
-    same defect as a law that lets prose satisfy it, which this repo has now hit from BOTH sides:
-    v3102's red-proof went BLIND because a comment quoting an expression satisfied the check about
-    it. Read executable text, always. [[source-reading-guard]] [[measured-true-read-wrong]]
+    ⚠⚠ WITHOUT COMMENT-STRIPPING, A COMMENT ABOUT THE REMOVED STRIP MAKES THIS LAW RED ON CLEAN
+    CODE — the first run after the cut counted `shp-st` once, in a v2587 NOTE explaining a shared
+    glyph while the markup was already gone.
+
+    ⚠⚠ AND WITHOUT STRING-AWARENESS THE CURE IS WORSE THAN THE DISEASE, which a cross-family read
+    of v3110 caught. A naive stripper treats every `//` as a comment — including the one inside
+    `https://` and any inside a quoted string — and an unclosed `/*` makes it discard THE REST OF
+    THE FILE. Every `assertEqual(count, 0)` in this law then passes on whatever survived: an
+    ABSENCE check against a truncated document is a false negative by construction, and it is
+    silent. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+    So quotes are tracked, and an unterminated block comment RAISES rather than truncating.
     """
     out, i, n = [], 0, len(text)
+    quote = None
     while i < n:
+        ch = text[i]
+        if quote:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:          # escape: take the next char verbatim
+                out.append(text[i + 1]); i += 2; continue
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in ("'", '"', "`"):
+            quote = ch; out.append(ch); i += 1; continue
         if text.startswith("/*", i):
             j = text.find("*/", i + 2)
-            i = n if j < 0 else j + 2
-        elif text.startswith("//", i):
+            if j < 0:
+                raise AssertionError(
+                    "unterminated /* block comment at offset %d — refusing to strip, because "
+                    "discarding the rest of the file would make every absence check below pass "
+                    "on a document that is not there" % i)
+            i = j + 2
+            continue
+        if text.startswith("//", i):
             j = text.find("\n", i)
             i = n if j < 0 else j
-        else:
-            out.append(text[i]); i += 1
+            continue
+        out.append(ch); i += 1
     return "".join(out)
+
+
+def _orphan_source_tags(code):
+    """Source-tag variables assigned and never concatenated into markup. -> [name]
+
+    ⚠ EXTRACTED SO IT CAN BE EXERCISED. Inline, this clause was VACUOUSLY GREEN — there is no
+    `*srcTag*` variable in the file today, so it asserted nothing and would only speak the day the
+    v2819 bug returned. A check that cannot fail on any input it has ever seen is not yet a check;
+    the fixture below plants the orphan and proves it speaks. [[feedback-blind-fixture-green-gate]]
+    """
+    out = []
+    for m in re.finditer(r"var\s+(\w*[sS]rcTag\w*)\s*=", code):
+        name = m.group(1)
+        used = len(re.findall(r"[+]\s*" + re.escape(name) + r"\b", code)) \
+            + len(re.findall(r"\b" + re.escape(name) + r"\s*[+]", code))
+        if used == 0:
+            out.append(name)
+    return out
+
 
 
 class TestTheShelfShowsOneFlowStrip(unittest.TestCase):
@@ -136,17 +179,37 @@ class TestTheShelfShowsOneFlowStrip(unittest.TestCase):
     def test_no_source_tag_is_built_and_left_unrendered(self):
         """★ THE ONE THAT NEARLY SHIPPED WRONG in v2819: `_srcTag` was BUILT and never placed in
         the markup. Generalised so it guards any future spelling rather than that one name."""
-        orphans = []
-        for m in re.finditer(r"var\s+(\w*[sS]rcTag\w*)\s*=", self.code):
-            name = m.group(1)
-            used = len(re.findall(r"[+]\s*" + re.escape(name) + r"\b", self.src)) \
-                + len(re.findall(r"\b" + re.escape(name) + r"\s*[+]", self.src))
-            if used == 0:
-                orphans.append(name)
+        orphans = _orphan_source_tags(self.code)
         print("   source-tag variables built-but-never-rendered: %s" % (orphans or "none"))
         self.assertEqual(orphans, [],
                          "%s is assigned and never concatenated into markup — a label living in a "
                          "variable is the same as no label" % ", ".join(orphans))
+
+    def test_the_orphan_detector_actually_speaks(self):
+        """⚠ THE CLAUSE ABOVE IS VACUOUS ON TODAY'S FILE — there is no `*srcTag*` variable at all,
+        so it asserts nothing and would first speak the day the bug returns. This plants the exact
+        v2819 shape and demands it be named, and plants the fixed shape and demands silence."""
+        planted = "var _srcTag = '<span class=\"shr-src\">router</span>';\n_spine = '<b>' + x;"
+        fixed = "var _srcTag = '<span class=\"shr-src\">router</span>';\n_spine = '<b>' + _srcTag;"
+        print("   planted orphan -> %s · rendered -> %s"
+              % (_orphan_source_tags(planted), _orphan_source_tags(fixed) or "none"))
+        self.assertEqual(_orphan_source_tags(planted), ["_srcTag"],
+                         "the detector did not name a tag that is built and never rendered")
+        self.assertEqual(_orphan_source_tags(fixed), [],
+                         "the detector names a tag that IS concatenated into markup")
+
+    def test_the_stripper_is_string_aware_and_refuses_truncation(self):
+        """⚠⚠ A NAIVE STRIPPER MAKES EVERY ABSENCE CHECK IN THIS LAW A FALSE NEGATIVE. It would
+        treat the `//` inside `https://` as a comment, and an unterminated `/*` would discard the
+        REST OF THE FILE — after which `assertEqual(count, 0)` passes on a document that is not
+        there, silently."""
+        kept = _executable('var u = "https://example.com/a"; // dropped')
+        self.assertIn("https://example.com/a", kept,
+                      "the `//` inside a quoted URL was treated as a comment")
+        self.assertNotIn("dropped", kept, "a real // comment survived the strip")
+        with self.assertRaises(AssertionError):
+            _executable("a /* never closed")
+        print("   stripper: URL kept · comment dropped · unterminated /* refused")
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════

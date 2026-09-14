@@ -4467,12 +4467,11 @@
   /* v2746 — the fleet card's PER-LEDGER provenance, replacing a blanket sentence that was false on
      the owner's own board. One row per ledger that is not plainly EARNED. */
   .ftt-seed-rows { display: flex; flex-direction: column; gap: 4px; }
-  .ftt-seed-rows .ftts-row { display: grid; grid-template-columns: auto auto 1fr; gap: 6px;
+  .ftt-seed-rows .ftts-row { display: grid; grid-template-columns: auto auto; gap: 6px;
     align-items: baseline; font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono);
     letter-spacing: var(--ls-tight); }
   .ftt-seed-rows .ftts-led { color: var(--gold-hi); text-transform: uppercase; font-weight: var(--fw-bold); }
   .ftt-seed-rows .ftts-pv { color: var(--gold-dim); text-transform: uppercase; }
-  .ftt-seed-rows .ftts-why { color: var(--text-dim, var(--gold-dim)); opacity: .9; }
   /* UNKNOWN must not read like a clean result — it is the absence of an answer, not an answer */
   .ftt-seed-rows .ftts-unknown .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
   /* 2026-09-07 — UNSYNCED is a fifth provenance, added because "SYNCED" sat above
@@ -5638,7 +5637,13 @@
   .fleet-row .ftt-u { font-style: italic; font-weight: var(--fw-normal); color: var(--muted);
     letter-spacing: 0; text-transform: none; }
   .fleet-row .ftt {
-    position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 60;
+    /* ⚠⚠ v3111 — IT OPENS TO THE LEFT NOW. Konyo, 2026-09-14, on his own screen: the box
+       *"opens up into the consoles dom where its cut and not seen at all .. make it better opening
+       to the left instead of the right side"*. `left: 0` pinned its LEFT edge to the row, so the
+       card grew rightward off the console's right edge and what survived was a ~1-word column of
+       wrapped text. The fleet lives in the right-hand rail, so rightward is always the wrong way
+       out of it. `right: 0` grows it back across the panel it belongs to. */
+    position: absolute; right: 0; left: auto; bottom: calc(100% + 8px); z-index: 60;
     /* ⚠ v2457 — 300px WAS THE REAL CONSTRAINT, not the grid. Once each number carried its
        unit ('121 / 135 pieces') the row no longer fit, so either the bar collapsed to a
        stub or the unit wrapped and the rows went ragged — I shipped both of those in turn
@@ -22327,10 +22332,16 @@ function escC(s) {
         var seeded = _lvRows.length
           ? '<div class="ftt-seed ftt-seed-rows">'
             + _lvRows.map(function(L){
-                return '<div class="ftts-row ftts-' + escC(String(L.provenance || '').toLowerCase()) + '">'
+                /* ⚠ v3111 — THE VERDICT, NOT THE ESSAY. His ruling: *"the entire sentence
+                   should be sycned/unsycned for now simple"*. Each row used to carry `L.why` — a
+                   full explanatory sentence per ledger — and three of them stacked in a 372px card
+                   pinned against the console edge is what produced the unreadable column he
+                   photographed. The WHY is not lost: it moves to the row's own title, one hover
+                   deeper, where length costs nothing. [[label-outlived-referent]] */
+                return '<div class="ftts-row ftts-' + escC(String(L.provenance || '').toLowerCase()) + '"'
+                  + (L.why ? ' title="' + escC(String(L.why)) + '"' : '') + '>'
                   + '<span class="ftts-led">' + escC(String(L.ledger || '')) + '</span>'
-                  + '<span class="ftts-pv">' + escC(String(L.provenance || '')) + '</span>'
-                  + '<span class="ftts-why">' + escC(String(L.why || '')) + '</span></div>';
+                  + '<span class="ftts-pv">' + escC(String(L.provenance || '')) + '</span></div>';
               }).join('')
             + '</div>'
           : (t.onOwnerSeed === true)

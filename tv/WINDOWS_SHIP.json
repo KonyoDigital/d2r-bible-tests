@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3110",
+  "ver": "v3111",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3110: his ruling: two sections rendering the same route, and pipeline a third representing both - unified only visually, the backend must keep the real routes. The printer spine no longer draws. Checking BLUEPRINT first is what caught the law I was about to break, and it is retired on the record rather than deleted, replaced by one that also pins the removal so the duplication cannot come back.",
+  "note": "v3111: his report: the eye box opens into the console dom where it is cut and unreadable, and the entire sentence should just be synced/unsynced. It was pinned left:0 so it grew rightward off the rail it lives in, and each row carried a full explanatory sentence. Also hardened the one-flow-strip law after the eye found its stripper ate https:// and its orphan clause counted uses in unstripped text.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
