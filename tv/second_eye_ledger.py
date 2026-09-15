@@ -86,8 +86,11 @@ _FAMILY = (
 # Who AUTHORED the ships this ledger guards. A pass from this family is not a second eye.
 AUTHOR_FAMILY = "anthropic"
 
-#: set by audit(): False when the ship table could not be read, so the CLI can say so out loud
-LAST_SHIP_TABLE_OK = True
+#: ⚠ THERE IS DELIBERATELY NO MODULE GLOBAL FOR THE SHIP-TABLE VERDICT. v3162 kept
+#: LAST_SHIP_TABLE_OK "for older callers" beside the per-call `state` dict; the Codex eye pointed
+#: out that any such caller still races, and a grep found ZERO of them repo-wide. Keeping a racy
+#: global for callers that do not exist is liability with no benefit — audit(..., state={}) is the
+#: only way to learn whether the table was readable. [[the-unjoined-end]]
 
 
 def family_of(model):
@@ -598,7 +601,6 @@ def audit(path=None, tasks_path=None, state=None):
     # Found by the Codex eye on v3160. [[the-unjoined-end]]
     if isinstance(state, dict):
         state["shipTableOk"] = _ship_ok
-    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok      # kept for older callers; never read here
     for v in _shipped:
         if _floor is None or _vnum(v) >= _floor:
             seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,

@@ -262,7 +262,37 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
                          "the SECOND audit overwrote the first one's verdict — that is the race, "
                          "and it silently drops the warning that keeps rowless versions visible")
 
+    def test_no_module_global_carries_the_ship_table_verdict(self):
+        """v3162 kept LAST_SHIP_TABLE_OK beside the per-call dict "for older callers". The Codex
+        eye pointed out those callers still race; a grep found ZERO of them. A racy global kept for
+        nobody is liability with no benefit, and the next caller to reach for it inherits the bug.
+
+        ⚠ PARSED, NOT GREPPED — the module's own comment explains why the global is absent, so a
+        substring test would be satisfied by the explanation. [[source-reading-guard]]"""
+        import ast as _ast
+        src = io.open(os.path.join(HERE, "second_eye_ledger.py"), encoding="utf-8").read()
+        assigned = set()
+        for node in _ast.parse(src).body:
+            if isinstance(node, _ast.Assign):
+                for t2 in node.targets:
+                    if isinstance(t2, _ast.Name):
+                        assigned.add(t2.id)
+        self.assertNotIn(
+            "LAST_SHIP_TABLE_OK", assigned,
+            "the ship-table verdict is back in a module global, so two concurrent audits can "
+            "overwrite each other's answer and the warning that keeps rowless versions visible "
+            "lands on the wrong run or is lost")
+
 RED_PROOF = [
+    {
+        "why": "puts the racy module global back, so any caller reaching for it inherits the "
+               "cross-audit race the per-call dict was introduced to end",
+        "file": "second_eye_ledger.py",
+        "find": 'AUTHOR_FAMILY = "anthropic"',
+        "replace": 'AUTHOR_FAMILY = "anthropic"\nLAST_SHIP_TABLE_OK = True',
+        "matches": 1,
+    },
+
     {
         "why": "hands the ship-table verdict back through a module global again, so two concurrent "
                "audits overwrite each other and the warning that keeps rowless shipped versions "
