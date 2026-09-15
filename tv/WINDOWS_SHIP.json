@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3165",
+  "ver": "v3166",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3165: a probe door the only measuring party can actually open",
+  "note": "v3166: the law now sees the write shape that actually caused the bug",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

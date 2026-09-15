@@ -271,38 +271,54 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
         substring test would be satisfied by the explanation. [[source-reading-guard]]"""
         import ast as _ast
         src = io.open(os.path.join(HERE, "second_eye_ledger.py"), encoding="utf-8").read()
-        assigned = set()
-        for node in _ast.parse(src).body:
+        # ⚠⚠ EVERY WRITE SHAPE, NOT JUST THE TIDY ONE. The Codex eye on v3164: this checked only a
+        # top-level `NAME = ...`, while the form that CAUSED the bug was
+        # `globals()["LAST_SHIP_TABLE_OK"] = _ship_ok` — a Subscript target, invisible to that
+        # check and reachable from inside any function. A law that rejects the shape nobody wrote
+        # and admits the shape that broke it is worse than none. Verified: the old check saw
+        # {'AUTHOR_FAMILY'} and returned False on exactly that line.
+        written = set()
+        for node in _ast.walk(_ast.parse(src)):
+            targets = []
             if isinstance(node, _ast.Assign):
-                for t2 in node.targets:
-                    if isinstance(t2, _ast.Name):
-                        assigned.add(t2.id)
+                targets = list(node.targets)
+            elif isinstance(node, (_ast.AugAssign, _ast.AnnAssign)):
+                targets = [node.target]
+            for t2 in targets:
+                if isinstance(t2, _ast.Name):
+                    written.add(t2.id)
+                elif isinstance(t2, _ast.Subscript):
+                    # ⚠ `getattr(slice, "value", slice)` was WRONG and green: on an ast.Constant
+                    # that returns the constant's STRING, so the isinstance(Constant) below never
+                    # matched and the check still missed globals()["X"] = ... . Driving it against
+                    # the historical line is the only reason I know — it printed False.
+                    k = t2.slice
+                    if k.__class__.__name__ == "Index":          # py < 3.9
+                        k = k.value
+                    if isinstance(k, _ast.Constant) and isinstance(k.value, str):
+                        written.add(k.value)          # globals()["X"] = ... and any dict write
         self.assertNotIn(
-            "LAST_SHIP_TABLE_OK", assigned,
-            "the ship-table verdict is back in a module global, so two concurrent audits can "
-            "overwrite each other's answer and the warning that keeps rowless versions visible "
-            "lands on the wrong run or is lost")
+            "LAST_SHIP_TABLE_OK", written,
+            "the ship-table verdict is written to a module global again (as a bare assignment, an "
+            "annotated one, or through globals()[...]), so two concurrent audits can overwrite "
+            "each other's answer and the warning that keeps rowless versions visible lands on the "
+            "wrong run or is lost")
 
 RED_PROOF = [
     {
-        "why": "puts the racy module global back, so any caller reaching for it inherits the "
-               "cross-audit race the per-call dict was introduced to end",
-        "file": "second_eye_ledger.py",
-        "find": 'AUTHOR_FAMILY = "anthropic"',
-        "replace": 'AUTHOR_FAMILY = "anthropic"\nLAST_SHIP_TABLE_OK = True',
-        "matches": 1,
+        'why': 'puts the verdict back in a module global in the EXACT historical shape — globals()[...] inside audit() — which the first version of this law could not see at all, so the race returns while the guard stays green',
+        'file': 'second_eye_ledger.py',
+        'find': '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok',
+        'replace': '    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok',
+        'matches': 1,
     },
-
     {
-        "why": "hands the ship-table verdict back through a module global again, so two concurrent "
-               "audits overwrite each other and the warning that keeps rowless shipped versions "
-               "visible is attached to the wrong run or lost entirely",
-        "file": "second_eye_ledger.py",
-        "find": '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok',
-        "replace": "    pass",
-        "matches": 1,
+        'why': 'hands the ship-table verdict back through a module global again, so two concurrent audits overwrite each other and the warning that keeps rowless shipped versions visible is attached to the wrong run or lost entirely',
+        'file': 'second_eye_ledger.py',
+        'find': '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok',
+        'replace': '    pass',
+        'matches': 1,
     },
-
     {
         'why': 'an unreadable ship table reports itself READ, so the caller cannot tell it from a genuinely empty one and the audit silently hides every rowless shipped version',
         'file': 'second_eye_ledger.py',
