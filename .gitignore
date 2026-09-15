@@ -297,4 +297,21 @@ guest-mirror/
 # `tv/guest_fixture_pack.py` cuts these from HIS REAL REELS — actual frames of his game, 2.7 MB
 # per pack. They are scrubbed of his machine's identifiers, which is not the same as being his to
 # publish. THIS REPO IS PUBLIC. Packs travel to the box by rsync, never by git.
-fixtures/
+# ⚠⚠ v3199 — `fixtures/` IS NO LONGER IGNORED, BY HIS EXPLICIT CALL.
+# 2026-09-16: "make it so they are uploaded with my reels" / "make it public no problem".
+# I put both roads to him — a private SSH host for the Linux box, or the repo, which is public
+# and permanent — and recommended the private one. He chose the repo, knowing that.
+#
+# WHY IT MATTERS THAT THEY SHIP: Grok Bot's box has no footage, so its SHELF renders blank and
+# every visual pass it has ever done on that panel was about an empty room. The pack loader
+# already defaults to `<repo>/fixtures`, so a box with nothing but a clone now stages them with
+# no transport to configure. PROVEN, not assumed: loaded into a scratch mirror exactly as the box
+# would -> 5 packs, 5 sessions, 5 reels, 77 files, every one flagged fixture:true.
+#
+# WHAT WAS CHECKED BEFORE HIS FRAMES BECAME PERMANENT: 0 leak hits across every text byte of all
+# five packs (home paths, email, tokens, install ids, hostnames), all five verify, ~13 MB total,
+# and 3 frames looked at by eye across 3 packs — title screen, real stash gameplay, logo — with
+# no account name and no character name. The remaining 69 frames are UNKNOWN by eye; his capture
+# never films the character panel (REG-340), which is the one screen that would carry a name.
+# test_the_shipped_packs_are_staged_not_his_live_footage re-runs the leak audit on every run, so
+# the next pack anyone adds is held to the bar the first five cleared.

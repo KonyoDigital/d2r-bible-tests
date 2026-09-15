@@ -1,0 +1,16 @@
+{
+ "sessions": [
+  {
+   "sessionId": "s_1788993875843_fxtinyrun",
+   "n": 8,
+   "frames": 8,
+   "t0": 1788994406851,
+   "t1": 1788995002477,
+   "fixture": true,
+   "fixturePack": "tiny-run",
+   "footageN": 8,
+   "footageState": "fixture",
+   "footageWhy": "a fixture pack carrying 8 of the reel's 8 frames, evenly spaced — the rest were never copied, not pruned"
+  }
+ ]
+}

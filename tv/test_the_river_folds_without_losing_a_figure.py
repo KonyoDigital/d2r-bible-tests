@@ -23,7 +23,17 @@ ships `open` is the old surface wearing a caret.
 """
 import os
 import re
+import sys
 import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# ⚠ his Windows console is cp1255: printing a single non-ASCII glyph CRASHES the script WHILE
+# REPORTING, so a clean tree exits non-zero and the failure is about the terminal, not the code.
+try:
+    from console_safe import enable as _console_safe_enable
+    _console_safe_enable()
+except Exception:
+    pass
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _UI = os.path.join(_HERE, "control_ui.html")

@@ -21940,6 +21940,7 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # instrument, it is why the 5x hard ceiling below is judged with no retry at all, and the
         # cold-boot figure needs its own measurement rather than being read out of this one.
         did_work = 0
+        _timed = []
         # v2802 — the EVERY-TICK set is what this budget is about, and that is now SLOW *and*
         # PERIODIC removed. PERIODIC exists because `engines corroborate` was too costly for a
         # ten-minute tick and too important to go unwatched; it runs unattended on a longer
@@ -21959,7 +21960,32 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # that stubs _post expects, and what my first cut broke eight of." Calling checks BARE is
         # deliberate and eight guards depend on it. So the PRIMING became shareable instead, and
         # only the gate that measures TIMING opts in. [[feedback-blind-fixture-green-gate]]
+        # ⚠⚠ v3199 — THE PRIMING IS NOW TIMED UNDER ITS OWN NAME, AND THAT IS THE WHOLE POINT
+        # OF THE CHANGE THAT MADE THIS GATE STOP FLAPPING. tick_caches() marked the health cache
+        # active and left it EMPTY, while its two siblings were primed with a real read. So the
+        # first health-backed check in the roster built the entire health report and was billed
+        # for all of it. MEASURED 2026-09-16 inside tick_caches():
+        #
+        #     armed migration, call 1:  3654 ms     <- the whole health report
+        #     armed migration, call 2:     0 ms     <- cached
+        #     check_armed_migrations() direct: 15 ms
+        #
+        # `armed migration` costs FIFTEEN MILLISECONDS. The gate said 3,654 and named it as the
+        # culprit, four runs running. That is the flapping recorded at console_doctor.py:3465
+        # ("the name it printed CHANGED EVERY RUN ... each of those was innocent") — and the note
+        # blamed machine bursts while the mechanism sat three lines from the two caches that do
+        # it correctly. [[label-outlived-referent]] [[feedback-suspect-the-instrument]]
+        #
+        # ⚠⚠ PRIMING IT MUST NOT HIDE THE COST, WHICH IS REAL AND WHICH PRODUCTION PAYS ONCE PER
+        # TICK. So it is measured here, printed every run, and judged. Broken down on his Mac:
+        #     board_ownership POST    47 ms
+        #     health report        2,976 ms      <- this is the tick's real cost
+        #     route census           170 ms
+        # A fix that moved a 3-second cost somewhere nobody looks would be worse than the wrong
+        # name it replaced. [[zero-needs-a-denominator]] [[regression-guard]]
+        _t_prime = _t.time()
         with cd.tick_caches():
+            _prime_ms = (_t.time() - _t_prime) * 1000
             for name, fn in cd.CHECKS:
                 if name in _skip:
                     continue
@@ -21970,10 +21996,27 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                     pass
                 ms = (_t.time() - t0) * 1000
                 total += ms
+                _timed.append((name, ms))
                 if ms > 1.0:
                     did_work += 1
                 if ms > BUDGET_MS:
                     slow.append("%s (%.0f ms)" % (name, ms))
+        # ── the priming, reported every run so it can never go back to being unmeasured ──
+        print("   tick priming (board + health report + route census): %.0f ms" % _prime_ms)
+        print("   dearest check on the every-tick roster: %s"
+              % (max(("%s (%.0f ms)" % (n, m) for n, m in _timed), key=lambda x: float(
+                  x.rsplit("(", 1)[1].split(" ")[0])) if _timed else "nothing was timed"))
+        self.assertTrue(_timed,
+                        "no check on the every-tick roster was timed at all, so a green result "
+                        "here is UNMEASURED, not clean")
+        # judged like the checks are: a hard ceiling that no contention explains. It is ONE read
+        # of his board, one health report and one route census -- if that passes 5x the per-check
+        # budget the tick itself is the defect, whatever the machine is doing.
+        self.assertLess(_prime_ms, BUDGET_MS * 5,
+                        "priming a single doctor tick cost %.0f ms — over %d ms. Every console "
+                        "boot and every ten-minute watchdog tick pays this before a single check "
+                        "runs, and it is now the tick's largest cost by an order of magnitude."
+                        % (_prime_ms, BUDGET_MS * 5))
         # ★ A CALIBRATION MAY NEVER EXCUSE A PATHOLOGICAL COST. The check this gate was built to
         # catch cost 16,585 ms of a 17,069 ms tick. No contention explains 5x the budget, and a
         # guard that skipped THAT would have deleted the only reason this file exists. So the hard

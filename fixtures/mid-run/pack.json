@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "mid-run",
+ "title": "mid run",
+ "why": "a mid-length run - 1,210 frames",
+ "source": {
+  "sessionId": "s_1788882068850_57378",
+  "framesInReel": 1208
+ },
+ "fixtureSessionId": "s_1788882068850_fxmidrun",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 3937319,
+  "bytesInSource": 3904720
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "d0c2c6f3398ab5f6d703c96e5754c5465426bf51d18331b535acbfcf057918c4",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882636767.jpg": "c5c309690d8babe114b1e8755dbe05a5ddb3db1a2db8e74ec20c00788a6a00e2",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788883283410.jpg": "478f83149d9542e5f2355caba149e68c14fb1cf9706f5142394b09ec770e5649",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788883201610.jpg": "bb99e892489c0700efd9ee9aa6e385e1e0a957e08fb11ae6a279677f6d326951",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882395827.jpg": "6410aab4308c89a71aec16298b80d9b57e5be848b63d3d1ea78b07004aad1364",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788883119753.jpg": "d553d8f228bba546332fccb39cf08e7864128351383f928b40a4de6bb4bf31b5",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882153573.jpg": "b12fce13c3a6b333c8d8b1acf1502c13608bdb7d1a92f43555cb2355c35c8592",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882234816.jpg": "4f1f1d21f958fd316108af1ea2e2214512909d75933733be8b1680c8ce47d0e6",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882314867.jpg": "ec7ca14ac2691016f5b74057cc72ddb4178ebc25d65666f4af1b9646d64f51d4",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882797725.jpg": "7802ca058de86a47615ad02ae2157645360c24ecb97f6892cea3ae3be631f1f4",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788883039792.jpg": "2420488ab223f537da33ea7ebe6df62828ed4ffef9a7b74845c0cbe10366dc7a",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882073541.jpg": "01e342ba986ac3151f7753e40a923efefb2f144487c25b48e8b1aa7cbd876963",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882958740.jpg": "203a4c4977eb1ac3d2e55b50a02ee3c8690e07abc2e8ef7fbc64502a9df9fb8f",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882556858.jpg": "ad89632b9d50c4960f017ce389accc7caf4164d6c36d6afd2817facc7fcba3bb",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882717574.jpg": "7d649724b518b0ae32f780528f1e7d133e99f5bb88332e95dc90026d2eb8cf66",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882475821.jpg": "7a2aa80edc44da740d71ac432c240f76f2d4143fed0978851d2a15e0fe0add1d",
+  "reels/reel_s_1788882068850_fxmidrun/index.json": "9332c61d1262d3b32c98dba038801edec1922daf266973ef96389fc2221fd702",
+  "reels/reel_s_1788882068850_fxmidrun/f_1788882878750.jpg": "662d134894c42fbb253cf8e8e8b3a830a222538c210da0bac9138fcb03db8ebc"
+ }
+}

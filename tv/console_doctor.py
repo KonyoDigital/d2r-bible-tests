@@ -3612,7 +3612,31 @@ def tick_caches():
     [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
     """
     _board_cache["active"], _board_cache["got"] = True, _post("/api/board_ownership", {"sample": 0})
+    # ⚠⚠ v3199 — THE THIRD CACHE WAS MARKED ACTIVE AND LEFT EMPTY, AND THAT IS WHY THE TIMING
+    # GATE KEPT ACCUSING INNOCENT CHECKS. Its two siblings above are PRIMED with a real read;
+    # this one set `rep = None`, so the first health-backed check to run built the entire report
+    # and was billed for all of it. MEASURED 2026-09-16 inside this very context manager:
+    #
+    #     armed migration, call 1:  3654 ms      <- the whole health report
+    #     armed migration, call 2:     0 ms      <- cached
+    #     armed migration, call 3:     0 ms
+    #     check_armed_migrations() direct:  15 ms (6.4 MB read 7 ms + three regexes at 3 ms)
+    #
+    # So `armed migration` costs FIFTEEN MILLISECONDS and the gate reported 3,654 — the cost of
+    # every other health check, wearing the name of whichever one the roster happened to put
+    # first. That is precisely the flapping this file already documented at :3465 ("the name it
+    # printed CHANGED EVERY RUN ... each of those was innocent"), and the reason it was never
+    # solved is that the note blamed machine bursts while the real mechanism was sitting three
+    # lines from the two caches that do it correctly. [[label-outlived-referent]]
+    # [[feedback-suspect-the-instrument]]
+    #
+    # ⚠⚠ PRIMING IT DOES NOT MAKE THE COST GO AWAY AND MUST NOT BE ALLOWED TO. The 3.6 s is REAL
+    # and production pays it once per tick. It now lands on the priming, where it can be measured
+    # under its own name with its own budget, instead of being charged to a rotating scapegoat.
+    # `test_the_cheap_subset_is_actually_CHEAP` asserts exactly that, so this can never become a
+    # way of hiding it. [[regression-guard]] [[zero-needs-a-denominator]]
     _health_cache["active"], _health_cache["rep"] = True, None
+    _health_cache["rep"] = _health_report()
     _routes_cache["active"], _routes_cache["got"] = True, _route_census_once()
     try:
         yield

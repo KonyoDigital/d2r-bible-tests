@@ -664,6 +664,19 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_the_shipped_packs_are_staged_not_his_live_footage",
+         [sys.executable, os.path.join(HERE, "test_the_shipped_packs_are_staged_not_his_live_footage.py")], 120,
+         why="the packs now SHIP in a public repo, by his explicit call - make it public no "
+             "problem - which is what finally lets Grok Bot render a real SHELF on a box that has "
+             "no footage. That moves where the risk lives. A local pack that went wrong cost a "
+             "rebuild; a published one cannot be unpublished, and the mistake that matters is a "
+             "staged session that STOPS SAYING IT IS STAGED, because the whole point of the guest "
+             "seat is telling the truth about his console and a fixture indistinguishable from "
+             "his footage defeats it. So: every session says fixture:true and names its pack, no "
+             "pack leaks a home path or an id, no pack grows back toward the 196 MB reel it was "
+             "cut from, the fixture id is namespaced away from his real session id, and the "
+             "loader still refuses to write into the live frames tree. The leak audit that "
+             "cleared the first five re-runs on whatever is in the tree now."),
     Gate("test_a_fixture_pack_is_not_his_footage",
          [sys.executable, os.path.join(HERE, "test_a_fixture_pack_is_not_his_footage.py")], 120,
          why="his recorded runs, staged so Grok Bot can click them on the guest seat. MEASURED: "
@@ -2152,6 +2165,13 @@ GATES = [
              "the retention pass, and writes ROUTED only — TOMBSTONE stays with the deleter behind "
              "the arming lock.",
          ),
+    Gate("test_a_manual_declaration_can_be_found",
+         [sys.executable, os.path.join(HERE, "test_a_manual_declaration_can_be_found.py")], 120,
+         why="his #166 ruling - manual anything is enough witness obivously - only means anything "
+             "if a manual declaration can actually be FOUND by the code that grades ownership. "
+             "d2r_foundLog is where he writes one. This pins that classify_row is called with the "
+             "world it is grading rather than a default, because a declaration made on one "
+             "profile is invisible from the other and the row then reads as unwitnessed."),
     Gate("test_the_river_folds_without_losing_a_figure",
          [sys.executable, os.path.join(HERE, "test_the_river_folds_without_losing_a_figure.py")], 120,
          why="HE ASKED WHETHER THE RIVER STRIP ABOVE THE PIPELINE WAS NEEDED AT ALL: 'is it "

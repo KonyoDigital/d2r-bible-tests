@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "pack-stash-001",
+ "title": "Stash panel run — SHELF + reel controls",
+ "why": "a real recorded run, staged so the guest can open SHELF, click it and scrub the reel",
+ "source": {
+  "sessionId": "s_1784984019250_95276",
+  "framesInReel": 153
+ },
+ "fixtureSessionId": "s_1784984019250_fxstash001",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 2830074,
+  "bytesInSource": 20398174
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "1c9188f577f36b576a8d7ccf7284db04058ef24a626db51608561063dfff510c",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984282772.jpg": "af8e6957eb6e900bf45b11a46c666d796b57675c9635cad5ed18a07a6ac33165",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984160773.jpg": "f3133ff1b547eb93d1ac726229bb5a6cc3ba2ff0c920ee6dbee1a992248406e1",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984181789.jpg": "998856ac94ed164a4da1cb401b63407911f8cf2d2f7489779c27d30aff0a7e64",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984231740.jpg": "31ade4da0f3d57e6a0569980df87f1b3ca211a841ea8af391f54ec45bf408cee",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984201778.jpg": "096c58a0a231c0cc7073b35dc4db0d8ec4e0fe9bf9bb08dfc3ad7a7fb7b49c8b",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984150819.jpg": "e00efa185f149b40108655b5c32b4711f889c85c7e65216a52628c67fa327924",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984262838.jpg": "0610c584baede8eaca59299f3e4421ae388c196cf60ae3a0856f41887f64e029",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984171817.jpg": "673f0722523ef3c0da6f6acb36cd0c5feecc41edfcc77fbde1bd7af7e64e156f",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984221728.jpg": "5b249ff2ca6b9c53825cad5e3c9807c4b43cb393d5e06d2a70ad8a1dc557a470",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984130673.jpg": "da69f65e4b5051fde1014704c07b9c8bd6f4a7439115cbeb156d0b2a6d78f265",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984272837.jpg": "099f17fbfe7c8c71b94b784049997154a994408ccf9a241a3a38c5c2b9788365",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984140744.jpg": "6517de0c3d8899266bfe9e53f150c201e6d751efacd473f48353be189d085620",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984191754.jpg": "b9caf8fbe03055e3a8ef18c3477f43fa7646c73c5e1dbe98164782e48cc87edc",
+  "reels/reel_s_1784984019250_fxstash001/index.json": "775c6a7ebf803065a70a9fa86097e9622fa596b9c377708e2b45635666729df2",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984241736.jpg": "1e1c14202f2d315d43ca95f42e4a1130effbe23f2122ba4baf4e7d7c632fb2ab",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984252774.jpg": "bd07eb97bf9e3662e9c935b9aee83f62eba25963d344f5f71f661157e5b1aafd",
+  "reels/reel_s_1784984019250_fxstash001/f_1784984211738.jpg": "907c4057ef9717e9f8fced97c994cdd4c9754ea342999f67c3578bfb4bedcac3"
+ }
+}

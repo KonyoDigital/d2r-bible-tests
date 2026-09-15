@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "short-run",
+ "title": "short run",
+ "why": "a 485-frame run",
+ "source": {
+  "sessionId": "s_1786999742937_35523",
+  "framesInReel": 483
+ },
+ "fixtureSessionId": "s_1786999742937_fxshortrun",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 2454206,
+  "bytesInSource": 17488058
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "5d1f0019fab0173f78b4ecab8a2414047282e19bc9c41e1f744eebd7ee5e5450",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000132241.jpg": "f1f099b7d20c55e49930c98d792838c3b94dde41b0ada4542262e935aca9dba4",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999907056.jpg": "f78a19b5ea59a39c63b3ff64dd7bef14b682d9c14eaafdc9896aca5919f26a43",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000196056.jpg": "4b510ae18bf0740c354624cfd64b4f0baaa92cadd86e8bde2ebfdd93c8058d26",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000035138.jpg": "e5b4bc2c67b2b3ddc242b080772cdecfc1963497d5d94d12e725051bc8b1cc67",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000099116.jpg": "3ba49d11eb100209c9f190fceaa7334110c251593c13ca89446d99becc3ac7b1",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999842035.jpg": "2b2f439b777cf0d88b942ff9ec626fc9a4c74ffa63e96286e039cc7177fc907c",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999810217.jpg": "91bf3c7e6450a976a791d1e7753c9ab18e57a86c78275bccb4f42c8a70ba22bf",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000164102.jpg": "54f45d497494e6a7d6fe77568781a2d60c683f9662ef7d676aefe8d8645b6507",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000003166.jpg": "3058eab996b856068dc7eb2e568c8f84c70c1a21e9ab5b498204d07be4ca1521",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999875127.jpg": "980382f614b9ae885ec36ab75bae3597e499a17610e7cb2a079a6ec5c4c15486",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000067170.jpg": "5190743e8c5599bcad6667174a69eb2f32bf26cb199aa5cf4afc7574be78db37",
+  "reels/reel_s_1786999742937_fxshortrun/f_1787000228122.jpg": "435419914f4fa4a2c11e534c678e87daeba0a219ead436eeedb87b0e4326265a",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999746023.jpg": "a15c2a9bff2f04baf964194b8e87ec8901844df4dd5fffd2031b8070696d3bab",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999939239.jpg": "6e15c4c4ad2dece76de5e03d6c6923a77c110f74e1049f3eb37a6305c3006ae9",
+  "reels/reel_s_1786999742937_fxshortrun/index.json": "54ae8e3eb56e3fe97b9c6786a5a5491fbd3a31bc9e9e26e873bde53b32772a67",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999778136.jpg": "d9dc6f492dfb60e77ae7fffb7d8a1a8436825f61bc7aff5ddcdeb0010e4768d6",
+  "reels/reel_s_1786999742937_fxshortrun/f_1786999971131.jpg": "85a2c4c07a6b80574794b1a555303c9230348f1926e1c7bf463207c5ebaae3a2"
+ }
+}

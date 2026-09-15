@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "long-run",
+ "title": "long run",
+ "why": "a long run - 2,198 frames, so the scrub bar has real travel",
+ "source": {
+  "sessionId": "s_1789330829280_66296",
+  "framesInReel": 2194
+ },
+ "fixtureSessionId": "s_1789330829280_fxlongrun",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 2566232,
+  "bytesInSource": 2494626
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "dbdcedf4092f4f2eeb6965259bec580134c56a27450608c68dd6a348de758056",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789333645275.jpg": "96deb0881db6c5253541b164f6022ae85334a927fb5a43dd8377261321a09e5e",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789334386720.jpg": "f6f629b9ece369edfdac4bdf8deb3cd3ae18e81bfb2b532497aa8ea2fe35e912",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789334774026.jpg": "2787151c0ef04bf013ad0551bff47d8210f5b03c3be1d613b7664abdf28c9632",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789334583565.jpg": "fb97b28d6abb01ac25fdb072aaf11d803a55c18c75d9029b826dfceac35a7f19",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789332779298.jpg": "40fc177026a68d64e3b5b2db34875e0ff2bb01a96e7953123fbe1bd2413213f9",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789333888497.jpg": "3b5de6e1f724106bce3e12fdc72fa3ee8bd06c2503fb46a4be50a4f053ce4a8d",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789332147410.jpg": "31eb131118f5b9484d92698b2f3290784ff4262898d29453220c9b16ebab5077",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789334152635.jpg": "259cdee4f0b3cfd5c7032216d99c2c762869400a7eb171f377a615727250aaed",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789330836955.jpg": "bec69ccf47daf08f461f7eeac5f62c1589e90ed907433ee13f4649ca3598d3f0",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789331538146.jpg": "9cbb8e373901c79c819a300072c29294d6fb0224dbf984984b5b506d8a6a7e23",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789331719446.jpg": "f501de0aa8f7a483b8118f45daea8219d540a5ba3d7d73b77109c89caf1a3712",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789333432836.jpg": "8a28f14b1634607952c5a52755eca7f5222ea2e1222f2a79225750ec2da11b92",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789332448218.jpg": "d51b781f4b112c3b3c7f49720e3a356a585e01b702a156fde6aae24f04146085",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789331321613.jpg": "76decfe104325b9cd5b1cbcd510c39bcec06d4ac33c4dc17db450c8a9beb76b2",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789333165726.jpg": "cb0034b335df2509d9ce421c11511a0219d6c05ddb33c77078a86fedc00ac905",
+  "reels/reel_s_1789330829280_fxlongrun/index.json": "3503ea948311d9515ac06d2a7cd5777b079369ffd50778f1569a5a9f219f7166",
+  "reels/reel_s_1789330829280_fxlongrun/f_1789331907565.jpg": "efd7cabe54e8c047f72549c6cd0c0c16b2f0d8e29308b1e422bb72a406f38797"
+ }
+}

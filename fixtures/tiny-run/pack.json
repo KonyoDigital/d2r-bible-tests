@@ -1,0 +1,30 @@
+{
+ "packFormat": 1,
+ "id": "tiny-run",
+ "title": "tiny run",
+ "why": "10 frames - fewer than a pack asks for, the short-run edge",
+ "source": {
+  "sessionId": "s_1788993875843_44020",
+  "framesInReel": 8
+ },
+ "fixtureSessionId": "s_1788993875843_fxtinyrun",
+ "carries": {
+  "sessions": 1,
+  "frames": 8,
+  "bytes": 1365192,
+  "bytesInSource": 1366240
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "59618f38505978ba9c6213557e5effc0b658196c1d15748f5fa87358fe33da7d",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788994409857.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788995001669.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788995001873.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788994409038.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788995002477.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788994406851.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788994408038.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/f_1788995001465.jpg": "6e013f1712c125503b799141ad71221b6e58a99fca6c33782b52a2b05f0584b0",
+  "reels/reel_s_1788993875843_fxtinyrun/index.json": "839aaf46cddd1b72f61c1628c7049ead8c20998e85ecd3f8f974c781b2181082"
+ }
+}

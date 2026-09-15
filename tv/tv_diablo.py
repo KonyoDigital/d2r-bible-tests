@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3198"   # THE LEDGER THE SHIP GATE READS WAS FILING CLEAN LOOKS AS FINDINGS AND ONE REAL FINDING AS CLEAN
+VERSION = "v3199"   # THE PACKS SHIP SO GROKBOT HAS A REAL SHELF, AND THE TIMING GATE STOPS ACCUSING INNOCENT CHECKS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
