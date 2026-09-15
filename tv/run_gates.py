@@ -5019,6 +5019,17 @@ GATES = [
              "thread ticking) joins `there is work owed` to `this lane did a unit of work`. "
              "One predicate, not a second opinion. #59.",
          skip_ok=()),
+    Gate("test_capture_multi_lock",
+         [sys.executable, os.path.join(HERE, "test_capture_multi_lock.py")], 90,
+         needs_app=False,
+         why="FILM CAPTURE WAS A SINGLE PIN, AND GUEST GFN TESTING NEEDS TWO WITHOUT "
+             "BREAKING THE LIVE MAC FARM. Default TV_CAPTURE=auto must stay D2-only "
+             "(Chrome / Battle.net / CrossOver Home / TV DIABLO still rejected as the "
+             "primary pin). TV_CAPTURE=multi or TV_CAPTURE_EXTRA=chrome|gfn arms one "
+             "Chrome/GFN extra. Status keeps captureTarget as the primary dict and adds "
+             "captureTargets + captureLock. Extra frames are tagged eye.<kind>.jpg / "
+             "x_<kind>_<ms>.jpg so the D2 reel (eye.jpg / f_<ms>.jpg) stays unmixed.",
+         skip_ok=()),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
