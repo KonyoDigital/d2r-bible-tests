@@ -114,5 +114,41 @@ class ReportedCountsIsNotNoReport(unittest.TestCase):
         self.assertEqual(out.get("theirHave"), 0)
 
 
+class TheFleetCardStaysOnTheTypeScale(unittest.TestCase):
+    """v3172 (#82) — the flagship typography half of his ask.
+
+    The card was HALF on the scale: .ftt-counts used var(--fs-*)/var(--ls-wide) tokens while four
+    sibling rules carried raw letter-spacing literals (.04em x2, .03em, .02em). Three had EXACT
+    tokens (--ls-snug .04em, --ls-tight .02em) so swapping them changed nothing visually and made
+    the card consistent. The fourth, .03em on .fleet-meta.fleet-word, sat on NO step of the scale
+    while its twin — the same verdict word rendered in the tooltip as .ftt-h .ftt-w — was .04em.
+    Two trackings for one word, recorded by nobody. Now both are --ls-snug.
+
+    ⚠ A TOKEN SWAP IS NOT AUTOMATICALLY FREE. LOCKED_TYPE_SYSTEM's own warning: an em is not a
+    lookup, so replacing one can change the rendered size silently. Three of these were exact
+    matches; the fourth is a deliberate 0.01em move, named in the CSS so it is not re-guessed.
+    """
+
+    def test_the_fleet_card_declares_no_raw_letter_spacing(self):
+        import re
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        raw = []
+        for m in re.finditer(r"(?m)^[ \t]*([.#][^{\n]*(?:fleet|ftt)[^{\n]*)\{([^}]*)\}", src):
+            for lm in re.finditer(r"letter-spacing:\s*(\.[0-9]+em|[0-9.]+em)", m.group(2)):
+                raw.append("%s -> %s" % (m.group(1).strip()[:40], lm.group(1)))
+        self.assertEqual(raw, [],
+                         "the fleet card is back off the type scale: %s" % "; ".join(raw))
+
+    def test_the_verdict_word_tracks_the_same_in_both_places(self):
+        """The row word and the tooltip word are the same thing and must not drift apart again."""
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertIn(".fleet-meta.fleet-word { font-weight: var(--fw-semibold); "
+                      "letter-spacing: var(--ls-snug); }", src)
+        self.assertIn("letter-spacing: var(--ls-snug); text-transform: lowercase;", src,
+                      "the tooltip verdict word must carry the same tracking as the row's")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

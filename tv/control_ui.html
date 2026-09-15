@@ -4522,7 +4522,7 @@
                         font-variant-numeric: tabular-nums; color: #e8cf96; }
   .ftt-counts .ftt-sep { color: var(--muted, #8b8071); opacity: .55; font-style: normal; }
   .ftt-h .ftt-w { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
-                  letter-spacing: .04em; text-transform: lowercase; margin-left: 6px; }
+                  letter-spacing: var(--ls-snug); text-transform: lowercase; margin-left: 6px; }
   .ftt-h .ftt-w.ftts-synced   { color: var(--mint, #8fe6a0); }
   .ftt-h .ftt-w.ftts-unsynced { color: var(--warn, var(--gold-dim)); }
   /* v3170 - the per-item-list reason. Quiet: it explains a LIMIT of this console's
@@ -4532,11 +4532,15 @@
             color: var(--ink-dim, var(--gold-dim)); opacity: .9; }
   .ftt-h .ftt-w.ftts-unknown  { color: var(--muted, #8b8071); font-style: italic; }
   /* v2875 — the row says one word, and the detail it replaced is one hover away */
-  .fleet-meta.fleet-word { font-weight: var(--fw-semibold); letter-spacing: .03em; }
+  /* v3172 — the verdict word on the ROW and the same word in the TOOLTIP (.ftt-h .ftt-w)
+     were tracked differently (.03em vs .04em) for no reason anyone recorded. .03em is on no
+     step of the --ls-* scale; its twin is, so the two now match. A 0.01em move on one short
+     word — deliberate, and named here so it is not re-guessed. */
+  .fleet-meta.fleet-word { font-weight: var(--fw-semibold); letter-spacing: var(--ls-snug); }
   .fleet-meta.fleet-word.ftts-synced   { color: var(--mint, #8fe6a0); }
   .fleet-meta.fleet-word.ftts-unsynced { color: var(--warn, var(--gold-dim)); }
   .fleet-meta.fleet-word.ftts-unknown  { color: var(--muted, #8b8071); font-style: italic; }
-  .ftt-row.ftt-sync .ftt-v { font-weight: var(--fw-semibold); letter-spacing: .02em; }
+  .ftt-row.ftt-sync .ftt-v { font-weight: var(--fw-semibold); letter-spacing: var(--ls-tight); }
   .ftt-row.ftt-sync .ftts-synced   { color: var(--mint, #8fe6a0); }
   .ftt-row.ftt-sync .ftts-unsynced { color: var(--warn, var(--gold-dim)); }
   .ftt-row.ftt-sync .ftts-unknown  { color: var(--muted,#8b8071); font-style: italic; }
@@ -6121,7 +6125,7 @@
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
   /* v2843 — the remembered roster, visibly not-live: dimmer than a real row, never a link. */
-  .fleet-dead { font-style: normal; color: #c06a4a; letter-spacing: .04em; }
+  .fleet-dead { font-style: normal; color: #c06a4a; letter-spacing: var(--ls-snug); }
   /* v2848 — a dead agent port must not wear the same badge as a live one */
   .fp-ag.fp-down { color: #b0603f; opacity: .95; }
   .fleet-was { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(125,118,99,.16); }
