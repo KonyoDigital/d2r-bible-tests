@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3161",
+  "ver": "v3162",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3161: the restore join follows the delegation instead of matching a result key",
+  "note": "v3162: the ship-table verdict is handed back, not left in a global",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

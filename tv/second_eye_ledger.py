@@ -547,7 +547,7 @@ def _shipped_versions(path=None):
     return set(_re.findall(r"^\|\s*\*\*(v\d{3,})\*\*\s*\|", src, _re.M)), True
 
 
-def audit(path=None, tasks_path=None):
+def audit(path=None, tasks_path=None, state=None):
     """Every version mentioned in the ledger, and whether it was really seen.
 
     ⚠ v2145 — THIS USED THE RULES `looked_at` HAD ALREADY ABANDONED, and the second eye measured
@@ -590,7 +590,15 @@ def audit(path=None, tasks_path=None):
     # defect this seeding exists to kill, one level down: when nobody has ever looked at anything,
     # EVERY shipped version owes a look and the screen must say so. [[zero-needs-a-denominator]]
     _shipped, _ship_ok = _shipped_versions(tasks_path)
-    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok      # the CLI says so; silence would hide again
+    # ⚠ HANDED BACK TO THIS CALLER, NOT LEFT IN A MODULE GLOBAL. v3160 stashed it in
+    # LAST_SHIP_TABLE_OK, which two concurrent audits race over: audit A reads an unreadable table
+    # and, before its caller prints, audit B reads a good one and flips the flag — so A omits the
+    # warning and hides exactly the rowless versions this seeding exists to surface. The inverse
+    # warns about a table that was fine. A per-call dict cannot be overwritten by anyone else.
+    # Found by the Codex eye on v3160. [[the-unjoined-end]]
+    if isinstance(state, dict):
+        state["shipTableOk"] = _ship_ok
+    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok      # kept for older callers; never read here
     for v in _shipped:
         if _floor is None or _vnum(v) >= _floor:
             seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
@@ -654,7 +662,8 @@ def main(argv):
     if "--check" in argv:
         return _cmd_check(argv)
     if "--audit" in argv:
-        rows = audit()
+        _state = {}
+        rows = audit(state=_state)
         if not rows:
             print("second eye: the ledger is empty — nothing has ever been looked at.")
             return 0
@@ -662,7 +671,7 @@ def main(argv):
         # this listing from 5 rows to 166 — every one of them real, and the two he can act on
         # buried among them. A screen he must scroll to find the block is barely better than one
         # that hid it. So: say the count, name the newest that owe, then print everything.
-        if not LAST_SHIP_TABLE_OK:
+        if not _state.get("shipTableOk", True):
             print("second eye: \u26a0 the ship table could not be READ, so versions with no "
                   "ledger row cannot be listed here at all. This listing is the ledger only — "
                   "--check may still refuse a version this screen does not show.")

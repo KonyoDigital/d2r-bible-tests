@@ -140,6 +140,16 @@ class TestTheRestoreProposalReachesTheBoard(unittest.TestCase):
         # ⚠ A WORD BOUNDARY, NOT A SUBSTRING. `"add.uniques" in inner` is satisfied by
         # `add.uniquesX` — heart2 caught this proof BLIND on its first drill, tampering the real
         # read and watching the assertion sail through its own defeat.
+        # ⚠ AND `add` MUST STILL COME FROM `wouldAdd`. Found by the Codex eye on v3161: rename the
+        # key in the OUTER function and `add` becomes {}, so every restore is dropped — while this
+        # test stays green, because `add.uniques` is still written in the inner body and the
+        # delegation still stands. The file's other law catches that rename, so the GATE goes red
+        # either way; this assertion is what makes THIS test true on its own rather than true
+        # because of its neighbour. [[the-unjoined-end]]
+        self.assertRegex(
+            _code_only(self.body), r"add\s*=\s*\(\s*proposal\s*&&\s*proposal\.wouldAdd",
+            "`add` is no longer bound from proposal.wouldAdd, so every half below is read from an "
+            "empty object and the restore is dropped in silence")
         unread = [h for h in halves
                   if not re.search(r"add\.%s\b" % re.escape(h), inner)]
         self.assertEqual(

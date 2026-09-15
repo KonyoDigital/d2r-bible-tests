@@ -244,7 +244,35 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
                       "a six-digit shipped version parsed as %r — it would never be listed as "
                       "owed, and the contract says every version." % (got,))
 
+    def test_two_audits_cannot_overwrite_each_other_s_ship_table_verdict(self):
+        """Found by the Codex eye on v3160. The read status lived in a module global, which two
+        concurrent audits race over: A reads an unreadable table and, before its caller prints, B
+        reads a good one and flips the flag — so A omits the warning and hides exactly the rowless
+        versions the seeding exists to surface. The inverse warns about a table that was fine."""
+        empty = os.path.join(self.d, "empty2.jsonl")
+        with io.open(empty, "w", encoding="utf-8") as fh:
+            fh.write("")
+        bad, good = {}, {}
+        L.audit(empty, os.path.join(self.d, "no_such_table.md"), state=bad)
+        L.audit(empty, self.tasks, state=good)
+        self.assertEqual(bad.get("shipTableOk"), False,
+                         "the unreadable read did not record itself: %r" % (bad,))
+        self.assertEqual(good.get("shipTableOk"), True)
+        self.assertEqual(bad.get("shipTableOk"), False,
+                         "the SECOND audit overwrote the first one's verdict — that is the race, "
+                         "and it silently drops the warning that keeps rowless versions visible")
+
 RED_PROOF = [
+    {
+        "why": "hands the ship-table verdict back through a module global again, so two concurrent "
+               "audits overwrite each other and the warning that keeps rowless shipped versions "
+               "visible is attached to the wrong run or lost entirely",
+        "file": "second_eye_ledger.py",
+        "find": '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok',
+        "replace": "    pass",
+        "matches": 1,
+    },
+
     {
         'why': 'an unreadable ship table reports itself READ, so the caller cannot tell it from a genuinely empty one and the audit silently hides every rowless shipped version',
         'file': 'second_eye_ledger.py',
