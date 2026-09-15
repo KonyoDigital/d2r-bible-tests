@@ -122,5 +122,52 @@ RED_PROOF = [
     },
 ]
 
+class TheFullscreenWindowHasNoTitleBar(unittest.TestCase):
+    """v3175 — HIS SCREENSHOT: "this TV diablo banner on top is now here when it wasnt".
+
+    MEASURED: `fullscreen` was passed AND accepted (present in this pywebview's create_window
+    signature, and no drop-warning printed), yet the window came up windowed WITH its macOS title
+    bar. On macOS the fullscreen transition is applied after creation and silently does not take
+    when the app is not frontmost — the same state GROKBOT records as `painting False / hidden
+    True`. Relaunching through the TCC-granted .app did not fix it, so activation timing cannot be
+    relied on. `frameless` is decided at creation and cannot fail that way.
+
+    ⚠ AND ONLY ON THE FULLSCREEN PATH. A frameless window that is merely maximized cannot be
+    dragged by a title bar it does not have, so the TV_WINDOWED=1 opt-out keeps its frame. An
+    opt-out that traps him in an unmovable window is not an opt-out.
+    """
+
+    def _src(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_frameless_is_set_wherever_fullscreen_is(self):
+        src = self._src()
+        i = src.find('kwargs["fullscreen"] = True')
+        self.assertGreater(i, 0, "the fullscreen default is gone")
+        self.assertIn('kwargs["frameless"] = True', src[i:i + 2000],
+                      "fullscreen is requested without frameless, so a failed fullscreen "
+                      "transition puts the macOS title bar back over his console")
+
+    def test_the_windowed_optout_keeps_its_frame(self):
+        """PARSED, not grepped: both assignments must sit inside the same `if not _windowed`
+        branch, so the opt-out cannot inherit framelessness and become undraggable."""
+        import ast
+        src = self._src()
+        tree = ast.parse(src)
+        found = False
+        for n in ast.walk(tree):
+            if not isinstance(n, ast.If):
+                continue
+            seg = ast.get_source_segment(src, n) or ""
+            if 'kwargs["frameless"] = True' not in seg:
+                continue
+            found = True
+            self.assertIn('kwargs["fullscreen"] = True', seg,
+                          "frameless is set outside the fullscreen branch — the windowed opt-out "
+                          "would lose its title bar and could not be moved")
+        self.assertTrue(found, "no conditional guards the frameless assignment at all")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

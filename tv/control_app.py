@@ -5714,6 +5714,24 @@ def open_control_window():
     )
     if not _windowed:
         kwargs["fullscreen"] = True
+        # ══ v3175 — AND FRAMELESS, BECAUSE FULLSCREEN DOES NOT ALWAYS TAKE ═══════════════════
+        # His screenshot, 2026-09-15: "this TV diablo banner on top is now here when it wasnt..
+        # so fix that too". MEASURED: `fullscreen` was passed AND accepted (it is in this
+        # pywebview's create_window signature, and no drop-warning was printed), yet the window
+        # came up windowed WITH its macOS title bar. On macOS the fullscreen transition is applied
+        # after creation and silently does not take when the app is not frontmost at that moment —
+        # which is exactly the state GROKBOT keeps recording as `painting False / hidden True`.
+        # Relaunching through the TCC-granted .app did NOT fix it, so activation timing is not
+        # something this code can rely on.
+        #
+        # `frameless` is decided at creation and cannot fail that way. Paired with fullscreen it
+        # changes nothing visually when fullscreen DOES take, and removes the title bar when it
+        # does not.
+        #
+        # ⚠ ONLY ON THE FULLSCREEN PATH. A frameless window that is merely maximized cannot be
+        # dragged by its title bar, so the TV_WINDOWED=1 opt-out deliberately keeps its frame —
+        # an opt-out that traps him in an unmovable window is not an opt-out.
+        kwargs["frameless"] = True
 
     # v1462 — pywebview 6 MOVED icon= off create_window() and onto start(icon=).
     # The old code passed icon= to create_window and caught TypeError into a hardcoded
@@ -27221,6 +27239,22 @@ def fleet_compare(machine, ledger="sets"):
         #
         # And the reason was on the wire and rendered NOWHERE: control_ui.html mentioned maskWhy
         # ZERO times. Published by the server, never read by the page. [[the-unjoined-end]]
+        # ══ v3175 — PUBLISH HIS OWN SIDE EVEN WHEN THEIRS IS MISSING ════════════════════════
+        # His words, looking at the refusal panel: "its not showing the images and the HD images
+        # of items corss reference and everything". The panel drew the sentence and nothing else,
+        # because the refusal payload carried NO item list — not even his. One machine failing to
+        # publish a mask blanked BOTH sides, so a panel titled "yours vs theirs" showed neither.
+        # His side is knowable here and always was. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        try:
+            _mine_names, _mine_why = _fm.decode(mine_mask, roster, fp, side="this console")
+        except Exception as _de:
+            _mine_names, _mine_why = None, "this console's own mask would not decode (%s)" % type(_de).__name__
+        out["mineNames"] = sorted(_mine_names) if _mine_names else None
+        out["mineWhy"] = None if _mine_names else (_mine_why or "this console published no mask")
+        # ⚠ roster minus mine is "what YOU still need" — a real column, and the only one this
+        # panel can honestly fill when the other machine has not published.
+        out["mineMissingNames"] = (sorted(set(roster) - set(_mine_names))
+                                   if _mine_names else None)
         _t = (them.get("tally") or {}).get(spec["name"])
         _have = _t.get("have") if isinstance(_t, dict) else None
         _total = _t.get("total") if isinstance(_t, dict) else None
@@ -27808,7 +27842,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3174",
+        "ver": "v3175",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

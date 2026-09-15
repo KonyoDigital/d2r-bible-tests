@@ -11687,9 +11687,21 @@ class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
         'you are level with him' versus 'I have no idea'."""
         fn = _between(self, self.ui, "window._fleetCompare = async function",
                       "// v1516", what="the cross-reference renderer")
-        self.assertIn("if (!j.ok)", fn,
+        # ⚠ v3175 — THE BRANCH, NOT ITS EXACT SPELLING. This asserted the literal "if (!j.ok)",
+        # which broke when the refusal learned to draw HIS side (the guard became
+        # `if (!j.ok && !(j.mineNames && j.mineNames.length))`). The CLAIM was never about the
+        # spelling — it is that a refusal must not paint as parity — so it now checks the branch
+        # exists AND that the not-ok path actually renders the reason and marks THEIR column
+        # unknown. That is strictly more than the substring proved. [[source-reading-guard]]
+        self.assertIn("!j.ok", fn,
                       "a refusal from the route renders as a normal result, so 'his machine never "
                       "reported' would paint as 'he is missing nothing'")
+        self.assertIn("j.why", fn,
+                      "the refusal no longer renders its reason, so an unknown box and an empty "
+                      "box are indistinguishable again")
+        self.assertIn("has not published a per-item list", fn,
+                      "the one-sided view no longer marks THEIR column as unknown, so a machine "
+                      "that published nothing reads as a machine that holds nothing")
         self.assertIn("UNKNOWN, not", fn,
                       "a dead fetch no longer says it is UNKNOWN; an empty box reads as parity")
         self.assertIn("theyHaveIDont", fn)

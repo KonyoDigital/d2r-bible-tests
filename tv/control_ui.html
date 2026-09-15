@@ -22980,13 +22980,28 @@ function escC(s) {
             + escC(_FXR_LEDGERS[k].tab) + '</button>';
         }).join('')
       + '</div>';
+    var _yoursN = (j.mineNames && j.mineNames.length) || 0;
     var head = '<div class="fx-head"><b>' + escC(j.who || machine) + '</b>'
-      + '<span class="fx-sub">' + escC(SPEC.label) + ' · yours vs theirs</span>'
+      + '<span class="fx-sub">' + escC(SPEC.label) + ' · yours vs theirs'
+      /* the count he DOES have belongs here as one figure, not as a hundred tiles below */
+      + (!j.ok && _yoursN ? escC('  \u00b7  you have ' + _yoursN
+                                 + (j.showN ? (' of ' + j.showN) : '')) : '')
+      + '</span>'
       + '<button class="fx-x" type="button" title="close" onclick="document.getElementById(\'fleet-xref\').hidden=true">✕</button></div>'
       + tabs;
-    if (!j.ok) {
+    /* ══ v3175 — A MISSING MASK ON THEIR SIDE MUST NOT BLANK YOURS ═════════════════════════
+       His words, looking at this panel: "its not showing the images and the HD images of items
+       corss reference and everything". It drew the sentence and NOTHING else, so a panel titled
+       "yours vs theirs" showed NEITHER — one machine failing to publish a per-item list blanked
+       both halves. His side was always knowable; the server now publishes it (mineNames /
+       mineMissingNames) and the body below draws it with the same tiles, the same HD art and the
+       same cursor card as every other surface. Only when HIS side is unknown TOO is there
+       genuinely nothing to draw. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+    if (!j.ok && !(j.mineNames && j.mineNames.length)) {
       box.innerHTML = '<div class="fxr-win">' + head
-        + '<div class="fx-why">' + escC(j.why || 'no answer') + '</div></div>';
+        + '<div class="fx-why">' + escC(j.why || 'no answer')
+        + (j.mineWhy ? ('  \u2014  and this console: ' + escC(j.mineWhy)) : '')
+        + '</div></div>';
       return;
     }
     /* art comes from the BOARD, which owns artUrl — asking it is what keeps the console from
@@ -23035,8 +23050,15 @@ function escC(s) {
       } catch (e) {}
       var itip = _itipAttr({
         name: n, rarity: rar, art: u,
+        /* ⚠ v3175 — TWO MORE SIDES, BECAUSE THE ONE-SIDED VIEW KNOWS NOTHING ABOUT THEM.
+           Reusing 'mine' here would print "you have it / they do not" on every row of a panel
+           drawn precisely BECAUSE that machine published nothing — a confident false claim about
+           the cousin's inventory, in a tooltip, which is the one place a reader trusts
+           completely. That is v3022's defect verbatim; it does not get to happen twice. */
         facts: [side === 'neither' ? ['neither of you has it', 'you both still need it']
                 : side === 'mine' ? ['you have it', 'they do not']
+                : side === 'yours-only' ? ['you have it', 'theirs is not published']
+                : side === 'need-only' ? ['you do not have it', 'theirs is not published']
                 : ['they have it', 'you do not']]
       });
       return '<div class="fx-item"' + itip + '>'
@@ -23075,8 +23097,23 @@ function escC(s) {
     };
     box.innerHTML = '<div class="fxr-win">' + head
       + '<div class="fx-body"><div class="fx-cols">'
-      + col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', 'theirs')
-      + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', 'mine')
+      + (!j.ok
+          /* one-sided: draw what IS known, and draw the refusal as a COLUMN so the missing half
+             is visible rather than absent. col() already renders names===null as an em-dash with
+             its reason, which is exactly this case. */
+          /* ⚠ v3176 — A PANEL OF DIFFERENCES MUST NOT LIST THE WHOLE LEDGER. v3175 drew
+             `you have` as 132 tiles and he said: "its bugged now.. some area its working some
+             too much". He is right and it was my error: every other column here is a
+             DIFFERENCE — a handful of names he can act on — and I poured an entire inventory
+             into one, which buried the three that matter under a hundred he already knows he
+             owns. The count is the fact; the tiles were noise. What he can ACT on is what he
+             still needs, and what he cannot see is what they hold. Those two get the columns. */
+          ? (col('you still need', j.mineMissingNames || [], 'you have every one of them',
+                 'need-only')
+             + col('they have · you do not', null,
+                   j.why || 'that machine has not published a per-item list', 'theirs'))
+          : col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', 'theirs')
+            + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', 'mine'))
       /* ⚠⚠ v3022 — THE THIRD COLUMN, AND IT PASSES `j.neitherHas` STRAIGHT THROUGH WITHOUT `|| []`.
          The other two coalesce because a missing difference really is an empty difference. This one
          must NOT: the server answers null when the roster is not known to be the whole universe
@@ -23084,8 +23121,8 @@ function escC(s) {
          names could never appear), and `|| []` would turn that refusal into a confident "0 items
          you both need". Null reaches col() and is drawn as an em-dash with the reason.
          [[unknown-stays-unknown]] */
-      + col('you both need', j.neitherHas,
-            j.neitherWhy || 'there is nothing neither of you has', 'neither')
+      + (j.ok ? col('you both need', j.neitherHas,
+                    j.neitherWhy || 'there is nothing neither of you has', 'neither') : '')
       + '</div>'
       /* ⚠⚠ `showN`, NOT `rosterN`. This printed the roster length — 398 for uniques — and
          bible.html:3757 says of that number: "produced by neither, and NO array on the page is

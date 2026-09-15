@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3174",
+  "ver": "v3175",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3174: He read the fleet strip beside Dean 131 of 135 and said this is still showing that dean is not synced but he is. The word meant his numbers differ from mine and he read it as he has not synced - so it is now differs, which cannot be misread, and the figures beside it say which ledger. The reason the per-item list is absent was put in the card hover in v3170 and his answer was where is the visual pass on the fleet i cant see lol - a fact that needs a hover is a fact he does not have, so it now renders on the row itself. And the cross-reference panel capped at 1080px on a 2000px window, which is what he means by still not stretched.",
+  "note": "v3175: He opened the panel and said its not showing the images and the HD images of items cross reference and everything. It drew the refusal sentence and nothing else, because the payload carried no item list at all - not even his own - so one machine failing to publish a per-item list blanked BOTH halves of a panel titled yours vs theirs. His side was always knowable: the server now publishes it and the panel draws it with the same tiles, the same HD art and the same cursor card as every other surface, while their column is drawn as an explicitly refused column carrying the reason. Two new hover sides were needed because reusing mine would have printed you have it they do not on every row of a panel drawn precisely because that machine published nothing. The window also pairs frameless with fullscreen, because fullscreen was passed and accepted and still did not take, leaving the macOS title bar over his console.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
