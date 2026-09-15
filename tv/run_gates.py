@@ -2938,6 +2938,24 @@ GATES = [
              "counts as a measurement, not a silence - `if _have:` instead of "
              "`isinstance(_have, int)` is the realistic regression and it is one of the six "
              "sabotages this file was seen RED under."),
+    Gate("test_a_decoded_empty_is_not_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_decoded_empty_is_not_unknown.py")], 60,
+         why="FOUND BY THE CODEX EYE reviewing v3175 (cross-family, openai/gpt-5.6-terra): \"a "
+             "valid empty local item list is rendered as unknown/unpublished. In fleet_compare, "
+             "`if _mine_names` treats an empty successfully decoded list ...\" It is right, and "
+             "it is the scar the surrounding comment already cites. fleet_mask.decode() returns "
+             "None when the answer would be a GUESS and [] when the mask decoded cleanly and he "
+             "owns none of that ledger; an empty list is FALSY, so a real measured zero was "
+             "folded into \"this console published no mask\". This panel exists to keep exactly "
+             "one distinction — I have none of these vs I could not find out — and the console "
+             "has had to correct that confusion repeatedly (UNIQUES SYNCED over 0/403 in v2875, "
+             "the both-need column refusing rather than claiming 0 in v3022). Getting it wrong in "
+             "the code that DRAWS the distinction is the worst place for it. ⚠ He owns 132 of 135 "
+             "today, so his own data never exercises this branch — a gate blind to what his data "
+             "never exercises is the exact failure this pins. The laws drive the SHIPPED "
+             "fleet_compare with a SIDE-AWARE decode stub: the first cut stubbed both sides, so "
+             "theirs decoded cleanly too, compare() returned ok:True and the branch under test "
+             "never ran — the law failed against correct code and the FIXTURE was at fault."),
     Gate("test_the_river_is_one_flow_of_eight",
          [sys.executable, os.path.join(HERE, "test_the_river_is_one_flow_of_eight.py")], 120,
          why="HIS ORDER, 2026-09-15, with four screenshots of the shelf: \"all these anyways need "

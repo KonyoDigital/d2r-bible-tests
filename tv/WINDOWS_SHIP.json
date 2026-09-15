@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3176",
+  "ver": "v3177",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3176: He sent four screenshots of the shelf and said all these anyways need to end up unified in one section after being extracted one step behind deleted after flowing from top to bottom, its still in sections each reel in a different place. Asked whether older runs stay scrollable below, he ruled: only the last 8 sessions stay and the one coming in pushes the last one out. The river is now ONE flowing section, newest first so top to bottom is downstream, exactly 8 flowing with the 9th marked and hidden. This supersedes v2746 which was also his and asked for the opposite. The station is not lost - it moved onto the card, and the readable label came with it after a law caught the badge printing the raw key. A pin never eats a flow slot, and the tombstone ledger figure survives the section that used to carry it.",
+  "note": "v3177: The Codex eye reviewing v3175 found that fleet_compare treated an empty successfully decoded list as unpublished. decode returns None when the answer would be a guess and an empty list when the mask decoded cleanly and he owns none of that ledger - and an empty list is falsy, so a real measured zero was folded into this console published no mask. That is the one distinction the panel exists to keep, and it was wrong in the code that draws it. He owns 132 of 135 today so his own data never exercises the branch.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

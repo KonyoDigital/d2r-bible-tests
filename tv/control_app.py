@@ -5551,8 +5551,23 @@ def start_background_watchers(why):
                   "process's store and can never reach this reader however healthy it is")
     # v2433 — started FIRST and outside the roster on purpose: it is not a lane doing work, it is
     # the thing that stops this process existing after its reason to exist has gone.
+    # ⚠⚠ v3177 — IDEMPOTENT BY NAME, LIKE EVERYTHING ELSE THIS FUNCTION STARTS. Its docstring
+    # says "Idempotent by name" and this one thread was exempt, because it is started BEFORE the
+    # roster and never went through the roster's name check. A second call therefore spawned a
+    # SECOND tvd-orphan-exit, and two copies of the thread whose job is to end this process is
+    # precisely the thread you least want duplicated.
+    #
+    # ⚠ IT WAS FILED AS A FLAKE AND IT WAS NOT ONE. The law's own comment records "2 OK, 1 FAILED
+    # in three consecutive runs ... having found no defect at all" — but the variability was only
+    # whether the FIRST thread was still alive when the check ran; _orphan_exit_loop exits early
+    # when it has no console to watch. With a console actually running on :17772 it stays alive
+    # and the doubling is deterministic: measured 5 of 5, and 3 of 3 on v3175 which is already
+    # shipped. The instrument was right the whole time and the diagnosis was wrong.
+    # [[feedback-suspect-the-instrument]] [[ab-against-head-before-blaming-the-room]]
     try:
-        threading.Thread(target=_orphan_exit_loop, name="tvd-orphan-exit", daemon=True).start()
+        if not any(t.name == "tvd-orphan-exit" and t.is_alive()
+                   for t in threading.enumerate()):
+            threading.Thread(target=_orphan_exit_loop, name="tvd-orphan-exit", daemon=True).start()
     except Exception:
         pass
     roster = [
@@ -27249,12 +27264,20 @@ def fleet_compare(machine, ledger="sets"):
             _mine_names, _mine_why = _fm.decode(mine_mask, roster, fp, side="this console")
         except Exception as _de:
             _mine_names, _mine_why = None, "this console's own mask would not decode (%s)" % type(_de).__name__
-        out["mineNames"] = sorted(_mine_names) if _mine_names else None
-        out["mineWhy"] = None if _mine_names else (_mine_why or "this console published no mask")
+        # ⚠⚠ `is not None`, NOT TRUTHINESS — CAUGHT BY THE CODEX EYE ON v3175, and it is the
+        # scar this very comment block cites. fleet_mask.decode() returns None when the answer
+        # would be a GUESS and [] when the mask decoded cleanly and he owns none of this ledger.
+        # An empty list is FALSY, so `if _mine_names` collapsed a real measured zero into "this
+        # console published no mask" — an honest 0 of 135 rendered as UNKNOWN, which is the one
+        # distinction this panel exists to keep. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        _mine_known = _mine_names is not None
+        out["mineNames"] = sorted(_mine_names) if _mine_known else None
+        out["mineWhy"] = None if _mine_known else (_mine_why or "this console published no mask")
         # ⚠ roster minus mine is "what YOU still need" — a real column, and the only one this
-        # panel can honestly fill when the other machine has not published.
+        # panel can honestly fill when the other machine has not published. With a decoded-empty
+        # mask that column is the WHOLE roster, which is the true answer, not a missing one.
         out["mineMissingNames"] = (sorted(set(roster) - set(_mine_names))
-                                   if _mine_names else None)
+                                   if _mine_known else None)
         _t = (them.get("tally") or {}).get(spec["name"])
         _have = _t.get("have") if isinstance(_t, dict) else None
         _total = _t.get("total") if isinstance(_t, dict) else None
@@ -27842,7 +27865,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3176",
+        "ver": "v3177",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

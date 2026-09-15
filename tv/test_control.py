@@ -22337,8 +22337,15 @@ class TestV2079EveryWatcherStartsInBothModes(unittest.TestCase):
         # threading.enumerate() returns every leftover `tvd-*` watcher an earlier test in this
         # process armed. One of those alive under a name this test also arms counts as a duplicate
         # `start()` never created — and the same leftover in `before` can flag a legitimate restart
-        # as a re-arm. MEASURED on a clean tree: 2 OK, 1 FAILED in three consecutive runs, and it
-        # blocked a ship on `['tvd-orphan-exit']` having found no defect at all.
+        # as a re-arm. The comment here once read "MEASURED on a clean tree: 2 OK, 1 FAILED in
+        # three consecutive runs, and it blocked a ship on ['tvd-orphan-exit'] having found no
+        # defect at all" — and that diagnosis was WRONG. v3177: tvd-orphan-exit was started
+        # unconditionally ABOVE the roster, so it never went through the name check this function
+        # promises, and a second call really did spawn a second copy. The variability was only
+        # whether the FIRST one was still alive at check time (_orphan_exit_loop exits early with
+        # no console to watch); with a console running on :17772 it is deterministic — measured
+        # 5 of 5, and 3 of 3 against already-shipped v3175. The instrument was right and was
+        # filed as noise. [[feedback-suspect-the-instrument]]
         # The threads THIS test armed are the only ones it may judge; holding the pre-existing
         # objects in a set (rather than their ids) also stops a recycled id from re-introducing it.
         # A genuine doubling is still caught: both threads would be new, so both are counted.
