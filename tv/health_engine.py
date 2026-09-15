@@ -1172,10 +1172,33 @@ def check_vault_receipts(backup_dir=None):
     except Exception:
         _bank = {}
 
+    # ══ v3183 — THE ORGAN AND THE ROUTE MUST ASK THE SAME QUESTION ════════════════════════
+    # control_app.evidence_for now resolves by VAULT ENTITY (item_identity), so a row whose
+    # evidence is banked under a typographic apostrophe, a base-type tail, or an unambiguous
+    # "(set piece)" suffix finds it. If this organ kept doing an exact dict-get, the console
+    # would open a receipt for a row this row had just counted as unwitnessed - two organs
+    # disagreeing about one number, which is the failure the vault_bank reader exists to stop.
+    # [[copy-drift]]
+    try:
+        import item_identity as _ii
+    except Exception:
+        _ii = None
+    _bank_by_entity = {}
+    if _ii is not None:
+        for _k, _v in _bank.items():
+            _ssk = _v if isinstance(_v, list) else (
+                (_v or {}).get("sightings") if isinstance(_v, dict) else None)
+            if _ssk:
+                _bank_by_entity.setdefault(_ii.vault_key(_k).lower(), True)
+
     def _has_sighting(_n):
         _v = _bank.get(_n)
         _ss = _v if isinstance(_v, list) else ((_v or {}).get("sightings") if isinstance(_v, dict) else None)
         if _ss:
+            return True
+        # ⚠ ENTITY, NOT BYTES - and the qualifier still separates Latent from Renewed, so this
+        # never lends one Sunder Charm's footage to another.
+        if _ii is not None and _bank_by_entity.get(_ii.vault_key(_n).lower()):
             return True
         _l = _ev.get(_n)          # the thin local store still counts when it has one
         return isinstance(_l, dict) and bool(_l.get("sightings"))

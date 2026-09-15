@@ -31,6 +31,12 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+
+try:
+    from console_safe import enable as _console_safe_enable
+    _console_safe_enable()
+except Exception:
+    pass
 BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 
 

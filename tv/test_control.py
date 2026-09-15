@@ -21520,9 +21520,24 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
     def setUp(self):
         self._mid_edit = self._ca()._tree_is_mid_edit
         self._ca()._tree_is_mid_edit = lambda *a, **k: (False, "")
+        # ⚠ v3183 — AND THE SWEEP LOCK, for the same reason the line above exists: it is REAL
+        # STATE ON HIS DISK. v3180 taught drift_may_relaunch to refuse while `.sweep.lock` is
+        # warm, which is correct and which made every test in this class hostage to whether a
+        # sweep happened to be running while the suite ran. It caught 8 of them 113 seconds
+        # after a real 100-minute vault read finished. A fixture that reads live data measures
+        # the machine, not the code. [[feedback-fixtures-never-touch-live-data]]
+        #
+        # Pointed at a path that cannot exist, so getmtime raises and the guard takes its
+        # "no sweep has ever declared itself" branch. The tests that WANT the lock to bite
+        # (test_it_refuses_while_a_sweep_is_reading) drive the in-memory job instead, which is
+        # the same refusal by the more specific door.
+        self._lock_path = self._ca()._sweep_lock_path
+        self._ca()._sweep_lock_path = lambda *a, **k: os.path.join(
+            tempfile.gettempdir(), "no_such_sweep_lock_%d" % os.getpid())
 
     def tearDown(self):
         self._ca()._tree_is_mid_edit = self._mid_edit
+        self._ca()._sweep_lock_path = self._lock_path
 
 
     def test_auto_relaunch_is_ON_because_he_asked_for_it_but_OFF_is_still_HIS(self):
@@ -27151,9 +27166,24 @@ class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
     def setUp(self):
         self._mid_edit = self._ca()._tree_is_mid_edit
         self._ca()._tree_is_mid_edit = lambda *a, **k: (False, "")
+        # ⚠ v3183 — AND THE SWEEP LOCK, for the same reason the line above exists: it is REAL
+        # STATE ON HIS DISK. v3180 taught drift_may_relaunch to refuse while `.sweep.lock` is
+        # warm, which is correct and which made every test in this class hostage to whether a
+        # sweep happened to be running while the suite ran. It caught 8 of them 113 seconds
+        # after a real 100-minute vault read finished. A fixture that reads live data measures
+        # the machine, not the code. [[feedback-fixtures-never-touch-live-data]]
+        #
+        # Pointed at a path that cannot exist, so getmtime raises and the guard takes its
+        # "no sweep has ever declared itself" branch. The tests that WANT the lock to bite
+        # (test_it_refuses_while_a_sweep_is_reading) drive the in-memory job instead, which is
+        # the same refusal by the more specific door.
+        self._lock_path = self._ca()._sweep_lock_path
+        self._ca()._sweep_lock_path = lambda *a, **k: os.path.join(
+            tempfile.gettempdir(), "no_such_sweep_lock_%d" % os.getpid())
 
     def tearDown(self):
         self._ca()._tree_is_mid_edit = self._mid_edit
+        self._ca()._sweep_lock_path = self._lock_path
 
 
     def _clear(self, ca):

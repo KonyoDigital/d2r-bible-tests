@@ -640,6 +640,18 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_two_vocabularies_for_one_item",
+         [sys.executable, os.path.join(HERE, "test_two_vocabularies_for_one_item.py")], 120,
+         why="his 2026-09-15 ruling: 'each its own.. for chronicle there is only one name for "
+             "it.. and for items found or stashed or items renewed from the hordaic cube these "
+             "are their own entity in vault terms'. Both errors were live at once - Latent and "
+             "Renewed Sunder Charms risked folding into one row (a false witness), while three "
+             "rows he genuinely owns read as unwitnessed because their 159 banked sightings sat "
+             "under a typographic apostrophe or the board's own (set piece) suffix. Pins the "
+             "axis: a qualifier is IDENTITY, an apostrophe byte / base-type tail / unambiguous "
+             "disambiguator is RENDERING. Crescent Moon keeps its (amulet) because the bare name "
+             "is ALSO a runeword - same punctuation, opposite meaning, decided by measurement. "
+             "Also pins that the console route and the health organ answer alike."),
     Gate("test_trace_spine",
          [sys.executable, os.path.join(HERE, "test_trace_spine.py")], 180,
          why="#99 - follows ONE named item across reel -> ledger -> routing -> endpoint and, the "

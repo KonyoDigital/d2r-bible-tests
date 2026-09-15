@@ -17055,9 +17055,23 @@ def drift_may_relaunch():
         _lk = _sweep_lock_path()
         _age = time.time() - os.path.getmtime(_lk)
         if _age < 900:
-            return False, ("a sweep is reading footage (the lock was touched %ds ago) — "
+            # ⚠ v3183 — KEEP THE LANE IN THE REASON. This guard runs BEFORE the in-memory
+            # checks (deliberately — the file outlives the process), and its first cut said only
+            # "a sweep is reading footage". That is true and less useful: when the sweep is in
+            # THIS process we know exactly which lane owns it, and the existing law asks for that
+            # word by name. A more general guard must not make the answer vaguer than the one it
+            # replaced. [[label-outlived-referent]]
+            _lane = ""
+            try:
+                if (_CHRON_JOB or {}).get("running"):
+                    _lane = "chronicle"
+                elif (_VAULT_JOB or {}).get("running"):
+                    _lane = "vault"
+            except Exception:
+                _lane = ""
+            return False, ("a %ssweep is reading footage (the lock was touched %ds ago) — "
                            "relaunching now would throw away paid reads that have not been "
-                           "banked yet" % int(_age))
+                           "banked yet" % (_lane + " " if _lane else "", int(_age)))
     except OSError:
         pass          # no lock file at all means no sweep has ever declared itself
     # ⚠ AND IT IS CHECKED BEFORE _tree_is_mid_edit(). Both refuse, so safety is the
@@ -24609,7 +24623,35 @@ def evidence_for(name, ledger=None):
             continue
         sightings = book.get(n)
         if not isinstance(sightings, list) or not sightings:
-            continue
+            # ══ v3183 — ASK BY VAULT ENTITY, NOT BY BYTES ══════════════════════════════════
+            # HIS RULING: *"each its own.. for chronicle there is only one name for it.. and
+            # for items found or stashed or items renewed from the hordaic cube these are their
+            # own entity in vault terms"*.
+            #
+            # MEASURED: three rows he genuinely owns answered "nothing banked" while their
+            # evidence sat in this very book — Atma's Scarab (54 sightings under a typographic
+            # apostrophe), Saracen's Chance (55), Athena's Wrath (50, under the bare name while
+            # the row carries the board's "(set piece)" disambiguator). An exact dict-get cannot
+            # see any of them.
+            #
+            # ⚠ AND IT MUST NOT OVER-REACH. item_identity folds only RENDERING - the apostrophe
+            # byte, the base-type tail, and a parenthetical suffix whose bare name belongs to
+            # exactly one roster. The qualifier (Latent / Renewed) is IDENTITY and never folds,
+            # so a Latent charm's footage can never answer for a renewed one. `Crescent Moon`
+            # keeps its "(amulet)" because the bare name is also a runeword.
+            sightings = None
+            try:
+                import item_identity as _ii
+                _want = _ii.vault_key(n).lower()
+                if _want:
+                    for _k, _v in book.items():
+                        if isinstance(_v, list) and _v and _ii.vault_key(_k).lower() == _want:
+                            sightings = _v
+                            break
+            except Exception:
+                sightings = None
+            if not isinstance(sightings, list) or not sightings:
+                continue
         reels, lanes, frames = [], [], []
         found_at = dropped_by = None
         for sg in sightings:
@@ -28012,7 +28054,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3182",
+        "ver": "v3183",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
