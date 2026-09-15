@@ -512,6 +512,14 @@ def owes_a_look(version, path=None):
     return not looked_at(version, path)
 
 
+def _vnum(v):
+    """vNNNN -> int, so versions order by NUMBER and not by the accident of their digit count."""
+    try:
+        return int(str(v or "").lstrip("vV") or -1)
+    except Exception:
+        return -1
+
+
 def _shipped_versions(path=None):
     """Every version the ship table has ever recorded. -> set
 
@@ -559,9 +567,15 @@ def audit(path=None, tasks_path=None):
         v = norm_version(r.get("version"))
         if v:
             _ledger_versions.add(v)
-    _floor = min(_ledger_versions) if _ledger_versions else None
+    # ⚠ NUMERICALLY, NOT AS STRINGS — 'v1000' >= 'v999' is FALSE, so a four-digit version would
+    # have been dropped the moment the counter rolled past v999. Found by the Codex eye on v3157.
+    _floor = min(_vnum(v) for v in _ledger_versions) if _ledger_versions else None
+    # ⚠⚠ AND AN EMPTY LEDGER SEEDS EVERYTHING, WHICH IS THE WHOLE POINT OF THIS BLOCK. A `None`
+    # floor used to seed NOTHING, so a ledger with no rows listed no versions at all — the exact
+    # defect this seeding exists to kill, one level down: when nobody has ever looked at anything,
+    # EVERY shipped version owes a look and the screen must say so. [[zero-needs-a-denominator]]
     for v in _shipped_versions(tasks_path):
-        if _floor is not None and v >= _floor:
+        if _floor is None or _vnum(v) >= _floor:
             seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
                                 "looks": 0, "bound": 0, "unbound": 0})
     for r in _rows(path):

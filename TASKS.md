@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3157** | `(this commit)` | v3157 — a version with no ledger row is OWED, not invisible |
+| **v3158** | `(this commit)` | v3158 — an empty ledger owes everything, and versions order by number |
+| **v3157** | `6f76a325` | v3157 — a version with no ledger row is OWED, not invisible |
 | **v3156** | `5dbc1ba5` | v3156 — only the newest fleet ask may paint |
 | **v3155** | `8f29a259` | v3155 — the fleet card asks again when he looks; NUL is a parse failure too |
 | **v3154** | `e5bf18a4` | v3154 — a file that will not parse is a complete answer, not an unreadable one |

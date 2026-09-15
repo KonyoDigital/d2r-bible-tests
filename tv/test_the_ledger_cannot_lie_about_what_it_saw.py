@@ -191,7 +191,51 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
         self.assertTrue(audit_owes, "neither command refused a version nobody ever looked at")
 
 
+    def test_an_EMPTY_ledger_owes_everything_rather_than_nothing(self):
+        """Found by the Codex eye on v3157 — the same defect one level down. A None floor seeded
+        NOTHING, so a ledger with no rows listed no versions at all. When nobody has ever looked at
+        anything, EVERY shipped version owes a look and the screen must say so."""
+        empty = os.path.join(self.d, "empty.jsonl")
+        io.open(empty, "w", encoding="utf-8").write("")
+        got = sorted(r["version"] for r in L.audit(empty, self.tasks))
+        self.assertEqual(got, ["v1000", "v1001"],
+                         "an empty ledger listed %r. Zero rows is the state where EVERYTHING is "
+                         "owed, and it printed the same screen as 'all clear'." % (got,))
+
+    def test_the_era_bound_orders_versions_by_NUMBER(self):
+        """'v1000' >= 'v999' is FALSE as strings, so a four-digit version would be dropped the
+        moment the counter rolled past v999 — silently, and only for the newest work."""
+        led = os.path.join(self.d, "num.jsonl")
+        io.open(led, "w", encoding="utf-8").write(json.dumps({
+            "version": "v999", "model": "grok-4-1-fast-reasoning", "family": "xai",
+            "reached": True, "findings": "x", "bytes": {"bible": "a"}}) + "\n")
+        tasks = os.path.join(self.d, "num.md")
+        io.open(tasks, "w", encoding="utf-8").write(
+            "| version | commit | commit subject |\n|---|---|---|\n"
+            "| **v1000** | `x` | a |\n| **v999** | `x` | b |\n")
+        got = sorted(r["version"] for r in L.audit(led, tasks))
+        self.assertIn("v1000", got,
+                      "v1000 ships AFTER v999 and was dropped from the era: %r. The bound is "
+                      "comparing digit strings, not versions." % (got,))
+
 RED_PROOF = [
+    {
+        "why": "seeds nothing when the ledger is empty, so the one state in which EVERY shipped "
+               "version owes a look prints the same empty screen as all-clear",
+        "file": "second_eye_ledger.py",
+        "find": "        if _floor is None or _vnum(v) >= _floor:",
+        "replace": "        if _floor is not None and _vnum(v) >= _floor:",
+        "matches": 1,
+    },
+    {
+        "why": "orders the era bound by STRING again, so 'v1000' < 'v999' and every four-digit "
+               "version silently falls outside the era the moment the counter rolls over",
+        "file": "second_eye_ledger.py",
+        "find": "    _floor = min(_vnum(v) for v in _ledger_versions) if _ledger_versions else None",
+        "replace": "    _floor = min(_ledger_versions) if _ledger_versions else None",
+        "matches": 1,
+    },
+
     {
         "why": "stops seeding audit() from the ship table, so a version nobody ever recorded "
                "anything for vanishes from the very screen the gate's refusal message tells him "
