@@ -640,6 +640,19 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_the_chronicle_counts_a_sunder_once",
+         [sys.executable, os.path.join(HERE, "test_the_chronicle_counts_a_sunder_once.py")], 120,
+         why="his ruling twice over (v2680 and again 2026-09-15): the chronicle counts each of "
+             "the six sunders ONCE, while the vault keeps Latent / Renewed / bare as separate "
+             "things. It has already been implemented, broken and rebuilt - v2680 honoured it by "
+             "filtering the roster, which removed the charms' cards, art and farm routes and "
+             "contradicted his v1720 ruling (8 CI failures); v2685 reverted with the correct "
+             "diagnosis that the fix belongs on the TALLY; v2691 put it there. Nothing gated any "
+             "of it. Pins BOTH halves, because either alone is the bug: FOLDED in _uniItems (or "
+             "he is asked to find a charm twice) and PRESENT in the roster (or it loses its "
+             "card). Drives the shipped predicate and fold in node, both the array and the OBJECT "
+             "branch - the object branch is the one production uses and is where v2680 silently "
+             "matched nothing while looking correct."),
     Gate("test_two_vocabularies_for_one_item",
          [sys.executable, os.path.join(HERE, "test_two_vocabularies_for_one_item.py")], 120,
          why="his 2026-09-15 ruling: 'each its own.. for chronicle there is only one name for "
