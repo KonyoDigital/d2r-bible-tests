@@ -5729,24 +5729,14 @@ def open_control_window():
     )
     if not _windowed:
         kwargs["fullscreen"] = True
-        # ══ v3175 — AND FRAMELESS, BECAUSE FULLSCREEN DOES NOT ALWAYS TAKE ═══════════════════
-        # His screenshot, 2026-09-15: "this TV diablo banner on top is now here when it wasnt..
-        # so fix that too". MEASURED: `fullscreen` was passed AND accepted (it is in this
-        # pywebview's create_window signature, and no drop-warning was printed), yet the window
-        # came up windowed WITH its macOS title bar. On macOS the fullscreen transition is applied
-        # after creation and silently does not take when the app is not frontmost at that moment —
-        # which is exactly the state GROKBOT keeps recording as `painting False / hidden True`.
-        # Relaunching through the TCC-granted .app did NOT fix it, so activation timing is not
-        # something this code can rely on.
-        #
-        # `frameless` is decided at creation and cannot fail that way. Paired with fullscreen it
-        # changes nothing visually when fullscreen DOES take, and removes the title bar when it
-        # does not.
-        #
-        # ⚠ ONLY ON THE FULLSCREEN PATH. A frameless window that is merely maximized cannot be
-        # dragged by its title bar, so the TV_WINDOWED=1 opt-out deliberately keeps its frame —
-        # an opt-out that traps him in an unmovable window is not an opt-out.
-        kwargs["frameless"] = True
+        # ⚠⚠ v3179 — FRAMELESS WAS TRIED AND REVERTED. v3175 paired it with fullscreen to kill
+        # the macOS title bar he reported ("this TV diablo banner on top is now here when it
+        # wasnt"). It cost him the window controls — "now i cant minimize or window mode the
+        # console" — AND THE WHITE STRIP WAS STILL THERE, so it paid a real price for nothing.
+        # A cosmetic strip is never worth the buttons that move and minimise his console.
+        # The strip is NOT the pywebview frame; it survives framelessness, so it is something
+        # else and will be found by looking rather than by guessing at window flags again.
+        # [[design-is-fine-until-he-says]]
 
     # v1462 — pywebview 6 MOVED icon= off create_window() and onto start(icon=).
     # The old code passed icon= to create_window and caught TypeError into a hardcoded
@@ -27865,7 +27855,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3177",
+        "ver": "v3178",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

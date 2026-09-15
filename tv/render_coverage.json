@@ -1,5 +1,5 @@
 {
- "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless",
+ "_why": "COVERAGE RATCHET \u2014 how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless | v3177: shelf-cards LOWERED 48 -> 16 at 1120x628/1120x900/375x800/901x900 BY HAND, because v3176 made the river a FIFO of eight on his ruling (\"only the last 8 sessions stay and the one coming in pushes the last one out\"), so 16 of 24 cards are display:none BY DESIGN and the target's selector now scopes to :not([data-river-out]). The loss is deliberate and is the whole point of the change; 1440x1000 is left at 48 because that width still paints every card. A floor may only rise automatically - this one was signed for.",
  "floor": {
   "advanced": {
    "1120x628": 1,
@@ -51,25 +51,25 @@
    "901x900": 10
   },
   "heart": {
-   "1120x628": 95,
-   "1120x900": 95,
-   "1440x1000": 95,
-   "375x800": 95,
-   "901x900": 95
+   "1120x628": 96,
+   "1120x900": 96,
+   "1440x1000": 96,
+   "375x800": 96,
+   "901x900": 96
   },
   "heart-fan": {
-   "1120x628": 270,
-   "1120x900": 270,
-   "1440x1000": 270,
-   "375x800": 270,
-   "901x900": 270
+   "1120x628": 273,
+   "1120x900": 273,
+   "1440x1000": 273,
+   "375x800": 273,
+   "901x900": 273
   },
   "heart-stored": {
-   "1120x628": 18,
-   "1120x900": 18,
-   "1440x1000": 18,
-   "375x800": 18,
-   "901x900": 18
+   "1120x628": 21,
+   "1120x900": 21,
+   "1440x1000": 21,
+   "375x800": 21,
+   "901x900": 21
   },
   "inbox": {
    "1120x628": 3,
@@ -100,11 +100,11 @@
    "901x900": 21
   },
   "shelf-cards": {
-   "1120x628": 48,
-   "1120x900": 48,
+   "1120x628": 16,
+   "1120x900": 16,
    "1440x1000": 48,
-   "375x800": 48,
-   "901x900": 48
+   "375x800": 16,
+   "901x900": 16
   },
   "state-panel": {
    "1120x628": 13,

@@ -5933,7 +5933,19 @@
     font-size: var(--fs-2xs); letter-spacing: .04em; text-transform: uppercase;
     opacity: .55; margin-left: auto; padding-left: 10px; white-space: nowrap;
   }
-  #heart-ov svg.hrt { display: block; width: 100%; min-width: 640px; height: auto; }
+  /* ══ v3180 — THE FAN MUST FIT THE SCREEN, NOT JUST THE WIDTH ═══════════════════════════
+     His screenshot, 2026-09-15: "the hbeart doesnt fit and adjust to the screen" — the bottom
+     row (prune.reports · console.pixel rescue · prune.arm) ran off the edge.
+     MEASURED: the svg is viewBox="0 0 960 780" with `width:100%; height:auto`, so its height is
+     width x 0.8125. At his ~1850px overlay that is ~1500px of svg in ~1100px of room, and the
+     last rank of labels is simply below the window.
+     ⚠ WIDTH-ONLY SIZING IS THE BUG, and it is invisible on a tall viewport — which is why the
+     render gate, which measures whether nodes PAINTED and CLIPPED, reported 273/273 clean: they
+     are all painted, inside an svg that is taller than the screen. `max-height` lets
+     preserveAspectRatio (xMidYMid meet, the default) scale the whole fan down to fit instead.
+     [[visual-regression-detector]] */
+  #heart-ov svg.hrt { display: block; width: 100%; min-width: 640px; height: auto;
+                      max-height: calc(86vh - 150px); margin: 0 auto; }
   #heart-ov .hrt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 2px;
     font-size: var(--fs-2xs); letter-spacing: var(--ls-label); text-transform: uppercase; }
   #heart-ov .hrt-legend b { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
@@ -22794,6 +22806,12 @@ function escC(s) {
             + escC(_FXR_LEDGERS[k].tab) + '</button>';
         }).join('')
       + '</div>';
+    /* the column-sized reason: what is missing, in a phrase. The full sentence stays in the
+       fx-why line above, where there is room for it. */
+    var _fxShortWhy = function (jj) {
+      var w = (jj && jj.maskWhy) ? String(jj.maskWhy) : '';
+      return w ? ('not published \u2014 ' + w) : 'that machine published no per-item list';
+    };
     var _yoursN = (j.mineNames && j.mineNames.length) || 0;
     var head = '<div class="fx-head"><b>' + escC(j.who || machine) + '</b>'
       + '<span class="fx-sub">' + escC(SPEC.label) + ' · yours vs theirs'
@@ -22922,10 +22940,16 @@ function escC(s) {
              into one, which buried the three that matter under a hundred he already knows he
              owns. The count is the fact; the tiles were noise. What he can ACT on is what he
              still needs, and what he cannot see is what they hold. Those two get the columns. */
+          /* ⚠ v3178 — A SHORT REASON, AND THE THIRD COLUMN STAYS. Two corrections from his
+             screenshot: the refusal column rendered the WHOLE sentence as a paragraph, which is
+             not a column; and `you both need` VANISHED, when this console's own doctrine is that
+             a section which disappears when it has nothing hides the very finding it exists to
+             show. Both columns are drawn, refused, with a phrase — the full sentence is already
+             above in `fx-why`. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
           ? (col('you still need', j.mineMissingNames || [], 'you have every one of them',
                  'need-only')
-             + col('they have · you do not', null,
-                   j.why || 'that machine has not published a per-item list', 'theirs'))
+             + col('they have · you do not', null, _fxShortWhy(j), 'theirs')
+             + col('you both need', null, _fxShortWhy(j), 'neither'))
           : col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', 'theirs')
             + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', 'mine'))
       /* ⚠⚠ v3022 — THE THIRD COLUMN, AND IT PASSES `j.neitherHas` STRAIGHT THROUGH WITHOUT `|| []`.
@@ -22947,8 +22971,21 @@ function escC(s) {
          ⚠ AND IT DOES NOT FALL BACK. If the board has published no total, `showN` is null and this
          says so: substituting rosterN would silently reinstate the exact defect, and look right
          doing it. [[zero-needs-a-denominator]] [[label-outlived-referent]] */
-      + '<div class="fx-foot">' + (j.mineN | 0) + ' / ' + _fxDen(j) + ' yours · '
-      + (j.theirsN | 0) + ' / ' + _fxDen(j) + ' theirs · ' + (j.both | 0) + ' shared'
+      /* ⚠⚠ v3178 — THE FOOTER READ 0/135 YOURS BESIDE A HEAD SAYING "you have 132 of 135".
+         j.mineN/theirsN/both are only filled by a SUCCESSFUL compare(); on the one-sided path
+         they are absent and `| 0` turned three unknowns into three confident zeros — two numbers
+         for one thing on one card, which is the defect this console has had to correct more than
+         any other. Known figures when known, an em-dash when not. [[label-outlived-referent]] */
+      + '<div class="fx-foot">'
+      + (j.ok ? ((j.mineN | 0) + ' / ' + _fxDen(j) + ' yours')
+              : (_yoursN + ' / ' + _fxDen(j) + ' yours'))
+      + ' · '
+      + (j.ok ? ((j.theirsN | 0) + ' / ' + _fxDen(j) + ' theirs')
+              : (typeof j.theirHave === 'number'
+                   ? (j.theirHave + ' / ' + (j.theirTotal || _fxDen(j)) + ' theirs (count only)')
+                   : '\u2014 theirs'))
+      + ' · '
+      + (j.ok ? ((j.both | 0) + ' shared') : '\u2014 shared')
       + '<span class="fx-age"> · your list ' + escC(age(j.mineAt))
       + ', theirs ' + escC(age(j.theirAt)) + '</span></div></div></div>';
     } catch (err) {

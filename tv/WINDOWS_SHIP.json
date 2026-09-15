@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3177",
+  "ver": "v3178",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3177: The Codex eye reviewing v3175 found that fleet_compare treated an empty successfully decoded list as unpublished. decode returns None when the answer would be a guess and an empty list when the mask decoded cleanly and he owns none of that ledger - and an empty list is falsy, so a real measured zero was folded into this console published no mask. That is the one distinction the panel exists to keep, and it was wrong in the code that draws it. He owns 132 of 135 today so his own data never exercises the branch.",
+  "note": "v3178: Four corrections from his screenshots. The cross-reference footer read 0 of 135 yours beside a header saying you have 132 of 135, because those fields are only filled by a successful compare and the bitwise-or turned three unknowns into three confident zeros. The refusal columns rendered a whole paragraph where a column belongs, and the you-both-need column had vanished entirely when this console doctrine is that a section which disappears hides the finding it exists to show. The heart fan was sized by width alone so at his window it computed to 1500px of svg in 1100px of room and the bottom rank of labels fell off the screen. And frameless was reverted: it was added to remove a title bar and it cost him the minimise and window-mode controls while the white strip stayed anyway.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

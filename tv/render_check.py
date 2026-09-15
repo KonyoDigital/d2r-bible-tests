@@ -1823,8 +1823,21 @@ TARGETS = {
         # all five widths for "never matched", which is the honest answer to a selector that
         # describes nothing. Back to the whole grid: the count is what made it slow, never what
         # made it wrong, and the warmup above is what pays for the count.
-        "sel": "#th-shelfov .sh-grid .shc-hero, #th-shelfov .sh-grid .shc-sess, "
-               "#th-shelfov .sh-grid .shc-area",
+        # ⚠⚠ v3177 — `:not([data-river-out])`, AND THIS IS NOT THE GATE BEING RELAXED TO FIT A
+        # CHANGE. v3176 made the river a FIFO of eight on his ruling ("only the last 8 sessions
+        # stay and the one coming in pushes the last one out"), so a pushed-out card is
+        # display:none BY DESIGN and its children are legitimately zero-size. Photographing them
+        # asserts the opposite of what the design now says, and the target went red reporting
+        # "32 of 48 node(s) are ZERO-SIZE" about cards that are SUPPOSED to be gone.
+        #
+        # ⚠ IT STILL CATCHES THE REAL FAILURE. Every card that IS flowing is still photographed at
+        # all five widths, so a collapsed or clipped card in the visible eight fails exactly as
+        # before — and if the cap ever hid cards it should not, the node count drops and this
+        # target sees FEWER nodes than the river claims, which `river-strip` cross-checks against
+        # the same overlay. [[regression-guard]] [[zero-needs-a-denominator]]
+        "sel": "#th-shelfov .sh-grid .sh-card:not([data-river-out]) .shc-hero, "
+               "#th-shelfov .sh-grid .sh-card:not([data-river-out]) .shc-sess, "
+               "#th-shelfov .sh-grid .sh-card:not([data-river-out]) .shc-area",
         # ⚠ ONLY THE TWO CLASSES THAT DECLARE AN ELLIPSIS. Both set `white-space:nowrap;
         # overflow:hidden; text-overflow:ellipsis` in control_ui.html (.shc-area at :2106-2107,
         # .shc-headfind at its own rule), so the cut is DESIGNED and he can SEE it. Anything else
