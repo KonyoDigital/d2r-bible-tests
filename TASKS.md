@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3160** | `(this commit)` | v3160 — an unreadable ship table says so; no digit ceiling; one ledger snapshot |
+| **v3161** | `(this commit)` | v3161 — the restore join follows the delegation instead of matching a result key |
+| **v3160** | `362a0ff1` | v3160 — an unreadable ship table says so; no digit ceiling; one ledger snapshot |
 | **v3159** | `322b9897` | v3159 — the second eye speaks OpenAI too, so an exhausted balance is not an empty seat |
 | **v3158** | `b31051ea` | v3158 — an empty ledger owes everything, and versions order by number |
 | **v3157** | `6f76a325` | v3157 — a version with no ledger row is OWED, not invisible |

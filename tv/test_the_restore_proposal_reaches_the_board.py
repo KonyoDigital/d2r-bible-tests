@@ -67,6 +67,40 @@ def _board_apply_body():
     return h[i:k + 1]
 
 
+def _code_only(js):
+    """The CODE, with prose stripped. A half named only in a COMMENT is not a half the board
+    spends. [[measured-true-read-wrong]]"""
+    js = re.sub(r"/\*.*?\*/", " ", js, flags=re.S)
+    return re.sub(r"(?m)//.*$", " ", js)
+
+
+def _board_apply_inner():
+    """Where the apply ACTUALLY reads the proposal. -> str (code only)
+
+    ⚠⚠ THE OUTER FUNCTION SPENDS NOTHING. `chronicleApply` unwraps `proposal.wouldAdd` into `add`,
+    declares its RESULT shape `{uniques: [], sets: [], skipped: []}` and delegates to
+    `_chronicleApplyInner(proposal, add, res)`. The half names therefore appear in the outer body
+    because of the RESULT object — so a law asserting "the half is named in chronicleApply" passes
+    whatever the board does with `add`, which is green for the wrong reason. Found by the Codex
+    eye on the shipped v3153. [[the-unjoined-end]]"""
+    h = io.open(os.path.join(REPO, "bible.html"), encoding="utf-8").read()
+    m = re.search(r"window\._chronicleApplyInner\s*=\s*function\s*\(", h)
+    if not m:
+        return ""
+    i = m.start()
+    j = h.find("{", i)
+    depth, k = 0, j
+    while k < len(h):
+        if h[k] == "{":
+            depth += 1
+        elif h[k] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        k += 1
+    return _code_only(h[i:k + 1])
+
+
 class TestTheRestoreProposalReachesTheBoard(unittest.TestCase):
 
     def setUp(self):
@@ -96,29 +130,45 @@ class TestTheRestoreProposalReachesTheBoard(unittest.TestCase):
         """`wouldAdd` holding a key the board never looks at is a silently dropped store."""
         halves = sorted(self.prop.get("wouldAdd") or {})
         self.assertTrue(halves, "the proposal fills no halves at all")
-        unread = [h for h in halves if h not in self.body]
+        # ⚠ THE OUTER BODY IS NOT THE TEST. It names every half in its RESULT object, so asking it
+        # whether a half is "spent" answers yes whatever the board does with `add`.
+        inner = _board_apply_inner()
+        self.assertTrue(inner, "window._chronicleApplyInner is gone — the apply delegates nowhere")
+        self.assertIn("_chronicleApplyInner", _code_only(self.body),
+                      "chronicleApply no longer delegates, so the half it reads is somewhere this "
+                      "law does not follow")
+        # ⚠ A WORD BOUNDARY, NOT A SUBSTRING. `"add.uniques" in inner` is satisfied by
+        # `add.uniquesX` — heart2 caught this proof BLIND on its first drill, tampering the real
+        # read and watching the assertion sail through its own defeat.
+        unread = [h for h in halves
+                  if not re.search(r"add\.%s\b" % re.escape(h), inner)]
         self.assertEqual(
             unread, [],
-            "the restore fills %r and the board's apply never names %r — those names would be "
-            "handed over and dropped without a word." % (halves, unread))
+            "the restore fills %r and the apply never READS add.%s — those names would be handed "
+            "over and dropped without a word." % (halves, ", add.".join(unread) if unread else ""))
 
 
 RED_PROOF = [
     {
-        "why": "renames the key the restore writes, so the board's `proposal.wouldAdd` reads "
-               "undefined and the apply puts back NOTHING while reporting the board's own ok",
-        "file": "ledger_restore.py",
-        "find": 'return {"wouldAdd": add, "source": "ledger_restore", "file": plan_out.get("file")}',
-        "replace": 'return {"toAdd": add, "source": "ledger_restore", "file": plan_out.get("file")}',
-        "matches": 1,
+        'why': "renames the key the restore writes, so the board's `proposal.wouldAdd` reads undefined and the apply puts back NOTHING while reporting the board's own ok",
+        'file': 'ledger_restore.py',
+        'find': 'return {"wouldAdd": add, "source": "ledger_restore", "file": plan_out.get("file")}',
+        'replace': 'return {"toAdd": add, "source": "ledger_restore", "file": plan_out.get("file")}',
+        'matches': 1,
     },
     {
-        "why": "renames the key the BOARD reads, the same break from the other side — the half "
-               "this law exists to catch, because no python test can see it",
-        "file": "../bible.html",
-        "find": "var add = (proposal && proposal.wouldAdd) || {};",
-        "replace": "var add = (proposal && proposal.toAdd) || {};",
-        "matches": 1,
+        'why': 'renames the key the BOARD reads, the same break from the other side — the half this law exists to catch, because no python test can see it',
+        'file': '../bible.html',
+        'find': 'var add = (proposal && proposal.wouldAdd) || {};',
+        'replace': 'var add = (proposal && proposal.toAdd) || {};',
+        'matches': 1,
+    },
+    {
+        'why': 'stops the apply READING add.uniques, so a restore hands the names over and the board drops them — while the outer chronicleApply still NAMES uniques in its result object, which is what made the old assertion green for the wrong reason',
+        'file': '../bible.html',
+        'find': '    (add.uniques || []).forEach(function(row){',
+        'replace': '    (add.uniquesX || []).forEach(function(row){',
+        'matches': 1,
     },
 ]
 

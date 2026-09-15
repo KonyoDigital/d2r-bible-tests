@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3160",
+  "ver": "v3161",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3160: an unreadable ship table says so; no digit ceiling; one ledger snapshot",
+  "note": "v3161: the restore join follows the delegation instead of matching a result key",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
