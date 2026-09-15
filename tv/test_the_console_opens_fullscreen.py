@@ -136,11 +136,45 @@ class TheWindowKeepsItsControls(unittest.TestCase):
     """
 
     def test_the_window_is_never_created_frameless(self):
+        """⚠ PARSED, NOT A TEXT BAN — and a cross-family review of v3178 is why. The first cut
+        asserted the literal string 'kwargs["frameless"] = True' was absent, which bans ONE
+        SPELLING: `kwargs.update(frameless=True)`, `kwargs['frameless']=True`, or passing it
+        straight to create_window all slip past a law that reads for one shape. Same weakness as
+        a grep matching a comment. This walks the AST for frameless arriving by ANY of the three
+        routes. [[source-reading-guard]]"""
+        import ast
         with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             src = fh.read()
-        self.assertNotIn('kwargs["frameless"] = True', src,
-                         "frameless is back — it removes the minimise and window-mode controls "
-                         "from his console, and it did not remove the strip it was added for")
+        tree = ast.parse(src)
+        hits = []
+        for n in ast.walk(tree):
+            # kwargs["frameless"] = ...   /   kwargs.frameless = ...
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    if isinstance(t, ast.Subscript):
+                        # ⚠⚠ `ast.Constant` IS the slice on py3.9+, and `getattr(slice,"value",…)`
+                        # then returns the STRING, not a node — so `isinstance(k, ast.Constant)`
+                        # was False and this branch never fired. A sabotage planting the exact
+                        # spelling the law was written for stayed GREEN. This is a scar already
+                        # carried and hit again; resolve the literal through BOTH shapes.
+                        sl = t.slice
+                        key = sl.value if isinstance(sl, ast.Constant) else getattr(sl, "value", None)
+                        if isinstance(key, ast.Constant):
+                            key = key.value
+                        if key == "frameless":
+                            hits.append("subscript assignment at line %d" % n.lineno)
+                    elif isinstance(t, ast.Attribute) and t.attr == "frameless":
+                        hits.append("attribute assignment at line %d" % n.lineno)
+            # create_window(frameless=...) / kwargs.update(frameless=...) / dict(frameless=...)
+            if isinstance(n, ast.Call):
+                for kw in n.keywords:
+                    if kw.arg == "frameless":
+                        hits.append("keyword argument at line %d" % n.lineno)
+        self.assertEqual(
+            hits, [],
+            "frameless is back (%s) — it removes the minimise and window-mode controls from his "
+            "console (\"now i cant minimize or window mode the console\"), and it did NOT remove "
+            "the white strip it was added for." % "; ".join(hits))
 
 
 if __name__ == "__main__":
