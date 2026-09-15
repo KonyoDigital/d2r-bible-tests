@@ -146,7 +146,61 @@ class TestTheFleetCardIsAskedAgainWhenHeLooks(unittest.TestCase):
             "ask can overtake this one, so an unguarded await lets an older response paint over "
             "fresher numbers." % (awaits, guards))
 
+
+class TestTheBlurProbeIsOffUnlessAsked(unittest.TestCase):
+    """A diagnostic that fires by default is not a diagnostic, it is a shipped design change.
+
+    `#th-shelfov`'s blur is the last untested suspect for the shelf paint void GROKBOT reported on
+    two consecutive ticks (API open, scrollTop advancing, painting:true, pixels black until a
+    relaunch) and for the ~1.5s repaint lag. Removing it is a VISIBLE change — 5.22% of pixels
+    against a 0.71-0.74% same-frame control floor — so it may only happen when someone asks.
+    """
+
+    def setUp(self):
+        h = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        m = re.search(r"\(function _blurProbe\s*\(", h)
+        self.assertIsNotNone(m, "the blur probe is gone — this law reads the wrong thing")
+        i = m.start()
+        j = h.find("{", i)
+        depth, k = 0, j
+        while k < len(h):
+            if h[k] == "{":
+                depth += 1
+            elif h[k] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            k += 1
+        self.body = _code_only(h[i:k + 1])
+
+    def test_it_reads_the_flag_before_it_touches_anything(self):
+        """The guard must come FIRST. A probe that strips the blur and then checks the flag has
+        already changed his console."""
+        flag = self.body.find("noblur=1")
+        touch = self.body.find("backdropFilter")
+        self.assertGreater(flag, -1, "the probe no longer looks for its flag at all")
+        self.assertGreater(touch, -1, "the probe no longer touches the blur — it does nothing")
+        self.assertLess(flag, touch,
+                        "the probe touches backdropFilter at %d BEFORE reading its flag at %d, so "
+                        "it fires on every load and the blur is gone for good" % (touch, flag))
+
+    def test_it_returns_when_the_flag_is_absent(self):
+        head = self.body[:self.body.find("backdropFilter")]
+        self.assertRegex(
+            head, r"noblur=1[^;]*\)\s*\)\s*return;|if\s*\(![^)]*noblur=1[^)]*\)[^;]*\)\s*return;|return;",
+            "nothing returns before the blur is touched, so the flag is read and ignored")
+
 RED_PROOF = [
+    {
+        "why": "drops the flag guard, so the diagnostic fires on EVERY load and silently ships a "
+               "visible change to his console — 5.22% of pixels against a 0.71-0.74% control "
+               "floor — which nobody chose and which was never proven to fix anything",
+        "file": "control_ui.html",
+        "find": "      if (!/[?&]noblur=1\\b/.test(window.location.search || '')) return;",
+        "replace": "      /* removed */",
+        "matches": 1,
+    },
+
     {
         "why": "drops the guard after the json await, so a stalled older ask resolves last and "
                "paints OLDER fleet numbers over the fresher ones a newer ask already rendered — "

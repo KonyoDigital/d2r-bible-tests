@@ -22780,6 +22780,34 @@ function escC(s) {
      ⚠ v2851's ladder still covers the FAILING case, and a success resets its counter — this only
      supplies the first ask it was always waiting for. Same readyState pattern the TZ and chronicle
      wires already use, so there is one idiom here rather than two. */
+  /* ══ v3163 — A WAY TO TEST THE BLUR WITHOUT CHANGING WHAT HE SEES ════════════════════════
+     GROKBOT has now reported the same fault on two consecutive ticks: the shelf's API says open
+     with 19 cards and `scrollTop` advancing, `painting: true` throughout, and the window paints a
+     BLACK VOID until a `tvd-scan.sh` relaunch. That is the v2627 measurement happening on the
+     shelf specifically, about twice an hour, and v2627 already measured that a reload does NOT
+     cure the underlying fault.
+
+     `#th-shelfov` carries `backdrop-filter: blur(7px)` on an absolutely positioned overlay and is
+     the only blurred surface in this file that scrolls a 4,700px list. It is the last untested
+     suspect for both the void and the ~1.5s repaint lag — and it could not be tested, because
+     pywebview exposes no `evaluate_js` door for GROKBOT and REMOVING the blur is a VISIBLE change
+     (measured: 5.22% of pixels against a 0.71–0.74% same-frame control floor).
+
+     ⚠ SO THIS CHANGES NOTHING UNLESS IT IS ASKED FOR. No `?noblur=1`, no effect — the attribute
+     is never touched and the look is exactly as it was. Navigate the console to `/?noblur=1`,
+     measure the lag, and the theory is settled either way without anyone deciding to live with a
+     different-looking shelf first. [[visual-regression-detector]] [[unknown-stays-unknown]] */
+  (function _blurProbe() {
+    try {
+      if (!/[?&]noblur=1\b/.test(window.location.search || '')) return;
+      var ov = document.getElementById('th-shelfov');
+      if (!ov) return;
+      ov.style.backdropFilter = 'none';
+      ov.style.webkitBackdropFilter = 'none';
+      ov.setAttribute('data-blur-probe', 'off');
+    } catch (e) {}
+  })();
+
   (function _fleetKick() {
     var go = function () { try { window._fleetRefresh(); } catch (e) {} };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go);

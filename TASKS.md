@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3162** | `(this commit)` | v3162 — the ship-table verdict is handed back, not left in a global |
+| **v3163** | `(this commit)` | v3163 — a default-off way to test the blur without changing what he sees |
+| **v3162** | `21e452de` | v3162 — the ship-table verdict is handed back, not left in a global |
 | **v3161** | `6b5a2c1f` | v3161 — the restore join follows the delegation instead of matching a result key |
 | **v3160** | `362a0ff1` | v3160 — an unreadable ship table says so; no digit ceiling; one ledger snapshot |
 | **v3159** | `322b9897` | v3159 — the second eye speaks OpenAI too, so an exhausted balance is not an empty seat |

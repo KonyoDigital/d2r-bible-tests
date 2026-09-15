@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3162",
+  "ver": "v3163",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3162: the ship-table verdict is handed back, not left in a global",
+  "note": "v3163: a default-off way to test the blur without changing what he sees",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
