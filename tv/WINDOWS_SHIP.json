@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3159",
+  "ver": "v3160",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3159: the second eye speaks OpenAI too, so an exhausted balance is not an empty seat",
+  "note": "v3160: an unreadable ship table says so; no digit ceiling; one ledger snapshot",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

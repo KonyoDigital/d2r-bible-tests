@@ -86,6 +86,9 @@ _FAMILY = (
 # Who AUTHORED the ships this ledger guards. A pass from this family is not a second eye.
 AUTHOR_FAMILY = "anthropic"
 
+#: set by audit(): False when the ship table could not be read, so the CLI can say so out loud
+LAST_SHIP_TABLE_OK = True
+
 
 def family_of(model):
     """anthropic / xai / openai / ... or None when the id does not say ONE recognisable family.
@@ -521,7 +524,7 @@ def _vnum(v):
 
 
 def _shipped_versions(path=None):
-    """Every version the ship table has ever recorded. -> set
+    """Every version the ship table has ever recorded. -> (set, readable)
 
     ⚠ PARSED FROM TASKS.md, WHICH bump_version.py IS THE ONLY WRITER OF — never a second list
     here that would drift from it the first time a version is recorded by hand. [[copy-drift]]
@@ -532,8 +535,16 @@ def _shipped_versions(path=None):
         with io.open(p, encoding="utf-8") as fh:
             src = fh.read()
     except Exception:
-        return set()                      # unreadable is UNKNOWN: seed nothing, hide nothing
-    return set(_re.findall(r"^\|\s*\*\*(v\d{3,5})\*\*\s*\|", src, _re.M))
+        # ⚠⚠ "seed nothing, hide nothing" WAS WRONG, AND IT IS THE THIRD TIME IN THIS FAMILY.
+        # Seeding nothing DOES hide: audit then emits no row for a shipped version that has no
+        # ledger data, while --check still blocks it — the exact contradiction this seeding
+        # exists to end, reachable by a permission error or a bad tasks_path. The caller is told
+        # so it can SAY so. [[zero-needs-a-denominator]]
+        return set(), False
+    # ⚠ NO UPPER BOUND ON THE DIGITS. `v\d{3,5}` gave the parser an expiry at v100000 while its
+    # own contract says "every version the ship table has ever recorded" — a six-digit release
+    # would be silently ignored and get no OWED row.
+    return set(_re.findall(r"^\|\s*\*\*(v\d{3,})\*\*\s*\|", src, _re.M)), True
 
 
 def audit(path=None, tasks_path=None):
@@ -562,8 +573,12 @@ def audit(path=None, tasks_path=None):
     # all of them would bury today's two OWED rows under hundreds of versions that predate the eye
     # lane and were never expected to carry a look. Anything at or after the OLDEST version the
     # ledger knows about was expected to; anything before it was not.
+    # ⚠ ONE SNAPSHOT, NOT TWO PASSES. The floor was computed from one _rows() walk and the rows
+    # built from a second; a rolling prune or a rotation between them lets the cutoff describe the
+    # old ledger while the listing describes the new one. This file is JSONL and IS pruned.
+    _snapshot = list(_rows(path))
     _ledger_versions = set()
-    for r in _rows(path):
+    for r in _snapshot:
         v = norm_version(r.get("version"))
         if v:
             _ledger_versions.add(v)
@@ -574,11 +589,13 @@ def audit(path=None, tasks_path=None):
     # floor used to seed NOTHING, so a ledger with no rows listed no versions at all — the exact
     # defect this seeding exists to kill, one level down: when nobody has ever looked at anything,
     # EVERY shipped version owes a look and the screen must say so. [[zero-needs-a-denominator]]
-    for v in _shipped_versions(tasks_path):
+    _shipped, _ship_ok = _shipped_versions(tasks_path)
+    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok      # the CLI says so; silence would hide again
+    for v in _shipped:
         if _floor is None or _vnum(v) >= _floor:
             seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
                                 "looks": 0, "bound": 0, "unbound": 0})
-    for r in _rows(path):
+    for r in _snapshot:
         v = norm_version(r.get("version")) or (str(r.get("version") or "?").strip() or "?")
         st = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
                                  "looks": 0, "bound": 0, "unbound": 0})
@@ -645,6 +662,10 @@ def main(argv):
         # this listing from 5 rows to 166 — every one of them real, and the two he can act on
         # buried among them. A screen he must scroll to find the block is barely better than one
         # that hid it. So: say the count, name the newest that owe, then print everything.
+        if not LAST_SHIP_TABLE_OK:
+            print("second eye: \u26a0 the ship table could not be READ, so versions with no "
+                  "ledger row cannot be listed here at all. This listing is the ledger only — "
+                  "--check may still refuse a version this screen does not show.")
         _owed = [r for r in rows if not r["looks"]]
         _newest = [r["version"] for r in _owed][-6:]
         print("second eye: %d of %d version(s) in the ledger era carry NO look%s"

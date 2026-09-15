@@ -153,21 +153,24 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.d, True)
         # a ledger that knows v1000 and has NEVER heard of v1001
         self.led = os.path.join(self.d, "ledger.jsonl")
-        io.open(self.led, "w", encoding="utf-8").write(json.dumps({
+        with io.open(self.led, "w", encoding="utf-8") as _fh:
+            _fh.write(json.dumps({
             "version": "v1000", "model": "grok-4-1-fast-reasoning", "family": "xai",
             "reached": True, "findings": "a real look", "verdict": "findings",
-            "bytes": {"bible": "abc"}}) + "\n")
+                "bytes": {"bible": "abc"}}) + "\n")
         self.tasks = os.path.join(self.d, "TASKS.md")
-        io.open(self.tasks, "w", encoding="utf-8").write(
+        with io.open(self.tasks, "w", encoding="utf-8") as _fh:
+            _fh.write(
             "| version | commit | commit subject |\n|---|---|---|\n"
             "| **v1001** | `(this commit)` | v1001 - shipped and never looked at |\n"
             "| **v1000** | `(this commit)` | v1000 - shipped and looked at |\n")
 
     def test_the_ship_table_is_parsed_at_all(self):
-        got = L._shipped_versions(self.tasks)
+        got, ok = L._shipped_versions(self.tasks)
         self.assertEqual(got, {"v1000", "v1001"},
                          "the ship table parsed as %r — if this returns nothing the seeding is a "
                          "no-op and every assertion below passes for the wrong reason" % (got,))
+        self.assertTrue(ok, "a readable ship table reported itself unreadable")
 
     def test_a_shipped_version_with_no_row_is_listed_as_OWED(self):
         rows = L.audit(self.led, self.tasks)
@@ -218,62 +221,85 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
                       "v1000 ships AFTER v999 and was dropped from the era: %r. The bound is "
                       "comparing digit strings, not versions." % (got,))
 
+    def test_an_unreadable_ship_table_SAYS_SO_instead_of_seeding_nothing(self):
+        """Found by the Codex eye on v3157, and it is the third time in this family. Returning an
+        empty set for an unreadable table does not 'hide nothing' — it hides EVERYTHING, because
+        audit then emits no row for a shipped version with no ledger data while --check still
+        blocks it. A permission error or a bad tasks_path is enough."""
+        got, ok = L._shipped_versions(os.path.join(self.d, "no_such_table.md"))
+        self.assertEqual(got, set())
+        self.assertFalse(ok,
+                         "an unreadable ship table reported itself READ. The caller cannot tell "
+                         "it apart from a table that is genuinely empty, so it cannot say so.")
+
+    def test_the_ship_table_parser_has_no_digit_ceiling(self):
+        """Its contract is 'every version ever recorded'; `v\\d{3,5}` gave it an expiry at
+        v100000, after which a shipped version is silently ignored and never owed."""
+        p = os.path.join(self.d, "six.md")
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write("| version | commit | commit subject |\n|---|---|---|\n"
+                     "| **v100000** | `x` | a |\n")
+        got, _ok = L._shipped_versions(p)
+        self.assertIn("v100000", got,
+                      "a six-digit shipped version parsed as %r — it would never be listed as "
+                      "owed, and the contract says every version." % (got,))
+
 RED_PROOF = [
     {
-        "why": "seeds nothing when the ledger is empty, so the one state in which EVERY shipped "
-               "version owes a look prints the same empty screen as all-clear",
-        "file": "second_eye_ledger.py",
-        "find": "        if _floor is None or _vnum(v) >= _floor:",
-        "replace": "        if _floor is not None and _vnum(v) >= _floor:",
-        "matches": 1,
+        'why': 'an unreadable ship table reports itself READ, so the caller cannot tell it from a genuinely empty one and the audit silently hides every rowless shipped version',
+        'file': 'second_eye_ledger.py',
+        'find': '        return set(), False',
+        'replace': '        return set(), True',
+        'matches': 1,
     },
     {
-        "why": "orders the era bound by STRING again, so 'v1000' < 'v999' and every four-digit "
-               "version silently falls outside the era the moment the counter rolls over",
-        "file": "second_eye_ledger.py",
-        "find": "    _floor = min(_vnum(v) for v in _ledger_versions) if _ledger_versions else None",
-        "replace": "    _floor = min(_ledger_versions) if _ledger_versions else None",
-        "matches": 1,
-    },
-
-    {
-        "why": "stops seeding audit() from the ship table, so a version nobody ever recorded "
-               "anything for vanishes from the very screen the gate's refusal message tells him "
-               "to run — invisible instead of owed, and only one of those can be acted on",
-        "file": "second_eye_ledger.py",
-        "find": "    for v in _shipped_versions(tasks_path):",
-        "replace": "    for v in []:",
-        "matches": 1,
-    },
-
-    {
-        "why": "restoring the re-measure makes a full diff and an unchecked look identical again",
-        "file": "second_eye_ledger.py",
-        "find": "    elif isinstance(sent, dict):",
-        "replace": "    elif isinstance(sent, dict) and False:",
-        "matches": 1,
+        'why': 'puts the digit ceiling back, so the ship table quietly stops recognising versions at v100000 while its docstring still claims every version ever recorded',
+        'file': 'second_eye_ledger.py',
+        'find': '    return set(_re.findall(r"^\\|\\s*\\*\\*(v\\d{3,})\\*\\*\\s*\\|", src, _re.M)), True',
+        'replace': '    return set(_re.findall(r"^\\|\\s*\\*\\*(v\\d{3,5})\\*\\*\\s*\\|", src, _re.M)), True',
+        'matches': 1,
     },
     {
-        "why": "letting the seam pattern cross a newline re-arms the diff false positive",
-        "file": "second_eye_ledger.py",
-        # ⚠ v2844 — RE-ANCHORED. The law\'s own pattern was tightened from a character class
-        # `[\"\']{3}` (which also matches mixed quotes like `"\'"`) to an explicit alternation, and
-        # this sabotage kept quoting the old text — so it matched 0 times and proved nothing while
-        # reporting itself as a declared proof. It only became visible once the resolver fix let
-        # the well-formedness law find the file at all: one bug was hiding the other.
-        # The TAMPER IS UNCHANGED IN INTENT — loosen `[ \\t]` to `\\s` so the seam may cross a
-        # newline, which is exactly the false positive the strict form exists to prevent.
-        # [[sabotage-is-usually-the-wrong-one]]
-        "find": '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
-        "replace": '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
-        "matches": 1,
+        'why': 'seeds nothing when the ledger is empty, so the one state in which EVERY shipped version owes a look prints the same empty screen as all-clear',
+        'file': 'second_eye_ledger.py',
+        'find': '        if _floor is None or _vnum(v) >= _floor:',
+        'replace': '        if _floor is not None and _vnum(v) >= _floor:',
+        'matches': 1,
     },
     {
-        "why": "without the declaration check a clean look is filed as one that found defects",
-        "file": "second_eye_run.py",
-        "find": "    if not enumerated and _NO_DEFECT_RX.search(answer or \"\"):",
-        "replace": "    if False:",
-        "matches": 1,
+        'why': "orders the era bound by STRING again, so 'v1000' < 'v999' and every four-digit version silently falls outside the era the moment the counter rolls over",
+        'file': 'second_eye_ledger.py',
+        'find': '    _floor = min(_vnum(v) for v in _ledger_versions) if _ledger_versions else None',
+        'replace': '    _floor = min(_ledger_versions) if _ledger_versions else None',
+        'matches': 1,
+    },
+    {
+        'why': "stops seeding audit() from the ship table, so a version nobody ever recorded anything for vanishes from the very screen the gate's refusal message tells him to run — invisible instead of owed, and only one of those can be acted on",
+        'file': 'second_eye_ledger.py',
+        'find': '    for v in _shipped:',
+        'replace': '    for v in []:',
+        'matches': 1,
+    },
+    {
+        'why': 'restoring the re-measure makes a full diff and an unchecked look identical again',
+        'file': 'second_eye_ledger.py',
+        'find': '    elif isinstance(sent, dict):',
+        'replace': '    elif isinstance(sent, dict) and False:',
+        'matches': 1,
+    },
+    {
+        'why': 'letting the seam pattern cross a newline re-arms the diff false positive',
+        'file': 'second_eye_ledger.py',
+        'find': '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
+        'replace': '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
+        'matches': 1,
+    },
+    {
+        'why': 'without the declaration check a clean look is filed as one that found defects',
+        'file': 'second_eye_run.py',
+        'find': '    if not enumerated and _NO_DEFECT_RX.search(answer or ""):',
+        'replace': '    if False:',
+        'matches': 1,
     },
 ]
 
