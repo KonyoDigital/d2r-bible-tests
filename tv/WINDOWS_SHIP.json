@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3169",
+  "ver": "v3170",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3169: The cross-reference said Dean has not reported which set pieces it holds while his own fleet card read SETS 131/135 in the same screenshot. He did report: the COUNTS were on the wire and only the per-item MASK was missing, so the panel can count but cannot name. And the promised next heartbeat cannot deliver, because the row already said why: no board window on that machine, which fails identically on every beat until one is open. The reason was published by the server and rendered ZERO times. Now the sentence names the count, names the reason, and drops a promise it cannot keep. A reported zero still counts as a measurement.",
+  "note": "v3170: The cross-reference sentence learned in v3169 that Dean had reported his counts. The card he actually hovers stayed silent: counts, a one-word verdict, and nothing about the per-item list being absent or why. maskWhy was published by the server on every fleet row and read ZERO times by the page. Now the card names it, and names one machine state ONCE with its ledgers grouped rather than printing the same cause per ledger, which would read as several faults. A row with nothing to explain grows no line, a falsy reason is not a reason, and the text is escaped because a fleet row is remote input.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

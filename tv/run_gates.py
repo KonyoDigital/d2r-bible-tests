@@ -2906,6 +2906,20 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_the_card_says_why_the_list_is_missing",
+         [sys.executable, os.path.join(HERE, "test_the_card_says_why_the_list_is_missing.py")], 120,
+         why="v3169 fixed the cross-reference SENTENCE so it stopped saying Dean had not reported "
+             "when he had. The CARD - the thing he actually hovers - stayed silent: counts, a "
+             "one-word verdict, and no word about the per-item mask being absent or why. So the "
+             "card and the panel disagreed about how much this console knows. MEASURED before "
+             "this shipped: maskWhy appeared 5 times in control_app.py and ZERO times in "
+             "control_ui.html - published by the server on every fleet row, read by nothing. "
+             "This law drives the SHIPPED block in node and pins: the reason is rendered; ONE "
+             "machine state is named ONCE with its ledgers grouped (Dean carries {sets: no board "
+             "window, uniques: no board window} and printing it per ledger reads as two separate "
+             "faults); two DIFFERENT reasons are both kept; a row with nothing to explain does "
+             "not grow an empty line; a falsy reason is not a reason; and the text is ESCAPED, "
+             "because a fleet row is remote input from another machine."),
     Gate("test_reported_counts_is_not_no_report",
          [sys.executable, os.path.join(HERE, "test_reported_counts_is_not_no_report.py")], 120,
          why="HIS CORRECTION, 2026-09-15. The cross-reference panel said \"Dean has not reported "

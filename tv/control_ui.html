@@ -4525,6 +4525,11 @@
                   letter-spacing: .04em; text-transform: lowercase; margin-left: 6px; }
   .ftt-h .ftt-w.ftts-synced   { color: var(--mint, #8fe6a0); }
   .ftt-h .ftt-w.ftts-unsynced { color: var(--warn, var(--gold-dim)); }
+  /* v3170 - the per-item-list reason. Quiet: it explains a LIMIT of this console's
+     knowledge, it is not a fault on his board, and styling it as an alarm would teach
+     him to ignore the row that matters. */
+  .ftt-mw { margin-top: 5px; font-size: var(--fs-2xs); line-height: 1.45;
+            color: var(--ink-dim, var(--gold-dim)); opacity: .9; }
   .ftt-h .ftt-w.ftts-unknown  { color: var(--muted, #8b8071); font-style: italic; }
   /* v2875 — the row says one word, and the detail it replaced is one hover away */
   .fleet-meta.fleet-word { font-weight: var(--fw-semibold); letter-spacing: .03em; }
@@ -22490,6 +22495,36 @@ function escC(s) {
           ? '<div class="ftt-counts">' + _cs.join('<i class="ftt-sep">\u00b7</i>') + '</div>'
           : '';
         var _mw = _machineWord(t, _isMe);
+        /* ══ v3170 (#82) — WHY THE PER-ITEM LIST IS MISSING, ON THE CARD ITSELF ═══════════════
+           v3169 fixed the cross-reference SENTENCE ("Dean DID report set pieces - 131 of 135...
+           Reason that machine gave: no board window"). THE CARD WAS STILL SILENT. It showed the
+           counts and the one-word verdict and never said that the per-item mask is absent, or
+           why - so the card and the panel disagreed about how much this console knows.
+
+           `maskWhy` is published by the server on EVERY fleet row and appeared ZERO times in
+           this file. Published, never read - the same shape as the receipt viewer that had no
+           introduction. [[the-unjoined-end]]
+
+           ⚠ ONE REASON, NAMED ONCE. Dean's row carries {sets: 'no board window', uniques: 'no
+           board window'} - printing it per ledger reads as two separate faults when it is one
+           machine state. Grouping by reason says "sets, uniques" against a single cause. */
+        var _mwLine = '';
+        try {
+          var _wy = m && m.maskWhy;
+          if (_wy && typeof _wy === 'object') {
+            var _byReason = {}, _any = false;
+            Object.keys(_wy).forEach(function (k) {
+              var r = _wy[k]; if (!r) return;          /* absent reason is not a reason */
+              _any = true;
+              (_byReason[String(r)] = _byReason[String(r)] || []).push(k);
+            });
+            if (_any) {
+              _mwLine = '<div class="ftt-mw">' + Object.keys(_byReason).map(function (r) {
+                return escC(_byReason[r].join(', ')) + ': counted, not named \u2014 ' + escC(r);
+              }).join('<br>') + '</div>';
+            }
+          }
+        } catch (_) {}
         /* ⚠⚠ v2739 — SAY WHEN A ROW'S PROGRESS WAS INHERITED RATHER THAN EARNED.
            Konyo, reading Dean's card: "it should be rendering for him 0 meaning its not and has
            not been sycned yet based on his profile and ledgers".
@@ -22545,6 +22580,7 @@ function escC(s) {
         return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
           + ' <span class="ftt-w ' + _mw.c + '" title="' + escC(_mw.t) + '">' + escC(_mw.w)
           + '</span></div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
+          + _mwLine
           + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
           + '</div></div>';
       };

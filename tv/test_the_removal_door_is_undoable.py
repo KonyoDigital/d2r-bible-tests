@@ -25,9 +25,20 @@ import json
 import os
 import re
 import subprocess
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+# this file prints non-ASCII in its own assertion messages; on a non-UTF-8 console it would
+# crash while REPORTING, so a clean tree would exit non-zero for a reason nothing names.
+try:
+    from console_safe import enable
+    enable()
+except Exception:
+    pass
+
 BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 
 START = "var _VR_LOG = 'd2r_vaultRemoved'"
