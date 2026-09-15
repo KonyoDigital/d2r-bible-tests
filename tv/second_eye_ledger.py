@@ -512,7 +512,23 @@ def owes_a_look(version, path=None):
     return not looked_at(version, path)
 
 
-def audit(path=None):
+def _shipped_versions(path=None):
+    """Every version the ship table has ever recorded. -> set
+
+    ⚠ PARSED FROM TASKS.md, WHICH bump_version.py IS THE ONLY WRITER OF — never a second list
+    here that would drift from it the first time a version is recorded by hand. [[copy-drift]]
+    """
+    import re as _re
+    p = path or os.path.join(os.path.dirname(HERE), "TASKS.md")
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            src = fh.read()
+    except Exception:
+        return set()                      # unreadable is UNKNOWN: seed nothing, hide nothing
+    return set(_re.findall(r"^\|\s*\*\*(v\d{3,5})\*\*\s*\|", src, _re.M))
+
+
+def audit(path=None, tasks_path=None):
     """Every version mentioned in the ledger, and whether it was really seen.
 
     ⚠ v2145 — THIS USED THE RULES `looked_at` HAD ALREADY ABANDONED, and the second eye measured
@@ -527,6 +543,27 @@ def audit(path=None):
     blocked. One rule, asked from both. [[feedback-contradiction-is-the-finding]]
     """
     seen = {}
+    # ⚠⚠ A VERSION WITH NO ROW AT ALL WAS INVISIBLE HERE, AND THOSE ARE THE ONES THAT BLOCK. This
+    # walked the ledger only, so a version nobody ever recorded anything for simply did not appear
+    # — while `--check` refuses it by name. MEASURED: --audit listed 5 OWED and NOT v3156, whose
+    # own --check says "nothing was ever recorded for it". audit() is the command the refusal
+    # message tells him to run, so the screen he reads when he is already blocked was the one
+    # screen that could not show the block. [[zero-needs-a-denominator]] [[the-unjoined-end]]
+    #
+    # ⚠ BOUNDED TO THE ERA THE LEDGER COVERS. TASKS.md carries every version ever shipped; seeding
+    # all of them would bury today's two OWED rows under hundreds of versions that predate the eye
+    # lane and were never expected to carry a look. Anything at or after the OLDEST version the
+    # ledger knows about was expected to; anything before it was not.
+    _ledger_versions = set()
+    for r in _rows(path):
+        v = norm_version(r.get("version"))
+        if v:
+            _ledger_versions.add(v)
+    _floor = min(_ledger_versions) if _ledger_versions else None
+    for v in _shipped_versions(tasks_path):
+        if _floor is not None and v >= _floor:
+            seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
+                                "looks": 0, "bound": 0, "unbound": 0})
     for r in _rows(path):
         v = norm_version(r.get("version")) or (str(r.get("version") or "?").strip() or "?")
         st = seen.setdefault(v, {"version": v, "attempts": 0, "empty": 0, "author": 0,
@@ -590,6 +627,15 @@ def main(argv):
         if not rows:
             print("second eye: the ledger is empty — nothing has ever been looked at.")
             return 0
+        # ⚠ THE HEADLINE EXISTS BECAUSE THE FULL TRUTH IS LONG. Seeding from the ship table took
+        # this listing from 5 rows to 166 — every one of them real, and the two he can act on
+        # buried among them. A screen he must scroll to find the block is barely better than one
+        # that hid it. So: say the count, name the newest that owe, then print everything.
+        _owed = [r for r in rows if not r["looks"]]
+        _newest = [r["version"] for r in _owed][-6:]
+        print("second eye: %d of %d version(s) in the ledger era carry NO look%s"
+              % (len(_owed), len(rows),
+                 (" — newest owing: " + ", ".join(reversed(_newest))) if _newest else ""))
         for s in rows:
             mark = "OK " if s["looks"] else "OWED"
             print("  %-6s %-8s looks=%d  empty-seats=%d  author-only=%d"

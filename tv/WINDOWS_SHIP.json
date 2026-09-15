@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3156",
+  "ver": "v3157",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3156: only the newest fleet ask may paint",
+  "note": "v3157: a version with no ledger row is OWED, not invisible",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

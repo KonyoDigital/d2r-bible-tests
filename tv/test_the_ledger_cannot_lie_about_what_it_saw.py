@@ -30,7 +30,10 @@ tonight, it was failing at that in three independent ways at once, and each hid 
 would have shipped a repo that could never ship again. [[two-fixes-broke-each-other]]
 [[feedback-suspect-the-instrument]] [[feedback-blind-fixture-green-gate]]
 """
+import io
+import json
 import os
+import shutil
 import sys
 import unittest
 
@@ -133,7 +136,72 @@ class TestTheLedgerCannotLieAboutWhatItSaw(unittest.TestCase):
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
+
+class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
+    """`--audit` walked the LEDGER only, so a version nobody ever recorded anything for did not
+    appear at all — while `--check` refuses it by name.
+
+    MEASURED before the fix: --audit listed 5 OWED and NOT v3156, whose own --check says "nothing
+    was ever recorded for it". audit() is the command the gate's refusal message tells him to run,
+    so the screen he reads WHEN HE IS ALREADY BLOCKED was the one screen that could not show the
+    block. The file's own v2145 note records the same two commands contradicting each other in
+    both directions, and the test written to close it never called audit().
+    [[zero-needs-a-denominator]] [[the-unjoined-end]]"""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, True)
+        # a ledger that knows v1000 and has NEVER heard of v1001
+        self.led = os.path.join(self.d, "ledger.jsonl")
+        io.open(self.led, "w", encoding="utf-8").write(json.dumps({
+            "version": "v1000", "model": "grok-4-1-fast-reasoning", "family": "xai",
+            "reached": True, "findings": "a real look", "verdict": "findings",
+            "bytes": {"bible": "abc"}}) + "\n")
+        self.tasks = os.path.join(self.d, "TASKS.md")
+        io.open(self.tasks, "w", encoding="utf-8").write(
+            "| version | commit | commit subject |\n|---|---|---|\n"
+            "| **v1001** | `(this commit)` | v1001 - shipped and never looked at |\n"
+            "| **v1000** | `(this commit)` | v1000 - shipped and looked at |\n")
+
+    def test_the_ship_table_is_parsed_at_all(self):
+        got = L._shipped_versions(self.tasks)
+        self.assertEqual(got, {"v1000", "v1001"},
+                         "the ship table parsed as %r — if this returns nothing the seeding is a "
+                         "no-op and every assertion below passes for the wrong reason" % (got,))
+
+    def test_a_shipped_version_with_no_row_is_listed_as_OWED(self):
+        rows = L.audit(self.led, self.tasks)
+        names = dict((r["version"], r) for r in rows)
+        self.assertIn("v1001", names,
+                      "v1001 shipped and carries NO ledger row, and audit did not list it at all. "
+                      "Invisible is worse than owed: only one of them can be acted on. Listed: %r"
+                      % (sorted(names),))
+        self.assertEqual(names["v1001"]["looks"], 0)
+        self.assertEqual(names["v1000"]["looks"], 1, "the real look was lost while adding the gap")
+
+    def test_check_and_audit_agree_on_the_rowless_version(self):
+        """The contradiction this file's own v2145 scar is about, asked from BOTH sides."""
+        rows = dict((r["version"], r) for r in L.audit(self.led, self.tasks))
+        audit_owes = rows.get("v1001", {}).get("looks", 0) == 0
+        # looked_at returns the ROWS it found; empty means nobody ever looked.
+        check_owes = not L.looked_at("v1001", self.led)
+        self.assertEqual(audit_owes, check_owes,
+                         "audit says owed=%s and check says owed=%s for a version with no row. "
+                         "One rule, asked from both." % (audit_owes, check_owes))
+        self.assertTrue(audit_owes, "neither command refused a version nobody ever looked at")
+
+
 RED_PROOF = [
+    {
+        "why": "stops seeding audit() from the ship table, so a version nobody ever recorded "
+               "anything for vanishes from the very screen the gate's refusal message tells him "
+               "to run — invisible instead of owed, and only one of those can be acted on",
+        "file": "second_eye_ledger.py",
+        "find": "    for v in _shipped_versions(tasks_path):",
+        "replace": "    for v in []:",
+        "matches": 1,
+    },
+
     {
         "why": "restoring the re-measure makes a full diff and an unchecked look identical again",
         "file": "second_eye_ledger.py",
