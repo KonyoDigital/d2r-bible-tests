@@ -63,8 +63,11 @@ class TheShelfShowsTheMouth(unittest.TestCase):
 
     def test_the_guard_can_find_the_river_section_builder(self):
         """⚠ A law that cannot find its subject passes having examined nothing."""
-        self.assertIn("order.slice().reverse().forEach", CODE,
-                      "the river section builder is gone or renamed — fix this guard first")
+        # v3185 — the per-station section builder was replaced by the single river flow.
+        self.assertIn("var RIVER_KEEP = 8;", CODE,
+                      "the river builder is gone or renamed — fix this guard first")
+        self.assertIn("var _mouthHasRows = SHELF_MOUTH", CODE,
+                      "the mouth no longer decides whether the ledger has rows to speak of")
 
     # ── the mouth reaches the view at all ─────────────────────────────────────────────────────
     def test_the_mouth_is_CARRIED_off_the_river_payload(self):
@@ -160,13 +163,19 @@ class TheShelfShowsTheMouth(unittest.TestCase):
         never show one hides the single case worth seeing. So the zero goes only while the ledger
         has journeys to print in its place.
         """
-        self.assertIn("_mouthSpeaks", CODE,
-                      "nothing decides whether the ledger has something to say in the count's "
-                      "place, so the suppression cannot be conditional")
-        self.assertIn("if (!(_mouthSpeaks && cs.length === 0)){", CODE,
-                      "the card count is not guarded on a SPEAKING mouth over ZERO cards. Either "
-                      "the zero is back in front of the 410, or the count was dropped outright — "
-                      "which would hide a tombstoned-but-not-yet-deleted reel.")
+        # v3185 — `_mouthSpeaks` was the per-station name for this; `_mouthHasRows` carries it
+        # now and drives BOTH the text and the styling class from one definition.
+        self.assertIn("_mouthHasRows", CODE,
+                      "nothing decides whether the ledger has something to say, so the "
+                      "suppression cannot be conditional")
+        self.assertIn("SHELF_MOUTH.n > 0", CODE,
+                      "the mouth prints its figure without requiring the ledger to hold any "
+                      "journeys — a ledger reading 0 renders '0 closed out', which is read as "
+                      "'nothing reached this stage'")
+        # v3185 — the per-station card count is gone with the sections; there is one river
+        # count now and it is the flow's own, never a station zero.
+        self.assertNotIn("_mouthSpeaks", CODE,
+                         "two names for one condition — _mouthHasRows already carries it")
         self.assertNotIn("'<span class=\"shg-n\">' + cs.length + ' reel'", CODE,
                          "the header builds the count unconditionally again, so TOMBSTONE opens "
                          "with a 0 that the code's own comment calls meaningless")
@@ -175,20 +184,33 @@ class TheShelfShowsTheMouth(unittest.TestCase):
         self.assertNotIn("mouthBit = ' \\u00b7 ", CODE,
                          "a mouthBit still carries a leading separator; with the count suppressed "
                          "the row renders 'TOMBSTONE  \u00b7 410 closed out'")
-        self.assertIn("_bits.join(' \\u00b7 ')", CODE,
-                      "the header no longer joins its parts, so separator placement is back to "
-                      "being hardcoded per fragment")
+        # v3185 — `_bits.join` was the per-station composer. The one river header appends the
+        # mouth to its own label, and each part still arrives with its own separator rather than
+        # being run together.
+        self.assertIn("+ mouthTxt", CODE,
+                      "the mouth is no longer appended to the river header, so the terminus "
+                      "figure has nowhere to appear")
 
     def test_it_is_scoped_to_TOMBSTONE_only(self):
         """⚠ COUNTS BOTH SITES. This first asserted the string was present ANYWHERE, and passed a
         sabotage that unscoped one of the two checks — the guard survived on its twin while the
         defect shipped. Two independent places decide "is this the mouth" (the styling class and
         the header text); either one unscoped lets another station claim the terminus."""
-        n = CODE.count("String(st).toUpperCase() === 'TOMBSTONE'")
-        self.assertEqual(2, n,
-                         "expected BOTH mouth checks (the styling class and the header text) to be "
-                         "scoped to TOMBSTONE; found %d. One unscoped check is enough for another "
-                         "station to render as the terminus." % n)
+        # v3185 — with ONE header there is no other station to mis-claim the terminus, so the
+        # scoping that protected it is structurally unreachable. What it actually guarded is that
+        # the mouth's figure comes from the RETENTION LEDGER and never from a station census —
+        # two numbers from two stores under one heading is the confusion the view exists to end.
+        self.assertIn("SHELF_MOUTH.n + ' closed out'", CODE,
+                      "the closed-out figure no longer comes from SHELF_MOUTH — if it is being "
+                      "read off a card count it is a station census wearing the ledger's label")
+        self.assertNotIn("cs.length + ' closed out'", CODE,
+                         "the terminus figure is being taken from the CARD count, which at this "
+                         "station can only ever be 0 — that is how 410 finished journeys read as "
+                         "'nothing ever finished'")
+        one = CODE.count("var _mouthHasRows = SHELF_MOUTH")
+        self.assertEqual(1, one,
+                         "expected exactly ONE definition of _mouthHasRows so the styling class "
+                         "and the header text cannot drift apart; found %d" % one)
 
 
 
@@ -200,7 +222,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'control_ui.html',
-        "find": 'order.slice().reverse().forEach',
+        "find": 'var _mouthHasRows = SHELF_MOUTH',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

@@ -42,7 +42,8 @@ except Exception:
 
 UI = os.path.join(HERE, "control_ui.html")
 START = "      var RIVER_KEEP = 8;"
-END = "      mkHead(lab, keptN + pinN, flow[0], ' sh-rivergroup');"
+# v3185 — the mouth fix wrapped this call across two lines; the anchor follows the code.
+END = "             ' sh-rivergroup' + (_mouthHasRows ? ' sh-rivermouth' : ''));"
 
 
 def _block():
@@ -242,7 +243,7 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
 
     def test_the_tombstone_mouth_survives_its_section(self):
         o = self.drive(self._runs(3), mouth='{"ok":true,"n":410,"mb":5768}')
-        self.assertIn("410 closed out downstream", o["heads"][0]["lab"],
+        self.assertIn("410 closed out", o["heads"][0]["lab"],
                       "the retention figure died with the section that carried it — 410 finished "
                       "journeys would read as 'nothing ever finished'")
 

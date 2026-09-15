@@ -16780,21 +16780,49 @@ window._lockMark = function(isOpen, px, label){
         pushedN++;
       });
       var pinN = flow.filter(_isPin).length;
-      /* the mouth, carried forward out of the section that used to hold it */
+      /* ══ THE MOUTH, CARRIED OUT OF THE SECTION THAT USED TO HOLD IT ════════════════
+         ⚠⚠ v3185 — AND CARRIED INCOMPLETE. The v3176 river kept the mouth's EXISTENCE and
+         quietly dropped three things v2759/v2760 had put there on measurement:
+
+           · the `n > 0` guard — without it a ledger reading 0 prints "0 closed out", the
+             sentence a second eye read cold as "nothing reached this stage", the exact
+             opposite of the truth. TOMBSTONE holds no CARDS by construction (a closed-out
+             reel leaves the disk), so a zero here is meaningless rather than informative.
+           · the GB compaction — at 5768.1 MB the phrase wrapped the header to TWO lines at
+             1440/1120/901 and FOUR at 700. Nothing clipped; it simply looked wrong, which
+             is the one defect class a rect cannot report.
+           · `undated`, which says a row cannot be placed in the river's order rather than
+             silently omitting it.
+
+         `_mouthHasRows` drives the styling class as well as the text, so the two halves of
+         one fact cannot drift apart again. [[copy-drift]] [[zero-needs-a-denominator]]
+
+         ⚠ THE TOMBSTONE SCOPING IS GONE ON PURPOSE. It existed because there was a header
+         PER STATION and one of them had to claim the terminus. His river ruling leaves ONE
+         header, which is not a station, so there is nothing left to mis-claim it — and
+         SHELF_MOUTH is the retention ledger by definition, not a station census. */
+      var _mouthHasRows = SHELF_MOUTH && SHELF_MOUTH.ok !== false
+                          && typeof SHELF_MOUTH.n === 'number' && SHELF_MOUTH.n > 0;
       var mouthTxt = '';
       if (SHELF_MOUTH === null) {
         mouthTxt = ' · tombstone ledger not read yet';
       } else if (SHELF_MOUTH && SHELF_MOUTH.ok === false) {
         mouthTxt = ' · tombstone ledger would not answer';
-      } else if (SHELF_MOUTH && typeof SHELF_MOUTH.n === 'number') {
-        mouthTxt = ' · ' + SHELF_MOUTH.n + ' closed out downstream'
-                 + (SHELF_MOUTH.mb ? (' (' + SHELF_MOUTH.mb + ' MB reclaimed)') : '');
+      } else if (_mouthHasRows) {
+        var _mbn = SHELF_MOUTH.mb;
+        var _mb = (typeof _mbn === 'number')
+                ? (' · ' + (_mbn >= 1024 ? (Math.round(_mbn / 102.4) / 10) + ' GB'
+                                               : Math.round(_mbn) + ' MB') + ' freed')
+                : '';
+        var _und = (SHELF_MOUTH.undated ? (' · ' + SHELF_MOUTH.undated + ' undated') : '');
+        mouthTxt = ' · ' + SHELF_MOUTH.n + ' closed out' + _mb + _und;
       }
       var lab = '\u{1F30A} River — flowing, newest first'
               + (pushedN ? (' · ' + pushedN + ' pushed past the ' + RIVER_KEEP) : '')
               + (pinN ? (' · ' + pinN + ' pinned kept') : '')
               + mouthTxt;
-      mkHead(lab, keptN + pinN, flow[0], ' sh-rivergroup');
+      mkHead(lab, keptN + pinN, flow[0],
+             ' sh-rivergroup' + (_mouthHasRows ? ' sh-rivermouth' : ''));
       return;
     }
     if ((SHELF_S || 'newest') !== 'newest') return;   // day headers only in the date-ordered (Newest) view

@@ -272,7 +272,7 @@ RED_PROOF = [
         "why": "coalescing the payload with || [] renders the server's UNKNOWN as 'there are 0 "
                "items you both need', which is the lie the whole guard exists to refuse",
         "file": "control_ui.html",
-        "find": "      + col('you both need', j.neitherHas,",
+        "find": "col('you both need', j.neitherHas,",
         "replace": "      + col('you both need', j.neitherHas || [],",
         "matches": 1,
     },

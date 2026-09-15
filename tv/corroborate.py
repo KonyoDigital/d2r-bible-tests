@@ -2123,6 +2123,20 @@ NO_JOINT_YET = {
     # with "shelf" in its name, and a module reading back its own output is one engine, not two.
     # Most of these are honestly unjointable — a self-report, a single census, a sole authority —
     # and saying so is the point. An unexplained check looks exactly like a forgotten one.
+    # ⚠ v3185 — AND IT HAPPENED AGAIN, TO ME, EXACTLY AS v3131 DESCRIBES. `check_stash_bank`
+    # shipped into console_doctor with the vault_bank reader and was never filed here, so for one
+    # version "a joint covers this" and "nobody has ever looked" were indistinguishable for it —
+    # 1 of 61 in NEITHER registry. The gate that caught it was itself red on CI at the time, which
+    # is how it stayed unnoticed. File the entry IN THE SAME COMMIT as the check.
+    'stash bank':
+        "a SELF-REPORT, and unjointable by construction. vault_bank.state() is the ONE reader over "
+        "the vault's own accumulation (vault_accum.json + vault_seen.json) — it reads back the "
+        "output of the sweep that wrote it, and this file's own bar says a module reading back its "
+        "own output is one engine, not two. The chronicle ledger is a genuinely separate source "
+        "but answers a different question (what the film SAW, not what the stash HOLDS), so "
+        "pairing them would be a joint in name only. The honest second witness would be his own "
+        "eyes on the stash, which is not a thing this console can call.",
+
     # ⚠ v3131 — ADDED WITH THE CHECK IT EXPLAINS, WHICH IS THE WHOLE POINT OF THIS REGISTRY.
     # I shipped `window runs the document on disk` into console_doctor.WATCHES and never filed it
     # here, so for one version it was indistinguishable from a check nobody had ever looked at —
