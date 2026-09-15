@@ -2938,6 +2938,29 @@ GATES = [
              "counts as a measurement, not a silence - `if _have:` instead of "
              "`isinstance(_have, int)` is the realistic regression and it is one of the six "
              "sabotages this file was seen RED under."),
+    Gate("test_the_sweep_reads_the_reels_that_have_something",
+         [sys.executable, os.path.join(HERE, "test_the_sweep_reads_the_reels_that_have_something.py")], 180,
+         why="THE REASON HIS VAULT HAS NO RECEIPTS. MEASURED 2026-09-15: 45 sessions swept, 36 of "
+             "them (80%) took NOTHING, 39 rows banked in total - while the three best stash-panel "
+             "reels, one at 100% density, had NEVER BEEN SWEPT. The stash bank held 12 keys "
+             "against the chronicle bank's 8517 sightings over 324 names. The sweeper took reels "
+             "in DIRECTORY ORDER filtered only by 'not already sealed'. Both signals it needed "
+             "already existed and neither was joined to it: vault_retro.panel_density (free - a "
+             "crop and an OCR, whose own docstring says it exists so 'the sweep can afford to ask "
+             "it about every reel before paying to read any of them') was computed ONLY inside a "
+             "doctor row that PRINTS it; and _vault_owed_reels() - the ROUTING system's answer, "
+             "tag intersect READ_CLEARS - was never consulted by the sweep either. ⚠ THE TWO "
+             "SIGNALS DISAGREE: the router named 5 owed reels and NOT ONE was the 100%-density "
+             "reel, because an untriaged reel carries no tag and is invisible to the owed list. "
+             "Either alone misses half the work, so the sweep now orders owed-first then by what "
+             "the frames actually show. This law pins the ordering, that an unmeasurable reel "
+             "sorts LAST (never promoted over one we could measure), that ties keep their order, "
+             "that a ranker failure falls back instead of killing the lane, that the doctor and "
+             "the sweeper share ONE ranker, that an unreadable bank is UNKNOWN not zero, and that "
+             "all four organs (doctor/heart/watchdog/eagle) watch it. ⚠ One of these laws was "
+             "BLIND on its first cut - it asserted 'rank_by_panel' appears in the function source "
+             "and the explanatory COMMENT above the call satisfied it, so deleting the real call "
+             "left it green. Now it parses for an actual Call node. Parse, never grep."),
     Gate("test_the_removal_door_is_undoable",
          [sys.executable, os.path.join(HERE, "test_the_removal_door_is_undoable.py")], 180,
          why="HIS ORDER, 2026-09-15: a board-side removal door with the same care as "

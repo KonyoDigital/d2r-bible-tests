@@ -406,10 +406,45 @@ def _check_the_sweep_would_find_something():
         return MISSING, ("%d reel(s) on disk and NONE shows a stash panel — a vault sweep would "
                          "read nothing. Open the stash (and hover items) while a reel is rolling"
                          % len(dirs))
-    best = sorted(dens.items(), key=lambda kv: -kv[1])[:3]
+    # v3171 — ONE RANKER, TWO CALLERS. This used to sort inline while _vault_sweep_run picked
+    # reels in directory order; the console then held two answers to "which reel next", and the
+    # sweeper's answer was the wrong one. Both now call vault_retro.rank_by_panel. [[copy-drift]]
+    best = vr.rank_by_panel(list(dens.keys()), ca.stash_screen_open_cached)[:3] \
+        if hasattr(vr, "rank_by_panel") else sorted(dens.items(), key=lambda kv: -kv[1])[:3]
     return OK, ("%d of %d reel(s) show a stash panel; a sweep would start with %s"
                 % (len(withpanel), len(dirs),
                    ", ".join("%s (%.0f%%)" % (os.path.basename(d), 100 * v) for d, v in best)))
+
+
+def _check_the_stash_bank():
+    """Is the stash-side bank being FED? -> (state, line)
+
+    HIS ORDER, 2026-09-15: *"all information that can be extracted should be backend tallied
+    regardless of the ledger... the backend that approves and routes it eventuall to the front
+    end"* — and it exists, starved. MEASURED: the chronicle bank holds 324 uniques / 8517
+    sightings / 262 refusals; the stash bank held TWELVE keys, because the sweeper read reels in
+    directory order and never reached the ten that show a stash panel. v3171 joined the ranker.
+
+    ⚠ ONE READER. This asks vault_bank.state() rather than re-deriving the counts, so the doctor,
+    the heart, the watchdog and the eagle cannot drift into four answers. [[copy-drift]]
+    """
+    try:
+        import vault_bank as _vb
+    except Exception as exc:
+        return UNKNOWN, ("vault_bank would not import (%s), so whether the stash bank is fed is "
+                         "UNKNOWN" % type(exc).__name__)
+    try:
+        word, line = _vb.headline()
+        st = _vb.state()
+    except Exception as exc:
+        return UNKNOWN, "the stash bank would not answer (%s) - UNKNOWN, not clean" % type(exc).__name__
+    tail = ("  (the chronicle bank next door holds %s sighting(s) over %s name(s) - that is the "
+            "shape this one should grow into)" % (st.get("chronSightings"), st.get("chronUniques")))
+    if word == "OK":
+        return OK, line + tail
+    if word == "WARN":
+        return MISSING, line + tail
+    return UNKNOWN, line
 
 
 def _check_the_other_doctors():
@@ -3319,6 +3354,7 @@ CHECKS = [
     ("reel extract", _check_the_reel_extract_is_moving),
     ("hunt economy", _check_the_hunt_is_buying_something),
     ("sweep would find", _check_the_sweep_would_find_something),
+    ("stash bank", _check_the_stash_bank),
     ("board is claimed", _check_the_board_world_is_claimed),
     # v2746 — WHERE each ledger's rows came from, per ledger. `board is claimed` above asks whether
     # this world PERSISTS; this asks whether its rows are its OWN. Different sentences, and the

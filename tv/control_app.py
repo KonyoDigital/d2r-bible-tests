@@ -22204,6 +22204,62 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             want = os.path.basename(os.path.normpath(str(reel_dir)))
             dirs = [d for d in dirs if os.path.basename(os.path.normpath(str(d))) == want] or \
                    ([str(reel_dir)] if os.path.isdir(str(reel_dir)) else [])
+        # ══ v3171 — READ THE REELS THAT ACTUALLY SHOW A STASH, FIRST ════════════════════════
+        # MEASURED on his machine 2026-09-15, and this is the whole reason the vault has no
+        # receipts: the sweeper took reels in DIRECTORY ORDER filtered only by "not already
+        # sealed". 45 sessions swept, 36 of them (80%) came back with nothing, 39 rows banked
+        # total - while the THREE best stash-panel reels, one at 100% density, had NEVER BEEN
+        # SWEPT. The stash bank held 12 keys against the chronicle bank's 8517 sightings.
+        #
+        # The ranking already existed and was computed only inside a doctor row that PRINTS it
+        # (console_doctor._check_the_sweep_would_find_something). The chooser and the sweeper
+        # were both built and never joined. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        #
+        # It is FREE to ask - panel_density is a crop and an OCR, no model call, which is what
+        # its own docstring says it is for: "the sweep can afford to ask it about every reel
+        # before paying to read any of them."
+        if not reel_dir and dirs:
+            try:
+                import vault_retro as _vr_rank
+                _ranked = _vr_rank.rank_by_panel(dirs, stash_screen_open_cached)
+                # ⚠⚠ TWO SIGNALS, AND THEY DISAGREE — USE BOTH, ACCOUNTING FIRST.
+                # `_vault_owed_reels()` is the ROUTING system's answer ("the ledger says this
+                # reel owes the vault a read", tag ∩ READ_CLEARS). panel_density is the FOOTAGE's
+                # answer ("this reel visibly shows stash panels"). MEASURED 2026-09-15: the
+                # router named 5 owed reels and NOT ONE of them was the 100%-density reel. A reel
+                # full of stash panels that was never triaged carries no tag, so it is invisible
+                # to the owed list — which is exactly how his best footage went unread while the
+                # sweeper worked through tagged reels that held nothing.
+                # Owed first (it discharges real accounting), then by what the frames actually
+                # show. Neither signal alone finds both. [[the-unjoined-end]]
+                try:
+                    _owed = _vault_owed_reels(hist)
+                except Exception:
+                    _owed = None
+                _owed_b = frozenset(os.path.basename(os.path.normpath(str(x)))
+                                    for x in (_owed or []))
+                if _owed_b:
+                    _ranked = sorted(
+                        _ranked,
+                        key=lambda kv: (0 if os.path.basename(os.path.normpath(str(kv[0])))
+                                        in _owed_b else 1, -kv[1]))
+                dirs = [d for d, _v in _ranked]
+                _withp = sum(1 for _d, _v in _ranked if _v > 0)
+                if _ranked:
+                    print("   \U0001f50e sweep ordered by stash-panel density - first %s (%.0f%%); "
+                          "%d of %d reel(s) show a panel"
+                          % (os.path.basename(_ranked[0][0]), 100 * _ranked[0][1],
+                             _withp, len(_ranked)))
+                if not _withp:
+                    print("   \u26a0 NONE of the %d reel(s) shows a stash panel - this sweep will "
+                          "read nothing. That is a CAPTURE gap, not a reader gap: open the stash "
+                          "while a reel is rolling." % len(_ranked))
+            except Exception as _e:
+                # ⚠ A RANKER THAT FAILS MUST NOT CANCEL THE SWEEP. Directory order is the old
+                # behaviour - worse, but not broken. Refusing to sweep would turn a slow lane
+                # into a dead one.
+                print("   \u26a0 could not rank reels by panel density (%s) - sweeping in "
+                      "directory order" % type(_e).__name__)
         _reopened = [os.path.basename(d) for d in dirs if _sealed_rec(d) is not None]
         if _reopened:
             print("   \U0001f513 %d reel(s) reopened - sealed with no rows by an older vault reader "
@@ -27752,7 +27808,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3170",
+        "ver": "v3171",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

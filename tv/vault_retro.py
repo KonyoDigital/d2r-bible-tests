@@ -1659,6 +1659,38 @@ def apply_payload(proposal):
 # ── CLI ─────────────────────────────────────────────────────────────────────────
 # Print-only, like the chronicle sweep's. This module may never write, and a CLI that dropped a
 # proposal file would break the law the whole arc rests on.
+def rank_by_panel(reel_dirs, panel_gate, sample_every=8, cap=24):
+    """Order reels by how likely a vault sweep is to find anything in them. -> [(dir, density)]
+
+    ★ THE JOIN THIS EXISTS FOR, 2026-09-15. panel_density's own docstring already said why it is
+    free: "which is why the sweep can afford to ask it about every reel before paying to read any
+    of them." It was never asked. MEASURED on his machine: the sweeper took reels in directory
+    order filtered only by "not already swept", so it spent 45 sessions on arbitrary footage, 36
+    of them (80%) came back with nothing, and the THREE best stash-panel reels - one of them at
+    100% density - had NEVER BEEN SWEPT. Meanwhile the stash bank held 12 keys against the
+    chronicle bank's 8517 sightings.
+
+    The chooser existed, the sweeper existed, and nothing joined them: the ranking was computed
+    only inside a doctor row that PRINTS it. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ ONE IMPLEMENTATION, TWO CALLERS. console_doctor sorted this inline; a second copy in the
+    sweep path would drift the first time the tie-break changed, and the console would then hold
+    two answers to "which reel should be read next". [[copy-drift]]
+
+    ⚠ UNREADABLE SORTS LAST, NEVER FIRST - panel_density returns 0.0 rather than raising, so a
+    reel we cannot measure can never be promoted ahead of one we can. Ties keep their original
+    order (sorted() is stable), so this only ever REORDERS by evidence and never invents one.
+    """
+    out = []
+    for d in (reel_dirs or []):
+        try:
+            v = panel_density(d, panel_gate, sample_every=sample_every, cap=cap)
+        except Exception:
+            v = 0.0          # a gate that raises is not a reel that is empty
+        out.append((d, float(v or 0.0)))
+    return sorted(out, key=lambda kv: -kv[1])
+
+
 if __name__ == "__main__":
     import console_safe  # noqa: F401  — emoji must survive a non-UTF-8 console
     import argparse

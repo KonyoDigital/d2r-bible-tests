@@ -57,6 +57,9 @@ OK, WARN, BLOCKED, UNKNOWN = "ok", "warn", "blocked", "unknown"
 #: an empty one. [[unknown-stays-unknown]] [[the-unjoined-end]]
 WATCHES = {
     "lanes":           (),                     # store agreement, not a rendered surface
+    # v3171 — the stash bank has no rendered surface yet; an empty tuple is a DECLARATION
+    # that it is watched without a screen, never an omission. Under-claiming is the bias.
+    "stashBank":       (),
     "armed_migration": (),
     "board_join":      (),
     "orphans":         ("_orphan_watch", "_orphan_exit_loop"),
@@ -1234,11 +1237,55 @@ def check_vault_removals(backup_dir=None):
     return _row("vaultRemovals", _state, _line, evidence=_ev, k=_atkK, n=_atkN)
 
 
+def check_stash_bank():
+    """Is the backend bank that feeds the vault actually being fed? -> row
+
+    HIS ORDER, 2026-09-15: *"all information that can be extracted should be backend tallied
+    regardless of the ledger.. like there should be a backend ledger already architured"* — and
+    *"fix the gaps for everything else and connect it to the heart of the console all 4 organs"*.
+
+    HE WAS RIGHT THAT IT EXISTS, and it was starved. Two banks, same idea, opposite health:
+        chron_evidence.json   324 uniques · 8517 sightings · 262 refusals kept on purpose
+        vault_accum.json       12 keys
+    MEASURED: the sweeper read reels in DIRECTORY ORDER filtered only by "not already sealed", so
+    it spent 45 sessions on arbitrary footage (36 of them, 80%, took nothing) while the three best
+    stash-panel reels — one at 100% density — had never been swept. The ranking existed and was
+    computed only inside a doctor row that PRINTS it. v3171 joined it to the sweeper.
+
+    ⚠ THIS ROW WATCHES THE FEED, NOT THE VAULT. check_vault_receipts asks whether a vault row can
+    show its evidence; check_vault_removals asks whether removals are journaled. Neither could see
+    that the thing SUPPLYING the evidence had stopped taking anything — which is why 18 vault rows
+    have nothing behind them and nobody noticed. [[the-unjoined-end]]
+
+    ⚠ ONE READER for all four organs. [[copy-drift]]
+    """
+    _atkK, _atkN = _attack_tally("health_engine")
+    try:
+        import vault_bank as _vb
+        _w, _line = _vb.headline()
+        _st = _vb.state()
+    except Exception as _e:
+        return _row("stashBank", UNKNOWN,
+                    "the stash bank could not be read (%s), so its yield is UNKNOWN rather than "
+                    "zero" % type(_e).__name__, k=_atkK, n=_atkN)
+    _ev = ["sweeps: %s took something of %s" % (_st.get("yieldedN"), _st.get("sweptN")),
+           "examined and honestly empty: %s" % _st.get("silentN"),
+           "recorded NO reason (UNKNOWN, not empty): %s" % _st.get("noReasonN"),
+           "rows banked: %s" % _st.get("rowsBanked"),
+           "accumulator keys: %s" % _st.get("accumKeys"),
+           "vault_seen rows: %s (%s carry a frame, %s at zero confidence)"
+           % (_st.get("seenRows"), _st.get("seenWithFrame"), _st.get("seenZeroConf")),
+           "chronicle bank for scale: %s sighting(s) over %s name(s)"
+           % (_st.get("chronSightings"), _st.get("chronUniques"))]
+    _state = {"OK": OK, "WARN": WARN}.get(_w, UNKNOWN)
+    return _row("stashBank", _state, _line, evidence=_ev, k=_atkK, n=_atkN)
+
+
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
           check_lane_liveness, check_lane_attacks, check_vault_receipts,
-          check_vault_removals]
+          check_vault_removals, check_stash_bank]
 
 
 def report(evaluate=None, board=None):

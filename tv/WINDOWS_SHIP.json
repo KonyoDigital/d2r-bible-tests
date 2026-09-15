@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3170",
+  "ver": "v3171",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3170: The cross-reference sentence learned in v3169 that Dean had reported his counts. The card he actually hovers stayed silent: counts, a one-word verdict, and nothing about the per-item list being absent or why. maskWhy was published by the server on every fleet row and read ZERO times by the page. Now the card names it, and names one machine state ONCE with its ledgers grouped rather than printing the same cause per ledger, which would read as several faults. A row with nothing to explain grows no line, a falsy reason is not a reason, and the text is escaped because a fleet row is remote input.",
+  "note": "v3171: The vault had no receipts because the sweeper read reels in directory order: 45 sessions swept, 36 took nothing, and the three best stash-panel reels including one at 100 percent had never been swept. The stash bank held 12 keys against the chronicle bank 8517 sightings. Both signals it needed already existed and neither was joined: panel density was computed only inside a doctor row that prints it, and the routing system vault-owed list was never consulted. They disagree - the router named 5 owed reels and none was the 100 percent reel, because an untriaged reel carries no tag. The sweep now orders owed-first then by what the frames actually show, one ranker shared with the doctor, and all four organs watch the bank.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
