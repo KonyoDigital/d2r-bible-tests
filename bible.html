@@ -48555,8 +48555,39 @@ try { if (window.D2R_PROFILE==='ladder'){ document.body.classList.add('ladder-pr
   var _lr=document.createElement('div'); _lr.id='ladder-ribbon'; _lr.textContent='🪜 LADDER ACCOUNT — separate economy · your main account is untouched'; document.body.appendChild(_lr);
 } } catch(e){}
 // v663 — cousin shell cue: blue ribbon + body class (hides the Main/Ladder pill, tints the masthead)
+/* ══ v3189 — THE RIBBON NAMES THE MACHINE IT IS ACTUALLY ON ════════════════════════════════
+   `D2R_MACHINE` is a STORAGE contract with exactly two values: 'mac' keeps the owner's world,
+   and everything else — Windows, Linux, anything unknown — gets the isolated W-world. That is
+   correct and must not change: the rule's own comment says a machine wrongly placed in the
+   OWNER's world sees someone else's chronicle, and the guest seat is the one that must never be
+   able to write into his namespace.
+
+   But the RIBBON is not a storage contract, it is a sentence on screen, and it was printing
+   "WINDOWS" to Grok Bot on a LINUX box. Reported from his own eyes: "its showing guest world".
+   The world was right; the word was wrong. [[label-outlived-referent]]
+
+   ⚠ THIS DOES NOT MINT A THIRD WORLD, DELIBERATELY. A `G·` fork would touch _LP_FORKED,
+   _WP_FORKED and the LSR routing — the store layer, where losing a claim once renders his real
+   board as an empty stranger's world — and it would buy NOTHING: localStorage is per browser, so
+   Grok's W-world already lives on Grok's machine and shares nothing with Dean's but a prefix
+   NAME. Isolation is already per-machine. Only the label was lying. */
 try { if (window.D2R_MACHINE==='windows'){ document.body.classList.add('cousin-shell');
-  var _wr=document.createElement('div'); _wr.id='cousin-ribbon'; _wr.textContent='🪟 WINDOWS — cousin world · Mac untouched'; document.body.appendChild(_wr);
+  var _wm = (function(){
+    try {
+      var p = [];
+      if (navigator.userAgentData && navigator.userAgentData.platform) p.push(navigator.userAgentData.platform);
+      if (navigator.platform) p.push(navigator.platform);
+      if (navigator.userAgent) p.push(navigator.userAgent);
+      var s = p.join(' ');
+      if (/linux|x11|ubuntu|debian/i.test(s) && !/android/i.test(s)) return { w: 'LINUX', i: '🐧' };
+      if (/android/i.test(s)) return { w: 'ANDROID', i: '📱' };
+      if (/win/i.test(s)) return { w: 'WINDOWS', i: '🪟' };
+    } catch(e){}
+    return { w: 'THIS MACHINE', i: '🖥' };
+  })();
+  var _wr=document.createElement('div'); _wr.id='cousin-ribbon';
+  _wr.textContent=_wm.i + ' ' + _wm.w + ' — its own world · Mac untouched';
+  document.body.appendChild(_wr);
 } } catch(e){}
 
 /* ═══════════ v686 ⚡ SESSION COCKPIT (native rebuild of Grok's v44 concept) ═══════════
@@ -50322,7 +50353,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3188', name:'v3188 - SEED THE GUEST WORLD', date:'2026-09-15', note:'The guest board reads zero because bible.html puts every non-Mac machine in the isolated cousin world and that is the safe side of a deliberate rule, so the seat is filled rather than relabelled. Every refresh now writes a snapshot in the board own export schema, whose flat bare-named stores route into whichever world is active, and the guest imports it through the door the board already has.' };
+  window.D2R_BUILD = { id:'v3189', name:'v3189 - THE RIBBON AND THE BUTTON TELL THE TRUTH', date:'2026-09-15', note:'Two label fixes from the read-only audit and Grok eyes. The cousin ribbon printed WINDOWS to a Linux box because that word is the storage contract for everything that is not a Mac, so it now names the machine it is actually on without minting a third world. And the vault register button carried a count from a proposal that may have been graded in a process that no longer exists, while the caption above it already said so.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

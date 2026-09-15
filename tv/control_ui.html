@@ -6159,6 +6159,8 @@
   .sweep-box .chron-eta .ce-t { font: var(--fw-semibold) var(--fs-sm)/1 var(--serif); }
   .sweep-box .chron-eta .ce-say { font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono); }
   /* the clock itself: tabular so the digits do not shuffle as the seconds tick over */
+  /* v3189 — a register button offering a banked proposal says so in its own colour. */
+  .vault-apply-stale { border-color: var(--gold-dim) !important; opacity: .88; }
   .swm-clock { font: var(--fw-semibold) var(--fs-lg)/1 var(--serif); color: var(--gold);
                font-variant-numeric: tabular-nums; letter-spacing: var(--ls-tight); }
   .swm-clock.swm-cold { color: var(--gold-dim); opacity: .72; }
@@ -25131,7 +25133,35 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       // applied, so a proposal of those two alone offers no button at all.
       ap.hidden = !owned.length;
       ap.disabled = false;
-      ap.textContent = 'register ' + owned.length + ' ✓';
+      /* ══ v3189 (#226 §1a) — THE BUTTON CARRIES THE AGE, NOT JUST THE LINE ABOVE IT ═════════
+         The audit: "_vaultPaint still uses stored owned.length for OWNED header and
+         `register N ✓` — no display re-grade". The age IS painted, into `_vAge` a few lines up,
+         including "restored from disk, not from this session". But the age sat on a caption and
+         the COUNT sat on the button, and the button is the thing he clicks.
+
+         A proposal is a SNAPSHOT: it was graded against the witness rules and the ledger as they
+         stood when the sweep ran. Re-grading it here would mean a second copy of the witness
+         logic in JS, which is the drift this repo refuses [[copy-drift]] — so the honest move is
+         not to recompute the number but to stop presenting a banked one as fresh.
+
+         ⚠ AND `resultFromDisk` IS THE STRONGER SIGNAL, NOT THE CLOCK. A proposal restored from
+         disk was never made in this session at all; it can be four minutes old by the clock and
+         still describe a sweep from a process that no longer exists. [[stale-reading]] */
+      var _pAge = (st && st.resultTs) ? Math.max(0, Date.now() - st.resultTs) : null;
+      var _pStale = !!(st && st.resultFromDisk) || (_pAge !== null && _pAge > 30 * 60000);
+      var _pWhen = '';
+      if (_pAge !== null) {
+        var _pm = Math.round(_pAge / 60000);
+        _pWhen = (st && st.resultFromDisk) ? ' · from an earlier session'
+               : (_pm >= 60 ? (' · read ' + Math.round(_pm / 60) + 'h ago')
+                            : (_pm >= 30 ? (' · read ' + _pm + 'm ago') : ''));
+      }
+      ap.textContent = 'register ' + owned.length + ' ✓' + _pWhen;
+      ap.classList.toggle('vault-apply-stale', _pStale);
+      ap.title = _pStale
+        ? ('these ' + owned.length + ' were graded when that sweep ran, not now — sweep '
+           + 'again if anything has changed since')
+        : ('register the ' + owned.length + ' name(s) this sweep could witness');
     }
   }
 

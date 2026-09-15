@@ -640,6 +640,16 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_a_banked_proposal_says_it_is_banked",
+         [sys.executable, os.path.join(HERE, "test_a_banked_proposal_says_it_is_banked.py")], 120,
+         why="#226 section 1a. The vault register button offered `register N` from a proposal that "
+             "may have been graded in a process that no longer exists. The AGE was painted - into "
+             "a caption a few lines above, correctly saying 'restored from disk' - while the COUNT "
+             "sat on the button, so the console told the truth in one element and offered the "
+             "action in another. Re-grading in JS would be a second copy of the witness rules, so "
+             "the fix reports staleness rather than recomputing a verdict; the law also refuses "
+             "any witness constant appearing in the panel. resultFromDisk counts as stale ON ITS "
+             "OWN: a disk proposal can read four minutes old and describe a dead process."),
     Gate("test_a_fixture_pack_is_not_his_footage",
          [sys.executable, os.path.join(HERE, "test_a_fixture_pack_is_not_his_footage.py")], 120,
          why="his recorded runs, staged so Grok Bot can click them on the guest seat. MEASURED: "

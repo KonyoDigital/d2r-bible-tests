@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3188",
+  "ver": "v3189",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3188: The guest board reads zero because bible.html puts every non-Mac machine in the isolated cousin world and that is the safe side of a deliberate rule, so the seat is filled rather than relabelled. Every refresh now writes a snapshot in the board own export schema, whose flat bare-named stores route into whichever world is active, and the guest imports it through the door the board already has.",
+  "note": "v3189: Two label fixes from the read-only audit and Grok eyes. The cousin ribbon printed WINDOWS to a Linux box because that word is the storage contract for everything that is not a Mac, so it now names the machine it is actually on without minting a third world. And the vault register button carried a count from a proposal that may have been graded in a process that no longer exists, while the caption above it already said so.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
