@@ -20990,6 +20990,29 @@ def vault_sweep_state():
         st = dict(_VAULT_JOB)
     st["resultTs"] = _VAULT_JOB.get("resultTs")
     st["resultFromDisk"] = bool(_VAULT_JOB.get("restoredFrom"))
+    # ══ v3180 — THE VAULT LANE GETS THE CLOCK THE CHRONICLE HAS HAD SINCE v2156. ═══════════════
+    # HIS ASK: *"time meter for the sweep i want included integrated and installed so i can see
+    # it in th esticky tab console section on the right nder the fleet"*.
+    #
+    # MEASURED while writing this: a live vault sweep 43.9 minutes in, 74 paid classify runs and
+    # 220 pages spent, with nothing on his screen able to say so — and the one number the panel
+    # did show read "0 of 14", because `reelsDone` is written once at the very end.
+    #
+    # ⚠ THE SAME sweep_eta, NOT A SECOND ONE. It already exists, is covered by its own tests, and
+    # already refuses to invent a figure. Writing vault-shaped progress arithmetic beside it would
+    # be two things that must agree about one number and eventually will not. [[copy-drift]]
+    # The unit keys are what make one function serve both lanes honestly: the chronicle pays per
+    # frame, the vault pays per still-run.
+    st["runExact"] = True
+    try:
+        st["eta"] = sweep_eta(st, done_key="runReelsDone", base_key=None,
+                              total_key="runReelsTotal", unit="reel")
+    except Exception as _e:
+        # a meter that throws must not take the panel with it — the same guard the chronicle
+        # side has carried since v2156.
+        st["eta"] = {"ok": False, "running": bool(st.get("running")),
+                     "why": "the estimate could not be computed: %s" % str(_e)[:70],
+                     "say": "reading"}
     return st
 
 
@@ -22351,6 +22374,22 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         with _VAULT_LOCK:
             _VAULT_JOB["reelsTotal"] = len(dirs)
             _VAULT_JOB["phase"] = "reading"
+            # ══ v3180 — THE RUN CLOCK. HIS ASK: "time meter for the sweep". ═════════════════
+            # MEASURED at the moment this was written: a live vault sweep 43.9 minutes in, 74
+            # paid classify runs and 220 pages spent, and the console could say none of it.
+            #
+            # ⚠ SEPARATE FIELD NAMES ON PURPOSE. `reelsDone` already has a writer — one, at the
+            # very end of this function, from the proposal's `sessionsSeen`. Ticking it here too
+            # would give one word two meanings and make the final tally depend on who wrote last.
+            # `runReelsDone` means exactly "reels this run has entered". [[label-outlived-referent]]
+            #
+            # ⚠ AND THE DENOMINATOR IS REELS, NOT FRAMES. vault_retro.sweep pays "ONE call per
+            # candidate still-run, on the run's most settled frame" — so a frames denominator
+            # would be the wrong population, which is the v2168 scar recorded at sweep_eta.
+            _VAULT_JOB["runStartedTs"] = int(time.time() * 1000)
+            _VAULT_JOB["runReelsTotal"] = len(dirs) or None
+            _VAULT_JOB["runReelsDone"] = 0
+            _VAULT_JOB["runReel"] = None
         # ══ v3180 — THE VAULT SWEEP DECLARES ITSELF ON DISK ═════════════════════════════════
         # HIS ORDER: *"make sure theres a lock for this until its read and swept it cant relaunch
         # as a extra measure.."*. MEASURED: `.sweep.lock` was touched in exactly one place in this
@@ -22690,8 +22729,23 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         # sweep run". The gate is unchanged: a folded-in sighting only ever supplies a session id
         # that gate() still has to accept on distinct-session and confidence terms.
         _prior_seen = vault_seen_load()
+        def _on_reel(idx, total, name):
+            # v3180 — the meter's only live numerator. Also heartbeats the lock: a reel can take
+            # minutes with no classification in it (every run already seen, or none settled), and
+            # _tick only fires on a paid read — so without this a legitimately quiet stretch let
+            # the lock go stale and re-armed the very relaunch it exists to forbid.
+            with _VAULT_LOCK:
+                _VAULT_JOB["runReelsDone"] = int(idx)
+                _VAULT_JOB["runReelsTotal"] = int(total) or None
+                _VAULT_JOB["runReel"] = str(name)[:80]
+            try:
+                _sweep_lock_touch()
+            except Exception:
+                pass
+
         prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
-                         panel_gate=stash_screen_open_cached, prior_seen=_prior_seen)
+                         panel_gate=stash_screen_open_cached, prior_seen=_prior_seen,
+                         on_reel=_on_reel)
         # ⚠⚠ v3078 — A FAILED CALL IS NOT A PROPERTY OF THE FILM, AND IT MUST SAY SO OUT LOUD.
         # `sweep()` only ever sees None from `_classify` and writes "could not be classified —
         # held rather than guessed onto a shelf", which reads as a verdict about the footage. When
@@ -23186,8 +23240,18 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                           "held": led.get("held") or []})
         globals()["_VAULT_LAST_PROPOSAL"] = out
         with _VAULT_LOCK:
+            # v3180 — BANK WHAT THE READ COST, so the idle meter can say something true.
+            # Without this the panel goes blank the moment a sweep ends and the only record of a
+            # 50-minute paid read is a log line he will never scroll back to. Measured from the
+            # run's own clock, not from resultTs minus a guess.
+            _v_started = _VAULT_JOB.get("runStartedTs") or 0
+            _v_now = int(time.time() * 1000)
             _VAULT_JOB.update({"running": False, "phase": "done", "result": out, "error": None,
-                               "resultTs": int(time.time() * 1000), "restoredFrom": None})
+                               "resultTs": _v_now, "restoredFrom": None,
+                               "lastRunMs": (_v_now - int(_v_started)) if _v_started else None,
+                               "lastRunEndedTs": _v_now,
+                               "lastRunReels": _VAULT_JOB.get("runReelsDone"),
+                               "lastRunClassified": _VAULT_JOB.get("classified")})
         _vault_result_save()
     except Exception as e:
         with _VAULT_LOCK:
@@ -25420,7 +25484,8 @@ def _classify_ratio():
     return r, n
 
 
-def sweep_eta(job=None):
+def sweep_eta(job=None, done_key="classified", base_key="runBaseClassified",
+              total_key="runFramesTotal", unit="frame"):
     """How far through the current read, and how long is left. -> a dict that never guesses.
 
     v2156 — Konyo: "when does the read finish? do we have a time estimate ... so i know."
@@ -25456,10 +25521,15 @@ def sweep_eta(job=None):
         started = 0
     now = int(time.time() * 1000)
     out["elapsedMs"] = max(0, now - started) if started else None
-    total = j.get("runFramesTotal")
-    base = j.get("runBaseClassified")
+    # v3180 — THE UNIT IS A PARAMETER BECAUSE THE TWO LANES DO NOT BUY THE SAME THING.
+    # The chronicle pays per FRAME; the vault pays per still-RUN ("PAY FOR RUNS, NOT FRAMES",
+    # vault_retro.sweep). Handing the vault job to the frame-shaped defaults would divide a
+    # run count by a frame count — the wrong-population scar recorded above at v2168, committed
+    # a second time. Defaults are the chronicle's, so every existing caller is untouched.
+    total = j.get(total_key)
+    base = j.get(base_key) if base_key else 0
     try:
-        done = int(j.get("classified") or 0) - int(base or 0)
+        done = int(j.get(done_key) or 0) - int(base or 0)
     except Exception:
         done = None
     if done is not None and done >= 0:
@@ -25541,7 +25611,7 @@ def sweep_eta(job=None):
                       "measure it; pages read is the honest progress here")
         return out
     if not out["total"]:
-        out["why"] = "this run did not count its frames, so there is no denominator"
+        out["why"] = "this run did not count its %ss, so there is no denominator" % unit
         out["say"] = "reading — size unknown"
         return out
     if not out["elapsedMs"] or out["elapsedMs"] < 3000:
@@ -25550,7 +25620,7 @@ def sweep_eta(job=None):
         return out
     if not out["done"]:
         # ⚠ NOT an ETA of zero. Nothing has been probed yet, so nothing has been measured.
-        out["why"] = "no frame has been probed yet, so there is no rate"
+        out["why"] = "no %s has been probed yet, so there is no rate" % unit
         out["say"] = "reading — measuring"
         return out
     # ── v2163 — ONE SAMPLE IS NOT A RATE. ───────────────────────────────────────────────────
@@ -25560,7 +25630,7 @@ def sweep_eta(job=None):
     # and worthless. A first probe pays for a cold model, a cold cache and a crop; three is the
     # smallest number that can show a trend rather than a startup cost.
     if out["done"] < 3:
-        out["why"] = "only %d frame(s) probed — too few to call a rate" % out["done"]
+        out["why"] = "only %d %s(s) probed — too few to call a rate" % (out["done"], unit)
         out["say"] = "reading — measuring"
         return out
     # ...and a run whose counter has passed its own denominator is FINISHING, not "0s left".
@@ -25570,7 +25640,7 @@ def sweep_eta(job=None):
     # the one sentence a progress meter must never produce. [[unknown-stays-unknown]]
     if out["done"] >= out["total"]:
         out["pct"] = 100.0
-        out["why"] = ("more frames were probed than this run counted, so the denominator is "
+        out["why"] = ("more %ss were probed than this run counted, so the denominator is " % unit +
                       "wrong — reporting progress, not a finish time")
         out["say"] = "reading — finishing"
         return out
@@ -25587,10 +25657,18 @@ def sweep_eta(job=None):
         # can supply the classify ratio the total is the EXPECTED number of paid reads and the
         # figure is a figure; when they cannot, the total is every frame on disk, which only ~31%
         # of the time becomes a read — so the answer is "at most", not a time.
-        out["calibrated"] = bool(j.get("runRatio"))
-        out["say"] = ("%d of %d frames — about %s left" % (out["done"], out["total"], left_s)
+        # v3180 — TWO WAYS TO EARN A REAL FIGURE, not one. runRatio is the chronicle's
+        # calibration of a frame count it cannot know exactly. The vault has the opposite
+        # situation: vault_retro.sweep truncates its own reel list (`dirs = dirs[:limit]`)
+        # BEFORE the loop and the progress hook reports that list's length, so the denominator
+        # is not an estimate at all. Calling an exact count "at most" is its own small
+        # dishonesty, in the direction of vagueness rather than confidence.
+        out["calibrated"] = bool(j.get("runRatio") or j.get("runExact"))
+        # v3180 — the noun comes from the unit, so a reel count is never announced as frames.
+        _u = unit + "s"
+        out["say"] = ("%d of %d %s — about %s left" % (out["done"], out["total"], _u, left_s)
                       if out["calibrated"] else
-                      "%d frames read — at most %s left" % (out["done"], left_s))
+                      "%d %s read — at most %s left" % (out["done"], _u, left_s))
     else:
         out["why"] = "the observed rate was zero"
         out["say"] = "reading — measuring"
@@ -27934,7 +28012,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3179",
+        "ver": "v3182",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

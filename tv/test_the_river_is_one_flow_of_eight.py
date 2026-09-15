@@ -57,6 +57,45 @@ def _block():
     return src[i:j + len(END)]
 
 
+VIS_START = "    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){"
+VIS_END = "    });"
+
+
+def _vis_block():
+    """The MEMBERSHIP line, anchored at both ends — a different region from the river block, and
+    the river law could not see it: the node harness hands `vis` in ready-made."""
+    with io.open(UI, encoding="utf-8") as fh:
+        src = fh.read()
+    i = src.find(VIS_START)
+    assert i >= 0, "the shelf's visible-card filter is gone from control_ui.html"
+    j = src.find(VIS_END, i)
+    assert j > i, "the visible-card filter no longer closes as expected"
+    return src[i:j + len(VIS_END)]
+
+
+VIS_HARNESS = """
+function Card(o){
+  this.a = {'data-sid': o.sid || ''};
+  if (o.out) this.a['data-river-out'] = '1';
+  this.style = {display: o.hidden ? 'none' : ''};
+}
+Card.prototype.getAttribute = function(k){ return (k in this.a) ? this.a[k] : null; };
+Card.prototype.setAttribute = function(k, v){ this.a[k] = String(v); };
+Card.prototype.removeAttribute = function(k){ delete this.a[k]; };
+
+var _all = %(cards)s.map(function(o){ return new Card(o); });
+var grid = { querySelectorAll: function(){ return _all; } };
+
+%(block)s
+
+console.log(JSON.stringify({
+  members: vis.map(function(c){ return c.getAttribute('data-sid'); }),
+  stillMarked: _all.filter(function(c){ return c.getAttribute('data-river-out'); })
+                   .map(function(c){ return c.getAttribute('data-sid'); })
+}));
+"""
+
+
 HARNESS = """
 function Card(o){
   this.a = {'data-t0': String(o.t0), 'data-pin': o.pin ? '1' : '0', 'data-sid': o.sid || ''};
@@ -108,6 +147,54 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
     def _runs(self, n, pin=()):
         # sid 'r01' is the OLDEST; higher number = newer
         return [{"sid": "r%02d" % i, "t0": 1000 + i, "pin": (i in pin)} for i in range(1, n + 1)]
+
+    def drive_vis(self, cards):
+        js = VIS_HARNESS % {"cards": json.dumps(cards), "block": _vis_block()}
+        fd, p = tempfile.mkstemp(prefix=".river_vis_", suffix=".js", dir=HERE)
+        try:
+            with io.open(fd, "w", encoding="utf-8") as fh:
+                fh.write(js)
+            r = subprocess.run(["node", p], capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            self.skipTest("node unavailable - a skip is NOT a pass")
+        finally:
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+        self.assertEqual(r.returncode, 0,
+                         "the shipped membership filter threw:\\n%s" % (r.stderr or "")[-900:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_run_pushed_past_eight_is_still_a_river_member(self):
+        """v3181. The river hides its own overflow with display:none, and the population that
+        decides the river was read straight off display — so the moment the grid re-rendered in
+        place (he changes the sort dropdown), every evicted run had silently left the river
+        ENTIRELY, and switching back to Newest never brought it back until the next poll rebuilt
+        the grid from scratch.
+
+        The 8-limit is the RIVER's rule, not a filter he applied. A run it pushed past eight is
+        still a member of the flow; only a run HE filtered out is not. The marker is therefore
+        cleared on every pass and re-decided by the river block below.
+
+        ⚠ The two hidden cards here are hidden for DIFFERENT REASONS and that is the whole test:
+        `pushed` carries data-river-out and must come back; `filtered` does not and must stay
+        out. A law that only checked the first would pass on a filter that simply returns
+        everything. [[sabotage-is-usually-the-wrong-one]]"""
+        o = self.drive_vis([
+            {"sid": "shown"},
+            {"sid": "pushed", "hidden": True, "out": True},
+            {"sid": "filtered", "hidden": True},
+        ])
+        self.assertIn("pushed", o["members"],
+                      "a run the river pushed past 8 was dropped from the river's own "
+                      "population — it can never flow back in")
+        self.assertIn("shown", o["members"])
+        self.assertNotIn("filtered", o["members"],
+                         "a card he actually filtered out must stay out")
+        self.assertEqual(o["stillMarked"], [],
+                         "the river-out marker must be cleared so each pass re-decides "
+                         "membership from scratch")
 
     def test_newest_flows_first(self):
         o = self.drive(self._runs(5))

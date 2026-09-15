@@ -1032,6 +1032,7 @@ def _name_folder(resolve=None):
 
 
 def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None,
+          on_reel=None,
           panel_gate=None, prior_seen=None):
     """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
 
@@ -1082,7 +1083,22 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
 
     _fold = _name_folder(resolve)
     folded_names = {}
-    for reel_dir in dirs:
+    for _reel_i, reel_dir in enumerate(dirs):
+        # ── v3180 — THE ONLY PLACE THAT KNOWS A REEL HAS STARTED ────────────────────────────
+        # Added for the sweep meter. This loop is the sweep's unit of work ("PAY FOR RUNS, NOT
+        # FRAMES", above), so it is the only honest denominator a progress bar can use — and
+        # before this hook existed NOTHING outside this function could see it advance. The
+        # console showed "0 of 14" for 44 minutes because the caller's only counter was written
+        # once, at the end. [[the-unjoined-end]]
+        #
+        # ⚠ A BROKEN CALLBACK MAY NEVER COST A SWEEP. This fires inside a loop that spends real
+        # money per iteration; a meter is worth nothing next to the read it is watching, so every
+        # failure here is swallowed on purpose.
+        if on_reel is not None:
+            try:
+                on_reel(_reel_i, len(dirs), os.path.basename(str(reel_dir)))
+            except Exception:
+                pass
         sessions_seen += 1
         sessions_examined.append(os.path.basename(os.path.normpath(str(reel_dir))).replace("reel_", "", 1))
         idx = _load_index(reel_dir)

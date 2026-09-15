@@ -640,6 +640,43 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_trace_spine",
+         [sys.executable, os.path.join(HERE, "test_trace_spine.py")], 180,
+         why="#99 - follows ONE named item across reel -> ledger -> routing -> endpoint and, the "
+             "half that actually proves a filter exists, asserts the NEGATIVE: a chronicle or "
+             "farming scenario must produce zero vault rows. That filter has failed once by a "
+             "side door already (the v2200 backfill vaulted found-ever names; v2203 reversed it) "
+             "and the front door had no red-proof. trace_spine.py itself only reports - footage "
+             "has no un-delete and the witnessed machinery stays the only thing that writes."),
+    Gate("test_a_receipt_can_actually_be_opened",
+         [sys.executable, os.path.join(HERE, "test_a_receipt_can_actually_be_opened.py")], 120,
+         why="the vault receipt eye shipped DEAD and every instrument said it was fine: it "
+             "resolved 4 of 450 banked best-frames (those four by coincidence) because the "
+             "handler dropped the reel and addressed a flat hist/<ms>.jpg while evidence frames "
+             "live at hist/reel_<sid>/f_<ms>.jpg - every click opened 'frame missing'. After the "
+             "fix, 126 of 450, the rest honestly pruned. check_vault_receipts was GREEN "
+             "throughout because it asked whether the row CONTAINS a receipt hook; presence and "
+             "resolution are different questions and only one is the feature. Pins both halves "
+             "of the join and that the organ downgrades when nothing opens."),
+    Gate("test_a_sweep_holds_the_relaunch_lock",
+         [sys.executable, os.path.join(HERE, "test_a_sweep_holds_the_relaunch_lock.py")], 120,
+         why="his order: a sweep cannot be relaunched out from under itself until it has been "
+             "read and swept. MEASURED: .sweep.lock was touched in exactly ONE place - the "
+             "chronicle sweep - and the vault sweep touched it zero times, so a vault read was "
+             "invisible to every out-of-process guard. One sweep already died at 17:09:58 when a "
+             "version bump relaunched the console under it, losing 24 classified frames. Pins "
+             "that the vault lane takes the lock, heartbeats it while reading, and that "
+             "drift_may_relaunch refuses while it is held."),
+    Gate("test_the_sweep_says_how_long_it_has_been_reading",
+         [sys.executable, os.path.join(HERE,
+          "test_the_sweep_says_how_long_it_has_been_reading.py")], 120,
+         why="he asked for a time meter on the sweep and the lane that spends the money had no "
+             "clock at all: sweep_eta was joined to the chronicle only, so a live vault read sat "
+             "43.9 minutes in with 74 paid runs spent and the panel printing 'reels 0 of 14'. "
+             "Pins the join, the REEL unit (vault_retro pays per still-run, not per frame - a "
+             "frames denominator is the v2168 wrong-population scar in a second lane), the "
+             "refusal to report a figure before there is one, and that the meter is STARTED "
+             "rather than merely defined."),
     Gate("test_the_engine_room_lives_on_tvd",
          [sys.executable, os.path.join(HERE, "test_the_engine_room_lives_on_tvd.py")], 120,
          why="THE GAMEPLAY HOME IS FOR PLAYING — the seven engine lamps and the whole \u2699 ADVANCED "

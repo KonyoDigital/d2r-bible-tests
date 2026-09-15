@@ -6140,6 +6140,42 @@
      wraps instead, and `margin-left:auto` still right-aligns the meta on whichever line it lands. */
   .fleet-meta { margin-left: auto; color: #6f7a6f; white-space: normal; }
   .fleet-none { font: var(--fw-medium) var(--fs-2xs)/1.4 var(--mono); color: #6f6a58; font-style: italic; }
+
+  /* ══ v3180 · THE SWEEP METER — a clock on the read, in the rail under THE FLEET ═══════════
+     HIS ASK: *"time meter for the sweep i want included integrated and installed so i can see
+     it in th esticky tab console section on the right nder the fleet"*.
+
+     ⚠ THE ELAPSED CLOCK IS THE HEADLINE, not the percentage. He asked for a TIME meter, and
+     time is the one figure here that is always exactly known: a percentage needs a
+     denominator the sweep only learns after entering its first reel, and the chronicle side
+     has twice shipped a confident number built on one it did not have (v2168, v2170). Elapsed
+     is measured from runStartedTs and cannot be wrong.
+
+     ⚠ THE BAR IS .chron-eta's BAR, DELIBERATELY. Reusing those rules keeps one source of truth
+     for what a progress bar looks like in this console; a second set would drift. Only the
+     things the 227px rail actually needs are overridden here. [[copy-drift]] */
+  .sweep-box .chron-eta { background: none; border: 0; border-radius: 0; padding: 0; margin: 0; }
+  .sweep-box .chron-eta .ce-bar { height: 6px; margin: 6px 0 5px; }
+  .sweep-box .chron-eta .ce-t { font: var(--fw-semibold) var(--fs-sm)/1 var(--serif); }
+  .sweep-box .chron-eta .ce-say { font: var(--fw-medium) var(--fs-2xs)/1.35 var(--mono); }
+  /* the clock itself: tabular so the digits do not shuffle as the seconds tick over */
+  .swm-clock { font: var(--fw-semibold) var(--fs-lg)/1 var(--serif); color: var(--gold);
+               font-variant-numeric: tabular-nums; letter-spacing: var(--ls-tight); }
+  .swm-clock.swm-cold { color: var(--gold-dim); opacity: .72; }
+  /* ⚠ 3px WAS NOT A GAP. Rendered at his own window size the clock and its label collided as
+     "44:00ELAPSED" — --fs-2xs is the console's floor (13px), so the label cannot be shrunk below
+     the clock's weight and must be subordinated with space and opacity instead. */
+  .swm-unit { font: var(--fw-regular) var(--fs-2xs)/1 var(--mono); color: var(--gold-dim);
+              letter-spacing: var(--ls-label); text-transform: uppercase; margin-left: 7px;
+              opacity: .62; }
+  .swm-state { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
+               text-transform: uppercase; color: var(--gold-dim); opacity: .8; margin-left: auto; }
+  .swm-state.swm-live { color: var(--st-good); opacity: 1; }
+  /* the spend line — what this read has actually cost him so far */
+  .swm-cost { margin-top: 4px; font: var(--fw-regular) var(--fs-2xs)/1.45 var(--mono);
+              color: var(--gold-dim); opacity: .78; }
+  .swm-reel { display: block; margin-top: 2px; color: #6f6a58; font-style: italic;
+              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* v2843 — the remembered roster, visibly not-live: dimmer than a real row, never a link. */
   .fleet-dead { font-style: normal; color: #c06a4a; letter-spacing: var(--ls-snug); }
   /* v2848 — a dead agent port must not wear the same badge as a live one */
@@ -7861,6 +7897,25 @@ body[data-origin="shadow"] #stage::after {
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
             <div id="fleet-xref" class="fleet-xref" hidden></div>
+            <!-- ══ v3180 (#96) — THE SWEEP METER ═══════════════════════════════════════════════
+                 HIS ASK, 2026-09-15: *"time meter for the sweep i want included integrated and
+                 installed so i can see it in th esticky tab console section on the right nder the
+                 fleet"*.
+
+                 ⚠ IT EXISTS BECAUSE A SWEEP IS MONEY. A vault sweep spends paid reads and runs for
+                 a long time with nothing on screen — which is how one died four minutes in today
+                 and nobody noticed until the bank turned out empty. A running cost with no clock
+                 is a cost you find out about afterwards.
+
+                 ⚠ IT SHOWS ELAPSED, NEVER A GUESSED ETA. reelsDone only ticks at the END of the
+                 run (one _tick call), so any "time remaining" here would be arithmetic on a
+                 denominator that stays 0 until it is 14 — a confident number derived from
+                 nothing. Elapsed and classified-so-far are both MEASURED.
+                 [[zero-needs-a-denominator]] [[unknown-stays-unknown]] -->
+            <div class="fleet-box sweep-box" id="sweep-box" hidden>
+              <div class="fleet-head">🧠 SWEEP <span class="swm-state" id="swm-state"></span></div>
+              <div id="swm-body"><div class="fleet-none">no sweep running</div></div>
+            </div>
         <!-- v2384 — THE STATE PANEL. Konyo, looking at what the footer tooltip had become:
              "all this information cant it be maybe somewhere better? or like more structured
              cleaner.. like the fleet when i click it open a window popup inpage.. so it can be
@@ -16561,7 +16616,18 @@ window._lockMark = function(isOpen, px, label){
     var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
     var grid = ov.querySelector('.sh-grid'); if (!grid) return;
     var old = grid.querySelectorAll('.sh-daygroup'); for (var k = 0; k < old.length; k++) old[k].remove();
-    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){ return c.style.display !== 'none'; });
+    // ⚠ v3181 — A CARD THE RIVER PUSHED PAST 8 IS STILL A RIVER MEMBER. `vis` reads
+    //   display, and the river hides its own overflow with display:none — so on an in-place
+    //   re-render (he changes the sort dropdown) the evicted runs vanished from the population
+    //   that decides the river, and switching to Newest never brought them back until the next
+    //   poll rebuilt the grid. The 8-limit is the RIVER's rule, not a filter he applied, so the
+    //   marker is cleared here and re-decided from scratch below on every pass.
+    var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){
+      if (c.getAttribute('data-river-out')) {
+        c.removeAttribute('data-river-out'); c.style.display = ''; return true;
+      }
+      return c.style.display !== 'none';
+    });
     var mkHead = function(lab, n, before, cls){
       var h = document.createElement('div'); h.className = 'sh-daygroup' + (cls || '');
       h.innerHTML = '<span class="shg-lab">' + lab + '</span><span class="shg-n">' + n + ' run' + (n === 1 ? '' : 's') + '</span>';
@@ -25040,6 +25106,169 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       ap.textContent = 'register ' + owned.length + ' ✓';
     }
   }
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════════
+     v3180 · THE SWEEP METER — his clock on the vault read, in the rail under THE FLEET
+     ══════════════════════════════════════════════════════════════════════════════════════════
+     HIS ASK: *"time meter for the sweep i want included integrated and installed so i can see
+     it in th esticky tab console section on the right nder the fleet"*.
+
+     ⚠ WHY IT HAS ITS OWN POLLER. `_vaultPollOnce` only runs while the vault PANEL is driving it,
+     and it clears its own interval the moment a sweep ends — so a meter hung off it would be
+     blind exactly when the drawer is shut, which is most of the time. It is cheap: one no-store
+     GET against a route that reads an in-memory dict, every 5s while a read is in flight and
+     every 45s when nothing is.
+
+     ⚠ THE CLOCK TICKS LOCALLY, THE FIGURES DO NOT. Elapsed is recomputed every second from the
+     server's runStartedTs without refetching; every other number on this card only changes when
+     the server says so. A meter that invents motion between polls is lying about a read he is
+     paying for by the minute. [[unknown-stays-unknown]] */
+  var _swmSt = null, _swmPoll = null, _swmTick = null;
+
+  function _swmHMS(ms) {
+    if (ms === null || ms === undefined || !isFinite(ms) || ms < 0) return null;
+    var t = Math.floor(ms / 1000), h = Math.floor(t / 3600),
+        m = Math.floor((t % 3600) / 60), sec = t % 60;
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    return h ? (h + ':' + p2(m) + ':' + p2(sec)) : (m + ':' + p2(sec));
+  }
+
+  function _swmAgo(ms) {
+    if (!ms) return null;
+    var d = Date.now() - ms;
+    if (d < 0) return null;
+    var m = Math.round(d / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    var h = Math.round(m / 60);
+    return h < 24 ? (h + 'h ago') : (Math.round(h / 24) + 'd ago');
+  }
+
+  function _swmPaint(st) {
+    var box = document.getElementById('sweep-box');
+    var body = document.getElementById('swm-body');
+    var state = document.getElementById('swm-state');
+    if (!box || !body) return;
+    _swmSt = st || null;
+    box.hidden = false;
+    if (!st) {
+      /* ⚠ A FAILED FETCH IS NOT AN IDLE SWEEP. Saying "no sweep running" because the console did
+         not answer is the wrong-zero this repo keeps re-learning. [[zero-needs-a-denominator]] */
+      if (state) { state.textContent = 'no answer'; state.className = 'swm-state'; }
+      body.innerHTML = '<div class="fleet-none">the console did not answer &mdash; '
+                     + 'a sweep may or may not be running</div>';
+      return;
+    }
+    var e = st.eta || {};
+    var running = !!st.running;
+
+    if (!running) {
+      if (state) { state.textContent = st.phase === 'error' ? 'error' : 'idle';
+                   state.className = 'swm-state'; }
+      var lastMs = st.lastRunMs, ended = st.lastRunEndedTs || st.resultTs;
+      if (lastMs || ended) {
+        /* the idle card answers "what did the last read cost me", which is the only useful
+           thing a stopped meter can say. Every figure here is measured or omitted. */
+        var took = _swmHMS(lastMs);
+        var h = '<div class="chron-eta"><div class="ce-top">'
+              + '<span class="swm-clock swm-cold">' + escC(took || '&mdash;') + '</span>'
+              + '<span class="ce-t">' + escC(_swmAgo(ended) || '') + '</span></div>'
+              + '<div class="ce-say">last read'
+              + (took ? '' : ' &mdash; duration not recorded')
+              + '</div>';
+        var bits = [];
+        if (st.lastRunReels !== null && st.lastRunReels !== undefined)
+          bits.push(escC(String(st.lastRunReels)) + ' reel'
+                    + (st.lastRunReels == 1 ? '' : 's'));
+        if (st.lastRunClassified) bits.push(escC(String(st.lastRunClassified)) + ' read'
+                                            + (st.lastRunClassified == 1 ? '' : 's'));
+        if (bits.length) h += '<div class="swm-cost">' + bits.join(' &middot; ') + '</div>';
+        body.innerHTML = h + '</div>';
+      } else {
+        body.innerHTML = '<div class="fleet-none">no sweep has run since this console '
+                       + 'started</div>';
+      }
+      return;
+    }
+
+    if (state) { state.textContent = escC(String(st.phase || 'reading'));
+                 state.className = 'swm-state swm-live'; }
+    var elapsed = _swmHMS(e.elapsedMs);
+    var pct = (typeof e.pct === 'number' && isFinite(e.pct)) ? e.pct : null;
+    var html = '<div class="chron-eta">'
+      + '<div class="ce-top">'
+      + '<span><span class="swm-clock">' + escC(elapsed || '&mdash;') + '</span>'
+      + '<span class="swm-unit">elapsed</span></span>'
+      + '<span class="ce-t">' + (pct === null ? '&mdash;' : (pct.toFixed(0) + '%')) + '</span>'
+      + '</div>'
+      /* an indeterminate bar when there is no denominator: it must read as "working, size
+         unknown", never as a full bar or a zero one. */
+      + '<div class="ce-bar' + (pct === null ? ' ce-idle' : '') + '">'
+      + '<i style="width:' + (pct === null ? 100 : pct) + '%"></i></div>'
+      + '<div class="ce-say">' + escC(String(e.say || e.why || 'reading')) + '</div>';
+    var cost = [];
+    /* the console's own vocabulary for a paid model call is a "read"; "(s)" cost a whole
+       extra wrapped line in a 227px rail, measured. */
+    if (st.classified) cost.push(escC(String(st.classified)) + ' read'
+                                 + (st.classified == 1 ? '' : 's'));
+    if (st.pagesRead) cost.push(escC(String(st.pagesRead)) + ' page'
+                                + (st.pagesRead == 1 ? '' : 's'));
+    if (cost.length) html += '<div class="swm-cost">' + cost.join(' &middot; ') + '</div>';
+    if (st.runReel) html += '<span class="swm-reel">' + escC(String(st.runReel)) + '</span>';
+    body.innerHTML = html + '</div>';
+  }
+  window._swmPaint = _swmPaint;
+
+  /* the one-second hand. It ONLY moves the elapsed clock, and only while a read is in flight. */
+  function _swmTickOn() {
+    if (_swmTick) return;
+    _swmTick = setInterval(function () {
+      if (!_swmSt || !_swmSt.running) return;
+      var started = (_swmSt.eta && _swmSt.eta.elapsedMs !== null &&
+                     _swmSt.eta.elapsedMs !== undefined)
+        ? (_swmSt._localAt - _swmSt.eta.elapsedMs) : (_swmSt.runStartedTs || 0);
+      if (!started) return;
+      var el = document.querySelector('#swm-body .swm-clock');
+      if (el) el.textContent = _swmHMS(Date.now() - started) || '—';
+    }, 1000);
+  }
+
+  window._swmPollOnce = async function () {
+    try {
+      var r = await fetch('/api/vault_sweep', { cache: 'no-store' });
+      var st = await r.json();
+      st._localAt = Date.now();     /* so the local hand measures from OUR clock, not his */
+      _swmPaint(st);
+      return st;
+    } catch (e) { _swmPaint(null); return null; }
+  };
+
+  window._swmStart = function () {
+    if (_swmPoll) return;
+    _swmTickOn();
+    var every = 45000, last = null;
+    async function beat() {
+      var st = await window._swmPollOnce();
+      var want = (st && st.running) ? 5000 : 45000;
+      if (want !== last) {          /* retune the interval when the read starts or stops */
+        last = want;
+        if (_swmPoll) clearInterval(_swmPoll);
+        _swmPoll = setInterval(beat, want);
+      }
+    }
+    beat();
+    _swmPoll = setInterval(beat, every);
+  };
+
+  /* ⚠ THE TAP. A meter defined and never started is the failure this repo has logged four times
+     under [[plumbing-with-no-tap]] — both ends built, never joined. Same readyState idiom the TZ
+     and chronicle wirings in this block already use. */
+  try {
+    if (document.readyState === 'loading')
+      document.addEventListener('DOMContentLoaded', function () { window._swmStart(); });
+    else window._swmStart();
+  } catch (e) {}
+
 
   window._vaultPollOnce = async function () {
     try {

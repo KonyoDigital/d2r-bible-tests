@@ -35957,8 +35957,78 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _vb=_vt?'<span class="vrg-val vrg-val-'+_vt+'" title="trade value: '+((_VAL_LABEL&&_VAL_LABEL[_vt])||_vt)+' (maxroll tier list)">'+((_VAL_LABEL&&_VAL_LABEL[_vt])||_vt)+'</span>':'';
       return '<div class="vrg-row" data-vault-item="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+art(n)
         +'<span class="vrg-name"'+s+'>'+esc(n)+'</span>'+_badge+_vb+tag
+        +'<button class="vrg-rcpt" data-rcpt="'+esc(n)+'" title="why is this here? — show the frame that witnessed it">\u25c9</button>'
         +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="throw out — remove from ✓ owned (AI misread / junk)">✕</button></div>';
     }
+    /* ══ v3180 (#96) — THE RECEIPT: WHY IS THIS ROW HERE? ═══════════════════════════════════
+       HIS ASK: *"it should have a receipt that item within the vault connected to ledger.. im
+       pretty sure smething is built though so check first.."* — and he was right that pieces
+       existed. What never existed is the INTRODUCTION between them.
+
+       ⚠ AND I HAD THE WRONG PIECES. check_vault_receipts looked for `.rc-art`/`.rcpt-ic` inside
+       bible.html; MEASURED, those are the CONSOLE's viewer (6 and 5 hits in control_ui.html, ZERO
+       here). The BOARD has its own and always did: `tvd-frame-thumb` with `window._tvdOpenFrame`.
+       The vault renders on the board, so the board's viewer is the one to reuse. A second viewer
+       here would be the third copy of one idea. [[copy-drift]]
+
+       ⚠ LAZY, BECAUSE THE EVIDENCE IS NOT ON THIS PAGE. d2r_foundEvidence holds EIGHT rows and
+       none of them are owned items; the real ledger is server-side (chron_evidence.json, 324
+       names / 8,517 sightings) and already has a door: /api/evidence?name=X, built in v2162 and
+       fixed in v2164. Asking it for 172 rows on every render would be absurd — so the eye asks
+       for ONE name, on click, and costs nothing until he wants to know.
+
+       ⚠ IT SAYS WHY WHEN IT CANNOT ANSWER. A board opened as file:// has no console to ask, and
+       a name with nothing banked is a REAL fact about that row, not a failure — the two must not
+       look the same. [[unknown-stays-unknown]] */
+    try {
+      document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t || !t.classList || !t.classList.contains('vrg-rcpt')) return;
+        e.preventDefault(); e.stopPropagation();
+        var nm = t.getAttribute('data-rcpt') || '';
+        if (!nm) return;
+        if (location.protocol === 'file:') {
+          try { status('this board is open as a file, so it has no console to ask for the frame'); } catch (_) {}
+          return;
+        }
+        t.disabled = true;
+        fetch('/api/evidence?name=' + encodeURIComponent(nm), { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d || !d.ok) {
+              try { status('\u25c9 ' + nm + ' — ' + ((d && d.why) || 'nothing banked for this name')); } catch (_) {}
+              return;
+            }
+            var ss = d.sightings || [];
+            /* the STRONGEST look, not the first: confidence is what makes a frame worth opening */
+            var best = null;
+            for (var i = 0; i < ss.length; i++) {
+              if (!ss[i] || !ss[i].frame) continue;
+              if (!best || (ss[i].conf || 0) > (best.conf || 0)) best = ss[i];
+            }
+            if (!best) {
+              try { status('\u25c9 ' + nm + ' — ' + ss.length + ' sighting(s) banked, but none kept a frame'); } catch (_) {}
+              return;
+            }
+            var fid = String(best.frame).replace(/^f_/, '').replace(/\.jpg$/i, '');
+            /* ⚠ v3182 — KEEP THE REEL. The frame id alone cannot address a banked sighting:
+               evidence frames live at hist/reel_<sid>/f_<ms>.jpg and every flat lookup missed,
+               0 of 147. The reel travels with the sighting already — it was being dropped one
+               line before it was needed. */
+            var fsrc = (best.reel && best.frame)
+              ? ('tv/frames/hist/' + String(best.reel) + '/' + String(best.frame))
+              : null;
+            try { status('\u25c9 ' + nm + ' — ' + ss.length + ' sighting(s), best ' + Math.round((best.conf || 0) * 100) + '% in ' + (best.reel || 'a reel')); } catch (_) {}
+            if (window._tvdOpenFrame)
+              window._tvdOpenFrame(fid, { n: 0, scene: best.lane || '', src: fsrc,
+                                          title: nm + ' \u00b7 ' + (best.reel || 'a reel') });
+          })
+          .catch(function (err) {
+            try { status('could not ask the console for the frame (' + (err && err.name) + ')'); } catch (_) {}
+          })
+          .then(function () { t.disabled = false; });
+      }, true);
+    } catch (e) {}
     // v342.21 — render each bucket as its OWN COLUMN (header + independent scrollbar) so all sections are
     // visible side-by-side at once, per Konyo. Responsive grid wraps on narrow screens.
     var unkNames=(typeof unknownReads!=='undefined'&&unknownReads)?_dedupCanon(Array.from(unknownReads).filter(function(n){ return !owned.has(n) && !(magicFinds&&magicFinds[n]); }).sort()):[];   // v439 — collapse OCR-variant dupes
@@ -50252,7 +50322,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3179', name:'v3179 - FIFO, THE EMPTY JOIN, AND THE END-ROUTE REMEDY', date:'2026-09-15', note:'One queue on his ruling: the sweep now walks reels oldest-first through the same shared lister every other reader uses, so the order of work matches the river he watches. The router already had an EMPTY station meaning retro_triage walked a reel in full and found zero panel frames, and the sweep had never asked it - so a reel already known to hold nothing still earned a paid read. The end-route row reported 14 dead-ended for versions while reprocessing_list, which names exactly what would unstick them in priority order, appeared once in the whole tree: its own def. And a row that said nothing is known about it either way rendered as a fault in his needs-you count.' };
+  window.D2R_BUILD = { id:'v3182', name:'v3182 - SWEEP METER + RECEIPT JOIN', date:'2026-09-15', note:'A clock on the vault sweep in the rail under THE FLEET, and the vault receipt eye repaired. The meter joins the existing sweep_eta to the vault lane in REELS, the unit that lane actually buys, and shows elapsed time as the headline because it is the one figure always exactly known. The receipt eye shipped dead, resolving 4 of 450 banked frames because the handler dropped the reel and every lookup addressed a flat path; now 126 of 450, the rest honestly pruned. The health organ that stayed green over that dead join now measures resolution instead of presence.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -53937,14 +54007,31 @@ window.tvStashAutoIntake = async function(tab, opts){
       // v741 — the fallback flag RESETS per open (it stuck on the reused <img>, so only the
       // FIRST frame ever fell back to the archive — every later open died: Konyo's 'each photo
       // isn't rendering'). One clean chain: bridge → archived file → honest missing message.
+      // ══ v3182 — THE VIEWER ACCEPTS AN EXACT PATH, BECAUSE SOME CALLERS KNOW ONE ════════
+      // MEASURED 2026-09-15: the vault receipt eye resolved 0 of 147 frames. Both legs of the
+      // old chain address a FLAT file — the bridge rejects any "/" in the id, and the archive
+      // fallback joins hist/<ms>.jpg — but every banked evidence frame lives one directory
+      // down, at hist/reel_<sid>/f_<ms>.jpg. So the caller HAD the reel, threw it away to make
+      // a flat id, and every single click opened "frame missing". A receipt nobody can see is
+      // not a receipt. [[the-unjoined-end]]
+      //
+      // meta.src is tried FIRST when given: a caller that knows the exact path should not have
+      // to guess through a chain built for a different addressing scheme. The old legs stay
+      // after it, so every existing caller keeps its exact behaviour.
+      var _chain = [];
+      if (meta.src) { _chain.push(String(meta.src)); _chain.push('/hist/' + String(meta.src).replace(/^tv\/frames\/hist\//, '')); }
+      _chain.push(frameSrc(id));
+      if (location.protocol !== 'file:') _chain.push('tv/frames/hist/' + String(id) + '.jpg');
+      var _step = 0;
       img.__fb = 0;
       img.onload = function(){ lb.hidden = false; };
       img.onerror = function(){
-        if (!img.__fb && location.protocol !== 'file:'){ img.__fb = 1; img.src = 'tv/frames/hist/' + String(id) + '.jpg'; return; }
+        _step++;
+        if (_step < _chain.length) { img.src = _chain[_step]; return; }
         lb.hidden = false;
         if (tit) tit.textContent = '👁 frame missing (agent off + no archive) · ' + (id || 'latest');
       };
-      img.src = frameSrc(id);
+      img.src = _chain[0];
       lb.hidden = false;
       lb.onclick = function(e){ if (e.target === lb) window._tvdCloseFrame(); };
     } catch(e){}

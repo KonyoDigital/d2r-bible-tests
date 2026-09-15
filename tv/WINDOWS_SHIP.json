@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3179",
+  "ver": "v3182",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3179: One queue on his ruling: the sweep now walks reels oldest-first through the same shared lister every other reader uses, so the order of work matches the river he watches. The router already had an EMPTY station meaning retro_triage walked a reel in full and found zero panel frames, and the sweep had never asked it - so a reel already known to hold nothing still earned a paid read. The end-route row reported 14 dead-ended for versions while reprocessing_list, which names exactly what would unstick them in priority order, appeared once in the whole tree: its own def. And a row that said nothing is known about it either way rendered as a fault in his needs-you count.",
+  "note": "v3182: A clock on the vault sweep in the rail under THE FLEET, and the vault receipt eye repaired. The meter joins the existing sweep_eta to the vault lane in REELS, the unit that lane actually buys, and shows elapsed time as the headline because it is the one figure always exactly known. The receipt eye shipped dead, resolving 4 of 450 banked frames because the handler dropped the reel and every lookup addressed a flat path; now 126 of 450, the rest honestly pruned. The health organ that stayed green over that dead join now measures resolution instead of presence.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1010,12 +1010,101 @@ def _receipt_hooks():
     # vault organs ask one reader. The door is DRIVEN end-to-end in node by
     # test_the_removal_door_is_undoable.py; this count only answers "is it still on the page",
     # which is a presence question a count can honestly answer. [[source-reading-guard]]
-    for _k in ("rc-art", "rcpt-ic", "data-frame",
+    # ⚠⚠ v3180 — IT WAS COUNTING THE CONSOLE'S CLASSES INSIDE THE BOARD'S FILE. MEASURED:
+    # `rc-art` and `rcpt-ic` appear 6 and 5 times in tv/control_ui.html and ZERO times in
+    # bible.html — they are the CONSOLE's receipt viewer. The BOARD has its own, and always did:
+    # `tvd-frame-thumb` (5) with `_tvdOpenFrame` (7). The vault renders on the BOARD, so those are
+    # the hooks a vault row would have to emit.
+    #
+    # So check_vault_receipts has been reporting "the vault emits NO receipt hook at all" from a
+    # premise that could never come true, in an organ I wrote and shipped. The vault genuinely
+    # does not emit them — that part stands — but the row was proving it against the wrong file,
+    # which means it would ALSO have said "absent" on the day the join landed.
+    # A guard that cannot go green is as useless as one that cannot go red.
+    # [[feedback-suspect-the-instrument]] [[copy-drift]]
+    for _k in ("tvd-frame-thumb", "_tvdOpenFrame", "data-frame",
                "window.vaultRemove = function", "window.vaultRestoreLast = function",
                "d2r_vaultRemoved", "window.vaultRemove([name]"):
         _val[_k] = _src.count(_k)
     globals()["_RECEIPT_CACHE"] = {"key": _key, "val": _val}
     return _val
+
+
+def _vault_row_has_frame():
+    """Does the VAULT ROW itself carry a frame hook? -> bool
+
+    ⚠ NOT "is a viewer present on the page". bible.html has shipped `tvd-frame-thumb` for
+    versions, for the AI-reads strip — so a page-wide count reads as JOINED while every vault row
+    is still bare. The question is whether the row builder emits it, so this reads the row markup
+    between its own anchors rather than counting the file. [[source-reading-guard]]
+    """
+    _p = os.path.join(os.path.dirname(HERE), "bible.html")
+    try:
+        with io.open(_p, encoding="utf-8") as _fh:
+            _src = _fh.read()
+    except Exception:
+        return False
+    _a = _src.find('return \'<div class="vrg-row"')
+    if _a < 0:
+        return False
+    _b = _src.find("</div>';", _a)
+    if _b < 0:
+        return False
+    _row = _src[_a:_b]
+    # the row's receipt hook: `data-rcpt` carries the item NAME, and the delegated handler asks
+    # /api/evidence for it on click. Either that, or the board's own frame thumb if a future
+    # version embeds one directly — both mean "this row can show what witnessed it".
+    return ("data-rcpt" in _row) or ("tvd-frame-thumb" in _row) or ("data-frame" in _row)
+
+
+def _receipts_resolve(sample=None):
+    """Of the banked best-frames, how many can the board ACTUALLY open? -> (resolved, tested)
+
+    ⚠ v3182 — THIS EXISTS BECAUSE THE ROW ABOVE WAS GREEN OVER A JOIN THAT NEVER ONCE WORKED.
+    _vault_row_has_frame() asks whether the receipt BUTTON is in the row markup. It was, so the
+    organ said "ok". Measured 2026-09-15: the button resolved 4 of 450 banked best-frames,
+    because the handler threw the reel away and every lookup addressed a FLAT hist/<ms>.jpg while
+    evidence frames live at hist/reel_<sid>/f_<ms>.jpg. Presence is not resolution, and a health
+    check that cannot tell them apart will certify a dead feature forever.
+    [[the-green-that-lies]] [[the-unjoined-end]]
+
+    Returns (resolved, tested). tested is 0 when the bank cannot be read - the caller must then
+    say UNKNOWN, never 0. [[zero-needs-a-denominator]]
+    """
+    # ⚠ import json HERE. The module-level `_json` is None until another function imports it
+    # locally, so `_json.load` raised AttributeError, the bare except swallowed it, and this
+    # returned a clean-looking (0, 0) - a wrong zero inside the very helper written to stop a
+    # wrong zero. The denominator is what caught it. [[zero-needs-a-denominator]]
+    import json as _j
+    _bank = os.path.join(HERE, "chron_evidence.json")
+    _hist = os.path.join(HERE, "frames", "hist")
+    try:
+        with io.open(_bank, encoding="utf-8") as _fh:
+            _b = _j.load(_fh)
+    except Exception:
+        return 0, 0
+    _best = {}
+    for _sec in ("uniques", "sets"):
+        for _n, _rows in (_b.get(_sec) or {}).items():
+            _bst = None
+            for _r in (_rows or []):
+                if not isinstance(_r, dict) or not _r.get("frame"):
+                    continue
+                if not _bst or (_r.get("conf") or 0) > (_bst.get("conf") or 0):
+                    _bst = _r
+            if _bst:
+                _best[_n] = _bst
+    _names = list(_best.items())
+    if sample:
+        _names = _names[:int(sample)]
+    _ok = 0
+    for _n, _r in _names:
+        _reel = _r.get("reel")
+        if not _reel:
+            continue
+        if os.path.isfile(os.path.join(_hist, str(_reel), str(_r.get("frame")))):
+            _ok += 1
+    return _ok, len(_names)
 
 
 def check_vault_receipts(backup_dir=None):
@@ -1062,15 +1151,66 @@ def check_vault_receipts(backup_dir=None):
                     "the newest ledger backup could not be read (%s), so the receipt count is "
                     "UNKNOWN rather than zero" % type(_e).__name__,
                     k=_atkK, n=_atkN)
-    _withev = [n for n in _owned if isinstance(_ev.get(n), dict) and (_ev[n].get("sightings") or [])]
+    # ⚠⚠ v3180 — d2r_foundEvidence IS NOT THE EVIDENCE BANK. It holds EIGHT rows in his backup and
+    # none of them are owned items, so this reported "0 of 172 carry a sighting" — a figure that is
+    # true of that store and FALSE of the system. The real bank is tv/chron_evidence.json: 324
+    # uniques and 126 sets carrying 8,517 sightings, and asking /api/evidence for all 172 owned
+    # names returns REEL SIGHTINGS WITH FRAMES for 147 of them, 111 at conf >= 0.90.
+    #
+    # That wrong 0 is what made "remove everything with no evidence" look like a 129-item job when
+    # the honest answer is 18. A number measured from the wrong store does not become safe by
+    # being printed confidently.
+    # [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+    _bank = {}
+    try:
+        with io.open(os.path.join(HERE, "chron_evidence.json"), encoding="utf-8") as _bf:
+            _cb = _json.load(_bf)
+        for _sec in ("uniques", "sets"):
+            _d = _cb.get(_sec)
+            if isinstance(_d, dict):
+                _bank.update(_d)
+    except Exception:
+        _bank = {}
+
+    def _has_sighting(_n):
+        _v = _bank.get(_n)
+        _ss = _v if isinstance(_v, list) else ((_v or {}).get("sightings") if isinstance(_v, dict) else None)
+        if _ss:
+            return True
+        _l = _ev.get(_n)          # the thin local store still counts when it has one
+        return isinstance(_l, dict) and bool(_l.get("sightings"))
+
+    _withev = [n for n in _owned if _has_sighting(n)]
     _hooks = _receipt_hooks()
-    _joined = bool(_hooks.get("ok") and _hooks.get("rc-art"))
+    # ⚠ THE JOIN IS "does a VAULT ROW carry a frame", not "does the page contain a viewer".
+    # bible.html has carried tvd-frame-thumb for versions — for the AI-reads strip, not the vault
+    # — so counting the viewer alone would have read as joined while every vault row stayed bare.
+    # The vault's own row markup is what has to change, and `_vault_row_has_frame()` asks that.
+    _joined = bool(_hooks.get("ok") and _vault_row_has_frame())
     _line = ("%d of %d owned row(s) carry a sighting; %d are filed into a locker"
              % (len(_withev), len(_owned), len(_mule)))
     if not _joined:
         _line += ("; and the vault emits NO receipt hook at all, so even a row that HAS a frame "
                   "cannot show it - the viewer and the evidence have never been introduced")
+    # ══ v3182 — A RECEIPT THAT CANNOT OPEN IS NOT A RECEIPT ═══════════════════════════════
+    # `_joined` above asks whether the row carries a receipt HOOK. That was true, and this row
+    # said "ok", while the hook resolved 4 of 450 banked frames - it addressed a flat
+    # hist/<ms>.jpg and the frames live at hist/reel_<sid>/f_<ms>.jpg. Presence and resolution
+    # are different questions and only one of them is the feature. [[the-green-that-lies]]
+    _rres = _receipts_resolve()
     _state = OK if (_joined and _withev) else (WARN if _owned else UNKNOWN)
+    if _rres[1] and _rres[0] == 0:
+        # every banked frame unreachable is a BROKEN ADDRESS, not pruned footage: pruning takes
+        # frames one at a time and never lands on exactly all of them.
+        _line += ("; and NOT ONE of the %d banked best-frames opens where the board looks - the "
+                  "receipt button is wired to an address nothing lives at" % _rres[1])
+        _state = WARN
+    elif _rres[1]:
+        _line += ("; %d of %d banked best-frames still have their footage on disk (the rest were "
+                  "pruned, which is honest absence rather than a broken link)" % _rres)
+    else:
+        _line += ("; whether those receipts can actually OPEN is UNKNOWN - the evidence bank "
+                  "could not be read here")
     return _row("vaultReceipts", _state, _line,
                 # ⚠ A LIST, NOT A DICT. `_row` does `list(evidence or [])`, so a dict lands as
                 # its KEY NAMES and every number is lost. v3145's check_lane_attacks has been
@@ -1079,6 +1219,9 @@ def check_vault_receipts(backup_dir=None):
                 # worse than one that refuses. [[zero-needs-a-denominator]]
                 evidence=["owned %d" % len(_owned), "filed %d" % len(_mule),
                           "withSighting %d" % len(_withev),
+                          # v3182 — RESOLUTION, not presence. See _receipts_resolve.
+                          ("receiptFrames %d of %d open on disk" % _rres) if _rres[1]
+                          else "receiptFrames UNKNOWN (the bank could not be read)",
                           "hooks rc-art=%s rcpt-ic=%s" % (_hooks.get("rc-art"), _hooks.get("rcpt-ic")),
                           "backup %s" % os.path.basename(_files[-1])],
                 k=_atkK, n=_atkN, surfaces=["vault-receipts"])
@@ -1281,11 +1424,98 @@ def check_stash_bank():
     return _row("stashBank", _state, _line, evidence=_ev, k=_atkK, n=_atkN)
 
 
+def check_sweep_meter():
+    """Can he SEE the read he is paying for? -> row
+
+    HIS ASK, 2026-09-15: *"time meter for the sweep i want included integrated and installed so I
+    can see it in th esticky tab console section on the right nder the fleet"*.
+
+    WHAT THIS WATCHES, AND WHY A GATE CANNOT. The gate
+    (test_the_sweep_says_how_long_it_has_been_reading) pins the CODE: that vault_sweep_state calls
+    sweep_eta, in reels, and that the meter is started. All of that can be true while the thing he
+    actually asked for is still absent, because a sweep started by a process that predates the run
+    clock carries no `runStartedTs` at all - and that is not hypothetical. It is exactly the state
+    this console was in while the meter was being built: a live vault read 65.6 minutes in, 119
+    paid reads and 309 pages spent, running inside an interpreter that had never heard of the
+    clock. The gate was green for that whole hour. A gate fails when code changes; a heart says a
+    thing is unsupervised even when nobody touched it. [[join-gate-heart]]
+
+    THE THREE STATES IT DISTINGUISHES, because collapsing them is the failure:
+      - no sweep running            -> ok, and says so. Not a zero.
+      - running WITH a clock        -> ok, and prints the elapsed time it can see.
+      - running WITHOUT a clock     -> WARN. He is spending money against a blind meter.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    _atkK, _atkN = _attack_tally("control_app")
+    try:
+        import control_app as _ca
+    except Exception as _e:
+        return _row("sweepMeter", UNKNOWN,
+                    "the console module would not import, so whether the sweep meter can see a "
+                    "read is unmeasured - not healthy, unknown",
+                    evidence=["import control_app: %s" % type(_e).__name__],
+                    k=_atkK, n=_atkN)
+    try:
+        st = _ca.vault_sweep_state() or {}
+    except Exception as _e:
+        return _row("sweepMeter", WARN,
+                    "the sweep state could not be read, so the meter in the rail has nothing to "
+                    "draw: %s" % str(_e)[:80],
+                    evidence=["vault_sweep_state raised %s" % type(_e).__name__],
+                    k=_atkK, n=_atkN)
+
+    eta = st.get("eta") or {}
+    # ⚠ NAME THE VENUE. _VAULT_JOB is per-PROCESS. Run inside the console this row is about the
+    # sweep he can see; run standalone from a gate it is about a module imported five seconds ago
+    # that has obviously never swept anything - and those two produce the SAME cheerful "no read
+    # in flight". Measuring in the wrong process has already cost this session one confident wrong
+    # answer, so the row carries its own pid rather than implying it speaks for the console.
+    ev = ["eta key present: %s" % ("yes" if "eta" in st else "NO"),
+          "phase: %s" % (st.get("phase") or "?"),
+          "running: %s" % bool(st.get("running")),
+          "measured in pid %d (the vault job is per-process)" % os.getpid()]
+
+    if "eta" not in st:
+        return _row("sweepMeter", WARN,
+                    "the vault sweep publishes no estimate at all - the meter he asked for has "
+                    "nothing to render, and a read can run for an hour unseen",
+                    evidence=ev, k=_atkK, n=_atkN)
+
+    if not st.get("running"):
+        _last = st.get("lastRunMs")
+        ev.append("last run recorded: %s" % ("yes" if _last else "no"))
+        return _row("sweepMeter", OK,
+                    "no vault read is in flight; the meter is wired and showing %s"
+                    % ("what the last one cost" if _last
+                       else "that nothing has run since this console started"),
+                    evidence=ev, k=_atkK, n=_atkN)
+
+    _el = eta.get("elapsedMs")
+    ev.append("elapsedMs: %r" % _el)
+    ev.append("runStartedTs: %r" % st.get("runStartedTs"))
+    if not _el:
+        # ⚠ THE CASE THIS ROW EXISTS FOR. A read is burning subscription calls and the meter
+        # cannot say for how long. Measured live on 2026-09-15 for at least 65.6 minutes.
+        return _row("sweepMeter", WARN,
+                    "a vault read is RUNNING and the meter cannot say for how long - this "
+                    "console was started before the run clock existed, so restart it to put a "
+                    "time on the next read",
+                    evidence=ev, k=_atkK, n=_atkN)
+
+    _mins = round(float(_el) / 60000.0, 1)
+    ev.append("reels: %s of %s" % (st.get("runReelsDone"), st.get("runReelsTotal")))
+    ev.append("paid reads this run: %s" % st.get("classified"))
+    return _row("sweepMeter", OK,
+                "a vault read is running and the meter can see it - %s minute(s) elapsed, %s"
+                % (_mins, eta.get("say") or "size not yet known"),
+                evidence=ev, k=_atkK, n=_atkN)
+
+
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
           check_lane_liveness, check_lane_attacks, check_vault_receipts,
-          check_vault_removals, check_stash_bank]
+          check_vault_removals, check_stash_bank, check_sweep_meter]
 
 
 def report(evaluate=None, board=None):
