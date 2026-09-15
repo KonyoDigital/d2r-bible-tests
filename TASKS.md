@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3164** | `(this commit)` | v3164 — a racy global kept for nobody is liability with no benefit |
+| **v3165** | `(this commit)` | v3165 — a probe door the only measuring party can actually open |
+| **v3164** | `5c85d280` | v3164 — a racy global kept for nobody is liability with no benefit |
 | **v3163** | `c34c8598` | v3163 — a default-off way to test the blur without changing what he sees |
 | **v3162** | `21e452de` | v3162 — the ship-table verdict is handed back, not left in a global |
 | **v3161** | `6b5a2c1f` | v3161 — the restore join follows the delegation instead of matching a result key |

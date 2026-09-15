@@ -284,3 +284,4 @@ tv/.vault_autoread.json
 
 # v3076 — runtime lane traces: a loop's own recorded decision, rewritten constantly
 tv/.lane_trace/
+.noblur_probe

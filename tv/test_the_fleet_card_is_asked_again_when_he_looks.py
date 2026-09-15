@@ -176,7 +176,7 @@ class TestTheBlurProbeIsOffUnlessAsked(unittest.TestCase):
     def test_it_reads_the_flag_before_it_touches_anything(self):
         """The guard must come FIRST. A probe that strips the blur and then checks the flag has
         already changed his console."""
-        flag = self.body.find("noblur=1")
+        flag = min(x for x in (self.body.find("noblur=1"), self.body.find("__NOBLUR")) if x > -1)
         touch = self.body.find("backdropFilter")
         self.assertGreater(flag, -1, "the probe no longer looks for its flag at all")
         self.assertGreater(touch, -1, "the probe no longer touches the blur — it does nothing")
@@ -190,50 +190,66 @@ class TestTheBlurProbeIsOffUnlessAsked(unittest.TestCase):
             head, r"noblur=1[^;]*\)\s*\)\s*return;|if\s*\(![^)]*noblur=1[^)]*\)[^;]*\)\s*return;|return;",
             "nothing returns before the blur is touched, so the flag is read and ignored")
 
+    def test_the_probe_has_a_door_the_measuring_party_can_open(self):
+        """GROKBOT is the only party that can measure the live window, and it reported the
+        `?noblur=1` door unusable: no in-window URL bar, no evaluate_js HTTP door, and a patched
+        launch that produced painting:true with ZERO TV DIABLO windows. A switch only a URL bar can
+        reach is plumbing with no tap. The file flag survives the tvd-scan.sh relaunch it already
+        performs. [[plumbing-with-no-tap]]"""
+        ca = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        # ⚠ THE EMITTED TAG, NOT THE PATH. heart2 caught this BLIND on its first drill: the
+        # string ".noblur_probe" survives in the isfile() check and in the comment explaining the
+        # door, so deleting the line that actually INJECTS the flag left this green.
+        self.assertIn(".noblur_probe", ca, "the server no longer looks for the flag file")
+        self.assertIn("window.__NOBLUR=1", ca,
+                      "the server looks for the flag and never EMITS anything, so touching the "
+                      "file does nothing and the only party who can measure cannot turn it on")
+        self.assertIn("__NOBLUR", self.body,
+                      "the page no longer honours the server's flag, so touching the file does "
+                      "nothing and the door is decorative")
+
 RED_PROOF = [
     {
-        "why": "drops the flag guard, so the diagnostic fires on EVERY load and silently ships a "
-               "visible change to his console — 5.22% of pixels against a 0.71-0.74% control "
-               "floor — which nobody chose and which was never proven to fix anything",
-        "file": "control_ui.html",
-        "find": "      if (!/[?&]noblur=1\\b/.test(window.location.search || '')) return;",
-        "replace": "      /* removed */",
-        "matches": 1,
-    },
-
-    {
-        "why": "drops the guard after the json await, so a stalled older ask resolves last and "
-               "paints OLDER fleet numbers over the fresher ones a newer ask already rendered — "
-               "the stale card this whole version set out to fix, by a new road",
-        "file": "control_ui.html",
-        "find": "      var j = await r.json();\n      if (_gen !== window._fleetGen) return;",
-        "replace": "      var j = await r.json();",
-        "matches": 1,
-    },
-
-    {
-        "why": "drops the visibility trigger, so the card goes back to being painted once at load "
-               "and left standing in the present tense — the 131-while-the-board-held-132 defect",
-        "file": "control_ui.html",
-        "find": "      document.addEventListener('visibilitychange', function () {\n        if (!document.hidden) _fleetAskAgain();\n      });",
-        "replace": "      /* removed */",
-        "matches": 1,
+        'why': 'removes the file-flag door, leaving only a `?noblur=1` URL that the measuring party has already reported it cannot reach — the probe becomes unopenable and the blur theory untestable again',
+        'file': 'control_app.py',
+        'find': "            tag += b'<script>window.__NOBLUR=1;</script>'",
+        'replace': '            pass',
+        'matches': 1,
     },
     {
-        "why": "drops the focus trigger, so an alt-tab back into an already-visible window — how "
-               "he actually returns to the console — never re-asks",
-        "file": "control_ui.html",
-        "find": "      window.addEventListener('focus', _fleetAskAgain);",
-        "replace": "      /* removed */",
-        "matches": 1,
+        'why': 'drops the flag guard, so the diagnostic fires on EVERY load and silently ships a visible change to his console — 5.22% of pixels against a 0.71-0.74% control floor — which nobody chose and which was never proven to fix anything',
+        'file': 'control_ui.html',
+        'find': "      if (!window.__NOBLUR && !/[?&]noblur=1\\b/.test(window.location.search || '')) return;",
+        'replace': '      /* removed */',
+        'matches': 1,
     },
     {
-        "why": "removes the throttle, so one alt-tab fires the re-ask twice and a bouncing window "
-               "turns a cheap event into a request storm",
-        "file": "control_ui.html",
-        "find": "      if (now - _lastFleetAsk < 10000) return;\n      _lastFleetAsk = now;",
-        "replace": "      _lastFleetAsk = now;",
-        "matches": 1,
+        'why': 'drops the guard after the json await, so a stalled older ask resolves last and paints OLDER fleet numbers over the fresher ones a newer ask already rendered — the stale card this whole version set out to fix, by a new road',
+        'file': 'control_ui.html',
+        'find': '      var j = await r.json();\n      if (_gen !== window._fleetGen) return;',
+        'replace': '      var j = await r.json();',
+        'matches': 1,
+    },
+    {
+        'why': 'drops the visibility trigger, so the card goes back to being painted once at load and left standing in the present tense — the 131-while-the-board-held-132 defect',
+        'file': 'control_ui.html',
+        'find': "      document.addEventListener('visibilitychange', function () {\n        if (!document.hidden) _fleetAskAgain();\n      });",
+        'replace': '      /* removed */',
+        'matches': 1,
+    },
+    {
+        'why': 'drops the focus trigger, so an alt-tab back into an already-visible window — how he actually returns to the console — never re-asks',
+        'file': 'control_ui.html',
+        'find': "      window.addEventListener('focus', _fleetAskAgain);",
+        'replace': '      /* removed */',
+        'matches': 1,
+    },
+    {
+        'why': 'removes the throttle, so one alt-tab fires the re-ask twice and a bouncing window turns a cheap event into a request storm',
+        'file': 'control_ui.html',
+        'find': '      if (now - _lastFleetAsk < 10000) return;\n      _lastFleetAsk = now;',
+        'replace': '      _lastFleetAsk = now;',
+        'matches': 1,
     },
 ]
 

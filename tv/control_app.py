@@ -27714,7 +27714,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3164",
+        "ver": "v3165",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -28749,6 +28749,25 @@ def _read_ui():
     # injected right after <head> so it runs before any beat can fire. JSON-quoted, and the
     # signature is [\w+] only, so it cannot break out of the literal.
     tag = ('<script>window.__DOC_VER__=%s;</script>' % json.dumps(sig)).encode("utf-8")
+    # ⚠⚠ v3165 — A DOOR THE ONLY CALLER CAN ACTUALLY OPEN. v3163 gated the shelf blur probe on
+    # `?noblur=1`, and GROKBOT — the only party that can measure the live window — came back
+    # unable to use it: "no in-window URL bar / no evaluate_js HTTP door", and its attempt to
+    # launch a patched console produced a process with `painting: true` and ZERO `TV DIABLO`
+    # windows in the CG list. A switch reachable only by a URL bar that does not exist is
+    # plumbing with no tap, and I built it. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+    #
+    # A FILE FLAG is reachable: it can be touched from a shell and it survives the `tvd-scan.sh`
+    # relaunch GROKBOT already performs most ticks — which is also the only launch that yields a
+    # real .app window with its screen-recording grant intact. Same injection idiom as the
+    # signature above, so there is one way this page gets told things, not two. [[copy-drift]]
+    #
+    # ⚠ STILL OFF UNLESS ASKED. No file, no tag, no change — and the file is gitignored so it can
+    # never ship as a default.
+    try:
+        if os.path.isfile(os.path.join(HERE, ".noblur_probe")):
+            tag += b'<script>window.__NOBLUR=1;</script>'
+    except Exception:
+        pass
     i = body.find(b"<head>")
     if i < 0:
         return body                       # no head: do not guess where to put it

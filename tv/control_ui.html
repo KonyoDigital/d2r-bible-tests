@@ -22799,7 +22799,7 @@ function escC(s) {
      different-looking shelf first. [[visual-regression-detector]] [[unknown-stays-unknown]] */
   (function _blurProbe() {
     try {
-      if (!/[?&]noblur=1\b/.test(window.location.search || '')) return;
+      if (!window.__NOBLUR && !/[?&]noblur=1\b/.test(window.location.search || '')) return;
       var ov = document.getElementById('th-shelfov');
       if (!ov) return;
       ov.style.backdropFilter = 'none';
