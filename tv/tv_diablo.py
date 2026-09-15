@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3173"   # A SKIP IS NOT A PASS, AND THE VENUE SAYS SO
+VERSION = "v3174"   # DIFFERS IS NOT UNSYNCED, AND THE REASON IS ON THE ROW
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

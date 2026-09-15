@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3173",
+  "ver": "v3174",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3173: The Codex eye reviewing v3170 found that a law driving shipped JavaScript turns a missing node into skipTest, and unittest counts a skip as not-a-failure. The pattern is the house style at 26 sites across 9 files and the message already knows the hazard, but 26 quiet skips is not a report: if node leaves a venue then every law that executes the page stops asserting at once and the suite still prints OK. One law now asserts the venue by name and says how many files would have gone silent, and checks that a node on PATH actually runs. It also fixes two real defects the same review found in the new laws: a fixed harness filename that races between concurrent runs, and a write that happens before the try so a partial file can be left behind.",
+  "note": "v3174: He read the fleet strip beside Dean 131 of 135 and said this is still showing that dean is not synced but he is. The word meant his numbers differ from mine and he read it as he has not synced - so it is now differs, which cannot be misread, and the figures beside it say which ledger. The reason the per-item list is absent was put in the card hover in v3170 and his answer was where is the visual pass on the fleet i cant see lol - a fact that needs a hover is a fact he does not have, so it now renders on the row itself. And the cross-reference panel capped at 1080px on a 2000px window, which is what he means by still not stretched.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

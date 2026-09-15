@@ -4537,6 +4537,10 @@
      step of the --ls-* scale; its twin is, so the two now match. A 0.01em move on one short
      word — deliberate, and named here so it is not re-guessed. */
   .fleet-meta.fleet-word { font-weight: var(--fw-semibold); letter-spacing: var(--ls-snug); }
+  /* v3174 — why the per-item list is absent, on the row. Dim: it explains a LIMIT of
+     this console's knowledge, not a fault on his board. */
+  .fleet-meta.fleet-why { color: var(--muted, #8b8071); opacity: .8; margin-left: 5px;
+                          letter-spacing: var(--ls-tight); }
   .fleet-meta.fleet-word.ftts-synced   { color: var(--mint, #8fe6a0); }
   .fleet-meta.fleet-word.ftts-unsynced { color: var(--warn, var(--gold-dim)); }
   .fleet-meta.fleet-word.ftts-unknown  { color: var(--muted, #8b8071); font-style: italic; }
@@ -5782,7 +5786,7 @@
     justify-content: center; padding: 24px; background: rgba(0,0,0,.62);
     -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
   .fleet-xref[hidden] { display: none; }
-  .fleet-xref > .fxr-win { width: min(1080px, 94vw); max-height: min(86vh, 900px);
+  .fleet-xref > .fxr-win { width: min(1600px, 94vw); max-height: min(86vh, 900px);
     display: flex; flex-direction: column; border-radius: 12px; padding: 14px 16px 16px;
     border: 1px solid var(--edge, rgba(255,255,255,.16)); background: var(--surface-read, #14100c);
     box-shadow: 0 24px 70px rgba(0,0,0,.62); overflow: hidden; }
@@ -22440,7 +22444,7 @@ function escC(s) {
             _word = 'synced'; _cls = 'ftts-synced';
             _why  = 'agrees with this console: ' + p.have + ' on both. ';
           } else {
-            _word = 'unsynced'; _cls = 'ftts-unsynced';
+            _word = 'differs'; _cls = 'ftts-unsynced';
             _why  = 'this machine reports ' + p.have + ', this console has ' + _mine
                   + ' \u2014 a difference of ' + Math.abs(p.have - _mine) + '. ';
           }
@@ -22475,7 +22479,7 @@ function escC(s) {
         if (same === seen) return {w: 'synced', c: 'ftts-synced',
                                    t: 'every one of the ' + seen + ' ledger(s) it reports agrees '
                                     + 'with this console'};
-        return {w: 'unsynced', c: 'ftts-unsynced',
+        return {w: 'differs', c: 'ftts-unsynced',
                 t: (seen - same) + ' of ' + seen + ' ledger(s) disagree with this console \u2014 '
                  + 'the figures beside the name say which'};
       };
@@ -22786,9 +22790,30 @@ function escC(s) {
           + (function () {
               var w = _machineWord(m.tally, !!(m && m.machine && j && j.me && m.machine === j.me));
               var plain = String(meta || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+              /* ══ v3174 — THE REASON ON THE ROW, NOT ONLY IN THE HOVER ════════════════
+                 v3170 put maskWhy in the CARD tooltip. His answer, looking at the strip:
+                 "where is the visual pass on the fleet we mentioned? icant see lol" — and he
+                 is right, a fact that needs a hover to exist is a fact he does not have. The
+                 word alone cannot carry it: `differs` says the counts disagree, and says
+                 nothing about the per-item list being absent or WHY. One dim clause, on the
+                 row. [[the-unjoined-end]] */
+              var _rw = '';
+              try {
+                var _wy = m && m.maskWhy, _rs = {};
+                if (_wy && typeof _wy === 'object') {
+                  Object.keys(_wy).forEach(function (k) { if (_wy[k]) _rs[String(_wy[k])] = 1; });
+                }
+                var _rk = Object.keys(_rs);
+                if (_rk.length) {
+                  _rw = '<span class="fleet-meta fleet-why" title="'
+                      + escC('this console can COUNT its pieces but cannot NAME them, because: '
+                             + _rk.join('; ') + '. Waiting will not clear that on its own.')
+                      + '">' + escC('\u00b7 ' + _rk[0]) + '</span>';
+                }
+              } catch (_) {}
               return '<span class="fleet-meta fleet-word ' + w.c + '" title="'
                 + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
-                + escC(w.w) + '</span>';
+                + escC(w.w) + '</span>' + _rw;
             })()
           + _tip(m) + '</div>';
       };
