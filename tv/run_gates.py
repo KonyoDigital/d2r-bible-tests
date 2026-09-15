@@ -2938,6 +2938,19 @@ GATES = [
              "counts as a measurement, not a silence - `if _have:` instead of "
              "`isinstance(_have, int)` is the realistic regression and it is one of the six "
              "sabotages this file was seen RED under."),
+    Gate("test_a_missing_row_never_claims_it_does_not_know",
+         [sys.executable, os.path.join(HERE, "test_a_missing_row_never_claims_it_does_not_know.py")], 60,
+         why="HIS ORDER reading the state panel, 2026-09-15: \"everythin should be reading healthy "
+             "if its not missing and those that are are being fixed ... so its honest\". MEASURED: "
+             "`tooltip finder` returned MISSING while its own sentence read \"the finder has never "
+             "been asked - no frame has been put through it, so nothing is known about it either "
+             "way\". An unexercised lane is not a broken lane, and MISSING feeds WHAT NEEDS YOU, "
+             "so it was inflating the one number he acts on. This walks the doctors' ASTs for "
+             "`return MISSING, <str>` and fails when the string admits it never looked - the "
+             "console's oldest doctrine (0 is measured, None is nobody looked) enforced by the "
+             "file instead of by memory. It carries its own blind-fixture proof: a planted "
+             "offender in a throwaway module must be caught, because a guard that cannot see a "
+             "violation is measuring nothing."),
     Gate("test_a_decoded_empty_is_not_unknown",
          [sys.executable, os.path.join(HERE, "test_a_decoded_empty_is_not_unknown.py")], 60,
          why="FOUND BY THE CODEX EYE reviewing v3175 (cross-family, openai/gpt-5.6-terra): \"a "
