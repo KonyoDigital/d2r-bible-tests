@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3195"   # THE RIVER STATIONS AND WHERE THE DISK ACTUALLY WENT
+VERSION = "v3196"   # THE JOURNAL JOINS THE SET IT SAID IT WAS IN
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

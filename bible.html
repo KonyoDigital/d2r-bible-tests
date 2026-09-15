@@ -4148,6 +4148,26 @@ window._LP_FORKED = new Set([
      as it was". Nothing checked the profile.
      The report forks for the same reason: a record of what was taken from ONE profile must not
      be overwritten by the next profile's run. [[d2r-ladder-doctrine]] */
+  /* ⚠⚠ v3196 — THE REMOVAL JOURNAL JOINS THE SET IT SAID IT WAS ALREADY LIKE.
+     The removal door's own comment claims "d2r_owned is in neither _LP_FORKED nor _WP_FORKED ...
+     d2r_vaultRemoved is in neither set either, so the journal forks exactly like the store it
+     describes", and names the hazard if that were untrue: "a journal that forked differently
+     would offer a restore for names the active world never held".
+
+     MEASURED, and the premise was FALSE: this set has 51 members and `d2r_owned` is one of them.
+     The journal was not. So the journal was BARE while its store was ladder-forked — the exact
+     mismatch the comment forbids.
+
+     ⚠ AND THE SECOND GUARD DOES NOT COVER IT. vaultRestoreLast refuses a batch cut on another
+     LEDGER, but `_D2R_LEDGER` reads `d2r_ledgerName` from raw storage on purpose — it is the
+     INSTALL's name, not the profile's — so main and ladder share it and the check passes. Remove
+     on MAIN, switch to LADDER, restore: main's removed names land in ladder's owned list as finds
+     he never made.
+
+     Safe to add: on MAIN an _LP_FORKED key resolves BARE, so his existing journal is untouched;
+     on LADDER it starts empty, which is correct because ladder never had those removals.
+     [[ladder-doctrine]] [[the-unjoined-end]] */
+  'd2r_vaultRemoved',
   'd2r_unseedBackup', 'd2r_unseedReport', 'd2r_unseedRestoreReport',
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
@@ -37351,11 +37371,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      never held those names would WRITE finds nobody made. Every batch carries the ledger it
      was cut on, and restore refuses any other. [[unknown-stays-unknown]]
 
-     FORK CLASS, MEASURED: d2r_owned is in neither _LP_FORKED nor _WP_FORKED, so LSR resolves it
-     BARE in all four worlds (owner main/ladder, guest main/ladder). d2r_vaultRemoved is in
-     neither set either, so the journal forks exactly like the store it describes. A journal
-     that forked differently would offer a restore for names the active world never held.
-     Gated by test_the_removal_journal_forks_like_the_store.py. [[ladder-doctrine]] */
+     FORK CLASS — ⚠⚠ THIS PARAGRAPH WAS WRONG UNTIL v3196, AND THE GATE IT CITED DID NOT EXIST.
+     It read: "d2r_owned is in neither _LP_FORKED nor _WP_FORKED ... d2r_vaultRemoved is in
+     neither set either, so the journal forks exactly like the store it describes." MEASURED:
+     _LP_FORKED has 51 members and d2r_owned IS one of them. The journal was not — so it was BARE
+     while its store was LADDER-FORKED, which is precisely the mismatch the next sentence forbids.
+
+     THE HAZARD WAS LIVE, and the other guard does not cover it: vaultRestoreLast refuses a batch
+     cut on a different LEDGER, but `_D2R_LEDGER` reads d2r_ledgerName from raw storage on purpose
+     — the INSTALL's name, not the profile's — so main and ladder share it and the check passes.
+     Remove on MAIN, switch to LADDER, restore: main's removed names land in ladder's owned list
+     as finds he never made.
+
+     NOW: d2r_vaultRemoved is in _LP_FORKED beside d2r_owned, and neither is in _WP_FORKED, so the
+     journal matches its store in BOTH directions. The invariant is "the same fork class as the
+     store", never "unforked" — if d2r_owned is ever forked differently the journal moves with it.
+     Gated by test_the_removal_journal_forks_like_the_store.py, which v3196 actually built.
+     [[ladder-doctrine]] [[the-unjoined-end]] */
   var _VR_LOG = 'd2r_vaultRemoved', _VR_RING = 20;
   function _vrRead(){
     try { var a = JSON.parse(window.LSR.getItem(_VR_LOG) || '[]'); return Array.isArray(a) ? a : []; }
@@ -50353,7 +50385,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3195', name:'v3195 - THE RIVER STATIONS AND WHERE THE DISK ACTUALLY WENT', date:'2026-09-16', note:'The shelf gains a filter for where a reel is in the river rather than only what it contains or when it happened, and the header stops implying a deletion it does not perform. Measured the gap between the keep eight design and the twenty reels on disk, and the design is not missing: it is working, while the test suite pins eight reels holding most of the space.' };
+  window.D2R_BUILD = { id:'v3196', name:'v3196 - THE JOURNAL JOINS THE SET IT SAID IT WAS IN', date:'2026-09-16', note:'Building the gate the removal door names in its own prose found that the door was wrong about itself. The ladder fork set has fifty one members and the owned list is one of them while the removal journal was in neither, so a removal made on the main profile could be restored into the ladder as finds he never made. The journal now forks with the store it describes.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

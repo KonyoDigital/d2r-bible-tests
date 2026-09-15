@@ -39,17 +39,19 @@ BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 # The seven that were already unisolated when this guard was written. Each is grail-ish and each
 # predates the guard; listing them makes the gap visible instead of forgotten.
 KNOWN_UNISOLATED = {
-    # ── v3190 — MINE, and it follows d2r_foundEvidence's precedent rather than inventing a rule ──
-    # `d2r_vaultRemoved` is the removal journal: a ring of what was taken OUT of the vault, dated,
-    # listed and undoable. It is a record ABOUT `d2r_owned`, and d2r_owned is unforked — so the
-    # same argument the entry below makes applies unchanged: a journal that forked while the list
-    # it describes did not would let a machine hold a removal record for an item it cannot see,
-    # and `vaultRestoreLast` would offer to put back something this world never had.
-    # ⚠ WHAT THAT COSTS, stated rather than discovered later: two accounts on one machine share
-    # one removal journal, exactly as they already share the evidence sidecar. Nothing crosses an
-    # INSTALL — the router still scopes it per world.
-    # 📌 AND THE FORK IS HIS CALL, NOT MINE. This defaults to the precedent; say the word and it
-    # moves to _WP_FORKED instead.
+    # ── v3196 — MINE, AND THE SECOND TIME OF ASKING, BECAUSE THE FIRST REASON WAS FALSE ──────
+    # `d2r_vaultRemoved` is the removal journal: a ring of what was taken out of the vault.
+    # v3190 filed it here claiming it followed d2r_foundEvidence's precedent "because d2r_owned is
+    # unforked". MEASURED at v3196: THAT IS NOT TRUE. `_LP_FORKED` has 51 members and d2r_owned is
+    # one of them — the removal door's own comment asserts the opposite and is wrong.
+    #
+    # So the journal is now LADDER-forked, with its store (v3196 added it to _LP_FORKED). It stays
+    # here because this law asks about the MACHINE fork, and d2r_owned is not in _WP_FORKED either
+    # — the journal matches its store in both directions, which is the actual invariant and is now
+    # gated by test_the_removal_journal_forks_like_the_store.py (which, until v3196, was a gate
+    # named in the door's prose and never built).
+    # ⚠ WHAT THAT COSTS: two MACHINES share one removal journal, exactly as they share the owned
+    # list it describes. Nothing crosses an INSTALL — the router still scopes it per world.
     "d2r_vaultRemoved",
     "d2r_chronAdopted",
     "d2r_chronicleInbox",

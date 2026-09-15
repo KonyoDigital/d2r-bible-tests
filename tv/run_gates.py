@@ -705,6 +705,19 @@ GATES = [
              "side door already (the v2200 backfill vaulted found-ever names; v2203 reversed it) "
              "and the front door had no red-proof. trace_spine.py itself only reports - footage "
              "has no un-delete and the witnessed machinery stays the only thing that writes."),
+    Gate("test_the_removal_journal_forks_like_the_store",
+         [sys.executable, os.path.join(HERE,
+          "test_the_removal_journal_forks_like_the_store.py")], 120,
+         why="the removal door cited this gate BY NAME in its own prose and the file did not "
+             "exist - a guard described for anyone who read the comment and never built. Building "
+             "it found the comment's premise FALSE: _LP_FORKED has 51 members and d2r_owned is "
+             "one, while d2r_vaultRemoved was in neither set, so the journal was BARE while its "
+             "store was ladder-forked. The ledger check does not cover it either - _D2R_LEDGER "
+             "reads the INSTALL's name from raw storage on purpose, so main and ladder share it. "
+             "Remove on main, switch to ladder, restore, and main's removed names land in "
+             "ladder's owned list as finds he never made. Pins the SAME-FORK-CLASS invariant "
+             "(never 'unforked'), that the key guarded is the one the door writes, and carries a "
+             "ceiling on its own parse because an overshooting reader made this look clean twice."),
     Gate("test_a_receipt_can_actually_be_opened",
          [sys.executable, os.path.join(HERE, "test_a_receipt_can_actually_be_opened.py")], 120,
          why="the vault receipt eye shipped DEAD and every instrument said it was fine: it "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3195",
+  "ver": "v3196",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3195: The shelf gains a filter for where a reel is in the river rather than only what it contains or when it happened, and the header stops implying a deletion it does not perform. Measured the gap between the keep eight design and the twenty reels on disk, and the design is not missing: it is working, while the test suite pins eight reels holding most of the space.",
+  "note": "v3196: Building the gate the removal door names in its own prose found that the door was wrong about itself. The ladder fork set has fifty one members and the owned list is one of them while the removal journal was in neither, so a removal made on the main profile could be restored into the ladder as finds he never made. The journal now forks with the store it describes.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
