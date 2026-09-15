@@ -2906,6 +2906,24 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_reported_counts_is_not_no_report",
+         [sys.executable, os.path.join(HERE, "test_reported_counts_is_not_no_report.py")], 120,
+         why="HIS CORRECTION, 2026-09-15. The cross-reference panel said \"Dean has not reported "
+             "which set pieces it holds yet... It publishes on its next heartbeat\" while his own "
+             "fleet card, in the same screenshot, read DEAN SETS 131/135. He said: \"dean already "
+             "synced his sets something is regressed here\" and then \"i m saying that he has it "
+             "even says it here\". MEASURED on the live /api/fleet: Dean carried tally.sets "
+             "{have 131, total 135} and maskWhy {sets: no board window}, masks None. The sentence "
+             "was wrong twice - he DID report (the COUNTS were on the wire; only the per-item "
+             "MASK was missing, so the panel can count but not name), and the promised heartbeat "
+             "CANNOT deliver, because a machine with no board window fails identically on every "
+             "beat until one is open. A false 'just wait' turns a fixable condition into an "
+             "invisible one. maskWhy was published by the server and rendered ZERO times. This "
+             "law pins both halves and the original case too: a genuinely silent machine is still "
+             "named UNHEARD rather than zero, and a reported ZERO (Dean's real uniques 0/403) "
+             "counts as a measurement, not a silence - `if _have:` instead of "
+             "`isinstance(_have, int)` is the realistic regression and it is one of the six "
+             "sabotages this file was seen RED under."),
     Gate("test_the_removal_door_is_undoable",
          [sys.executable, os.path.join(HERE, "test_the_removal_door_is_undoable.py")], 180,
          why="HIS ORDER, 2026-09-15: a board-side removal door with the same care as "

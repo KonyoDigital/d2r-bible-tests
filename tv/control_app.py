@@ -27147,9 +27147,47 @@ def fleet_compare(machine, ledger="sets"):
         # i.e. an empty response, i.e. the panel saying "the console did not answer". Same shape
         # as the KeyError above and the same lesson: this function's failures all surface as a
         # polite sentence about the network.
-        out["why"] = ("%s has not reported which %s it holds yet — that is 'we have not heard "
-                      "from it', not 'it has none'. It publishes on its next heartbeat."
-                      % (out["who"] or machine, spec["label"]))
+        # ══ v3169 — HIS CORRECTION, 2026-09-15 ═══════════════════════════════════════════════
+        # He sent the panel saying "Dean has not reported which set pieces it holds yet" beside
+        # his own fleet card reading DEAN · SETS 131/135, and said: "dean already synced his sets
+        # something is regressed here" and then, with a second screenshot, "i m saying that he has
+        # it even says it here".
+        #
+        # He is right, and the sentence was wrong in TWO ways at once:
+        #   1. HE DID REPORT. Dean's row carries tally.sets {have 131, total 135}. What is missing
+        #      is the per-item MASK, not the counts. "has not reported" is a label that stopped
+        #      being true of the number printed beside it. [[label-outlived-referent]]
+        #   2. "It publishes on its next heartbeat" IS A PROMISE THAT CANNOT BE KEPT. The row
+        #      already says WHY the mask is absent — maskWhy.sets = "no board window" — and a
+        #      machine with no board window fails the same way on EVERY heartbeat until one is
+        #      open. Telling him to wait for a beat that cannot deliver turns a fixable condition
+        #      into an invisible one.
+        #
+        # And the reason was on the wire and rendered NOWHERE: control_ui.html mentioned maskWhy
+        # ZERO times. Published by the server, never read by the page. [[the-unjoined-end]]
+        _t = (them.get("tally") or {}).get(spec["name"])
+        _have = _t.get("have") if isinstance(_t, dict) else None
+        _total = _t.get("total") if isinstance(_t, dict) else None
+        _mwhy = str((them.get("maskWhy") or {}).get(spec["name"]) or "").strip()
+        out["maskWhy"] = _mwhy or None
+        out["theirHave"] = _have if isinstance(_have, int) else None
+        out["theirTotal"] = _total if isinstance(_total, int) else None
+        if isinstance(_have, int):
+            # counts ARE here; only the per-item list is missing. Say which of the two.
+            out["why"] = ("%s DID report %s — %s of %s. What it has not published is the "
+                          "per-item list, so this console can COUNT its pieces but cannot NAME "
+                          "them. %s"
+                          % (out["who"] or machine, spec["label"], _have,
+                             _total if isinstance(_total, int) else "?",
+                             ("Reason that machine gave: %s. Waiting will not clear that on its "
+                              "own." % _mwhy) if _mwhy
+                             else "It publishes the list on its next heartbeat."))
+        else:
+            out["why"] = ("%s has not reported which %s it holds yet — that is 'we have not heard "
+                          "from it', not 'it has none'.%s"
+                          % (out["who"] or machine, spec["label"],
+                             (" Reason that machine gave: %s." % _mwhy) if _mwhy
+                             else " It publishes on its next heartbeat."))
     return out
 
 
@@ -27714,7 +27752,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3168",
+        "ver": "v3169",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
