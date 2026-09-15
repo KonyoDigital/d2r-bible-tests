@@ -22217,7 +22217,8 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         # v2002 — a SEAL IS NOT A LIFE SENTENCE. This was `not in swept`, so any sealed reel was
         # skipped forever regardless of which reader sealed it. _vault_still_sealed keeps a
         # productive seal and reopens a rows==0 one once the vault prompt changes.
-        dirs = [d for d in _cr.reel_dirs(hist)
+        # v3180 — newest_first=False IS the FIFO order (his ruling); see the note below.
+        dirs = [d for d in _cr.reel_dirs(hist, newest_first=False)
                 if force or _sealed_rec(d) is None
                 or not _vault_still_sealed(_sealed_rec(d))]
         # v2225 — when the caller named a reel, sweep THAT ONE. The watchdog picks a reel from
@@ -22227,62 +22228,89 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             want = os.path.basename(os.path.normpath(str(reel_dir)))
             dirs = [d for d in dirs if os.path.basename(os.path.normpath(str(d))) == want] or \
                    ([str(reel_dir)] if os.path.isdir(str(reel_dir)) else [])
-        # ══ v3171 — READ THE REELS THAT ACTUALLY SHOW A STASH, FIRST ════════════════════════
-        # MEASURED on his machine 2026-09-15, and this is the whole reason the vault has no
-        # receipts: the sweeper took reels in DIRECTORY ORDER filtered only by "not already
-        # sealed". 45 sessions swept, 36 of them (80%) came back with nothing, 39 rows banked
-        # total - while the THREE best stash-panel reels, one at 100% density, had NEVER BEEN
-        # SWEPT. The stash bank held 12 keys against the chronicle bank's 8517 sightings.
+        # ══ v3180 (#97) — ONE QUEUE, FIFO, THE SAME ORDER HE SEES ═══════════════════════════
+        # HIS RULING, 2026-09-15: *"the sweep and the shelf and everhything should be a unified
+        # system... they should be fifo together"* — with the whole lifecycle in his words: *"i do
+        # ON AIR a session is started it goes through all the coding we did backend wise... and
+        # visually the river shows it going through the console ... first in first out becuase
+        # thats the logical way of a session coming in and then out eventually going through the
+        # architcure and not getting stuck anywhere just extracted and tallied and flowing... and
+        # the river should spit it out deleted eventually"*. And on the trade: *"evedince is still
+        # going to be evedince regardless of the order they come in.. i want it coming in
+        # organzied and going out orgainzied"* — so the ORDER changes and the witness/confluence
+        # gating does not.
         #
-        # The ranking already existed and was computed only inside a doctor row that PRINTS it
-        # (console_doctor._check_the_sweep_would_find_something). The chooser and the sweeper
-        # were both built and never joined. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        # ⚠ THIS SUPERSEDES v3171's ORDERING, WHICH WAS MINE AND NOT HIS. v3171 sorted owed-first
+        # then by stash-panel density to dig out of a real, measured backlog (45 sweeps, 36 empty,
+        # the three richest reels never read). It worked, and it made the ORDER OF WORK disagree
+        # with the ORDER ON SCREEN. He watched that and ruled for one queue.
         #
-        # It is FREE to ask - panel_density is a crop and an OCR, no model call, which is what
-        # its own docstring says it is for: "the sweep can afford to ask it about every reel
-        # before paying to read any of them."
+        # FIFO IS OLDEST-UNSWEPT FIRST — a session that entered first is worked first and leaves
+        # first, which is what makes the river a conveyor instead of a pile, and why the bottom of
+        # his river is the one nearest deletion.
+        #
+        # ⚠ ONE PARAMETER, NOT A SECOND SORT. chronicle_retro.reel_dirs() already takes
+        # `newest_first`; re-sorting here would be a second ordering rule to drift out of step
+        # with the one every other reader uses. [[copy-drift]]
+        #
+        # ⚠⚠ AND THE FIRST CUT OF THIS WAS INERT. I wrote `sorted(dirs, key=_reel_t0)` against a
+        # helper that does not exist, inside a try/except that prints a warning and falls back to
+        # directory order — a NameError swallowed, FIFO silently never happening, the fix looking
+        # applied and doing nothing. Caught by checking the symbol existed, not by reading the
+        # code again. [[plumbing-with-no-tap]] [[the-unjoined-end]]
+        #
+        # ⚠ THE COST IS REAL AND IS HIS TO CARRY, SAID OUT LOUD: in FIFO a panel-free reel is read
+        # in its turn and costs a paid read, which is the 80%-empty waste v3171 was built to avoid.
+        # Density is NOT used to reorder any more. If that cost bites, the honest next move is to
+        # let a zero-panel reel flow through WITHOUT a paid read while keeping its FIFO place —
+        # which needs a real "examined, nothing to take" record, not the invented one I reached
+        # for here.
+        # ══ v3181 (#97) — WASTE LEAVES WITHOUT COSTING A READ ═══════════════════════════════
+        # HIS RULING, 2026-09-15: *"the waste is waste.. gets deleted without spending reads..
+        # templates and filteres should process that"*.
+        #
+        # ⚠ AND HE WAS RIGHT THAT IT IS ALREADY ARCHITECTED — I nearly built a second one.
+        # reel_router already has an EMPTY station meaning exactly this: "retro_triage walked it
+        # IN FULL and found ZERO panel frames, so there is nothing to read", and EMPTY's owed
+        # action is ROUTE, which flows to ROUTED then TOMBSTONE — his DELETED. `worthReading` and
+        # `surveyed` are already declared EVIDENCE_FIELDS, so reading them here is sanctioned by
+        # the router's own rule rather than smuggling a retention field into a station decision.
+        #
+        # ⚠⚠ WHAT WAS MISSING IS THE JOIN, MEASURED: _vault_sweep_run referenced reel_router 0
+        # times, `station` 0 times, `worthReading` 0 times, `surveyed` 0 times. The waste detector
+        # was built, sanctioned, and asked by nobody — so a reel the router already KNEW held no
+        # panel frames still got a paid read when its FIFO turn came. [[the-unjoined-end]]
+        #
+        # ⚠ IT IS THE ROUTER'S VERDICT, NOT A SECOND OPINION. Re-deriving "is this empty" here
+        # would be a second rule to drift out of step with the one the river draws.
+        # [[copy-drift]]
+        #
+        # ⚠ AND IT IS INERT ON HIS DATA TODAY, SAID OUT LOUD: right now 0 of his 21 reels are at
+        # EMPTY (JOIN 2 · CAPTURE 5 · ROUTED 4 · STATION 7 · PRINTER 3), because retro_triage
+        # surveys one reel per tick and has not walked any of them in full. This rule is correct
+        # and currently unexercised — which is NOT the same fact as working.
+        # [[gate-blind-to-unexercised-input]]
         if not reel_dir and dirs:
             try:
-                import vault_retro as _vr_rank
-                _ranked = _vr_rank.rank_by_panel(dirs, stash_screen_open_cached)
-                # ⚠⚠ TWO SIGNALS, AND THEY DISAGREE — USE BOTH, ACCOUNTING FIRST.
-                # `_vault_owed_reels()` is the ROUTING system's answer ("the ledger says this
-                # reel owes the vault a read", tag ∩ READ_CLEARS). panel_density is the FOOTAGE's
-                # answer ("this reel visibly shows stash panels"). MEASURED 2026-09-15: the
-                # router named 5 owed reels and NOT ONE of them was the 100%-density reel. A reel
-                # full of stash panels that was never triaged carries no tag, so it is invisible
-                # to the owed list — which is exactly how his best footage went unread while the
-                # sweeper worked through tagged reels that held nothing.
-                # Owed first (it discharges real accounting), then by what the frames actually
-                # show. Neither signal alone finds both. [[the-unjoined-end]]
-                try:
-                    _owed = _vault_owed_reels(hist)
-                except Exception:
-                    _owed = None
-                _owed_b = frozenset(os.path.basename(os.path.normpath(str(x)))
-                                    for x in (_owed or []))
-                if _owed_b:
-                    _ranked = sorted(
-                        _ranked,
-                        key=lambda kv: (0 if os.path.basename(os.path.normpath(str(kv[0])))
-                                        in _owed_b else 1, -kv[1]))
-                dirs = [d for d, _v in _ranked]
-                _withp = sum(1 for _d, _v in _ranked if _v > 0)
-                if _ranked:
-                    print("   \U0001f50e sweep ordered by stash-panel density - first %s (%.0f%%); "
-                          "%d of %d reel(s) show a panel"
-                          % (os.path.basename(_ranked[0][0]), 100 * _ranked[0][1],
-                             _withp, len(_ranked)))
-                if not _withp:
-                    print("   \u26a0 NONE of the %d reel(s) shows a stash panel - this sweep will "
-                          "read nothing. That is a CAPTURE gap, not a reader gap: open the stash "
-                          "while a reel is rolling." % len(_ranked))
-            except Exception as _e:
-                # ⚠ A RANKER THAT FAILS MUST NOT CANCEL THE SWEEP. Directory order is the old
-                # behaviour - worse, but not broken. Refusing to sweep would turn a slow lane
-                # into a dead one.
-                print("   \u26a0 could not rank reels by panel density (%s) - sweeping in "
-                      "directory order" % type(_e).__name__)
+                import reel_router as _rr_skip
+                _rt = _rr_skip.route()
+                _empty = frozenset(
+                    os.path.basename(str(x.get("reel") or ""))
+                    for x in (_rt.get("reels") or [])
+                    if x.get("station") == "EMPTY")
+                if _empty:
+                    _before = len(dirs)
+                    dirs = [d for d in dirs
+                            if os.path.basename(os.path.normpath(str(d))) not in _empty]
+                    _n = _before - len(dirs)
+                    if _n:
+                        print("   \u23ed %d reel(s) already routed EMPTY by retro_triage - no "
+                              "paid read owed, they route on to TOMBSTONE" % _n)
+            except Exception as _re:
+                # a router that will not answer is UNKNOWN, never "nothing is empty" — sweeping
+                # one reel too many costs a read; skipping one wrongly loses its names.
+                print("   \u26a0 could not ask the router which reels are EMPTY (%s) - sweeping "
+                      "all of them" % type(_re).__name__)
         _reopened = [os.path.basename(d) for d in dirs if _sealed_rec(d) is not None]
         if _reopened:
             print("   \U0001f513 %d reel(s) reopened - sealed with no rows by an older vault reader "
@@ -27855,7 +27883,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3178",
+        "ver": "v3179",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -919,10 +919,34 @@ def _check_every_reel_can_still_reach_an_end_route():
             w = g.get("what") if isinstance(g, dict) else str(g)
             lack[str(w)] = lack.get(str(w), 0) + 1
     named = ", ".join("%s %d" % (k, v) for k, v in sorted(lack.items(), key=lambda kv: -kv[1]))
+    # ══ v3181 — AND SAY WHAT WOULD UNSTICK THEM. end_routes.reprocessing_list() answers exactly
+    # that — "which reels would reach the end route if the missing thing were supplied", sorted by
+    # unread panels — and MEASURED 2026-09-15 it appeared EXACTLY ONCE in the whole codebase: its
+    # own `def`. Built, documented, correct, called by nothing. This row has been reporting the
+    # DEAD-ENDED count for versions while the function naming the remedy sat unread beside it.
+    #
+    # ⚠ THE SAME DEFECT THIS CHECK'S OWN DOCSTRING WAS WRITTEN ABOUT. v2748: "THE DERIVED
+    # END-ROUTE PREDICATE WAS READ BY NOTHING ... I fixed the river's unjoined end and left its
+    # twin running." Its twin had a twin. [[the-unjoined-end]] [[sweep-dont-ask]]
+    #
+    # ⚠ IT NAMES AND STOPS. reprocessing_list runs nothing and spends nothing; reading those
+    # panels is a paid lane behind his standing ruling. The row gets the remedy, not the act.
+    _fix = ""
+    try:
+        _rp = _ER.reprocessing_list()
+        if _rp.get("n"):
+            _top = (_rp.get("reels") or [{}])[0]
+            _fix = ("  \u2192 %d of them hold %d unread panel frame(s); reading those is the only "
+                    "thing between them and the end route the finished reels went through. "
+                    "Biggest: %s with %s."
+                    % (_rp["n"], _rp.get("panels") or 0,
+                       str(_top.get("reel") or "?"), _top.get("panels")))
+    except Exception:
+        pass   # a remedy we could not compute must not take the finding down with it
     return MISSING, ("%s of %s reel(s) are DEAD-ENDED - every end-route door refused them, with "
                      "numbers. What they lack: %s. (%s more are finished and waiting only on "
                      "circumstance, which his ruling does not forbid.)"
-                     % (dead, walked, named or "unrecorded", waiting))
+                     % (dead, walked, named or "unrecorded", waiting)) + _fix
 
 
 def _check_the_console_painted_all_of_itself():
@@ -1443,7 +1467,13 @@ def _check_the_tooltip_finder_is_honest():
     except Exception as e:
         return MISSING, "its ledger could not be read: %s" % str(e)[:70]
     if not r.get("attempts"):
-        return MISSING, ("the finder has never been asked — no frame has been put through it, so "
+        # ⚠⚠ v3179 — UNKNOWN, NOT MISSING, AND THE ROW'S OWN WORDS SAID SO. It read "nothing is
+        # known about it either way" while rendering as a FAULT in his WHAT NEEDS YOU count. He
+        # caught it: "everything should be reading healthy if its not missing ... so its honest".
+        # A lane nobody has exercised is not a broken lane, and this console's whole doctrine is
+        # that the two must never look the same. Counting it as needing him also inflated the one
+        # number he acts on. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        return UNKNOWN, ("the finder has never been asked — no frame has been put through it, so "
                          "nothing is known about it either way")
     if r.get("judged"):
         return OK, r["say"]

@@ -119,37 +119,69 @@ class TheRankerOrders(unittest.TestCase):
                          "ranking may reorder by evidence and must never invent one")
 
 
-class TheSweeperActuallyUsesIt(unittest.TestCase):
+class TheSweepWalksOneQueueFIFO(unittest.TestCase):
+    """v3180 — HIS RULING SUPERSEDED THE ORDERING THIS FILE ORIGINALLY PINNED.
 
-    def test_the_sweep_calls_the_ranker_in_its_own_body(self):
-        self.assertIn("rank_by_panel",
-                      _calls(os.path.join(HERE, "control_app.py"), "_vault_sweep_run"),
-                      "the sweeper picks reels in directory order again — 36 of 45 sweeps took "
-                      "nothing while the best stash-panel reels went unread")
+    v3171 sorted the sweep owed-first then by stash-panel density, to dig out of a real, measured
+    backlog (45 sweeps, 36 empty, the three richest stash reels never read). It worked — and it
+    made the ORDER OF WORK disagree with the ORDER ON SCREEN.
 
-    def test_it_asks_the_routing_system_too_not_only_the_footage(self):
-        """TWO SIGNALS, AND THEY DISAGREE. `_vault_owed_reels()` is the routing system's answer
-        (the ledger says this reel owes the vault a read); panel_density is the footage's answer
-        (this reel visibly shows stash panels). MEASURED 2026-09-15: the router named 5 owed
-        reels and NOT ONE was the 100%-density reel — an untriaged reel carries no tag and is
-        invisible to the owed list. Either signal alone misses half the work."""
-        self.assertIn("_vault_owed_reels",
-                      _calls(os.path.join(HERE, "control_app.py"), "_vault_sweep_run"),
-                      "the sweep orders only by footage and ignores what the ledger says it owes")
+    He watched that and ruled for ONE queue, 2026-09-15: *"the sweep and the shelf and everhything
+    should be a unified system... they should be fifo together"*, and *"a session ... going through
+    the architcure and not getting stuck anywhere just extracted and tallied and flowing... the
+    river should spit it out deleted eventually"*. On the trade-off he was explicit that the
+    gating does not change: *"evedince is still going to be evedince regardless of the order they
+    come in.. i want it coming in organzied and going out orgainzied"*.
 
-    def test_a_ranker_failure_does_not_cancel_the_sweep(self):
+    So the CLAIM this class makes is unchanged — the sweeper must pick deliberately, never in
+    whatever order the filesystem hands back — and only the rule changed. rank_by_panel is still
+    tested above and still used by the doctor; it simply no longer decides the sweep.
+    """
+
+    def test_the_sweep_walks_reels_oldest_first(self):
+        """FIFO is oldest-unswept-first: what entered first is worked first and leaves first."""
         body = _fn_src(os.path.join(HERE, "control_app.py"), "_vault_sweep_run")
-        i = body.find("rank_by_panel")
-        self.assertGreater(i, 0)
-        self.assertIn("except", body[i:i + 1400],
-                      "a ranker that raises must fall back to directory order, not kill the lane")
+        self.assertIn("newest_first=False", body,
+                      "the sweep is back on the default newest-first (or on directory order), so "
+                      "the order of work no longer matches the river he watches")
 
-    def test_the_doctor_and_the_sweeper_share_one_ranker(self):
-        self.assertIn("rank_by_panel",
-                      _calls(os.path.join(HERE, "console_doctor.py"),
-                             "_check_the_sweep_would_find_something"),
-                      "the doctor sorted inline while the sweeper used another rule — two answers "
-                      "to 'which reel next', and the sweeper's was the wrong one")
+    def test_it_asks_the_shared_lister_not_a_second_sort(self):
+        """ONE ordering rule. A local re-sort here would drift from the order every other reader
+        uses, which is the whole reason reel_dirs takes the parameter. [[copy-drift]]"""
+        calls = _calls(os.path.join(HERE, "control_app.py"), "_vault_sweep_run")
+        self.assertIn("reel_dirs", calls,
+                      "the sweep no longer asks the shared reel lister at all")
+
+    def test_the_fifo_order_is_a_real_argument_not_a_comment(self):
+        """PARSED, NOT GREPPED — and the first cut of THIS LAW proved why. It searched the
+        function text for "newest_first=False" and matched the COMMENT line above the call, so it
+        would have passed with the argument deleted. Third time today a comment satisfied an
+        assertion meant for code.
+
+        It also guards the original defect: the first cut of the FIX was
+        `sorted(dirs, key=_reel_t0)` against a helper that does not exist, inside a try/except
+        that fell back to directory order — a NameError swallowed and FIFO silently never
+        happening. An argument on the call cannot fail that way.
+        [[source-reading-guard]] [[plumbing-with-no-tap]]"""
+        node, _ = _fn_node(os.path.join(HERE, "control_app.py"), "_vault_sweep_run")
+        found = []
+        for n in ast.walk(node):
+            if not isinstance(n, ast.Call):
+                continue
+            f = n.func
+            name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+            if name != "reel_dirs":
+                continue
+            for kw in n.keywords:
+                if kw.arg == "newest_first":
+                    found.append(getattr(kw.value, "value", "?"))
+        self.assertTrue(found,
+                        "reel_dirs is called without newest_first at all, so the sweep is back on "
+                        "the default newest-first and the order of work no longer matches the "
+                        "river he watches")
+        self.assertIn(False, found,
+                      "newest_first is not False — FIFO is oldest-unswept-first, so what entered "
+                      "first is worked first and leaves first")
 
 
 class TheBankNeverReadsEmptyWhenItIsUnknown(unittest.TestCase):

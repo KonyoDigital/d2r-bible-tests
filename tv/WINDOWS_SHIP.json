@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3178",
+  "ver": "v3179",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3178: Four corrections from his screenshots. The cross-reference footer read 0 of 135 yours beside a header saying you have 132 of 135, because those fields are only filled by a successful compare and the bitwise-or turned three unknowns into three confident zeros. The refusal columns rendered a whole paragraph where a column belongs, and the you-both-need column had vanished entirely when this console doctrine is that a section which disappears hides the finding it exists to show. The heart fan was sized by width alone so at his window it computed to 1500px of svg in 1100px of room and the bottom rank of labels fell off the screen. And frameless was reverted: it was added to remove a title bar and it cost him the minimise and window-mode controls while the white strip stayed anyway.",
+  "note": "v3179: One queue on his ruling: the sweep now walks reels oldest-first through the same shared lister every other reader uses, so the order of work matches the river he watches. The router already had an EMPTY station meaning retro_triage walked a reel in full and found zero panel frames, and the sweep had never asked it - so a reel already known to hold nothing still earned a paid read. The end-route row reported 14 dead-ended for versions while reprocessing_list, which names exactly what would unstick them in priority order, appeared once in the whole tree: its own def. And a row that said nothing is known about it either way rendered as a fault in his needs-you count.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
