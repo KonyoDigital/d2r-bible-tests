@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""A second eye that speaks the lane's language and answers in OpenAI's.
+
+`second_eye_run.py` invokes its eye as `[THIRD_EYE_CLI, "-p", <prompt>]` — the shape the Grok CLI
+takes. Codex takes its prompt on STDIN and refuses `-p`. This shim is the whole difference.
+
+⚠ WHY IT EXISTS. The lane was built provider-neutral (THIRD_EYE_CLI / THIRD_EYE_MODEL) and in
+practice only ever spoke to one provider, so when that provider answered
+`402 Payment Required — Grok Build usage balance exhausted` the seat went EMPTY and versions began
+shipping with no cross-family look at all. An empty seat is not agreement, and a lane that is
+neutral in its options but wired to one binary is neutral only on paper. [[the-unjoined-end]]
+
+⚠ READ-ONLY BY CONSTRUCTION. `-s read-only` means the reviewer structurally cannot write to the
+tree — which matters here more than usual: the Grok lane once had a review delete 29,245 lines of
+bible.html. `--ignore-user-config` keeps the browser/computer-use plugins and the notify hook out
+of a verification seat, and `--ephemeral` leaves no session files behind.
+"""
+import os
+import subprocess
+import sys
+
+MODEL_EFFORT = os.environ.get("CODEX_EYE_EFFORT") or "high"
+TIMEOUT = float(os.environ.get("THIRD_EYE_TIMEOUT_S") or "600")
+CODEX = os.environ.get("CODEX_BIN") or os.path.expanduser("~/.local/bin/codex")
+
+
+def main(argv):
+    prompt = ""
+    for i, a in enumerate(argv):
+        if a == "-p" and i + 1 < len(argv):
+            prompt = argv[i + 1]
+            break
+    if not prompt:
+        prompt = sys.stdin.read()
+    if not prompt.strip():
+        sys.stderr.write("codex_eye: no prompt given\n")
+        return 2
+    if not os.path.exists(CODEX):
+        sys.stderr.write("codex_eye: no codex at %s (set CODEX_BIN)\n" % CODEX)
+        return 3
+    try:
+        p = subprocess.Popen(
+            [CODEX, "exec", "--ignore-user-config", "-s", "read-only",
+             "--skip-git-repo-check", "--ephemeral",
+             "-c", 'model_reasoning_effort="%s"' % MODEL_EFFORT],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate(prompt.encode("utf-8", "replace"), timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        try:
+            p.kill()
+        except Exception:
+            pass
+        sys.stderr.write("codex_eye: timed out after %.0fs\n" % TIMEOUT)
+        return 4
+    except Exception as e:
+        sys.stderr.write("codex_eye: %s\n" % e)
+        return 5
+    # ⚠ THE ANSWER ONLY. codex prints its own banner, token accounting and progress chatter to
+    # stdout alongside the review; the lane records stdout verbatim, so the noise would be filed as
+    # findings. Everything before the final `codex` banner is machinery, not the verdict.
+    text = out.decode("utf-8", "replace")
+    marker = text.rfind("\x1b[35m\x1b[3mcodex\x1b[0m\x1b[0m")
+    if marker >= 0:
+        text = text[marker:]
+        text = text.split("\n", 1)[1] if "\n" in text else text
+    tail = text.rfind("tokens used")
+    if tail > 0:
+        text = text[:tail]
+    sys.stdout.write(text.strip() + "\n")
+    if p.returncode not in (0, None):
+        sys.stderr.write(err.decode("utf-8", "replace")[-400:])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
