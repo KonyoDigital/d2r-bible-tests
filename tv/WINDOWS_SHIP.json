@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3167",
+  "ver": "v3168",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3167: the vault receipt lane is now watched, and evidence was publishing only key names",
+  "note": "v3168: vaultRemove(names) and vaultRestoreLast() give the vault the same care chronicleApply has: dated, listed in d2r_vaultRemoved (ring of 20, the depth d2r_chronApplied uses), undoable, and stamped ONCE for the whole batch instead of once per name. The one-click vaultUnown now routes through the same door, so no removal escapes the journal. The locker assignment is recorded and given back, because an undo that returns an item unfiled has lost where it lived while looking like it worked. A batch is stamped with its ledger and refused on another board. Heart organ check_vault_removals watches the JOIN, not just the door, and says SINCE WHEN its zero counts from. 10 laws, every one seen RED.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -2906,6 +2906,27 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_the_removal_door_is_undoable",
+         [sys.executable, os.path.join(HERE, "test_the_removal_door_is_undoable.py")], 180,
+         why="HIS ORDER, 2026-09-15: a board-side removal door with the same care as "
+             "chronicleApply \u2014 dated, listed, undoable, stamped once. #96 has to take ~150 "
+             "backfilled names out of d2r_owned and the only remover that existed was "
+             "vaultUnown(name): one name, one render, one save, NO RECORD, and an undo that "
+             "lived only in his memory. v3168 adds vaultRemove(names[]) + vaultRestoreLast() "
+             "and ROUTES the one-click path through the same door, so every removal on the "
+             "board is journaled to d2r_vaultRemoved (ring of 20, the same depth "
+             "d2r_chronApplied uses). The laws DRIVE the shipped function bodies in node \u2014 "
+             "not a paraphrase \u2014 and pin: a name the board does not hold is `skipped` not "
+             "`removed`; the locker assignment is recorded and given back, because an undo that "
+             "returns the item UNFILED has lost where it lived while looking like it worked; a "
+             "name he re-ticked himself is LEFT ALONE, chronicleUndoLast's own rule mirrored; a "
+             "batch cut on another ledger is REFUSED and stays undoable on its own board, "
+             "because v2692 is that hazard in the other direction and it reached his cousin's "
+             "board; and the journal forks exactly like d2r_owned, which is in neither fork set. "
+             "10 laws, every one seen RED by a sabotage that deletes the real thing. The heart "
+             "organ check_vault_removals watches the JOIN, not just the door: if the one-click "
+             "path ever stops routing through it, single removals go back to leaving no record "
+             "while the batch count still looks healthy."),
     Gate("test_the_vault_receipt_is_watched",
          [sys.executable, os.path.join(HERE, "test_the_vault_receipt_is_watched.py")], 120,
          why="HE ASKED FOR A RECEIPT ON A VAULT ITEM AND PUSHED BACK WHEN I SAID NOTHING WAS "

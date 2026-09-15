@@ -1002,7 +1002,14 @@ def _receipt_hooks():
     except Exception:
         return {"ok": False}
     _val = {"ok": True}
-    for _k in ("rc-art", "rcpt-ic", "data-frame"):
+    # v3168 - the REMOVAL DOOR's tokens ride along in this same read. bible.html is ~6 MB and a
+    # second organ opening it again per tick is the shape that made /api/heart cost 20 s, so both
+    # vault organs ask one reader. The door is DRIVEN end-to-end in node by
+    # test_the_removal_door_is_undoable.py; this count only answers "is it still on the page",
+    # which is a presence question a count can honestly answer. [[source-reading-guard]]
+    for _k in ("rc-art", "rcpt-ic", "data-frame",
+               "window.vaultRemove = function", "window.vaultRestoreLast = function",
+               "d2r_vaultRemoved", "window.vaultRemove([name]"):
         _val[_k] = _src.count(_k)
     globals()["_RECEIPT_CACHE"] = {"key": _key, "val": _val}
     return _val
@@ -1143,10 +1150,95 @@ def check_lane_attacks():
                     (l, _conf.wilson_lower(_lanes[l][0], _lanes[l][1])) for l in _proven))
 
 
+def check_vault_removals(backup_dir=None):
+    """Is every removal from his vault dated, listed and UNDOABLE? -> row
+
+    HIS ORDER, 2026-09-15: *"Build a removal door - a board-side vault_remove(names[]) with the
+    same care as chronicleApply: dated, listed, undoable, and stamped once... connect it to the
+    heart of the console so its tracked."*
+
+    WHAT THIS WATCHES. #96 has to take ~150 backfilled names out of `d2r_owned`. Until v3168 the
+    only board-side remover was `vaultUnown(name)`: one name, no record, and an undo that lived
+    only in his memory. v3168 added the batch door AND routed the one-click path through it, so
+    every removal on the board is journaled to `d2r_vaultRemoved` (a ring of 20 batches).
+
+    THE ZERO HERE HAS A DENOMINATOR, AND IT IS NOT THE OBVIOUS ONE. An empty journal means
+    "nothing removed SINCE THE DOOR SHIPPED" - never "nothing was ever removed", because every
+    removal before v3168 left no trace at all. This row says which of the two it is measuring,
+    because a bare 0 beside the word "removals" would be read as the stronger claim.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+    AND IT WATCHES THE JOIN, NOT JUST THE DOOR. If the one-click path ever stops routing through
+    vaultRemove, single removals go back to leaving no record while the batch count still looks
+    healthy - the failure would be INVISIBLE in a row that only counted batches.
+    [[the-unjoined-end]]
+    """
+    _atkK, _atkN = _attack_tally("health_engine")
+    import glob as _glob
+    import json as _json
+    _h = _receipt_hooks()
+    _door = bool(_h.get("ok") and _h.get("window.vaultRemove = function")
+                 and _h.get("window.vaultRestoreLast = function"))
+    _routed = bool(_h.get("ok") and _h.get("window.vaultRemove([name]"))
+    if not _door:
+        return _row("vaultRemovals", WARN,
+                    "the board has no removal door - items can still be taken out of the vault, "
+                    "but nothing records what left or lets him put it back",
+                    evidence=["door: absent from bible.html"], k=_atkK, n=_atkN)
+    _dir = backup_dir or os.path.expanduser("~/d2r_ledger_backups")
+    try:
+        _files = sorted(_glob.glob(os.path.join(_dir, "ledger_*.json")))
+    except Exception:
+        _files = []
+    if not _files:
+        return _row("vaultRemovals", UNKNOWN,
+                    "the removal door is on the board, but no ledger backup exists yet - so "
+                    "whether anything has been removed is UNKNOWN, not zero",
+                    evidence=["door: present", "one-click routed: %s" % _routed],
+                    k=_atkK, n=_atkN)
+    try:
+        with io.open(_files[-1], encoding="utf-8") as _fh:
+            _b = _json.load(_fh)
+        _a = _b.get("allStores") or {}
+        _raw = _a.get("d2r_vaultRemoved")
+        _log = _json.loads(_raw) if _raw else []
+        if not isinstance(_log, list):
+            _log = []
+    except Exception as _e:
+        return _row("vaultRemovals", UNKNOWN,
+                    "the newest ledger backup could not be read (%s), so the removal journal is "
+                    "UNKNOWN rather than empty" % type(_e).__name__,
+                    evidence=["door: present"], k=_atkK, n=_atkN)
+    _names = sum(len(_x.get("names") or []) for _x in _log if isinstance(_x, dict))
+    _newest = None
+    for _x in _log:
+        if isinstance(_x, dict) and _x.get("day"):
+            _newest = _x.get("day")
+    _ev = ["door: present, undo: present",
+           "one-click path routed through the door: %s" % _routed,
+           "batches in the journal: %d (the ring caps at 20)" % len(_log),
+           "names removed through the door: %d" % _names,
+           "newest batch: %s" % (_newest or "none"),
+           "read from: %s" % os.path.basename(_files[-1])]
+    _state = OK
+    if not _log:
+        _line = ("the removal door is live and nothing has been removed through it yet - a real "
+                 "zero for removals SINCE v3168, not a claim about anything removed before it")
+    else:
+        _line = ("%d name(s) removed from the vault across %d journaled batch(es), newest %s - "
+                 "every one of them still undoable" % (_names, len(_log), _newest or "undated"))
+    if not _routed:
+        _line += ("; but the one-click un-own no longer routes through the door, so single "
+                  "removals are leaving no record beside the batches")
+        _state = WARN
+    return _row("vaultRemovals", _state, _line, evidence=_ev, k=_atkK, n=_atkN)
+
+
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
-          check_lane_liveness, check_lane_attacks, check_vault_receipts]
+          check_lane_liveness, check_lane_attacks, check_vault_receipts,
+          check_vault_removals]
 
 
 def report(evaluate=None, board=None):

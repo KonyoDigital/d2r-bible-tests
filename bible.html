@@ -37235,12 +37235,145 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v226: erase an AI misread in one click — removes the ✓ owned mark itself
   // (not just the locker assignment). Recoverable: re-✓ on the item's card.
   window.vaultUnown = function(name){
-    try { owned.delete(name); } catch(e){}
-    delete assign[name];
-    persistOwned(); saveA(); renderVault(); refreshOpenCard();
-    window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
-    status('🗑 "'+name+'" removed from owned — if that was wrong, re-✓ it on its item card');
+    /* v3168 (#96) — ROUTED THROUGH THE REMOVAL DOOR. This used to delete straight out of
+       `owned` and record NOTHING, so the removal journal's count had the wrong denominator:
+       it would have measured removals THROUGH THE DOOR while the one-click path quietly took
+       items out beside it — an honest-looking zero over a question nobody asked.
+       Every removal on this board is now dated, listed and undoable by the same road.
+       The wording stays his (`re-✓ it on its item card`); only the plumbing moved.
+       [[zero-needs-a-denominator]] [[the-unjoined-end]] */
+    var r = window.vaultRemove([name], {lane: 'card-click',
+                                        why: 'un-owned from the item card', quiet: true});
+    if (r && r.removed.length) {
+      status('🗑 "'+name+'" removed from owned — if that was wrong, re-✓ it on its item card, '
+             + 'or undo the whole batch with vaultRestoreLast()');
+    } else {
+      status('"'+name+'" was not in owned — nothing removed');
+    }
+    return r;
   };
+  /* ═════ v3168 (#96) — THE REMOVAL DOOR ════════════════════════════════════════════════════
+     vaultUnown above takes ONE name and records NOTHING. That is right for a single AI misread
+     clicked off a card, and wrong for the 150 backfilled names #96 has to take out: 150 calls
+     means 150 renders, 150 saves, 150 status lines — and no record, so "undo" would mean
+     remembering 150 names by hand.
+
+     His order: a board-side removal door with the same care as chronicleApply — dated, listed,
+     undoable, stamped once. So this mirrors chronicleApply/chronicleUndoLast joint for joint:
+       · DATED        every batch carries ts (ms) and the ISO day.
+       · LISTED       appended to d2r_vaultRemoved, ring-capped at 20 — the SAME number
+                      d2r_chronApplied uses (slice(-20)), deliberately, because a second
+                      convention is a second thing to remember. [[copy-drift]]
+       · UNDOABLE     vaultRestoreLast() reverses exactly one batch and only what that batch
+                      removed — chronicleUndoLast's own rule, mirrored: "if he has since
+                      un-ticked it himself, leave his truth alone." Here: if he has since
+                      re-checked a name, the restore does not touch it.
+       · STAMPED ONCE one persist, one render, one status line for the whole batch.
+
+     THE LOCKER ASSIGNMENT IS PART OF THE REMOVAL. vaultUnown deletes assign[name] as well as
+     the owned mark, so a restore that gives back ownership alone returns the item UNFILED —
+     it would lose where the item lived and look like a successful undo. Each batch records the
+     assignment it deleted and puts it back, unless a NEWER filing exists. [[the-unjoined-end]]
+
+     A BATCH NEVER CROSSES WORLDS. v2692 sits further down this file: a one-shot guarded only
+     by "the foundLog is not empty" applied Konyo's personal ruling to his cousin's board, 12
+     items. A removal journal is that hazard in reverse — restoring a batch into a world that
+     never held those names would WRITE finds nobody made. Every batch carries the ledger it
+     was cut on, and restore refuses any other. [[unknown-stays-unknown]]
+
+     FORK CLASS, MEASURED: d2r_owned is in neither _LP_FORKED nor _WP_FORKED, so LSR resolves it
+     BARE in all four worlds (owner main/ladder, guest main/ladder). d2r_vaultRemoved is in
+     neither set either, so the journal forks exactly like the store it describes. A journal
+     that forked differently would offer a restore for names the active world never held.
+     Gated by test_the_removal_journal_forks_like_the_store.py. [[ladder-doctrine]] */
+  var _VR_LOG = 'd2r_vaultRemoved', _VR_RING = 20;
+  function _vrRead(){
+    try { var a = JSON.parse(window.LSR.getItem(_VR_LOG) || '[]'); return Array.isArray(a) ? a : []; }
+    catch(e){ return []; }
+  }
+  function _vrWrite(log){
+    try { window.LSR.setItem(_VR_LOG, JSON.stringify(log.slice(-_VR_RING))); } catch(e){}
+  }
+  /* the heart and the console read the journal through here, never off the raw key — one
+     accessor means the fork rule above is applied in exactly one place. */
+  window.vaultRemovalLog = function(){ return _vrRead(); };
+
+  window.vaultRemove = function(names, opts){
+    opts = opts || {};
+    var req = Array.isArray(names) ? names : (names == null ? [] : [names]);
+    var removed = [], skipped = [], filed = {}, seen = {};
+    req.forEach(function(raw){
+      var nm = String(raw == null ? '' : raw);
+      if (!nm || seen[nm]) return;      /* the same name twice is one removal, not two */
+      seen[nm] = 1;
+      /* A NAME THE BOARD DOES NOT HOLD IS `skipped`, NEVER `removed`. Counting it as removed
+         would report "150 of 150" for a run that actually took out three, and the caller would
+         have no way to tell the difference. The denominator is what was ASKED; the numerator is
+         what was actually there to take. [[zero-needs-a-denominator]] */
+      if (!owned.has(nm)) { skipped.push(nm); return; }
+      if (assign[nm] != null) filed[nm] = assign[nm];
+      owned['delete'](nm);
+      delete assign[nm];
+      removed.push(nm);
+    });
+    /* AN EMPTY BATCH IS NOT WRITTEN. A stamp for nothing would push a real batch out of the
+       20-deep ring and offer him an undo that restores nothing. */
+    var batch = null;
+    if (removed.length) {
+      var ts = Date.now();
+      batch = { ts: ts,
+                day: (function(){ try { return new Date(ts).toISOString().slice(0,10); } catch(e){ return null; } })(),
+                ledger: (window._D2R_LEDGER || null),
+                profile: (window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'),
+                names: removed,
+                filed: filed,
+                why: String(opts.why || 'removed from owned'),
+                lane: String(opts.lane || 'manual') };
+      var log = _vrRead(); log.push(batch); _vrWrite(log);
+      persistOwned(); saveA(); renderVault(); refreshOpenCard();
+      window._repaintOwned();
+      if (!opts.quiet) status('🗑 removed ' + removed.length + ' of ' + req.length + ' from owned'
+             + (skipped.length ? ' — ' + skipped.length + ' were not held' : '')
+             + ' — undo: vaultRestoreLast()');
+    } else if (req.length && !opts.quiet) {
+      status('nothing removed — none of the ' + req.length + ' name(s) are in owned');
+    }
+    return { requested: req.length, removed: removed, skipped: skipped,
+             ts: batch ? batch.ts : null, batch: batch };
+  };
+
+  /* The reverse of exactly one batch — and ONLY of what that batch removed. */
+  window.vaultRestoreLast = function(){
+    var log = _vrRead();
+    var last = log.pop();
+    if (!last) return { restored: 0, kept: 0, why: 'the removal journal is empty' };
+    var here = (window._D2R_LEDGER || null);
+    if (last.ledger && here && last.ledger !== here) {
+      /* refused, and the journal on DISK is untouched — `log` is an in-memory copy and the
+         write below never runs. A batch refused is a batch still undoable on its own board. */
+      return { restored: 0, kept: 0,
+               why: 'that batch was cut on ' + last.ledger + ', this board is ' + here };
+    }
+    var back = [], kept = [];
+    (last.names || []).forEach(function(nm){
+      if (owned.has(nm)) { kept.push(nm); return; }   /* he re-checked it himself — his truth stands */
+      owned.add(nm);
+      var f = last.filed && last.filed[nm];
+      /* NEVER OVERWRITE A NEWER FILING. If the name has been assigned since the removal, that
+         assignment is his, not this batch's to restore over. */
+      if (f != null && assign[nm] == null) {
+        try { if (typeof muleById === 'function' && muleById(f)) assign[nm] = f; } catch(e){}
+      }
+      back.push(nm);
+    });
+    _vrWrite(log);
+    persistOwned(); saveA(); renderVault(); refreshOpenCard();
+    window._repaintOwned();
+    status('↩ restored ' + back.length + ' of ' + (last.names || []).length
+           + (kept.length ? ' — ' + kept.length + ' you had already re-checked' : ''));
+    return { restored: back.length, kept: kept.length, ts: last.ts, ledger: last.ledger };
+  };
+
   // v342.3 — throw out a Magic & Rare keeper (rolled-name item; lives in magicFinds, not grail `owned`)
   window.vaultThrowFind = function(name){
     try { delete magicFinds[name]; } catch(e){}
@@ -50119,7 +50252,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3167', name:'v3167 - --note', date:'2026-09-15', note:'the vault receipt lane is now watched, and evidence was publishing only key names' };
+  window.D2R_BUILD = { id:'v3168', name:'v3168 - THE REMOVAL DOOR', date:'2026-09-15', note:'vaultRemove(names) and vaultRestoreLast() give the vault the same care chronicleApply has: dated, listed in d2r_vaultRemoved (ring of 20, the depth d2r_chronApplied uses), undoable, and stamped ONCE for the whole batch instead of once per name. The one-click vaultUnown now routes through the same door, so no removal escapes the journal. The locker assignment is recorded and given back, because an undo that returns an item unfiled has lost where it lived while looking like it worked. A batch is stamped with its ledger and refused on another board. Heart organ check_vault_removals watches the JOIN, not just the door, and says SINCE WHEN its zero counts from. 10 laws, every one seen RED.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

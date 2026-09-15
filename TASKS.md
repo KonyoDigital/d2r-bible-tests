@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3167** | `(this commit)` | v3167 — the vault receipt lane is now watched, and evidence was publishing only key names |
+| **v3168** | `(this commit)` | v3168 — vaultRemove(names) and vaultRestoreLast() give the vault the same care chronicleApply has: dated, listed in d2r_vaultRemoved (ring of 20, the depth d2r_chronApplied uses), undoable, and stamped ONCE for the whole batch instead of once per name. The one-click vaultUnown now routes through the same door, so no removal escapes the journal. The locker assignment is recorded and given back, because an undo that returns an item unfiled has lost where it lived while looking like it worked. A batch is stamped with its ledger and refused on another board. Heart organ check_vault_removals watches the JOIN, not just the door, and says SINCE WHEN its zero counts from. 10 laws, every one seen RED. |
+| **v3167** | `906c0e0b` | v3167 — the vault receipt lane is now watched, and evidence was publishing only key names |
 | **v3166** | `d576f959` | v3166 — the law now sees the write shape that actually caused the bug |
 | **v3165** | `a15aea2c` | v3165 — a probe door the only measuring party can actually open |
 | **v3164** | `5c85d280` | v3164 — a racy global kept for nobody is liability with no benefit |

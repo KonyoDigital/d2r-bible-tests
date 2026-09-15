@@ -284,7 +284,16 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
                 targets = list(node.targets)
             elif isinstance(node, (_ast.AugAssign, _ast.AnnAssign)):
                 targets = [node.target]
+            # ⚠ FLATTEN TUPLE AND LIST TARGETS. Found by the Codex eye on v3166:
+            # `globals()["LAST_SHIP_TABLE_OK"], _ = _ship_ok, None` restores the race while a
+            # check that only looks at direct Name/Subscript targets stays green.
+            flat = []
             for t2 in targets:
+                if isinstance(t2, (_ast.Tuple, _ast.List)):
+                    flat.extend(t2.elts)
+                else:
+                    flat.append(t2)
+            for t2 in flat:
                 if isinstance(t2, _ast.Name):
                     written.add(t2.id)
                 elif isinstance(t2, _ast.Subscript):
@@ -292,11 +301,20 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
                     # that returns the constant's STRING, so the isinstance(Constant) below never
                     # matched and the check still missed globals()["X"] = ... . Driving it against
                     # the historical line is the only reason I know — it printed False.
+                    # ⚠ ONLY A globals() SUBSCRIPT IS A MODULE GLOBAL. Its other finding: this
+                    # treated EVERY obj["LAST_SHIP_TABLE_OK"] as global, so a correct per-call
+                    # `state["LAST_SHIP_TABLE_OK"] = v` would fail this law on the strength of the
+                    # field NAME alone — blocking the very shape the fix is built on.
+                    _base = t2.value
+                    _is_globals = (isinstance(_base, _ast.Call)
+                                   and getattr(_base.func, "id", "") == "globals")
+                    if not _is_globals:
+                        continue
                     k = t2.slice
                     if k.__class__.__name__ == "Index":          # py < 3.9
                         k = k.value
                     if isinstance(k, _ast.Constant) and isinstance(k.value, str):
-                        written.add(k.value)          # globals()["X"] = ... and any dict write
+                        written.add(k.value)
         self.assertNotIn(
             "LAST_SHIP_TABLE_OK", written,
             "the ship-table verdict is written to a module global again (as a bare assignment, an "
@@ -304,7 +322,60 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
             "each other's answer and the warning that keeps rowless versions visible lands on the "
             "wrong run or is lost")
 
+    def test_the_guard_sees_a_TUPLE_target_and_spares_per_call_state(self):
+        """Both from the Codex eye on v3166. A guard that only looks at direct Name/Subscript
+        targets is walked around by `globals()["X"], _ = v, None`; a guard that treats EVERY
+        obj["X"] as global fails a correct `state["X"] = v` on the strength of the field NAME."""
+        import ast as _ast
+
+        def _written(src):
+            out = set()
+            for node in _ast.walk(_ast.parse(src)):
+                targets = []
+                if isinstance(node, _ast.Assign):
+                    targets = list(node.targets)
+                elif isinstance(node, (_ast.AugAssign, _ast.AnnAssign)):
+                    targets = [node.target]
+                flat = []
+                for t2 in targets:
+                    if isinstance(t2, (_ast.Tuple, _ast.List)):
+                        flat.extend(t2.elts)
+                    else:
+                        flat.append(t2)
+                for t2 in flat:
+                    if isinstance(t2, _ast.Name):
+                        out.add(t2.id)
+                    elif isinstance(t2, _ast.Subscript):
+                        b = t2.value
+                        if not (isinstance(b, _ast.Call)
+                                and getattr(b.func, "id", "") == "globals"):
+                            continue
+                        k = t2.slice
+                        if k.__class__.__name__ == "Index":
+                            k = k.value
+                        if isinstance(k, _ast.Constant) and isinstance(k.value, str):
+                            out.add(k.value)
+            return out
+
+        N = "LAST_SHIP_TABLE_OK"
+        self.assertIn(N, _written('def f():\n    globals()["%s"], _ = 1, 2\n' % N),
+                      "a TUPLE target walked around the guard and the race came back green")
+        self.assertIn(N, _written('def f():\n    globals()["%s"] = 1\n' % N))
+        self.assertIn(N, _written('%s = 1\n' % N))
+        self.assertNotIn(N, _written('def f(state):\n    state["%s"] = 1\n' % N),
+                         "a correct PER-CALL state dict was rejected because of the field name — "
+                         "the guard would block the very shape the fix is built on")
+
 RED_PROOF = [
+    {
+        "why": "stops flattening tuple targets, so `globals()[\"X\"], _ = v, None` restores the "
+               "cross-audit race while the guard stays green",
+        "file": "test_the_ledger_cannot_lie_about_what_it_saw.py",
+        "find": "                if isinstance(t2, (_ast.Tuple, _ast.List)):\n                    flat.extend(t2.elts)\n                else:\n                    flat.append(t2)",
+        "replace": "                flat.append(t2)",
+        "matches": 1,
+    },
+
     {
         'why': 'puts the verdict back in a module global in the EXACT historical shape — globals()[...] inside audit() — which the first version of this law could not see at all, so the race returns while the guard stays green',
         'file': 'second_eye_ledger.py',
