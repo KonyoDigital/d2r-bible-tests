@@ -171,32 +171,31 @@ class TheRiverReadsAsFourLanes(unittest.TestCase):
             return {"__err": (r.stderr or "")[:300]}
         return json.loads(r.stdout.strip().splitlines()[-1])
 
-    def test_the_shelf_orders_its_sections_by_lane(self):
-        LANES = [{"name": "INTAKE", "stations": ["INTAKE", "TRIAGE", "STATION", "EMPTY"]},
-                 {"name": "PRINTER", "stations": ["PRINTER"]},
-                 {"name": "CAPTURE", "stations": ["CAPTURE", "JOIN"]},
-                 {"name": "TOMBSTONE", "stations": ["ROUTED", "TOMBSTONE"]}]
-        FLAT = ["INTAKE", "TRIAGE", "EMPTY", "STATION", "PRINTER", "JOIN", "CAPTURE",
-                "ROUTED", "TOMBSTONE"]
-        got = self._run_order(LANES, FLAT)
-        if got is None:
-            self.skipTest("node unavailable, or the ordering block moved — a skip is NOT a pass")
-        if isinstance(got, dict):
-            self.fail("the shipped ordering block would not execute: %s" % got.get("__err"))
-        self.assertEqual(
-            got, ["INTAKE", "TRIAGE", "STATION", "EMPTY", "PRINTER", "CAPTURE", "JOIN",
-                  "ROUTED", "TOMBSTONE"],
-            "the section order is not the LANES' order. The flat list transposes STATION/EMPTY and "
-            "JOIN/CAPTURE, which is why a lane's own sections were not adjacent on his screen.")
+    # ⚠⚠ v3191 — TWO TESTS RETIRED DELIBERATELY, AND WHAT REPLACED THEM PINS THE RULING.
+    # `test_the_shelf_orders_its_sections_by_lane` and `test_the_flat_list_is_only_a_fallback`
+    # drove the block that grouped cards into per-STATION sections and ordered those sections by
+    # lane. His #97 ruling removed sections entirely — "all these anyways need to end up unified
+    # in one section" — so that block has no referent and both tests had begun SKIPPING, which is
+    # the worst outcome: a skip is not a pass, and a law that skips forever hides the very absence
+    # it was written to notice.
+    #
+    # The river STRIP still reads as four lanes and is covered by the six tests below and by
+    # test_the_river_strip_reads_as_a_river. What is gone is section ordering, and the honest
+    # replacement is a law that FAILS if sections ever come back without his say-so.
 
-    def test_the_flat_list_is_only_a_fallback(self):
-        FLAT = ["INTAKE", "TRIAGE", "EMPTY", "STATION"]
-        got = self._run_order(None, FLAT)
-        if got is None:
-            self.skipTest("node unavailable — a skip is NOT a pass")
-        self.assertEqual(got, FLAT,
-                         "with no lanes the shelf must still render from the flat station list; "
-                         "an older console or a river that answered without lanes would go blank")
+    def test_the_cards_are_one_flow_not_per_station_sections(self):
+        """His ruling, pinned from the other side: the shelf must not regrow station sections."""
+        blk = UI
+        # the section builder bucketed cards by station before ordering the buckets by lane
+        for gone in ("var byStation = {}", "ordG = []"):
+            self.assertNotIn(gone, blk,
+                             "the per-station section builder is back (%r). His ruling is ONE "
+                             "river: 'all these anyways need to end up unified in one section'. "
+                             "If that is being reversed deliberately, retire this law in the same "
+                             "commit rather than leaving it to fail." % gone)
+        self.assertIn("var RIVER_KEEP = 8;", blk,
+                      "the one-river flow is gone and nothing replaced it")
+        print("no per-station section builder; the single river flow is present")
 
     def test_the_label_is_printed_and_the_key_is_kept(self):
         self.assertIn("SHELF_RIVER_LABELS[st]) || st", UI,
@@ -208,27 +207,14 @@ class TheRiverReadsAsFourLanes(unittest.TestCase):
 
 
 RED_PROOF = [
+    {'why': 'renaming his own word for the stage puts the confusion he reported straight back', 'file': 'reel_router.py', 'find': '"INTAKE": "FRESH"', 'replace': '"INTAKE": "SURVEY"', 'matches': 1},
     {
-        "why": "renaming his own word for the stage puts the confusion he reported straight back",
-        "file": "reel_router.py",
-        "find": '"INTAKE": "FRESH"',
-        "replace": '"INTAKE": "SURVEY"',
-        "matches": 1,
-    },
-    {
-        "why": "dropping the lane flattening returns the shelf to nine flat sections in an order "
-               "whose stations are not even adjacent",
-        "file": "control_ui.html",
-        "find": "        ordG = [];",
-        "replace": "        ordG = null;",
-        "matches": 1,
-    },
-    {
-        "why": "removing EMPTY/STATION is what he first asked for, and it orphans the six reels "
-               "stationed at STATION",
-        "file": "reel_router.py",
-        "find": 'STATIONS = ("INTAKE", "TRIAGE", "EMPTY", "STATION", "PRINTER", "JOIN", "CAPTURE",',
-        "replace": 'STATIONS = ("INTAKE", "TRIAGE", "PRINTER", "JOIN", "CAPTURE",',
+        "why": 'the law now pins his ONE-RIVER ruling from the other side: the single flow must '
+               'exist and the per-station section builder must not come back. Deleting the flow '
+               'must turn the gate red',
+        "file": 'control_ui.html',
+        "find": 'var RIVER_KEEP = 8;',
+        "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
 ]

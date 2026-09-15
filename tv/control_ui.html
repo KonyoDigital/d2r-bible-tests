@@ -16632,7 +16632,17 @@ window._lockMark = function(isOpen, px, label){
     });
     var mkHead = function(lab, n, before, cls){
       var h = document.createElement('div'); h.className = 'sh-daygroup' + (cls || '');
-      h.innerHTML = '<span class="shg-lab">' + lab + '</span><span class="shg-n">' + n + ' run' + (n === 1 ? '' : 's') + '</span>';
+      /* ══ v3191 — THE COUNT SAYS WHICH POPULATION IT COUNTED ══════════════════════════════
+         This number counts CARDS on the shelf. The river STRIP a few pixels above counts REELS
+         off /api/river — a different population — and before the sections went away each lane
+         header carried a title saying so. His one-river ruling removed the per-lane headers and
+         the statement went with them, leaving one bare "N runs" beside a strip whose numbers are
+         about something else. The two are still different populations; only the place to say so
+         moved. [[label-outlived-referent]] [[zero-needs-a-denominator]] */
+      h.innerHTML = '<span class="shg-lab">' + lab + '</span>'
+        + '<span class="shg-n" title="runs on the shelf right now — the river strip above counts '
+        + 'REELS off the router, which is a different population">'
+        + n + ' run' + (n === 1 ? '' : 's') + '</span>';
       grid.insertBefore(h, before);
     };
     // D26 — a "📌 Pinned" section over the pinned cards (which sort to the top), shown in ANY sort view

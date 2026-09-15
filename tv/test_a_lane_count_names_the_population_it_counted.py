@@ -44,74 +44,57 @@ def _between(src, start, end):
 
 class TestALaneCountNamesThePopulationItCounted(unittest.TestCase):
 
-    def test_the_lane_header_counts_cards_so_it_must_not_say_reels(self):
-        """PARSED out of the lane-header builder, comments stripped. [[source-reading-guard]]"""
-        blk = _between(UI, "_lh.className = 'sh-daygroup sh-riverlane'", "grid.insertBefore(_lh")
-        self.assertIsNotNone(blk, "the lane-header builder could not be located")
+    # ⚠⚠ v3191 — RE-DERIVED, NOT DELETED, AND THE OLD BODY SAID TO DO EXACTLY THAT: "if the
+    # header stopped counting cards, re-derive the law rather than deleting it". His one-river
+    # ruling (#97) removed the per-lane sections, so `sh-riverlane` headers and their `_lc`
+    # counter no longer exist — but the DEFECT is untouched. There is now ONE river header and it
+    # still counts CARDS, while the river STRIP a few pixels above still counts REELS off the
+    # router. Two populations, and only one of them can own the word.
+
+    def test_the_river_header_counts_cards_so_it_must_not_say_reels(self):
+        """PARSED out of the river header builder, comments stripped. [[source-reading-guard]]"""
+        blk = _between(UI, "var mkHead = function(lab, n, before, cls){", "grid.insertBefore(h, before);")
+        self.assertIsNotNone(blk, "the river header builder could not be located — fix this "
+                                  "anchor before believing anything below it")
         code = re.sub(r"/\*.*?\*/", "", blk, flags=re.S)
-        # it must still be counting CARDS — that is what makes the noun matter
-        # ⚠ the index is NESTED (`byStation[_lst[_lk]]`), so a [^\]]+ class cannot reach past
-        # the inner bracket — it matched 0 and looked like the header had stopped counting
-        # cards. The instrument, not the code. [[feedback-suspect-the-instrument]]
-        counts_cards = re.findall(r"_lc\s*\+=\s*\(\(byStation\[.+?\]\s*\|\|\s*\[\]\)\.length\)", code)
-        print("card-counting expressions in the lane header: %d" % len(counts_cards))
-        self.assertEqual(1, len(counts_cards),
-                         "this law is about a CARD count wearing the wrong noun; if the header "
-                         "stopped counting cards, re-derive the law rather than deleting it")
-        said_reel = re.findall(r"'\s*reel'", code)
-        said_run = re.findall(r"'\s*run'", code)
-        print("noun printed -> reel: %d · run: %d" % (len(said_reel), len(said_run)))
-        self.assertEqual(0, len(said_reel),
-                         "the lane header counts CARDS; calling them reels puts two populations "
-                         "under one word on a screen that also prints a real reel count")
-        self.assertEqual(1, len(said_run), "it must name what it counted")
-
-    def test_the_shelf_uses_run_for_a_card_everywhere_it_already_speaks(self):
-        """The noun is not invented here — the shelf already calls a card a RUN."""
-        code = re.sub(r"/\*.*?\*/", "", UI, flags=re.S)
-        empties = re.findall(r"empty runs", code)
-        searchbar = re.findall(r"Search runs", code)
-        print("existing 'run' vocabulary on the shelf -> 'empty runs': %d · 'Search runs': %d"
-              % (len(empties), len(searchbar)))
-        self.assertGreaterEqual(len(empties) + len(searchbar), 2,
-                                "RUN must already be this shelf's word for a card, or the rename "
-                                "introduces a THIRD vocabulary instead of removing a second")
-
-    def test_the_river_strips_own_reel_count_is_untouched(self):
-        """The strip is correct. A fix here must not spread into it."""
-        code = re.sub(r"/\*.*?\*/", "", UI, flags=re.S)
-        hits = re.findall(r"</b>\s*reel\(s\) on the shelf", code)
-        print("river strip reel(s)-on-the-shelf phrases: %d" % len(hits))
-        self.assertEqual(1, len(hits),
-                         "the strip counts REELS from /api/river and says so; that phrase must "
-                         "survive, or a correct surface was collateral damage")
+        said_reel = re.findall(r"'[^']*\breels?\b[^']*'", code)
+        print("river-header strings saying reel: %r" % (said_reel,))
+        self.assertEqual([], said_reel,
+                         "the header counts CARDS on the shelf and called them reels — the strip "
+                         "above counts reels off the router and the two are different numbers")
+        self.assertIn("' run'", code, "the header no longer names what it counts at all")
 
     def test_the_count_carries_a_title_saying_which_population(self):
-        blk = _between(UI, "_lh.className = 'sh-daygroup sh-riverlane'", "grid.insertBefore(_lh")
-        code = re.sub(r"/\*.*?\*/", "", blk or "", flags=re.S)
-        has = re.findall(r'class="shg-n"\s*\+?\s*title=|class="shg-n"\s+title=', code)
-        print("lane count carries an explaining title: %d" % len(has))
-        self.assertEqual(1, len(has),
-                         "the number must say, on hover, which population it counted and that "
-                         "the strip above counts a different one")
+        """A number that cannot say what it counted is a number he has to guess about — and the
+        guess is available right above it, in a strip counting something else."""
+        blk = _between(UI, "var mkHead = function(lab, n, before, cls){", "grid.insertBefore(h, before);")
+        self.assertIsNotNone(blk, "the river header builder could not be located")
+        code = re.sub(r"/\*.*?\*/", "", blk, flags=re.S)
+        has_title = 'class="shg-n" title=' in code
+        print("the count carries a title: %s" % has_title)
+        self.assertTrue(has_title,
+                        "the number must say, on hover, which population it counted and that the "
+                        "strip above counts a different one")
+        self.assertIn("REELS", code,
+                      "the title does not name the OTHER population, so it explains nothing")
+
 
 
 RED_PROOF = [
     {
-        "why": "the lane header goes back to calling its CARD count 'reels', putting two "
-               "populations under one word on a screen that also prints a real reel count",
-        "file": "control_ui.html",
-        "find": "                + _lc + ' run' + (_lc === 1 ? '' : 's') + '</span>'",
-        "replace": "                + _lc + ' reel' + (_lc === 1 ? '' : 's') + '</span>'",
+        "why": 'the law requires the river header to NAME what it counts; deleting the noun must '
+               'turn the gate red',
+        "file": 'control_ui.html',
+        "find": "+ n + ' run' + (n === 1 ? '' : 's') + '</span>';",
+        "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
     {
-        "why": "the number stops saying which population it counted, so a reader has nothing to "
-               "tell it from the reel figure four inches above it",
-        "file": "control_ui.html",
-        "find": '                + \'<span class="shg-n" title="runs on the shelf stationed in this lane — the \'\n'
-                '                + \'river strip above counts REELS, which is a different population">\'',
-        "replace": '                + \'<span class="shg-n">\'',
+        "why": 'the law requires the count to say on hover WHICH population it counted, because '
+               'the river strip directly above counts a different one',
+        "file": 'control_ui.html',
+        "find": 'REELS off the router, which is a different population',
+        "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
 ]
