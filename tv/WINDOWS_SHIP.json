@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3166",
+  "ver": "v3167",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3166: the law now sees the write shape that actually caused the bug",
+  "note": "v3167: the vault receipt lane is now watched, and evidence was publishing only key names",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3166** | `(this commit)` | v3166 — the law now sees the write shape that actually caused the bug |
+| **v3167** | `(this commit)` | v3167 — the vault receipt lane is now watched, and evidence was publishing only key names |
+| **v3166** | `d576f959` | v3166 — the law now sees the write shape that actually caused the bug |
 | **v3165** | `a15aea2c` | v3165 — a probe door the only measuring party can actually open |
 | **v3164** | `5c85d280` | v3164 — a racy global kept for nobody is liability with no benefit |
 | **v3163** | `c34c8598` | v3163 — a default-off way to test the blur without changing what he sees |

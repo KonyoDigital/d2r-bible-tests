@@ -2906,6 +2906,19 @@ GATES = [
              "container by coin-flip, so an unplaced name there stays UNPLACED. Before -> after on "
              "his real journal: panel 110 -> 87, floor 208 -> 216, equipped 3, contradicted 12, "
              "unplaced 0, names 472 unchanged — every name in exactly one bucket."),
+    Gate("test_the_vault_receipt_is_watched",
+         [sys.executable, os.path.join(HERE, "test_the_vault_receipt_is_watched.py")], 120,
+         why="HE ASKED FOR A RECEIPT ON A VAULT ITEM AND PUSHED BACK WHEN I SAID NOTHING WAS "
+             "BUILT — he was right. The console already carries the whole apparatus: a "
+             "cursor-following frame float on `.rc-art`, a full-HD viewer on the `.rcpt-ic` eye "
+             "reading the real on-disk /hist/<frameId>.jpg, and a route-to-source click; the "
+             "evidence store already records {reel, frame, lane} per sighting. What never existed "
+             "is the INTRODUCTION — the vault emits NONE of those hooks, so a row in a locker "
+             "cannot show the frame that witnessed it. Built, correct, joined to nothing, and "
+             "nothing watched the join, which is why it stayed invisible until he remembered it. "
+             "MEASURED: 172 owned, 153 filed, ZERO carrying a sighting — a row with no receipt "
+             "looks identical to one with a reel behind it, which is how 150 rows from a retired "
+             "found-ever backfill sat in his lockers looking like real finds."),
     Gate("test_the_fleet_card_is_asked_again_when_he_looks",
          [sys.executable, os.path.join(HERE, "test_the_fleet_card_is_asked_again_when_he_looks.py")], 120,
          why="#82 — HIS CARD READ SETS 131/135 WHILE HIS BOARD HELD 132. Every trigger it had "

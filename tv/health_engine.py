@@ -978,6 +978,102 @@ def check_read_lanes_at_cap():
                 "%d read lane(s) measured, none at its ceiling" % len(lanes))
 
 
+_RECEIPT_CACHE = {"key": None, "val": None}
+
+
+def _receipt_hooks():
+    """Does the VAULT emit the hooks the receipt viewer reads? -> dict
+
+    ⚠ MEMOISED ON bible.html's OWN stat. That file is ~6 MB and the health report runs on his
+    console's timer; re-reading it every tick is the shape that made /api/heart cost 20s.
+    """
+    _p = os.path.join(os.path.dirname(HERE), "bible.html")
+    try:
+        _st = os.stat(_p)
+    except Exception:
+        return {"ok": False}
+    _key = (_st.st_mtime_ns, int(_st.st_size))
+    _snap = _RECEIPT_CACHE
+    if _snap.get("key") == _key and _snap.get("val") is not None:
+        return _snap["val"]
+    try:
+        with io.open(_p, encoding="utf-8") as _fh:
+            _src = _fh.read()
+    except Exception:
+        return {"ok": False}
+    _val = {"ok": True}
+    for _k in ("rc-art", "rcpt-ic", "data-frame"):
+        _val[_k] = _src.count(_k)
+    globals()["_RECEIPT_CACHE"] = {"key": _key, "val": _val}
+    return _val
+
+
+def check_vault_receipts(backup_dir=None):
+    """Can he SEE why a vault row is there? -> row
+
+    ⚠⚠ HIS ASK, AND HE WAS RIGHT THAT SOMETHING WAS BUILT. The console already carries the whole
+    receipt apparatus: a cursor-following frame float on `.rc-art`, a full-HD viewer on the
+    `.rcpt-ic` eye reading the real on-disk /hist/<frameId>.jpg, and a route-to-source click. The
+    evidence store already records `{reel, frame, lane}` per sighting.
+
+    What has never existed is the INTRODUCTION. The vault emits NONE of those hooks, so an item in
+    a locker cannot show the frame that witnessed it. Built, correct, and joined to nothing — the
+    same shape as the pixel witness before v2912 put it on the wire. [[the-unjoined-end]]
+
+    ⚠ AND THE COUNT IS THE POINT. MEASURED: 172 owned, 153 filed into lockers, ZERO carrying a
+    sighting. An item with no receipt looks identical to one with a reel behind it, which is how
+    150 rows from a retired found-ever backfill sat in his lockers looking exactly like finds.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    _atkK, _atkN = _attack_tally("health_engine")
+    import glob as _glob
+    import json as _json
+    # ⚠ a SEAM, so a law can drive an empty dir and an unreadable backup instead of waiting
+    # for his real one to be in the right state. An organ no law can drive is one no law tests.
+    _dir = backup_dir or os.path.expanduser("~/d2r_ledger_backups")
+    try:
+        _files = sorted(_glob.glob(os.path.join(_dir, "ledger_*.json")))
+    except Exception:
+        _files = []
+    if not _files:
+        return _row("vaultReceipts", UNKNOWN,
+                    "no ledger backup exists yet, so nothing here can say how many vault rows "
+                    "carry a receipt - which is not the same as saying none do",
+                    k=_atkK, n=_atkN)
+    try:
+        with io.open(_files[-1], encoding="utf-8") as _fh:
+            _b = _json.load(_fh)
+        _a = _b.get("allStores") or {}
+        _owned = _json.loads(_a.get("d2r_owned") or "[]")
+        _mule = _json.loads(_a.get("d2r_muleAssign") or "{}")
+        _ev = _json.loads(_a.get("d2r_foundEvidence") or "{}")
+    except Exception as _e:
+        return _row("vaultReceipts", UNKNOWN,
+                    "the newest ledger backup could not be read (%s), so the receipt count is "
+                    "UNKNOWN rather than zero" % type(_e).__name__,
+                    k=_atkK, n=_atkN)
+    _withev = [n for n in _owned if isinstance(_ev.get(n), dict) and (_ev[n].get("sightings") or [])]
+    _hooks = _receipt_hooks()
+    _joined = bool(_hooks.get("ok") and _hooks.get("rc-art"))
+    _line = ("%d of %d owned row(s) carry a sighting; %d are filed into a locker"
+             % (len(_withev), len(_owned), len(_mule)))
+    if not _joined:
+        _line += ("; and the vault emits NO receipt hook at all, so even a row that HAS a frame "
+                  "cannot show it - the viewer and the evidence have never been introduced")
+    _state = OK if (_joined and _withev) else (WARN if _owned else UNKNOWN)
+    return _row("vaultReceipts", _state, _line,
+                # ⚠ A LIST, NOT A DICT. `_row` does `list(evidence or [])`, so a dict lands as
+                # its KEY NAMES and every number is lost. v3145's check_lane_attacks has been
+                # publishing ['proven','inert','neverAttacked','perLane'] — four labels and no
+                # figures — since it shipped. A field that silently drops what you put in it is
+                # worse than one that refuses. [[zero-needs-a-denominator]]
+                evidence=["owned %d" % len(_owned), "filed %d" % len(_mule),
+                          "withSighting %d" % len(_withev),
+                          "hooks rc-art=%s rcpt-ic=%s" % (_hooks.get("rc-art"), _hooks.get("rcpt-ic")),
+                          "backup %s" % os.path.basename(_files[-1])],
+                k=_atkK, n=_atkN, surfaces=["vault-receipts"])
+
+
 def check_lane_attacks():
     """Which of the console's twelve watcher LANES has ever been sabotaged, and refused. -> row
 
@@ -1032,8 +1128,14 @@ def check_lane_attacks():
         line += ("; %d have never been attacked at all, so they are UNMEASURED rather than "
                  "clean: %s" % (len(_never), ", ".join(_never)))
     return _row("laneAttacks", state, line,
-                evidence={"proven": _proven, "inert": _inert, "neverAttacked": _never,
-                          "perLane": dict((l, list(v)) for l, v in sorted(_lanes.items()))},
+                # ⚠ v3167 — THIS WAS A DICT AND `_row` KEPT ONLY THE KEYS. Shipped in v3145, it
+                # published ['proven','inert','neverAttacked','perLane'] — the lane names and
+                # their k/n never reached the payload at all.
+                evidence=(["proven: " + (", ".join(_proven) or "none")]
+                          + (["INERT: " + ", ".join(_inert)] if _inert else [])
+                          + (["never attacked: " + ", ".join(_never)] if _never else [])
+                          + ["%s k=%d n=%d" % (l, _lanes[l][0], _lanes[l][1])
+                             for l in sorted(_lanes)]),
                 k=_k, n=_n, surfaces=_proven,
                 # each lane carries ITS OWN number: the row-wide weakest is the honest answer only
                 # while nothing better is known, and here something better IS known.
@@ -1044,7 +1146,7 @@ def check_lane_attacks():
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
-          check_lane_liveness, check_lane_attacks]
+          check_lane_liveness, check_lane_attacks, check_vault_receipts]
 
 
 def report(evaluate=None, board=None):
