@@ -2938,6 +2938,22 @@ GATES = [
              "counts as a measurement, not a silence - `if _have:` instead of "
              "`isinstance(_have, int)` is the realistic regression and it is one of the six "
              "sabotages this file was seen RED under."),
+    Gate("test_the_node_venue_is_not_silently_absent",
+         [sys.executable, os.path.join(HERE, "test_the_node_venue_is_not_silently_absent.py")], 60,
+         why="FOUND BY THE CODEX EYE reviewing v3170 (cross-family, openai/gpt-5.6-terra), and it "
+             "was right: a law that drives shipped JavaScript converts a missing node into "
+             "skipTest, and unittest counts a skip as not-a-failure. The pattern is the HOUSE "
+             "STYLE, not a new mistake - `skipTest(\"node unavailable - a skip is NOT a pass\")` "
+             "sits at 26 sites across 9 law files and the message already knows the hazard. But 26 "
+             "quiet skips is not a report: if node ever leaves a venue, every law that executes "
+             "the page in a real engine stops asserting AT ONCE and the suite still prints OK - "
+             "regression-guard's green-that-lies, with the HOST MACHINE as the fixture at fault. "
+             "So rather than rewriting 26 call sites into failures, ONE law asserts the venue, by "
+             "name, and reports how many files would have gone silent. It also checks that a node "
+             "on PATH actually RUNS, because present is not working. PROVEN RED by stripping node "
+             "from PATH (it lives in two places on his Mac - /usr/local/bin and "
+             "/opt/homebrew/bin, so the first proof attempt stayed green and the sabotage, not "
+             "the law, was wrong)."),
     Gate("test_the_sweep_reads_the_reels_that_have_something",
          [sys.executable, os.path.join(HERE, "test_the_sweep_reads_the_reels_that_have_something.py")], 180,
          why="THE REASON HIS VAULT HAS NO RECEIPTS. MEASURED 2026-09-15: 45 sessions swept, 36 of "

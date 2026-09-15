@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3172",
+  "ver": "v3173",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3172: The card sat half on the scale: the counts already used the --fs and --ls tokens while four sibling rules carried raw letter-spacing literals. Three had exact tokens so the swap changed nothing visually and made the card consistent. The fourth, .03em on the verdict word in the fleet ROW, sat on no step of the scale while the same word in the TOOLTIP was .04em - two trackings for one word, recorded by nobody. Both now use the snug step. Closes the last part of the fleet 2.0.",
+  "note": "v3173: The Codex eye reviewing v3170 found that a law driving shipped JavaScript turns a missing node into skipTest, and unittest counts a skip as not-a-failure. The pattern is the house style at 26 sites across 9 files and the message already knows the hazard, but 26 quiet skips is not a report: if node leaves a venue then every law that executes the page stops asserting at once and the suite still prints OK. One law now asserts the venue by name and says how many files would have gone silent, and checks that a node on PATH actually runs. It also fixes two real defects the same review found in the new laws: a fixed harness filename that races between concurrent runs, and a write that happens before the try so a partial file can be left behind.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

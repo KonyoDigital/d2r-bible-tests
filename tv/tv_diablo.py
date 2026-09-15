@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3172"   # THE FLEET CARD ON ONE TYPE SCALE
+VERSION = "v3173"   # A SKIP IS NOT A PASS, AND THE VENUE SAYS SO
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

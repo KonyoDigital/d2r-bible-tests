@@ -16,6 +16,7 @@ import io
 import json
 import os
 import subprocess
+import tempfile
 import sys
 import unittest
 
@@ -59,10 +60,15 @@ class TheCardSaysWhyTheListIsMissing(unittest.TestCase):
 
     def drive(self, row):
         js = HARNESS % {"row": json.dumps(row), "block": _block()}
-        p = os.path.join(HERE, ".mwline_drive.js")
-        with io.open(p, "w", encoding="utf-8") as fh:
-            fh.write(js)
+        # ⚠ A UNIQUE FILE PER RUN, CREATED INSIDE THE try. A cross-family review of v3170 caught
+        # both halves: a FIXED name (.mwline_drive.js) means two concurrent runs write, run and
+        # delete each other's harness — one sees the other's JS or an empty file, and the failure
+        # looks like a defect in the page. And opening BEFORE the try leaves a partial file behind
+        # if the write raises. mkstemp gives a per-run name and the unlink is unconditional.
+        fd, p = tempfile.mkstemp(prefix=".mwline_drive_", suffix=".js", dir=HERE)
         try:
+            with io.open(fd, "w", encoding="utf-8") as fh:
+                fh.write(js)
             r = subprocess.run(["node", p], capture_output=True, text=True, timeout=60)
         except (OSError, subprocess.TimeoutExpired):
             self.skipTest("node unavailable - a skip is NOT a pass")

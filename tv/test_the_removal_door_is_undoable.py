@@ -26,6 +26,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -109,10 +110,13 @@ class TheRemovalDoorIsUndoable(unittest.TestCase):
             "door": _door_source(),
             "script": script,
         }
-        path = os.path.join(HERE, ".vrdoor_drive.js")
-        with io.open(path, "w", encoding="utf-8") as fh:
-            fh.write(js)
+        # ⚠ unique per run and created inside the try — a fixed name races with a concurrent
+        # run, and opening before the try can leave a partial harness behind. Both halves were
+        # named by a cross-family review of v3170.
+        fd, path = tempfile.mkstemp(prefix=".vrdoor_drive_", suffix=".js", dir=HERE)
         try:
+            with io.open(fd, "w", encoding="utf-8") as fh:
+                fh.write(js)
             r = subprocess.run(["node", path], capture_output=True, text=True, timeout=60)
         except (OSError, subprocess.TimeoutExpired):
             self.skipTest("node unavailable — a skip is NOT a pass")
@@ -252,7 +256,6 @@ class TheRemovalIsWatchedByTheHeart(unittest.TestCase):
     door that can quietly stop working. [[the-unjoined-end]]"""
 
     def setUp(self):
-        import tempfile
         sys_path = os.path.dirname(os.path.abspath(__file__))
         if sys_path not in __import__("sys").path:
             __import__("sys").path.insert(0, sys_path)
