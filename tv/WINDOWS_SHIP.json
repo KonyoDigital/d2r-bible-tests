@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3194",
+  "ver": "v3195",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3194: He counted ten cards under a header that said eight runs. The river was hiding its overflow with style display, the same channel the filter writes, so each pass could undo the other. The river now marks its own attribute and a rule does the hiding, and the two meanings can no longer be confused.",
+  "note": "v3195: The shelf gains a filter for where a reel is in the river rather than only what it contains or when it happened, and the header stops implying a deletion it does not perform. Measured the gap between the keep eight design and the twenty reels on disk, and the design is not missing: it is working, while the test suite pins eight reels holding most of the space.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

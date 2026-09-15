@@ -16448,7 +16448,7 @@ window._lockMark = function(isOpen, px, label){
      screen does. A list that quietly drops 92% of its rows reads as complete, which is the
      worst possible failure for a thing whose whole promise is "every recorded run".
      [[unknown-stays-unknown]] */
-  var SHELF_F = { grail: false, verdict: null, day: null, pin: false, ghosts: false };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
+  var SHELF_F = { grail: false, verdict: null, day: null, pin: false, ghosts: false, station: null };   // v1283 (D9) — composable shelf filters, preserved too · D26 — + pinned
   var SHELF_S = 'river';   // v1284 (D11) — the shelf sort key, preserved too
   /* v2746 — the river as the shelf sees it: {n -> {station, why, at, hops}} plus the station
      ORDER from the backend. null means NOT YET ASKED, which is not the same as an empty river,
@@ -16855,7 +16855,16 @@ window._lockMark = function(isOpen, px, label){
         mouthTxt = ' · ' + SHELF_MOUTH.n + ' closed out' + _mb + _und;
       }
       var lab = '\u{1F30A} River — flowing, newest first'
-              + (pushedN ? (' · ' + pushedN + ' pushed past the ' + RIVER_KEEP) : '')
+              /* ⚠⚠ v3195 — "PUSHED" IS A VIEW, NOT A DELETION, AND THE WORD HAD TO SAY SO.
+                 His model: "when the next session pushes the oldest one out". MEASURED:
+                 nothing joins this to the deleter — grep of reel_retention / shelf_driver /
+                 reel_router for `river-out` returns ZERO. The card leaves the VIEW and the
+                 reel stays on disk for as long as retention says. A shelf that implies a
+                 deletion it does not perform is the most expensive kind of wrong number: he
+                 would stop expecting the space back. Retention is the ONE thing allowed to
+                 release footage and it is reported separately in this same header, as
+                 "closed out" and "freed". [[the-unjoined-end]] [[label-outlived-referent]] */
+              + (pushedN ? (' · ' + pushedN + ' pushed out of view (still on disk)') : '')
               + (pinN ? (' · ' + pinN + ' pinned kept') : '')
               + mouthTxt;
       mkHead(lab, keptN + pinN, flow[0],
@@ -16932,6 +16941,16 @@ window._lockMark = function(isOpen, px, label){
       try { thShelf(true); } catch (e) {}
       return;
     }
+    /* ══ v3195 — A STATION IS A FILTER, BECAUSE IT IS THE ONE THING THESE CARDS ACTUALLY ARE ══
+       His words on the chip row: "the tabs ontop need updating related to the reels sessions..
+       not random or outdated like it is". Measured: every chip offered CONTENT (stash / runes /
+       gems / materials / chronicle) or TIME (today / this week / older), and none of them said
+       where a reel IS. The river already stamps `data-station` on every card and /api/river names
+       ten of them; the shelf simply never offered them as a way to look. */
+    else if (f.indexOf('st:') === 0){
+      var _st = f.slice(3);
+      SHELF_F.station = (SHELF_F.station === _st) ? null : _st;
+    }
     else if (f === 'pin') SHELF_F.pin = !SHELF_F.pin;   // D26
     else if (f === 'grail') SHELF_F.grail = !SHELF_F.grail;
     else if (f.indexOf('verdict:') === 0){ var v = f.slice(8); SHELF_F.verdict = (SHELF_F.verdict === v) ? null : v; }
@@ -16961,6 +16980,7 @@ window._lockMark = function(isOpen, px, label){
         && (!SHELF_F.grail || c.getAttribute('data-grail') === '1')
         && (!SHELF_F.verdict || c.getAttribute('data-verdict') === SHELF_F.verdict)
         && (!SHELF_F.pin || c.getAttribute('data-pin') === '1')   // D26 — the ⭐ pinned filter composes with the rest
+    && (!SHELF_F.station || String(c.getAttribute('data-station') || '') === SHELF_F.station)
         && _shDayHit(c, SHELF_F.day, startToday, weekAgo);
       /* the ghost rule is ON by default, so it reads "unless he asked for them". */
       var hit = _hitNoGhost && (SHELF_F.ghosts || c.getAttribute('data-stub') !== '1');
@@ -16978,7 +16998,7 @@ window._lockMark = function(isOpen, px, label){
        is `!SHELF_F.ghosts`. Writing `|| SHELF_F.ghosts` would have been inverted and left the "N
        of M" silent in the only state it exists for. It also un-silences the no-match banner: an
        all-ghost shelf used to render completely blank with nothing explaining why. */
-    var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin || !SHELF_F.ghosts);
+    var active = !!(q || SHELF_F.grail || SHELF_F.verdict || SHELF_F.day || SHELF_F.pin || SHELF_F.station || !SHELF_F.ghosts);
     var cnt = $('sh-search-count'); if (cnt) cnt.textContent = active ? (shown + ' of ' + cards.length) : '';
     var nm = $('sh-no-match'); if (nm) nm.hidden = !(active && shown === 0);
     /* the chip carries the NUMBER it is hiding. "empty runs" names a category; "2,261 empty runs"
