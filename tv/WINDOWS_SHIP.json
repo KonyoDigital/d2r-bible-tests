@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3187",
+  "ver": "v3188",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3187: His recorded runs become versioned packs the guest seat can click. One reel is 196 MB across 153 frames and a pack of it is 2.7 MB across 16, evenly spaced so the reel controls stay testable to the end. Every staged session declares itself a fixture and carries its own id, because the first load deduped it against his real sessions and his own row won. The loader refuses to write into the live footage tree.",
+  "note": "v3188: The guest board reads zero because bible.html puts every non-Mac machine in the isolated cousin world and that is the safe side of a deliberate rule, so the seat is filled rather than relabelled. Every refresh now writes a snapshot in the board own export schema, whose flat bare-named stores route into whichever world is active, and the guest imports it through the door the board already has.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

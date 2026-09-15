@@ -106,6 +106,45 @@ fi
 
 echo "  ── $ok endpoint(s) mirrored, $bad unreadable (recorded as such, not as empty)"
 
+# ══ THE PROGRESS SEED — why the guest board is not empty ════════════════════════════════════
+# The guest runs on Linux, and bible.html places every non-Mac machine in the ISOLATED cousin
+# world, which starts from zero. That is deliberate: "a machine wrongly placed in the OWNER's
+# world sees someone else's chronicle". So the seat is FILLED rather than re-labelled — this
+# writes a snapshot in the board's own exportProgress schema, which Grok Bot imports through the
+# board's own Tools -> Backup door. No Mac mouse.
+python3 - "$OUT" <<'PYS'
+import glob, io, json, os, sys
+sys.path.insert(0, os.path.join(os.getcwd(), "tv"))
+import guest_profile as gp
+out = sys.argv[1]
+live = {}
+try:
+    import urllib.request
+    live = (json.load(urllib.request.urlopen(
+        os.environ.get("TV_LIVE_URL", "http://127.0.0.1:17772") + "/api/status",
+        timeout=10)) or {}).get("identity") or {}
+except Exception:
+    pass
+backs = sorted(glob.glob(os.path.expanduser("~/d2r_ledger_backups/ledger_*.json")))
+if not backs:
+    print("  seed: NO ledger backup found — the guest board will start empty, and that is "
+          "reported rather than silently shipped")
+else:
+    seed = gp.progress_seed(backs[-1], live)
+    io.open(os.path.join(out, "seed_progress.json"), "w", encoding="utf-8").write(
+        json.dumps(seed, ensure_ascii=False, indent=1))
+    if gp.is_unreadable(seed):
+        print("  ✗ seed: %s" % seed.get("why"))
+    else:
+        d = seed.get("data") or {}
+        try:
+            owned = len(json.loads(d.get("d2r_owned") or "[]"))
+        except Exception:
+            owned = "?"
+        print("  ✓ seed_progress.json — %d store(s), %s owned item(s), from %s"
+              % (len(d), owned, os.path.basename(backs[-1])))
+PYS
+
 # ══ FIXTURE PACKS — his recorded runs, restaged on every refresh ════════════════════════════
 # A pull overwrites api/sessions.json with the live list, which would silently drop every staged
 # scenario. So packs are (re)loaded AFTER the pull, every time — the refresh is one command and

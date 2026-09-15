@@ -75,6 +75,34 @@ publishable, and **this repo is public**. They travel to the box by rsync.
 
 ---
 
+## The guest board reads 0/135 — that is the safety rule, not a bug
+
+`bible.html` decides which world a machine gets with one line:
+
+```js
+var m = /mac|iphone|ipad|ipod/i.test(plat) ? 'mac' : 'windows';
+```
+
+**Linux falls to `windows`**, gets the isolated cousin world and starts from zero. The ribbon says
+"WINDOWS" on a Linux box for the same reason — it is the label for *not-Mac*. The code states the
+reasoning: *"a machine wrongly placed in its OWN world sees an empty console, while a machine
+wrongly placed in the OWNER's world sees someone else's chronicle."* Empty is the safe side.
+
+⚠ **Do not "fix" this by claiming the mac world.** Setting `d2r_activeMachine=mac` is exactly the
+failure the rule exists to prevent, and the guest is the one seat that must never be able to write
+into his namespace.
+
+**Fill it instead.** Every refresh writes `guest-mirror/seed_progress.json` in the board's own
+`exportProgress` schema (v2, flat bare-named stores — `_applyProgress` routes them into whichever
+world is active, so they land in the cousin world by construction). On the guest board:
+
+> **Tools → Backup → paste `seed_progress.json` → Import**
+
+Measured on the current backup: **81 stores, 172 owned items**, scrubbed. His Mac is untouched —
+the worlds are separate keyspaces inside *that* browser's storage.
+
+---
+
 ## Making the seat show up as **Grok** in THE FLEET
 
 Consoles appear online by beaconing with their hostname. Grok Bot's machine is already in the

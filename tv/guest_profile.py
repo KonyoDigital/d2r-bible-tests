@@ -148,5 +148,56 @@ def leaks(obj, live_identity=None):
     return found
 
 
+# ── THE PROGRESS SEED ─────────────────────────────────────────────────────────────────────────
+# WHY THE GUEST BOARD READS 0/135 AND THAT IS NOT A BUG. bible.html decides the world with
+#     var m = /mac|iphone|ipad|ipod/i.test(plat) ? 'mac' : 'windows';
+# so a LINUX box falls to 'windows', gets the isolated W-world and starts from zero. Its own
+# comment says why: *"a machine wrongly placed in its OWN world sees an empty console, while a
+# machine wrongly placed in the OWNER's world sees someone else's chronicle"* — empty is the
+# deliberately safe side, and claiming the mac world on the guest is the failure that rule exists
+# to prevent. So the seat is filled by SEEDING the cousin world, never by re-labelling it.
+#
+# The board already has the door: `exportProgress` / `importProgress`, schema v2, whose `data` is
+# a FLAT bare-named store map that `_applyProgress` routes into whichever world is active. This
+# builds the same payload from a ledger backup on disk, so no Mac mouse is needed.
+PROGRESS_APP = "d2r-bible"
+PROGRESS_KIND = "grail-progress"
+PROGRESS_VERSION = 2
+
+
+def progress_seed(ledger_backup, live_identity=None, build="guest-seed"):
+    """A snapshot the guest board can IMPORT, built from a ledger backup. -> dict
+
+    ⚠ It carries his progress, which is the point — the seat is useless empty. It does NOT carry
+    his machine: every value goes through the same scrub as the mirror.
+    """
+    with io.open(ledger_backup, encoding="utf-8") as fh:
+        book = json.load(fh)
+    stores = (book or {}).get("allStores") or {}
+    if not isinstance(stores, dict) or not stores:
+        return unreadable("progress seed",
+                          "the ledger backup carries no allStores map, so there is nothing to "
+                          "seed — which is not the same as his having no progress")
+    data = {}
+    for k, v in stores.items():
+        # forked keys export under their BARE names; a prefixed key belongs to another world and
+        # must not ride along, exactly as _collectProgress scopes to the ACTIVE account.
+        if any(str(k).startswith(p) for p in ("L\u00b7", "W\u00b7", "WL\u00b7", "I\u00b7")):
+            continue
+        data[k] = v
+    out = {
+        "app": PROGRESS_APP, "kind": PROGRESS_KIND, "version": PROGRESS_VERSION,
+        "meta": {"schemaVersion": PROGRESS_VERSION, "build": build,
+                 "profile": "main", "machine": "windows",
+                 "seededFor": GROK_NICKNAME,
+                 "why": ("a scrubbed snapshot of the owner's progress, staged so the guest seat "
+                         "has something real to browse. The guest world stays ISOLATED — "
+                         "importing here cannot reach his Mac.")},
+        "exported": (book or {}).get("savedTs") or (book or {}).get("ts"),
+        "data": data,
+    }
+    return scrub(out, live_identity)
+
+
 if __name__ == "__main__":
     print(json.dumps(profile(), indent=2))
