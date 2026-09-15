@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3196",
+  "ver": "v3197",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3196: Building the gate the removal door names in its own prose found that the door was wrong about itself. The ladder fork set has fifty one members and the owned list is one of them while the removal journal was in neither, so a removal made on the main profile could be restored into the ladder as finds he never made. The journal now forks with the store it describes.",
+  "note": "v3197: He asked two things about the shelf in one breath. First: is the river strip above the pipeline needed visually, can it be hidden. Measured on his own data, one fact in it is his (where the 12 reels stand) and four layers are defences against misreading that one fact, each added after a real misread. So it folds: the closed line carries the figure, the open body carries every defence, default closed, state persisted. Nothing is deleted, because the TOMBSTONE note explaining a zero is exactly the thing this file has had to fix three times. Second: the pipeline reads stale, the releasable 8. v3117 already proved the DATA is right and answered by adding a sentence UNDER the row, while the row itself still said RELEASABLE over eight reels that are every one of them HELD. A word on the tile is read before a sentence beneath it, so the label now says what the number does.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

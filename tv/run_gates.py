@@ -2138,6 +2138,17 @@ GATES = [
              "the retention pass, and writes ROUTED only — TOMBSTONE stays with the deleter behind "
              "the arming lock.",
          ),
+    Gate("test_the_river_folds_without_losing_a_figure",
+         [sys.executable, os.path.join(HERE, "test_the_river_folds_without_losing_a_figure.py")], 120,
+         why="HE ASKED WHETHER THE RIVER STRIP ABOVE THE PIPELINE WAS NEEDED AT ALL: 'is it "
+             "needed visually? do i need this information? it can be hidden by me.' v3198 folded "
+             "it -- the closed line keeps the one figure he acts on (where the reels stand), the "
+             "open body keeps every defence the strip has accumulated across v2819/v2822/v2903, "
+             "each of which was added after a real misread. This gate stops the two ways that "
+             "rots: someone 'simplifying' the fold by dropping the body (taking three fixed "
+             "defects with it), and the closed summary drifting onto its own source so it can "
+             "contradict the cards it summarises. And it pins the default CLOSED, because that "
+             "is the whole of what he asked for."),
     Gate("test_the_shelf_shows_the_four_lanes",
          [sys.executable, os.path.join(HERE, "test_the_shelf_shows_the_four_lanes.py")], 180,
          why="THE RIVER MADE VISIBLE AS THE FOUR LANES HE NAMED — INTAKE, PRINTER, CAPTURE, "

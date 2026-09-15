@@ -2280,7 +2280,24 @@ def grail_tally():
     # The raw flag stays so an older reader keeps working. [[the-unjoined-end]]
     try:
         import ledger_authority as _LA
-        out["ledgerVerdict"] = _LA.classify_row(out)
+        # ══ v3197 — THE VERDICT NOW KNOWS WHICH WORLD IT IS ABOUT ═════════════════════════
+        # `classify_row(tally, world=None, ...)` passes world to manual_for(), which resolves it
+        # with world_key() = install id + profile. Called with world=None, a manual declaration
+        # could never be found: ledger_authority.manual_accept had a writer and no reachable
+        # reader, and the fleet card's provenance line could not say a ledger was declared.
+        #
+        # ⚠ I RECORDED THIS AS UNJOINABLE AND I WAS WRONG, IN THE WAY THIS FILE KEEPS TEACHING.
+        # I called board_ownership() inside MY OWN process, where it answers {ok, why} alone
+        # because _BOARD_WIN is None by construction, and concluded `route` did not exist. Asked
+        # of the LIVE console over its own route it returns
+        #     {"id": <install>, "p": "main", "m": "owner", "pfx": ""}
+        # which world_key() resolves cleanly. Measuring in the wrong process is the same mistake
+        # as reading a live figure off a fresh import. [[feedback-verify-not-proxy]]
+        #
+        # ⚠ AND IT STAYS HONEST WHEN THE BOARD IS SHUT: own is {} then, world is None, and
+        # classify_row behaves exactly as before rather than inventing a world. An empty id is
+        # refused by world_key itself, so a guessed world cannot match every id-less board at once.
+        out["ledgerVerdict"] = _LA.classify_row(out, world=(own.get("route") or None))
     except Exception as _lae:
         # UNKNOWN, never a cheerful default: a verdict that could not be computed must not read as
         # "nothing inherited here". [[unknown-stays-unknown]]
@@ -28054,7 +28071,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3196",
+        "ver": "v3197",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1831,6 +1831,56 @@
   #th-shelfov .shr-lbl { flex: 1 1 auto; min-width: 17ch; }
   #th-shelfov .shr-fifo { margin-left: auto; flex: 0 0 auto; white-space: nowrap;
     opacity: .6; text-transform: none; letter-spacing: var(--ls-tight); }
+  /* ══ v3198 — THE RIVER STRIP FOLDS, AND WHAT STAYS OPEN IS THE ONLY LINE HE ACTS ON ══════
+     Konyo, on the strip above the pipeline: *"is it needed visually? do i need this
+     information? it can be hidden by me."*
+
+     MEASURED against what the strip actually draws on his data (screenshot 2026-09-16, 12 reels):
+     ONE fact in it is his — WHERE the 12 reels are standing, `2 -> 1 -> 6 -> 3`. The other four
+     layers are all DEFENCES against misreading that one fact, each added after a real misread:
+         · the per-lane STATIONS chips      v2903 — the lane and a station share a word
+         · the `the ledger 453 closed out`  v2822 — a second denominator, not an addend
+         · the four-line TOMBSTONE note     v2822 — why a zero is a zero
+         · `source - the router`            v2819 — two strips, two modules, same vocabulary
+     Every one of them is correct and every one of them must stay. But a surface where four
+     fifths of the pixels exist to stop a misreading of the other fifth has stopped being a
+     readout and become an argument — and he is the one who has to scroll past the argument
+     every time he opens the shelf.
+
+     ⚠ FOLD, NEVER DELETE. `test_a_zero_TOMBSTONE_carries_its_denominator` asserts the phrase
+     "leaves the shelf" is in the rendered HTML, and it is RIGHT to: a zero with its reason
+     removed is exactly the defect this file has fixed three times. <details> keeps every byte
+     in the DOM and in the law's reach; only the default VIEW changes. Deleting the note to
+     quiet the strip would trade a crowded surface for a lying one.
+     [[zero-needs-a-denominator]] [[label-outlived-referent]] [[design-is-fine-until-he-says]] */
+  #th-shelfov .shr-fold { margin: 0 0 4px; }
+  #th-shelfov .shr-fold > summary { list-style: none; cursor: pointer; display: flex;
+    flex-wrap: wrap; align-items: baseline; gap: 3px 10px; padding: 3px 2px;
+    border-radius: 5px; outline: none; }
+  #th-shelfov .shr-fold > summary::-webkit-details-marker { display: none; }
+  #th-shelfov .shr-fold > summary:hover,
+  #th-shelfov .shr-fold > summary:focus-visible { background: rgba(214,200,166,.07); }
+  #th-shelfov .shr-sumlbl { font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: #d6c8a6;
+    flex: 0 0 auto; white-space: nowrap; }
+  /* the mini-river: the whole strip's signal on one line, in river order */
+  #th-shelfov .shr-mini { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 5px;
+    flex: 1 1 auto; min-width: 0;
+    font: var(--fw-semibold) var(--fs-2xs)/var(--lh-tight) var(--mono);
+    letter-spacing: var(--ls-tight); }
+  #th-shelfov .shr-mini i { font-style: normal; color: var(--gold-dim); opacity: .72;
+    text-transform: lowercase; letter-spacing: var(--ls-tight); }
+  #th-shelfov .shr-mini b { color: var(--gold-hi); font-variant-numeric: tabular-nums;
+    font-weight: var(--fw-bold); }
+  #th-shelfov .shr-mini .shr-mz b { color: var(--gold-dim); opacity: .55; }
+  #th-shelfov .shr-mini .shr-marr { color: var(--gold-dim); opacity: .42; }
+  #th-shelfov .shr-more { margin-left: auto; flex: 0 0 auto; white-space: nowrap;
+    font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-tight); color: var(--gold-dim); opacity: .62;
+    text-transform: none; }
+  #th-shelfov .shr-fold[open] > summary .shr-more::after { content: ' \25B4'; }
+  #th-shelfov .shr-fold:not([open]) > summary .shr-more::after { content: ' \25BE'; }
+  #th-shelfov .shr-body { padding-top: 8px; }
   #th-shelfov .shr-flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
   /* ⚠⚠ v2772 — THE BASIS IS 104px, NOT 120px, AND THE 16px IS A MEASURED DEFECT NOT A TASTE CALL.
      Found by an independent visual audit, and confirmed by a COLD CROSS-FAMILY READ, which is the
@@ -11515,7 +11565,17 @@ window._lockMark = function(isOpen, px, label){
     ['swept',      '📖', 'swept'],
     ['banked',     '🏦', 'banked'],
     ['vault-done', '🛡', 'vault done'],
-    ['releasable', '🗑', 'releasable']
+    /* ⚠⚠ v3198 — "HELD RELEASABLE" IS A CONTRADICTION, AND IT IS WHY HE KEEPS READING IT AS
+       STALE. Twice now: *"this 8 releasable has been stale for like a week"* (v3117) and again
+       today, *"pipeline is stale.. the realsable 8??"*. v3117 proved the DATA is right — all 8
+       are held=true, holdKind=policy, "one of the 8 most recent — kept so a re-sweep always has
+       real footage" — and answered by adding a sentence UNDER the row. The row itself still said
+       RELEASABLE while every reel in it was HELD, so the explanation was arguing with the label
+       directly above it, and the label wins: a word on the tile is read before a sentence beneath
+       it. A number that cannot move under a word that promises it will is the same defect twice.
+       The stage key stays `releasable` — reel_story owns that vocabulary and renaming it here
+       would fork it. Only what he READS changes. [[label-outlived-referent]] [[copy-drift]] */
+    ['releasable', '🗑', 'done · awaiting release']
   ];
 
   /* ══ v2769 — THE RIVER AS FOUR LANES, WHICH IS THE SHAPE HE ASKED TO SEE ═════════════════
@@ -11616,6 +11676,17 @@ window._lockMark = function(isOpen, px, label){
        line as SOURCE · THE ROUTER... the eye can attach the 48 to the router line."* Measured at
        901: it did exactly that. A group wraps whole and keeps the three denominators together;
        inside it they may still break, which is what stops the 375 mid-phrase split. */
+    /* ⚠⚠ v3198 — THE SUMMARY IS BUILT FROM THE SAME `rows`, NEVER FROM A SECOND SOURCE.
+       A folded surface whose closed line is derived independently is `copy-drift` with a hinge
+       on it: the two halves agree on the day they are written and quietly stop agreeing later.
+       Every figure below reads `l.count` — the identical expression the open card uses — so the
+       closed line cannot say a number the open one contradicts. */
+    var _mini = rows.map(function(l, i){
+      var n = l.count || 0;
+      return (i ? '<span class="shr-marr">\u25B8</span>' : '')
+           + '<span class="shr-mn' + (n ? '' : ' shr-mz') + '"><b>' + n + '</b> <i>'
+           + esc(String(l.name || '').toLowerCase()) + '</i></span>';
+    }).join('');
     var H = ['<div class="shr-head"><span class="shr-lbl">the river · <b>' + (L.shelf || 0)
              + '</b> reel(s) on the shelf</span><span class="shr-lifes">' + _lifeTxt + '</span>'
              + '<span class="shr-src" title="4 lanes over reel_router\u2019s 9 stations, from /api/river">'
@@ -11723,7 +11794,29 @@ window._lockMark = function(isOpen, px, label){
       }
       H.push('<div class="shr-note">' + _why + '</div>');
     }
-    el.innerHTML = H.join('');
+    /* ⚠ THE FOLD STATE IS HIS AND IT PERSISTS. A panel that re-opens on every repaint is not
+       hidden, it is annoying — and this renderer repaints whenever the shelf reloads. Default
+       CLOSED because he asked for it closed; `localStorage` because the console has no other
+       per-person store on this surface. A bad/absent value reads as closed, never as a throw. */
+    var _foldOpen = false;
+    try { _foldOpen = (localStorage.getItem('d2r_shRiverOpen') === '1'); } catch (e) {}
+    el.innerHTML = '<details class="shr-fold"' + (_foldOpen ? ' open' : '') + '>'
+                 + '<summary class="shr-sum" title="the four river lanes, their stations, the '
+                 +   'closure ledger and why TOMBSTONE reads zero — open for the full strip">'
+                 +   '<span class="shr-sumlbl">the river</span>'
+                 +   '<span class="shr-mini">' + _mini + '</span>'
+                 +   '<span class="shr-more">' + (L.shelf || 0) + ' on the shelf'
+                 +     ((_cl === null) ? '' : (' \u00b7 ' + _cl + ' closed out')) + '</span>'
+                 + '</summary>'
+                 + '<div class="shr-body">' + H.join('') + '</div>'
+                 + '</details>';
+    /* ⚠⚠ NO INLINE `ontoggle`. This file has been bitten four times by a handler in the markup,
+       the fourth an inline ontoggle that fired DURING PARSE before its function existed. The
+       listener is attached here, after the node is real. [[console-ui-two-script-blocks]] */
+    var _fd = el.querySelector('.shr-fold');
+    if (_fd) _fd.addEventListener('toggle', function(){
+      try { localStorage.setItem('d2r_shRiverOpen', _fd.open ? '1' : '0'); } catch (e) {}
+    });
   }
   window._shLanesRender = _shLanesRender;
 
