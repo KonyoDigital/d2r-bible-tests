@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3197",
+  "ver": "v3198",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3197: He asked two things about the shelf in one breath. First: is the river strip above the pipeline needed visually, can it be hidden. Measured on his own data, one fact in it is his (where the 12 reels stand) and four layers are defences against misreading that one fact, each added after a real misread. So it folds: the closed line carries the figure, the open body carries every defence, default closed, state persisted. Nothing is deleted, because the TOMBSTONE note explaining a zero is exactly the thing this file has had to fix three times. Second: the pipeline reads stale, the releasable 8. v3117 already proved the DATA is right and answered by adding a sentence UNDER the row, while the row itself still said RELEASABLE over eight reels that are every one of them HELD. A word on the tile is read before a sentence beneath it, so the label now says what the number does.",
+  "note": "v3198: The push refused: v3189 had never been looked at by a different model family. Handed its diff to Grok cold. It answered no concrete defects found in the diff, and the ledger filed the row as findings=4, the first finding being the sentence that says there are none. Probing the classifier with seven hand-built answers found it wrong in BOTH directions. The dangerous one: a declaration plus exactly ONE listed P1 was filed CLEAN, because the v2808 guard was len(findings) greater than 1 and one is not greater than one. That guard docstring asserted the three-defect case and nobody had ever measured the one-defect case. Also an adjective defeated the pattern (no CONCRETE defects found), and a closing sentence listing what the reviewer did NOT find was read as four findings. The rule now needs three things before it clears a look: a declaration, the declaration in the FIRST block, and no block making a defect claim once denied spans are cut. New law with three sabotages seen red.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

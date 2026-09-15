@@ -650,6 +650,20 @@ GATES = [
              "the fix reports staleness rather than recomputing a verdict; the law also refuses "
              "any witness constant appearing in the panel. resultFromDisk counts as stale ON ITS "
              "OWN: a disk proposal can read four minutes old and describe a dead process."),
+    Gate("test_a_clean_look_is_filed_as_clean",
+         [sys.executable, os.path.join(HERE, "test_a_clean_look_is_filed_as_clean.py")], 120,
+         why="the ship gate refuses to push until a DIFFERENT model family has looked at the "
+             "version, and it reads that fact out of .second_eye.jsonl. So the classifier turning "
+             "a reviewer's prose into clean|findings is the instrument the gate trusts, and it "
+             "had never been tested. MEASURED 2026-09-16 on a real look at v3189: Grok opened "
+             "with 'No concrete defects found' and the row was filed findings=4, the first "
+             "finding being the sentence saying there are none. Probing found it wrong BOTH ways "
+             "- and the dangerous one was that a declaration plus exactly ONE listed P1 was "
+             "filed CLEAN, because the v2808 guard was len(findings) > 1 and one is not greater "
+             "than one. Its docstring asserted the three-defect case and nobody ever measured "
+             "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
+             "pattern, and a sentence listing what the reviewer did NOT find was read as four "
+             "findings."),
     Gate("test_a_fixture_pack_is_not_his_footage",
          [sys.executable, os.path.join(HERE, "test_a_fixture_pack_is_not_his_footage.py")], 120,
          why="his recorded runs, staged so Grok Bot can click them on the guest seat. MEASURED: "

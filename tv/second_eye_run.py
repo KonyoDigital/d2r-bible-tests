@@ -257,13 +257,49 @@ def ask(prompt):
     return ans, True, ""
 
 
+# ⚠⚠ v3198 — THE ADJECTIVE WAS THE WHOLE BUG, AND IT MADE THE LEDGER LIE IN THE DIRECTION
+# THE LEDGER EXISTS TO PREVENT. Measured 2026-09-16 on a real cross-family look at v3189: Grok
+# opened with **"No concrete defects found in the diff."** and the row was filed
+# `verdict=findings, findings=4`. The four "findings" were its own summary of what the diff
+# CHANGED — the first of them literally reading "No concrete defects found."
+#
+# The pattern demanded `no <noun> found` with nothing between, so one adjective — concrete,
+# obvious, real, apparent, actual — defeated it. This is `label-outlived-referent` inside the
+# instrument itself: the ledger whose entire job is to record what another family concluded
+# recorded the opposite of what it concluded, and the ship gate reads this ledger.
+#
+# ⚠ TWO ADJECTIVES, NOT UNBOUNDED. `\w+\s+` repeated without a ceiling would let
+# "no ... found" span a whole sentence and match "there is no way to tell whether the bugs the
+# reviewer found are real" — the exact inversion. Bounded at 2 it covers every real phrasing
+# measured and cannot swallow a clause. [[unknown-stays-unknown]] [[source-reading-guard]]
 _NO_DEFECT_RX = re.compile(
-    r"\bno\s+(?:defects?|issues?|bugs?|problems?)\s+(?:were\s+)?(?:found|identified|detected)\b",
+    r"\bno\s+(?:\w+\s+){0,2}(?:defects?|issues?|bugs?|problems?)\s+"
+    r"(?:were\s+|are\s+|was\s+)?(?:found|identified|detected|visible|apparent)\b",
     re.I)
+
+# a block that carries one of these is making a CLAIM about a defect, not describing a change.
+# Used only to refuse a clean verdict, never to grant one — so a miss here costs nothing and a
+# false hit only keeps a look in the stricter bucket.
+_DEFECT_MARK_RX = re.compile(
+    r"\b(?:P[0-9]\b|severity|critical|race\s+condition|deadlock|leak|crash|"
+    r"unreachable|mismatch|disagree|fails?\b|breaks?\b|vulnerab)", re.I)
+
+# ⚠⚠ A NEGATED MARKER IS THE OPPOSITE OF A MARKER, AND IT COST A CLEAN VERDICT. Measured on the
+# real v3189 answer: its closing line is *"No caller/callee contract mismatches, races, leaks, or
+# unreachable states are visible in the provided hunks."* — four marker words in one sentence,
+# every one of them DENIED. Matching them read a reviewer listing what it did NOT find as a
+# reviewer finding it. The clause is cut at the first `.`/`;`/`:` so a genuine claim sharing the
+# block ("No defects found. P1: ...") still survives the strip. [[measured-true-read-wrong]]
+_NEGATED_RX = re.compile(r"\b(?:no|not|none|never|without|free\s+of)\b[^.;:]*", re.I)
+
+
+def _claims_a_defect(block):
+    """does this block CLAIM a defect — as opposed to naming one it rules out?"""
+    return bool(_DEFECT_MARK_RX.search(_NEGATED_RX.sub(" ", block or "")))
 
 
 def _verdict_for(answer, findings):
-    """"clean" or "findings" — and a declaration alone can never clear an enumerated list.
+    """"clean" or "findings" — and a declaration alone can never clear a real defect claim.
 
     ⚠ v2808 — A CLEAN LOOK WAS BEING FILED AS ONE THAT FOUND DEFECTS. `_findings_from` folds an
     unenumerated answer into a single block, so "No defects found." came back as findings=[<the
@@ -271,14 +307,38 @@ def _verdict_for(answer, findings):
     something when it had said the opposite, in the ledger whose entire job is to record what
     another family concluded. [[label-outlived-referent]]
 
-    The rule is deliberately conservative in the direction that matters: a model that declares
-    "no defects found" and then lists three stays "findings". Only an answer with NO enumerated
-    item and an explicit declaration is clean, so this can never be used to bury a real finding.
+    ⚠⚠ v3198 — THAT FIX WAS `len(findings) > 1`, AND IT WAS WRONG IN BOTH DIRECTIONS. Measured,
+    2026-09-16, by probing it with four hand-built answers:
+
+        "No concrete defects found."  + 3 blocks describing the diff   -> findings   WRONG
+        "No defects found." + ONE listed P1                            -> clean      WRONG, and
+                                                                          this is the dangerous
+                                                                          direction
+
+    The second is the one that matters. A declaration followed by exactly ONE defect produced
+    `len(findings) == 1`, which is not `> 1`, so the declaration cleared it and a real P1 was
+    filed as a clean look. The docstring above says "a model that declares no defects and then
+    lists three stays findings" — true for three, FALSE for one, and nothing measured the claim.
+    [[feedback-blind-fixture-green-gate]] — a rule nobody ever saw refuse.
+
+    THE RULE NOW HAS THREE PARTS, and all three must hold before a look is cleared:
+      1. the answer DECLARES no defects, and
+      2. the declaration is in the FIRST block — a list of defects does not begin with
+         "no defects found", so order is the measurable tell, and
+      3. no block makes a defect CLAIM (`_DEFECT_MARK_RX`).
+    Anything else stays "findings". That is deliberately asymmetric: over-reporting a finding
+    costs a re-read, under-reporting one ships a defect with a clean stamp on it.
     """
-    enumerated = len(findings) > 1
-    if not enumerated and _NO_DEFECT_RX.search(answer or ""):
+    decl_anywhere = _NO_DEFECT_RX.search(answer or "")
+    if not decl_anywhere:
+        return ("findings" if findings else "clean"), findings
+    if not findings:
         return "clean", []
-    return ("findings" if findings else "clean"), findings
+    opens_clean = bool(_NO_DEFECT_RX.search(findings[0] or ""))
+    claims = [f for f in findings if _claims_a_defect(f)]
+    if opens_clean and not claims:
+        return "clean", []
+    return "findings", findings
 
 
 def _findings_from(answer):
