@@ -11699,9 +11699,19 @@ class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
         self.assertIn("j.why", fn,
                       "the refusal no longer renders its reason, so an unknown box and an empty "
                       "box are indistinguishable again")
-        self.assertIn("has not published a per-item list", fn,
-                      "the one-sided view no longer marks THEIR column as unknown, so a machine "
+        # ⚠ v3180 — FOLLOW THE REFACTOR, DO NOT DROP THE CLAIM. v3175 asserted the literal
+        # sentence "has not published a per-item list" inside _fleetCompare; v3178 moved that
+        # wording into the _fxShortWhy helper (a column gets a phrase, not a paragraph), which
+        # lives OUTSIDE this function — so the assertion started reading the wrong scope and went
+        # red on correct code. The CLAIM is unchanged: the one-sided view must mark THEIR column
+        # as unknown rather than empty. Pinned at both ends now — the call in the renderer, and
+        # the wording in the helper it calls.
+        self.assertIn("_fxShortWhy", fn,
+                      "the one-sided view no longer gives THEIR column a reason, so a machine "
                       "that published nothing reads as a machine that holds nothing")
+        self.assertIn("published no per-item list", self.ui,
+                      "the refusal wording is gone from the helper too, so nothing anywhere says "
+                      "why that column is empty")
         self.assertIn("UNKNOWN, not", fn,
                       "a dead fetch no longer says it is UNKNOWN; an empty box reads as parity")
         self.assertIn("theyHaveIDont", fn)

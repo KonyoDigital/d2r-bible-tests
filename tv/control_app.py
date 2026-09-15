@@ -17034,6 +17034,37 @@ def drift_may_relaunch():
     # with uncommitted edits IS a changed world; it was simply never one of the questions asked.
     # A clean tree is a build somebody finished. A dirty one is a build somebody is in the middle
     # of, and it must never reach his screen by itself. [[the-unjoined-end]]
+    # ══ v3180 — THE LOCK ON DISK, FIRST, AS AN EXTRA MEASURE ══════════════════════════════════════════
+    # HIS ORDER, 2026-09-15: *"make sure theres a lock for this until its read and swept it cant
+    # relaunch as a extra measure.."* — after a relaunch killed a paid vault sweep four minutes
+    # in, losing 24 classified frames and banking nothing.
+    #
+    # ⚠ WHY nothing_in_flight() IS NOT ENOUGH, AND THIS IS THE WHOLE POINT: _VAULT_JOB and
+    # _CHRON_JOB live in THIS PROCESS'S MEMORY. They are perfect while the process lives and they
+    # DIE WITH IT — so the moment a relaunch is even contemplated, the very state that should
+    # forbid it is the state about to be destroyed. A file outlives the swap.
+    #
+    # ⚠ AND THE VAULT SWEEP WAS NEVER COVERED AT ALL. MEASURED: `.sweep.lock` was touched in
+    # exactly ONE place in this file — the chronicle sweep — while _vault_sweep_run touched it 0
+    # times, and drift_may_relaunch read it 0 times. Both halves of the guard were missing at
+    # once. [[the-unjoined-end]]
+    #
+    # ⚠ STALE IS IGNORED, deliberately, on run_gates' own 900s convention: a crashed sweep must
+    # not forbid relaunching forever. A heartbeat that cannot go cold is a deadlock.
+    try:
+        _lk = _sweep_lock_path()
+        _age = time.time() - os.path.getmtime(_lk)
+        if _age < 900:
+            return False, ("a sweep is reading footage (the lock was touched %ds ago) — "
+                           "relaunching now would throw away paid reads that have not been "
+                           "banked yet" % int(_age))
+    except OSError:
+        pass          # no lock file at all means no sweep has ever declared itself
+    # ⚠ AND IT IS CHECKED BEFORE _tree_is_mid_edit(). Both refuse, so safety is the
+    # same either way — but the REASON he is shown is not. A dirty tree delays a
+    # cosmetic update; an unbanked sweep is money already spent. The more expensive
+    # fact should be the one named. Caught by the law, which asked for the reason and
+    # got "the working tree is mid-edit". [[label-outlived-referent]]
     dirty, why_dirty = _tree_is_mid_edit()
     if dirty:
         return False, why_dirty
@@ -22320,11 +22351,31 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         with _VAULT_LOCK:
             _VAULT_JOB["reelsTotal"] = len(dirs)
             _VAULT_JOB["phase"] = "reading"
+        # ══ v3180 — THE VAULT SWEEP DECLARES ITSELF ON DISK ═════════════════════════════════
+        # HIS ORDER: *"make sure theres a lock for this until its read and swept it cant relaunch
+        # as a extra measure.."*. MEASURED: `.sweep.lock` was touched in exactly one place in this
+        # file — the CHRONICLE sweep — and this function touched it 0 times, so a vault sweep was
+        # invisible to every out-of-process guard that reads it (run_gates._sweep_in_progress, and
+        # now drift_may_relaunch). The in-memory _VAULT_JOB dies with the process it is meant to
+        # protect; the file does not. [[the-unjoined-end]]
+        try:
+            _sweep_lock_touch()
+        except Exception:
+            pass
 
         def _tick(**kw):
             with _VAULT_LOCK:
                 for k, v in kw.items():
                     _VAULT_JOB[k] = _VAULT_JOB.get(k, 0) + v if isinstance(v, int) else v
+            # v3180 — HEARTBEAT THE LOCK HERE, not once at the start. run_gates treats a lock
+            # older than 900s as stale and IGNORES it (deliberately — a crashed sweep must not
+            # forbid relaunching forever), so a single touch would go cold mid-run on exactly the
+            # long sweep that most needs protecting. _tick fires on every classification, which is
+            # the sweep's own proof of life.
+            try:
+                _sweep_lock_touch()
+            except Exception:
+                pass
 
         # v1577 doctrine — ONE BAD FRAME MUST NOT ABANDON THE WHOLE SWEEP. vault_retro.sweep()
         # calls these lanes directly, so the isolation lives here: a throwing probe answers None
