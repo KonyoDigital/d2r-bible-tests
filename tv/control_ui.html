@@ -16722,7 +16722,21 @@ window._lockMark = function(isOpen, px, label){
            rendering blank. [[label-outlived-referent]] [[unknown-stays-unknown]] */
         var st = r.station || '';
         var stLab = (SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
+        /* ══ v3190 — AND WHY IT HAS NO STATION, WHICH v3176 DROPPED ════════════════════════
+           Before the sections went away a card with no station fell into one of TWO buckets:
+           "— shared id, cannot place" or "— not stamped". The river replaced the bucketing with
+           one flow and the distinction went with it, so both now rendered as a bare dash.
+
+           They are not the same fact. A reel nobody stamped is UNSTAMPED. A reel that cannot be
+           placed because two cards on the shelf carry the same session id is AMBIGUOUS — the
+           router may well have stamped it, and the console simply cannot tell which card the
+           stamp belongs to. Collapsing the second into the first turns "I cannot tell" into "it
+           never happened", which is the wrong-zero this console keeps re-learning.
+           `_shSidAmbiguous` survived the rewrite as an orphan; this is its call site back.
+           [[unknown-stays-unknown]] [[the-unjoined-end]] */
+        var stWhy = st ? '' : (_shSidAmbiguous(c) ? 'shared id, cannot place' : 'not stamped');
         b.innerHTML = '<span class="shcr-st">' + esc(stLab || '\u2014') + '</span>'
+          + (stWhy ? '<span class="shcr-why">' + esc(stWhy) + '</span>' : '')
           + ((st && stLab !== st)
                ? '<span class="shg-key">' + esc(st) + '</span>' : '')
           /* ⚠ v3107 — NAME THE EVENT. `r.at` is the last HOP's timestamp — when the reel flowed

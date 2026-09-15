@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3189",
+  "ver": "v3190",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3189: Two label fixes from the read-only audit and Grok eyes. The cousin ribbon printed WINDOWS to a Linux box because that word is the storage contract for everything that is not a Mac, so it now names the machine it is actually on without minting a third world. And the vault register button carried a count from a proposal that may have been graded in a process that no longer exists, while the caption above it already said so.",
+  "note": "v3190: Most of the agent suite reds were new modules and new checks that nobody had filed in the registries that watch them, which is the same lesson as filing a check in the commit that adds it. Also restores the shared-id distinction the river rewrite orphaned, and anchors two fixed size source windows at both ends instead of guessing how far their subject reaches.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

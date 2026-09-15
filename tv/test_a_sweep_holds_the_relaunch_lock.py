@@ -71,9 +71,18 @@ class ASweepHoldsTheRelaunchLock(unittest.TestCase):
         self.assertGreaterEqual(body.count("_sweep_lock_touch()"), 2,
                                 "the lock is touched once and will go cold during a long sweep")
         _, tick = _fn("_vault_sweep_run")
+        # ⚠ BOTH ENDS ANCHORED, NOT A 900-CHARACTER GUESS. `tick[i:i+900]` measured how far I
+        # ASSUMED _tick reaches; the function grows every time it gains a counter, and the day it
+        # passes 900 chars this assertion reads the heartbeat as ABSENT while it is right there.
+        # The body is bounded by its own closing instead. [[source-reading-guard]]
         i = tick.find("def _tick(")
         self.assertGreater(i, 0, "the per-progress tick is gone")
-        self.assertIn("_sweep_lock_touch", tick[i:i + 900],
+        j = tick.find("\n        prop = ", i)
+        if j < 0:
+            j = tick.find("\n        def ", i + 10)
+        self.assertGreater(j, i, "the tick's body no longer ends where this law expects — fix "
+                                 "this anchor before believing anything below it")
+        self.assertIn("_sweep_lock_touch", tick[i:j],
                       "the heartbeat is not on the tick, so it cannot follow the sweep's progress")
 
     def test_the_relaunch_decider_reads_the_lock(self):

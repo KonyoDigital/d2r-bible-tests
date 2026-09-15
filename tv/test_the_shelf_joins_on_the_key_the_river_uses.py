@@ -219,9 +219,16 @@ class ASharedIdPlacesNothing(unittest.TestCase):
     def test_the_census_cannot_outlive_one_render(self):
         """thShelf rebuilds the grid with innerHTML, so a cached census would be a stale
         denominator deciding whether a stamp is withheld. [[stale-reading]]"""
+        # ⚠ BOTH ENDS ANCHORED. `UI[i:i+700]` measured how far _shSort was ASSUMED to reach;
+        # the function grows with every sort mode, and the day its head passes 700 characters this
+        # reads the reset as ABSENT while it is sitting there. Bound it by the next function
+        # instead, which moves with the file. [[source-reading-guard]]
         i = UI.find("  function _shSort(){")
-        self.assertGreater(i, 0)
-        head = UI[i:i + 700]
+        self.assertGreater(i, 0, "_shSort is gone or renamed — fix this anchor first")
+        j = UI.find("\n  function ", i + 10)
+        self.assertGreater(j, i, "_shSort is no longer followed by another function, so this "
+                                 "law cannot bound what it reads")
+        head = UI[i:j]
         self.assertIn("_SH_SID_N = null", head,
                       "the shared-id census is never reset at the top of _shSort, so it survives "
                       "a rebuild and counts a card set that no longer exists")

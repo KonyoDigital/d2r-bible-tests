@@ -171,6 +171,20 @@ class ItAnswersTheQuestionNothingCouldAsk(unittest.TestCase):
 #: a resolver that quietly merges two unrelated subsystems the first time someone adds a name.
 #: [[unknown-stays-unknown]]
 SHAPE_COLLISIONS = {
+    # ⚠ v3190 — TWO MORE OF EXACTLY THE SAME KIND, and they arrived the same way: a Doctor row
+    # and a Heart flag for one concern, each in its own house style. console_doctor spells its
+    # check ids in spaced lowercase ("stash bank"); health_engine spells its flag ids in camelCase
+    # ("stashBank"). Reviewed: these ARE one thing in two styles, not two things the resolver is
+    # wrongly merging — `check_stash_bank` and the `stashBank` flag both read vault_bank.state(),
+    # and `check_vault_receipts` and the `vaultReceipts` flag both grade whether an owned row can
+    # show the frame that witnessed it.
+    #
+    # ⚠ FILED RATHER THAN RENAMED, DELIBERATELY. Renaming either side to match would make the two
+    # organs disagree with their own published ids — the doctor's are read by the eagle rail and
+    # the heart's by the organ table — and this dict exists precisely so a house-style overlap is
+    # DECLARED instead of silently tolerated.
+    "stashbank":      ("stash bank", "stashBank"),
+    "vaultreceipts":  ("vault-receipts", "vaultReceipts"),
     "armedmigration": ("armed migration", "armed_migration"),
     "boardjoin":      ("board join", "board_join"),
     # ⚠ THESE TWO GREW THE MOMENT THE CENSUS COULD ACTUALLY SEE THE HEART, which is the ratchet

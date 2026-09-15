@@ -183,7 +183,7 @@ def _ledger_began():
     each other for 2,385 rows: *"it can go.. whatever was in the past for here specifically its
     fine.. just make sure forward it is all working"*.
 
-    MEASURED before asking him: `reel_tombstones.json`'s earliest deletion is 2026-08-24 23:49, and
+    MEASURED before asking him: the tombstone ledger's earliest deletion is 2026-08-24 23:49, and
     **2,385 of the 2,424 `unknown` rows (98.4%) are runs that STARTED BEFORE THAT**. Their film was
     gone before any instrument existed to record it going, so no record was ever written and none
     can be manufactured — which is exactly why his condition could never be satisfied for them and

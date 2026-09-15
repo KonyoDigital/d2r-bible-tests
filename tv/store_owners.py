@@ -127,6 +127,19 @@ STORES = {
         "owner": "vault_retro",
         "holds": "what the vault sweep accumulated per reel",
         "readers": {
+            "vault_bank":    "v3171 — the ONE reader for the stash-side bank. It reads this store and\n"
+                             "                              vault_swept.json together and reports what the sweep took,\n"
+                             "                              folding two different wordings of 'empty' and SAYING that it\n"
+                             "                              folded them. Read-only: it reads back the output of the sweep\n"
+                             "                              that wrote it, which is why the corroborator files its check as\n"
+                             "                              a self-report rather than a joint",
+            "vault_backup":  "NAMES this store in its copy list — it is one of the files backed up\n"
+                             "                              aside so a bad write can be undone. It reads the live file to\n"
+                             "                              copy it and never writes back to this path",
+            "trace_spine":   "v3183 — reads it to follow ONE item across reel, ledger, routing and\n"
+                             "                              endpoint, and to prove the NEGATIVE half: that a chronicle or\n"
+                             "                              farming scenario deposited nothing here. Reports only; the\n"
+                             "                              witnessed machinery stays the sole writer",
             "render_check":  "v2778 — NAMES this store as one of eleven it COPIES into a throwaway\n"
                              "                              sandbox before rendering, so a render never reads or writes\n"
                              "                              his live one. It reads the live file exactly once, to copy it;\n"
@@ -166,6 +179,11 @@ STORES = {
         "owner": "frame_authority",
         "holds": "the seal store — which sessions the vault sweep has sealed, and what it extracted",
         "readers": {
+            "vault_bank":    "v3171 — reads this store beside vault_accum to answer how many sweeps\n"
+                             "                              actually took something (45 swept, 36 silent when measured).\n"
+                             "                              Read-only, and the ONE reader of the pair",
+            "vault_backup":  "NAMES this store in its copy list — backed up aside so a bad write can\n"
+                             "                              be undone. Reads the live file to copy it, never writes here",
             "render_check":  "v2778 — NAMES this store as one of eleven it COPIES into a throwaway\n"
                              "                              sandbox before rendering, so a render never reads or writes\n"
                              "                              his live one. It reads the live file exactly once, to copy it;\n"

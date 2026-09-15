@@ -39,6 +39,18 @@ BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 # The seven that were already unisolated when this guard was written. Each is grail-ish and each
 # predates the guard; listing them makes the gap visible instead of forgotten.
 KNOWN_UNISOLATED = {
+    # ── v3190 — MINE, and it follows d2r_foundEvidence's precedent rather than inventing a rule ──
+    # `d2r_vaultRemoved` is the removal journal: a ring of what was taken OUT of the vault, dated,
+    # listed and undoable. It is a record ABOUT `d2r_owned`, and d2r_owned is unforked — so the
+    # same argument the entry below makes applies unchanged: a journal that forked while the list
+    # it describes did not would let a machine hold a removal record for an item it cannot see,
+    # and `vaultRestoreLast` would offer to put back something this world never had.
+    # ⚠ WHAT THAT COSTS, stated rather than discovered later: two accounts on one machine share
+    # one removal journal, exactly as they already share the evidence sidecar. Nothing crosses an
+    # INSTALL — the router still scopes it per world.
+    # 📌 AND THE FORK IS HIS CALL, NOT MINE. This defaults to the precedent; say the word and it
+    # moves to _WP_FORKED instead.
+    "d2r_vaultRemoved",
     "d2r_chronAdopted",
     "d2r_chronicleInbox",
     "d2r_chronicleInboxLog",   # the Routing Ledger — the "visual backend"

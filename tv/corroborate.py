@@ -2130,7 +2130,7 @@ NO_JOINT_YET = {
     # is how it stayed unnoticed. File the entry IN THE SAME COMMIT as the check.
     'stash bank':
         "a SELF-REPORT, and unjointable by construction. vault_bank.state() is the ONE reader over "
-        "the vault's own accumulation (vault_accum.json + vault_seen.json) — it reads back the "
+        "the vault's own accumulation (the accum + seen stores) — it reads back the "
         "output of the sweep that wrote it, and this file's own bar says a module reading back its "
         "own output is one engine, not two. The chronicle ledger is a genuinely separate source "
         "but answers a different question (what the film SAW, not what the stash HOLDS), so "

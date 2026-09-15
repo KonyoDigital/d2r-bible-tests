@@ -60,6 +60,15 @@ WATCHES = {
     # v3171 — the stash bank has no rendered surface yet; an empty tuple is a DECLARATION
     # that it is watched without a screen, never an omission. Under-claiming is the bias.
     "stashBank":       (),
+    # ⚠ v3190 — FOUR FLAGS SHIPPED WITHOUT A DECLARATION AND THE LAW WAS RED ON CI THE WHOLE
+    # TIME. A flag with no entry reads ABSENT in the organ table — a claim nobody made — which is
+    # indistinguishable from a check nobody wrote. Each of these is declared with what it ACTUALLY
+    # renders on, and an empty tuple where the honest answer is "watched, but not on a screen".
+    "sweepMeter":      ("vault.sweep_start",),   # the rail meter reads the vault sweep's own state
+    "vaultReceipts":   ("vault", "vault-full"),  # the receipt eye lives on the vault rows
+    "vaultRemovals":   ("vault", "vault.forget"),
+    # the attack tally is evidence ABOUT the lanes, not a rendered thing of its own
+    "laneAttacks":     (),
     "armed_migration": (),
     "board_join":      (),
     "orphans":         ("_orphan_watch", "_orphan_exit_loop"),
@@ -1412,7 +1421,7 @@ def check_stash_bank():
 
     HE WAS RIGHT THAT IT EXISTS, and it was starved. Two banks, same idea, opposite health:
         chron_evidence.json   324 uniques · 8517 sightings · 262 refusals kept on purpose
-        vault_accum.json       12 keys
+        vault_accum (the stash bank)   12 keys
     MEASURED: the sweeper read reels in DIRECTORY ORDER filtered only by "not already sealed", so
     it spent 45 sessions on arbitrary footage (36 of them, 80%, took nothing) while the three best
     stash-panel reels — one at 100% density — had never been swept. The ranking existed and was

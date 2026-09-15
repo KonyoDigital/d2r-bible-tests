@@ -3683,6 +3683,12 @@ def run(include_slow=True, include_periodic=None):
 #:     here forever matching nothing and looking like considered coverage.
 #: [[unknown-stays-unknown]] [[the-unjoined-end]] [[source-reading-guard]]
 WATCHES = {
+    # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
+    # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
+    # organ table for a version — a claim nobody made, indistinguishable from a check nobody
+    # wrote. The empty tuple is the honest answer and a DECLARATION: vault_bank reads the sweep's
+    # own accumulation off disk and renders on no screen of its own yet.
+    "stash bank":                  (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never

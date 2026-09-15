@@ -568,6 +568,30 @@
   "purpose": "The second eye's vision lane: `grok -p` on his SuperGrok login, off/shadow/primary, reading the same area/tz/scene/names/names_loc/sockets JSON under an hourly+daily budget.",
   "territory": "second-eye"
  },
+ "guest_fixture_pack.py": {
+  "entryPoints": [
+   "build",
+   "verify",
+   "load"
+  ],
+  "gotcha": "A pack is NOT a copied reel: one reel measured 196 MB / 153 frames, a pack of it is 2.7 MB / 16, spaced EVENLY so the scrub bar still travels the whole run (a head slice leaves the reel controls untestable past the opening). ⚠ A fixture gets its OWN namespaced sessionId — keeping the source's made the loader dedupe it against the real session list and the real row won, so the fixture flag never reached the guest. load() refuses any destination under tv/frames: a pack may be BUILT from footage and never LOADED into it.",
+  "purpose": "Turns one recorded reel into a versioned, checksummed regression pack the guest seat can click: a representative subset of frames, flagged as a fixture, loadable only into a mirror.",
+  "territory": "guest"
+ },
+ "guest_profile.py": {
+  "entryPoints": [
+   "profile",
+   "scrub",
+   "rewrite_status",
+   "unreadable",
+   "is_unreadable",
+   "leaks",
+   "progress_seed"
+  ],
+  "gotcha": "The rewrite is a REDACTION, not a relabel. The guest seat renders a mirror of the live console and this repo is public, so scrub() walks dict KEYS as well as values — per-session dumps are KEYED by path, and a values-only walk leaks the home directory one filename at a time. The identity is REPLACED rather than merged so an unknown key cannot ride along. ⚠ leaks() and the scrub read the SAME pair list, so a detector that forgets a secret is blind to it — callers must also check literals.",
+  "purpose": "The Grok actor for the guest seat plus the redaction that keeps a public mirror publishable: a stable identity, and a deep scrub of the owner's install id, hostname, user and home paths out of every payload the box will serve.",
+  "territory": "guest"
+ },
  "health_engine.py": {
   "entryPoints": [
    "report",
@@ -690,6 +714,20 @@
   ],
   "gotcha": "Deliberately NOT a roster — it word-boundary-matches the words D2R itself prints, because a reader hands over OCR of a tooltip, not a database id. LOCKED is tested BEFORE consumable and the order is load-bearing: a *Scroll* of Town Portal is a consumable while the TOME is furniture, and a reader that saw both on one line must not get the tome demoted. It changes no behaviour — it exists to give the retro readers the answer control_app already had.",
   "purpose": "The hardcoded three-class item law — LOCKED furniture (Horadric Cube, tomes, Wirt's Leg, keys), CONSUMABLE (potions, scrolls, gold), and LOOT, the only class worth a register.",
+  "territory": "vault"
+ },
+ "item_identity.py": {
+  "entryPoints": [
+   "fold_rendering",
+   "split_name",
+   "vault_key",
+   "chronicle_key",
+   "same_vault_entity",
+   "same_chronicle_entry",
+   "qualified_forms"
+  ],
+  "gotcha": "Two vocabularies for one item, on one axis: a QUALIFIER (Latent/Renewed) is IDENTITY and never folds; an apostrophe byte, a base-type tail and an unambiguous parenthetical are RENDERING and do. ⚠ The parenthetical is decided by MEASUREMENT, not punctuation — 'Athena's Wrath' is a unique and nothing else so '(set piece)' folds, while 'Crescent Moon' is a unique AND a runeword so '(amulet)' is the only thing separating two real items.",
+  "purpose": "The two vocabularies for one item: what the VAULT calls a physical thing and what the CHRONICLE calls a grail line, separating identity from rendering so a Latent charm never witnesses a renewed one and an apostrophe byte never splits a row in two.",
   "territory": "vault"
  },
  "journal_drain.py": {
@@ -854,6 +892,14 @@
   "gotcha": "Six of eight loops leave no datable trace and are honestly ABSENT rather than covered — inventing an organ for them would remanufacture the fake coverage v3055 deleted. And lane_liveness._TICKS is an in-process dict on a monotonic clock, so a separate process reads ZERO lanes on a healthy machine: a missing tick is UNKNOWN, never dead.",
   "purpose": "Corroborates a background loop from two independent witnesses: its in-process TICK and the dated TRACE it leaves. Fresh tick, stale trace = the finding.",
   "territory": "heart-organs"
+ },
+ "loose_wires_audit.py": {
+  "entryPoints": [
+   "main"
+  ],
+  "gotcha": "⚠ A REGISTRY ENTRY IS A JOIN. Its first pass counted only ast.Call and reported 310 orphans, flagging every doctor check registered as a table VALUE. Corrected to 73. Some functions are also uncalled ON PURPOSE (control_app._open_board_once is protected by a test) — this tool reports candidates, it does not rule.",
+  "purpose": "Re-runnable audit of module-level definitions nothing consumes, counting registry entries and dispatch tables as joins so a registered check is not reported as an orphan.",
+  "territory": "console"
  },
  "main_character.py": {
   "entryPoints": [
@@ -1693,6 +1739,24 @@
   "purpose": "Locates the D2R tooltip in one frame by OCR text density over a tile grid, returning a crop rect or a refusal, and banks a Wilson score on whether a located tooltip was really one.",
   "territory": "capture-vision"
  },
+ "trace_spine.py": {
+  "entryPoints": [
+   "name_key",
+   "independence",
+   "hop_reel",
+   "hop_ledger",
+   "scenario_of",
+   "may_vault",
+   "hop_routing",
+   "hop_endpoint",
+   "spine",
+   "negative",
+   "main"
+  ],
+  "gotcha": "Follows ONE named item across reel -> ledger -> routing -> endpoint, and asserts the NEGATIVE half too: a chronicle or farming scenario must produce ZERO vault rows. ⚠ It REPORTS and never writes — footage has no un-delete and the witnessed machinery stays the only writer.",
+  "purpose": "Follows one named item across reel, ledger, routing decision and endpoint, and proves the negative half: that a chronicle or farming scenario deposits nothing in the vault.",
+  "territory": "routing"
+ },
  "tv_diablo.py": {
   "entryPoints": [
    "READ_PROMPT / PROMPT_VER :385-387",
@@ -1745,6 +1809,15 @@
   ],
   "gotcha": "A backup that was never read back is not a restore. Its copies are only as good as the verification that follows them — see the RESTORE work in task #81, which measured that nothing reads these saves back.",
   "purpose": "Copies the vault's stores aside before anything mutates them, so a bad apply has somewhere to come back from.",
+  "territory": "vault"
+ },
+ "vault_bank.py": {
+  "entryPoints": [
+   "state",
+   "headline"
+  ],
+  "gotcha": "The ONE reader for the stash-side bank. It folds two different 'empty' wordings and REPORTS that it folded them, so a caller cannot mistake a fold for a measurement.",
+  "purpose": "The one reader for the stash-side bank, reporting what it accumulated and saying out loud when it folded two different wordings of empty into one.",
   "territory": "vault"
  },
  "vault_corpus.py": {
