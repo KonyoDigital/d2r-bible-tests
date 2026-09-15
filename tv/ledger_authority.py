@@ -487,6 +487,25 @@ def _manual_write(ledger, who, by, why, path, at, accepted):
     return {"ok": True, "record": row}
 
 
+# ⚠ v3192 — WHY THIS IS STILL UNJOINED, MEASURED RATHER THAN ASSUMED.
+#
+# An audit and a fan-out both proposed the same one-line join: make control_app.grail_tally call
+# `_LA.classify_row(out, world=own.get("route"))` so a declaration can be found. Checked on the
+# live tree, and the prescription is wrong twice over:
+#
+#   · `own` comes from board_ownership(0), which returns {ok, why} ALONE while the board window is
+#     shut — no world of any kind. `route` appears ZERO times in grail_tally.
+#   · with the board shut, grail_tally never reaches the classify at all: `ledgerVerdict` comes
+#     back None on this machine right now.
+#
+# And `world_key` is deliberately strict — install id + profile, refusing an empty id — precisely
+# so a declaration cannot match every id-less world at once. Passing a guessed or empty world here
+# would not join anything; it would make a declaration lookup that silently matches the wrong
+# world, which is worse than one that finds nothing.
+#
+# SO THE JOIN IS REAL BUT ITS PREREQUISITE IS A WORLD, and the world needs the board to answer.
+# Do it when the board window is open and the route key is in hand — not before.
+# [[unknown-stays-unknown]] [[review-after-ship]]
 def manual_accept(ledger, who, by="", why="", path=None, at=None):
     """Declare ONE ledger accepted on ONE world. Witness-free. -> dict
 

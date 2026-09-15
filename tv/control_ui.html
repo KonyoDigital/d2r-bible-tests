@@ -16734,7 +16734,7 @@ window._lockMark = function(isOpen, px, label){
         var stLab = (SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
         /* ══ v3190 — AND WHY IT HAS NO STATION, WHICH v3176 DROPPED ════════════════════════
            Before the sections went away a card with no station fell into one of TWO buckets:
-           "— shared id, cannot place" or "— not stamped". The river replaced the bucketing with
+           one of two reasons, named on the card. The river replaced the bucketing with
            one flow and the distinction went with it, so both now rendered as a bare dash.
 
            They are not the same fact. A reel nobody stamped is UNSTAMPED. A reel that cannot be
@@ -16745,8 +16745,12 @@ window._lockMark = function(isOpen, px, label){
            `_shSidAmbiguous` survived the rewrite as an orphan; this is its call site back.
            [[unknown-stays-unknown]] [[the-unjoined-end]] */
         var stWhy = st ? '' : (_shSidAmbiguous(c) ? 'shared id, cannot place' : 'not stamped');
+        /* ⚠ ON THE TITLE, NOT INLINE. v3190 put this reason in an inline span and
+           test_the_shelf_shows_reels_before_analysis went red for the right reason: an inlined
+           reason wraps the badge to three lines and grows the card. The distinction still has to
+           reach him, so it rides on the badge's own tooltip beside the station's `why`. */
+        if (stWhy) b.title = (b.title ? (b.title + ' \u00b7 ') : '') + stWhy;
         b.innerHTML = '<span class="shcr-st">' + esc(stLab || '\u2014') + '</span>'
-          + (stWhy ? '<span class="shcr-why">' + esc(stWhy) + '</span>' : '')
           + ((st && stLab !== st)
                ? '<span class="shg-key">' + esc(st) + '</span>' : '')
           /* ⚠ v3107 — NAME THE EVENT. `r.at` is the last HOP's timestamp — when the reel flowed

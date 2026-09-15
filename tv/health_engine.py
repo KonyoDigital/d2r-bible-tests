@@ -1254,7 +1254,16 @@ def check_vault_receipts(backup_dir=None):
                           # v3182 — RESOLUTION, not presence. See _receipts_resolve.
                           ("receiptFrames %d of %d open on disk" % _rres) if _rres[1]
                           else "receiptFrames UNKNOWN (the bank could not be read)",
-                          "hooks rc-art=%s rcpt-ic=%s" % (_hooks.get("rc-art"), _hooks.get("rcpt-ic")),
+                          # ⚠ v3193 — NAME THE TOKENS ACTUALLY COUNTED. v3182 changed
+                          # _receipt_hooks to look for the board's own viewer hooks and left this
+                          # label saying rc-art / rcpt-ic, which are no longer measured — so the
+                          # line read "rc-art=None" forever. Worse, the law that grades this row
+                          # guards its assertions on "rc-art=0" and therefore stopped running them
+                          # entirely: green while examining nothing, which is the one failure the
+                          # heart exists to catch. [[label-outlived-referent]]
+                          "hooks %s" % (" ".join("%s=%s" % (k, v) for k, v in
+                                                 sorted((_hooks or {}).items())
+                                                 if k != "ok") or "none measured"),
                           "backup %s" % os.path.basename(_files[-1])],
                 k=_atkK, n=_atkN, surfaces=["vault-receipts"])
 

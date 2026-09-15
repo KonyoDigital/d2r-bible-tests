@@ -81,38 +81,73 @@ class TestTheVaultReceiptIsWatched(unittest.TestCase):
         self.assertIn("withSighting 1", e,
                       "an EMPTY sightings list is not a receipt: %r" % (e,))
 
+    def test_it_reports_whether_a_receipt_can_actually_OPEN(self):
+        """⚠ v3193 — THE MEASUREMENT, NOT THE BUTTON. The row used to grade only whether the vault
+        emitted a receipt HOOK; it did, and the row was green while the hook resolved 4 of 450
+        banked frames because it addressed a flat path the frames do not live at. Presence and
+        resolution are different questions and only one of them is the feature.
+
+        This asserts the row SAYS which it measured — a count when the bank can be read, and an
+        explicit UNKNOWN when it cannot. A silent omission would let the old green come back."""
+        r = HE.check_vault_receipts()
+        line = r.get("line") or ""
+        ev = " ".join(str(x) for x in (r.get("evidence") or []))
+        got, tested = HE._receipts_resolve()
+        print("   resolve: %d of %d · line mentions frames: %s" % (got, tested, "frame" in line))
+        self.assertIn("receiptFrames", ev,
+                      "the evidence does not carry the resolution measurement at all, so a "
+                      "receipt that opens nothing is indistinguishable from one that opens")
+        if tested:
+            self.assertIn("banked best-frames", line,
+                          "the bank was read (%d of %d) and the row does not say how many "
+                          "receipts can actually be opened: %r" % (got, tested, line[:140]))
+        else:
+            self.assertIn("UNKNOWN", line,
+                          "the bank could not be read and the row does not say so — an "
+                          "unmeasured resolution must never read as a clean one")
+
     def test_it_says_when_the_vault_cannot_show_a_receipt_at_all(self):
         """The join is the finding. Counting sightings while the vault emits no hook would report
         a number about evidence that can never reach his screen."""
         _backup(self.d, ["A"], {"A": {"sightings": [{"reel": "r", "frame": "f.jpg"}]}}, {"A": "x"})
         r = HE.check_vault_receipts(backup_dir=self.d)
-        hooks = [x for x in (r.get("evidence") or []) if str(x).startswith("hooks ")]
-        if "rc-art=0" in (hooks[0] if hooks else ""):
+        # ⚠⚠ v3193 — THIS GUARD HAD STOPPED FIRING AND THE TEST PASSED EXAMINING NOTHING.
+        # It keyed on the literal "rc-art=0". v3182 changed _receipt_hooks to count the board's
+        # own viewer hooks, so the evidence read "rc-art=None" — never "=0" — the `if` was never
+        # true, and BOTH assertions below had not run since. The heart caught it: the red-proof
+        # that deletes the sentence stayed GREEN. A law must not decide whether to look by
+        # matching a string that another version is free to rename.
+        # [[label-outlived-referent]] [[feedback-blind-fixture-green-gate]]
+        #
+        # Ask the ORGAN's own joined verdict instead of parsing its prose.
+        joined = bool((HE._receipt_hooks() or {}).get("ok")) and HE._vault_row_has_frame()
+        print("   receipt lane joined: %s" % joined)
+        if not joined:
             self.assertIn("NO receipt hook", r["line"],
                           "the vault emits no receipt hook and the row does not say so: %r"
                           % (r["line"][:160],))
             self.assertEqual(r["state"], HE.WARN,
                              "an unjoined receipt lane reported %r" % (r["state"],))
+        else:
+            # ⚠ AND THE JOINED CASE IS ASSERTED TOO, so this test can never again be a no-op:
+            # whichever way the join goes, something is checked.
+            self.assertNotIn("NO receipt hook", r["line"],
+                             "the lane IS joined and the row still claims it emits no hook")
 
 
 RED_PROOF = [
     {
-        "why": "drops the sentence that says the vault emits no receipt hook, so the organ reports "
-               "a sighting count about evidence that can never reach his screen and the unjoined "
-               "lane reads as healthy",
-        "file": "health_engine.py",
-        "find": '        _line += ("; and the vault emits NO receipt hook at all, so even a row that HAS a frame "',
-        "replace": '        _line += ("; ok "',
+        "why": 'v3193 — the old anchor deleted the "NO receipt hook" sentence, which only appears '
+               'on the UNJOINED path his tree never takes, so the tamper was invisible. This '
+               'deletes the RESOLUTION measurement instead: the organ then reports a sighting '
+               'count while saying nothing about whether one frame can actually be opened, which '
+               'is the defect v3182 was written to end',
+        "file": 'health_engine.py',
+        "find": '    _rres = _receipts_resolve()',
+        "replace": '    _rres = (0, 0)  # _HEART2_TAMPERED_',
         "matches": 1,
     },
-    {
-        "why": "reports an unreadable ledger backup as a clean zero instead of UNKNOWN, so 'nobody "
-               "could look' and 'nothing is there' become the same row",
-        "file": "health_engine.py",
-        "find": '        return _row("vaultReceipts", UNKNOWN,\n                    "the newest ledger backup could not be read (%s), so the receipt count is "',
-        "replace": '        return _row("vaultReceipts", OK,\n                    "the newest ledger backup could not be read (%s), so the receipt count is "',
-        "matches": 1,
-    },
+    {'why': "reports an unreadable ledger backup as a clean zero instead of UNKNOWN, so 'nobody could look' and 'nothing is there' become the same row", 'file': 'health_engine.py', 'find': '        return _row("vaultReceipts", UNKNOWN,\n                    "the newest ledger backup could not be read (%s), so the receipt count is "', 'replace': '        return _row("vaultReceipts", OK,\n                    "the newest ledger backup could not be read (%s), so the receipt count is "', 'matches': 1},
 ]
 
 if __name__ == "__main__":

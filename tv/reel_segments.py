@@ -342,6 +342,32 @@ def lane_at_graded(segs, sid, ts, pad_ms=0):
                   "covers it" % "/".join(sorted(holders)), UNSETTLED)
 
 
+# ⚠⚠ v3192 — MEASURED: THIS CANNOT BE JOINED TODAY, AND THE REASON IS NOT THE CODE.
+#
+# A read-only audit and an independent fan-out both flagged `corroborates_chrome` as an UNJOINED
+# verdict worth wiring into console_doctor, one of them claiming it would surface "19 of 192
+# frames where the chrome was showing and the scene reader said gameplay".
+#
+# IT DOES NOT REPRODUCE. The two witnesses have never examined the same frame:
+#
+#     stash_gate_cache.json   3,145 frame stems   (chrome verdicts, 293 non-null)
+#     sessions.jsonl          2,423 frame stems   (scene reads)
+#     INTERSECTION                0
+#
+# Same key SHAPE (`<n>_<ms>`), disjoint populations: the chrome cache is filled by the VAULT
+# SWEEP walking cache1280 derivatives of old sealed reels (stems 1784-1786), while the scene
+# reads come from the LIVE on-air journal of recent sessions (stems 1788-1789). Two pipelines,
+# two eras, no overlap.
+#
+# So a doctor row built on this today would read "0 of 0" forever — a blind instrument wearing a
+# green tick, which is the exact failure heart v2 exists to catch. It is NOT built, deliberately.
+#
+# WHAT WOULD MAKE IT REAL, and it is small: the vault sweep already calls BOTH witnesses on every
+# frame it reads — stash_screen_open_cached for the chrome and the paid reader for the surface —
+# and writes down neither pairing. Have _vault_sweep_run record (frame, chrome_verdict, surface)
+# as it goes and the corroboration becomes possible on the next sweep, with no new reads and no
+# new cost. Until then this function is correct, tested, and honestly unreachable.
+# [[zero-needs-a-denominator]] [[the-unjoined-end]] [[review-after-ship]]
 def corroborates_chrome(activity, stash_tab, chrome_readable=True):
     """The scene read against the STASH TAB CHROME. -> (verdict, why)
 

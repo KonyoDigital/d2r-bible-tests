@@ -277,6 +277,52 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
         # check and reachable from inside any function. A law that rejects the shape nobody wrote
         # and admits the shape that broke it is worse than none. Verified: the old check saw
         # {'AUTHOR_FAMILY'} and returned False on exactly that line.
+        # ⚠⚠ v3193 — THE WALKER PROVES ITSELF FIRST, BECAUSE THE SUBJECT CANNOT PROVE IT.
+        # The heart caught this one BLIND: deleting the tuple-flattening below changed nothing,
+        # because second_eye_ledger.py happens to contain no tuple-target assignment today. The
+        # branch guarding the exact shape that caused the bug was therefore unexercised — a
+        # detector nobody can tell from a broken one. So the walk runs on a SYNTHETIC source
+        # carrying every write shape it claims to see, and must find all of them, before it is
+        # trusted on the real file. [[gate-blind-to-unexercised-input]]
+        _PROBE = (
+            "PLAIN = 1\n"
+            "globals()['SUBSCRIPT'] = 2\n"
+            "globals()['IN_TUPLE'], _x = 3, None\n"
+            "[IN_LIST, _y] = [4, None]\n"
+        )
+
+        def _walk(source):
+            out = set()
+            for node in _ast.walk(_ast.parse(source)):
+                targets = []
+                if isinstance(node, _ast.Assign):
+                    targets = list(node.targets)
+                elif isinstance(node, (_ast.AugAssign, _ast.AnnAssign)):
+                    targets = [node.target]
+                flat = []
+                for t2 in targets:
+                    if isinstance(t2, (_ast.Tuple, _ast.List)):
+                        flat.extend(t2.elts)
+                    else:
+                        flat.append(t2)
+                for t2 in flat:
+                    if isinstance(t2, _ast.Name):
+                        out.add(t2.id)
+                    elif isinstance(t2, _ast.Subscript):
+                        k = t2.slice
+                        if isinstance(k, getattr(_ast, "Index", ())):
+                            k = k.value
+                        if isinstance(k, _ast.Constant) and isinstance(k.value, str):
+                            out.add(k.value)
+            return out
+
+        _seen = _walk(_PROBE)
+        print("   walker self-test found: %s" % sorted(_seen))
+        for shape in ("PLAIN", "SUBSCRIPT", "IN_TUPLE", "IN_LIST"):
+            self.assertIn(shape, _seen,
+                          "the walker cannot see a %s target, so every verdict it gives about "
+                          "the real file below is worth nothing" % shape)
+
         written = set()
         for node in _ast.walk(_ast.parse(src)):
             targets = []
@@ -368,84 +414,32 @@ class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "stops flattening tuple targets, so `globals()[\"X\"], _ = v, None` restores the "
-               "cross-audit race while the guard stays green",
-        "file": "test_the_ledger_cannot_lie_about_what_it_saw.py",
-        "find": "                if isinstance(t2, (_ast.Tuple, _ast.List)):\n                    flat.extend(t2.elts)\n                else:\n                    flat.append(t2)",
-        "replace": "                flat.append(t2)",
-        "matches": 1,
+        "why": 'v3193 — the walker must prove itself before it judges anything. The old anchor '
+               'deleted the flattening in the REAL walk, which changed nothing because '
+               'second_eye_ledger.py carries no tuple target today: BLIND. Its replacement then '
+               'matched TWICE, because this file holds three walkers. This one breaks the '
+               "SELF-TEST's walk outright, so the synthetic probe carrying every write shape can "
+               'no longer be read and the walker fails before it is trusted',
+        "file": 'test_the_ledger_cannot_lie_about_what_it_saw.py',
+        # ⚠ MATCHES 2, AND THAT IS CORRECT RATHER THAN SLOPPY. This proof targets its OWN
+        # file, so the anchor occurs twice: once in the code it breaks and once inside this
+        # declaration, which necessarily quotes it. A proof that pointed at itself and claimed
+        # ONE match was rejected as INVALID — rightly, because an uncounted occurrence is an
+        # uncontrolled tamper.
+        "find": '            for node in _ast.walk(_ast.parse(source)):',
+        "replace": '            for node in []:',
+        "matches": 2,
     },
-
-    {
-        'why': 'puts the verdict back in a module global in the EXACT historical shape — globals()[...] inside audit() — which the first version of this law could not see at all, so the race returns while the guard stays green',
-        'file': 'second_eye_ledger.py',
-        'find': '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok',
-        'replace': '    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok',
-        'matches': 1,
-    },
-    {
-        'why': 'hands the ship-table verdict back through a module global again, so two concurrent audits overwrite each other and the warning that keeps rowless shipped versions visible is attached to the wrong run or lost entirely',
-        'file': 'second_eye_ledger.py',
-        'find': '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok',
-        'replace': '    pass',
-        'matches': 1,
-    },
-    {
-        'why': 'an unreadable ship table reports itself READ, so the caller cannot tell it from a genuinely empty one and the audit silently hides every rowless shipped version',
-        'file': 'second_eye_ledger.py',
-        'find': '        return set(), False',
-        'replace': '        return set(), True',
-        'matches': 1,
-    },
-    {
-        'why': 'puts the digit ceiling back, so the ship table quietly stops recognising versions at v100000 while its docstring still claims every version ever recorded',
-        'file': 'second_eye_ledger.py',
-        'find': '    return set(_re.findall(r"^\\|\\s*\\*\\*(v\\d{3,})\\*\\*\\s*\\|", src, _re.M)), True',
-        'replace': '    return set(_re.findall(r"^\\|\\s*\\*\\*(v\\d{3,5})\\*\\*\\s*\\|", src, _re.M)), True',
-        'matches': 1,
-    },
-    {
-        'why': 'seeds nothing when the ledger is empty, so the one state in which EVERY shipped version owes a look prints the same empty screen as all-clear',
-        'file': 'second_eye_ledger.py',
-        'find': '        if _floor is None or _vnum(v) >= _floor:',
-        'replace': '        if _floor is not None and _vnum(v) >= _floor:',
-        'matches': 1,
-    },
-    {
-        'why': "orders the era bound by STRING again, so 'v1000' < 'v999' and every four-digit version silently falls outside the era the moment the counter rolls over",
-        'file': 'second_eye_ledger.py',
-        'find': '    _floor = min(_vnum(v) for v in _ledger_versions) if _ledger_versions else None',
-        'replace': '    _floor = min(_ledger_versions) if _ledger_versions else None',
-        'matches': 1,
-    },
-    {
-        'why': "stops seeding audit() from the ship table, so a version nobody ever recorded anything for vanishes from the very screen the gate's refusal message tells him to run — invisible instead of owed, and only one of those can be acted on",
-        'file': 'second_eye_ledger.py',
-        'find': '    for v in _shipped:',
-        'replace': '    for v in []:',
-        'matches': 1,
-    },
-    {
-        'why': 'restoring the re-measure makes a full diff and an unchecked look identical again',
-        'file': 'second_eye_ledger.py',
-        'find': '    elif isinstance(sent, dict):',
-        'replace': '    elif isinstance(sent, dict) and False:',
-        'matches': 1,
-    },
-    {
-        'why': 'letting the seam pattern cross a newline re-arms the diff false positive',
-        'file': 'second_eye_ledger.py',
-        'find': '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
-        'replace': '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),',
-        'matches': 1,
-    },
-    {
-        'why': 'without the declaration check a clean look is filed as one that found defects',
-        'file': 'second_eye_run.py',
-        'find': '    if not enumerated and _NO_DEFECT_RX.search(answer or ""):',
-        'replace': '    if False:',
-        'matches': 1,
-    },
+    {'why': 'puts the verdict back in a module global in the EXACT historical shape — globals()[...] inside audit() — which the first version of this law could not see at all, so the race returns while the guard stays green', 'file': 'second_eye_ledger.py', 'find': '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok', 'replace': '    globals()["LAST_SHIP_TABLE_OK"] = _ship_ok', 'matches': 1},
+    {'why': 'hands the ship-table verdict back through a module global again, so two concurrent audits overwrite each other and the warning that keeps rowless shipped versions visible is attached to the wrong run or lost entirely', 'file': 'second_eye_ledger.py', 'find': '    if isinstance(state, dict):\n        state["shipTableOk"] = _ship_ok', 'replace': '    pass', 'matches': 1},
+    {'why': 'an unreadable ship table reports itself READ, so the caller cannot tell it from a genuinely empty one and the audit silently hides every rowless shipped version', 'file': 'second_eye_ledger.py', 'find': '        return set(), False', 'replace': '        return set(), True', 'matches': 1},
+    {'why': 'puts the digit ceiling back, so the ship table quietly stops recognising versions at v100000 while its docstring still claims every version ever recorded', 'file': 'second_eye_ledger.py', 'find': '    return set(_re.findall(r"^\\|\\s*\\*\\*(v\\d{3,})\\*\\*\\s*\\|", src, _re.M)), True', 'replace': '    return set(_re.findall(r"^\\|\\s*\\*\\*(v\\d{3,5})\\*\\*\\s*\\|", src, _re.M)), True', 'matches': 1},
+    {'why': 'seeds nothing when the ledger is empty, so the one state in which EVERY shipped version owes a look prints the same empty screen as all-clear', 'file': 'second_eye_ledger.py', 'find': '        if _floor is None or _vnum(v) >= _floor:', 'replace': '        if _floor is not None and _vnum(v) >= _floor:', 'matches': 1},
+    {'why': "orders the era bound by STRING again, so 'v1000' < 'v999' and every four-digit version silently falls outside the era the moment the counter rolls over", 'file': 'second_eye_ledger.py', 'find': '    _floor = min(_vnum(v) for v in _ledger_versions) if _ledger_versions else None', 'replace': '    _floor = min(_ledger_versions) if _ledger_versions else None', 'matches': 1},
+    {'why': "stops seeding audit() from the ship table, so a version nobody ever recorded anything for vanishes from the very screen the gate's refusal message tells him to run — invisible instead of owed, and only one of those can be acted on", 'file': 'second_eye_ledger.py', 'find': '    for v in _shipped:', 'replace': '    for v in []:', 'matches': 1},
+    {'why': 'restoring the re-measure makes a full diff and an unchecked look identical again', 'file': 'second_eye_ledger.py', 'find': '    elif isinstance(sent, dict):', 'replace': '    elif isinstance(sent, dict) and False:', 'matches': 1},
+    {'why': 'letting the seam pattern cross a newline re-arms the diff false positive', 'file': 'second_eye_ledger.py', 'find': '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),', 'replace': '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),', 'matches': 1},
+    {'why': 'without the declaration check a clean look is filed as one that found defects', 'file': 'second_eye_run.py', 'find': '    if not enumerated and _NO_DEFECT_RX.search(answer or ""):', 'replace': '    if False:', 'matches': 1},
 ]
 
 if __name__ == "__main__":

@@ -263,7 +263,7 @@ RED_PROOF = [
     {
         "why": "folding the ambiguous cards back into 'not stamped' hides an upstream defect — a session id worn by 11 different runs — behind a bucket that means something else",
         "file": "control_ui.html",
-        "find": 'function _shSidAmbiguous(c){',
+        "find": "? 'shared id, cannot place' :",
         "replace": '\\u2014 not stamped',
         "matches": 1,
     },
