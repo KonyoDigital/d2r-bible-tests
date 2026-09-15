@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3185",
+  "ver": "v3186",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3185: The SHELF 3.0 river kept the tombstone mouth alive but silently dropped the zero guard, the GB compaction and the freed label that three earlier versions had put there on measurement, and it orphaned five sabotage anchors. Restored, with the laws re-expressed for one river rather than left asserting text that can no longer appear.",
+  "note": "v3186: A real Grok actor for the guest seat on the box and the Mac-side puller that feeds it, which the brief said to keep and improve and which did not exist anywhere. The guest vault rendered every locker empty because there was no mirror at all, not because the vault was broken. The rewrite is a redaction rather than a relabel: this repo is public and the first run proved the board HTML still carried four of his machine identifiers, so the run refuses to copy anything that still leaks.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

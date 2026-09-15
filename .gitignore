@@ -285,3 +285,10 @@ tv/.vault_autoread.json
 # v3076 — runtime lane traces: a loop's own recorded decision, rewritten constantly
 tv/.lane_trace/
 .noblur_probe
+
+# ══ v3186 — THE GUEST MIRROR IS NEVER COMMITTED ══════════════════════════════════════════════
+# `tv/sync_guest_api.sh` writes a scrubbed copy of the LIVE console here for the Grok guest seat
+# on the box. It is regenerable in one command, ~7 MB, and — this is the part that matters — it
+# is a copy of HIS ledger, his 419 sessions and his tombstone rows. THIS REPO IS PUBLIC. The
+# scrub removes his machine's identifiers, not his data.
+guest-mirror/

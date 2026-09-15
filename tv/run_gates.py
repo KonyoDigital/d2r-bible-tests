@@ -640,6 +640,16 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_the_guest_seat_is_grok_not_konyo",
+         [sys.executable, os.path.join(HERE, "test_the_guest_seat_is_grok_not_konyo.py")], 120,
+         why="the Grok guest seat on the box renders a MIRROR of his live console, and this repo "
+             "is public. His /api/status carries an install id, a .local hostname, a unix user "
+             "and absolute home paths; the board HTML carries them too - MEASURED on the first "
+             "sync run, the raw board came back with FOUR of his identifiers and the leak gate "
+             "refused the copy. Pins that the actor is Grok/grok-bot with a STABLE id, that the "
+             "scrub reaches dict KEYS (per-session dumps are keyed by path), that the identity is "
+             "REPLACED rather than merged, that an unreadable store leaves an explicit record "
+             "instead of an empty one, and that no mutating endpoint is in the mirror allowlist."),
     Gate("test_the_chronicle_counts_a_sunder_once",
          [sys.executable, os.path.join(HERE, "test_the_chronicle_counts_a_sunder_once.py")], 120,
          why="his ruling twice over (v2680 and again 2026-09-15): the chronicle counts each of "
