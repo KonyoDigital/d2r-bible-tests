@@ -292,3 +292,9 @@ tv/.lane_trace/
 # is a copy of HIS ledger, his 419 sessions and his tombstone rows. THIS REPO IS PUBLIC. The
 # scrub removes his machine's identifiers, not his data.
 guest-mirror/
+
+# ══ v3187 — FIXTURE PACKS ARE NEVER COMMITTED ════════════════════════════════════════════════
+# `tv/guest_fixture_pack.py` cuts these from HIS REAL REELS — actual frames of his game, 2.7 MB
+# per pack. They are scrubbed of his machine's identifiers, which is not the same as being his to
+# publish. THIS REPO IS PUBLIC. Packs travel to the box by rsync, never by git.
+fixtures/

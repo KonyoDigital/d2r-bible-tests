@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3186",
+  "ver": "v3187",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3186: A real Grok actor for the guest seat on the box and the Mac-side puller that feeds it, which the brief said to keep and improve and which did not exist anywhere. The guest vault rendered every locker empty because there was no mirror at all, not because the vault was broken. The rewrite is a redaction rather than a relabel: this repo is public and the first run proved the board HTML still carried four of his machine identifiers, so the run refuses to copy anything that still leaks.",
+  "note": "v3187: His recorded runs become versioned packs the guest seat can click. One reel is 196 MB across 153 frames and a pack of it is 2.7 MB across 16, evenly spaced so the reel controls stay testable to the end. Every staged session declares itself a fixture and carries its own id, because the first load deduped it against his real sessions and his own row won. The loader refuses to write into the live footage tree.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

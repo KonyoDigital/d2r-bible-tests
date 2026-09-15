@@ -106,6 +106,33 @@ fi
 
 echo "  ── $ok endpoint(s) mirrored, $bad unreadable (recorded as such, not as empty)"
 
+# ══ FIXTURE PACKS — his recorded runs, restaged on every refresh ════════════════════════════
+# A pull overwrites api/sessions.json with the live list, which would silently drop every staged
+# scenario. So packs are (re)loaded AFTER the pull, every time — the refresh is one command and
+# it must leave the guest in the state the last refresh left it, plus whatever is newer.
+FIXTURES="${GUEST_FIXTURES:-$(cd "$(dirname "$0")/.." && pwd)/fixtures}"
+if [ -d "$FIXTURES" ]; then
+  python3 - "$FIXTURES" "$OUT" <<'PYF'
+import os, sys
+sys.path.insert(0, os.path.join(os.getcwd(), "tv"))
+import guest_fixture_pack as fx
+root, mirror = sys.argv[1], sys.argv[2]
+packs = sorted(d for d in os.listdir(root)
+               if os.path.isfile(os.path.join(root, d, "pack.json")))
+if not packs:
+    print("  fixtures: none staged (0 packs in %s)" % root)
+for p in packs:
+    d = os.path.join(root, p)
+    try:
+        r = fx.load(d, mirror)
+        print("  ✓ fixture %-22s +%d session(s), %d reel(s)"
+              % (p, r["sessionsAdded"], r["reelsCopied"]))
+    except Exception as e:
+        # a bad pack must not take the refresh down with it, and must not pass silently
+        print("  ✗ fixture %-22s REFUSED: %s" % (p, str(e)[:90]))
+PYF
+fi
+
 # ⚠ THE LEAK GATE. Nothing reaches the box until the mirror is clean.
 python3 - "$OUT" <<'PYEOF'
 import io, json, os, sys

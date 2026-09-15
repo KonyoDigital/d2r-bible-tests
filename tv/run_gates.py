@@ -640,6 +640,18 @@ GATES = [
              "nesting still had to go — his console runs WKWebView, not Chrome, and nothing here "
              "was measured against it.",
          ),
+    Gate("test_a_fixture_pack_is_not_his_footage",
+         [sys.executable, os.path.join(HERE, "test_a_fixture_pack_is_not_his_footage.py")], 120,
+         why="his recorded runs, staged so Grok Bot can click them on the guest seat. MEASURED: "
+             "one reel is 196 MB / 153 frames, a pack of it is 2.7 MB / 16. Pins that the frames "
+             "SPAN the reel rather than slicing its head (a head slice leaves the reel controls "
+             "untestable past the opening), that a fixture DECLARES itself and does not wear the "
+             "source session's id (it did for one run: the loader deduped it against his 419 real "
+             "sessions and the real 153-frame row won, so an eyes-loop would have reported "
+             "findings about the wrong footage), that the missing frames read as never-copied "
+             "rather than pruned, that a refresh does not duplicate a staged session, and that "
+             "the loader REFUSES to write into tv/frames - a pack may be BUILT from his footage "
+             "and never LOADED into it, because footage has no un-delete."),
     Gate("test_the_guest_seat_is_grok_not_konyo",
          [sys.executable, os.path.join(HERE, "test_the_guest_seat_is_grok_not_konyo.py")], 120,
          why="the Grok guest seat on the box renders a MIRROR of his live console, and this repo "
