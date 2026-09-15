@@ -16580,32 +16580,6 @@ window._lockMark = function(isOpen, px, label){
                vis.length, vis[0], ' sh-rivergroup sh-riverunknown');
         return;
       }
-      /* ⚠⚠ v2987 — THE STATION ORDER COMES FROM THE LANES, NOT THE FLAT LIST. They disagree,
-         and the flat one is not a river: /api/river's `stations` runs
-         INTAKE,TRIAGE,EMPTY,STATION,PRINTER,JOIN,CAPTURE,ROUTED,TOMBSTONE while the LANES declare
-         INTAKE[INTAKE,TRIAGE,STATION,EMPTY] PRINTER[PRINTER] CAPTURE[CAPTURE,JOIN]
-         TOMBSTONE[ROUTED,TOMBSTONE]. Two stations are transposed in each of two places, so a
-         lane's own sections were not even adjacent on screen. Flattening the lanes fixes the
-         order AND makes each lane contiguous, which is what lets a lane header mean anything.
-         ⚠ Falls back to the flat list when the lanes are absent — an older console, or a river
-         that answered without them, must still render. [[unknown-stays-unknown]] */
-      var ordG = null;
-      if (SHELF_RIVER_LANES && SHELF_RIVER_LANES.length){
-        ordG = [];
-        for (var _li = 0; _li < SHELF_RIVER_LANES.length; _li++){
-          var _ls = (SHELF_RIVER_LANES[_li] || {}).stations || [];
-          for (var _si = 0; _si < _ls.length; _si++){
-            if (ordG.indexOf(_ls[_si]) < 0) ordG.push(_ls[_si]);
-          }
-        }
-      }
-      if (!ordG || !ordG.length) ordG = SHELF_RIVER_ORDER || [];
-      var byStation = {}; vis.forEach(function(c){
-        var st = _shStationOf(c)
-                 || (_shSidAmbiguous(c) ? '\u2014 shared id, cannot place'
-                                        : '\u2014 not stamped');
-        (byStation[st] = byStation[st] || []).push(c);
-      });
       /* declared before the per-card painter above uses it — a `var` function expression is
          NOT hoisted with its value, and calling it earlier would throw mid-render. */
       var _ago = function(ms){
@@ -16615,7 +16589,6 @@ window._lockMark = function(isOpen, px, label){
         if (m < 60) return m + 'm ago';
         var h = Math.round(m / 60); return h < 24 ? h + 'h ago' : Math.round(h / 24) + 'd ago';
       };
-      var order = ordG.concat(Object.keys(byStation).filter(function(k){ return ordG.indexOf(k) < 0; }));
       /* ⚠ BUILD THE SECTIONS BACKWARDS. Forwards, an EMPTY station has no card to insert before, so
          appending it dropped it to the bottom of the grid — the first render put
          INTAKE and TRIAGE *after* CAPTURE, which is the exact opposite of "intake to tombstone".
@@ -16660,7 +16633,18 @@ window._lockMark = function(isOpen, px, label){
            the age stay readable at a glance. I added this height; trimming it is not a taste call
            on his design. */
         if (r.why) b.title = String(r.why);
-        b.innerHTML = '<span class="shcr-st">' + esc(r.station || '\u2014') + '</span>'
+        /* ══ v3176 — THE LABEL COMES WITH THE STATION ONTO THE CARD ═══════════════════════
+           When the station SECTIONS went away (#97, his "unified in one section"), the readable
+           label went with them and this badge was left printing the raw KEY. A law caught it:
+           "his screen and his logs would then disagree about the name of the same thing". The
+           section is gone; its label treatment is not. Readable name first, raw key dim beside
+           it when they differ, and an unmapped station falls back to its key rather than
+           rendering blank. [[label-outlived-referent]] [[unknown-stays-unknown]] */
+        var st = r.station || '';
+        var stLab = (SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
+        b.innerHTML = '<span class="shcr-st">' + esc(stLab || '\u2014') + '</span>'
+          + ((st && stLab !== st)
+               ? '<span class="shg-key">' + esc(st) + '</span>' : '')
           /* ⚠ v3107 — NAME THE EVENT. `r.at` is the last HOP's timestamp — when the reel flowed
              INTO this station — and a bare '4d ago' beside a card dated 31 Aug reads as the
              session's age. Konyo: *"says 4 days ago here.. but the dates are from much more then
@@ -16671,238 +16655,68 @@ window._lockMark = function(isOpen, px, label){
         c.appendChild(b);
       });
       var anchor = null;
-      /* ══ v3056 — A LANE'S DRY STATIONS FOLD INTO ITS OWN HEADER ════════════════════════════
-         Measured on his console 2026-09-12 (Grokbot, 1120x660): `firstCardTop 419 · clientH 361`
-         — the panel named after its reel cards opened showing NONE of them, because the ladder
-         above the first card ran ~510px: 4 lane banners plus NINE stations that each printed a
-         full row to say nothing had ever reached them.
+      /* ══ v3176 (#97) — ONE RIVER, EIGHT CARDS, FIFO ═══════════════════════════════════════
+         HIS ORDER, 2026-09-15, with four screenshots of THIS view: "all these anyways need to end
+         up unified in one section after being extracted one step behind deleted after flowing
+         from top to bottom.. its still in sections each reel in a diffrent place". And, asked
+         whether older runs stay scrollable below: "no only the last 8 sessions stay and the one
+         coming in pushes the last one out of those 8 sections".
 
-         ⚠ THE ROWS ARE NOT DELETED AND THE FINDING IS NOT HIDDEN. "an EMPTY station still prints,
-         dimmed — a section that vanishes when empty hides the finding" is the rule this file has
-         carried since the river was drawn, and it still holds: every dry station is NAMED, in
-         order, on its own lane's banner, with the same `never reached` words. What changes is
-         that a lane's dry stations cost ONE line between them instead of one line EACH.
+         ⚠ THIS SUPERSEDES v2746, WHICH WAS ALSO HIS RULING. That one asked for the opposite —
+         "THE SHELF should be synced with the backend river route ... going down sections
+         structured based on the title", "intake to tombstone, with timestamps" — and it was built
+         faithfully. He has now watched it run and ruled the other way. THE STATION IS NOT LOST:
+         it moved onto the card, where `.shc-river` has been stamping it since v2746 anyway. What
+         goes is the GROUPING, not the information. [[label-outlived-referent]]
 
-         ⚠ THE MOUTH IS NEVER FOLDED. TOMBSTONE holds no cards because a closed-out reel leaves
-         the disk, not because nothing arrived — `_mouthHasRows` already carries that distinction
-         and a folded mouth would delete 410 finished journeys from the picture.
-         [[unknown-stays-unknown]] [[label-outlived-referent]] */
-      var _dryByLane = {};
-      var _laneOf = function(_st){
-        var L = SHELF_RIVER_LANES || [];
-        for (var i = 0; i < L.length; i++){
-          var ss = (L[i] || {}).stations || [];
-          for (var j = 0; j < ss.length; j++){ if (ss[j] === _st) return String((L[i] || {}).name || i); }
-        }
-        return null;                     /* a station owned by no lane keeps its own row */
-      };
-      order.slice().reverse().forEach(function(st){
-        var cs = byStation[st] || [];
-        /* ⚠⚠ v3107 — THE LANE MAY NOT SPEAK FOR MEMBERS THAT DISAGREE. Konyo, 2026-09-14, on
-           his own screen: *"says here 10 hours ago and also says 8 days ago for printer..
-           confusing make sure its a synced logic"*. The header printed the NEWEST member's stamp
-           as if it described the lane, so `SEAL · PRINTER 2 REELS · 10H AGO` sat directly above a
-           card reading `PRINTER 8d ago`. Both numbers were right and the header's was answering a
-           different question. [[label-outlived-referent]] [[zero-needs-a-denominator]]
-           His instruction for the fix was to show LESS: when the members' stamps span more than a
-           day, the lane prints no age at all rather than a confident wrong one. */
-        var newest = 0, oldest = 0;
-        cs.forEach(function(c){
-          var r = SHELF_RIVER[c.getAttribute('data-sid')];
-          if (r && r.at){
-            if (r.at > newest) newest = r.at;
-            if (!oldest || r.at < oldest) oldest = r.at;
-          }
-        });
-        var _spanMs = (newest && oldest) ? (newest - oldest) : 0;
-        var _laneAgrees = _spanMs <= 86400000;
-        var h = document.createElement('div');
-        var _mouthHasRows = (String(st).toUpperCase() === 'TOMBSTONE')
-                            && SHELF_MOUTH && SHELF_MOUTH.ok !== false
-                            && typeof SHELF_MOUTH.n === 'number' && SHELF_MOUTH.n > 0;
-        h.className = 'sh-daygroup sh-rivergroup'
-                    + (cs.length ? '' : ' sh-riverempty')
-                    + (_mouthHasRows ? ' sh-rivermouth' : '');
-        /* ══ THE MOUTH — TOMBSTONE IS NOT EMPTY, IT IS ELSEWHERE ════════════════════════════
-           Konyo asked to see reels "eventually pruned and deleted in tombstone". This section
-           read "0 reels" and I reported to him that the river had never reached its end.
+         ⚠ AND THE MOUTH SURVIVES ITS SECTION. TOMBSTONE's count never came from these cards — a
+         tombstoned reel LEAVES THE DISK and becomes a row in the retention ledger (SHELF_MOUTH),
+         which is why its section could only ever read 0 cards. Dropping the section without
+         carrying that figure forward would re-tell the exact lie v2963 fixed: 410 finished
+         journeys reading as "nothing ever finished". It is in the one header now.
 
-           ⚠⚠ THAT WAS WRONG. MEASURED: the tombstone ledger holds 410 closed-out reels
-           reclaiming 5,768 MB, and the overlap between them and the 40 living reels is EXACTLY
-           ZERO — because a tombstoned reel LEAVES THE DISK. It stops being a card and becomes a
-           row. `cs.length` counts CARDS, so at this station it can only ever be 0, and rendering
-           that as the whole truth is how 410 finished journeys read as "nothing ever finished".
-
-           ⚠ SO THE COUNT HERE COMES FROM A DIFFERENT SOURCE AND SAYS SO. `SHELF_MOUTH` is the
-           retention ledger, not the router; the label names it, because two numbers from two
-           stores under one heading is exactly the confusion this whole view exists to end.
-           ⚠ null is NOT zero: until /api/river answers, this says so rather than claiming none. */
-        var isMouth = (String(st).toUpperCase() === 'TOMBSTONE');
-        var mouthBit = '';
-        if (isMouth){
-          if (SHELF_MOUTH === null){
-            mouthBit = '<span class="shg-mouth shg-mouth-unk">ledger not read yet</span>';
-          } else if (SHELF_MOUTH && SHELF_MOUTH.ok === false){
-            mouthBit = '<span class="shg-mouth shg-mouth-unk">'
-                     + esc(String(SHELF_MOUTH.why || 'the ledger could not be read')) + '</span>';
-          } else if (SHELF_MOUTH && typeof SHELF_MOUTH.n === 'number'){
-            /* ⚠ COMPACT BECAUSE IT WAS MEASURED, NOT BECAUSE IT LOOKS TIDIER. At 5768.1 MB the
-               phrase "410 closed out · 5768.1 MB reclaimed" wrapped the section header to TWO
-               lines at 1440/1120/901 and FOUR at 700, in a row where every other station is one
-               line. Nothing overflowed and nothing clipped — it simply looked wrong, which is the
-               one defect class a rect cannot report. GB drops it to a single line everywhere.
-               [[visual-regression-detector]] */
-            var _mbn = SHELF_MOUTH.mb;
-            var mb = (typeof _mbn === 'number')
-                   ? (' \u00b7 ' + (_mbn >= 1024 ? (Math.round(_mbn / 102.4) / 10) + ' GB'
-                                                  : Math.round(_mbn) + ' MB') + ' freed')
-                   : '';
-            /* an undated row cannot be placed in the river's order — say so rather than omit it */
-            var und = (SHELF_MOUTH.undated ? (' \u00b7 ' + SHELF_MOUTH.undated + ' undated') : '');
-            mouthBit = '<span class="shg-mouth">' + SHELF_MOUTH.n + ' closed out'
-                     + esc(mb + und) + '</span>';
-          }
-        }
-        /* ══ v2759 — THE ROW NO LONGER OPENS WITH A ZERO IT KNOWS IS MEANINGLESS ════════════
-           The comment forty lines up already said `cs.length` "can only ever be 0" here — and
-           the code printed it first anyway, in the same shape and weight every other station
-           uses. A second eye (grok-4-1-fast-reasoning, on the pixels) read the row cold and
-           reported: "The user reads 'TOMBSTONE 0 REELS' first ... The immediate conclusion is
-           'nothing reached this stage', exactly the opposite of the intended message."
-
-           ⚠ SUPPRESSED, NOT DELETED, AND THE CONDITION IS THE POINT. The second eye proposed
-           dropping the count outright. MEASURED against reel_router before taking it: TOMBSTONE
-           is terminal — "nothing — it is released, and the stamp is its record" — and today
-           holds 0 living reels of 40. But a reel STAMPED tombstone whose file is not yet gone
-           would be a real card and a real signal, and a row that can never show it would hide
-           the one case worth seeing. So the zero goes only while the ledger has journeys to
-           show in its place; any non-zero count still prints, and so does the zero when the
-           ledger is unread or unreadable. [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
-        /* ⚠ v2760 — ONE CONDITION, NOT TWO COPIES. This re-derived, forty lines later and
-           under a second name, exactly what `_mouthHasRows` already computed in the same
-           iteration: one drives the sh-rivermouth class (which suppresses ' · never reached'),
-           the other suppresses the count. Edit one and not the other and the row renders
-           ' · never reached' beside a ledger of 410 journeys, or drops the zero while still
-           dimming the section — two halves of one fact drifting apart. [[copy-drift]] */
-        var _mouthSpeaks = _mouthHasRows;
-        var _bits = [];
-        if (!(_mouthSpeaks && cs.length === 0)){
-          _bits.push(cs.length + ' reel' + (cs.length === 1 ? '' : 's')
-                     + ((newest && _laneAgrees) ? ' \u00b7 flowed ' + esc(_ago(newest)) : ''));
-        }
-        if (mouthBit) { _bits.push(mouthBit); }
-        /* v2987 — PRINT THE NAME, NOT THE KEY. His words on his own screen: "EMPTY and
-           STATION aren't river stages ... it is confusing", and then the names themselves —
-           INTAKE reads FRESH, STATION reads ANALYZE, TOMBSTONE reads DELETED. The map arrives
-           from /api/river (reel_router.labels()), so there is no second list here to drift.
-           ⚠ Falls back to the KEY when the map is absent, which is honest: a station nobody has
-           named should read as its key rather than as a blank. [[unknown-stays-unknown]] */
-        var _lab = (SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
-        h.innerHTML = '<span class="shg-lab">' + esc(_lab) + '</span>'
-          + (_lab !== st ? '<span class="shg-key">' + esc(st) + '</span>' : '')
-          + '<span class="shg-n">' + _bits.join(' \u00b7 ') + '</span>';
-          /* ══ v2950 — THE JOURNEYS, LISTED. Task #58. ═════════════════════════════════════
-             SHELF_MOUTH.recent is ALREADY populated from /api/river — no backend change, no new
-             endpoint, no extra fetch. It was arriving and being thrown away.
-             ⚠ MEASURED ON HIS LEDGER (446 rows, 12 recent); each field is here or absent because:
-               · `pages` is 0 in 12 of 12 rows -> never printed; a column of zeros is noise
-               · `focus` is null in 9 of 12    -> printed only when present
-               · 7 DISTINCT timestamps of 12   -> the caption says "oldest first", NOT "FIFO". The
-                 array IS ascending (river_mouth sorts it so) but three pairs share a millisecond,
-                 and inside a tie the order is ledger order, not time. "FIFO" would claim a
-                 precision the data does not have. [[unknown-stays-unknown]]
-             ⚠ Appended INSIDE `h`, which carries .sh-daygroup — the only thing _shGroups clears.
-             A sibling would accumulate on every poll. [[plumbing-with-no-tap]] */
-          if (isMouth && SHELF_MOUTH && SHELF_MOUTH.ok !== false
-              && SHELF_MOUTH.recent && SHELF_MOUTH.recent.length){
-            var _mr = SHELF_MOUTH.recent, _mrh = '';
-            for (var _i = 0; _i < _mr.length; _i++){
-              var _row = _mr[_i] || {};
-              var _t = _row.at, _when = 'undated';
-              if (typeof _t === 'number' && _t > 0){
-                var _d = new Date(_t);
-                var _p2 = function(x){ return (x < 10 ? '0' : '') + x; };
-                _when = _d.getFullYear() + '-' + _p2(_d.getMonth() + 1) + '-' + _p2(_d.getDate())
-                      + ' ' + _p2(_d.getHours()) + ':' + _p2(_d.getMinutes());
-              }
-              var _mbTxt = (typeof _row.mb === 'number') ? (Math.round(_row.mb * 10) / 10) + ' MB' : '';
-              var _frTxt = (typeof _row.frames === 'number') ? _row.frames + ' frames' : '';
-              _mrh += '<div class="shg-mouth-row">'
-                    + '<span class="mr-at">' + esc(_when) + '</span>'
-                    + '<span class="mr-sess">' + esc(String(_row.session || _row.reel || '?')) + '</span>'
-                    + (_mbTxt ? '<span class="mr-num">' + esc(_mbTxt) + '</span>' : '')
-                    + (_frTxt ? '<span class="mr-num">' + esc(_frTxt) + '</span>' : '')
-                    + (_row.focus ? '<span class="mr-foc">' + esc(String(_row.focus)) + '</span>' : '')
-                    + '</div>';
-            }
-            h.insertAdjacentHTML('beforeend',
-              '<div class="shg-mouth-rows"><div class="shg-mouth-cap">'
-              + _mr.length + ' of ' + esc(String(SHELF_MOUTH.n)) + ' shown \u00b7 oldest first'
-              + '</div>' + _mrh + '</div>');
-          }
-        var _dryLane = (!cs.length && !_mouthHasRows) ? _laneOf(st) : null;
-        if (_dryLane !== null){
-          /* folded: the row is not inserted, and the station is named on its lane banner below */
-          (_dryByLane[_dryLane] = _dryByLane[_dryLane] || []).unshift(String(st));
-        } else {
-          if (cs.length) { grid.insertBefore(h, cs[0]); }
-          else if (anchor) { grid.insertBefore(h, anchor); }
-          else { grid.appendChild(h); }
-          anchor = h;
-        }
-        /* v2987 — THE LANE HEADER, above the first station it owns. The walk is BACKWARDS, so a
-           lane's first station is reached LAST of that lane's sections and `h` is already the
-           topmost of them — inserting before `h` puts the lane banner in the right place without
-           a second pass. [[the-unjoined-end]] */
-        if (SHELF_RIVER_LANES && SHELF_RIVER_LANES.length){
-          for (var _lj = 0; _lj < SHELF_RIVER_LANES.length; _lj++){
-            var _ln = SHELF_RIVER_LANES[_lj] || {}, _lst = _ln.stations || [];
-            if (_lst.length && _lst[0] === st){
-              var _lh = document.createElement('div');
-              _lh.className = 'sh-daygroup sh-riverlane';
-              var _lc = 0;
-              for (var _lk = 0; _lk < _lst.length; _lk++){
-                _lc += ((byStation[_lst[_lk]] || []).length);
-              }
-              /* ⚠⚠ v3064 — THIS COUNTED CARDS AND CALLED THEM REELS, ON A SCREEN THAT ALSO
-                 PRINTS A REAL REEL COUNT. `byStation` here is built from `vis` — the VISIBLE
-                 CARDS — at :16271, so `_lc` is a tally of session rows. The river strip four
-                 inches above it prints the lane's REELS from /api/river's own byStation.
-
-                 MEASURED on his console 2026-09-13, the same lane, the same second:
-                     shelf lane header   INTAKE  8 REELS      <- 8 cards
-                     river strip         1 INTAKE  4          <- 4 reels
-                     whole shelf         425 cards            16 reels on the shelf
-                 The two populations differ by 26x and one word covered both.
-
-                 ⚠ THE FIX IS THE NOUN, NOT THE NUMBER. 8 is the correct count of cards in that
-                 lane; it was never a wrong measurement, only a wrong label — the same shape as
-                 `stash x19` counting frames and `frames` counting journal rows. Say RUN, which
-                 is what a card is everywhere else on this shelf ("2,468 empty runs — hidden",
-                 "425 of 425"), and the reel figure keeps its own word on the strip that owns it.
-                 [[label-outlived-referent]] [[zero-needs-a-denominator]] */
-              _lh.innerHTML = '<span class="shg-lab">' + esc(String(_ln.name || '')) + '</span>'
-                + '<span class="shg-n" title="runs on the shelf stationed in this lane — the '
-                + 'river strip above counts REELS, which is a different population">'
-                + _lc + ' run' + (_lc === 1 ? '' : 's') + '</span>'
-                /* v3047 — the WHOLE sentence rides as a title, because the visible line is
-                   clamped to one. Clamping the box must never make a word unreachable. */
-                + (_ln.why ? '<span class="shg-lanewhy" title="' + esc(String(_ln.why)) + '">'
-                             + esc(String(_ln.why)) + '</span>' : '');
-              /* the lane's dry stations, named in river order — the finding, on one line */
-              var _dry = _dryByLane[String(_ln.name || _lj)] || [];
-              if (_dry.length){
-                _lh.insertAdjacentHTML('beforeend',
-                  '<span class="shg-lanedry" title="' + esc(_dry.join(', '))
-                  + '">never reached \u00b7 ' + esc(_dry.join(' \u00b7 ')) + '</span>');
-              }
-              grid.insertBefore(_lh, (h && h.parentNode) ? h : (anchor || null));
-              anchor = _lh;
-              break;
-            }
-          }
-        }
+         ⚠ A PIN IS NEVER PUSHED OUT. He pins a run deliberately; silently hiding one to honour a
+         count he set for the FLOW would be the console overruling him. Pins are kept and counted
+         separately, and the header says both numbers rather than quietly showing more than 8. */
+      var RIVER_KEEP = 8;
+      var _t0 = function(c){ return parseInt(c.getAttribute('data-t0') || '0', 10) || 0; };
+      var _isPin = function(c){ return c.getAttribute('data-pin') === '1'; };
+      /* pinned first (they already sort to the top, and the 📌 header above is anchored to
+         pinned[0] — reordering past it would orphan that header), then newest first, so DOM
+         order IS downstream order. */
+      var flow = vis.slice().sort(function(a, b){
+        var pa = _isPin(a) ? 1 : 0, pb = _isPin(b) ? 1 : 0;
+        if (pa !== pb) return pb - pa;
+        return _t0(b) - _t0(a);
       });
+      flow.forEach(function(c){ grid.appendChild(c); });
+      var keptN = 0, pushedN = 0;
+      flow.forEach(function(c){
+        if (_isPin(c)) { c.removeAttribute('data-river-out'); return; }
+        if (keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }
+        /* FIFO: the 9th and older leave the river. MARKED, not destroyed — the attribute is
+           inspectable so a gate can read what the screen actually did, and `230 retired to
+           history` is still where they are reachable. */
+        c.setAttribute('data-river-out', '1');
+        c.style.display = 'none';
+        pushedN++;
+      });
+      var pinN = flow.filter(_isPin).length;
+      /* the mouth, carried forward out of the section that used to hold it */
+      var mouthTxt = '';
+      if (SHELF_MOUTH === null) {
+        mouthTxt = ' · tombstone ledger not read yet';
+      } else if (SHELF_MOUTH && SHELF_MOUTH.ok === false) {
+        mouthTxt = ' · tombstone ledger would not answer';
+      } else if (SHELF_MOUTH && typeof SHELF_MOUTH.n === 'number') {
+        mouthTxt = ' · ' + SHELF_MOUTH.n + ' closed out downstream'
+                 + (SHELF_MOUTH.mb ? (' (' + SHELF_MOUTH.mb + ' MB reclaimed)') : '');
+      }
+      var lab = '\u{1F30A} River — flowing, newest first'
+              + (pushedN ? (' · ' + pushedN + ' pushed past the ' + RIVER_KEEP) : '')
+              + (pinN ? (' · ' + pinN + ' pinned kept') : '')
+              + mouthTxt;
+      mkHead(lab, keptN + pinN, flow[0], ' sh-rivergroup');
       return;
     }
     if ((SHELF_S || 'newest') !== 'newest') return;   // day headers only in the date-ordered (Newest) view

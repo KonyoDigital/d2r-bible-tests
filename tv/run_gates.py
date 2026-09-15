@@ -2938,6 +2938,29 @@ GATES = [
              "counts as a measurement, not a silence - `if _have:` instead of "
              "`isinstance(_have, int)` is the realistic regression and it is one of the six "
              "sabotages this file was seen RED under."),
+    Gate("test_the_river_is_one_flow_of_eight",
+         [sys.executable, os.path.join(HERE, "test_the_river_is_one_flow_of_eight.py")], 120,
+         why="HIS ORDER, 2026-09-15, with four screenshots of the shelf: \"all these anyways need "
+             "to end up unified in one section after being extracted one step behind deleted "
+             "after flowing from top to bottom.. its still in sections each reel in a diffrent "
+             "place\", and when asked whether older runs stay scrollable below: \"no only the "
+             "last 8 sessions stay and the one coming in pushes the last one out of those 8 "
+             "sections\". ⚠ THIS SUPERSEDES v2746, WHICH WAS ALSO HIS — that ruling asked for "
+             "sections down the page, intake to tombstone, and was built faithfully; he watched "
+             "it run and ruled the other way. The station is NOT lost, it moved onto the card "
+             "where .shc-river has stamped it since v2746; what goes is the GROUPING. The laws "
+             "DRIVE the shipped block in node against stub cards and pin: newest flows first so "
+             "top-to-bottom is downstream; exactly 8 flow and the 9th is marked data-river-out "
+             "and hidden; a PIN does not eat a flow slot (he pins deliberately, and silently "
+             "shortening the river to honour a count he set for the flow would be the console "
+             "overruling him); ONE header, not one per station; the header says how many were "
+             "pushed, because runs vanishing with no denominator read as data loss; and the "
+             "TOMBSTONE mouth figure survives the section that carried it — a closed-out reel "
+             "leaves the disk and becomes a retention-ledger row, which is why its section could "
+             "only ever read 0 cards, and dropping it would re-tell the lie v2963 fixed (410 "
+             "finished journeys reading as nothing ever finished). ⚠ The pin law was GREEN under "
+             "its own sabotage on the first cut — pins sort to the top so a single pin is inside "
+             "the first eight either way; it now tests the slot, which is what the guard does."),
     Gate("test_the_node_venue_is_not_silently_absent",
          [sys.executable, os.path.join(HERE, "test_the_node_venue_is_not_silently_absent.py")], 60,
          why="FOUND BY THE CODEX EYE reviewing v3170 (cross-family, openai/gpt-5.6-terra), and it "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3175",
+  "ver": "v3176",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3175: He opened the panel and said its not showing the images and the HD images of items cross reference and everything. It drew the refusal sentence and nothing else, because the payload carried no item list at all - not even his own - so one machine failing to publish a per-item list blanked BOTH halves of a panel titled yours vs theirs. His side was always knowable: the server now publishes it and the panel draws it with the same tiles, the same HD art and the same cursor card as every other surface, while their column is drawn as an explicitly refused column carrying the reason. Two new hover sides were needed because reusing mine would have printed you have it they do not on every row of a panel drawn precisely because that machine published nothing. The window also pairs frameless with fullscreen, because fullscreen was passed and accepted and still did not take, leaving the macOS title bar over his console.",
+  "note": "v3176: He sent four screenshots of the shelf and said all these anyways need to end up unified in one section after being extracted one step behind deleted after flowing from top to bottom, its still in sections each reel in a different place. Asked whether older runs stay scrollable below, he ruled: only the last 8 sessions stay and the one coming in pushes the last one out. The river is now ONE flowing section, newest first so top to bottom is downstream, exactly 8 flowing with the 9th marked and hidden. This supersedes v2746 which was also his and asked for the opposite. The station is not lost - it moved onto the card, and the readable label came with it after a law caught the badge printing the raw key. A pin never eats a flow slot, and the tombstone ledger figure survives the section that used to carry it.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
