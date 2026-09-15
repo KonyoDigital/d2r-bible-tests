@@ -6154,6 +6154,9 @@
      ⚠ THE BAR IS .chron-eta's BAR, DELIBERATELY. Reusing those rules keeps one source of truth
      for what a progress bar looks like in this console; a second set would drift. Only the
      things the 227px rail actually needs are overridden here. [[copy-drift]] */
+  /* v3194 — the river's OWN hiding channel, so it never writes style.display and can never
+     be confused with the filter's. */
+  #th-shelfov .sh-card[data-river-out] { display: none !important; }
   .sweep-box .chron-eta { background: none; border: 0; border-radius: 0; padding: 0; margin: 0; }
   .sweep-box .chron-eta .ce-bar { height: 6px; margin: 6px 0 5px; }
   .sweep-box .chron-eta .ce-t { font: var(--fw-semibold) var(--fs-sm)/1 var(--serif); }
@@ -16625,9 +16628,14 @@ window._lockMark = function(isOpen, px, label){
     //   poll rebuilt the grid. The 8-limit is the RIVER's rule, not a filter he applied, so the
     //   marker is cleared here and re-decided from scratch below on every pass.
     var vis = [].slice.call(grid.querySelectorAll('.sh-card')).filter(function(c){
-      if (c.getAttribute('data-river-out')) {
-        c.removeAttribute('data-river-out'); c.style.display = ''; return true;
-      }
+      /* ⚠⚠ v3194 — `display` MEANS THE FILTER, AND ONLY THE FILTER. v3190 made the river
+         un-hide its own overflow here so an evicted run stayed in the population — correct in
+         aim, wrong in mechanism: _shFilter ALSO writes style.display, so this un-hid cards the
+         FILTER had hidden and they came back on screen. Measured on his own shelf: the header
+         said "8 RUNS · 1 pushed past the 8" while ten cards were showing.
+         The river now hides through `data-river-out` + a CSS rule and never writes display, so
+         the two channels cannot be confused: this line reads the filter's truth alone, and an
+         evicted run is still in the population because the river never touched its display. */
       return c.style.display !== 'none';
     });
     var mkHead = function(lab, n, before, cls){
@@ -16805,8 +16813,7 @@ window._lockMark = function(isOpen, px, label){
         /* FIFO: the 9th and older leave the river. MARKED, not destroyed — the attribute is
            inspectable so a gate can read what the screen actually did, and `230 retired to
            history` is still where they are reachable. */
-        c.setAttribute('data-river-out', '1');
-        c.style.display = 'none';
+        c.setAttribute('data-river-out', '1');   /* CSS hides it; display stays the filter's */
         pushedN++;
       });
       var pinN = flow.filter(_isPin).length;

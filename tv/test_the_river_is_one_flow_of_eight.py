@@ -182,9 +182,13 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         `pushed` carries data-river-out and must come back; `filtered` does not and must stay
         out. A law that only checked the first would pass on a filter that simply returns
         everything. [[sabotage-is-usually-the-wrong-one]]"""
+        # ⚠ v3194 — THE FIXTURE FOLLOWS THE MECHANISM. A river-out card is no longer
+        # display-hidden (a CSS rule hides it off the attribute), so `pushed` carries the MARK
+        # without the display, and `filtered` carries the display without the mark. That is
+        # exactly the distinction the two channels now keep apart.
         o = self.drive_vis([
             {"sid": "shown"},
-            {"sid": "pushed", "hidden": True, "out": True},
+            {"sid": "pushed", "out": True},
             {"sid": "filtered", "hidden": True},
         ])
         self.assertIn("pushed", o["members"],
@@ -193,9 +197,14 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         self.assertIn("shown", o["members"])
         self.assertNotIn("filtered", o["members"],
                          "a card he actually filtered out must stay out")
-        self.assertEqual(o["stillMarked"], [],
-                         "the river-out marker must be cleared so each pass re-decides "
-                         "membership from scratch")
+        # ⚠ v3194 — THE MARK IS NO LONGER CLEARED HERE, AND THAT IS THE FIX. While the river
+        # shared `display` with the filter, this pass had to un-hide its overflow to keep it in
+        # the population — which also un-hid cards the FILTER had hidden. Now the mark lives on
+        # its own attribute, so membership is read off display alone and the river block clears
+        # or re-applies the mark itself when it re-decides.
+        self.assertIn("pushed", o["stillMarked"],
+                      "the vis pass is clearing the river's own mark again, which is how a "
+                      "filtered card came back on screen")
 
     def test_newest_flows_first(self):
         o = self.drive(self._runs(5))
@@ -206,8 +215,23 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         o = self.drive(self._runs(12))
         self.assertEqual(o["out"], ["r04", "r03", "r02", "r01"],
                          "the 9th and older must leave the river")
-        self.assertEqual(o["hidden"], o["out"], "a pushed run must also stop rendering")
+        # ⚠ v3194 — HIDING MOVED OFF `style.display` ON PURPOSE. _shFilter writes display too,
+        # so while the river shared that channel its overflow could be un-hidden by the filter
+        # pass and vice versa — measured on his shelf as "8 RUNS" in the header with ten cards on
+        # screen. The river now marks `data-river-out` and a CSS rule does the hiding, so the two
+        # channels cannot be confused. "Stops rendering" is therefore proven by the MARK plus the
+        # RULE, and the rule is asserted below so the mark cannot become decorative.
+        self.assertEqual(o["hidden"], [],
+                         "the river is writing style.display again — that channel belongs to the "
+                         "FILTER, and sharing it is what put ten cards under an 8-run header")
         self.assertEqual(len(o["order"]) - len(o["out"]), 8, "exactly 8 flow")
+
+    def test_the_mark_actually_hides(self):
+        """A mark nobody styles is a flag nobody can see. [[plumbing-with-no-tap]]"""
+        with io.open(UI, encoding="utf-8") as fh:
+            ui = fh.read()
+        self.assertIn("[data-river-out] { display: none", ui,
+                      "nothing hides a run the river pushed past eight, so all of them render")
 
     def test_a_pin_does_not_eat_a_flow_slot(self):
         """He pins a run deliberately. Hiding one to honour a count he set for the FLOW would be
