@@ -34527,3 +34527,48 @@ the 39 real ids the suite already names (8 of them on disk today). A new one fai
 the remedy in the message. Not a ban: several of those tests genuinely open that footage, which is
 the rule working. What must never happen again is a reel joining the set BY ACCIDENT. Red-proofed
 with an executable literal: 2 laws red, message names the id and the fix.
+
+## REG-1028 — the refusal came too late, so the counters lied instead of the CPU burning
+
+**2026-09-16 · v3228 · `tv/control_app.py`** — *found by a cross-family (Grok) review of v3225,
+the version that introduced it.*
+
+v3225 taught `_vault_sweep_run` to decline a reel whose seal is still valid. Correct — but
+`vault_sweep_start` had **already returned `{"ok": True, "started": True}`**, because starting the
+thread is what that function reports on. So `vault_autoreel_tick` did:
+
+```python
+_VAULT_AUTOREAD["reads"] += 1        # a read that never happened
+_VAULT_AUTOREAD["lastTs"] = now      # and lastTs is what "has this lane ever worked" reads
+```
+
+**The CPU burn was gone and the accounting had started lying in its place.** The loop did not
+stop; it got cheap enough to stop being visible — which is strictly worse than the 104% CPU,
+because 104% is something he can see. A refusal was feeding the liveness signal for the lane it
+was refusing.
+
+⚠ **It is the same two-halves shape as the defect it was fixing.** The decision moved into the
+thread and the caller's contract did not follow it. I wrote REG-1023's fix, called it joined, and
+left the join one function upstream. `[[the-unjoined-end]]`
+
+**Second finding, same review:** the refusal text is hardcoded *"with %d row(s) - re-reading it
+would find the same nothing"*. For a seal with 12 rows that sentence **names the number and then
+calls it nothing**, four words apart.
+
+**Fixed:** `vault_sweep_start` refuses synchronously when a named reel has a standing seal, with
+the same `alreadySealed` flag, before any thread or job state is touched — so the watchdog counts
+a skip, not a read. The thread-side check stays: a door that refuses in two places is cheap, a
+door that refuses in neither is REG-1023. The wording now branches on the row count.
+
+Gate: 3 new laws in `tv/test_a_named_reel_does_not_defeat_its_seal.py` (11 total), red-proofed —
+removing the early refusal → 1 red; restoring the contradictory wording → 1 red.
+
+⚠ **The door law needed its fixture controlled.** `_VAULT_JOB` is a module global the live console
+restores at import, so the first version asserted on inherited state and failed for a reason that
+had nothing to do with the change. It now pins `started` in the RETURN VALUE — the field the
+watchdog actually turns into `reads += 1`. `[[feedback-blind-fixture-green-gate]]`
+
+⚠ **This is the third consecutive version of my own fixes in which a cross-family review found a
+defect** — the fix, the fix's fix, and now the fix after that. A repair is not safer than the code
+it replaces; it is written faster, under more certainty, against a model that was just proven
+wrong. `[[review-after-ship]]` `[[a-wrong-answer-skips-the-fallback]]`

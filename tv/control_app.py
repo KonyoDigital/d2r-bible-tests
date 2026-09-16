@@ -23269,12 +23269,19 @@ def _sweep_pick_named(dirs, reel_dir, force, rec_of, still_sealed=None):
         return [str(reel_dir)], None
     # ⚠ A FLAG, NOT PROSE. v2225 recorded that the watchdog once keyed on `"unavailable" in why`
     # and so could not tell a permanent refusal from a transient one. Branch on `alreadySealed`.
-    return [], {"ok": False, "alreadySealed": True, "reel": want,
+    # ⚠ v3228 — "the same nothing" IS FALSE FOR A SEAL THAT FOUND SOMETHING, and the same
+    # cross-family review caught it: a reel sealed with 12 rows was told a re-read "would find the
+    # same nothing". The row count was right there in the sentence, contradicting the clause next
+    # to it. [[label-outlived-referent]]
+    _rows = int((rec or {}).get("rows") or 0)
+    return [], {"ok": False, "alreadySealed": True, "reel": want, "rows": _rows,
                 "sealedBy": str((rec or {}).get("promptVer") or "?"),
                 "why": ("%s is already sealed by the CURRENT vault reader (%s) with %d row(s) - "
-                        "re-reading it would find the same nothing. Pass force to overrule."
-                        % (want, str((rec or {}).get("promptVer") or "?"),
-                           int((rec or {}).get("rows") or 0)))}
+                        "%s. Pass force to overrule."
+                        % (want, str((rec or {}).get("promptVer") or "?"), _rows,
+                           ("re-reading it would find the same nothing" if not _rows
+                            else "those rows are already banked, so a re-read would only find "
+                                 "them again")))}
 
 
 def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
@@ -23290,6 +23297,45 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     for fn in ("sweep", "merge_vault", "apply_payload"):
         if not hasattr(_vr, fn):
             return {"ok": False, "why": "vault_retro has no %s() — this build cannot sweep safely" % fn}
+    # ⚠⚠ v3228 — THE REFUSAL HAS TO HAPPEN *HERE*, NOT ON THE THREAD, AND A CROSS-FAMILY REVIEW
+    # OF v3225 IS WHAT CAUGHT IT. v3225 taught `_vault_sweep_run` to decline a reel whose seal is
+    # still good — correctly — but this function had ALREADY returned {"ok": True, "started":
+    # True} by then, because starting the thread is what it reports. So the watchdog at
+    # vault_autoreel_tick did:
+    #
+    #     _VAULT_AUTOREAD["reads"] += 1          <- a read that never happened
+    #     _VAULT_AUTOREAD["lastTs"] = now        <- and `lastTs` is what "has this lane ever
+    #                                               worked" reads, so a REFUSAL fed the liveness
+    #                                               signal
+    #
+    # The CPU burn was gone and the accounting had started lying in its place — the loop simply
+    # got cheap enough to stop being visible. That is the same two-halves shape as the defect it
+    # was fixing: the decision moved and the caller's contract did not follow it.
+    # [[the-unjoined-end]] [[review-after-ship]]
+    #
+    # ⚠ The check inside `_vault_sweep_run` STAYS. This one cannot see the filtered `dirs` list,
+    # and a door that refuses in two places is cheap; a door that refuses in neither is REG-1023.
+    if reel_dir and not force:
+        try:
+            _pre_seals = _vault_swept_load() or {}
+        except Exception:
+            _pre_seals = None                 # UNKNOWN -> fall through and let the sweep decide
+        if _pre_seals is not None:
+            _pre_nm = os.path.basename(os.path.normpath(str(reel_dir)))
+            _pre_rec = (_pre_seals.get(_pre_nm)
+                        or _pre_seals.get(_pre_nm.replace("reel_", "", 1)))
+            if _pre_rec is not None and _vault_still_sealed(_pre_rec):
+                _pre_rows = int((_pre_rec or {}).get("rows") or 0)
+                return {"ok": False, "alreadySealed": True, "reel": _pre_nm,
+                        "sealedBy": str((_pre_rec or {}).get("promptVer") or "?"),
+                        "rows": _pre_rows,
+                        "why": ("%s is already sealed by the CURRENT vault reader (%s) with %d "
+                                "row(s) - %s. Pass force to overrule the seal."
+                                % (_pre_nm, str((_pre_rec or {}).get("promptVer") or "?"),
+                                   _pre_rows,
+                                   ("re-reading it would find the same nothing" if not _pre_rows
+                                    else "those rows are already banked, so a re-read would only "
+                                         "find them again")))}
     with _VAULT_LOCK:
         if _VAULT_JOB["running"]:
             return {"ok": False, "why": "a vault sweep is already running", "state": dict(_VAULT_JOB)}
@@ -29186,7 +29232,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3227",
+        "ver": "v3228",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

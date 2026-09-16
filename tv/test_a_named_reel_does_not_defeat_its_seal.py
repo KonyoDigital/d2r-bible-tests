@@ -147,6 +147,61 @@ class TestANamedReelDoesNotDefeatItsSeal(unittest.TestCase):
                         "a reel path that does not exist must say so, not read as a valid "
                         "empty sweep [[unknown-stays-unknown]]")
 
+    # ── THE REFUSAL MUST BEAT THE THREAD, OR THE COUNTERS LIE ───────────────────────────────
+    def test_the_door_refuses_before_it_starts_the_thread(self):
+        """★ Found by a cross-family review OF v3225 — the fix that created it.
+
+        `vault_sweep_start` reports on STARTING THE THREAD, so it returned {"ok": True,
+        "started": True} and only then did the thread decline. The watchdog therefore ran
+        `_VAULT_AUTOREAD["reads"] += 1` and moved `lastTs` — and `lastTs` is what "has this lane
+        ever worked" reads. The CPU burn was gone and the ACCOUNTING had started lying in its
+        place. [[the-unjoined-end]]"""
+        real = CA._vault_swept_load
+        CA._vault_swept_load = lambda *a, **k: {os.path.basename(self.reel): dict(SEALED_NOW)}
+        # ⚠ CONTROL THE FIXTURE. `_VAULT_JOB` is a module global that the live console restores
+        # from disk at import, so it can already read running=True here. Asserting on inherited
+        # state measures the machine, not the change. [[feedback-blind-fixture-green-gate]]
+        was = dict(CA._VAULT_JOB)
+        CA._VAULT_JOB["running"] = False
+        try:
+            r = CA.vault_sweep_start(reel_dir=self.reel)
+        finally:
+            CA._vault_swept_load = real
+            CA._VAULT_JOB.clear()
+            CA._VAULT_JOB.update(was)
+        self.assertFalse(r.get("ok"),
+                         "the door reported a STARTED sweep for a reel it was going to decline — "
+                         "the watchdog counts that as a read that never happened: %r" % (r,))
+        self.assertTrue(r.get("alreadySealed"),
+                        "the synchronous refusal must carry the same FLAG the thread uses, or a "
+                        "caller has to branch on prose: %r" % (r,))
+        self.assertFalse(r.get("started"),
+                         "a refusal reported `started` — that field is exactly what the watchdog "
+                         "turns into `reads += 1` and a fresh `lastTs`: %r" % (r,))
+
+    def test_force_still_reaches_the_sweep_through_the_door(self):
+        """The early refusal must not become a wall the override cannot cross."""
+        real = CA._vault_swept_load
+        CA._vault_swept_load = lambda *a, **k: {os.path.basename(self.reel): dict(SEALED_NOW)}
+        try:
+            r = CA.vault_sweep_start(reel_dir=self.reel, force=True)
+        finally:
+            CA._vault_swept_load = real
+        self.assertFalse(r.get("alreadySealed"),
+                         "force was refused at the door — an override that cannot override is "
+                         "worse than no override, because the flag says it exists: %r" % (r,))
+
+    # ── A REFUSAL MAY NOT CONTRADICT ITS OWN NUMBER ─────────────────────────────────────────
+    def test_a_productive_seal_is_not_told_it_found_nothing(self):
+        """It said "with 12 row(s) - re-reading it would find the same nothing" in one sentence."""
+        _, refusal = self._pick([], PRODUCTIVE)
+        why = refusal.get("why", "")
+        self.assertNotIn(
+            "the same nothing", why,
+            "the refusal names 12 rows and then calls them nothing, in the same sentence. A "
+            "number and the word beside it must agree: %r" % why)
+        self.assertIn("12 row", why, "it must still say how much the seal banked")
+
     # ── THE MESSAGE THAT LIED ────────────────────────────────────────────────────────────────
     def test_the_reopen_line_cannot_claim_an_older_reader_for_a_current_seal(self):
         """It printed 'sealed by an OLDER vault reader (now vp2017)' about a vp2017 seal."""
