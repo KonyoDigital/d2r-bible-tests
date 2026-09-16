@@ -519,11 +519,22 @@ fi
   elif git rev-parse --verify origin/main >/dev/null 2>&1; then
     _range="origin/main..HEAD"
   fi
-  if git diff --cached --name-only 2>/dev/null | grep -q "tv/control_ui.html"; then
+  # ⚠⚠ 2026-09-16 — THE DEMOS WATCHED THE PAGE AND NOT THE SERVER, AND SAT OUT 12 COMMITS.
+  # This fired only on `tv/control_ui.html`. But `demo_console.mjs` drives the console SERVED BY
+  # control_app.py, and its demos press API doors — so a change to the server can break every demo
+  # while the page is untouched. MEASURED on this very push: "console demos not run —
+  # tv/control_ui.html is unchanged (12 commit(s) since it last was)", across an arc that rewrote
+  # chronicle_apply, board_tick, board_mask, the restore doors, and added three new routes.
+  # A skip is not a pass, and this one had been skipping since the arc began.
+  # ⚠ THIS IS THE SAME HOLE THE RENDER GATE ALREADY HAD — it watched bible.html and control_ui.html
+  # and not `render_check.py`, its own definition, until that was widened. One class, two gates.
+  # [[regression-guard]] [[gate-moves-with-product]]
+  _demo_watch='tv/control_ui\.html|tv/control_app\.py|tv/demo_console\.mjs'
+  if git diff --cached --name-only 2>/dev/null | grep -qE "$_demo_watch"; then
     _demo_touched=1
-  elif [ -n "$_range" ] && git diff --name-only "$_range" 2>/dev/null | grep -q "tv/control_ui.html"; then
+  elif [ -n "$_range" ] && git diff --name-only "$_range" 2>/dev/null | grep -qE "$_demo_watch"; then
     _demo_touched=1
-  elif [ -z "$_range" ] && git log -1 --name-only --pretty=format: 2>/dev/null | grep -q "tv/control_ui.html"; then
+  elif [ -z "$_range" ] && git log -1 --name-only --pretty=format: 2>/dev/null | grep -qE "$_demo_watch"; then
     _demo_touched=1
   fi
   if [ "$_demo_touched" = "1" ]; then

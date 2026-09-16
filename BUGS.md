@@ -34295,3 +34295,30 @@ every assertion would have read as "absent". Matching the FAMILY, not one member
   unreadable. Now reported as `assignedBefore` / `assignedAfter` / `newlyAssigned`, with
   `readBefore` saying whether the first count could be taken at all — `newlyAssigned` is `null` when
   it could not.
+
+## REG-1022 — the console demos watched the page and not the server, and sat out 12 commits
+
+**2026-09-16 · ci (hook only, no version stamp)**
+
+`pre-push` printed, on a push that rewrote half the console's backend:
+
+```
+⏭  console demos not run — tv/control_ui.html is unchanged (12 commit(s) since it last was).
+```
+
+The demos gate fired only on `tv/control_ui.html`. But `demo_console.mjs` drives the console
+**served by `control_app.py`**, and its demos press API doors. So a change to the SERVER can break
+every demo while the page is untouched — and across those 12 commits the arc rewrote
+`chronicle_apply`, `board_tick`, `board_mask`, both restore doors, and added three new routes
+(`/api/vault_route_probe`, `/api/vault_autosort`, `/api/owned_restore`). Not one demo ran.
+
+⚠ **A skip is not a pass**, and the line said so honestly every time — which is exactly how it
+stayed invisible: it reported itself correctly, and nobody read 12 consecutive correct reports.
+
+⚠ **This is the same hole the RENDER gate already had.** It watched `bible.html` and
+`control_ui.html` and not `render_check.py` — its own definition — until that was widened, with the
+note "a change to render_check.py, THE GATE'S OWN DEFINITION, does not re-run the gate". One class,
+two gates, and the second one was still open. `[[regression-guard]]`
+
+**Fixed:** the trigger now watches `tv/control_ui.html`, `tv/control_app.py` **and**
+`tv/demo_console.mjs` — the page, the server that renders it, and the driver itself.
