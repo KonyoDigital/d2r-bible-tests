@@ -35122,3 +35122,40 @@ exactly the defect.
 ⚠ **Three versions in a row now, each fix creating the next**, all caught by the same cross-family
 eye: v3233 fabricated a roster → v3235 closed a re-read race → v3237 stopped a false accusation.
 Every one was a real improvement and every one opened the next hole a layer out. `[[review-after-ship]]`
+
+## REG-1043 — a law that forbade the thing which fixed the bug
+
+**2026-09-17 · v3238 · `tv/test_cf_handoff.py`**
+
+`test_write_doors_do_not_hop_into_chronicleApply` asserted that `chronicle_apply`, `board_tick` and
+`vault_apply` must never contain `getElementById('tvd-eng')`, with the reason: *"that restores a
+direct write into his ledger"*. **That was true when hopping meant reaching into the board and
+calling `setItem` yourself.**
+
+v3209 changed what the hop is FOR. `chronicle_apply` now hops in to call the board's OWN
+`chronicleApply` merge-max door; `board_tick` hops to call `toggleOwned` / `toggleSetPiece` /
+`tvVaultRegister` / `dropSetPieceKeepGrail`. That is the pattern `[[writing-behind-a-running-board]]`
+prescribes, and it is **safer than not hopping**: the board reads `owned`/`rwMade` ONCE at boot
+with zero storage listeners, so a write from outside is not merely invisible — it is pending
+deletion by the board's next `persist()`.
+
+**So the law forbade the thing that fixed the bug, and had been red ever since.** Measured when
+replaced:
+
+```
+chronicle_apply   hop=True   setItem=1   calls chronicleApply
+board_tick        hop=True   setItem=0   calls 4 board doors
+vault_apply       hop=False  setItem=0
+```
+
+and that single `setItem` writes **`d2r_chronicleHandoff`** — a handoff queue note so a restarted
+console can still hand off — not a grail store.
+
+**Fixed:** the law is pinned at the HARM, not at one mechanism — the console may never write
+`d2r_foundLog`, `d2r_owned`, `d2r_setPieces`, `d2r_rwMade` or `d2r_rwVerify` itself, hop or no hop.
+**Strictly stronger:** it catches a direct `setItem('d2r_owned', …)` whether or not anything
+hopped, which the old law could not see at all. `board_ownership` must still hop, and that is
+pinned too.
+
+Red-proofed both ways: pointing the handoff write at `d2r_owned` → red, naming the store; removing
+`board_ownership`'s hop → red in two laws.

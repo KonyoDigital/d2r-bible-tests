@@ -545,22 +545,55 @@ class TestCF2BoardOwnershipHopsIntoTheIframe(unittest.TestCase):
             finally:
                 os.unlink(tmp.name)
 
-    def test_write_doors_do_not_hop_into_chronicleApply(self):
-        """The standing doctrine: the console never writes his grail."""
+    #: the stores that ARE his grail. A console write to any of these is the harm.
+    GRAIL_STORES = ("d2r_foundLog", "d2r_owned", "d2r_setPieces", "d2r_rwMade", "d2r_rwVerify")
+
+    def test_the_console_never_writes_his_grail_itself(self):
+        """The standing doctrine, pinned at the HARM instead of at one mechanism.
+
+        ⚠⚠ THIS LAW USED TO FORBID THE HOP, and the hop stopped being the defect. It read
+        "%s hopped the WRITE path into the iframe — that restores a direct write into his ledger",
+        which was true when hopping meant reaching in and calling setItem. v3209 changed what the
+        hop is FOR: `chronicle_apply` now hops in to call the board's OWN `chronicleApply`
+        merge-max door, and `board_tick` to call `toggleOwned` / `toggleSetPiece` /
+        `tvVaultRegister` / `dropSetPieceKeepGrail`. That is the pattern
+        [[writing-behind-a-running-board]] prescribes and it is SAFER than not hopping: the board
+        reads `owned`/`rwMade` ONCE at boot and has zero storage listeners, so a write from
+        outside is not merely invisible, it is pending deletion by the board's next persist().
+
+        So the old law forbade the thing that fixed the bug. MEASURED when it was replaced:
+
+            chronicle_apply   hop=True   setItem=1   calls chronicleApply
+            board_tick        hop=True   setItem=0   calls 4 board doors
+            vault_apply       hop=False  setItem=0
+
+        and that ONE setItem writes `d2r_chronicleHandoff` — a handoff QUEUE note so a restarted
+        console can still hand off — not a grail store.
+
+        The harm was never the hop. It is the console putting a find into his ledger that the
+        board did not put there. That is what this pins now, and it is STRICTLY STRONGER: it
+        catches a direct `setItem('d2r_owned', ...)` whether or not anything hopped, which the
+        old law could not. [[label-outlived-referent]] [[regression-guard]]
+        """
         import auto_scope as AS
         p = os.path.join(HERE, "control_app.py")
         own = AS.file_def(p, "board_ownership")
-        apply_ = AS.file_def(p, "chronicle_apply")
-        tick = AS.file_def(p, "board_tick")
-        vault = AS.file_def(p, "vault_apply")
-        self.assertIn("getElementById('tvd-eng')", own)
-        for name, src in (("chronicle_apply", apply_),
-                          ("board_tick", tick),
-                          ("vault_apply", vault)):
+        self.assertIn("getElementById('tvd-eng')", own,
+                      "board_ownership no longer hops, so it reads the console's world instead "
+                      "of the board's")
+        for name in ("chronicle_apply", "board_tick", "vault_apply"):
+            src = AS.file_def(p, name)
             self.assertNotIn(src, (None, AS._STALE), name)
-            self.assertNotIn("getElementById('tvd-eng')", src or "",
-                             "%s hopped the WRITE path into the iframe — that restores a "
-                             "direct write into his ledger" % name)
+            for store in self.GRAIL_STORES:
+                self.assertNotIn(
+                    "setItem('%s'" % store, src or "",
+                    "%s writes %s directly. The console must never put a find into his ledger "
+                    "that the board did not put there — call the board's own door (chronicleApply "
+                    "/ toggleOwned / toggleSetPiece / tvVaultRegister) so memory and storage stay "
+                    "in step, because the board reads these stores ONCE at boot and its next "
+                    "persist() would flush your write away." % (name, store))
+                self.assertNotIn('setItem("%s"' % store, src or "",
+                                 "%s writes %s directly (double-quoted)" % (name, store))
 
 
 class TestCF4PreRescueSnapshot(unittest.TestCase):
