@@ -34933,3 +34933,43 @@ board         445/222/133/99/309  ->  445/222/133/99/309   (identical, owner int
 And `vaultAutoread.skipped` now carries the v3228 refusal verbatim — *"reel_s_...12001 is already
 sealed by the CURRENT vault reader (vp2017) with 0 row(s)"* — i.e. the watchdog is recording a
 SKIP rather than counting a read, on his real reels, exactly as designed.
+
+## REG-1038 — the UNKNOWN flag was added and its only consumer never read it
+
+**2026-09-17 · v3233 · `tv/shelf_corroborate.py`, `tv/health_engine.py`, `tv/heart_map.py`** —
+*found by a cross-family review of v3231, the version that added the flag.*
+
+v3231 (REG-1034) taught `shelf_corroborate` to say when the console could not be asked. It did
+two things wrong and the review named both.
+
+**1. It flagged the unknown and then fabricated the roster anyway.** `sessions = []` — the review
+quoted that line and wrote `# fabricated roster` beside it. So `corroborate([])` returned
+`checked 0, disagreed 0`: real-looking integers derived from a list the function invented. The
+flag was true and the numbers beside it were fiction.
+
+**2. The only production caller never read the flag.** `check_shelf_witnesses` does
+`rep.get("checked") or 0`, which reads a real 0 and an UNKNOWN identically — so a console that is
+down still produced **WARN "0 reel(s) on disk could be witnessed, so the shelf is
+UNCORROBORATED"**. Film can be sitting under `frames/hist` the whole time. That sentence sends
+him to look at his reels for a fault that is in the wiring.
+
+**Built at both ends and joined at neither — in the fix for a defect of exactly that shape.**
+`[[the-unjoined-end]]`
+
+**Fixed:** `report()` returns early with `checked`/`disagreed`/`ok` all None — UNKNOWN is what an
+integer field looks like when nobody counted — and `check_shelf_witnesses` branches on it and
+reports `unknown` with the reason on the line he reads. Verified end to end: `checked=None
+ok=None sessionsUnknown=True` → health row `state='unknown'`, line *"the running console could not
+be asked … UNKNOWN - not zero"*.
+
+**3. `heart_map` named only one of two reasons.** With `control_ui.html` AND a watcher both
+unreadable, `missing` is non-empty so the refusal blamed the watchers alone. `_why_unmeasurable()`
+now joins every true reason with AND. The map was correctly refused either way — what was wrong
+was the file it sent the reader to.
+
+3 new laws (11 total), red-proofed twice: un-joining the consumer → 1 red; re-fabricating the
+roster → 1 red.
+
+⚠ **Third consecutive version in which a cross-family eye found a real defect in my own fix**, and
+the fourth this session. A repair is written faster and with more certainty than the code it
+replaces. `[[review-after-ship]]`

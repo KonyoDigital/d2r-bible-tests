@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3232",
+  "ver": "v3233",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3232: two gates asserted opposite things about the shelf and the one that could not reach its subject was the one going red, so ROUTED and TOMBSTONE had quietly vanished from the chip row while a green sibling gate said the sections must stay gone. the doctor check for the station tabs was in neither registry. the river header lost the denominator it is pinned to carry",
+  "note": "v3233: v3231 added a flag saying the console could not be asked, then handed an empty list to the corroborator anyway and no consumer ever read the flag, so a console that was down still reported zero reels witnessed as a warning about the shelf. counts are None now and the health row says unknown. found by a cross family review of the version that added it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

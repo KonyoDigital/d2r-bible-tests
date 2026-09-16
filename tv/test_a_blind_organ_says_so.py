@@ -127,6 +127,56 @@ class TestABlindOrganSaysSo(unittest.TestCase):
                       "the sentence a human reads must carry it too, not only a flag: %r"
                       % rep.get("say"))
 
+    # ── AND THE FLAG MUST REACH THE ONLY THING THAT READS IT ────────────────────────────────
+    def test_the_counts_are_None_and_not_a_fabricated_zero(self):
+        """★ v3231 flagged the unknown and then handed `[]` to corroborate() anyway.
+
+        A cross-family review of that version named it in one phrase — "sessions = []  #
+        fabricated roster" — so `checked` and `disagreed` came back 0: real-looking integers
+        derived from a list the function invented. [[unknown-stays-unknown]]"""
+        real = SC._live_sessions
+        SC._live_sessions = lambda: None
+        self.addCleanup(setattr, SC, "_live_sessions", real)
+        rep = SC.report()
+        self.assertIsNone(rep.get("checked"),
+                          "checked is %r — a number, produced from a roster nobody supplied"
+                          % rep.get("checked"))
+        self.assertIsNone(rep.get("disagreed"),
+                          "disagreed is %r, measured over the same invented list"
+                          % rep.get("disagreed"))
+
+    def test_the_health_row_says_UNKNOWN_and_not_WARN(self):
+        """★ THE JOIN. v3231 added `sessionsUnknown` and NOTHING READ IT.
+
+        `check_shelf_witnesses` did `rep.get("checked") or 0`, which reads a real 0 and an
+        UNKNOWN identically — so a console that is down produced WARN "0 reel(s) on disk could be
+        witnessed", a statement about the shelf, when the true one is that nothing could look at
+        it. Film can sit under frames/hist the whole time. Built at both ends, joined at neither.
+        [[the-unjoined-end]]"""
+        import health_engine as HE
+        real = SC._live_sessions
+        SC._live_sessions = lambda: None
+        self.addCleanup(setattr, SC, "_live_sessions", real)
+        row = HE.check_shelf_witnesses()
+        self.assertEqual(
+            str(row.get("state")), "unknown",
+            "the shelf witness row is %r. A console that could not be asked must not be reported "
+            "as a measured shortfall — that sends him looking at his reels for a fault in the "
+            "wiring." % (row.get("state"),))
+        self.assertIn("UNKNOWN", str(row.get("line") or ""),
+                      "the line he reads does not carry it: %r" % (row.get("line"),))
+
+    # ── AND A DOUBLE FAILURE NAMES BOTH HALVES ──────────────────────────────────────────────
+    def test_both_reasons_are_named_when_both_fail(self):
+        """The refusal used to name only the watchers, sending the reader to the wrong file."""
+        real = HM._read
+        HM._read = lambda name: None
+        self.addCleanup(setattr, HM, "_read", real)
+        why = HM._why_unmeasurable(list(HM.WATCHERS[:1]))
+        self.assertIn("control_ui.html", why,
+                      "the console page was unreadable too and the refusal did not say so: %r" % why)
+        self.assertIn("watchers", why, "the watcher half was dropped instead: %r" % why)
+
     def test_a_real_empty_list_is_still_a_real_zero(self):
         """⚠ The other half: genuinely no sessions must NOT be reported as unknown."""
         rep = SC.report(sessions=[])

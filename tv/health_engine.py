@@ -921,6 +921,18 @@ def check_shelf_witnesses():
         return _row("shelfWitness", UNKNOWN,
                     "the shelf corroborator raised %s, so its reading is UNKNOWN"
                     % type(e).__name__, k=_atkK, n=_atkN)
+    # ⚠⚠ v3233 — "COULD NOT ASK" AND "ASKED AND FOUND NONE" ARE DIFFERENT FACTS, AND THIS READ
+    # THEM THE SAME. `rep.get("checked") or 0` turns BOTH a real 0 and an UNKNOWN into 0, so a
+    # console that is down produced "0 reel(s) on disk could be witnessed" — a WARN about the
+    # shelf, when the true statement is that nothing could look at it. Film can sit under
+    # frames/hist the whole time. v3231 added `sessionsUnknown` to say so and NOTHING READ IT:
+    # the flag and its only consumer were built at opposite ends and never joined, which a
+    # cross-family review of that very version caught. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    if rep.get("sessionsUnknown") or rep.get("checked") is None:
+        return _row("shelfWitness", UNKNOWN,
+                    str(rep.get("unknownWhy") or rep.get("say")
+                        or "the shelf corroborator could not be asked, so its reading is UNKNOWN"),
+                    evidence={"checked": None, "disagreed": None}, k=_atkK, n=_atkN)
     checked = rep.get("checked") or 0
     bad = rep.get("disagreed") or 0
     if not checked:

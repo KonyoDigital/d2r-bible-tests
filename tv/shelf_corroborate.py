@@ -204,10 +204,20 @@ def report(sessions=None, hist=None):
             # v3231 — SAY WHICH KIND OF EMPTY. Downstream (health_engine) already refuses to read a
             # bare 0 as clean; what it could not do was tell "nobody was there" from "nobody
             # answered", because both arrived as [].
-            _unknown = ("the running console could not be asked (%s), so how many sessions exist "
-                        "is UNKNOWN - not zero"
-                        % globals().get("_LAST_ASK_WHY", "no reason recorded"))
-            sessions = []
+            # ⚠⚠ v3233 — DO NOT CORROBORATE A ROSTER NOBODY GAVE US. v3231 flagged the
+            # unknown correctly and then handed `[]` to corroborate() anyway, so `checked` and
+            # `disagreed` came back 0 — real-looking numbers derived from a list this function
+            # invented. A cross-family review of v3231 named it: "sessions = []  # fabricated
+            # roster". Returning early means the counts are None, which is what UNKNOWN looks
+            # like in an integer field. [[unknown-stays-unknown]] [[the-unjoined-end]]
+            _u = ("the running console could not be asked (%s), so how many sessions exist "
+                  "is UNKNOWN - not zero"
+                  % globals().get("_LAST_ASK_WHY", "no reason recorded"))
+            return {"rows": [{"surface": s_, "organ": "corroborator", "ok": None,
+                              "checked": None, "disagreed": None, "why": _u}
+                             for s_ in SURFACES],
+                    "scene": None, "findings": [], "checked": None, "disagreed": None,
+                    "ok": None, "sessionsUnknown": True, "unknownWhy": _u, "say": _u}
     c = corroborate(sessions, hist)
     sc = scene_witnesses(sessions)
     return {

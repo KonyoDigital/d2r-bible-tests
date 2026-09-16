@@ -104,6 +104,16 @@ def measure():
     return ids, seen, missing
 
 
+def _why_unmeasurable(missing):
+    """Say every reason the map could not be built, not the first one. -> str"""
+    bits = []
+    if surfaces() is None:
+        bits.append("control_ui.html could not be read")
+    if missing:
+        bits.append("these watchers could not be read: %s" % ", ".join(missing))
+    return " AND ".join(bits) or "no reason recorded"
+
+
 def render():
     ids, seen, missing = measure()
     # ⚠ REFUSE, DO NOT RENDER A ZERO. Writing the map is what banks it: the pre-push gate compares
@@ -112,8 +122,10 @@ def render():
         raise RuntimeError(
             "the heart map could not be measured: %s. Refusing to write a map that would claim "
             "the console paints 0 surfaces — an unreadable file is UNKNOWN, not empty."
-            % ("control_ui.html could not be read" if not missing
-               else "these watchers could not be read: %s" % ", ".join(missing)))
+            # v3233 — NAME BOTH. `missing` being non-empty used to hide that the console page
+            # was ALSO unreadable, so a double failure reported as a watcher problem and sent
+            # the reader to the wrong file. [[zero-needs-a-denominator]]
+            % _why_unmeasurable(missing))
     pct = (100.0 * len(seen) / len(ids)) if ids else 0.0
     lines = [
         "# THE HEART — what watches the console",
@@ -161,8 +173,7 @@ def main(argv=None):
     # v3231 — an unmeasurable map is a REFUSAL at every door, not a quiet zero in one of them.
     if ids is None:
         print("🔴 the heart map could not be measured: %s"
-              % ("control_ui.html could not be read" if not missing
-                 else "these watchers could not be read: %s" % ", ".join(missing)))
+              % _why_unmeasurable(missing))
         print("   UNKNOWN is not 0 surfaces. Refusing rather than rendering an empty heart.")
         return 1
     if "--print" in argv:
