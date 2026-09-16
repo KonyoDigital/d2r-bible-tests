@@ -5374,6 +5374,127 @@ def _win_nudge_onscreen():
         pass
 
 
+def _mac_tint_caption():
+    """v3199 — KILL THE GREY "TV DIABLO" STRIP ON macOS WITHOUT COSTING HIM THE WINDOW BUTTONS.
+
+    Konyo, twice: *"this TV diablo banner on top is now here when it wasnt"* and again
+    2026-09-16 with two screenshots — *"the banner uptop TV DIABLO still ontop... it should be
+    fullscreened and just the console without that banner ontop too"*.
+
+    ⚠⚠ v3175 GUESSED AT WINDOW FLAGS AND PAID FOR IT. It paired `frameless` with `fullscreen`,
+    which cost him the traffic lights — *"now i cant minimize or window mode the console"* — and
+    v3179 reverted it, recording: *"the strip is NOT the pywebview frame; it survives
+    framelessness, so it is something else and will be found by LOOKING rather than by guessing
+    at window flags again."*
+
+    LOOKED. It is pywebview's own code, and it is deliberate. `webview/platforms/cocoa.py:708`:
+
+        if window.frameless:
+            ... hide the three buttons ...
+        else:
+            # Set the titlebar color (so that it does not change with the window color)
+            self.window.contentView().superview().subviews().lastObject().setBackgroundColor_(
+                AppKit.NSColor.windowBackgroundColor()
+            )
+
+    It reaches into the theme frame and paints the titlebar container with the SYSTEM window
+    background — a light grey — directly above a #070605 console. That is the strip. And the
+    branch it lives in is the reason framelessness appeared not to fix it: frameless takes the
+    OTHER branch, so v3175 removed the paint and the buttons in one move and the buttons were
+    what he noticed.
+
+    SO THIS REVERSES EXACTLY THAT LINE, down the same path, and nothing else: the titlebar is
+    made transparent, the title text hidden, and that one subview repainted in the console's own
+    black. The frame stays, so close/minimise/zoom stay. [[source-reading-guard]]
+
+    ⚠ COSMETICS MUST NEVER COST THE WINDOW. This app has lost its window to a cosmetic change
+    twice (REG-051, REG-053) and a third time to v3175. Every call below is individually
+    wrapped, runs on `shown` (never on the creation path), and any failure leaves the window
+    exactly as pywebview built it.
+    """
+    if IS_WIN:
+        return
+    if sys.platform != "darwin":
+        return
+    win = globals().get("_MAIN_WIN")
+    native = getattr(win, "native", None)
+    if native is None:
+        return                                   # not the cocoa backend, or not built yet
+    try:
+        import AppKit
+    except Exception:
+        return                                   # PyObjC absent: leave the window alone
+    # ⚠ READ THE CONSTANT, FALL BACK TO THE MEASURED LITERAL — never one or the other alone.
+    # `getattr` means the running framework decides, so this cannot drift if Apple renumbers it;
+    # the default is the value MEASURED on his Mac against AppKit on 2026-09-16
+    # (NSWindowTitleHidden == 1), so a build that does not export the name still gets the right
+    # number rather than a crash. A bare literal would be a guess with a value.
+    # [[unknown-stays-unknown]]
+    _title_hidden = getattr(AppKit, "NSWindowTitleHidden", 1)
+    for fn in (lambda: native.setTitlebarAppearsTransparent_(True),
+               lambda: native.setTitleVisibility_(_title_hidden)):
+        try:
+            fn()
+        except Exception:
+            pass
+    # the repaint, down pywebview's own path — same lookup, console black instead of system grey
+    try:
+        black = AppKit.NSColor.colorWithSRGBRed_green_blue_alpha_(
+            7 / 255.0, 6 / 255.0, 5 / 255.0, 1.0)      # #070605, the console ground
+        native.contentView().superview().subviews().lastObject().setBackgroundColor_(black)
+    except Exception:
+        pass
+    try:
+        native.setBackgroundColor_(
+            AppKit.NSColor.colorWithSRGBRed_green_blue_alpha_(7 / 255.0, 6 / 255.0, 5 / 255.0, 1.0))
+    except Exception:
+        pass
+
+
+def _mac_force_fullscreen():
+    """v3199 — AND ACTUALLY BE FULLSCREEN, because on his screenshots it was not.
+
+    `create_window(fullscreen=True)` calls `toggle_fullscreen()` at the END of cocoa's `create()`,
+    and a cross-family review of v3178 already flagged the failure mode: on macOS the transition
+    can be refused when the app is not frontmost, and pywebview does not retry. His 02:43
+    screenshot shows the menu bar AND the traffic lights — a windowed console — while the code
+    asked for fullscreen. A one-shot request that can be silently refused is a request that is
+    UNKNOWN, not honoured. [[unknown-stays-unknown]]
+
+    ⚠ ONE SHOT, ON `shown`, AND ONLY IF IT IS NOT ALREADY FULLSCREEN. It must never fight him:
+    if he leaves fullscreen later this never runs again, and TV_WINDOWED=1 skips it entirely
+    because that opt-out is real and a default nobody can leave is a trap.
+    """
+    if IS_WIN or sys.platform != "darwin":
+        return
+    if str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on"):
+        return
+    win = globals().get("_MAIN_WIN")
+    native = getattr(win, "native", None)
+    if native is None:
+        return
+    try:
+        import AppKit                            # noqa: F401 — presence is the check
+    except Exception:
+        return                                   # PyObjC absent: leave the window alone
+    try:
+        # same rule as the caption hook: ask the framework, fall back to the value measured on
+        # his Mac (NSWindowStyleMaskFullScreen == 16384 == 1 << 14).
+        _fs_mask = getattr(AppKit, "NSWindowStyleMaskFullScreen", 1 << 14)
+        already = bool(int(native.styleMask()) & int(_fs_mask))
+    except Exception:
+        # ⚠ WE CANNOT TELL, SO WE DO NOT ACT. Toggling blind would take a window that IS
+        # fullscreen back OUT of it — the exact opposite of what he asked for. An unreadable
+        # style mask is UNKNOWN, and unknown is a refusal. [[unknown-stays-unknown]]
+        return
+    if already:
+        return
+    try:
+        native.toggleFullScreen_(None)
+    except Exception:
+        pass
+
+
 def _win_tint_caption():
     """v1464 — make the native title bar belong to the console instead of fighting it.
 
@@ -5826,6 +5947,8 @@ def open_control_window():
                 # do not get to touch window geometry after it is up — REG-051, REG-053.
                 win.events.shown += _win_nudge_onscreen   # v1470 — MOVE only, never resize
                 win.events.shown += _win_tint_caption
+                win.events.shown += _mac_tint_caption      # v3199 — the grey strip he photographed twice
+                win.events.shown += _mac_force_fullscreen  # v3199 — the fullscreen that was silently refused
             except Exception:
                 pass
     except Exception:
@@ -28071,7 +28194,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3199",
+        "ver": "v3200",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

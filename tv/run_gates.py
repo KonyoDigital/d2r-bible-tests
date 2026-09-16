@@ -664,6 +664,19 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_the_mac_titlebar_is_the_consoles_own",
+         [sys.executable, os.path.join(HERE, "test_the_mac_titlebar_is_the_consoles_own.py")], 120,
+         why="he reported the grey TV DIABLO strip TWICE, and the first fix cost him his window "
+             "buttons: v3175 paired frameless with fullscreen, he answered now i cant minimize or "
+             "window mode the console, AND THE STRIP WAS STILL THERE. v3179 reverted it and left "
+             "the instruction - the strip is NOT the pywebview frame, it will be found by LOOKING "
+             "rather than by guessing at window flags again. Looked: cocoa.py paints the titlebar "
+             "container with the SYSTEM window background in the non-frameless branch, which is "
+             "also why framelessness appeared not to fix it. So this pins that the fix reverses "
+             "THAT line down THAT path, never goes frameless, never hides a window button, wraps "
+             "every native call because cosmetics have cost this app its window three times, "
+             "refuses to toggle fullscreen when it cannot read the style mask, and keeps "
+             "TV_WINDOWED winning. The constants are checked against AppKit rather than trusted."),
     Gate("test_the_shipped_packs_are_staged_not_his_live_footage",
          [sys.executable, os.path.join(HERE, "test_the_shipped_packs_are_staged_not_his_live_footage.py")], 120,
          why="the packs now SHIP in a public repo, by his explicit call - make it public no "
