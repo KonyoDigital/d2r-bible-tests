@@ -32381,6 +32381,65 @@ both correct, and confusing them made the reader look broken when it was not.
 
 
 
+## REG-1007 — TWELVE OF THE 26 "LOOSE WIRES" ARE DEAD ON PURPOSE, AND THE MEASUREMENTS THAT PROVE IT LIVED NOWHERE (task #100 — v3205)
+
+`tv/loose_wires_audit.py` reports 26 module-level functions that RETURN A VERDICT and are called
+from nowhere, and the task was written as if all 26 were a join job. Read-only recon (2026-09-16)
+bucketed them: **6 have a real named consumer, 12 are dead ON PURPOSE, the rest need a measurement
+first.** Wiring the 12 would have been twelve ticks and a drift risk.
+
+⚠ THIS ENTRY EXISTS BECAUSE THE MEASUREMENTS THAT SETTLE THEM EXISTED ONLY IN CONVERSATIONS.
+One of them — `corroborates_chrome` — was measured in an earlier session, reported, and never
+written down; when it came up again the only record was my own recollection, which is not evidence
+(`inherited-claim-is-not-evidence`). It had to be re-measured from scratch. A wire with no named
+consumer is a RECORD job, not a join job, and a record that is not on disk is not a record.
+[[paid-work-with-no-memory]]
+
+**The numbers, banked verbatim so the next audit does not re-litigate them:**
+
+- **`corroborates`** (`reel_segments.py:374`) — measured over **1,429 frames**: AGREE 682 /
+  cannot-tell 688 / **CONTRADICT 59, and all 59 were false** (two opened by hand, the model right
+  both times). Superseded by the chrome witness (`23820ec6`). Joining it would wire a witness
+  measured to be wrong every time it disagreed.
+
+- **`corroborates_chrome`** (`reel_segments.py:345-370`) — `stash_gate_cache.json` holds **3,145**
+  frame stems; `sessions.jsonl` holds **2,423**; the **INTERSECTION IS 0**. The two witnesses have
+  never examined the same frame, so joining it today renders 0-of-0 forever. v3193 (`73f4f96a`)
+  already recorded it as not-joinable-today and `test_control.py:36963` forbids `bible.html`
+  claiming it runs. ⚠ THE PREREQUISITE IS NOT THE JOIN: have `_vault_sweep_run` record
+  `(frame, chrome_verdict, surface)` as it ALREADY COMPUTES BOTH — zero new read cost — and THEN
+  re-measure the intersection. A doctor row is a separate, later item and must not be briefed
+  until the denominator is non-zero. [[zero-needs-a-denominator]]
+
+- **`withdraw`** (`self_arming.py:502`) — a hand tool, and two separate traps sit on it.
+  (1) A withdrawal **CAN RAISE the score** (+0.18 measured), which is exactly why no loop may call
+  it: a standing caller would automate score-raising retirement, which its own docstring calls
+  laundering. It is already joined downstream via `score()` (`:869`).
+  (2) **5 withdrawn rows live in `tv/.self_arming.jsonl` and PREDATE the `withdrewN`/`withdrewK`
+  fields** (0 occurrences anywhere). Back-filling those counters now would FABRICATE TESTIMONY
+  about five real historical withdrawals nobody recorded at the time. **Leave them.**
+  [[unknown-stays-unknown]]
+
+- **`_read_json`** (`health_engine.py:146`) — occurrence count is **exactly 1 (the def)** in its
+  birth commit `ddf38fef` (v2277), in `be0167a8` (v2282), and at HEAD. The module hand-rolls
+  **10 inline `io.open` JSON reads** (`:639, 720, 1012, 1052, 1091, 1152, 1175, 1387`…). It was
+  written and never adopted, not written and later abandoned — which is a different fact, and the
+  one that decides whether adopting it now is tidy-up or a behaviour change.
+
+**Also ruled, with their own reasons on file:** `shadow_disagreements`
+(`chronicle_retro.py:2261-2279`, v2224 — joining it "would have created a SECOND live path… free
+to drift"; the live path is `shadow_scores :2312`), `_current_declared_focus` (v2772 — the guard
+was one value read twice, structurally never false, and it was sealing his plain ON AIR
+recordings), `_mini_cells_from_live_frame` (REG-823, `BUGS.md:27853` — "the loss is the intent,
+not an accident"), and `hover_plan` (`slot_identity.py:321` — superseded AND capture-blocked).
+
+⚠ **REAL WORK HIDING IN THE DEAD PILE.** `test_control.py:18992` asserts the string
+`'_current_declared_focus'` appears in `inspect.getsource(_stash_watch_loop)` — and today that is
+satisfied **ONLY BY THE v2772 COMMENTS** at `control_app.py:16744` and `:16781`. Tidying a comment
+would redden a green gate while the code stays correct. Retarget it to `_agent_origin` (the real
+guard), then delete the dead def. `run_gates.py:617-618` prose wants the same touch-up.
+[[source-reading-guard]]
+
 ## REG-1006 — THE BLACK STAGE WAS A WINDOWED CONSOLE, AND THE DUAL METER NEVER REACHED THE SCREEN
 
 **v3096.** Two things his own eyes and Grok Bot's caught that four versions of my reporting did not.

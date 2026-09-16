@@ -6797,7 +6797,16 @@
   .head-tabs .ht:hover .ht-i { opacity: 1; }
   .head-tabs .ht.shell-on .ht-i { opacity: 1; filter: brightness(1.25) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
   @media (max-width: 900px){ .head-tabs .ht .ht-i { width: 15px; height: 15px; vertical-align: -2px; } }
-  .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .55; font-size: var(--fs-xs); padding: 9px 11px; }   /* v905 — the main four lead · v2100 padding folded up from the retired !important layer, which also ends the 2px height mismatch that made these two sit off-baseline */
+  /* ⚠⚠ v3205 (#227 §4) — TWO SOURCES FOR ONE FACT, AND THE ONE EVERYONE QUOTES WAS DEAD.
+     MEASURED: this rule declared `opacity: .55` at normal importance, and the LAST tab-opacity
+     declaration in the document (bottom style block) declared `opacity: .8 !important` on the
+     IDENTICAL selector. So his console has been computing 0.8 for as long as both existed, and
+     every reading of "TV·D is demoted to .55" — including the one in the handoff that sent me
+     here — described a declaration that never applied. Editing it would have changed nothing on
+     screen and I would have reported a fix. [[copy-drift]] [[label-outlived-referent]]
+     Its `font-size: var(--fs-xs)` was inert too: the base `.head-tabs .ht` shorthand already sets
+     exactly that. Only the padding did real work, and it keeps it. */
+  .head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { padding: 9px 11px; }   /* v905 · v2100 — padding only; see above */
   /* ══ v1625 · THE TAB WEARS ITS QUALITY ═══════════════════════════════════════════════════════
      Konyo: "for the main tabs i want it colored accordingly to each relevant... F-SETS it can be
      matched and synced to green sets like it is ingame. F-UNIQUES it can be matched and synced to
@@ -22270,7 +22279,21 @@ body:not(.shell-open) #tvd-eng {
    so every responsive rule written in the main sheet lost to them silently — the header could
    not be made to fit on one row from the place the header is styled. `opacity` stays: that is
    the v905 "main four lead" hierarchy and it is not a spacing concern. */
-.head-tabs .ht[data-tab="tools"], .head-tabs .ht[data-tab="tvd"] { opacity: .8 !important; }
+/* ⚠⚠ v3205 (#227 §4) — TV·D IS THE COCKPIT, NOT A SPARE, AND A SELECTED TAB IS NEVER DIMMED.
+   Konyo's report: *"TV·D gold when selected, but Sets is green and louder."* The obvious reading
+   is a cascade fight — and it is not. `#head-tabs .ht[...].shell-on` (1,2,0) correctly beats the
+   class-level tints, exactly as v1614 intended.
+   THE REAL MECHANISM, measured: this demotion carried NO `:not(.shell-on)` guard, so a SELECTED
+   TV·D was still painted at 0.8. Its gold was not losing a specificity battle; it was being faded
+   by a rule that forgot selection exists — while Sets sat beside it at full-strength `--rar-set`.
+   That is why the cockpit read as a spare.
+   TWO CHANGES, BOTH NARROW: `tvd` leaves the demotion entirely (it is `data-tab=tvd -> shellHome()`
+   — the home surface cannot share a rule written for secondary tabs), and Tools keeps its
+   demotion but never while it is the selected tab.
+   ⚠ THE QUALITY TINTS ARE UNTOUCHED. They are deliberate (v1631: the game has no runeword colour,
+   so Forge wears --rar-rune and he needs the tabs to differ), and desaturating them to win an
+   attention contest would trade his vocabulary for my layout. [[design-is-fine-until-he-says]] */
+.head-tabs .ht[data-tab="tools"]:not(.shell-on) { opacity: .8 !important; }
 .sh-card, #th-shelfov .sh-card { line-height: var(--lh-normal) !important; }
 .tly-k { padding: 5px 9px !important; }
 /* VISUAL LOCK typography (type-token fold) — removed a dead .panel-h/.section/.console-h !important rule:
