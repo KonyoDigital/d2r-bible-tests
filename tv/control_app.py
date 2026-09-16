@@ -22722,6 +22722,18 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         _read_ok = [0]      # v2003 — frames that came back a READ, not a refusal. The denominator.
         _panels = []        # v2004 — paths whose panel MEASURED, so the room can be mapped at the end
         _gate0 = gate_hearing()  # the gate's audibility AT THE START, so the report is this run's
+        # ⚠ v3211 (#100) — AND ITS BREAKAGES, WHICH THE SNAPSHOT BESIDE IT HAS ALWAYS OMITTED.
+        # `gate_failures()` promises in its own docstring that "the count is kept so a status
+        # surface can report it", and no surface ever did: the only human channel was a ONE-SHOT
+        # print at the first break, so every breakage after the first was invisible for the
+        # lifetime of the process. A counter with a stated consumer and no consumer is
+        # [[plumbing-with-no-tap]] — it was one of the 26 verdict-shaped functions nobody called.
+        # ⚠ A DELTA, NEVER THE LIFETIME VALUE, for the reason written twelve lines below: a
+        # run-level claim built on a lifetime counter is "the same defect this whole arc keeps
+        # finding". The console runs sweeps on other threads, so this is honest about the RUN and
+        # never about a frame — which is exactly the misuse `_GATE_BROKE`'s own comment warns
+        # against. [[unknown-stays-unknown]]
+        _gbroke0 = gate_failures()
 
         def _classify(p):
             # ── THE TEMPLATE GATE (2026-08-20, his ask) ──────────────────────────────────────
@@ -23072,6 +23084,11 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         # this whole arc keeps finding, written by me into the fix for it. Deltas now.
         _gs = _GATE_SILENT[0] - _gate0[0]
         _gh = _GATE_HEARD[0] - _gate0[1]
+        _gb = gate_failures() - _gbroke0
+        if _gb:
+            print("   \U0001f6a8 the stash gate BROKE %d time(s) THIS RUN \u2014 those frames were "
+                  "not judged, and a gate that threw is not a gate that said no. The lifetime "
+                  "count is %d." % (_gb, gate_failures()))
         if _gs and not _gh:
             print("   \U0001f507 the tab-chrome OCR answered NOTHING on all %d probe(s) THIS RUN. "
                   "That is the READER being silent, not a verdict about his stash — nothing here "
@@ -28345,7 +28362,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3210",
+        "ver": "v3211",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

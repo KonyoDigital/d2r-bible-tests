@@ -650,6 +650,19 @@ GATES = [
              "the fix reports staleness rather than recomputing a verdict; the law also refuses "
              "any witness constant appearing in the panel. resultFromDisk counts as stale ON ITS "
              "OWN: a disk proposal can read four minutes old and describe a dead process."),
+    Gate("test_a_broken_gate_is_reported_every_run",
+         [sys.executable, os.path.join(HERE, "test_a_broken_gate_is_reported_every_run.py")], 120,
+         why="#100 wire 1 of 6. gate_failures() promised in its own docstring that the count is "
+             "kept so a status surface can report it, and no surface ever did: the only human "
+             "channel was a ONE-SHOT print at the first break, so every breakage after the first "
+             "was invisible for the lifetime of the process. ⚠ THE OBVIOUS JOIN IS THE WRONG JOIN, "
+             "which is why this pins a DELTA: _GATE_BROKE is a module global and the console runs "
+             "sweeps on other threads that move it, so it may only ever be a RUN-level fact, "
+             "never a per-frame one - its own comment records readers getting that wrong. And it "
+             "may not be the lifetime value either: the sibling report beside it carries the scar "
+             "in its own words, a run-level claim built on a lifetime counter is the same defect "
+             "this whole arc keeps finding. It also pins that a THROW is not a VERDICT - those "
+             "frames were not judged, and a gate that threw is not a gate that said no."),
     Gate("test_a_dead_journal_reader_says_so",
          [sys.executable, os.path.join(HERE, "test_a_dead_journal_reader_says_so.py")], 120,
          why="_kai_journal_rows wrapped its whole read in except Exception pass and returned an "
