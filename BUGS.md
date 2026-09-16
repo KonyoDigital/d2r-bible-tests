@@ -34678,3 +34678,43 @@ the diff, which is its own kind of false signal.
 says plainly, before running, that it is testing the server as it was — and names the remedy
 (`bash tv/tvd-scan.sh`). The demos still run and still catch page regressions. What changed is
 that the result can no longer be read as more than it is. `[[regression-guard]]` `[[stale-reading]]`
+
+## REG-1032 — the guard was applied to one of two identical reads, and the difference went negative
+
+**2026-09-16 · v3230 · `tv/control_app.py`** — *found by a cross-family review of v3224, the
+version that added the half-guard.*
+
+`vault_autosort` counts the mule-assignment store, presses `vaultAutoAssign()`, counts again, and
+reports the difference. v3224 added `okBefore` for a good and explicitly stated reason — *"`before`
+would read 0 if the store were unreadable"* — and applied it to **one** of the two identical reads.
+The `after` read kept `var after=0` behind an EMPTY catch:
+
+```
+assignedBefore: 173      assignedAfter: 0      newlyAssigned: -173
+```
+
+A large negative number that reads as mass un-assignment, and an `assignedAfter: 0` that reads as
+an emptied vault — both from a read that never happened. The comment naming the hazard sat four
+lines above the copy that still had it. `[[zero-needs-a-denominator]]` `[[copy-drift]]`
+
+**Fixed:** `okAfter` mirrors `okBefore`; each count publishes `null` when its read failed; and
+`newlyAssigned` requires BOTH. Measured by executing the real fragment:
+
+```
+both-ok        assignedBefore 3     assignedAfter 4      newlyAssigned 1
+after-fails    assignedBefore 3     assignedAfter null   newlyAssigned null
+before-fails   assignedBefore null  assignedAfter 4      newlyAssigned null
+```
+
+⚠⚠ **MY FIRST GATE FOR THIS PASSED ITS OWN SABOTAGE.** It asserted the token `okAfter` was PRESENT
+in the JS. Deleting the declaration left the token in the return expression, so the text was
+unchanged and the gate went green over code that would now throw a `ReferenceError` on every
+press. **A green sabotage means the sabotage is wrong or the gate is — here it was the gate**, in
+the file whose own docstring warns about exactly this, written by me minutes earlier.
+`[[sabotage-is-usually-the-wrong-one]]` `[[source-reading-guard]]`
+
+Gate: `tv/test_a_difference_needs_both_its_terms.py` — it now **runs** the extracted fragment in
+node against a stubbed board whose second read throws, and reads the JSON back. Red-proofed twice:
+dropping the declaration → 3 errors (the ReferenceError the text version could not see); restoring
+the v3224 shape → 2 failures. It also keeps a baseline case proving the honest path still produces
+a real delta, because a guard that refuses everything is as useless as one that refuses nothing.

@@ -13497,16 +13497,28 @@ def vault_autosort(confirm=False):
           "window.LSR.getItem('d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))"
           "||'{}')||{}).length;okBefore=true;}catch(e){okBefore=false;}"
           "window.vaultAutoAssign();"
-          "var after=0;try{after=Object.keys(JSON.parse((window.LSR?window.LSR.getItem("
-          "'d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))||'{}')||{}).length;}catch(e){}"
+          # ⚠⚠ v3230 — THE *AFTER* READ KEPT THE OLD PATH, AND THE GUARD NEXT TO IT SAID SO.
+          # v3224 added `okBefore` because "`before` would read 0 if the store were unreadable" —
+          # correct, and applied to exactly one of the two identical reads. `after` stayed
+          # initialised to 0 behind an EMPTY catch, so an unreadable store after the press gives
+          # assignedAfter: 0 and newlyAssigned: 0 - 173 = -173. A large negative number that reads
+          # as mass un-assignment, and an `assignedAfter: 0` that reads as an emptied vault. Both
+          # from a read that simply did not happen.
+          # Found by a cross-family review of v3224 — the version that added the half-guard.
+          # [[zero-needs-a-denominator]] [[copy-drift]] [[sweep-dont-ask]]
+          "var after=0,okAfter=false;try{after=Object.keys(JSON.parse((window.LSR?"
+          "window.LSR.getItem('d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))"
+          "||'{}')||{}).length;okAfter=true;}catch(e){okAfter=false;}"
           # ⚠ v3224 — `filed` IS A KEY-COUNT DELTA AND SAYS SO. It cannot count what this press
           # did: a __throwout suggestion adds no key, a re-file of an existing name is a no-op in
           # the counter, and `before` would read 0 if the store were unreadable. So the reads are
           # reported as what they are — two counts and their difference — and `readBefore` says
           # whether the first one could be taken at all. A number that cannot mean what its name
           # says is worse than no number. [[zero-needs-a-denominator]] [[label-outlived-referent]]
-          "return JSON.stringify({ok:true,assignedBefore:before,assignedAfter:after,"
-          "readBefore:okBefore,newlyAssigned:(okBefore?(after-before):null)});"
+          # a difference is only a measurement when BOTH of its terms were measured.
+          "return JSON.stringify({ok:true,assignedBefore:(okBefore?before:null),"
+          "assignedAfter:(okAfter?after:null),readBefore:okBefore,readAfter:okAfter,"
+          "newlyAssigned:((okBefore&&okAfter)?(after-before):null)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()")
     try:
@@ -29257,7 +29269,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3229",
+        "ver": "v3230",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

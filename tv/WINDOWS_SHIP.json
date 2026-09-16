@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3229",
+  "ver": "v3230",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3229: the synchronous refusal from v3228 made the first sealed reel end the whole autoread tick, so the one unsealed reel behind three sealed ones would have starved for ever. and two real Grok reviews were recorded with no family at all, so the push gate kept demanding looks that had already happened",
+  "note": "v3230: vault_autosort guarded the before read against an unreadable store and left the after read on the old path, so a failed read reported the vault as emptied and the delta as minus one hundred seventy three. both terms are guarded now and the gate executes the fragment in node instead of grepping it, because the grepping version passed its own sabotage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

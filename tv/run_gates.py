@@ -149,6 +149,11 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_both_terms", [sys.executable,
+                             os.path.join(HERE, "test_a_difference_needs_both_its_terms.py")], 60,
+         why="REG-1032 — vault_autosort guarded the BEFORE read against an unreadable store and "
+             "left the AFTER read on the old path, so a failed read reported assignedAfter 0 and "
+             "newlyAssigned -173. Parses the JS with ast + node --check rather than grepping it"),
     Gate("test_eye_attribution", [sys.executable,
                                   os.path.join(HERE, "test_a_look_names_the_family_that_looked.py")], 60,
          why="REG-1029 — two genuine Grok reviews (6 and 12 findings) landed as family=None "
