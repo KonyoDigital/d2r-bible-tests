@@ -58,6 +58,51 @@ class TestRetentionSelectsAndRefuses(unittest.TestCase):
         # i.e. asserting the very disagreement #32 exists to close.
         with open(os.path.join(self.root, "vault_accum.json"), "w") as fh:
             json.dump({}, fh)
+        self._allow_release()
+
+    # ⚠⚠ THE LOCK SITS ABOVE EVERYTHING THIS CLASS MEASURES. v3050 put the `frame.release`
+    # self-arming lock at the top of apply_plan, and it fails closed on a stale heart census —
+    # the tree's normal state the moment ANY gate file changes. So
+    # `test_apply_with_yes_actually_removes_it_and_leaves_the_rest` went red reporting
+    # "frame.release is LOCKED — the heart census is STALE", which is not a statement about
+    # retention at all. Identical to the outage that silenced test_freed_is_measured (REG-1025),
+    # one file over — the same lock, the same shape, found twice.
+    # [[copy-drift]] [[feedback-blind-fixture-green-gate]]
+    #
+    # The lock is CORRECT and stays. It is stubbed for the SELECTION laws, and
+    # `test_the_release_lock_still_bites` asserts the real one still refuses, so the stub can
+    # never quietly become a bypass.
+    def _allow_release(self):
+        import self_arming as _sa
+        _real = _sa.may
+        def _may(name, *a, **k):
+            if name == "frame.release":
+                return (True, "stubbed by test_reel_retention so the SELECTION laws are "
+                              "reachable; the real lock is asserted separately")
+            return _real(name, *a, **k)
+        _sa.may = _may
+        self.addCleanup(setattr, _sa, "may", _real)
+
+    def test_the_release_lock_still_bites(self):
+        """★ THE STUB IS NOT A BYPASS. With the real lock engaged, no footage may be removed."""
+        import self_arming as _sa
+        _real = _sa.may
+        _sa.may = lambda name, *a, **k: (False, "engaged for this test")
+        self.addCleanup(setattr, _sa, "may", _real)
+        name = self._reel(1500000000009, 1)
+        d = os.path.join(self.hist, name if isinstance(name, str) else "")
+        if not os.path.isdir(d):
+            d = os.path.join(self.hist, sorted(os.listdir(self.hist))[0])
+        r = rr.apply_plan({"hist": self.hist, "freeMb": 1.0,
+                           "candidates": [{"reel": os.path.basename(d), "mb": 1.0}]}, yes=True)
+        self.assertFalse(r.get("ok"), "a LOCKED frame.release reported success")
+        self.assertEqual(r.get("removed"), [], "it deleted through a locked door")
+        self.assertTrue(os.path.isdir(d),
+                        "the reel is GONE — the lock on the one line that deletes his footage "
+                        "did not hold")
+        self.assertIn("LOCKED", str(r.get("why") or ""),
+                      "the refusal must name the lock, or the next reader debugs retention "
+                      "instead [[unknown-stays-unknown]]")
 
     def _reel(self, ms, n=1, kb=8):
         name = "reel_s_%d_%d" % (ms, n)

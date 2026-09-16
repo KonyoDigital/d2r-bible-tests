@@ -149,16 +149,34 @@ class TheRestorePicksTheRightFileForTheRightPerson(unittest.TestCase):
         out = LR.plan(ROUTE, {"foundLog": {}, "setPieces": []}, d)
         prop = LR.proposal_from(out)
         self.assertIn("wouldAdd", prop, "the board reads proposal.wouldAdd and nothing else")
-        self.assertIn("Lost", prop["wouldAdd"]["uniques"])
-        self.assertIn("SetLost", prop["wouldAdd"]["sets"])
+        # ⚠⚠ THE SHAPE CHANGED BECAUSE THE OLD ONE COULD NOT BE APPLIED. Until REG-1013 this was
+        # `add[half][name] = []` — a DICT keyed by name — and bible.html's chronicleApply does
+        # `(add.uniques || []).forEach(...)`, which a plain object does not have. So every restore
+        # that ever reached the board died with "forEach is not a function" and wrote NOTHING,
+        # for 478 versions, while plan() and this gate both looked right.
+        # The authority is the board, and a real sweep already ships `[{"name": n, ...}]` at two
+        # call sites in control_app.py. This now pins THAT — a list the board can iterate — rather
+        # than the spelling that could not be applied. [[the-unjoined-end]] [[regression-guard]]
+        for half in ("uniques", "sets"):
+            self.assertIsInstance(prop["wouldAdd"][half], list,
+                                  "wouldAdd.%s is not a list, so the board cannot forEach it" % half)
+        self.assertIn("Lost", [e.get("name") for e in prop["wouldAdd"]["uniques"]])
+        self.assertIn("SetLost", [e.get("name") for e in prop["wouldAdd"]["sets"]])
 
     def test_a_restore_invents_no_DATE(self):
         """The board owns dating a row, exactly as it does for a hand tick. A date made up here
         would put a time on his screen that nothing witnessed."""
         d = _dir_with({"route": ROUTE, "ledger": {"foundLog": {"Lost": "Jan 1, 2026 · 00:00"}}})
         prop = LR.proposal_from(LR.plan(ROUTE, {"foundLog": {}, "setPieces": []}, d))
-        self.assertEqual([], prop["wouldAdd"]["uniques"]["Lost"],
-                         "the restore carried a date of its own into the board's door")
+        # The fixture's ledger row carries "Jan 1, 2026 · 00:00". Under the old dict shape this
+        # asserted the date LIST was empty; under the list shape the entry carries no date field
+        # at all, which is the same law stated more strongly — the board owns dating a row.
+        entry = next((e for e in prop["wouldAdd"]["uniques"] if e.get("name") == "Lost"), None)
+        self.assertIsNotNone(entry, "the name to restore vanished from the proposal")
+        self.assertEqual(
+            [k for k in entry if k != "name"], [],
+            "the restore carried something of its own into the board's door — a date made up "
+            "here would put a time on his screen that nothing witnessed: %r" % (entry,))
 
     def test_nothing_to_restore_yields_NO_proposal(self):
         d = _dir_with({"route": ROUTE, "ledger": {"foundLog": {"A": "d"}}})

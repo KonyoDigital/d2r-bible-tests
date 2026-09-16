@@ -34834,3 +34834,38 @@ lines and runs them** over 8 URLs rather than restating the pattern — a test t
 it checks proves only that it can be typed twice, and drifts the moment the real one changes.
 Red-proofed both ways: widening the bucket to all loopback → 1 red (it would hide real findings);
 removing the exclusion → 1 red. Boundary covered: `:177720` does not match `:17772`.
+
+## REG-1036 — two CI-only gates, one my regression and one the lock outage found a second time
+
+**2026-09-16 · `tv/test_ledger_restore.py`, `tv/test_reel_retention.py`**
+
+⚠ **These live in `run_gates.py`, which the pre-push gate does NOT run.** 416 gates are CI-only, so
+every push this session went green locally while **28 of them were red on origin** — task #102
+recorded 10 earlier today; it has grown. A gate the ship gate cannot see is a gate that only
+argues with you after the fact.
+
+**1. `test_ledger_restore` — my regression, and the gate was right to break.** REG-1013 changed
+`proposal_from` from `add[half][name] = []` (a dict) to `[{"name": n}]` (a list), because
+bible.html's `chronicleApply` does `(add.uniques || []).forEach(...)` and a plain object has no
+`forEach` — so every restore for 478 versions died with "forEach is not a function" and wrote
+nothing. The gate still pinned the old spelling, and failed with `'Lost' not found in
+[{'name': 'Lost'}]` and a `TypeError: list indices must be integers`.
+
+Fixed by pinning the LAW instead of the spelling: each half must be a **list the board can
+iterate**, the name must be in it, and an entry may carry nothing but `name` — the board owns
+dating a row, and a date invented here would put a time on his screen that nothing witnessed.
+Red-proofed by restoring the dict shape: 1 failure + 1 error.
+
+**2. `test_reel_retention` — the v3050 lock outage, found a SECOND time, one file over.**
+Identical to REG-1025: the `frame.release` self-arming lock sits above everything the class
+measures and fails closed on a stale heart census — the tree's normal state the moment any gate
+file changes. The failure read *"frame.release is LOCKED — the heart census is STALE"*, which is
+not a statement about retention at all.
+
+The lock is correct and stays. It is stubbed for the selection laws, and a new
+`test_the_release_lock_still_bites` proves the real one still refuses AND leaves the reel on disk
+— so the stub cannot quietly become a bypass. 44 → 45 laws, red-proofed by making the lock stop
+biting: 1 red. `[[copy-drift]]`
+
+⚠ **I fixed this exact shape earlier today in `test_freed_is_measured` and did not sweep for its
+siblings.** One lock, two suites, two separate discoveries hours apart. `[[sweep-dont-ask]]`
