@@ -538,6 +538,37 @@ fi
     _demo_touched=1
   fi
   if [ "$_demo_touched" = "1" ]; then
+    # ⚠⚠ THE DEMOS DRIVE THE CONSOLE THAT IS ALREADY RUNNING, AND PYTHON DOES NOT RELOAD.
+    # `demo_console.mjs` hits :17772 — his live console — whose `control_app` module was imported
+    # when that process started. `control_ui.html` is re-read from disk per request, so a page
+    # change IS measured; a SERVER change is not, until the console is restarted.
+    #
+    # So widening this trigger to control_app.py (which was right — it had skipped 12 commits)
+    # bought a gate that FIRES on a server change and cannot SEE it, and then reports a pass.
+    # That is the "a skip is not a pass" trap wearing better clothes: a green that is about
+    # bytes which are not the ones shipping. [[regression-guard]] [[stale-reading]]
+    #
+    # This cannot be fixed by starting a scratch console here — the demos assert against his real
+    # shelf and board, and a `--no-open` instance has no board window at all, so half of them
+    # would fail for reasons that have nothing to do with the diff. What it CAN do is refuse to
+    # let the result be read as more than it is.
+    _con_pid="$(lsof -nP -iTCP:17772 -sTCP:LISTEN -t 2>/dev/null | head -1)"
+    if [ -n "$_con_pid" ] && [ -f "$REPO/tv/control_app.py" ]; then
+      _con_started="$(ps -o lstart= -p "$_con_pid" 2>/dev/null)"
+      _con_epoch="$(python3 -c 'import sys,time,datetime
+try:
+    print(int(datetime.datetime.strptime(sys.argv[1].strip(), "%a %b %d %H:%M:%S %Y").timestamp()))
+except Exception:
+    print(0)' "$_con_started" 2>/dev/null || echo 0)"
+      _src_epoch="$(python3 -c 'import os,sys; print(int(os.path.getmtime(sys.argv[1])))' "$REPO/tv/control_app.py" 2>/dev/null || echo 0)"
+      if [ "$_con_epoch" -gt 0 ] && [ "$_src_epoch" -gt "$_con_epoch" ]; then
+        echo "pre-push: ⚠ the console on :17772 started BEFORE the current tv/control_app.py."
+        echo "          Python imported that module at startup, so the demos below are testing the"
+        echo "          SERVER AS IT WAS, not the one being pushed. Page changes are still seen"
+        echo "          (control_ui.html is read per request); server changes are NOT."
+        echo "          Restart it with 'bash tv/tvd-scan.sh' to make this gate mean what it says."
+      fi
+    fi
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
       if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
         echo "pre-push: ✅ console demos green."

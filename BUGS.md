@@ -34646,3 +34646,35 @@ branch above it exists to prevent (held because unextracted, unextractable becau
 ⚠ Three versions, one defect, each fix creating the next: REG-1023 (the loop) → REG-1028 (the
 refusal came too late, so the counters lied) → REG-1030 (the refusal came early enough to veto the
 tick). Each was a real improvement and each opened the next hole one layer out.
+
+## REG-1031 — the widened demos gate fires on a server change and cannot see it
+
+**2026-09-16 · ci · `hooks/pre-push`** — *the immediate consequence of fixing REG-1022.*
+
+REG-1022 widened the console-demos trigger to `tv/control_app.py`, which was right: it had skipped
+12 commits while that file was rewritten. But `demo_console.mjs` drives **:17772 — his live
+console** — and Python imported `control_app` when that process started. `control_ui.html` is
+re-read from disk per request, so a PAGE change is measured; a SERVER change is not, until the
+console restarts.
+
+Measured on this very push:
+
+```
+console on :17772 started   Wed Sep 16 20:12:32   (epoch 1789578752)
+tv/control_app.py mtime                            epoch 1789584551
+```
+
+The console is 5,799 seconds older than the file the gate claims to be testing. So the fix for a
+silent skip produced **a green that is about bytes which are not the ones shipping** — the same
+class as "the pre-push gate grades the working tree, not the commit", and strictly more misleading
+than the honest `⏭ not run` line it replaced.
+
+⚠ **It cannot be fixed by starting a scratch console here.** The demos assert against his real
+shelf and board (J7 counts `.sh-card`s from his actual reels; J5 reads three eyes), and a
+`--no-open` instance has no board window at all — half of them would fail for reasons unrelated to
+the diff, which is its own kind of false signal.
+
+**Fixed:** the gate compares the console's process start time against `control_app.py`'s mtime and
+says plainly, before running, that it is testing the server as it was — and names the remedy
+(`bash tv/tvd-scan.sh`). The demos still run and still catch page regressions. What changed is
+that the result can no longer be read as more than it is. `[[regression-guard]]` `[[stale-reading]]`
