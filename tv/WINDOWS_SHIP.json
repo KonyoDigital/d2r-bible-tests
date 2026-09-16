@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3211",
+  "ver": "v3213",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3211: HEART: no surface is painted; this joins an existing counter to an existing run summary, and the reporting IS the supervision - the print is the watcher. Wire 1 of the 6 that have a real named consumer. gate_failures promised in its own docstring that the count is kept so a status surface can report it, and no surface ever did: the only human channel was a one-shot print at the first break, so every breakage after the first was invisible for the whole life of the process. The obvious join is the wrong join, which is why this is a DELTA. _GATE_BROKE is a module global and the console runs chronicle and vault sweeps on other threads that move it, so its own comment records that every reader asks the question the same wrong way by snapshotting around a single call and calling the movement a fact about that frame. This may only ever be a RUN level fact. And it may not be the lifetime value either: the sibling report twelve lines below carries the scar in its own words, that a run level claim built on a lifetime counter is the same defect this whole arc keeps finding, deltas now. The line also says those frames were NOT JUDGED, because a gate that threw is not a gate that said no, and it prints the lifetime figure beside the run figure so one bad sweep and a chronically dying lane do not read identically.",
+  "note": "v3213: HEART: chronicle_apply board_mask and the new rw_restore door all hop into the board frame by SHADOWING window as a parameter - v3209 assigned the global window which is a silent no-op so the write door reached nothing and refused every restore. ledger_restore.proposal_from shipped wouldAdd as a dict while bible.html calls forEach on it so the restore door had never applied anything. Measured on his live board: foundLog 363 to 445, setPieces 83 to 133, chronFound 280 to 309, runewordsMade 0 to 99.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

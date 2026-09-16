@@ -33607,3 +33607,47 @@ a precomputed string is free.
 
 This check can only report `unmeasured` because v2956 taught the eagle law to derive its states from
 `cd.ICON`. Without that fix it would have reddened the law on arrival.
+
+## REG-1008 — the restore door had never applied anything, and the hop that was meant to fix it was a no-op
+
+**2026-09-16 · v3213 · his ledger, live**
+
+His profile came back `0/0`. The visible ledger held `foundLog 363 · setPieces 83 · chronFound 280
+· owned 0 · rwMade 0` against his own account of it — *"i had 309 and 133 sets"*, *"and 99
+runewords"*. A snapshot taken at 09:26 the same morning held exactly those numbers:
+`foundLog 447 · setPieces 133 · chronFound 309 · owned 172 · runewordsMade 99`.
+
+**Nothing had been deleted.** The install id changed (`e07a5fe1…` → `e377d809…`) and the two worlds
+sat side by side in one WebKit store — the guest-prefixed `I·e377d809·d2r_grailFarm` holding 383
+names against a bare 109. Three separate defects then kept the restore from landing:
+
+1. **`backups_for()` matches on the route id**, so the id change made every pre-disaster snapshot
+   invisible and left only the post-disaster ones — which the backup loop had been faithfully
+   writing over the damaged state. `ledger_restore_plan()` answered `missingTotal: 0`: a restore
+   that could only restore the damage.
+2. **`proposal_from()` built `wouldAdd` as a dict keyed by name.** `bible.html`'s `chronicleApply`
+   does `(add.uniques || []).forEach(...)`. An object has no `forEach`, so every restore that ever
+   reached the board died with *"is not a function"* and wrote nothing. `plan()` is read-only and
+   its counts were always right, so the dry run and every test of it looked correct — the only
+   wrong half was the one crossing into the board.
+3. **v3209's hop was `window = _cw`.** `window` is not an assignable binding; in sloppy mode the
+   write is discarded silently. The console was running v3211 — which *contains* v3209 — and the
+   door still answered *"this page has no LSR"*, the exact refusal v3209 existed to end.
+
+And underneath all three: **the console was running `--no-open`.** The supervisor revives a HEADLESS
+instance whenever nothing owns `:17772`, so his restart brought back a console with no window, no
+board, and therefore no ledger to read or write. Every "no LSR" refusal was that.
+
+**Fixed:** all four context-hopping doors (`chronicle_apply`, `board_ownership`, `board_mask`,
+`rw_restore`) now shadow `window` as a function parameter the way the read door always did;
+`proposal_from` emits the sweep's list shape; `rw_restore` is a new dated, union-only door for the
+runewords `BACKED_UP_ONLY` has named as unbuilt since v2735.
+
+**Measured after:** `foundLog 363 → 445 · setPieces 83 → 133 · chronFound 280 → 309 ·
+runewordsMade 0 → 99`, and the counts survived a full console restart.
+
+**Still open:** `owned` is 52 against the snapshot's 172, and `foundLog` is 445 against 447. Both
+are gaps in the restore, not new losses — `owned` and `gameFound` still have no door.
+
+Gates: `test_a_restore_is_shaped_like_a_sweep`, `test_a_hop_shadows_the_window`,
+`test_the_fleet_names_what_each_side_lacks`. All three seen red.

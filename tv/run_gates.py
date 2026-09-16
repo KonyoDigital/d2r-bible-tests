@@ -663,6 +663,45 @@ GATES = [
              "in its own words, a run-level claim built on a lifetime counter is the same defect "
              "this whole arc keeps finding. It also pins that a THROW is not a VERDICT - those "
              "frames were not judged, and a gate that threw is not a gate that said no."),
+    Gate("test_the_fleet_names_what_each_side_lacks",
+         [sys.executable, os.path.join(HERE, "test_the_fleet_names_what_each_side_lacks.py")], 120,
+         why="He reported the Dean drill as bugged - it showed neither what Dean lacks that he "
+             "has, nor what they both need. Two different things were tangled: the COMPARE ENGINE "
+             "and the PUBLISH path. The engine was never the defect; the panel was on its "
+             "one-sided branch because Dean's console published a COUNT and no mask (no board "
+             "window), the same headless state his own machine was in that afternoon. A refusal "
+             "drawn correctly looks exactly like a broken column, so this pins the engine on HIS "
+             "REAL ROSTER rather than trusting a screenshot to tell them apart - and the roster "
+             "form is load-bearing, because names carry suffixes and a compare fed bare names "
+             "matches nothing while every count still looks plausible. neitherHas may be None and "
+             "that is not a failure: the content is asserted only when a list was returned, never "
+             "turning a refusal into a confident zero."),
+    Gate("test_a_restore_is_shaped_like_a_sweep",
+         [sys.executable, os.path.join(HERE, "test_a_restore_is_shaped_like_a_sweep.py")], 120,
+         why="ledger_restore.proposal_from built wouldAdd as a DICT keyed by name while "
+             "bible.html's chronicleApply calls .forEach on it, so every restore that ever "
+             "reached the board died with 'is not a function' and wrote NOTHING. Measured on his "
+             "live board 2026-09-16 restoring 85 uniques + 50 sets after an install-id change: "
+             "the call REACHED bible.html - the TypeError quotes bible.html's own comment back - "
+             "and every count was unchanged. With the shape corrected the same proposal moved "
+             "foundLog 363 to 445, setPieces 83 to 133, chronFound 280 to 309. Nothing caught it "
+             "for hundreds of versions because plan() is read-only and its counts were always "
+             "right; the only wrong half was the one crossing into the board, which nothing on "
+             "the Python side could see. Pins the PROMISE proposal_from's own docstring makes - "
+             "the same vocabulary a sweep uses - not a number."),
+    Gate("test_a_hop_shadows_the_window",
+         [sys.executable, os.path.join(HERE, "test_a_hop_shadows_the_window.py")], 120,
+         why="v3209 joined the write door to the board with `window = _cw`, and window is not an "
+             "assignable binding - in sloppy mode that write is DISCARDED with no error. The hop "
+             "reported success, changed nothing, and every line after it went on asking the "
+             "console shell. Measured: his console ran v3211, which CONTAINS v3209, and "
+             "chronicle_apply still answered 'this page has no LSR' - the exact refusal v3209 "
+             "existed to end - while his ledger sat visibly wrong on screen. The READ door never "
+             "made this mistake: it keeps a LOCAL _ctx and passes it as a PARAMETER NAMED window, "
+             "shadowing the global. A gate that grepped for tvd-eng or _cw was green across the "
+             "whole defect because both strings were present and the mechanism was dead, so this "
+             "pins the MECHANISM on the four named context-hopping doors and reads the JS by "
+             "PARSING the string literals rather than slicing source around a guess."),
     Gate("test_a_dead_journal_reader_says_so",
          [sys.executable, os.path.join(HERE, "test_a_dead_journal_reader_says_so.py")], 120,
          why="_kai_journal_rows wrapped its whole read in except Exception pass and returned an "

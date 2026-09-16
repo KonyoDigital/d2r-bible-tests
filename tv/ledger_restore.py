@@ -186,12 +186,30 @@ def proposal_from(plan_out):
         if not gap:
             continue
         half = row.get("half")
-        add.setdefault(half, {})
+        add.setdefault(half, [])
         for name in gap:
             # a restore asserts only that the name BELONGED — the board owns dating it, exactly as
             # it does for a hand tick. Inventing a date here would put a time on his screen that
             # nothing witnessed. [[unknown-stays-unknown]]
-            add[half][name] = []
+            #
+            # ⚠⚠ v3213 — A LIST OF ROWS, NOT A DICT. THIS DOOR HAD NEVER APPLIED ANYTHING.
+            # This built `add[half][name] = []`, a DICT keyed by name. `bible.html`'s
+            # `chronicleApply` does `(add.uniques || []).forEach(...)`, and a plain object has no
+            # `forEach`, so every restore that ever reached the board died with
+            # *"(add.uniques || []).forEach is not a function"*. MEASURED 2026-09-16 on his live
+            # board, restoring 85 uniques + 50 sets: the call reached bible.html (the TypeError
+            # quotes bible.html's own v2690 comment) and wrote NOTHING.
+            #
+            # The shape was never guessed — a real sweep already ships
+            # `"wouldAdd": {lg: [{"name": n, ...}, ...]}` at two call sites in control_app.py, and
+            # this function's own docstring promises "the same vocabulary a sweep uses". It said
+            # so and did the other thing.
+            #
+            # ⚠ WHY NOTHING CAUGHT IT: `plan()` is read-only and its counts were always right, so
+            # every test and every dry run looked correct. The only half that was wrong was the one
+            # that crosses into the board, and nothing on this side of that boundary could see it.
+            # [[the-unjoined-end]] [[plumbing-with-no-tap]]
+            add[half].append({"name": name})
     if not add:
         return None
     return {"wouldAdd": add, "source": "ledger_restore", "file": plan_out.get("file")}
