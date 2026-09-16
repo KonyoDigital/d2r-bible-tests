@@ -149,6 +149,12 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_missing_companion", [sys.executable,
+                                    os.path.join(HERE, "test_a_missing_companion_is_not_a_regression.py")], 60,
+         why="REG-1035 — bible.html probes the local console, which cannot exist on a cloud "
+             "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
+             "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
+             "ports still gate) and still PRINTED, using the audit's OWN regexes"),
     Gate("test_blind_organ", [sys.executable,
                               os.path.join(HERE, "test_a_blind_organ_says_so.py")], 60,
          why="REG-1034 — heart_map._read returned '' so an unreadable control_ui.html would have "

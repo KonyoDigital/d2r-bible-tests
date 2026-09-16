@@ -28,6 +28,20 @@ const fs = require('fs');
      meant the gate cried wolf on network noise, and a gate that cries wolf gets ignored on the day
      it is right. */
   const isExternal = (u) => /^https?:\/\//i.test(u) && !/^https?:\/\/(127\.0\.0\.1|localhost)/i.test(u);
+
+  /* ⚠⚠ AND THE COMPANION CONSOLE IS A THIRD BUCKET, FOR THE SAME REASON ONE LINE UP.
+     bible.html probes the local TV DIABLO console (127.0.0.1:17771/17772) to see whether it is
+     running. In CI it never is, so every audit recorded
+         REQ: net::ERR_CONNECTION_REFUSED fetch http://127.0.0.1:17772/api/status
+     and scored 7/8 — Routine G has been RED on this alone since at least 2026-09-16 10:53, with
+     320/320 items opened, 0 item fails and 0 page errors beside it. That is the gate crying wolf
+     about the absence of a desktop app on a cloud runner.
+     ⚠ IT IS STILL PRINTED, on its own line with its own count, because the point is not to hide
+     it: a probe to a port the page should NOT be touching is a real finding, and it stays
+     visible. What changes is only that a LOCAL COMPANION being absent cannot fail a remote run.
+     Narrow on purpose — the console's two ports, nothing else on loopback. */
+  const CONSOLE_PORTS = /^https?:\/\/(127\.0\.0\.1|localhost):(17771|17772)\b/i;
+  const isConsoleProbe = (u) => CONSOLE_PORTS.test(u);
   
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(' END-TO-END AUDIT — Konyo D2R Bible v36');
@@ -250,14 +264,20 @@ const fs = require('fs');
   console.log(`Page errors: ${realErrors.length}${realErrors.length ? '\n  ' + realErrors.slice(0,3).join('\n  ') : ''}`
     + (droppedNoise ? `  (+${droppedNoise} resource-load line${droppedNoise===1?'':'s'} — see Failed requests, which names the URL)` : ''));
   const allFailed = [...new Set(failedReqs.concat(badResponses))];
-  const uniqFailed = allFailed.filter(u => !isExternal(u.replace(/^\S+\s+\S+\s+/, '')));
-  const externalFailed = allFailed.filter(u => isExternal(u.replace(/^\S+\s+\S+\s+/, '')));
+  const _url = (u) => u.replace(/^\S+\s+\S+\s+/, '');
+  const uniqFailed   = allFailed.filter(u => !isExternal(_url(u)) && !isConsoleProbe(_url(u)));
+  const externalFailed = allFailed.filter(u => isExternal(_url(u)));
+  const consoleProbes  = allFailed.filter(u => isConsoleProbe(_url(u)));
   console.log(`Failed requests: ${uniqFailed.length}${uniqFailed.length ? '\n  ' + uniqFailed.slice(0,20).map(u => 'REQ: ' + u).join('\n  ') : ''}`);
   if (externalFailed.length) {
     console.log(`External (recorded, not gated): ${externalFailed.length}\n  ` + externalFailed.slice(0,10).map(u => 'EXT: ' + u).join('\n  '));
   }
+  if (consoleProbes.length) {
+    console.log(`Local console absent (recorded, not gated): ${consoleProbes.length}\n  ` + consoleProbes.slice(0,10).map(u => 'CON: ' + u).join('\n  '));
+  }
   audit.failed_requests = uniqFailed;
   audit.external_failed_requests = externalFailed;
+  audit.console_probe_failures = consoleProbes;
   
   const tabsOk = Object.values(audit.tabs).filter(t => t.active && t.children > 10).length;
   const slidersOk = audit.sliders.mf_500 && audit.sliders.mf_1000 && audit.sliders.mf_preset_699 && audit.sliders.mf_preset_553;

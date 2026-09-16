@@ -34799,3 +34799,38 @@ now, which `blobsN` already tolerated.
 Ratchet: **77 → 74, held.** Gate: `tv/test_a_blind_organ_says_so.py`, 8 laws, red-proofed twice,
 including a baseline law proving the honest path still measures — a guard that refuses everything
 is as useless as one that refuses nothing.
+
+## REG-1035 — Routine G was red because a desktop app is not running on a cloud runner
+
+**2026-09-16 · ci · `end_to_end_audit.js`**
+
+`bible.html` probes the local TV DIABLO console (127.0.0.1:17771/17772) to see whether it is up.
+On a GitHub runner it never is, so every audit recorded
+
+```
+REQ: net::ERR_CONNECTION_REFUSED fetch http://127.0.0.1:17772/api/status
+Failed requests: 1
+⚠️  MOSTLY GREEN · 7/8 categories passed
+```
+
+and Routine G failed — **with `320/320 items opened · 0 fails` and `Page errors: 0` printed
+directly beside it.** Red on every run back to at least 2026-09-16 10:53, for the absence of a
+desktop application on a machine that could never have one.
+
+⚠ **The file already states the principle one line above the fix**, about external hosts: *"a gate
+that cries wolf gets ignored on the day it is right."* That is not hypothetical here — the
+swallowed-exception ratchet was correctly red for **ten consecutive runs** on three real defects
+(REG-1034), and I walked past it every time, because red had stopped carrying information.
+
+**Fixed:** a third bucket beside `external`, for the console's two loopback ports only.
+
+⚠ **Narrow, and still printed.** Any other loopback port still gates — a probe to a port the page
+should not be touching is a real finding. It prints on its own line as `CON:` with a count and
+lands in the JSON as `console_probe_failures`. The difference between classifying and suppressing
+is whether the number is still visible.
+
+Gate: `tv/test_a_missing_companion_is_not_a_regression.py`. It **extracts the audit's own regex
+lines and runs them** over 8 URLs rather than restating the pattern — a test that re-declares what
+it checks proves only that it can be typed twice, and drifts the moment the real one changes.
+Red-proofed both ways: widening the bucket to all loopback → 1 red (it would hide real findings);
+removing the exclusion → 1 red. Boundary covered: `:177720` does not match `:17772`.
