@@ -664,6 +664,18 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_a_coverage_drop_can_be_named",
+         [sys.executable, os.path.join(HERE, "test_a_coverage_drop_can_be_named.py")], 120,
+         why="the render gate refused a push with three heart targets down 1-3 nodes, every one "
+             "GREEN on pixels - 0 render failures, nothing clipped, every node painting at all "
+             "five widths. Only the COUNT moved, and render_coverage.json stored counts and "
+             "nothing else, so there was no way from the file to learn WHICH node had gone. That "
+             "is the defect, not the drop: a refusal nobody can answer gets re-blessed blind, and "
+             "a ratchet re-blessed blind is what excuses the next real collapse. v3201 records a "
+             "weak signature per node beside the count and prints the multiset difference. It "
+             "stays DIAGNOSTIC - nothing fails because a signature changed, the ratchet is still "
+             "the count - and it says UNKNOWN rather than guessing when no baseline exists, "
+             "because a diagnostic that fabricates on a cold start is worse than none."),
     Gate("test_the_mac_titlebar_is_the_consoles_own",
          [sys.executable, os.path.join(HERE, "test_the_mac_titlebar_is_the_consoles_own.py")], 120,
          why="he reported the grey TV DIABLO strip TWICE, and the first fix cost him his window "

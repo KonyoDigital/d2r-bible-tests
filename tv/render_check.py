@@ -2770,7 +2770,32 @@ _PROBE = r"""(function(sel, OK_TRUNC){
   var widths = {}; rects.forEach(function(r){ widths[r.w]=1; });
   var _de = document.documentElement;
   var _hscroll = Math.max(0, _de.scrollWidth - _de.clientWidth);
-  return JSON.stringify({found:nodes.length, painted:rects.length, zero:zero, zeroWhat:zeroWhat, off:off, hscroll:_hscroll,
+  /* ⚠⚠ v3201 — A COUNT CANNOT SAY WHAT LEFT. The coverage ratchet stored `found` and nothing
+     else, so every drop it has ever reported reads "measured 95 node(s), was 96. Something this
+     gate used to watch is gone" — and there is no way, from the file, to learn WHICH thing. That
+     put me in front of a refusal I could neither explain nor honestly re-bless, which is the
+     worst of both: a gate that blocks and cannot be answered gets re-blessed blind, and then it
+     is a gate that excuses the next real collapse. [[zero-needs-a-denominator]]
+     [[unknown-stays-unknown]]
+     The signature is deliberately WEAK — tag, first class, 40 chars of text — because it has to
+     survive ordinary copy edits and count changes without churning, while still naming the row
+     that disappeared. It is a diagnostic, never an assertion: nothing fails because a signature
+     changed, only because the COUNT dropped, and then these say what to look at. */
+  var _sig = nodes.map(function(n){
+    var cls = (n.className && n.className.baseVal !== undefined ? n.className.baseVal
+                                                                : (n.className || '')) + '';
+    cls = cls.trim().split(/\s+/)[0] || '';
+    /* ⚠⚠ SLICE BY CODE POINT, NEVER BY CODE UNIT. `.slice(0, 40)` cuts UTF-16 units, and this
+       console's text is full of emoji, so a cut landing inside a surrogate pair leaves a LONE
+       surrogate. It rode all the way through the probe and the JSON round-trip and then killed
+       the bless at the very last step, after a full 19-target render had already been paid for:
+           UnicodeEncodeError: 'utf-8' codec can't encode character '\ud83d' ...
+           surrogates not allowed
+       Array.from() iterates code points, so an emoji is one element and can never be halved. */
+    var t = Array.from((n.textContent || '').replace(/\s+/g, ' ').trim()).slice(0, 40).join('');
+    return (n.tagName || '?').toLowerCase() + (cls ? '.' + cls : '') + (t ? '|' + t : '');
+  });
+  return JSON.stringify({sig:_sig, found:nodes.length, painted:rects.length, zero:zero, zeroWhat:zeroWhat, off:off, hscroll:_hscroll,
     clipped:clipped, clipScanned:clipScanned, clippedWhat:clippedWhat, okTrunc:okTrunc,
     covered:covered, coveredWhat:coveredWhat,
     unreachable:unreachable, unreachableWhat:unreachableWhat,
@@ -4114,6 +4139,38 @@ def _coverage_floor():
         return None
 
 
+def _coverage_sig_floor():
+    """-> {target: {width: [sig, ...]}} as last blessed, or None if never recorded."""
+    try:
+        with io.open(COVERAGE, encoding="utf-8") as fh:
+            return (json.load(fh) or {}).get("nodes")
+    except Exception:
+        return None
+
+
+def _coverage_signatures(results):
+    """-> {target: {width: [sig, ...]}}. v3201 — what the counts are OF, so a drop can be named.
+
+    Kept in its own map rather than folded into `floor`, so the floor's shape and every reader of
+    it are untouched: a count is still a count. An absent signature list is UNKNOWN — the check
+    below then reports the drop exactly as it always did, with no names and no pretence.
+    """
+    out = {}
+    for name, r in results.items():
+        w = {}
+        for key, m in (r.get("widths") or {}).items():
+            sig = m.get("sig")
+            if isinstance(sig, list):
+                # ⚠ AND STRIP ANY LONE SURROGATE THAT STILL GETS THROUGH. The JS above cannot
+                # halve an emoji any more, but a page is free to contain a lone surrogate of its
+                # own, and one unencodable character must never cost a whole 19-target render at
+                # the write step. Encode-with-replace is the only total function here.
+                w[str(key)] = [str(x).encode("utf-8", "replace").decode("utf-8") for x in sig]
+        if w:
+            out[name] = w
+    return out
+
+
 def _coverage_of(results):
     """-> {target: {width: found}} from this run's per-width measurements."""
     out = {}
@@ -4158,6 +4215,8 @@ def _coverage_check(results, say, scope=None, out=None):
     """
     floor = _coverage_floor()
     now = _coverage_of(results)
+    sigs_floor = _coverage_sig_floor()
+    sigs_now = _coverage_signatures(results)
     rep = out if isinstance(out, dict) else {}
     # 0 is a measurement, absent is nobody looked — floorKnown keeps those apart for the reader
     # of the verdict record. [[unknown-stays-unknown]]
@@ -4208,6 +4267,33 @@ def _coverage_check(results, say, scope=None, out=None):
                     "watch is gone. If that is intended, say so and re-bless; if it is not, this "
                     "is the defect — and it would otherwise have been %d clean readings in a green "
                     "run." % (name, key, is_, was, is_))
+                # ⚠⚠ v3201 — AND NOW IT SAYS *WHICH*. A count cannot name what left, so every
+                # drop this gate has ever reported was un-diagnosable from the file: "something
+                # is gone" with no way to learn what. That is a refusal nobody can answer, and a
+                # refusal nobody can answer gets re-blessed blind — which turns the ratchet into
+                # the thing that excuses the next real collapse. Measured on the run that
+                # produced this: heart -1, heart-fan -3, heart-stored -3, every width, zero
+                # render failures, and no way to tell a deliberate data change from a vanished
+                # surface. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+                _was_sig = ((sigs_floor.get(name) or {}).get(key)
+                            if isinstance(sigs_floor, dict) else None)
+                _now_sig = (sigs_now.get(name) or {}).get(key)
+                if isinstance(_was_sig, list) and isinstance(_now_sig, list):
+                    _left = list(_was_sig)
+                    for _x in _now_sig:                 # multiset difference: a row that appears
+                        if _x in _left:                 # twice and loses one copy still shows
+                            _left.remove(_x)
+                    if _left:
+                        say("     gone: %s" % "; ".join(_left[:8]))
+                        if len(_left) > 8:
+                            say("     ... and %d more (nothing truncated silently: the full list "
+                                "is in render_coverage.json under \"nodes\")" % (len(_left) - 8))
+                    else:
+                        say("     ⓘ the recorded signatures are IDENTICAL, so the drop is a "
+                            "duplicate row disappearing rather than a distinct surface.")
+                else:
+                    say("     ⓘ no signatures were recorded for this target at this width, so "
+                        "WHAT left is UNKNOWN. Re-bless once on a clean run to start naming it.")
                 bad += 1
     # ⚠⚠ #72 — A FLOOR THAT HAS NOT KEPT UP IS SLACK THE RATCHET CANNOT SEE THROUGH, and
     # this used to be one ⓘ line, capped at six rows, worded as an invitation. MEASURED:
@@ -4265,6 +4351,15 @@ def _coverage_bless(results, complete, say):
     # bless says out loud which numbers it declined to lower and what to do about it.
     now = _coverage_of(results)
     old = _coverage_floor() or {}
+    # v3201 — the signatures are REPLACED wholesale rather than ratcheted. They describe what THIS
+    # clean run saw; a merged list would accumulate rows that no longer exist and then name them
+    # as "gone" forever. The ratchet is the COUNT; these are only ever the explanation.
+    sig_now = _coverage_signatures(results)
+    sig_old = _coverage_sig_floor() or {}
+    sig_merged = dict(sig_old)
+    for _n, _w in sig_now.items():
+        sig_merged[_n] = dict(sig_merged.get(_n) or {})
+        sig_merged[_n].update(_w)
     merged, held = {}, []
     for name in set(list(now) + list(old)):
         merged[name] = dict(old.get(name) or {})
@@ -4280,7 +4375,13 @@ def _coverage_bless(results, complete, say):
                     "only RISE. A drop means a surface this gate used to watch has gone, which in a "
                     "green run reads exactly like clean. Regenerate with: "
                     "python3 tv/render_check.py --bless",
-            "floor": merged}, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+            "floor": merged,
+            "_nodesWhy": "v3201 — WHAT the counts are OF. A count cannot say what left, so every "
+                         "drop used to read 'something is gone' with no way to learn what, and a "
+                         "refusal nobody can answer gets re-blessed blind. These are diagnostics "
+                         "only: nothing fails because a signature changed, and the ratchet is "
+                         "still the COUNT.",
+            "nodes": sig_merged}, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
     say("blessed %d target(s) into %s" % (len(merged), os.path.relpath(COVERAGE, REPO)))
     for name, k, was, v in sorted(held):
         say("   \u26a0 HELD %s %s at %d — this run measured %d, and a floor may only RISE. If that "

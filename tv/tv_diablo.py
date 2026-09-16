@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3200"   # THE GREY TV DIABLO STRIP IS PYWEBVIEWS OWN PAINT, AND THE FULLSCREEN WAS SILENTLY REFUSED
+VERSION = "v3201"   # A COVERAGE DROP CAN NOW SAY WHAT LEFT, INSTEAD OF ONLY THAT SOMETHING DID
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
