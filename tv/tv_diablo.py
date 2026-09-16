@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3205"   # THE DEMOTION THAT FADED A SELECTED COCKPIT TAB, AND TWELVE WIRES RECORDED INSTEAD OF WIRED
+VERSION = "v3207"   # MY TRY EXCEPT COULD NOT CATCH WHAT PYOBJC DID TO HIS CONSOLE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

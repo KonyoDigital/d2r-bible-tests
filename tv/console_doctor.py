@@ -2147,6 +2147,57 @@ def _check_the_console_UI_has_not_faulted():
 
 
 
+def _check_the_shelf_tabs_are_alive():
+    """Is the SHELF's tab row actually made of his reels, right now — or is it empty and quiet?
+
+    ⚠⚠ WHY THIS IS A HEART ROW AND NOT ONLY A GATE, and it is the whole reason it exists.
+    v3202/v3204 shipped the station chips with a source-level law behind them, and that law can
+    only ever answer "the code that would build the chips is present". It cannot answer the
+    question he actually asks when he opens the door: ARE THERE TABS THERE. The bar hides itself
+    when nothing is stamped — deliberately, because an empty row would read as "no stations
+    exist" — so the failure mode is SILENT BY DESIGN: a broken join renders exactly like a
+    console that has not been asked yet, and every gate stays green through it.
+    [[the-unjoined-end]] [[zero-needs-a-denominator]]
+
+    So this asks the RIVER, which is the same source the chips are built from, and compares the
+    two populations. A shelf whose river reports stamped reels while no station can be named is
+    the unjoined end, and it is invisible from the source.
+
+    ⚠ THREE OUTCOMES, NEVER TWO. An unreachable console is UNKNOWN. A river that answers with
+    nothing stamped is UNKNOWN — not clean — because "nothing to show" and "failed to show it"
+    are different facts and only one of them is his problem.
+    """
+    riv = _get("/api/river")
+    if not isinstance(riv, dict) or not riv.get("ok"):
+        return UNKNOWN, ("the river did not answer, so whether the shelf has tabs at all is "
+                         "unmeasured — not clear")
+    lanes = ((riv.get("lanes") or {}).get("lanes")) or []
+    if not lanes:
+        return UNKNOWN, "the river answered with no lanes, so there is nothing to build tabs from"
+    stamped, named = 0, []
+    for l in lanes:
+        by = l.get("byStation") or {}
+        for st, n in by.items():
+            if n:
+                stamped += n
+                named.append(st)
+    if not stamped:
+        return UNKNOWN, ("the river has stamped no reel at any station, so an empty tab row is "
+                         "the honest answer and not a defect")
+    labels = riv.get("labels") or {}
+    unlabelled = sorted({st for st in named if st not in labels})
+    if unlabelled:
+        # a station the label map does not name would render as a raw key beside his words
+        return MISSING, ("%d reel(s) sit at station(s) the label map does not name (%s), so the "
+                         "tab row would print a raw key beside his own vocabulary"
+                         % (stamped, ", ".join(unlabelled[:4])),
+                         ["stations with reels: " + ", ".join(sorted(set(named)))])
+    return OK, ("%d reel(s) across %d station(s), every one named in his vocabulary"
+                % (stamped, len(set(named))),
+                ["tabs he would see: "
+                 + ", ".join(sorted({labels.get(st, st) for st in named}))])
+
+
 def _check_no_panel_is_dark_with_its_content_in_hand():
     """A panel that HAS rows and is not on screen — the failure a green suite cannot see.
 
@@ -3360,6 +3411,7 @@ CHECKS = [
     ("engines corroborate", _check_the_engines_CORROBORATE_each_other),
     # v2336 — the eagle can see his SCREEN, not only his engines
     ("panels on screen", _check_no_panel_is_dark_with_its_content_in_hand),
+    ("the shelf tabs are his stations", _check_the_shelf_tabs_are_alive),
     # v2336 — the suites belong on GitHub; this notices when one comes back to his laptop
     ("test venue", _check_no_browser_suite_is_scheduled_on_this_mac),
     # v2761 — the river's ELEVEN joints reach a screen; the existing "the river" row

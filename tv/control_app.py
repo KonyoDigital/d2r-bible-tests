@@ -5477,6 +5477,33 @@ def _mac_force_fullscreen():
         import AppKit                            # noqa: F401 — presence is the check
     except Exception:
         return                                   # PyObjC absent: leave the window alone
+    # ⚠⚠ v3207 — THE WINDOW WAS NEVER ALLOWED TO BE FULLSCREEN, WHICH IS WHY v3200 DID NOTHING.
+    # He reported it again: *"the window still cant be fullscreened just making sure you know"* —
+    # and that is a DIFFERENT symptom from the one I fixed. He cannot fullscreen it BY HAND either.
+    #
+    # LOOKED, in pywebview 6.2.1 `platforms/cocoa.py`: `setCollectionBehavior_` is called in
+    # exactly one place — INSIDE `toggle_fullscreen()`. A window that has never been toggled keeps
+    # the macOS default, which does NOT carry NSWindowCollectionBehaviorFullScreenPrimary. Without
+    # that bit the green button ZOOMS instead of going fullscreen, the View > Enter Full Screen
+    # item is disabled, and `toggleFullScreen_(None)` IS A NO-OP.
+    #
+    # So v3200 asked a window that was not permitted to go fullscreen to go fullscreen, got
+    # silence, and had no way to tell the difference between refused and done. I then reported the
+    # retry as the fix. Granting the capability is the fix; the toggle was only ever the trigger.
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    #
+    # ⚠ OR, NEVER SET. pywebview writes `setCollectionBehavior_(1 << 7)` wholesale, discarding
+    # whatever else the window carried. Reading first and OR-ing preserves it — and this runs on
+    # HIS window, where clobbering a behaviour bit is not mine to do.
+    # ⚠ AND THE GRANT IS THE POINT, not the toggle: even if the auto-fullscreen below is refused
+    # or he has TV_WINDOWED set, the window is now one he CAN fullscreen himself.
+    try:
+        _FS_PRIMARY = getattr(AppKit, "NSWindowCollectionBehaviorFullScreenPrimary", 1 << 7)
+        _beh = int(native.collectionBehavior())
+        if not (_beh & int(_FS_PRIMARY)):
+            native.setCollectionBehavior_(_beh | int(_FS_PRIMARY))
+    except Exception:
+        pass
     try:
         # same rule as the caption hook: ask the framework, fall back to the value measured on
         # his Mac (NSWindowStyleMaskFullScreen == 16384 == 1 << 14).
@@ -5877,12 +5904,15 @@ def open_control_window():
     # create_window() leaves the already-grouped window exactly as it was.
     # ⚠ AND IT COSTS HIM NOTHING. The frame stays whole — close, minimise and zoom all survive,
     # which is the price v3175 paid and this does not.
-    if sys.platform == "darwin":
+    if sys.platform == "darwin" and str(os.environ.get("TV_MAC_CHROME", "")).strip() in (
+            "1", "true", "yes", "on"):
+        # ⚠ v3207 — behind the same opt-in as the two shown-hooks above, for the same reason:
+        # this is a PyObjC call on his launch path and a native failure here is not catchable.
         try:
             import AppKit
             AppKit.NSWindow.setAllowsAutomaticWindowTabbing_(False)
         except Exception:
-            pass                       # PyObjC absent or the selector moved: leave the window alone
+            pass
     _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
     kwargs = dict(
         title="TV DIABLO",
@@ -5977,8 +6007,19 @@ def open_control_window():
                 # do not get to touch window geometry after it is up — REG-051, REG-053.
                 win.events.shown += _win_nudge_onscreen   # v1470 — MOVE only, never resize
                 win.events.shown += _win_tint_caption
-                win.events.shown += _mac_tint_caption      # v3199 — the grey strip he photographed twice
-                win.events.shown += _mac_force_fullscreen  # v3199 — the fullscreen that was silently refused
+                # ⚠⚠ v3207 — DISABLED. HIS CONSOLE CRASHED ON LAUNCH: "Python quit unexpectedly"
+                # with the splash reading "starting v3206". These two hooks make PyObjC calls on
+                # the real NSWindow, and my protection was WRONG IN KIND: every call is wrapped in
+                # `try/except Exception`, but an Objective-C exception or a bad selector does NOT
+                # raise a Python exception — it kills the process. A Python try cannot catch a
+                # SIGTRAP, so "individually wrapped" bought nothing against the failure that
+                # actually happened.
+                # The window chrome is cosmetic. His console is not. Re-enable only behind a real
+                # opt-in (TV_MAC_CHROME=1) once the crash is reproduced OFF his machine.
+                # [[unknown-stays-unknown]]
+                if str(os.environ.get("TV_MAC_CHROME", "")).strip() in ("1", "true", "yes", "on"):
+                    win.events.shown += _mac_tint_caption
+                    win.events.shown += _mac_force_fullscreen
             except Exception:
                 pass
     except Exception:
@@ -28247,7 +28288,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3205",
+        "ver": "v3207",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -140,9 +140,77 @@ def _preflight(repo=None):
               "console. Fix the parse error, then bump.")
 
 
+def _heart_gate(note):
+    """A version that changes a SURFACE must also change what WATCHES it. -> None, or SystemExit.
+
+    ⚠⚠ HIS STANDING ORDER, 2026-09-06: JOIN -> GATE -> HEART -> BANK, every fix. It is carved in
+    memory as `join_gate_heart`. ON 2026-09-16 I READ THAT SCAR AND THEN SKIPPED HEART ON FIVE
+    CONSECUTIVE VERSIONS — v3201 through v3205 — shipping laws, gates and BUGS entries for the
+    sweep meter, the river fold, the station chips, the TOMBSTONE vocabulary and the fleet rows,
+    with ZERO doctor, health-engine or corroborator coverage for any of them. Measured when he
+    asked: `stationbar 0 · sh-filterfold 0 · shr-stkey 0 · sweep-box 0 · fleet-row 0`, against
+    402 registered gates and 61 doctor rows.
+
+    His answer: *"are you kidding me!? make this a scar going forward.. we will kep backtracking
+    this way."* He is right, and the deeper point is that THE SCAR ALREADY EXISTED AS PROSE AND
+    DID NOT HOLD. Writing another paragraph would be the same failure with more words, so it
+    becomes mechanical, at the one choke point no ship can go around.
+    [[carved-skill-unloaded-is-unapplied]] [[heart-v2-instruments-watch-themselves]]
+
+    WHY A GATE AND NOT A TEST: a test fails when the code CHANGES. The thing being prevented here
+    is a surface that changes while its supervision does NOT — which is invisible to every test in
+    the tree, because nothing is broken. Only the bump sees both halves at once.
+
+    ⚠ IT CAN BE PASSED, BUT NEVER SILENTLY. `HEART: <reason>` in the note is an explicit recorded
+    decision that lands in the version row, the commit and BLUEPRINT.md — the same shape as every
+    other lock here. A copy edit genuinely needs no new heart row; saying so out loud costs six
+    words and leaves the reasoning where the next person can judge it.
+
+    ⚠ AND IF THE CHECK CANNOT RUN IT MUST NOT BLOCK. An unavailable git is UNKNOWN, not a
+    violation — a gate that fails closed on its own plumbing would cost a version stamp for a
+    reason that has nothing to do with the heart. [[unknown-stays-unknown]]
+    """
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    SURFACES = ("tv/control_ui.html", "bible.html")
+    WATCHERS = ("tv/console_doctor.py", "tv/health_engine.py", "tv/corroborate.py",
+                "tv/heart2.py")
+    try:
+        r = subprocess.run(["git", "diff", "--name-only", "HEAD"],
+                           cwd=os.path.dirname(here), capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            return                                  # cannot see the tree: UNKNOWN, never a block
+        touched = set(x.strip() for x in (r.stdout or "").splitlines() if x.strip())
+    except Exception:
+        return                                      # same: the check failing is not a violation
+    if not touched:
+        return
+    surf = sorted(f for f in touched if f in SURFACES)
+    if not surf:
+        return
+    watch = sorted(f for f in touched if f in WATCHERS)
+    if watch:
+        print("   heart: %s changed alongside %s" % (", ".join(watch), ", ".join(surf)))
+        return
+    if "HEART:" in note:
+        print("   heart: exempted by an explicit HEART: note — recorded in the version row")
+        return
+    raise SystemExit(
+        "\n  REFUSED — this version changes %s and changes nothing that WATCHES it.\n"
+        "  His standing order is JOIN -> GATE -> HEART -> BANK. A gate fails when code changes;\n"
+        "  a heart says a surface is unsupervised even when nobody touched it, and that is the\n"
+        "  half that keeps going missing (v3201-v3205 shipped five surfaces with zero heart rows).\n"
+        "\n  Do ONE of these:\n"
+        "    1. add or update a row in %s\n"
+        "    2. put `HEART: <why this surface needs no watcher>` in the note — it is recorded,\n"
+        "       not waived, and lands in the version row and the commit.\n"
+        % (", ".join(surf), " / ".join(w.split("/")[-1] for w in WATCHERS)))
+
+
 def bump(ver, name, note, repo=None):
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
+    _heart_gate(note)
 
     # 2026-08-20 — AND A NOTE MAY NOT NAME A CSS TOKEN IN CALLABLE FORM.
     #
@@ -515,6 +583,21 @@ def _regen_blueprint():
                            capture_output=True, text=True, timeout=120)
         if r.returncode == 0:
             print("   regenerated BLUEPRINT.md")
+            # ⚠ v3206 — AND THE HEART MAP, for the same reason and by the same rule. His words:
+            # "we need it all updated and blueprints updated and heart updated all derived from
+            # the console", then "fix this so it is like blueprints too and has enforcemnt".
+            # BLUEPRINT.md is the one artefact here that has never drifted, and the reason is
+            # that nobody writes it: it is derived, regenerated here, and refused at pre-push when
+            # stale. The heart now travels the same road. A failure to regenerate must not cost a
+            # version stamp — the pre-push will refuse and a human runs the generator.
+            try:
+                h = subprocess.run([sys.executable, os.path.join(here, "heart_map.py")],
+                                   capture_output=True, text=True, timeout=120)
+                print("   regenerated HEART.md" if h.returncode == 0 else
+                      "   ⚠ HEART.md could NOT be regenerated — python3 tv/heart_map.py")
+            except Exception as exc:
+                print("   ⚠ HEART.md regeneration raised %s — run python3 tv/heart_map.py"
+                      % type(exc).__name__)
             return True
         print("   ⚠ BLUEPRINT.md could NOT be regenerated (exit %s) — the pre-push will refuse "
               "until it is: python3 tv/blueprint.py" % r.returncode)

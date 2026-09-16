@@ -135,16 +135,67 @@ class TheMacTitlebarIsTheConsolesOwn(unittest.TestCase):
 
     # ── cosmetics may never cost the window: this app has lost it three times ─────────────
     def test_every_native_call_is_individually_wrapped(self):
-        """REG-051, REG-053 and v3175. A cosmetic change that can raise takes the console with it."""
+        """REG-051, REG-053, v3175 — a cosmetic change has cost this app its window three times.
+
+        ⚠⚠ AND ON 2026-09-16 IT COST IT A FOURTH, WHILE THIS ASSERTION WAS GREEN. His console
+        crashed on launch — "Python quit unexpectedly", splash reading "starting v3206" — and
+        stayed down, because the relaunch path pauses the supervisor. Every native call WAS
+        individually wrapped in `try/except Exception`, exactly as this test demanded, and the
+        wrapping bought NOTHING.
+
+        THE REASON IS A CATEGORY ERROR IN THE TEST ITSELF: an Objective-C exception or a bad
+        selector does not raise a Python exception. It kills the process. **A Python `try` cannot
+        catch a SIGTRAP.** So this assertion measured a defence that is structurally incapable of
+        defending against the failure it names — a green gate over a live crash, which is the
+        shape this repo calls the-green-that-lies. My own scratch probe had already died the same
+        way earlier that night (exit 133) and I filed it as a teardown artefact.
+
+        The wrapping still belongs — it catches the ordinary Python failures — so this stays. What
+        it may never again do is stand alone as the reason a native call is safe.
+        [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+        """
         for name, blk in (("_mac_tint_caption", self.tint), ("_mac_force_fullscreen", self.full)):
             code = _code_only(blk)
             n_try = code.count("try:")
             self.assertGreaterEqual(n_try, 2,
                                     "%s has only %d try blocks — a native call outside one can "
-                                    "take the window down, which has happened three times"
+                                    "take the window down on the ORDINARY python failures"
                                     % (name, n_try))
             self.assertIn("except Exception:", code,
                           "%s does not swallow a native failure" % name)
+
+    def test_the_native_hooks_are_OFF_unless_explicitly_opted_IN(self):
+        """The defence that actually works, because it never runs the call at all.
+
+        A Python try cannot catch what PyObjC does to the process, so the only honest protection
+        for his LAUNCH PATH is not running these hooks by default. They are cosmetic — a grey
+        titlebar strip and a fullscreen grant — and his console is not. Weighed against a console
+        that will not open, the chrome loses every time.
+
+        ⚠ AND IT MUST BE OFF BY DEFAULT, not merely toggleable. An opt-OUT would leave the crash
+        on the path every ordinary launch takes, which is precisely where it happened.
+        """
+        code = _code_only(self.src)
+        self.assertIn('os.environ.get("TV_MAC_CHROME"', code,
+                      "the mac chrome hooks are no longer behind an explicit opt-in, so a native "
+                      "crash is back on his everyday launch path")
+        # ⚠ LOOK BACKWARDS FROM EACH HOOK, not forwards from the first guard. There are TWO
+        # TV_MAC_CHROME guards now (the class-level tabbing call and these subscriptions), and a
+        # forward window from the first one reads the wrong block entirely — the mistake this
+        # file's own `_between` note warns about, made again. [[source-window-shortcut]]
+        for hook in ("_mac_tint_caption", "_mac_force_fullscreen"):
+            k = code.find("win.events.shown += " + hook)
+            self.assertGreater(k, 0, "%s is no longer subscribed at all" % hook)
+            before = code[max(0, k - 500):k]
+            self.assertIn('os.environ.get("TV_MAC_CHROME"', before,
+                          "%s is subscribed OUTSIDE the opt-in guard, so a native crash is back "
+                          "on his everyday launch path" % hook)
+        # and the class-level tabbing call, which runs before any window exists
+        self.assertNotIn(
+            'if sys.platform == "darwin":\n        try:\n            import AppKit\n'
+            '            AppKit.NSWindow.setAllowsAutomaticWindowTabbing_',
+            code,
+            "setAllowsAutomaticWindowTabbing_ runs unconditionally on the launch path again")
 
     def test_it_refuses_to_run_off_a_mac(self):
         for name, blk in (("_mac_tint_caption", self.tint), ("_mac_force_fullscreen", self.full)):
@@ -188,11 +239,18 @@ class TheMacTitlebarIsTheConsolesOwn(unittest.TestCase):
 
 
 RED_PROOF = [
-    ("control_app.py", "setTitleVisibility_(1)", "setTitleVisibility_(0)",
+    # ⚠ matches=0 on the first run: the anchor still said `setTitleVisibility_(1)` after the
+    # constant moved to `_title_hidden`. A dead anchor tampers nothing and the proof runs green.
+    ("control_app.py", "setTitleVisibility_(_title_hidden)", "setTitleVisibilityX_(_title_hidden)",
      "test_the_two_titlebar_calls_are_both_made"),
-    ("control_app.py", "win.events.shown += _mac_tint_caption",
-     "win.events.shownX += _mac_tint_caption",
-     "test_both_hooks_are_wired_to_shown"),
+    # ⚠ matches=2 on the first run — there are TWO TV_MAC_CHROME guards (the class-level tabbing
+    # call and these subscriptions) and replace(...,1) tampered the WRONG one, leaving the hooks
+    # still guarded and the proof green. Anchor on the guard that actually wraps the hooks.
+    ("control_app.py",
+     'if str(os.environ.get("TV_MAC_CHROME", "")).strip() in ("1", "true", "yes", "on"):\n'
+     '                    win.events.shown += _mac_tint_caption',
+     'if True:\n                    win.events.shown += _mac_tint_caption',
+     "test_the_native_hooks_are_OFF_unless_explicitly_opted_IN"),
     # ⚠ ANCHORED ON `native.` — the bare lookup appears TWICE, because the docstring above quotes
     # pywebview's own line verbatim. The first proof run reported matches=2 and STAYED GREEN: the
     # tamper landed in the prose and left the code untouched. The match count is what told me, and

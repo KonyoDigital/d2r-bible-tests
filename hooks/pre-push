@@ -268,6 +268,21 @@ except Exception:
     exit 1
   fi
   echo "pre-push: ✅ the blueprint matches the code."
+
+  # ⚠⚠ v3206 — THE HEART GETS THE BLUEPRINT'S ENFORCEMENT, because it is the half that drifted.
+  # His standing order is JOIN -> GATE -> HEART -> BANK, carved as prose on 2026-09-06 — and on
+  # 2026-09-16 I read that scar and skipped HEART on five consecutive ships anyway. Prose lost to
+  # momentum. BLUEPRINT.md has never drifted, and the reason is mechanical rather than moral:
+  # derived, regenerated at bump, refused here when stale. So the heart map travels the same road.
+  # ⚠ IT REFUSES, IT DOES NOT REGENERATE — a hook that rewrote the tree would dirty the very bytes
+  # it is grading and leave the stale file in the commit being pushed.
+  if ! gate_run "heart" "python3 tv/heart_map.py --check" 60 -- \
+       python3 "$REPO/tv/heart_map.py" --check; then
+    echo "pre-push: ❌ the heart map does not match the code, or coverage FELL."
+    echo "              python3 tv/heart_map.py     (then commit it and push again)"
+    exit 1
+  fi
+  echo "pre-push: ✅ the heart map matches the code."
   # ⚠ KNOWN AND DELIBERATE LIMIT: a batched push crossing several version stamps is judged on the
   # BOUNDARY version only — the one that was actually live and therefore actually lookable. The
   # intermediate stamps never shipped on their own, so nothing ever displayed them to a second eye.

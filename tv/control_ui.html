@@ -6718,6 +6718,26 @@
   .b-sim { min-height: 64px; }
   .b-on { min-height: 72px; }
   #btn-shelf { margin-top: auto !important; padding: 14px 12px; justify-content: center; }   /* anchored to the rail floor */
+  /* ══ v3206 — THE ENGINE FOLD. His ruling: "it can be in the TV-D tab but collapsed and
+     organized". Seven lamps at full height are a wall; folded they are one line.
+     ⚠⚠ THE CLOSED LINE MUST CARRY THE COUNT, and this is the entire risk of collapsing a STATUS
+     surface: a fold that says nothing can hide a dark engine, and a dark engine that nobody can
+     see is the failure the lamps exist to prevent. `#eng-sum-n` is filled by the same paint that
+     lights the lamps, so the closed state can never disagree with the open one — one source, two
+     views, the rule this file already carved for the river fold. [[zero-needs-a-denominator]]
+     ⚠ AND IT OPENS ITSELF WHEN ONE IS DARK. He asked for it collapsed, not for it to be quiet
+     about a fault. Folding is a default; it is never a way to hide a red lamp. */
+  .eng-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline;
+    gap: 8px; padding: 2px 0; outline: none; }
+  .eng-fold > summary::-webkit-details-marker { display: none; }
+  .eng-sum-lab { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold-dim); }
+  .eng-fold > summary .eng-sum-lab::after { content: ' \25BE'; opacity: .55; }
+  .eng-fold[open] > summary .eng-sum-lab::after { content: ' \25B4'; }
+  .eng-sum-n { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); color: var(--gold-hi);
+    font-variant-numeric: tabular-nums; margin-left: auto; }
+  .eng-sum-n.eng-dark { color: var(--warn, var(--gold-dim)); }
+  .eng-fold[open] > summary { margin-bottom: 6px; }
   aside.rail .signal { flex: 1 1 auto !important; display: flex; flex-direction: column; justify-content: space-evenly; }   /* v889 — the health card FILLS; rows breathe evenly */
   /* ══ v2773 — THE ENGINE ROOM LEAVES THE GAMEPLAY HOME ══════════════════════════════════════
      Konyo's ask, same one that moved the AI READS ticker in v2763: the gameplay home is for
@@ -7748,6 +7768,28 @@ body[data-origin="shadow"] #stage::after {
         <!-- v931 (Konyo: 'we have 3 eyes — put all 3 colored eyes/brains there') — the panel
              opens with WHO is watching, in his words: the live eye, the second eye that
              double-checks in the gaps, and KAI who drives + closes sessions. -->
+        <!-- ⚠⚠ v3206 — THE ENGINES FOLD. His ruling, 2026-09-16: "engines can be in TV-D",
+             "it can be in the TV-D tab but collapsed and organized", and "the TV-D section is a
+             tab that was designed for the AI and the readers".
+
+             ⚠ THE LOCATION HALF WAS ALREADY TRUE AND I ALMOST MOVED IT ANYWAY. `shellHome()` is
+             TV·D and it RESTORES THE CONSOLE — TV·D is not a separate pane, it IS the console
+             home, so the rail is already part of it. And `.signal` is already hidden under
+             `body[data-view="sessions"]` and `body.shell-open`. The seven lamps therefore render
+             on TV·D and nowhere else, today. What GrokBot photographed "following him onto the
+             shelf" is `#mini-foc` in `.primary` — the MINI scan targets, a gameplay control
+             paired with the button directly above them, which stays.
+             MEASURING BEFORE MOVING IS WHY THIS IS A FOLD AND NOT A SECOND v2773: that version
+             moved the whole engine room to TV·D and he could not find it. [[borrowed-surface]]
+
+             So only the ORGANISATION was missing. Seven lamps at full height are a wall; folded
+             they are a line that says how many are lit, and the wall is one click away.
+             ⚠ THE SUMMARY CARRIES THE COUNT, because a fold whose closed state says nothing is
+             a fold that hides a dark engine. That is the whole risk of collapsing a status
+             surface and it is the one thing the closed line must not do.
+             [[zero-needs-a-denominator]] -->
+        <details class="eng-fold" id="eng-fold">
+        <summary class="eng-sum"><span class="eng-sum-lab">engines</span><span class="eng-sum-n" id="eng-sum-n"></span></summary>
         <div class="eyes">
           <div class="eye eye-live" id="eye-live"><span class="eng-lamp" id="lamp-live"></span><span class="ex">🔴</span><span class="en">Live Eye</span><span class="es" id="eye-live-s">—</span></div>
           <div class="eye eye-second" id="eye-second"><span class="eng-lamp" id="lamp-second"></span><span class="ex">🔵</span><span class="en">Second Eye</span><span class="es" id="eye-second-s">—</span></div>
@@ -7763,6 +7805,7 @@ body[data-origin="shadow"] #stage::after {
             <div class="eye eye-master" id="eye-master"><span class="eng-lamp" id="lamp-master"></span><span class="ex">🥷</span><span class="en">Master Brain</span><span class="es" id="eye-master-s">—</span></div>
           </div>
         </div>
+        </details>
         <!-- v1262 (F4 · THE ACCURACY-GATE HERO BADGE) — the accuracy gate's work, surfaced proudly under the eyes
              (was buried in the FUNNELS organ sub-line). proven = reads that cleared the two-witness gate;
              held = uncertain reads the gate refused to certify. Hidden until a sealed reel exposes gate verdicts. -->
@@ -9945,12 +9988,16 @@ window._lockMark = function(isOpen, px, label){
     // disconnected / what it's doing) → shown as the engine's status line + drill-down. A DISCONNECTED
     // engine paints VISIBLE + dark, never hidden — the "nothing hidden" doctrine, straight from the wire.
     var _engs = st.engines || {};
+    var _engLit = 0, _engSeen = 0;
     [['liveEye', 'eye-live'], ['secondEye', 'eye-second'], ['kai', 'eye-kai'],
      ['router', 'eye-router'], ['watchdog', 'eye-watchdog']].forEach(function(m){
       var e = _engs[m[0]]; if (!e) return;   // engines{} absent (pre-v1350) → leave the fallback text
       var row = $(m[1]), lampEl = $('lamp-' + m[1].slice(4)), sEl = $(m[1] + '-s');
       var live = e.state === 'live', armed = e.state === 'armed';
       if (lampEl){ lampEl.classList.toggle('lit', live || armed); lampEl.classList.toggle('steady', armed && !live); }
+      /* v3206 — counted HERE, in the one loop that decides the lamp, so the fold's closed line
+         cannot disagree with the lamps it is hiding. One source, two views. */
+      _engSeen++; if (live || armed) _engLit++;
       if (sEl && e.note != null){
         // v1353 (R5) — enrich the note with the honest ACT-AGE from eyes{}: when did the second eye last verify,
         // when did KAI last close (+ any missed-text frames). Appended only when the ts is real (null → nothing).
@@ -9968,6 +10015,24 @@ window._lockMark = function(isOpen, px, label){
         row.title = e.note || '';
       }
     });
+    /* ⚠⚠ v3206 — THE FOLD SAYS HOW MANY ARE LIT, AND OPENS ITSELF WHEN ONE IS NOT.
+       Collapsing a STATUS surface has exactly one failure mode: a dark engine nobody can see,
+       which is the very thing seven lamps exist to prevent. So the closed line carries the count,
+       and the fold forces itself OPEN the moment a lamp is out. He asked for it collapsed — he
+       did not ask for it to be quiet about a fault. It never forces itself SHUT, because closing
+       a fold he opened would be the console overruling him about his own furniture.
+       ⚠ `_engSeen` is the denominator and it is real: engines{} absent on a pre-v1350 console
+       leaves it 0, and a count with no denominator says nothing at all, so the line stays empty
+       rather than claiming "0 lit". [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+    try {
+      var _esn = document.getElementById('eng-sum-n');
+      var _efd = document.getElementById('eng-fold');
+      if (_esn) {
+        _esn.textContent = _engSeen ? (_engLit + ' of ' + _engSeen + ' lit') : '';
+        _esn.classList.toggle('eng-dark', _engSeen > 0 && _engLit < _engSeen);
+      }
+      if (_efd && _engSeen > 0 && _engLit < _engSeen && !_efd.open) _efd.open = true;
+    } catch (_e) {}
     // v1352 (R4) — the last two engines, NOT in engines{}: wired straight from the real streams so the bay
     // shows the whole mind. Honest-absent: [] → ⚫ dark + "quiet"/"cold", never a faked pulse.
     function _engRow(id, lit, txt){
