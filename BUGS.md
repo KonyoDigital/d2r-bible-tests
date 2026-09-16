@@ -33998,3 +33998,45 @@ the projection fires two of them by name.
 this would leave 3950 MB, under the 4096 MB floor". That guard is working as designed, and it is
 also a signal: **the disk is at 4.1 GB free while 63 reels sit in a river whose rule is LAST 8**
 (REG-1013's neighbour). The red-proof was run on a four-file copy instead.
+
+## REG-1015 — #105's premise measured false: the admission bar works, and the 248 is a different population
+
+**2026-09-16 · measurement, no code change — deliberately**
+
+#105 reads *"VAULT ADMISSION BAR — only ledger+proof enters. 14 earn it, ~248 are showing"*, and his
+words were *"we need this not 200+ items we said 13 iddnt we? or 20 something only had ledger proof
+of evidence to enter the vault"*. Measured before building anything:
+
+| store | rows | clears today's bar |
+|---|---:|---|
+| `vault_accum.json` (AI-swept evidence) | **14** | **14 of 14** — conf 0.55, 2 witnesses |
+| `vault_seen.json` (sightings) | 43 | correctly HELD, short of a second witness |
+| `d2r_owned` (his possession list) | ~223 | n/a — a different question |
+
+**The bar is not too low and the console does not misreport it.** `/api/vault_ledger` says, in as
+many words: *"14 grounded row(s) and 43 sighting(s) still short of a second witness. 41 carry an
+exact read time, 16 name only the recording they came from, 0 neither."* That is the admission bar
+working, published with its denominators.
+
+⚠ **THE ~248 IS `d2r_owned`, WHICH IS POSSESSION, NOT EVIDENCE** — and most of it is HIS OWN HAND
+TICKS. Filtering "the vault" down to 14 would delete testimony he gave himself, and
+`manual-tally-is-witness` is explicit that a manual tally is witness enough and monotonic once
+given. So the filter #105 asks for is **not built, on purpose**.
+
+⚠ I also nearly reported "0 of 14 pass the bar" as a finding. `gate()` takes the SIGHTING LIST, not
+the row — `console_doctor` carries a comment from someone making the identical mistake: *"iterating
+a dict yields its KEYS, so `ev` filtered to [] and every row came back 'no evidence at all' — a
+confident 0 of 7 that was purely an instrument failure. The suspiciously clean number was the tell."*
+I made it twice before reading that comment. The real answer is 14 of 14.
+[[feedback-suspect-the-instrument]]
+
+**What WOULD serve the intent without hiding anything:** a proof badge on vault items, using the
+vocabulary v2230 already built for this exact complaint — `👁 seen` vs `🗄 registered`, whose own
+comment says *"nothing here distinguished 'seen and shown' from 'seen and BANKED', so a true row
+wore a bigger label than it earned and he had to ask."* That is additive and reversible. It is his
+call, because it is a surface decision about his own ledger and the alternative on the table was
+deletion.
+
+**KEEP_MIN_WITNESSES stays 2 and KEEP_CONF_FLOOR stays 0.55.** Lowering either to make stored rows
+pass would be repairing the bar to fit the rows — `console_doctor` already refuses that in its own
+docstring.
