@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3208"   # THE JOURNAL READER COULD NOT FAIL SO THE GUARD FOR ITS FAILURE NEVER RAN
+VERSION = "v3209"   # THE WRITE DOOR HOPS TO ASK THE BOARD, NEVER TO WRITE IT
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

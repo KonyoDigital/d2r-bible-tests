@@ -12499,8 +12499,33 @@ def chronicle_apply(proposal=None):
     # gun, exactly: a retired migration stamped a flag unconditionally and a destructive undo
     # trusted its presence. Here `drained` carries {at, into, n} — counts, which cannot be forged
     # by a stray write. [[d2r-vault-routing]] [[the-unjoined-end]]
+    # ⚠⚠ v3209 — THE WRITE DOOR HOPS TO *ASK*, NEVER TO WRITE. His ruling, 2026-09-16, after he
+    # spotted it himself: *"so its a joined? i think it should be or am i wrong?"* He was right.
+    #
+    # `board_ownership` (the READ half) hops the JS context into `#tvd-eng` because the board moved
+    # into that iframe. This door was told not to: *"those are WRITE doors, and the console never
+    # writes his grail."* The PRINCIPLE is right and is kept. The CONCLUSION was wrong, because
+    # this function does not write the grail either — it calls the BOARD's own `chronicleApply`
+    # (dated, merge-max, undoable) or leaves an LSR note the board drains. Hopping the context is
+    # how it FINDS the writer; it is not how it becomes one.
+    #
+    # MEASURED, three refusals in a row while `board_ownership` reported canHandoff=true on the
+    # same page: "this page has no LSR". Discriminated with an EMPTY proposal (which writes
+    # nothing either way) — empty gave a DIFFERENT, earlier refusal, so the LSR branch really was
+    # reached and LSR really was absent. It was asking the console shell, which has neither
+    # `chronicleApply` nor `LSR`, and returning what this very file calls "a perfectly honest
+    # refusal about the wrong page". A door that cannot reach the thing it exists to ask is
+    # [[plumbing-with-no-tap]], and the read/write halves of one channel must reach one place.
+    #
+    # ⚠ THE HOP MAKES IT SAFER, NOT LOOSER. `LSR` is what supplies the world prefix, so hopping
+    # into the frame that HAS LSR is precisely what puts the note in the RIGHT world. Refusing to
+    # hop is what left it nowhere. The raw-localStorage fallback stays forbidden. [[the-unjoined-end]]
     js = ("(function(){try{"
           "var P=%s;"
+          "if(typeof window.chronicleApply!=='function'&&typeof window._D2R_PFX!=='string'){"
+          "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+          "if(_cw&&(typeof _cw.chronicleApply==='function'||typeof _cw._D2R_PFX==='string'))"
+          "window=_cw;}catch(_hop){}}"
           "if(typeof window.chronicleApply==='function'){"
           "var r=window.chronicleApply(P);return JSON.stringify({ok:true,applied:r});}"
           # ⚠ NO RAW-localStorage FALLBACK. d2r_chronicleHandoff is in _WP_FORKED, so LSR gives
@@ -28320,7 +28345,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3208",
+        "ver": "v3209",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
