@@ -6901,8 +6901,18 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
     for r in (report.get("register") or []):
         nm = r.get("name")
         if nm:
+            # ⚠⚠ v3218 — THE CONTRADICTION TRAVELS WITH THE LOCATION, OR IT REACHES NOBODY.
+            # `_kai_compile_register` computes `locSession` / `locAgrees` / `locWhy` on every row —
+            # the "Rune Grip at loc floor" flag, the whole reason `corroborate_location` was wired
+            # in v3212 — and a cross-family review found them read by NOTHING: no UI, no API
+            # consumer, no Python caller. The join had moved one hop downstream instead of closing.
+            # This projection is the register's only reader, so this is where the flag either
+            # surfaces or dies. [[the-unjoined-end]] [[plumbing-with-no-tap]]
             reg[nm.lower()] = {"name": nm, "loc": r.get("loc"), "tier": r.get("tier"),
-                               "frameId": r.get("frameId"), "ts": r.get("firstSeenTs")}
+                               "frameId": r.get("frameId"), "ts": r.get("firstSeenTs"),
+                               "locSession": r.get("locSession"),
+                               "locAgrees": r.get("locAgrees"),
+                               "locWhy": r.get("locWhy")}
     # a per-frame scene/area hint from the routing ledger (for the Diablo-language synthesis)
     scene_by_f = {}
     crossframe_frames = []
@@ -7038,7 +7048,14 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
     # grailMisses = 0 by construction: every grail the AI IDENTIFIED (grounder/clean-match) is
     # captured above — an unresolved read has no resolved item, so no identified grail was dropped.
     summary = {"clean": 0, "corrected": 0, "recovered": 0, "blocked": 0, "unresolved": 0,
-               "grailMisses": 0, "screenText": 0, "unreadable": 0}
+               "grailMisses": 0, "screenText": 0, "unreadable": 0,
+               # ⚠ v3218 — how many reads place an item somewhere THEIR OWN SESSION contradicts.
+               # `None` is not 0 here by construction: `locAgrees` is None both when the row
+               # claimed no location and when the session voted on nothing, and only an explicit
+               # False is a contradiction. Counting None as disagreement would turn silence into
+               # an accusation, which is the thing corroborate_location refuses to do.
+               # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+               "locContested": 0, "locChecked": 0}
     for r in reads:
         s = r["status"]
         if s == "grounded":
@@ -7055,6 +7072,11 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
                 summary["screenText"] += 1
             else:
                 summary["unreadable"] += 1
+    for _e in reg.values():
+        if _e.get("locAgrees") is not None:
+            summary["locChecked"] += 1
+            if _e.get("locAgrees") is False:
+                summary["locContested"] += 1
     return {"sid": sid, "items": items, "summary": summary, "total": len(reads)}
 
 
@@ -28801,7 +28823,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3217",
+        "ver": "v3218",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

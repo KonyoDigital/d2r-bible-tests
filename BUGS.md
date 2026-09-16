@@ -33960,3 +33960,41 @@ empty → hung).
 
 A verdict that names the wrong cause is worse than a slow gate: it sends the next reader hunting a
 deadlock that was never there.
+
+## REG-1014 — the flag was computed on every row and reached nobody
+
+**2026-09-16 · v3218**
+
+v3214 wired `retro_gate.corroborate_location` correctly and attached `locSession` / `locAgrees` /
+`locWhy` to every register row — the "Rune Grip at loc floor" flag, which is the entire reason that
+function was joined in the first place. A cross-family review then asked the only question that
+settles a join: **who reads them.**
+
+Nobody. A grep across `tv/control_ui.html`, `bible.html` and `tv/*.py` returned the writer, its own
+comment, and the gate's `why` text. No UI, no API consumer, no Python caller. The join had moved one
+hop downstream instead of closing — the same shape as the no-caller problem it existed to fix, two
+versions later and one layer down.
+
+**Fixed:** `_kai_forensics_project` is the register's ONLY reader, so that is where the flag
+surfaces. It now carries `locSession` / `locAgrees` / `locWhy` into the forensic record and reports
+`locContested` beside `locChecked`.
+
+⚠ **THE DENOMINATOR IS NOT DECORATION.** `locAgrees` is `None` both when the row claimed no location
+and when the session voted on nothing, and only an explicit `False` is a contradiction. Counting
+`None` would turn silence into an accusation — precisely what `corroborate_location` refuses to do
+("worth a second look, not an automatic correction"). So `locChecked` counts only rows that could be
+graded, and a session where nobody stated a location reports `0 of 0`, not `0 contested` out of a
+number it did not earn.
+
+⚠ **AND THE REASON TRAVELS WITH THE VERDICT.** `locWhy` is carried too, because a reader who sees a
+flag and cannot learn what split the session has been given an alarm, not a finding.
+
+Gate: `TheContradictionReachesASurface` in `test_the_session_gets_a_vote_on_where` — four cases
+(a contradiction is counted, a unanimous session contests nothing, silence is not disagreement and
+does not inflate the denominator, the reason is carried). Seen red: removing the three fields from
+the projection fires two of them by name.
+
+⚠ Noted while red-proofing: `safe_copy.py` REFUSED a working copy — "the volume has 4215 MB free and
+this would leave 3950 MB, under the 4096 MB floor". That guard is working as designed, and it is
+also a signal: **the disk is at 4.1 GB free while 63 reels sit in a river whose rule is LAST 8**
+(REG-1013's neighbour). The red-proof was run on a four-file copy instead.

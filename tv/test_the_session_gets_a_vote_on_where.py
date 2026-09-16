@@ -213,6 +213,72 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
         self.assertEqual("stash", rg_row.get("locSession"))
 
 
+class TheContradictionReachesASurface(unittest.TestCase):
+    """⚠⚠ THE FLAG WAS COMPUTED ON EVERY ROW AND READ BY NOTHING.
+
+    v3214 wired `corroborate_location` correctly and attached `locSession` / `locAgrees` /
+    `locWhy` to every register row. A cross-family review then asked the only question that
+    mattered: who READS them. Answer — nobody. No UI, no API consumer, no Python caller; a grep
+    returned the writer, its own comment, and the gate's `why` text. The join had moved one hop
+    downstream instead of closing, which is the same shape as the no-caller problem it was built
+    to fix. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    `_kai_forensics_project` is the register's ONLY reader, so that is where the flag surfaces.
+    """
+
+    def _reg(self, minority_loc):
+        rows = [
+            {"lane": "deep", "ts": 1000, "frameId": "f0",
+             "names": [MINORITY], "names_loc": {MINORITY: minority_loc}},
+            {"lane": "deep", "ts": 1001, "frameId": "f1",
+             "names": [A], "names_loc": {A: "stash"}},
+            {"lane": "deep", "ts": 1002, "frameId": "f2",
+             "names": [B], "names_loc": {B: "stash"}},
+        ]
+        return ca._kai_compile_register(rows)
+
+    def test_a_contradicted_read_is_counted_where_a_human_can_see_it(self):
+        reg = self._reg("floor")
+        proj = ca._kai_forensics_project({"sid": "s_t", "register": reg, "routing": []})
+        s = (proj or {}).get("summary") or {}
+        self.assertEqual(1, s.get("locContested"),
+                         "the read placing an item somewhere its own session contradicts never "
+                         "reached the forensic record — the flag is computed and unread again")
+        self.assertEqual(3, s.get("locChecked"),
+                         "the denominator is wrong, so 'contested' has no scale")
+
+    def test_an_agreeing_session_contests_nothing(self):
+        reg = self._reg("stash")
+        proj = ca._kai_forensics_project({"sid": "s_t", "register": reg, "routing": []})
+        s = (proj or {}).get("summary") or {}
+        self.assertEqual(0, s.get("locContested"),
+                         "a unanimous session is reporting a contradiction — that is an accusation "
+                         "out of thin air")
+
+    def test_silence_is_not_counted_as_disagreement(self):
+        """⚠ None means nobody said. Counting it would turn silence into an accusation."""
+        rows = [{"lane": "deep", "ts": 1000, "frameId": "f0",
+                 "names": [MINORITY], "names_loc": {}}]
+        proj = ca._kai_forensics_project(
+            {"sid": "s_t", "register": ca._kai_compile_register(rows), "routing": []})
+        s = (proj or {}).get("summary") or {}
+        self.assertEqual(0, s.get("locContested"),
+                         "a session where nobody stated a location is reporting contradictions")
+        self.assertEqual(0, s.get("locChecked"),
+                         "rows nobody could grade are being counted as graded, which gives "
+                         "'0 contested' a denominator it did not earn")
+
+    def test_the_projection_carries_the_reason_not_just_the_verdict(self):
+        reg = self._reg("floor")
+        proj = ca._kai_forensics_project({"sid": "s_t", "register": reg, "routing": []})
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.find('reg[nm.lower()] = {')
+        self.assertGreater(i, 0, "the forensics projection no longer builds its register map")
+        self.assertIn("locWhy", src[i:i + 700],
+                      "the projection carries the verdict without the sentence that explains it, "
+                      "so a reader sees a flag and cannot learn what split the session")
+
+
 RED_PROOF = [
     # ⚠ v3215 — re-anchored: v3215 rewrote the ternary as an if/else, so the old `find` matched
     # 0 times and heart2 would have filed this gate BLIND.
