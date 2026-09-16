@@ -34217,3 +34217,39 @@ working"* — and the next two statements dropped items with no log, no count an
 Gates: `ARestoredItemIsFiledNotDumped` (4 cases). ⚠ Its first cut was a GREEN SABOTAGE — asserting
 `"vaultAutoAssign" in js` stayed green when the branch condition was replaced with `else if(false)`,
 because the dead call still contained the string. It now pins the reachable guard.
+
+## REG-1020 — the refusal detector would have thrown away a real review, including one of itself
+
+**2026-09-16 · v3223**
+
+REG-1017 taught the recorder to treat a provider refusal as an EMPTY SEAT. The regex it used
+searched for `quota`, `authentication`, `rate-limit`, `unauthor` **anywhere in the first 400
+characters of the reply**.
+
+A cross-family (Grok) look at v3221 named the trap: a genuine review that says *"authentication is
+not checked"* or *"quota is never decremented"* would be filed as a provider refusal and
+**discarded** — and, pointedly, *a review of that very diff would contain those words*. The
+`test_a_real_review_is_still_a_look` I had written passed only because its fixture happened to avoid
+them.
+
+⚠ **That is the worse of the two errors.** A false LOOKED is visible in the ledger and can be
+corrected (REG-1017 did). A real look thrown away leaves no trace at all — the debt simply looks
+unpaid, and the next eye is asked to do the work again.
+
+**Fixed by asking how the reply OPENS, not what it contains.** A provider refusal is the first thing
+the tool says, because it never got further; a reviewer does not begin a review with "You have hit
+your usage limit". The rule is now `match` (anchored) against a vocabulary of OPENERS, not `search`
+against a vocabulary of topics.
+
+⚠ **My first repair was wrong and the test caught it:** I added "…or it matches anywhere and the
+reply is under 600 chars", and a **434-character review about authentication was still refused**.
+Length is the wrong instrument — a short review is still a review. Eight cases now pin both
+directions, including three reviews that use the refusal vocabulary on purpose.
+
+**And the tests now drive `record_answer` itself.** Grok's second point: four of the five existing
+tests called `_strip_echo` and the regex directly, and the fifth grepped `run_one`'s source — so if
+the RECORDER stopped consulting either, all five stayed green. It also noted
+`src.count("record_answer(") >= 2` is satisfiable by a comment containing the token. Two new cases
+monkeypatch `SEL.record` and assert the row: a refusal records `reached=False` with no findings, a
+real review records `reached=True`. Seen red both ways — disabling the rule fires the first,
+restoring the match-anywhere regex fires the second.

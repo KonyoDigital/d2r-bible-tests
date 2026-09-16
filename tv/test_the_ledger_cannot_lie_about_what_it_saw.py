@@ -586,14 +586,65 @@ class AProviderRefusalIsAnEmptySeat(unittest.TestCase):
                             "%r is not recognised as a provider refusal" % body[:60])
 
     def test_a_real_review_is_still_a_look(self):
-        """The direction that must not break: over-refusing would make every eye an empty seat."""
+        """⚠⚠ THE DIRECTION THAT MUST NOT BREAK, AND MY FIRST FIXTURE DODGED IT.
+
+        v3220 matched "quota" / "unauthor" / "authentication" / "rate-limit" ANYWHERE in the reply,
+        so a genuine review saying *"authentication is not checked"* would be discarded as a
+        provider refusal. A cross-family look named it and pointed out that a review OF THAT VERY
+        DIFF would trip it — my fixture passed only because it happened to avoid the words.
+        Over-refusing is the worse of the two errors: a false LOOKED is visible in the ledger, a
+        real look thrown away is not. The fixture now USES the vocabulary on purpose.
+        """
         S = self.S
-        good = ("I found two concrete defects. 1. **High** — the endpoint coerces confirm with "
-                "bool(), so a body saying false authorises a write. 2. **Medium** — names has no "
-                "type validation.")
-        self.assertIsNone(S._PROVIDER_ERROR_RX.search(good),
-                          "a genuine review is being read as a provider refusal, which would file "
-                          "every real look as an empty seat")
+        for good in (
+            "I found two concrete defects. 1. **High** — authentication is not checked on the "
+            "endpoint, so an unauthorised caller can write. 2. **Medium** — the quota is never "
+            "decremented and the rate-limit path is dead code no test exercises.",
+            "No concrete functional defect is evident in this diff.",
+            "The rate-limit handler never decrements the quota.",
+        ):
+            self.assertIsNone(S._PROVIDER_ERROR_RX.match(good.lstrip()),
+                              "a genuine review is read as a provider refusal, so a real look is "
+                              "discarded and the debt looks unpaid: %r" % good[:70])
+
+    def test_the_recorder_itself_files_a_refusal_as_unreached(self):
+        """⚠ DRIVE `record_answer`, not its helpers. The other tests call `_strip_echo` and the
+        regex directly; if the RECORDER stopped consulting them, every one would stay green.
+        Named by the same cross-family look. [[the-unjoined-end]]"""
+        S = self.S
+        rows = []
+        real = S.SEL.record
+        try:
+            S.SEL.record = lambda **kw: rows.append(kw)
+            prompt = "Code review. Judge only what is shown.\n```diff\n--- a/tv/x.py\n```"
+            answer = prompt + "\nERROR: You've hit your usage limit. Try again Oct 12th."
+            out = S.record_answer("v9999", answer, sent=1, prompt_text=prompt)
+        finally:
+            S.SEL.record = real
+        self.assertFalse(out, "record_answer reported a LOOK over a provider refusal")
+        self.assertEqual(1, len(rows), "the recorder wrote %d rows, expected exactly 1" % len(rows))
+        self.assertIs(False, rows[0].get("reached"),
+                      "a provider refusal was recorded with reached=%r — the push gate reads that "
+                      "field, so this opens a gate that should stay shut" % rows[0].get("reached"))
+        self.assertEqual([], rows[0].get("findings") or [],
+                         "a refusal was recorded WITH findings, which is the echo being counted")
+
+    def test_the_recorder_files_a_real_review_as_a_look(self):
+        """The mirror, driven through the recorder for the same reason."""
+        S = self.S
+        rows = []
+        real = S.SEL.record
+        try:
+            S.SEL.record = lambda **kw: rows.append(kw)
+            prompt = "Code review.\n```diff\n--- a/tv/x.py\n```"
+            answer = (prompt + "\nI found one defect. 1. **High** — authentication is not checked, "
+                      "so an unauthorised caller can write past the quota.")
+            out = S.record_answer("v9999", answer, sent=1, prompt_text=prompt)
+        finally:
+            S.SEL.record = real
+        self.assertTrue(out, "a genuine review was filed as an empty seat")
+        self.assertIs(True, rows[0].get("reached"),
+                      "a real look was recorded unreached, so its cross-family debt stays unpaid")
 
     def test_both_doors_use_the_one_recorder(self):
         """copy-drift: v3220 fixed record_answer while the CLI door recorded inline."""

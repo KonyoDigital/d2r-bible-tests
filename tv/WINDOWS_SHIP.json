@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3222",
+  "ver": "v3223",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3222: HEART: his vault showed 198 unsorted against 21 assigned and he said it is not even sorting them only some. A read-only route probe settled it: all 198 already had a valid destination - uni-armor 67, uni-weap 63, throwout 46, uni-small 9, shared 7, runewords 5, keep 1, laneLocked 0. Nothing was mis-routed and nothing had run. The cause was v3214 owned_restore: every automatic vaultAutoAssign call is gated on a chronicleApply landing something, and a direct LSR write to d2r_owned never fires it. The board now exposes a re-read door so a restore syncs memory WITHOUT rebooting his page, then files the batch through his own sorter. 152 items filed, dock 198 to 46, and the 46 left are throw-out SUGGESTIONS which are never binned.",
+  "note": "v3223: HEART: v3220 matched quota and authentication and rate-limit anywhere in the first 400 characters of a reply, so a genuine review saying authentication is not checked would have been discarded as a provider refusal - and a review of that very diff would contain those words. Over-refusing is the worse direction because a false LOOKED is visible in the ledger while a real look thrown away is not. A provider refusal is now identified by how it OPENS, since it is the first thing the tool says when it never got further. My first repair used reply length and refused a 434 character review, which is the wrong instrument - a short review is still a review. The tests now drive record_answer itself rather than its helpers.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -330,9 +330,26 @@ def ask(prompt):
 # A provider-level refusal — rate limit, auth, a model the account may not use. These arrive as
 # ordinary stdout and can be any length, so a size test will not catch them. They are NOT a review
 # and must never be recorded as one: the seat was never occupied. [[unknown-stays-unknown]]
+# ⚠⚠ v3223 — ANCHORED, AND THE VOCABULARY IS OPENERS NOT TOPICS. The v3220 version searched for
+# "quota", "unauthor", "authentication", "rate-limit" ANYWHERE in the first 400 characters, so a
+# genuine review saying "authentication is not checked" or "quota is never decremented" was filed
+# as a provider refusal and DISCARDED. A cross-family look named it, and pointed out that a review
+# of that very diff would trip it. Over-refusing is the worse direction of the two: a false LOOKED
+# is visible in the ledger, a discarded real look is not.
+# These are how a PROVIDER opens when it produced nothing else. A reviewer does not begin a review
+# with "You have hit your usage limit". [[unknown-stays-unknown]] [[source-reading-guard]]
 _PROVIDER_ERROR_RX = re.compile(
-    r"(?im)^\s*ERROR\b|usage limit|rate[- ]limit|quota|not supported when using|"
-    r"invalid_request_error|unauthor|authentication|please (?:sign|log) in")
+    r"(?is)\s*(?:"
+    r"ERROR\b|error:|\{\s*\"type\"\s*:\s*\"error\"|"
+    r"you(?:'ve| have) hit your usage limit|"
+    r"(?:you are|you're) being rate[- ]limited|"
+    r"rate[- ]limit(?:ed|-exceeded)?\b|"
+    r"quota exceeded|"
+    r"please (?:sign|log) in\b|"
+    r"authentication (?:failed|required)\b|"
+    r"unauthorized\b|"
+    r"the '[^']+' model is not supported"
+    r")")
 
 
 _NO_DEFECT_RX = re.compile(
@@ -505,7 +522,24 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
     # So: strip FIRST, then judge what is left, and treat a provider-level refusal as unreached
     # however long it is. [[unknown-stays-unknown]] [[grok-second-eye]]
     _reply = _strip_echo(answer, prompt_text) if prompt_text else answer
-    _refused = bool(_PROVIDER_ERROR_RX.search(_reply[:400]))
+    # ⚠⚠⚠ v3223 — A REFUSAL *IS* THE WHOLE ANSWER; A REVIEW MERELY MENTIONS THESE WORDS.
+    # v3220's regex matched "quota", "rate-limit", "unauthor", "authentication", "please sign in"
+    # ANYWHERE in the first 400 chars. A cross-family look at v3221 named the trap: a genuine
+    # review that says *"authentication is not checked"* or *"quota is never decremented"* would be
+    # discarded as a provider refusal — and a review OF THIS VERY DIFF would contain those words.
+    # That is the over-refusing direction `AProviderRefusalIsAnEmptySeat` names in its own
+    # docstring: it would turn every real eye into an empty seat, which is worse than the false
+    # LOOKED it was written to stop, because a discarded look is invisible.
+    #
+    # A provider refusal is SHORT and it is the ENTIRE reply — the tool printed nothing else.
+    # A review is long and discusses many things. So: an explicit `ERROR:` opener always counts,
+    # and the softer vocabulary only counts when the whole reply is too short to be a review.
+    # [[unknown-stays-unknown]] [[feedback-blind-fixture-green-gate]]
+    # ⚠ ANCHORED AT THE OPENING, NOT LENGTH. My first cut added "…or it matches anywhere and the
+    # reply is under 600 chars", and a 434-char REVIEW about authentication was refused by it.
+    # Length is the wrong instrument: a short review is still a review. What separates the two is
+    # that a provider refusal is the FIRST thing the tool says, because it never got further.
+    _refused = bool(_PROVIDER_ERROR_RX.match(_reply.lstrip()))
     if len(_reply) < 40 or _refused:
         _why = ("the provider refused: %s" % _reply.strip().splitlines()[0][:110]) if _refused \
                else ("the answer was %d chars" % len(_reply))
