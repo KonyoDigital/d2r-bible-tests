@@ -531,5 +531,81 @@ class TheRowNamesWhoActuallyLooked(unittest.TestCase):
         self.assertEqual(2, len(kept))
 
 
+class AProviderRefusalIsAnEmptySeat(unittest.TestCase):
+    """⚠⚠⚠ AN EMPTY SEAT SIGNED THE REGISTER, AND THE PUSH GATE READS `reached`.
+
+    v3216 taught `record_answer` to strip the tool's echoed prompt and left the emptiness guard
+    ABOVE the strip, reading raw bytes. `codex exec` prints the whole payload before replying, so a
+    run whose ONLY reply was **"ERROR: You've hit your usage limit … try again at Oct 12th"**
+    arrived as ~10,000 characters and sailed past `len(answer) < 40`. v3217 and v3218 were both
+    filed as **LOOKED**. The ledger's whole premise is that an unreachable eye is an EMPTY SEAT and
+    never agreement — and `pre-push` blocks on `reached`, so a false LOOKED opens a gate that
+    should have stayed shut.
+
+    ⚠ AND THE FIX HAD A TWIN IT DID NOT COVER: `run_one`'s CLI door recorded inline and never
+    called `record_answer`, so the same false LOOKED stayed live on the DEFAULT door until v3221
+    routed both through one guard. Found by the Grok seat reviewing the very version that fixed
+    the other half. [[copy-drift]] [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        sys.path.insert(0, HERE)
+        import second_eye_run as S
+        self.S = S
+
+    def test_a_usage_limit_reply_is_not_a_look(self):
+        S = self.S
+        prompt = "Code review. Judge only what is shown.\n```diff\n--- a/tv/x.py\n```"
+        answer = prompt + ("\nERROR: You've hit your usage limit. Upgrade to Plus to continue "
+                           "using Codex (https://chatgpt.com/explore/plus), or try again at "
+                           "Oct 12th, 2026 4:36 PM")
+        reply = S._strip_echo(answer, prompt)
+        self.assertTrue(S._PROVIDER_ERROR_RX.search(reply[:400]),
+                        "a usage-limit refusal is not recognised as a provider error, so it will "
+                        "be recorded as a LOOK and discharge a cross-family debt nobody paid: %r"
+                        % reply[:90])
+
+    def test_the_length_test_alone_cannot_catch_it(self):
+        """The reason a size guard is not enough — this is why it must run AFTER the strip."""
+        S = self.S
+        prompt = "x" * 9000
+        answer = prompt + "\nERROR: You've hit your usage limit."
+        self.assertGreater(len(answer), 40,
+                           "the fixture no longer reproduces the shape: the whole point is that "
+                           "the RAW answer is long while the REPLY is a refusal")
+        self.assertLess(len(S._strip_echo(answer, prompt)), 200,
+                        "the echo is not being stripped, so the guard still judges the prompt")
+
+    def test_auth_and_unsupported_model_refusals_count_too(self):
+        S = self.S
+        for body in ("ERROR: The 'gpt-6-astra' model is not supported when using Codex with a "
+                     "ChatGPT account.",
+                     "error: rate-limited, try later",
+                     "Please sign in to continue"):
+            self.assertTrue(S._PROVIDER_ERROR_RX.search(body),
+                            "%r is not recognised as a provider refusal" % body[:60])
+
+    def test_a_real_review_is_still_a_look(self):
+        """The direction that must not break: over-refusing would make every eye an empty seat."""
+        S = self.S
+        good = ("I found two concrete defects. 1. **High** — the endpoint coerces confirm with "
+                "bool(), so a body saying false authorises a write. 2. **Medium** — names has no "
+                "type validation.")
+        self.assertIsNone(S._PROVIDER_ERROR_RX.search(good),
+                          "a genuine review is being read as a provider refusal, which would file "
+                          "every real look as an empty seat")
+
+    def test_both_doors_use_the_one_recorder(self):
+        """copy-drift: v3220 fixed record_answer while the CLI door recorded inline."""
+        import inspect
+        src = inspect.getsource(self.S.run_one)
+        self.assertNotIn("reached=True", src,
+                         "run_one records a LOOK inline again, bypassing the echo strip and the "
+                         "provider-error check that live in record_answer")
+        self.assertGreaterEqual(src.count("record_answer("), 2,
+                                "the CLI door no longer routes through record_answer, so the two "
+                                "paths can drift apart again")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

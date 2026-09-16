@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3220",
+  "ver": "v3221",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3220: HEART: the emptiness guard ran on the RAW answer while v3216 had taught the recorder to strip the echo, so a run whose ONLY reply was a provider rate-limit refusal arrived as 10KB of echoed prompt and sailed past the length test - two versions were filed as LOOKED over the sentence you have hit your usage limit. The push gate reads reached, so a false LOOKED opens a gate that should stay shut. The guard now judges the stripped REPLY and treats a provider refusal as unreached at any length. Also: v3219 joined story_of and the same loop still indexed order by state, so an unknown state stopped raising one line earlier and raised one line later - found by the Grok seat.",
+  "note": "v3221: HEART: v3220 fixed the false-LOOKED guard inside record_answer and the CLI door never called it - run_one recorded inline, so it stripped no echo and ran no provider-error check, and ask() treats exit 0 plus 40 characters as a look. A Grok CLI exiting 0 with a long usage-limit body is exactly that, so the same false LOOKED stayed live on the DEFAULT door one function away from its own fix. Both doors now route through the one recorder. The gate can now fail on it: deleting the provider regex fires two assertions and restoring the inline recorder fires a third.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

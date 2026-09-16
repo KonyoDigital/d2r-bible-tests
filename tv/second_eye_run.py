@@ -576,18 +576,18 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
                    path=None, seen_path=None, sent=sent)
         print("     EMPTY SEAT — %s  (recorded as unreached, never as agreement)" % awhy)
         return False
-    findings = _findings_from(answer)
-    _verdict, findings = _verdict_for(answer, findings)
-    SEL.record(version=version, model=EYE_MODEL,
-               verdict=_verdict,
-               findings=findings, images=[],
-               asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
-               answer_head=answer[:400], reached=True,
-               path=None, seen_path=None, sent=sent)
-    print("     LOOKED — %d finding(s) recorded" % len(findings))
-    for f in findings[:3]:
-        print("       · %s" % f[:150])
-    return True
+    # ⚠⚠⚠ v3221 — ONE RECORDER, NOT TWO. v3220 fixed the empty-seat guard in `record_answer` and
+    # this path never called it: the CLI door recorded inline, so it stripped no echo and ran no
+    # `_PROVIDER_ERROR_RX`. `ask()` treats "exit 0 and >= 40 chars" as a look — and a Grok CLI that
+    # exits 0 with a long usage-limit or auth body is exactly that. So the SAME false-LOOKED bug
+    # REG-1017 documents was still live on the DEFAULT door (and on `--backlog`), one function
+    # away from its own fix. Found by the Grok seat reviewing v3220, which is the version that
+    # fixed the other half.
+    #
+    # Fixing one copy of a rule and leaving its twin is the defect this repo keeps finding. The
+    # answer is not a second guard here — it is routing both doors through the one guard.
+    # [[copy-drift]] [[sweep-dont-ask]] [[the-unjoined-end]]
+    return record_answer(version, answer, sent, dropped, prompt_text=prompt)
 
 
 def main(argv):

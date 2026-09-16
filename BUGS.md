@@ -34120,3 +34120,41 @@ It reviewed v3219 and was right twice. Reproduced before being believed:
    by the new line while `build()` still crashed. Correct, and the reason the gate grew
    `TheJoinReachesThePageNotJustTheNextLine`: three sabotages (both `order[state]` forms and the CLI
    detail) each fire it by name.
+
+## REG-1018 — the false LOOKED had a twin, on the door people actually use
+
+**2026-09-16 · v3221**
+
+REG-1017 fixed the emptiness guard inside `record_answer`. The Grok seat then reviewed **v3220 —
+the version that fixed it** — and found the same bug still live one function away:
+
+`run_one`'s CLI door **never calls `record_answer`.** It recorded inline, so it stripped no echo and
+ran no `_PROVIDER_ERROR_RX`, and `ask()` treats "exit 0 and >= 40 chars" as a look. A Grok CLI
+exiting 0 with a long usage-limit or auth body is exactly that. So `python3 tv/second_eye_run.py
+vNNNN` — the DEFAULT door, and `--backlog` with it — would still have filed a refusal as a
+cross-family look and discharged a debt nobody paid.
+
+**Fixed by deleting the copy, not by adding a second guard.** Both doors now return
+`record_answer(...)`. Fixing one copy of a rule and leaving its twin is the defect this repo keeps
+finding; the answer is one rule, quoted twice. [[copy-drift]]
+
+**And the gate can now fail on it** — Grok's third point, which was also correct: v3220's tests
+grepped `board_sync.py` and `chronicle_sweep_now.py` and nothing exercised the recorder.
+`AProviderRefusalIsAnEmptySeat` now does. Seen red two ways: deleting the provider regex fires two
+assertions, restoring the inline recorder fires a third. It also pins the opposite direction — a
+genuine review must NOT read as a refusal, or every real look becomes an empty seat.
+
+### One of its findings was wrong, and the measurement says so
+
+Grok's fourth (Low): *"unknown states now reach the page with a band `_ROOM` does not own …
+`sectionOrder` walks -10, -9, … into 0..11."* **Refuted.** Measured against the live table:
+
+```
+pending -200..-160 · progress -180..-140 · hiscall -160..-120 · blocked -140..-100
+done    -120.. -80 · hibernating -100..-60 · retired -80..-40
+unknown  -10..  30        highest real: -40
+```
+
+Every real section is NEGATIVE; the premise "old board sections occupy 0..11" is not true of this
+table, and there is a 30-point gap. No collision. Recorded because a reviewer that is right twice
+and wrong once is exactly why `review-after-ship` says the measurement decides, not the reviewer.
