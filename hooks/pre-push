@@ -94,7 +94,27 @@ gate_run() {
                        # caller checking for 143 there would never fire. Found by testing the
                        # branch instead of trusting it.
   if [ "$rc" -eq 142 ]; then
-    echo "pre-push: ⏱ ${label} HUNG — killed after ${limit}s. Push blocked."
+    # ⚠⚠ 2026-09-16 — SAY WHETHER IT HUNG OR WAS STARVED. THE FILE ALREADY KNEW AND ONLY MOVED
+    # THE CEILING. v2361 raised this 600 -> 1500 because "719s with D2R running at 110% CPU"
+    # blocked every push he made while playing, and its own comment ended "the message says HUNG
+    # when nothing hung" — then left the message alone. Today it killed test_control at 1500s with
+    # **D2R at 181% CPU and load average 18**, on a tree whose suite had passed standalone in 529s
+    # forty minutes earlier. Nothing hung. A verdict that names the wrong cause sends the next
+    # reader hunting a deadlock that was never there, which is the one thing a timeout message
+    # must not do.
+    # ⚠ THE PUSH IS STILL BLOCKED, and that is correct: a suite that did not finish did not pass.
+    # What changes is the SENTENCE, not the refusal. [[unknown-stays-unknown]] [[label-outlived-referent]]
+    _load1="$(uptime | sed 's/.*averages*: *//' | awk '{print $1}' | tr -d ',')"
+    _busy="$(printf '%.0f' "${_load1:-0}" 2>/dev/null || echo 0)"
+    if [ "${_busy:-0}" -ge 6 ]; then
+      echo "pre-push: \u23f1 ${label} DID NOT FINISH in ${limit}s — load average ${_load1}. Push blocked."
+      echo "          ⚠ STARVED, not hung: this machine was busy (load ${_load1}). The suite has"
+      echo "            never wedged; it has been slowed. Re-push when the machine is quiet"
+      echo "            rather than raising the ceiling — a ceiling above every real load is an"
+      echo "            absent hang detector."
+    else
+      echo "pre-push: \u23f1 ${label} HUNG — killed after ${limit}s on an IDLE machine (load ${_load1}). Push blocked."
+    fi
     echo "          Partial output kept at: ${log}"
     echo "          ── last 25 lines before the kill ───────────────────────────"
     tail -25 "$log" | sed 's/^/          /'

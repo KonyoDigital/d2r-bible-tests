@@ -33931,3 +33931,32 @@ across 9 packs; both pack gates green, including the leak audit that must hold f
 ⚠ AND THE 0 CARDS ARE NOT A MISSING-FIXTURE PROBLEM. That seat's own report shows
 `No such file or directory: '/workspace/tvd-linux/v'` — a TRUNCATED PATH on their box. Nine packs
 will not fix a path that is cut off at one character.
+
+## REG-1013 — the gate said HUNG when the machine was starved, and the file already knew
+
+**2026-09-16 · ci (no version stamp — hook only)**
+
+`pre-push` killed `test_control` at 1500s and printed **"HUNG — killed after 1500s"**. Nothing hung.
+The same tree had passed the same suite standalone in **529s** forty minutes earlier; at the moment
+of the kill, **D2R.exe was at 181% CPU and the load average was 18.17**, with the suite process
+getting only 56% of a core.
+
+⚠ **THE FILE ALREADY NAMED THIS AND ONLY MOVED THE CEILING.** v2361's own comment, four lines
+above the call, says it: *"600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT… 385s with the Mac quiet,
+719s with D2R running at 110% CPU… it blocks every push he makes while he is playing, which is
+most of them, **and the message says HUNG when nothing hung**."* It then raised 600 → 1500 and left
+the sentence alone. Today's load was 181%, not the 110% that calibration was measured against.
+
+**The ceiling was NOT raised again.** 1500s already sits above every honest run (the suite has
+never wedged), and a ceiling above every real load is an absent hang detector —
+`feedback-threshold-above-the-ceiling`, which the same comment cites. What changed is the VERDICT:
+on a timeout the hook now reads the 1-minute load average and says **"DID NOT FINISH … STARVED,
+not hung"** when the machine was busy, and keeps the flat **HUNG** only when the machine was idle.
+
+⚠ The push is still BLOCKED either way, and that is right: a suite that did not finish did not
+pass. Only the sentence changes. And it FAILS CLOSED — an unreadable load reports HUNG, because an
+unknown load must not excuse a timeout. All three branches proven (18.17 → starved, 1.04 → hung,
+empty → hung).
+
+A verdict that names the wrong cause is worse than a slow gate: it sends the next reader hunting a
+deadlock that was never there.
