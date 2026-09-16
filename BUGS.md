@@ -33707,3 +33707,132 @@ to pin both branches). Both seen red. ⚠ The first cut of the station-bar asser
 SABOTAGE — `assertIn("SHELF_RIVER", tail)` over a `[:1400]` window was satisfied by
 `SHELF_RIVER_ORDER` further down the function. It now brace-matches the branch and asserts
 `Object.keys(SHELF_RIVER`.
+
+## REG-1010 — a cross-family review of v3213/v3214 found thirteen, and one was about to delete his ledger
+
+**2026-09-16 · v3215**
+
+`/code-review` over the pushed range `f5d60dd6..398f12b7` returned 15 findings. Each was reproduced
+before being acted on. Thirteen were real and are fixed here.
+
+### The one that mattered: a write behind a running board is pending deletion
+
+`owned_restore` wrote 171 names into `d2r_owned` through the board's own `LSR`, in the right world,
+union-only, and answered `{"ok": true, "before": 52, "added": 171, "after": 223}`. Every word true.
+**And the next tick he made would have destroyed all 171.**
+
+```
+bible.html:18200   let owned  = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
+bible.html:18564   let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
+bible.html:19174   LS.setItem('d2r_owned', JSON.stringify([...owned]));      // persist()
+grep -c "addEventListener('storage'" bible.html  ->  0
+```
+
+Both stores are read ONCE at boot into module-scope variables, nothing tells the page its store
+moved, and `persist()` writes the IN-MEMORY copy back. So the write was not merely invisible until
+reload — the board was holding the pre-write value and would flush it on his next action. Every
+instrument agreed with the write, because they all read storage and the stale copy lives in the
+page's JS heap where nothing on the Python side can see it.
+
+**Verified after reloading the board:** `owned` 222. The single snapshot name absent is
+`Heart of the Oak`, a RUNEWORD the board correctly moves out of `owned` because it lives in
+`rwMade` (all 99 present) — a reconciliation, not a loss. Had the race fired the number would have
+been 52. Both doors now schedule a reload after writing, so memory cannot be left behind storage.
+
+### Two gates that were lying
+
+- **`test_the_journal_is_read_once_per_change` has been RED on the shipped tree** since v3208 turned
+  the call into a lambda. Its RED_PROOF anchor matched **0**, so heart2 returned INVALID, revoked
+  the standing proof and filed the gate BLIND. And its round-trip law installed `def counted()`
+  with no parameters — the new call passes `want_why=True`, the `TypeError` was swallowed by
+  `status_payload`'s broad `except`, the counter never moved, and `assertEqual(0, 0)` PASSED. The
+  law reported success while measuring nothing, which is worse than the red beside it because
+  nothing looked wrong. Both fixed; a denominator now refuses a vacuous pass.
+- **Why it shipped: `hooks/pre-push` does not run `run_gates.py`.** It runs `test_agent` and
+  `test_control`. The 408 gates run in CI only.
+
+### Two defects in v3214's own UI change
+
+- `whenTxt` falls back to `'—'`, which is TRUTHY — so the "Session N" fallback was dead code
+  and a stub run with no `t0` rendered a card titled `—`. The comment promised the opposite.
+- The printed date was not in the search index: `_sq` carried `toLocaleDateString()` ("9/15/2026")
+  while the headline read "Sep 15 · 7:40 PM", so typing what the card shows returned nothing —
+  under a comment asserting "SEARCH IS UNAFFECTED".
+
+### The rest
+
+- **`board_tick` was missing from the v3213 hop sweep entirely** — the door the console UI actually
+  presses. An AST scan for `tvd-eng` returned five doors and not that one, so on the state that
+  produced REG-1008 every tick answered about the console shell. Joined, and named in CONTEXT_HOPS.
+- **`board_mask` kept the bare-`localStorage` fallback** its own hop comment blames for publishing
+  a mask of the wrong world with `ok:true`. It now refuses, the way `chronicle_apply` always has.
+- **`locAgrees` compared a raw `loc` against a consensus `retro_gate._loc_of` had lowercased**, so
+  `{"Shako": "Stash"}` flagged the row that supplied the majority vote as contradicting it; and a
+  row whose location the session never voted on (`equipped`, `inventory`) was filed as disagreeing
+  with a stash-dominant session that said nothing about it. False now means: another read in THIS
+  session said somewhere else.
+- **`owned_restore` did not check that `names` is a list** — a JSON string body iterated into single
+  letters and appended five one-character entries to a union-only store with no undo.
+- **`rw_restore`'s union guard used truthiness on a JSON-parsed object**, so a legacy `{"Enigma": ""}`
+  was overwritten (breaking "his date wins, always") and prototype keys were counted as kept.
+- **Both new doors had NO CALLER.** Two complete doors, two routes, red-proved hops, and nothing in
+  the tree could press them — the exact shape control_ui.html already records CI reddening v2735
+  for. `ledger_restore_apply` now drives both, closing the `BACKED_UP_ONLY` sentence that has been
+  unbuilt since v2735. `gameFound` still has no door and is reported as such, not dropped.
+- **The corroboration's `except Exception: pass`** made a runtime failure indistinguishable from a
+  flag that never fired; it now records the reason on every row.
+- **The station-bar mismatch chip accused the console of its own decision** — cards whose stamp is
+  withheld on purpose (`data-station-why`) counted as evidence the river and grid did not meet.
+
+### Not fixed, and not claimed
+
+`locSession` / `locAgrees` are computed onto every register row and read by nothing — no UI, no API
+consumer, no Python caller. The join moved one hop downstream instead of closing. That is the honest
+remainder of #100.
+
+Also in v3215, from the render pass: three floors were declared ABOVE what a full clean run
+measures (`heart-fan` zero 2 against a measured 0 of 270; `page` clipped 55 against 10 at 375px —
+45 elements of slack, the widest in the target set), and the `heart-fan` 375 clipped debt is PAID,
+so its floor went to 0 as its own comment instructed. Coverage blessed on a full clean run,
+19 targets.
+
+Suite after: **2235 tests, OK, 14 skipped.**
+
+### And the gate refused the ship, correctly — then a THIRD family found two more
+
+`pre-push` blocked v3215: *"v3215 may not ship while v3214 has never been looked at by a different
+model family."* The Grok seat timed out at 300s and was recorded as an **EMPTY SEAT, never as
+agreement**. Routed to the OpenAI seat instead, which found two defects nothing else had:
+
+- **`bool(body.get("confirm"))` says yes to the string `"false"`.** JSON bodies routinely carry
+  booleans as text, so `{"confirm": "false", ...}` coerced to True and PERFORMED the restore the
+  body was explicitly declining. All three confirm-gated doors — `owned_restore`, `rw_restore`,
+  `ledger_restore_apply` — had it, and all three guard a write to his ledger. Replaced with a
+  `_confirmed()` WHITELIST: anything not an explicit yes is a no, because the dangerous direction
+  is acting unasked.
+- **The hop accepted a weaker capability than the write needs.** It rebound on
+  `_cw.LSR && _cw.LSR.getItem` while the restore requires `setItem` too, so a get-only LSR would
+  have been hopped into and then refused from inside.
+
+⚠ And a note for the `gpt-eye` lane: **the Codex default model is now `gpt-6-astra`, which is
+REFUSED on ChatGPT-subscription auth** (`400 … not supported when using Codex with a ChatGPT
+account`). The skill recorded `gpt-5.6-terra` as the default; it is not any more, so an
+unconfigured call now always fails. `-m gpt-5.6-terra` must be passed explicitly.
+
+### And then the render gate refused it too — a bless from a WARM tree
+
+`--bless` raised `shelf-cards` 1120x900 from 16 to 48 and the gate immediately refused the push:
+*"measured 16 node(s), was 48. Something this gate used to watch is gone."*
+
+**Nothing was gone.** Three standalone runs here all reported 48/48, so the number looked solid —
+but the shelf grid "drops every film-less run since v3092" and the harness SEEDS film into its
+sandbox, so each repeated local run sees MORE cards than the one before. A cold tree sees 16. The
+48 was an artefact of having just rendered three times in a row, and the ratchet may only RISE, so
+an inflated floor has to be lowered BY HAND with the reason in the commit — which is this.
+
+⚠ The node signatures for this target carry per-reel timestamps (`div.shc-sess|Sep 15 · 8:53 AM`),
+so the "gone:" list churns with the data rather than with the code. They are diagnostics only —
+the ratchet is the COUNT — but it is worth knowing before reading that list as a defect.
+
+The scar is recorded in `render_check.py` beside the bless itself, and `--bless` now says out loud
+that a floor which only appears after repeated local runs is an artefact, not a measurement.

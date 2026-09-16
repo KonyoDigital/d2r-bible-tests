@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3214",
+  "ver": "v3215",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3214: HEART: corroborate_location was joined at v3212 and INERT - it was handed sess_rows while it reads a location off each entry, and session rows carry those only inside names_loc, so every call answered no read said where. Now fed one read per name-location pair. owned_restore is the second of the three doors BACKED_UP_ONLY names as unbuilt. Shelf cards name the run by its own date instead of an ordinal, bounded so the title cannot slide under the pin. The station bar stops hiding two opposite facts - river unanswered versus river answered with nothing stamped.",
+  "note": "v3215: Three render floors were declared ABOVE what a full clean run measures, so the gate could not fire until that much slack was used up. heart-fan zero 2 to 0 at all five widths against a measured 0 of 270. page clipped 6 to 4 and 55 to 10 - the 375 floor was 45 elements of slack, the widest in the target set. And the heart-fan 375 clipped debt is PAID: its own comment said lower it the moment the clip is fixed, and a clean run now measures 0 of 1972. Coverage blessed on a full clean run, 19 targets.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

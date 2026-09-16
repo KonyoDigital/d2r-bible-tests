@@ -867,8 +867,12 @@ TARGETS = {
             "1440x1000": {"clipped": 1, "broken": None, "zero": 6},
             "1120x900":  {"clipped": 1, "broken": None, "zero": 6},
             "1120x628":  {"clipped": 1, "broken": None, "zero": 6},
-            "901x900":   {"clipped": 6, "broken": None, "zero": 6},
-            "375x800":   {"clipped": 55, "broken": None, "zero": 6},
+            # ⚠ v3215 — RATCHETED DOWN on a full clean run: 6 -> 4 and 55 -> 10, both the measured
+            # values. The 375 floor was the loud one — 45 elements that USED to be cut off no
+            # longer are, and until now 45 NEW ones could have appeared without this gate saying a
+            # word. That was the widest piece of slack in the whole target set. [[regression-guard]]
+            "901x900":   {"clipped": 4, "broken": None, "zero": 6},
+            "375x800":   {"clipped": 10, "broken": None, "zero": 6},
         },
         "settles": True,
         # ⚠ THE SHAPE PREDICATE, not the byte-length one. This page carries a live clock and
@@ -1060,10 +1064,16 @@ TARGETS = {
         # The floor is 2 and the gate refuses the moment a THIRD collapses — which is the case
         # that would actually mean something.
         "known": {
-            "1440x1000": {"zero": 2},
-            "1120x900":  {"zero": 2},
-            "1120x628":  {"zero": 2},
-            "901x900":   {"zero": 2},
+            # ⚠ v3215 — RATCHETED DOWN 2 -> 0. A FULL clean run measured **0 of 270** zero-size
+            # nodes at every one of the five widths, so a floor of 2 was two collapses of slack:
+            # the gate could not fire until a THIRD node vanished. render_check said so in its own
+            # words — "so 2 now paint that did not. Lower the floor so it cannot excuse a real
+            # collapse later." A floor above the measurement is an absent gate wearing a number.
+            # [[regression-guard]] [[feedback-threshold-above-the-ceiling]]
+            "1440x1000": {"zero": 0},
+            "1120x900":  {"zero": 0},
+            "1120x628":  {"zero": 0},
+            "901x900":   {"zero": 0},
             # ⚠⚠ 375 CARRIES ONE CLIPPED ELEMENT, AND IT IS DEBT, NOT A PASS.
             # The FIRST run of this target found it: `hrt-svgwrap :: miniauto.run — INCOMPLETE —`
             # has text cut off inside it at 375px. Nothing was watching this surface, which is the
@@ -1084,7 +1094,13 @@ TARGETS = {
             # GATE'S OWN DEFINITION, does not re-run the gate. Filed separately; it is not fixed
             # by this line.
             # Still DEBT, not a pass — lower it when the label stops overflowing, never raise it.
-            "375x800":   {"zero": 2, "clipped": 2},
+            # ⚠ v3215 — **THE DEBT IS PAID, SO THE FLOOR GOES TO 0.** The block above declares
+            # this 2 as debt and ends "Lower it the moment the clip is fixed; never raise it."
+            # A full clean run now measures **clipped 0/1972** at 375x800: `hrt-svgwrap ::
+            # miniauto.run — INCOMPLETE —` no longer overflows. Leaving the 2 would be exactly the
+            # failure the same comment warns about — [[heart-v2]] sitting on his screen through
+            # three fixes reading "baseline 2 now 2, held" forever.
+            "375x800":   {"zero": 0, "clipped": 0},
         },
     },
     "heart-stored": {
@@ -4398,7 +4414,24 @@ def _coverage_bless(results, complete, say):
                          "only: nothing fails because a signature changed, and the ratchet is "
                          "still the COUNT.",
             "nodes": sig_merged}, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+    # ⚠⚠ v3215 — A BLESS FROM A WARM TREE WRITES A FLOOR THE GATE CANNOT REACH.
+    # MEASURED, and it cost a refused push: three standalone `shelf-cards` runs here all reported
+    # 48/48 at 1120x900, so --bless raised that floor 16 -> 48. The pre-push gate then measured
+    # **16** on the same commit and refused: "measured 16 node(s), was 48. Something this gate used
+    # to watch is gone."
+    #
+    # Nothing was gone. The shelf grid "drops every film-less run since v3092", and this harness
+    # SEEDS film into the sandbox — so repeated local runs accumulate seeded reels and each run
+    # sees MORE cards than the one before. A cold tree sees 16. My 48 was an artefact of having
+    # just rendered three times in a row.
+    #
+    # So: bless from a COLD tree, or treat any floor that only appears after repeated local runs as
+    # unearned. The ratchet may only rise, which makes an inflated floor expensive to undo — it has
+    # to be lowered BY HAND, with the reason in the commit, which is what this note is for.
+    # [[regression-guard]] [[feedback-blind-fixture-green-gate]] [[stale-reading]]
     say("blessed %d target(s) into %s" % (len(merged), os.path.relpath(COVERAGE, REPO)))
+    say("   \u26a0 a floor that only appears after repeated local runs is an artefact of the "
+        "seeded sandbox, not a measurement — bless from a cold tree")
     for name, k, was, v in sorted(held):
         say("   \u26a0 HELD %s %s at %d — this run measured %d, and a floor may only RISE. If that "
             "loss is deliberate, lower it by hand and say why in the commit; if it is not, a "

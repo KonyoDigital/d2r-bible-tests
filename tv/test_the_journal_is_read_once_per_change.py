@@ -69,9 +69,41 @@ class TheJournalIsReadOncePerChange(unittest.TestCase):
                       "unreadable journal would serve a stale payload for ever: %r" % line)
 
     def test_the_walk_is_timed_so_it_cannot_hide_again(self):
-        self.assertIn('_t("journal", _kai_journal_rows)', SRC,
-                      "the journal walk is untimed again — this is how 20 ms of a 22.4 ms request "
-                      "sat in unattributedMs while timing.slowest blamed a 1.9 ms section")
+        """⚠⚠ v3215 — THIS PINNED A CALL FORM, AND v3208 CHANGED THE FORM WITHOUT TOUCHING THE
+        MEANING. It asserted the literal `_t("journal", _kai_journal_rows)`; v3208 needed the
+        `why` out of the reader, so the site became
+        `_t("journal", lambda: _kai_journal_rows(want_why=True))` — still timed, still one walk,
+        and this law went RED and stayed red on the shipped tree. Worse, its RED_PROOF anchor
+        matched 0 times too, so heart2 filed the whole gate as INVALID/BLIND and revoked its
+        standing proof.
+
+        The claim was never about the spelling of the call. It is that the journal walk happens
+        INSIDE the `_t("journal", ...)` timer, so its cost is attributed instead of landing in
+        unattributedMs. That is what is asserted now. [[source-reading-guard]] [[label-outlived-referent]]
+        """
+        i = SRC.find('_t("journal"')
+        self.assertGreater(i, 0,
+                           "the journal walk is untimed again — this is how 20 ms of a 22.4 ms "
+                           "request sat in unattributedMs while timing.slowest blamed a 1.9 ms "
+                           "section")
+        # the timed region, by paren-matching — not a fixed window, which is how the last one broke
+        d, j = 0, SRC.index("(", i)
+        k = j
+        while k < len(SRC):
+            if SRC[k] == "(":
+                d += 1
+            elif SRC[k] == ")":
+                d -= 1
+                if d == 0:
+                    break
+            k += 1
+        timed = SRC[j:k + 1]
+        self.assertLess(len(timed), 400,
+                        "the _t(\"journal\", ...) call is %d chars — that is not one call, so "
+                        "this is reading past it" % len(timed))
+        self.assertIn("_kai_journal_rows", timed,
+                      "the journal reader is no longer called inside its own timer, so its cost "
+                      "goes back to unattributedMs: %r" % timed)
 
     def test_the_live_three_second_window_survives(self):
         """The ON AIR path is about smoothness, not freshness — removing it is a different change."""
@@ -87,13 +119,24 @@ class TheJournalIsReadOncePerChange(unittest.TestCase):
         CA._STATUS_JOURNAL_CACHE = None
         calls = {"n": 0}
         orig = CA._kai_journal_rows
-        def counted():
+        # ⚠⚠ v3215 — THIS TOOK NO ARGUMENTS, AND THE CALL SITE STARTED PASSING ONE.
+        # v3208 made the status site call `_kai_journal_rows(want_why=True)`. This stub accepted
+        # no kwargs, so every call raised TypeError INSIDE status_payload's broad `except
+        # Exception`, the counter never moved, and `assertEqual(0, 0)` passed. The law went on
+        # reporting success while measuring nothing at all — which is worse than the red one
+        # above it, because nothing looked wrong. [[zero-needs-a-denominator]]
+        def counted(*a, **kw):
             calls["n"] += 1
-            return orig()
+            return orig(*a, **kw)
         CA._kai_journal_rows = counted
         try:
             CA.status_payload()
             first = calls["n"]
+            # ⚠ IF THE READER WAS NEVER CALLED, THIS LAW IS MEASURING NOTHING — say so rather
+            # than compare 0 with 0 and call it a pass. That is exactly how it survived v3208.
+            self.assertGreater(first, 0,
+                               "status_payload never reached _kai_journal_rows at all, so "
+                               "'walked once' is unmeasured — not satisfied")
             CA.status_payload()
             CA.status_payload()
         finally:
@@ -126,8 +169,12 @@ RED_PROOF = [
         "why": "un-timing the walk puts 20 ms back into unattributedMs, where the console's own "
                "instrument cannot see its largest cost",
         "file": "control_app.py",
-        "find": '_t("journal", _kai_journal_rows)[-200:]',
-        "replace": "_kai_journal_rows()[-200:]",
+        # ⚠⚠ v3215 — RE-ANCHORED. This named the pre-v3208 call form and matched 0 times from
+        # the moment the site became a lambda, so heart2 returned INVALID, revoked the standing
+        # proof, and filed this gate as BLIND — while the law above it was also red. A gate can be
+        # wrong in two independent ways at once, and neither was visible from the green tree.
+        "find": '_t("journal", lambda: _kai_journal_rows(want_why=True))',
+        "replace": "_kai_journal_rows(want_why=True)",
         "matches": 1,
     },
 ]

@@ -2413,7 +2413,7 @@ def board_mask(ledger="sets"):
           "var _ctx=window;"
           "if(!(window.LSR&&window.LSR.getItem)){"
           "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
-          "if(_cw&&_cw.LSR&&_cw.LSR.getItem)_ctx=_cw;}catch(_hop){}}"
+          "if(_cw&&_cw.LSR&&_cw.LSR.getItem&&_cw.LSR.setItem)_ctx=_cw;}catch(_hop){}}"
           "return (function(window){try{"
           # ⚠ KS is a LIST, because "found" on his board is a UNION. bible.html's _ownedNames()
           # is `d2r_owned` UNION `keys(d2r_foundLog)` — commented "found = ledger + LEGACY owned"
@@ -2421,9 +2421,22 @@ def board_mask(ledger="sets"):
           # the mask while the board counted it. Reading the same union the board reads is what
           # makes the popcount answer the same question as the tally.
           "var KS=%s;"
+          # ⚠⚠ v3215 — NO BARE-localStorage FALLBACK, FOR THE REASON THE HOP EXISTS.
+          # v3213 added the hop and left this read as `window.LSR ? ... : localStorage.getItem(K)`.
+          # The hop only rebinds when #tvd-eng exists AND already exposes LSR; when the iframe is
+          # absent, still loading, or the catch swallows an access error, `_ctx` stays the shell,
+          # `window.LSR` is undefined, and this fell through to UNPREFIXED localStorage —
+          # publishing a mask of the unclaimed world and returning ok:true, which is verbatim what
+          # the v3213 comment above calls the defect. `chronicle_apply` refuses outright in exactly
+          # this situation ("NO RAW-localStorage FALLBACK"); this door did not. A mask nobody
+          # publishes is recoverable; a confident mask of the wrong world is not.
+          # Found by a cross-family review. [[unknown-stays-unknown]] [[cdp-probe-reads-a-guest-world]]
+          "if(!(window.LSR&&window.LSR.getItem))"
+          "return JSON.stringify({ok:false,why:'this page has no LSR, so a mask read here would "
+          "be of the wrong world'});"
           "var have={};var readAny=false;var bad=[];"
           "for(var ki=0;ki<KS.length;ki++){var K=KS[ki];"
-          "  var rawv=(window.LSR?window.LSR.getItem(K):localStorage.getItem(K));"
+          "  var rawv=window.LSR.getItem(K);"
           # ⚠ ABSENT AND UNPARSEABLE ARE DIFFERENT. A store this board has never written is not
           # an error — the legacy one is absent on a fresh install. A store that EXISTS and will
           # not parse is a real fault and must not be folded into the union as an empty set.
@@ -7938,21 +7951,50 @@ def _kai_compile_register(sess_rows):
         # docstring describes ("a single read placing an item on the floor while every other read
         # in the same session says stash"). Counting rows instead would let one frame naming six
         # items outvote six frames naming one. [[the-unjoined-end]] [[plumbing-with-no-tap]]
-        _reads = []
+        _reads, _voted = [], set()
         for _r0 in (sess_rows or []):
+            if not isinstance(_r0, dict):
+                continue      # the journal is JSON-lines; a bare list or string is not a read
             _nl0 = _r0.get("names_loc") if isinstance(_r0.get("names_loc"), dict) else {}
             for _lv in _nl0.values():
                 if _lv:
                     _reads.append({"loc": _lv})
+                    _voted.add(str(_lv).strip().lower())
         _cons, _cwhy = _rg.corroborate_location(_reads)
         if _cons:
             for _r in reg.values():
                 _rl = _r.get("loc")
                 _r["locSession"] = _cons
                 _r["locWhy"] = _cwhy
-                _r["locAgrees"] = None if _rl is None else (_rl == _cons)
-    except Exception:
-        pass          # a corroboration that cannot run must never cost him the register
+                # ⚠⚠ v3215 — NORMALISE BEFORE COMPARING, AND ONLY A REAL CONTRADICTION IS False.
+                # Two defects a cross-family review found in v3214, both of which manufacture
+                # disagreement out of nothing:
+                #   1. `_cons` comes back from `retro_gate._loc_of`, which does
+                #      `str(v).strip().lower()`. `_rl` comes from `names_loc` VERBATIM, and those
+                #      values are written unnormalised (g5_grok_eyes only setdefault()s the dict;
+                #      every other reader in the tree normalises defensively). So
+                #      names_loc {"Shako": "Stash"} against a "stash" consensus flagged the row
+                #      that SUPPLIED the majority vote as contradicting it.
+                #   2. A row whose loc the session never voted on is not a contradiction. `loc`
+                #      can also come from `reel_segments.lane_at`, whose only non-None value is
+                #      "stash", and `names_loc` carries equipped|inventory|stash|floor — so a
+                #      permanently-worn item read as "equipped" was filed as disagreeing with a
+                #      stash-dominant session that said nothing about it at all.
+                # False now means: another read in THIS session said somewhere else.
+                # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+                if _rl is None:
+                    _r["locAgrees"] = None
+                else:
+                    _n = str(_rl).strip().lower()
+                    _r["locAgrees"] = True if _n == _cons else (False if _n in _voted else None)
+    except Exception as _ce:
+        # ⚠ v3215 — STILL SWALLOWED, BUT NO LONGER SILENT. A corroboration that cannot run must
+        # never cost him the register — but a bare `pass` here is how the wire looked identical to
+        # the two versions when it was inert. The register now carries the reason on every row, so
+        # "the flag never fired" and "the flag could not run" stop looking the same.
+        for _r in reg.values():
+            _r.setdefault("locWhy", "the session could not be corroborated: %s"
+                                    % type(_ce).__name__)
     return sorted(reg.values(), key=lambda x: (x["firstSeenTs"] or 0, x["name"].lower()))
 
 
@@ -13148,11 +13190,28 @@ def rw_restore(entries, confirm=False):
           "if(typeof cur!=='object'||Array.isArray(cur))"
           "return JSON.stringify({ok:false,why:'d2r_rwMade is not an object — refusing to overwrite it'});"
           "var before=Object.keys(cur).length,added=[],kept=[];"
+          # ⚠⚠ v3215 — hasOwnProperty ON `cur` TOO, AND THE GUARD IS PRESENCE, NOT TRUTH.
+          # `if(cur[n])` broke the promise two lines of docstring above it in two ways. A legacy
+          # entry written as {"Enigma": ""} is FALSY, so the branch fell through and the snapshot
+          # date REPLACED his record — the one thing "union-only, his date wins always" forbids.
+          # And `cur['constructor']` is truthy off Object.prototype, so a runeword with such a
+          # name would be counted as KEPT while never actually being written.
           "for(var n in E){if(!Object.prototype.hasOwnProperty.call(E,n))continue;"
-          "if(cur[n]){kept.push(n);continue;}"          # union-only: his date wins, always
+          "if(Object.prototype.hasOwnProperty.call(cur,n)){kept.push(n);continue;}"          # union-only: his date wins, always
           "cur[n]=E[n];added.push(n);}"
           "window.LSR.setItem('d2r_rwMade',JSON.stringify(cur));"
           "try{if(typeof window._rwChronicleChanged==='function')window._rwChronicleChanged(added[0]||null);}catch(e){}"
+          # ⚠⚠⚠ v3215 — THE BOARD READS THESE STORES ONCE, AT BOOT, AND NEVER AGAIN.
+          # bible.html:18200 `let owned = new Set(...)` and :18564 `let rwMade = ...` are loaded
+          # at startup, there is NOT ONE `addEventListener('storage')` in the whole file (grep: 0),
+          # and `persist()` writes the IN-MEMORY copy back. So a door that writes storage under a
+          # running board is not merely invisible until reload — the next tick he makes writes the
+          # BOOT-TIME value back over it. MEASURED: after owned_restore wrote 223, the board's
+          # memory still held 52; one `persist()` would have destroyed 171 restored names.
+          # Found by a cross-family review of v3214, reproduced before being believed.
+          # ⚠ THE RELOAD IS SCHEDULED, NOT IMMEDIATE — the return value has to get out first, or
+          # the caller learns nothing about what was written. [[the-unjoined-end]]
+          "try{setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,kept:kept.length,"
           "after:Object.keys(cur).length,sample:added.slice(0,8)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
@@ -13172,6 +13231,28 @@ def rw_restore(entries, confirm=False):
     if isinstance(out, dict):
         out["applied"] = bool(out.get("ok"))
     return out
+
+
+def _confirmed(v):
+    """Did the CALLER actually say yes? -> bool
+
+    ⚠⚠ v3216 — `bool(body.get("confirm"))` SAYS YES TO THE STRING "false". A cross-family (OpenAI)
+    review of v3214 found it and ranked it first: JSON bodies routinely carry booleans as text, so
+    `{"confirm": "false", "names": [...]}` coerced to True and PERFORMED the restore that the body
+    was explicitly declining. Every confirm-gated door in this file had the same coercion, and each
+    of them guards a write to his ledger.
+
+    ⚠ IT IS A WHITELIST, NOT A BLACKLIST. Anything this function does not recognise as an explicit
+    yes is a no, because the failure direction that matters here is acting without being asked.
+    "0", "", "no", "off" and an absent key are all no; so is any shape nobody anticipated.
+    """
+    if v is True:
+        return True
+    if isinstance(v, str):
+        return v.strip().lower() in ("true", "yes", "y", "1", "on")
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return v == 1
+    return False
 
 
 def owned_restore(names, confirm=False):
@@ -13199,6 +13280,18 @@ def owned_restore(names, confirm=False):
     the wrong profile's possession list. LSR is what supplies the prefix; the hop is how this door
     obeys that rather than dodging it. [[the-unjoined-end]] [[d2r-ladder-doctrine]]
     """
+    # ⚠ THE SHAPE IS CHECKED BEFORE THE WINDOW, DELIBERATELY. A malformed body is malformed
+    # whether or not a board is open, and putting the window check first made this guard
+    # unreachable from any test that does not own a live pywebview window — which is every test.
+    # An input guard nothing can exercise is the next one to rot. [[feedback-blind-fixture-green-gate]]
+    # ⚠⚠ v3215 — A STRING IS ITERABLE, AND THIS APPENDED ITS LETTERS. A cross-family review of
+    # v3214 found it: `POST {"names": "Shako", "confirm": true}` iterated the str, produced
+    # ['S','h','a','k','o'], told him "5 name(s) would be added to what he owns", and wrote five
+    # one-letter entries into a union-only store with no un-do. A dict body would have restored
+    # its KEYS. `rw_restore` guards its input shape one function above; this one did not.
+    if not isinstance(names, (list, tuple)):
+        return {"ok": False, "why": "names must be a list — a string would be read one letter at "
+                                    "a time and a dict would restore its keys"}
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
@@ -13229,7 +13322,7 @@ def owned_restore(names, confirm=False):
           "var _ctx=window;"
           "if(!(window.LSR&&window.LSR.getItem)){"
           "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
-          "if(_cw&&_cw.LSR&&_cw.LSR.getItem)_ctx=_cw;}catch(_hop){}}"
+          "if(_cw&&_cw.LSR&&_cw.LSR.getItem&&_cw.LSR.setItem)_ctx=_cw;}catch(_hop){}}"
           "return (function(window){try{"
           "if(!(window.LSR&&window.LSR.getItem&&window.LSR.setItem))"
           "return JSON.stringify({ok:false,why:'this page has no LSR, so what he owns would land "
@@ -13250,6 +13343,17 @@ def owned_restore(names, confirm=False):
           "try{if(typeof window.renderGrailProgress==='function')window.renderGrailProgress();}catch(e){}"
           "try{if(typeof window.renderVault==='function')window.renderVault();}catch(e){}"
           "try{if(typeof window._writeGrailFarm==='function')window._writeGrailFarm();}catch(e){}"
+          # ⚠⚠⚠ v3215 — THE BOARD READS THESE STORES ONCE, AT BOOT, AND NEVER AGAIN.
+          # bible.html:18200 `let owned = new Set(...)` and :18564 `let rwMade = ...` are loaded
+          # at startup, there is NOT ONE `addEventListener('storage')` in the whole file (grep: 0),
+          # and `persist()` writes the IN-MEMORY copy back. So a door that writes storage under a
+          # running board is not merely invisible until reload — the next tick he makes writes the
+          # BOOT-TIME value back over it. MEASURED: after owned_restore wrote 223, the board's
+          # memory still held 52; one `persist()` would have destroyed 171 restored names.
+          # Found by a cross-family review of v3214, reproduced before being believed.
+          # ⚠ THE RELOAD IS SCHEDULED, NOT IMMEDIATE — the return value has to get out first, or
+          # the caller learns nothing about what was written. [[the-unjoined-end]]
+          "try{setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,"
           "after:cur.length,sample:added.slice(0,8)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
@@ -13290,6 +13394,21 @@ def board_tick(name, kind, want):
     js = (
         "(function(){try{"
         "var n=%s, kind=%s, want=%s;"
+        # ⚠⚠ v3215 — board_tick WAS LEFT OUT OF THE v3213 HOP SWEEP, AND IT IS THE DOOR THE UI
+        # ACTUALLY PRESSES. An AST scan for the string 'tvd-eng' returned board_mask,
+        # chronicle_apply, board_ownership, rw_restore and owned_restore — not this one. So on the
+        # exact console state that produced REG-1008's three "this page has no LSR" refusals,
+        # every /api/board_tick press answered 'no toggleSetPiece' / 'no toggleOwned' about the
+        # CONSOLE SHELL, or compared against the bare world's set list. The sweep was incomplete
+        # and `test_a_hop_shadows_the_window`'s CONTEXT_HOPS did not name it, so nothing would
+        # ever have caught it. Same shadowing as its siblings: a LOCAL passed as a PARAMETER named
+        # `window`. [[sweep-dont-ask]] [[the-unjoined-end]]
+        "var _ctx=window;"
+        "if(typeof window.toggleSetPiece!=='function'&&typeof window.toggleOwned!=='function'){"
+        "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+        "if(_cw&&(typeof _cw.toggleSetPiece==='function'||typeof _cw.toggleOwned==='function'))"
+        "_ctx=_cw;}catch(_hop){}}"
+        "return (function(window){try{"
         "if(kind==='set'){"
         "  var has=false;"
         "  try{var sp=JSON.parse((window.LSR?window.LSR.getItem('d2r_setPieces'):localStorage.getItem('d2r_setPieces'))||'[]');has=sp.indexOf(n)>=0;}catch(e2){}"
@@ -13311,6 +13430,7 @@ def board_tick(name, kind, want):
         "if(typeof window.toggleOwned!=='function') return JSON.stringify({ok:false,why:'no toggleOwned'});"
         "window.toggleOwned(n);"
         "return JSON.stringify({ok:true,kind:'unique'});"
+        "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
         "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
         % (json.dumps(n), json.dumps(k), want_js)
     )
@@ -21011,10 +21131,41 @@ def ledger_restore_apply(confirm=False):
     except Exception as e:
         return {"ok": False, "planned": plan, "applied": False,
                 "why": "the board refused the restore: %s" % str(e)[:90]}
+    # ══ v3215 — AND THE TWO STORES THE CHRONICLE DOOR CANNOT CARRY ══════════════════════════
+    # `plan()['why']` has ended with "...need their own path" since v2735. v3213 and v3214 built
+    # two of those paths and a cross-family review found that NOTHING CALLED THEM: `rw_restore`
+    # and `owned_restore` existed, had routes, and had no caller anywhere in the tree. This is
+    # that caller. MEASURED on his live board before it existed: the chronicle restore moved
+    # foundLog 363->445 and setPieces 83->133 while owned sat at 52 against a snapshot's 172 and
+    # rwMade at 0 against 99 — the restore reported success having covered two stores of four.
+    #
+    # ⚠ EACH DOOR ANSWERS FOR ITSELF. A failure in one is reported beside the others rather than
+    # collapsed into the top-level ok, because "the uniques came back and the runewords did not"
+    # is the single most misleading thing this function could say. [[the-unjoined-end]]
+    _extra, _extra_why = {}, ""
+    try:
+        _extra, _extra_why = _LR.backed_up_only_from(plan)
+    except Exception as _be:
+        _extra_why = "the backup could not be re-read for the other stores (%s)" % type(_be).__name__
+    _also = {}
+    if _extra.get("owned"):
+        try:
+            _also["owned"] = owned_restore(_extra["owned"], confirm=True)
+        except Exception as _oe:
+            _also["owned"] = {"ok": False, "why": "owned_restore raised %s" % type(_oe).__name__}
+    if _extra.get("rwMade"):
+        try:
+            _also["rwMade"] = rw_restore(_extra["rwMade"], confirm=True)
+        except Exception as _re:
+            _also["rwMade"] = {"ok": False, "why": "rw_restore raised %s" % type(_re).__name__}
     return {"ok": bool((res or {}).get("ok")), "planned": plan, "applied": bool((res or {}).get("ok")),
             "board": res,
-            "why": ("asked the board to put back %d name(s) from %s"
-                    % (plan.get("missingTotal") or 0, plan.get("file")))}
+            "alsoRestored": _also or None,
+            "alsoWhy": _extra_why or None,
+            "why": ("asked the board to put back %d name(s) from %s%s"
+                    % (plan.get("missingTotal") or 0, plan.get("file"),
+                       ("; and %s through their own doors" % ", ".join(sorted(_also)))
+                       if _also else "; nothing else in that backup needed its own door"))}
 
 
 def vault_seen_load(strict=False):
@@ -28636,7 +28787,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3214",
+        "ver": "v3215",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -32218,12 +32369,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/owned_restore":
             # v3214 — the possession half of a restore. `confirm` required, same as its siblings.
-            self._json(200, owned_restore(body.get("names"), confirm=bool(body.get("confirm"))))
+            self._json(200, owned_restore(body.get("names"), confirm=_confirmed(body.get("confirm"))))
             return
         if path == "/api/rw_restore":
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason
             # ledger_restore_apply requires it: putting a ledger back is a deliberate act.
-            self._json(200, rw_restore(body.get("entries"), confirm=bool(body.get("confirm"))))
+            self._json(200, rw_restore(body.get("entries"), confirm=_confirmed(body.get("confirm"))))
             return
         if path == "/api/board_tick":
             # HIS ruling, HIS door. The console never writes the ledger.
@@ -32245,7 +32396,7 @@ class Handler(BaseHTTPRequestHandler):
             # ⚠ `confirm` is required. The backup is the automatic half and never needs him; a
             # restore is a deliberate act, because an automatic one could resurrect a state he
             # meant to leave behind and nothing downstream could tell that from a repair.
-            self._json(200, ledger_restore_apply(confirm=bool(body.get("confirm"))))
+            self._json(200, ledger_restore_apply(confirm=_confirmed(body.get("confirm"))))
             return
         if path == "/api/board_restore_dates":
             self._json(200, board_restore_dates(body.get("stampPrefix") or body.get("stamp") or ""))

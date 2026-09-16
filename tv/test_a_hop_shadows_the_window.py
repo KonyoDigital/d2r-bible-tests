@@ -46,8 +46,12 @@ _SHADOW = re.compile(r"function\s*\(\s*window\b")
 # `contentWindow` directly and never rebinds anything — demanding a shadow from those would be a
 # law about a string rather than about the mechanism, and the first version of this file did
 # exactly that and failed 14 innocent literals. [[sabotage-is-usually-the-wrong-one]]
+# ⚠ v3215 — `board_tick` JOINED THE LIST. It is the door the console UI actually presses and it
+# was missing from the v3213 sweep entirely: an AST scan for 'tvd-eng' returned five doors and
+# not this one, so every tick addressed the console shell. A named list only protects what it
+# names, which makes leaving one out the quietest failure available. [[sweep-dont-ask]]
 CONTEXT_HOPS = ("chronicle_apply", "board_ownership", "rw_restore", "board_mask",
-                "owned_restore")
+                "owned_restore", "board_tick")
 
 
 def _js_literals():

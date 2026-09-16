@@ -172,6 +172,47 @@ def plan(route, current, d=None):
     }
 
 
+def backed_up_only_from(plan_out, d=None):
+    """The three stores the chronicle door cannot carry, out of the SAME backup plan() chose.
+
+    ══ v3215 — THE OTHER HALF OF `BACKED_UP_ONLY`, WHICH HAS BEEN A SENTENCE SINCE v2735 ════════
+    `plan()['why']` has always ended "...are backed up but cannot be restored through the chronicle
+    door and need their own path", and `notRestorableHere` publishes the list. v3213 and v3214
+    built two of those paths — `rw_restore` and `owned_restore` — and a cross-family review then
+    found the obvious thing: **nothing called them.** Two doors, a route each, and no caller
+    anywhere in the tree. control_ui.html:8099 already records CI reddening v2735 for exactly this
+    with `/api/ledger_restore_*`: "a route with no caller is plumbing with no tap".
+
+    ⚠ IT RETURNS WHAT THE BACKUP HOLDS, NOT A DIFF. `owned` and `rwMade` go through union-only
+    doors that skip what is already present, so the gap is computed by the board against its own
+    live store rather than guessed at here from a snapshot that may be older than the screen.
+    `gameFound` still has no door and is reported as such rather than silently dropped.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    """
+    if not (isinstance(plan_out, dict) and plan_out.get("ok") and plan_out.get("file")):
+        return {}, "no plan to read a backup from"
+    d = d or BACKUP_DIR
+    path = os.path.join(d, plan_out["file"])
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            blob = json.load(fh)
+    except Exception as e:
+        return {}, "the backup could not be re-read (%s)" % str(e)[:60]
+    led = (blob or {}).get("ledger") or {}
+    out = {}
+    owned = led.get("owned")
+    if isinstance(owned, list) and owned:
+        out["owned"] = owned
+    rw = led.get("rwMade")
+    if isinstance(rw, dict) and rw:
+        out["rwMade"] = rw
+    why = ""
+    if isinstance(led.get("gameFound"), dict) and led["gameFound"]:
+        why = ("gameFound carries %d row(s) and still has no door — it is NOT restored here, and "
+               "saying so is the point" % len(led["gameFound"]))
+    return out, why
+
+
 def proposal_from(plan_out):
     """Shape a plan into what the BOARD already accepts. -> dict or None. Writes nothing.
 

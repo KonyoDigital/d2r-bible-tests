@@ -56,6 +56,10 @@ def _rows(*locs):
     return out
 
 
+# Three items every D2 player knows, checked against the real DB inside the tests that use them.
+MINORITY, A, B = "shako", "vampire gaze", "stone of jordan"
+
+
 class TheSessionGetsAVoteOnWhere(unittest.TestCase):
 
     def test_the_compiler_actually_asks(self):
@@ -90,13 +94,64 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
         self.assertIn('_r["locAgrees"]', window, "nothing records whether the row agrees")
 
     def test_a_row_with_NO_loc_is_None_not_False(self):
-        """'nobody said' and 'they disagreed' are different facts."""
-        src = _src()
-        i = src.find('_r["locAgrees"]')
-        self.assertGreater(i, 0)
-        self.assertIn("None if _rl is None else", src[i:i + 120],
-                      "a row that never claimed a location is being flagged as DISAGREEING, which "
-                      "turns silence into a contradiction")
+        """'nobody said' and 'they disagreed' are different facts — asserted on BEHAVIOUR.
+
+        ⚠ v3215 — this read the source for the literal `None if _rl is None else`, so rewriting
+        the same rule as an if/else broke it while the behaviour was unchanged and, in fact,
+        improved. A law that pins an EXPRESSION forbids refactors instead of forbidding defects.
+        [[source-reading-guard]]
+        """
+        rows = [
+            {"lane": "deep", "ts": 1000, "frameId": "f0",
+             "names": [MINORITY], "names_loc": {MINORITY: "stash"}},
+            # this one is NAMED but its location is never stated by anybody
+            {"lane": "deep", "ts": 1001, "frameId": "f1", "names": [A], "names_loc": {}},
+        ]
+        by = {r["name"]: r for r in ca._kai_compile_register(rows)}
+        quiet = by.get(A)
+        self.assertIsNotNone(quiet, "the register lost the row that claimed no location")
+        self.assertIsNone(quiet.get("locAgrees"),
+                          "a row that never claimed a location is flagged %r — silence is being "
+                          "turned into a contradiction" % quiet.get("locAgrees"))
+
+    def test_a_row_the_session_never_voted_on_is_not_a_contradiction(self):
+        """⚠ v3215 — `equipped` against a stash consensus is SILENCE, not disagreement.
+
+        `loc` can also come from reel_segments.lane_at, whose only non-None value is 'stash',
+        while names_loc carries equipped|inventory|stash|floor. Before this, a permanently-worn
+        item read as 'equipped' was filed as contradicting a stash session that had said nothing
+        about it. False must mean: another read in THIS session said somewhere else.
+        """
+        rows = [
+            {"lane": "deep", "ts": 1000, "frameId": "f0",
+             "names": [MINORITY], "names_loc": {MINORITY: "equipped"}},
+            {"lane": "deep", "ts": 1001, "frameId": "f1",
+             "names": [A], "names_loc": {A: "stash"}},
+            {"lane": "deep", "ts": 1002, "frameId": "f2",
+             "names": [B], "names_loc": {B: "stash"}},
+        ]
+        by = {r["name"]: r for r in ca._kai_compile_register(rows)}
+        worn = by.get(MINORITY)
+        self.assertIsNotNone(worn, "the register lost the equipped row")
+        self.assertIs(False, worn.get("locAgrees"),
+                      "'equipped' WAS voted in this session, so disagreeing with a stash "
+                      "consensus is a real contradiction and must read False")
+
+    def test_case_and_padding_do_not_manufacture_a_contradiction(self):
+        """⚠ v3215 — the consensus is lowercased by retro_gate._loc_of; names_loc is verbatim."""
+        rows = [
+            {"lane": "deep", "ts": 1000, "frameId": "f0",
+             "names": [MINORITY], "names_loc": {MINORITY: "  Stash "}},
+            {"lane": "deep", "ts": 1001, "frameId": "f1",
+             "names": [A], "names_loc": {A: "stash"}},
+        ]
+        by = {r["name"]: r for r in ca._kai_compile_register(rows)}
+        row = by.get(MINORITY)
+        self.assertIsNotNone(row, "the register lost the row")
+        self.assertIs(True, row.get("locAgrees"),
+                      "a row reading '  Stash ' is flagged %r against a 'stash' consensus it "
+                      "helped produce — case and padding are manufacturing disagreement"
+                      % row.get("locAgrees"))
 
     # ── the underlying function still behaves ────────────────────────────────────────────
     def test_a_unanimous_session_agrees(self):
@@ -132,7 +187,7 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
         # `_kai_fullnames()` and that `_register_is_junk` does not catch. They would have made this
         # law pass over garbage. Three items every D2 player knows, asserted to exist so the law
         # FAILS LOUDLY if the item DB ever stops carrying them rather than quietly testing nothing.
-        minority, a, b = "shako", "vampire gaze", "stone of jordan"
+        minority, a, b = MINORITY, A, B
         _full = ca._kai_fullnames()
         for _n in (minority, a, b):
             self.assertIn(_n, _full,
@@ -159,12 +214,23 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
 
 
 RED_PROOF = [
-    ("control_app.py", "_r[\"locAgrees\"] = None if _rl is None else (_rl == _cons)",
-     "_r[\"locAgrees\"] = (_rl == _cons)",
+    # ⚠ v3215 — re-anchored: v3215 rewrote the ternary as an if/else, so the old `find` matched
+    # 0 times and heart2 would have filed this gate BLIND.
+    ("control_app.py", '_r["locAgrees"] = None\n                else:',
+     '_r["locAgrees"] = False\n                else:',
      "test_a_row_with_NO_loc_is_None_not_False"),
-    ("control_app.py", "import retro_gate as _rg\n        _cons, _cwhy = _rg.corroborate_location(sess_rows)",
-     "import retro_gate as _rg\n        _cons, _cwhy = (None, '')",
-     "test_the_compiler_actually_asks"),
+    # ⚠⚠ v3215 — THIS ANCHOR NAMED v3212's INERT FORM AND MATCHED 0 TIMES THE MOMENT v3214
+    # FIXED IT. heart2._run_gate counts the `find` string in the source: got != want prints
+    # "the tamper matched 0 time(s), expected 1. The SABOTAGE is wrong, not the law" and returns
+    # INVALID, which revokes the standing proof and files the gate under BLIND. So this
+    # brand-new gate would have shipped UNPROVABLE on its first proving run — a red-proof that
+    # cannot run is the same nothing as no red-proof. Found by a cross-family review.
+    # ⚠ THE TAMPER HAS TO DEFEAT THE LAW, NOT JUST DIFFER FROM IT: replacing the reads with an
+    # empty list makes the consensus None, which is exactly what
+    # `test_the_minority_row_is_flagged_and_its_loc_survives` refuses.
+    ("control_app.py", "_cons, _cwhy = _rg.corroborate_location(_reads)",
+     "_cons, _cwhy = _rg.corroborate_location([])",
+     "test_the_minority_row_is_flagged_and_its_loc_survives"),
 ]
 
 if __name__ == "__main__":
