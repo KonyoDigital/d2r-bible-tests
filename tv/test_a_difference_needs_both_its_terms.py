@@ -41,6 +41,11 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 
 def _js_of(func_name, var="js"):

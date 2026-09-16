@@ -34718,3 +34718,13 @@ node against a stubbed board whose second read throws, and reads the JSON back. 
 dropping the declaration → 3 errors (the ReferenceError the text version could not see); restoring
 the v3224 shape → 2 failures. It also keeps a baseline case proving the honest path still produces
 a real delta, because a guard that refuses everything is as useless as one that refuses nothing.
+
+⚠ **The push gate refused v3230 on its first attempt, and it was right.**
+`test_every_cli_that_prints_non_ascii_is_encoding_safe` caught that this new gate prints `⚠` and
+`★` without calling `console_safe.enable()` — so on his Windows console (cp1255) it would crash
+**while reporting**, and a clean tree would exit non-zero. My four other new gates this session all
+have it; this one I wrote without. The suite ran 2,235 tests in 579s and that was the only failure.
+
+⚠ And the push's task notification said **"exit code 0"** — the wrapper's status, not the push's.
+The real signal was `PUSH_EXIT=1` and `error: failed to push some refs`, which is why the exit code
+is written into the log and read from there. `[[exit-status-of-the-block]]`
