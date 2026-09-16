@@ -104,10 +104,20 @@ def measure():
     return ids, seen, missing
 
 
-def _why_unmeasurable(missing):
-    """Say every reason the map could not be built, not the first one. -> str"""
+def _why_unmeasurable(missing, page_unreadable):
+    """Say every reason the map could not be built, not the first one. -> str
+
+    ⚠ THE CALLER TELLS IT; IT DOES NOT LOOK AGAIN. The first cut called `surfaces()` here, which
+    re-opens control_ui.html — so between `measure()` deciding the page was unreadable and this
+    sentence being built, the file could become readable again and the reason would VANISH from
+    a refusal that still fires. Not hypothetical in this repo: `bump_version.py` writes the
+    surfaces with an ATOMIC REPLACE, and an atomic replace is exactly a window in which a path
+    is briefly missing and then fine. The refusal would read "no reason recorded".
+    Found by a cross-family review of v3233, the version that added this helper.
+    [[stale-reading]] [[unknown-stays-unknown]]
+    """
     bits = []
-    if surfaces() is None:
+    if page_unreadable:
         bits.append("control_ui.html could not be read")
     if missing:
         bits.append("these watchers could not be read: %s" % ", ".join(missing))
@@ -125,7 +135,7 @@ def render():
             # v3233 — NAME BOTH. `missing` being non-empty used to hide that the console page
             # was ALSO unreadable, so a double failure reported as a watcher problem and sent
             # the reader to the wrong file. [[zero-needs-a-denominator]]
-            % _why_unmeasurable(missing))
+            % _why_unmeasurable(missing, ids is None))
     pct = (100.0 * len(seen) / len(ids)) if ids else 0.0
     lines = [
         "# THE HEART — what watches the console",
@@ -173,7 +183,7 @@ def main(argv=None):
     # v3231 — an unmeasurable map is a REFUSAL at every door, not a quiet zero in one of them.
     if ids is None:
         print("🔴 the heart map could not be measured: %s"
-              % _why_unmeasurable(missing))
+              % _why_unmeasurable(missing, ids is None))
         print("   UNKNOWN is not 0 surfaces. Refusing rather than rendering an empty heart.")
         return 1
     if "--print" in argv:

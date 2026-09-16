@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3234",
+  "ver": "v3235",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3234: the ledger authority law matched a comment that explains the very rule it protects, and the source window ratchet counted character peeks as windows while missing that two of its silent entries were gates I had just written. members are parsed now, peeks are excluded with every site checked by hand, and my own windows are anchored at both ends",
+  "note": "v3235: the heart map helper decided whether to name an unreadable console page by opening the file a second time, so an atomic replace during a bump could hand it a healthy file and strip the reason out of a refusal that still fires. the caller tells it now. my first law for this pointed the wrong way and a sabotage went straight through it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

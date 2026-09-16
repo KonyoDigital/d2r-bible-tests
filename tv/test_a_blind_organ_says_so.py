@@ -172,10 +172,29 @@ class TestABlindOrganSaysSo(unittest.TestCase):
         real = HM._read
         HM._read = lambda name: None
         self.addCleanup(setattr, HM, "_read", real)
-        why = HM._why_unmeasurable(list(HM.WATCHERS[:1]))
+        # v3235 — the helper is TOLD the page was unreadable rather than looking again: a
+        # re-read could find the file back (bump_version replaces it atomically) and drop the
+        # reason from a refusal that still fires.
+        why = HM._why_unmeasurable(list(HM.WATCHERS[:1]), True)
         self.assertIn("control_ui.html", why,
                       "the console page was unreadable too and the refusal did not say so: %r" % why)
         self.assertIn("watchers", why, "the watcher half was dropped instead: %r" % why)
+        # ⚠⚠ AND IT MUST NOT RE-READ — TESTED IN THE DIRECTION THE RACE ACTUALLY RUNS.
+        # measure() found the page unreadable; by the time the sentence is built the file is
+        # BACK (bump_version replaces the surfaces atomically, and an atomic replace is exactly
+        # a brief window where a path is missing and then fine). A helper that looks again sees
+        # a healthy file and drops the reason from a refusal that still fires — "no reason
+        # recorded". So: disk FINE, caller says UNREADABLE, and the sentence must still say so.
+        #
+        # ⚠ My first version of this law tested the opposite direction and a sabotage that
+        # re-read the disk sailed straight through it — green over code that had the defect.
+        # [[sabotage-is-usually-the-wrong-one]] [[stale-reading]]
+        HM._read = real                       # the page is readable again, right now
+        recovered = HM._why_unmeasurable(list(HM.WATCHERS[:1]), True)
+        self.assertIn("control_ui.html", recovered,
+                      "the page came back between the finding and the sentence, and the helper "
+                      "looked AGAIN instead of being told — so the refusal no longer says why "
+                      "it refused: %r" % recovered)
 
     def test_a_real_empty_list_is_still_a_real_zero(self):
         """⚠ The other half: genuinely no sessions must NOT be reported as unknown."""

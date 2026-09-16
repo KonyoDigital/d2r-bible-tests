@@ -35018,3 +35018,30 @@ exactly was the tell. Same instrument error as reading `gate(row)` for `gate(row
 Result: **total 53 → 44, silent 4 → 2, both exactly at their ceilings, gate green.** The ceiling
 was correct all along; the detector had been over-counting. Red-proofed both ways: a real N=500
 window → red; an N=2 peek → green.
+
+## REG-1040 — the refusal would have lost its reason to an atomic file replace
+
+**2026-09-17 · v3235 · `tv/heart_map.py`** — *found by a cross-family review of v3233, the version
+that added the helper.*
+
+`_why_unmeasurable()` called `surfaces()` to decide whether to say "control_ui.html could not be
+read" — which **re-opens the file**. So between `measure()` finding the page unreadable and this
+sentence being built, the file could become readable again and the reason would vanish from a
+refusal that still fires, leaving `"no reason recorded"`.
+
+⚠ **Not hypothetical in this repo.** `bump_version.py` writes the surfaces with an **atomic
+replace**, and an atomic replace is exactly a window in which a path is briefly absent and then
+fine. The heart map is regenerated on every bump, so the two run within seconds of each other.
+
+**Fixed:** the caller passes what it found; the helper never looks twice.
+
+⚠⚠ **My first law for this tested the wrong direction and a sabotage walked straight through it.**
+It asserted that with the page readable and the caller saying "fine", the message omits the page —
+but a re-reading helper also sees a healthy file there, so it passed. The race runs the other way:
+**disk FINE, caller says UNREADABLE**, and the sentence must still say so. Green over code that
+had the defect, in the gate written to catch it. `[[sabotage-is-usually-the-wrong-one]]`
+
+⚠ A second finding from the same review — that `console_doctor`'s `"; ".join(...)` over evidence
+would crash on a None `checked` — **did not reproduce**: `_row` stores evidence as a list of key
+NAMES (`['checked', 'disagreed']`), so the join is over strings. Reported, checked, not acted on.
+`[[review-after-ship]]` — reproduce before believing.
