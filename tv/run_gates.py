@@ -650,6 +650,21 @@ GATES = [
              "the fix reports staleness rather than recomputing a verdict; the law also refuses "
              "any witness constant appearing in the panel. resultFromDisk counts as stale ON ITS "
              "OWN: a disk proposal can read four minutes old and describe a dead process."),
+    Gate("test_the_eye_is_shown_valid_code",
+         [sys.executable, os.path.join(HERE, "test_the_eye_is_shown_valid_code.py")], 120,
+         why="the ship gate will not push until a DIFFERENT model family has looked, so the "
+             "PAYLOAD BUILDER is part of the gate - and it was corrupting its own input. "
+             "MEASURED: Grok returned a FATAL finding on v3201, that a block of prose sat in the "
+             "JavaScript with no opening slash-star and the source could not parse. It was "
+             "reading its input correctly; the FILE parses in a real JS engine. _strip_comments "
+             "tested each added line independently, and this repo writes block comments as a "
+             "title line followed by indented prose with NO leading asterisk - so the opener "
+             "matched and was dropped and every continuation line was kept. The eye was handed "
+             "orphaned prose inside executable code, a syntax error the transport invented. That "
+             "is every multi-line block comment in this repo on every look it has ever done, "
+             "INCLUDING the ones it called clean. Proven both ways on one commit and one "
+             "reviewer: corrupted payload gave a fatal finding, clean payload gave no defects "
+             "found."),
     Gate("test_a_clean_look_is_filed_as_clean",
          [sys.executable, os.path.join(HERE, "test_a_clean_look_is_filed_as_clean.py")], 120,
          why="the ship gate refuses to push until a DIFFERENT model family has looked at the "

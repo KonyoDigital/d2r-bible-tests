@@ -162,15 +162,70 @@ _JS_COMMENT = re.compile(r"^\s*(/\*|\*|//)")
 
 
 def _strip_comments(diff):
-    """Drop comment-only ADDED lines. The code still reads; the author's account of it does not."""
+    """Drop comment-only ADDED lines. The code still reads; the author's account of it does not.
+
+    ⚠⚠ v3203 — IT DROPPED THE OPENER AND KEPT THE BODY, AND THAT MANUFACTURED A P1.
+    MEASURED 2026-09-16 on the v3201 look. Grok returned a fatal finding: *"the edit inserts a
+    block of explanatory prose directly into the JavaScript source without an opening `/*` ...
+    the resulting string is not syntactically valid JS."* It was reading the payload correctly.
+    The FILE is fine — `js_syntax_gate.py` parses it in a real JS engine — and the real diff
+    carried 4 added lines with the warning glyph while the payload carried 1.
+
+    THE MECHANISM: the old loop matched each added line against `_JS_COMMENT` INDEPENDENTLY. This
+    codebase writes block comments as
+
+        /* ⚠⚠ TITLE — first line
+           continuation prose with NO leading asterisk
+           ... */
+
+    so the opener matched and was dropped, and every continuation line did not match and was
+    KEPT. The eye was then handed orphaned prose sitting in the middle of executable code — a
+    syntax error the transport invented. That is not a one-off: it is EVERY multi-line block
+    comment in this repo, on EVERY look this instrument has ever done, including the ones it
+    called clean. An instrument that corrupts its own input has no verdict worth the name.
+    [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+
+    ⚠ THE STATE RESETS AT EVERY HUNK AND FILE BOUNDARY. A diff shows hunks, so a block comment
+    can be opened inside one and closed in a part that is not shown; without a reset an unclosed
+    opener would swallow the whole remainder of the payload — trading manufactured findings for
+    silently missing code, which is the worse direction.
+    """
     keep = []
+    in_block = False
     for ln in diff.splitlines():
-        if ln.startswith("+") and not ln.startswith("+++"):
+        # continuity is only claimable inside one hunk of one file
+        if ln.startswith("diff --git") or ln.startswith("@@") or ln.startswith("+++") \
+                or ln.startswith("---"):
+            in_block = False
+            keep.append(ln)
+            continue
+        if ln.startswith("+"):
             body = ln[1:]
+            if in_block:
+                if "*/" in body:
+                    in_block = False
+                    tail = body.split("*/", 1)[1]
+                    if tail.strip():          # real code sharing the closing line survives
+                        keep.append("+" + tail)
+                continue
             if _PY_COMMENT.match(body) or _JS_COMMENT.match(body) or not body.strip():
+                if _opens_block(body):
+                    in_block = True
+                continue
+            if _opens_block(body):            # code, then a block comment that runs on
+                head = body.split("/*", 1)[0]
+                in_block = True
+                if head.strip():
+                    keep.append("+" + head)
                 continue
         keep.append(ln)
     return "\n".join(keep)
+
+
+def _opens_block(body):
+    """Does this line open a /* block that does NOT close on the same line?"""
+    i = body.find("/*")
+    return i >= 0 and "*/" not in body[i + 2:]
 
 
 def payload_for(sha):
