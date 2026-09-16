@@ -119,9 +119,57 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                       "nothing detects a station missing from the river order")
 
     def test_an_empty_row_HIDES_itself(self):
-        self.assertIn("if (!seen.length) { bar.hidden = true;", self.fn,
-                      "with nothing stamped the bar renders empty, which reads as 'no stations "
-                      "exist' when the truth is that the river has not answered")
+        """⚠ v3214 — TWO BRANCHES NOW, BECAUSE AN EMPTY BAR WAS HIDING TWO OPPOSITE FACTS.
+
+        The original assertion was the literal text `if (!seen.length) { bar.hidden = true;`,
+        which pinned the FORMATTING of one line rather than the behaviour. It was right that a
+        bar with nothing stamped must not read as "no stations exist" — but `bar.hidden = true`
+        fired in two situations that are not the same:
+
+          · the river has not answered yet            -> hiding is correct, the header says so
+          · the river HAS answered and no card is stamped -> that is a DEFECT, and hiding buried it
+
+        The second is the unjoined end #227 named: the strip above prints station counts from
+        /api/river while the grid beside it carries none. So this now pins BOTH branches, and
+        does it on structure rather than on a byte sequence any reformat would break.
+        [[zero-needs-a-denominator]] [[the-unjoined-end]] [[source-reading-guard]]
+        """
+        self.assertIn("if (!seen.length)", self.fn,
+                      "nothing branches on an unstamped shelf at all, so a bar with no chips "
+                      "renders empty and reads as 'no stations exist'")
+        # ⚠⚠ THE BRANCH ITSELF, BY BRACE COUNTING — NOT A FIXED WINDOW OF CHARACTERS.
+        # A `[:1400]` slice ran past the end of this branch into the chip builder below, where
+        # `SHELF_RIVER_ORDER` and `SHELF_RIVER_LABELS` both CONTAIN the substring "SHELF_RIVER".
+        # A sabotage that deleted the river consultation outright stayed GREEN, because the
+        # assertion was being satisfied by two unrelated identifiers further down — which is the
+        # exact failure the test three below this one already records ("a guard a rename satisfies
+        # is measuring the alphabet"). Anchor BOTH ends or the reach is the finding.
+        # [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]
+        _i = self.fn.index("if (!seen.length)")
+        _o = self.fn.index("{", _i)
+        _d, _j = 0, _o
+        while _j < len(self.fn):
+            if self.fn[_j] == "{":
+                _d += 1
+            elif self.fn[_j] == "}":
+                _d -= 1
+                if _d == 0:
+                    break
+            _j += 1
+        tail = self.fn[_o:_j + 1]
+        self.assertLess(len(tail), 1400,
+                        "the unstamped branch is %d chars — too large to be the branch, so this "
+                        "is reading past it again" % len(tail))
+        self.assertIn("bar.hidden = true", tail,
+                      "an unstamped shelf no longer hides the bar, so an empty chip row is shown "
+                      "as though the river had answered with nothing")
+        self.assertIn("Object.keys(SHELF_RIVER", tail,
+                      "the empty branch does not consult the river, so it cannot tell 'not "
+                      "answered yet' from 'answered, and not one card is stamped' — and those "
+                      "are opposite facts")
+        self.assertIn("bar.hidden = false", tail,
+                      "there is no branch that SHOWS the bar when the river answered and no card "
+                      "carries a stamp, so the river-vs-grid mismatch stays invisible")
 
     def test_the_count_says_what_it_is_OVER(self):
         """[[zero-needs-a-denominator]] — a bare number on a chip is a figure with no scale."""

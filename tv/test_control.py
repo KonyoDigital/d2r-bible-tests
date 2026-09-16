@@ -16806,10 +16806,21 @@ class TestV1923TheGameGetsAVetoOnTheWritePath(unittest.TestCase):
         steadier: the binding is the one place it must appear whichever branch the script takes.
         [[feedback-suspect-the-instrument]]"""
         def _ejs(w, js, timeout=8.0):
+            # ⚠⚠ v3213 — AND IT BROKE AGAIN, EXACTLY AS THE DOCSTRING PREDICTED. The terminator
+            # was the literal text that happened to follow the binding, so when v3213 inserted
+            # `var _ctx=window;` between them, `js[i:j]` became `<json>;var _ctx=window` — not
+            # JSON. `json.loads` raised INSIDE the fake board, chronicle_apply's own
+            # `except Exception` swallowed it as "the board refused the apply", `captured` stayed
+            # empty, and all five cases read `sent == []`. Five red tests, zero product defects.
+            #
+            # A JSON value knows where it ends. `raw_decode` finds that end itself, so this no
+            # longer cares what follows the binding — which is the only way a fixture that reads
+            # the implementation as TEXT can stop being a tripwire for unrelated edits.
+            # [[feedback-suspect-the-instrument]] [[source-reading-guard]]
             marker = "var P="
             i = js.index(marker) + len(marker)
-            j = js.index(";if(typeof window.chronicleApply", i)
-            captured.append(json.loads(js[i:j]))
+            payload, _end = json.JSONDecoder().raw_decode(js, i)
+            captured.append(payload)
             return json.dumps({"ok": True, "applied": {"uniques": 0, "sets": 0, "skipped": 0}})
         return _ejs
 

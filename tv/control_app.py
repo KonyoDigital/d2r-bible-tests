@@ -7927,7 +7927,24 @@ def _kai_compile_register(sess_rows):
     # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
     try:
         import retro_gate as _rg
-        _cons, _cwhy = _rg.corroborate_location(sess_rows)
+        # ⚠⚠ v3214 — v3212 JOINED THIS TO THE WRONG SHAPE AND IT COULD NEVER FIRE.
+        # `corroborate_location` asks each entry for a location via `retro_gate._loc_of`, which
+        # reads `loc` / `where` / `container` / `location` OFF THE DICT. Session rows carry none of
+        # those at the top level — the locations live one level down, in `names_loc` (name -> loc).
+        # So handing it `sess_rows` returned `(None, "no read in this session said where it was")`
+        # on EVERY call: the wire was connected, shipped, and inert. MEASURED on real rows before
+        # this line was written. A call that cannot produce an answer is not a join.
+        # ⚠ ONE READ, ONE VOTE. Each name->loc pair IS a read, which is the unit the function's
+        # docstring describes ("a single read placing an item on the floor while every other read
+        # in the same session says stash"). Counting rows instead would let one frame naming six
+        # items outvote six frames naming one. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+        _reads = []
+        for _r0 in (sess_rows or []):
+            _nl0 = _r0.get("names_loc") if isinstance(_r0.get("names_loc"), dict) else {}
+            for _lv in _nl0.values():
+                if _lv:
+                    _reads.append({"loc": _lv})
+        _cons, _cwhy = _rg.corroborate_location(_reads)
         if _cons:
             for _r in reg.values():
                 _rl = _r.get("loc")
@@ -13148,6 +13165,102 @@ def rw_restore(entries, confirm=False):
     if not raw:
         return {"ok": False, "why": "the board did not answer in time — check the Runewords tab "
                                     "before retrying"}
+    try:
+        out = json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+    if isinstance(out, dict):
+        out["applied"] = bool(out.get("ok"))
+    return out
+
+
+def owned_restore(names, confirm=False):
+    """Put `d2r_owned` back from a snapshot. Union-only, through the board's own LSR. -> dict.
+
+    ══ v3214 — THE SECOND OF THE THREE DOORS `BACKED_UP_ONLY` NAMES ═════════════════════════════
+    `ledger_restore.BACKED_UP_ONLY = ("rwMade", "gameFound", "owned")` — three stores that are
+    backed up and cannot travel through the chronicle door. v3213 built the runeword one. This is
+    `owned`. MEASURED 2026-09-16 after the chronicle restore landed: his board read **owned 52**
+    against a 09:26 snapshot holding **172**, and 160 of the 120 missing names were already in
+    `foundLog` — so the knowledge was back and the possession was not.
+
+    ⚠⚠ IT DOES NOT CALL `toggleOwned`, AND THAT IS THE WHOLE DESIGN. `toggleOwned` ROUTES: v677
+    sends anything in the uniques roster to `d2r_foundLog` instead, because *"a chronicle tick is
+    knowledge, not possession (Konyo throws most finds away)"*. Calling it 171 times would have
+    written the names back into the ledger they were already in and left `d2r_owned` exactly as
+    empty as it started — a restore that reports success and restores nothing. The store recorded
+    in the snapshot is `d2r_owned`, so the store put back is `d2r_owned`.
+
+    ⚠ UNION-ONLY. An existing entry is never removed and never re-ordered; this can only ADD, which
+    is what makes it safe to run twice and impossible to use as a delete.
+
+    ⚠ THROUGH `LSR`, FROM INSIDE THE BOARD'S CONTEXT. `d2r_owned` is PROFILE-SCOPED and legitimately
+    forks per account — bible.html:22862 says so in as many words — so a bare write would land in
+    the wrong profile's possession list. LSR is what supplies the prefix; the hop is how this door
+    obeys that rather than dodging it. [[the-unjoined-end]] [[d2r-ladder-doctrine]]
+    """
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    clean = []
+    seen = set()
+    for n in (names or []):
+        n = str(n or "").strip()
+        if n and n not in seen:
+            seen.add(n)
+            clean.append(n)
+    if not clean:
+        return {"ok": False, "why": "no names to put back — an empty restore is a no-op, not a repair"}
+    try:
+        _wd = board_identity_drift()
+    except Exception as e:
+        return {"ok": False, "why": "the board's world could not be checked (%s), so nothing was "
+                                    "written" % str(e)[:80]}
+    if (_wd.get("state") if isinstance(_wd, dict) else None) != "ok":
+        return {"ok": False, "worldDrift": _wd,
+                "why": "the board's world is %s — nothing was written"
+                       % ((_wd or {}).get("state") or "unreadable")}
+    if not confirm:
+        return {"ok": True, "applied": False, "wouldRestore": len(clean),
+                "why": "%d name(s) would be added to what he owns. Nothing has been written; call "
+                       "again with confirm." % len(clean)}
+    js = ("(function(){try{"
+          "var N=%s;"
+          "var _ctx=window;"
+          "if(!(window.LSR&&window.LSR.getItem)){"
+          "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+          "if(_cw&&_cw.LSR&&_cw.LSR.getItem)_ctx=_cw;}catch(_hop){}}"
+          "return (function(window){try{"
+          "if(!(window.LSR&&window.LSR.getItem&&window.LSR.setItem))"
+          "return JSON.stringify({ok:false,why:'this page has no LSR, so what he owns would land "
+          "in the wrong profile'});"
+          "var cur=null;try{cur=JSON.parse(window.LSR.getItem('d2r_owned')||'[]');}catch(e){cur=null;}"
+          "if(cur===null)"
+          "return JSON.stringify({ok:false,why:'d2r_owned will not parse — refusing to overwrite "
+          "a store that exists and cannot be read'});"
+          "if(!Array.isArray(cur))"
+          "return JSON.stringify({ok:false,why:'d2r_owned is not a list — refusing to reshape it'});"
+          "var have={};for(var i=0;i<cur.length;i++)have[String(cur[i])]=1;"
+          "var before=cur.length,added=[];"
+          "for(var j=0;j<N.length;j++){var nm=N[j];if(have[nm])continue;have[nm]=1;cur.push(nm);added.push(nm);}"
+          "window.LSR.setItem('d2r_owned',JSON.stringify(cur));"
+          # the same fan-out toggleOwned performs, each guarded — a renderer that is not exposed
+          # is not an error, it just means the screen catches up on the next paint.
+          "try{if(typeof window.renderHero==='function')window.renderHero();}catch(e){}"
+          "try{if(typeof window.renderGrailProgress==='function')window.renderGrailProgress();}catch(e){}"
+          "try{if(typeof window.renderVault==='function')window.renderVault();}catch(e){}"
+          "try{if(typeof window._writeGrailFarm==='function')window._writeGrailFarm();}catch(e){}"
+          "return JSON.stringify({ok:true,before:before,added:added.length,"
+          "after:cur.length,sample:added.slice(0,8)});"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()"
+          % json.dumps(clean))
+    try:
+        raw = _ejs(w, js, timeout=15.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the restore: %s" % str(e)[:160]}
+    if not raw:
+        return {"ok": False, "why": "the board did not answer in time — check the Vault before retrying"}
     try:
         out = json.loads(raw)
     except Exception:
@@ -28523,7 +28636,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3213",
+        "ver": "v3214",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -32102,6 +32215,10 @@ class Handler(BaseHTTPRequestHandler):
             # because the two halves of one channel should not answer to different verbs.
             self._json(200, board_ownership(sample=body.get("sample") or 0,
                                             dump_stores=bool(body.get("dumpStores"))))
+            return
+        if path == "/api/owned_restore":
+            # v3214 — the possession half of a restore. `confirm` required, same as its siblings.
+            self._json(200, owned_restore(body.get("names"), confirm=bool(body.get("confirm"))))
             return
         if path == "/api/rw_restore":
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason

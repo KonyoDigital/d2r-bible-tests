@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3213",
+  "ver": "v3214",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3213: HEART: chronicle_apply board_mask and the new rw_restore door all hop into the board frame by SHADOWING window as a parameter - v3209 assigned the global window which is a silent no-op so the write door reached nothing and refused every restore. ledger_restore.proposal_from shipped wouldAdd as a dict while bible.html calls forEach on it so the restore door had never applied anything. Measured on his live board: foundLog 363 to 445, setPieces 83 to 133, chronFound 280 to 309, runewordsMade 0 to 99.",
+  "note": "v3214: HEART: corroborate_location was joined at v3212 and INERT - it was handed sess_rows while it reads a location off each entry, and session rows carry those only inside names_loc, so every call answered no read said where. Now fed one read per name-location pair. owned_restore is the second of the three doors BACKED_UP_ONLY names as unbuilt. Shelf cards name the run by its own date instead of an ordinal, bounded so the title cannot slide under the pin. The station bar stops hiding two opposite facts - river unanswered versus river answered with nothing stamped.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

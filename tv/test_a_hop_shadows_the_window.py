@@ -46,7 +46,8 @@ _SHADOW = re.compile(r"function\s*\(\s*window\b")
 # `contentWindow` directly and never rebinds anything — demanding a shadow from those would be a
 # law about a string rather than about the mechanism, and the first version of this file did
 # exactly that and failed 14 innocent literals. [[sabotage-is-usually-the-wrong-one]]
-CONTEXT_HOPS = ("chronicle_apply", "board_ownership", "rw_restore", "board_mask")
+CONTEXT_HOPS = ("chronicle_apply", "board_ownership", "rw_restore", "board_mask",
+                "owned_restore")
 
 
 def _js_literals():

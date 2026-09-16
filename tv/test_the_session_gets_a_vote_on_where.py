@@ -60,14 +60,28 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
 
     def test_the_compiler_actually_asks(self):
         """[[the-unjoined-end]] — it answered for versions and nobody called it."""
-        self.assertIn("_rg.corroborate_location(sess_rows)", _src(),
+        src = _src()
+        self.assertIn("_rg.corroborate_location(", src,
                       "the register compiler no longer asks the session where the item was, so "
                       "an early misread is once again the permanent answer")
+        # ⚠⚠ AND IT MUST NOT ASK WITH `sess_rows`. v3212 joined it that way and the call was
+        # INERT: `corroborate_location` reads a location off each entry via `retro_gate._loc_of`
+        # (loc / where / container / location), and session rows carry none of those at the top
+        # level — the locations live in `names_loc`. Every call returned
+        # "no read in this session said where it was". Asserting only that the call EXISTS is what
+        # let a connected, shipped, dead wire look joined. [[the-unjoined-end]]
+        self.assertNotIn("_rg.corroborate_location(sess_rows)", src,
+                         "the corroboration is being handed raw session rows again — those carry "
+                         "no top-level loc, so it can only ever answer None and the flag can "
+                         "never fire")
+        self.assertIn("names_loc", src.split("_rg.corroborate_location(")[0][-900:],
+                      "nothing builds the per-read list from names_loc before the corroboration, "
+                      "so whatever it is being handed is not the session's location reads")
 
     def test_it_never_overwrites_loc(self):
         """the function's OWN ruling: a second look, not an automatic correction."""
         src = _src()
-        i = src.find("_rg.corroborate_location(sess_rows)")
+        i = src.find("_rg.corroborate_location(")
         self.assertGreater(i, 0)
         window = src[i:i + 700]
         self.assertNotIn('_r["loc"] =', window,
@@ -104,14 +118,37 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
 
     # ── end to end, on the compiler ──────────────────────────────────────────────────────
     def test_the_minority_row_is_flagged_and_its_loc_survives(self):
+        # ⚠⚠ THE FIXTURE WAS THE DEFECT, TWICE OVER, AND IT FAILED FOR NEITHER REASON THE LAW
+        # IS ABOUT. `_kai_compile_register` reads rows shaped
+        # {lane, ts, frameId, names, names_loc} — not {name, loc} — and it drops any name that is
+        # not a REAL DB item (`if low not in fulln: return`). So three invented names in the wrong
+        # shape produced an EMPTY register and the law reported "the register lost the row
+        # entirely" about a compiler that was working correctly.
+        # Names are taken from `_kai_fullnames()` at runtime rather than hardcoded: a hardcoded
+        # name silently stops being real when the item DB changes, and the law would go green over
+        # nothing again. [[feedback-blind-fixture-green-gate]] [[zero-needs-a-denominator]]
+        # ⚠ NAMED ITEMS, CHECKED AGAINST THE REAL DB — not `sorted(...)[0:3]`. That slice picked
+        # `" + r + "`, `' + r + '` and `1. hide trash gear`: parse artefacts that really are in
+        # `_kai_fullnames()` and that `_register_is_junk` does not catch. They would have made this
+        # law pass over garbage. Three items every D2 player knows, asserted to exist so the law
+        # FAILS LOUDLY if the item DB ever stops carrying them rather than quietly testing nothing.
+        minority, a, b = "shako", "vampire gaze", "stone of jordan"
+        _full = ca._kai_fullnames()
+        for _n in (minority, a, b):
+            self.assertIn(_n, _full,
+                          "%r is no longer in the item DB, so this end-to-end case would assert "
+                          "over an empty register" % _n)
         rows = [
-            {"name": "Rune Grip", "ts": 1000, "frameId": "f0", "loc": "floor"},
-            {"name": "Other A",   "ts": 1001, "frameId": "f1", "loc": "stash"},
-            {"name": "Other B",   "ts": 1002, "frameId": "f2", "loc": "stash"},
+            {"lane": "deep", "ts": 1000, "frameId": "f0",
+             "names": [minority], "names_loc": {minority: "floor"}},
+            {"lane": "deep", "ts": 1001, "frameId": "f1",
+             "names": [a], "names_loc": {a: "stash"}},
+            {"lane": "deep", "ts": 1002, "frameId": "f2",
+             "names": [b], "names_loc": {b: "stash"}},
         ]
         reg = ca._kai_compile_register(rows)
         by = {r["name"]: r for r in reg}
-        rg_row = by.get("Rune Grip")
+        rg_row = by.get(minority)
         self.assertIsNotNone(rg_row, "the register lost the row entirely")
         self.assertEqual("floor", rg_row.get("loc"),
                          "the minority row's own loc was OVERWRITTEN — the evidence that the "

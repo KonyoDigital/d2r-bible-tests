@@ -33651,3 +33651,59 @@ are gaps in the restore, not new losses — `owned` and `gameFound` still have n
 
 Gates: `test_a_restore_is_shaped_like_a_sweep`, `test_a_hop_shadows_the_window`,
 `test_the_fleet_names_what_each_side_lacks`. All three seen red.
+
+## REG-1009 — the corroboration that was joined and could never answer
+
+**2026-09-16 · v3214**
+
+v3212 joined `retro_gate.corroborate_location` into `_kai_compile_register` — one of the
+verdict-shaped functions that had answered correctly for versions with no caller. The join was
+written, gated, shipped, and **inert**.
+
+`corroborate_location` asks each entry for a location through `retro_gate._loc_of`, which reads
+`loc` / `where` / `container` / `location` **off the dict**. Session rows carry none of those at the
+top level; the locations live one level down, in `names_loc` (name → loc). So handing it `sess_rows`
+returned `(None, "no read in this session said where it was")` on **every** call. `locSession` was
+always None, `locAgrees` was always None, and the "Rune Grip at loc floor" defect it exists to flag
+could never be flagged.
+
+**Its own law could not see it either.** `test_the_session_gets_a_vote_on_where` asserted the literal
+`_rg.corroborate_location(sess_rows)` appeared in the source — so it pinned the *inert form as the
+correct one*. And its end-to-end fixture was wrong twice over: rows shaped `{name, loc}` when the
+compiler reads `{lane, ts, frameId, names, names_loc}`, and three invented item names against a
+compiler that drops anything not in `_kai_fullnames()`. It reported "the register lost the row
+entirely" about a compiler that was working.
+
+⚠ **And the obvious fixture fix was also wrong.** `sorted(_kai_fullnames())[0:3]` picks `" + r + "`,
+`' + r + '` and `1. hide trash gear` — parse artefacts that really are in the item DB and that
+`_register_is_junk` does not catch. The law would have passed over garbage. It now names three real
+items and asserts they exist.
+
+**Fixed:** the compiler builds one read per name→loc pair (one read, one vote — counting rows would
+let a single frame naming six items outvote six frames naming one) and the law pins the mechanism:
+the call exists, it is NOT handed `sess_rows`, and the read list is built from `names_loc`.
+
+Also in v3214, from the same pass:
+
+- **`owned_restore`** — the second of the three doors `BACKED_UP_ONLY` has named as unbuilt since
+  v2735. It must not use `toggleOwned`, which ROUTES roster names to `d2r_foundLog` instead of
+  `d2r_owned` (v677: *"a chronicle tick is knowledge, not possession"*) — 171 calls would have
+  reported success and restored nothing. Live: `owned` 52 → 223, all 172 snapshot names in.
+- **Shelf card titles** name the run by its own date, not `Session N` (#227 item 6). `.shc-sess` was
+  absolutely positioned with no right bound, so the longer title ran under the pin/open cluster —
+  and `render_check` called it `clipped 0/48`, because its check asks whether a node overflows its
+  OWN box and this was one absolute element painted under another. Caught on the PNG, not by the
+  instrument.
+- **The station bar** stops hiding two opposite facts. `bar.hidden = true` fired both when the river
+  had not answered and when it HAD answered with not one card stamped — the second being the
+  river-vs-grid unjoined end #227 named.
+- **`_fake_board`** (test_control) no longer keys off whatever text follows the payload binding; it
+  uses `json.JSONDecoder().raw_decode`. The old terminator broke the moment v3213 inserted a
+  statement between the binding and it, turning 5 green tests red over zero product defects.
+
+Gates: `test_the_session_gets_a_vote_on_where` (registered — the repo's own `TestNoOrphanSuite`
+caught that it was written and unregistered), `test_the_shelf_tabs_are_the_real_sessions` (rewritten
+to pin both branches). Both seen red. ⚠ The first cut of the station-bar assertion was a GREEN
+SABOTAGE — `assertIn("SHELF_RIVER", tail)` over a `[:1400]` window was satisfied by
+`SHELF_RIVER_ORDER` further down the function. It now brace-matches the branch and asserts
+`Object.keys(SHELF_RIVER`.

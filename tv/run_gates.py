@@ -676,6 +676,24 @@ GATES = [
              "matches nothing while every count still looks plausible. neitherHas may be None and "
              "that is not a failure: the content is asserted only when a list was returned, never "
              "turning a refusal into a confident zero."),
+    Gate("test_the_session_gets_a_vote_on_where",
+         [sys.executable, os.path.join(HERE, "test_the_session_gets_a_vote_on_where.py")], 120,
+         why="retro_gate.corroborate_location has answered what location the SESSION agrees on "
+             "since it was written and nothing ever called it - one of the verdict-shaped "
+             "functions with no caller. _kai_compile_register is where the defect it exists for "
+             "is MINTED: loc is stamped earliest-sighting-wins with no cross-check, and it reaches "
+             "rendered rows downstream. v3212 wired it and the wire was INERT: it passed "
+             "sess_rows, and corroborate_location reads a location off each entry via _loc_of "
+             "(loc/where/container/location) while session rows carry those only one level down in "
+             "names_loc - so every call answered 'no read in this session said where it was'. "
+             "Connected, shipped, dead. This pins the MECHANISM: the call exists, it is NOT handed "
+             "sess_rows, and the per-read list is built from names_loc. It also pins the "
+             "function's own ruling that a split session is worth a second look and never an "
+             "automatic correction, so locAgrees FLAGS and never overwrites loc, and a row that "
+             "claimed no location gets None rather than False - nobody said and they disagreed are "
+             "different facts. Its fixture names real items (shako, vampire gaze, stone of jordan) "
+             "and asserts they exist, because sorting _kai_fullnames picks parse artefacts that "
+             "_register_is_junk does not catch and the law would pass over garbage."),
     Gate("test_a_restore_is_shaped_like_a_sweep",
          [sys.executable, os.path.join(HERE, "test_a_restore_is_shaped_like_a_sweep.py")], 120,
          why="ledger_restore.proposal_from built wouldAdd as a DICT keyed by name while "

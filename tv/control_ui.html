@@ -2201,7 +2201,27 @@
   .shc-nf-unknown, .shc-nf-none { color: #cbbf9a; border-color: rgba(240,192,96,.3); }
   .shc-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(180deg, rgba(6,8,6,.4) 0%, transparent 28%, transparent 54%, rgba(6,8,6,.92) 100%); }
-  .shc-sess { position: absolute; top: 9px; left: 12px; z-index: 2; font: var(--fw-bold) var(--fs-sm)/1 var(--serif);
+  /* ⚠⚠ v3214 — THE TITLE HAD NO RIGHT BOUND, AND v3214 GAVE IT A LONGER STRING.
+     `.shc-sess` was absolute with `left` only, so it ran underneath `.shc-tr` (the pin + open
+     cluster, absolute at right:9px). With the old title — "Session 7" — it was short enough that
+     nothing ever touched. #227 item 6 replaced that ordinal with the run's own date, and at his
+     1120x628 with three cards across it collided immediately: MEASURED in
+     `.render_shots/shelf-cards_1120x628.png` as "Sep 15 · 7:40 PM☆" and "Sep 15 · 10:51 A".
+     ⚠ AND `render_check` CALLED IT `clipped 0/48`. Its clipping test asks whether a node overflows
+     its OWN box; this is one absolute element painted under another, which no self-overflow check
+     can see. The pixels caught what the instrument could not. [[visual-regression-detector]]
+     The reserve clears pin (26) + gap (6) + the seal + right inset; the ellipsis means a title
+     that still cannot fit degrades to a readable stub instead of sliding under a button. */
+  .shc-sess { position: absolute; top: 9px; left: 12px; right: 104px; z-index: 2;
+    font: var(--fw-bold) var(--fs-sm)/1 var(--serif);
+    /* ⚠ TWO LINES, NOT AN ELLIPSIS. A single nowrap line ellipsised to "Sep 15 · 7:4…" at his
+       1120x628, where the grid goes three-across and leaves the title ~116px against a ~104px
+       control cluster — and a truncated timestamp is not an identity, which is the whole reason
+       the ordinal was replaced. The hero is 104-140px tall, so two lines at line-height 1 cost
+       ~26px of a box with room to spare. Clamped at 2 so a long name HE typed still cannot push
+       the pin off the card. */
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; white-space: normal; overflow-wrap: anywhere;
     letter-spacing: var(--ls-wide); color: #f2e4c0; text-shadow: 0 2px 7px rgba(0,0,0,.95); }
   .shc-ghost { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #b0a184; margin-left: 5px; }
   /* D26 — top-right cluster holds the ⭐ pin + the verdict seal */
@@ -16504,16 +16524,33 @@ window._lockMark = function(isOpen, px, label){
                  _ch && _ch.uniques > 0 ? 'unique' : '')
         + _scell(_ch ? (_ch.sets > 0 ? ('🧩 ' + _ch.sets) : '—') : '?', 'sets',
                  _ch && _ch.sets > 0 ? 'set' : '') + '</div>';
+      /* ⚠ v3214 — #227 item 6: THE CARD NAMES THE RUN, NOT ITS ORDINAL.
+         His words, and Grok's queue item 3 after them: the door is managing REEL SESSIONS, and
+         "Session 7" is a position in a list, not something he can recognise. The reel already
+         carries the one identity he reads by — WHEN it happened — and it was sitting in the body
+         while the headline spent itself on a counter.
+         ⚠ NOTHING IS INVENTED. `_cnm.name` is a name HE typed; `whenTxt` is built from the reel's
+         own t0. If the reel carries neither, the ordinal stays, because a made-up title would be
+         worse than a dull true one. [[unknown-stays-unknown]]
+         ⚠ AND THE DATE IS NOT PRINTED TWICE. When the title takes the date, the when-line keeps
+         only the duration; when it does not, the when-line is exactly what it always was. An
+         empty when-line renders no element at all rather than an empty bar.
+         ⚠ SEARCH IS UNAFFECTED — `_sq[0]` is already 'session ' + n, so typing "session 12" still
+         finds it even though no card shows that text. */
+      var _shcTitle = _cnm.name ? esc(_cnm.name) : (whenTxt ? whenTxt : ('Session ' + esc(String(n))));
+      var _shcWhen  = (!_cnm.name && whenTxt)
+            ? (durTxt ? '<span class="shc-dur">' + durTxt + '</span>' : '')
+            : (whenTxt + (durTxt ? ' <span class="shc-dur">· ' + durTxt + '</span>' : ''));
       return '<div class="sh-card' + (n === TH.sn ? ' cur' : '') + (sm.stub ? ' stub' : '') + (_chronN > 0 ? ' chronicle' : '') + (_pin ? ' pinned' : '') + '" data-pin="' + (_pin ? '1' : '0') + '" data-sid="' + esc(sm.sessionId || '') + '" data-n="' + n
         + '" data-stub="' + (sm.stub ? '1' : '0') + '" data-grail="' + _hasGrail + '" data-verdict="' + _verd + '" data-t0="' + (sm.t0 || 0)
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + heroOpen
-          + '<div class="shc-sess">' + (_cnm.name ? esc(_cnm.name) : ('Session ' + n)) + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
+          + '<div class="shc-sess">' + _shcTitle + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
           + '<div class="shc-tr">' + pinBtn + seal + '</div>' + headFind
         + '</div>'
         + '<div class="shc-body">'
-          + '<div class="shc-when">' + whenTxt + (durTxt ? ' <span class="shc-dur">· ' + durTxt + '</span>' : '') + '</div>'
+          + (_shcWhen ? '<div class="shc-when">' + _shcWhen + '</div>' : '')
           + noFilmLine
           + ((sm.areas || []).length ? '<div class="shc-area">📍 ' + esc(sm.areas.slice(0, 2).join(' · ')) + '</div>' : '')
           + statRow
@@ -16867,7 +16904,31 @@ window._lockMark = function(isOpen, px, label){
       if (!tally[st]) { tally[st] = 0; seen.push(st); }
       tally[st]++;
     });
-    if (!seen.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+    /* ⚠⚠ v3214 (#227 item 2) — AN EMPTY BAR WAS HIDING TWO DIFFERENT FACTS AND SAYING NEITHER.
+       `bar.hidden = true` fired both when the river had not answered yet AND when it HAD answered
+       but no visible card matched a stamp. Those are opposite situations: the first is "wait", the
+       second is a DEFECT — the river strip is printing station counts from /api/river while the
+       cards beside it carry none, which is the river and the grid not meeting. Grok named this in
+       #227 as "a hidden-because-unstamped bar while the river line says flowing is the next
+       unjoined end", and a bar that vanishes is exactly how it stayed invisible.
+       ⚠ THE DENOMINATOR IS THE TELL: `SHELF_RIVER` having entries is what separates the two. A
+       bare hide could never distinguish them, and no reader could ask.
+       [[zero-needs-a-denominator]] [[the-unjoined-end]] [[unknown-stays-unknown]] */
+    if (!seen.length) {
+      var _riverKnown = 0;
+      try { _riverKnown = Object.keys(SHELF_RIVER || {}).length; } catch (e) { _riverKnown = 0; }
+      if (_riverKnown > 0 && (cards || []).length) {
+        bar.hidden = false;
+        bar.innerHTML = '<span class="sh-chip sh-chip-stunk" title="'
+          + escC('/api/river has answered for ' + _riverKnown + ' reel(s), but not one of the '
+                 + (cards || []).length + ' card(s) on screen carries a station stamp. The river '
+                 + 'and the grid are keyed by session id, so this means they did not meet — the '
+                 + 'counts in the strip above are about reels these cards are not.')
+          + '">river answered for <b>' + _riverKnown + '</b>, cards stamped <b>0</b></span>';
+        return;
+      }
+      bar.hidden = true; bar.innerHTML = ''; return;
+    }
     var order = (SHELF_RIVER_ORDER && SHELF_RIVER_ORDER.length) ? SHELF_RIVER_ORDER : null;
     var ordered = order
       ? order.filter(function(st){ return tally[st]; })
