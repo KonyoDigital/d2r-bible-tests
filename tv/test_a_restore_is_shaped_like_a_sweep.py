@@ -223,8 +223,12 @@ class ARestoredItemIsFiledNotDumped(unittest.TestCase):
         for fn in ast.walk(tree):
             if isinstance(fn, ast.FunctionDef) and fn.name == name:
                 for n in ast.walk(fn):
+                    # ⚠ match the FAMILY, not one member: v3224 gave rw_restore its own
+                    # re-reader (_vaultReloadRwMade), and a helper pinned to the owned one simply
+                    # stopped finding that door and returned "" — which every assertion below
+                    # would then read as "absent". [[source-reading-guard]]
                     if isinstance(n, ast.Constant) and isinstance(n.value, str) \
-                       and "_vaultReloadOwned" in n.value:
+                       and "_vaultReload" in n.value:
                         return n.value
         return ""
 
@@ -255,6 +259,39 @@ class ARestoredItemIsFiledNotDumped(unittest.TestCase):
         self.assertIn("location.reload", js,
                       "the reload fallback is gone, so on a board without _vaultReloadOwned the "
                       "write is left behind stale memory and the next persist() erases it")
+
+    def test_each_door_re_reads_ITS_OWN_store(self):
+        """⚠⚠ v3222 POINTED BOTH DOORS AT THE SAME RE-READER AND ONE OF THEM TOUCHES A DIFFERENT
+        STORE. `_vaultReloadOwned` re-reads `d2r_owned` and nothing else, so `rw_restore` wrote
+        `d2r_rwMade`, got a number back (because d2r_owned was readable), SKIPPED the reload, and
+        left `rwMade` stale — REG-1010 reintroduced for the runewords, where `rwToggleMade` writes
+        the in-memory object back over them. Named by a cross-family look at v3222:
+        *"do not skip reload on rw_restore unless something actually re-binds rwMade"*.
+        [[copy-drift]] [[the-unjoined-end]]"""
+        owned_js = self._door("owned_restore")
+        rw_js = self._door("rw_restore")
+        self.assertIn("_vaultReloadOwned", owned_js,
+                      "owned_restore no longer re-reads d2r_owned")
+        self.assertIn("_vaultReloadRwMade", rw_js,
+                      "rw_restore re-reads the wrong store, so it skips its reload while rwMade "
+                      "stays stale and the next tick erases the restored runewords")
+        self.assertNotIn("_vaultReloadOwned", rw_js,
+                         "rw_restore is still pointed at the owned re-reader — a door that asks "
+                         "about a store it did not write")
+
+    def test_the_board_exposes_both_re_read_doors(self):
+        bible = io.open(os.path.join(os.path.dirname(HERE), "bible.html"),
+                        encoding="utf-8", errors="replace").read()
+        for fn_name, store in (("_vaultReloadOwned", "d2r_owned"),
+                               ("_vaultReloadRwMade", "d2r_rwMade")):
+            self.assertIn("window." + fn_name, bible,
+                          "bible.html no longer exposes %s, so its door falls back to rebooting "
+                          "his page" % fn_name)
+            i = bible.find("window." + fn_name)
+            self.assertIn(store, bible[i:i + 500],
+                          "%s does not read %s — a re-reader pointed at the wrong store is worse "
+                          "than none, because it answers and the caller believes it"
+                          % (fn_name, store))
 
     def test_the_board_exposes_the_re_read_door(self):
         bible = io.open(os.path.join(os.path.dirname(HERE), "bible.html"),

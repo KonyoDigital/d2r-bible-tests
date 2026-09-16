@@ -13250,7 +13250,12 @@ def rw_restore(entries, confirm=False):
           # WITHOUT a reload; then the board's own sorter files the batch through the one door that
           # knows his lane locks. The reload stays as the fallback for a build without them, because
           # leaving memory stale is the one outcome that can still destroy the write.
-          "try{var _rr=(typeof window._vaultReloadOwned==='function')?window._vaultReloadOwned():null;"
+          # ⚠⚠ v3224 — `rwMade`, NOT `owned`. v3222 pointed this door at `_vaultReloadOwned`, which
+          # re-reads a store this door never touched. It answered a number, the reload was skipped,
+          # and `rwMade` stayed stale — REG-1010 reintroduced for the runewords, where the next
+          # `rwToggleMade` writes the in-memory object back over the 99 restored ones. A
+          # cross-family look at v3222 named it. One door per store. [[copy-drift]]
+          "try{var _rr=(typeof window._vaultReloadRwMade==='function')?window._vaultReloadRwMade():null;"
           "if(_rr===null){setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}"
           "else if(typeof window.vaultAutoAssign==='function'){"
           "setTimeout(function(){try{window.vaultAutoAssign();}catch(_s){}},60);}"
@@ -13459,10 +13464,24 @@ def vault_autosort(confirm=False):
     if w is None or not globals().get("_WINDOW_LIVE"):
         return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
     if not confirm:
+        # ⚠ v3224 — A PROBE THAT THREW IS NOT A PREVIEW OF NOTHING. The first cut caught the
+        # exception into `pre = {}` and still answered ok:true with a sentence saying the empty
+        # dict was what the sorter would file — UNKNOWN collapsed into "we looked". A cross-family
+        # look at v3222 named it. `vault_route_probe` already reports its OWN failures as
+        # ok:false; this except is only for an unexpected throw, and an unexpected throw is the
+        # one case where the preview means least. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
         try:
             pre = vault_route_probe()
-        except Exception:
-            pre = {}
+        except Exception as _pe:
+            return {"ok": False, "applied": False,
+                    "why": ("the route probe raised %s, so what the sorter WOULD file is unknown "
+                            "— refusing to show an empty preview as if it were an answer"
+                            % type(_pe).__name__)}
+        if not (isinstance(pre, dict) and pre.get("ok")):
+            return {"ok": False, "applied": False, "preview": pre,
+                    "why": ("the route probe could not read the board (%s), so there is no preview "
+                            "to confirm against"
+                            % str((pre or {}).get("why") or "no reason given")[:120])}
         return {"ok": True, "applied": False, "preview": pre,
                 "why": ("this is what the sorter would file. Nothing has been written; call again "
                         "with confirm.")}
@@ -13474,13 +13493,20 @@ def vault_autosort(confirm=False):
           "return (function(window){try{"
           "if(typeof window.vaultAutoAssign!=='function')"
           "return JSON.stringify({ok:false,why:'this page has no vaultAutoAssign'});"
-          "var before=0;try{before=Object.keys(JSON.parse((window.LSR?window.LSR.getItem("
-          "'d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))||'{}')||{}).length;}catch(e){}"
+          "var before=0,okBefore=false;try{before=Object.keys(JSON.parse((window.LSR?"
+          "window.LSR.getItem('d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))"
+          "||'{}')||{}).length;okBefore=true;}catch(e){okBefore=false;}"
           "window.vaultAutoAssign();"
           "var after=0;try{after=Object.keys(JSON.parse((window.LSR?window.LSR.getItem("
           "'d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))||'{}')||{}).length;}catch(e){}"
+          # ⚠ v3224 — `filed` IS A KEY-COUNT DELTA AND SAYS SO. It cannot count what this press
+          # did: a __throwout suggestion adds no key, a re-file of an existing name is a no-op in
+          # the counter, and `before` would read 0 if the store were unreadable. So the reads are
+          # reported as what they are — two counts and their difference — and `readBefore` says
+          # whether the first one could be taken at all. A number that cannot mean what its name
+          # says is worse than no number. [[zero-needs-a-denominator]] [[label-outlived-referent]]
           "return JSON.stringify({ok:true,assignedBefore:before,assignedAfter:after,"
-          "filed:after-before});"
+          "readBefore:okBefore,newlyAssigned:(okBefore?(after-before):null)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()")
     try:
@@ -29011,7 +29037,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3223",
+        "ver": "v3224",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3223",
+  "ver": "v3224",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3223: HEART: v3220 matched quota and authentication and rate-limit anywhere in the first 400 characters of a reply, so a genuine review saying authentication is not checked would have been discarded as a provider refusal - and a review of that very diff would contain those words. Over-refusing is the worse direction because a false LOOKED is visible in the ledger while a real look thrown away is not. A provider refusal is now identified by how it OPENS, since it is the first thing the tool says when it never got further. My first repair used reply length and refused a 434 character review, which is the wrong instrument - a short review is still a review. The tests now drive record_answer itself rather than its helpers.",
+  "note": "v3224: HEART: v3222 taught BOTH restore doors to skip the page reload when a re-reader answers - and pointed both at _vaultReloadOwned, which re-reads d2r_owned and nothing else. So rw_restore wrote d2r_rwMade, got a number back because d2r_owned was readable, skipped the reload, and left rwMade STALE. That is REG-1010 reintroduced for the runewords, where rwToggleMade writes the in-memory object back over the 99 restored ones. Each door now re-reads the store it actually wrote. Also from the same look: a route probe that THREW was being reported as an empty preview with ok true, and filed was a key-count delta wearing the name of a count of what the press did.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

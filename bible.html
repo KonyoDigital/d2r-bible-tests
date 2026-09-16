@@ -18212,6 +18212,25 @@ let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
    merge would invent a third state that neither side asked for.
    ⚠ AND IT RETURNS THE COUNT, so a caller can tell "re-read and found 223" from "re-read and
    found nothing", which are different facts. [[unknown-stays-unknown]] [[the-unjoined-end]] */
+/* ⚠⚠⚠ v3224 — AND THE SAME DOOR FOR `rwMade`, BECAUSE v3222 SKIPPED THE RELOAD WITHOUT ONE.
+   v3222 taught BOTH restore doors to call `_vaultReloadOwned` and skip the reboot when it answers.
+   That function re-reads `d2r_owned` and nothing else — so `rw_restore` wrote `d2r_rwMade`, got a
+   number back (because d2r_owned was readable), skipped the reload, and left `rwMade` STALE in
+   memory. That is REG-1010 reintroduced for the runewords: `rwToggleMade` writes the in-memory
+   object back, so his next tick would have erased the 99 restored ones.
+   Found by a cross-family look at v3222, which said it plainly: "do not skip reload on rw_restore
+   unless something actually re-binds rwMade from d2r_rwMade". [[the-unjoined-end]] [[copy-drift]] */
+try {
+  window._vaultReloadRwMade = function(){
+    try {
+      var fresh = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
+      if (!fresh || typeof fresh !== 'object' || Array.isArray(fresh)) return null;
+      rwMade = fresh;
+      try { if (typeof window._rwChronicleChanged === 'function') window._rwChronicleChanged(null); } catch(e){}
+      return Object.keys(rwMade).length;
+    } catch(e){ return null; }
+  };
+} catch(e){}
 try {
   window._vaultReloadOwned = function(){
     try {
@@ -50455,7 +50474,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3223', name:'v3223 - a refusal is how it opens', date:'2026-09-16', note:'HEART: v3220 matched quota and authentication and rate-limit anywhere in the first 400 characters of a reply, so a genuine review saying authentication is not checked would have been discarded as a provider refusal - and a review of that very diff would contain those words. Over-refusing is the worse direction because a false LOOKED is visible in the ledger while a real look thrown away is not. A provider refusal is now identified by how it OPENS, since it is the first thing the tool says when it never got further. My first repair used reply length and refused a 434 character review, which is the wrong instrument - a short review is still a review. The tests now drive record_answer itself rather than its helpers.' };
+  window.D2R_BUILD = { id:'v3224', name:'v3224 - one door per store', date:'2026-09-16', note:'HEART: v3222 taught BOTH restore doors to skip the page reload when a re-reader answers - and pointed both at _vaultReloadOwned, which re-reads d2r_owned and nothing else. So rw_restore wrote d2r_rwMade, got a number back because d2r_owned was readable, skipped the reload, and left rwMade STALE. That is REG-1010 reintroduced for the runewords, where rwToggleMade writes the in-memory object back over the 99 restored ones. Each door now re-reads the store it actually wrote. Also from the same look: a route probe that THREW was being reported as an empty preview with ok true, and filed was a key-count delta wearing the name of a count of what the press did.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

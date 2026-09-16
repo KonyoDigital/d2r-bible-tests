@@ -34253,3 +34253,45 @@ the RECORDER stopped consulting either, all five stayed green. It also noted
 monkeypatch `SEL.record` and assert the row: a refusal records `reached=False` with no findings, a
 real review records `reached=True`. Seen red both ways — disabling the rule fires the first,
 restoring the match-anywhere regex fires the second.
+
+## REG-1021 — one re-reader, two stores: v3222 reintroduced REG-1010 for the runewords
+
+**2026-09-16 · v3224**
+
+v3222 taught both restore doors to re-read the board's in-memory copy and SKIP the page reload when
+that succeeds — and pointed **both** at `_vaultReloadOwned`, which re-reads `d2r_owned` and nothing
+else.
+
+So `rw_restore` wrote `d2r_rwMade`, called a re-reader for a store it had not touched, got a number
+back (because `d2r_owned` was perfectly readable), **skipped the reload, and left `rwMade` stale**.
+That is REG-1010 reintroduced exactly where it hurts most: `rwToggleMade` writes the in-memory
+object straight back, so his next runeword tick would have erased the 99 restored ones.
+
+Caught by a cross-family (Grok) look at **v3222 — the version that introduced it** — which said it
+in one line: *"do not skip reload on rw_restore unless something actually re-binds rwMade from
+d2r_rwMade."*
+
+⚠ **A re-reader pointed at the wrong store is worse than none**, because it ANSWERS and the caller
+believes it. A missing door returns null and the reload fallback fires; a wrong door returns a count
+and the fallback is skipped.
+
+**Fixed:** `_vaultReloadRwMade` added beside `_vaultReloadOwned` in bible.html, and each door now
+re-reads the store it actually wrote. Gate: `test_each_door_re_reads_ITS_OWN_store` plus
+`test_the_board_exposes_both_re_read_doors`, which also asserts each re-reader names its own store —
+seen red by pointing `rw_restore` back at the owned re-reader.
+
+⚠ Its helper needed widening first: `_door()` matched the literal `_vaultReloadOwned`, so the moment
+`rw_restore` got its own re-reader the helper stopped finding that door and returned `""` — which
+every assertion would have read as "absent". Matching the FAMILY, not one member.
+
+### Two more from the same look, both fixed
+
+- **A probe that THREW was reported as a preview of nothing.** `vault_autosort`'s dry run caught the
+  exception into `pre = {}` and still answered `ok: true` with a sentence saying the empty dict was
+  what the sorter would file — UNKNOWN collapsed into "we looked". It now refuses, and also refuses
+  when the probe itself reports `ok: false`.
+- **`filed` was a key-count delta wearing the name of an action count.** A `__throwout` suggestion
+  adds no key, a re-file of an existing name is a no-op, and `before` read 0 if the store was
+  unreadable. Now reported as `assignedBefore` / `assignedAfter` / `newlyAssigned`, with
+  `readBefore` saying whether the first count could be taken at all — `newlyAssigned` is `null` when
+  it could not.
