@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3236",
+  "ver": "v3237",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3236: the curated engine index had 186 modules and not the one that derives the heart map, so the blueprint did not describe the organ that describes the organs. and the fleet mask case was dying on a missing key because its node harness modelled a page with no LSR, which board_mask stopped accepting on purpose",
+  "note": "v3237: measure collapsed an unreadable console page and an unreadable watcher into the same signal, so the refusal accused control_ui.html whenever a watcher was blind even though the page was fine. a watcher only failure now withholds the coverage figure and keeps the page fact true. my own law never went through measure so it could not see the proxy",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

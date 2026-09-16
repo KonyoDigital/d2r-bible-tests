@@ -98,8 +98,20 @@ def measure():
     """-> (ids, seen, missing). `ids` is None when the map cannot be measured at all."""
     ids = surfaces()
     blob, missing = watched()
-    if ids is None or missing:
-        return None, None, missing
+    # ⚠⚠ v3237 — `ids is None` MUST MEAN THE PAGE, AND IT DID NOT. This collapsed BOTH failures
+    # into `ids = None`, and v3235 then handed `ids is None` to `_why_unmeasurable` as the
+    # "control_ui.html could not be read" fact. So a perfectly readable page plus ONE unreadable
+    # watcher printed "control_ui.html could not be read AND these watchers could not be read:
+    # ..." — naming a healthy file first and sending the reader straight to it.
+    #
+    # A cross-family review of v3235 caught it AND named why the new law missed it: the test
+    # calls the helper with a literal True and never goes through measure(), so the proxy itself
+    # was never exercised. A fact passed as a PROXY is only ever as true as the proxy.
+    # [[label-outlived-referent]] [[the-unjoined-end]]
+    if ids is None:
+        return None, None, missing          # the page itself could not be read
+    if missing:
+        return ids, None, missing           # the page is FINE; only watchers are missing
     seen = sorted(i for i in ids if i in blob)
     return ids, seen, missing
 
@@ -128,7 +140,8 @@ def render():
     ids, seen, missing = measure()
     # ⚠ REFUSE, DO NOT RENDER A ZERO. Writing the map is what banks it: the pre-push gate compares
     # HEART.md against the tree, so a map built from a failed read becomes the committed truth.
-    if ids is None:
+    # v3237 — refuse on EITHER failure, now that `ids` is no longer the single signal.
+    if ids is None or missing:
         raise RuntimeError(
             "the heart map could not be measured: %s. Refusing to write a map that would claim "
             "the console paints 0 surfaces — an unreadable file is UNKNOWN, not empty."
@@ -181,7 +194,7 @@ def main(argv=None):
     argv = argv or []
     ids, seen, missing = measure()
     # v3231 — an unmeasurable map is a REFUSAL at every door, not a quiet zero in one of them.
-    if ids is None:
+    if ids is None or missing:
         print("🔴 the heart map could not be measured: %s"
               % _why_unmeasurable(missing, ids is None))
         print("   UNKNOWN is not 0 surfaces. Refusing rather than rendering an empty heart.")

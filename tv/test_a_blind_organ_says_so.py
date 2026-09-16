@@ -76,6 +76,30 @@ class TestABlindOrganSaysSo(unittest.TestCase):
                       "it must say WHAT it refused to claim, so the reader is not left guessing "
                       "whether the heart is empty or unreadable: %r" % str(cm.exception))
 
+    def test_a_watcher_only_failure_does_not_accuse_the_console_page(self):
+        """★ THROUGH measure() AND render(), not the helper alone — that is how this was missed.
+
+        v3231 collapsed both failures into `ids = None`, and v3235 then passed `ids is None` as
+        the "control_ui.html could not be read" fact. A readable page plus one unreadable watcher
+        therefore accused a healthy file and sent the reader to it first. A cross-family review of
+        v3235 caught it and named the hole in my own law: it called `_why_unmeasurable` with a
+        literal True and never went through the proxy. [[label-outlived-referent]]"""
+        real = HM._read
+        HM._read = lambda name: None if name == HM.WATCHERS[0] else real(name)
+        self.addCleanup(setattr, HM, "_read", real)
+        ids, seen, missing = HM.measure()
+        self.assertIsNotNone(ids,
+                             "measure() blanked the ids for a WATCHER failure, so `ids is None` "
+                             "no longer means the page and every caller inherits the lie")
+        self.assertEqual(missing, [HM.WATCHERS[0]])
+        with self.assertRaises(Exception) as cm:
+            HM.render()
+        why = str(cm.exception)
+        self.assertIn("watchers", why, "the real reason is missing: %r" % why)
+        self.assertNotIn("control_ui.html", why,
+                         "the refusal accuses control_ui.html, which was readable the whole time "
+                         "— that is the first file a reader would open, and it is fine: %r" % why)
+
     def test_an_unreadable_WATCHER_is_named_not_skipped(self):
         """It would otherwise read as every surface that watcher covers going unwatched."""
         real = HM._read
@@ -86,7 +110,10 @@ class TestABlindOrganSaysSo(unittest.TestCase):
                          "a watcher that could not be read was silently dropped, so its coverage "
                          "vanishes and looks like a real collapse: missing=%r" % (missing,))
         ids, seen, missing2 = HM.measure()
-        self.assertIsNone(ids, "measure() returned a coverage figure while a watcher was blind")
+        # v3237 — `seen` is what must be withheld, NOT `ids`. Blanking ids made "the page could
+        # not be read" indistinguishable from "a watcher could not be read", which is REG-1042.
+        self.assertIsNone(seen, "measure() returned a coverage figure while a watcher was blind")
+        self.assertEqual(missing2, [HM.WATCHERS[0]], "the blind watcher was not named")
 
     def test_the_real_tree_still_measures(self):
         """⚠ THE BASELINE. A guard that refuses everything is as useless as one that refuses

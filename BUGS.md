@@ -35079,3 +35079,46 @@ flipping the board encoder to MSB-first (`1<<(j%8)` → `1<<(7-(j%8))`): the cas
 ⚠ My first sabotage guessed the wrong expression, matched **0** sites, and the suite stayed green —
 which would have read as "the gate is blind" had I not printed the match count.
 `[[sabotage-is-usually-the-wrong-one]]`
+
+## REG-1042 — the refusal accused a file that was perfectly readable
+
+**2026-09-17 · v3237 · `tv/heart_map.py`** — *found by a cross-family review of v3235, which is the
+version that introduced it, which was itself the fix for v3233.*
+
+v3231 made `measure()` collapse BOTH failure modes into `ids = None`:
+
+```python
+if ids is None or missing:
+    return None, None, missing
+```
+
+v3235 then handed `ids is None` to `_why_unmeasurable()` as the fact *"control_ui.html could not be
+read"*. So a **perfectly readable page plus one unreadable watcher** produced:
+
+```
+control_ui.html could not be read AND these watchers could not be read: console_doctor.py
+```
+
+The first half is false, and it names the first file a reader would open — which is fine. A fact
+passed as a PROXY is only ever as true as the proxy, and this one stopped being true the moment
+`measure()` started using the same variable for two different findings.
+`[[label-outlived-referent]]`
+
+⚠⚠ **The review also named the hole in my own law.** `test_both_reasons_are_named_when_both_fail`
+calls `_why_unmeasurable` with a **literal `True`** and never goes through `measure()` → `render()`
+— so the proxy itself was never exercised. The gate tested the helper and not the wiring, which is
+how a helper can be right and the caller wrong with everything green.
+
+**Fixed:** `ids is None` means the PAGE, and only the page. A watcher-only failure returns
+`(ids, None, missing)` — the coverage figure is withheld, which is the thing that must not be
+trusted, while `ids` keeps telling the truth about the page. Both refusal sites now trip on
+`ids is None or missing`.
+
+New law goes through `measure()` and `render()` and asserts the refusal does NOT accuse
+`control_ui.html` when only a watcher is blind. Red-proofed by restoring the collapse: 1 red.
+The older law was corrected too — it asserted `ids` is blanked on a watcher failure, which was
+exactly the defect.
+
+⚠ **Three versions in a row now, each fix creating the next**, all caught by the same cross-family
+eye: v3233 fabricated a roster → v3235 closed a re-read race → v3237 stopped a false accusation.
+Every one was a real improvement and every one opened the next hole a layer out. `[[review-after-ship]]`
