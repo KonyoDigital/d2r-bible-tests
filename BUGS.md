@@ -35045,3 +35045,37 @@ had the defect, in the gate written to catch it. `[[sabotage-is-usually-the-wron
 would crash on a None `checked` — **did not reproduce**: `_row` stores evidence as a list of key
 NAMES (`['checked', 'disagreed']`), so the join is over strings. Reported, checked, not acted on.
 `[[review-after-ship]]` — reproduce before believing.
+
+## REG-1041 — a curated index that never got its newest module, and a fixture that could not satisfy the door it tested
+
+**2026-09-17 · v3236 · `tv/engine_index.json`, `tv/test_fleet_mask.py`**
+
+**1. `test_the_blueprint_names_the_engine` — `heart_map.py` was on disk with no entry.**
+`tv/engine_index.json` is CURATED, not generated: purpose, territory, gotcha, entry points, one
+module at a time. 186 modules had entries and the one that derives HEART.md did not, so the
+blueprint did not describe the organ that describes the organs. Written by hand and filed under
+`heart-organs` beside `heart.py` and `heart2.py`, with the gotcha that actually matters — `--check`
+refuses rather than regenerating, an unreadable input is a REFUSAL and never a zero (v3231), a
+watcher that cannot be read is named rather than skipped, and `_why_unmeasurable` must never
+re-read the file (v3235). **187 modules · 0 unindexed · 0 stale.**
+
+**2. `test_fleet_mask` died on `KeyError: 'b'` — and that was my v3220 change, working correctly.**
+`board_mask` used to fall back to bare `localStorage`; v3220 removed that, because LSR is what
+supplies the world prefix and a mask read without it would be about MAIN while claiming to be
+about LADDER. The refusal says exactly that: *"this page has no LSR, so a mask read here would be
+of the wrong world."*
+
+The test's node harness still modelled the old, laxer page — `globalThis.window={}` with a bare
+store — so the snippet answered `{ok:false}` and the case died on a missing key **rather than on
+anything about bit order**. The file's own comment records it dying the same way once before, for
+a different reason. A fixture that cannot satisfy the door it tests measures nothing, and it fails
+naming the wrong subject. `[[feedback-blind-fixture-green-gate]]`
+
+The harness now supplies an `LSR`, as a real board does, and asserts `"b"` is present before
+comparing bits — so a refusal can never again be read as a bit-order verdict. Red-proofed by
+flipping the board encoder to MSB-first (`1<<(j%8)` → `1<<(7-(j%8))`): the case goes red with
+*"the board and the console disagree about the BIT ORDER."*
+
+⚠ My first sabotage guessed the wrong expression, matched **0** sites, and the suite stayed green —
+which would have read as "the gate is blind" had I not printed the match count.
+`[[sabotage-is-usually-the-wrong-one]]`

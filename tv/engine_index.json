@@ -636,6 +636,18 @@
   "purpose": "Derives a ready-to-run red-proof (sabotage) candidate from a gate's own assertIn literals, so the proposal is actionable instead of a name.",
   "territory": "heart-organs"
  },
+ "heart_map.py": {
+  "entryPoints": [
+   "surfaces",
+   "watched",
+   "measure",
+   "render",
+   "main"
+  ],
+  "gotcha": "`--check` REFUSES and never regenerates, exactly like blueprint.py, because the pre-push grades the WORKING TREE. ⚠ And an unreadable input is a REFUSAL, never a zero: `_read` returns None (v3231 — it used to return \"\", so an unreadable control_ui.html gave an empty id set and would have BANKED a HEART.md claiming the console paints 0 surfaces). A watcher that cannot be read is named rather than skipped, because dropping it makes every surface it covers look UNWATCHED — a coverage collapse indistinguishable from a real one. `_why_unmeasurable` is TOLD what the caller found and must never re-read the file: bump_version replaces the surfaces atomically and regenerates this map in the same run, so a second look can see a healthy file and strip the reason out of the refusal (v3235).",
+  "purpose": "Derives HEART.md from the tree: every `id` the console PAINTS (the honest unit — a class may be shared by forty nodes, an id names one thing), and which of them any watcher mentions. UNWATCHED is not a defect; what is refused is a surface going unwatched SILENTLY, so the count is a ratchet that may not fall without a reason in heart_floor.json.",
+  "territory": "heart-organs"
+ },
  "hover_calibration.py": {
   "entryPoints": [
    "record_step",

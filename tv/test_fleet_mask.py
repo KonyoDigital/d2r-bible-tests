@@ -442,11 +442,27 @@ class TestTheWholeChainAgreesWithItself(unittest.TestCase):
         self.assertTrue(4 < len(owned) < len(self.roster) - 4,
                         "the fixture owns %d of %d — too near an extreme to distinguish bit orders"
                         % (len(owned), len(self.roster)))
+        # ⚠⚠ THE HARNESS MUST BE A BOARD, AND v3220 RAISED THE BAR. board_mask used to fall
+        # back to bare `localStorage`; it no longer does, and the refusal says why — "this page
+        # has no LSR, so a mask read here would be of the wrong world". That is CORRECT: LSR is
+        # what supplies the world prefix, and a mask read without it would be about MAIN while
+        # claiming to be about LADDER. This fixture still modelled the old, laxer page, so the
+        # snippet answered {ok:false} and the case died on `KeyError: 'b'` — an error about a
+        # missing key rather than anything about bit order, exactly as the note above records it
+        # dying once before for a different reason.
+        #
+        # A fixture that cannot satisfy the door it is testing measures nothing, and it fails in
+        # a way that names the wrong subject. [[feedback-blind-fixture-green-gate]]
+        # [[label-outlived-referent]]
         got = self._node(
-            "globalThis.localStorage={getItem:(k)=>k==='d2r_setPieces'?%s:null};\n"
-            "globalThis.window={};\n"
+            "const _store={getItem:(k)=>k==='d2r_setPieces'?%s:null};\n"
+            "globalThis.localStorage=_store;\n"
+            "globalThis.window={LSR:_store};\n"
             "globalThis.btoa=(s)=>Buffer.from(s,'binary').toString('base64');\n"
             "console.log(%s);" % (json.dumps(json.dumps(owned)), js))
+        self.assertIn("b", got,
+                      "the board encoder refused instead of encoding, so nothing below is about "
+                      "bit order: %r" % (got,))
         mine = fm.encode(owned, self.roster, self.fp)
         self.assertEqual(got["b"], mine["b"],
                          "the board and the console disagree about the BIT ORDER. Every decoded "

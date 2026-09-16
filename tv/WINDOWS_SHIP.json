@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3235",
+  "ver": "v3236",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3235: the heart map helper decided whether to name an unreadable console page by opening the file a second time, so an atomic replace during a bump could hand it a healthy file and strip the reason out of a refusal that still fires. the caller tells it now. my first law for this pointed the wrong way and a sabotage went straight through it",
+  "note": "v3236: the curated engine index had 186 modules and not the one that derives the heart map, so the blueprint did not describe the organ that describes the organs. and the fleet mask case was dying on a missing key because its node harness modelled a page with no LSR, which board_mask stopped accepting on purpose",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
