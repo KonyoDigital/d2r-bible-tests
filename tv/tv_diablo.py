@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3209"   # THE WRITE DOOR HOPS TO ASK THE BOARD, NEVER TO WRITE IT
+VERSION = "v3210"   # THE FLEET GETS ITS THIRD HALF - THREE KINDS OF THING AT THREE WEIGHTS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -6263,7 +6263,21 @@
      `clipped 0` and was RIGHT by its own rule, because the row's BOX was 227px and only its
      CONTENT overflowed, which a rect cannot see.
      The grid keeps the alignment; wrapping keeps the shrink. [[regression-guard]] */
-  .fleet-row > b        { grid-column: 2; overflow-wrap: anywhere; }
+  /* ══ v3210 (#104) — THE TYPOGRAPHY HALF. His ask was three things: "typography and i want
+     fixed structure wise and stretched". v3202 did the structure (four fixed tracks) and the
+     stretch (minmax(0,1fr) on the name). This is the third.
+     WHAT WAS WRONG: the machine NAME and the VERDICT both rendered at --fw-semibold, so the row
+     had two equal voices and nothing led. A row that says three different KINDS of thing — who
+     it is, what it answers, and why — must say them at three weights, or the eye picks at random.
+     ⚠ TOKENS ONLY. visual_lock_invariant owns weight/tracking/line-height and there is no raw
+     font-weight here. --fs-3xs and --ok DO NOT EXIST in this file; --fs-2xs is the floor. */
+  .fleet-row > b        { grid-column: 2; overflow-wrap: anywhere;
+                          font-weight: var(--fw-bold); letter-spacing: var(--ls-tight); }
+  /* the verdict is the ANSWER: lighter than the name, and it already carries state colour, so
+     weight would be a second encoding of the same fact */
+  .fleet-row > .fleet-word { font-weight: var(--fw-medium); }
+  /* the reason is a QUALIFIER of the verdict above it — never a third peer */
+  .fleet-row > .fleet-why  { font-weight: var(--fw-normal); }
   .fleet-row > .fleet-eye { grid-column: 3; }
   /* placed BY NUMBER: a machine with no capture lane emits no eye, and implicit placement would
      slide its verdict one column left — ragged again, on exactly the rows that look healthiest */
