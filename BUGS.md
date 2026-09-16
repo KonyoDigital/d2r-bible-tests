@@ -34728,3 +34728,31 @@ have it; this one I wrote without. The suite ran 2,235 tests in 579s and that wa
 ⚠ And the push's task notification said **"exit code 0"** — the wrapper's status, not the push's.
 The real signal was `PUSH_EXIT=1` and `error: failed to push some refs`, which is why the exit code
 is written into the log and read from there. `[[exit-status-of-the-block]]`
+
+## REG-1033 — the symmetry gate was itself asymmetric, and two smaller holes beside it
+
+**2026-09-16 · `tv/test_a_difference_needs_both_its_terms.py`** — *found by the post-ship
+cross-family review of v3230, i.e. of the gate written to catch REG-1032.*
+
+1. **The gate enforced its own law in one direction only.** Its stated rule is *"the half that DID
+   succeed must still be reported — refusing both is throwing away a real measurement."* It pinned
+   `assignedBefore == 3` in the after-fails case and pinned **nothing** in the before-fails case.
+   So a change that let a failed BEFORE read suppress a perfectly good AFTER count would have
+   passed. **The half-application this file exists to punish, committed inside the file.**
+   `[[copy-drift]]` Red-proofed: gating `assignedAfter` on `okBefore&&okAfter` → 1 red.
+
+2. **Scratch JS was written into the source tree** (`tv/.t_both_terms/`, `tv/.t_autosort_check.js`)
+   — untracked, not gitignored, removed only by `addCleanup`, so a crash between write and cleanup
+   leaves files in `tv/`. In this repo that is not just untidy: `tv/` is scanned by
+   `frame_authority` and graded by the pre-push gate. Now `tempfile.mkdtemp`.
+
+3. **The file was invisible to the node-venue watchdog.** `test_the_node_venue_is_not_silently_
+   absent` discovers node-driving laws by globbing `test_*.py` for the literal `node unavailable`;
+   my skips said *"node not installed in this venue"*. So on a venue without node this gate would
+   have gone quiet and the watchdog built to notice exactly that could not see it. **A skip is not
+   a pass, and a skip nobody counts is not even a skip.** Now uses the house string, and the
+   watchdog reports 11 node-driving laws including this one. `[[regression-guard]]`
+
+⚠ All three are in code I wrote in the same hour as the defect it guards. The pattern across this
+arc is consistent enough to name: **the repair is where the next defect lives**, because it is
+written fastest and with the most confidence.

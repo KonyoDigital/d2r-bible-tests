@@ -37,6 +37,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -92,9 +93,11 @@ console.log(eval(js));
 
     def _run(self, mode):
         import json
-        d = os.path.join(HERE, ".t_both_terms")
-        if not os.path.isdir(d):
-            os.makedirs(d)
+        # ⚠ NOT IN THE SOURCE TREE. These were written to tv/.t_both_terms/ — untracked, not
+        # gitignored, and cleaned up only by addCleanup, so a crash between the write and the
+        # cleanup leaves scratch JS sitting in the repo. In THIS repo that is not merely untidy:
+        # tv/ is scanned by frame_authority and graded by the pre-push gate. Temp dir instead.
+        d = tempfile.mkdtemp(prefix="both_terms_")
         self.addCleanup(shutil.rmtree, d, True)
         frag = os.path.join(d, "frag.js")
         harn = os.path.join(d, "harness.js")
@@ -108,7 +111,7 @@ console.log(eval(js));
                          % (mode, r.stderr.decode("utf-8", "replace")[:600]))
         return json.loads(r.stdout.decode("utf-8", "replace").strip())
 
-    @unittest.skipIf(shutil.which("node") is None, "node not installed in this venue")
+    @unittest.skipIf(shutil.which("node") is None, "node unavailable — a skip is NOT a pass")
     def test_a_good_pass_reports_the_real_delta(self):
         """⚠ THE BASELINE. A guard that refuses everything is as useless as one that refuses
         nothing — this proves the honest path still produces a number."""
@@ -118,7 +121,7 @@ console.log(eval(js));
                          "the ordinary path stopped reporting a real delta: %r" % out)
         self.assertTrue(out["readBefore"] and out["readAfter"])
 
-    @unittest.skipIf(shutil.which("node") is None, "node not installed in this venue")
+    @unittest.skipIf(shutil.which("node") is None, "node unavailable — a skip is NOT a pass")
     def test_an_unreadable_AFTER_store_reports_nothing_not_zero(self):
         """★ THE DEFECT: before=3, after unreadable -> assignedAfter 0 and newlyAssigned -3."""
         out = self._run("after-fails")
@@ -134,7 +137,7 @@ console.log(eval(js));
                          "the half that DID succeed must still be reported — refusing both is "
                          "throwing away a real measurement")
 
-    @unittest.skipIf(shutil.which("node") is None, "node not installed in this venue")
+    @unittest.skipIf(shutil.which("node") is None, "node unavailable — a skip is NOT a pass")
     def test_an_unreadable_BEFORE_store_reports_nothing_not_zero(self):
         """The symmetric case — v3224 guarded this one and only this one."""
         out = self._run("before-fails")
@@ -143,15 +146,23 @@ console.log(eval(js));
                           "a difference is a measurement only when BOTH terms were measured: %r"
                           % (out["newlyAssigned"],))
         self.assertFalse(out["readBefore"])
+        # ⚠ THE SYMMETRY GATE WAS ITSELF ASYMMETRIC, and a cross-family review of v3230 caught it.
+        # The after-fails case pins that the surviving count is still reported; this case did not,
+        # so "refusing both throws away a real measurement" was enforced in one direction only —
+        # the exact half-application this whole file exists to punish. [[copy-drift]]
+        self.assertEqual(out["assignedAfter"], 4,
+                         "the half that DID succeed must still be reported — a failed BEFORE read "
+                         "must not suppress a good AFTER count: %r" % out)
 
     # ── AND IT MUST STILL BE A PROGRAM ──────────────────────────────────────────────────────
-    @unittest.skipIf(shutil.which("node") is None, "node not installed in this venue")
+    @unittest.skipIf(shutil.which("node") is None, "node unavailable — a skip is NOT a pass")
     def test_the_fragment_is_valid_javascript(self):
         """A hop that does not parse is a dead render, and this one runs inside his board."""
-        p = os.path.join(HERE, ".t_autosort_check.js")
+        d = tempfile.mkdtemp(prefix="both_terms_")
+        self.addCleanup(shutil.rmtree, d, True)
+        p = os.path.join(d, "frag.js")
         with io.open(p, "w", encoding="utf-8") as f:
             f.write(self.js)
-        self.addCleanup(os.remove, p)
         r = subprocess.run(["node", "--check", p], capture_output=True)
         self.assertEqual(r.returncode, 0,
                          "vault_autosort's JS does not parse:\n%s"
