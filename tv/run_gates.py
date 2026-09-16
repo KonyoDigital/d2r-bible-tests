@@ -650,6 +650,19 @@ GATES = [
              "the fix reports staleness rather than recomputing a verdict; the law also refuses "
              "any witness constant appearing in the panel. resultFromDisk counts as stale ON ITS "
              "OWN: a disk proposal can read four minutes old and describe a dead process."),
+    Gate("test_a_dead_journal_reader_says_so",
+         [sys.executable, os.path.join(HERE, "test_a_dead_journal_reader_says_so.py")], 120,
+         why="_kai_journal_rows wrapped its whole read in except Exception pass and returned an "
+             "empty list, so an unreadable or permission-denied journal was indistinguishable "
+             "from a quiet night. Six call sites read it and status_payload turns an empty tail "
+             "into sessionHealth verdict idle: a dead reader wearing a healthy verdict. ⚠ THE "
+             "GUARD FOR EXACTLY THIS WAS ALREADY WRITTEN, CORRECT AND UNREACHABLE - the except "
+             "block whose own comment says a thrown journal walk is NOT an idle night - and its "
+             "test mocked the function with side_effect RuntimeError, proving a path production "
+             "can never take. Green forever over a live defect. This guards the path real disks "
+             "take, and keeps the opposite error out: a journal that was never written is empty "
+             "and honest, because reporting UNKNOWN there would make every fresh install look "
+             "broken."),
     Gate("test_the_eye_is_shown_valid_code",
          [sys.executable, os.path.join(HERE, "test_the_eye_is_shown_valid_code.py")], 120,
          why="the ship gate will not push until a DIFFERENT model family has looked, so the "

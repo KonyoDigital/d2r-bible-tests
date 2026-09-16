@@ -10934,9 +10934,34 @@ def _intake_why(body):
     return ""
 
 
-def _kai_journal_rows():
-    """Fresh journal rows for KAI (module-level read; the handler cache is instance-side)."""
+def _kai_journal_rows(want_why=False):
+    """Fresh journal rows for KAI. -> rows, or (rows, why) when want_why.
+
+    ⚠⚠ v3208 — THIS FUNCTION COULD NOT FAIL, AND THAT IS WHY THE GUARD FOR ITS FAILURE HAS NEVER
+    RUN. The whole read sat inside `except Exception: pass` returning `[]`, so an absent,
+    unreadable or permission-denied journal was indistinguishable from a quiet night. Six call
+    sites read it, and `status_payload` turns an empty tail into `sessionHealth.verdict = idle`.
+
+    The guard for exactly this is already written, forty lines down, and says so in its own words:
+    *"a thrown journal walk is NOT an idle night. idle + zeros is indistinguishable from nothing
+    happened and that is how a dead reader looks healthy."* It is correct. It was UNREACHABLE.
+
+    ⚠ AND ITS GATE PROVES THE PATH THAT CANNOT HAPPEN. `TestV1704UnknownStaysUnknown` mocks this
+    function with `side_effect=RuntimeError` and asserts the payload says `unknown` — a green test
+    over a live defect, because production never throws here. That is the same shape as the
+    try/except I wrapped around PyObjC two versions ago: a defence proven against a failure mode
+    that does not occur. [[feedback-blind-fixture-green-gate]] [[regression-guard]]
+
+    ⚠ A MISSING JOURNAL IS NOT AN UNREADABLE ONE. A console that has never recorded has no file,
+    and empty is the HONEST answer there — reporting UNKNOWN would make every fresh install look
+    broken. Any other failure (permission, decode, IO) is UNKNOWN and must reach the guard.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+    ⚠ THE DEFAULT SHAPE IS UNCHANGED so the other five call sites keep working untouched; only the
+    one that publishes a VERDICT opts in to the reason.
+    """
     rows = []
+    why = None
     try:
         with open(_journal_path(), encoding="utf-8") as f:
             for ln in f:
@@ -10945,10 +10970,12 @@ def _kai_journal_rows():
                     try:
                         rows.append(json.loads(ln))
                     except Exception:
-                        pass
-    except Exception:
-        pass
-    return rows
+                        pass          # one bad line is not an unreadable journal
+    except FileNotFoundError:
+        why = None                    # never recorded: empty is the measured truth
+    except Exception as exc:
+        why = "%s: %s" % (type(exc).__name__, str(exc)[:80])
+    return (rows, why) if want_why else rows
 
 
 # ── v1689 🛑 CHRONICLE ROUTE GUARD — the two classifiers finally reconciled ──────────
@@ -28232,7 +28259,12 @@ def status_payload():
             _sess_h = _jh["h"]
             _drv = _jh.get("d") or {"seen": 0, "queued": 0, "fired": 0, "refire": 0}
         else:
-            _jtail = _t("journal", _kai_journal_rows)[-200:]
+            # v3208 — a journal that could not be READ raises into the `unknown` guard below,
+            # which has been written and correct and unreachable since v1709.
+            _jrows, _jwhy = _t("journal", lambda: _kai_journal_rows(want_why=True))
+            if _jwhy:
+                raise RuntimeError("journal unread: %s" % _jwhy)
+            _jtail = _jrows[-200:]
             _sid_now = ""
             for _r in reversed(_jtail):
                 if _r.get("sessionId"):
@@ -28288,7 +28320,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3207",
+        "ver": "v3208",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
