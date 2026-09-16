@@ -1,0 +1,16 @@
+{
+ "sessions": [
+  {
+   "sessionId": "s_1789419736164_fxbriefrun",
+   "n": 16,
+   "frames": 16,
+   "t0": 1789419739337,
+   "t1": 1789419768343,
+   "fixture": true,
+   "fixturePack": "brief-run",
+   "footageN": 16,
+   "footageState": "fixture",
+   "footageWhy": "a fixture pack carrying 16 of the reel's 30 frames, evenly spaced — the rest were never copied, not pruned"
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "mid-run-b",
+ "title": "a middling session",
+ "why": "between the long and the short ones, so the grid is not bimodal",
+ "source": {
+  "sessionId": "s_1788821886867_76614",
+  "framesInReel": 106
+ },
+ "fixtureSessionId": "s_1788821886867_fxmidrunb",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 2541327,
+  "bytesInSource": 2484339
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "bb4c0c483b8bf19c0627f3a806fc5f862900869003fc75a99e7df2a3f8692e06",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821968911.jpg": "17b29d562ab48c3787dd9e6cb363e50a9709f94bcdda456d819ef1f773993622",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821961770.jpg": "c925e5a55e53ab72d44e525958cf95e4114e554f85b09ab26dfeeaddf5ae25c9",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821913127.jpg": "ce855c37a10a5bb6da124ed4725ade6e9782c67c38c6964e44121a41d836afc4",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821947991.jpg": "a41dc47ebc0c307b0df9721d1cf5311b9966414db2aa9a3ab941d43a808c767a",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821997033.jpg": "d75a78cf6fc734320f8067916d9d986f3f85eb45788728e8d05fdbceb71957cd",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821934171.jpg": "dacbc56fc58ccd7d55cc3f8ee08968b25603330fa75306eec62ce18066cf212b",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821898730.jpg": "1934d1762ce4d5f5684a2a68ca14f054479791cfb322c5921aedbfef0e4abb81",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821891729.jpg": "e36e3458df0fd0db887f2935601d1c4a4888fd7d6f0ebf18892399cb44ce3ae4",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821905772.jpg": "5393b2fde9f11883256cb2085cf0227a930ff614013cd462866480751d7f5537",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821989770.jpg": "badb41c5d5104c05f195d4706c74855005a3c15937a7de55da5b12e7d905fd10",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821954854.jpg": "414ea71f406a8857d850d1915524d317eb5eeb49815568e0879a9c3c990361be",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821940821.jpg": "915387d601fa08cbcbe97f06a4c2d8792a73b3f8a1b7c3dbbafe4924810f9236",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821927067.jpg": "0b8c4f9a856ded4ee283965c8680fed28d8fd8e1c492131d1395350985245f06",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821982737.jpg": "5e882756505dce299857c757c7b1781db8e74bdc1e1cc6292ed80aae94a386ac",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821920142.jpg": "8222acdac3f74772706c7d229817c1c405a0132e7822cf62594013174dd01f26",
+  "reels/reel_s_1788821886867_fxmidrunb/index.json": "d1ce6a3c7256ebbdb5160af77397f9bb39eb42616d4dce2205ce676600756f9c",
+  "reels/reel_s_1788821886867_fxmidrunb/f_1788821975967.jpg": "da620faf4a31c721c1db6da21ab9915820a50933f4dcd94ebcbc35c3d40af575"
+ }
+}

@@ -329,7 +329,13 @@ def ask(prompt):
 # measured and cannot swallow a clause. [[unknown-stays-unknown]] [[source-reading-guard]]
 _NO_DEFECT_RX = re.compile(
     r"\bno\s+(?:\w+\s+){0,2}(?:defects?|issues?|bugs?|problems?)\s+"
-    r"(?:were\s+|are\s+|was\s+)?(?:found|identified|detected|visible|apparent)\b",
+    # ⚠ v3216 — `evident` AND `present` ADDED, and `is` to the copula list. An OpenAI seat wrote
+    # "No concrete functional defect is evident in this diff", every block scored
+    # claims_a_defect=False, and the row STILL said verdict=findings — because the declaration
+    # used a verb this list did not carry. Widening here is safe by construction: the pattern only
+    # ever GRANTS clean, and only when `claims` is simultaneously empty, so a miss costs a noisy
+    # row and a false match still cannot clear a real finding. [[unknown-stays-unknown]]
+    r"(?:were\s+|are\s+|was\s+|is\s+)?(?:found|identified|detected|visible|apparent|evident|present)\b",
     re.I)
 
 # a block that carries one of these is making a CLAIM about a defect, not describing a change.
@@ -396,6 +402,52 @@ def _verdict_for(answer, findings):
     return "findings", findings
 
 
+def _model_from_answer(answer):
+    """Which model actually produced this answer? -> slug or None. Read from the BYTES.
+
+    ⚠⚠ v3216 — IN HANDOFF MODE THE LEDGER RECORDED THE CONFIGURED GROK DEFAULT NO MATTER WHO
+    ANSWERED. `--answer-in` passed `model=EYE_MODEL`, which is `grok-4-1-fast-reasoning` unless
+    THIRD_EYE_MODEL is set — so three real OpenAI looks (v3214, v3215, v3216, all produced by
+    `gpt-5.6-terra`) were filed as **family=xai**. The ledger's own docstring says family "is
+    derived from the model id, not asserted" because "a same-family agent writing plausible
+    strings must never be mistakable for a cross-family look" — and that derivation was correct
+    while its INPUT was a guess. The one question this file exists to answer was being answered
+    from configuration rather than from evidence.
+
+    ⚠ AND IT FAILS CLOSED. If the answer does not say, this returns None and the caller records an
+    UNKNOWN model rather than inheriting the default — an unattributable look must not be able to
+    discharge a cross-family debt. [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    head = (answer or "")[:4000]
+    m = re.search(r"(?mi)^\s*(?:\x1b\[[0-9;]*m)?model:(?:\x1b\[[0-9;]*m)?\s*([A-Za-z0-9._-]+)", head)
+    return m.group(1) if m else None
+
+
+def _strip_echo(answer, prompt):
+    """Drop a prompt the tool echoed back before its reply. -> str
+
+    ⚠⚠ v3216 — THE ECHO WAS BEING COUNTED AS FINDINGS. `codex exec` prints the whole prompt —
+    including the DIFF — before its answer, and `_findings_from` split that too. Every handoff row
+    came back with exactly **12** findings (the `[:12]` cap) whose text was
+    `'--- a/tv/control_app.py'` and `'Reading prompt from stdin...'`, and a reply that said
+    *"No concrete functional defect is evident in this diff"* was filed as `verdict=findings`.
+    A constant is not a measurement. [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+    """
+    a = answer or ""
+    tail = (prompt or "").strip()[-160:]
+    if tail and tail in a:
+        a = a[a.rindex(tail) + len(tail):]
+    # ⚠⚠ AND THE TERMINAL CONTROL BYTES, which is why the first cut of this still mis-read a
+    # CLEAN answer. `codex exec` writes its reply behind an ANSI colour run and a `codex` speaker
+    # label, so `findings[0]` began `\x1b[35m\x1b[3mcodex\x1b[0m ... No concrete functional
+    # defect is evident` — and `_NO_DEFECT_RX`, which anchors near the start, never matched. The
+    # row then said verdict=findings over a reply that found nothing. Over-reporting is the safe
+    # direction, but a verdict that disagrees with its own answerHead is still a broken instrument.
+    a = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", a)
+    a = re.sub(r"(?m)\A\s*(codex|assistant)\s*$", "", a).lstrip()
+    return a.lstrip()
+
+
 def _findings_from(answer):
     """Split the answer into findings without interpreting them. Numbered or bulleted lines start
     a finding; everything else joins the one above."""
@@ -427,7 +479,7 @@ def _findings_from(answer):
 # The one thing neither mode may do is let an unanswered ask read as agreement.
 
 
-def record_answer(version, answer, sent, dropped=""):
+def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model=""):
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
@@ -437,9 +489,21 @@ def record_answer(version, answer, sent, dropped=""):
                    path=None, seen_path=None, sent=sent)
         print("  %s: the answer was %d chars — EMPTY SEAT, not agreement" % (version, len(answer)))
         return False
+    # ⚠⚠ v3216 — STRIP THE ECHO AND READ WHO ACTUALLY ANSWERED, because handoff mode was doing
+    # neither. `codex exec` prints the whole prompt — diff included — before its reply, so the
+    # splitter counted the ECHO: every handoff row came back with exactly 12 findings (the cap)
+    # reading `'--- a/tv/control_app.py'`, and a reply saying "No concrete functional defect is
+    # evident" was filed as verdict=findings. And `model=EYE_MODEL` recorded the configured GROK
+    # default no matter who answered, so three real `gpt-5.6-terra` looks were filed family=xai —
+    # the ledger asserting a Grok seat that was never occupied. [[unknown-stays-unknown]]
+    # ⚠ ORDER MATTERS, AND I GOT IT WRONG FIRST: the tool prints its `model:` header BEFORE the
+    # echoed prompt, so stripping the echo first throws away the one piece of evidence that says
+    # who answered. Read the model from the RAW bytes, then strip.
+    _model = _model_from_answer(answer) or answer_model or ""
+    answer = _strip_echo(answer, prompt_text)
     findings = _findings_from(answer)
     _verdict, findings = _verdict_for(answer, findings)
-    SEL.record(version=version, model=EYE_MODEL,
+    SEL.record(version=version, model=_model,
                verdict=_verdict,
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
@@ -448,7 +512,7 @@ def record_answer(version, answer, sent, dropped=""):
     return True
 
 
-def run_one(version, dry=False, prompt_out=None, answer_in=None):
+def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""):
     version = SEL.norm_version(version)
     sha, why = commit_for(version)
     if not sha:
@@ -472,7 +536,10 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None):
         return True
     if answer_in:
         with io.open(answer_in, encoding="utf-8") as fh:
-            return record_answer(version, fh.read(), sent, dropped)
+            # the PROMPT is passed so the echo can be stripped, and the model is read from the
+            # answer's own bytes rather than inherited from whatever THIRD_EYE_MODEL happens to be
+            return record_answer(version, fh.read(), sent, dropped,
+                                 prompt_text=prompt, answer_model=answer_model)
     if dry:
         return True
     answer, reached, awhy = ask(prompt)
@@ -505,6 +572,11 @@ def main(argv):
     ap.add_argument("--dry", action="store_true", help="build and measure, send nothing")
     ap.add_argument("--prompt-out", help="write the measured payload here instead of asking")
     ap.add_argument("--answer-in", help="record this answer against the measured payload")
+    # ⚠ v3216 — for an eye whose output does not NAME its model. Without it the row records an
+    # empty model, family_of() returns None, and the look does NOT discharge a cross-family debt —
+    # which is the right way to fail: an unattributable answer is not evidence about who looked.
+    ap.add_argument("--answer-model", default="",
+                    help="the model that produced --answer-in, when the answer does not say")
     a = ap.parse_args(argv)
     if a.backlog:
         # ⚠⚠ v2848 — THE BACKLOG COMMAND HAS BEEN CRASHING, SO NOTHING REPORTED THE QUEUE.
@@ -543,6 +615,7 @@ def main(argv):
         ap.print_help()
         return 2
     return 0 if run_one(a.version, dry=a.dry, prompt_out=a.prompt_out,
+                        answer_model=a.answer_model,
                         answer_in=a.answer_in) else 1
 
 

@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "wide-run",
+ "title": "a second long session",
+ "why": "two long runs so a card grid has more than one tall row to lay out",
+ "source": {
+  "sessionId": "s_1786385768689_67392",
+  "framesInReel": 217
+ },
+ "fixtureSessionId": "s_1786385768689_fxwiderun",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 2595581,
+  "bytesInSource": 18316244
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "60ba99f9fda77ad2aabc29da457e00516fca9e1284b39f7afab35f5e6fbcf522",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385890383.jpg": "4523776eed72de892446a24222553a7707c0633634efc6fa67d6670af693a956",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385962920.jpg": "3f690dfdb8e9fe960536441d9b4839b693797fb11a6f052cebe594962b3557c7",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385847949.jpg": "fe41a2ad562cd94aee219f3f666b87da17fa188af87b09eb23b721ae1465e573",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385949540.jpg": "4d3b78f9a96747a9df348ea18739862d6c3d16429b2cf0a0cd17e474b6916348",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385773403.jpg": "8145d071571f5acdbbf7307a88ca78669e995c5d55473974ed7841001c261fd1",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385993061.jpg": "9c7248d0d744ac648ba51d707979e666e48f6a977b7db0f5433de54229a31311",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385787469.jpg": "d06bf2dbb9029e10399fb46e711bafd654a06c308cdb8b2b4e3add5ac569548b",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385860808.jpg": "363e10fa66f33b74a9b9e7ac1be33f95f00c330b294f3a005a9750b995f36d1c",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385802533.jpg": "3bf35b1ba3fd739b59b20875e884b1ad01c333811390af198043d9a8ebf1aba3",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385906175.jpg": "6dc99b804bfa64caca21466bd4fbf042e5bb15e5d0fcb1aa26fa25b09fa63f5d",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385934164.jpg": "6c5d01fe353cdccd2b9a3d4cee78c1db57ef5c1bbe78d5548e963e305e0910ab",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385978033.jpg": "9b7b013eaffd14b85ae04973f1de5f98eb244adb7010a242829df8e17d94dbba",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385831817.jpg": "a1c2ea50afbc49f5d3f186ec20e7f867577bbabde0cec113ece206d77b207f23",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385876396.jpg": "c2918fa1c50066dd948991cfdcb641a901adf193844fbfdae3eac0cd71d8488f",
+  "reels/reel_s_1786385768689_fxwiderun/index.json": "10320067d4f34b004771b138b77c6fbe144ff19ca96571cdd82eca228c604e61",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385816512.jpg": "77eb9d794cc0a9cad3355a6b3fb4e8f850e5bc6392dc138fa9a9e13f36c9869e",
+  "reels/reel_s_1786385768689_fxwiderun/f_1786385920089.jpg": "777ab0e85241cba00e2a363afddccecfb4723e21452d152a8a2319270ebf96ca"
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "deep-run",
+ "title": "a long session",
+ "why": "the biggest reel on disk — the shelf card that must not clip its own title",
+ "source": {
+  "sessionId": "s_1788879062885_39108",
+  "framesInReel": 268
+ },
+ "fixtureSessionId": "s_1788879062885_fxdeeprun",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 4398331,
+  "bytesInSource": 4388357
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "45e2942e62ea40b5663daa27f17e4c2d0278d51f21d837ac88b6f85a180a5dd2",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879366064.jpg": "7d2e41fde1489568d9c2f6267fcdbdf67f216207cbb490717f41e338e2cdf134",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879102799.jpg": "19434456d4e699c738d5187dc828567cc65a1c6409582c432140fd2f21729953",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879255742.jpg": "84e67de93b30a2fc233b1957418e6957e9c55d8132a3392d1b21bed185de23db",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879066325.jpg": "be522cec435f11a82945afacbf34563d7c9cbf6276dbe560bd6197c6ebdceb65",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879173931.jpg": "a29b58997a33c08bdea6b6ba35203136ec72ceeea234a85261407f71edb01b6b",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879211070.jpg": "9790004df189887c21e63a9c05e7dc9a66e3c6c3f0d62d095ad4c44cf5180e51",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879192050.jpg": "b6cfcb99bc73905349be6bffc08f25e104082c3ae98972ea479c0700b947f205",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879311120.jpg": "21203385c1b8ee5a2ace609ef23e3782a7b46220103a09a09ddca11fee23b076",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879155916.jpg": "d37c90e268bf746b4dd93e0465a4d9ad35a2dbba96e02cf10338107e9d2b4dcd",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879346191.jpg": "7850272d55d83bdd8bba4c7548cb9ac4f16f51d84da7e19bcb0e016646a7e123",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879119996.jpg": "c680c28999cce61f602f78e50795484d4cb6e244093133eb95d6289490ff3aa0",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879275404.jpg": "b74093790d8fcb71e6c201339eb08a88dbd06305c644a438514bfae41d77900c",
+  "reels/reel_s_1788879062885_fxdeeprun/index.json": "88171a233cae73119d4cee7dcc75433509b9babfb6bb4f4fe3d0ebd46791bf1a",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879137926.jpg": "3fb65b4c333c06a4f23429207da8f1be094573ec0e6b65522e6c63a30aff62b4",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879084899.jpg": "565c1d59473ad77223b31d715314047eca78be1b7093eb5ad988e7c592f7c045",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879293408.jpg": "9f68f53e63607bc2a5146dd4481ce433215eecdc452d92dcfb2db2341d4d5e27",
+  "reels/reel_s_1788879062885_fxdeeprun/f_1788879328103.jpg": "712421cd15782de0712182c1dcaf4b14ec69e75663c170bdbf936a41e1123c22"
+ }
+}

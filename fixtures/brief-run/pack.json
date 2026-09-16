@@ -1,0 +1,38 @@
+{
+ "packFormat": 1,
+ "id": "brief-run",
+ "title": "a very short session",
+ "why": "the shortest reel — proves a card with almost no film still draws",
+ "source": {
+  "sessionId": "s_1789419736164_30857",
+  "framesInReel": 30
+ },
+ "fixtureSessionId": "s_1789419736164_fxbriefrun",
+ "carries": {
+  "sessions": 1,
+  "frames": 16,
+  "bytes": 779763,
+  "bytesInSource": 894938
+ },
+ "fixture": true,
+ "files": {
+  "sessions.json": "1ebc884ef44b4f161952e8bb8ca05c25da7ed341269836c2c2b637dfe07f4e26",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419762372.jpg": "98a143a4cb79c5553e440dbe4d4cc9b1e915164ad3fcf6e930688d7123a98616",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419752114.jpg": "0ae4e75df8e9243e259034bdcbbcd7b540e2bcd36177a9b9fb2ae31ea73fa69b",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419756398.jpg": "318b17cc0a92a9a7454abf7502329937b92b0cf33eabdab3ac09d94aeab0687a",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419754514.jpg": "9669207176c750ed1e904cc13b22ee3643f187493e2dc6b678b538773fe08044",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419754071.jpg": "86e63df59601fadb0297c332aa4cd823a7844c1f91f8fd10575f5705d21703b4",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419747423.jpg": "7883445358540debf207ea83a5985cfc280aadb7536d018a05ef4c4995ecc75f",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419743490.jpg": "717058c59276fb882eb51f28a5b0fc83ea06fc08fb96b7bbac611946bfeb2e62",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419739337.jpg": "eb23ab9ca7c6d02deb47cb4312e55a7e4ac4812a6fc0db0cebd4af67130b0298",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419760524.jpg": "9e2528868acc17809a99d25a2c2f6cf5134ee6ad3d7a87df5dbe0b08c98aa36d",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419764430.jpg": "b23a9e917300936349f7557a56a6edac6d432530660f2face456c7568b345fc7",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419768343.jpg": "f88f562b4a6e37dacc212909afcf65e2251953462cdeab7668974335bfb6b9a9",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419745513.jpg": "c910e9d5a83b4a33aa2ec0ace76056e397be3d67dc0b5ef55a79018fd51c784a",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419741563.jpg": "aab25e3ebeeb846c2eea08a2cbbdadd45a4a4af1d653ee887df18821b75986a3",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419766486.jpg": "8dccfbdbcdcdf33549adb28f5d6ca0e7bd51dc1cad58ccece2e3167aa1f606c9",
+  "reels/reel_s_1789419736164_fxbriefrun/index.json": "3548ada16e6a3c3fe61b4a78c080e599982249a8ed8bfd8d80e6287390fb1747",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419749890.jpg": "adc88e7885f2bb3a0ea2e8e24b2e78a1c6527c3e29c14d7bbb7a294cba9cab99",
+  "reels/reel_s_1789419736164_fxbriefrun/f_1789419758591.jpg": "1ba8ef04fd71430e47e16bb5360ef6e07c3691777ed8704b051602789cf73374"
+ }
+}

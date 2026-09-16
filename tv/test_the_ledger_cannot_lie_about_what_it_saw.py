@@ -121,10 +121,37 @@ class TestTheLedgerCannotLieAboutWhatItSaw(unittest.TestCase):
 
     # ── 3. the verdict ───────────────────────────────────────────────────────────────────────
     def test_a_declared_clean_answer_is_recorded_clean(self):
-        v, f = R._verdict_for("**No defects found.** Reviewed for races and leaks. Nothing real.",
-                              ["one folded block"])
+        # ⚠⚠ v3216 — THIS FIXTURE WAS UNREACHABLE AND THE GATE HAS BEEN RED ON ORIGIN BECAUSE OF
+        # IT. It handed `findings=["one folded block"]` — a placeholder that does NOT contain the
+        # declaration — while the rule deliberately requires the clean declaration to be
+        # `findings[0]`. That requirement is the safe half: a declaration ANYWHERE plus one listed
+        # P1 was once filed CLEAN, which is the direction this whole file exists to prevent, so
+        # `opens_clean` reads the FIRST block on purpose. `_findings_from` always puts the opening
+        # sentence first, so the real shape is the one asserted here.
+        # A/B'd against HEAD before touching it: HEAD returns "findings" too — this is a
+        # pre-existing red, not a regression. [[ab-against-head-before-blaming-the-room]]
+        clean = "**No defects found.** The change is consistent with its callers."
+        v, f = R._verdict_for(clean, [clean])
         self.assertEqual(v, "clean", "a 'no defects found' answer filed as findings")
         self.assertEqual(f, [], "a clean answer still carries findings")
+
+    def test_naming_a_defect_class_it_looked_for_is_filed_as_findings_ON_PURPOSE(self):
+        """⚠ A KNOWN, DELIBERATE OVER-REPORT — recorded so nobody "fixes" it into a hole.
+
+        `_claims_a_defect` strips NEGATED spans and then looks for defect vocabulary. It cannot
+        tell *"Reviewed for races and leaks"* — a statement about the SEARCH — from *"there is a
+        race"*. So a clean answer that lists what it looked FOR is filed `findings`.
+
+        That is the SAFE direction and it stays. Teaching the stripper to swallow
+        "reviewed for X" risks swallowing "reviewed for races AND FOUND ONE", and this detector
+        exists to never miss a claim. The cost is a noisy row; the cost of the other error is a
+        real P1 filed as clean, which this file was written after. [[unknown-stays-unknown]]
+        """
+        mixed = "**No defects found.** Reviewed for races and leaks. Nothing real."
+        v, _ = R._verdict_for(mixed, [mixed])
+        self.assertEqual("findings", v,
+                         "the claim detector stopped seeing defect vocabulary outside a negated "
+                         "span — check what else it stopped seeing before calling that a fix")
 
     def test_a_declaration_can_never_bury_an_enumerated_list(self):
         v, f = R._verdict_for("No defects found.\n1. a race in x\n2. a leak in y\n3. bad state",
@@ -441,6 +468,68 @@ RED_PROOF = [
     {'why': 'letting the seam pattern cross a newline re-arms the diff false positive', 'file': 'second_eye_ledger.py', 'find': '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),', 'replace': '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),', 'matches': 1},
     {'why': 'without the declaration check a clean look is filed as one that found defects', 'file': 'second_eye_run.py', 'find': '    if not enumerated and _NO_DEFECT_RX.search(answer or ""):', 'replace': '    if False:', 'matches': 1},
 ]
+
+class TheRowNamesWhoActuallyLooked(unittest.TestCase):
+    """⚠⚠ THREE OPENAI LOOKS WERE FILED AS family=xai, AND THE ECHO WAS COUNTED AS FINDINGS.
+
+    This file's own premise is that `family` is derived from the model id rather than asserted,
+    "because a same-family agent writing plausible strings must never be mistakable for a
+    cross-family look". The derivation was right and its INPUT was a guess: `--answer-in` recorded
+    `model=EYE_MODEL`, which is the configured GROK default, no matter who produced the answer.
+    MEASURED 2026-09-16 — v3214, v3215 and v3216 were all answered by `gpt-5.6-terra` and all three
+    rows said **family=xai**. The ledger was asserting a Grok seat that was never occupied.
+
+    And the same path counted the tool's PROMPT ECHO as findings: `codex exec` prints the whole
+    payload, diff included, before replying, so every handoff row carried exactly **12** findings
+    (the cap) reading `'--- a/tv/control_app.py'`, and a reply of *"No concrete functional defect
+    is evident"* was filed `verdict=findings`. A constant is not a measurement.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
+    """
+
+    def test_the_model_is_read_from_the_answer_not_the_config(self):
+        import second_eye_run as S
+        got = S._model_from_answer("workdir: /x\nmodel: gpt-5.6-terra\nprovider: openai\n")
+        self.assertEqual("gpt-5.6-terra", got,
+                         "the model the tool NAMED in its own output is not being read, so the "
+                         "row inherits whatever THIRD_EYE_MODEL happens to be")
+
+    def test_an_unattributable_answer_does_not_claim_a_family(self):
+        import second_eye_run as S
+        self.assertIsNone(S._model_from_answer("here is my review, I found two things"),
+                          "a model id is being invented for an answer that never named one — an "
+                          "unattributable look must not discharge a cross-family debt")
+
+    def test_the_echoed_prompt_is_not_counted_as_findings(self):
+        import second_eye_run as S
+        prompt = "Code review. Judge only what is shown.\n```diff\n--- a/tv/control_app.py\n```"
+        answer = prompt + "\n\ncodex\nNo defects are evident in this diff."
+        out = S._strip_echo(answer, prompt)
+        self.assertNotIn("--- a/tv/control_app.py", out,
+                         "the echoed diff survives into the answer, so its lines get split into "
+                         "findings and the count becomes the cap rather than a measurement")
+        self.assertTrue(out.startswith("No defects"),
+                        "the reply is not what remains after stripping: %r" % out[:60])
+
+    def test_ansi_does_not_hide_a_clean_declaration(self):
+        import second_eye_run as S
+        prompt = "Code review."
+        answer = prompt + "\n\x1b[35m\x1b[3mcodex\x1b[0m\nNo concrete functional defect is evident here."
+        out = S._strip_echo(answer, prompt)
+        self.assertTrue(S._NO_DEFECT_RX.search(out),
+                        "a clean declaration behind terminal colour bytes is unreadable, so a "
+                        "clean answer is filed as findings: %r" % out[:70])
+
+    def test_a_real_finding_is_still_not_clean(self):
+        """The direction that must never break: over-reporting is survivable, this is not."""
+        import second_eye_run as S
+        bad = ["1. **High** — the endpoint uses bool(), so a body saying false authorises a write.",
+               "2. **Medium** — names has no type validation and a string is iterated per character."]
+        verdict, kept = S._verdict_for("I found two concrete regressions. " + " ".join(bad), bad)
+        self.assertEqual("findings", verdict,
+                         "two enumerated defects were filed as CLEAN — that is the direction this "
+                         "whole file exists to prevent")
+        self.assertEqual(2, len(kept))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

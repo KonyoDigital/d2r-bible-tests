@@ -33870,3 +33870,64 @@ done. The card-grid crop went to an OpenAI seat with no premise and came back:
 *"No readable text appears clipped, overlapped, or unreadable. The timestamps wrap onto two lines
 (PM / AM) by design; they are not cut off."* It transcribed `Sep 15 · 7:40 / PM`, `Sep 15 · 7:37 /
 PM`, `Sep 15 · 10:51 / AM` — dates, no ordinals, no collision with the pin/open cluster.
+
+## REG-1012 — the ledger named the wrong family, and counted the prompt as findings
+
+**2026-09-16 · v3217**
+
+`second_eye_ledger.py` states its own premise: `family` "is derived from the model id, not
+asserted", because "a same-family agent writing plausible strings must never be mistakable for a
+cross-family look". The derivation was correct and **its input was a guess**.
+
+`--answer-in` recorded `model=EYE_MODEL` — the configured Grok default — no matter who produced the
+answer. MEASURED: v3214, v3215 and v3216 were all answered by **`gpt-5.6-terra`** and all three rows
+said **`family=xai`**. The one question this ledger exists to answer was being answered from
+configuration instead of evidence, and the gate that blocks a push on "never looked at by a
+different family" reads that field.
+
+**And the same path counted the tool's PROMPT ECHO as findings.** `codex exec` prints the whole
+payload — diff included — before replying, so the splitter split that too: every handoff row carried
+exactly **12** findings (the `[:12]` cap) whose text was `'--- a/tv/control_app.py'` and
+`'Reading prompt from stdin...'`, and a reply of *"No concrete functional defect is evident"* was
+filed `verdict=findings`. A constant is not a measurement.
+
+**Fixed:** the model is read from the answer's own bytes (`_model_from_answer`), the echo is
+stripped (`_strip_echo`, including ANSI colour runs and the speaker label, which is what hid the
+clean declaration), and an answer that names no model records an UNKNOWN model rather than
+inheriting the default — an unattributable look must not discharge a cross-family debt.
+`--answer-model` exists for an eye whose output does not say. After: `model=gpt-5.6-terra`,
+`family=openai`, `verdict=clean`, `findings=0`, and a hand-built two-defect answer still reads
+`findings, 2`.
+
+⚠ ORDER MATTERS AND I GOT IT WRONG FIRST: the tool prints its `model:` header BEFORE the echoed
+prompt, so stripping first throws away the evidence. Read the model, then strip.
+
+⚠ `_NO_DEFECT_RX` gained `evident` and `present`. It only ever GRANTS clean, and only when `claims`
+is simultaneously empty, so widening it cannot clear a real finding.
+
+### A pre-existing CI red, A/B'd before being touched
+
+`test_a_declared_clean_answer_is_recorded_clean` has been red on origin. A/B against HEAD returned
+`findings` there too — **not a regression**. Its fixture handed `_verdict_for` a findings list that
+did NOT contain the declaration, while the rule deliberately requires the clean declaration to be
+`findings[0]` (a declaration ANYWHERE plus one listed P1 was once filed CLEAN — the exact hole this
+file was written after). The fixture was the defect; the rule stays.
+
+⚠ Also recorded as DELIBERATE: `_claims_a_defect` cannot tell *"Reviewed for races and leaks"* from
+*"there is a race"*, so a clean answer that lists what it looked FOR is filed `findings`. That is the
+safe direction and it stays — teaching the stripper to swallow "reviewed for X" risks swallowing
+"reviewed for races AND FOUND ONE". A law now pins it so nobody "fixes" it into a hole.
+
+### Guest fixture packs 5 → 9
+
+Grok Bot's seat reported C1/C2/C3 **UNKNOWN** with **0 cards** — "NO RUNS RECORDED YET". Four more
+packs were cut from his own recorded reels (`deep-run` 268 frames, `wide-run` 217, `mid-run-b` 106,
+`brief-run` 30), chosen for varied shapes so a card grid has more than one row to lay out. 23 MB
+across 9 packs; both pack gates green, including the leak audit that must hold for every new pack.
+
+⚠ "Hidden behind the scenes" was ALREADY built and needed nothing: the shelf does
+`if (sm && sm.fixture) { _shFixtureN++; return ''; }` and prints "N backend fixtures — hidden".
+
+⚠ AND THE 0 CARDS ARE NOT A MISSING-FIXTURE PROBLEM. That seat's own report shows
+`No such file or directory: '/workspace/tvd-linux/v'` — a TRUNCATED PATH on their box. Nine packs
+will not fix a path that is cut off at one character.
