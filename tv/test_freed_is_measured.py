@@ -80,6 +80,52 @@ class AFreedFigureNamesWhatWasActuallyRemoved(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="freed_")
         self.addCleanup(shutil.rmtree, self.dir, True)
+        self._allow_the_lock()
+
+    # ⚠⚠ 2026-09-16 — THIS SUITE COULD NOT REACH ITS OWN SUBJECT, AND ONE CASE WENT GREEN ANYWAY.
+    # v3050 put the `frame.release` self-arming lock at the top of apply_plan, ABOVE everything
+    # this file measures, and it fails closed on a stale heart census — which is the normal state
+    # of the tree the moment any gate file changes. So apply_plan returned
+    # `{ok, why, removed, failed, tombstone}` with NO `freedMb` and NO `freedMbPlanned`, and:
+    #     4 cases went RED — not because the arithmetic broke, but because it never ran
+    #     1 case went GREEN FOR THE WRONG REASON — the end-to-end sentence asserts
+    #       "freed 0 MB by removing 0 reel(s)", and a refusal makes BOTH figures 0
+    # That last one is the dangerous half: the star test of the whole file passed while being
+    # structurally unable to observe the fabrication it exists to catch. [[regression-guard]]
+    # [[feedback-blind-fixture-green-gate]] — the fixture's culprit here was the HOST's census.
+    #
+    # The lock is CORRECT and stays. This stubs it for the arithmetic cases only, and
+    # `test_the_lock_still_refuses_and_deletes_nothing` below asserts the real one still bites —
+    # so the stub can never quietly become a bypass. [[the-unjoined-end]]
+    def _allow_the_lock(self):
+        import self_arming as _sa
+        _real = _sa.may
+        def _may(name, *a, **k):
+            if name == "frame.release":
+                return (True, "stubbed by test_freed_is_measured so the ARITHMETIC below is "
+                              "reachable; the real lock is asserted separately")
+            return _real(name, *a, **k)
+        _sa.may = _may
+        self.addCleanup(setattr, _sa, "may", _real)
+
+    def test_the_lock_still_refuses_and_deletes_nothing(self):
+        """★ THE STUB IS NOT A BYPASS. With the real lock engaged, nothing may be removed."""
+        import self_arming as _sa
+        _real = _sa.may
+        _sa.may = lambda name, *a, **k: (False, "engaged for this test")
+        self.addCleanup(setattr, _sa, "may", _real)
+        self._contained(self.dir)
+        self._reel("reel_protected", 2)
+        r = rr.apply_plan({"hist": self.dir, "freeMb": 512.0,
+                           "candidates": [{"reel": "reel_protected", "mb": 512.0}]}, yes=True)
+        self.assertFalse(r.get("ok"), "a LOCKED frame.release reported success")
+        self.assertEqual(r.get("removed"), [], "it deleted footage through a locked door")
+        self.assertTrue(os.path.isdir(os.path.join(self.dir, "reel_protected")),
+                        "the reel is GONE — the lock on the one line that deletes his footage "
+                        "did not hold")
+        self.assertIn("LOCKED", str(r.get("why") or ""),
+                      "the refusal must say it was the lock, or the next reader debugs the "
+                      "arithmetic instead [[unknown-stays-unknown]]")
 
     def _contained(self, d):
         """⚠ REFUSE TO RUN unless the tombstone lands inside the fixture."""
@@ -136,6 +182,13 @@ class AFreedFigureNamesWhatWasActuallyRemoved(unittest.TestCase):
         self._contained(self.dir)
         r = rr.apply_plan({"hist": self.dir, "freeMb": 512.0,
                            "candidates": [{"reel": "reel_absent_fixture", "mb": 512.0}]}, yes=True)
+        # ⚠ REACHABILITY FIRST. This sentence is "freed 0 MB by removing 0 reel(s)" whenever
+        # apply_plan REFUSES too, so without this the case passes while measuring nothing —
+        # which is exactly how it stayed green through the v3050 lock outage. Assert the
+        # arithmetic ran before believing what it says. [[regression-guard]]
+        self.assertIn("freedMb", r,
+                      "apply_plan returned no freedMb at all — it refused before the arithmetic, "
+                      "so this case cannot see its subject. why=%r" % (r.get("why"),))
         said = "freed %.0f MB by removing %d reel(s)" % (r.get("freedMb") or 0,
                                                          len(r.get("removed") or []))
         self.assertEqual(said, "freed 0 MB by removing 0 reel(s)")

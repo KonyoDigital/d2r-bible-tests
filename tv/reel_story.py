@@ -181,7 +181,8 @@ def story(hist_dir=None):
         "stages": stages,
         "yield": yld,
         "unreadable": plan.get("unreadable") or [],
-        "freeMb": plan.get("freeMb"),
+        # v3225 — the plan's figure is MB THIS PLAN WOULD FREE, never free disk.
+        "eligibleMb": plan.get("eligibleMb", plan.get("freeMb")),
     }
 
 

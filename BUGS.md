@@ -34322,3 +34322,92 @@ two gates, and the second one was still open. `[[regression-guard]]`
 
 **Fixed:** the trigger now watches `tv/control_ui.html`, `tv/control_app.py` **and**
 `tv/demo_console.mjs` — the page, the server that renders it, and the driver itself.
+
+## REG-1023 — naming a reel defeated its own seal, and it pinned a core for 2h46m
+
+**2026-09-16 · v3225 · `tv/control_app.py`**
+
+`_vault_sweep_run` filters out every reel whose seal is still valid, then honoured a caller's
+`reel_dir` with:
+
+```python
+dirs = [d for d in dirs if basename(d) == want] or ([reel_dir] if isdir(reel_dir) else [])
+```
+
+**The `or` fires precisely when the seal removed the reel.** So a TARGETED sweep ignored a seal
+that an untargeted one obeys. The autoread watchdog aims at a reel every tick — v2225 made it aim
+on purpose — so every tick re-read a finished reel, found the same nothing, re-sealed it with the
+SAME promptVer, and retention owed it again next pass.
+
+MEASURED on his live console: **3,052 re-sweeps of one reel** (`reel_s_1788192795215_12001`), 388
+of the next, 1,748 retention passes in 20k lines of log, **104% CPU for 2h46m**. Almost all of it
+0 paid reads — so it burned the machine rather than his subscription, which is why no cost alarm
+fired. What he actually saw was the sweep panel forever mid-read on something weeks old, and he
+asked about it: *"these reels and sessions havent been read already and proccesed... something
+might be stale or not flowing correctly"*. He was right, and the loop was the reason.
+
+⚠ **AND THE LOG NAMED THE WRONG CAUSE.** It printed *"sealed with no rows by an OLDER vault reader
+(now vp2017)"* while the seal on disk said promptVer **vp2017** — the current one, for which
+`_vault_still_sealed` returns True. The sentence sent me hunting a stale prompt version that does
+not exist. `[[label-outlived-referent]]`
+
+**Fixed:** the decision moved into a pure `_sweep_pick_named()` and a valid seal now survives being
+named — refusing with an `alreadySealed` FLAG (v2225 records a watchdog that keyed on
+`"unavailable" in why` and so could not tell permanent from transient), naming which reader sealed
+it and how many rows it banked. `force` still overrules; an older reader's barren seal still
+reopens (v2002); an unsealed named reel is still swept (v2225). The reopen tally is now filtered to
+seals that have ACTUALLY lapsed, and forced re-reads print as force rather than as a newer eye.
+
+Gate: `tv/test_a_named_reel_does_not_defeat_its_seal.py`, 8 laws. It calls the function rather than
+grepping for the absence of `or [reel_dir]` — a text guard passes the moment someone rewrites the
+line keeping the behaviour. Red-proofed twice: forcing the take → 2 red; unfiltering the message →
+1 red.
+
+## REG-1024 — `freeMb` published next to `freeGb`, meaning the opposite thing
+
+**2026-09-16 · v3225 · `tv/reel_retention.py`, `tv/control_app.py`, `tv/reel_story.py`**
+
+`reel_retention.plan()` returns `"freeMb": round(freed, 1)` — the megabytes **this plan would
+release**, not free disk. `control_app` publishes it into the console props dict that also carries
+`"freeGb"` — **actual free disk**. Measured on his tree the same second:
+
+```
+{"freeMb": 0.0, "freeGb": 9.0}      # 0 MB would be freed · 9 GB actually free
+```
+
+One letter apart, opposite meanings, in one payload. Read as the Mb twin of `freeGb` it says the
+disk is **full**. Nothing renders it yet, so this was a loaded trap rather than a live lie — but
+every other consumer in `control_app.py` had already quietly renamed it to `eligibleMb`/
+`eligible_mb` on the way past, which is the tell that readers kept tripping over it.
+
+**Fixed:** `plan()` now emits `eligibleMb` as the true name (`freeMb` stays as a deprecated alias
+so older readers keep working), and the two places that let the misleading name escape into a
+payload publish `eligibleMb`. Same class as the six kai-console ships that were one defect: a
+correct number under a word naming another quantity. `[[label-outlived-referent]]`
+
+## REG-1025 — a suite could not reach its own subject, and its star case went green anyway
+
+**2026-09-16 · v3225 · `tv/test_freed_is_measured.py`**
+
+v3050 put the `frame.release` self-arming lock at the top of `apply_plan`, **above everything
+`test_freed_is_measured` measures**. It fails closed on a stale heart census — the normal state of
+the tree the moment any gate file changes — so `apply_plan` returned
+`{ok, why, removed, failed, tombstone}` with no `freedMb` and no `freedMbPlanned`:
+
+- **4 cases RED** — not because the arithmetic broke, but because it never ran.
+- **1 case GREEN FOR THE WRONG REASON** — `test_the_sentence_his_console_prints_can_no_longer_
+  disagree_with_itself` asserts `"freed 0 MB by removing 0 reel(s)"`, and **a refusal makes both
+  figures 0**. The star end-to-end test of the whole file passed while structurally unable to
+  observe the v2642 fabrication it exists to catch.
+
+That last half is the dangerous one, and it is the reason the 4 reds were never chased: a red is
+loud, a green that lies is furniture. ⚠ It also only surfaced because *adding a gate* invalidated
+the census — so the trigger was doing the right thing elsewhere.
+
+**Fixed:** the lock is correct and stays. The suite stubs it for the arithmetic cases only, asserts
+`"freedMb" in r` before believing the sentence (reachability before verdict), and a new case
+`test_the_lock_still_refuses_and_deletes_nothing` proves the real lock still bites and leaves the
+reel on disk — so the stub can never quietly become a bypass. 4 red + 1 false green → **12/12**.
+Red-proofed: removing the stub → 5 red (the end-to-end case now among them, which is the fix);
+restoring the v2642 fabrication → exactly the 4 laws its own RED_PROOF names.
+`[[regression-guard]]` `[[the-unjoined-end]]`

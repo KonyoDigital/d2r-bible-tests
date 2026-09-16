@@ -884,6 +884,16 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     never = [r for r in RULES if not hits[r] and r not in _na]
     na = sorted(r for r in _na if not hits[r])
     return {"ok": True, "hist": hist, "candidates": candidates, "kept": kept,
+            # ⚠⚠ v3225 — `freeMb` DOES NOT MEAN FREE DISK. It is `freed`: the megabytes
+            # THIS PLAN WOULD RELEASE. With no candidates it is 0.0, which is correct
+            # arithmetic under a word naming a different quantity — and control_app
+            # publishes it into a dict that ALSO carries `freeGb` (actual free disk).
+            # MEASURED 2026-09-16: `{"freeMb": 0.0, "freeGb": 9.0}` in one payload, one
+            # letter apart, meaning opposite things. Read as the Mb twin of freeGb it
+            # says the disk is FULL. `eligibleMb` is the true name and the one to use;
+            # `freeMb` stays only so older readers keep working.
+            # [[label-outlived-referent]] [[d2r-g5-budget-unit-collision]]
+            "eligibleMb": round(freed, 1),
             "freeMb": round(freed, 1), "onDisk": len(reels),
             "vaultLedger": bool(vault),
             # Published so a caller cannot repeat the mistake this fix corrects: an empty

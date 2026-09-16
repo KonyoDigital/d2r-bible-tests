@@ -23152,6 +23152,42 @@ def _vault_autoread_loop():
             pass
 
 
+def _sweep_pick_named(dirs, reel_dir, force, rec_of, still_sealed=None):
+    """Decide what a TARGETED sweep actually reads. Pure, so a gate can exercise it.
+
+    `dirs` has ALREADY had every validly-sealed reel filtered out. Naming a reel must therefore
+    not put one back — that is the loop this function exists to prevent. Returns
+    ``(picked, refusal)``: exactly one of them is truthy.
+
+    ⚠⚠ THE BUG THIS REPLACES: ``[d for d in dirs if basename(d)==want] or [reel_dir]``. The `or`
+    fired precisely when the seal had removed the reel, so a targeted sweep ignored a seal an
+    untargeted one obeys. The autoread watchdog aims every tick (v2225 made it aim ON PURPOSE), so
+    every tick re-read a finished reel, found the same nothing, resealed it with the SAME
+    promptVer, and retention owed it again. MEASURED 2026-09-16 on his console: 3,052 re-sweeps of
+    ONE reel, 388 of the next, 1,748 retention passes in 20k log lines, 104% CPU for 2h46m.
+    [[poll-slower-than-its-interval]]
+    """
+    want = os.path.basename(os.path.normpath(str(reel_dir)))
+    hit = [d for d in dirs if os.path.basename(os.path.normpath(str(d))) == want]
+    if hit:
+        return hit, None
+    if not os.path.isdir(str(reel_dir)):
+        return [], {"ok": False, "reel": want, "unknownReel": True,
+                    "why": "%s is not a reel directory" % want}
+    rec = rec_of(str(reel_dir))
+    _still = still_sealed or _vault_still_sealed
+    if force or rec is None or not _still(rec):
+        return [str(reel_dir)], None
+    # ⚠ A FLAG, NOT PROSE. v2225 recorded that the watchdog once keyed on `"unavailable" in why`
+    # and so could not tell a permanent refusal from a transient one. Branch on `alreadySealed`.
+    return [], {"ok": False, "alreadySealed": True, "reel": want,
+                "sealedBy": str((rec or {}).get("promptVer") or "?"),
+                "why": ("%s is already sealed by the CURRENT vault reader (%s) with %d row(s) - "
+                        "re-reading it would find the same nothing. Pass force to overrule."
+                        % (want, str((rec or {}).get("promptVer") or "?"),
+                           int((rec or {}).get("rows") or 0)))}
+
+
 def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     """Kick the background vault sweep. Refuses a second one — two sweeps over the same reels
     double the spend and produce two proposals that each look like the whole truth.
@@ -23220,9 +23256,17 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         # retention's owed list; without this the sweeper ignored the choice and re-derived its own,
         # so the accounting named a reel the sweep may never have opened.
         if reel_dir:
-            want = os.path.basename(os.path.normpath(str(reel_dir)))
-            dirs = [d for d in dirs if os.path.basename(os.path.normpath(str(d))) == want] or \
-                   ([str(reel_dir)] if os.path.isdir(str(reel_dir)) else [])
+            # v3225 — the decision moved to `_sweep_pick_named` so a gate can exercise it; the
+            # whole story of the loop it prevents lives in that function's docstring.
+            _hit, _refuse = _sweep_pick_named(dirs, reel_dir, force, _sealed_rec)
+            if _refuse is not None:
+                with _VAULT_LOCK:
+                    _VAULT_JOB["phase"] = "idle"
+                    _VAULT_JOB["running"] = False
+                    _VAULT_JOB["lastRefusal"] = _refuse
+                print("   \u23ed sweep declined: %s" % _refuse.get("why"), flush=True)
+                return
+            dirs = _hit
         # ══ v3180 (#97) — ONE QUEUE, FIFO, THE SAME ORDER HE SEES ═══════════════════════════
         # HIS RULING, 2026-09-15: *"the sweep and the shelf and everhything should be a unified
         # system... they should be fifo together"* — with the whole lifecycle in his words: *"i do
@@ -23306,12 +23350,23 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 # one reel too many costs a read; skipping one wrongly loses its names.
                 print("   \u26a0 could not ask the router which reels are EMPTY (%s) - sweeping "
                       "all of them" % type(_re).__name__)
-        _reopened = [os.path.basename(d) for d in dirs if _sealed_rec(d) is not None]
+        # ⚠ v3222 — SAY WHICH REASON. This printed "sealed with no rows by an OLDER vault reader"
+        # for every reel in the list that carried a seal — including ones present only because
+        # `force` was asked, or because they were named. On his console the seal said vp2017 and
+        # the reader WAS vp2017, so the sentence was false every time it printed.
+        _reopened = [os.path.basename(d) for d in dirs
+                     if _sealed_rec(d) is not None and not _vault_still_sealed(_sealed_rec(d))]
+        _forced = [os.path.basename(d) for d in dirs
+                   if _sealed_rec(d) is not None and _vault_still_sealed(_sealed_rec(d))]
         if _reopened:
             print("   \U0001f513 %d reel(s) reopened - sealed with no rows by an older vault reader "
                   "(now %s): %s" % (len(_reopened),
                                     getattr(__import__("tv_diablo"), "VAULT_PROMPT_VER", "?"),
                                     ", ".join(_reopened[:4])))
+        if _forced:
+            print("   \u26a0 %d reel(s) are being re-read DESPITE a valid seal by the current "
+                  "reader - this is force, not a newer eye: %s"
+                  % (len(_forced), ", ".join(_forced[:4])))
         with _VAULT_LOCK:
             _VAULT_JOB["reelsTotal"] = len(dirs)
             _VAULT_JOB["phase"] = "reading"
@@ -23848,7 +23903,12 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             _ON_AIR_FLOOR_GB = ON_AIR_FLOOR_GB   # v2086 — the one floor, never a fourth copy
             _WARN_AT_GB = 12.0
             prop["retention"] = {"candidates": len(_rp.get("candidates") or []),
-                                 "freeMb": _rp.get("freeMb") or 0,
+                                 # v3225 — the plan's "freeMb" is MB THIS PLAN WOULD
+                                 # FREE, not free disk, and `freeGb` two lines down is
+                                 # the real thing. Publishing both under near-identical
+                                 # names is how a 0 becomes "the disk is full".
+                                 "eligibleMb": _rp.get("eligibleMb",
+                                                       _rp.get("freeMb")) or 0,
                                  "onDisk": _rp.get("onDisk") or 0,
                                  "freeGb": round(_free_gb, 1),
                                  "low": bool(_free_gb < _WARN_AT_GB),
@@ -29037,7 +29097,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3224",
+        "ver": "v3225",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

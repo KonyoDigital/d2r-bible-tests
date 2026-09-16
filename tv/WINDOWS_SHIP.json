@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3224",
+  "ver": "v3225",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3224: HEART: v3222 taught BOTH restore doors to skip the page reload when a re-reader answers - and pointed both at _vaultReloadOwned, which re-reads d2r_owned and nothing else. So rw_restore wrote d2r_rwMade, got a number back because d2r_owned was readable, skipped the reload, and left rwMade STALE. That is REG-1010 reintroduced for the runewords, where rwToggleMade writes the in-memory object back over the 99 restored ones. Each door now re-reads the store it actually wrote. Also from the same look: a route probe that THREW was being reported as an empty preview with ok true, and filed was a key-count delta wearing the name of a count of what the press did.",
+  "note": "v3225: a targeted sweep re-read a sealed reel every tick, 3052 times, at 104 percent CPU for 2h46m. the decision is now a pure function with 8 laws, the refusal carries a flag, and the log stopped blaming an older reader for the current one. plus eligibleMb stops wearing the name freeMb beside freeGb, and test_freed_is_measured can reach its own subject again",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
