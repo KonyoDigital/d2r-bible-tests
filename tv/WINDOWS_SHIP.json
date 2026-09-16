@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3218",
+  "ver": "v3219",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3218: HEART: corroborate_location was wired at v3214 and its verdict attached to every register row - locSession locAgrees locWhy - and a cross-family review found them read by NOTHING. No UI, no API consumer, no python caller. The join had moved one hop downstream instead of closing, which is the same shape as the no-caller problem it existed to fix. _kai_forensics_project is the register only reader, so the flag surfaces there with locContested beside locChecked, because a count with no denominator is not a finding. None stays uncounted - silence is not disagreement.",
+  "note": "v3219: HEART: the final two of the six JOIN wires from task 100, both with exactly ONE reference in the tree - their own test. _chron_lane_detail is now carried by BOTH sweep refusals so a missing lane says whether it is OFF or ABSENT, and on this machine it immediately reported grok present=false because it was switched off, not missing. story_of is now the only path that resolves a state for the board page, so an unknown state renders as an odd row a person notices instead of raising KeyError or quietly joining PENDING. Callers are counted by parsing, because a comment naming a function is not a caller.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

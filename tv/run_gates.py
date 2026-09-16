@@ -676,6 +676,20 @@ GATES = [
              "matches nothing while every count still looks plausible. neitherHas may be None and "
              "that is not a failure: the content is asserted only when a list was returned, never "
              "turning a refusal into a confident zero."),
+    Gate("test_a_written_answer_has_a_reader",
+         [sys.executable, os.path.join(HERE, "test_a_written_answer_has_a_reader.py")], 120,
+         why="The last two of #100's six JOIN wires, both of which had exactly ONE reference in "
+             "the tree - their own test. _chron_lane_detail exists so a refusal can say whether a "
+             "lane is OFF or ABSENT (its docstring: you switched it off and there is no Grok CLI "
+             "here are different facts and only one of them is a problem) while BOTH sweep doors "
+             "refused with a flat the primary Claude lane is unavailable - the sentence that sends "
+             "him reinstalling something he had deliberately switched off. Measured the moment it "
+             "was joined on this machine: grok present=false why=you switched it off. story_of "
+             "exists so an unknown state returns its own name rather than quietly joining PENDING, "
+             "which is exactly how a retired item comes back to life - while the ONLY place states "
+             "are resolved indexed _SEC directly and raised KeyError. Callers are counted by "
+             "PARSING, not grepping, because several of these functions are NAMED in comments "
+             "explaining why they exist and a comment is not a caller."),
     Gate("test_the_session_gets_a_vote_on_where",
          [sys.executable, os.path.join(HERE, "test_the_session_gets_a_vote_on_where.py")], 120,
          why="retro_gate.corroborate_location has answered what location the SESSION agrees on "

@@ -366,7 +366,18 @@ def build():
     topic_order = {}
     for ident, r in sorted(seen.items()):
         state = r["state"]
-        title, sec_order, st = _SEC[state]
+        # ⚠⚠ v3219 — THROUGH `story_of`, WHICH HAD NO PRODUCTION CALLER. Its only reference in the
+        # tree was its own test. It exists so that "a state this table does not know returns its
+        # own name rather than a default … instead of quietly joining PENDING, which is exactly
+        # how a retired item comes back to life" — and this line, the ONLY place states are
+        # resolved for the page, indexed `_SEC` directly and raised KeyError instead. So the
+        # careful behaviour was written, tested, and unreachable, while the live path had the
+        # crash. [[plumbing-with-no-tap]] [[the-unjoined-end]] [[unknown-stays-unknown]]
+        # ⚠ `st` is the stage LETTER and story_of does not return it — an unknown state has no
+        # letter, and inventing one would file it under a stage. "?" is not a stage, which is the
+        # point: it renders as an odd row a person notices.
+        title, sec_order = story_of(state)
+        st = _SEC[state][2] if state in _SEC else "?"
         topic = r.get("topic") or "Unfiled"
         got = None if ships is None else ships.get(ident)
         if got and state != "done":

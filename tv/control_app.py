@@ -22979,7 +22979,18 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
         lanes = _chron_lanes()
         if "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
-            return {"ok": False, "why": "the primary (Claude) lane is unavailable — nothing to sweep with"}
+            # ⚠⚠ v3219 — AND THE REFUSAL SAYS WHICH KIND OF ABSENT. `_chron_lane_detail()` has
+            # existed to answer exactly this and had NO production caller — its only reference in
+            # the tree was a test. Its own docstring names the job: *"The lane LIST is what the
+            # gate scores; this is what a human is owed when grok is missing. 'You switched it
+            # off' and 'there is no Grok CLI here' are different facts and only one of them is a
+            # problem."* Until now this refusal collapsed both into "unavailable", which is the
+            # sentence that sends someone reinstalling a CLI they had deliberately turned off —
+            # or, worse, shrugging at a genuinely missing one. [[unknown-stays-unknown]]
+            # [[plumbing-with-no-tap]] [[the-unjoined-end]]
+            return {"ok": False,
+                    "why": "the primary (Claude) lane is unavailable — nothing to sweep with",
+                    "lanes": lanes, "laneDetail": _chron_lane_detail()}
         _VAULT_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes})
@@ -26669,7 +26680,18 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
         lanes = _chron_lanes()
         if "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
-            return {"ok": False, "why": "the primary (Claude) lane is unavailable — nothing to sweep with"}
+            # ⚠⚠ v3219 — AND THE REFUSAL SAYS WHICH KIND OF ABSENT. `_chron_lane_detail()` has
+            # existed to answer exactly this and had NO production caller — its only reference in
+            # the tree was a test. Its own docstring names the job: *"The lane LIST is what the
+            # gate scores; this is what a human is owed when grok is missing. 'You switched it
+            # off' and 'there is no Grok CLI here' are different facts and only one of them is a
+            # problem."* Until now this refusal collapsed both into "unavailable", which is the
+            # sentence that sends someone reinstalling a CLI they had deliberately turned off —
+            # or, worse, shrugging at a genuinely missing one. [[unknown-stays-unknown]]
+            # [[plumbing-with-no-tap]] [[the-unjoined-end]]
+            return {"ok": False,
+                    "why": "the primary (Claude) lane is unavailable — nothing to sweep with",
+                    "lanes": lanes, "laneDetail": _chron_lane_detail()}
         _CHRON_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes})
@@ -28823,7 +28845,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3218",
+        "ver": "v3219",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

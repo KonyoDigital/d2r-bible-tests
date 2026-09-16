@@ -34040,3 +34040,39 @@ deletion.
 **KEEP_MIN_WITNESSES stays 2 and KEEP_CONF_FLOOR stays 0.55.** Lowering either to make stored rows
 pass would be repairing the bar to fit the rows — `console_doctor` already refuses that in its own
 docstring.
+
+## REG-1016 — the last two of #100's six wires, and both live paths carried the defect
+
+**2026-09-16 · v3219**
+
+`_chron_lane_detail()` and `board_sync.story_of()` each had exactly ONE reference in the entire
+tree — their own test. Written, reasoned, tested, unreachable. And in both cases the LIVE path
+carried the very defect the function was written to prevent.
+
+**`_chron_lane_detail`** — its docstring: *"The lane LIST is what the gate scores; this is what a
+human is owed when grok is missing. 'You switched it off' and 'there is no Grok CLI here' are
+different facts and only one of them is a problem."* Both sweep doors refused with a flat
+*"the primary (Claude) lane is unavailable — nothing to sweep with"*, which is the sentence that
+sends someone reinstalling a CLI they had deliberately switched off. Both refusals now carry
+`laneDetail`. MEASURED the moment it was joined, on this machine:
+`grok: {present: false, why: "you switched it off (mode=off)"}` — off by choice, not absent.
+
+**`story_of(state)`** — its docstring: *"A state this table does not know returns its own name
+rather than a default … instead of quietly joining PENDING, which is exactly how a retired item
+comes back to life."* Meanwhile the ONLY place states are resolved for the board page did
+`_SEC[state]` directly and raised KeyError. It now goes through `story_of`, so an unknown state
+renders as `? · <STATE> — a state the storyline does not know` at order -10 instead of crashing or
+being filed under PENDING.
+
+⚠ `st` (the stage LETTER) is fetched separately and defaults to `"?"` for an unknown state, because
+inventing a letter would file it under a stage. "?" is not a stage — that is the point.
+
+Gate: `test_a_written_answer_has_a_reader`, registered (409 gates). It counts callers by **PARSING
+the AST**, not by grepping a name — several of these functions are NAMED in comments explaining why
+they exist, and a comment is not a caller, which is the entire distinction. Seen red: removing both
+joins fires three assertions by name.
+
+**#100's six JOIN wires are now all closed:** `corroborate_location` (v3214, fed real reads;
+surfaced at v3218), `name_state` (9 call sites, already joined), `manual_accept` (11, already
+joined), `_chron_lane_detail` and `story_of` (here). The 12 correctly-unjoined remain recorded in
+REG-1007 and were not touched.
