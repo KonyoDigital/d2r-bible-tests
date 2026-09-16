@@ -95,7 +95,14 @@ def watched():
 
 
 def measure():
-    """-> (ids, seen, missing). `ids` is None when the map cannot be measured at all."""
+    """-> (ids, seen, missing).
+
+    `ids` is None ONLY when control_ui.html itself could not be read. `seen` is None whenever the
+    map cannot be trusted — that is the unmeasurable signal, and it covers the watcher case where
+    `ids` is a real list. `missing` names every watcher that could not be read.
+    ⚠ v3237 — this used to say "`ids` is None when the map cannot be measured at all", which is
+    what let a caller use `ids is None` as the "the page was unreadable" fact. The sentence
+    outlived the shape it described. [[label-outlived-referent]]"""
     ids = surfaces()
     blob, missing = watched()
     # ⚠⚠ v3237 — `ids is None` MUST MEAN THE PAGE, AND IT DID NOT. This collapsed BOTH failures
@@ -143,8 +150,12 @@ def render():
     # v3237 — refuse on EITHER failure, now that `ids` is no longer the single signal.
     if ids is None or missing:
         raise RuntimeError(
-            "the heart map could not be measured: %s. Refusing to write a map that would claim "
-            "the console paints 0 surfaces — an unreadable file is UNKNOWN, not empty."
+            # ⚠ the counterfactual must match the FAILURE. A watcher-only failure would not
+            # have written "0 surfaces" — ids is the real list; what it would have written is a
+            # COVERAGE figure computed without a watcher, which reads as a real collapse.
+            "the heart map could not be measured: %s. Refusing to write it: an unreadable file "
+            "is UNKNOWN, not empty, and a coverage figure missing a watcher is a collapse that "
+            "did not happen."
             # v3233 — NAME BOTH. `missing` being non-empty used to hide that the console page
             # was ALSO unreadable, so a double failure reported as a watcher problem and sent
             # the reader to the wrong file. [[zero-needs-a-denominator]]
@@ -197,7 +208,8 @@ def main(argv=None):
     if ids is None or missing:
         print("🔴 the heart map could not be measured: %s"
               % _why_unmeasurable(missing, ids is None))
-        print("   UNKNOWN is not 0 surfaces. Refusing rather than rendering an empty heart.")
+        print("   UNKNOWN is not a measurement. Refusing rather than banking a coverage figure "
+              "nobody could take.")
         return 1
     if "--print" in argv:
         print(render())

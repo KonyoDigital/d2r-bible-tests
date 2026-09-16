@@ -35159,3 +35159,36 @@ pinned too.
 
 Red-proofed both ways: pointing the handoff write at `d2r_owned` → red, naming the store; removing
 `board_ownership`'s hop → red in two laws.
+
+## REG-1044 — the refusal described a failure that was not the one happening
+
+**2026-09-17 · v3239 · `tv/heart_map.py`** — *three Low findings from the cross-family review of
+v3237, which was the fix for v3235, which was the fix for v3233.*
+
+Once `measure()` stopped collapsing a watcher failure into `ids = None` (REG-1042), three
+sentences around it were left describing the old shape:
+
+1. **The refusal's counterfactual was wrong.** `render()` said *"Refusing to write a map that
+   would claim the console paints 0 surfaces"* and `main()` said *"UNKNOWN is not 0 surfaces"* —
+   but for a watcher-only failure `ids` is the **real** surface list. What that failure would
+   have written is a **coverage figure taken without a watcher**, which reads as a collapse that
+   did not happen. Both now say that instead.
+
+2. **`measure()`'s docstring still said** *"`ids` is None when the map cannot be measured at
+   all"* — the exact sentence that licensed using `ids is None` as the page fact. It now states
+   the three signals separately: `ids` is the page, `seen` is the trust, `missing` names the
+   watchers.
+
+3. **`main()` was outside the new law**, so only `render()` had been proven. Added and
+   red-proofed by reverting `main()` to `if ids is None`: error.
+
+⚠ **A law that pins WORDING has to be re-cut every time the wording gets more accurate.** The
+older `test_render_REFUSES_rather_than_banking_a_zero` asserted the phrase `"0 surfaces"` — and
+that phrase was the thing being corrected here, so improving the message broke the gate. It now
+pins that the refusal names the FILE and says UNKNOWN, which are the durable halves.
+`[[label-outlived-referent]]`
+
+⚠ **Four versions in a row, each fix creating the next**, every one caught by the same cross-family
+eye: v3233 fabricated a roster → v3235 closed a re-read race → v3237 stopped a false accusation →
+v3239 corrected the sentences all three left behind. Each was a real improvement, and each moved
+the defect one layer outward rather than removing it. `[[review-after-ship]]`

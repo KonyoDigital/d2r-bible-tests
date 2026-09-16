@@ -72,9 +72,16 @@ class TestABlindOrganSaysSo(unittest.TestCase):
         self.addCleanup(setattr, HM, "_read", real)
         with self.assertRaises(Exception) as cm:
             HM.render()
-        self.assertIn("0 surfaces", str(cm.exception),
-                      "it must say WHAT it refused to claim, so the reader is not left guessing "
-                      "whether the heart is empty or unreadable: %r" % str(cm.exception))
+        # v3239 — pin that it names the FILE, which is the durable half. The old assertion
+        # pinned the phrase "0 surfaces", and that counterfactual was itself corrected: it is
+        # only true of a page failure, not of a watcher one. A law that pins wording has to be
+        # re-cut every time the wording gets more accurate. [[label-outlived-referent]]
+        self.assertIn("control_ui.html", str(cm.exception),
+                      "it must say WHICH file it could not read, so the reader is not left "
+                      "guessing whether the heart is empty or unreadable: %r" % str(cm.exception))
+        self.assertIn("UNKNOWN", str(cm.exception),
+                      "the refusal must say the map is UNKNOWN rather than empty: %r"
+                      % str(cm.exception))
 
     def test_a_watcher_only_failure_does_not_accuse_the_console_page(self):
         """★ THROUGH measure() AND render(), not the helper alone — that is how this was missed.
@@ -99,6 +106,25 @@ class TestABlindOrganSaysSo(unittest.TestCase):
         self.assertNotIn("control_ui.html", why,
                          "the refusal accuses control_ui.html, which was readable the whole time "
                          "— that is the first file a reader would open, and it is fine: %r" % why)
+        # ⚠ AND THE COUNTERFACTUAL MUST MATCH THE FAILURE. The text said "a map that would claim
+        # the console paints 0 surfaces" — untrue here, because `ids` is the real list. What a
+        # watcher-only failure would have written is a COVERAGE figure taken without a watcher.
+        # Named by the same cross-family review that found the proxy. [[label-outlived-referent]]
+        self.assertNotIn("0 surfaces", why,
+                         "the refusal describes a zero-surface map, which is not what this "
+                         "failure would have produced: %r" % why)
+
+    def test_the_MAIN_door_refuses_too_not_only_render(self):
+        """⚠ The review noted main() was outside the new law — so only render() was proven.
+
+        Both doors must trip on either failure. A door that stayed on the old `ids is None` would
+        sail past a watcher-only failure and print a coverage figure nobody could take."""
+        real = HM._read
+        HM._read = lambda name: None if name == HM.WATCHERS[0] else real(name)
+        self.addCleanup(setattr, HM, "_read", real)
+        rc = HM.main(["--check"])
+        self.assertEqual(rc, 1,
+                         "main() returned %r for a blind watcher — it must refuse, not report" % rc)
 
     def test_an_unreadable_WATCHER_is_named_not_skipped(self):
         """It would otherwise read as every surface that watcher covers going unwatched."""
