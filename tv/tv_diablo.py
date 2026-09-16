@@ -52,6 +52,12 @@ if sys.platform == "win32":
 VERSION = "v3233"   # the unknown reaches the only thing that reads it
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
+try:
+    import capture_lock as _caplock
+except ImportError:
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import capture_lock as _caplock
 
 # ══ v2324 — THE LIVE FRAME IS NO LONGER A FILENAME, IT IS A QUESTION ═══════════════════════════
 # The capture path used to be spelled `live.bmp` in five places, which baked the FORMAT into the
@@ -779,6 +785,7 @@ def _health(st):
     except Exception:
         _free_gb = None
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
+         "captureLock": _caplock.capture_lock_plan().get("lock", "single"),
          "freeGB": _free_gb, "minFreeGB": MIN_FREE_GB,   # v872.1 — disk emergency is LOUD, never silent
          "throttled": _is_throttled(),   # v891 — the 🐢 chip's truth
          "footageFps": _foot_fps,   # v861 — the archive floor, alarmed by the UI
@@ -837,6 +844,16 @@ def _eye_clear():
         eye = os.path.join(FRAMES, "eye.jpg")
         if os.path.isfile(eye):
             os.remove(eye)
+    except Exception:
+        pass
+    try:
+        for nm in os.listdir(FRAMES):
+            low = (nm or "").lower()
+            if low.startswith("eye.") and low.endswith(".jpg"):
+                try:
+                    os.remove(os.path.join(FRAMES, nm))
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -938,6 +955,14 @@ def bridge():
                     st["beat"] = dict(_BEAT); st["events"] = list(_EVENTS); st["ap"] = dict(_AP)
                     st["stopping"] = _STOPPING   # v777.2 — 1-1 sync: the board drops the INSTANT the farewell begins
                     st["captureTarget"] = dict(_CAP_TARGET)  # v772 — window pin (CrossOver/D2R) or full
+                    try:
+                        _cs = capture_status_fields()
+                        st["captureTarget"] = _cs["captureTarget"]
+                        st["captureTargets"] = _cs["captureTargets"]
+                        st["captureLock"] = _cs["captureLock"]
+                    except Exception:
+                        st.setdefault("captureTargets", [dict(_CAP_TARGET)])
+                        st.setdefault("captureLock", "single")
                     st["eyeAgeMs"] = _eye_age_ms()   # v785 — film honesty: stage drops LIVE when this goes stale
                     st["health"] = _health(st)   # v789 — fault-lamp truth (Grok R4 #1)
                     st["sessionId"] = SESSION_ID
@@ -957,6 +982,8 @@ def bridge():
                             "readCount": int(_rc or 0),
                             "eyeAgeMs": st["eyeAgeMs"],
                             "captureTarget": st["captureTarget"],
+                            "captureTargets": st.get("captureTargets") or [st["captureTarget"]],
+                            "captureLock": st.get("captureLock") or "single",
                             "beat": st["beat"],
                             "sessionId": st.get("sessionId") or "",
                             "gameOk": st.get("gameOk", True),
@@ -1078,8 +1105,53 @@ def bridge():
 # TV_CAPTURE=full|auto|window — default AUTO: pin D2R.exe game window only.
 # NEVER pin: CrossOver Home UI, Battle.net lobby shell, browsers, TV DIABLO UI.
 # TV_WINDOW_MATCH=extra,comma,tokens  (only used when window/auto)
+# Opt-in extra pin (guest GFN / Chrome) — OFF unless asked:
+#   TV_CAPTURE=multi              → D2 auto + one Chrome/GFN extra
+#   TV_CAPTURE_EXTRA=chrome|gfn   → extra on top of auto|window|full
+# Extra frames are tagged (eye.<kind>.jpg / hist/x_<kind>_<ms>.jpg) so the D2
+# reel (eye.jpg / hist/f_<ms>.jpg) stays the primary lane.
 # v935.7 — boot safe: never "full" until a real pin exists (text-eye / film obey this)
 _CAP_TARGET = {"mode": "waiting", "label": "eye arming…", "wid": None}
+_CAP_EXTRAS = []   # extra pins only; empty unless capture_lock_plan says multi
+_PICK_EXTRA_CACHE = None   # (kind, hit_dict_or_None, monotonic_t)
+_LAST_GOOD_EXTRA = None
+
+
+def capture_status_fields():
+    """Publish captureTarget (primary D2) + captureTargets (all pins). One join.
+
+    Does not re-scan windows (that would Quartz under the /state lock). Film/capture
+    own the scan; this is the projection.
+    """
+    return _caplock.build_capture_status(_CAP_TARGET, list(_CAP_EXTRAS or []), env=os.environ)
+
+
+def _sync_cap_extras(windows=None):
+    """Refresh _CAP_EXTRAS from the lock plan. No-op (and clears) when single-D2."""
+    global _CAP_EXTRAS, _LAST_GOOD_EXTRA
+    plan = _caplock.capture_lock_plan()
+    if plan.get("lock") != "multi":
+        _CAP_EXTRAS = []
+        return
+    extras = []
+    for kind in plan.get("extra_kinds") or ():
+        hit = None
+        if windows is not None:
+            hit = _caplock.pick_extra_window(windows, kind=kind)
+        else:
+            hit = find_extra_window_mac(kind)
+            if (not hit or not hit.get("wid")) and _LAST_GOOD_EXTRA:
+                prev = _LAST_GOOD_EXTRA
+                prev_k = (prev.get("kind") or "")
+                if prev.get("wid") and prev_k in (kind, "gfn", "chrome"):
+                    if kind != "gfn" or prev_k == "gfn" or _caplock.title_is_gfn(prev.get("label") or ""):
+                        hit = dict(prev)
+        if hit and hit.get("wid"):
+            _LAST_GOOD_EXTRA = dict(hit)
+            extras.append(hit)
+        else:
+            extras.append(_caplock.waiting_extra(kind))
+    _CAP_EXTRAS = extras
 
 
 # Owner / title tokens — game process first. Bare "wine" alone is too broad.
@@ -1277,6 +1349,57 @@ def find_d2r_window_mac():
         return None
     hit = (best[2], best[3])
     _PICK_CACHE = (hit, now)
+    return hit
+
+
+def find_extra_window_mac(kind="chrome"):
+    """Return extra-pin dict for Chrome/GFN, or None. Never Battle.net / CrossOver / TV DIABLO.
+
+    Read-only Quartz list, same as find_d2r_window_mac. Opt-in only — callers must honour
+    capture_lock_plan() before treating a hit as armed.
+    """
+    global _PICK_EXTRA_CACHE
+    now = time.monotonic()
+    want = _caplock.sanitize_kind(kind, default="chrome")
+    cache = _PICK_EXTRA_CACHE
+    if cache and cache[0] == want and (now - cache[2]) < _PICK_TTL_S:
+        return cache[1]
+    try:
+        from Quartz import (
+            CGWindowListCopyWindowInfo,
+            kCGWindowListOptionAll,
+            kCGNullWindowID,
+        )
+    except Exception:
+        _PICK_EXTRA_CACHE = (want, None, now)
+        return None
+    try:
+        wins = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID) or []
+    except Exception:
+        _PICK_EXTRA_CACHE = (want, None, now)
+        return None
+    windows = []
+    for w in wins:
+        try:
+            owner = (w.get("kCGWindowOwnerName") or "").strip()
+            title = (w.get("kCGWindowName") or "").strip()
+            b = w.get("kCGWindowBounds") or {}
+            ww, hh = int(b.get("Width") or 0), int(b.get("Height") or 0)
+            wid = w.get("kCGWindowNumber")
+            if not wid:
+                continue
+            windows.append({
+                "owner": owner,
+                "title": title,
+                "width": ww,
+                "height": hh,
+                "wid": int(wid),
+                "onscreen": bool(w.get("kCGWindowIsOnscreen")),
+            })
+        except Exception:
+            continue
+    hit = _caplock.pick_extra_window(windows, kind=want)
+    _PICK_EXTRA_CACHE = (want, hit, now)
     return hit
 
 
@@ -1827,6 +1950,83 @@ def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
         return False
 
 
+def _archive_extra_footage(src_path, kind):
+    """Archive an extra (Chrome/GFN) frame as x_<kind>_<ms>.jpg — never f_<ms>.jpg.
+
+    Independent of the D2 footage due-clock so extra lanes cannot starve or pollute
+    the primary reel the theatre already globs as f_*.jpg.
+    """
+    try:
+        if not src_path or not os.path.isfile(src_path) or os.path.getsize(src_path) < 4000:
+            return False
+        hist_dir = HIST_DIR
+        os.makedirs(hist_dir, exist_ok=True)
+        dest = os.path.join(hist_dir, _caplock.extra_archive_name(kind, int(time.time() * 1000)))
+        tmp = _cap_tmp(dest)
+        try:
+            import shutil as _shx
+            if not _film_shrink(src_path, tmp, FILM_MAX_PX, FILM_JPEG_Q):
+                _shx.copyfile(src_path, tmp)
+            if not (os.path.isfile(tmp) and os.path.getsize(tmp) >= 4000):
+                return False
+            os.replace(tmp, dest)
+            return True
+        finally:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except Exception:
+                pass
+    except Exception:
+        return False
+
+
+def _capture_extra_lanes():
+    """Grab each armed extra pin to live.<kind>.jpg + eye.<kind>.jpg. Window-only, never desktop."""
+    try:
+        _sync_cap_extras()
+    except Exception:
+        return
+    if not _CAP_EXTRAS:
+        return
+    os.makedirs(FRAMES, exist_ok=True)
+    for t in list(_CAP_EXTRAS or []):
+        try:
+            wid = t.get("wid")
+            kind = t.get("kind") or "chrome"
+            if not wid or (t.get("mode") == "waiting"):
+                continue
+            live_p = os.path.join(FRAMES, _caplock.live_filename(kind))
+            eye_p = os.path.join(FRAMES, _caplock.eye_filename(kind))
+            try:
+                _capture_window_to_file(wid, live_p, timeout=4)
+            except Exception:
+                pass
+            tmp = eye_p + ".part.jpg"
+            try:
+                grabbed = _quartz_grab_window(wid, tmp, uti="public.jpeg")
+                if not grabbed:
+                    grabbed = _screencapture_window(wid, tmp, fmt="jpg", timeout=1.5)
+                if grabbed and os.path.isfile(tmp) and os.path.getsize(tmp) > 4000:
+                    os.replace(tmp, eye_p)
+                    _archive_extra_footage(eye_p, kind)
+            finally:
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
+        except Exception:
+            continue
+
+
+def _film_grab_extra_lanes():
+    """Film-tick extra grab. Separate from the D2 eye.jpg writer."""
+    if not _caplock.extras_armed():
+        return
+    _capture_extra_lanes()
+
+
 def _grab_full_screen_frame(tmp):
     """v1181 — full-screen grab + the SAME white-Metal-backing guard the window lane already
     applies via _is_white_backing (v944). Without this, the full-screen lane could archive a
@@ -1889,6 +2089,16 @@ def _film_loop():
                 time.sleep(1.5)
                 continue
             if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":
+                # Multi-lock: extras may still have a window (guest GFN) while D2 is waiting.
+                # Do NOT fall through to the D2 full-screen lane from here.
+                if _caplock.extras_armed():
+                    try:
+                        _film_grab_extra_lanes()
+                    except Exception:
+                        pass
+                    dt = time.monotonic() - t0
+                    time.sleep(max(0.02, FILM_INTERVAL_S - dt))
+                    continue
                 time.sleep(1.5)
                 continue
             os.makedirs(FRAMES, exist_ok=True)
@@ -2025,6 +2235,10 @@ def _film_loop():
                         os.remove(tmp)
                 except Exception:
                     pass
+            try:
+                _film_grab_extra_lanes()
+            except Exception:
+                pass
         except Exception:
             pass
         dt = time.monotonic() - t0
@@ -2090,7 +2304,19 @@ def capture_mac(path, timeout=12):
     Screen Recording / without a live D2R.exe (Konyo live: eye stuck on wallpaper)."""
     global _CAP_TARGET, _CAP_WHY, _LAST_GOOD_WIN
     _CAP_WHY = ""
-    mode = (os.environ.get("TV_CAPTURE") or "auto").strip().lower()   # v777.1 (Konyo live: 'it's showing the desktop') — AUTO pins the D2R window when one exists; full-screen only as fallback
+    plan = _caplock.capture_lock_plan()
+    mode = plan.get("primary_mode") or "auto"
+    # TV_CAPTURE=multi is an alias for auto + extra; it must still take the D2 window path
+    # (a raw "multi" token would have fallen through to full-screen).
+
+    def _finish(ok):
+        try:
+            if plan.get("lock") == "multi":
+                _capture_extra_lanes()
+        except Exception:
+            pass
+        return ok
+
     # Optional window pin only when explicitly asked (or auto)
     if mode in ("auto", "window", "win", "game"):
         hit = find_d2r_window_mac()
@@ -2112,7 +2338,7 @@ def capture_mac(path, timeout=12):
                         try: ev("cap", "🎯 eye pinned to %s" % label)
                         except Exception: pass
                     _CAP_TARGET = {"mode": "window", "label": label, "wid": wid}
-                    return True
+                    return _finish(True)
                 # window grab failed — drop stale last-good so we re-list next tick
                 _CAP_WHY = "window capture failed (quartz+sc) wid=%s" % wid
                 try:
@@ -2130,7 +2356,7 @@ def capture_mac(path, timeout=12):
                                   " · open D2R in-game + grant Screen Recording to Python"),
                         "wid": None,
                     }
-                    return False
+                    return _finish(False)
                 _CAP_TARGET = {"mode": "full", "label": "full screen (%s)" % _CAP_WHY,
                                "wid": wid}   # v898 — keep game wid so film still tries D2R.exe
             except Exception as e:
@@ -2139,10 +2365,10 @@ def capture_mac(path, timeout=12):
                     _LAST_GOOD_WIN = None
                     _CAP_TARGET = {"mode": "waiting",
                                    "label": "eye held — %s" % _CAP_WHY, "wid": None}
-                    return False
+                    return _finish(False)
         if mode in ("window", "win", "game"):
             _CAP_TARGET = {"mode": "waiting", "label": "Diablo II / CrossOver not found", "wid": None}
-            return False
+            return _finish(False)
         # v929.1 (Grok third-eye P0) — AUTO with no window AND no last-good pin must NOT
         # fall through to a full-screen DESKTOP grab: with the v927.5 process-alive gate
         # keeping reads armed, this lane quietly re-created the privacy leak v928.2 closed
@@ -2155,7 +2381,7 @@ def capture_mac(path, timeout=12):
             else:
                 _CAP_TARGET = {"mode": "waiting",
                                "label": "D2R window not listed — eye held", "wid": None}
-                return False
+                return _finish(False)
         # auto with a pinned-but-unGRABbable window → fall through to full screen ONLY when
         # _allow_fullscreen_game_fallback said yes (game owns the display)
     # DEFAULT / fallback: entire display (Quartz first — SC full can also hang under load)
@@ -2182,7 +2408,7 @@ def capture_mac(path, timeout=12):
                     "label": ("full screen" + ((" (" + _CAP_WHY + ")") if _CAP_WHY else "")),
                     "wid": _wid_keep,
                 }
-                return True
+                return _finish(True)
         try:
             r = subprocess.run(
                 ["screencapture", "-x", "-t", "bmp", tmp],
@@ -2204,14 +2430,14 @@ def capture_mac(path, timeout=12):
                     os.remove(tmp)
             except Exception:
                 pass
-        return ok
+        return _finish(ok)
     except Exception:
         try:
             if os.path.exists(tmp):
                 os.remove(tmp)
         except Exception:
             pass
-        return False
+        return _finish(False)
 
 # v771.2 — SIM without Screen Recording: synthetic BMPs so settle+stub reads still fire.
 # Real play never sets TV_STUB; this only kicks in when capture fails under stub.
@@ -2258,6 +2484,7 @@ def newest_watched_frame():
         fs = [os.path.join(FRAMES, f) for f in os.listdir(FRAMES)
               if f.lower().endswith((".bmp", ".png", ".jpg", ".jpeg"))
               and f.lower() not in skip
+              and not _caplock.is_intelligence_skip_name(f)
               and not f.lower().endswith(".part.jpg")
               and "tmp" not in f.lower()]
         return max(fs, key=os.path.getmtime) if fs else None
@@ -2269,7 +2496,7 @@ def _refresh_cap_target_from_disk():
     """v784/v1419 — Windows capture_win.ps1 writes frames/cap_target.json; surface it on /state.
     utf-8-sig: PowerShell Set-Content -Encoding UTF8 writes a BOM that plain utf-8 json.load can miss,
     leaving UI stuck on default 'eye arming…' while live.png is pure D2R."""
-    global _CAP_TARGET
+    global _CAP_TARGET, _CAP_EXTRAS
     try:
         p = os.path.join(FRAMES, "cap_target.json")
         if not os.path.isfile(p):
@@ -2290,6 +2517,10 @@ def _refresh_cap_target_from_disk():
                 except Exception:
                     pass
             _CAP_TARGET = nxt
+        if _caplock.extras_armed():
+            _CAP_EXTRAS = _caplock.extras_from_disk_payload(j)
+        else:
+            _CAP_EXTRAS = []
     except Exception:
         pass
 
@@ -6590,7 +6821,14 @@ def main():
     # normal STANDBY/IDLE splash; stale photos lie.
     # v2324 — sweep EVERY candidate name, not just the one this build writes: a live.bmp left by
     # an older build is newer than nothing and would be served as the eye forever.
-    for _stale in live_frame_all() + [os.path.join(FRAMES, "eye.jpg")]:
+    _stale_eyes = [os.path.join(FRAMES, "eye.jpg")]
+    try:
+        _stale_eyes.extend(
+            os.path.join(FRAMES, n) for n in os.listdir(FRAMES)
+            if (n or "").lower().startswith("eye.") and (n or "").lower().endswith(".jpg"))
+    except Exception:
+        pass
+    for _stale in live_frame_all() + _stale_eyes:
         try:
             if os.path.isfile(_stale) and os.path.getmtime(_stale) < time.time() - 30:
                 os.remove(_stale)

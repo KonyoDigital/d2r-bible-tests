@@ -2921,9 +2921,45 @@ def _disk_cap_target():
             return {}
         with open(p, encoding="utf-8-sig") as f:
             d = json.load(f)
-        return d if isinstance(d, dict) else {}
+        if not isinstance(d, dict):
+            return {}
+        try:
+            import capture_lock as _cl
+            return _cl.primary_from_disk_payload(d) or {}
+        except Exception:
+            return {k: d[k] for k in ("mode", "label", "wid") if k in d}
     except Exception:
         return {}
+
+
+def _status_capture_targets(cap, st):
+    """captureTargets list. Prefer the agent's list; synthesize a single-D2 list otherwise."""
+    raw = (st or {}).get("captureTargets") if isinstance(st, dict) else None
+    if isinstance(raw, list) and raw:
+        return raw
+    try:
+        import capture_lock as _cl
+        extras = None
+        if isinstance(st, dict) and isinstance(st.get("captureTargets"), list):
+            extras = [t for t in st["captureTargets"] if isinstance(t, dict)
+                      and _cl.sanitize_kind(t.get("kind") or "", default="") not in ("", "d2")]
+        built = _cl.build_capture_status(cap if isinstance(cap, dict) else {}, extras=extras)
+        return built.get("captureTargets") or []
+    except Exception:
+        if isinstance(cap, dict) and cap:
+            return [cap]
+        return []
+
+
+def _status_capture_lock(st):
+    raw = (st or {}).get("captureLock") if isinstance(st, dict) else None
+    if raw in ("single", "multi"):
+        return raw
+    try:
+        import capture_lock as _cl
+        return _cl.capture_lock_plan().get("lock") or "single"
+    except Exception:
+        return "single"
 
 
 _TZ_CACHE = {"ts": 0.0, "code": 0, "body": None}
@@ -29505,6 +29541,8 @@ def status_payload():
         "vaultAutoread": _t("vaultAutoread", _vault_autoread_state_cached),
         "controlPort": CONTROL_PORT,
         "captureTarget": _cap if isinstance(_cap, dict) else {},
+        "captureTargets": _status_capture_targets(_cap, st),
+        "captureLock": _status_capture_lock(st),
         "eyeAgeMs": _eye if _eye is not None else -1,
         "diskEyeAgeMs": _disk_eye,  # v1425 — UI can trust film even if bridge mid-miss
         "health": (st or {}).get("health") or {},
