@@ -23874,9 +23874,18 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                                         _groups, _gwhy = _si.item_groups(
                                             [(c, r) for c, r in _cells], "inventory")
                                     except Exception as _se:
-                                        # a failed grouping must not cost the occupancy count
+                                        # a failed grouping must not cost the occupancy count —
+                                        # `cells` is the reliable half and is already banked above.
+                                        # ⚠ v3231 — BUT IT MUST NOT LOOK LIKE A MEASURED ZERO
+                                        # EITHER. This was `_groups = []`, so a frame whose
+                                        # grouping RAISED and a frame with genuinely no blobs
+                                        # published the identical `blobs: [], blobsN: 0`. The
+                                        # reason did travel (in `blobsWhy`), but anything counting
+                                        # blobs read a confident 0 from a failed call. None is the
+                                        # honest shape here and `blobsN` already tolerated it.
+                                        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
                                         _gwhy = "%s: %s" % (type(_se).__name__, str(_se)[:70])
-                                        _groups = []
+                                        _groups = None
                                     _glimpsed.append({
                                         "frame": os.path.basename(p),
                                         "surface": surface,
@@ -23889,7 +23898,7 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                                         # the BLOBS are a hint only — adjacent-occupied clusters,
                                         # coarse wherever items touch. Never read as item count.
                                         "blobs": _groups,
-                                        "blobsN": len(_groups or []),
+                                        "blobsN": (None if _groups is None else len(_groups)),
                                         "blobsAreItems": False,
                                         "blobsWhy": _gwhy or "adjacent occupied cells; touching items merge",
                                     })
@@ -29269,7 +29278,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3230",
+        "ver": "v3231",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

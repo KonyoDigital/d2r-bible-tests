@@ -34756,3 +34756,46 @@ cross-family review of v3230, i.e. of the gate written to catch REG-1032.*
 ⚠ All three are in code I wrote in the same hour as the defect it guards. The pattern across this
 arc is consistent enough to name: **the repair is where the next defect lives**, because it is
 written fastest and with the most confidence.
+
+## REG-1034 — three blind organs reported what they would have seen, and CI had said so for a day
+
+**2026-09-16 · v3231 · `tv/heart_map.py`, `tv/shelf_corroborate.py`, `tv/control_app.py`**
+
+The swallowed-exception ratchet (Routine M) had been RED on exactly these three sites across **at
+least ten CI runs**, back to 2026-09-15, naming each by file and delta — `74 -> 77`. ⚠ The run
+immediately before this session's arc reported the identical three, so **none of them were mine**;
+what was mine was walking past a correct red ten times. A gate whose red becomes furniture is a
+gate that has stopped working, whatever its exit code says.
+
+**1. `heart_map._read()` returned `""` on a failed open.** `surfaces()` runs the id regex over
+that string, so an unreadable `control_ui.html` yields an empty set, and `render()` would write
+into the file the pre-push gate compares against the tree:
+
+```
+| surfaces the console paints | **0** |
+| of those, watched           | **0** |
+| coverage                    | **0.0%** |
+```
+
+**A heart map claiming the console paints nothing, banked into the repo, from a failed open** — the
+organ built to notice blindness going blind in the exact shape it exists to catch. Real figures:
+356 surfaces, 8 watched. `render()` and `main()` now REFUSE and say which file could not be read.
+
+⚠ **An unreadable WATCHER was the worst of the three**, because it makes every surface that watcher
+covers look UNWATCHED — a coverage collapse indistinguishable from a real one. `watched()` now
+returns the missing watchers instead of contributing a silent empty string.
+
+**2. `shelf_corroborate._live_sessions()` returned `[]` for both "no sessions" and "could not
+ask"**, and its docstring approved: *"or return [] with nothing invented."* Nothing is invented —
+that is the problem. A console that is down and a console with nothing on it both produce
+`checked 0, disagreed 0`, so a witness that could not be reached reads as a clean sweep.
+`health_engine` already refuses to read a bare 0 as clean; what it could not do was tell WHY it was
+0. Now `ok` is None, `sessionsUnknown` is set, and the sentence carries it.
+
+**3. `control_app` published `blobs: [], blobsN: 0` when the grouping RAISED.** The reason did
+travel in `blobsWhy`, but anything counting blobs read a confident zero from a failed call. `None`
+now, which `blobsN` already tolerated.
+
+Ratchet: **77 → 74, held.** Gate: `tv/test_a_blind_organ_says_so.py`, 8 laws, red-proofed twice,
+including a baseline law proving the honest path still measures — a guard that refuses everything
+is as useless as one that refuses nothing.

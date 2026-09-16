@@ -197,8 +197,17 @@ def report(sessions=None, hist=None):
     Each row carries `surface` so organ_matrix joins on the REGISTRY's name rather than on
     a resemblance. [[copy-drift]]
     """
+    _unknown = ""
     if sessions is None:
         sessions = _live_sessions()
+        if sessions is None:
+            # v3231 — SAY WHICH KIND OF EMPTY. Downstream (health_engine) already refuses to read a
+            # bare 0 as clean; what it could not do was tell "nobody was there" from "nobody
+            # answered", because both arrived as [].
+            _unknown = ("the running console could not be asked (%s), so how many sessions exist "
+                        "is UNKNOWN - not zero"
+                        % globals().get("_LAST_ASK_WHY", "no reason recorded"))
+            sessions = []
     c = corroborate(sessions, hist)
     sc = scene_witnesses(sessions)
     return {
@@ -209,20 +218,33 @@ def report(sessions=None, hist=None):
         "findings": c["findings"],
         "checked": c["checked"],
         "disagreed": c["disagreed"],
-        "ok": c["ok"],
-        "say": c["say"],
+        "ok": (None if _unknown else c["ok"]),
+        "sessionsUnknown": bool(_unknown),
+        "unknownWhy": _unknown,
+        "say": ((_unknown + " — " + c["say"]) if _unknown else c["say"]),
     }
 
 
 def _live_sessions():
-    """Ask the running console, or return [] with nothing invented."""
+    """Ask the running console. -> [session] · [] when it answered none · None when it could not be asked.
+
+    ⚠⚠ IT USED TO RETURN [] FOR BOTH, and the docstring said so approvingly — "or return [] with
+    nothing invented". Nothing IS invented, and that is exactly the problem: a console that is down
+    and a console with no sessions produce the identical empty list, so the corroborator reports
+    `checked 0, disagreed 0` either way. `health_engine` then reads a row that looks like a clean
+    sweep of nothing rather than a witness that could not be reached.
+
+    The count was never wrong. The REASON was, and a wrong reason is how a real blind spot gets
+    dismissed as noise. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
     try:
         import urllib.request
         port = os.environ.get("TV_CONTROL_PORT", "17772")
         with urllib.request.urlopen("http://127.0.0.1:%s/api/sessions" % port, timeout=30) as fh:
             return (json.load(fh) or {}).get("sessions") or []
-    except Exception:
-        return []
+    except Exception as e:
+        globals()["_LAST_ASK_WHY"] = "%s" % type(e).__name__
+        return None
 
 
 def main():

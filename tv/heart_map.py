@@ -49,34 +49,71 @@ _ID_RX = re.compile(r"""id=\\?["']([a-zA-Z][\w-]{2,})\\?["']""")
 
 
 def _read(name):
+    """-> the file's text, or None when it could not be read. NEVER "".
+
+    ⚠⚠ IT RETURNED "" AND THAT MADE THE HEART MAP ITSELF THE LIE. `surfaces()` runs the id regex
+    over this string, so an unreadable `control_ui.html` yields an EMPTY SET — and `render()`
+    would then write, into the file the pre-push gate compares against the tree:
+
+        | surfaces the console paints | **0** |
+        | of those, watched           | **0** |
+        | coverage                    | **0.0%** |
+
+    A heart map stating that the console paints nothing, banked into the repo, from a failed open.
+    The organ that exists to notice blindness would have gone blind in exactly the shape it was
+    built to catch. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
     try:
         with io.open(os.path.join(HERE, name), encoding="utf-8") as fh:
             return fh.read()
     except Exception:
-        return ""
+        return None
 
 
 def surfaces():
-    """-> sorted ids the console paints. Derived, never listed by hand."""
+    """-> sorted ids the console paints, or None when the console page could not be read."""
     ui = _read("control_ui.html")
+    if ui is None:
+        return None
     return sorted({m.group(1) for m in _ID_RX.finditer(ui)})
 
 
 def watched():
-    """-> the set of names any watcher mentions."""
-    blob = "\n".join(_read(w) for w in WATCHERS)
-    return blob
+    """-> (blob of every watcher's text, [watchers that could not be read])
+
+    A watcher that cannot be read makes every surface it covers look UNWATCHED — which would
+    report as a coverage collapse and, worse, as a real one. It is named instead of skipped.
+    """
+    parts, missing = [], []
+    for w in WATCHERS:
+        t = _read(w)
+        if t is None:
+            missing.append(w)
+        else:
+            parts.append(t)
+    return "\n".join(parts), missing
 
 
 def measure():
+    """-> (ids, seen, missing). `ids` is None when the map cannot be measured at all."""
     ids = surfaces()
-    blob = watched()
+    blob, missing = watched()
+    if ids is None or missing:
+        return None, None, missing
     seen = sorted(i for i in ids if i in blob)
-    return ids, seen
+    return ids, seen, missing
 
 
 def render():
-    ids, seen = measure()
+    ids, seen, missing = measure()
+    # ⚠ REFUSE, DO NOT RENDER A ZERO. Writing the map is what banks it: the pre-push gate compares
+    # HEART.md against the tree, so a map built from a failed read becomes the committed truth.
+    if ids is None:
+        raise RuntimeError(
+            "the heart map could not be measured: %s. Refusing to write a map that would claim "
+            "the console paints 0 surfaces — an unreadable file is UNKNOWN, not empty."
+            % ("control_ui.html could not be read" if not missing
+               else "these watchers could not be read: %s" % ", ".join(missing)))
     pct = (100.0 * len(seen) / len(ids)) if ids else 0.0
     lines = [
         "# THE HEART — what watches the console",
@@ -120,7 +157,14 @@ def main(argv=None):
     except Exception:
         pass
     argv = argv or []
-    ids, seen = measure()
+    ids, seen, missing = measure()
+    # v3231 — an unmeasurable map is a REFUSAL at every door, not a quiet zero in one of them.
+    if ids is None:
+        print("🔴 the heart map could not be measured: %s"
+              % ("control_ui.html could not be read" if not missing
+                 else "these watchers could not be read: %s" % ", ".join(missing)))
+        print("   UNKNOWN is not 0 surfaces. Refusing rather than rendering an empty heart.")
+        return 1
     if "--print" in argv:
         print(render())
         return 0

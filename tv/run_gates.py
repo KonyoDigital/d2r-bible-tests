@@ -149,6 +149,12 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_blind_organ", [sys.executable,
+                              os.path.join(HERE, "test_a_blind_organ_says_so.py")], 60,
+         why="REG-1034 — heart_map._read returned '' so an unreadable control_ui.html would have "
+             "BANKED a HEART.md claiming the console paints 0 surfaces; shelf_corroborate "
+             "returned [] for both 'no sessions' and 'could not ask'. The swallow ratchet had "
+             "been red on these for 10+ CI runs and nobody read it"),
     Gate("test_both_terms", [sys.executable,
                              os.path.join(HERE, "test_a_difference_needs_both_its_terms.py")], 60,
          why="REG-1032 — vault_autosort guarded the BEFORE read against an unreadable store and "
