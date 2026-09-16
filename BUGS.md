@@ -33836,3 +33836,37 @@ the ratchet is the COUNT — but it is worth knowing before reading that list as
 
 The scar is recorded in `render_check.py` beside the bless itself, and `--bless` now says out loud
 that a floor which only appears after repeated local runs is an artefact, not a measurement.
+
+## REG-1011 — a capability check that answered a different question, and a fix taken wholesale
+
+**2026-09-16 · v3216**
+
+The cross-family look at v3215 found two regressions, both introduced by v3215's own fixes. Both
+were reproduced in node before being believed.
+
+**1 — `board_tick` gated its frame hop on `toggleSetPiece` OR `toggleOwned`, on both sides.** So a
+page holding only `toggleOwned` kept a `set` tick in the wrong context and answered
+*"no toggleSetPiece"* about a window while the real one sat one frame away. A capability check has
+to name the capability the CALL is about to use, not any capability in the family.
+
+MEASURED, with a shell exposing only `toggleOwned` and a frame exposing only `toggleSetPiece`:
+the `set` tick reached the FRAME (`frame got: Shako`) and never touched the shell. It now derives
+`_need` from `kind` — set → `toggleSetPiece`, set-drop → `dropSetPieceKeepGrail`, owned →
+`tvVaultRegister`, unique → `toggleOwned` — and tests exactly that handler on both sides.
+
+**2 — the mirror error, from the same ship: `board_mask` is a READER and its hop demanded
+`LSR.setItem`.** v3215 applied the capability fix to both hops that matched one pattern; one of
+them never writes. A read-only LSR is a legitimate arrangement and would have been refused a read it
+could serve. That is a finding taken WHOLESALE instead of per-door — `review-after-ship` says the
+measurement decides and not to take a reviewer's fix unexamined, and this is what ignoring that
+costs. Reverted to `getItem` there; the restore doors keep `setItem`, because they write.
+
+Gate: `test_a_hop_shadows_the_window` grew a third class — `AHopTestsTheCapabilityTheCallNeeds` —
+pinning all three directions: the kind-specific selection, that a READER does not demand a writer,
+and that a WRITER still does (so the first fix cannot be over-applied back). Seen red.
+
+⚠ Also recorded, from the same pass: the #227 item-7 **cold** cross-family look at the PIXELS is
+done. The card-grid crop went to an OpenAI seat with no premise and came back:
+*"No readable text appears clipped, overlapped, or unreadable. The timestamps wrap onto two lines
+(PM / AM) by design; they are not cut off."* It transcribed `Sep 15 · 7:40 / PM`, `Sep 15 · 7:37 /
+PM`, `Sep 15 · 10:51 / AM` — dates, no ordinals, no collision with the pin/open cluster.

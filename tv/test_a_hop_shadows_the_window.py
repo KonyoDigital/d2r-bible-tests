@@ -123,5 +123,59 @@ class TestAHopShadowsTheWindow(unittest.TestCase):
                       "2026-09-16 after refusing every restore. Found: %s" % sorted(names))
 
 
+class AHopTestsTheCapabilityTheCallNeeds(unittest.TestCase):
+    """⚠⚠ EITHER-HANDLER IS NOT THE QUESTION THE CALL IS ASKING.
+
+    v3215 joined `board_tick` to the frame hop and gated it on
+    `toggleSetPiece OR toggleOwned` — on BOTH sides. So a page holding only `toggleOwned` kept a
+    `set` tick in the wrong context and answered *"no toggleSetPiece"* about a window while the
+    real one sat one frame away. Found by a cross-family look at v3215, reproduced in node before
+    being believed: with a shell exposing only `toggleOwned` and a frame exposing only
+    `toggleSetPiece`, a `set` tick reached the FRAME and never touched the shell.
+
+    ⚠ AND THE MIRROR ERROR, SAME SHIP: `board_mask` is a READER, and the same pass made its hop
+    demand `LSR.setItem`. A read-only LSR is a legitimate arrangement, and it would have been
+    refused a read it could serve. That was a finding taken WHOLESALE instead of per-door — the
+    capability fix was right for the restore doors and wrong there. [[review-after-ship]]
+    """
+
+    def setUp(self):
+        self.src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+
+    def _js_of(self, fname):
+        tree = ast.parse(self.src)
+        for fn in ast.walk(tree):
+            if isinstance(fn, ast.FunctionDef) and fn.name == fname:
+                for n in ast.walk(fn):
+                    if isinstance(n, ast.Constant) and isinstance(n.value, str) and "_ctx=_cw" in n.value:
+                        return n.value
+        return ""
+
+    def test_board_tick_selects_on_the_handler_its_kind_needs(self):
+        js = self._js_of("board_tick")
+        self.assertTrue(js, "board_tick no longer carries a frame hop")
+        self.assertIn("window[_need]", js,
+                      "board_tick selects its frame without naming the handler the KIND requires, "
+                      "so a set tick can stay on a page that only has toggleOwned")
+        self.assertNotIn("typeof window.toggleSetPiece!=='function'&&typeof window.toggleOwned", js,
+                         "the either-handler test is back — it answers a different question from "
+                         "the one the call is about to ask")
+
+    def test_a_reader_does_not_demand_a_writer(self):
+        js = self._js_of("board_mask")
+        self.assertTrue(js, "board_mask no longer carries a frame hop")
+        self.assertNotIn("_cw.LSR.setItem", js,
+                         "board_mask is a READER and its hop demands setItem, so a read-only LSR "
+                         "is refused a read it could serve")
+
+    def test_a_writer_does_demand_a_writer(self):
+        """The opposite error, pinned so the fix above cannot be over-applied back."""
+        js = self._js_of("owned_restore")
+        self.assertTrue(js, "owned_restore no longer carries a frame hop")
+        self.assertIn("_cw.LSR.setItem", js,
+                      "owned_restore WRITES, so hopping into a context on getItem alone selects a "
+                      "frame the write will then fail in")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

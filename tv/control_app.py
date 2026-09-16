@@ -2413,7 +2413,13 @@ def board_mask(ledger="sets"):
           "var _ctx=window;"
           "if(!(window.LSR&&window.LSR.getItem)){"
           "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
-          "if(_cw&&_cw.LSR&&_cw.LSR.getItem&&_cw.LSR.setItem)_ctx=_cw;}catch(_hop){}}"
+          # ⚠ v3216 — GETITEM ONLY. v3215 added `setItem` to BOTH hops that matched one pattern, and
+          # this one is a READER: the mask never writes. Requiring a writer to select the frame
+          # means a page whose LSR is read-only — a legitimate arrangement — is refused a read it
+          # could have served. That is me taking a finding WHOLESALE instead of per-door: the
+          # capability fix was correct for the restore doors and wrong here. Caught by the next
+          # cross-family look. [[review-after-ship]]
+          "if(_cw&&_cw.LSR&&_cw.LSR.getItem)_ctx=_cw;}catch(_hop){}}"
           "return (function(window){try{"
           # ⚠ KS is a LIST, because "found" on his board is a UNION. bible.html's _ownedNames()
           # is `d2r_owned` UNION `keys(d2r_foundLog)` — commented "found = ledger + LEGACY owned"
@@ -13403,10 +13409,18 @@ def board_tick(name, kind, want):
         # and `test_a_hop_shadows_the_window`'s CONTEXT_HOPS did not name it, so nothing would
         # ever have caught it. Same shadowing as its siblings: a LOCAL passed as a PARAMETER named
         # `window`. [[sweep-dont-ask]] [[the-unjoined-end]]
+        # ⚠⚠ v3216 — KIND-SPECIFIC, because EITHER-handler is not the same question.
+        # v3215 stayed in the outer window when it had `toggleSetPiece` OR `toggleOwned`, and
+        # hopped on the same either-test. So a page holding only `toggleOwned` kept a `set` tick
+        # in the wrong context and answered "no toggleSetPiece" about a window the real one was
+        # one frame away from. A capability check has to name the capability the CALL needs.
+        # Found by a cross-family look at v3215. [[the-unjoined-end]]
+        "var _need=(kind==='set')?'toggleSetPiece':((kind==='set-drop')?'dropSetPieceKeepGrail':"
+        "((kind==='owned')?'tvVaultRegister':'toggleOwned'));"
         "var _ctx=window;"
-        "if(typeof window.toggleSetPiece!=='function'&&typeof window.toggleOwned!=='function'){"
+        "if(typeof window[_need]!=='function'){"
         "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
-        "if(_cw&&(typeof _cw.toggleSetPiece==='function'||typeof _cw.toggleOwned==='function'))"
+        "if(_cw&&typeof _cw[_need]==='function')"
         "_ctx=_cw;}catch(_hop){}}"
         "return (function(window){try{"
         "if(kind==='set'){"
@@ -28787,7 +28801,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3215",
+        "ver": "v3216",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

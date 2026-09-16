@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3215",
+  "ver": "v3216",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3215: Three render floors were declared ABOVE what a full clean run measures, so the gate could not fire until that much slack was used up. heart-fan zero 2 to 0 at all five widths against a measured 0 of 270. page clipped 6 to 4 and 55 to 10 - the 375 floor was 45 elements of slack, the widest in the target set. And the heart-fan 375 clipped debt is PAID: its own comment said lower it the moment the clip is fixed, and a clean run now measures 0 of 1972. Coverage blessed on a full clean run, 19 targets.",
+  "note": "v3216: HEART: board_tick gated its frame hop on toggleSetPiece OR toggleOwned, so a set tick stayed on a page holding only toggleOwned and answered no toggleSetPiece about a window while the real one was one frame away. Now it names the handler the KIND requires. And the mirror error from the same ship: board_mask is a READER and its hop demanded LSR.setItem, refusing a read a read-only LSR could have served - a finding taken wholesale instead of per-door. Both found by a cross-family look at v3215 and reproduced in node before being believed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
