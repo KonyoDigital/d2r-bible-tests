@@ -149,6 +149,18 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_seal_named", [sys.executable,
+                             os.path.join(HERE, "test_a_named_reel_does_not_defeat_its_seal.py")], 60,
+         why="REG-1023 — naming a reel put it back past its own valid seal, so the autoread "
+             "watchdog re-read a finished reel every tick: 3,052 re-sweeps of one reel and 104% "
+             "CPU for 2h46m, almost all of it 0 paid reads so nothing alarmed. Pins the DECISION "
+             "(a pure function), not the spelling of the line that held it"),
+    Gate("test_read_not_waiting", [sys.executable,
+                                   os.path.join(HERE, "test_a_read_reel_is_not_waiting_on_a_read.py")], 60,
+         why="REG-1026 — a read that finds nothing never clears the tag, so reels already sealed "
+             "by the CURRENT reader were reported forever as waiting on a sweep. He asked about "
+             "this twice. Pins the split (waiting / barren / banked) and that BOTH sentences "
+             "carry the already-read clause"),
     Gate("js-syntax",   [sys.executable, os.path.join(HERE, "js_syntax_gate.py")], 300,
          why="every surface must PARSE — a bad edit blanks a 37k-line page"),
     Gate("comment-count", [sys.executable, os.path.join(HERE, "comment_count_gate.py")], 60,
