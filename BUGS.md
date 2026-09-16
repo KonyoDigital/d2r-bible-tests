@@ -34426,16 +34426,30 @@ clears the tag.** A reel is read, sealed by the CURRENT vault reader, banks 0 ro
 `panels-never-banked` tag because panel frames are still visible in the film — so it is reported
 forever as needing the one thing it has already had.
 
-MEASURED on his tree, the 3 reels on the vault lane:
+MEASURED on his tree — **4 reels, 43 MB, on the vault lane**:
 
 ```
-reel_s_1788195270707_36946   sealed vp2017, rows=0   <- read. not waiting.
-reel_s_1788216049718_92772   sealed vp2017, rows=0   <- read. not waiting.
-reel_s_1788821886867_76614   NO SEAL                 <- the only one genuinely waiting
+reel_s_1788192795215_12001   11.9 MB  sealed vp2017, rows=0   <- read. not waiting.
+reel_s_1788195270707_36946   12.6 MB  sealed vp2017, rows=0   <- read. not waiting.
+reel_s_1788216049718_92772    1.7 MB  sealed vp2017, rows=0   <- read. not waiting.
+reel_s_1788821886867_76614   16.8 MB  NO SEAL                 <- the only one genuinely waiting
 ```
 
-The screen said **3**, and `_locked_say` called all three *"locked behind a sweep that has NEVER
-RUN"* — false for two of them, in the exact sentence he reads. The code's own comment states the
+    BEFORE:  4 reel(s) (43 MB) are waiting on a sweep
+             4 reel(s) are locked behind a sweep that has NEVER RUN
+    AFTER :  1 reel(s) (17 MB) are waiting on a sweep · 3 reel(s) (26 MB) have already been read
+             and yielded nothing extractable - held because panel frames are still visible, not
+             because a sweep is owed
+
+`_locked_say` called all four *"locked behind a sweep that has NEVER RUN"* — false for three of
+them, in the exact sentence he reads.
+
+⚠ **CORRECTION, and the instrument was me.** An earlier pass of this entry said 3 reels and called
+the console's "4 reel(s) (43 MB)" a stale cached tick. **The console was right.** The count read 3
+because I had already saved a gate file naming `reel_s_1788192795215_12001`, which moved that reel
+into the `test-fixture` bucket before I measured — see REG-1027. I was measuring a tree my own
+uncommitted work had changed, and reached for "the other authority is stale" instead of "what did
+I just touch". [[feedback-suspect-the-instrument]] The code's own comment states the
 right intent (*"awaiting a sweep is exactly vault ∩ READ_CLEARS"*) and missed only that a barren
 read leaves the tag standing.
 
@@ -34458,3 +34472,58 @@ Gate: `tv/test_a_read_reel_is_not_waiting_on_a_read.py`, 9 laws, red-proofed twi
 split → 4 red; drop the clause from the sentence → 1 red). ⚠ The first attempt at that second
 sabotage matched **2** sites and the assert refused to write — the sabotage was wrong, not the
 gate, and printing the match count is the only reason that was visible. `[[sabotage-is-usually-the-wrong-one]]`
+
+## REG-1027 — a gate that named his real reels made them permanently undeletable
+
+**2026-09-16 · v3227 · `tv/test_a_named_reel_does_not_defeat_its_seal.py`,
+`tv/test_a_read_reel_is_not_waiting_on_a_read.py`**
+
+`frame_authority.test_referenced_reels()` scans the test suite for reel ids, and retention holds
+anything it finds under `test-fixture`: *"the TEST SUITE opens this reel by name — deleting it
+does not turn a test red, it turns one into a permanent skip, which is worse."* Correct rule,
+written after a prune deleted three reels the suite named.
+
+**I wrote four of his real reel ids into two new gates and retention immediately reclassified all
+four as fixtures.** Measured across the mistake:
+
+```
+before my gates:   test-fixture  8 · recent 8 · panels-never-banked 4
+after  my gates:   test-fixture 12 · recent 8 · panels-never-banked 0
+after  the fix:    test-fixture  8 · recent 8 · panels-never-banked 4
+```
+
+So 43 MB of his footage became **permanently unreleasable**, held for a reason that was false, by
+a gate written to defend the rule that the river must eventually spit reels out. The gate and the
+defect pointed in opposite directions.
+
+⚠⚠ **`frame_authority.py` ALREADY RECORDS THIS EXACT MISTAKE AND PRESCRIBES THE REMEDY.** v2071
+wrote `reel_s_1787523300658_1` into a guard as an illustration, the orphan fold minted that exact
+directory an hour later, and retention began holding **3.15 GB** with the reason "the TEST SUITE
+opens this reel" — which was false. Its docstring ends: *"Use a stamp no recording can carry (the
+v2071 guards now use 1500000000000 — 2017) whenever a test SYNTHESISES a reel name rather than
+pointing at footage on disk."* **I wrote both gates without reading it.**
+`[[carved-skill-unloaded-is-unapplied]]`
+
+⚠ **IT WAS THE TEST BODIES, NOT THE DOCSTRINGS** — and I had that backwards until the red-proof
+disagreed with me. `_executable_only()` strips comments and docstrings before scanning, because
+v2393 found his disk at **1.2 GB free of 228 GB** with 4.8 GB held on the strength of reel ids
+mentioned in PROSE — including in the docstring of the function that documents this very defect.
+So prose about a reel is free; a string literal costs the reel. My first sabotage put the id in a
+comment, only one law went red, and chasing that discrepancy is what surfaced the real mechanism.
+A sabotage that half-fires is a finding. [[sabotage-is-usually-the-wrong-one]]
+[[feedback-comments-vs-code]]
+
+**Fixed:** both gates now use synthetic `reel_s_15000000000NN_*` ids (epoch 2017 — no recording
+can carry it). The real ids live here in `BUGS.md`, which is not scanned at all, so the evidence
+survives without pinning his footage. Verified by re-running `plan()`: the four reels are back on
+`panels-never-banked` and releasable.
+
+⚠ **It also silently corrupted the measurement I was taking at the time** — see the correction on
+REG-1026. A contaminated tree does not announce itself; it just answers a slightly different
+question than the one asked.
+
+**Guard:** `tv/test_a_gate_may_not_pin_his_footage.py` + `tv/test_reel_refs.json` — a RATCHET over
+the 39 real ids the suite already names (8 of them on disk today). A new one fails the gate with
+the remedy in the message. Not a ban: several of those tests genuinely open that footage, which is
+the rule working. What must never happen again is a reel joining the set BY ACCIDENT. Red-proofed
+with an executable literal: 2 laws red, message names the id and the fix.

@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 """A REEL THAT HAS ALREADY BEEN READ MUST NOT BE REPORTED AS WAITING ON A READ.
 
+⚠⚠ THE REEL IDS BELOW ARE SYNTHETIC (epoch 1500000000000 = 2017, a stamp no recording can
+carry). THE REAL IDS ARE IN BUGS.md, DELIBERATELY NOT IN THIS FILE. `frame_authority.
+test_referenced_reels()` scans test files for reel ids and retention then holds anything it finds
+as "the TEST SUITE opens this reel by name" — forever. Writing his real ids here made 4 of his
+reels permanently undeletable the moment this gate was saved, which is precisely the opposite of
+the river rule it was written to defend. That file already records the same mistake at v2071
+(3.15 GB held for a false reason) AND prescribes this remedy; I wrote the gate without reading
+it. [[carved-skill-unloaded-is-unapplied]] [[feedback-fixtures-never-touch-live-data]]
+
 He has now asked about this twice, months apart, in almost the same words.
 `chronicle_retro.py:2513` records the first — *"how come they are still waiting on a sweep the
 items it says in the tooltip here"* — and 2026-09-16: *"these reels and sessions havent been read
@@ -14,9 +23,9 @@ the sweep panel reads as permanently behind.
 
 MEASURED on his tree, 3 reels on the vault lane:
 
-    reel_s_1788195270707_36946   sealed vp2017, rows=0   <- read. not waiting.
-    reel_s_1788216049718_92772   sealed vp2017, rows=0   <- read. not waiting.
-    reel_s_1788821886867_76614   NO SEAL                 <- the only one genuinely waiting
+    reel_s_1500000000002_36946   sealed vp2017, rows=0   <- read. not waiting.
+    reel_s_1500000000003_92772   sealed vp2017, rows=0   <- read. not waiting.
+    reel_s_1500000000004_76614   NO SEAL                 <- the only one genuinely waiting
 
 The screen said **3**, and `_locked_say` called all three *"locked behind a sweep that has NEVER
 RUN"* — false for two of them, about the exact sentence he reads.
@@ -69,13 +78,13 @@ class TestAReadReelIsNotWaitingOnARead(unittest.TestCase):
     # ── THE LAW ──────────────────────────────────────────────────────────────────────────────
     def test_his_three_reels_split_two_read_one_waiting(self):
         """★ THE MEASUREMENT THAT PROMPTED THIS, REPRODUCED EXACTLY."""
-        reels = [_reel("reel_s_1788195270707_36946", 12.0),
-                 _reel("reel_s_1788216049718_92772", 11.0),
-                 _reel("reel_s_1788821886867_76614", 8.1)]
-        seals = {"reel_s_1788195270707_36946": READ_BARREN,
-                 "reel_s_1788216049718_92772": READ_BARREN}
+        reels = [_reel("reel_s_1500000000002_36946", 12.0),
+                 _reel("reel_s_1500000000003_92772", 11.0),
+                 _reel("reel_s_1500000000004_76614", 8.1)]
+        seals = {"reel_s_1500000000002_36946": READ_BARREN,
+                 "reel_s_1500000000003_92772": READ_BARREN}
         got = self._split(reels, seals)
-        self.assertEqual([r["reel"] for r in got["waiting"]], ["reel_s_1788821886867_76614"],
+        self.assertEqual([r["reel"] for r in got["waiting"]], ["reel_s_1500000000004_76614"],
                          "the only reel with NO seal is the only one waiting on a sweep — got %r"
                          % [r["reel"] for r in got["waiting"]])
         self.assertEqual(len(got["barren"]), 2,

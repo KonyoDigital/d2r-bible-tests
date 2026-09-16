@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 """NAMING A REEL MUST NOT PUT IT BACK PAST ITS OWN SEAL — THIS BURNED A CORE FOR 2h46m.
 
+⚠⚠ THE REEL IDS BELOW ARE SYNTHETIC (epoch 1500000000000 = 2017, a stamp no recording can
+carry). THE REAL IDS ARE IN BUGS.md, DELIBERATELY NOT IN THIS FILE. `frame_authority.
+test_referenced_reels()` scans test files for reel ids and retention then holds anything it finds
+as "the TEST SUITE opens this reel by name" — forever. Writing his real ids here made 4 of his
+reels permanently undeletable the moment this gate was saved, which is precisely the opposite of
+the river rule it was written to defend. That file already records the same mistake at v2071
+(3.15 GB held for a false reason) AND prescribes this remedy; I wrote the gate without reading
+it. [[carved-skill-unloaded-is-unapplied]] [[feedback-fixtures-never-touch-live-data]]
+
 `_vault_sweep_run` filters out every reel whose seal is still valid, then honoured `reel_dir`
 with:
 
@@ -12,7 +21,7 @@ on purpose), so every tick re-read a finished reel, found the same nothing, re-s
 SAME promptVer, and retention owed it again on the next pass.
 
 MEASURED 2026-09-16 on his live console: **3,052 re-sweeps of one reel**
-(reel_s_1788192795215_12001), 388 of the next, 1,748 retention passes inside 20k lines of log,
+(reel_s_1500000000001_12001), 388 of the next, 1,748 retention passes inside 20k lines of log,
 and the process pegged at **104% CPU for 2h46m**. Nearly all of it was 0 paid reads, so it burned
 the machine rather than his subscription — which is exactly why no cost alarm ever fired. What he
 saw was the sweep panel forever mid-read on something weeks old, and he asked about it.
@@ -61,7 +70,7 @@ class TestANamedReelDoesNotDefeatItsSeal(unittest.TestCase):
         self.tmp = os.path.join(HERE, ".t_seal_reel")
         if not os.path.isdir(self.tmp):
             os.makedirs(self.tmp)
-        self.reel = os.path.join(self.tmp, "reel_s_1788192795215_12001")
+        self.reel = os.path.join(self.tmp, "reel_s_1500000000001_12001")
         if not os.path.isdir(self.reel):
             os.makedirs(self.reel)
 

@@ -149,6 +149,12 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_no_pinned_footage", [sys.executable,
+                                    os.path.join(HERE, "test_a_gate_may_not_pin_his_footage.py")], 90,
+         why="REG-1027 — a reel id in EXECUTABLE test code makes retention hold that footage "
+             "forever as a fixture. My own two gates froze 43 MB that way; v2071 froze 3.15 GB "
+             "and v2393 found 4.8 GB held on the strength of reel ids in PROSE. A ratchet over "
+             "the 39 already-named ids, so a new one is deliberate and never an accident"),
     Gate("test_seal_named", [sys.executable,
                              os.path.join(HERE, "test_a_named_reel_does_not_defeat_its_seal.py")], 60,
          why="REG-1023 — naming a reel put it back past its own valid seal, so the autoread "

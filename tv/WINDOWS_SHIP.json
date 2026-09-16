@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3226",
+  "ver": "v3227",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3226: two of his three vault-lane reels were sealed by the current reader with zero rows and were still reported as waiting on a sweep, which is the question he has now asked twice. the split is waiting, barren and banked, the barren ones stay held and counted because a seal is not an extraction, and an unreadable seal store is UNKNOWN rather than nothing-sealed",
+  "note": "v3227: two new gates named four of his real reels, so retention reclassified 43 MB as test fixtures and held them forever for a reason that was false. frame_authority already recorded this mistake at v2071 and prescribed the 2017 epoch remedy, which I did not read. synthetic ids now, real ids in BUGS only, and the reels are releasable again",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
