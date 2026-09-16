@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3225",
+  "ver": "v3226",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3225: a targeted sweep re-read a sealed reel every tick, 3052 times, at 104 percent CPU for 2h46m. the decision is now a pure function with 8 laws, the refusal carries a flag, and the log stopped blaming an older reader for the current one. plus eligibleMb stops wearing the name freeMb beside freeGb, and test_freed_is_measured can reach its own subject again",
+  "note": "v3226: two of his three vault-lane reels were sealed by the current reader with zero rows and were still reported as waiting on a sweep, which is the question he has now asked twice. the split is waiting, barren and banked, the barren ones stay held and counted because a seal is not an extraction, and an unreadable seal store is UNKNOWN rather than nothing-sealed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

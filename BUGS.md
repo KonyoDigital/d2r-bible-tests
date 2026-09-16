@@ -34411,3 +34411,50 @@ reel on disk — so the stub can never quietly become a bypass. 4 red + 1 false 
 Red-proofed: removing the stub → 5 red (the end-to-end case now among them, which is the fix);
 restoring the v2642 fabrication → exactly the 4 laws its own RED_PROOF names.
 `[[regression-guard]]` `[[the-unjoined-end]]`
+
+## REG-1026 — reels that had already been read were reported as waiting to be read, and he asked twice
+
+**2026-09-16 · v3226 · `tv/control_app.py`**
+
+He asked this months ago — `chronicle_retro.py:2513` preserves it: *"how come they are still
+waiting on a sweep the items it says in the tooltip here"* — and again on 2026-09-16: *"these
+reels and sessions havent been read already and proccesed and filtetered and deleted already?
+something might be stale or not flowing correctly.. nothing just be reading all should be swept?"*
+
+**Both times he was right, and both times the answer was the same: a read that finds nothing never
+clears the tag.** A reel is read, sealed by the CURRENT vault reader, banks 0 rows, and keeps its
+`panels-never-banked` tag because panel frames are still visible in the film — so it is reported
+forever as needing the one thing it has already had.
+
+MEASURED on his tree, the 3 reels on the vault lane:
+
+```
+reel_s_1788195270707_36946   sealed vp2017, rows=0   <- read. not waiting.
+reel_s_1788216049718_92772   sealed vp2017, rows=0   <- read. not waiting.
+reel_s_1788821886867_76614   NO SEAL                 <- the only one genuinely waiting
+```
+
+The screen said **3**, and `_locked_say` called all three *"locked behind a sweep that has NEVER
+RUN"* — false for two of them, in the exact sentence he reads. The code's own comment states the
+right intent (*"awaiting a sweep is exactly vault ∩ READ_CLEARS"*) and missed only that a barren
+read leaves the tag standing.
+
+⚠ **THE SPLIT IS THE FIX, NOT A SMALLER NUMBER.** A swept-barren reel is still HELD and still 31
+MB, and retention is right to hold it — *"a seal is not an extraction"*, and deleting it destroys
+the only copy of panels nothing has managed to read. What was wrong was the WORD. A fix that
+merely dropped them from the count would hide 31 MB of his footage from the one panel that
+explains why it is still there.
+
+⚠ **"Waiting on a read" means no standing read exists — whatever the read found.** The first cut
+excused only barren seals, so a reel sealed WITH rows was still filed as waiting on the sweep that
+produced them. Rows change the ADVICE (that reel is owed a BANK, under its own tag), never whether
+a read happened. Three buckets now: `waiting` · `barren` · `banked`.
+
+**Fixed:** `_split_read_from_waiting()` — pure, so the gate exercises it without running
+`_retention_once`, which prunes. Both sentences carry the already-read clause. An unreadable seal
+store is UNKNOWN, not "nothing is sealed".
+
+Gate: `tv/test_a_read_reel_is_not_waiting_on_a_read.py`, 9 laws, red-proofed twice (collapse the
+split → 4 red; drop the clause from the sentence → 1 red). ⚠ The first attempt at that second
+sabotage matched **2** sites and the assert refused to write — the sabotage was wrong, not the
+gate, and printing the match count is the only reason that was visible. `[[sabotage-is-usually-the-wrong-one]]`

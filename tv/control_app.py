@@ -19464,6 +19464,54 @@ def retention_may_act():
     return nothing_in_flight("footage is being written or read right now")
 
 
+def _split_read_from_waiting(w_vault, seals, still_sealed=None):
+    """Which of these reels are WAITING on a sweep, and which have already had one. -> dict
+
+    Pure, so a gate can exercise it without running `_retention_once`, which prunes.
+
+    ⚠⚠ "WAITING ON A SWEEP" WAS FALSE FOR REELS THAT HAD ALREADY HAD ONE, AND HE ASKED TWICE.
+    chronicle_retro.py:2513 records the first: *"how come they are still waiting on a sweep the
+    items it says in the tooltip here"*. Then 2026-09-16: *"these reels and sessions havent been
+    read already and proccesed and filtetered and deleted already? something might be stale or not
+    flowing correctly"*.
+
+    The cause is that A READ THAT FINDS NOTHING NEVER CLEARS THE TAG. A reel is read, sealed by the
+    CURRENT reader, banks 0 rows, and keeps `panels-never-banked` because panel frames are still
+    visible in the film — so it is reported forever as needing the one thing it has already had.
+
+    MEASURED on his tree, 3 reels on the vault lane: two sealed `vp2017` with rows=0 (read), one
+    with no seal at all (genuinely waiting). The screen said 3.
+
+    ⚠ THE SPLIT IS THE FIX, NOT A SMALLER NUMBER. A swept-barren reel is still HELD and still
+    counted in MB — retention is right to keep it, because "a seal is not an extraction" and
+    deleting it destroys the only copy of panels nothing has read. It is simply not WAITING.
+
+    ⚠ `seals is None` means the seal store was unreadable. That is UNKNOWN, not "nothing is
+    sealed": reporting every reel as waiting would look like a look. [[unknown-stays-unknown]]
+    """
+    _still = still_sealed or _vault_still_sealed
+    if seals is None:
+        return {"barren": [], "banked": [], "waiting": list(w_vault or []),
+                "unknown": ("the sweep seals could not be read, so how many of these have "
+                            "already been read is UNKNOWN")}
+    # ⚠ WAITING ON A READ MEANS NO STANDING READ EXISTS — full stop, whatever the read found.
+    # The first cut excused only BARREN seals, so a reel sealed by the current reader WITH rows
+    # was still filed as waiting on the sweep that produced those rows. It reached this list at
+    # all only via a tag in READ_CLEARS, so in practice it is rare — but "it has been read" is
+    # the question being asked, and the row count is not part of that question. What the rows
+    # change is the ADVICE (that reel is owed a BANK, and says so under its own tag), never
+    # whether a read happened. [[label-outlived-referent]]
+    barren, banked, waiting = [], [], []
+    for k in (w_vault or []):
+        nm = str((k or {}).get("reel") or "")
+        rec = seals.get(nm) or seals.get(nm.replace("reel_", "", 1))
+        if rec is not None and _still(rec):
+            (banked if (rec or {}).get("rows") else barren).append(k)
+        else:
+            waiting.append(k)
+    return {"barren": barren, "banked": banked, "waiting": waiting, "unknown": ""}
+
+
 def _retention_once():
     import shutil as _shd
     try:
@@ -19566,7 +19614,44 @@ def _retention_once():
     else:
         _vault_unknown = ""
         _w_vault = [k for k in (p.get("kept") or []) if k.get("tag") in _vault_lane_tags]
-    waiting = _w_chron + _w_vault
+    # ⚠⚠ v3226 — "WAITING ON A SWEEP" WAS FALSE FOR REELS THAT HAD ALREADY HAD ONE, AND HE HAS
+    # NOW ASKED ABOUT IT TWICE. chronicle_retro.py:2513 records the first time, almost verbatim:
+    # *"how come they are still waiting on a sweep the items it says in the tooltip here"*. And
+    # 2026-09-16: *"these reels and sessions havent been read already and proccesed and filtetered
+    # and deleted already? something might be stale or not flowing correctly"*.
+    #
+    # The comment above states the intent — "awaiting a sweep is exactly vault ∩ READ_CLEARS" —
+    # and it is right. What it missed is that A READ THAT FINDS NOTHING NEVER CLEARS THE TAG. The
+    # reel is read, sealed by the CURRENT reader, banks 0 rows, keeps its `panels-never-banked`
+    # tag because panel frames are still visible in the film, and is therefore reported forever as
+    # needing the one thing it has already had.
+    #
+    # MEASURED on his tree, 2026-09-16 — 3 reels on the vault lane:
+    #     reel_s_1788195270707_36946   sealed vp2017, rows=0   <- read. not waiting.
+    #     reel_s_1788216049718_92772   sealed vp2017, rows=0   <- read. not waiting.
+    #     reel_s_1788821886867_76614   NO SEAL                 <- the only one genuinely waiting
+    # So the true figure was 1, and the screen said 3 (and `_locked_say` said all 3 were "locked
+    # behind a sweep that has NEVER RUN", which was false for two of them).
+    #
+    # ⚠ THE SPLIT IS THE FIX, NOT A SMALLER NUMBER. A swept-barren reel is still HELD and still
+    # 31 MB — retention is right to keep it, because "a seal is not an extraction" and deleting it
+    # destroys the only copy of panels nothing has managed to read. It is simply not WAITING, and
+    # calling it that sends him (and me) looking for a stalled sweep that does not exist.
+    # [[label-outlived-referent]] [[unknown-stays-unknown]] [[stale-reading]]
+    try:
+        _seals = _vault_swept_load() or {}
+    except Exception:
+        _seals = None                      # UNKNOWN — never silently "nothing is sealed"
+    _split = _split_read_from_waiting(_w_vault, _seals)
+    _swept_barren, _still_waiting = _split["barren"], _split["waiting"]
+    if _split["unknown"]:
+        _vault_unknown = _vault_unknown or _split["unknown"]
+    _barren_mb = round(sum(k.get("mb") or 0 for k in _swept_barren), 1)
+    _barren_say = ("" if not _swept_barren else
+                   " · %d reel(s) (%.0f MB) have already been read and yielded nothing "
+                   "extractable - they are held because panel frames are still visible, not "
+                   "because a sweep is owed" % (len(_swept_barren), _barren_mb))
+    waiting = _w_chron + _still_waiting
     waiting_mb = round(sum(k.get("mb") or 0 for k in waiting), 1)
     _chron_mb = round(sum(k.get("mb") or 0 for k in _w_chron), 1)
     _vault_mb = round(sum(k.get("mb") or 0 for k in _w_vault), 1)
@@ -19587,11 +19672,15 @@ def _retention_once():
     # cannot drift apart again. [[unknown-stays-unknown]] [[label-outlived-referent]]
     _wait_say = ("an UNKNOWN number of reel(s) are waiting on a sweep"
                  if _vault_unknown else
-                 "%d reel(s) (%.0f MB) are waiting on a sweep" % (len(waiting), waiting_mb))
+                 "%d reel(s) (%.0f MB) are waiting on a sweep%s"
+                 % (len(waiting), waiting_mb, _barren_say))
+    # v3226 — "has never run" is a claim about history, so it may only count reels with no
+    # standing seal. It was counting `waiting` before the split and so said it about reels that
+    # had been read twice.
     _locked_say = ("an UNKNOWN number of reel(s) are locked behind a sweep that has never run"
                    if _vault_unknown else
-                   "%d reel(s) (%.0f MB) are locked behind a sweep that has never run"
-                   % (len(waiting), waiting_mb))
+                   "%d reel(s) (%.0f MB) are locked behind a sweep that has never run%s"
+                   % (len(waiting), waiting_mb, _barren_say))
     cands = p.get("candidates") or []
     # v2006's scar, honoured: ONE SIDE DECIDES. The floor travels on the payload so the board can
     # never compare a rounded number against python's unrounded one and disagree about the same fact.
@@ -29097,7 +29186,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3225",
+        "ver": "v3226",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
