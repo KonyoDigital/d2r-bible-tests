@@ -34572,3 +34572,77 @@ watchdog actually turns into `reads += 1`. `[[feedback-blind-fixture-green-gate]
 defect** — the fix, the fix's fix, and now the fix after that. A repair is not safer than the code
 it replaces; it is written faster, under more certainty, against a model that was just proven
 wrong. `[[review-after-ship]]` `[[a-wrong-answer-skips-the-fallback]]`
+
+## REG-1029 — the second-eye lane was reachable, answered, and still bought nothing
+
+**2026-09-16 · v3229 · `tv/second_eye_run.py`, `tv/second_eye_ledger.py`**
+
+v3224 and v3225 each got a genuine cross-family review through the CLI door — **6 and 12 real
+findings**, reproduced and acted on (REG-1028 came out of one of them). Both rows landed as:
+
+```
+model=''   family=None   reached=True   verdict='findings'
+```
+
+because this Grok CLI prints **no model header** and `_model_from_answer` had nothing to read.
+`family_of(None)` is None by design, an unattributable look cannot discharge a cross-family debt,
+and so the push gate went on reporting **"v3224 OWES A LOOK — nothing was ever recorded for it"**
+about a look that had just happened. **Two eyes ran fifteen minutes each and bought nothing.**
+
+The rule is right and stays — *"a same-family agent writing plausible strings must never be
+mistakable for a cross-family look"*. But a rule that fails closed on **everything** closes the
+lane, and a closed lane reads exactly like a clean one.
+
+**Fixed:** `_model_from_transport()` attributes a look by **which executable the subprocess
+actually launched**.
+
+⚠ **This is evidence, not the config bug wearing a new coat.** v3214-v3216 recorded
+`model=EYE_MODEL` — the configured default — no matter who answered, filing three OpenAI looks as
+`xai`; the lesson was *read it from the evidence, not the config*. The transport is evidence: not
+what we hoped to run, but what ran. A same-family agent cannot produce a row through a path it
+never took. It stays a FALLBACK — an answer that names its own model always wins — and an
+unrecognised binary returns `""`, so UNKNOWN still fails closed.
+
+Also added `("codex", "openai")` to the family table: without it a real Codex look was
+unattributable for the same reason, one vendor further along.
+
+Gate: `tv/test_a_look_names_the_family_that_looked.py`, 6 laws, red-proofed three ways (transport
+reads EYE_MODEL → 3 red · door stops passing it → 1 red · codex token removed → 1 red).
+
+⚠ **My own gate committed the scar it was enforcing.** Its first version GREPPED the helper for
+`EYE_MODEL` — and the helper's docstring *explains the EYE_MODEL bug*, so the guard failed on the
+explanation. `[[feedback-comments-vs-code]]`, in the gate written to enforce it, on the first try.
+It now parses with `ast` and inspects referenced Names, not text.
+
+## REG-1030 — the fix for the wasteful loop would have made the lane read nothing at all
+
+**2026-09-16 · v3229 · `tv/control_app.py`**
+
+`vault_autoreel_tick` walks the owed list and **`return`s on the first reel whose `sweep_start`
+fails**. Before v3228 a sealed reel still "started" — the sweep declined later, on its thread — so
+the tick always did something. v3228 made the door refuse synchronously, correctly, and thereby
+handed **the first sealed reel a veto over the entire pass**.
+
+MEASURED on his tree at the time, the vault lane owing 4 reels in this order:
+
+```
+reel ...12001  11.9 MB  sealed vp2017 rows=0   <- would veto the tick
+reel ...36946  12.6 MB  sealed vp2017 rows=0
+reel ...92772   1.7 MB  sealed vp2017 rows=0
+reel ...76614  16.8 MB  NO SEAL                <- the only one needing work
+```
+
+Three sealed reels stand in front of the one that needs reading. So the repair for a wasteful loop
+would have become **a lane that never reads anything, silently** — strictly worse than the 104%
+CPU it replaced, because a burning core is visible and an idle lane is not.
+
+**Fixed:** an `alreadySealed` refusal now `continue`s to the next reel instead of ending the tick.
+
+⚠ **And it must not charge a try.** Tries are the budget for reels that FAIL to read; a seal is a
+reel that already SUCCEEDED. Charging one here would walk a correctly-finished reel toward
+retirement — and retiring a `panels-never-banked` reel is the permanent deadlock the requeue
+branch above it exists to prevent (held because unextracted, unextractable because retired).
+
+⚠ Three versions, one defect, each fix creating the next: REG-1023 (the loop) → REG-1028 (the
+refusal came too late, so the counters lied) → REG-1030 (the refusal came early enough to veto the
+tick). Each was a real improvement and each opened the next hole one layer out.

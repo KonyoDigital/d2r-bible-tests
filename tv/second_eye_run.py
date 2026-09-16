@@ -288,6 +288,36 @@ def payload_for(sha):
     return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped
 
 
+def _model_from_transport():
+    """Which family answered, read from WHICH BINARY WAS EXECUTED. -> model id or ""
+
+    ⚠⚠ v3229 — WITHOUT THIS THE LANE WAS REACHABLE AND STILL USELESS TO THE GATE. Measured
+    2026-09-16: v3224 and v3225 both got genuine cross-family reviews through the CLI door — 6 and
+    12 real findings — and BOTH landed as `model='' family=None`, because this Grok CLI prints no
+    model header and `_model_from_answer` had nothing to read. `family_of(None)` is None by
+    design, an unattributable look cannot discharge a cross-family debt, and so the push gate went
+    on reporting **"v3224 OWES A LOOK — nothing was ever recorded for it"** about a look that had
+    just happened. Two eyes ran for 15 minutes each and bought nothing.
+
+    ⚠ AND IT MUST NOT BECOME THE BUG IT IS FIXING. v3214-v3216 recorded `model=EYE_MODEL` — the
+    CONFIGURED default — no matter who answered, so three OpenAI looks were filed `family=xai`.
+    The lesson there was *read it from the evidence, not the config*. **This is evidence**: it is
+    not what we hoped to run, it is which executable the subprocess actually launched, and a
+    same-family agent cannot produce a row through a path it never took. That is why it derives
+    from `EYE_CLI` alone and never from `EYE_MODEL`.
+
+    It stays a FALLBACK: `record_answer` prefers the model the answer names, always. And every row
+    it attributes carries `modelSource="transport"`, so the ledger says which kind of evidence it
+    had. [[derived-correctly-from-a-guess]] [[unknown-stays-unknown]]
+    """
+    low = (EYE_CLI or "").lower()
+    if "grok" in low:
+        return "grok-cli"          # family_of() -> xai
+    if "codex" in low or "chatgpt" in low:
+        return "codex-cli"         # family_of() -> openai
+    return ""                      # UNKNOWN transport -> stays unattributable, fails closed
+
+
 def ask(prompt):
     """-> (answer, reached, why). An unreachable eye returns reached=False and NO verdict."""
     if not os.path.exists(EYE_CLI):
@@ -621,7 +651,10 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     # Fixing one copy of a rule and leaving its twin is the defect this repo keeps finding. The
     # answer is not a second guard here — it is routing both doors through the one guard.
     # [[copy-drift]] [[sweep-dont-ask]] [[the-unjoined-end]]
-    return record_answer(version, answer, sent, dropped, prompt_text=prompt)
+    # v3229 — the transport names the family when the answer does not. FALLBACK ONLY:
+    # record_answer prefers the model the answer's own bytes name.
+    return record_answer(version, answer, sent, dropped, prompt_text=prompt,
+                         answer_model=_model_from_transport())
 
 
 def main(argv):

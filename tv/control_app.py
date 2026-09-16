@@ -23004,6 +23004,31 @@ def vault_autoreel_tick():
             if r.get("state") is not None or "already running" in why:
                 _VAULT_AUTOREAD["skipped"][rid] = why[:120]
                 return {"ok": False, "deferred": rid, "owed": owed, "why": why}
+            # ⚠⚠ v3229 — AN `alreadySealed` REFUSAL MUST MOVE TO THE NEXT REEL, NOT END THE TICK.
+            # This loop RETURNS on the first reel whose start fails. Before v3228 a sealed reel
+            # still "started" (the sweep declined later, on its thread), so the tick always did
+            # something. v3228 made the door refuse synchronously — correctly — and thereby handed
+            # the first sealed reel a veto over the whole pass: the tick would end with no work
+            # done, every time, and the ONE reel that genuinely needs reading would starve behind
+            # it for ever.
+            #
+            # MEASURED on his tree at the time of writing — the vault lane owes 4 reels:
+            #     reel ...12001  11.9 MB  sealed vp2017 rows=0   <- would veto the tick
+            #     reel ...36946  12.6 MB  sealed vp2017 rows=0
+            #     reel ...92772   1.7 MB  sealed vp2017 rows=0
+            #     reel ...76614  16.8 MB  NO SEAL                <- the only one needing work
+            # Three sealed reels stand in front of the unsealed one. So the fix for a wasteful
+            # loop would have become a lane that never reads anything at all — strictly worse,
+            # and silent.
+            #
+            # ⚠ AND IT MUST NOT COUNT A TRY. A try is the budget for reels that FAIL to read; a
+            # seal is a reel that already SUCCEEDED. Charging tries here would walk a
+            # correctly-finished reel toward retirement, and retiring a panels-never-banked reel
+            # is the permanent deadlock the branch above exists to prevent.
+            # [[the-unjoined-end]] [[review-after-ship]]
+            if r.get("alreadySealed"):
+                _VAULT_AUTOREAD["skipped"][rid] = why[:120]
+                continue
             _VAULT_AUTOREAD["tries"][rid] = tries
             _VAULT_AUTOREAD["skipped"][rid] = why[:120]
             return {"ok": False, "reel": rid, "tries": tries, "owed": owed, "why": why}
@@ -29232,7 +29257,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3228",
+        "ver": "v3229",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

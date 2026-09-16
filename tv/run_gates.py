@@ -149,6 +149,13 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_eye_attribution", [sys.executable,
+                                  os.path.join(HERE, "test_a_look_names_the_family_that_looked.py")], 60,
+         why="REG-1029 — two genuine Grok reviews (6 and 12 findings) landed as family=None "
+             "because this CLI prints no model header, so the push gate kept saying the versions "
+             "OWED A LOOK that had just been looked at. Attribution now comes from WHICH BINARY "
+             "RAN, which is evidence; the gate pins that it may never read EYE_MODEL, which is "
+             "the v3214 defect of deriving a field correctly from a guess"),
     Gate("test_no_pinned_footage", [sys.executable,
                                     os.path.join(HERE, "test_a_gate_may_not_pin_his_footage.py")], 90,
          why="REG-1027 — a reel id in EXECUTABLE test code makes retention hold that footage "

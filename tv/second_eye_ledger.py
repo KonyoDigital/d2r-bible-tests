@@ -74,6 +74,10 @@ LEDGER_PATH = os.environ.get("TV_SECOND_EYE_LEDGER") or os.path.join(HERE, ".sec
 _FAMILY = (
     ("grok", "xai"),
     ("gpt", "openai"), ("o3", "openai"), ("o4", "openai"),
+    # v3229 — `codex` denotes OpenAI unambiguously and is how the transport names itself when the
+    # answer carries no model header. Without it a real Codex look is UNATTRIBUTABLE and cannot
+    # discharge a cross-family debt, which is the lane closing on its own strictness.
+    ("codex", "openai"),
     ("gemini", "google"),
     ("llama", "meta"),
     ("mistral", "mistral"), ("mixtral", "mistral"),
