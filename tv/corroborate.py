@@ -2118,6 +2118,15 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3232 — `the shelf tabs are his stations` (v3204's station chips). It is NOT jointed, and
+    # its own docstring is why: it "asks the RIVER, which is the same source the chips are built
+    # from". Comparing a render against the data that built it is one engine checked against its
+    # own label map, not two witnesses — exactly the bar this file sets three lines below, and
+    # exactly the trap it warns about ("a joint whose id mentions shelf does not corroborate every
+    # check with shelf in its name"). A second witness would have to date the tab row from outside
+    # the river; none does yet. Saying so is the point — an unexplained check looks exactly like a
+    # forgotten one, and this one WAS forgotten for a version. [[the-unjoined-end]]
+    'the shelf tabs are his stations': 'the only source is the river the chips are built from',
     # ⚠⚠ v3017 — the other 35. The bar for a joint is a GENUINELY INDEPENDENT second source, not a
     # name that sounds related: a joint whose id mentions "shelf" does not corroborate every check
     # with "shelf" in its name, and a module reading back its own output is one engine, not two.

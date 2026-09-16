@@ -132,14 +132,50 @@ class TheShelfLandsOnTheRiver(unittest.TestCase):
         """⚠ [[zero-needs-a-denominator]]. A station no reel has reached is the actionable half of
         the picture — ROUTED and TOMBSTONE are both empty today. A section that vanishes when empty
         hides exactly the thing he is trying to see."""
-        # v2987+ lanes rework: the grouping now flattens the backend's LANES first and only
-        # falls back to the flat SHELF_RIVER_ORDER list; the anchor moved, the behaviour did not.
-        i = CODE.find("var ordG = null")
-        self.assertGreater(i, 0, "the river grouping block is gone")
-        seg = CODE[i:i + 2600]
-        self.assertIn("ordG", seg,
-                      "the grouping no longer walks the backend's full station order, so a station "
-                      "with no reels would simply not be drawn")
+        # ⚠⚠ v3232 — THE LAW OUTLIVED THE THING THAT CARRIED IT, AND THIS GATE OUTLIVED ITS
+        # ANCHOR. It searched for `var ordG = null` inside the per-station SECTIONS. His v3180
+        # one-river ruling deleted those sections — correctly, he asked for ONE flow — so the
+        # anchor matched nothing and this failed with "the river grouping block is gone", which
+        # is a statement about the gate's reach and not about the product. [[source-reading-guard]]
+        #
+        # ⚠ AND IT HAD BECOME THE OPPOSITE OF A GREEN SIBLING. `test_one_header_not_one_per_station`
+        # asserts the sections must NOT come back. Two gates, opposite laws, and the one that
+        # could not reach its subject was the one going red — so the contradiction read as a
+        # stale gate rather than as a finding. [[feedback-contradiction-is-the-finding]]
+        #
+        # The ruling was about SECTIONS. The law — a station no reel has reached is still shown —
+        # was never overruled, and the stations now live in the CHIP ROW. Measured when re-anchored
+        # here: the chips were filtering empty stations out, so ROUTED and TOMBSTONE (both empty on
+        # his tree) had quietly vanished from the screen while the removed section's comment still
+        # promised them, dimmed, with 0.
+        i = CODE.find("var ordered = order")
+        self.assertGreater(i, 0, "the station chip builder is gone — re-anchor this gate")
+        seg = CODE[i:i + 400]
+        self.assertNotIn(
+            "return tally[st];", seg,
+            "the chip row filters out stations with no reels, so a station nobody has reached is "
+            "invisible — which is the actionable half of the picture and the whole point of this "
+            "law. Chip builder reads:\n%s" % seg)
+        self.assertIn("order.slice()", seg,
+                      "the chips must walk the BACKEND's whole station order, not only the "
+                      "stations that happen to have cards: %s" % seg)
+        self.assertIn("sh-chip-stempty", CODE,
+                      "an empty station is drawn with no way to tell it apart from a full one")
+        # ⚠ a class nobody styles is a flag nobody can see — this file's own sibling scar.
+        # ⚠ PIN THE MECHANISM, NOT THE SELECTOR. The first cut asserted the selector appeared
+        # in the CSS — and it appears TWICE (the chip and its bold count), so deleting the rule
+        # that actually dims it left the gate green. The sabotage that found this was itself
+        # wrong (it removed one of two rules), and chasing why it passed is what exposed the
+        # loose assertion. [[sabotage-is-usually-the-wrong-one]] [[source-reading-guard]]
+        j = UI.find(".sh-chip.sh-chip-stempty {")
+        self.assertGreater(j, 0,
+                           "the empty-station class is set by the builder and has NO CSS rule of "
+                           "its own, so the dimming exists only in the markup "
+                           "[[plumbing-with-no-tap]]")
+        rule = UI[j:UI.find("}", j) + 1]
+        self.assertIn("opacity", rule,
+                      "the rule exists but does not DIM anything, so an empty station renders "
+                      "identically to a full one: %s" % rule)
 
 
 

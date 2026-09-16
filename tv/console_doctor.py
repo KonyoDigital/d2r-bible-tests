@@ -3774,6 +3774,11 @@ WATCHES = {
     # `test_the_doctor_says_what_it_watches` RED on the tree.
     "window runs the document on disk": ("console", "page"),
     "shelf lanes reading":         ("shelf-cards",),
+    # v3232 — filed WITH its check, which is the point of this map. `_check_the_shelf_tabs_are_alive`
+    # asks /api/river and compares the stamped population against the label map, so what it covers
+    # is the station-chip row on the SHELF and the river strip those chips are drawn from. Named,
+    # not empty: this check does render on a screen he opens, which is why it exists at all.
+    "the shelf tabs are his stations": ("shelf-cards", "river-strip", "console-tabs"),
     "fleet reachable":             ("advanced-fleet", "advanced-fleet-down"),
     "armed migration":             (),
     "extraction lanes":            (),

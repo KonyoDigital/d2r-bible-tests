@@ -4455,6 +4455,16 @@
      finding about the router, and hiding it would make the row lie by omission */
   .sh-chip.sh-chip-stunk { border-style: dashed; }
   .sh-chip.sh-chip-stunk::after { content: ' ?'; color: var(--warn, var(--gold-dim)); }
+  /* ⚠ v3232 — A STATION NO REEL HAS REACHED, printed rather than hidden. Its own comment in the
+     removed section code says why: "a station no reel has reached is the actionable half of this
+     picture — ROUTED and TOMBSTONE are both empty today". Dimmed so the row still reads at a
+     glance as "here is where the reels are", and NOT disabled: clicking it shows the empty set,
+     which is a legitimate thing to ask for. [[zero-needs-a-denominator]]
+     ⚠ And it IS styled, because the comment above this block records the opposite mistake twice —
+     a class set by the builder with no rule to render it is a flag nobody can see.
+     [[plumbing-with-no-tap]] */
+  .sh-chip.sh-chip-stempty { opacity: .55; border-style: dotted; }
+  .sh-chip.sh-chip-stempty b { color: var(--gold-dim, inherit); font-weight: 400; }
   .sh-fdiv { width: 1px; align-self: stretch; margin: 2px 5px; background: rgba(200,180,120,.16); }
   .sh-chip { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim); cursor: pointer;
     background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 999px; padding: 8px 13px; }
@@ -16959,8 +16969,20 @@ window._lockMark = function(isOpen, px, label){
       bar.hidden = true; bar.innerHTML = ''; return;
     }
     var order = (SHELF_RIVER_ORDER && SHELF_RIVER_ORDER.length) ? SHELF_RIVER_ORDER : null;
+    /* ⚠⚠ v3232 — AN EMPTY STATION IS STILL PRINTED, AND THAT LAW OUTLIVED THE THING THAT
+       CARRIED IT. It used to live in the per-station SECTIONS, whose own comment still reads
+       "AN EMPTY STATION IS STILL PRINTED, dimmed, with 0 ... ROUTED and TOMBSTONE are both
+       empty today" and names why: a station no reel has reached is the ACTIONABLE half of the
+       picture. His v3180 one-river ruling then removed the sections — correctly, he asked for
+       ONE flow — and the chips that replaced them filtered empty stations out. So two gates
+       ended up asserting opposite things (`test_an_empty_station_is_still_PRINTED` against
+       `test_one_header_not_one_per_station`), and the information he asked to see was simply
+       gone from the screen while both the prose and a green sibling gate said otherwise.
+       The ruling was about SECTIONS, not about hiding stations. The law moves to the chips,
+       dimmed and carrying 0, which is where the stations live now.
+       [[label-outlived-referent]] [[feedback-contradiction-is-the-finding]] */
     var ordered = order
-      ? order.filter(function(st){ return tally[st]; })
+      ? order.slice()
              /* a station the river order does not name still gets a chip, at the end, rather
                 than being dropped — an unknown stage is a finding, not a thing to hide */
              .concat(seen.filter(function(st){ return order.indexOf(st) < 0; }))
@@ -16971,13 +16993,18 @@ window._lockMark = function(isOpen, px, label){
       var lab = (typeof SHELF_RIVER_LABELS !== 'undefined' && SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
       var on = (SHELF_F.station === st);
       var unknown = order && order.indexOf(st) < 0;
+      var empty = !tally[st];
       return '<button type="button" class="sh-chip sh-chip-st' + (on ? ' on' : '')
-           + (unknown ? ' sh-chip-stunk' : '') + '" data-f="st:' + escC(st) + '" title="'
-           + escC(tally[st] + ' of the ' + total + ' stamped reel(s) on the shelf are at '
-                  + lab + (unknown ? ' \u2014 a station the river order does not name, which is '
+           + (unknown ? ' sh-chip-stunk' : '') + (empty ? ' sh-chip-stempty' : '')
+           + '" data-f="st:' + escC(st) + '" title="'
+           + escC((empty
+                   ? 'NO reel has reached ' + lab + ' yet — which is the actionable half of the '
+                     + 'picture, not a reason to hide the station'
+                   : tally[st] + ' of the ' + total + ' stamped reel(s) on the shelf are at '
+                     + lab) + (unknown ? ' \u2014 a station the river order does not name, which is '
                                      + 'worth knowing rather than hiding' : '')
                   + '. Click to show only those.')
-           + '">' + escC(lab) + ' <b>' + tally[st] + '</b></button>';
+           + '">' + escC(lab) + ' <b>' + (tally[st] || 0) + '</b></button>';
     }).join('');
     bar.hidden = false;
   }
@@ -17389,7 +17416,15 @@ window._lockMark = function(isOpen, px, label){
                  would stop expecting the space back. Retention is the ONE thing allowed to
                  release footage and it is reported separately in this same header, as
                  "closed out" and "freed". [[the-unjoined-end]] [[label-outlived-referent]] */
-              + (pushedN ? (' · ' + pushedN + ' pushed out of view (still on disk)') : '')
+              /* ⚠ v3232 — AND IT MUST STILL CARRY THE DENOMINATOR. The rewording above was
+                 right and stays: "out of view (still on disk)" stops the line implying a
+                 deletion the shelf does not perform. What it dropped was the OTHER half of the
+                 same law — `test_the_header_says_how_many_were_pushed` pins "N pushed past the
+                 8" because "runs vanished with no denominator ... reads as data loss". A count
+                 with nothing to divide it by is exactly the shape this repo keeps paying for.
+                 `keptN` rather than a literal 8, so the denominator is the measured one.
+                 [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+              + (pushedN ? (' · ' + pushedN + ' pushed past the ' + keptN + ' (still on disk)') : '')
               + (pinN ? (' · ' + pinN + ' pinned kept') : '')
               + mouthTxt;
       mkHead(lab, keptN + pinN, flow[0],

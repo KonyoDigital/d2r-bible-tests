@@ -34869,3 +34869,67 @@ biting: 1 red. `[[copy-drift]]`
 
 ⚠ **I fixed this exact shape earlier today in `test_freed_is_measured` and did not sweep for its
 siblings.** One lock, two suites, two separate discoveries hours apart. `[[sweep-dont-ask]]`
+
+## REG-1037 — an empty station stopped being printed, and two gates asserted opposite things
+
+**2026-09-17 · v3232 · `tv/control_ui.html`, `tv/console_doctor.py`, `tv/corroborate.py`**
+
+Four CI-only gates, three causes.
+
+**1. `the shelf tabs are his stations` was in NEITHER registry** (2 gates: `test_every_doctor_
+check_is_explained`, `test_the_doctor_says_what_it_watches`). I shipped that check with the
+station chips and never filed it, so "a joint covers this" and "nobody has ever looked" were
+indistinguishable for it — the exact failure `corroborate.py` records happening at v3185 and
+v3190, in its own comments. Filed in `NO_JOINT_YET` (honestly: its docstring says it "asks the
+RIVER, which is the same source the chips are built from" — one engine checked against its own
+label map is not two witnesses) and declared in `WATCHES` as `shelf-cards · river-strip ·
+console-tabs`.
+
+**2. The river header lost its denominator.** `test_the_header_says_how_many_were_pushed` pins
+*"N pushed past the 8"* because "runs vanished with no denominator ... reads as data loss". The
+label had been reworded to *"4 pushed out of view (still on disk)"* — a real improvement, since
+the previous wording implied a deletion the shelf does not perform — but it dropped the 8. Now
+`N pushed past the <keptN> (still on disk)`: both halves, and the denominator is the measured
+count rather than a literal.
+
+**3. ⚠⚠ AN EMPTY STATION HAD STOPPED BEING PRINTED, AND A GREEN GATE SAID OTHERWISE.**
+`test_an_empty_station_is_still_PRINTED` anchored on `var ordG = null`, inside the per-station
+SECTIONS. His v3180 one-river ruling deleted those sections — correctly — so the anchor matched
+nothing and the gate failed with *"the river grouping block is gone"*: a statement about its own
+reach, not about the product. `[[source-reading-guard]]`
+
+Meanwhile `test_one_header_not_one_per_station` asserts the sections must NOT return. **Two gates,
+opposite laws, and the one that could not reach its subject was the one going red** — so the
+contradiction read as a stale gate instead of as a finding.
+
+The ruling was about SECTIONS. The law was never overruled, and the stations now live in the CHIP
+ROW — which was filtering empty stations out. So ROUTED and TOMBSTONE, both empty on his tree and
+named in the removed section's own comment as *"the actionable half of this picture"*, had
+silently vanished from the screen. They are printed again: dimmed, dotted, carrying 0, clickable,
+with a title saying no reel has reached them yet.
+
+Gate re-anchored to the chips and red-proofed both ways. ⚠ Its CSS assertion first passed a
+sabotage because the selector appears twice (the chip and its bold count) — it now pins `opacity`
+inside the rule itself. `[[sabotage-is-usually-the-wrong-one]]`
+
+## ✅ THE SWEEP LOOP FIX IS LIVE, MEASURED ON HIS CONSOLE
+
+The console had been running since 20:12 with the pre-fix module, and by 00:40 it was **pegged at
+104% CPU with `/api/river` taking 22-30s and frequently timing out** — which made 6 of 16 console
+demos fail on a 30s click timeout. A/B against git HEAD proved the demos failed identically
+without my changes, so it was the console, not the diff.
+
+Restarted through `bash tv/tvd-scan.sh` (the path that keeps the Screen-Recording grant). Measured
+across the restart:
+
+```
+/api/status   2.73s  ->  0.017s
+/api/river    22-30s (timing out)  ->  2.46s
+CPU           104.2%  ->  18.8%  ->  5.3%
+demos         10/16 in 144.1s  ->  16/16 in 18.6s
+board         445/222/133/99/309  ->  445/222/133/99/309   (identical, owner intact)
+```
+
+And `vaultAutoread.skipped` now carries the v3228 refusal verbatim — *"reel_s_...12001 is already
+sealed by the CURRENT vault reader (vp2017) with 0 row(s)"* — i.e. the watchdog is recording a
+SKIP rather than counting a read, on his real reels, exactly as designed.
