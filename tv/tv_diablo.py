@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3203"   # THE SECOND EYE WAS BEING SHOWN CODE THE TRANSPORT HAD BROKEN
+VERSION = "v3204"   # THE STATION CHIPS ARE THE TAB ROW AND TOMBSTONE STOPS MEANING TWO THINGS
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

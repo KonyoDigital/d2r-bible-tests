@@ -2028,6 +2028,15 @@
     letter-spacing: var(--ls-wide); color: rgba(200,180,120,.5);
     font-weight: var(--fw-normal); margin-bottom: 1px; }
   #th-shelfov .shr-cl b { color: #e0d0a8; }
+  /* ⚠ v3204 (#227 §3) — THE RAW KEY, DIM, BESIDE HIS WORD. Same device as `.shr-stlab` and
+     `.shr-cl i` above, for the same reason those exist: a figure that could be misread gets a
+     small word naming its source. It is here so his SCREEN and his LOGS never disagree about the
+     name of one thing — v3176 carved that rule for the card badge and the strip did not have it,
+     which is how the same reel was ROUTED on the strip and TOMBSTONE on its own card.
+     A class nobody styles is a flag nobody can see, so it is styled in the same commit that
+     emits it. [[copy-drift]] [[plumbing-with-no-tap]] */
+  #th-shelfov .shr-st .shr-stkey { font-style: normal; margin-left: 4px; opacity: .42;
+    letter-spacing: var(--ls-tight); font-weight: var(--fw-normal); }
   /* ⚠⚠ v2894 (#58) — THE PHRASE BREAKS, THE WORDS DO NOT. The note above this chip says the
      label line "takes the break that the phrase was taking", and at 901px it does not: the
      TOMBSTONE card is narrow enough that the phrase itself splits —
@@ -4383,7 +4392,41 @@
      ⚠ A CLASS NOBODY STYLES IS A FLAG NOBODY CAN SEE. `sh-chip-st` and `sh-chip-stunk` were set
      by the builder before this block existed, which is the same [[plumbing-with-no-tap]] shape as
      the missing buttons it replaces. */
-  .sh-stationbar { margin: -8px 0 14px; gap: 6px; }
+  /* ⚠⚠ v3204 (#227 §2) — THE STATION ROW STANDS ALONE NOW. It borrowed `.sh-filter-bar` for its
+     flex layout in v3202, which made it a fourth filter row in the markup as well as on screen.
+     It is the TAB row: it sits directly under the search, above everything, and it is the first
+     thing read. */
+  .sh-stationbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 10px;
+    padding-bottom: 9px; border-bottom: 1px solid rgba(240,192,96,.16); }
+
+  /* ══ THE FILTERS, DEMOTED ═════════════════════════════════════════════════════════════════
+     Folded because they are FILTERS and the row above them is the TABS — and because the
+     measurement at :2236 prices this bar at ~11% of the furniture standing between the title and
+     his first reel card. Nothing is deleted.
+     ⚠⚠ A FOLDED FILTER THAT IS STILL ON MUST SAY SO, LOUDLY. This is the one way a fold can lie:
+     he leaves `flagged` on, the row folds, and the shelf shows a subset of his reels with no
+     visible reason — a silent truncation, which is the exact defect the `161 with no film` chip
+     exists to prevent. The summary carries a live count of what is active, and the fold is forced
+     OPEN whenever anything is. [[zero-needs-a-denominator]] */
+  .sh-filterfold { margin: 0 0 14px; }
+  .sh-filterfold > summary { list-style: none; cursor: pointer; display: inline-flex;
+    align-items: baseline; gap: 8px; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid var(--edge); outline: none; }
+  .sh-filterfold > summary::-webkit-details-marker { display: none; }
+  .sh-filterfold > summary:hover,
+  .sh-filterfold > summary:focus-visible { border-color: var(--edge-hi);
+    background: rgba(240,192,96,.06); }
+  .sh-fsum-lab { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold-dim); }
+  .sh-filterfold > summary .sh-fsum-lab::after { content: ' \25BE'; opacity: .55; }
+  .sh-filterfold[open] > summary .sh-fsum-lab::after { content: ' \25B4'; }
+  /* the count of ACTIVE filters — gold and impossible to miss, because this is the fold's only
+     way of not lying about a filtered shelf */
+  .sh-fsum-on:not(:empty) { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono);
+    color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+  .sh-filterfold[open] > summary { margin-bottom: 9px; }
+  /* inside the fold the bar keeps its own layout and loses its outer margin */
+  .sh-filterfold .sh-filter-bar { margin: 0; }
   .sh-chip.sh-chip-st { letter-spacing: var(--ls-tight); }
   .sh-chip.sh-chip-st b { margin-left: 4px; color: var(--gold-hi);
     font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); }
@@ -6201,18 +6244,31 @@
      same place and never competes for the verdict's track.
      [[visual-regression-detector]] [[copy-drift]] */
   .fleet-row { display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    /* ⚠ minmax(0, ...) ON EVERY GIVEABLE TRACK. A bare `auto` track floors at its own
+       min-content, so the verdict column alone could hold the row wider than a 227px rail even
+       with nothing set to nowrap. The dot is 7px and fixed; the other three must all be able to
+       give. */
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, auto) minmax(0, auto);
     align-items: baseline; column-gap: 7px; row-gap: 1px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row > * { min-width: 0; }
   .fleet-row > .fleet-dot { grid-column: 1; }
-  .fleet-row > b        { grid-column: 2; overflow: hidden; text-overflow: ellipsis;
-                          white-space: nowrap; }
+  /* ⚠⚠ NO `white-space: nowrap` ON ANY CHILD OF THIS ROW. My first cut put it on both the name
+     and the verdict and `test_the_fleet_row_can_shrink_below_its_own_text` refused the push —
+     correctly, and it named my mistake in its own words: *"that is the child the row could not
+     shrink past — its min-content width is the whole string."* `.fleet-meta` already carries a
+     deliberate `white-space: normal` (v2428) and I overrode a fix that had been made three times.
+     MEASURED when that defect last shipped: rail 227px, #fleet-list scrollWidth 784, rows at 334
+     and 401px, reading `Konyo idle - v2428 - unpublis` on screen — and the render gate said
+     `clipped 0` and was RIGHT by its own rule, because the row's BOX was 227px and only its
+     CONTENT overflowed, which a rect cannot see.
+     The grid keeps the alignment; wrapping keeps the shrink. [[regression-guard]] */
+  .fleet-row > b        { grid-column: 2; overflow-wrap: anywhere; }
   .fleet-row > .fleet-eye { grid-column: 3; }
   /* placed BY NUMBER: a machine with no capture lane emits no eye, and implicit placement would
      slide its verdict one column left — ragged again, on exactly the rows that look healthiest */
   .fleet-row > .fleet-word { grid-column: 4; margin-left: 0; justify-self: end;
-                             text-align: right; white-space: nowrap; }
+                             text-align: right; }
   .fleet-row > .fleet-why  { grid-column: 1 / -1; margin-left: 14px; justify-self: start;
                              text-align: left; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -11755,9 +11811,36 @@ window._lockMark = function(isOpen, px, label){
              + '<span class="shr-fifo">oldest first · FIFO</span></div>',
              '<div class="shr-flow">'];
     rows.forEach(function(l, i){
+      /* ⚠⚠ v3204 (#227 §3) — ONE WORD, ONE FACT. The strip printed RAW STATION KEYS while every
+         other shelf surface printed HIS words, so the same reel was ROUTED here and TOMBSTONE on
+         its card. And applying his labels naively makes it WORSE, because two of them collide on
+         one lane. MEASURED live this morning from /api/river:
+
+             lane TOMBSTONE   byStation {"ROUTED": 3, "TOMBSTONE": 0}   closedCount 453
+             labels           ROUTED -> TOMBSTONE      TOMBSTONE -> DELETED
+
+         so a plain relabel renders `TOMBSTONE 3` beside `DELETED 0` beside `453 closed out` —
+         and the DELETED 0 and the 453 ARE THE SAME STATION reporting two different numbers. The
+         0 is STRUCTURAL: a closed reel leaves the shelf, so no walk of the disk can ever place
+         one there. Printed bare it reads "nothing has been deleted" while 453 reels have been.
+         That is the exact lie reel_router.py already documents.
+
+         THE RULE: when the closure ledger is READABLE, the terminal station's structural 0 is
+         suppressed and the ledger chip carries the word DELETED with the real figure. When the
+         ledger CANNOT be read, the labelled 0-chip STAYS — because then "how many were deleted"
+         is genuinely UNKNOWN and the word must remain sayable.
+         ⚠ The raw key rides along dim, so his screen and his logs never disagree about the name
+         of the same thing — the rule v3176 already carved for the card badge.
+         [[label-outlived-referent]] [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
+      var _LBL = (d && d.labels) || null;
+      var _ledgerRead = (l.closedCount === 0 || l.closedCount);
       var bits = (l.stations || []).map(function(sn){
         var n = (l.byStation || {})[sn] || 0;
-        return '<span class="shr-st' + (n ? '' : ' shr-st0') + '">' + esc(sn) + ' <b>' + n + '</b></span>';
+        var lab = (_LBL && _LBL[sn]) || sn;
+        if (sn === 'TOMBSTONE' && !n && _ledgerRead) return '';
+        return '<span class="shr-st' + (n ? '' : ' shr-st0') + '">' + esc(lab)
+             + (lab !== sn ? '<i class="shr-stkey">' + esc(sn) + '</i>' : '')
+             + ' <b>' + n + '</b></span>';
       }).join('');
       /* ⚠ v2773 — THE ORDINAL, AND THE SPACE AFTER `</u>` IS DELIBERATE. It is the printer
          spine's own `<u>n</u>NAME` shape (v2587) so the two boards read as one engine; the space
@@ -11787,7 +11870,7 @@ window._lockMark = function(isOpen, px, label){
       } else if (_lc) {
         _closedBit = '<div class="shr-cl" title="' + esc(String(l.closedWhy || ''))
                    + ' — ' + esc(String(l.closedShown || 0)) + ' of ' + _lc
-                   + ' drawn on the shelf below"><i>the ledger</i><b>' + _lc
+                   + ' drawn on the shelf below"><i>deleted \u00b7 the ledger</i><b>' + _lc
                    + '</b> <span class="shr-nw">closed out</span></div>';
       }
       H.push('<div class="shr-lane' + ((l.count || _lc) ? '' : ' shr-empty') + '" title="' + esc(l.why || '') + '">'
@@ -11839,8 +11922,16 @@ window._lockMark = function(isOpen, px, label){
          note whatsoever, so the last lane went back to reading dead with nothing saying why.
          That is the exact defect the note exists to prevent, reintroduced by the fix for it.
          [[label-outlived-referent]] [[zero-needs-a-denominator]] */
-      var _why = 'the TOMBSTONE <i>station</i> reads 0 because a closed reel leaves the shelf '
-               + 'entirely, so no walk of the disk can place one there. ';
+      /* ⚠ v3204 (#227 §3) — HIS WORD FOR THE STATION, WITH THE RAW KEY NAMED ONCE. The note has
+         to survive its own relabel: the station whose 0 is structural is keyed TOMBSTONE and he
+         calls it DELETED, and the chip one inch to the left now says TOMBSTONE meaning a
+         DIFFERENT station (keyed ROUTED). Naming both once here is the only way this paragraph
+         does not become the collision it exists to explain.
+         ⚠⚠ THE PHRASE `leaves the shelf` IS PINNED VERBATIM by
+         test_the_shelf_shows_the_four_lanes.py — a zero with its reason removed is the defect
+         this note was written for, and the law guards the exact words. Do not reword it. */
+      var _why = 'the DELETED <i>station</i> (key TOMBSTONE) reads 0 because a closed reel '
+               + 'leaves the shelf entirely, so no walk of the disk can place one there. ';
       if (_tc === null) {
         _why += 'And the closure ledger could not be read, so how many reels have ever closed '
               + 'out is UNKNOWN — not none.';
@@ -11848,10 +11939,10 @@ window._lockMark = function(isOpen, px, label){
         _why += 'The closure ledger was read and names none either, so nothing has closed out '
               + 'here yet — a measured zero, not an unasked question.';
       } else {
-        _why += 'The <b>' + _tc + ' closed out</b> under THE LEDGER beside it comes from the '
+        _why += 'The <b>' + _tc + ' closed out</b> under DELETED beside it comes from the '
               + 'closure ledger instead — a different source with its own denominator, not part '
-              + 'of the ' + (L.shelf || 0) + '. What sits at ROUTED is finished with the river '
-              + 'and waiting on a release that stays locked.';
+              + 'of the ' + (L.shelf || 0) + '. What sits at TOMBSTONE (key ROUTED) is finished '
+              + 'with the river and waiting on a release that stays locked.';
       }
       H.push('<div class="shr-note">' + _why + '</div>');
     }
@@ -16367,6 +16458,33 @@ window._lockMark = function(isOpen, px, label){
            filter, so it cannot live in the same grid. */
         + '<button type="button" class="sh-cmp" id="sh-tomb" title="reels the river has released" onclick="window._tombOpen()">🪦 Released</button>'
         + '<span class="sh-search-count" id="sh-search-count"></span></div>'
+        /* ⚠⚠ v3204 (#227 §2) — THE STATION ROW IS THE TAB ROW, AND IT GOES FIRST.
+           Grok Bot photographed his shelf and reported what the top of it actually says:
+           *"Visible tabs: `161 with no film and no record` · clean · flagged · today · this week ·
+           older. Calendar/verdict filters, NOT reel stations."* And his own instruction, three
+           times: *"the tabs within shelf on top need a fixing and updating so they represent the
+           real reel sessions that its managing"*.
+           v3202 built the station chips and put them BELOW the filter chips, so the first thing at
+           the top of the door was still a calendar. A row's MEANING is set by its position: the
+           first row under the title is read as the tabs whatever it contains. Order is the fix.
+           ⚠ AND IT IS NO LONGER `sh-filter-bar`. It borrowed that class for its flex layout, which
+           made it a fourth filter row in the markup as well as on screen. It gets its own class.
+           [[label-outlived-referent]] */
+        + '<div class="sh-stationbar" id="sh-stationbar" hidden></div>'
+        /* ⚠⚠ THE FILTERS FOLD — DEMOTED, NEVER DELETED. They are filters, not tabs, and the
+           measurement at :2236 prices them: of the furniture above the first reel card, ~16% is
+           the title, ~16% the search row and ~11% THIS BAR. Folding it is the only one of those
+           three that is his to give up — his ruling on that same measurement was *"the fix should
+           chase River headers above the first card, NOT a title trim"*, so the title and the
+           search stay exactly as they are.
+           ⚠ EVERY CHIP SURVIVES, including the three that are pure information and cannot be
+           clicked (`N backend fixtures — hidden`, `N retired to history`, `N with no film and no
+           record`). Those exist because a hidden run must never read as a run that does not exist;
+           deleting them to quiet the row would be the silent-truncation defect this panel has
+           already fixed once. [[zero-needs-a-denominator]] */
+        + '<details class="sh-filterfold" id="sh-filterfold">'
+        + '<summary class="sh-filtersum"><span class="sh-fsum-lab">filters</span>'
+        +   '<span class="sh-fsum-on" id="sh-filtersum-on"></span></summary>'
         + '<div class="sh-filter-bar">'
         + '<button type="button" class="sh-chip" data-f="pin">⭐ pinned</button>'
         + '<button type="button" class="sh-chip" data-f="chronicle">🏆 chronicle</button>'
@@ -16392,6 +16510,7 @@ window._lockMark = function(isOpen, px, label){
         + '<button type="button" class="sh-chip" data-f="day:week">this week</button>'
         + '<button type="button" class="sh-chip" data-f="day:older">older</button>'
         + '</div>'
+        + '</details>'
         /* ⚠⚠ v3202 — THE STATION CHIPS, WHICH v3195 WIRED AND NEVER RENDERED. His words, three
            times: *"the tabs ontop need updating related to the reels sessions.. not random or
            outdated like it is"*, *"and accorindgly relevant to the sessions"*, and finally *"the
@@ -16404,7 +16523,7 @@ window._lockMark = function(isOpen, px, label){
            — they arrive with /api/river — so drawing a guessed row now and correcting it later is
            how a surface reads "random or outdated". It is filled by _shStationChips() at the one
            moment the answer exists: after the river has stamped the cards. */
-        + '<div class="sh-filter-bar sh-stationbar" id="sh-stationbar" hidden></div>'
+
         + '<div class="sh-no-match" id="sh-no-match" hidden>No runs match these filters — clear one to widen the search (the 👻 empty-runs chip is one of them).</div>'
       : '';
     var timelineDiv = cards ? '<div class="sh-timeline" id="sh-timeline" hidden></div>' : '';   // v1286 (D12) — activity sparkline
@@ -17275,6 +17394,31 @@ window._lockMark = function(isOpen, px, label){
       var on = (f === 'ghosts' && SHELF_F.ghosts) || (f === 'pin' && SHELF_F.pin) || (f === 'chronicle' && SHELF_F.grail) || (SHELF_F.verdict && f === 'verdict:' + SHELF_F.verdict) || (SHELF_F.day && f === 'day:' + SHELF_F.day);
       chips[j].classList.toggle('on', !!on);
     }
+    /* ⚠⚠ v3204 (#227 §2) — A FOLDED FILTER THAT IS STILL ON MUST NOT BE INVISIBLE.
+       The filter chips moved into a <details> so the STATION row can be the tab row. That fold
+       has exactly one way to lie, and it is a bad one: he leaves `flagged` on, the row folds,
+       and the shelf then shows a SUBSET of his reels with nothing on screen saying why. That is
+       a silent truncation — the same defect the `161 with no film and no record` chip was added
+       to prevent, reintroduced by the furniture rather than by the data.
+       So the summary carries a live count of what is active, and the fold is FORCED OPEN while
+       anything is. Folding is a default, never a way to hide a filtered shelf.
+       ⚠ The station chip is counted too: it filters the grid exactly as the others do, and a tab
+       that narrows the list is still a filter however it is dressed.
+       [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+    try {
+      var _onN = 0;
+      if (SHELF_F.pin) _onN++;
+      if (SHELF_F.grail) _onN++;
+      if (SHELF_F.ghosts) _onN++;
+      if (SHELF_F.verdict) _onN++;
+      if (SHELF_F.day) _onN++;
+      var _fs = document.getElementById('sh-filtersum-on');
+      if (_fs) _fs.textContent = _onN ? (_onN + ' on') : '';
+      var _ff = document.getElementById('sh-filterfold');
+      /* open when something is on; NEVER force it shut when nothing is — closing a fold he
+         opened himself would be the console overruling him about his own furniture */
+      if (_ff && _onN && !_ff.open) _ff.open = true;
+    } catch (_e) {}
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
   }
   $('th-shelf').onclick = function(){ thShelf(); };

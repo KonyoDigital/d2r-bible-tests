@@ -41996,18 +41996,59 @@ class TestAdvancedDrawerFills(unittest.TestCase):
         'Konyo idle - v2428 - unpublis'. The render gate said `clipped 0` and was right by its own
         rule: the row's BOX is 227px and only its CONTENT overflowed, which a rect cannot see.
         """
-        row = _between(self, self.ui, ".fleet-row { display: flex", "}",
+        # ⚠⚠ v3204 — THE MECHANISM CHANGED AND THE PROPERTY DID NOT, SO THIS ASSERTS THE
+        # PROPERTY. `.fleet-row` became a four-track GRID so the columns finally align across
+        # rows (his "fixed structure wise"); the old assertion pinned `display: flex` +
+        # `flex-wrap: wrap`, which is one WAY of being shrinkable, not the requirement.
+        # [[regression-guard]] — pin the LAW, not the implementation.
+        #
+        # ⚠ IT IS DELIBERATELY STRICTER THAN WHAT IT REPLACES. The old rule banned nowrap on ONE
+        # child (`.fleet-meta`); this bans it on EVERY child of the row, which is what would have
+        # caught the v3204 regression immediately — nowrap was added to `.fleet-word` and to the
+        # name, and the ban on `.fleet-meta` alone did not see either. It also requires every
+        # giveable grid track to be minmax(0, ...), because a bare `auto` track floors at its own
+        # min-content and can hold the row wide with nothing set to nowrap at all.
+        i = self.ui.find(".fleet-row { display:")
+        self.assertGreater(i, 0, "the .fleet-row layout rule is gone entirely")
+        row = _between(self, self.ui, ".fleet-row { display:", "}",
                        min_len=40, what="the .fleet-row rule")
-        self.assertIn("flex-wrap: wrap", row,
-                      ".fleet-row is a flex container again with no wrap. A flex item never "
-                      "shrinks below min-content, so the row cannot be narrower than its longest "
-                      "unbreakable child and spills out of a 227px rail. Same law as .util-strip "
-                      "and the .shell grid twin.")
-        meta = _between(self, self.ui, ".fleet-meta { margin-left: auto", "}",
-                        min_len=30, what="the .fleet-meta rule")
-        self.assertNotIn("nowrap", meta,
-                         ".fleet-meta is `white-space: nowrap` again. That is the child the row "
-                         "could not shrink past — its min-content width is the whole string.")
+        if "display: flex" in row:
+            self.assertIn("flex-wrap: wrap", row,
+                          ".fleet-row is a flex container again with no wrap. A flex item never "
+                          "shrinks below min-content, so the row cannot be narrower than its "
+                          "longest unbreakable child and spills out of a 227px rail.")
+        else:
+            self.assertIn("display: grid", row,
+                          ".fleet-row is neither a wrapping flex nor a grid — unknown layout, "
+                          "and the shrink property is therefore UNMEASURED, not satisfied.")
+            tracks = ""
+            for ln in row.splitlines():
+                if "grid-template-columns:" in ln:
+                    tracks = ln.split("grid-template-columns:", 1)[1]
+            self.assertTrue(tracks.strip(), "the grid declares no columns")
+            self.assertNotIn(" auto auto", tracks,
+                             "two bare `auto` tracks in a row: an `auto` track floors at its own "
+                             "min-content, so the row cannot shrink past the widest verdict "
+                             "string and spills a 227px rail exactly as it did at v2428.")
+            self.assertGreaterEqual(tracks.count("minmax(0"), 2,
+                                    "fewer than two giveable tracks (%r) — every column except "
+                                    "the fixed-width dot must be able to give" % tracks.strip())
+        # NO CHILD of the row may be unbreakable. This is the child the row could not shrink
+        # past, and it has now been three different children across three regressions.
+        bad = []
+        for marker in (".fleet-meta { margin-left: auto", ".fleet-row > b", ".fleet-row > .fleet-word"):
+            j = self.ui.find(marker)
+            if j < 0:
+                continue
+            rule = self.ui[j:self.ui.find("}", j) + 1]
+            if "nowrap" in rule:
+                bad.append(marker)
+        self.assertEqual([], bad,
+                         "%r declare(s) `white-space: nowrap`. That is the child the row cannot "
+                         "shrink past — its min-content width is the whole string, and at 1120x628 "
+                         "the rail is 227px while the rows measured 334 and 401. The render gate "
+                         "reports `clipped 0` on this and is right by its own rule: the BOX is "
+                         "227px and only the CONTENT overflows, which a rect cannot see." % bad)
 
 
 class TestUiFaultsAreScratchScoped(unittest.TestCase):

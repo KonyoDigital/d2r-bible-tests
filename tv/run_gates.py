@@ -679,6 +679,21 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_the_river_has_one_word_per_fact",
+         [sys.executable, os.path.join(HERE, "test_the_river_has_one_word_per_fact.py")], 120,
+         why="#227 section 2 - TOMBSTONE cannot mean two facts at once. MEASURED live from "
+             "/api/river: lane TOMBSTONE carries byStation ROUTED 3 and TOMBSTONE 0 with "
+             "closedCount 453, and his labels map ROUTED to TOMBSTONE and TOMBSTONE to DELETED. "
+             "Two defects stacked: the strip printed RAW KEYS while the card badge printed his "
+             "words, so one reel was ROUTED on the strip and TOMBSTONE on its own card (v3176 "
+             "carved that rule and the strip never got it); and simply applying the labels makes "
+             "it WORSE, rendering TOMBSTONE 3 beside DELETED 0 beside 453 closed out, where the "
+             "0 and the 453 are THE SAME STATION with two different numbers. That 0 is "
+             "structural - a closed reel leaves the shelf - and printed bare it reads nothing has "
+             "been deleted while 453 reels have. ⚠ The suppression is conditional ON PURPOSE: "
+             "only when the closure ledger could be READ. When it cannot, the count is genuinely "
+             "UNKNOWN, the word must stay sayable, and the labelled zero chip stays - suppressing "
+             "it in both cases would trade one lie for a quieter one."),
     Gate("test_the_shelf_tabs_are_the_real_sessions",
          [sys.executable, os.path.join(HERE, "test_the_shelf_tabs_are_the_real_sessions.py")], 120,
          why="he asked three times, escalating, because it kept not being done - the tabs ontop "
