@@ -327,6 +327,14 @@ def ask(prompt):
 # "no ... found" span a whole sentence and match "there is no way to tell whether the bugs the
 # reviewer found are real" — the exact inversion. Bounded at 2 it covers every real phrasing
 # measured and cannot swallow a clause. [[unknown-stays-unknown]] [[source-reading-guard]]
+# A provider-level refusal — rate limit, auth, a model the account may not use. These arrive as
+# ordinary stdout and can be any length, so a size test will not catch them. They are NOT a review
+# and must never be recorded as one: the seat was never occupied. [[unknown-stays-unknown]]
+_PROVIDER_ERROR_RX = re.compile(
+    r"(?im)^\s*ERROR\b|usage limit|rate[- ]limit|quota|not supported when using|"
+    r"invalid_request_error|unauthor|authentication|please (?:sign|log) in")
+
+
 _NO_DEFECT_RX = re.compile(
     r"\bno\s+(?:\w+\s+){0,2}(?:defects?|issues?|bugs?|problems?)\s+"
     # ⚠ v3216 — `evident` AND `present` ADDED, and `is` to the copula list. An OpenAI seat wrote
@@ -483,11 +491,29 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
-    if len(answer) < 40:
-        SEL.record(version=version, model=EYE_MODEL, verdict="", findings=[], images=[],
-                   asked=COLD_FRAMING.strip()[:200], answer_head=answer[:200], reached=False,
+    # ⚠⚠⚠ v3220 — THE EMPTINESS TEST MUST RUN ON THE REPLY, NOT ON THE ECHO. v3216 taught this
+    # function to strip the tool's echoed prompt — and left this guard ABOVE the strip, reading the
+    # raw bytes. `codex exec` prints the whole payload before replying, so a run that produced NO
+    # REPLY AT ALL still arrived here as ~10,000 characters and sailed past `len(answer) < 40`.
+    #
+    # MEASURED 2026-09-16, and it filed two lies: the Codex seat answered
+    # "ERROR: You've hit your usage limit … try again at Oct 12th" for BOTH v3217 and v3218, and
+    # each was recorded as **LOOKED — 1 finding**. The ledger's whole purpose is that an
+    # unreachable eye is an EMPTY SEAT and never agreement, and the push gate reads `reached`.
+    # A false LOOKED does not merely mis-report — it opens a gate that should have stayed shut.
+    #
+    # So: strip FIRST, then judge what is left, and treat a provider-level refusal as unreached
+    # however long it is. [[unknown-stays-unknown]] [[grok-second-eye]]
+    _reply = _strip_echo(answer, prompt_text) if prompt_text else answer
+    _refused = bool(_PROVIDER_ERROR_RX.search(_reply[:400]))
+    if len(_reply) < 40 or _refused:
+        _why = ("the provider refused: %s" % _reply.strip().splitlines()[0][:110]) if _refused \
+               else ("the answer was %d chars" % len(_reply))
+        SEL.record(version=version, model=(_model_from_answer(answer) or answer_model or ""),
+                   verdict="", findings=[], images=[],
+                   asked=COLD_FRAMING.strip()[:200], answer_head=_reply[:200], reached=False,
                    path=None, seen_path=None, sent=sent)
-        print("  %s: the answer was %d chars — EMPTY SEAT, not agreement" % (version, len(answer)))
+        print("  %s: %s — EMPTY SEAT, not agreement" % (version, _why))
         return False
     # ⚠⚠ v3216 — STRIP THE ECHO AND READ WHO ACTUALLY ANSWERED, because handoff mode was doing
     # neither. `codex exec` prints the whole prompt — diff included — before its reply, so the

@@ -98,5 +98,57 @@ class AWrittenAnswerHasAReader(unittest.TestCase):
         self.assertEqual(("1 · PENDING", -200), B.story_of("pending"))
 
 
+class TheJoinReachesThePageNotJustTheNextLine(unittest.TestCase):
+    """⚠⚠ v3219's JOINS WERE ONE HOP, AND A CROSS-FAMILY LOOK SAID SO.
+
+    Grok, reviewing v3219: *"The production edits are a one-hop join (helper → dict / helper →
+    next local). The hop that matters — dict → screen, helper → build() row — is still open, and
+    the tests are… "* — and it was right on both counts:
+
+      · `story_of` was called, and the SAME LOOP then did `order[state]`, keyed only from
+        `SECTIONS`. So an unknown state stopped raising at `_SEC[state]` and raised one line down
+        instead. The whole point of `story_of` is that an unknown state REACHES THE PAGE; it
+        cannot reach a page the builder crashes before drawing.
+      · the same lane refusal lived in `chronicle_sweep_now.py` too, still flat — so the person
+        debugging from a terminal was the one left without the answer.
+
+    ⚠ AND THE v3219 GATE COULD NOT SEE EITHER: `story_of >= 1 caller` was satisfied by the new
+    line while `build()` still crashed. A gate that cannot fail on the defect it was written about
+    is measuring the alphabet. [[review-after-ship]] [[copy-drift]] [[regression-guard]]
+    """
+
+    def setUp(self):
+        self.bs = io.open(os.path.join(HERE, "board_sync.py"), encoding="utf-8").read()
+
+    def test_the_section_counter_is_fail_open(self):
+        """The line Grok named. `order` is keyed from SECTIONS; an unknown state must not KeyError."""
+        i = self.bs.find('"order": order')
+        self.assertGreater(i, 0, "the row no longer carries a section order at all")
+        self.assertNotIn('"order": order[state]', self.bs,
+                         "the row reads order[state] directly again — an unknown state raises "
+                         "KeyError one line after story_of politely rendered it")
+        self.assertNotIn("\n        order[state] += 1", self.bs,
+                         "the counter increments order[state] directly again, which is the same "
+                         "KeyError with a different line number")
+
+    def test_the_counter_and_the_room_agree_on_failing_open(self):
+        """`_ROOM.get(state, 40)` was ALWAYS fail-open; the counter beside it was not. One rule."""
+        self.assertIn("_ROOM.get(state", self.bs,
+                      "the room lookup stopped failing open — that was the working half")
+        self.assertTrue("order.get(state" in self.bs or "order.setdefault(state" in self.bs,
+                        "the section counter does not fail open while its neighbour does, which "
+                        "is how an unknown state crashed a builder that had just been taught to "
+                        "render it")
+
+    def test_the_cli_refusal_carries_the_detail_too(self):
+        """copy-drift: one refusal, two files, and v3219 joined only the one with an API."""
+        cli = io.open(os.path.join(HERE, "chronicle_sweep_now.py"), encoding="utf-8").read()
+        self.assertIn("the primary (Claude) lane is unavailable", cli,
+                      "the CLI refusal moved — re-anchor this before assuming it was fixed")
+        self.assertIn("_chron_lane_detail", cli,
+                      "the CLI copy of the lane refusal still prints the flat sentence, so the "
+                      "person debugging from a terminal cannot tell OFF from ABSENT")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

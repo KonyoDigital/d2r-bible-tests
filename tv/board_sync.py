@@ -407,13 +407,20 @@ def build():
             "id": ident, "progress": r.get("progress"),
             "section": "%s · %s" % (title, topic),
             "sectionOrder": sec_order + topic_ix,
-            "order": order[state], "st": st, "state": "done" if st == "s" else state,
+            "order": order.setdefault(state, 0), "st": st, "state": "done" if st == "s" else state,
             "what": r["what"], "status": r.get("status") or "",
         }
         if got:
             row["shipped"] = got[0]
             row["at"] = got[1]            # ⚠ from git, never from the markdown
-        order[state] += 1
+        # ⚠⚠ v3220 — FAIL-OPEN, BECAUSE v3219 MOVED THE CRASH ONE LINE DOWN AND CALLED IT A JOIN.
+        # v3219 routed the state through `story_of` so an unknown state would render as an odd row
+        # instead of raising — and `order` is keyed ONLY from SECTIONS, so the very next use of
+        # `state` raised KeyError anyway. `_ROOM.get(state, 40)` beside it was already fail-open;
+        # this was not. A cross-family (Grok) look at v3219 found it and named the line.
+        # The whole point of `story_of` is that an unknown state REACHES THE PAGE. It cannot reach
+        # a page the builder crashes before drawing. [[the-unjoined-end]] [[review-after-ship]]
+        order[state] = order.get(state, 0) + 1
         out.append(row)
     return out, notes
 

@@ -89,7 +89,19 @@ def main(argv=None):
 
     lanes = ca._chron_lanes()
     if "claude" not in lanes:
+        # ⚠⚠ v3220 — THE SAME REFUSAL LIVED IN TWO PLACES AND v3219 JOINED ONLY ONE. The two
+        # sweep-start doors in control_app got `laneDetail`; this CLI copy kept printing the flat
+        # sentence, so the person most likely to be debugging from a terminal was the one left
+        # without the answer. Found by a cross-family (Grok) look at v3219, which named the file.
+        # [[copy-drift]] [[sweep-dont-ask]]
         print("refusing: the primary (Claude) lane is unavailable — nothing to sweep with")
+        try:
+            for _ln, _d in sorted((ca._chron_lane_detail() or {}).items()):
+                print("   %-7s %s — %s" % (_ln,
+                                           "present" if _d.get("present") else "ABSENT",
+                                           _d.get("why") or "no reason recorded"))
+        except Exception as _le:
+            print("   (the lane detail could not be read: %s)" % type(_le).__name__)
         return 1
 
     if args.again:

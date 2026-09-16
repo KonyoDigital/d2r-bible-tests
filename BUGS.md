@@ -34076,3 +34076,47 @@ joins fires three assertions by name.
 surfaced at v3218), `name_state` (9 call sites, already joined), `manual_accept` (11, already
 joined), `_chron_lane_detail` and `story_of` (here). The 12 correctly-unjoined remain recorded in
 REG-1007 and were not touched.
+
+## REG-1017 — an empty seat signed the register, and the fix that caused it was mine
+
+**2026-09-16 · v3220**
+
+v3216 taught `record_answer` to strip the tool's echoed prompt — and left the emptiness guard
+ABOVE the strip, reading the raw bytes. `codex exec` prints the whole payload before replying, so a
+run that produced **no reply at all** still arrived as ~10,000 characters and sailed past
+`len(answer) < 40`.
+
+MEASURED: the Codex seat answered **"ERROR: You've hit your usage limit … try again at Oct 12th"**
+for both v3217 and v3218, and each was recorded as **LOOKED — 1 finding**. The ledger's entire
+premise is that an unreachable eye is an EMPTY SEAT and never agreement, and the pre-push gate reads
+`reached`. **A false LOOKED does not merely mis-report — it opens a gate that should have stayed
+shut.** I introduced that at v3216 while fixing a different lie in the same function.
+
+**Fixed:** the guard now strips first and judges the REPLY, and a provider-level refusal (rate
+limit, auth, unsupported model) is treated as unreached **at any length** — those arrive as ordinary
+stdout, so no size test can catch them.
+
+**The two false rows were CORRECTED IN PLACE, not deleted** — `reached:false`, findings cleared, and
+a `correctedWhy` recorded on each. A ledger that quietly loses its own mistakes is the thing it
+guards against. The audit now reads `v3217 OWED · 0 looks · 2 empty seats`, which is the truth.
+
+⚠ **Both non-Claude eyes were down at once today:** the Grok seat timed out at 300s under game load,
+and the Codex seat is rate-limited until **Oct 12**. That is exactly when a false LOOKED is most
+tempting and most dangerous.
+
+### And what the Grok seat found when it did answer (v3219)
+
+It reviewed v3219 and was right twice. Reproduced before being believed:
+
+1. **`story_of` was joined and the crash moved one line down.** The same loop then did
+   `order[state]`, keyed only from `SECTIONS` — so an unknown state stopped raising at `_SEC[state]`
+   and raised at `order[state]` instead. Its own words: *"The production edits are a one-hop join
+   (helper → dict / helper → next local). The hop that matters … is still open."* `_ROOM.get(state,
+   40)` beside it was ALREADY fail-open; the counter was not. Now both are.
+2. **`chronicle_sweep_now.py` carried the same lane refusal, still flat** — v3219 joined the two
+   doors with an API and left the CLI copy, so the person debugging from a terminal was the one left
+   without the answer. `copy-drift`, joined now.
+3. **It also said the v3219 gate could not see either defect** — `story_of >= 1 caller` was satisfied
+   by the new line while `build()` still crashed. Correct, and the reason the gate grew
+   `TheJoinReachesThePageNotJustTheNextLine`: three sabotages (both `order[state]` forms and the CLI
+   detail) each fire it by name.
