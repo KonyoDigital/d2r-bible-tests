@@ -21,6 +21,7 @@ at two call sites in control_app.py, and `proposal_from`'s own docstring promise
 vocabulary a sweep uses". It said so and did the other thing — so this pins the PROMISE, not a
 number. [[regression-guard]] [[source-reading-guard]]
 """
+import ast
 import io
 import json
 import os
@@ -192,6 +193,79 @@ class AConfirmMustBeAnActualYes(unittest.TestCase):
         self.assertGreaterEqual(src.count('_confirmed(body.get("confirm"))'), 3,
                                 "fewer than three doors route through _confirmed — one of them is "
                                 "reading the raw body again")
+
+
+class ARestoredItemIsFiledNotDumped(unittest.TestCase):
+    """⚠⚠⚠ THE RESTORE PUT HIS POSSESSIONS BACK AND LEFT EVERY ONE OF THEM IN THE DOCK.
+
+    His words, looking at the vault: *"its not even sorting them.. only some"*. MEASURED: dock 198,
+    assigned 21, and a read-only route probe showed **all 198 already had a valid destination** —
+    uni-armor 67, uni-weap 63, __throwout 46, uni-small 9, shared 7, runewords 5, __keep 1, with
+    laneLocked 0. Nothing was mis-routed. Nothing had run.
+
+    The cause was v3214's own `owned_restore`. Every automatic call to `vaultAutoAssign` is gated
+    on a chronicleApply having landed something —
+    `if (_landedAny && typeof window.vaultAutoAssign === 'function')` — and `owned_restore` writes
+    `d2r_owned` directly through LSR, which is correct for restoring possession and means the
+    sorter never fires. The arithmetic matched exactly: 52 owned with 21 assigned (dock ~31) plus
+    171 restored = 198.
+
+    ⚠ AND THE FIX FOR REG-1010 MADE IT WORSE BEFORE IT MADE IT BETTER: v3215 reloaded the whole
+    board after each write, which kept the data safe and still left it unfiled. Re-reading the Set
+    (`_vaultReloadOwned`) and then filing is what closes both. [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        self.src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+
+    def _door(self, name):
+        tree = ast.parse(self.src)
+        for fn in ast.walk(tree):
+            if isinstance(fn, ast.FunctionDef) and fn.name == name:
+                for n in ast.walk(fn):
+                    if isinstance(n, ast.Constant) and isinstance(n.value, str) \
+                       and "_vaultReloadOwned" in n.value:
+                        return n.value
+        return ""
+
+    def test_a_possession_write_re_reads_the_live_set(self):
+        for door in ("owned_restore", "rw_restore"):
+            js = self._door(door)
+            self.assertTrue(js,
+                            "%s no longer re-reads the board's in-memory set after writing, so "
+                            "the next persist() overwrites the restore from the boot-time copy "
+                            "(REG-1010)" % door)
+
+    def test_a_possession_write_then_files_what_it_wrote(self):
+        js = self._door("owned_restore")
+        # ⚠ THE GUARD, NOT JUST THE NAME. The first cut asserted `"vaultAutoAssign" in js` and a
+        # sabotage that replaced the branch condition with `else if(false)` STAYED GREEN — the
+        # dead call still contained the string. A guard satisfied by unreachable code is measuring
+        # the alphabet. [[sabotage-is-usually-the-wrong-one]] [[source-reading-guard]]
+        self.assertIn("typeof window.vaultAutoAssign==='function'", js,
+                      "the sorter call is no longer guarded by a reachable typeof test, so it is "
+                      "either absent or dead — either way a direct d2r_owned write leaves every "
+                      "restored item in the unsorted dock")
+        self.assertIn("window.vaultAutoAssign();", js,
+                      "owned_restore writes d2r_owned and never asks the sorter to file it")
+
+    def test_the_reload_survives_as_the_fallback(self):
+        """The blunt fix must stay for a build without the re-read door — stale memory DESTROYS."""
+        js = self._door("owned_restore")
+        self.assertIn("location.reload", js,
+                      "the reload fallback is gone, so on a board without _vaultReloadOwned the "
+                      "write is left behind stale memory and the next persist() erases it")
+
+    def test_the_board_exposes_the_re_read_door(self):
+        bible = io.open(os.path.join(os.path.dirname(HERE), "bible.html"),
+                        encoding="utf-8", errors="replace").read()
+        self.assertIn("window._vaultReloadOwned", bible,
+                      "bible.html no longer exposes _vaultReloadOwned, so every restore falls back "
+                      "to rebooting his page")
+        i = bible.find("window._vaultReloadOwned")
+        self.assertIn("Array.isArray(fresh)", bible[i:i + 900],
+                      "the re-read no longer refuses an unreadable store — an unparseable "
+                      "d2r_owned would blank the live Set, which is a wipe, not a refresh")
 
 
 if __name__ == "__main__":

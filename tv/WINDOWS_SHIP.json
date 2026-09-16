@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3221",
+  "ver": "v3222",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3221: HEART: v3220 fixed the false-LOOKED guard inside record_answer and the CLI door never called it - run_one recorded inline, so it stripped no echo and ran no provider-error check, and ask() treats exit 0 plus 40 characters as a look. A Grok CLI exiting 0 with a long usage-limit body is exactly that, so the same false LOOKED stayed live on the DEFAULT door one function away from its own fix. Both doors now route through the one recorder. The gate can now fail on it: deleting the provider regex fires two assertions and restoring the inline recorder fires a third.",
+  "note": "v3222: HEART: his vault showed 198 unsorted against 21 assigned and he said it is not even sorting them only some. A read-only route probe settled it: all 198 already had a valid destination - uni-armor 67, uni-weap 63, throwout 46, uni-small 9, shared 7, runewords 5, keep 1, laneLocked 0. Nothing was mis-routed and nothing had run. The cause was v3214 owned_restore: every automatic vaultAutoAssign call is gated on a chronicleApply landing something, and a direct LSR write to d2r_owned never fires it. The board now exposes a re-read door so a restore syncs memory WITHOUT rebooting his page, then files the batch through his own sorter. 152 items filed, dock 198 to 46, and the 46 left are throw-out SUGGESTIONS which are never binned.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

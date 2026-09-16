@@ -13239,7 +13239,22 @@ def rw_restore(entries, confirm=False):
           # Found by a cross-family review of v3214, reproduced before being believed.
           # ⚠ THE RELOAD IS SCHEDULED, NOT IMMEDIATE — the return value has to get out first, or
           # the caller learns nothing about what was written. [[the-unjoined-end]]
-          "try{setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}catch(_r){}"
+          # ⚠⚠ v3222 — RE-READ, THEN FILE, AND ONLY RELOAD IF NEITHER DOOR EXISTS.
+          # v3215 reloaded the whole board after every write because `owned`/`rwMade` are read once
+          # at boot and `persist()` writes the in-memory copy back (REG-1010). That was correct and
+          # blunt: it rebooted his page, and it STILL left the restored items unfiled, because every
+          # automatic `vaultAutoAssign` is gated on a chronicleApply landing something — a direct
+          # LSR write never sorts. MEASURED: 171 restored names sat in the dock, 198 unsorted
+          # against 21 assigned, every one of them with a valid destination waiting.
+          # `_vaultReloadOwned` re-reads the store into the live Set, so memory and storage agree
+          # WITHOUT a reload; then the board's own sorter files the batch through the one door that
+          # knows his lane locks. The reload stays as the fallback for a build without them, because
+          # leaving memory stale is the one outcome that can still destroy the write.
+          "try{var _rr=(typeof window._vaultReloadOwned==='function')?window._vaultReloadOwned():null;"
+          "if(_rr===null){setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}"
+          "else if(typeof window.vaultAutoAssign==='function'){"
+          "setTimeout(function(){try{window.vaultAutoAssign();}catch(_s){}},60);}"
+          "}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,kept:kept.length,"
           "after:Object.keys(cur).length,sample:added.slice(0,8)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
@@ -13381,7 +13396,22 @@ def owned_restore(names, confirm=False):
           # Found by a cross-family review of v3214, reproduced before being believed.
           # ⚠ THE RELOAD IS SCHEDULED, NOT IMMEDIATE — the return value has to get out first, or
           # the caller learns nothing about what was written. [[the-unjoined-end]]
-          "try{setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}catch(_r){}"
+          # ⚠⚠ v3222 — RE-READ, THEN FILE, AND ONLY RELOAD IF NEITHER DOOR EXISTS.
+          # v3215 reloaded the whole board after every write because `owned`/`rwMade` are read once
+          # at boot and `persist()` writes the in-memory copy back (REG-1010). That was correct and
+          # blunt: it rebooted his page, and it STILL left the restored items unfiled, because every
+          # automatic `vaultAutoAssign` is gated on a chronicleApply landing something — a direct
+          # LSR write never sorts. MEASURED: 171 restored names sat in the dock, 198 unsorted
+          # against 21 assigned, every one of them with a valid destination waiting.
+          # `_vaultReloadOwned` re-reads the store into the live Set, so memory and storage agree
+          # WITHOUT a reload; then the board's own sorter files the batch through the one door that
+          # knows his lane locks. The reload stays as the fallback for a build without them, because
+          # leaving memory stale is the one outcome that can still destroy the write.
+          "try{var _rr=(typeof window._vaultReloadOwned==='function')?window._vaultReloadOwned():null;"
+          "if(_rr===null){setTimeout(function(){try{window.location.reload();}catch(_r){}},150);}"
+          "else if(typeof window.vaultAutoAssign==='function'){"
+          "setTimeout(function(){try{window.vaultAutoAssign();}catch(_s){}},60);}"
+          "}catch(_r){}"
           "return JSON.stringify({ok:true,before:before,added:added.length,"
           "after:cur.length,sample:added.slice(0,8)});"
           "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
@@ -13400,6 +13430,142 @@ def owned_restore(names, confirm=False):
     if isinstance(out, dict):
         out["applied"] = bool(out.get("ok"))
     return out
+
+
+def vault_autosort(confirm=False):
+    """Press the board's OWN Auto-Sort. -> dict. Calls window.vaultAutoAssign and nothing else.
+
+    ══ v3222 — THE DOOR THE RESTORE NEEDED AND DID NOT HAVE ═════════════════════════════════════
+    MEASURED, and the cause is v3214's `owned_restore`: every automatic caller of
+    `vaultAutoAssign` is gated on a chronicleApply having LANDED something —
+    `if (_landedAny && typeof window.vaultAutoAssign === 'function')`. `owned_restore` writes
+    `d2r_owned` directly through LSR, which is correct for putting possession back and means the
+    sorter never fires. So 171 restored names landed in the dock unfiled.
+
+    The arithmetic: owned was 52 with 21 assigned (dock about 31); the restore added 171; his dock
+    reads 198. The route probe then showed all 198 already have a resolvable destination —
+    uni-armor 67, uni-weap 63, __throwout 46, uni-small 9, shared 7, runewords 5, __keep 1, with
+    laneLocked 0. Nothing was mis-routed. Nothing had run.
+
+    ⚠ IT PRESSES HIS BUTTON, IT DOES NOT REIMPLEMENT IT. `vaultAutoAssign` is the one door that
+    knows his lane locks ("inventory and main character equipment SHOULD NEVER BE TOLD TO BE
+    MOVED"), knows __keep, and records a ledger row per placement with the reason. A second sorter
+    here would be a second source of truth for where his items live. [[copy-drift]]
+
+    ⚠ AND IT NEVER BINS. `__throwout` is a SUGGESTION in that function and stays one — vaultAccumApply
+    states the rule it obeys: "There is no un-throw in Diablo, and nothing here may bin anything."
+    """
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    if not confirm:
+        try:
+            pre = vault_route_probe()
+        except Exception:
+            pre = {}
+        return {"ok": True, "applied": False, "preview": pre,
+                "why": ("this is what the sorter would file. Nothing has been written; call again "
+                        "with confirm.")}
+    js = ("(function(){try{"
+          "var _ctx=window;"
+          "if(typeof window.vaultAutoAssign!=='function'){"
+          "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+          "if(_cw&&typeof _cw.vaultAutoAssign==='function')_ctx=_cw;}catch(_hop){}}"
+          "return (function(window){try{"
+          "if(typeof window.vaultAutoAssign!=='function')"
+          "return JSON.stringify({ok:false,why:'this page has no vaultAutoAssign'});"
+          "var before=0;try{before=Object.keys(JSON.parse((window.LSR?window.LSR.getItem("
+          "'d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))||'{}')||{}).length;}catch(e){}"
+          "window.vaultAutoAssign();"
+          "var after=0;try{after=Object.keys(JSON.parse((window.LSR?window.LSR.getItem("
+          "'d2r_muleAssign'):localStorage.getItem('d2r_muleAssign'))||'{}')||{}).length;}catch(e){}"
+          "return JSON.stringify({ok:true,assignedBefore:before,assignedAfter:after,"
+          "filed:after-before});"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()")
+    try:
+        raw = _ejs(w, js, timeout=60.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the sort: %s" % str(e)[:150]}
+    if not raw:
+        return {"ok": False, "why": "the board did not answer in time — check the Vault before retrying"}
+    try:
+        out = json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
+    if isinstance(out, dict):
+        out["applied"] = bool(out.get("ok"))
+    return out
+
+
+def vault_route_probe():
+    """Why is each unsorted item unsorted? A HISTOGRAM, reads only, writes nothing. -> dict
+
+    ══ v3222 — THE ONE MEASUREMENT THAT SPLITS THE CANDIDATES ═══════════════════════════════════
+    His screen: UNSORTED DOCK 198, SHARED STASH "empty locker", and The Stone of Jordan sitting in
+    the dock. `d2r_owned` 222, `d2r_muleAssign` 21.
+
+    A cross-family (Grok) read of the sorter settled what the code alone can settle, and named what
+    it cannot:
+      · branch 7 (`muleById` fails) is DEAD — every id `suggestMule` can emit is in DEFAULT_ROSTER.
+      · branch 3 (`!sg`) is worth 2 names, not 198 — SHARED_STASH_RE matches 2 of his 222.
+      · `shared` RESOLVES; SoJ routes to {id:'shared'} by trade value, not to null.
+      · the 21 assign keys ARE pool names (198 = pool - 21), so there is no keyspace mismatch.
+    What is left is indistinguishable from the code: throw-out suggestions, lane locks, or
+    "Auto-Sort simply never ran on these names".
+
+    ⚠⚠ AND THE CHRONICLE LOG CANNOT SETTLE IT, which is why this exists. Grok's words: *"Do not
+    take a chronicle source:'auto-assign' log as a substitute: if the run never happened, that log
+    is empty and looks like the same silence."* Adding logging to the sorter — which v3222 also did
+    — improves the NEXT run and says nothing about the state he is looking at now. An absence that
+    two different causes produce is not evidence. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+
+    ⛔ IT ASKS `suggestMule` AND `_laneLocked` AND WRITES NOTHING. No assign, no save, no render.
+    A probe that changes what it measures is not a probe.
+    """
+    w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
+    if w is None or not globals().get("_WINDOW_LIVE"):
+        return {"ok": False, "why": "the board window is not open — open TV DIABLO and try again"}
+    js = ("(function(){try{"
+          "var _ctx=window;"
+          "if(typeof window.suggestMule!=='function'){"
+          "try{var _fr=document.getElementById('tvd-eng');var _cw=_fr&&_fr.contentWindow;"
+          "if(_cw&&typeof _cw.suggestMule==='function')_ctx=_cw;}catch(_hop){}}"
+          "return (function(window){try{"
+          "if(typeof window.ownedPool!=='function'||typeof window.suggestMule!=='function')"
+          "return JSON.stringify({ok:false,why:'this page does not expose the vault sorter — "
+          "ownedPool/suggestMule are not on it'});"
+          "var assign={};try{assign=JSON.parse((window.LSR?window.LSR.getItem('d2r_muleAssign')"
+          ":localStorage.getItem('d2r_muleAssign'))||'{}')||{};}catch(e){}"
+          "var pool=window.ownedPool()||[];"
+          "var hist={},locked=0,unsorted=0,examples={};"
+          "for(var i=0;i<pool.length;i++){var nm=pool[i];"
+          "if(assign[nm])continue;"          # already filed, so not in the dock
+          "unsorted++;"
+          "var lk='';try{lk=(window._laneLocked&&window._laneLocked(nm))||'';}catch(e){}"
+          "if(lk){locked++;hist['lane-locked']=(hist['lane-locked']||0)+1;"
+          "if(!examples['lane-locked'])examples['lane-locked']=nm;continue;}"
+          "var sg=null;try{sg=window.suggestMule(nm);}catch(e){sg=null;}"
+          "var key=sg?String(sg.id||'(no id)'):'null (shared-stash guard)';"
+          "hist[key]=(hist[key]||0)+1;if(!examples[key])examples[key]=nm;}"
+          "var soj=null;try{var _s=window.suggestMule('The Stone of Jordan');"
+          "soj=_s?{id:_s.id,why:_s.why||''}:null;}catch(e){}"
+          "var sojLock='';try{sojLock=(window._laneLocked&&window._laneLocked('The Stone of Jordan'))||'';}catch(e){}"
+          "return JSON.stringify({ok:true,pool:pool.length,assigned:Object.keys(assign).length,"
+          "unsorted:unsorted,laneLocked:locked,hist:hist,examples:examples,"
+          "soj:soj,sojLocked:sojLock});"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)});}})(_ctx);"
+          "}catch(e){return JSON.stringify({ok:false,why:String(e&&e.message||e)})}})()")
+    try:
+        raw = _ejs(w, js, timeout=20.0)
+    except Exception as e:
+        return {"ok": False, "why": "the board refused the probe: %s" % str(e)[:150]}
+    if not raw:
+        return {"ok": False, "why": "the board did not answer in time"}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"ok": False, "why": "the board answered something unreadable"}
 
 
 def board_tick(name, kind, want):
@@ -28845,7 +29011,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3221",
+        "ver": "v3222",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -32428,6 +32594,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/owned_restore":
             # v3214 — the possession half of a restore. `confirm` required, same as its siblings.
             self._json(200, owned_restore(body.get("names"), confirm=_confirmed(body.get("confirm"))))
+            return
+        if path == "/api/vault_autosort":
+            # v3222 — presses the board's own Auto-Sort. `confirm` required, like every door that
+            # changes where his items live.
+            self._json(200, vault_autosort(confirm=_confirmed(body.get("confirm"))))
+            return
+        if path == "/api/vault_route_probe":
+            # v3222 — reads only. Answers "why is each unsorted item unsorted" with a histogram.
+            self._json(200, vault_route_probe())
             return
         if path == "/api/rw_restore":
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason

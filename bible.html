@@ -18198,6 +18198,32 @@ const _safeJsonParse = (raw, fallback) => {
 };
 let wishlist = new Set(_safeJsonParse(LS.getItem('d2r_wishlist'), []));
 let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
+/* ⚠⚠⚠ v3222 — A DOOR TO RE-READ THIS SET, BECAUSE NOTHING COULD AND IT COST HIM TWICE.
+   `owned` is read ONCE, here, at boot. There is no `storage` listener anywhere in this file
+   (grep: 0), and `persist()` writes this in-memory Set back. So anything that writes
+   `d2r_owned` from outside — the console's restore doors — is invisible until reload AND is
+   overwritten by the next persist() from the boot-time copy. That is REG-1010: a restore of 171
+   names sat one tick away from being destroyed.
+   The workaround was to reload the whole board after every such write, which is disruptive and
+   still left the items UNFILED, because every automatic `vaultAutoAssign` call is gated on a
+   chronicleApply having landed something — so a direct `d2r_owned` write never sorted. His dock
+   read 198 unsorted against 21 assigned for exactly that reason.
+   ⚠ IT RE-READS, IT DOES NOT MERGE. The store is the truth here; the Set is a cache of it. A
+   merge would invent a third state that neither side asked for.
+   ⚠ AND IT RETURNS THE COUNT, so a caller can tell "re-read and found 223" from "re-read and
+   found nothing", which are different facts. [[unknown-stays-unknown]] [[the-unjoined-end]] */
+try {
+  window._vaultReloadOwned = function(){
+    try {
+      var fresh = _safeJsonParse(LS.getItem('d2r_owned'), null);
+      if (!Array.isArray(fresh)) return null;      // unreadable is UNKNOWN, never "empty"
+      owned = new Set(fresh);
+      try { if (typeof renderVault === 'function') renderVault(); } catch(e){}
+      try { if (typeof renderGrailProgress === 'function') renderGrailProgress(); } catch(e){}
+      return owned.size;
+    } catch(e){ return null; }
+  };
+} catch(e){}
 // v659 — GRAIL FOUND-SEED: the owner's IN-GAME Chronicle truth (Unique tab, 59%), transcribed from his 56
 // screenshots 2026-07-12 — 229 uniques with their exact in-game First Found stamps. Durable floor mirroring
 // _RWC_SEED: re-applied every load, honors explicit un-ticks (d2r_grailUnfound), suppressed on a fresh
@@ -35813,6 +35839,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // they have no base, no size, nothing to pack. They keep their calc ✓ but
   // never appear in the vault. Exact set pieces (findSetPiece) are first-class.
   function isAggregate(n){ return /\((any piece|any|set)\)\s*$/i.test(n); }
+  /* ⚠ v3222 — EXPOSED FOR THE READ-ONLY ROUTE PROBE, exactly as v425 exposed `isSharedStash`
+     one screen above with the note "expose for the vault audit". Both are PURE: `ownedPool`
+     lists, `suggestMule` decides and returns — neither writes, assigns, saves or renders.
+     WHY IT IS NEEDED: his dock shows 198 unsorted against 21 assigned, and the branch that
+     swallows them cannot be told from the code alone. A cross-family read settled that
+     `muleById` cannot fail (every id suggestMule emits is in DEFAULT_ROSTER) and that the
+     shared-stash null path is worth 2 of his 222 — and named the one measurement that splits
+     what is left: ask suggestMule and _laneLocked about each unsorted name and count the answers.
+     It also warned that the chronicle log CANNOT substitute, because a run that never happened
+     leaves the same silence as a run that dropped everything. [[unknown-stays-unknown]] */
+  try { window.ownedPool = ownedPool; } catch(e){}
+  try { window.suggestMule = suggestMule; } catch(e){}
   function ownedPool(){
     try{
       if (typeof owned==='undefined' || typeof ITEMS==='undefined') return [];
@@ -38459,7 +38497,27 @@ window.vaultAutoAssign = function(){
       try { _lk = (window._laneLocked && window._laneLocked(name)) || ''; } catch(e){ _lk = ''; }
       if (_lk){ _log(name, 'lane-locked', { id:'', why:'last seen in your ' + _lk + ' — locked there, never suggested for a mule' }); return; }
       var sg = suggestMule(name);
-      if (!sg) return;
+      /* ⚠⚠⚠ v3222 — THIS WAS A SILENT DROP, AND 198 ITEMS WERE SITTING IN IT.
+         His words, looking at the dock: "its not even sorting them.. only some". The branch ONE
+         ABOVE logs when it skips a lane-locked item, and its comment gives the reason in full:
+         "a lock nobody can see is indistinguishable from a rule that stopped working". Then this
+         line dropped an item with no log, no count and no tile — the exact failure that comment
+         describes, one statement later.
+         ⚠ AND `null` HERE IS NOT "NO OPINION". `suggestMule` opens with
+         `if (isSharedStash(name)) return null;` and v425 wrote beside it, in the file:
+         "null route = shared, not a bug". So the producer says SHARED and the consumer hears
+         NOTHING — two halves each internally consistent, disagreeing about the contract.
+         MEASURED before writing this: only 2 of his 222 owned names match SHARED_STASH_RE
+         (Black Cleft, Rotting Fissure), so that path is real but small — which is exactly why the
+         log has to name the reason instead of a theory naming it for him.
+         [[the-unjoined-end]] [[unknown-stays-unknown]] */
+      if (!sg){
+        _log(name, isSharedStash(name) ? 'shared-stash' : 'no-suggestion',
+             { id: '', why: isSharedStash(name)
+                 ? 'belongs in the shared stash — suggestMule returns null for these by design'
+                 : 'nothing in the routing universe recognised this name, so no drawer was named' });
+        return;
+      }
       if (sg.id === '__throwout'){ suggested++;
         // v2342 — KEEP THE NAME, not just the tally. A count is a claim he cannot check.
         suggestedRows.push({ name: name, why: (sg && sg.why) || '' });
@@ -38480,7 +38538,19 @@ window.vaultAutoAssign = function(){
       if (sg.id === '__keep'){
         assign[name] = '__keep'; n++;
         _log(name, 'kept-in-inventory', sg);
+        return;
       }
+      /* ⚠⚠ v3222 — THE SECOND SILENT DROP: THE LOOP FELL OFF ITS OWN END. A suggestion whose id
+         is neither `__keep`, `__throwout`, nor resolvable by `muleById()` reached here and simply
+         stopped — no assign, no log, no count, and the item stayed in the dock for ever looking
+         exactly like one nothing had an opinion about. That is the harder half to notice, because
+         `suggestMule` DID name a drawer; the drawer just does not exist on this board.
+         The v1955 note directly above is the same lesson in its own words: "a one-liner with
+         three outcomes hides one of them by construction" — this rewrite enumerates the fourth.
+         [[zero-needs-a-denominator]] [[the-unjoined-end]] */
+      _log(name, 'mule-missing', { id: (sg && sg.id) || '',
+           why: 'routed to "' + ((sg && sg.id) || '?') + '" but no mule with that id exists on '
+              + 'this board, so nothing could receive it' });
     });
     // v2343b — a swallowed error here is how the panel would silently never appear; the first
     // cut of renderThrowSuggested called a helper that does not exist in its scope and this catch
@@ -50385,7 +50455,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3221', name:'v3221 - one recorder, not two', date:'2026-09-16', note:'HEART: v3220 fixed the false-LOOKED guard inside record_answer and the CLI door never called it - run_one recorded inline, so it stripped no echo and ran no provider-error check, and ask() treats exit 0 plus 40 characters as a look. A Grok CLI exiting 0 with a long usage-limit body is exactly that, so the same false LOOKED stayed live on the DEFAULT door one function away from its own fix. Both doors now route through the one recorder. The gate can now fail on it: deleting the provider regex fires two assertions and restoring the inline recorder fires a third.' };
+  window.D2R_BUILD = { id:'v3222', name:'v3222 - the restore that filed nothing', date:'2026-09-16', note:'HEART: his vault showed 198 unsorted against 21 assigned and he said it is not even sorting them only some. A read-only route probe settled it: all 198 already had a valid destination - uni-armor 67, uni-weap 63, throwout 46, uni-small 9, shared 7, runewords 5, keep 1, laneLocked 0. Nothing was mis-routed and nothing had run. The cause was v3214 owned_restore: every automatic vaultAutoAssign call is gated on a chronicleApply landing something, and a direct LSR write to d2r_owned never fires it. The board now exposes a re-read door so a restore syncs memory WITHOUT rebooting his page, then files the batch through his own sorter. 152 items filed, dock 198 to 46, and the 46 left are throw-out SUGGESTIONS which are never binned.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

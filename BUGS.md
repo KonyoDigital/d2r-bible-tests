@@ -34158,3 +34158,62 @@ unknown  -10..  30        highest real: -40
 Every real section is NEGATIVE; the premise "old board sections occupy 0..11" is not true of this
 table, and there is a 30-point gap. No collision. Recorded because a reviewer that is right twice
 and wrong once is exactly why `review-after-ship` says the measurement decides, not the reviewer.
+
+## REG-1019 — the restore put his possessions back and left every one of them in the dock
+
+**2026-09-16 · v3222**
+
+His words, looking at the Vault: *"vault again is inporperly routing and stashing and vaulting 200+
+items"* / *"its not even sorting them.. only some"*. On screen: **UNSORTED DOCK 198**, SHARED STASH
+"empty locker", and The Stone of Jordan sitting unsorted.
+
+**The sorter was not broken. It had not run.** A new read-only probe (`/api/vault_route_probe`)
+asked `suggestMule` and `_laneLocked` about every unsorted name:
+
+```
+pool 219 · assigned 21 · unsorted 198 · laneLocked 0
+uni-armor 67 · uni-weap 63 · __throwout 46 · uni-small 9 · shared 7 · runewords 5 · __keep 1
+The Stone of Jordan -> {id:'shared', why:'high trade value — keep close in the shared stash'}
+```
+
+Every one of the 198 already had a valid, resolvable destination.
+
+**The cause was v3214's own `owned_restore`.** All three automatic callers of `vaultAutoAssign` are
+gated on a chronicleApply having landed something — `if (_landedAny && typeof
+window.vaultAutoAssign === 'function')` — and `owned_restore` writes `d2r_owned` directly through
+LSR. Correct for restoring possession; it means the sorter never fires. The arithmetic matched
+exactly: 52 owned with 21 assigned (dock ~31) plus 171 restored = 198.
+
+⚠ **And REG-1010's fix made it worse before it made it better.** v3215 reloaded the whole board
+after every such write, which kept the data safe and still left it unfiled. `_vaultReloadOwned`
+(new, in bible.html) re-reads the store into the live Set so memory and storage agree WITHOUT a
+reboot; the doors then file the batch through the board's own sorter. The reload survives as the
+fallback, because on a build without the door, stale memory DESTROYS the write.
+
+**Measured after: 152 items filed, dock 198 → 46, assigned 21 → 173.** The 46 remaining are
+`__throwout` SUGGESTIONS and stay in the dock on purpose — `vaultAccumApply` states the rule the
+sorter obeys: *"There is no un-throw in Diablo, and nothing here may bin anything."*
+
+### Three wrong theories, killed by measurement and a second family
+
+1. **the shared-stash null path** — `suggestMule` opens with `if (isSharedStash(name)) return null;`
+   and v425 wrote beside it "null route = shared, not a bug", so the producer means SHARED while the
+   consumer reads "no opinion". Real, and worth **2** of his 222 names (Black Cleft, Rotting
+   Fissure) — not 198.
+2. **a missing mule roster** — `d2r_muleRoster` is genuinely absent from his board, so `roster`
+   falls back to `DEFAULT_ROSTER`, whose ids cover every id `suggestMule` can emit.
+3. **branch 7 (`muleById` fails)** — the Grok seat proved it **cannot fire**: emitted ids ⊆
+   DEFAULT_ROSTER ids. Its log line is kept as a guard against a future id with no section, and is
+   labelled as such rather than as a live path.
+
+It also named the one measurement that could settle what was left, and warned that the chronicle log
+could not: *"if the run never happened, that log is empty and looks like the same silence."* That is
+why the probe exists rather than more logging.
+
+**Also fixed:** both silent drops in `vaultAutoAssign` now log a reason. The branch one above them
+already carried the lesson — *"a lock nobody can see is indistinguishable from a rule that stopped
+working"* — and the next two statements dropped items with no log, no count and no tile.
+
+Gates: `ARestoredItemIsFiledNotDumped` (4 cases). ⚠ Its first cut was a GREEN SABOTAGE — asserting
+`"vaultAutoAssign" in js` stayed green when the branch condition was replaced with `else if(false)`,
+because the dead call still contained the string. It now pins the reachable guard.
