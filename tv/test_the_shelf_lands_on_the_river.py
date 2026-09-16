@@ -148,9 +148,19 @@ class TheShelfLandsOnTheRiver(unittest.TestCase):
         # here: the chips were filtering empty stations out, so ROUTED and TOMBSTONE (both empty on
         # his tree) had quietly vanished from the screen while the removed section's comment still
         # promised them, dimmed, with 0.
+        # ⚠⚠ BOTH ENDS, BECAUSE THE NEGATIVE ASSERTION BELOW IS THE DANGEROUS KIND. This was
+        # `CODE[i:i + 400]`: if the builder ever grew past 400 chars the `assertNotIn` would pass
+        # having examined a window that no longer reaches the filter — green, and blind. The
+        # ratchet's own words: "a window that runs short there PASSES having examined nothing".
+        # It counts 4 such windows against a ceiling of 2, and TWO OF THE FOUR WERE MINE, added
+        # in the same session as the gates that enforce this. [[source-window-shortcut]]
         i = CODE.find("var ordered = order")
         self.assertGreater(i, 0, "the station chip builder is gone — re-anchor this gate")
-        seg = CODE[i:i + 400]
+        end = CODE.find(": seen;", i)
+        self.assertGreater(end, i,
+                           "could not find the END of the chip builder (the `: seen;` arm of its "
+                           "ternary) — re-anchor this gate rather than guessing a length")
+        seg = CODE[i:end]
         self.assertNotIn(
             "return tally[st];", seg,
             "the chip row filters out stations with no reels, so a station nobody has reached is "

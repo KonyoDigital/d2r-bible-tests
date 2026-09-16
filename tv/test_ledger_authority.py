@@ -24,6 +24,7 @@ appear only in comments, as the reason the rule exists.
 """
 import ast
 import io
+import re
 import json
 import os
 import sys
@@ -720,8 +721,30 @@ class FiguresNeverMixAcrossWorlds(unittest.TestCase):
         wp = _between(src, "window._WP_FORKED = new Set(", ";")
         self.assertIsNotNone(lp)
         self.assertIsNotNone(wp)
+        # ⚠⚠ MEMBERSHIP, NOT TEXT — AND THIS GATE SPENT A DAY RED FOR THE WRONG REASON.
+        # It asserted the key did not appear ANYWHERE in the block. v3196 then added a comment
+        # INSIDE `_LP_FORKED` explaining the very thing this law protects — "`_D2R_LEDGER` reads
+        # `d2r_ledgerName` from raw storage on purpose — it is the INSTALL's name, not the
+        # profile's" — and the substring matched the explanation. MEASURED: `_LP_FORKED` has 52
+        # members and `d2r_ledgerName` is not one of them; `_WP_FORKED` has 12 and does not
+        # mention it at all. Nothing was ever world-forked.
+        #
+        # So a correct comment, written to stop someone making this mistake, turned the guard
+        # against the code it was guarding. That is this repo's most-repeated gate defect and it
+        # has its own scar: a guard that reads SOURCE fails on its own reach before it fails on
+        # the product. [[feedback-comments-vs-code]] [[source-reading-guard]]
+        def _members(blk):
+            """The Set's actual string literals, comments stripped. -> set"""
+            t = re.sub(r"/\*.*?\*/", "", blk, flags=re.S)      # block comments
+            t = re.sub(r"//[^\n]*", "", t)                     # line comments
+            return set(re.findall(r"""['\"]([A-Za-z0-9_\u00b7]+)['\"]""", t))
         for blk, name in ((lp, "_LP_FORKED"), (wp, "_WP_FORKED")):
-            self.assertNotIn("d2r_ledgerName", blk,
+            mem = _members(blk)
+            self.assertGreater(
+                len(mem), 5,
+                "only %d member(s) parsed out of %s, so this law is measuring its own reader "
+                "rather than the Set — UNKNOWN, not clean" % (len(mem), name))
+            self.assertNotIn("d2r_ledgerName", mem,
                              "d2r_ledgerName has been added to %s — it is now world-forked, the "
                              "raw/routed writes really do diverge, and bible.html:19557 must be "
                              "revisited" % name)

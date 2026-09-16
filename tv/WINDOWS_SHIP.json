@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3233",
+  "ver": "v3234",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3233: v3231 added a flag saying the console could not be asked, then handed an empty list to the corroborator anyway and no consumer ever read the flag, so a console that was down still reported zero reels witnessed as a warning about the shelf. counts are None now and the health row says unknown. found by a cross family review of the version that added it",
+  "note": "v3234: the ledger authority law matched a comment that explains the very rule it protects, and the source window ratchet counted character peeks as windows while missing that two of its silent entries were gates I had just written. members are parsed now, peeks are excluded with every site checked by hand, and my own windows are anchored at both ends",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

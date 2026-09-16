@@ -114,9 +114,16 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
     def test_the_cli_door_passes_the_transport(self):
         """Built on both ends and never joined is this repo's most repeated defect."""
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
+        # ⚠ BOTH ENDS ANCHORED. This was `src[i:i + 320]` — a guess about how far the call
+        # reaches, and the call grows every time somebody documents it. The ratchet in
+        # test_a_source_window_must_reach_its_subject counts exactly this and I added two of them
+        # in one session, in gates written to enforce careful source reading.
+        # [[source-window-shortcut]] [[carved-skill-unloaded-is-unapplied]]
         i = src.find("    return record_answer(version, answer, sent, dropped")
         self.assertNotEqual(i, -1, "the CLI door's recorder call moved — re-anchor this gate")
-        blk = src[i:i + 320]
+        end = src.find("\n\n", i)
+        self.assertNotEqual(end, -1, "could not find the end of the call — re-anchor this gate")
+        blk = src[i:end]
         self.assertIn(
             "_model_from_transport()", blk,
             "the helper exists and the CLI door does not call it, so every look through that door "

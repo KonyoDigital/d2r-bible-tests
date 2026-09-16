@@ -34973,3 +34973,48 @@ roster → 1 red.
 ⚠ **Third consecutive version in which a cross-family eye found a real defect in my own fix**, and
 the fourth this session. A repair is written faster and with more certainty than the code it
 replaces. `[[review-after-ship]]`
+
+## REG-1039 — two guards red on their own reach, and one counting things that were not the defect
+
+**2026-09-17 · v3234 · `tv/test_ledger_authority.py`, `tv/test_a_source_window_must_reach_its_subject.py`,
+and four gate files**
+
+**1. `test_ledger_authority` — a correct comment turned the guard against the code it guards.**
+The law is that `d2r_ledgerName` must NOT be world-forked, because bible.html writes it ROUTED at
+one site and RAW at five, which only agrees while the key is in neither `_LP_FORKED` nor
+`_WP_FORKED`. It asserted the key did not appear ANYWHERE in the Set's text. v3196 then added a
+comment **inside `_LP_FORKED`** explaining exactly that — *"`_D2R_LEDGER` reads `d2r_ledgerName`
+from raw storage on purpose — it is the INSTALL's name, not the profile's"* — and the substring
+matched the explanation.
+
+MEASURED: `_LP_FORKED` has **52 members and `d2r_ledgerName` is not one of them**; `_WP_FORKED`
+has 12 and never mentions it. Nothing was ever forked. Now parses the Set's string literals with
+comments stripped, and refuses if fewer than 6 members parse (a reader that stops matching is
+UNKNOWN, not clean). Red-proofed BOTH ways: really adding the key → red; naming it only in a
+comment → green. `[[feedback-comments-vs-code]]` `[[source-reading-guard]]`
+
+**2. The source-window ratchet was right about me and wrong about six others.**
+
+⚠ **The SILENT class was mine.** Windows sitting under a negative assertion — where a short read
+PASSES having examined nothing — went from 2 (the ceiling) to 4, and both new ones were gates I
+wrote this session to enforce careful source reading. Measured at `5fac5b16`: total 53, silent 2.
+Both are re-anchored to real boundaries (`\n\n`, `: seen;`), plus two more in
+`test_a_restore_is_shaped_like_a_sweep.py` anchored to the function's closing brace.
+`[[source-window-shortcut]]` `[[carved-skill-unloaded-is-unapplied]]`
+
+⚠ **And the detector counted six things that are not the defect.** A character peek is not a
+window: `js[j:j + 1]` deciding whether a quote opens a comment, `blob[i:i + 4]` unpacking a PNG
+length field, `r[o:o + 3]` writing an RGB triple, `rows[idx:idx + 4]` taking a batch. Each is an
+exact structural read; the law's own rationale — *"a GUESS about how far the subject reaches, and
+the subject grows every time somebody documents it"* — does not apply to reading one character.
+Bar set at N≥8: no lookahead needs more, no real source window is smaller. **Every excluded site
+was read individually and confirmed.**
+
+⚠ I first "found" these by reading the wrong tuple field — the 4th is the NEGATIVES count, not the
+window size — and produced a confident "50 of 50 are peeks". `silent=2` matching that field
+exactly was the tell. Same instrument error as reading `gate(row)` for `gate(row["witnesses"])`.
+`[[feedback-suspect-the-instrument]]`
+
+Result: **total 53 → 44, silent 4 → 2, both exactly at their ceilings, gate green.** The ceiling
+was correct all along; the detector had been over-counting. Red-proofed both ways: a real N=500
+window → red; an N=2 peek → green.

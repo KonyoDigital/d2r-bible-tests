@@ -78,8 +78,18 @@ def _is_fixed_window(node):
     if not isinstance(sl, ast.Slice) or sl.lower is None or sl.upper is None:
         return False
     up = sl.upper
+    # ⚠ A CHARACTER PEEK IS NOT A WINDOW. `js[j:j + 1]` and `js[i:i + 2]` in
+    # test_app_ctx_nav._strip_js_comments read the NEXT CHARACTER to decide whether a quote
+    # opens a comment — an exact read, not a guess about how far a subject reaches. This law's
+    # own rationale ("each one measures a GUESS about how far the subject reaches, and the
+    # subject grows every time somebody documents it") simply does not apply to reading one
+    # character. Counting them inflated the debt by 2 and made the ceiling unreachable for a
+    # reason that was not real — a gate too WIDE is as useless as one too narrow, because the
+    # excess it reports is what teaches a reader to stop believing the number.
+    # The bar is 8: no lookahead needs more, and no real source window is smaller.
     return (isinstance(up, ast.BinOp) and isinstance(up.op, ast.Add)
             and isinstance(up.right, ast.Constant) and isinstance(up.right.value, int)
+            and up.right.value >= 8
             and isinstance(sl.lower, ast.Name) and isinstance(up.left, ast.Name)
             and sl.lower.id == up.left.id)
 

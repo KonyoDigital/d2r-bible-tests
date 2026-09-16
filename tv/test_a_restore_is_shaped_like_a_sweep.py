@@ -287,8 +287,14 @@ class ARestoredItemIsFiledNotDumped(unittest.TestCase):
             self.assertIn("window." + fn_name, bible,
                           "bible.html no longer exposes %s, so its door falls back to rebooting "
                           "his page" % fn_name)
+            # ⚠ BOTH ENDS. `bible[i:i + 500]` is a guess about how long the function is, and
+            # a function grows every time somebody documents it — which is exactly how the
+            # /api/river guard came to examine nothing. The re-reader is a one-liner that ends at
+            # its own closing brace; find that instead. [[source-window-shortcut]]
             i = bible.find("window." + fn_name)
-            self.assertIn(store, bible[i:i + 500],
+            _end = bible.find("};", i)
+            self.assertGreater(_end, i, "could not find the end of %s — re-anchor" % fn_name)
+            self.assertIn(store, bible[i:_end],
                           "%s does not read %s — a re-reader pointed at the wrong store is worse "
                           "than none, because it answers and the caller believes it"
                           % (fn_name, store))
@@ -300,7 +306,9 @@ class ARestoredItemIsFiledNotDumped(unittest.TestCase):
                       "bible.html no longer exposes _vaultReloadOwned, so every restore falls back "
                       "to rebooting his page")
         i = bible.find("window._vaultReloadOwned")
-        self.assertIn("Array.isArray(fresh)", bible[i:i + 900],
+        _end = bible.find("};", i)
+        self.assertGreater(_end, i, "could not find the end of _vaultReloadOwned — re-anchor")
+        self.assertIn("Array.isArray(fresh)", bible[i:_end],
                       "the re-read no longer refuses an unreadable store — an unparseable "
                       "d2r_owned would blank the live Set, which is a wipe, not a refresh")
 
