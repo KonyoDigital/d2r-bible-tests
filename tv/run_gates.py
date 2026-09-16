@@ -664,6 +664,29 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_the_shelf_tabs_are_the_real_sessions",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_tabs_are_the_real_sessions.py")], 120,
+         why="he asked three times, escalating, because it kept not being done - the tabs ontop "
+             "need updating related to the reels sessions, not random or outdated like it is. And "
+             "the first time it was DONE it was HALF-DONE by me: v3195 shipped the filter state, "
+             "the toggle branch, the predicate clause and the active flag, and never added the "
+             "BUTTONS. A complete working filter with nothing on screen able to reach it. This "
+             "pins both halves and what not-random means: every chip is earned by a card on the "
+             "shelf, the order comes from the river rather than a list written here, an unmapped "
+             "station is MARKED not dropped, an empty row hides itself, and every class the "
+             "builder emits is actually styled - asked as a JOIN, because two earlier cuts of "
+             "that assertion were satisfied by a rename."),
+    Gate("test_an_entity_inside_an_escaper_is_printed",
+         [sys.executable, os.path.join(HERE, "test_an_entity_inside_an_escaper_is_printed.py")], 120,
+         why="read off his screen: the SWEEP box under THE FLEET printed the six literal "
+             "characters &mdash; where the elapsed figure belongs. escC replaces & with &amp; - "
+             "that is its entire job - so every HTML entity handed to it comes back out as its "
+             "own source text. Two sites, both in the sweep meter. ⚠ THE OBVIOUS GUARD IS THE "
+             "WRONG GUARD: five of that entity are in the file and only two are defects, the "
+             "other three are concatenated straight into markup and render correctly. So this "
+             "PARSES rather than greps - it finds each escaper call, walks to its MATCHING close "
+             "paren with a depth counter (a nested call would otherwise hide the entity), and "
+             "asks whether an entity is inside that span."),
     Gate("test_a_coverage_drop_can_be_named",
          [sys.executable, os.path.join(HERE, "test_a_coverage_drop_can_be_named.py")], 120,
          why="the render gate refused a push with three heart targets down 1-3 nodes, every one "

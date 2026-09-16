@@ -5853,6 +5853,36 @@ def open_control_window():
     # ⚠ `fullscreen` is dropped automatically by the _cw_ok filter below on any pywebview that does
     # not take it, so an older build still gets a window rather than a TypeError. That filter is why
     # this is safe to add without version-sniffing. [[unknown-stays-unknown]]
+    # ══ v3202 — THE GREY "TV DIABLO" BAR IS THE macOS TAB BAR. MEASURED, AFTER TWO GUESSES. ══
+    # He reported it three times. v3175 guessed `frameless` — it cost him the traffic lights
+    # ("now i cant minimize or window mode the console") and the bar stayed. v3200 guessed the
+    # titlebar paint — the bar stayed again. v3179 had already written the instruction: "it will
+    # be found by LOOKING rather than by guessing at window flags again."
+    #
+    # LOOKED, with a scratch pywebview window and the real AppKit objects:
+    #
+    #     allowsAutomaticWindowTabbing : true
+    #     tabbedWindows                : 1 window
+    #     tabGroup                     : <NSWindowStackController: ...>
+    #     NSTitlebarContainerView      : h=68        <- a titlebar is ~28px. 68 = titlebar + TAB BAR.
+    #
+    # That 68 is the whole proof. The window is in a tab group of one, and macOS draws the tab
+    # bar inside the titlebar container — which is exactly why both earlier fixes missed:
+    # `frameless` removes frame DECORATIONS and the tab bar is not one, and repainting the
+    # container recolours the bar rather than removing it. (v3200 did target the right view:
+    # NSTitlebarContainerView really is subviews().lastObject(). It was the right address for the
+    # wrong thing.) [[source-reading-guard]] [[feedback-suspect-the-instrument]]
+    #
+    # ⚠ IT IS A CLASS METHOD AND IT MUST RUN BEFORE ANY WINDOW EXISTS. Setting it after
+    # create_window() leaves the already-grouped window exactly as it was.
+    # ⚠ AND IT COSTS HIM NOTHING. The frame stays whole — close, minimise and zoom all survive,
+    # which is the price v3175 paid and this does not.
+    if sys.platform == "darwin":
+        try:
+            import AppKit
+            AppKit.NSWindow.setAllowsAutomaticWindowTabbing_(False)
+        except Exception:
+            pass                       # PyObjC absent or the selector moved: leave the window alone
     _windowed = str(os.environ.get("TV_WINDOWED", "")).strip().lower() in ("1", "true", "yes", "on")
     kwargs = dict(
         title="TV DIABLO",
@@ -23400,6 +23430,29 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             # run's own clock, not from resultTs minus a guess.
             _v_started = _VAULT_JOB.get("runStartedTs") or 0
             _v_now = int(time.time() * 1000)
+            # ⚠⚠ v3202 — THE METER COULD NEVER REACH 100%, AND ON A ONE-REEL RUN IT READ 0 of 1.
+            # MEASURED on his live console this morning, on a sweep that had just finished
+            # cleanly: reelsDone 1 · reelsTotal 1 · phase done — and runReelsDone 0 · lastRunReels
+            # 0, which is what the rail actually renders.
+            #
+            # `_on_reel` is called from vault_retro at the TOP of the loop body, with
+            # `enumerate(dirs)` — so its index is 0-BASED and fires BEFORE the reel is read. The
+            # value is therefore "reels finished BEFORE this one", which is exactly right while
+            # the run is moving and off by one the moment it stops: a 14-reel sweep ended at 13
+            # of 14 (93%) and a 1-reel sweep at 0 of 1 (0%). Nothing ever closed the gap, because
+            # the only writer is a hook that stops firing when the work stops.
+            #
+            # The key is named `runReelsDone`. It held a STARTED index. That is the same defect
+            # this console has now paid for several times — a right number under a word that means
+            # something else — and it is only visible at the last tick, which is the tick he looks
+            # at. [[label-outlived-referent]] [[the-unjoined-end]] [[zero-needs-a-denominator]]
+            #
+            # ⚠ ONLY ON THE SUCCESS PATH. The error branch below must NOT be told every reel
+            # finished — a sweep that threw halfway has not done its total, and a meter that
+            # rounds a crash up to 100% is worse than one that stops short.
+            _v_total = _VAULT_JOB.get("runReelsTotal")
+            if isinstance(_v_total, int) and _v_total > 0:
+                _VAULT_JOB["runReelsDone"] = _v_total
             _VAULT_JOB.update({"running": False, "phase": "done", "result": out, "error": None,
                                "resultTs": _v_now, "restoredFrom": None,
                                "lastRunMs": (_v_now - int(_v_started)) if _v_started else None,
@@ -28194,7 +28247,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3201",
+        "ver": "v3202",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -4375,6 +4375,23 @@
   .sh-chip-unk  { opacity: .9; cursor: default; color: var(--warn, var(--gold-dim));
                   border-color: rgba(160,120,48,.3); }
   .sh-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; }   /* v1283 (D9) — persistent, composable filter row */
+  /* ══ v3202 — THE STATION ROW. Its own line under the standing chips, because these are a
+     DIFFERENT KIND of filter: the chips above are properties he chooses to ask about (pinned,
+     clean, this week) and these are WHERE HIS REELS ACTUALLY ARE right now. Mixing them into one
+     wrapping row is what made the tabs read as "random" — a row whose membership changes with the
+     data, interleaved with one whose membership never changes.
+     ⚠ A CLASS NOBODY STYLES IS A FLAG NOBODY CAN SEE. `sh-chip-st` and `sh-chip-stunk` were set
+     by the builder before this block existed, which is the same [[plumbing-with-no-tap]] shape as
+     the missing buttons it replaces. */
+  .sh-stationbar { margin: -8px 0 14px; gap: 6px; }
+  .sh-chip.sh-chip-st { letter-spacing: var(--ls-tight); }
+  .sh-chip.sh-chip-st b { margin-left: 4px; color: var(--gold-hi);
+    font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); }
+  .sh-chip.sh-chip-st.on b { color: inherit; }
+  /* a station the river order does not name is MARKED, never dropped — an unmapped stage is a
+     finding about the router, and hiding it would make the row lie by omission */
+  .sh-chip.sh-chip-stunk { border-style: dashed; }
+  .sh-chip.sh-chip-stunk::after { content: ' ?'; color: var(--warn, var(--gold-dim)); }
   .sh-fdiv { width: 1px; align-self: stretch; margin: 2px 5px; background: rgba(200,180,120,.16); }
   .sh-chip { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim); cursor: pointer;
     background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 999px; padding: 8px 13px; }
@@ -6151,9 +6168,53 @@
      caught what the rect could not. [[visual-regression-detector]] [[feedback-generalize-fixes]]
      Wrapping rather than ellipsising on purpose: "unpublished" and "6 behind" are the words he
      reads this panel FOR, and a truncation would hide exactly the state that matters. */
-  .fleet-row { display: flex; align-items: baseline; gap: 7px; padding: 3px 0; flex-wrap: wrap;
+  /* ══ v3202 — FIXED TRACKS, BECAUSE A WRAPPING FLEX GIVES EVERY ROW ITS OWN LAYOUT ═══════
+     Konyo: *"THE FLEET i want typography and i want fixed structure wise and stretched like it
+     should have been the first pass"*.
+
+     READ OFF THE RENDER at his own 1120x628, five machines:
+
+         ● konyo-3  👁?              this console
+         · no board window
+         ● GrokBot  👁?                   differs
+         ● Dean     👁?                   differs
+         · no board window
+         ● Wife PC                      no report
+
+     Nothing lines up, and the reason is structural rather than cosmetic. This was
+     `display:flex; flex-wrap:wrap`, so each row solved its own widths from its own content and
+     no column existed ACROSS rows — the identical defect this file already carved for the
+     tooltip at `.ftt .ftt-row`: *"FIXED TRACKS, BECAUSE max-content DOES NOT ALIGN ACROSS ROWS.
+     Each .ftt-row is its own grid."* The lesson was written down and never applied here.
+
+     ⚠ AND THE WHY-CLAUSE WAS THE RAGGEDNESS. `.fleet-meta` sets `margin-left:auto`, so the
+     verdict word is pushed right; `.fleet-meta.fleet-why` overrides it to `5px` (higher
+     specificity), so when the row wrapped, the reason landed LEFT on a second line — on the two
+     machines that had one, and nowhere on the three that did not. One row of five was two lines
+     tall for a reason invisible from the other four.
+
+     SO: four EXPLICIT tracks, and the verdict is placed in column 4 BY NUMBER rather than by
+     being last. That distinction is the whole fix — `.fleet-eye` is absent whenever a machine
+     has no capture lane, and with implicit placement the verdict would slide into column 3 on
+     exactly those rows and break the alignment it is meant to have. The reason gets its own
+     full-width row under the name, indented to the name's own column, so it is always in the
+     same place and never competes for the verdict's track.
+     [[visual-regression-detector]] [[copy-drift]] */
+  .fleet-row { display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: baseline; column-gap: 7px; row-gap: 1px; padding: 3px 0;
     font: var(--fw-medium) var(--fs-2xs)/var(--lh-snug) var(--mono); color: #9fb0a4; }
   .fleet-row > * { min-width: 0; }
+  .fleet-row > .fleet-dot { grid-column: 1; }
+  .fleet-row > b        { grid-column: 2; overflow: hidden; text-overflow: ellipsis;
+                          white-space: nowrap; }
+  .fleet-row > .fleet-eye { grid-column: 3; }
+  /* placed BY NUMBER: a machine with no capture lane emits no eye, and implicit placement would
+     slide its verdict one column left — ragged again, on exactly the rows that look healthiest */
+  .fleet-row > .fleet-word { grid-column: 4; margin-left: 0; justify-self: end;
+                             text-align: right; white-space: nowrap; }
+  .fleet-row > .fleet-why  { grid-column: 1 / -1; margin-left: 14px; justify-self: start;
+                             text-align: left; }
   .fleet-row b { color: var(--text); font-weight: var(--fw-semibold); }
   .fleet-row.on b { color: var(--mint); }
   .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none;
@@ -16331,6 +16392,19 @@ window._lockMark = function(isOpen, px, label){
         + '<button type="button" class="sh-chip" data-f="day:week">this week</button>'
         + '<button type="button" class="sh-chip" data-f="day:older">older</button>'
         + '</div>'
+        /* ⚠⚠ v3202 — THE STATION CHIPS, WHICH v3195 WIRED AND NEVER RENDERED. His words, three
+           times: *"the tabs ontop need updating related to the reels sessions.. not random or
+           outdated like it is"*, *"and accorindgly relevant to the sessions"*, and finally *"the
+           tabs within shelf on top need a fixing and updating so they represent the real reel
+           sessions that its managing"*.
+           v3195 shipped `SHELF_F.station`, the `st:` toggle branch, the filter clause and the
+           active flag — every half except the BUTTONS. So the filter existed and nothing could
+           reach it: [[plumbing-with-no-tap]] in its purest form, shipped by me.
+           EMPTY AND HIDDEN HERE ON PURPOSE. The stations are not known when this markup is built
+           — they arrive with /api/river — so drawing a guessed row now and correcting it later is
+           how a surface reads "random or outdated". It is filled by _shStationChips() at the one
+           moment the answer exists: after the river has stamped the cards. */
+        + '<div class="sh-filter-bar sh-stationbar" id="sh-stationbar" hidden></div>'
         + '<div class="sh-no-match" id="sh-no-match" hidden>No runs match these filters — clear one to widen the search (the 👻 empty-runs chip is one of them).</div>'
       : '';
     var timelineDiv = cards ? '<div class="sh-timeline" id="sh-timeline" hidden></div>' : '';   // v1286 (D12) — activity sparkline
@@ -16552,6 +16626,66 @@ window._lockMark = function(isOpen, px, label){
   /* THE MOUTH — reels that finished the journey and were closed out. `null` until /api/river has
      answered, which is NOT the same as an empty ledger and must never render as "0 finished". */
   var SHELF_MOUTH = null;
+  /* ══ v3202 — THE STATION CHIPS ARE BUILT FROM THE REELS, NOT FROM A LIST ═══════════════
+     Konyo, three times: *"the tabs ontop need updating related to the reels sessions.. not random
+     or outdated like it is"*, *"accorindgly relevant to the sessions"*, and *"the tabs within
+     shelf on top need a fixing and updating so they represent the real reel sessions that its
+     managing"*.
+
+     ⚠ EVERY CHIP HERE IS EARNED BY A CARD ON THE SHELF. A station with no reel gets no chip, so
+     the row can never show a stage his footage is not actually in — which is the whole of what
+     "not random or outdated" means. The count on each chip is the number of cards carrying it,
+     so the row sums to the reels he is looking at rather than to a roster.
+
+     ⚠⚠ THE ORDER COMES FROM THE RIVER, NEVER FROM A LIST WRITTEN HERE. `SHELF_RIVER_ORDER` is
+     /api/river's own station sequence. This file already carries the ruling, beside the sort
+     selector: *"The station order is NEVER hardcoded here: it comes from /api/river's own
+     `stations`, so a station added to reel_router appears on the shelf without a second edit.
+     Two lists of stations is how they drift."* A second list would also silently drop any
+     station the router gained. When the order is unavailable the chips fall back to the order
+     the stations were FIRST SEEN on the cards — which is a real order from real data, never
+     alphabetical, because alphabetical would imply a sequence the river does not have.
+     [[copy-drift]] [[label-outlived-referent]]
+
+     ⚠ AND AN EMPTY ROW HIDES ITSELF. A chip bar with nothing in it reads as "no stations exist";
+     the truth when nothing is stamped is that the river has not answered yet, and the section
+     header already says that. [[zero-needs-a-denominator]] */
+  function _shStationChips(cards){
+    var bar = document.getElementById('sh-stationbar');
+    if (!bar) return;
+    var tally = {}, seen = [];
+    (cards || []).forEach(function(c){
+      var st = String(c.getAttribute('data-station') || '');
+      if (!st) return;                       /* unstamped or ambiguous — the card says so itself */
+      if (!tally[st]) { tally[st] = 0; seen.push(st); }
+      tally[st]++;
+    });
+    if (!seen.length) { bar.hidden = true; bar.innerHTML = ''; return; }
+    var order = (SHELF_RIVER_ORDER && SHELF_RIVER_ORDER.length) ? SHELF_RIVER_ORDER : null;
+    var ordered = order
+      ? order.filter(function(st){ return tally[st]; })
+             /* a station the river order does not name still gets a chip, at the end, rather
+                than being dropped — an unknown stage is a finding, not a thing to hide */
+             .concat(seen.filter(function(st){ return order.indexOf(st) < 0; }))
+      : seen;
+    var total = 0;
+    ordered.forEach(function(st){ total += tally[st]; });
+    bar.innerHTML = ordered.map(function(st){
+      var lab = (typeof SHELF_RIVER_LABELS !== 'undefined' && SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
+      var on = (SHELF_F.station === st);
+      var unknown = order && order.indexOf(st) < 0;
+      return '<button type="button" class="sh-chip sh-chip-st' + (on ? ' on' : '')
+           + (unknown ? ' sh-chip-stunk' : '') + '" data-f="st:' + escC(st) + '" title="'
+           + escC(tally[st] + ' of the ' + total + ' stamped reel(s) on the shelf are at '
+                  + lab + (unknown ? ' \u2014 a station the river order does not name, which is '
+                                     + 'worth knowing rather than hiding' : '')
+                  + '. Click to show only those.')
+           + '">' + escC(lab) + ' <b>' + tally[st] + '</b></button>';
+    }).join('');
+    bar.hidden = false;
+  }
+  window._shStationChips = _shStationChips;
+
   function _shRiverLoad(then){
     /* ⚠⚠ v2795 — THE THIRD UNBOUNDED FETCH ON THIS SURFACE, and it is REG-713's exact shape.
        This was a bare `fetch('/api/river')`: no AbortController, no timeout. The `.catch` below
@@ -16863,6 +16997,7 @@ window._lockMark = function(isOpen, px, label){
           + (r.hops > 1 ? '<span class="shcr-hops">' + r.hops + ' hops</span>' : '');
         c.appendChild(b);
       });
+      try { _shStationChips(vis); } catch (_e) {}
       var anchor = null;
       /* ══ v3176 (#97) — ONE RIVER, EIGHT CARDS, FIFO ═══════════════════════════════════════
          HIS ORDER, 2026-09-15, with four screenshots of THIS view: "all these anyways need to end
@@ -25377,7 +25512,17 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
            thing a stopped meter can say. Every figure here is measured or omitted. */
         var took = _swmHMS(lastMs);
         var h = '<div class="chron-eta"><div class="ce-top">'
-              + '<span class="swm-clock swm-cold">' + escC(took || '&mdash;') + '</span>'
+              /* ⚠⚠ v3202 — AN HTML ENTITY INSIDE AN ESCAPER IS PRINTED, NOT RENDERED. Read off
+                 his own screen this morning, in the SWEEP box directly under THE FLEET: the
+                 elapsed figure said the six characters `&mdash;`. escC() turns `&` into `&amp;`
+                 by design — that is its whole job — so every entity handed to it comes out as
+                 its own source text. The fallback is now the CHARACTER U+2014, which needs no
+                 escaping and cannot be double-escaped by anything downstream.
+                 ⚠ The two entities a few lines below are NOT bugs: they are concatenated into
+                 the markup directly and never pass through an escaper. Same six characters,
+                 opposite correctness, which is exactly why the law added with this greps for the
+                 PAIRING rather than for the entity. [[label-outlived-referent]] */
+              + '<span class="swm-clock swm-cold">' + escC(took || '\u2014') + '</span>'
               + '<span class="ce-t">' + escC(_swmAgo(ended) || '') + '</span></div>'
               + '<div class="ce-say">last read'
               + (took ? '' : ' &mdash; duration not recorded')
@@ -25403,7 +25548,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var pct = (typeof e.pct === 'number' && isFinite(e.pct)) ? e.pct : null;
     var html = '<div class="chron-eta">'
       + '<div class="ce-top">'
-      + '<span><span class="swm-clock">' + escC(elapsed || '&mdash;') + '</span>'
+      + '<span><span class="swm-clock">' + escC(elapsed || '\u2014') + '</span>'
       + '<span class="swm-unit">elapsed</span></span>'
       + '<span class="ce-t">' + (pct === null ? '&mdash;' : (pct.toFixed(0) + '%')) + '</span>'
       + '</div>'

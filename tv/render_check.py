@@ -1387,7 +1387,23 @@ TARGETS = {
                "238 versions because _fleetRefresh was undefined when the inline ontoggle fired",
         "seed": """(function(){ try { localStorage.setItem('d2r_advOpen','1'); } catch(e){} return 1; })()""",
         "activate": _adv_activate("fleet-list", require_filled=True),
-        "sel": "#fleet-list",
+        # ⚠⚠ v3202 — IT WATCHED THE BOX, NOT WHAT IS IN IT. `sel` was `#fleet-list`, the
+        # CONTAINER, so every run of this target reported `painted 1/1` — one node, the box
+        # itself. Every row inside it could collapse, misalign, clip or vanish and this gate
+        # would stay green, because the one thing it measured was still there. That is precisely
+        # the defect `shelf-cards` was created to fix, in its own words: *"A target that watches
+        # the chrome and not the content cannot see an empty room."* The lesson was carved on a
+        # neighbouring target and this one kept the old selector.
+        #
+        # MEASURED: with the container selector, rebuilding `.fleet-row` from a wrapping flex to a
+        # four-track grid — a change to every cell in the panel — moved the reading not at all.
+        # A gate that cannot move when the thing it guards is rewritten is measuring nothing.
+        # [[zero-needs-a-denominator]] [[gate-blind-to-unexercised-input]] [[regression-guard]]
+        #
+        # The selector now names the CELLS whose alignment is the whole point: the row, the
+        # machine name, the verdict word and the reason clause.
+        "sel": "#fleet-list .fleet-row, #fleet-list .fleet-row > b, "
+               "#fleet-list .fleet-word, #fleet-list .fleet-why",
         "settles": False,
         "warmup": 10.0,
     },
