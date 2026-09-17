@@ -473,6 +473,55 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
             "the shared dismiss is reached from fewer than both paths, so one of ✕ / "
             "click-outside still carries its own rule")
 
+    def test_the_dossier_BACK_button_never_names_a_place_it_is_not_going(self):
+        """★ v3273 — THE SENTENCE HE REPORTED, FOUND IN THE LABEL RATHER THAN THE BEHAVIOUR.
+
+        Konyo: *"when i click on things within the tabs inside shelf i exit out it brings me to
+        the console instead of moving me back one to where i was within the shelf"*.
+
+        `_dossierClose` is a bare `ov.hidden = true` — and that is CORRECT: it reveals whatever is
+        underneath, which IS one step back. The defect is that the button hard-coded
+        **"‹ back to the shelf"** while the dossier has FOUR openers and only two are the shelf:
+
+            a shelf card / highlight card  -> the shelf IS underneath   the label is true
+            the off-air HOME strip         -> NO shelf underneath       lands on the console
+            a `session` deeplink           -> NO shelf underneath       lands on the console
+
+        So from the home strip he taps a run, reads it, presses a button that says THE SHELF, and
+        arrives at the console. Nothing moved him wrongly; the word did.
+        [[label-outlived-referent]]
+
+        ⚠ Fixed as a LABEL, never as a jump. Forcing the shelf open would invent a destination he
+        never came from — the opposite of v3264's rule that a dismiss leaves the way he came in.
+        """
+        src = _py_only(self.src)
+        i = src.find("class=\"dsr-back\"")
+        self.assertGreater(i, -1, "the dossier back button is gone or renamed")
+        # the label must be DECIDED, not typed: the shelf's own state has to be consulted
+        blk = src[max(0, i - 700):i + 400]
+        self.assertIn("th-shelfov", blk,
+                      "the back button never asks whether the shelf is actually underneath, so it "
+                      "names the shelf from the home strip and the deeplink too")
+        self.assertIn("'back to the shelf'", blk,
+                      "the true branch is gone — it no longer says the shelf even when the shelf "
+                      "IS underneath")
+        self.assertIn("'back'", blk,
+                      "there is no honest fallback, so a dossier opened off the shelf still "
+                      "promises the shelf")
+
+    def test_the_dossier_close_still_only_STEPS_BACK_and_never_jumps(self):
+        """⚠ the guard on the fix: `_dossierClose` must stay a plain reveal. The moment it starts
+        opening the shelf to honour its own label, a dossier opened from the home strip would
+        land him somewhere he never was — which is the trap wearing the other face."""
+        src = _py_only(self.src)
+        i = src.find("window._dossierClose = function()")
+        self.assertGreater(i, -1, "the dossier close is gone or renamed")
+        body = src[i:i + 260]
+        self.assertIn("hidden = true", body, "the close no longer hides the dossier")
+        for forbidden in ("thShelf(", "thOpen(", "shellOpen("):
+            self.assertNotIn(forbidden, body,
+                             "the close now JUMPS (%s) instead of stepping back one" % forbidden)
+
     # ── a class nobody styles is a flag nobody can see ───────────────────────────────────
     def test_every_class_the_BUILDER_EMITS_is_actually_styled(self):
         """The join, asked in the only direction that cannot be faked.

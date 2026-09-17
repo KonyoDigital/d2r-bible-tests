@@ -36446,6 +36446,40 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1083 — the button said "back to the shelf" and went to the console, which is the sentence he reported
+
+His words, on the shelf traps: *"when i click on things within the tabs inside shelf i exit out it
+brings me to the console instead of moving me back one to where i was within the shelf."*
+
+Two native seats have now confirmed the SHELF's own close is clean — *"no blank theatre / no CLOSE
+trap / no unexpected tab jumps"* — so the remaining trap was one layer in, and it turned out to be
+a **label**, not a behaviour.
+
+`window._dossierClose` is a bare `ov.hidden = true`. **That is correct**: it reveals whatever is
+underneath, which IS one step back. But the button was hard-coded **"‹ back to the shelf"**, and
+the dossier has four openers, only two of which are the shelf:
+
+| opener | shelf underneath? | what the label promised |
+|---|---|---|
+| a shelf card (~:16983) | yes | true |
+| a shelf highlight card (~:16980) | yes | true |
+| **the off-air HOME strip (~:21310)** | **no** | **lands on the console** |
+| **a `session` deeplink (~:9440)** | **no** | **lands on the console** |
+
+So from the home strip he taps a run, reads it, presses a button that says THE SHELF, and arrives
+at the console. **Nothing moved him wrongly — the word did.** [[label-outlived-referent]]
+
+**Fixed in v3273 as a LABEL, never as a jump.** The button asks whether `#th-shelfov` is actually
+open and says *"‹ back to the shelf"* only when it is, *"‹ back"* otherwise. Both branches were run
+in node against both states.
+
+⚠ Forcing the shelf open to honour the old wording would have been the trap wearing the other
+face: it would land him somewhere he was never standing, which is the opposite of v3264's rule
+that a dismiss leaves the way he came in. There is a red-proof pinning `_dossierClose` as a plain
+reveal — it goes red if the close starts calling `thShelf(`, `thOpen(` or `shellOpen(`.
+
+Three sabotages, every one RED, each anchor matching exactly once.
+
 ## REG-1082 — a band he could not get rid of, on the other platform, filed by the bot
 
 Grok Bot, NATIVE Linux seat, 2026-09-17 18:06 IDT: **"Trap: persistent 🐧 LINUX toast."**
@@ -36491,6 +36525,39 @@ visible button/a/input at three widths:
 ⚠ At 375 the collapsed badge still crosses the title — the title fills the width and there is
 nowhere clear to stand — but it is **29px against the expanded band's 268px**, and it hits no
 control. Stated rather than hidden.
+
+### The cross-family review of v3272, and what survived reproduction
+
+Grok raised three findings on this change. Reproduced one by one:
+
+**1. "Collapsed ribbon overlaps the page title on narrow viewports" — REAL, and it has no
+horizontal remedy.** It is the same limit this entry already states, and the review is right to
+press on it, so it was measured exhaustively rather than asserted — both edges, four widths:
+
+| width | `left:10px` | `right:10px` |
+|---|---|---|
+| 375 | on title | **on title** |
+| 480 | clear | clear |
+| 683 | clear | clear |
+| 700 | clear | clear |
+
+At 375 the title fills the width, so **no horizontal placement avoids it**. ⚠ And the EXPANDED band
+overlaps the title at 375 as well — so the collapsed state is strictly better at every width and a
+regression at none. The finding names a partial improvement, not a break.
+
+**2. "The minimized badge's size and position are uncontrolled below 700px" — REFUTED by
+measurement.** The badge is **29px at 375 against 38px at 1440**, so the media query's font
+reduction demonstrably does reach it, and `body.cousin-min #cousin-ribbon` (0,2,1) outranks the
+media block's `#cousin-ribbon` (0,1,0) and comes later, so the padding override applies at every
+width. Nothing is uncontrolled.
+
+**3. "`aria-expanded`/`title` go stale if later code toggles `cousin-min`" — REFUTED.** `cousin-min`
+occurs **five times in bible.html and every one is this feature** — two CSS rules, and `contains` /
+`add` / `toggle` inside this block. There is no other writer, so the scenario has no code to come
+from. The review itself flagged it as resting on code "not shown".
+
+⇒ One finding stood, already documented, now proven exhaustively; two did not survive contact with
+the tree. [[review-after-ship]] — a good reviewer earns a measurement, not obedience.
 
 Seven laws, eight sabotages, every one RED, each anchor matching exactly once. Registered as gate
 427 — the orphan-suite law caught the same omission at v3271 and would have caught this one too.

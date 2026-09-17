@@ -11483,7 +11483,28 @@ window._lockMark = function(isOpen, px, label){
     var regret = _dossierRegret(sm);
     var regretSec = regret ? '<div class="dsr-sec">' + regret + '</div>' : '';
     return '<div class="dsr-wrap">'
-      + '<div class="dsr-top"><button type="button" class="dsr-back" onclick="window._dossierClose()">‹ back to the shelf</button></div>'
+      /* ⚠⚠ v3273 — THIS BUTTON NAMED A DESTINATION IT DOES NOT ALWAYS GO TO, and it is the
+         sentence he reported: *"when i click on things within the tabs inside shelf i exit out it
+         brings me to the console instead of moving me back one to where i was"*.
+         `_dossierClose` is a bare `ov.hidden = true`, which is CORRECT — it reveals whatever is
+         underneath, which IS one step back. The defect is the LABEL: the dossier has three
+         openers and only one of them is the shelf.
+             ~:16983  a shelf card            -> the shelf IS underneath   "back to the shelf" true
+             ~:16980  a shelf highlight card  -> the shelf IS underneath   true
+             ~:21310  the off-air HOME strip  -> NO shelf underneath       LIE — lands on console
+             ~:9440   a `session` deeplink    -> NO shelf underneath       LIE — lands on console
+         So from the home strip he taps a run, reads it, presses a button that says THE SHELF, and
+         arrives at the console. The behaviour never moved him wrongly; the word did.
+         ⚠ Fixed as a LABEL, not as a jump. Making it force the shelf open would invent a
+         destination he never came from — the opposite of v3264's rule that a dismiss leaves the
+         way he came in. [[label-outlived-referent]] [[the-unjoined-end]] */
+      + (function(){
+          var _sov = document.getElementById('th-shelfov');
+          var _onShelf = !!(_sov && !_sov.hidden);
+          return '<div class="dsr-top"><button type="button" class="dsr-back" '
+               + 'onclick="window._dossierClose()">\u2039 '
+               + (_onShelf ? 'back to the shelf' : 'back') + '</button></div>';
+        })()
       + '<div class="dsr-hero">' + cover
       + '<div class="dsr-htext">' + (function(){
           var nt = _sesNoteGet(sm.sessionId) || {};
