@@ -17013,6 +17013,34 @@ window._lockMark = function(isOpen, px, label){
          ⚠ NOTHING IS REMOVED AND NO ID MOVES. Every block keeps its id and its async renderer
          (_shStoryRender, _shHighlights, the timeline) finds it the same way; this is an order
          change, which is why it is safe to make on the surface he has open. [[borrowed-surface]] */
+      /* ══ v3289 — THE RECORDS STRIP AND THE CHART LEAD THE SHELF, BY HIS SECOND ASKING ═════
+         Konyo, 2026-09-18: *"the row where it says BEST RUN MOST READS TOP READS BEST COVERAGE
+         AND STREAK i want at the tippy top of the SHELF TAB above the sessions reels"*, and then
+         *"and the activity i want uptop under the BEST RUNS row"*.
+
+         ⚠⚠ THIS REOPENS A MEASURED SCAR, DELIBERATELY, AND ONLY THIS FAR. v2965 measured the
+         cost of furniture above the list at his real 1120x660: the first card sat at y=2491,
+         2101px below the panel's own bottom edge, behind **1433px** of header, pipeline board,
+         highlights, controls and timeline — 530 cards rendered and not one on screen. v3121 then
+         refused this same request for the chart and moved it only to the front of the analytic
+         BAND.
+
+         Two things changed, and they are why this is now grantable rather than reckless:
+           1. **Only two blocks move.** The pipeline board and the river strip STAY below the
+              list. That 1433px was mostly them; the records strip is compact and the chart is
+              one row, so what rises is a fraction of what broke it.
+           2. **v3029 did not exist when v2965 measured.** The shelf now computes the first
+              card's position on open and scrolls to it, so furniture above the list no longer
+              decides whether a reel is reachable — it decides how far the panel scrolls before
+              he sees one. That is a different, survivable cost.
+
+         MEASURED AFTER THE CHANGE at 1120x660 before shipping; if the first card had gone
+         unreachable this would have been reverted rather than argued.
+         ⚠ ORDER ONLY. Nothing is removed, no id moves, and _shHighlights/_shTimeline/
+         _shLanesLoad/_shStoryRender each still find their block by getElementById exactly as
+         before. [[borrowed-surface]] [[visual-regression-detector]] */
+      + _shHighlights()
+      + timelineDiv
       + searchBar + body
       /* ⚠⚠ v2985 (#58) — THE RIVER STRIP MOVES BELOW THE LIST, AND THIS REVERSES v2965 ON PURPOSE.
          v2965 put the strip ABOVE the list and called it "the organisation he asked for", quoting
@@ -17046,10 +17074,8 @@ window._lockMark = function(isOpen, px, label){
          ⚠ ORDER ONLY. No id moves, nothing is removed, and `_shTimeline`/`_shLanesLoad`/
          `_shStoryRender` each still find their block by getElementById exactly as before.
          [[borrowed-surface]] [[visual-regression-detector]] */
-      + timelineDiv
       + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
-      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
-      + _shHighlights();
+      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>';
     ov.hidden = false;
     /* ⚠⚠ v3029 (#58) — OPEN ON A REEL, NOT ON FURNITURE. MEASURED on his live console at 1120x660
        with the shelf open and measurable: clientH 361, firstCardTop 426 — the first reel card sits
@@ -17066,13 +17092,26 @@ window._lockMark = function(isOpen, px, label){
        ⚠ NOTHING TO FIGHT: every other overlay resets `scrollTop = 0` on open; this one never set
        it at all, so there is no restore being overridden. Checked before writing.
        [[zero-needs-a-denominator]] [[visual-regression-detector]] */
-    try {
-      var _firstCard = null;
-      var _cds = ov.querySelectorAll('.sh-grid .sh-card');
-      for (var _ci = 0; _ci < _cds.length; _ci++){
-        if (_cds[_ci].style.display !== 'none'){ _firstCard = _cds[_ci]; break; }
-      }
-      if (_firstCard){
+    /* ══ v3289 — THE OFFSET IS COMPUTED TWICE, AND THE SECOND ONE IS THE REAL ONE ═══════════
+       v3029 measured the first card and scrolled to it right here. MEASURED 2026-09-18 at his
+       real 1120x660, that call decides against a layout that is about to change: `#sh-timeline`
+       ships with the `hidden` attribute and is filled by `_shTimeline()` FURTHER DOWN this same
+       function, so at this moment it contributes **0px** and then becomes 156px. Everything
+       below it shifts by that much AFTER the scroll has been chosen.
+       It went unnoticed while the timeline sat BELOW the list, where its height could not move
+       the cards. v3289 put it above them, which turned a latent miscalculation into a shelf that
+       opens on furniture — measured firstCardVisible:false, scrollTop:0.
+       So the same logic runs again once the blocks above the list are real. One definition, two
+       calls: the first keeps the old behaviour for the paths that never reach the second, and the
+       second is the one that decides. [[stale-reading]] [[the-unjoined-end]] */
+    window._shOpenOnAReel = function (ov) {
+      try {
+        var _firstCard = null;
+        var _cds = ov.querySelectorAll('.sh-grid .sh-card');
+        for (var _ci = 0; _ci < _cds.length; _ci++){
+          if (_cds[_ci].style.display !== 'none'){ _firstCard = _cds[_ci]; break; }
+        }
+        if (!_firstCard) return;
         /* force layout before measuring — the overlay was display:none one statement ago and an
            unlaid-out rect reads all-zero, which would compute a confident scroll of 0. */
         var _ovH = ov.clientHeight || 0;
@@ -17083,8 +17122,9 @@ window._lockMark = function(isOpen, px, label){
         if (_ovH > 0 && _top >= _ovH){
           ov.scrollTop = Math.max(0, _top - Math.round(_ovH * 0.18));
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    };
+    window._shOpenOnAReel(ov);
     try { _shLiveRender(window.__lastStatus); } catch(e){}   // D24 — populate the live "recording now" card from the last poll (shown only on-air)
     /* v2383 — fill the pipeline board, through window.* rather than a bare call.
        ⚠ AND THE REASON IS NOT THE ONE I FIRST WROTE HERE. I claimed this call crossed the
@@ -17103,6 +17143,9 @@ window._lockMark = function(isOpen, px, label){
        different halves of the file's history, and a bare name is a dead render. */
     try { (window._shLanesLoad || function(){})(); } catch(e){}
     _shTimeline();   // v1286 (D12) — draw the runs-per-day activity strip (all runs, stable overview)
+    /* v3289 — NOW the blocks above the list are real, so decide the opening scroll against the
+       layout he will actually see. This is the call that makes the shelf open on a reel. */
+    try { window._shOpenOnAReel(ov); } catch (e) {}
     var _si = $('sh-search');
     if (_si){
       _si.value = SHELF_Q;                       // restore the query across the poll's re-renders

@@ -58,11 +58,20 @@ class TestAStaleServerSaysSo(unittest.TestCase):
             return boot + 2303 if os.path.abspath(path) == os.path.abspath(control_app.__file__) \
                 else real(path)
 
+        # ⚠ v3289 — THE HASH MUST MOVE TOO, AND THIS TEST WAS WRONG UNTIL IT DID. v3288 asserted
+        # that a bare mtime bump meant stale, which is the false positive the cross-family eye
+        # then raised: a `touch` changes no code. Simulating a REAL rewrite means new bytes, so
+        # the sha is stubbed alongside the clock. The old assertion encoded the old bug.
+        realsha = control_app._src_sha
+        control_app._src_sha = lambda: "c0ffee" * 8
+        control_app._FRESH_CACHE["val"] = None
         control_app.os.path.getmtime = later
         try:
             r = control_app.module_freshness()
         finally:
             control_app.os.path.getmtime = real          # always put the clock back
+            control_app._src_sha = realsha
+            control_app._FRESH_CACHE["val"] = None
 
         self.assertTrue(r.get("stale"),
                         "the file was rewritten 2303s after import and the module did not notice")
@@ -84,11 +93,13 @@ class TestAStaleServerSaysSo(unittest.TestCase):
         def boom(path):
             raise OSError("simulated")
 
+        control_app._FRESH_CACHE["val"] = None
         control_app.os.path.getmtime = boom
         try:
             r = control_app.module_freshness()
         finally:
             control_app.os.path.getmtime = real
+            control_app._FRESH_CACHE["val"] = None
 
         self.assertFalse(r.get("known"), "an unreadable file must not be reported as known")
         self.assertIsNone(r.get("stale"), "unknown staleness must be None, never False")
@@ -127,13 +138,79 @@ class TestAStaleServerSaysSo(unittest.TestCase):
                          "clutter on his instruction")
 
 
+    def test_a_touch_that_changes_nothing_is_not_stale(self):
+        """v3289, raised by the cross-family eye on v3288 and real.
+
+        `touch`, a `cp -a`, or an editor writing identical bytes moves the mtime and changes no
+        code. Claiming "SERVER changes are not live" then sends him to restart for nothing, and a
+        warning that cries wolf is one he learns to scroll past.
+        """
+        real = control_app.os.path.getmtime
+        boot = control_app._BOOT_SRC_MTIME
+
+        def later(path):
+            return boot + 2303 if os.path.abspath(path) == os.path.abspath(control_app.__file__) \
+                else real(path)
+
+        control_app._FRESH_CACHE["val"] = None
+        control_app.os.path.getmtime = later
+        try:
+            r = control_app.module_freshness()
+        finally:
+            control_app.os.path.getmtime = real
+            control_app._FRESH_CACHE["val"] = None
+
+        self.assertFalse(r.get("stale"),
+                         "the mtime moved but the BYTES are identical - this must not claim the "
+                         "server is out of date: %r" % (r.get("say"),))
+        self.assertIn("identical bytes", r.get("say") or "",
+                      "it must say WHY it is not stale, or the next reader re-derives it")
+
+    def test_an_OLDER_file_on_disk_is_stale_too_and_says_which_way(self):
+        """The false green nobody would think to check.
+
+        v3288 computed `stale = aged > 0`, so a file REPLACED BY AN OLDER ONE - a restore, a
+        checkout, an mtime skew across machines - subtracted to a negative and reported IN SYNC
+        while the process ran different code. Direction is part of the finding.
+        """
+        real = control_app.os.path.getmtime
+        boot = control_app._BOOT_SRC_MTIME
+        realsha = control_app._src_sha
+
+        def earlier(path):
+            return boot - 900 if os.path.abspath(path) == os.path.abspath(control_app.__file__) \
+                else real(path)
+
+        control_app._FRESH_CACHE["val"] = None
+        control_app.os.path.getmtime = earlier
+        control_app._src_sha = lambda: "deadbeef"      # different bytes, older stamp
+        try:
+            r = control_app.module_freshness()
+        finally:
+            control_app.os.path.getmtime = real
+            control_app._src_sha = realsha
+            control_app._FRESH_CACHE["val"] = None
+
+        self.assertTrue(r.get("stale"),
+                        "an OLDER file with different bytes is still not the code we are running")
+        self.assertTrue(r.get("olderOnDisk"),
+                        "which direction it drifted is part of the finding - a restore and a "
+                        "forward ship need different moves")
+        self.assertEqual(r.get("agedS"), 900, "the gap must be reported as a magnitude, not a "
+                                              "negative that rounds to zero")
+
+
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 RED_PROOF = [
     {
         "why": "pinning stale to False makes the detector one that cannot fire",
         "file": "tv/control_app.py",
-        "find": "    stale = aged > 0",
-        "replace": "    stale = False",
+        # ⚠ re-anchored at v3289: the old anchor `stale = aged > 0` was DELETED by the
+        # content-aware rewrite, so the sabotage matched 0 times and proved nothing. A proof whose
+        # anchor has rotted is inert, and inert proofs pile up exactly where the static law cannot
+        # see them. [[matches-once-can-still-prove-nothing]]
+        "find": '        "known": True, "stale": True, "agedS": aged, "olderOnDisk": _older,',
+        "replace": '        "known": True, "stale": False, "agedS": aged, "olderOnDisk": _older,',
         "matches": 1,
     },
     {
@@ -148,6 +225,20 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": '        return {"known": False, "stale": None,\n                "say": "the source file cannot be read now, so this is UNMEASURED rather than "\n                       "in sync"}',
         "replace": '        return {"known": True, "stale": False, "say": "in sync"}',
+        "matches": 1,
+    },
+    {
+        "why": "dropping the hash confirmation makes a bare touch cry wolf on every poll",
+        "file": "tv/control_app.py",
+        "find": "    if _sha == _BOOT_SRC_SHA:",
+        "replace": "    if False:",
+        "matches": 1,
+    },
+    {
+        "why": "an older file on disk must not subtract to a negative and read as in sync",
+        "file": "tv/control_app.py",
+        "find": "    aged = int(abs(now_mtime - _BOOT_SRC_MTIME))",
+        "replace": "    aged = int(now_mtime - _BOOT_SRC_MTIME)",
         "matches": 1,
     },
     {

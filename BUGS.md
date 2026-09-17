@@ -36626,6 +36626,50 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1098 — the shelf chose where to open before the chart above it existed
+
+**v3289.** Konyo, 2026-09-18: *"the row where it says BEST RUN MOST READS TOP READS BEST COVERAGE
+AND STREAK i want at the tippy top of the SHELF TAB above the sessions reels"*, and then *"and the
+activity i want uptop under the BEST RUNS row"*.
+
+⚠⚠ **HE HAD ASKED BEFORE AND IT WAS REFUSED, WITH A MEASUREMENT.** v2965 measured furniture above
+the list at his real 1120x660 — first card at y=2491, **2101px below the panel's own bottom
+edge**, behind 1433px of header, board, highlights, controls and timeline; 530 cards rendered and
+not one on screen. v3121 then refused this exact request for the chart and moved it only to the
+front of the analytic band. He has now asked twice and more specifically, so it is granted — but
+only with a guard for the half of his sentence he did not repeat: *"those reels coming in should
+be SEEN"*.
+
+**Measured before and after, on the live console at 1120x660:**
+
+```
+order alone     scrollTop   0   firstCardTop 815   firstCardVisible FALSE
+order + guard   scrollTop 476   firstCardTop 235   firstCardVisible TRUE    (clientH 390)
+```
+
+**The guard is a timing fix, and the bug was already there.** v3029 chose the opening scroll in
+the statement after `ov.hidden = false` — but `#sh-timeline` ships carrying the `hidden`
+attribute and is filled by `_shTimeline()` **further down the same function**. So at decision
+time the chart contributed **0px**, then became **156px**, shifting everything below it after the
+scroll had been chosen. That was invisible for as long as the timeline sat BELOW the cards, where
+its height could not move them. Putting it above turned a latent miscalculation into a shelf that
+opens on furniture. The logic is now a named function called twice, and the second call — after
+`_shTimeline()` — is the one that decides. [[stale-reading]] [[the-unjoined-end]]
+
+⚠ **I nearly shipped the order change alone.** The first measurement came back
+`firstCardVisible: false`, which is the scar reproducing exactly, and the patch comment I had
+already written said it would be reverted rather than argued if the card went unreachable. It was
+*reachable* (needScroll 711 against maxScroll 2059) but not *visible on open*, and those are
+different facts — the panel would have opened on a chart every time.
+
+**Gate:** `test_shelf_opens_on_a_reel`, 3 red-proofs, all PROVEN at exactly 1 match each. It pins
+the ORDER as a positional fact (`_shHighlights` before `searchBar + body`, ACTIVITY *under* the
+records row as he said), that the scroll is re-decided after the chart is real, and that a shelf
+whose first card is already visible is still left alone.
+
+Also measured in passing, for REG-to-come on the run counts: the shelf renders **12** cards,
+which is the 12 he asked about.
+
 ## REG-1097 — two mechanisms asked "is this console current?" and contradicted each other
 
 **v3288.** Grok Bot, native LOOKED `#5721820085`: *"Chiliad Console v3283 · Agent v3284 · Board

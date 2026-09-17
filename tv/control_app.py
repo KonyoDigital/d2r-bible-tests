@@ -17951,17 +17951,48 @@ _DRIFT_EVERY_S = float(os.environ.get("TV_DRIFT_EVERY_S", "300") or 300)
 # question, and it is the one the gate has been trying to ask.
 # [[unknown-stays-unknown]] [[the-unjoined-end]]
 _BOOT_AT = time.time()
+
+
+def _src_sha():
+    """sha256 of this file, or None. Used sparingly - see the TTL and the mtime fast path."""
+    try:
+        import hashlib
+        with open(os.path.abspath(__file__), "rb") as _fh:
+            return hashlib.sha256(_fh.read()).hexdigest()
+    except Exception:
+        return None
+
+
 try:
     _BOOT_SRC_MTIME = os.path.getmtime(os.path.abspath(__file__))
 except OSError:
     _BOOT_SRC_MTIME = None
+_BOOT_SRC_SHA = _src_sha()
+
+# v3289 — a syscall per /api/status is a cost on the control path, and the poll is frequent.
+# Raised by the cross-family eye on v3288, which also noted `_DRIFT_EVERY_S` as proof the authors
+# already cared about exactly this. The verdict cannot change faster than a file write, so a few
+# seconds of cache is free correctness.
+_FRESH_TTL_S = 5.0
+_FRESH_CACHE = {"at": 0.0, "val": None}
 
 
 def module_freshness():
-    """Is the code answering this request the code on disk? Reads two clocks; changes nothing."""
-    if _BOOT_SRC_MTIME is None:
+    """Is the code answering this request the code on disk? Reads; changes nothing."""
+    _now = time.time()
+    _c = _FRESH_CACHE
+    if _c["val"] is not None and (_now - _c["at"]) < _FRESH_TTL_S:
+        return _c["val"]
+    _v = _module_freshness_now()
+    _c["at"] = _now
+    _c["val"] = _v
+    return _v
+
+
+def _module_freshness_now():
+    if _BOOT_SRC_MTIME is None or _BOOT_SRC_SHA is None:
         return {"known": False, "stale": None,
-                "say": "the source mtime was not readable at import, so this is UNMEASURED "
+                "say": "the source was not readable at import, so this is UNMEASURED "
                        "rather than in sync"}
     try:
         now_mtime = os.path.getmtime(os.path.abspath(__file__))
@@ -17969,19 +18000,45 @@ def module_freshness():
         return {"known": False, "stale": None,
                 "say": "the source file cannot be read now, so this is UNMEASURED rather than "
                        "in sync"}
-    aged = int(now_mtime - _BOOT_SRC_MTIME)
-    stale = aged > 0
-    return {
-        "known": True,
-        "stale": stale,
-        "loadedAtMs": int(_BOOT_AT * 1000),
-        "srcWrittenMs": int(now_mtime * 1000),
-        "agedS": aged if stale else 0,
-        "say": (("this server is the code as it was %s ago - control_app.py was rewritten after "
-                 "it loaded, so PAGE changes are live and SERVER changes are not. Restart to pick "
-                 "them up." % _ago_words(aged)) if stale
-                else "this server is the file on disk"),
-    }
+    base = {"loadedAtMs": int(_BOOT_AT * 1000), "srcWrittenMs": int(now_mtime * 1000)}
+    # FAST PATH: an untouched file is the overwhelmingly common case and costs one stat.
+    if now_mtime == _BOOT_SRC_MTIME:
+        base.update({"known": True, "stale": False, "agedS": 0,
+                     "say": "this server is the file on disk"})
+        return base
+
+    # v3289 — THE MTIME MOVED, WHICH IS NOT THE SAME AS THE CODE CHANGING, AND THE DIRECTION
+    # MATTERS. Both raised by the cross-family eye on v3288:
+    #   · `touch`, a `cp -a`, or an editor writing identical bytes moves the mtime and changes
+    #     nothing. Claiming "SERVER changes are not live" then sends him to restart for nothing.
+    #   · `aged > 0` treated a file replaced by an OLDER one - a restore, a checkout, an mtime
+    #     skew across machines - as IN SYNC, because the subtraction came out negative. That is a
+    #     false green in the one direction nobody would think to check.
+    # So the hash decides, and it is only ever read when the cheap test already said something
+    # moved. [[unknown-stays-unknown]]
+    _sha = _src_sha()
+    if _sha is None:
+        base.update({"known": False, "stale": None,
+                     "say": "the source mtime moved but the file could not be read to confirm, "
+                            "so this is UNMEASURED rather than in sync"})
+        return base
+    if _sha == _BOOT_SRC_SHA:
+        base.update({"known": True, "stale": False, "agedS": 0,
+                     "say": "this server is the file on disk - the file was rewritten with "
+                            "identical bytes, so there is nothing to restart for"})
+        return base
+    aged = int(abs(now_mtime - _BOOT_SRC_MTIME))
+    _older = now_mtime < _BOOT_SRC_MTIME
+    base.update({
+        "known": True, "stale": True, "agedS": aged, "olderOnDisk": _older,
+        "say": (("this server is NOT the file on disk - the file was replaced %s EARLIER than the "
+                 "one this process loaded, so disk is older code. PAGE changes are live and "
+                 "SERVER changes are not. Restart to pick it up." % _ago_words(aged)) if _older
+                else ("this server is the code as it was %s ago - control_app.py was rewritten "
+                      "after it loaded, so PAGE changes are live and SERVER changes are not. "
+                      "Restart to pick them up." % _ago_words(aged))),
+    })
+    return base
 
 
 def _ago_words(sec):
@@ -29839,7 +29896,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3288",
+        "ver": "v3289",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
