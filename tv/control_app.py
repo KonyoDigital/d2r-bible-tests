@@ -21736,6 +21736,23 @@ def tombstone_view(limit=300):
     return out
 
 
+def _shape(val, want):
+    """`val` if it is `want` AND holds only strings; None for every other shape. -> val | None
+
+    ⚠ ONE RULE FOR THREE STORES. Each of d2r_owned / d2r_muleAssign / d2r_setPieces was being
+    shape-checked separately and differently, and the differences were the defects: a list of
+    objects crashed `set()`, a truthy scalar crashed `.keys()`, and a list where a map was
+    expected silently became an empty map. None means UNKNOWN in every case, never "none of them".
+    """
+    if want is dict:
+        if not isinstance(val, dict):
+            return None
+        return val if all(isinstance(k, str) for k in val) else None
+    if not isinstance(val, list):
+        return None
+    return val if all(isinstance(x, str) for x in val) else None
+
+
 def vault_population(board=None):
     """WHY is each owned name where it is. -> dict (never None; UNKNOWN travels inside)
 
@@ -21803,15 +21820,33 @@ def vault_population(board=None):
     # a missing or unparseable `d2r_setPieces` made `sets_s` empty and the payload still said
     # `ok: True, alsoSetPiece: 0, notSetPiece: <all of them>` — "none of your items are set
     # pieces", stated from a store nobody could read. [[unknown-stays-unknown]]
-    assign_raw = _load("d2r_muleAssign")
-    sets_raw = _load("d2r_setPieces")
-    for nm, val in (("d2r_muleAssign", assign_raw), ("d2r_setPieces", sets_raw)):
-        if val is None:
-            return {"ok": False, "owned": None, "byLocker": None,
-                    "why": "%s could not be read, so how his items are classified is UNKNOWN - "
-                           "not none" % nm}
-    assign = assign_raw if isinstance(assign_raw, dict) else {}
-    sets_s = set(sets_raw if isinstance(sets_raw, list) else (sets_raw or {}).keys())
+    # ⚠⚠ THE SHAPE, NOT JUST THE PRESENCE — AND ALL THREE STORES, NOT ONE. v3251 taught the
+    # `owned` read to refuse a list of objects and left its two siblings reading the old way. A
+    # cross-family review named both within the hour:
+    #   · `d2r_setPieces` as `[{"name": "Tal's Mask"}]` passes the None check and `set()` then
+    #     raises TypeError on the unhashable dict — the exact crash the owned guard had just
+    #     closed, one variable along.
+    #   · a truthy non-list, non-dict (`1`, `true`, a bare string) reaches `(x or {}).keys()` and
+    #     raises AttributeError.
+    #   · `d2r_muleAssign` parsing as a LIST is not None, so the UNKNOWN return never fires and
+    #     `assign` silently becomes `{}` — "he filed nothing", from a store that was read and
+    #     misunderstood.
+    # Fixing one of three identical reads and shipping is the sweep this repo keeps paying for.
+    # [[sweep-dont-ask]] [[unknown-stays-unknown]]
+    assign = _shape(_load("d2r_muleAssign"), dict)
+    if assign is None:
+        return {"ok": False, "owned": None, "byLocker": None,
+                "why": "d2r_muleAssign could not be read as a name->locker map, so where he has "
+                       "filed things is UNKNOWN - not nowhere"}
+    sets_names = _load("d2r_setPieces")
+    if isinstance(sets_names, dict):
+        sets_names = list(sets_names.keys())
+    sets_names = _shape(sets_names, list)
+    if sets_names is None:
+        return {"ok": False, "owned": None, "byLocker": None,
+                "why": "d2r_setPieces could not be read as a list of names, so which of his "
+                       "items are set pieces is UNKNOWN - not none"}
+    sets_s = set(sets_names)
     owned_s = set(owned)
     by = {}
     for n in owned_s:
@@ -29457,7 +29492,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3252",
+        "ver": "v3253",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

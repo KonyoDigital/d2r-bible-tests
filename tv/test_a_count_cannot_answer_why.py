@@ -122,6 +122,42 @@ class TestACountCannotAnswerWhy(unittest.TestCase):
         self.assertFalse(r.get("ok"), "a list of objects was read as a list of names: %r" % r)
         self.assertIsNone(r.get("owned"))
 
+    def test_every_store_is_shape_checked_not_just_owned(self):
+        """★ v3251 taught the OWNED read to refuse a list of objects and left its two siblings
+        reading the old way. A cross-family review named both within the hour: `d2r_setPieces` as
+        `[{"name": "..."}]` hits the same `set()` TypeError one variable along; a truthy scalar
+        hits `.keys()`; and `d2r_muleAssign` parsing as a LIST is not None, so the UNKNOWN return
+        never fires and it silently becomes "he filed nothing". Fixing one of three identical
+        reads and shipping is the sweep this repo keeps paying for. [[sweep-dont-ask]]"""
+        base = {"d2r_owned": json.dumps(["a"]),
+                "d2r_muleAssign": json.dumps({}),
+                "d2r_setPieces": json.dumps([])}
+        for label, store, bad in (
+                ("d2r_setPieces as a list of objects", "d2r_setPieces", [{"name": "x"}]),
+                ("d2r_setPieces as a number", "d2r_setPieces", 1),
+                ("d2r_setPieces as a bare string", "d2r_setPieces", "Tal's Mask"),
+                ("d2r_muleAssign as a list", "d2r_muleAssign", []),
+                ("d2r_muleAssign as a number", "d2r_muleAssign", 7)):
+            stores = dict(base)
+            stores[store] = json.dumps(bad)
+            r = CA.vault_population(board={"ok": True, "fullStores": stores})
+            self.assertFalse(r.get("ok"),
+                             "%s was accepted — it either crashes the door or reports a confident "
+                             "classification from a store nobody understood: %r" % (label, r))
+            self.assertIsNone(r.get("owned"), "%s produced a count: %r" % (label, r))
+            self.assertIn("UNKNOWN", r.get("why") or "",
+                          "%s did not say it was unknown: %r" % (label, r.get("why")))
+
+    def test_a_dict_shaped_setPieces_is_still_read(self):
+        """⚠ The store has legitimately been a map in this tree — its keys are the names. The
+        shape rule must not turn a supported shape into UNKNOWN while fixing the broken ones."""
+        r = CA.vault_population(board={"ok": True, "fullStores": {
+            "d2r_owned": json.dumps(["Tal's Mask", "Shako"]),
+            "d2r_muleAssign": json.dumps({}),
+            "d2r_setPieces": json.dumps({"Tal's Mask": "2026-01-01"})}})
+        self.assertTrue(r.get("ok"), "a dict-shaped d2r_setPieces was refused: %r" % r.get("why"))
+        self.assertEqual(r["alsoSetPiece"], 1, "its keys were not read as the names: %r" % r)
+
     def test_it_does_not_claim_to_be_counting_the_dock(self):
         """⚠ The dock is ownedPool() minus assignment and also drops aggregates, the shared stash
         and unmatched names. Measured the same minute: 49 here, 46 in the dock."""

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3252",
+  "ver": "v3253",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3252: the trace spine law reads two untracked stores that live only on his mac, so on a runner it fired an assertion that reads as hop four being broken when nothing could be examined. its own message already said unknown, it simply failed instead of standing down. it is a marked and counted skip now, and still runs in full here",
+  "note": "v3253: v3251 taught the owned read to refuse a list of objects and left the two sibling reads in the same function unchanged, so set pieces as a list of objects hit the identical crash one variable along and a mule assign parsing as a list silently became he filed nothing. one rule now, and a dict shaped set pieces store is still read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

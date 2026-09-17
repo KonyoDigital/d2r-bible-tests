@@ -35707,3 +35707,33 @@ green. `[[unknown-stays-unknown]]` `[[regression-guard]]`
 ⚠ `disk_report_wilson` was on the reproducible list and is not: it passes here with **PROVEN · 32
 of 32 attempts refused**, measuring his 9 GB reel corpus. It belongs in the venue-dependent bucket,
 which now holds the whole remainder.
+
+## REG-1058 — I fixed one of three identical reads and shipped
+
+**2026-09-17 · v3253 · `tv/control_app.py`** — *two findings from a cross-family review of v3251,
+which was itself the fix for four findings on v3249.*
+
+v3251 taught the `d2r_owned` read to refuse a list of objects, because `set()` raises `TypeError`
+on an unhashable dict. It left the two sibling reads in the same function unchanged, and the review
+named both within the hour:
+
+- **HIGH — `d2r_setPieces` as `[{"name": "Tal's Mask"}]`** passes the `None` check and hits **the
+  same `set()` TypeError one variable along** — the exact crash the `owned` guard had just closed.
+- A truthy non-list, non-dict (`1`, `true`, a bare string) reaches `(x or {}).keys()` and raises
+  `AttributeError`.
+- **MEDIUM — `d2r_muleAssign` parsing as a LIST is not None**, so the UNKNOWN return never fires
+  and `assign` silently becomes `{}` — *"he filed nothing"*, from a store that was read and
+  misunderstood.
+
+**Fixed with ONE rule for all three.** `_shape(val, want)` returns the value only when it is the
+wanted type AND holds only strings; None otherwise, and None means UNKNOWN in every case — never
+"none of them". A dict-shaped `d2r_setPieces` is still read (its keys are the names), pinned by its
+own law so the repair cannot turn a supported shape into UNKNOWN.
+
+13 laws. Red-proofed by removing the element check: error. His board reads identically across the
+change — 222 / 173 / 49 / 50.
+
+⚠ **This is `sweep-dont-ask` in its plainest form.** The defect, the fix, and the sibling were all
+in one 40-line function, and I shipped after the first. Eight consecutive versions now where a
+different family has found real defects in my own work — and this one was not subtle, it was the
+same line twice.
