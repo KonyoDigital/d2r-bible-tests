@@ -1119,7 +1119,22 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
         return INVALID
 
     # 2. TAMPER
-    _tampered = original.replace(find, repl, want)
+    # ⚠⚠ v3243 — AND THE THIRD READER OF THE SAME FIELD. v3241 made `want` None when nobody
+    # declared a count, which is correct for the COMPARISON above — and this line passes it
+    # straight to str.replace as the count, where `None` is a TypeError:
+    #     "aa".replace("a", "b", None) -> 'NoneType' object cannot be interpreted as an integer
+    # So every 4-tuple proof (32 of them, all count-less) would have raised here, at the exact
+    # step that does the tampering — the fix for "the prover could not READ them" would have
+    # become "the prover crashes while TAMPERING them". Caught by a cross-family review of v3241,
+    # the version that introduced the None.
+    #
+    # One field, three readers: legal-with-no-count (_normalise_proofs), compare-only-if-declared
+    # (here and the well-formedness law), and a literal argument to str.replace. Same rule
+    # everywhere: nobody declared a number, so replace EVERY occurrence — which is exactly what
+    # `got` counted and what the `got >= 1` check just accepted.
+    # [[unknown-stays-unknown]] [[copy-drift]] [[the-unjoined-end]]
+    _tampered = (original.replace(find, repl) if want is None
+                 else original.replace(find, repl, want))
     # ⚠⚠ A NON-ZERO EXIT IS NOT PROOF THE LAW FIRED. `_run_gate` reduces the tampered run to
     # `returncode == 0`, so a SyntaxError or ImportError the tamper introduced would be credited
     # as "the law caught the defect" — the gate would be praised for a crash it never inspected.

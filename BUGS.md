@@ -35320,3 +35320,46 @@ exception constructor on the failure path produces nothing; timing it would be t
 message. Excluded STRUCTURALLY (every node under an `ast.Raise`) rather than by adding
 `"RuntimeError"` to a name list, so the next `ValueError` in a guard does not re-open it.
 Red-proofed: a real untimed producer → red naming it; swapping the exception type → still green.
+
+## REG-1048 — the third reader of a field whose meaning I had just changed
+
+**2026-09-17 · v3243 · `tv/heart2.py`** — *found by a cross-family review of v3241, which was the
+fix for v3240, which was the fix for REG-1045.*
+
+v3241 made `want` **None** when a proof declares no match count — correct for the comparison, and
+matching what the well-formedness law already did. One line later:
+
+```python
+_tampered = original.replace(find, repl, want)
+"aa".replace("a", "b", None)
+TypeError: 'NoneType' object cannot be interpreted as an integer
+```
+
+**All 32 count-less proofs would have raised at the moment they tamper.** The fix for *"the prover
+could not READ them"* would have become *"the prover crashes while TAMPERING them"*, one line
+further down the same function. Measured: 32 proofs in the tree rely on that path.
+
+⚠ **One field, three readers, each needing to be told separately:**
+
+| reader | what `matches is None` means |
+|---|---|
+| `_normalise_proofs` | legal — 4-tuples carry no count |
+| the comparison + the well-formedness law | do not compare; check `got >= 1` only |
+| `str.replace`'s third argument | **not an integer** |
+
+I taught the first two and shipped without the third. Every time this repo has been bitten it was
+a second reader of a field whose meaning had just been changed. `[[copy-drift]]`
+`[[unknown-stays-unknown]]` `[[the-unjoined-end]]`
+
+**Fixed:** no declaration means tamper EVERY occurrence — precisely what `got` counted and what
+`got >= 1` accepted a moment earlier. A declared count still limits the tamper.
+
+Gate: `tv/test_a_countless_proof_can_still_tamper.py`, 5 laws. It parses the real assignment out of
+`_prove_one` rather than retyping it, measures that 32 count-less proofs exist so the guard is not
+untested prose, and asserts the TypeError premise itself — if `None` ever stops raising, the law
+above it is theatre. Red-proofed: restoring the unconditional call → red.
+
+⚠ **Five versions in a row now, each fix creating the next, all caught by the same cross-family
+eye** — v3233 → v3235 → v3237 → v3239 → v3241 → v3243. Not one was a bad fix; each was correct and
+each moved the defect one reader further out. That is what a repair looks like in a system with
+more consumers than the author is holding in mind. `[[review-after-ship]]`

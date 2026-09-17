@@ -155,6 +155,11 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_countless_proof", [sys.executable,
+                                  os.path.join(HERE, "test_a_countless_proof_can_still_tamper.py")], 60,
+         why="REG-1048 — a proof with no declared match count reached str.replace as its count, "
+             "and None is a TypeError, so all 32 count-less proofs would have raised AT the "
+             "tampering step. One field, three readers, each needing to be told separately"),
     Gate("test_blind_organ", [sys.executable,
                               os.path.join(HERE, "test_a_blind_organ_says_so.py")], 60,
          why="REG-1034 — heart_map._read returned '' so an unreadable control_ui.html would have "
