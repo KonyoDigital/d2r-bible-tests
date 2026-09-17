@@ -36316,3 +36316,51 @@ seed **stubs `fetch` and names `/api/fleet`** (1039 chars) while `advanced-fleet
 ⚠ One sabotage stayed green and the SABOTAGE was wrong: `page` genuinely satisfies the predicate —
 it serves the live console with an unstubbed seed — so the law was right to allow it, and the
 two-entry ceiling is what bounds it.
+
+## REG-1070 — "13 of 13" over eight cards, and the law I wrote for it read its own comment
+
+Konyo: *"IN TOTAL i want to see only 8 reel session (those same last 8 reels that come in FIFO) ...
+and obviously those 8 hidden fixtures are backend purpose also kept.. thats all 16 in total"* — and
+his header read **13 of 13** over **eight** visible cards.
+
+**He was right and the cards were right.** The FIFO cap works: `RIVER_KEEP = 8`, everything past it
+gets `data-river-out`, and `#th-shelfov .sh-card[data-river-out] { display: none !important }`
+hides it. Measured on his console: 13 cards, **8 actually visible**, 5 past the cap.
+
+**The NUMBER was wrong, because TWO mechanisms hide a card and the counter knew only one:**
+
+| mechanism | how it hides | counted by `shown`? |
+|---|---|---|
+| the search/station FILTER | `c.style.display = 'none'` | **yes** |
+| the RIVER CAP (his FIFO 8) | `data-river-out` + a CSS rule | **no** |
+
+Now reads `8 of 13 · 5 past the river`, verified on pixels. The overflow is NAMED, not silently
+subtracted.
+
+### ⚠⚠ THE FIX TOOK THREE PLACEMENTS, AND EACH WAS PRESENT, CORRECT AND UNREACHABLE
+
+1. **End of `_shFilter`** — dead. The count is written at the top of that function and the cap runs
+   in `_shGroups()` *below* it, so the recount ran before `data-river-out` existed.
+2. **End of `_shGroups`** — dead. The river branch **`return;`s** long before the function ends.
+3. **Beside `mkHead`, inside the river branch** — live. `keptN`/`pinN`/`pushedN` are already
+   computed there, so there is no DOM re-walk and no ordering to remember.
+
+I also called a `_shCards()` that **does not exist** — it would have thrown into its own `catch`
+and done nothing, a fix that ships and never runs. Caught by grepping for the definition instead of
+assuming the name.
+
+### ⚠⚠⚠ AND THE LAW I WROTE TO PIN IT WAS SATISFIED BY MY OWN COMMENT
+
+Three sabotages — deleting the refresh outright, re-walking the DOM, dropping the overflow — all
+came back **GREEN**. The slice handed to the assertions contained the explanatory block above the
+code, which says *"`keptN + pinN` is what is on screen; `pushedN` is NAMED rather than silently
+subtracted"*. **The law was reading its own commentary.**
+
+That is `source-reading-guard`'s carved scar — *grepping prose* — landing inside the law I wrote to
+fix the PREVIOUS scar, and it is the **fourth** presence-law-where-a-reachability-law-was-needed in
+this one session (REG-1063, REG-1067, the v3258 look, and this). Comments are stripped before the
+assertions now. **Strip first, assert second, always.**
+
+GATE: `TheHeaderCountsWhatIsONSCREEN` — the refresh must sit INSIDE the river branch (before its
+return), must use the numbers the cap produced rather than a re-walk, and must NAME the overflow.
+Three red-proofs, all RED after the strip.

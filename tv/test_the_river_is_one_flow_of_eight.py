@@ -24,6 +24,7 @@ the GROUPING, not the information.
      "nothing ever finished".
 """
 import io
+import re
 import json
 import os
 import subprocess
@@ -275,6 +276,78 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         o = self.drive(self._runs(3), mouth="null")
         self.assertIn("not read yet", o["heads"][0]["lab"],
                       "an unread ledger must not render as a confident zero")
+
+
+
+class TheHeaderCountsWhatIsONSCREEN(unittest.TestCase):
+    """★ HIS HEADER SAID 13 OF 13 OVER EIGHT CARDS.
+
+    Konyo: *"IN TOTAL i want to see only 8 reel session ... thats all 16 in total"*. He was right
+    and the CARDS were right — the river cap works, eight were visible. The NUMBER was wrong,
+    because TWO mechanisms hide a card and the counter knew only one:
+
+        the FILTER     hides with `c.style.display = 'none'`    -> counted by `shown`
+        the RIVER CAP  hides with `data-river-out` + a CSS rule -> invisible to `shown`
+
+    ⚠⚠ AND THE FIX TOOK THREE PLACEMENTS, WHICH IS WHY THIS LAW PINS POSITION AND NOT PRESENCE.
+    End of `_shFilter`: dead, the cap had not run yet. End of `_shGroups`: dead, the river branch
+    RETURNS before reaching it. Both times the code was present, correct, and never executed —
+    the same shape as the two presence-laws this session that went green over dead features.
+    It belongs beside the numbers the cap just produced. [[the-unjoined-end]]
+    """
+
+    def _river_branch(self):
+        """START -> the branch's own `return;`. Both ends anchored, and the END is the RETURN
+        rather than the mkHead, because everything after that return is unreachable from here."""
+        with io.open(UI, encoding="utf-8") as fh:
+            src = fh.read()
+        i = src.find(START)
+        self.assertGreater(i, -1, "the river block is gone from control_ui.html")
+        e = src.find(END, i)
+        self.assertGreater(e, i, "the river block no longer ends with its single mkHead")
+        r = src.find("return;", e)
+        self.assertGreater(r, e, "the river branch no longer returns — re-anchor this law")
+        # ⚠⚠ THE SLICE IS mkHead -> RETURN, NOT RIVER_KEEP -> RETURN, and that is the whole law.
+        # The wider slice made every assertion below satisfiable by an UNRELATED occurrence: three
+        # sabotages came back GREEN because `keptN + pinN` also appears in the mkHead call and
+        # `pushedN` in the banner text further up. The names were present, the refresh was gutted.
+        # FOURTH presence-law-where-a-reachability-law-was-needed in one session.
+        # [[source-reading-guard]] [[sabotage-is-usually-the-wrong-one]]
+        blk = src[e + len(END):r]
+        # ⚠⚠⚠ AND THE COMMENTS COME OUT, BECAUSE MY OWN PROSE WAS SATISFYING THESE ASSERTIONS.
+        # Measured: with comments in, THREE sabotages came back green — deleting the refresh
+        # outright, re-walking the DOM, and dropping the overflow — because the explanatory block
+        # above the code says "`keptN + pinN` is what is on screen; `pushedN` is NAMED rather than
+        # silently subtracted". The law was reading its own commentary. That is `source-reading-
+        # guard`'s carved scar (grepping prose) landing inside the law I wrote to fix the LAST
+        # scar. Strip first, assert second, always. [[source-reading-guard]]
+        blk = re.sub(r"/\*.*?\*/", " ", blk, flags=re.S)
+        return re.sub(r"(?m)^\s*//.*$", " ", blk)
+
+    def test_the_count_is_REFRESHED_inside_the_river_branch(self):
+        blk = self._river_branch()
+        self.assertIn("sh-search-count", blk,
+                      "nothing refreshes the shelf's count inside the river branch, so the header "
+                      "keeps reporting filter-matches while the cap decides what is on screen — "
+                      "his 13 of 13 over eight cards")
+
+    def test_it_counts_the_CAPPED_numbers_not_a_re_walk(self):
+        """`keptN + pinN` is what the cap just decided is on screen. Re-deriving it from the DOM
+        would be a second answer to a question already answered one line up, and the two can
+        disagree — which is the whole defect, one level in."""
+        blk = self._river_branch()
+        self.assertIn("keptN + pinN", blk,
+                      "the refreshed count is not built from the numbers the cap produced")
+        self.assertIn("pushedN", blk,
+                      "the overflow is not NAMED, so the difference between what he can see and "
+                      "what is on the shelf is silently subtracted instead of explained")
+
+    def test_the_refresh_is_BEFORE_the_branch_returns(self):
+        """★ THE ONE THAT WOULD HAVE CAUGHT TWO OF MY THREE PLACEMENTS. Presence is not reach."""
+        blk = self._river_branch()
+        self.assertIn("sh-search-count", blk,
+                      "the refresh is not inside the river branch at all — if it sits after the "
+                      "branch's return it is unreachable, which is exactly where it sat twice")
 
 
 if __name__ == "__main__":

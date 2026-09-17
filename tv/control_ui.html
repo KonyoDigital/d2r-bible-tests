@@ -17723,6 +17723,25 @@ window._lockMark = function(isOpen, px, label){
               + mouthTxt;
       mkHead(lab, keptN + pinN, flow[0],
              ' sh-rivergroup' + (_mouthHasRows ? ' sh-rivermouth' : ''));
+      /* ⚠⚠ v3261 — THE HEADER COUNTED FILTER-MATCHES WHILE THE RIVER HAD CAPPED THE SCREEN.
+         Konyo: *"IN TOTAL i want to see only 8 reel session ... thats all 16 in total"* — and his
+         header read **13 of 13** over eight cards. He was right and the cards were right: TWO
+         mechanisms hide a card and the counter knew only one.
+             the FILTER    hides with `c.style.display = 'none'`   -> counted
+             the RIVER CAP hides with `data-river-out` + a CSS rule -> NOT counted
+         ⚠ AND IT TOOK THREE PLACEMENTS, because I kept putting it where it LOOKED right instead
+         of tracing execution. End of `_shFilter`: dead, the cap had not run. End of `_shGroups`:
+         dead, the river branch RETURNS at the line below and never reaches the end. It belongs
+         HERE, beside the numbers the cap just produced — no DOM re-walk, no ordering to remember.
+         `keptN + pinN` is what is on screen; `pushedN` is NAMED rather than silently subtracted.
+         [[the-unjoined-end]] [[zero-needs-a-denominator]] */
+      try {
+        var _cnt2 = $('sh-search-count');
+        if (_cnt2 && _cnt2.textContent) {
+          _cnt2.textContent = (keptN + pinN) + ' of ' + vis.length
+            + (pushedN ? ' \u00b7 ' + pushedN + ' past the river' : '');
+        }
+      } catch (_e2) {}
       return;
     }
     if ((SHELF_S || 'newest') !== 'newest') return;   // day headers only in the date-ordered (Newest) view
