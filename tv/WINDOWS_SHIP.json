@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3247",
+  "ver": "v3248",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3247: the board now asks the console which names the ledger can prove and shows a count beside each locker, marking rather than filtering because the fourteen that clear the bar are potions and charms. on the public site there is no console so the chip is absent rather than zero",
+  "note": "v3248: the live store skip sat in setUp so every case stood down on a clone without his ledger and the gate reported green having run nothing, which is the exact defect the helper was built to expose one version earlier. a row whose witnesses field is an integer crashed the door with a length error. and the contract line promised a None the door never returns",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -21737,7 +21737,13 @@ def tombstone_view(limit=300):
 
 
 def vault_proven_names(min_witnesses=2):
-    """The names the vault ledger can PROVE he owns. -> dict | None on an unreadable ledger
+    """The names the vault ledger can PROVE he owns. -> ALWAYS a dict, never None
+
+    ⚠ IT NEVER RETURNS None — the UNKNOWN is `proven: None` INSIDE the dict, beside `ok: False`
+    and a `why`. A caller writing `if not vault_proven_names():` or `... is None:` would sail past
+    an unreadable ledger, because `{"ok": False, ...}` is a live truthy dict. Read `ok`, then
+    `proven`. (The first version of this line said "dict | None" and was simply wrong about its
+    own contract.)
 
     ⚠⚠ THE ADMISSION BAR HAD NO WAY TO REACH THE THING IT GATES. #105 established the rule —
     "only ledger+proof enters" — and MEASURED it: 14 names carry a corroborated proof. His vault
@@ -21777,7 +21783,12 @@ def vault_proven_names(min_witnesses=2):
         n = str(r.get("name") or "").strip()
         if not n:
             continue
-        w = len(r.get("witnesses") or [])
+        # ⚠ A ROW MAY BE MALFORMED. `{"name": "Shako", "witnesses": 2}` makes `len(2)` a
+        # TypeError, and this door is read by the heart and by his board — a crash here is a
+        # blank chip with no reason. A row whose witnesses are not a list has NOT been shown to
+        # carry any, so it counts as zero and falls short rather than taking the door down.
+        _w = r.get("witnesses")
+        w = len(_w) if isinstance(_w, (list, tuple)) else 0
         if w >= int(min_witnesses):
             proven.append({"name": n, "witnesses": w, "conf": r.get("conf"),
                            "lane": r.get("lane")})
@@ -29334,7 +29345,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3247",
+        "ver": "v3248",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

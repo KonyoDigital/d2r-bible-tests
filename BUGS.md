@@ -35531,3 +35531,36 @@ behaviour now. `[[feedback-comments-vs-code]]`
 ⚠ **Inert until the console restarts.** `control_app` is a loaded module, so `/api/vault_proven`
 404s on the instance running now; the ask fails, `VAULT_PROVEN` stays null, and the chip is simply
 absent — which is the correct behaviour for "no console", not a bug.
+
+## REG-1053 — the admission gate skipped itself green, and a malformed row crashed the door
+
+**2026-09-17 · v3248 · `tv/control_app.py`, `tv/test_the_admission_bar_knows_what_it_would_admit.py`**
+— *all three from a cross-family review of v3246.*
+
+**1. The gate skipped ALL FIVE cases and exited 0.** `live_store.require(...)` sat in `setUp`, so
+on any clone without his `vault_accum.json` — GitHub CI, a fresh checkout — unittest skipped
+everything and `Gate("test_admission_bar")` reported **GREEN having exercised nothing**. That is
+precisely the defect `live_store` was built one version earlier to make visible: *"a gate that
+always skips is the same defect as one that is always green."* Only ONE law reads his real ledger;
+the other four stub the loader and are venue-independent. The skip now belongs to that one law.
+
+**2. `len(2)` — a malformed row took the whole door down.** A ledger row `{"name": "Shako",
+"witnesses": 2}` makes `len()` raise `TypeError`, uncaught, in a door the heart AND his board both
+read. A crash there renders as a blank chip with no reason. A row whose `witnesses` is not a list
+has not been SHOWN to carry any, so it counts as zero and falls **short** rather than taking the
+door down.
+
+**3. The contract line promised something the door never does.** It said `-> dict | None`, and the
+function ALWAYS returns a dict — the UNKNOWN lives in `proven: None` beside `ok: False`. A caller
+writing `if not vault_proven_names():` or `... is None:` would sail straight past an unreadable
+ledger, because `{"ok": False, ...}` is a live truthy dict.
+
+7 laws now, red-proofed: restoring the wrong contract line → red; restoring `len(x or [])` → error.
+
+⚠⚠ **AND THE LAW FOR (3) BANNED A WORD THREE TIMES BEFORE IT BANNED THE BEHAVIOUR.** First it read
+400 characters of the docstring and matched the sentence *explaining* the old contract. Narrowed to
+the contract line, it then matched `-> ALWAYS a dict, never None` — the corrected line, which uses
+the token to say the opposite. It bans the type union (`| None`, `-> None`) now. **Three word-bans
+in one gate, plus the `hidden` one an hour earlier: four today.** The rule is not new and I keep
+re-learning it — **ban what the code DOES, never a word it contains.**
+`[[feedback-comments-vs-code]]` `[[source-reading-guard]]`
