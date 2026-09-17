@@ -21815,11 +21815,15 @@ def vault_population(board=None):
 def vault_proven_names(min_witnesses=2):
     """The names the vault ledger can PROVE he owns. -> ALWAYS a dict, never None
 
-    ⚠ IT NEVER RETURNS None — the UNKNOWN is `proven: None` INSIDE the dict, beside `ok: False`
-    and a `why`. A caller writing `if not vault_proven_names():` or `... is None:` would sail past
-    an unreadable ledger, because `{"ok": False, ...}` is a live truthy dict. Read `ok`, then
-    `proven`. (The first version of this line said "dict | None" and was simply wrong about its
-    own contract.)
+    ⚠ TWO DIFFERENT THINGS, AND THEY MUST NOT BE READ AS ONE:
+        the FUNCTION  — always a dict. Never None, never falsy, on any path.
+        the FIELD `proven` — None when the ledger could not be read; a list otherwise.
+    So `if r is None:` and `if not r:` BOTH sail straight past an unreadable ledger, because
+    `{"ok": False, ...}` is a live truthy dict. The only correct read is `if not r["ok"]:` or
+    `if r["proven"] is None:`.
+    (The first version of this line said "dict | None" and was wrong about its own contract; the
+    correction then sat next to "proven: None" closely enough that a cross-family review said a
+    skimming caller would still reach for `is None`. Hence the two-line table.)
 
     ⚠⚠ THE ADMISSION BAR HAD NO WAY TO REACH THE THING IT GATES. #105 established the rule —
     "only ledger+proof enters" — and MEASURED it: 14 names carry a corroborated proof. His vault
