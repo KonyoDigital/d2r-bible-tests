@@ -36626,6 +36626,58 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1097 — two mechanisms asked "is this console current?" and contradicted each other
+
+**v3288.** Grok Bot, native LOOKED `#5721820085`: *"Chiliad Console v3283 · Agent v3284 · Board
+v3284 · CHILIAD panel 283 / footer 284"* — two numbers on one screen, each claiming to be the
+version, with nothing saying which question either answers.
+
+**Chasing it turned up something worse than a labelling bug.** Measured on ONE process in ONE
+second, 2026-09-18:
+
+```
+hooks/pre-push   listener PID start vs file mtime   -> "started BEFORE the current control_app.py"
+/api/status      status_payload()["ver"] vs disk    -> {"drift": false, "say": "in sync on v3287"}
+```
+
+Both cannot be right. The listener (pid 38999, parent 1) started **01:06:17**; v3287 was committed
+**01:45**. A literal compiled into a module loaded at 01:06 cannot read `v3287` — and yet it did,
+so `_drift_once()` is comparing something that is not the running version. **A detector that
+cannot be wrong is a detector that cannot fire**, and this one had been reporting "in sync"
+across every stale console it has ever seen.
+
+⚠ **I did not resolve which of the two is lying, and did not build on either.** The PID heuristic
+can be fooled by a supervisor or a re-exec; the literal comparison reads a string whose
+provenance cannot be checked from outside. Neither is first-hand.
+
+**What shipped is the version of the question a running module CAN answer itself.** `_BOOT_AT`
+and `_BOOT_SRC_MTIME` are evaluated once, by the module object, at import. `module_freshness()`
+compares the file's mtime NOW against the mtime captured THEN — no PID, no literal, no guess
+about ancestry. If the file was rewritten after the module loaded, the code answering requests is
+not the code on disk. It also names the boundary that actually matters: **PAGE changes are live
+(`control_ui.html` is re-read per request), SERVER changes are not**, so a reader does not go
+hunting for a fix that already shipped.
+
+**Where it renders, and where it deliberately does not.** The line goes in `#ver-xref`, and
+**only when stale or unmeasured**. v2397 stripped the footer's hover wall on his instruction —
+*"i dont want this mess when i hover over it all the time. i want it clean"* — and the bar is the
+version and nothing else. A permanent "in sync" chip would be re-adding exactly what he had
+removed. Amber, not red: nothing is broken and nothing was lost.
+
+**Gate:** `test_stale_server_says_so`, 5 red-proofs, all PROVEN at exactly 1 match each. It pins
+BEHAVIOUR rather than names — it calls the function and checks that it fires, says the gap in
+words ("38m", not "2303"), returns UNKNOWN rather than in-sync when the file cannot be read, is
+published, and is actually read by the panel.
+
+⚠ **The test monkeypatches the clock; it does not touch the file.** The first draft proved the
+same thing with `os.utime` and a restore — which works until it crashes between the two, leaving
+his LIVE console believing it is stale. A gate must not perturb what it measures.
+[[a-gate-can-perturb-what-it-measures]]
+
+⚠ Its first run came back `UNPROVABLE — ALREADY RED untampered` on all five proofs, because a new
+test referenced `io` without importing it. That diagnostic is the prover refusing to report PROVEN
+over a law that was already failing, which is exactly right.
+
 ## REG-1096 — two different quantities wore the same word, four inches apart
 
 **v3287.** Konyo, 2026-09-18: *"even top corner chronicles set uniques and runewords should color

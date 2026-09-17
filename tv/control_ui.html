@@ -6102,6 +6102,10 @@
      fallback resolves to nothing, so the sentence would have inherited whatever it landed on.
      A colour that is not defined is not a colour. [[copy-drift]] */
   #ver-xref .vx-lead-s { margin-top: 6px; font-size: var(--fs-sm); color: var(--text); line-height: 1.45; }
+  /* v3288 — the server-is-stale line. Amber, not red: nothing is broken and nothing was lost;
+     a restart picks it up. Red would send him looking for damage that is not there. */
+  #ver-xref .vx-mf { color: #9a8c72; }
+  #ver-xref .vx-mf-stale { color: #d8a94a; }
   /* the machine detail, tucked — one click away, no longer the first wall he meets */
   #ver-xref .vx-fold { margin-top: 6px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
   #ver-xref .vx-fold > summary { cursor: pointer; font-size: var(--fs-2xs); color: var(--gold-dim);
@@ -12793,6 +12797,27 @@ window._lockMark = function(isOpen, px, label){
       + (_dSay ? ' \u00b7 ' + _dSay : '')
       + (_gap.length ? ' \u00b7 \u26a0 the counter and this panel disagree (' + _gap.join(', ')
                        + ') \u2014 a row was counted that this panel did not draw' : '')) + '</div>');
+    /* ══ v3288 — WHICH VERSION QUESTION THE NUMBER ANSWERS ══════════════════════════════════
+       Grok Bot, LOOKED #5721820085: "CHILIAD panel 283 / footer 284" — two numbers on one
+       screen, each claiming to be the version, with nothing saying what either measures. Both
+       were right: one is a literal compiled into the RUNNING module, the other is what is on
+       DISK, and they differ exactly when a server change has shipped and the console has not
+       restarted. A correct state was indistinguishable from a contradiction.
+
+       ⚠ IT RENDERS ONLY WHEN STALE OR UNMEASURED, AND NOT IN THE FOOTER. v2397 removed the
+       footer's hover wall on his instruction — "i dont want this mess when i hover over it all
+       the time. i want it clean" — and the bar is the version and nothing else. A line that
+       appears only when there is something to say is the opposite of that mess; a permanent
+       "in sync" chip would be re-adding it. [[unknown-stays-unknown]] */
+    try {
+      var _mf = st && st.moduleFreshness;
+      if (_mf && _mf.known === false) {
+        _lead.push('<div class="vx-lead-s vx-mf">' + esc('\u26a0 ' + (_mf.say
+          || 'the server version was not measured')) + '</div>');
+      } else if (_mf && _mf.stale) {
+        _lead.push('<div class="vx-lead-s vx-mf vx-mf-stale">' + esc('\u26a0 ' + _mf.say) + '</div>');
+      }
+    } catch (e) {}
     return '<div class="fxr-win">' + head + '<div class="fx-body">'
          + '<section class="vx-sec vx-lead">' + _lead.join('') + '</section>'
          + _vxSection('WAITING ON YOU', youRows)

@@ -17931,6 +17931,70 @@ def prune_stats():
 _DRIFT = {"checked": None, "running": None, "disk": None, "drift": None, "say": "not measured yet"}
 _DRIFT_EVERY_S = float(os.environ.get("TV_DRIFT_EVERY_S", "300") or 300)
 
+# ══ v3288 — THE ONLY VERSION QUESTION A RUNNING MODULE CAN ANSWER FIRST-HAND ══════════════════
+# Grok Bot, LOOKED #5721820085: "CHILIAD panel 283 / footer 284" — two numbers on one screen, each
+# claiming to be the version, with nothing saying which question either answers.
+#
+# ⚠ TWO MECHANISMS ALREADY ASKED THIS AND THEY CONTRADICT EACH OTHER. Measured 2026-09-18:
+#   · hooks/pre-push compares the LISTENER PID's start time against this file's mtime and said
+#     the console was stale.
+#   · `_drift_once()` compares `status_payload()["ver"]` against `_disk_ver()` and said
+#     "in sync on v3287" about the same process in the same second.
+# The PID heuristic can be fooled by a supervisor or a re-exec; the literal comparison reads a
+# baked string whose provenance cannot be checked from outside. Neither is first-hand, so neither
+# settles it — and a detector that cannot be wrong is a detector that cannot fire.
+#
+# These two constants ARE first-hand: they are evaluated once, by this module object, at the
+# moment Python imported it. Comparing the file's mtime NOW against the mtime captured THEN needs
+# no PID, no literal and no guess about process ancestry. If the file was rewritten after this
+# module was loaded, the code answering requests is not the code on disk. That is the whole
+# question, and it is the one the gate has been trying to ask.
+# [[unknown-stays-unknown]] [[the-unjoined-end]]
+_BOOT_AT = time.time()
+try:
+    _BOOT_SRC_MTIME = os.path.getmtime(os.path.abspath(__file__))
+except OSError:
+    _BOOT_SRC_MTIME = None
+
+
+def module_freshness():
+    """Is the code answering this request the code on disk? Reads two clocks; changes nothing."""
+    if _BOOT_SRC_MTIME is None:
+        return {"known": False, "stale": None,
+                "say": "the source mtime was not readable at import, so this is UNMEASURED "
+                       "rather than in sync"}
+    try:
+        now_mtime = os.path.getmtime(os.path.abspath(__file__))
+    except OSError:
+        return {"known": False, "stale": None,
+                "say": "the source file cannot be read now, so this is UNMEASURED rather than "
+                       "in sync"}
+    aged = int(now_mtime - _BOOT_SRC_MTIME)
+    stale = aged > 0
+    return {
+        "known": True,
+        "stale": stale,
+        "loadedAtMs": int(_BOOT_AT * 1000),
+        "srcWrittenMs": int(now_mtime * 1000),
+        "agedS": aged if stale else 0,
+        "say": (("this server is the code as it was %s ago - control_app.py was rewritten after "
+                 "it loaded, so PAGE changes are live and SERVER changes are not. Restart to pick "
+                 "them up." % _ago_words(aged)) if stale
+                else "this server is the file on disk"),
+    }
+
+
+def _ago_words(sec):
+    """Plain English for a gap, because '2303' is not a thing anyone reads as forty minutes."""
+    sec = int(sec or 0)
+    if sec < 90:
+        return "%ds" % sec
+    if sec < 5400:
+        return "%dm" % (sec // 60)
+    if sec < 172800:
+        return "%dh" % (sec // 3600)
+    return "%dd" % (sec // 86400)
+
 
 def _disk_ver():
     """The stamp the file on disk carries, which is what a relaunch would boot into.
@@ -29775,7 +29839,12 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3287",
+        "ver": "v3288",
+        # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
+        # module that is running; `moduleFreshness` says whether that module is still the file on
+        # disk, measured from this module's OWN import rather than from a PID or a string compare.
+        # Two stamps on one screen are only confusing while neither says what it is.
+        "moduleFreshness": module_freshness(),
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
