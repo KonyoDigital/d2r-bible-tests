@@ -157,7 +157,12 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                     break
             _j += 1
         tail = self.fn[_o:_j + 1]
-        self.assertLess(len(tail), 1400,
+        # ⚠ v3259 — CEILING RAISED FROM 1400 TO 2400, DELIBERATELY, BECAUSE THE BRANCH GREW.
+        # This number is a REACH guard ("am I still inside the branch?"), never a budget, so it
+        # moves when the branch legitimately moves and not otherwise. What grew it: the empty
+        # branch now has to keep the station rail alive when a FILTER emptied the shelf — see the
+        # law directly below. Raising it without saying why is how a reach guard stops guarding.
+        self.assertLess(len(tail), 2400,
                         "the unstamped branch is %d chars — too large to be the branch, so this "
                         "is reading past it again" % len(tail))
         self.assertIn("bar.hidden = true", tail,
@@ -170,6 +175,60 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("bar.hidden = false", tail,
                       "there is no branch that SHOWS the bar when the river answered and no card "
                       "carries a stamp, so the river-vs-grid mismatch stays invisible")
+
+    def test_a_FILTER_that_empties_the_shelf_leaves_the_way_out(self):
+        """★ GROK BOT FOUND THIS BY DRIVING THE SHELF AS A USER, and ranked it the worst trap of
+        all — ahead of everything I had hypothesised:
+
+            "CAPTURE (count 0) -> TRAP: chip rail VANISHED; body 'No runs match these filters...';
+             0 RUNS. Could not reach ROUTE/ANALYZE after that. Re-click / clear did not restore
+             the chip rail in this pass (stuck empty-filter state)."
+
+        Click a station holding nothing -> the filter matches no card -> `seen.length` is 0 -> the
+        bar hides itself, TAKING EVERY OTHER STATION CHIP WITH IT. There is then no way back to
+        ROUTE or ANALYZE except leaving the shelf entirely. A dead end built out of two
+        individually reasonable rules.
+
+        ⚠ THE HIDE RULE ABOVE IS STILL RIGHT AND IS NOT BEING DELETED. "A bar with nothing in it
+        reads as 'no stations exist'" is true WHEN NOTHING IS FILTERED. Once he has chosen a
+        station, an empty result is a statement about his FILTER, not about the river - same
+        condition, opposite meaning, and only the filter can tell them apart. That is why this law
+        sits beside the hide law rather than replacing it. [[the-unjoined-end]]
+        """
+        _i = self.fn.index("if (!seen.length)")
+        _o = self.fn.index("{", _i)
+        _d, _j = 0, _o
+        while _j < len(self.fn):
+            if self.fn[_j] == "{":
+                _d += 1
+            elif self.fn[_j] == "}":
+                _d -= 1
+                if _d == 0:
+                    break
+            _j += 1
+        tail = self.fn[_o:_j + 1]
+        # ⚠⚠ ANCHORED TO THE GUARD, NOT TO THE IDENTIFIERS. The first cut of this law asserted
+        # that "SHELF_F.station" and "SHELF_LAST_STATIONS" appear somewhere in the branch - and
+        # BOTH sabotages came back GREEN, because `if (false)` leaves the body's mentions intact
+        # and the writer lives outside the branch entirely. The names were present and the feature
+        # was dead. That is the SECOND presence-law-where-a-reachability-law-was-needed in one
+        # session; the remainder chip above carries the first.
+        # [[the-unjoined-end]] [[sabotage-is-usually-the-wrong-one]]
+        g = tail.find("if (SHELF_F.station && SHELF_LAST_STATIONS)")
+        self.assertGreater(
+            g, -1,
+            "the empty branch has no LIVE guard on the active filter, so a station holding "
+            "nothing hides the rail and strands him with no way back to another station")
+        body = tail[g:]
+        self.assertIn("bar.hidden = false", body,
+                      "the filter branch never SHOWS the bar, so the rail stays hidden anyway")
+        self.assertIn("sh-chip-stclear", body,
+                      "there is no explicit way OUT of an empty filter - the stations alone "
+                      "narrow, and he needs one control that widens")
+        # and the rail must actually be REMEMBERED somewhere, or there is nothing to restore
+        self.assertIn("SHELF_LAST_STATIONS = bar.innerHTML", self.fn,
+                      "nothing ever records the station rail, so the restore above reads a name "
+                      "that is null for ever and the branch silently does nothing")
 
     def test_the_count_says_what_it_is_OVER(self):
         """[[zero-needs-a-denominator]] — a bare number on a chip is a figure with no scale."""

@@ -4456,6 +4456,13 @@
   .sh-chip.sh-chip-stunk { border-style: dashed; }
   /* v3257 — the remainder: cards on the shelf that no station chip counts. Not a station, so it
      is not styled like one and it does not filter; it exists so the numbers close. */
+  /* v3259 — the way out of an empty filter. It is the only chip that UNDOES rather than
+     narrows, so it reads as an action and not as another station. */
+  .sh-chip.sh-chip-stclear {
+    border-color: color-mix(in srgb, var(--gold-hi) 55%, transparent);
+    color: var(--gold-hi); letter-spacing: var(--ls-tight);
+  }
+  .sh-chip.sh-chip-stclear:hover { border-color: var(--gold-hi); }
   .sh-chip.sh-chip-strem { border-style: dashed; opacity: .8; cursor: help;
     border-color: color-mix(in srgb, var(--warn, var(--gold-dim)) 60%, transparent); }
   .sh-chip.sh-chip-stunk::after { content: ' ?'; color: var(--warn, var(--gold-dim)); }
@@ -17029,6 +17036,26 @@ window._lockMark = function(isOpen, px, label){
      ⚠ AND AN EMPTY ROW HIDES ITSELF. A chip bar with nothing in it reads as "no stations exist";
      the truth when nothing is stamped is that the river has not answered yet, and the section
      header already says that. [[zero-needs-a-denominator]] */
+  /* ⚠⚠ v3259 — THE RAIL DELETED THE ONLY CONTROL THAT COULD UNDO THE FILTER. Grok Bot, driving
+     the shelf as a user on a seeded box and ranking the traps worst-first, found this ahead of
+     everything I had hypothesised:
+
+         "CAPTURE (count 0) -> TRAP: chip rail VANISHED; body 'No runs match these filters...';
+          0 RUNS. Could not reach ROUTE/ANALYZE after that. Re-click / clear did not restore the
+          chip rail in this pass (stuck empty-filter state)."
+
+     Click a station holding nothing, the filter matches no card, `seen.length` is 0, and the rail
+     hides itself — taking every other station chip with it. There is then no way back to ROUTE or
+     ANALYZE except leaving the shelf entirely. That is a dead end built out of two individually
+     reasonable rules.
+
+     ⚠ THE HIDE RULE IS STILL RIGHT, AND IT IS NOT BEING DELETED. "A chip bar with nothing in it
+     reads as 'no stations exist'" is true — when NOTHING IS FILTERED. The moment he has chosen a
+     station, an empty result is a statement about his FILTER, not about the river, and the rail is
+     the way out of it. Same condition, opposite meaning, and only the filter can tell them apart.
+     [[the-unjoined-end]] [[zero-needs-a-denominator]] */
+  var SHELF_LAST_STATIONS = null;   // the last rail that had something in it, for the way back
+
   function _shStationChips(cards){
     var bar = document.getElementById('sh-stationbar');
     if (!bar) return;
@@ -17075,6 +17102,22 @@ window._lockMark = function(isOpen, px, label){
                  + 'id, so those did not meet — the counts in the strip above are about reels '
                  + 'these cards are not. Cards the console withheld on purpose are excluded here.')
           + '">river answered for <b>' + _riverKnown + '</b>, unstamped <b>' + _unstamped + '</b></span>';
+        return;
+      }
+      /* v3259 — HE FILTERED HIS WAY HERE, SO HE MUST BE ABLE TO FILTER HIS WAY OUT. */
+      if (SHELF_F.station && SHELF_LAST_STATIONS) {
+        var _fl = SHELF_F.station;
+        try {
+          if (typeof SHELF_RIVER_LABELS !== 'undefined' && SHELF_RIVER_LABELS
+              && SHELF_RIVER_LABELS[SHELF_F.station]) _fl = SHELF_RIVER_LABELS[SHELF_F.station];
+        } catch (e) {}
+        var _clearTip = 'No run on this shelf is at ' + _fl + ', so nothing matched. The stations '
+                      + 'are still here so you can go somewhere else \u2014 or click this to '
+                      + 'clear the filter.';
+        bar.hidden = false;
+        bar.innerHTML = SHELF_LAST_STATIONS
+          + '<button type="button" class="sh-chip sh-chip-stclear" data-f="st:' + escC(SHELF_F.station)
+          + '" title="' + escC(_clearTip) + '">\u2190 show all</button>';
         return;
       }
       bar.hidden = true; bar.innerHTML = ''; return;
@@ -17215,6 +17258,11 @@ window._lockMark = function(isOpen, px, label){
            + '">' + escC(lab) + ' <b>' + (tally[st] || 0) + '</b>'
            + (thru > 0 ? '<i class="sh-chip-thru">' + thru + '</i>' : '') + '</button>';
     }).join('');
+    /* ⚠ v3259 — REMEMBERED WHILE IT IS STILL WORTH REMEMBERING. This is the rail he gets back
+       when a station filter matches nothing and the bar would otherwise hide itself, taking every
+       other station with it. Only the STATION chips are kept: the remainder chip below is a
+       statement about the CURRENT card set and would be a lie once that set changes. */
+    SHELF_LAST_STATIONS = bar.innerHTML;
     /* v3257 — and it is PRINTED, beside the stations, so the two numbers he can see add up. */
     if (_rmWithheld || _rmNoStamp) {
       var _rmTip = (_rmWithheld

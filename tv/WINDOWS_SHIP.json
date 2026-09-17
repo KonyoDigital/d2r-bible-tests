@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3258",
+  "ver": "v3259",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3258: one river payload carries three populations and v3257 described the stamp ledger as if it were the disk. it said fourteen reels were sitting at join where two are. also one open now decides absent from unreadable. HEART: the shelf station bar is watched and five laws pin this surface",
+  "note": "v3259: grok bot drove the shelf as a user and found that clicking a station holding nothing hid the whole chip rail, stranding him with no way back to another station. the hide rule is right when nothing is filtered and wrong the moment he has chosen one. HEART: sh-stationbar is watched and the law sits beside the hide law it qualifies",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

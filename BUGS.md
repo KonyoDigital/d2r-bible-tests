@@ -36181,3 +36181,50 @@ and the ignore rules proven to still refuse the pack. Four red-proofs fired.
 ⚠ ONE SABOTAGE CAME BACK GREEN AND THE SABOTAGE WAS WRONG: removing `tv/tvd-reel-seed*` left
 `*.tgz` still covering the file. TWO rules, one removed. Re-proofed with both — RED.
 `[[never-touch-live-data]]` `[[copy-drift]]` `[[sabotage-is-usually-the-wrong-one]]`
+
+## REG-1067 — the station rail deleted the only control that could undo the filter
+
+**Grok Bot found this by driving the shelf as a user**, on a box it had seeded with his reels
+first, and ranked it the worst trap of all — ahead of everything I had hypothesised:
+
+> `CAPTURE (count 0)` → **TRAP:** chip rail **vanished**; body *"No runs match these filters…"*;
+> 0 RUNS. Could not reach ROUTE/ANALYZE after that. Re-click / clear did not restore the chip rail
+> in this pass (stuck empty-filter state).
+
+Click a station holding nothing → the filter matches no card → `seen.length` is 0 → the bar hides
+itself, **taking every other station chip with it**. There is then no way back to ROUTE or ANALYZE
+except leaving the shelf entirely. A dead end built out of two individually reasonable rules.
+
+⚠ **THE HIDE RULE IS STILL RIGHT AND WAS NOT DELETED.** *"A chip bar with nothing in it reads as
+'no stations exist'"* is true — **when nothing is filtered**. Once he has chosen a station, an empty
+result is a statement about his FILTER, not about the river. Same condition, opposite meaning, and
+only the filter can tell them apart. The new law sits *beside* the hide law rather than replacing
+it. `[[the-unjoined-end]]`
+
+VERIFIED ON PIXELS by reproducing his exact move — clicking a zero-count chip:
+
+```
+bar hidden        : False        (the trap was hidden = true)
+station chips left: 11           FRESH 0 | TRIAGE 0 | … | UNKNOWN 0 | ← show all
+way out present   : True
+```
+
+⚠ **GROK BOT ALSO PARTLY REFUTED MY CLAIM, WHICH IS WHY THE BRIEF ASKED FOR IT.** I claimed *"every
+escape path unwinds to the console root."* It found a counterexample: reel theatre → **Close
+Theatre → SHELF overlay**, a real one-level pop. So the back-stack is not uniformly missing, and
+the remaining exits (✕, outside, header-edge → console root) are a narrower defect than I stated.
+Still open on #3, now correctly scoped.
+
+⚠ ALSO REPORTED, NOT FIXED HERE: on its native seat **Esc quits the entire pywebview window**
+rather than popping a shelf level. That is a window-level binding, not shelf logic.
+
+GATE: `test_a_FILTER_that_empties_the_shelf_leaves_the_way_out`, beside the hide law it qualifies.
+The reach ceiling on that branch moved 1400 → 2400 **with the reason written down**, because the
+branch legitimately grew — a reach guard that is raised silently stops guarding.
+
+⚠⚠ **MY FIRST CUT OF THE LAW WAS GREEN UNDER BOTH SABOTAGES, AND THE SABOTAGES WERE RIGHT.** It
+asserted the identifiers appear somewhere in the branch; `if (false)` leaves the body's mentions
+intact and the writer lives outside the branch entirely. **The names were present and the feature
+was dead.** That is the SECOND presence-law-where-a-reachability-law-was-needed in this one session
+— REG-1063's remainder chip carries the first. The law is now anchored to the live guard, asserts
+the bar is actually SHOWN, and pins the writer separately. Three red-proofs, all RED.
