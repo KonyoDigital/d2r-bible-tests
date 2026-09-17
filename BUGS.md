@@ -35679,3 +35679,31 @@ could read.
 Not one has been a bad fix; each was correct and each carried a new defect one layer out. That is
 what building at this pace looks like from the outside, and it is the argument for the eye running
 on every version rather than when I remember. `[[review-after-ship]]`
+
+## REG-1057 — the first venue-dependent red converted to a counted skip
+
+**2026-09-17 · v3252 · `tv/test_trace_spine.py`**
+
+With every locally-reproducible CI red now fixed, the remainder shared one cause (REG-1050): gates
+reading stores that live only on his Mac. `test_trace_spine`'s
+`test_no_name_reaches_the_vault_WITHOUT_a_vault_row_behind_it` reads `vault_accum.json` (96 KB) and
+`vault_seen.json` (23 KB), both untracked. On a runner `banked` is empty and the assertion fires —
+reading as *"hop 4 is broken"* when the true statement is that **nothing could be examined.**
+
+⚠ **Its own message already said so** — *"the vault bank holds no named rows at all, so this law
+examined ZERO candidates — UNKNOWN, not a clean surface"*. The author knew exactly what the state
+meant; the law just **failed** instead of standing down, so a correct sentence about UNKNOWN was
+delivered as a red about the product.
+
+**Fixed** with `live_store.require(...)`: a marked, COUNTED skip naming both files and the reason.
+Measured both ways — on his Mac it still runs fully (*"examined 60 names against 49 banked vault
+names"*, 19/19), and in a simulated venue with no bank it skips with
+*"his live store is absent — vault_accum.json, vault_seen.json — a skip is NOT a pass: hop 4
+reports the vault only when a row for that name is in the bank"*.
+
+The counter now reports **2 gates** that can stand down, by name, so this cannot become a silent
+green. `[[unknown-stays-unknown]]` `[[regression-guard]]`
+
+⚠ `disk_report_wilson` was on the reproducible list and is not: it passes here with **PROVEN · 32
+of 32 attempts refused**, measuring his 9 GB reel corpus. It belongs in the venue-dependent bucket,
+which now holds the whole remainder.

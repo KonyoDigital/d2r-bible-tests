@@ -43,6 +43,7 @@ try:
 except Exception:
     pass
 
+import live_store as _LS
 import trace_spine as TS
 
 
@@ -282,6 +283,16 @@ class OnHisRealStore(unittest.TestCase):
         """THE NEGATIVE, OBSERVED. Whatever the routing decision says, hop 4 reports the vault
         only when a row for that name is actually in the bank. A trace that says VAULT with no
         row is the 'plumbing with no tap' shape: a decision nobody executed."""
+        # ⚠⚠ THIS LAW NEEDS HIS BANK, AND FAILED IN CI FOR NOT HAVING IT. `vault_accum.json`
+        # and `vault_seen.json` are untracked and live only on his Mac, so on a runner `banked`
+        # is empty and the assertion below fires — reading as "hop 4 is broken" when the true
+        # statement is that nothing could be examined. Its own message already said so
+        # ("UNKNOWN, not a clean surface"); it just failed instead of standing down.
+        # A marked, COUNTED skip: test_a_live_store_skip_is_counted globs for the mark and prints
+        # the population, so this does not become a silent green. [[unknown-stays-unknown]]
+        _LS.require(self, "vault_accum.json", "vault_seen.json",
+                    why="hop 4 reports the vault only when a row for that name is in the bank; "
+                        "with no bank there are no candidates to examine")
         st = TS._stores()
         rows = list((st["vault_accum"] or {}).get("owned") or []) + \
                list((st["vault_seen"] or {}).get("rows") or [])
