@@ -15895,7 +15895,9 @@ def reader_health():
     # the journal path. My "safe" fallback was a hole in TV_SESSIONS isolation — a test pointing the
     # journal elsewhere would have had this route read the real one behind its back.
     path = _journal_path()
-    rows = lma.load(path)
+    # ⚠ v3258 — ONE OPEN DECIDES BOTH FACTS. See live_miss_audit.load_why: asking `exists()` after
+    # a failed read is a second look at a path that may have changed, and the reason is published.
+    rows, _why = (lma.load_why(path) if hasattr(lma, "load_why") else (lma.load(path), None))
     if rows is None:
         # ⚠⚠ v3256 — ABSENT IS NOT UNREADABLE, AND THE PATH IS NOT PUBLISHABLE. Two defects in
         # one sentence, both caught by the Grok Bot box seat, which posted "journal-read error on
@@ -15915,7 +15917,7 @@ def reader_health():
         # `absent` is a separate field rather than a wording change, so a caller can branch on the
         # fact instead of matching prose. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
         _nm = os.path.basename(path)
-        if not os.path.exists(path):
+        if _why == "absent" or (_why is None and not os.path.exists(path)):
             return {"ok": False, "absent": True,
                     "why": "no journal on this machine yet - %s does not exist, so nothing has "
                            "been recorded here. That is an empty machine, not a fault" % _nm}

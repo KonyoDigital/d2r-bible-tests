@@ -45,7 +45,20 @@ D_EMPTY = "D · fired, came back empty"
 E_OK = "E · worked"
 
 
-def load(path):
+def load_why(path):
+    """rows and WHY they are missing, from ONE open. -> ([rows], None) | (None, 'absent'|'unreadable')
+
+    ⚠⚠ v3258 — TWO LOOKS AT A PATH CANNOT AGREE ABOUT IT. A cross-family review of v3256 (xai)
+    named the race: `reader_health` called `load()`, got None, and then asked `os.path.exists()`
+    a second time to decide whether the journal was ABSENT or UNREADABLE. Anything that creates
+    the file between those two calls flips the verdict, and the sentence — which is relayed
+    verbatim into a public issue — then says "is here but could not be read" about a file that
+    was not there when the read was attempted. A wrong reason is worse than no reason.
+
+    The classification now happens at the ONE open that already failed, where the errno is the
+    evidence rather than a second guess. `load()` keeps its exact old contract so no caller moves.
+    [[unknown-stays-unknown]] [[stale-reading]]
+    """
     rows = []
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
@@ -57,9 +70,16 @@ def load(path):
                     rows.append(json.loads(line))
                 except Exception:
                     continue          # a torn last line is normal on a live journal
+    except FileNotFoundError:
+        return None, "absent"
     except Exception:
-        return None
-    return rows
+        return None, "unreadable"
+    return rows, None
+
+
+def load(path):
+    """The old contract, unchanged: rows, or None for any failure. -> [rows] | None"""
+    return load_why(path)[0]
 
 
 def audit(rows):

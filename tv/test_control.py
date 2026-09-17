@@ -6343,8 +6343,12 @@ class TestV2291NotOKIsNotABrokenLink(unittest.TestCase):
         ca = self._ca()
         old = os.environ.get("TV_SESSIONS")
         try:
-            os.environ["TV_SESSIONS"] = os.path.join(
-                tempfile.mkdtemp(prefix="nojournal_"), "sessions.jsonl")
+            # ⚠ v3258 — the temp dir is CLEANED. A cross-family review of v3256 (xai) caught
+            # both of these leaking a mkdtemp per run, for ever, on his own disk — the machine
+            # that has already hit ENOSPC once this month.
+            _d = tempfile.mkdtemp(prefix="nojournal_")
+            self.addCleanup(shutil.rmtree, _d, True)
+            os.environ["TV_SESSIONS"] = os.path.join(_d, "sessions.jsonl")
             r = ca.reader_health()
             self.assertIs(True, r.get("absent"),
                           "a journal that does not exist is not reported as ABSENT, so 'no data "
@@ -6364,6 +6368,7 @@ class TestV2291NotOKIsNotABrokenLink(unittest.TestCase):
         import tempfile
         ca = self._ca()
         d = tempfile.mkdtemp(prefix="badjournal_")
+        self.addCleanup(shutil.rmtree, d, True)
         p = os.path.join(d, "sessions.jsonl")
         os.mkdir(p)                      # a directory where a file belongs: exists, unreadable
         old = os.environ.get("TV_SESSIONS")
