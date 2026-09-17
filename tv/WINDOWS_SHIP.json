@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3253",
+  "ver": "v3254",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3253: v3251 taught the owned read to refuse a list of objects and left the two sibling reads in the same function unchanged, so set pieces as a list of objects hit the identical crash one variable along and a mule assign parsing as a list silently became he filed nothing. one rule now, and a dict shaped set pieces store is still read",
+  "note": "v3254: four console surfaces painted an item name from the find TIER, so a set piece read unique gold. HEART: test_a_name_takes_its_colour_from_its_rarity watches the joint, 4 red-proofs seen RED",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -35799,3 +35799,64 @@ curated `tv/engine_index.json`. Added as the 188th, same as `heart_map.py` at RE
 The lesson is the one already carved: a new file is a new INPUT, and an input a law has never seen
 is the only thing that can tell you the law was wrong. Two of these four had been wrong for
 versions with every gate green. `[[regression-guard]]` `[[source-reading-guard]]`
+
+## REG-1060 — a set piece read UNIQUE GOLD on four console surfaces, because the colour came from the find TIER
+
+Konyo, on a Vault screenshot: *"also the color for sets and uniques for the keyword items need
+also syncing to the console so they match"*.
+
+**The two obvious suspects were both innocent, and checking them first is the whole story.**
+
+1. **The palettes had not drifted.** Every quality token in `control_ui.html` equals `bible.html`'s
+   to the byte: `--rar-unique` #c7b377 = `--q-unique`, `--rar-set` #00fc00 = `--q-set`, `--rar-rare`
+   #ffff64, `--rar-magic` #6e6eff. `--rar-runeword` is #c7b377 **on purpose** — the game paints a
+   completed runeword the same gold as a unique, and v1627 settled that. Nothing to sync.
+2. **The classifier was right.** Asked through CDP on the real page: **135 of 135 set pieces
+   resolved `set`, 397 of 398 uniques resolved `unique`.** The one exception, *Crescent Moon*, is a
+   runeword name and answers `rw`, which is correct. Rendered chips in the bible measured
+   `rgb(0,252,0)` for sets and `rgb(199,179,119)` for uniques.
+
+**The defect was WHICH QUESTION the console asked.** `grail` here is a find **TIER** — `_FIND_TIER`
+is `{grail, keep, border}` — and `control_app` promotes to `tier='grail'` any find whose name is in
+`_kai_fullnames()`: **3,212 names scraped out of `bible.html`, set pieces included.** Proven on the
+live helper — `sigon's visor`, `arctic binding`, `angelic halo`, `vidala's snare` are all in it.
+
+So four surfaces painted an item name `--rar-unique` purely because its tier was grail:
+
+| surface | what it prints |
+|---|---|
+| `.hh-grail` | MY HUNT hero line, `topGrail.name` |
+| `.find-card.fc-grail .fc-name` | a find card's item name |
+| `.bt.bt-grail` | dossier beat chip, `g.name` |
+| `.shc-headfind.grail` | a run's top-find item name |
+
+⚠ **v1634/v1635 had already "fixed" these.** They moved them off chrome gold onto `--rar-unique` —
+the right move for the surface and the wrong constant for the item. It replaced *the wrong gold*
+with *the right gold, applied unconditionally*. A colour correct for most of its inputs is the
+hardest kind of wrong to see, and it survived two adversarial re-gates that were checking whether
+the surfaces used a token, never whether they asked a question.
+
+**The fix is a JOIN, not a palette.** `_nameRarCls(name)` asks the board iframe's `_artRarity` —
+the same resolver the tooltip lane already used at one site — and returns ` rq r-set` / ` rq
+r-unique`, or **`''` when the board cannot be asked**, which leaves the surface's own colour alone
+rather than guessing a quality onto a real item (v1644's rule). Only answers are cached: `''` means
+both *"board not loaded"* and *"nothing recognised"*, and remembering the first would freeze every
+later name cream for the session.
+
+⚠ **THE DOUBLED CLASS IS LOAD-BEARING.** `.find-card.fc-grail .fc-name` is (0,3,0). A single `.rq`
+is (0,2,0) and loses to it **regardless of source order**, so the rule would be silently inert on
+find cards. `.rq.rq` is (0,3,0) and wins on order. `test_the_doubled_class_is_not_tidied_away` pins
+it, because "this class is written twice" is exactly what a later cleanup deletes on sight.
+
+Verified on real pixels through the live console at :17772 — sets now paint `rgb(0,252,0)` and
+uniques `rgb(199,179,119)` on all four surfaces, matching the board exactly.
+
+GATE: `test_a_name_takes_its_colour_from_its_rarity` (6 laws, 4 red-proofs, all seen RED). It pins
+the **joint**, not the strings: *a line that paints a quality class onto an interpolated `.name`
+must ask `_nameRarCls`.* The `'+N more'` beat chip interpolates no name and is exempt by the same
+rule rather than by an exception list.
+
+⚠ NOT FIXED, RECORDED: `.shl-find.grail` is **unreachable** — its own selector loop only accepts
+`verdict === 'chronicle' || 'keep'`, so the `grail` branch never runs. Adding a rarity call there
+would be plumbing with no tap. Its `keep` branch paints a VERDICT colour, a different vocabulary
+from quality, and was left alone deliberately. `[[the-unjoined-end]]` `[[plumbing-with-no-tap]]`

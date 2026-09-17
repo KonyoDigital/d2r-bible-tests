@@ -5272,6 +5272,50 @@
   .hh-name.r-crafted,  .ch-card-item .ch-nm.r-crafted,  .tf-t b.tf-nm.r-crafted  , .hh-src b.r-crafted { color: var(--rar-orange); }
   .hh-name.r-runeword, .ch-card-item .ch-nm.r-runeword, .tf-t b.tf-nm.r-runeword , .hh-src b.r-runeword { color: var(--rar-runeword); }
   .hh-src b.hh-boss, .tf-t b.hh-boss, .ch-card-item .ch-nm.hh-boss { color: var(--acc-intel); }
+
+  /* ══ v3254 · A NAME'S COLOUR IS ITS RARITY, NEVER ITS FIND TIER ═══════════════════════════════
+     Konyo, on a Vault screenshot: "the color for sets and uniques for the keyword items need also
+     syncing to the console so they match."
+
+     ⚠⚠ MEASURED FIRST, AND THE OBVIOUS SUSPECTS WERE BOTH INNOCENT. --rar-unique/--rar-set already
+     equal bible.html's --q-unique/--q-set exactly (#c7b377 / #00fc00) — v1622 synced them and they
+     have not drifted. And the board classifies its own rosters correctly: asked through CDP,
+     135 of 135 set pieces resolve 'set' and 397 of 398 uniques resolve 'unique' (the one exception,
+     Crescent Moon, is a runeword name and answers 'rw', which is right).
+
+     WHAT IS WRONG IS WHICH QUESTION THE CONSOLE ASKS. `grail` here is a find TIER, not a quality —
+     _FIND_TIER is {grail, keep, border} — and control_app promotes to tier='grail' any find whose
+     name is in _kai_fullnames(), which is 3,212 names scraped out of bible.html with SET PIECES
+     INCLUDED. Proven on the live helper: "sigon's visor", "arctic binding", "angelic halo" and
+     "vidala's snare" are all in that set. So a set piece found in a session is tier 'grail', and
+     every surface below painted it UNIQUE GOLD — indistinguishable from a real unique.
+
+     v1634/v1635 moved these surfaces off chrome gold onto --rar-unique. Right move for the surface,
+     wrong constant for the item: it replaced "the wrong gold" with "the right gold, unconditional".
+
+     ⚠ ONE CLASS, NOT FOUR MORE SELECTOR LISTS. The per-surface lists above already run six rarities
+     wide; adding four more surfaces would be two dozen selectors that can drift apart one at a
+     time. `.rq` is that same vocabulary addressed ONCE — any surface printing an ITEM NAME carries
+     `rq` plus its r-* class. New name surfaces go here rather than growing the lists above.
+     ⚠ THE DOUBLED CLASS IS DELIBERATE. `.find-card.fc-grail .fc-name` is (0,3,0); a single `.rq`
+     would be (0,2,0) and LOSE to it no matter where it sits in the file. `.rq.rq` is (0,3,0) and
+     wins on source order. Without this the whole rule is inert on the find cards.
+     ⚠ FRAMES STAY CHROME — v1635's rule, unchanged. Only the NAME takes the quality token.
+     ⚠ NO CLASS = NO CLAIM. _nameRarCls returns '' when the board cannot be asked or recognises
+     nothing, and '' leaves the surface's own colour alone rather than guessing a quality onto a
+     real item — the rule v1644 already set for the picks lane. */
+  .rq.rq.r-set      { color: var(--rar-set); }
+  .rq.rq.r-unique   { color: var(--rar-unique); }
+  .rq.rq.r-rare     { color: var(--rar-rare); }
+  .rq.rq.r-magic    { color: var(--rar-magic); }
+  .rq.rq.r-crafted  { color: var(--rar-orange); }
+  .rq.rq.r-runeword { color: var(--rar-runeword); }
+  /* the same 3-layer glow v1666 gave the board's names, via currentColor so it cannot drift */
+  .rq.rq {
+    text-shadow: 0 0 4px color-mix(in srgb, currentColor 55%, transparent),
+                 0 0 10px color-mix(in srgb, currentColor 50%, transparent),
+                 0 1px 1px rgba(0,0,0,.55);
+  }
   /* v1673 — the alternative unique in MY HUNT joins the same r-* vocabulary as every other
      item name on this surface, rather than growing a rule of its own. */
   .hh-alt .hh-altgo.r-unique   { color: var(--rar-unique); }
@@ -9278,6 +9322,28 @@ window._lockMark = function(isOpen, px, label){
     return (v === 'set' || v === 'unique' || v === 'rare' || v === 'magic') ? (' r-' + v) : '';
   }
 
+  /* v3254 — THE BOARD IS THE ONLY THING THAT KNOWS AN ITEM'S QUALITY, SO ASK IT. Returns a
+     ready-to-concatenate ' rq r-set' for a class attribute, or '' when nothing answered.
+     ⚠ ONLY ANSWERS ARE CACHED. '' means BOTH "the board is not loaded yet" and "nothing
+     recognised", and caching the first would freeze every later name cream for the whole session —
+     a wrong answer that outlives its cause. The board's own _artRarity caches, so re-asking a
+     miss is cheap. [[unknown-stays-unknown]] [[stale-reading]] */
+  var _NAMERAR = {};
+  function _nameRarCls(name){
+    var n = (name == null ? '' : String(name)).trim();
+    if (!n) return '';
+    if (Object.prototype.hasOwnProperty.call(_NAMERAR, n)) return _NAMERAR[n];
+    var cls = '';
+    try {
+      var _fr = document.getElementById('tvd-eng'), _bw = _fr && _fr.contentWindow;
+      if (_bw && typeof _bw._artRarity === 'function') cls = _rarCls(_bw._artRarity(n) || '');
+    } catch(e){}
+    var out = cls ? (' rq' + cls) : '';
+    if (out) _NAMERAR[n] = out;
+    return out;
+  }
+  window._cNameRarCls = _nameRarCls;   // published like _cPieceLabel, for the 2nd block and specs
+
   function _itipAttr(d){
     try { return ' data-itip="' + esc(JSON.stringify(d)) + '"'; } catch(e){ return ''; }
   }
@@ -10983,7 +11049,8 @@ window._lockMark = function(isOpen, px, label){
     return '<span class="find-card fc-' + t.cls + '"' + jump + '>'
       + (art || '<span class="fc-noart">◆</span>')
       + (t.mark ? '<span class="fc-mark">' + t.mark + '</span>' : '')
-      + '<span class="fc-name">' + esc(f.name) + '</span>' + loc + '</span>';
+      + '<span class="fc-name' + (t.cls === 'grail' ? _nameRarCls(f.name) : '') + '">'
+      + esc(f.name) + '</span>' + loc + '</span>';
   }
   function _findsStrip(sm, cap, bare){
     var finds = sm && sm.finds;
@@ -11210,7 +11277,7 @@ window._lockMark = function(isOpen, px, label){
     if ((sr.town | 0) > 0) beats.push(['🏛', 'town', 'bt-town']);
     if ((sm.tallies | 0) > 0) beats.push(['📸', sm.tallies + ' tallied', 'bt-intake']);
     var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; });
-    grails.slice(0, 4).forEach(function(g){ beats.push(['🏆', esc(g.name || 'grail'), 'bt-grail']); });
+    grails.slice(0, 4).forEach(function(g){ beats.push(['🏆', esc(g.name || 'grail'), 'bt-grail' + _nameRarCls(g.name)]); });
     if (grails.length > 4) beats.push(['🏆', '+' + (grails.length - 4) + ' more', 'bt-grail']);
     var keeps = (sm.finds || []).filter(function(f){ return f.tier !== 'grail'; }).length;
     if (keeps > 0) beats.push(['💎', keeps + ' keep' + (keeps > 1 ? 's' : ''), 'bt-keep']);
@@ -16431,7 +16498,7 @@ window._lockMark = function(isOpen, px, label){
          _grailN stays: data-grail is a separate, older contract read by the filters. */
       var _chronN = sm.chron ? ((sm.chron.uniques || 0) + (sm.chron.sets || 0)) : _grailN;
       var _tf = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0] || (sm.finds || [])[0];
-      var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_pieceLabel(_tf.name) || 'a keep') + '</div>' : '';
+      var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' + _nameRarCls(_tf.name) : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_pieceLabel(_tf.name) || 'a keep') + '</div>' : '';
       var seal = sm.watchdogViolations > 0 ? '<span class="shc-seal flag">🚨 ' + sm.watchdogViolations + '</span>'
                : (sm.kaiMissed != null ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>');
       var _pin = _sesPinned(sm.sessionId);   // D26 — favorite/pin state
@@ -20908,7 +20975,7 @@ window._lockMark = function(isOpen, px, label){
         + '<div class="hh-body"><div class="hh-t">Session ' + n + '</div>'
         + '<div class="hh-when">' + (d0 ? d0.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—') + '</div>'
         + '<div class="hh-meta">' + (sm.reads || 0) + ' reads' + (found ? ' · <b class="hh-found">🏆 ' + found + '</b>' : '') + '</div>'
-        + (topGrail ? '<div class="hh-grail" title="' + esc(topGrail.name) + '">🏆 ' + esc(topGrail.name) + '</div>' : '')
+        + (topGrail ? '<div class="hh-grail' + _nameRarCls(topGrail.name) + '" title="' + esc(topGrail.name) + '">🏆 ' + esc(topGrail.name) + '</div>' : '')
         + '</div></button>';
     }).join('');
     el.onclick = function(e){ var c = e.target.closest('.hh-card'); if (c) _sessionDossier(Number(c.dataset.hn) || 1); };

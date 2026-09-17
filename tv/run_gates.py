@@ -155,6 +155,15 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_name_rarity_colour", [sys.executable,
+                                     os.path.join(HERE, "test_a_name_takes_its_colour_from_its_rarity.py")], 60,
+         why="REG-1060 - four console surfaces painted an item name from the find TIER, and tier "
+             "'grail' is assigned from _kai_fullnames() - 3,212 names scraped out of bible.html "
+             "with SET PIECES INCLUDED. So a set piece read UNIQUE GOLD, identical to a unique. "
+             "The palettes were innocent (every --rar-* equals its --q-* to the byte) and so was "
+             "the classifier (135/135 sets, 397/398 uniques, measured through CDP). Pins the "
+             "JOINT: a line that paints a quality class onto an interpolated .name must ask "
+             "_nameRarCls. Static, comment-free, 4 red-proofs"),
     Gate("test_dock_says_why", [sys.executable,
                                 os.path.join(HERE, "test_the_dock_says_why_it_is_still_full.py")], 60,
          why="REG-1055 — the dock showed a count and an Auto-Sort button; he pressed it, nothing "
