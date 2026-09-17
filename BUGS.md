@@ -36446,6 +36446,62 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1082 — a band he could not get rid of, on the other platform, filed by the bot
+
+Grok Bot, NATIVE Linux seat, 2026-09-17 18:06 IDT: **"Trap: persistent 🐧 LINUX toast."**
+
+He is right about the shape. `#cousin-ribbon` is `position:fixed; top:0; z-index:2000`, appended
+once on every non-Mac machine and **removed by nothing** — five references in `bible.html`, not one
+a hide or a remove. It looks like a toast and behaves like furniture.
+
+It is the exact **twin** of what Konyo reported the same day on the other platform — *"that TVdaiblo
+banner lol still there uptop only on my macbook"*. Each machine had its own permanent
+top-of-screen band, and neither could be put away. The Mac one belongs to pywebview's cocoa code
+and its fix crashed his console at v3206 (REG-1081). **This one is ours.**
+
+**Fixed in v3272: it COLLAPSES, it does not vanish.** Five CSS rules push `#v687-build-badge`,
+`#ladder-ribbon` and `#tvf-console-return` down to clear this ribbon. Removing the element would
+leave all five reserving empty space, and v2061 already measured this family colliding at
+375/480/560/640. So the collapsed state keeps the **same height** and sheds only width.
+
+Measured on real pixels at 1440: `height 35 → 35`, `top 96 → 96`, `width 502 → 38`, choice
+persisted, re-expands to 502. The clamps never see a difference.
+
+⚠ **The band stays `pointer-events:none`.** It is 442px wide at top-centre and v2061 measured it
+crossing ⌂CONSOLE below 684px; making the whole band clickable would hand it the power to eat that
+click. Only the badge takes pointer events.
+
+### And the geometry check passed on a version that was visibly wrong
+
+Height and width were exactly right, and the collapsed badge **sat on top of "Konyo's D2R Farming
+Bible"** — a blue blob over his own title. Only looking at the frame showed it.
+[[visual-regression-detector]] — he must not be the detector.
+
+**Then the first correction was wrong in a worse way.** `right:10px` cleared the title and landed
+the badge on `.pp-btn.pp-ladder`, the profile switcher — and since the badge is the one part that
+TAKES clicks, that traded a cosmetic overlap for a **navigation** one. Measured against every
+visible button/a/input at three widths:
+
+| placement | on the title | controls hit |
+|---|---|---|
+| centre (original) | **yes** | — |
+| `right:10px` | no | **`pp-btn pp-ladder`** |
+| **`left:10px`** | **no** | **none** |
+
+⚠ At 375 the collapsed badge still crosses the title — the title fills the width and there is
+nowhere clear to stand — but it is **29px against the expanded band's 268px**, and it hits no
+control. Stated rather than hidden.
+
+Seven laws, eight sabotages, every one RED, each anchor matching exactly once. Registered as gate
+427 — the orphan-suite law caught the same omission at v3271 and would have caught this one too.
+
+⚠ **And the gate refused it a second time, for a different reason.** `test_control`'s
+`test_every_cli_that_prints_non_ascii_is_encoding_safe`: this suite's own docstring carries 🐧 and
+⚠, and on a cp1255 console — **his Windows PC** — printing them raises **mid-report**, so a clean
+tree exits non-zero and the failure looks like the code. Fixed with `console_safe.enable()`, the
+remedy the law names in its own message. Two different registry laws caught two different omissions
+in two consecutive ships; both are doing exactly what they were built for.
+
 ## REG-1081 — the console could not be minimised or windowed on Windows or Linux, and this was the second report
 
 HIS REPORT, 2026-09-17, across three machines:

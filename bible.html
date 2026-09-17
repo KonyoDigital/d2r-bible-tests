@@ -47694,6 +47694,34 @@ body.cousin-shell .h-title{filter:drop-shadow(0 0 14px rgba(120,190,255,.4))}
 body.cousin-shell #ladder-ribbon{top:24px}   /* v665.1 — WINDOWS has Main/Ladder too; the two ribbons stack instead of overlap */
 #cousin-ribbon{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2000;font:var(--fw-semibold) 11px/1 inherit;letter-spacing:var(--ls-wide);padding:5px 16px 6px;color:#06121f;background:linear-gradient(90deg,#4f8fd0,#bfe0ff,#4f8fd0);border-radius:0 0 10px 10px;box-shadow:0 2px 10px rgba(0,0,0,.45);pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:700px){#cousin-ribbon{font-size:9px;letter-spacing:var(--ls-normal);padding:3px 10px 4px}}
+/* v3272 — the badge is the ONLY part that takes a click; the band keeps pointer-events:none so it
+   can never eat the ⌂CONSOLE click v2061 measured it overlapping below 684px. Collapsing sheds
+   WIDTH ONLY: the height is unchanged, so all five clamps that reserve room for this ribbon stay
+   exactly as measured. */
+#cousin-ribbon .cr-tog{pointer-events:auto;cursor:pointer;background:none;border:0;padding:0;margin:0;
+  font:inherit;color:inherit;line-height:1;vertical-align:baseline}
+#cousin-ribbon .cr-tog:focus-visible{outline:2px solid #06121f;outline-offset:1px;border-radius:3px}
+body.cousin-min #cousin-ribbon .cr-txt{display:none}
+/* ⚠⚠ v3272 — AND THE COLLAPSED BADGE MUST LEAVE THE CENTRE. Measured on real pixels at 1440:
+   collapsed, the 38px badge sits exactly on top of "Konyo's D2R Farming Bible" — a blue blob over
+   his own title. The geometry check said "height unchanged, width shrank" and was satisfied; only
+   LOOKING at the frame showed it. [[visual-regression-detector]] — he must not be the detector.
+   Moving it horizontally is FREE: all five rules that reserve room for this ribbon are `top:`
+   rules (~:47694, :50508, :50524, :50534, :50546, :50563), so the clamps never see a difference,
+   and vacating the centre lets the title read properly for the first time in the collapsed state.
+
+   ⚠⚠ AND THE FIRST PLACEMENT WAS WRONG IN A WORSE WAY. `right:10px` cleared the title and landed
+   the badge on `.pp-btn.pp-ladder` — the profile switcher — and since the badge is the one part
+   that TAKES clicks, that traded a cosmetic overlap for a NAVIGATION one. Measured against every
+   visible button/a/input at three widths:
+       right:10px   onTitle false · hits ['pp-btn pp-ladder']   ← the trap
+       left:10px    onTitle false · hits []                     ← clean at 1440 and 901
+       centre       onTitle TRUE  · hits []                     ← the original complaint
+   ⚠ At 375 the collapsed badge still crosses the title, because the title fills the width and
+   there is nowhere clear to stand — but it is 29px against the expanded band's 268px, and it hits
+   no control. Stated rather than hidden. [[zero-needs-a-denominator]] */
+body.cousin-min #cousin-ribbon{padding-left:9px;padding-right:9px;
+  left:10px;right:auto;transform:none;border-radius:0 0 8px 8px}
 @media (max-width:700px){.machine-pill{position:static;margin:6px auto;width:max-content}}
 body.ladder-profile .pp-ladder{background:rgba(255,196,80,.25)}
 body.ladder-profile .h-title{filter:drop-shadow(0 0 14px rgba(255,196,80,.35))}
@@ -48829,8 +48857,44 @@ try { if (window.D2R_MACHINE==='windows'){ document.body.classList.add('cousin-s
     } catch(e){}
     return { w: 'THIS MACHINE', i: '🖥' };
   })();
+  /* ⚠⚠ v3272 — A BAND HE CANNOT GET RID OF IS A TRAP, AND GROK BOT FILED IT AS ONE.
+     From his NATIVE Linux seat, 2026-09-17 18:06 IDT: *"Trap: persistent 🐧 LINUX toast."*
+     He is right about the shape: this is `position:fixed; top:0; z-index:2000`, appended once and
+     removed by NOTHING — 5 references in this file, not one of them a hide or a remove. It looks
+     like a toast and behaves like furniture.
+     It is also the exact TWIN of the banner Konyo reported the same day on the other platform:
+     *"that TVdaiblo banner lol still there uptop only on my macbook"*. Each machine has its own
+     permanent top-of-screen band, and neither could be dismissed.
+
+     ⚠ IT COLLAPSES, IT DOES NOT VANISH. Five CSS rules push #v687-build-badge, #ladder-ribbon
+     and #tvf-console-return down to clear this ribbon (~:47694, :50508, :50524, :50534, :50546,
+     :50563). Removing the element would leave every one of those reservations holding empty space, and
+     v2061 already measured this exact family colliding at 375/480/560/640. So the collapsed state
+     keeps the SAME HEIGHT and only sheds width — no clamp changes, no new collision surface.
+     [[the-unjoined-end]] [[copy-drift]]
+
+     ⚠ AND THE RIBBON STAYS pointer-events:none. It is 442px wide at top-centre and v2061
+     measured it crossing ⌂CONSOLE below 684px; making the whole band clickable would hand it the
+     power to eat that click. Only the badge itself takes pointer events. */
   var _wr=document.createElement('div'); _wr.id='cousin-ribbon';
-  _wr.textContent=_wm.i + ' ' + _wm.w + ' — its own world · Mac untouched';
+  var _wb=document.createElement('button');
+  _wb.type='button'; _wb.className='cr-tog'; _wb.textContent=_wm.i;
+  var _wt=document.createElement('span');
+  _wt.className='cr-txt'; _wt.textContent=' ' + _wm.w + ' — its own world · Mac untouched';
+  _wr.appendChild(_wb); _wr.appendChild(_wt);
+  var _wkey='d2r_cousin_ribbon_min';
+  var _wsay=function(){
+    var min=document.body.classList.contains('cousin-min');
+    _wb.title = min ? ('show which world this is (' + _wm.w + ')') : 'shrink this to just the badge';
+    _wb.setAttribute('aria-expanded', min ? 'false' : 'true');
+  };
+  try { if (localStorage.getItem(_wkey)==='1') document.body.classList.add('cousin-min'); } catch(e){}
+  _wb.onclick=function(){
+    var min=document.body.classList.toggle('cousin-min');
+    try { localStorage.setItem(_wkey, min ? '1' : '0'); } catch(e){}
+    _wsay();
+  };
+  _wsay();
   document.body.appendChild(_wr);
 } } catch(e){}
 
@@ -50597,7 +50661,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3271', name:'v3271 - his window is his on every platform', date:'2026-09-17', note:'HEART: he reported that on windows and on grokbots linux there is no way to minimize or window the console - it opens fullscreen which he likes but fullscreen takes the titlebar with it everywhere except macOS, which keeps its own controls. The escape hatch was an env var readable only before launch. Now a window_action helper and api window route with two controls in the rail header, hidden where there is no native window to act on, and fullscreen stays the default he asked for. 7 red-proofs. REG-1081.' };
+  window.D2R_BUILD = { id:'v3272', name:'v3272 - the world ribbon can be put away', date:'2026-09-17', note:'HEART: Grok Bot filed Trap persistent LINUX toast from his native seat - the cousin ribbon is fixed at top 0 and removed by nothing, the twin of the banner Konyo reported on the Mac the same day. It now collapses rather than hides because five rules reserve room for it, so the height stays and only the width sheds. Measured 502 to 38 wide, 35 tall both ways. The centred badge sat on his own title and the right edge sat on the profile switcher, so it is pinned left where it hits nothing. 7 laws, 8 red-proofs. REG-1082.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

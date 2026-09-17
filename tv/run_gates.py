@@ -163,6 +163,18 @@ GATES = [
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding. 4 red-proofs"),
+    Gate("test_world_ribbon", [sys.executable,
+                               os.path.join(HERE, "test_the_world_ribbon_can_be_put_away.py")], 60,
+         why="REG-1082 - Grok Bot filed 'Trap: persistent LINUX toast' from his native seat: "
+             "#cousin-ribbon is fixed at top:0 z-index:2000, appended once on every non-Mac "
+             "machine and removed by NOTHING. It is the twin of the banner Konyo reported the "
+             "same day on the Mac. It now COLLAPSES rather than hides, because five CSS rules "
+             "reserve room for it and removing the element would leave all five holding empty "
+             "space. These laws pin: the badge is wired and toggles, the choice survives a "
+             "reload, the BAND keeps pointer-events:none so it can never eat the console click "
+             "v2061 measured it overlapping, collapsing sheds WIDTH ONLY so every clamp stays "
+             "valid, the world sentence is unchanged, and the glyph plus title keep the fact "
+             "reachable. 6 red-proofs, placement measured at 1440/901/375"),
     Gate("test_his_window", [sys.executable,
                              os.path.join(HERE, "test_his_window_is_his_on_every_platform.py")], 60,
          why="REG-1081 - he reported across three machines that the console cannot be minimised "
