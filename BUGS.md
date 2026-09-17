@@ -36626,6 +36626,55 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1087 — three numbers on three surfaces and nothing said how they relate
+
+He reported it as **"Shelf shows 13, disk holds 20"**, and corrected my restatement of his spec
+himself: *"not 8 fifo.. IN TOTAL i want to see only 8 reel session (those same last 8 reels that
+come in FIFO meaning first in first out only 8 reels) and obivously those 8 hidden fixtures are
+bakcend purpose also kept.. thats all 16 in total"*.
+
+**Measured against `reel_retention.plan()` — his 8 + 8 is already exactly right:**
+
+| retention tag | n | what it is |
+|---|---|---|
+| `test-fixture` | **8** | his 8 hidden fixtures — the suite opens them by name |
+| `recent` | **8** | his 8 visible reels |
+| `panels-never-banked` | 3 | the **vault** still owes these a bank |
+| `eligible` | 1 | the prune may release it |
+| | **20** | on disk |
+
+So the spec was never violated. What was missing is that **three numbers reach a screen and nothing
+relates them**: the river shows **8**, the console's `onDisk` shows **12** (v2877's fixture filter
+correctly moved every figure with it), the disk holds **20**. Any two of those read as a
+contradiction, which is exactly what he saw.
+
+**Fixed in v3278** — `control_app.reel_census()` accounts for every reel on disk by exactly one
+reason, and says it in one sentence:
+
+> 20 reel(s) on disk = 8 he sees + 8 hidden fixture(s) the suite opens by name + 3 waiting on a
+> lane (vault: 3) + 1 the prune may release
+
+⚠ **The red condition is the SUM, not the number.** 20 is not wrong and 16 is not a target to
+enforce — reels pass through. What would make every downstream figure suspect is a total whose
+parts do not add up, or a retention tag this console cannot name. Both are red.
+
+⚠ **An unrecognised tag is NAMED, never dropped.** Silently discarding one would make the census
+look exact and be wrong the first time a retention rule is added — a total that stops adding up
+with nobody told. There is a law for precisely that. [[zero-needs-a-denominator]]
+
+⚠ **`owed` comes from `shelf_driver.OWED_BY`**, the one tag→lane map, never a private copy here —
+and the law walks every entry in that map rather than the three that happen to be on disk today.
+[[copy-drift]]
+
+⚠ **An unreadable plan is UNKNOWN, not an empty disk** — it returns `onDisk: None` rather than a 0
+that would read as "nothing is there". [[unknown-stays-unknown]]
+
+**Joined to the heart:** registered as the doctor row `reel population`, which goes red when the
+parts do not sum and UNKNOWN when a tag cannot be placed. A census nobody reads is
+[[the-unjoined-end]].
+
+Five laws, six sabotages, every one RED, each anchor matching exactly once.
+
 ## REG-1086 — the door to THE SHELF was anchored to a floor that is off-screen at his resolution
 
 The Mac third eye has carried this four briefs running: **"1280x800 rail-clip unpaid

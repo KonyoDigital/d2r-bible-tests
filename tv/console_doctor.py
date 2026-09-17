@@ -1786,6 +1786,40 @@ def _check_the_hunt_is_buying_something():
                   % (per, len(passes), _window))
 
 
+def _check_every_reel_on_disk_is_accounted_for():
+    """Does the population on disk add up, and can the console SAY what each reel is doing here?
+
+    ⚠⚠ v3278 — THREE NUMBERS REACHED A SCREEN AND NOTHING RELATED THEM. Konyo reported it as
+    *"Shelf shows 13, disk holds 20"*, and his spec is *"only 8 reel session ... and obivously
+    those 8 hidden fixtures are bakcend purpose also kept.. thats all 16 in total"*.
+
+    MEASURED: his 8 + 8 is already exactly right. The river shows 8, the console's `onDisk` shows
+    12 (the fixture filter moved every figure with it, v2877), and the disk holds 20. Any two of
+    those read as a contradiction while nothing published the third fact — that 3 reels are
+    waiting on the vault and 1 is releasable.
+
+    ⚠ THE RED CONDITION IS THE SUM, not the number. 20 is not wrong and 16 is not a target to
+    enforce; reels pass through. What would be wrong is a total whose parts do not add up, or a
+    retention tag this console cannot name — both of which make every figure downstream suspect.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    try:
+        import control_app as ca
+        c = ca.reel_census()
+    except Exception as e:
+        return UNKNOWN, "the reel census could not be taken: %s" % str(e)[:80]
+    if not isinstance(c, dict) or c.get("onDisk") is None:
+        return UNKNOWN, (str((c or {}).get("why"))[:150]
+                         or "the population could not be read, which is UNKNOWN and not an empty disk")
+    if not c.get("sums"):
+        return MISSING, c.get("why") or "the reel population does not add up"
+    if c.get("other"):
+        return UNKNOWN, ("%s — and %s is a retention tag this census has never met, so what those "
+                         "reel(s) are doing here is UNKNOWN"
+                         % (c["why"], ", ".join(sorted(c["other"]))))
+    return OK, c["why"]
+
+
 def _check_the_reel_extract_is_moving():
     """v2139 — IS THE EXTRACT ACTUALLY MOVING, and do the two memories still agree?
 
@@ -3538,6 +3572,7 @@ CHECKS = [
     ("disk headroom", _check_disk_headroom),
     ("subscription", _check_subscription_burn),
     ("unattended reel", _check_a_reel_is_not_recording_unattended),
+    ("reel population", _check_every_reel_on_disk_is_accounted_for),
     ("reel extract", _check_the_reel_extract_is_moving),
     ("hunt economy", _check_the_hunt_is_buying_something),
     ("sweep would find", _check_the_sweep_would_find_something),

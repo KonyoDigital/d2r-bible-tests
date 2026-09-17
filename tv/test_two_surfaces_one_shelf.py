@@ -368,6 +368,99 @@ class OneWordMustNotCarryTwoNumbers(unittest.TestCase):
 
 
 
+class EveryReelOnDiskIsAccountedFor(unittest.TestCase):
+    """★ v3278 — THREE NUMBERS REACHED A SCREEN AND NOTHING RELATED THEM.
+
+    He reported it as *"Shelf shows 13, disk holds 20"*, and his spec, in his own correction:
+    *"not 8 fifo.. IN TOTAL i want to see only 8 reel session ... and obivously those 8 hidden
+    fixtures are bakcend purpose also kept.. thats all 16 in total"*.
+
+    MEASURED against `reel_retention.plan()` — **his 8 + 8 is already exactly right**:
+
+        test-fixture          8   his 8 hidden fixtures
+        recent                8   his 8 visible reels
+        panels-never-banked   3   the VAULT still owes a bank
+        eligible              1   the prune may release it
+        ------------------------------------------------------
+        on disk              20
+
+    The river shows 8, the console's `onDisk` shows 12 (v2877's fixture filter moved every figure
+    with it), the disk holds 20. Any two of those read as a contradiction while nothing published
+    the third fact.
+
+    ⚠ THE RED CONDITION IS THE SUM, NOT THE NUMBER. 20 is not wrong and 16 is not a target to
+    enforce — reels pass through. What is wrong is a total whose parts do not add up, or a tag
+    this console cannot name. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+
+    @staticmethod
+    def _plan(tags):
+        return {"ok": True, "candidates": [], "kept": [{"reel": "r%d" % i, "tag": t}
+                                                       for i, t in enumerate(tags)]}
+
+    def _census(self, tags, ok=True):
+        import control_app as ca
+        import reel_retention as rr
+        real = rr.plan
+        rr.plan = (lambda *a, **k: self._plan(tags)) if ok else (lambda *a, **k: {"ok": False, "why": "nope"})
+        try:
+            return ca.reel_census()
+        finally:
+            rr.plan = real
+
+    def test_the_parts_SUM_to_the_whole(self):
+        c = self._census(["test-fixture"] * 8 + ["recent"] * 8 + ["panels-never-banked"] * 3 + ["eligible"])
+        self.assertTrue(c["ok"], c.get("why"))
+        self.assertTrue(c["sums"], "the census does not add up: %s" % c.get("why"))
+        self.assertEqual(c["onDisk"], 20)
+        self.assertEqual((c["his"], c["fixtures"], c["owed"], c["releasable"]), (8, 8, 3, 1))
+        self.assertEqual(c["owedBy"], {"vault": 3},
+                         "the owing LANE is not named, so 'waiting' says nothing actionable")
+
+    def test_an_UNKNOWN_tag_is_NAMED_and_never_dropped(self):
+        """⚠⚠ THE LAW THE WHOLE THING TURNS ON. Silently discarding a tag it does not recognise
+        would make the census look exact and be wrong the first time a retention rule is added —
+        a total that stops adding up without anybody being told."""
+        c = self._census(["recent"] * 2 + ["some-future-rule"])
+        self.assertEqual(c["onDisk"], 3)
+        self.assertTrue(c["sums"], "an unrecognised tag broke the sum instead of being counted")
+        self.assertEqual(c["other"], {"some-future-rule": 1},
+                         "the unrecognised tag was dropped rather than named")
+        self.assertIn("some-future-rule", c["why"], "the sentence hides the tag it could not place")
+
+    def test_the_OWED_tags_come_from_the_ONE_map_not_a_private_copy(self):
+        """⚠ `shelf_driver.OWED_BY` is the single tag->lane map. A second list inside the census is
+        how the two drift the day a tag is added. [[copy-drift]]"""
+        import shelf_driver as sd
+        for tag, lane in sd.OWED_BY.items():
+            c = self._census([tag])
+            self.assertEqual(c["owed"], 1, "%r is in OWED_BY but the census does not count it" % tag)
+            self.assertEqual(c["owedBy"], {lane: 1})
+
+    def test_an_UNREADABLE_plan_is_UNKNOWN_not_an_empty_disk(self):
+        c = self._census([], ok=False)
+        self.assertFalse(c["ok"])
+        self.assertIsNone(c["onDisk"], "an unreadable plan reported a COUNT, which invents a fact")
+
+    def test_the_doctor_row_is_REGISTERED_and_reds_on_a_broken_sum(self):
+        """⚠ a census nobody reads is [[the-unjoined-end]]. And it must go red on the one thing
+        that makes every downstream figure suspect."""
+        import console_doctor as D
+        import control_app as ca
+        self.assertIn("reel population", dict(D.CHECKS),
+                      "the census is not registered with the doctor, so nothing supervises it")
+        real = ca.reel_census
+        ca.reel_census = lambda *a, **k: {"ok": False, "onDisk": 20, "sums": False,
+                                          "why": "the parts do not add up: 19 accounted vs 20 on disk"}
+        try:
+            st, say = dict(D.CHECKS)["reel population"]()
+        finally:
+            ca.reel_census = real
+        self.assertNotEqual(str(st).lower(), "ok",
+                            "the doctor stayed green over a population that does not add up")
+        self.assertIn("do not add up", say)
+
+
 RED_PROOF = [
     {
         "why": "removing the report-level filter restores the strip that printed 24 over a shelf "

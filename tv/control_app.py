@@ -22640,6 +22640,92 @@ def _shelf_visible(story):
     return out
 
 
+def reel_census(hist_dir=None):
+    """Every reel on disk, accounted for by exactly ONE reason. -> dict
+
+    ⚠⚠ v3278 — HIS SPEC AND HIS DISK DISAGREED BY FOUR, AND NOTHING ON ANY SURFACE SAID WHY.
+    Konyo, 2026-09-17, correcting me after I restated it wrong: *"not 8 fifo.. IN TOTAL i want to
+    see only 8 reel session (those same last 8 reels that come in FIFO meaning first in first out
+    only 8 reels) and obivously those 8 hidden fixtures are bakcend purpose also kept.. thats all
+    16 in total"*.
+
+    MEASURED against `reel_retention.plan()`:
+
+        test-fixture          8   his 8 hidden fixtures        — exactly as specified
+        recent                8   his 8 visible reels          — exactly as specified
+        panels-never-banked   3   the VAULT still owes a bank
+        eligible              1   the prune may release it
+        ------------------------------------------------------------------
+        on disk              20   spec says 16
+
+    **His 8 + 8 is already correct.** The four extra are not a violation of it — they are reels
+    passing through, and each has a reason. But three numbers reach a screen (river 8, console
+    onDisk 12 after the fixture filter, real disk 20) and NOTHING relates them, so any two of them
+    read as a contradiction. That is what he reported as *"Shelf shows 13, disk holds 20"*.
+
+    ⚠ THE PARTS MUST SUM TO THE WHOLE, and `other` is NAMED rather than dropped. A reconciliation
+    that quietly discards a tag it does not recognise is worse than none: it would look exact and
+    be wrong the first time a retention rule is added. `unaccounted` exists for the same reason —
+    if the tags cannot be read at all, that is UNKNOWN and says so.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]] [[the-unjoined-end]]
+
+    ⚠ `owed` comes from `shelf_driver.OWED_BY`, the ONE tag->lane map, never a second list here.
+    A private copy is how the two drift the day a tag is added. [[copy-drift]]
+    """
+    out = {"ok": False, "onDisk": None, "his": 0, "fixtures": 0, "owed": 0, "owedBy": {},
+           "releasable": 0, "other": {}, "sums": None, "why": ""}
+    try:
+        import reel_retention as _rr
+        _p = _rr.plan(hist_dir=hist_dir) if hist_dir else _rr.plan()
+    except Exception as e:
+        out["why"] = ("reel_retention.plan() raised %s, so the population is UNKNOWN — this is "
+                      "not a report that the disk is empty" % type(e).__name__)
+        return out
+    if not _p.get("ok"):
+        out["why"] = _p.get("why") or "reel_retention.plan() could not run, so the population is UNKNOWN"
+        return out
+    try:
+        import shelf_driver as _sd
+        _owed_by = dict(getattr(_sd, "OWED_BY", {}) or {})
+    except Exception:
+        _owed_by = {}
+    rows = list(_p.get("candidates") or []) + list(_p.get("kept") or [])
+    for _r in rows:
+        tag = (_r or {}).get("tag")
+        if tag in SHELF_HIDDEN_TAGS:
+            out["fixtures"] += 1
+        elif tag == "recent":
+            out["his"] += 1
+        elif tag in _owed_by:
+            out["owed"] += 1
+            lane = _owed_by[tag]
+            out["owedBy"][lane] = out["owedBy"].get(lane, 0) + 1
+        elif tag == "eligible":
+            out["releasable"] += 1
+        else:
+            # ⚠ NAMED, never dropped. A tag this function has not met is a fact about the
+            # retention rules, and silently folding it is how a total stops adding up.
+            out["other"][str(tag)] = out["other"].get(str(tag), 0) + 1
+    out["onDisk"] = len(rows)
+    parts = out["his"] + out["fixtures"] + out["owed"] + out["releasable"] + sum(out["other"].values())
+    out["sums"] = (parts == out["onDisk"])
+    out["ok"] = bool(out["sums"])
+    if not out["sums"]:
+        out["why"] = ("the parts do not add up: %d accounted vs %d on disk — a reconciliation that "
+                      "does not sum is not one" % (parts, out["onDisk"]))
+        return out
+    _bits = ["%d he sees" % out["his"], "%d hidden fixture(s) the suite opens by name" % out["fixtures"]]
+    if out["owed"]:
+        _bits.append("%d waiting on a lane (%s)"
+                     % (out["owed"], ", ".join("%s: %d" % (k, v) for k, v in sorted(out["owedBy"].items()))))
+    if out["releasable"]:
+        _bits.append("%d the prune may release" % out["releasable"])
+    for _t, _n in sorted(out["other"].items()):
+        _bits.append("%d tagged %s" % (_n, _t))
+    out["why"] = "%d reel(s) on disk = %s" % (out["onDisk"], " + ".join(_bits))
+    return out
+
+
 def shelf_hidden_reels(hist_dir=None):
     """The reel ids NO console surface may show. -> (frozenset | None, why)
 
@@ -29588,7 +29674,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3277",
+        "ver": "v3278",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
