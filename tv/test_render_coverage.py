@@ -27,6 +27,7 @@ import json
 import os
 import sys
 import tempfile
+import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -370,6 +371,32 @@ class AVolatileExemptionStaysBounded(unittest.TestCase):
                 bad.append("%s (its seed STUBS the data it renders, so it is deterministic)" % n)
         self.assertFalse(
             bad, "exempt from the coverage count without earning it: %s" % "; ".join(bad))
+
+    def test_an_UNMEASURED_volatile_target_still_REFUSES(self):
+        """★ A CROSS-FAMILY REVIEW CALLED THIS A DEFECT AND IT IS THE BOUNDARY, NOT A HOLE.
+
+        The v3260 look (xai) reported: *"the exemption is incomplete - the `is_ is None` branch is
+        not guarded by the volatile check, so a volatile target whose measurement disappeared is
+        still refused."* Correct as an observation, wrong as a defect.
+
+        A POPULATION that churned is what COVERAGE_VOLATILE forgives. A target that produced NO
+        READING AT ALL means the surface was not rendered - and a volatile population is no excuse
+        for an unmeasured one. Exempting it would let this target stop being photographed entirely
+        and still read clean: a skip passing for a pass. [[regression-guard]]
+        """
+        import inspect
+        rc = self._rc()
+        src = inspect.getsource(rc)
+        src = re.sub(r"(?m)^\s*#.*$", " ", src)      # strip comments - prose must not satisfy this
+        i = src.find("if is_ is None:")
+        self.assertGreater(i, -1, "the unmeasured branch is gone - re-anchor this law")
+        branch = src[i:src.find("elif is_ <", i)]
+        self.assertIn("bad += 1", branch,
+                      "an UNMEASURED target no longer refuses, so a surface that stopped being "
+                      "rendered reads as clean")
+        self.assertNotIn("COVERAGE_VOLATILE", branch,
+                         "the volatile exemption was widened to cover 'no reading at all'. A "
+                         "churning population is forgivable; not being photographed is not")
 
     def test_the_exemption_does_not_SPREAD(self):
         """A ceiling, with the reason: one target has earned this. A second should have to argue

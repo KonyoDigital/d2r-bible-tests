@@ -4314,6 +4314,15 @@ def _coverage_check(results, say, scope=None, out=None):
                 say("🔴 coverage %-8s %s is no longer measured at all (floor %d)."
                     % (name, key, was))
                 bad += 1
+            # ⚠⚠ THE `is_ is None` BRANCH ABOVE IS DELIBERATELY *NOT* EXEMPT, AND A CROSS-FAMILY
+            # REVIEW CALLED THAT A DEFECT (v3260 look, xai: "the exemption is incomplete — a
+            # volatile target that returns None still refuses"). It is not. The two are different
+            # facts: a POPULATION that churned is what COVERAGE_VOLATILE forgives; a target that
+            # produced NO READING AT ALL means the surface was not rendered, and a volatile
+            # population is no excuse for an unmeasured one. Exempting it would let this target
+            # stop being photographed entirely and still read clean, which is the exact shape
+            # `regression-guard` names — a skip that passes for a pass. Stated here because the
+            # boundary was implicit, and an implicit boundary is one somebody widens later.
             elif is_ < was and name in COVERAGE_VOLATILE:
                 # printed, never counted — see COVERAGE_VOLATILE for the measurement
                 say("⚪ coverage %-8s %s measured %d node(s), floor %d — this target's population "
