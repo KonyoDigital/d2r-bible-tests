@@ -518,10 +518,47 @@ def red_proofs_in(filename):
             for t in node.targets:
                 if isinstance(t, ast.Name) and t.id == "RED_PROOF":
                     try:
-                        return ast.literal_eval(node.value)
+                        return _normalise_proofs(ast.literal_eval(node.value))
                     except Exception:
                         return None
     return None
+
+
+def _normalise_proofs(raw):
+    """Every declared proof as the dict `_prove_one` reads. -> [dict]
+
+    ⚠⚠ TWO SHAPES WERE IN THE TREE AND THE PROVER COULD ONLY READ ONE, SO THE WHOLE LOOP DIED.
+    374 gates declare `RED_PROOF` as dicts; **12 declare 4-tuples** `(file, find, replace,
+    breaks)`. `_prove_one` does `pr.get("file")` with no isinstance check, and `prove()`'s loop is
+    `try: ... finally:` with NO `except` — so the first tuple raised AttributeError straight out
+    of `prove()`, **`_write_state(results)` never ran**, and `_heart2_census()` in control_app.py
+    went on reading a file nothing had refreshed.
+
+    So the organ whose entire purpose is asking "can my own gates still go red" aborted on gate
+    number one of twelve, and reported through a census it had stopped writing. MEASURED
+    2026-09-17: 32 proofs across 12 gates, every one of arity 4, none of them ever executed.
+
+    ⚠ NORMALISE AT THE READER, NOT AT THE PROVER. Both the engine and every law that inspects
+    proofs go through this function, so a second shape can never again be legal for one reader and
+    unreadable to another. The tuple's 4th slot names the law that must break, which is what the
+    dict calls `why`; `matches` is absent from the tuple form and stays None — UNKNOWN, so a
+    tuple proof can never claim a match count nobody wrote. [[the-unjoined-end]]
+    [[unknown-stays-unknown]] [[copy-drift]]
+    """
+    out = []
+    for pr in (raw or []):
+        if isinstance(pr, dict):
+            out.append(pr)
+            continue
+        if isinstance(pr, (tuple, list)) and len(pr) == 4:
+            out.append({"file": pr[0], "find": pr[1], "replace": pr[2],
+                        "why": pr[3], "matches": None})
+            continue
+        # a shape nobody has taught this reader: keep it, so the well-formedness law SEES it and
+        # says so, rather than it vanishing here and reading as "no proof declared".
+        out.append({"file": None, "find": None, "replace": None,
+                    "why": "unreadable proof shape: %r" % (pr,), "matches": None})
+    return out
 
 
 # ── the sandbox ──────────────────────────────────────────────────────────────────────────────
@@ -803,7 +840,23 @@ def prove(only=None, say=print):
         for name, filename, proofs in have:
             verdicts = []
             for i, pr in enumerate(proofs):
-                v = _prove_one(sandbox, name, filename, pr, i, say)
+                # ⚠⚠ ONE BAD PROOF MAY NOT TAKE THE WHOLE RUN WITH IT. This loop sits inside a
+                # `try: ... finally:` with NO `except`, so an exception from _prove_one escaped
+                # `prove()` entirely — and `_write_state(results)` is BELOW that try, so nothing
+                # was ever banked. The census in control_app.py then read a file nothing had
+                # refreshed and reported from it, indefinitely.
+                # MEASURED 2026-09-17: a 4-tuple proof raised AttributeError on `pr.get("file")`,
+                # 12 gates declared them, and the organ that exists to ask "can my own gates still
+                # go red" died on the first one while still reporting a verdict.
+                # The shape is fixed at the reader (_normalise_proofs); this is the SECOND lock,
+                # because the next unreadable proof will be a shape nobody has thought of yet.
+                # [[the-unjoined-end]] [[unknown-stays-unknown]]
+                try:
+                    v = _prove_one(sandbox, name, filename, pr, i, say)
+                except Exception as _pe:
+                    say("    proof %d raised %s — recorded BLIND, run continues: %s"
+                        % (i, type(_pe).__name__, str(_pe)[:120]))
+                    v = BLIND
                 verdicts.append(v)
             results[name] = (BLIND if BLIND in verdicts
                              else INVALID if INVALID in verdicts

@@ -535,7 +535,11 @@ RED_PROOF = [
         'file': 'tv/control_ui.html',
         'find': 'font-weight: var(--fw-regular)',
         'replace': 'font-weight: 400',
-        'matches': 2,
+        # v3240 — 3, not 2. v3232 added a third legitimate var(--fw-regular) for the
+        # empty-station chip's count. A tamper count is a MEASUREMENT of the tree and it
+        # moves whenever the tree does; left stale it makes the proof unverifiable, and
+        # this one sat wrong while heart2 could not read 32 of its siblings at all.
+        'matches': 3,
     },
 ]
 

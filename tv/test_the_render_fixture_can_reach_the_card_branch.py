@@ -261,7 +261,7 @@ RED_PROOF = [
         "why": "the blessed floor is put back above what this world can paint, which is the "
                "permanently-red gate that started all of this",
         "file": "render_coverage.json",
-        "find": '  "shelf-cards": {\n   "1120x628": 16,',
+        "find": '   "shelf-cards": {\n      "1120x628": 16,',
         "replace": '  "shelf-cards": {\n   "1120x628": 441,',
         "matches": 1,
     },

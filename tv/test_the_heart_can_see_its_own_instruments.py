@@ -95,10 +95,25 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                 with io.open(tgt, encoding="utf-8") as fh:
                     src = fh.read()
                 got = src.count(str(pr.get("find") or ""))
-                want = int(pr.get("matches") or 0)
-                if got != want:
-                    bad.append("%s: the tamper matches %d time(s), it declares %d — a sabotage "
-                               "that changes nothing proves nothing" % (label, got, want))
+                # ⚠⚠ AN ABSENT COUNT IS UNKNOWN, NOT A DECLARED ZERO. `int(pr.get("matches") or 0)`
+                # reads a missing key and a real 0 as the same number. That mattered the moment
+                # heart2 started normalising the 4-tuple proof form, which carries no count at all
+                # (v3240): 32 proofs across 12 gates arrived with matches=None and were all
+                # reported as "declares 0" — 35 of 36 entries in this list were that, and every
+                # one was an artefact of the reader rather than a defect in the proof.
+                #
+                # The SUBSTANTIVE law is `got >= 1` — a sabotage whose anchor matches nothing
+                # changes nothing and proves nothing. The declared count is a CROSS-CHECK, and it
+                # can only be checked when somebody declared one.
+                # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+                want = pr.get("matches")
+                if got < 1:
+                    bad.append("%s: the tamper matches %d time(s) — its anchor is not in the "
+                               "file, so it changes nothing and proves nothing" % (label, got))
+                elif want is not None and got != int(want):
+                    bad.append("%s: the tamper matches %d time(s), it declares %d — one of the "
+                               "two is wrong, and a proof measured against the wrong number is "
+                               "not a proof" % (label, got, int(want)))
                 if str(pr.get("find")) == str(pr.get("replace")):
                     bad.append("%s: find and replace are identical — it tampers with nothing"
                                % label)

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3239",
+  "ver": "v3240",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3239: once a watcher only failure stopped blanking the surface list, the refusal text still promised to prevent a zero surface map, the measure docstring still said the list is empty whenever the map cannot be measured, and main was outside the new law. all three now describe the shape that actually exists",
+  "note": "v3240: RED_PROOF is declared in two shapes and the prover could only read one, so it raised on the first four tuple and took the whole run with it, and the state file below that try was never written. the census then reported from a file nothing refreshed. both shapes normalise at the reader now and 885 proofs are well formed, four of which had been silently unable to tamper anything",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

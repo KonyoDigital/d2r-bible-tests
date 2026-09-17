@@ -467,7 +467,7 @@ RED_PROOF = [
         "why": "restoring the plus sign restores the reading a cross-family eye actually made: "
                "0 + 7 = 7 reels in the lane",
         "file": "control_ui.html",
-        "find": """<i>the ledger</i><b>' + _lc""",
+        "find": """<i>deleted \\u00b7 the ledger</i><b>' + _lc""",
         "replace": """<i>the ledger</i>+<b>' + _lc""",
         "matches": 1,
     },

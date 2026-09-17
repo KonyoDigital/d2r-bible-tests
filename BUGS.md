@@ -35192,3 +35192,57 @@ pins that the refusal names the FILE and says UNKNOWN, which are the durable hal
 eye: v3233 fabricated a roster → v3235 closed a re-read race → v3237 stopped a false accusation →
 v3239 corrected the sentences all three left behind. Each was a real improvement, and each moved
 the defect one layer outward rather than removing it. `[[review-after-ship]]`
+
+## REG-1045 — the organ that asks whether gates can go red died on gate one of twelve
+
+**2026-09-17 · v3240 · `tv/heart2.py`, `tv/test_the_heart_can_see_its_own_instruments.py`,
+`visual_lock_invariant.py` + 3 gate files**
+
+`RED_PROOF` is declared in two shapes in this tree. **374 gates use dicts (853 proofs); 12 use
+4-tuples `(file, find, replace, breaks)` — 32 proofs.** `_prove_one` does `pr.get("file")` with no
+isinstance check, and `prove()`'s loop is `try: … finally:` with **no `except`**. So:
+
+```
+_prove_one RAISED AttributeError: 'tuple' object has no attribute 'get'
+```
+
+escaped `prove()` entirely, and **`_write_state(results)` sits below that try — so nothing was ever
+banked.** `_heart2_census()` in `control_app.py` then went on reading a file nothing had refreshed,
+and reported from it.
+
+**The organ whose entire purpose is asking "can my own gates still go red" aborted on the first of
+twelve, and kept reporting through a census it had stopped writing.** That is
+`[[heart-v2-instruments-watch-themselves]]` in its purest form — the instrument failing in exactly
+the way it exists to detect.
+
+**Fixed at the READER, not the prover** (`_normalise_proofs`): both shapes become the dict
+`_prove_one` reads, so a second shape can never again be legal for one reader and unreadable to
+another. A shape nobody has taught it is KEPT with a self-describing `why`, so the
+well-formedness law sees it rather than it vanishing into "no proof declared". A tuple carries no
+match count, so `matches` stays **None — UNKNOWN**, never a fabricated 0.
+
+**Second lock:** the prove loop now catches per-proof exceptions and records BLIND, because the
+next unreadable proof will be a shape nobody has thought of yet.
+
+⚠ **Then the well-formedness law could finally SEE all 885 — and 36 were malformed.** 32 of those
+were an artefact of my own normalisation: `int(pr.get("matches") or 0)` reads a missing key and a
+real 0 as the same number, so every tuple proof reported "declares 0". The substantive law is
+`got >= 1` — an anchor matching nothing changes nothing; the declared count is a CROSS-CHECK and
+can only be checked when somebody declared one. `[[unknown-stays-unknown]]`
+
+**The remaining 4 were real, and had been invisible:**
+
+| proof | defect |
+|---|---|
+| `visual-lock[0]` | declared 2, matched **3** — v3232 added a third legitimate `var(--fw-regular)` |
+| `test_the_ledger_cannot_lie_about_what_it_saw[10]` | anchor named a line restructured out of existence — matched **0** |
+| `test_a_reels_whole_life_is_one_work_list[4]` | the river figure gained a `deleted ·` prefix — matched **0** |
+| `test_the_render_fixture_can_reach_the_card_branch[3]` | `render_coverage.json` indentation changed — matched **0** |
+
+Three of the four were proofs that **could not tamper anything**, sitting behind a reader that
+aborted before reaching them. **885 declared, all well formed.** Red-proofed: removing the
+normalisation → 1 error + 1 failure.
+
+⚠ The last one cost two attempts: `control_ui.html` holds the literal text `·` (it is JS
+source), not the decoded `·`, so the first re-anchor decoded one level too far and still matched 0.
+The measurement said so immediately — `matches in file: 0` — which is why the count is printed.
