@@ -35737,3 +35737,17 @@ change — 222 / 173 / 49 / 50.
 in one 40-line function, and I shipped after the first. Eight consecutive versions now where a
 different family has found real defects in my own work — and this one was not subtle, it was the
 same line twice.
+
+⚠ **REG-1057, completed.** The skip moved from the one law to the CLASS — `OnHisRealStore`, whose
+own header says *"HIS REAL STORE — observational"* and whose three laws all call `TS._stores()`,
+confirmed by reading each.
+
+**A class-level skip is correct HERE and was wrong an hour ago.** In
+`test_the_admission_bar_knows_what_it_would_admit` I put the same call in `setUp` while four of its
+five laws STUB the loader, so the whole gate stood down and reported green having run nothing
+(REG-1053). The difference is not style — it is whether every law in the class actually needs the
+data.
+
+Measured both venues: with his stores, **19 ran, 0 skipped**, examining 60 names against 49 banked.
+Without them, **19 ran, 3 skipped, 0 failures** — the other 16 laws in the file still execute, so
+this is a scoped stand-down and not a file-wide green.
