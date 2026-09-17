@@ -18509,7 +18509,25 @@ window._lockMark = function(isOpen, px, label){
     }, true);
   })();
   document.addEventListener('keydown', function(e){
-    if (!TH.open) return;
+    /* ⚠⚠ v3274 — `!TH.open` WAS A DEAD ESCAPE IN THE ONE STATE HE CANNOT CLICK HIS WAY OUT OF.
+       The Mac third-eye brief, 2026-09-17: the unpaid no-relaunch reports read *"no ✕, Escape
+       no-op"*. Both halves trace to the same place. `btn-shelf` does:
+           if (!TH.open) { try { await thOpen(); } catch (e) { openErr = e; } }
+       — it CAPTURES the stage failure and opens the shelf anyway. So when thOpen() rejects,
+       `TH.open` stays false, `_shelfRefused` replaces the overlay's innerHTML (taking the ✕ with
+       it, since `_paintShelf` is what puts the ✕ there), and this line then swallowed Escape.
+       No ✕, no Escape, and the panel's own advice was "press ON AIR" — a RECORDING control.
+       ⚠ NARROW ON PURPOSE. Every transport key below still belongs to an open theatre; only
+       ESCAPE is let through, and only while an overlay is actually on screen. Opening the whole
+       handler would give a closed theatre the arrow keys. [[the-unjoined-end]] */
+    if (!TH.open) {
+      if (e.key !== 'Escape') return;
+      var _sv = $('th-shelfov'), _dv = $('th-dossier-ov');
+      var _up = (_sv && !_sv.hidden) || (_dv && !_dv.hidden);
+      if (!_up) return;
+      thEscUnwind(); e.preventDefault();
+      return;
+    }
     // v944.7 — while the FRAME LIGHTBOX is up it owns the keys: ← → walk frames, Esc closes,
     // Space is swallowed (no play under the lightbox).
     if (TH.hdOpen){
@@ -20125,10 +20143,21 @@ window._lockMark = function(isOpen, px, label){
     if (openErr) why += ' (the stage also refused: ' + String((openErr && openErr.message) || openErr) + ')';
     if (ov){
       ov.hidden = false;
-      ov.innerHTML = '<div class="sh-head">\uD83C\uDF9E THE SHELF \u2014 it did not open</div>'
+      /* ⚠⚠ v3274 — THIS PANEL WAS A DEAD END. It replaces the overlay's innerHTML, and the ✕ it
+         overwrites is the one `_paintShelf` puts there — so the refusal state had NO close
+         control at all, which is the "no ✕" half of the unpaid report. The ✕ is re-emitted with
+         the same id, so the existing `_shDismiss` handler picks it up unchanged and still leaves
+         the way he came in. [[the-unjoined-end]] */
+      ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" '
+        + 'title="close the shelf (Esc)">\u2715</button>'
+        + '<div class="sh-head">\uD83C\uDF9E THE SHELF \u2014 it did not open</div>'
         + '<div class="sh-story"><div class="shs-wait">' + _hrtEsc(why) + '</div>'
         + '<div class="shs-wait">Nothing was established about your reels \u2014 this is NOT '
-        + '\u201cno runs\u201d. Press <b>ON AIR</b> to close the stage and try again; if it '
+        /* ⚠ v3274 — IT USED TO SAY "Press ON AIR to close the stage and try again". ON AIR is the
+           RECORDING control: that sentence tells him to start filming in order to escape an error
+           panel, and GrokBot's own standing rules for driving this console are "no ON AIR". The
+           exit is the ✕ above, or Escape, both of which now exist in this state. */
+        + '\u201cno runs\u201d. Close this with \u2715 or Escape and open THE SHELF again; if it '
         + 'keeps refusing, the Doctor has been told and it will show on the console.</div></div>';
     }
     /* ⚠ AND SAY IT SOMEWHERE THAT IS VISIBLE WHEN THE STAGE IS NOT. #th-shelfov lives INSIDE

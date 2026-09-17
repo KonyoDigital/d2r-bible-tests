@@ -509,6 +509,80 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                       "there is no honest fallback, so a dossier opened off the shelf still "
                       "promises the shelf")
 
+    def _theatre_keys(self):
+        """The THEATRE's keydown handler, both ends anchored on code that predates this fix.
+
+        ⚠ `find("document.addEventListener('keydown'")` matches an UNRELATED handler ~9000 lines
+        earlier and the first cut of these laws read that one — it went red immediately, which is
+        the test doing its job. The lightbox arrow branch is unique to this handler, so the slice
+        runs from the handler that OWNS it back to its own registration.
+        [[source-reading-guard]]
+        """
+        src = _py_only(self.src)
+        end = src.find("if (e.key === 'ArrowRight'){ thHdStep(1)")
+        self.assertGreater(end, -1, "the theatre keydown handler is gone or renamed")
+        start = src.rfind("document.addEventListener('keydown'", 0, end)
+        self.assertGreater(start, -1, "the theatre keydown registration is gone")
+        return src[start:end]
+
+    def test_ESCAPE_still_works_when_the_STAGE_never_opened(self):
+        """★ v3274 — THE STATE HE COULD NOT CLICK HIS WAY OUT OF, filed as "no ✕, Escape no-op".
+
+        `btn-shelf` does `if (!TH.open) { try { await thOpen(); } catch (e) { openErr = e; } }` —
+        it CAPTURES the stage failure and opens the shelf anyway. So when `thOpen()` rejects:
+
+            TH.open stays FALSE
+            `_shelfRefused` replaces the overlay's innerHTML, taking the ✕ with it
+              (the ✕ belongs to `_paintShelf`, which this overwrote)
+            the keydown handler's `if (!TH.open) return;` then swallowed Escape
+
+        No ✕, no Escape, and the panel's own advice was "press ON AIR" — the RECORDING control.
+        Three ways out, all of them closed, in the one state where he most needs one.
+        [[the-unjoined-end]]
+        """
+        blk = self._theatre_keys()
+        self.assertIn("if (!TH.open) {", blk,
+                      "the handler no longer has a closed-stage branch at all")
+        self.assertIn("thEscUnwind()", blk,
+                      "Escape never reaches the unwind when the stage did not open, so the "
+                      "refusal panel is a dead end")
+        self.assertIn("th-shelfov", blk,
+                      "the closed-stage branch does not check that an overlay is actually up")
+
+    def test_the_closed_stage_branch_lets_ONLY_escape_through(self):
+        """⚠ THE GUARD ON THAT FIX. Every other key in this handler belongs to an OPEN theatre —
+        arrows walk frames, space plays. Opening the whole handler to a closed stage would hand a
+        shut theatre the transport keys, which is a bigger bug than the one being fixed."""
+        blk = self._theatre_keys()
+        j = blk.find("if (!TH.open) {")
+        self.assertGreater(j, -1, "the closed-stage branch is gone")
+        branch = blk[j:j + 420]
+        self.assertIn("e.key !== 'Escape'", branch,
+                      "the closed-stage branch does not restrict itself to Escape, so a shut "
+                      "theatre now answers the transport keys")
+
+    def test_the_REFUSAL_panel_keeps_a_way_out(self):
+        """⚠ The refusal panel replaces innerHTML, which is where the ✕ lived. It must re-emit one
+        with the SAME id, so the existing shared dismiss picks it up and still leaves the way he
+        came in — a second close path would be exactly what v3264 collapsed into one."""
+        src = _py_only(self.src)
+        i = src.find("function _shelfRefused(")
+        self.assertGreater(i, -1, "the refusal handler is gone or renamed")
+        body = src[i:i + 1600]
+        self.assertIn("it did not open", body, "this is not the refusal panel")
+        self.assertIn("th-shelf-x", body,
+                      "the refusal panel has no ✕, so a failed shelf cannot be closed by clicking")
+
+    def test_the_refusal_panel_does_NOT_send_him_to_a_RECORDING_control(self):
+        """⚠ It used to say "Press ON AIR to close the stage and try again". ON AIR starts filming.
+        Telling him to record his way out of an error panel is not an exit, and GrokBot's own
+        standing rules for driving this console are "no ON AIR"."""
+        src = _py_only(self.src)
+        i = src.find("function _shelfRefused(")
+        body = src[i:i + 1600]
+        self.assertNotIn("Press <b>ON AIR</b>", body,
+                         "the refusal panel still names the recording control as the way out")
+
     def test_the_dossier_close_still_only_STEPS_BACK_and_never_jumps(self):
         """⚠ the guard on the fix: `_dossierClose` must stay a plain reveal. The moment it starts
         opening the shelf to honour its own label, a dossier opened from the home strip would

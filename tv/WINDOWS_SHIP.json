@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3273",
+  "ver": "v3274",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3273: HEART: two native seats confirmed the shelf close is clean, so the trap he described was one layer in - and it was a label not a behaviour. The dossier back button hard-coded back to the shelf while the dossier has four openers and only two are the shelf; from the off-air home strip or a session deeplink it hides the dossier and lands him on the console, exactly what he reported. The close stays a plain reveal and the LABEL now asks whether the shelf is really underneath. 3 red-proofs. REG-1083.",
+  "note": "v3274: HEART: the unpaid no-relaunch reports read no X Escape no-op and both halves trace to one place. btn-shelf captures a thOpen failure and opens the shelf anyway, so TH.open stays false, the refusal panel overwrites the X that paintShelf puts there, and the keydown handler swallowed Escape on a closed stage. Its own advice was press ON AIR which is the recording control. Escape now survives a stage that never opened, narrowly - only Escape and only while an overlay is up - the refusal panel re-emits the same X id so the shared dismiss handles it, and the sentence names the X and Escape instead. 5 red-proofs. REG-1084.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

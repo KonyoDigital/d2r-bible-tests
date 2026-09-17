@@ -36446,6 +36446,60 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1084 — "no ✕, Escape no-op": three ways out of a failed shelf, all of them closed
+
+From the Mac third-eye brief on #180, listing what is still unpaid: the no-relaunch reports
+(**#5715604864**, **#5716249970**) read **"no ✕, Escape no-op"**. Both halves trace to one place,
+and it is visible in the source without needing his machine.
+
+`btn-shelf` opens the shelf like this:
+
+```js
+if (!TH.open) { try { await thOpen(); } catch (e) { openErr = e; } }
+...
+thShelf(true);
+```
+
+It **captures the stage failure and opens the shelf anyway** — deliberately, so the refusal can be
+reported rather than swallowed. But when `thOpen()` rejects, three things follow:
+
+1. `TH.open` stays **false**.
+2. `_shelfRefused` replaces the overlay's `innerHTML` — and **the ✕ it overwrites belongs to
+   `_paintShelf`**, so the refusal state had no close control at all.
+3. The theatre's keydown handler opens with `if (!TH.open) return;`, so **Escape was swallowed**.
+
+And the panel's own instruction was *"Press **ON AIR** to close the stage and try again"* — **ON AIR
+is the recording control.** It told him to start filming in order to escape an error panel, and
+"no ON AIR" is one of GrokBot's own standing rules for driving this console.
+
+So in the one state where he most needs a way out, he had none: no ✕ to click, no Escape, and a
+sentence pointing at a button that records. [[the-unjoined-end]]
+
+**Fixed in v3274, all three:**
+
+- **Escape survives a stage that never opened.** The closed-stage branch is deliberately narrow —
+  only `Escape`, and only while `#th-shelfov` or `#th-dossier-ov` is actually on screen. Opening
+  the whole handler would hand a shut theatre the arrow keys and the spacebar, which is a bigger
+  bug than the one being fixed, and there is a red-proof pinning that.
+- **The refusal panel re-emits the ✕** with the same `#th-shelf-x` id, so the existing shared
+  `_shDismiss` picks it up unchanged and still leaves the way he came in. A second close path would
+  be exactly what v3264 collapsed into one.
+- **The sentence stops naming a recording control.** It now says close with ✕ or Escape, both of
+  which exist in that state for the first time.
+
+⚠ **The laws' first cut read the WRONG HANDLER.** `find("document.addEventListener('keydown'")`
+matched an unrelated handler ~9,000 lines earlier; the assertions went red immediately, which is
+the test doing its job. The slice now anchors on the lightbox arrow branch — code unique to this
+handler and predating the fix — and walks back to its own registration.
+[[source-reading-guard]]
+
+Five sabotages, every one RED, each anchor matching exactly once.
+
+⚠ **What this does NOT pay:** the third-eye's item 1, *"need a no-relaunch native 📚"*. This removes
+the TRAP inside the failure; it does not establish why `thOpen()` was failing on a long-running
+console in the first place. That still needs a LOOKED taken without a relaunch. **Relaunch is not
+the product fix and is not being shipped as one.**
+
 ## REG-1083 — the button said "back to the shelf" and went to the console, which is the sentence he reported
 
 His words, on the shelf traps: *"when i click on things within the tabs inside shelf i exit out it
@@ -36479,6 +36533,33 @@ that a dismiss leaves the way he came in. There is a red-proof pinning `_dossier
 reveal — it goes red if the close starts calling `thShelf(`, `thOpen(` or `shellOpen(`.
 
 Three sabotages, every one RED, each anchor matching exactly once.
+
+### The cross-family review of v3273 — three findings, all resting on one premise, and the premise is wrong
+
+Grok raised: (1) the label is decided from whether `#th-shelfov` is visible *now*, which "is not the
+same as the user arrived via a shelf card"; (2) the 12s poll re-renders the open dossier, so the
+text can flip with no action from him; (3) a string builder should not read the DOM, because other
+callers observe whatever the shelf state happens to be.
+
+All three measure the label against **entry context**. The button does not promise entry context —
+it promises a **destination**, and `_dossierClose` is a plain `hidden = true`, so the destination is
+**whatever is underneath at the moment he clicks**. Current shelf visibility is therefore the
+correct input by construction, not a heuristic standing in for a better one.
+
+Walk his two scenarios with that in mind:
+
+- *deeplink opens the dossier while the shelf happens to be open* → the label says "back to the
+  shelf" and he lands on the shelf. **The label is true.** He did not come from there, and he does
+  not need to: the button answers "where does this take me", which is the question REG-1083 was
+  filed for.
+- *the shelf closes underneath an open dossier, the poll re-renders, the text changes to "back"* →
+  again **true at that moment**. A label that kept saying "back to the shelf" after the shelf had
+  closed would be **exactly the original defect**, reappearing. The poll is what keeps it honest,
+  not what breaks it.
+
+⇒ The re-render is a self-correcting mechanism here. Finding (3) names the same reading as (1) and
+carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
+measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
 ## REG-1082 — a band he could not get rid of, on the other platform, filed by the bot
 
