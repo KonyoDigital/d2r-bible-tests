@@ -155,6 +155,14 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_quit_attribution", [sys.executable,
+                                   os.path.join(HERE, "test_a_quit_names_who_asked.py")], 60,
+         why="REG-1071 - Grok Bot drove the native seat and his console DIED from a vault mule "
+             "arrow click: 'window gone (api-quit)' with no Esc sent. Ranked worst of four traps. "
+             "Not reproducible here - /api/quit has exactly ONE caller in the page - so it is "
+             "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
+             "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
+             "UNATTRIBUTED line IS the finding. 4 red-proofs"),
     Gate("test_no_footage_tracked", [sys.executable,
                                      os.path.join(HERE, "test_no_reel_footage_is_ever_tracked.py")], 60,
          why="REG-1066 - v3258 committed a 97.84MB tarball holding HIS JOURNAL and two of HIS "

@@ -29533,7 +29533,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3261",
+        "ver": "v3262",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -34057,14 +34057,42 @@ class Handler(BaseHTTPRequestHandler):
             # failure and the handler then hard-coded {"ok": True, "control quitting"} —
             # a false green: nothing armed, process alive, board told "quitting". Same
             # doctrine as /api/off (v926.2): on failure, report it instead of painting OK.
+            # ⚠⚠ v3262 — A QUIT MUST SAY WHO ASKED. Grok Bot, driving the native seat as a user:
+            # *"Mule 2->3 arrow -> native window closed (`window gone (api-quit)` in log). No Esc
+            # sent."* — ranked WORST of four traps. His console died from a UI arrow click.
+            #
+            # I could not reproduce it: this route has exactly ONE caller in the page (the Escape
+            # empty-stack handler), and the board iframe has none. So either an Escape reached that
+            # handler by a path neither of us can see, or something POSTed here directly. The
+            # route recorded "api-quit" for every case and attributed NOTHING, so the death is
+            # indistinguishable from a deliberate exit AFTER THE FACT — which is why this could
+            # only be reported as a mystery.
+            #
+            # It cannot be fixed blind, so it is made DIAGNOSABLE instead: the caller names itself,
+            # an unnamed quit is recorded as UNATTRIBUTED, and the next occurrence carries its own
+            # evidence. A cause nobody can name is one nobody can fix.
+            # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+            try:
+                _qfrom = str((body or {}).get("from") or "")[:60] if isinstance(body, dict) else ""
+            except Exception:
+                _qfrom = ""
+            _qwho = ("api-quit:" + _qfrom) if _qfrom else "api-quit:UNATTRIBUTED"
+            # ⚠ `print`, not a `_log` helper — I wrote `_log(...)` here first and this module has
+            # no such name, so it would have thrown into its own `except` and recorded nothing:
+            # an attribution fix that ships and never attributes. `_mark_window_gone` already
+            # prints with this exact style and is where Grok Bot read the line from.
+            try:
+                print("\U0001F4FA /api/quit requested by %s" % _qwho, flush=True)
+            except Exception:
+                pass
             r = None
             try:
-                r = _request_console_exit("api-quit", hard_delay=0.55)
+                r = _request_console_exit(_qwho, hard_delay=0.55)
             except Exception as _e:
                 try:
-                    _mark_window_gone("api-quit")
-                    _schedule_exit_stop("api-quit")
-                    _arm_force_exit("api-quit-fallback", delay=0.55)
+                    _mark_window_gone(_qwho)
+                    _schedule_exit_stop(_qwho)
+                    _arm_force_exit(_qwho + "-fallback", delay=0.55)
                 except Exception as _e2:
                     _e = _e2
                 r = {"ok": bool(globals().get("_FORCE_EXIT_ARMED")),

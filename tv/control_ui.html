@@ -20953,7 +20953,11 @@ window._lockMark = function(isOpen, px, label){
       if (typeof toast === 'function') toast('Leaving console…');
     } catch (_t) {}
     try {
-      fetch('/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      /* v3262 — NAME YOURSELF. An unattributed quit is recorded as UNATTRIBUTED, which is
+         itself the finding: this is the only caller in the page, so an UNATTRIBUTED line in
+         his log means something ELSE killed the console. */
+      fetch('/api/quit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify({ from: 'escape-empty-stack' }) })
         .catch(function(){});
     } catch (_f) {}
   }, false);

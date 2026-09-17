@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3261",
+  "ver": "v3262",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3261: his header said 13 of 13 over eight visible cards because two mechanisms hide a card and the counter knew only one. the filter hides with display none and is counted. the river cap hides with an attribute and a css rule and was invisible to it. HEART: the law pins position inside the river branch and strips comments first, three red proofs",
+  "note": "v3262: grok bot drove the native seat and his console died from a vault mule arrow with the same log line a deliberate exit writes. not reproducible here since the route has one caller, so it is made diagnosable instead. every quit names who asked and an unnamed one records as unattributed, which is itself the finding. HEART: four red proofs on the attribution reaching the exit path",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

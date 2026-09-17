@@ -36364,3 +36364,43 @@ assertions now. **Strip first, assert second, always.**
 GATE: `TheHeaderCountsWhatIsONSCREEN` — the refresh must sit INSIDE the river branch (before its
 return), must use the numbers the cap produced rather than a re-walk, and must NAME the overflow.
 Three red-proofs, all RED after the strip.
+
+## REG-1071 — his console DIED from a UI arrow, and nothing could name the cause
+
+Grok Bot, driving the native seat as a user and ranking four traps worst-first:
+
+> **Mule 2→3 arrow → native window closed** (`window gone (api-quit)` in log). **No Esc sent.**
+
+A vault arrow killed his console. It ranked this above every other trap it found, and it was right
+to.
+
+⚠ **I COULD NOT REPRODUCE IT, AND SAYING SO IS PART OF THE FIX.** `/api/quit` has exactly **one**
+caller in the whole page — the Escape empty-stack handler in `control_ui.html` — and the board
+iframe has none. So either an Escape reached that handler by a path neither of us can see, or
+something POSTed the route directly. The route recorded the fixed string `"api-quit"` for every
+case and attributed **nothing**, so a death from a stray arrow and a deliberate exit write the
+identical line. That is why this could only ever be reported as a mystery.
+
+**It cannot be fixed blind, so it is made DIAGNOSABLE.** Every quit now carries who asked; an
+unnamed one records as `api-quit:UNATTRIBUTED`. Since the Escape handler is the only legitimate
+page caller and now names itself, **an UNATTRIBUTED line in his log IS the finding** — it means
+something else killed the console, and the next occurrence arrives with its own evidence.
+
+⚠ I wrote `_log(...)` in the route first. **This module has no such name** — it would have thrown
+into its own `except` and recorded nothing: an attribution fix that ships and never attributes.
+`_mark_window_gone` already `print`s in exactly the style Grok Bot read the line from, so it uses
+that. Caught by grepping for the definition instead of trusting the name.
+
+⚠ And my own law could not read the route: `/api/quit` is the **last** route in the file, so the
+"next `if path ==`" end-anchor never matched and every assertion aborted with *"could not find the
+end of the route"*. A law that refuses to read is not strict, it is broken. Bounded by the next
+route **or** the end of file now.
+
+GATE: `test_a_quit_names_who_asked` — the route reads an attribution, an unnamed quit announces
+itself as UNATTRIBUTED, the attribution actually REACHES the exit path (reading it and discarding
+it would be a fix that attributes nothing), and the one legitimate caller names itself so the
+signal can distinguish anything at all. Four red-proofs, all RED.
+
+ALSO OPEN from the same Grok Bot pass, not fixed here: SHELF rail RE-OPEN → blank panel; Vault
+Shared/Gems tabs → no visible change; drag Dock→Shared → ghost and highlight but the item never
+moves. Tracked on the task list.
