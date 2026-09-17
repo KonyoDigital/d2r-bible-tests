@@ -35246,3 +35246,39 @@ normalisation → 1 error + 1 failure.
 ⚠ The last one cost two attempts: `control_ui.html` holds the literal text `·` (it is JS
 source), not the decoded `·`, so the first re-anchor decoded one level too far and still matched 0.
 The measurement said so immediately — `matches in file: 0` — which is why the count is printed.
+
+## REG-1046 — a proof that matched once and proved nothing, and a count nobody declared read as 1
+
+**2026-09-17 · v3241 · `tv/test_the_ledger_cannot_lie_about_what_it_saw.py`, `tv/heart2.py`** —
+*both found by a cross-family review of v3240, the version that fixed the reader.*
+
+**1. HIGH — my re-anchor produced a proof that CANNOT FAIL.** REG-1045 found proof[10] matching 0
+times and I re-pointed it at `    if not decl_anywhere:`. That matches exactly once, so the
+well-formedness law went green — and it is **behaviourally inert**. Every law in that file takes
+the same branch either side of it: with no declaration and no findings the next line returns
+`clean` anyway; with findings the fall-through returns `findings` anyway.
+
+**So I fixed "matches 0" by producing "matches 1 and proves nothing"** — on the file whose entire
+job is catching a clean look filed as findings.
+
+Re-anchored to `    if opens_clean and not claims:`, and **verified by execution** rather than by
+reading: tampering it makes `test_a_declared_clean_answer_is_recorded_clean` return `findings` for
+*"**No defects found.** The change is consistent with its callers."*
+
+⚠ **`matches: 1` is necessary and not sufficient.** An anchor can be present, unique, and inert —
+and the well-formedness law **cannot see that**, because it only counts the anchor. Proven here by
+putting the inert anchor back: 10/10 still green. Only `heart2 --prove` can tell, by running it —
+which is precisely the thing REG-1045 found had been dead. The chain is complete: the prover
+aborted → nobody ran proofs → inert proofs accumulated → the static law was structurally unable to
+notice. `[[sabotage-is-usually-the-wrong-one]]`
+
+**2. MEDIUM — `_prove_one` read an absent count as a declared 1.** `int(pr.get("matches") or 1)`
+reads a missing key, a real 0 and a real 1 as the same number. That went live the moment
+`_normalise_proofs` began handing through 4-tuple proofs, which carry **no count**: all 32 would be
+measured against 1, and the first whose anchor appears twice would be filed INVALID for a
+declaration nobody made. Meanwhile the well-formedness law (same diff) already treated None as
+"nobody declared one".
+
+**Two readers, one field, two policies** — the shape this repo's defects keep starting from. Now
+identical on both sides: `got >= 1` always; the exact count only when somebody declared one.
+`[[unknown-stays-unknown]]` `[[copy-drift]]`

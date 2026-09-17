@@ -466,11 +466,20 @@ RED_PROOF = [
     {'why': "stops seeding audit() from the ship table, so a version nobody ever recorded anything for vanishes from the very screen the gate's refusal message tells him to run — invisible instead of owed, and only one of those can be acted on", 'file': 'second_eye_ledger.py', 'find': '    for v in _shipped:', 'replace': '    for v in []:', 'matches': 1},
     {'why': 'restoring the re-measure makes a full diff and an unchecked look identical again', 'file': 'second_eye_ledger.py', 'find': '    elif isinstance(sent, dict):', 'replace': '    elif isinstance(sent, dict) and False:', 'matches': 1},
     {'why': 'letting the seam pattern cross a newline re-arms the diff false positive', 'file': 'second_eye_ledger.py', 'find': '    (re.compile(r"\\S[ \\t]*\\+[ \\t]*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),', 'replace': '    (re.compile(r"\\+\\s*(?:\\\'{3}|\\"{3})"), "a +/triple-quote concatenation seam reached the prompt as text"),', 'matches': 1},
-    {'why': 'without the declaration check a clean look is filed as one that found defects', 'file': 'second_eye_run.py', 'find': '    if not decl_anywhere:', 'replace': '    if False:', 'matches': 1},
-    # ⚠ v3240 — the line above was RE-ANCHORED. The clean-look branch was restructured into
-    # decl_anywhere / opens_clean, so the old anchor named a line that no longer exists and the
-    # tamper matched 0 times. A proof that changes nothing proves nothing — and it sat that way
-    # unseen, because heart2 could not read 32 of its siblings and aborted before reaching it.
+    {'why': 'without the declaration check a clean look is filed as one that found defects', 'file': 'second_eye_run.py', 'find': '    if opens_clean and not claims:', 'replace': '    if False:', 'matches': 1},
+    # ⚠⚠ v3241 — RE-ANCHORED TWICE, AND THE FIRST RE-ANCHOR WAS A PROOF THAT COULD NOT FAIL.
+    # The original named `if not enumerated and _NO_DEFECT_RX.search(...)`, restructured out of
+    # existence, so it matched 0 times: a tamper that changes nothing. v3240 re-pointed it at
+    # `if not decl_anywhere:` — which matches once, and is BEHAVIOURALLY INERT. Every law in this
+    # file takes the same branch either side of it: with no declaration and no findings the next
+    # line returns "clean" anyway, and with findings the fall-through returns "findings" anyway.
+    # Well-formed, and still proving nothing. Caught by a cross-family review OF v3240.
+    #
+    # This anchor is verified to FLIP a law: tampering it makes
+    # `test_a_declared_clean_answer_is_recorded_clean` return "findings" for
+    # "**No defects found.** The change is consistent with its callers." — measured, not assumed.
+    # ⚠ "matches 1" is necessary and not sufficient. An anchor can be present, unique, and
+    # inert. [[sabotage-is-usually-the-wrong-one]]
 ]
 
 class TheRowNamesWhoActuallyLooked(unittest.TestCase):

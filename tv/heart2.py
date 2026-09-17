@@ -1077,7 +1077,17 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
             "tamper inside the copy." % ("%s[%d]" % (name, idx), INVALID, tgt_rel, _real))
         return INVALID
     find, repl = str(pr.get("find") or ""), str(pr.get("replace") or "")
-    want = int(pr.get("matches") or 1)
+    # ⚠⚠ v3241 — AN ABSENT COUNT IS NOT A DECLARED 1. `int(pr.get("matches") or 1)` reads a
+    # missing key, a real 0 and a real 1 as the same number. That became live the moment
+    # _normalise_proofs started handing through 4-tuple proofs, which carry NO count: 32 of them
+    # would be silently measured against 1, and the first whose anchor appears twice would be
+    # filed INVALID for a declaration nobody ever made.
+    # The well-formedness law in test_the_heart_can_see_its_own_instruments already treats None
+    # as "nobody declared one" and checks only `got >= 1`. Two readers, one field, two policies
+    # is how this repo's defects start. Same rule both sides. Found by a cross-family review of
+    # v3240, the version that introduced the None. [[unknown-stays-unknown]] [[copy-drift]]
+    _declared = pr.get("matches")
+    want = None if _declared is None else int(_declared)
     label = "%s[%d]" % (name, idx)
 
     if not tgt_rel or not os.path.exists(tgt):
@@ -1098,8 +1108,12 @@ def _prove_one(sandbox, name, filename, pr, idx, say):
     with io.open(tgt, encoding="utf-8") as fh:
         original = fh.read()
     got = original.count(find) if find else 0
-    if got != want:
-        # THE CARVED SCAR: a green sabotage is usually the sabotage's fault. Print the count.
+    # THE CARVED SCAR: a green sabotage is usually the sabotage's fault. Print the count.
+    if got < 1:
+        say("     %-52s %s — the tamper matched 0 time(s): its anchor is not in the file, so it "
+            "changes nothing. The SABOTAGE is wrong, not the law." % (label, INVALID))
+        return INVALID
+    if want is not None and got != want:
         say("     %-52s %s — the tamper matched %d time(s), expected %d. The SABOTAGE is wrong, "
             "not the law." % (label, INVALID, got, want))
         return INVALID

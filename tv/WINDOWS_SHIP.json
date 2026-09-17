@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3240",
+  "ver": "v3241",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3240: RED_PROOF is declared in two shapes and the prover could only read one, so it raised on the first four tuple and took the whole run with it, and the state file below that try was never written. the census then reported from a file nothing refreshed. both shapes normalise at the reader now and 885 proofs are well formed, four of which had been silently unable to tamper anything",
+  "note": "v3241: the re anchor from v3240 matched exactly once and was behaviourally inert, so the well formedness law went green over a tamper that flips no law. verified by execution this time. and the prover read an absent match count as a declared one while the law beside it treated it as unknown, which would have filed thirty two tuple proofs invalid for a declaration nobody made",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
