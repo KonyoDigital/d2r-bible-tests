@@ -34492,6 +34492,12 @@ body{
 .vault-dock[data-owned="0"]:empty::after{content:"nothing is recorded yet — there is nothing to place ✦"}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+/* v3250 — the sorter's own verdict for what is left in the dock. A class nobody styles is a flag
+   nobody can see, and this page has shipped that twice (sh-chip-st, sh-chip-stunk). Quiet on
+   purpose: it explains a button that correctly does nothing, it is not an alarm. */
+.vdb-why{font-size:var(--fs-meta);color:var(--text-muted,#b5a48a);opacity:.85;flex:1 1 auto;
+  min-width:0;cursor:help}
+.vdb-why b{color:var(--gold-dim,#c7a14a)}
 /* v1282 — 🔍 Vault Integrity Checker banner (retro routing / dedup / grail-safety audit) */
 .vault-audit{margin:0 0 12px;border:1px solid rgba(212,168,71,.32);border-radius:10px;background:linear-gradient(180deg,rgba(60,42,20,.28),rgba(30,22,12,.18));padding:9px 12px}
 .vault-audit .va-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px}
@@ -36780,7 +36786,47 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (dbar){
       if (unsorted.length){
         dbar.hidden=false;
+        /* ══ v3250 — SAY WHY THEY ARE STILL HERE ═══════════════════════════════════════════
+           Konyo, twice: "its not even sorting them.. only some" and, at a screenshot of the
+           Vault, "stlll the vault". The dock showed a COUNT and an "Auto-Sort to Mules" button,
+           he pressed it, nothing moved, and nothing on screen said why.
+
+           MEASURED on his board 2026-09-17: of 219 in the pool, 173 are filed and **all 46
+           unsorted carry exactly one suggestion — `__throwout`**. Auto-Sort will not act on that
+           because discarding is his decision, so the button correctly does nothing and the dock
+           correctly keeps them. Both halves right; the screen said neither.
+
+           So the bar now carries the sorter's OWN verdict for what is left. A button that does
+           nothing, beside a number with no reason, is indistinguishable from a broken sorter —
+           which is precisely what he reported. [[zero-needs-a-denominator]] [[the-unjoined-end]] */
+        var _why = '';
+        try {
+          if (typeof suggestMule === 'function' && unsorted.length){
+            var _h = {}, _n = 0;
+            unsorted.forEach(function(nm){
+              var sg = null;
+              try { sg = suggestMule(nm); } catch (e) { sg = null; }
+              var id = (sg && sg.id) ? sg.id : '«no suggestion»';
+              _h[id] = (_h[id] || 0) + 1; _n++;
+            });
+            var _keys = Object.keys(_h).sort(function(a,b){ return _h[b] - _h[a]; });
+            if (_keys.length === 1 && _keys[0] === '__throwout'){
+              _why = '<span class="vdb-why" title="Auto-Sort files an item where the sorter says '
+                   + 'it belongs. For every one of these the sorter\'s only answer is DISCARD, and '
+                   + 'throwing your items away is never automatic — so Auto-Sort leaves them here '
+                   + 'on purpose. It is not failing to sort them.">'
+                   + 'every one is a <b>discard</b> suggestion — Auto-Sort will not throw items '
+                   + 'away for you</span>';
+            } else if (_keys.length){
+              _why = '<span class="vdb-why" title="What the sorter suggests for the items still '
+                   + 'in the dock.">' + _keys.slice(0, 3).map(function(k){
+                       return _h[k] + ' \u00d7 ' + (k === '__throwout' ? 'discard' : k);
+                     }).join(' \u00b7 ') + '</span>';
+            }
+          }
+        } catch (e) { _why = ''; }
         dbar.innerHTML='<span class="vdb-label">🎒 Unsorted dock<span class="vdb-count">'+unsorted.length+'</span></span>'
+          + _why
           +'<span class="vdb-actions">'
           +'<button class="vault-clear-btn" onclick="window.vaultClearUnsorted()" title="Delete every UNSORTED item from the dock — items already filed in a mule are NOT touched">'
           +'<span class="vcb-x">🗑</span><span>Delete unsorted</span></button>'
@@ -50551,7 +50597,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3249', name:'v3249 - a count cannot answer why', date:'2026-09-17', note:'he asked three times why the vault holds two hundred plus and got a number each time, so the population is decomposed instead: two hundred twenty two owned is one hundred seventy two possessions plus fifty set pieces the board also files as physical, and forty nine filed nowhere is what fills the dock. one hundred seventy two is exactly his pre wipe owned count' };
+  window.D2R_BUILD = { id:'v3250', name:'v3250 - the dock says why it is still full', date:'2026-09-17', note:'he pressed auto sort twice and nothing moved because every unsorted item carries one suggestion, discard, and auto sort will not throw his items away. the sorter was right and the dock was right and the screen said neither, so the bar now carries the sorters own verdict. HEART: the reason is derived entirely board side from suggestMule, which is the same function the sorter itself uses, so there is no console door to watch and no second source to corroborate against. Its one failure mode is going silent, and test_the_dock_says_why_it_is_still_full runs the SHIPPED block in node and asserts it stays loud when a sorter is absent, when one item raises, and when the dock is mixed' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

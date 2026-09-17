@@ -155,6 +155,12 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_dock_says_why", [sys.executable,
+                                os.path.join(HERE, "test_the_dock_says_why_it_is_still_full.py")], 60,
+         why="REG-1055 — the dock showed a count and an Auto-Sort button; he pressed it, nothing "
+             "moved, and nothing said why. All 46 unsorted carry ONE suggestion, __throwout, and "
+             "Auto-Sort will not discard for him. Both halves right, the screen said neither. "
+             "Runs the SHIPPED block in node against a stubbed sorter"),
     Gate("test_population_why", [sys.executable,
                                  os.path.join(HERE, "test_a_count_cannot_answer_why.py")], 60,
          why="REG-1054 — he asked three times why the vault holds 200+ and got a COUNT each time. "

@@ -35605,3 +35605,38 @@ collapsing → red · the door gaining a write → red).
 ⚠ That third proof went GREEN first: my law collected only `func.attr`, so a bare
 `_vault_autoread_save()` was invisible to it. **A law that inspects calls has to see both call
 forms.** `[[source-reading-guard]]`
+
+## REG-1055 — a button that correctly did nothing, beside a number with no reason
+
+**2026-09-17 · v3250 · `bible.html`**
+
+Konyo, twice: *"its not even sorting them.. only some"*, and at a screenshot of the Vault,
+*"stlll the vault"*.
+
+The dock showed **🎒 Unsorted dock [49]** and an **Auto-Sort to Mules** button. He pressed it,
+nothing moved, and nothing on screen said why.
+
+MEASURED on his board: of 219 in the pool, **173 are filed and all 46 unsorted carry exactly one
+suggestion — `__throwout`**. `suggestMule` returns discard for a set piece whose set is not in
+`_KEEP_SET` (Angelic, Arctic, Cathan's, Death's, Cow King's — the low-level sets), and Auto-Sort
+will not act on that because **throwing his items away is his decision and never automatic.**
+
+**So the sorter was right, the dock was right, and the screen said neither.** A count with no
+reason beside a button that does nothing is indistinguishable from a broken sorter — which is
+exactly what he reported, twice, and what I spent two task cycles investigating as a routing bug.
+`[[zero-needs-a-denominator]]` `[[the-unjoined-end]]`
+
+**Fixed:** the dock bar now carries the sorter's own verdict for what is left — *"every one is a
+**discard** suggestion — Auto-Sort will not throw items away for you"* when that is true, and a
+per-shape histogram (`31 × discard · 12 × uni-armor …`) when it is not, so the blanket sentence
+can never be said while real work is outstanding.
+
+7 laws, and they run the SHIPPED block in node against a stubbed `suggestMule` rather than
+asserting the sentence is present — the sentence is not the law, what it is derived FROM is.
+Red-proofed: firing the blanket sentence on a mixed dock → red; dropping the `typeof suggestMule`
+guard → red; removing the per-item `try` → red.
+
+⚠ That last proof went GREEN first. The OUTER catch still stops the block throwing, so "it did not
+crash" proves nothing about the inner guard. Its real job is that **one** item whose suggestion
+raises must not take the other 45 with it — a single bad name would turn a measured reason into
+silence, and silence is what he already read as a broken sorter. The law tests that now.
