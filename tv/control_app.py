@@ -21736,6 +21736,62 @@ def tombstone_view(limit=300):
     return out
 
 
+def vault_proven_names(min_witnesses=2):
+    """The names the vault ledger can PROVE he owns. -> dict | None on an unreadable ledger
+
+    ⚠⚠ THE ADMISSION BAR HAD NO WAY TO REACH THE THING IT GATES. #105 established the rule —
+    "only ledger+proof enters" — and MEASURED it: 14 names carry a corroborated proof. His vault
+    then goes on rendering 165 items, because the LOCKERS are built from `d2r_owned` (222 names)
+    routed by `d2r_muleAssign`, and the board has NO proof store at all: grep it and the only
+    d2r_vault* keys are Backfill, BackfillUndo, EvidenceRestore, Removed and RerouteDone. The
+    witnesses live in `vault_accum.json`, on this side of the boundary.
+    So the bar was designed, measured, written down, and never told to the surface it governs —
+    two halves each correct alone. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    ⚠ IT RETURNS None, NEVER AN EMPTY SET, when the ledger cannot be read. An empty `proven` list
+    reaching the board would mark every item he owns as unproven — a wipe of meaning, from a
+    failed read. [[unknown-stays-unknown]]
+
+    ⚠ `min_witnesses` is the bar, stated once here. Measured on his tree: of 14 rows, 10 carry 2
+    witnesses, two carry 3, one carries 21 and one carries 103 — so the whole ledger clears a bar
+    of 2, and a higher bar would need his ruling, not mine.
+    """
+    try:
+        led = vault_ledger_load()
+    except Exception as e:
+        return {"ok": False, "proven": None,
+                "why": "the vault ledger could not be read (%s), so WHICH names are proven is "
+                       "UNKNOWN - not none" % type(e).__name__}
+    if not isinstance(led, dict):
+        return {"ok": False, "proven": None,
+                "why": "the vault ledger is %s, not a mapping - UNKNOWN, not none"
+                       % type(led).__name__}
+    rows = led.get("owned")
+    if not isinstance(rows, list):
+        return {"ok": False, "proven": None,
+                "why": "the vault ledger carries no `owned` list, so proof is UNKNOWN - not none"}
+    proven, short = [], 0
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        n = str(r.get("name") or "").strip()
+        if not n:
+            continue
+        w = len(r.get("witnesses") or [])
+        if w >= int(min_witnesses):
+            proven.append({"name": n, "witnesses": w, "conf": r.get("conf"),
+                           "lane": r.get("lane")})
+        else:
+            short += 1
+    return {"ok": True, "proven": sorted(proven, key=lambda x: x["name"]),
+            "provenN": len(proven), "shortOfBar": short, "bar": int(min_witnesses),
+            "ledgerRows": len(rows),
+            "why": ("%d of %d ledger row(s) carry %d+ witnesses. The lockers render d2r_owned, "
+                    "which is a different and much larger population - this is the set that has "
+                    "actually earned admission."
+                    % (len(proven), len(rows), int(min_witnesses)))}
+
+
 def vault_ledger_view():
     """THE LEDGER, READ-ONLY AND FREE.
 
@@ -29278,7 +29334,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3245",
+        "ver": "v3246",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

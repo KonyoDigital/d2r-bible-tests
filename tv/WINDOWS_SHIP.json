@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3245",
+  "ver": "v3246",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3245: eleven gates read stores that exist only on his mac, so they failed on the runner and passed here while neither verdict was about the shipped code. the helper stands a gate down with the file named and a mark, and a watchdog prints the population, because a silent skip is the same defect as a green that lies",
+  "note": "v3246: the admission bar could never reach the lockers because the board has no proof store at all, and the fourteen names it would admit turn out to be potions, charms and the horadric cube rather than his uniques, so wiring it literally would empty his vault and keep a rejuv potion. the door names them now and refuses to answer none when the ledger cannot be read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

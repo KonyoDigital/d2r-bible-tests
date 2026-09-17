@@ -35446,3 +35446,49 @@ store empties in CI has to be read off that gate's own CI failure rather than gr
 gate for the wrong reason is worse than the red it replaces, so the mechanism ships first and the
 application is per-gate, with its CI line as the evidence. Current population: **0**, which the
 law prints honestly.
+
+## REG-1051 — the vault bar was never told to the vault, and the 14 it would admit are potions
+
+**2026-09-17 · v3246 · `tv/control_app.py`** — *he pointed at the Vault again: "stlll the vault".*
+
+His screen shows **165 items** (UNI-WEAPONS 64 · UNI-ARMOR 68 · SETS 19 · UNI-SMALL 9 · RUNEWORDS
+5). #105 established the rule — *only ledger+proof enters* — and measured **14**.
+
+**Two separate defects, and the second one changes the ruling.**
+
+**1. The bar could not reach the thing it gates.** The lockers are built from `d2r_owned` (222
+names) routed by `d2r_muleAssign`. **The board holds no proof store at all** — grep bible.html and
+the only `d2r_vault*` keys are `Backfill`, `BackfillUndo`, `EvidenceRestore`, `Removed`,
+`RerouteDone`. The witnesses live in `vault_accum.json`, on the console's side of the boundary. So
+the bar was designed, measured, written into the task list, and **never told to the surface it
+governs**. `[[the-unjoined-end]]` `[[plumbing-with-no-tap]]`
+
+**2. ⚠⚠ THE 14 ARE NOT HIS KEEPERS.** Measured by name for the first time:
+
+```
+Full Rejuvenation Potion · Super Mana Potion · Horadric Cube · Radiance (103 witnesses)
+six Grand Charms · Bone Break · Magefist · Heart of the Oak · Renewed Black Cleft
+```
+
+Every one is a consumable, a charm, or the Cube. **Not one is a unique or set piece his vault
+actually holds** — no Shako, no Tal Rasha, no Griswold. They cleared the bar because an OCR sweep
+sees a rejuv potion in every stash frame and a Shako in one. The bar is measuring **frame
+frequency, not worth**.
+
+**So "only ledger+proof enters", wired literally, would empty his vault of every real keeper and
+keep the potions.** The count said "14 earn it" and sounded like progress for two task cycles; the
+NAMES said the opposite in one read. **A population is not a verdict until somebody reads what is
+in it.** `[[zero-needs-a-denominator]]`
+
+**Shipped:** `vault_proven_names(min_witnesses=2)` — the missing half of the join, which NAMES
+what would be admitted and what fell short, returns **None and never an empty set** on an
+unreadable ledger (an empty `proven` reaching the board would mark everything he owns as unproven,
+from a failed read), and reports the bar it used.
+
+⚠ **NOT wired to the lockers, deliberately.** On this measurement that would be destructive, and
+which items deserve the vault is his call, not a sweep's frame count.
+
+Gate: `tv/test_the_admission_bar_knows_what_it_would_admit.py`, 5 laws, red-proofed twice. ⚠ Its
+bar law first compared two bars against HIS ledger and asserted `high <= low` — every one of his 14
+rows clears a bar of 2, so deleting the bar entirely left both sets at 14 and `14 <= 14` passed. It
+now selects against a ledger with KNOWN witness counts (1, 2, 5). `[[sabotage-is-usually-the-wrong-one]]`

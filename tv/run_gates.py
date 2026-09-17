@@ -155,6 +155,12 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_admission_bar", [sys.executable,
+                                os.path.join(HERE, "test_the_admission_bar_knows_what_it_would_admit.py")], 60,
+         why="REG-1051 — #105's bar was measured as '14 earn it' and never told to the lockers, "
+             "which render d2r_owned (222). And the 14 turn out to be potions, charms and the "
+             "Horadric Cube — so enforcing the bar literally would empty his vault of every real "
+             "keeper. The count sounded like progress; the NAMES were the finding"),
     Gate("test_live_store_skip", [sys.executable,
                                   os.path.join(HERE, "test_a_live_store_skip_is_counted.py")], 60,
          why="REG-1050 — eleven gates read stores that exist only on his Mac (chron_evidence.json "
