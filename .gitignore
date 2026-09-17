@@ -315,3 +315,13 @@ guest-mirror/
 # never films the character panel (REG-340), which is the one screen that would carry a name.
 # test_the_shipped_packs_are_staged_not_his_live_footage re-runs the leak audit on every run, so
 # the next pack anyone adds is held to the bar the first five cleared.
+
+# ⚠⚠ v3259 — HIS FOOTAGE AND HIS JOURNAL MUST NEVER BE COMMITTED. THIS REPO IS PUBLIC.
+# tv/tvd-reel-seed-small.tgz is a guest-seat fixture pack built by the reel-seed tooling. At
+# 97.84 MB it carried `sessions.jsonl` (his 3.4 MB journal) and `frames/hist/reel_*` (his actual
+# gameplay footage) onto the public remote, and it went in through a `git add -A`. GitHub warned
+# at 97.84 MB against a HARD limit of 100 MB, so it was also ~2 MB from refusing every push.
+# The seed pack is a real artefact and is kept ON DISK; it is simply never tracked.
+*.tgz
+*.tar.gz
+tv/tvd-reel-seed*

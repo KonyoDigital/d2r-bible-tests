@@ -155,6 +155,14 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_no_footage_tracked", [sys.executable,
+                                     os.path.join(HERE, "test_no_reel_footage_is_ever_tracked.py")], 60,
+         why="REG-1066 - v3258 committed a 97.84MB tarball holding HIS JOURNAL and two of HIS "
+             "REELS to this PUBLIC repo, through a git add -A, ~2MB from GitHub's hard limit. "
+             "Writing the gate then measured 552 files / 101.7MB of his footage ALREADY tracked, "
+             "which predates the session and is his call to undo. So: no archives, no tracked "
+             "file over 25MB, the ignore rules proven live, and a RATCHET on the existing "
+             "footage so the exposure cannot grow. 4 red-proofs"),
     Gate("test_name_rarity_colour", [sys.executable,
                                      os.path.join(HERE, "test_a_name_takes_its_colour_from_its_rarity.py")], 60,
          why="REG-1060 - four console surfaces painted an item name from the find TIER, and tier "

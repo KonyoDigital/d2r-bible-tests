@@ -36114,3 +36114,70 @@ surface. Seen RED at match count 1.
 ⚠ STILL OPEN: `/api/river` reports `hidden: 8` with `hiddenWhy: ""` — eight reels withheld from the
 render and no reason published beside the number. That is the same shape as everything above and it
 is NOT fixed here. Tracked on #112.
+
+## REG-1066 — I committed 97.84 MB of HIS FOOTAGE AND HIS JOURNAL to a PUBLIC repo, via `git add -A`
+
+**Mine, in v3258 (`f36c9e9b`), and it reached the public remote before anything noticed.**
+
+`tv/tvd-reel-seed-small.tgz` — a guest-seat fixture pack built by the reel-seed tooling at 10:40 —
+was swept into the commit by `git add -A`. Its contents:
+
+```
+./sessions.jsonl            ← HIS JOURNAL (3.4 MB)
+./frames/hist/reel_s_1788216049718_92772/   ← HIS GAMEPLAY FOOTAGE
+./frames/hist/reel_s_1788993875843_44020/
+```
+
+⚠ **`CLAUDE.md` §4 is explicit** — this repo is PUBLIC, and a brief may never carry install ids,
+hostnames, tokens or his paths. His *footage and journal* are further over that line than any of
+them. **In the same session I shipped v3256 specifically to stop `reader_health` printing the
+journal's absolute path into a public issue** — and then committed the journal itself.
+
+⚠ **It was also ~2 MB from breaking every future push.** GitHub warned at 97.84 MB against a HARD
+limit of 100 MB (`remote: warning: GH001: Large files detected`). The repo's `.git` is already
+**2.1 GB**.
+
+**THE MECHANISM IS `git add -A`, AND IT IS THE REAL DEFECT.** Every commit this session used it.
+It cannot distinguish work from whatever else the tooling dropped in the tree that minute — and
+this tree holds **5.8 GB of his reels**, which `safe_copy.py` already exists to protect from
+exactly this class of accident on the COPY side. Nothing protected the COMMIT side.
+
+FIXED HERE: untracked from HEAD (kept on disk — the pack is a real artefact), and `.gitignore` now
+refuses `*.tgz`, `*.tar.gz` and `tv/tvd-reel-seed*` with the reason written beside them.
+
+⚠ **NOT FIXED, AND IT IS HIS CALL:** the blob is still in history at `f36c9e9b`. Removing it truly
+needs a history rewrite and a force-push on a PUBLIC repo — destructive, and not a decision I get
+to make for him. Until then the footage remains retrievable from the commit even though it is gone
+from HEAD.
+
+### ⚠⚠ AND WRITING THE GATE FOUND SOMETHING BIGGER, WHICH IS NOT MINE AND NOT NEW
+
+The first cut of the law refused ANY tracked path under his reel store. It went red immediately:
+
+```
+552 files · 101.7 MB  already tracked under tv/frames/hist/reel_s_*
+   twelve-plus real reel directories, real session timestamps, on a PUBLIC repo
+   against a live store of 800 reel dirs / 2.3 GB
+```
+
+The v3258 tarball merely **duplicated two of those same reels**. His footage has been in this
+public repo since long before this session.
+
+⚠ **THE GATE DOES NOT BLESS THAT, AND IT DOES NOT UNILATERALLY UNDO IT EITHER.** Removing 552
+tracked files would break whatever CI fixture depends on them and is irreversible on a public
+remote — **his decision**. What a gate can honestly do is stop it GROWING, so the exposure is
+bounded and visible rather than creeping. A law that went red on arrival for a pre-existing
+condition gets waved through within a day, which is the failure `regression-guard` names.
+
+So the footage law is a **RATCHET** with the measurement and the date written beside it
+(`FOOTAGE_FLOOR_FILES = 560`, `FOOTAGE_FLOOR_MB = 105.0`, measured 2026-09-17), and the docstring
+says plainly that if the floor ever falls it should be LOWERED — the law must not stand in the way
+of progress it exists to protect.
+
+GATE: `test_no_reel_footage_is_ever_tracked` — five laws: a non-vacuous baseline, no archives, the
+footage ratchet, no tracked file above 25 MB (the one that catches the shape nobody has named yet),
+and the ignore rules proven to still refuse the pack. Four red-proofs fired.
+
+⚠ ONE SABOTAGE CAME BACK GREEN AND THE SABOTAGE WAS WRONG: removing `tv/tvd-reel-seed*` left
+`*.tgz` still covering the file. TWO rules, one removed. Re-proofed with both — RED.
+`[[never-touch-live-data]]` `[[copy-drift]]` `[[sabotage-is-usually-the-wrong-one]]`
