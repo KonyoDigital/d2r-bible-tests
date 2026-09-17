@@ -36404,3 +36404,44 @@ signal can distinguish anything at all. Four red-proofs, all RED.
 ALSO OPEN from the same Grok Bot pass, not fixed here: SHELF rail RE-OPEN → blank panel; Vault
 Shared/Gems tabs → no visible change; drag Dock→Shared → ghost and highlight but the item never
 moves. Tracked on the task list.
+
+## REG-1072 — the shelf re-opened with a filter he could not remember setting, and showed him nothing
+
+Grok Bot, driving as a user and ranking four traps: **#2 — "X → console. Re-open via rail later →
+blank panel (waited; still blank)."**
+
+REPRODUCED exactly, step by step, on his live console:
+
+```
+opened               visible 8
+filtered to FRESH 0  visible 0    (deliberate — he asked)
+closed               hidden
+RE-OPENED            visible 0    <- the filter SURVIVED the close
+```
+
+`SHELF_F` is a module var, so a station filtered before closing is **still applied on the next
+open**. Thirteen cards sit in the DOM and every one is filtered out. It reads as a broken shelf; it
+is a remembered click.
+
+⚠ **A FILTER HE JUST CLICKED IS NOT TOUCHED, and that boundary is the whole fix.** Clicking a
+station holding nothing and seeing nothing is CORRECT — that is him asking a question and getting
+the honest answer. The clear runs only on OPEN, and only when the remembered filter would show an
+empty shelf, so a filter that still matches survives exactly as before. Clearing unconditionally
+would take his own deliberate filter away from him.
+
+VERIFIED ON PIXELS after the fix: re-open shows **8** again, and the deliberate mid-sequence filter
+still shows **0**. Both halves.
+
+GATE: `test_a_filter_that_would_greet_him_EMPTY_is_cleared_on_OPEN`.
+
+⚠ **AND MY FIRST LAW WAS WEAK AGAIN.** It asserted the call appears once — but there are THREE call
+sites, and a sabotage that removed only the **cached-open path** came back GREEN because the fetch
+path still carried the string. The cached path IS the re-open path, the exact case reported. A law
+satisfied by the site that was not broken is no law. Now counts the call sites and pins the cached
+one by name. Three red-proofs, all RED.
+
+⚠ ALSO CONFIRMED BY THAT SAME PASS: v3259's chip-rail fix HELD on an independent seat —
+*"TRIAGE / ROUTE / CAPTURE(0) → empty+show-all → back OK; no trap this pass"*.
+
+STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
+ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.

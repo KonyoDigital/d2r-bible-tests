@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3262",
+  "ver": "v3263",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3262: grok bot drove the native seat and his console died from a vault mule arrow with the same log line a deliberate exit writes. not reproducible here since the route has one caller, so it is made diagnosable instead. every quit names who asked and an unnamed one records as unattributed, which is itself the finding. HEART: four red proofs on the attribution reaching the exit path",
+  "note": "v3263: grok bot ranked it second of four traps and it reproduced exactly. the shelf reopened with a station filter that survived the close so thirteen cards sat in the dom with every one filtered out and it read as broken. the clear runs only on open and only when the remembered filter would show nothing so a filter he just clicked is untouched. HEART: three red proofs and the law now pins every call site",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

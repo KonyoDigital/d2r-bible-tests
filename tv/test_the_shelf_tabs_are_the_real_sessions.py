@@ -378,6 +378,52 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                       "the sentence built from the ledger figure never says what that figure IS, "
                       "so it reads as an on-disk count of reels standing at the station")
 
+    def test_a_filter_that_would_greet_him_EMPTY_is_cleared_on_OPEN(self):
+        """★ GROK BOT RANKED THIS #2 OF FOUR TRAPS, and it reproduced exactly on his console:
+
+            opened               visible 8
+            filtered to FRESH 0  visible 0   (deliberate)
+            closed               hidden
+            RE-OPENED            visible 0   <- the filter SURVIVED the close
+
+        `SHELF_F` is a module var, so a station filtered before closing is still applied on the
+        next open. Thirteen cards in the DOM, every one filtered out. It reads as a broken shelf;
+        it is a remembered click.
+
+        ⚠ A FILTER HE JUST CLICKED IS NOT TOUCHED, and that boundary is the law. Clicking a station
+        holding nothing and seeing nothing is CORRECT — that is him asking. The clear happens only
+        on OPEN, and only when the remembered filter would show an empty shelf, so a filter that
+        still matches survives untouched. A fix that cleared unconditionally would take his own
+        deliberate filter away from him. [[the-unjoined-end]]
+        """
+        src = _py_only(self.src)
+        i = src.find("var _reopenClear = function()")
+        self.assertGreater(
+            i, -1,
+            "nothing clears a station filter that survived a close, so re-opening the shelf can "
+            "greet him with an empty panel and thirteen cards he cannot see")
+        body = src[i:i + 1200]
+        self.assertIn("if (_any) return;", body,
+                      "the clear does not check whether the remembered filter still MATCHES, so "
+                      "it would throw away a filter he deliberately left on and that still shows "
+                      "him something")
+        self.assertIn("SHELF_F.station = null", body,
+                      "the clear never actually clears the station")
+        # and it must be REACHED from the open path, not merely defined
+        # ⚠⚠ BOTH CALL SITES, NOT ONE. A sabotage that removed the `_had` path alone came back
+        # GREEN, because the fetch path still carried the string — and the `_had` path IS the
+        # re-open path, the one that runs when sessions are already loaded, which is exactly the
+        # case Grok Bot hit. A law satisfied by the site that was not broken is no law.
+        n_called = src.count("_reopenClear()")
+        self.assertGreaterEqual(
+            n_called, 3,
+            "_reopenClear is reached from %d place(s); it must be called on the cached-open path "
+            "AND on both fetch outcomes, or re-opening with sessions already loaded still greets "
+            "him with an empty shelf" % (n_called - 1))
+        self.assertIn("if (_had) { _paintShelf(); _reopenClear(); }", src,
+                      "the CACHED open path does not clear — that is the re-open path, the one "
+                      "the trap was reported on")
+
     # ── a class nobody styles is a flag nobody can see ───────────────────────────────────
     def test_every_class_the_BUILDER_EMITS_is_actually_styled(self):
         """The join, asked in the only direction that cannot be faked.

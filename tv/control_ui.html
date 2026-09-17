@@ -16948,8 +16948,41 @@ window._lockMark = function(isOpen, px, label){
     };
     };   // end _paintShelf
     // always refresh metadata; paint immediately when we already have sessions
+    /* ⚠⚠ v3263 — A FILTER MUST NOT SURVIVE A CLOSE AND GREET HIM WITH NOTHING. Grok Bot,
+       driving as a user and ranking it #2 of four traps: *"X -> console. Re-open via rail later
+       -> blank panel (waited; still blank)."*
+
+       REPRODUCED here exactly, step by step on his live console:
+           opened                visible 8
+           filtered to FRESH 0   visible 0   (deliberate)
+           closed                hidden
+           RE-OPENED             visible 0   <- the filter survived the close
+       `SHELF_F` is a module var, so a station he filtered to before closing is still applied when
+       he opens the shelf again. The cards are all there (13 in the DOM) and every one is filtered
+       out. It reads as a broken shelf; it is a remembered click.
+
+       ⚠ A FILTER HE JUST CLICKED IS NOT TOUCHED. Clicking a station holding nothing and seeing
+       nothing is CORRECT — that is him asking. This clears only on OPEN, and only when the
+       remembered filter would show him an empty shelf, so a filter that still matches survives
+       exactly as it did. [[the-unjoined-end]] [[label-outlived-referent]] */
+    var _reopenClear = function(){
+      if (!SHELF_F.station) return;
+      var _ovc = $('th-shelfov'); if (!_ovc) return;
+      var _any = false, _cc = _ovc.querySelectorAll('.sh-card');
+      for (var _q = 0; _q < _cc.length; _q++){
+        if (_cc[_q].style.display !== 'none' && !_cc[_q].getAttribute('data-river-out')){ _any = true; break; }
+      }
+      if (_any) return;                       // it still matches — his filter, his business
+      SHELF_F.station = null;
+      try { _shFilter(); } catch (_e3) {}
+      try {
+        if (typeof toast === 'function') {
+          toast('Cleared the station filter you left on — the shelf was empty with it.');
+        }
+      } catch (_e4) {}
+    };
     var _had = (TH.sessions || []).length > 0;
-    if (_had) _paintShelf();
+    if (_had) { _paintShelf(); _reopenClear(); }
     else {
       ov.hidden = false;
       ov.innerHTML = '<div class="sh-head">🎞 THE SHELF</div><div class="sh-empty-hero"><div class="she-lead">Loading runs…</div></div>';
@@ -16962,8 +16995,8 @@ window._lockMark = function(isOpen, px, label){
       } else if (fresh.length && !(TH.sessions || []).length){
         TH.sessions = fresh;
       }
-      if (!ov.hidden) _paintShelf();
-    }).catch(function(){ if (!_had && !ov.hidden) _paintShelf(); });
+      if (!ov.hidden) { _paintShelf(); _reopenClear(); }
+    }).catch(function(){ if (!_had && !ov.hidden) { _paintShelf(); _reopenClear(); } });
   }
   var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
   /* ══ v2199 — 2,261 OF HIS 2,461 SHELF CARDS WERE EMPTY GHOSTS ═══════════════════════════
