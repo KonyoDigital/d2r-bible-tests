@@ -2147,6 +2147,49 @@ def _check_the_console_UI_has_not_faulted():
 
 
 
+def _check_the_vault_can_say_what_it_proves():
+    """Can the vault's proof chip be answered at all, and does the answer say anything?
+
+    ⚠⚠ WHY THIS IS A HEART ROW. v3247 put a `⚖ N` chip beside each vault locker saying how many of
+    its items the ledger can prove. Its failure mode is SILENCE BY DESIGN: when the ask fails the
+    chip is absent, which is correct on the public site and indistinguishable — on HIS console —
+    from a route that 404s, a ledger that will not parse, or a bar nothing clears. Every one of
+    those renders exactly like "no console here". A gate can only say the code is present.
+    [[the-unjoined-end]] [[zero-needs-a-denominator]]
+
+    ⚠ THREE OUTCOMES. An unreadable ledger is UNKNOWN, not clear. A ledger that parses and proves
+    NOTHING is also UNKNOWN rather than OK — "nothing earned admission" and "nobody could look"
+    are different facts and the chip renders them identically.
+    """
+    # ⚠ ASK THE CONSOLE, the way every sibling here does. This first called
+    # `vault_proven_names()` directly and raised NameError: console_doctor is its own module and
+    # cannot see control_app's namespace. Measured immediately — "the vault proof door raised
+    # NameError" — because the check reports its own failure rather than assuming success.
+    # ⚠ `_post`, not `_get`: the route takes a body (the bar travels on the request).
+    r = _post("/api/vault_proven", {})
+    if r is None:
+        return UNKNOWN, ("the console did not answer /api/vault_proven, so whether the chip can "
+                         "be answered at all is unmeasured — not clear. On a console started "
+                         "before v3247 the route does not exist yet; restart it.")
+    if not isinstance(r, dict) or not r.get("ok"):
+        return UNKNOWN, ("the vault ledger could not be read (%s), so how many of his items carry "
+                         "a proof is UNKNOWN — the chip would simply be absent, which looks the "
+                         "same as having no console"
+                         % str((r or {}).get("why") or "no reason given")[:110])
+    n = int(r.get("provenN") or 0)
+    rows = int(r.get("ledgerRows") or 0)
+    if not rows:
+        return UNKNOWN, ("the vault ledger holds no rows at all, so there is nothing to prove "
+                         "from — an empty chip here is not a clean bill of health")
+    if not n:
+        return UNKNOWN, ("%d ledger row(s) and NOT ONE clears the %d-witness bar, so every locker "
+                         "would show an empty chip — which reads exactly like a missing console"
+                         % (rows, int(r.get("bar") or 2)))
+    return OK, ("%d of %d ledger row(s) clear the %d-witness bar, so the chip has something to "
+                "say" % (n, rows, int(r.get("bar") or 2)),
+                ["proven: " + ", ".join(x["name"] for x in (r.get("proven") or [])[:6])])
+
+
 def _check_the_shelf_tabs_are_alive():
     """Is the SHELF's tab row actually made of his reels, right now — or is it empty and quiet?
 
@@ -3412,6 +3455,7 @@ CHECKS = [
     # v2336 — the eagle can see his SCREEN, not only his engines
     ("panels on screen", _check_no_panel_is_dark_with_its_content_in_hand),
     ("the shelf tabs are his stations", _check_the_shelf_tabs_are_alive),
+    ("the vault can say what it proves", _check_the_vault_can_say_what_it_proves),
     # v2336 — the suites belong on GitHub; this notices when one comes back to his laptop
     ("test venue", _check_no_browser_suite_is_scheduled_on_this_mac),
     # v2761 — the river's ELEVEN joints reach a screen; the existing "the river" row
@@ -3779,6 +3823,10 @@ WATCHES = {
     # is the station-chip row on the SHELF and the river strip those chips are drawn from. Named,
     # not empty: this check does render on a screen he opens, which is why it exists at all.
     "the shelf tabs are his stations": ("shelf-cards", "river-strip", "console-tabs"),
+    # v3247 — the chip renders on the BOARD (bible.html), which this console does not paint, so
+    # it names no console surface. The empty tuple is a DECLARATION, not an oversight: what this
+    # check watches is the DOOR that feeds it, and that door has no id of its own.
+    "the vault can say what it proves": (),
     "fleet reachable":             ("advanced-fleet", "advanced-fleet-down"),
     "armed migration":             (),
     "extraction lanes":            (),

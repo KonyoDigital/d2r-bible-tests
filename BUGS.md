@@ -35492,3 +35492,42 @@ Gate: `tv/test_the_admission_bar_knows_what_it_would_admit.py`, 5 laws, red-proo
 bar law first compared two bars against HIS ledger and asserted `high <= low` — every one of his 14
 rows clears a bar of 2, so deleting the bar entirely left both sets at 14 and `14 <= 14` passed. It
 now selects against a ledger with KNOWN witness counts (1, 2, 5). `[[sabotage-is-usually-the-wrong-one]]`
+
+## REG-1052 — the vault says how many it can prove, and says nothing when nobody answered
+
+**2026-09-17 · v3247 · `bible.html`, `tv/control_app.py`** — *the board half of REG-1051.*
+
+REG-1051 built `vault_proven_names()` and left it unreachable from the surface it describes. This
+joins it: `/api/vault_proven` (READ ONLY — nothing is written into his world, so the board never
+needs telling to re-read and REG-1043's "the console may never write a grail store" is not even
+approached), and a `⚖ N` chip beside each locker's count saying how many of that locker's items
+carry a corroborated proof.
+
+**It MARKS. It does not filter** — pinned by a law. The 14 names that clear the bar are
+consumables, charms and the Horadric Cube, so hiding the unproven would empty his vault of every
+real keeper and leave a rejuv potion. Nothing is hidden by the chip and the gate refuses
+`.filter(`, `display:none`, `hidden = true` and `.remove()` inside its block.
+
+⚠⚠ **`bible.html` IS ALSO THE PUBLIC SITE**, where no console exists and the ask always fails. A
+chip reading `⚖ 0` there would be a claim about his vault manufactured from a failed fetch and
+shown to strangers. `VAULT_PROVEN` starts **null**, a failed ask leaves it null, and the chip
+returns `''` when it is null — absent is the only honest rendering of "nobody could look".
+`[[unknown-stays-unknown]]`
+
+⚠ **Bounded, because REG-713 was three unbounded fetches on this very page**: a fetch that HANGS
+never rejects, so a bare `.catch` is cover and not a guard. AbortController + a 4s timeout, and the
+one-shot flag is cleared on failure so a console that comes up later can still be asked.
+
+⚠ **The chip counts BOTH `items` and `magicItems`**, because the `total` beside it is
+`items.length + magicItems.length` — a numerator over one list under a denominator over two is the
+same defect in a smaller frame.
+
+7 laws, red-proofed three ways (empty map on failure → red · chip rendering with no answer → red ·
+the abort removed → red). ⚠ The no-filter law first banned the bare token `hidden` and matched the
+chip's own tooltip — *"Nothing is hidden by this chip"* — so a law about filtering failed on the
+sentence promising not to filter. **Third time today prose has blinded a guard of mine.** It bans
+behaviour now. `[[feedback-comments-vs-code]]`
+
+⚠ **Inert until the console restarts.** `control_app` is a loaded module, so `/api/vault_proven`
+404s on the instance running now; the ask fails, `VAULT_PROVEN` stays null, and the chip is simply
+absent — which is the correct behaviour for "no console", not a bug.

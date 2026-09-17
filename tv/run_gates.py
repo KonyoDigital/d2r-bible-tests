@@ -155,6 +155,12 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_proof_chip", [sys.executable,
+                             os.path.join(HERE, "test_the_proof_chip_says_nothing_when_nobody_answered.py")], 60,
+         why="REG-1052 — the vault now MARKS how many of a locker's items the ledger can prove, "
+             "and bible.html is also the PUBLIC site where no console exists. A chip reading 0 "
+             "there would be a claim about his vault manufactured from a failed fetch. Pins "
+             "absent-not-zero, a bounded ask, the matching denominator, and that it never filters"),
     Gate("test_admission_bar", [sys.executable,
                                 os.path.join(HERE, "test_the_admission_bar_knows_what_it_would_admit.py")], 60,
          why="REG-1051 — #105's bar was measured as '14 earn it' and never told to the lockers, "

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3246",
+  "ver": "v3247",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3246: the admission bar could never reach the lockers because the board has no proof store at all, and the fourteen names it would admit turn out to be potions, charms and the horadric cube rather than his uniques, so wiring it literally would empty his vault and keep a rejuv potion. the door names them now and refuses to answer none when the ledger cannot be read",
+  "note": "v3247: the board now asks the console which names the ledger can prove and shows a count beside each locker, marking rather than filtering because the fourteen that clear the bar are potions and charms. on the public site there is no console so the chip is absent rather than zero",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

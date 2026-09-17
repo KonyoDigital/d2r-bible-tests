@@ -29334,7 +29334,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3246",
+        "ver": "v3247",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -32926,6 +32926,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/vault_route_probe":
             # v3222 — reads only. Answers "why is each unsorted item unsorted" with a histogram.
             self._json(200, vault_route_probe())
+            return
+        if path == "/api/vault_proven":
+            # v3247 — the board asks WHICH names the ledger can prove, and marks its tiles. It
+            # READS ONLY: nothing is written into his world, so the board never has to be told to
+            # re-read and the REG-1043 law ("the console may never write a grail store") is not
+            # even approached. The bar travels on the answer so the board cannot re-derive a
+            # second one. [[the-unjoined-end]] [[copy-drift]]
+            try:
+                _pb = int(body.get("bar") or 2)
+            except Exception:
+                _pb = 2
+            self._json(200, vault_proven_names(min_witnesses=_pb))
             return
         if path == "/api/rw_restore":
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason

@@ -34974,6 +34974,14 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vm-icon{font-size:17px;line-height:var(--lh-none)}
 .vm-name{font-family:var(--mono,monospace);font-weight:var(--fw-semibold);font-size:12.5px;letter-spacing:var(--ls-normal);color:var(--gold-bright,#f0c060);flex:1;text-shadow:0 1px 0 rgba(0,0,0,.7)}
 .vm-count{font-family:var(--mono,monospace);font-size:var(--fs-meta);color:var(--text-muted,#b5a48a)}
+/* v3247 — THE PROOF CHIP. A class nobody styles is a flag nobody can see, and this repo has paid
+   for that twice: sh-chip-st / sh-chip-stunk were both set by a builder with no rule to render
+   them. This one is deliberately quiet — it is a fact beside the count, not a warning about his
+   vault, because the 14 names that clear the bar are potions and charms rather than his keepers.
+   [[plumbing-with-no-tap]] */
+.vm-proven{font-family:var(--mono,monospace);font-size:var(--fs-meta);color:var(--text-muted,#b5a48a);
+  opacity:.75;margin-left:5px;cursor:help}
+.vm-proven-none{opacity:.45}
 /* v2211 — a locker that needs more than one mule SAYS so on the shelf. The gauge can only
    ever describe the mule it is filling; the count of mules is a different fact and it used
    to have nowhere to live, so 61 items and 200 items looked identical. */
@@ -36652,9 +36660,57 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window.renderVaultAudit = renderVaultAudit;
 
+  /* ══ v3247 (#105) — WHICH NAMES THE LEDGER CAN ACTUALLY PROVE ═══════════════════════════
+     Konyo, looking at the Vault again: "stlll the vault". His lockers show 165 items; the vault
+     LEDGER proves 14. The bar was established in #105 — "only ledger+proof enters" — and it could
+     never reach this surface, because the lockers are built from `owned` + `d2r_muleAssign` and
+     THIS PAGE HAS NO PROOF STORE AT ALL: the only d2r_vault* keys here are Backfill,
+     BackfillUndo, EvidenceRestore, Removed and RerouteDone. The witnesses live in the console's
+     vault_accum.json. [[the-unjoined-end]]
+
+     ⚠⚠ AND THE 14 ARE NOT HIS KEEPERS — which is why this MARKS and does not FILTER. Read by
+     name: Full Rejuvenation Potion, Super Mana Potion, Horadric Cube, Radiance (103 witnesses),
+     six Grand Charms, Bone Break, Magefist, Heart of the Oak, Renewed Black Cleft. Every one a
+     consumable, a charm or the Cube; not one a unique or set piece his vault holds. They cleared
+     the bar because an OCR sweep sees a rejuv potion in every stash frame and a Shako in one.
+     Hiding the unproven would empty his vault of every real keeper and leave the potions.
+
+     ⚠ THIS PAGE IS ALSO THE PUBLIC SITE, where no console exists. A failed ask must leave the
+     chip ABSENT — never "0 proven", which would tell a stranger his vault is unproven.
+     [[unknown-stays-unknown]]
+     ⚠ BOUNDED, because REG-713 was three unbounded fetches on this page: a fetch that HANGS never
+     rejects, so a bare .catch is cover and not a guard. One shot, 4s, and the flag is cleared on
+     failure so a later render may retry. */
+  window.VAULT_PROVEN = null;          /* null = nobody has answered. NEVER [] on a failure. */
+  window.VAULT_PROVEN_BAR = null;
+  function _vaultAskProven(then){
+    if (window.__vaultProvenAsked) return;
+    window.__vaultProvenAsked = 1;
+    var ctl = null;
+    try { ctl = new AbortController(); } catch (e) { ctl = null; }
+    var killed = setTimeout(function(){ try { ctl && ctl.abort(); } catch (e) {} }, 4000);
+    var opt = { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: '{}' };
+    if (ctl) opt.signal = ctl.signal;
+    fetch('http://127.0.0.1:17772/api/vault_proven', opt)
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        clearTimeout(killed);
+        if (!d || !d.ok || !Array.isArray(d.proven)) { window.__vaultProvenAsked = 0; return; }
+        var set = {};
+        d.proven.forEach(function(row){ if (row && row.name) set[String(row.name)] = row; });
+        window.VAULT_PROVEN = set;
+        window.VAULT_PROVEN_BAR = d.bar;
+        if (typeof then === 'function') then();
+      })
+      .catch(function(){ clearTimeout(killed); window.__vaultProvenAsked = 0; });
+  }
+  window._vaultAskProven = _vaultAskProven;
+
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
+    _vaultAskProven(function(){ try { renderVault(); } catch (e) {} });
     // v1251 — SELF-HEAL: a forged RUNEWORD must never sit in the Magic & Rare keeper track (magicFinds).
     // The aic-judge "keep" path used to dump runewords (Call to Arms, Spirit…) into magicFinds, so the
     // MAGIC & RARE locker painted them as a stray gold ◆ fallback tile (Konyo: "Call to Arms shows a gold
@@ -36885,6 +36941,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + total + (muleN > 1 ? '<span class="vm-mules" title="this locker does not fit on one '
                                  + 'mule — it needs '+muleN+'">×'+muleN+'🧍</span>' : '')
           + '</span>'
+        /* v3247 — HOW MANY OF THESE THE LEDGER CAN PROVE. Absent entirely when nobody answered:
+           on the public site there is no console, and "0 proven" there would be a claim about his
+           vault made from a failed fetch. [[unknown-stays-unknown]] */
+        + (function(){
+            var P = window.VAULT_PROVEN;
+            if (!P) return '';
+            var seen = 0;
+            /* ⚠ BOTH HALVES, or the chip's denominator is not the one beside it: the
+               header's `total` is items.length + magicItems.length. A numerator over one list
+               under a total over two is the "right number, wrong denominator" shape.
+               [[zero-needs-a-denominator]] */
+            (items || []).forEach(function(n){ if (P[n]) seen++; });
+            (typeof magicItems !== 'undefined' ? (magicItems || []) : []).forEach(function(n){
+              if (P[n]) seen++;
+            });
+            return '<span class="vm-proven' + (seen ? '' : ' vm-proven-none') + '" title="'
+              + seen + ' of ' + total + ' item(s) in this locker carry a corroborated proof in the '
+              + 'vault ledger (' + (window.VAULT_PROVEN_BAR || 2) + '+ independent witnesses). '
+              + 'The rest are here because they are in your owned list or you filed them — which '
+              + 'is not the same claim. Nothing is hidden by this chip.">⚖ ' + seen + '</span>';
+          })()
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
         + '</div>'
         + '<div class="vm-gauge" title="'
@@ -50474,7 +50551,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3246', name:'v3246 - the vault bar names what it would admit', date:'2026-09-17', note:'the admission bar could never reach the lockers because the board has no proof store at all, and the fourteen names it would admit turn out to be potions, charms and the horadric cube rather than his uniques, so wiring it literally would empty his vault and keep a rejuv potion. the door names them now and refuses to answer none when the ledger cannot be read' };
+  window.D2R_BUILD = { id:'v3247', name:'v3247 - the vault marks what it can prove and stays silent when nobody answered', date:'2026-09-17', note:'the board now asks the console which names the ledger can prove and shows a count beside each locker, marking rather than filtering because the fourteen that clear the bar are potions and charms. on the public site there is no console so the chip is absent rather than zero' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
