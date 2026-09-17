@@ -4161,6 +4161,26 @@ def prove():
 COVERAGE = os.path.join(HERE, "render_coverage.json")
 
 
+#: ⚠⚠ TARGETS WHOSE NODE POPULATION IS LIVE AND LEGITIMATELY VARIES. A coverage ratchet over
+#: one of these is measuring the weather, not the product.
+#:
+#: MEASURED 2026-09-17, `advanced-fleet` at 1120x628, on ONE unchanged tree within one hour:
+#:     13 nodes (twice, during a pre-push, both times blocking a ship)
+#:     14 nodes (twice, idle)
+#:     15 nodes (three times, idle, later)
+#: The differing node was his own fleet row, whose TEXT carries a live status clause
+#: ("konyo-3 · no board window"), and the ratchet keys on text — so the clause appearing or
+#: leaving reads as a node vanishing. The target serves the REAL console on purpose (its own note:
+#: "it can only ever photograph a REACHABLE fleet"), so the population is however many machines
+#: have beaconed lately. That cannot be ratcheted.
+#:
+#: ⚠ THIS IS NOT A SKIP AND IT DOES NOT SILENCE ANYTHING. The RENDER half still blocks for these
+#: targets — clipping, off-screen, covered, broken images, failure to activate. Only the
+#: population COUNT stands down, and it still PRINTS with both numbers, because an exemption
+#: nobody can see is the truncation `regression-guard` names. [[unknown-stays-unknown]]
+COVERAGE_VOLATILE = frozenset(("advanced-fleet",))
+
+
 def _coverage_floor():
     """-> {target: {width: n}}. Absent file is UNKNOWN, not zero. [[unknown-stays-unknown]]"""
     try:
@@ -4294,6 +4314,12 @@ def _coverage_check(results, say, scope=None, out=None):
                 say("🔴 coverage %-8s %s is no longer measured at all (floor %d)."
                     % (name, key, was))
                 bad += 1
+            elif is_ < was and name in COVERAGE_VOLATILE:
+                # printed, never counted — see COVERAGE_VOLATILE for the measurement
+                say("⚪ coverage %-8s %s measured %d node(s), floor %d — this target's population "
+                    "is LIVE (machines that have beaconed lately) and has read 13, 14 and 15 on "
+                    "one unchanged tree. Not counted as a refusal; the RENDER half still blocks."
+                    % (name, key, is_, was))
             elif is_ < was:
                 say("🔴 coverage %-8s %s measured %d node(s), was %d. Something this gate used to "
                     "watch is gone. If that is intended, say so and re-bless; if it is not, this "

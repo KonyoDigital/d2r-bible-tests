@@ -195,6 +195,40 @@ class TwoSurfacesOneShelf(unittest.TestCase):
                         "shelf_hidden_reels() has no path returning None — an unreadable plan now "
                         "hands back an empty set, which CLAIMS nothing is hidden")
 
+    def test_the_WITHHOLDING_says_why_even_when_it_SUCCEEDS(self):
+        """★ EVERY FAILURE PATH ANSWERED CAREFULLY AND SUCCESS RETURNED `""`.
+
+        `/api/river` shipped `hidden: 8, hiddenWhy: ""` — the console withheld eight of his reels
+        and said nothing about why. Measured 2026-09-17: those 8 are exactly the `test-fixture`
+        reels, which is exactly what he asked for (*"8 fixtures HIDDEN from a visual render just
+        for data ... for the ai reads to work from"*). The thing was RIGHT AND SILENT, and a reader
+        cannot tell a correct withholding from a broken one.
+
+        ⚠ BEHAVIOURAL, NOT A SOURCE GREP, DELIBERATELY. Three laws in this session went green while
+        the feature they guarded was dead, because they asserted a name appeared somewhere rather
+        than that the code RAN. This one calls the function and reads what it actually returns.
+        [[zero-needs-a-denominator]] [[the-unjoined-end]]
+        """
+        ca = self._ca() if hasattr(self, "_ca") else __import__("control_app")
+        ids, why = ca.shelf_hidden_reels()
+        if ids is None:
+            self.assertTrue(
+                (why or "").strip(),
+                "the plan could not be read AND no reason was given — the one case that was "
+                "already handled is now silent too")
+            return
+        self.assertTrue(
+            (why or "").strip(),
+            "%d reel(s) are withheld from every console surface with NO reason published. A "
+            "number a reader cannot account for is indistinguishable from a bug." % len(ids))
+        if ids:
+            self.assertIn(str(len(ids)), why,
+                          "the reason does not carry the COUNT it is explaining: %r" % why[:90])
+            self.assertTrue(
+                any(t in why for t in ca.SHELF_HIDDEN_TAGS),
+                "the reason never names the tag the withholding is keyed on, so it cannot be "
+                "checked against SHELF_HIDDEN_TAGS: %r" % why[:90])
+
 
 class ThePrinterSpineCountsWhatTheShelfShows(unittest.TestCase):
     """THE THIRD SURFACE. Same shelf, same ruling, found by sweeping for siblings of REG-886.

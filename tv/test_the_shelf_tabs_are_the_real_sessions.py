@@ -214,7 +214,10 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         # was dead. That is the SECOND presence-law-where-a-reachability-law-was-needed in one
         # session; the remainder chip above carries the first.
         # [[the-unjoined-end]] [[sabotage-is-usually-the-wrong-one]]
-        g = tail.find("if (SHELF_F.station && SHELF_LAST_STATIONS)")
+        # ⚠ v3260 — THE GUARD IS THE FILTER ALONE. It used to also require the remembered rail,
+        # which a cross-family review named as a hole: filter active + nothing remembered took the
+        # hide path and stranded him anyway. The rail is now a bonus, never the precondition.
+        g = tail.find("if (SHELF_F.station) {")
         self.assertGreater(
             g, -1,
             "the empty branch has no LIVE guard on the active filter, so a station holding "
@@ -227,8 +230,11 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                       "narrow, and he needs one control that widens")
         # and the rail must actually be REMEMBERED somewhere, or there is nothing to restore
         self.assertIn("SHELF_LAST_STATIONS = bar.innerHTML", self.fn,
-                      "nothing ever records the station rail, so the restore above reads a name "
-                      "that is null for ever and the branch silently does nothing")
+                      "nothing ever records the station rail, so the way out is the only thing "
+                      "left in the bar and he loses the other stations")
+        self.assertIn("(SHELF_LAST_STATIONS || '')", self.fn,
+                      "the remembered rail is a PRECONDITION again - if it is null the branch "
+                      "renders 'null' or throws, instead of still giving him the way out")
 
     def test_the_count_says_what_it_is_OVER(self):
         """[[zero-needs-a-denominator]] — a bare number on a chip is a figure with no scale."""

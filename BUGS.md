@@ -36228,3 +36228,91 @@ intact and the writer lives outside the branch entirely. **The names were presen
 was dead.** That is the SECOND presence-law-where-a-reachability-law-was-needed in this one session
 — REG-1063's remainder chip carries the first. The law is now anchored to the live guard, asserts
 the bar is actually SHOWN, and pins the writer separately. Three red-proofs, all RED.
+
+## REG-1068 — eight of his reels were withheld from every surface, and the success path said nothing
+
+`/api/river` shipped `hidden: 8` beside `hiddenWhy: ""`.
+
+`shelf_hidden_reels()` answers every FAILURE carefully — a plan that raises, a plan that will not
+run, each gets a written UNKNOWN sentence, and its docstring is emphatic that *"`None` IS UNKNOWN
+and is NEVER an empty set"*. Then the success path returned `""`.
+
+So the console withheld eight of his reels from every surface and published no reason for it.
+
+**Measured 2026-09-17: those 8 are exactly the `test-fixture` reels** — which is exactly what he
+asked for: *"8 fixtures HIDDEN from a visual render just for data ... for the ai reads to work
+from"*. `SHELF_HIDDEN_TAGS = ("test-fixture",)`, `reel_retention.plan()` holds `test-fixture 8`.
+
+⚠ **THE THING WAS RIGHT AND SILENT, WHICH IS THE SHAPE THIS REPO KEEPS PAYING FOR.** A reader
+cannot tell a correct withholding from a broken one. It is the same defect as REG-1062 (an empty
+machine reading as a read error), REG-1063 (a chip claiming a trajectory it never measured) and
+REG-1067 (a rail that hid its own way out) — a system doing the right thing with no way for him to
+know that.
+
+Both branches now answer. The reason is DERIVED from the tags actually matched, never typed as
+prose, so it cannot drift from `SHELF_HIDDEN_TAGS`:
+
+```
+8 reel(s) tagged test-fixture are withheld from every console surface: the suite opens them BY
+NAME, so they are fixtures rather than runs he made. They still feed the AI reads; they are only
+kept off the screen.
+```
+
+GATE: `test_the_WITHHOLDING_says_why_even_when_it_SUCCEEDS`, in the file that already owns
+`shelf_hidden_reels`. ⚠ **BEHAVIOURAL, NOT A SOURCE GREP, DELIBERATELY** — three laws in this one
+session went green while the feature they guarded was dead, because they asserted a NAME appeared
+rather than that the code RAN (REG-1063, REG-1067, and the v3258 look). This one calls the function
+and reads what it returns. Two red-proofs, both RED at match count 1.
+
+### v3260 addendum — the way out is now UNCONDITIONAL
+
+A cross-family review of v3259 (xai) named the residual hole in REG-1067's fix: the escape hatch
+was guarded on `SHELF_F.station && SHELF_LAST_STATIONS`, so a filter active with **nothing
+remembered** still took the hide path — a filtered shelf with no control to unfilter it.
+
+⚠ **I TRACED IT AND COULD NOT CONSTRUCT A USER PATH.** The only writer of `SHELF_F.station` is a
+station-chip click, which requires the full rail to have rendered, which is exactly what captures
+`SHELF_LAST_STATIONS`; both live in the same scope, so a reload clears them together.
+
+**Fixed anyway.** "I could not find a path" is not "there is no path", and the fix costs one
+`|| ''`. The guard is now the FILTER ALONE, and the remembered rail is a BONUS rather than a
+precondition — if it is missing he still gets the way out. Two red-proofs, both RED.
+
+## REG-1069 — the coverage ratchet was measuring the weather, and it blocked two ships for it
+
+`advanced-fleet` refused two of my pushes with *"measured 13 node(s), was 14 — something this gate
+used to watch is gone"*, at all five widths, on a tree whose diff **cannot touch the fleet**.
+
+MEASURED on ONE unchanged tree inside one hour, at 1120x628:
+
+```
+13 nodes  ×2   during a pre-push — both times BLOCKING A SHIP
+14 nodes  ×2   idle
+15 nodes  ×3   idle, later
+```
+
+The differing node is **his own fleet row**, whose text carries a live status clause
+(`konyo-3 · no board window`) — and the ratchet keys on TEXT, so the clause arriving or leaving
+reads as a node vanishing. The target serves the REAL console **on purpose** (its own note: *"it
+can only ever photograph a REACHABLE fleet"*), so its population is however many machines have
+beaconed lately. **That cannot be ratcheted.**
+
+⚠ NOT A SKIP, AND IT SILENCES NOTHING. The RENDER half still blocks for these targets — clipping,
+off-screen, covered, broken images, failure to activate. Only the population COUNT stands down, and
+it still PRINTS with both numbers, because an exemption nobody can see is exactly the silent
+truncation `regression-guard` names.
+
+GATE: `AVolatileExemptionStaysBounded` — the exemption must name a real target, must not stub the
+data it renders, must not exceed two entries, must PRINT, and must not increment the refusal count.
+
+⚠⚠ **MY FIRST PREDICATE WAS WRONG AND A SABOTAGE PROVED IT.** I checked `serve`, and slipping
+`advanced-fleet-down` in came back GREEN — because `serve` means *"serve the console"*, not *"serve
+live data"*, and BOTH fleet targets set it. It would have waved through the one target that exists
+precisely so the degraded render CAN be pinned. The real discriminator, measured: the `-down`
+seed **stubs `fetch` and names `/api/fleet`** (1039 chars) while `advanced-fleet`'s does neither
+(87 chars). A target that stubs the data it renders is deterministic and has no claim here.
+`[[sabotage-is-usually-the-wrong-one]]` `[[measured-true-read-wrong]]`
+
+⚠ One sabotage stayed green and the SABOTAGE was wrong: `page` genuinely satisfies the predicate —
+it serves the live console with an unstubbed seed — so the law was right to allow it, and the
+two-entry ceiling is what bounds it.

@@ -17105,7 +17105,14 @@ window._lockMark = function(isOpen, px, label){
         return;
       }
       /* v3259 — HE FILTERED HIS WAY HERE, SO HE MUST BE ABLE TO FILTER HIS WAY OUT. */
-      if (SHELF_F.station && SHELF_LAST_STATIONS) {
+      /* ⚠ v3260 — THE WAY OUT IS UNCONDITIONAL. A cross-family review of v3259 (xai) named
+         the residual hole: filter active but `SHELF_LAST_STATIONS` still null took the hide path,
+         leaving a filtered shelf with no control to unfilter it. I could NOT construct a user
+         path to it — the only writer of `SHELF_F.station` is a station-chip click, which requires
+         the full rail to have rendered, which is what captures the rail. But "I could not find a
+         path" is not "there is no path", and the fix costs one `|| ''`. The remembered rail is now
+         a BONUS, never the precondition: if it is missing he still gets the way out. */
+      if (SHELF_F.station) {
         var _fl = SHELF_F.station;
         try {
           if (typeof SHELF_RIVER_LABELS !== 'undefined' && SHELF_RIVER_LABELS
@@ -17115,7 +17122,7 @@ window._lockMark = function(isOpen, px, label){
                       + 'are still here so you can go somewhere else \u2014 or click this to '
                       + 'clear the filter.';
         bar.hidden = false;
-        bar.innerHTML = SHELF_LAST_STATIONS
+        bar.innerHTML = (SHELF_LAST_STATIONS || '')
           + '<button type="button" class="sh-chip sh-chip-stclear" data-f="st:' + escC(SHELF_F.station)
           + '" title="' + escC(_clearTip) + '">\u2190 show all</button>';
         return;

@@ -317,5 +317,88 @@ class TheFloorMayOnlyRISE(unittest.TestCase):
         self.assertEqual(written["heart"]["1440x1000"], 65, "an untouched target lost its floor")
 
 
+
+class AVolatileExemptionStaysBounded(unittest.TestCase):
+    """⚠⚠ AN EXEMPTION IS A HOLE UNTIL SOMETHING BOUNDS IT.
+
+    `COVERAGE_VOLATILE` stands the POPULATION COUNT down for a target whose node population is
+    live. That is correct for exactly one measured reason and it is one step from becoming the
+    place every awkward refusal gets filed.
+
+    MEASURED 2026-09-17 on ONE unchanged tree within the hour: `advanced-fleet` at 1120x628 read
+    **13 nodes twice** (both during a pre-push, both blocking a ship), **14 twice**, and **15 three
+    times**. The differing node was his own fleet row, whose TEXT carries a live status clause, and
+    the ratchet keys on text. The target serves the REAL console on purpose, so its population is
+    however many machines have beaconed lately.
+
+    [[regression-guard]] [[unknown-stays-unknown]]
+    """
+
+    def _rc(self):
+        import importlib
+        return importlib.import_module("render_check")
+
+    def test_it_names_only_targets_that_actually_exist(self):
+        rc = self._rc()
+        unknown = sorted(n for n in rc.COVERAGE_VOLATILE if n not in rc.TARGETS)
+        self.assertFalse(unknown,
+                         "COVERAGE_VOLATILE names %s, which TARGETS does not define - an exemption "
+                         "for a surface that is not rendered excuses nothing and hides that it is "
+                         "gone" % ", ".join(unknown))
+
+    def test_only_a_target_with_UNSTUBBED_data_may_be_volatile(self):
+        """★ THE FIRST CUT OF THIS LAW CHECKED `serve`, AND A SABOTAGE PROVED IT WRONG.
+
+        Slipping `advanced-fleet-down` into the exemption came back GREEN, because `serve` means
+        "serve the console", not "serve live data" — BOTH fleet targets set it. The predicate was
+        measuring the wrong property and would have waved through the one target that exists
+        precisely so the degraded render CAN be pinned.
+
+        The real discriminator, measured: `advanced-fleet-down`'s seed STUBS `fetch` and names
+        `/api/fleet` (1039 chars); `advanced-fleet`'s seed does neither (87 chars). A target that
+        stubs the data it renders is deterministic by construction and has no claim here.
+        [[sabotage-is-usually-the-wrong-one]] [[measured-true-read-wrong]]
+        """
+        rc = self._rc()
+        bad = []
+        for n in rc.COVERAGE_VOLATILE:
+            t = rc.TARGETS.get(n) or {}
+            seed = str(t.get("seed") or "")
+            if not t.get("serve"):
+                bad.append("%s (does not serve the console at all)" % n)
+            elif "fetch" in seed or "XMLHttpRequest" in seed:
+                bad.append("%s (its seed STUBS the data it renders, so it is deterministic)" % n)
+        self.assertFalse(
+            bad, "exempt from the coverage count without earning it: %s" % "; ".join(bad))
+
+    def test_the_exemption_does_not_SPREAD(self):
+        """A ceiling, with the reason: one target has earned this. A second should have to argue
+        for itself in a diff, not arrive quietly inside a set nobody re-reads."""
+        rc = self._rc()
+        self.assertLessEqual(
+            len(rc.COVERAGE_VOLATILE), 2,
+            "%d targets are exempt from the coverage count. This set was written for ONE measured "
+            "case; at this size it is a dumping ground and the ratchet guards nothing."
+            % len(rc.COVERAGE_VOLATILE))
+
+    def test_the_stand_down_is_PRINTED_and_not_counted(self):
+        """A skip nobody can see is the silent truncation [[regression-guard]] names. The volatile
+        branch must SAY the numbers and must not increment the refusal count."""
+        import inspect
+        rc = self._rc()
+        src = inspect.getsource(rc)
+        i = src.find("elif is_ < was and name in COVERAGE_VOLATILE:")
+        self.assertGreater(i, -1,
+                           "nothing stands the volatile count down any more, or it was renamed - "
+                           "re-anchor this law rather than deleting it")
+        branch = src[i:src.find("elif is_ < was:", i)]
+        self.assertIn("\u26aa coverage", branch,
+                      "the stand-down does not PRINT the numbers, so an exempt target reads as "
+                      "clean and the exemption is invisible")
+        self.assertNotIn("bad += 1", branch,
+                         "the volatile branch still counts as a refusal, so the exemption does "
+                         "nothing except add a confusing line")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

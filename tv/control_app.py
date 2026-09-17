@@ -22618,7 +22618,22 @@ def shelf_hidden_reels(hist_dir=None):
             _r = str((_rec or {}).get("reel") or "")
             if _r:
                 _ids.add(_r)
-    return frozenset(_ids), ""
+    # ⚠⚠ v3260 — THE SUCCESS PATH PUBLISHED A NUMBER WITH NO REASON. Every failure above answers
+    # with a careful UNKNOWN sentence, and then success returned `""` — so `/api/river` shipped
+    # `hidden: 8, hiddenWhy: ""` and the console withheld eight of his reels while saying nothing
+    # about why. Measured 2026-09-17 on his tree: those 8 are exactly the `test-fixture` reels,
+    # which is exactly what he asked for — *"8 fixtures HIDDEN from a visual render just for data
+    # ... for the ai reads to work from"*. The thing was RIGHT and silent, which is the shape this
+    # repo keeps paying for: a reader cannot tell a correct withholding from a broken one.
+    # The reason is derived from the tags actually matched, never typed as prose, so it cannot
+    # drift from SHELF_HIDDEN_TAGS. [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    if not _ids:
+        return frozenset(), ("no reel carries %s, so nothing is being withheld from the shelf"
+                             % " or ".join(SHELF_HIDDEN_TAGS))
+    return frozenset(_ids), ("%d reel(s) tagged %s are withheld from every console surface: the "
+                             "suite opens them BY NAME, so they are fixtures rather than runs he "
+                             "made. They still feed the AI reads; they are only kept off the "
+                             "screen." % (len(_ids), " or ".join(SHELF_HIDDEN_TAGS)))
 
 
 def _vault_owed_reels(hist=None):
@@ -29518,7 +29533,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3259",
+        "ver": "v3260",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
