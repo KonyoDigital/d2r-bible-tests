@@ -231,6 +231,76 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
                       "a repaired store could not be read back — the failure was cached")
 
 
+class TheHeadOfTheOwedListCannotStarveTheRest(unittest.TestCase):
+    """★ v3282 — HE ASKED WHY THREE REELS WERE NOT FLOWING, AND THE ANSWER WAS A PERMANENT HEAD.
+
+    Konyo, on the census showing 3 reels tagged `panels-never-banked`: *"why lol? why is it not
+    extraced and unified logic and flowing like the others whats makes it special?"*
+
+    Nothing makes them special. MEASURED on his console:
+
+        OWED by the doctrine          TRIED by this lane
+          ..._12001   tries=0           ..._9654    tries=1
+          ..._36946   NEVER TRIED       ..._12211   tries=1
+          ..._92772   NEVER TRIED       ..._42457   tries=0
+                                        ..._42840   tries=2
+                                        ..._75324   tries=2
+        retired [] · skipped {} · lane on, storeReadable, every 45s, reads 3750
+
+    ⚠ My first reading of that was WRONG and is corrected here: I took the five tried-but-not-owed
+    reels as proof the queue was a different list. It is not — the tick iterates
+    `_vault_owed_reels()` directly, and `tries` is HISTORY, not the queue. Reading the loop showed
+    the real mechanism.
+
+    The loop always walked the owed list from index 0 and RETURNS as soon as it acts. The head
+    reel exhausts `_VAULT_AUTOREAD_MAX_TRIES`, hits the `panels-never-banked` branch — which resets
+    its tries to 0 and returns, *"back to the top of the river"* — and the next tick starts on the
+    same reel again. It can never get past position 0, so positions 1 and 2 are unreachable: not
+    skipped, not retired, **NEVER TRIED**. A queue with a permanent head is not a queue.
+
+    Simulated over six ticks with a head that always refuses: before, `A A A A A A`; after,
+    `A B C A B C`.
+    """
+
+    def _tick_src(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.find("def vault_autoreel_tick(")
+        self.assertGreater(i, -1, "the vault auto-read tick is gone or renamed")
+        j = src.find("\ndef ", i + 10)
+        return src[i:j if j > i else i + 9000]
+
+    def test_the_owed_list_is_ROTATED_so_no_reel_owns_the_head(self):
+        body = self._tick_src()
+        self.assertIn('_VAULT_AUTOREAD.get("cursor")', body,
+                      "the tick never reads a cursor, so it always starts at index 0 and a reel "
+                      "that cannot clear keeps every turn for itself")
+        self.assertIn("owed_list[_k:]", body,
+                      "the owed list is not rotated, so position 0 is permanent")
+
+    def test_the_cursor_advances_on_EVERY_reel_considered_not_only_on_success(self):
+        """⚠ THE SUBTLE HALF. Advancing only after a successful sweep would leave a reel that
+        always refuses sitting at the head again next tick — the same starvation, one level down."""
+        body = self._tick_src()
+        i = body.find("for d in owed_list:")
+        self.assertGreater(i, -1, "the loop over the owed list is gone")
+        head = body[i:i + 420]
+        self.assertIn('_VAULT_AUTOREAD["cursor"] = rid', head,
+                      "the cursor is not set at the top of the loop, so it can only advance on "
+                      "paths that succeed")
+
+    def test_the_list_itself_is_STILL_the_doctrine_and_was_not_widened(self):
+        """⚠⚠ MONEY. The vault lane SPENDS on reads. v2877 records a rewrite that would have
+        queued 26 reels, 10 of them explicitly held, at up to 97 paid reads. This change decides
+        WHICH owed reel gets the one turn per tick — it must never change WHICH reels are owed."""
+        body = self._tick_src()
+        self.assertIn("owed_list = _vault_owed_reels()", body,
+                      "the owed list no longer comes from the doctrine — the money guard is gone")
+        for widen in ("reel_router.route(", "os.listdir(", "glob.glob("):
+            self.assertNotIn(widen, body,
+                             "the tick now enumerates reels itself (%s) instead of asking the "
+                             "doctrine, which is how a sweep starts paying for held reels" % widen)
+
+
 RED_PROOF = [
     {
         'why': 'dropping the restore: every restart goes back to reporting a lane that has never swept, and every retirement is bought again',

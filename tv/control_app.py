@@ -23394,8 +23394,40 @@ def vault_autoreel_tick():
                 "why": "the retention plan could not be read, so whether any reel owes the vault "
                        "lane a read is UNKNOWN - not zero"}
     owed = len(owed_list)
+    # ⚠⚠⚠ v3282 — THE HEAD OF THIS LIST WAS STARVING THE REST OF IT, and he asked why:
+    # *"why lol? why is it not extraced and unified logic and flowing like the others whats makes
+    # it special?"* — about 3 reels tagged `panels-never-banked`. Nothing makes them special.
+    # MEASURED on his console before this fix:
+    #     OWED by the doctrine          TRIED by this lane
+    #       ..._12001   tries=0           ..._9654    tries=1
+    #       ..._36946   NEVER TRIED       ..._12211   tries=1
+    #       ..._92772   NEVER TRIED       ..._42457   tries=0
+    #                                     ..._42840   tries=2
+    #                                     ..._75324   tries=2
+    #     retired [] · skipped {} · lane on, storeReadable, every 45s, reads 3750
+    #
+    # The loop always walked `owed_list` from index 0 and RETURNS as soon as it acts. The head
+    # reel exhausts _VAULT_AUTOREAD_MAX_TRIES, hits the `panels-never-banked` branch — which resets
+    # its tries to 0 and returns, "back to the top of the river" — and the next tick starts on the
+    # same reel again. It can never get past position 0, so positions 1 and 2 are unreachable:
+    # not skipped, not retired, NEVER TRIED. A queue with a permanent head is not a queue.
+    #
+    # ⚠ THIS DOES NOT SPEND MORE. Still at most one sweep per tick; the rotation only decides
+    # WHICH owed reel gets that one turn, so a reel that cannot clear can no longer consume every
+    # turn forever. v2877 records what over-queueing costs (26 reels, 10 held, up to 97 paid
+    # reads) and nothing here widens the list — it is `_vault_owed_reels()` as before.
+    # [[the-unjoined-end]] [[zero-needs-a-denominator]]
+    _ids = [os.path.basename(str(_d)) for _d in owed_list]
+    _cur = _VAULT_AUTOREAD.get("cursor")
+    if _cur in _ids and len(_ids) > 1:
+        _k = _ids.index(_cur) + 1
+        owed_list = list(owed_list[_k:]) + list(owed_list[:_k])
     for d in owed_list:
         rid = os.path.basename(str(d))
+        # ⚠ the cursor moves on EVERY reel this tick considers, not only on a successful sweep.
+        # Advancing only on success would leave a reel that always refuses sitting at the head
+        # again — the exact starvation being fixed, one level down.
+        _VAULT_AUTOREAD["cursor"] = rid
         if rid in _VAULT_AUTOREAD["retired"]:
             continue
         if _reel_is_growing(str(d)):
@@ -29731,7 +29763,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3281",
+        "ver": "v3282",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

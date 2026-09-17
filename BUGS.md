@@ -36626,6 +36626,56 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1091 — "why is it not flowing?" — because the head of the queue could never be passed
+
+His question, on the census showing 3 reels tagged `panels-never-banked`: **"why lol? why is it
+not extraced and unified logic and flowing like the others whats makes it special?"**
+
+Nothing makes them special. **MEASURED on his console:**
+
+```
+OWED by the doctrine          TRIED by this lane
+  ..._12001   tries=0           ..._9654    tries=1
+  ..._36946   NEVER TRIED       ..._12211   tries=1
+  ..._92772   NEVER TRIED       ..._42457   tries=0
+                                ..._42840   tries=2
+                                ..._75324   tries=2
+retired [] · skipped {} · lane on, storeReadable, every 45s, reads 3750
+```
+
+⚠ **My first reading of that was wrong, and the correction matters.** I took the five
+tried-but-not-owed reels as proof the sweeper's queue was a different list from the doctrine's. It
+is not — `vault_autoreel_tick` iterates `_vault_owed_reels()` directly, and `tries` is **history**,
+not the queue. Reading the loop instead of inferring from the counters showed the real mechanism.
+
+**The loop always walked the owed list from index 0, and RETURNS as soon as it acts.** The head
+reel exhausts `_VAULT_AUTOREAD_MAX_TRIES`, hits the `panels-never-banked` branch — which resets its
+tries to 0 and returns, *"back to the top of the river"* — and the next tick starts on the same
+reel again. **It can never get past position 0**, so positions 1 and 2 are unreachable: not
+skipped, not retired, **NEVER TRIED**.
+
+A queue with a permanent head is not a queue. And the reset is not a bug in itself — it exists so a
+reel held for lack of extraction is never retired permanently — it just made the head immortal.
+
+**Fixed in v3282:** the owed list is rotated by a persisted cursor, so each tick begins after the
+last reel considered. Simulated over six ticks with a head that always refuses:
+
+```
+before   A A A A A A
+after    A B C A B C
+```
+
+⚠ **The cursor advances on EVERY reel considered, not only on a successful sweep.** Advancing only
+on success would leave a reel that always refuses sitting at the head again next tick — the same
+starvation, one level down.
+
+⚠ **THIS DOES NOT SPEND MORE.** Still at most one sweep per tick; the rotation only decides *which*
+owed reel gets that turn. The list is still `_vault_owed_reels()` and there is a law that fails if
+the tick ever enumerates reels itself — v2877 records what over-queueing costs: 26 reels, 10 of
+them explicitly held, up to 97 paid reads.
+
+Three laws, three sabotages, every one RED, each anchor matching exactly once.
+
 ## REG-1090 — the TV·DIABLO banner: he ruled, so it stopped being parked and became work
 
 His ruling, 2026-09-17: **"what banner? i dont wnat the banner uptop i want it clean."**
@@ -36679,6 +36729,28 @@ prove which one crashed. If his console dies on the next launch, `TV_MAC_CHROME=
 and that is the finding. [[unknown-stays-unknown]]
 
 Four laws, five sabotages, every one RED, each anchor matching exactly once.
+### The cross-family review of v3281 — three findings, all declined, each with its reason
+
+**1. "Both hooks can be registered at once" — BY DESIGN, and a coherent three-state.**
+`TV_MAC_CHROME` now reads: **unset → tint only** (what he asked for), **`1` → tint + the untested
+fullscreen hook** (the old opt-in, preserved), **`0` → neither** (the escape hatch). Someone who
+sets `1` is explicitly opting into the extra hook; that is what the flag has always meant.
+
+**2. "The `shown` handler is not idempotent" — DECLINED, and re-running is the SAFER behaviour.**
+Setting a background colour does not change the view hierarchy, every hop is guarded, and the
+colours are constants — so a repeat is a no-op in effect. A once-only flag would be worse: if the
+first `shown` fired before the window was fully built, the tint would be **permanently lost** with
+no second chance. Resilience beats tidiness here.
+
+**3. "`respondsToSelector_` may need a real SEL" — DECLINED, that path is already correct.** If it
+ever raises, `_objc_can` catches it, returns False, the tint does nothing and the console lives.
+That is fail-CLOSED, which is the entire design: a cosmetic feature silently not applying is the
+correct outcome, and the alternative is the uncatchable death this version exists to prevent.
+
+⇒ It also confirmed, by inspection, the things that mattered most: `_objc_can` cannot itself
+trigger the uncatchable failure, `len()` is safe on the PyObjC NSArray proxy, a nil `lastObject`
+is turned into `None` and rejected, and every hop of the private walk is guarded.
+**Nothing changed.** [[review-after-ship]]
 
 ### The cross-family review of v3280 — one finding taken, two declined with reasons
 
