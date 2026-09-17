@@ -36063,3 +36063,54 @@ count 1.
 only inspected the BUILDER, which still read the name. That exposed a real hole in my own law: it
 pinned the reader and never the writer, so a read of a name nothing sets would have degraded every
 river sentence silently. Both ends are pinned now. `[[the-unjoined-end]]`
+
+## REG-1065 — ONE payload, THREE populations, and v3257 described the widest as the narrowest
+
+Correcting something I shipped twenty minutes earlier, in the same session.
+
+Chasing his spec — *"there should be 8 fixtures HIDDEN from a visual render just for data ... and
+then 8 real sessions coming in from FIFO"* — I measured the retention engine and found **his
+architecture already built and correct**:
+
+```
+reel_retention.plan()  ON DISK 20
+   test-fixture            8      ← his 8 hidden fixtures
+   recent                  8      ← his 8 real FIFO sessions
+   panels-never-banked     3
+   candidates (may go)     1
+```
+
+`/api/river` confirms it: `lifetime 465 · closed 453 · hidden 8`, leaving **20 on disk = 8 hidden
+fixtures + 12 shown**. Both halves of the spec are real and working.
+
+**But that measurement caught a wrong number in v3257.** One `/api/river` payload carries THREE
+different populations:
+
+| source | total | JOIN |
+|---|---|---|
+| `lanes.byStation` — this shelf | 12 | 0 |
+| **`census.counts` — the STAMP LEDGER** | **63** | **14** ← what v3257 used |
+| `reel_router.route()` — on disk | 20 | **2** |
+
+v3257's chip read `census.counts` and said *"the river has 14 sitting there"*. The real on-disk
+figure is **2**. Twelve of those fourteen were stamped JOIN and then **deleted** — their most
+recent stamp never moved because the reel stopped existing.
+
+⚠ **`river_stamp.census` is exact about this in its own docstring and I read past it**: counts is
+*"how many reels are THERE NOW (their most recent stamp)"* — a fact about the LEDGER — and the same
+file says *"how many reels exist is the shelf's question"*. The figure was never wrong; calling it
+an occupancy was. `[[label-outlived-referent]]` `[[measured-true-read-wrong]]`
+
+The number stays (it is the only per-station lifetime figure published) and every sentence built
+from it now says what it is: *"14 reel(s) carry JOIN as their MOST RECENT STAMP in the river ledger
+(which counts reels since deleted, not just the ones on disk)"*. The dam sentence likewise stopped
+claiming *"nothing has ever left"* and now says *"not one ever moved PAST it — every reel stamped
+here either still sits here or was deleted from here"*, which is what the ledger can actually
+support.
+
+GATE: `test_a_LEDGER_figure_is_never_spoken_as_an_ON_DISK_one`, in the file that already owns this
+surface. Seen RED at match count 1.
+
+⚠ STILL OPEN: `/api/river` reports `hidden: 8` with `hiddenWhy: ""` — eight reels withheld from the
+render and no reason published beside the number. That is the same shape as everything above and it
+is NOT fixed here. Tracked on #112.

@@ -17142,6 +17142,19 @@ window._lockMark = function(isOpen, px, label){
          JOIN 14 in / 14 through / 0 out, CAPTURE 21 in / 21 through / 0 out. 35 of 63 reels sit
          behind those two, and every other station drains. That is what "the river is not flowing"
          actually was, and nothing on the screen could say it. [[unknown-stays-unknown]] */
+      /* ⚠⚠ v3258 — WHICH POPULATION IS "THE RIVER"? THERE ARE THREE, AND v3257 PICKED THE
+         WRONG ONE. Measured the same session, from one /api/river payload:
+             lanes.byStation  12   what THIS SHELF shows
+             census.counts    63   the STAMP LEDGER - lifetime 465, closed out 453
+             reel_router      20   what is actually ON DISK (8 fixtures + 12 shown)
+         v3257 read census.counts and said "the river has 14 sitting there" about JOIN, where the
+         real on-disk figure is 2. Twelve of those fourteen were stamped JOIN and then DELETED;
+         their last stamp never moved because the reel stopped existing.
+         census's own docstring is exact about this and I read past it: counts is "how many reels
+         are THERE NOW (their most recent stamp)" - a fact about the LEDGER, not about disk, and
+         the same file says "how many reels exist is the shelf's question".
+         So the number stays (it is the only per-station lifetime figure published) and the SENTENCE
+         stops overstating it. [[label-outlived-referent]] [[zero-needs-a-denominator]] */
       var rHere = (SHELF_RIVER_COUNTS && typeof SHELF_RIVER_COUNTS[st] === 'number')
                 ? SHELF_RIVER_COUNTS[st] : null;
       var left = (rHere !== null && thru !== null) ? (thru - rHere) : null;
@@ -17153,15 +17166,17 @@ window._lockMark = function(isOpen, px, label){
         say = tally[st] + ' of the ' + total + ' stamped reel(s) ON THIS SHELF are at ' + lab
             + ' right now';
         if (rHere !== null) {
-          say += '. Across the WHOLE river, ' + rHere + ' sit here';
-          if (thru !== null) say += ' and ' + thru + ' have ever been through';
-          say += ' \u2014 these are different populations, not a fraction of one another';
+          say += '. In the river LEDGER, ' + rHere + ' carry ' + lab + ' as their most recent '
+               + 'stamp';
+          if (thru !== null) say += ' and ' + thru + ' have ever been stamped here';
+          say += ' \u2014 that ledger counts reels since deleted, so it is a different '
+               + 'population from this shelf, never a fraction of it';
         } else if (thru !== null && thru > tally[st]) {
           say += ', and ' + thru + ' have passed through it in all (whole river)';
         }
         if (dammed) {
-          say += '. NOTHING HAS EVER LEFT ' + lab + ' \u2014 every reel that reached it is still '
-               + 'here, which is where the river is actually stopping';
+          say += '. NOT ONE of them ever moved PAST ' + lab + ' \u2014 every reel stamped here '
+               + 'either still sits here or was deleted from here, which is where the river stops';
         } else if (left !== null && left > 0) {
           say += '. ' + left + ' have moved on from it';
         }
@@ -17173,11 +17188,12 @@ window._lockMark = function(isOpen, px, label){
            'the river flows here' on JOIN while the river held 14 reels there with NONE ever
            leaving - the chip carried a dam mark and its own sentence contradicted it. The
            shelf window is 13 cards; the river is 63 reels. Say which one is empty. */
-        say = 'none of the reel(s) on THIS SHELF is at ' + lab + ', but the river has '
-            + rHere + ' sitting there';
+        say = 'none of the reel(s) on THIS SHELF is at ' + lab + ', but ' + rHere
+            + ' reel(s) carry ' + lab + ' as their MOST RECENT STAMP in the river ledger '
+            + '(which counts reels since deleted, not just the ones on disk)';
         say += dammed
-          ? ' and NOT ONE HAS EVER LEFT \u2014 this is where the river is actually stopping'
-          : (left > 0 ? ' \u2014 ' + left + ' have moved on from it' : '');
+          ? ' and NOT ONE ever moved PAST it \u2014 this is where the river stops'
+          : (left > 0 ? ' \u2014 ' + left + ' went on to a later station' : '');
       } else if (thru > 0) {
         say = 'none is at ' + lab + ' right now, and ' + thru + ' reel(s) have already passed '
             + 'through it \u2014 the river flows here, it is simply not holding anything';

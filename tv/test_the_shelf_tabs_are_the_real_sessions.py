@@ -285,6 +285,34 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("THIS SHELF", self.fn[i:i + 700],
                       "that branch does not name WHICH population is empty")
 
+    def test_a_LEDGER_figure_is_never_spoken_as_an_ON_DISK_one(self):
+        """★ v3257 SHIPPED THIS WRONG AND v3258 CORRECTED IT. One /api/river payload carries THREE
+        populations, and the chip picked the widest one and described it as the narrowest:
+
+            lanes.byStation  12   what THIS SHELF shows
+            census.counts    63   the STAMP LEDGER (lifetime 465, closed out 453)
+            reel_router      20   what is actually ON DISK (8 fixtures + 12 shown)
+
+        The chip read census.counts and said "the river has 14 sitting there" about JOIN, where the
+        real on-disk figure is 2. Twelve of those fourteen were stamped JOIN and then DELETED - the
+        last stamp never moved because the reel stopped existing.
+
+        river_stamp.census is exact about this in its own docstring: counts is "how many reels are
+        THERE NOW (their most recent stamp)", a fact about the LEDGER, and the same file says "how
+        many reels exist is the shelf's question". The number is fine; calling it an occupancy was
+        not. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+        """
+        self.assertNotIn("sitting there", self.fn,
+                         "a ledger figure is being spoken as reels sitting on disk again - 14 at "
+                         "JOIN in the ledger, 2 actually there")
+        self.assertNotIn("sit here", self.fn,
+                         "a ledger figure is being spoken as an on-disk occupancy again")
+        i = self.fn.find("rHere")
+        self.assertGreater(i, -1, "the ledger figure is gone; re-anchor this law")
+        self.assertIn("MOST RECENT STAMP", self.fn,
+                      "the sentence built from the ledger figure never says what that figure IS, "
+                      "so it reads as an on-disk count of reels standing at the station")
+
     # ── a class nobody styles is a flag nobody can see ───────────────────────────────────
     def test_every_class_the_BUILDER_EMITS_is_actually_styled(self):
         """The join, asked in the only direction that cannot be faked.
