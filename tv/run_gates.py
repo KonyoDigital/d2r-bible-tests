@@ -163,6 +163,9 @@ GATES = [
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding. 4 red-proofs"),
+    Gate("test_vault_population", [sys.executable,
+                                   os.path.join(HERE, "test_the_vault_says_its_own_population.py")], 60,
+         why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 3 red-proofs"),
     Gate("test_auto_lanes_no_switch", [sys.executable,
                                        os.path.join(HERE, "test_the_auto_lanes_have_no_switch.py")], 60,
          why="v3285 - Konyo, 2026-09-18, on the Sessions strip: 'these should be toggled on by default no option to it'. v1975 built four REAL switches and its doctrine (OFF IS A REAL REFUSAL) was right WHILE OFF WAS REACHABLE. Pins the inverted law: the reader never consults d2r_autoLanes, so a stale {runes:false} from an old click cannot darken a lane silently; and the pill carries no onclick, role=switch, tabindex or knob, because a control that cannot move invites a click that does nothing. 3 red-proofs"),

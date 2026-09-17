@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3285",
+  "ver": "v3286",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3285: HEART: Konyo on the Sessions strip - these should be toggled on by default no option to it. v1975 built four REAL switches and its doctrine OFF IS A REAL REFUSAL was right WHILE OFF WAS REACHABLE. He removed OFF, which inverts the law rather than relaxing it. The reader no longer consults d2r_autoLanes at all, so a stale runes false from one click months ago can no longer darken a lane silently on every reel - that state is now UNREACHABLE not merely un-offered. The pill drops its track, knob, onclick, role switch and tabindex because a control that cannot move invites a click that does nothing. New gate test_auto_lanes_no_switch with 3 red-proofs, all PROVEN 1 match each in a sandbox. v1975 spec inverted to pin the new law. Rendered and looked at on real pixels at 375 and 1440: 8 pills, 0 knobs, 0 onclick, 0 role switch, all read AUTO, 0 off. REG-1094.",
+  "note": "v3286: HEART: Konyo at a Vault screenshot - this is still here 200 plus items that should not be. The vault drew lockers and a dock and never stated its own population, so the 200 plus had no referent and the number that settled it had to come off the API rather than the surface he was reading. Measured on his board: owned 222 equals filed 173 plus unfiled 49, the 49 splitting 31 set pieces and 18 other, lockers summing exactly to 173. Two things this settles that I had wrong going in: the dock 46 was never a defect, it was v3250 reading 46 on 2026-09-17 and three items arriving since, me comparing the age of the FETCH not the age of the THING; and filed means two different things, the API 173 counting shared stash and keep while the page filed-to-mules is 166 because shared stash is never muled. Every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed plus loose equals pool and pool plus shared equals owned by construction. Verified in node across four shapes, all partitioning. New gate test_vault_population, 3 red-proofs all PROVEN at 1 match each - the second came back INVALID at 0 matches first because I wrote 8 spaces where the file has 6, the sabotage wrong not the law. REG-1095.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -36626,6 +36626,49 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1095 — the vault never said how many things it holds, so "200+" had no referent
+
+**v3286.** Konyo, at a screenshot of the Vault: *"this is still here 200+ items that should not
+be"*. The vault drew lockers and a dock and never once stated its own population, so neither of
+us could point at the same number — the measurement that settled it had to come off
+`/api/vault_population`, not off the surface he was reading.
+
+**MEASURED on his board, 2026-09-18:** `owned 222 = filed 173 + unfiled 49`, the 49 splitting
+**31 set pieces / 18 other**, and the locker counts summing exactly
+(68+64+10+9+9+7+5+1 = 173).
+
+**Two things this settles that I had wrong going in.**
+
+1. **The dock's `46` was never a defect.** v3250 recorded 219 pool / 173 filed / **46** unsorted
+   on 2026-09-17; three items have arrived since, so 49 is the same reading later. I had it
+   queued as a 46-vs-49 mismatch and it was me comparing the age of the FETCH, not the age of
+   the THING. [[stale-reading]]
+2. **`filed` means two different things and both are right.** The API's 173 counts assign rows
+   *including* the 7 shared-stash items and `__keep`; the page's "filed to mules" is **166**,
+   because shared stash is never muled (v360). The line now names the shared stash separately
+   instead of letting one word cover two populations. [[label-outlived-referent]]
+
+**The guard that matters is the third one.** Every figure is **derived by subtraction** from the
+two pools `renderVault` already built — never counted again. `filed + loose == pool` and
+`pool + shared == owned` hold *by construction*, not by luck; an independent tally is free to
+disagree with the thing it describes, which is the whole defect class this line exists to end.
+Verified in node across four shapes (his real board, no shared stash, a single set piece,
+an empty vault): the sentence partitions in all four, and singular/plural and the omitted
+shared clause behave.
+
+It deliberately does **not** restate *why* the loose items stay. v3250 already put the sorter's
+own verdict on the dock bar — *every one is a discard suggestion, Auto-Sort will not throw items
+away for you* — and saying it twice is how two sentences start to disagree. [[copy-drift]]
+
+**Gate:** `test_vault_population`, 3 red-proofs, all PROVEN at exactly 1 match each. Red-proof
+[1] first came back **INVALID at 0 matches** — I had written 8 spaces of indentation where the
+file has 6. The sabotage was wrong, not the law, which is why the match count is printed.
+
+⚠ **Honest limit on the pixels.** The element, its styling and the honest-zero state were
+photographed at 1440; the sentence with real three-digit numbers was proven in node, not on
+glass, because a CDP probe reads a GUEST world — his board lives in the pywebview/WebKit store
+and every seeding attempt rendered 0. GrokBot's standing vault tick will show the real line.
+
 ## REG-1094 — a switch he ruled away, and the lane it could still be silently holding shut
 
 **v3285.** Konyo, 2026-09-18, looking at the Sessions strip: *"these should be toggled on by
