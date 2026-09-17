@@ -21736,6 +21736,82 @@ def tombstone_view(limit=300):
     return out
 
 
+def vault_population(board=None):
+    """WHY is each owned name where it is. -> dict (never None; UNKNOWN travels inside)
+
+    ⚠⚠ HE HAS ASKED THREE TIMES why his vault holds "200+ items ... when it should be alot less",
+    and every previous answer was a COUNT. A count cannot answer "why", so this decomposes the
+    population. MEASURED on his board, 2026-09-17:
+
+        owned 222 · filed to a locker 173 · setPieces 133
+
+        uni-armor 68 · uni-weap 64 · sets-major 10 · sets-rest 9
+        uni-small  9 · runewords 5 · shared      7 · __keep    1
+        UNFILED   49
+
+        of the 222 owned, 50 are ALSO in d2r_setPieces · 172 are not
+        of the 49 unfiled, 31 are set pieces          · 18 are not
+
+    **172 is exactly his pre-wipe owned count.** So 222 is 172 possessions plus 50 set pieces the
+    board ALSO files as physical — one item in two stores, which is the board's own design
+    (possession versus the set chronicle), not corruption. The vault reads as inflated because 49
+    of them are filed NOWHERE and fall into the dock.
+
+    ⚠ ONE NAME SHOWS THE CLASSIFIER IS NOT THE NAME: `Athena\'s Wrath (set piece)` is counted
+    among the 18 NON-set-pieces, because d2r_setPieces carries no such exact string. Its own name
+    says what it is and the store disagrees.
+
+    ⚠ READ ONLY. Which of his names deserve removing is his call, and REG-1043 settled that the
+    console may never write a grail store.
+    """
+    import json as _json
+    b = board if isinstance(board, dict) else board_ownership(dump_stores=True)
+    if not isinstance(b, dict) or not b.get("ok"):
+        return {"ok": False, "owned": None, "byLocker": None,
+                "why": "the board could not be asked (%s), so its population is UNKNOWN - not "
+                       "empty" % str((b or {}).get("why") or "no reason given")[:110]}
+    fs = b.get("fullStores") or {}
+
+    def _load(key):
+        v = fs.get(key)
+        if v is None:
+            for k2 in fs:
+                if k2.endswith(key):
+                    v = fs[k2]
+                    break
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except Exception:
+                return None
+        return v
+
+    owned = _load("d2r_owned")
+    if not isinstance(owned, list):
+        return {"ok": False, "owned": None, "byLocker": None,
+                "why": "d2r_owned did not come back as a list, so the population is UNKNOWN - "
+                       "not empty"}
+    assign = _load("d2r_muleAssign")
+    assign = assign if isinstance(assign, dict) else {}
+    sets = _load("d2r_setPieces")
+    sets_s = set(sets if isinstance(sets, list) else (sets or {}).keys())
+    owned_s = set(owned)
+    by = {}
+    for n in owned_s:
+        k = assign.get(n) or "\u00abunfiled\u00bb"
+        by[k] = by.get(k, 0) + 1
+    unfiled = [n for n in owned_s if not assign.get(n)]
+    return {"ok": True, "owned": len(owned_s), "filed": len(assign), "setPieces": len(sets_s),
+            "byLocker": dict(sorted(by.items(), key=lambda kv: -kv[1])),
+            "alsoSetPiece": len(owned_s & sets_s), "notSetPiece": len(owned_s - sets_s),
+            "unfiled": len(unfiled),
+            "unfiledSetPieces": len([n for n in unfiled if n in sets_s]),
+            "unfiledOther": sorted(n for n in unfiled if n not in sets_s)[:20],
+            "why": ("%d owned = %d that are NOT set pieces + %d that ALSO sit in d2r_setPieces. "
+                    "%d are filed to no locker, which is what fills the dock."
+                    % (len(owned_s), len(owned_s - sets_s), len(owned_s & sets_s), len(unfiled)))}
+
+
 def vault_proven_names(min_witnesses=2):
     """The names the vault ledger can PROVE he owns. -> ALWAYS a dict, never None
 
@@ -29345,7 +29421,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3248",
+        "ver": "v3249",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -32937,6 +33013,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/vault_route_probe":
             # v3222 — reads only. Answers "why is each unsorted item unsorted" with a histogram.
             self._json(200, vault_route_probe())
+            return
+        if path == "/api/vault_population":
+            # v3249 — READS ONLY. Answers "why is each owned name where it is" instead of
+            # answering "how many" for the fourth time.
+            self._json(200, vault_population())
             return
         if path == "/api/vault_proven":
             # v3247 — the board asks WHICH names the ledger can prove, and marks its tiles. It

@@ -35564,3 +35564,44 @@ the token to say the opposite. It bans the type union (`| None`, `-> None`) now.
 in one gate, plus the `hidden` one an hour earlier: four today.** The rule is not new and I keep
 re-learning it — **ban what the code DOES, never a word it contains.**
 `[[feedback-comments-vs-code]]` `[[source-reading-guard]]`
+
+## REG-1054 — he asked three times why the vault holds 200+, and got a count three times
+
+**2026-09-17 · v3249 · `tv/control_app.py`**
+
+*"vault again is inporperly routing and stashing and vaulting 200+ items.. when it should be alot
+less based on what we already established?"* — and later, at a screenshot: *"stlll the vault"*.
+
+Every answer so far was a NUMBER. A count cannot answer "why". `vault_population()` decomposes it
+instead, and the decomposition matches his screenshot locker for locker:
+
+```
+owned 222 · filed to a locker 173 · setPieces 133
+
+uni-armor 68 · uni-weap 64 · sets-major 10 · sets-rest 9
+uni-small  9 · runewords 5 · shared      7 · __keep    1
+UNFILED   49
+
+of the 222 owned, 50 are ALSO in d2r_setPieces · 172 are not
+of the 49 unfiled, 31 are set pieces          · 18 are not
+```
+
+**172 is exactly his pre-wipe owned count.** So the 222 is **172 possessions plus 50 set pieces
+the board also files as physical** — one item in two stores, which is the board's own design
+(possession versus the set chronicle) and not corruption. What makes the vault LOOK inflated is
+that **49 of them are filed to no locker at all** and fall into the dock; 31 of those 49 are set
+pieces.
+
+⚠ **And one name shows the classifier is not the name:** `Athena's Wrath (set piece)` counts among
+the 18 NON-set-pieces, because `d2r_setPieces` carries no such exact string. Its own name says what
+it is and the store disagrees.
+
+**READ ONLY**, pinned by a law: which of his names deserve removing is his call, and REG-1043
+settled that the console may never write a grail store.
+
+7 laws, red-proofed three ways (an unreachable board reporting 0 → red · the unfiled split
+collapsing → red · the door gaining a write → red).
+
+⚠ That third proof went GREEN first: my law collected only `func.attr`, so a bare
+`_vault_autoread_save()` was invisible to it. **A law that inspects calls has to see both call
+forms.** `[[source-reading-guard]]`

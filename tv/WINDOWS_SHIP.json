@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3248",
+  "ver": "v3249",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3248: the live store skip sat in setUp so every case stood down on a clone without his ledger and the gate reported green having run nothing, which is the exact defect the helper was built to expose one version earlier. a row whose witnesses field is an integer crashed the door with a length error. and the contract line promised a None the door never returns",
+  "note": "v3249: he asked three times why the vault holds two hundred plus and got a number each time, so the population is decomposed instead: two hundred twenty two owned is one hundred seventy two possessions plus fifty set pieces the board also files as physical, and forty nine filed nowhere is what fills the dock. one hundred seventy two is exactly his pre wipe owned count",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

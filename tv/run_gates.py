@@ -155,6 +155,12 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_population_why", [sys.executable,
+                                 os.path.join(HERE, "test_a_count_cannot_answer_why.py")], 60,
+         why="REG-1054 — he asked three times why the vault holds 200+ and got a COUNT each time. "
+             "vault_population decomposes it: 222 owned = 172 non-set-pieces + 50 that ALSO sit "
+             "in d2r_setPieces, and 49 filed nowhere is what fills the dock. 172 is exactly his "
+             "pre-wipe owned. Read-only, pinned by a law"),
     Gate("test_proof_chip", [sys.executable,
                              os.path.join(HERE, "test_the_proof_chip_says_nothing_when_nobody_answered.py")], 60,
          why="REG-1052 — the vault now MARKS how many of a locker's items the ledger can prove, "
