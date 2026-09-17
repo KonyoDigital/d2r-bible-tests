@@ -47698,8 +47698,20 @@ body.cousin-shell #ladder-ribbon{top:24px}   /* v665.1 — WINDOWS has Main/Ladd
    can never eat the ⌂CONSOLE click v2061 measured it overlapping below 684px. Collapsing sheds
    WIDTH ONLY: the height is unchanged, so all five clamps that reserve room for this ribbon stay
    exactly as measured. */
-#cousin-ribbon .cr-tog{pointer-events:auto;cursor:pointer;background:none;border:0;padding:0;margin:0;
-  font:inherit;color:inherit;line-height:1;vertical-align:baseline}
+/* ⚠⚠ v3276 — A CONTROL HE CANNOT SEE IS A CONTROL HE DOES NOT HAVE. v3272 made this band
+   collapsible and GrokBot's NEXT native LOOKED, on v3274, still filed it: "LINUX toast persistent
+   (informational) — NOT CLICKED". The fix was shipped and unreachable in practice, because the
+   badge was styled `background:none; border:0` — visually identical to the emoji sitting in a
+   sentence. `cursor:pointer` and a title only announce themselves to someone already hovering the
+   right pixel. [[the-unjoined-end]]
+   ⚠ THE RING IS A box-shadow AND THE PADDING IS HORIZONTAL-ONLY, on purpose. Five CSS rules
+   reserve vertical room for this ribbon; a border or vertical padding would grow it and every one
+   of those clamps would be measuring the wrong height. `inset box-shadow` paints no layout, and
+   left/right padding cannot change a line box's height. Measured after: 35px, unchanged. */
+#cousin-ribbon .cr-tog{pointer-events:auto;cursor:pointer;background:rgba(6,18,31,.13);border:0;
+  padding:0 5px;margin:0 3px 0 0;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(6,18,31,.26);
+  font:inherit;color:inherit;line-height:1;vertical-align:baseline;transition:background .12s}
+#cousin-ribbon .cr-tog:hover{background:rgba(6,18,31,.27)}
 #cousin-ribbon .cr-tog:focus-visible{outline:2px solid #06121f;outline-offset:1px;border-radius:3px}
 body.cousin-min #cousin-ribbon .cr-txt{display:none}
 /* ⚠⚠ v3272 — AND THE COLLAPSED BADGE MUST LEAVE THE CENTRE. Measured on real pixels at 1440:
@@ -50661,7 +50673,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3275', name:'v3275 - half of v3274 causal chain was wrong and the code refutes it', date:'2026-09-17', note:'HEART: v3274 claimed a failing thOpen leaves TH.open false so Escape was swallowed. Measured after: every statement before TH.open = true sits in one try catch so a rejecting thOpen leaves it TRUE, and thClose already hides the shelf itself - both candidate paths closed. The Escape fix is still right for a trigger I had not found: the off-air home strip opens the dossier with NO theatre at all, so TH.open is false and the dossier is up, the same opener REG-1083 fixed the label for. Record corrected and the real trigger pinned by a law that goes red if that path ever gains a theatre. 2 red-proofs. REG-1084 corrected.' };
+  window.D2R_BUILD = { id:'v3276', name:'v3276 - a control that looks like text is not a control', date:'2026-09-17', note:'HEART: v3272 made the world ribbon collapsible and his v3274 LOOKED still filed LINUX toast persistent NOT CLICKED - the badge was styled background none border 0, visually identical to an emoji in a sentence, so the fix shipped and could not be found. It now carries a chip and an inset ring. The ring is a box-shadow and the padding is horizontal only on purpose: five rules reserve vertical room for this ribbon and a border would grow the line box. Measured after at 1440 - 35px expanded, 35px collapsed, top 96 both ways, unchanged. 4 red-proofs. REG-1085.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -140,6 +140,41 @@ class TheWorldRibbonCanBePutAway(unittest.TestCase):
                          "the badge is back on the right edge, where it covers .pp-ladder — and "
                          "the badge is the one part that takes clicks")
 
+    def test_the_badge_LOOKS_like_a_control(self):
+        """★ v3276 — A CONTROL HE CANNOT SEE IS A CONTROL HE DOES NOT HAVE.
+
+        v3272 made this band collapsible. GrokBot's NEXT native LOOKED, on **v3274**, still filed
+        it: *"LINUX toast persistent (informational) — NOT CLICKED."* The fix had shipped and was
+        unreachable in practice, because the badge was styled `background:none; border:0` —
+        visually identical to an emoji sitting in a sentence. `cursor:pointer` and a `title` only
+        announce themselves to someone already hovering the right pixel, and he had no reason to
+        hover it. [[the-unjoined-end]]
+        """
+        rule = _between(CODE, "#cousin-ribbon .cr-tog{", "}")
+        self.assertIsNotNone(rule, "the badge rule is gone")
+        self.assertNotIn("background:none", rule,
+                         "the badge is painted like plain text again, so nothing marks it as "
+                         "something he can press")
+        self.assertIn("box-shadow:inset", rule, "the badge has no visible ring")
+        self.assertIn("border-radius", rule, "the badge is not shaped like a control")
+
+    def test_the_affordance_CANNOT_change_the_ribbon_height(self):
+        """⚠⚠ THE GUARD ON THAT FIX, and the reason this rule looks the way it does. Five CSS
+        rules reserve VERTICAL room for this ribbon. A `border` or vertical padding on the badge
+        would grow the line box and every one of those clamps would be measuring the wrong height —
+        undoing the whole reason v3272 collapses rather than hides.
+
+        `inset box-shadow` paints no layout, and left/right padding cannot change a line box's
+        height. Measured after the change at 1440: ribbon 35px expanded, 35px collapsed, top 96
+        both ways — identical to before.
+        """
+        rule = _between(CODE, "#cousin-ribbon .cr-tog{", "}")
+        self.assertIn("border:0", rule,
+                      "the badge grew a border, which adds height and breaks five clamps")
+        self.assertIn("padding:0 5px", rule,
+                      "the badge's padding is no longer horizontal-only, so it can change the "
+                      "ribbon's height")
+
     def test_the_information_is_RECOVERABLE_and_the_badge_still_names_the_world(self):
         """⚠ Collapsing must not destroy the fact. The badge stays, it carries the platform
         glyph, and its title says which world this is so the answer is one hover away."""

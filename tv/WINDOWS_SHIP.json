@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3275",
+  "ver": "v3276",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3275: HEART: v3274 claimed a failing thOpen leaves TH.open false so Escape was swallowed. Measured after: every statement before TH.open = true sits in one try catch so a rejecting thOpen leaves it TRUE, and thClose already hides the shelf itself - both candidate paths closed. The Escape fix is still right for a trigger I had not found: the off-air home strip opens the dossier with NO theatre at all, so TH.open is false and the dossier is up, the same opener REG-1083 fixed the label for. Record corrected and the real trigger pinned by a law that goes red if that path ever gains a theatre. 2 red-proofs. REG-1084 corrected.",
+  "note": "v3276: HEART: v3272 made the world ribbon collapsible and his v3274 LOOKED still filed LINUX toast persistent NOT CLICKED - the badge was styled background none border 0, visually identical to an emoji in a sentence, so the fix shipped and could not be found. It now carries a chip and an inset ring. The ring is a box-shadow and the padding is horizontal only on purpose: five rules reserve vertical room for this ribbon and a border would grow the line box. Measured after at 1440 - 35px expanded, 35px collapsed, top 96 both ways, unchanged. 4 red-proofs. REG-1085.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

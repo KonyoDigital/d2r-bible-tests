@@ -36626,6 +36626,66 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1085 — the collapse shipped and he could not find it: a control that looks like text is not a control
+
+v3272 made the world ribbon collapsible. GrokBot's **next** native LOOKED, on **v3274** — two
+versions after the fix landed — still filed:
+
+> Anomalies: 1. **LINUX toast persistent (informational) — not clicked.**
+
+The fix was there and unreachable in practice. The badge was styled `background:none; border:0`:
+**visually identical to an emoji sitting in a sentence.** `cursor:pointer` and a `title` only
+announce themselves to somebody already hovering the exact pixel, and he had no reason to hover it.
+A shipped fix nobody can discover is [[the-unjoined-end]] wearing a cosmetic face — both halves
+built, the affordance between them missing.
+
+**Fixed in v3276.** The badge now carries a translucent chip and an inset ring, so it reads as
+pressable at a glance.
+
+⚠ **The ring is a `box-shadow` and the padding is horizontal-only, deliberately.** Five CSS rules
+reserve VERTICAL room for this ribbon. A real `border`, or vertical padding, would grow the line box
+and every one of those clamps would be measuring the wrong height — undoing the entire reason
+v3272 collapses rather than hides. `inset box-shadow` paints no layout; left/right padding cannot
+change a line box's height.
+
+**Measured after, at 1440:** ribbon **35px expanded, 35px collapsed, top 96 both ways** — identical
+to before the change; badge box 30x16. Looked at both states on real pixels: collapsed, the title
+reads clean with the badge out at the left edge; expanded, the chip reads as a control.
+
+Two laws pin it — one that the badge looks like a control, one that the affordance **cannot** change
+the ribbon's height. Four sabotages, every one RED, each anchor matching exactly once.
+
+### The cross-family review of v3275 — four findings, none survived
+
+**1. "`!ov.onclick` means a later refusal never binds, so the ✕ does nothing" — REFUTED.** If
+`_paintShelf` has run, `ov.onclick` is the **shared dismiss**, and that handler already matches this
+exact button: `if (e.target.closest('#th-shelf-x')){ _shDismiss(); return; }`. The guard is not
+"leave a stranger's handler in place" — it is "do not duplicate the one rule that already works".
+Binding unconditionally is what would have been wrong.
+
+**2. "Escape with `TH.open===false` reaches the shelf leg and calls `thClose()` on a theatre that
+was never opened" — REFUTED, twice over.** `thEscUnwind` **returns at the dossier branch**:
+
+```js
+var dsr = $('th-dossier-ov'); if (dsr && !dsr.hidden){ dsr.hidden = true; return; }
+```
+
+— so the home-strip case never reaches the shelf step. And the shelf cannot be the trigger either:
+it is a CHILD of `#theatre`, which is `display:none` when shut, so its rect is 0 and `_seen`
+returns false before `thEscUnwind` is called at all. The rect test is what closes this path, which
+is the same change the review is examining.
+
+**3. "The rect test is racy with a closing transition" — not acted on.** `$('theatre').hidden = true`
+is synchronous; a keydown cannot interleave inside it. And `thShelf(false)` / `thClose()` are
+idempotent, so the named consequence does not follow. Speculative, and left as measured.
+
+**4. "A dossier can legitimately be 1–2px during initial layout" — REFUTED.** `_sessionDossier`
+sets `innerHTML` then `hidden = false` synchronously, and `getBoundingClientRect()` forces layout
+before returning. There is no frame in which it reports a stale sub-2px box.
+
+⇒ Four findings, four refutations — three from reading the code the review could not see, one from
+how `getBoundingClientRect` works. **Nothing changed.** [[review-after-ship]]
+
 ## REG-1082 — a band he could not get rid of, on the other platform, filed by the bot
 
 Grok Bot, NATIVE Linux seat, 2026-09-17 18:06 IDT: **"Trap: persistent 🐧 LINUX toast."**
