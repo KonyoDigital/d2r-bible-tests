@@ -36446,6 +36446,105 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1077 — a clean cross-family look was filed as findings, for the third time, on a different verb
+
+Taking the v3266 second-eye look, Grok answered:
+
+> The diff is correct as shown (no concrete defects meeting the criteria).
+
+The ledger recorded **`verdict=findings`, 1 finding.** `_NO_DEFECT_RX` matches
+`no <0-2 words> defects <copula>? <participle>`, and its participle list was
+`found|identified|detected|visible|apparent|evident|present`. The word after `defects` here is
+**`meeting`**, so the declaration was not seen at all and a flat clean landed in the strict bucket.
+
+**v3216 fixed this exact shape** by adding `evident` and `present` after an OpenAI seat wrote
+*"No concrete functional defect is evident in this diff"*. This is the same defect on a third verb,
+which is the tell: the instrument keeps failing on the one axis nobody can enumerate in advance —
+how a different model phrases "nothing is wrong".
+
+⚠ Widening is safe **by construction**, and that is why it is the right fix rather than a looser
+pattern: this regex only ever GRANTS clean, and only when no block makes a defect claim
+(`_DEFECT_MARK_RX`). A false match cannot clear a real finding; it can only spare a clean look from
+the stricter bucket. There is a red-proof asserting exactly that — a P1 following the declaration
+still reads as findings.
+
+Added: `noted · observed · seen · reported · meeting · matching · warranting · meriting`.
+
+⚠ **The v3266 row is left as it stands.** It over-reports, which is the safe direction the file
+designs for (*"over-reporting a finding costs a re-read, under-reporting one ships a defect with a
+clean stamp on it"*), and appending a corrected row would inflate the look count for one look.
+Fixed forward, not rewritten.
+
+## REG-1076 — the river named two culprits, and neither one was at fault
+
+`river.py` measures eleven joints and names the first blockage in a sentence the console prints.
+Two of those sentences accused the wrong thing, and both were found by asking the accused.
+
+### prune — a permanent false blockage from a key that never existed
+
+```
+prune    reels the planner would release    crossed 0    upstream 20    DRY
+"a planner that releases nothing while the disk is full is the blockage"
+```
+
+`j_prune` read `plan["delete"]` and `plan["remove"]`. **`reel_retention.plan()` publishes
+neither.** Its keys are `candidates · kept · coverage · coverageSay · eligibleMb · freeMb · hist ·
+neverFired · notApplicable · ok · onDisk · unreadable · vaultLedger · say` — and at the moment of
+measuring, `say` read **"1 reel(s) may go, freeing 17 MB"**, with `candidates[0]` naming
+`reel_s_1788821886867_76614`, 16.8 MB, *"read (0 pages) and sealed by BOTH lanes"*.
+
+So `gone` was `len([])` on every run this joint has ever made. A caller and a callee disagreeing
+about a key name, surfacing as "the river is blocked". Fixed: it reads `candidates`, keeping
+`delete`/`remove` in the chain so a future planner that does publish them still works.
+
+### slot — blaming a reader that has nothing to write
+
+```
+"needs point + panelBox + container on the sighting; the reader has all three at the moment
+ it reads and records none of them"
+```
+
+That describes a **dropped field**, so it sends whoever reads it into `chronicle_retro.py` to add
+three keys. Measured instead:
+
+- every `point` in `chronicle_retro.py` is the English word — there is no geometry in the read path
+- the sighting it mints carries `reel · frame · witness · conf · lane · foundAt · droppedBy · sort`
+- **0 of 14,322 sightings** carry `point`, `panelBox`, `container` or `slot`
+- the ONLY code in the tree that produces `panelBox` is `hover_wilson.py` — a Wilson probe over
+  synthetic rectangles, whose own docstring says the live hover *"is a separate thing he has asked
+  for explicitly and has not authorised yet"*
+
+The joint is waiting on **a mode he has not turned on**, not on a missing assignment. Nothing in
+the read path is dropping data it holds.
+
+### the fifth state, and the way it could have been worse than the bug
+
+`DRY` means "work was waiting and none crossed", which reads as a broken join. v3267 adds
+**`UNBUILT`** — the producer has never been switched on — because a broken join and an unbuilt one
+have different remedies, and the remedy for this one is his to authorise.
+
+⚠ Two guards, because a quiet state is the obvious way to make this worse:
+
+1. **UNBUILT is never inferred.** A joint must pass `unbuilt_why` explicitly, so it cannot become
+   the corner a genuinely broken join hides in.
+2. **The claim is MEASURED, not assumed.** If even one sighting carries geometry the producer HAS
+   run, and a zero is a real derivation failure that keeps reading DRY. Hard-coding it would turn
+   the joint off the day the autopilot starts writing coordinates that fail to derive.
+
+### and the third consumer, found before shipping this time
+
+`console_doctor._check_the_river_joints_carry` counted `DRY` and `UNKNOWN` only. The moment
+UNBUILT shipped, the `slot` joint would have dropped out of both buckets and the row would have
+returned `OK, "all 11 river joint(s) carry"` — **green over a joint that has never carried
+anything in its life.** It now reports UNBUILT as UNKNOWN: not red, because nothing is broken and
+nothing here is mine to fix; not green, because the joint cannot carry. Twice earlier the same day
+a new verdict word went green at a consumer nobody joined (REG-1074, REG-1075); this one was
+caught by grepping for the old word **before** the ship. [[the-unjoined-end]]
+
+**Measured after:** `CARRIES 9 · UNBUILT 1 · UNKNOWN 1` — **no joint is dry.** The river was never
+blocked. Six sabotages, every one RED, each anchor matching exactly once, four of them registered
+in the executable `RED_PROOF` table.
+
 ## REG-1075 — the heart told him to sweep nine reels the vault lane owes none of
 
 The sentence the doctor LEADS with, on his console, for as long as the check has existed:

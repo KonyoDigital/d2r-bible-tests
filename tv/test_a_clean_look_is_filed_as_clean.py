@@ -100,6 +100,31 @@ class ACleanLookIsFiledAsClean(unittest.TestCase):
             self.assertEqual("clean", _verdict("No %s defects found in the diff." % adj),
                              "the word %r between 'no' and 'defects' defeated the pattern" % adj)
 
+    def test_the_REAL_v3266_answer_is_clean(self):
+        """★ v3267 — THE EXACT BYTES GROK RETURNED FOR v3266, WHICH WERE FILED AS FINDINGS.
+
+        'The diff is correct as shown (no concrete defects meeting the criteria).' is a flat
+        clean. The row said verdict=findings with 1 finding, because the word after `defects`
+        was `meeting` and the participle list did not carry it — the same miss v3216 fixed for
+        `evident`/`present`, in a third phrasing. A verdict that disagrees with its own
+        answerHead is a broken instrument even when it errs in the safe direction.
+        """
+        self.assertEqual("clean", _verdict(
+            "The diff is correct as shown (no concrete defects meeting the criteria)."))
+
+    def test_the_other_phrasings_that_mean_NOTHING_IS_WRONG(self):
+        for tail in ("meeting the criteria", "matching the criteria", "warranting a report",
+                     "noted", "observed", "seen", "reported"):
+            self.assertEqual("clean", _verdict("No concrete defects %s." % tail),
+                             "the phrasing %r was filed as findings over a clean answer" % tail)
+
+    def test_widening_STILL_cannot_clear_a_real_claim(self):
+        """⚠ the guard on the fix. The pattern only ever GRANTS clean, and only when no block
+        makes a defect claim — so a wider verb list must not become a way to bury a P1."""
+        self.assertEqual("findings", _verdict(
+            "No concrete defects meeting the criteria.\n\n"
+            "P1: the writer and the reader disagree about the key name, so it fails on every run."))
+
     def test_a_clean_answer_that_ITEMISES_THE_DIFF_is_still_clean(self):
         self.assertEqual("clean", _verdict(_REAL_CLEAN),
                          "a reviewer that declares clean and then lists what it READ was filed "

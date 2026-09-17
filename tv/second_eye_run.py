@@ -429,7 +429,19 @@ _NO_DEFECT_RX = re.compile(
     # used a verb this list did not carry. Widening here is safe by construction: the pattern only
     # ever GRANTS clean, and only when `claims` is simultaneously empty, so a miss costs a noisy
     # row and a false match still cannot clear a real finding. [[unknown-stays-unknown]]
-    r"(?:were\s+|are\s+|was\s+|is\s+)?(?:found|identified|detected|visible|apparent|evident|present)\b",
+    # ⚠⚠ v3267 — A THIRD VERB, AND IT IS THE SAME DEFECT A THIRD TIME. Grok answered v3266 with
+    # "The diff is correct as shown (no concrete defects meeting the criteria)." — a flat clean —
+    # and the row was filed verdict=findings, because the word after `defects` was `meeting`,
+    # which this list did not carry. v3216 added `evident`/`present` for the same reason. The
+    # instrument keeps failing on the one axis nobody can enumerate in advance: how a different
+    # model phrases "nothing is wrong".
+    # ⚠ Widening stays safe by construction, and that is WHY it is the right fix rather than a
+    # looser pattern: this regex only ever GRANTS clean, only when no block makes a defect claim
+    # (`_DEFECT_MARK_RX`), so a false match cannot clear a real finding — it can only spare a
+    # clean look from the stricter bucket. [[feedback-blind-fixture-green-gate]]
+    r"(?:were\s+|are\s+|was\s+|is\s+)?"
+    r"(?:found|identified|detected|visible|apparent|evident|present|noted|observed|seen|"
+    r"reported|meeting|matching|warranting|meriting)\b",
     re.I)
 
 # a block that carries one of these is making a CLAIM about a defect, not describing a change.

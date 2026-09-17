@@ -334,6 +334,106 @@ class TheRiverReachesTheHeart(unittest.TestCase):
 # PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
 # measured against the target file (each anchor occurs exactly once). Review it: the
 # question is whether deleting this text is the defect the law exists to catch.
+class TheRiverNamesTheRightCulprit(unittest.TestCase):
+    """★ v3267 — TWO JOINTS WERE BLAMING THINGS THAT WERE NOT AT FAULT.
+
+    MEASURED on his console 2026-09-17, both by asking the thing each joint accuses:
+
+    **prune** said *"a planner that releases nothing while the disk is full is the blockage"* on
+    every run it has ever made. `j_prune` read `plan["delete"]` and `plan["remove"]`. The planner
+    publishes neither — its keys are candidates/kept/coverage/eligibleMb/onDisk/say — so `gone`
+    was `len([])` forever, while `plan["say"]` read **"1 reel(s) may go, freeing 17 MB"**. A
+    caller and a callee disagreeing about a key name, reported as a blocked river.
+
+    **slot** said *"the reader has all three at the moment it reads and records none of them"*,
+    which describes a dropped field and sends you into `chronicle_retro` to add three keys. But
+    every `point` in that file is the English word; the sighting it mints carries
+    reel/frame/witness/conf/lane/foundAt/droppedBy/sort; and the only code in the tree that ever
+    produces `panelBox` is `hover_wilson.py`, a probe over synthetic rectangles whose own
+    docstring says the live hover "has not been authorised yet". 0 of 14,322 sightings carry a
+    coordinate. The joint waits on a MODE HE HAS NOT TURNED ON, not on a missing assignment.
+
+    ⚠ The danger in fixing the second one is building a quiet corner. UNBUILT must be MEASURED
+    (no sighting has ever carried geometry) and never assumed, or the day the autopilot is
+    switched on and writes coordinates that fail to derive, the joint goes quiet instead of red.
+    """
+
+    def test_prune_reads_the_key_the_planner_ACTUALLY_publishes(self):
+        seen = {}
+        class _RR:
+            @staticmethod
+            def plan(*a, **k):
+                seen["asked"] = True
+                return {"ok": True, "candidates": [{"reel": "r1"}], "kept": [{"reel": "r2"}],
+                        "say": "1 reel(s) may go"}
+        real = sys.modules.get("reel_retention")
+        sys.modules["reel_retention"] = _RR
+        try:
+            j = RV.j_prune()
+        finally:
+            if real is not None:
+                sys.modules["reel_retention"] = real
+            else:
+                sys.modules.pop("reel_retention", None)
+        self.assertEqual(j["crossed"], 1,
+                         "the prune joint read a key the planner does not publish, so a planner "
+                         "with a candidate reads as one that releases nothing")
+        self.assertEqual(j["state"], RV.CARRIES)
+
+    def test_a_joint_whose_PRODUCER_never_ran_is_UNBUILT_not_DRY(self):
+        j = RV._joint("slot", "x", 0, 14322, "old blame", "sighting",
+                      unbuilt_why="nothing has ever produced a coordinate")
+        self.assertEqual(j["state"], RV.UNBUILT)
+        self.assertIn("has ever produced", j["why"])
+        self.assertNotIn("old blame", j["why"], "the superseded accusation survived into the row")
+
+    def test_UNBUILT_is_NEVER_inferred_from_a_bare_zero(self):
+        """⚠⚠ THE LAW THE WHOLE STATE TURNS ON. A dry joint that does not explicitly declare
+        itself unbuilt stays DRY. Without this, UNBUILT is just a quieter word for broken."""
+        j = RV._joint("slot", "x", 0, 14322, "genuinely broken", "sighting")
+        self.assertEqual(j["state"], RV.DRY)
+
+    def test_a_joint_whose_producer_HAS_run_stays_DRY(self):
+        """⚠ the regression guard on the fix itself: once geometry exists, a zero is a real
+        derivation failure and must not hide in the unbuilt bucket."""
+        import river as _rv
+        real = _rv._sightings
+        _rv._sightings = lambda: [{"point": (1, 2), "panelBox": (0, 0, 9, 9),
+                                   "container": "stash"}] * 3
+        try:
+            j = _rv.j_slot()
+        finally:
+            _rv._sightings = real
+        self.assertNotEqual(j["state"], RV.UNBUILT,
+                            "geometry exists and the joint still called itself unbuilt")
+
+    def test_the_summary_does_not_say_NO_JOINT_IS_DRY_and_fall_silent(self):
+        rows = [{"joint": "a", "state": RV.CARRIES, "why": ""},
+                {"joint": "slot", "state": RV.UNBUILT, "why": "hover mode was never authorised"}]
+        rep = RV.summary(rows)
+        self.assertIsNone(rep["firstBlockage"], "an unbuilt joint claimed the blockage headline")
+        self.assertEqual(rep["awaiting"], "slot")
+        self.assertIn("slot", rep["say"])
+        self.assertIn("never been built or switched on", rep["say"])
+
+    def test_the_DOCTOR_does_not_report_ALL_JOINTS_CARRY_over_an_unbuilt_one(self):
+        """⚠ THE THIRD CONSUMER. The row counted DRY and UNKNOWN only, so a new state word would
+        have fallen through to OK, "all 11 river joint(s) carry" — green over a joint that has
+        never carried anything. [[the-unjoined-end]]"""
+        import river as _rv
+        real_t, real_s = _rv.trace, _rv.summary
+        _rv.trace = lambda: [{"joint": "a", "state": _rv.CARRIES, "why": ""},
+                             {"joint": "slot", "state": _rv.UNBUILT, "why": "never switched on"}]
+        _rv.summary = lambda rows=None: {"say": "1 joint(s) have never been built",
+                                         "firstBlockage": None, "awaiting": "slot"}
+        try:
+            st, say = dict(D.CHECKS)["river joints"]()
+        finally:
+            _rv.trace, _rv.summary = real_t, real_s
+        self.assertNotIn("all 2 river joint(s) carry", say)
+        self.assertIn("never been built or switched on", say)
+
+
 RED_PROOF = [
     {
         "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
@@ -363,6 +463,42 @@ RED_PROOF = [
         "file": "river.py",
         "find": "    if n is None or upstream is None:\n        state = UNKNOWN",
         "replace": "    n, upstream = (n or 0), (upstream or 0)\n    if False:\n        state = UNKNOWN",
+        "matches": 1,
+    },
+    {
+        "why": "the prune joint reading the key the planner ACTUALLY publishes. Reverting it to "
+               "the delete/remove names the planner has never had makes `gone` len([]) on every "
+               "run, so a planner with a live candidate reports as one that releases nothing and "
+               "the river names a permanent false blockage",
+        "file": "river.py",
+        "find": 'plan.get("candidates") or plan.get("delete")',
+        "replace": 'plan.get("delete")',
+        "matches": 1,
+    },
+    {
+        "why": "UNBUILT must be DECLARED, never inferred. Grading any dry joint as unbuilt turns "
+               "the state into a quiet corner where a genuinely broken join can hide, which is "
+               "the one way this fix could be worse than the bug it replaced",
+        "file": "river.py",
+        "find": "        state = UNBUILT if unbuilt_why else DRY",
+        "replace": "        state = UNBUILT",
+        "matches": 1,
+    },
+    {
+        "why": "the MEASUREMENT behind the slot joint's unbuilt claim. Hard-coding it means the "
+               "day the hover autopilot is switched on and writes coordinates that fail to "
+               "derive, the joint reports 'never built' instead of going red",
+        "file": "river.py",
+        "find": "    if not _geo:",
+        "replace": "    if True:",
+        "matches": 1,
+    },
+    {
+        "why": "the doctor's third-consumer join. Without the unbuilt branch this row returns "
+               "OK, 'all N river joint(s) carry' over a joint that has never carried anything",
+        "file": "console_doctor.py",
+        "find": "    if ub:",
+        "replace": "    if False:",
         "matches": 1,
     },
 ]

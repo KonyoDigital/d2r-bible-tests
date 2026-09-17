@@ -2106,6 +2106,15 @@ def _check_the_river_joints_carry():
     n = len(joints)
     dry = by.get("DRY", 0)
     unk = by.get("UNKNOWN", 0)
+    # ⚠⚠ v3267 — THE THIRD CONSUMER OF A NEW STATE WORD, AND THE ONE THAT WOULD HAVE LIED.
+    # river.py learned UNBUILT this version (a joint whose PRODUCER has never been switched on,
+    # as opposed to a join that is broken). This row counted only DRY and UNKNOWN, so the moment
+    # that word shipped, the `slot` joint would have dropped out of both buckets and this would
+    # have returned OK, "all 11 river joint(s) carry" — over a joint that has never carried
+    # anything in its life. Twice today a new verdict word went green at a consumer nobody
+    # joined; this is the third and it was found BEFORE shipping by grepping for the old word.
+    # [[the-unjoined-end]] [[regression-guard]]
+    ub = by.get("UNBUILT", 0)
     say = str(rep.get("say") or "").strip()
     first = rep.get("firstBlockage")
     if dry:
@@ -2114,6 +2123,12 @@ def _check_the_river_joints_carry():
                             say or ("first blockage: %s" % first)))
     if unk:
         return UNKNOWN, "%d of %d joint(s) could not be measured" % (unk, n)
+    if ub:
+        # ⚠ NOT MISSING. Nothing is broken and nothing here is mine to fix — the remedy is a
+        # decision he has not made (authorising the live hover autopilot). Reporting it red would
+        # train him to ignore a red; reporting it green would hide a joint that cannot carry.
+        return UNKNOWN, ("%d of %d joint(s) carry; %d has never been built or switched on — %s"
+                         % (n - ub, n, ub, say or "see the river"))
     return OK, "all %d river joint(s) carry" % n
 
 

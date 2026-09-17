@@ -61,6 +61,17 @@ except Exception:
     pass
 
 CARRIES, STARVED, DRY, UNKNOWN = "CARRIES", "STARVED", "DRY", "UNKNOWN"
+#: ⚠⚠ v3267 — THE FIFTH STATE. DRY means "work was waiting and none crossed", which reads as a
+#: BROKEN JOIN — and it was the wrong word for the `slot` joint, where the thing that would
+#: produce the input has never been switched on. Measured 2026-09-17: of 14,322 sightings, ZERO
+#: carry point/panelBox/container, and the only producer of cell coordinates anywhere in the tree
+#: is MINI/AUTOMATIC hover mode, whose own file says the live run "is a separate thing he has
+#: asked for explicitly and has not authorised yet". The panel told him a reader was dropping
+#: data it held; the truth was that nothing has ever produced that data. Different fault,
+#: different remedy — and the remedy for this one is his to authorise, not mine to code.
+#: ⚠ UNBUILT is never INFERRED. A joint must pass `unbuilt_why` explicitly, so it can never
+#: become the quiet place a genuinely broken join goes to hide. [[label-outlived-referent]]
+UNBUILT = "UNBUILT"
 
 # order matters — it is the river
 STAGES = ("capture", "survey", "frame-verdict", "read", "sighting",
@@ -97,7 +108,7 @@ def _hist_dir():
     return d if os.path.isdir(d) else None
 
 
-def _joint(name, what, n, upstream, why="", unit="item"):
+def _joint(name, what, n, upstream, why="", unit="item", unbuilt_why=None):
     """Grade one joint. -> dict
 
     `n` is what CROSSED. `upstream` is what was WAITING. Either may be None for UNKNOWN, and None
@@ -108,7 +119,11 @@ def _joint(name, what, n, upstream, why="", unit="item"):
     elif n > 0:
         state = CARRIES
     elif upstream > 0:
-        state = DRY
+        # ⚠ a joint that KNOWS its producer does not exist yet says so, rather than reading as a
+        # broken join. Explicit only — see the UNBUILT note at the top of this file.
+        state = UNBUILT if unbuilt_why else DRY
+        if unbuilt_why:
+            why = unbuilt_why
     else:
         state = STARVED
     return {"joint": name, "what": what, "crossed": n, "upstream": upstream,
@@ -288,9 +303,33 @@ def j_slot():
         n = sum(1 for s in ss if SI.slot_of_sighting(s))
     except Exception as e:
         return _joint("slot", "sightings with a derivable slot", None, None, str(e)[:70], "sighting")
+    # ⚠⚠ v3267 — THE OLD SENTENCE BLAMED A READER THAT HAS NOTHING TO WRITE. It said "the reader
+    # has all three at the moment it reads and records none of them", which describes a dropped
+    # field, so it sends whoever reads it into `chronicle_retro` to add three keys. MEASURED:
+    # every `point` in that file is the English word, the sighting it mints carries
+    # reel/frame/witness/conf/lane/foundAt/droppedBy/sort, and the ONLY code in the tree that ever
+    # produces `panelBox` is `hover_wilson.py` — a Wilson probe over synthetic rectangles, whose
+    # own docstring says the live hover "is a separate thing he has asked for explicitly and has
+    # not authorised yet". So this joint is waiting on a MODE, not on a missing assignment.
+    #
+    # ⚠ AND IT IS MEASURED, NOT ASSUMED. If even one sighting carries geometry, the producer HAS
+    # run and a zero here is a real derivation failure — which must keep reading DRY. Hard-coding
+    # UNBUILT would turn this joint off the day the autopilot is switched on and starts writing
+    # coordinates that do not derive. [[unknown-stays-unknown]] [[strictness-that-closes-the-lane]]
+    _geo = sum(1 for x in ss
+               if isinstance(x, dict) and (x.get("point") or x.get("panelBox")
+                                           or x.get("container") or x.get("slot")))
+    _unbuilt = None
+    if not _geo:
+        _unbuilt = ("no sighting has ever carried a cell coordinate (0 of %d), because the only "
+                    "thing that produces one is MINI/AUTOMATIC hover mode and it has never been "
+                    "authorised to run on his screen. This joint is waiting on that decision, "
+                    "not on a broken join — nothing in the read path is dropping data it holds."
+                    % len(ss))
     return _joint("slot", "sightings with a derivable slot", n, len(ss),
-                  "needs point + panelBox + container on the sighting; the reader has all three "
-                  "at the moment it reads and records none of them", "sighting")
+                  "%d of %d sighting(s) carry geometry and none derived a cell — the derivation "
+                  "is failing, not the producer" % (_geo, len(ss)), "sighting",
+                  unbuilt_why=_unbuilt)
 
 
 def j_gate():
@@ -393,7 +432,15 @@ def j_prune():
     try:
         import reel_retention as RR
         plan = RR.plan(h)
-        gone = len(plan.get("delete") or plan.get("remove") or [])
+        # ⚠⚠ v3267 — THIS ASKED FOR TWO KEYS THE PLANNER HAS NEVER PUBLISHED. `reel_retention.plan()`
+        # returns candidates/kept/coverage/eligibleMb/onDisk/say — there is no `delete` and no
+        # `remove`, so `gone` was `len([])` on every run this joint has ever made, and the river
+        # reported "a planner that releases nothing while the disk is full is the blockage" while
+        # the planner's own `say` read "1 reel(s) may go, freeing 17 MB". A permanent false
+        # blockage, produced by a caller and a callee disagreeing about a key name.
+        # ⚠ the old names stay in the chain: if a future planner does publish them this still
+        # reads them, and an empty `candidates` beside a populated `delete` must not read as 0.
+        gone = len(plan.get("candidates") or plan.get("delete") or plan.get("remove") or [])
         kept = len(plan.get("kept") or [])
     except Exception as e:
         return _joint("prune", "reels the planner would release", None, None, str(e)[:70], "reel")
@@ -439,13 +486,26 @@ def summary(rows=None):
     for r in rows:
         by.setdefault(r["state"], []).append(r["joint"])
     first_dry = next((r for r in rows if r["state"] == DRY), None)
+    # ⚠ v3267 — an UNBUILT joint is NOT a blockage he can fix by repairing something, so it must
+    # not claim the headline. It must also not vanish: "no joint is dry" over a joint that has
+    # never been able to carry is the same over-claim this module exists to stop.
+    unbuilt = by.get(UNBUILT, [])
+    first_ub = next((r for r in rows if r["state"] == UNBUILT), None)
+    if first_dry:
+        say = "the river is blocked at %r — %s" % (first_dry["joint"], first_dry["why"])
+    elif first_ub:
+        say = ("no joint is dry; %d joint(s) have never been built or switched on (%s) — %s"
+               % (len(unbuilt), ", ".join(unbuilt), first_ub["why"]))
+    else:
+        say = "no joint is dry"
     return {
         "counts": {k: len(v) for k, v in sorted(by.items())},
         "dry": by.get(DRY, []),
+        "unbuilt": unbuilt,
         "unknown": by.get(UNKNOWN, []),
         "firstBlockage": (first_dry or {}).get("joint"),
-        "say": ("the river is blocked at %r — %s" % (first_dry["joint"], first_dry["why"])
-                if first_dry else "no joint is dry"),
+        "awaiting": (first_ub or {}).get("joint"),
+        "say": say,
     }
 
 
@@ -466,7 +526,7 @@ def main(argv=None):
     print("\n  " + json.dumps(s["counts"]))
     print("  " + s["say"])
     for r in rows:
-        if r["state"] in (DRY, UNKNOWN) and r["why"]:
+        if r["state"] in (DRY, UNBUILT, UNKNOWN) and r["why"]:
             print("\n  %-8s %-14s %s" % (r["state"], r["joint"], r["why"]))
     # ⚠ EXIT 0 ALWAYS. This is an instrument, not a gate. A DRY joint is a finding to act on,
     # and turning it into a build failure is how a real signal becomes furniture.
