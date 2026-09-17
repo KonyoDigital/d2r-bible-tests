@@ -163,6 +163,9 @@ GATES = [
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding. 4 red-proofs"),
+    Gate("test_auto_lanes_no_switch", [sys.executable,
+                                       os.path.join(HERE, "test_the_auto_lanes_have_no_switch.py")], 60,
+         why="v3285 - Konyo, 2026-09-18, on the Sessions strip: 'these should be toggled on by default no option to it'. v1975 built four REAL switches and its doctrine (OFF IS A REAL REFUSAL) was right WHILE OFF WAS REACHABLE. Pins the inverted law: the reader never consults d2r_autoLanes, so a stale {runes:false} from an old click cannot darken a lane silently; and the pill carries no onclick, role=switch, tabindex or knob, because a control that cannot move invites a click that does nothing. 3 red-proofs"),
     Gate("test_world_ribbon", [sys.executable,
                                os.path.join(HERE, "test_the_world_ribbon_can_be_put_away.py")], 60,
          why="REG-1082 - Grok Bot filed 'Trap: persistent LINUX toast' from his native seat: "

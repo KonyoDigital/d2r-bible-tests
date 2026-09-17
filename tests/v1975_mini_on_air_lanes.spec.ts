@@ -44,26 +44,35 @@ test('a lane nobody has touched is ON — doing nothing must yield automatic int
   expect(on.every(Boolean), 'an unset lane must default ON').toBe(true);
 });
 
-test('OFF is a real refusal, not a decoration', async ({ page }) => {
+test('OFF IS UNREACHABLE — a darkened lane in the store is ignored', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1400);
+  /* ══ v3285 — THIS TEST WAS INVERTED ON PURPOSE ════════════════════════════════════════
+     Until v3284 it asserted the opposite: that toggling a lane turned it OFF and that
+     tvStashAutoIntake then refused with why:'lane-off'. That was the correct law while OFF
+     was reachable. Konyo, 2026-09-18: "these should be toggled on by default no option to
+     it". So the law is now that no route reaches OFF — including the one route the UI can
+     no longer offer: a stale `false` already sitting in the store from an old click. */
   const r = await page.evaluate(async () => {
     const w: any = window;
-    w._miniOnAirToggle('runes');                    // unset counts as ON, so this turns it OFF
-    const off = await w.tvStashAutoIntake('runes');
-    return { on: w._miniOnAirOn('runes'), why: off && off.why, ok: off && off.ok };
+    try { w.LSR && w.LSR.setItem && w.LSR.setItem('d2r_autoLanes', JSON.stringify({
+      runes: false, gems: false, materials: false, vault: false })); } catch (e) {}
+    w._miniOnAirToggle('runes');                    // the old way to darken a lane
+    const got = await w.tvStashAutoIntake('runes');
+    return {
+      on: ['runes', 'gems', 'materials', 'vault'].map((l) => w._miniOnAirOn(l)),
+      why: got && got.why,
+    };
   });
-  expect(r.on, 'the lane should now read OFF').toBe(false);
-  expect(r.ok).toBe(false);
-  /* A NAMED reason, so a lane he switched off is distinguishable from one that failed. "Nobody
-     looked" and "we looked and found nothing" must never read alike. */
-  expect(r.why, 'a skipped lane must say WHY it was skipped').toBe('lane-off');
+  expect(r.on.every(Boolean), 'no lane may read OFF, even with false in the store').toBe(true);
+  /* It may still refuse for a REAL reason (busy, no reel, lease) — it may never refuse
+     because a lane was switched off, because that state no longer exists. */
+  expect(r.why, 'lane-off must be unreachable').not.toBe('lane-off');
 });
 
-test('quickIntake keeps its name and arms the lane instead of opening a picker', async ({ page }) => {
+test('quickIntake keeps its name, and the lane it arms was never dark', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window;
-    w._miniOnAirToggle('gems');                     // force it OFF first
     const before = w._miniOnAirOn('gems');
     const res = w.quickIntake('gem');
     return { before, after: w._miniOnAirOn('gems'), res, fn: typeof w.quickIntake };
@@ -71,28 +80,36 @@ test('quickIntake keeps its name and arms the lane instead of opening a picker',
   /* It MUST keep the name: every call site is `window.quickIntake && window.quickIntake(...)`, so a
      deleted function would have failed silently at four buttons at once. */
   expect(r.fn).toBe('function');
-  expect(r.before).toBe(false);
-  expect(r.after, 'tapping a dark lane arms it').toBe(true);
+  expect(r.before, 'v3285 — there is no dark lane to arm').toBe(true);
+  expect(r.after).toBe(true);
   expect(r.res.via).toBe('mini-on-air');
 });
 
-test('the minis render, and both surfaces agree because they read one store', async ({ page }) => {
+test('the minis render as STATE, carrying no control affordance', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window;
-    w._miniOnAirToggle('materials');                // OFF
     w._miniOnAirMount();
-    const pills = [...document.querySelectorAll('.mini-onair[data-lane="materials"]')];
+    const pills = [...document.querySelectorAll('.mini-onair')];
     return {
-      total: document.querySelectorAll('.mini-onair').length,
-      states: pills.map((p) => p.classList.contains('mini-off')),
+      total: pills.length,
+      anyOff:    pills.some((p) => p.classList.contains('mini-off')),
+      anySwitch: pills.some((p) => p.getAttribute('role') === 'switch'),
+      anyClick:  pills.some((p) => p.hasAttribute('onclick')),
+      anyTab:    pills.some((p) => p.hasAttribute('tabindex')),
+      anyKnob:   document.querySelectorAll('.mini-onair .mini-knob').length,
+      words:     [...new Set(pills.map((p) => (p.querySelector('.mini-word') || {} as any).textContent))],
     };
   });
   expect(r.total, 'lanes must actually render').toBeGreaterThan(0);
-  /* If a lane ever renders in two places, they cannot disagree: the DOM is a view of the store, not
-     the store. A second pill showing ON while the first shows OFF is how a user learns not to trust
-     a switch. */
-  expect(r.states.every((x) => x === true), 'every pill for one lane shows the same state').toBe(true);
+  expect(r.anyOff, 'no pill may render in the OFF state').toBe(false);
+  /* A track-and-knob that cannot move, or a role=switch with no handler, is a lie about what
+     the surface offers — it invites a click that does nothing. [[the-unjoined-end]] */
+  expect(r.anySwitch, 'no pill may claim role=switch').toBe(false);
+  expect(r.anyClick,  'no pill may carry an onclick').toBe(false);
+  expect(r.anyTab,    'no pill may be focusable as a control').toBe(false);
+  expect(r.anyKnob,   'no pill may draw a knob it cannot move').toBe(0);
+  expect(r.words, 'every pill reads AUTO').toEqual(['AUTO']);
 });
 
 /* v1976 — VAULT, SETS AND GRAIL LOST THEIR MANUAL DOORS TOO, but not in the same way, and the

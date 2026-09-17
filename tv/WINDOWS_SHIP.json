@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3284",
+  "ver": "v3285",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3284: HEART: the handoffs stacked because I shipped twenty versions and never posted back - the third eye brief said Claude silent 10h and kept carrying items already discharged. Posted a PAID UNPAID reply to 180 mapping each item to the version that paid it and naming what evidence would unblock the rest. And the cross-family review found the Chiliad panel could read 8 waiting on YOU above seven rows with nothing explaining the gap - the counter now leads and the rendered number follows when they differ. 3 red-proofs. REG-1093.",
+  "note": "v3285: HEART: Konyo on the Sessions strip - these should be toggled on by default no option to it. v1975 built four REAL switches and its doctrine OFF IS A REAL REFUSAL was right WHILE OFF WAS REACHABLE. He removed OFF, which inverts the law rather than relaxing it. The reader no longer consults d2r_autoLanes at all, so a stale runes false from one click months ago can no longer darken a lane silently on every reel - that state is now UNREACHABLE not merely un-offered. The pill drops its track, knob, onclick, role switch and tabindex because a control that cannot move invites a click that does nothing. New gate test_auto_lanes_no_switch with 3 red-proofs, all PROVEN 1 match each in a sandbox. v1975 spec inverted to pin the new law. Rendered and looked at on real pixels at 375 and 1440: 8 pills, 0 knobs, 0 onclick, 0 role switch, all read AUTO, 0 off. REG-1094.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

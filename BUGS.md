@@ -36626,6 +36626,46 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1094 — a switch he ruled away, and the lane it could still be silently holding shut
+
+**v3285.** Konyo, 2026-09-18, looking at the Sessions strip: *"these should be toggled on by
+default no option to it"*.
+
+v1975 built the four AUTO lanes (Runes / Gems / Mats / Vault) as real switches, and its doctrine
+— **OFF IS A REAL REFUSAL, not a hidden button** — was *correct while OFF was reachable*. A pill
+that says a lane is dark while frames keep flowing into it is precisely the class of lie this
+board guards against. His ruling does not relax that law, it **inverts** it.
+
+**The part that was not merely cosmetic.** `_miniOnAirOn` read `d2r_autoLanes` and answered
+`m[lane] !== false`. One click, at any point since v1975, wrote `{"runes": false}` into that
+store — and `tvStashAutoIntake` consults it, so **every reel since would have skipped that
+section**, permanently, with nothing louder than one dim pill to say so. Removing the control
+while still reading the store would have frozen that state beyond reach of the UI that set it.
+So the reader stops consulting the store entirely: OFF becomes **unreachable**, not merely
+un-offered.
+
+**The pill.** Track, knob, `onclick`, `role="switch"` and `tabindex` are all gone, replaced by a
+lit dot. A track-and-knob that cannot move, or a `role=switch` with no handler, invites a click
+that does nothing. `_miniOnAirToggle` survives **by name** — `quickIntake` and the vault
+arm-on-open path both call it behind a `window._miniOnAirToggle &&` guard, so deleting it would
+have been a *silent* no-change rather than a loud one.
+
+**Gate:** `test_auto_lanes_no_switch`, 3 red-proofs, all PROVEN at exactly 1 match each in a
+heart2 sandbox. `tests/v1975_mini_on_air_lanes.spec.ts` inverted: its "OFF is a real refusal"
+test now asserts OFF is *unreachable* even with `false` sitting in the store.
+
+⚠ **The law nearly read its own commentary.** Its first cut passed the real path to
+`frame_authority._executable_only`, which dispatches on extension: only `.ts/.tsx/.js` take the
+comment-stripping branch, and a `.html` path falls through to the Python branch where
+`ast.parse` throws and the source comes back **unstripped, silently**. The guard went red on its
+own comment — the REG-1070 shape. It routes around with the codebase's existing `".js"` idiom,
+because the obvious fix is the wrong one: `frame_authority:738` uses the same helper to decide
+which reels are *referenced*, and teaching it `.html` would make every reel id named in a
+bible.html comment newly eligible for deletion — his real footage.
+
+**Looked at on pixels** at 375 and 1440: 8 pills, 0 knobs, 0 `onclick`, 0 `role=switch`, every
+one reading AUTO, 0 off, nothing off-screen.
+
 ## REG-1093 — the handoffs stacked because I never posted back, and the panel could contradict itself
 
 ### Why the third-eye ledger kept carrying paid items — and it was mine

@@ -47988,6 +47988,10 @@ body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:n
 .mini-onair.mini-on .mini-word{color:#8fd98f}
 .mini-onair.mini-off .mini-word{color:var(--text-dim,#8c7a68)}
 .mini-onair:focus-visible{outline:2px solid var(--border-light);outline-offset:3px;border-radius:999px}
+/* v3285 - the always-on chip: no pointer, no hover affordance, a lit dot instead of a knob */
+.mini-onair.mini-fixed{cursor:default}
+.mini-onair.mini-fixed:hover{background:transparent;border-color:transparent}
+.mini-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:linear-gradient(180deg,#9ee39e,#4f9a4f);box-shadow:0 0 0 2px rgba(120,200,120,.18)}
 .tvd-track{position:relative;width:46px;height:22px;border-radius:999px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.25));transition:border-color .25s,background .25s,box-shadow .3s}
 .tvd-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#8a7c62,#5c5142);box-shadow:0 1px 3px rgba(0,0,0,.6);transition:left .28s cubic-bezier(.4,1.6,.4,1),background .25s,box-shadow .3s}
 .tvd-word{font-family:var(--mono);font-size:var(--fs-micro);font-weight:var(--fw-bold);letter-spacing:var(--ls-label);color:var(--text-dim);min-width:74px;transition:color .25s}
@@ -50673,7 +50677,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3284', name:'v3284 - when the counter and the panel disagree the panel says so', date:'2026-09-18', note:'HEART: the handoffs stacked because I shipped twenty versions and never posted back - the third eye brief said Claude silent 10h and kept carrying items already discharged. Posted a PAID UNPAID reply to 180 mapping each item to the version that paid it and naming what evidence would unblock the rest. And the cross-family review found the Chiliad panel could read 8 waiting on YOU above seven rows with nothing explaining the gap - the counter now leads and the rendered number follows when they differ. 3 red-proofs. REG-1093.' };
+  window.D2R_BUILD = { id:'v3285', name:'v3285 - the auto lanes are always on and carry no switch', date:'2026-09-18', note:'HEART: Konyo on the Sessions strip - these should be toggled on by default no option to it. v1975 built four REAL switches and its doctrine OFF IS A REAL REFUSAL was right WHILE OFF WAS REACHABLE. He removed OFF, which inverts the law rather than relaxing it. The reader no longer consults d2r_autoLanes at all, so a stale runes false from one click months ago can no longer darken a lane silently on every reel - that state is now UNREACHABLE not merely un-offered. The pill drops its track, knob, onclick, role switch and tabindex because a control that cannot move invites a click that does nothing. New gate test_auto_lanes_no_switch with 3 red-proofs, all PROVEN 1 match each in a sandbox. v1975 spec inverted to pin the new law. Rendered and looked at on real pixels at 375 and 1440: 8 pills, 0 knobs, 0 onclick, 0 role switch, all read AUTO, 0 off. REG-1094.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -53001,16 +53005,24 @@ function _miniLanes(){
   try { return JSON.parse((window.LSR && window.LSR.getItem(_MINI_LANES_KEY)) || '{}') || {}; }
   catch(e){ return {}; }
 }
+/* == v3285 - THE LANES ARE ALWAYS ON, AND THERE IS NO SWITCH ==========================
+   Konyo, 2026-09-18, on the Sessions strip: "these should be toggled on by default no
+   option to it". v1975 built these as real switches and the doctrine above (OFF IS A REAL
+   REFUSAL) was right WHILE OFF WAS REACHABLE. He has removed OFF, so the honest move is to
+   stop consulting the store entirely rather than keep a switch that always answers the same.
+
+   THIS ALSO UN-DARKENS A LANE HE SWITCHED OFF MONTHS AGO. d2r_autoLanes can still hold
+   {"runes":false} from one click long ago; every reel since has silently skipped that
+   section and nothing said so louder than one dim pill. Ignoring the store is what makes
+   that state UNREACHABLE rather than merely unlikely. */
 window._miniOnAirOn = function(lane){
-  var m = _miniLanes();
-  return m[lane] !== false;          // unset => ON, deliberately
+  return true;                       // v3285 - never read from the store, by his ruling
 };
 window._miniOnAirToggle = function(lane){
-  var m = _miniLanes();
-  m[lane] = (m[lane] === false);     // flip; unset counts as ON so the first click turns it OFF
-  try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(_MINI_LANES_KEY, JSON.stringify(m)); } catch(e){}
-  try { window._miniOnAirPaint(); } catch(e){}
-  return m[lane] !== false;
+  /* Kept BY NAME: quickIntake and the vault arm-on-open path both call it behind a
+     `window._miniOnAirToggle &&` guard, so deleting it would be a SILENT no-change rather
+     than a loud one. A no-op that reports the truth. */
+  return true;
 };
 /* Repaints every mini from state. Called after a toggle and on load, so two minis for the same lane
    (if a section ever renders twice) can never disagree — the DOM is a view of the store, never the
@@ -53019,27 +53031,26 @@ window._miniOnAirPaint = function(){
   try {
     var els = document.querySelectorAll('.mini-onair[data-lane]');
     for (var i = 0; i < els.length; i++){
-      var el = els[i], lane = el.getAttribute('data-lane'), on = window._miniOnAirOn(lane);
-      el.classList.toggle('mini-on', !!on);
-      el.classList.toggle('mini-off', !on);
-      el.setAttribute('aria-checked', on ? 'true' : 'false');
+      var el = els[i];
+      el.classList.add('mini-on');
+      el.classList.remove('mini-off');
+      el.removeAttribute('aria-checked');   // v3285 - not a switch any more, so not a checkbox
       var w = el.querySelector('.mini-word');
-      if (w) w.textContent = on ? 'AUTO' : 'OFF';
-      el.setAttribute('title', on
-        ? 'AUTO — the reel reads this lane on its own. No photo needed: just run a reel session.'
-        : 'OFF — the reel will SKIP this section. Nothing here updates until you switch it back on.');
+      if (w) w.textContent = 'AUTO';
+      el.setAttribute('title', 'AUTO — always on. The reel reads this lane on its own; '
+        + 'there is no switch to turn it off.');
     }
   } catch(e){}
 };
 /* The markup, built in ONE place so seven sections cannot drift into seven dialects. */
 window._miniOnAirHtml = function(lane, what){
-  var on = window._miniOnAirOn(lane);
-  return '<span class="mini-onair ' + (on ? 'mini-on' : 'mini-off') + '" data-lane="' + lane + '"'
-    + ' role="switch" tabindex="0" aria-checked="' + (on ? 'true' : 'false') + '"'
-    + ' onclick="window._miniOnAirToggle(\'' + lane + '\')"'
-    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._miniOnAirToggle(\'' + lane + '\')}">'
-    + '<span class="mini-track"><span class="mini-knob"></span></span>'
-    + '<span class="mini-word">' + (on ? 'AUTO' : 'OFF') + '</span>'
+  /* v3285 - a STATE, not a control. No role=switch, no tabindex, no onclick, no knob: a
+     track-and-knob that cannot move is a lie about what the surface offers. */
+  return '<span class="mini-onair mini-on mini-fixed" data-lane="' + lane + '"'
+    + ' title="AUTO — always on. The reel reads this lane on its own; there is no switch'
+    + ' to turn it off.">'
+    + '<span class="mini-dot"></span>'
+    + '<span class="mini-word">AUTO</span>'
     + '<span class="mini-what">' + what + '</span></span>';
 };
 try { if (document.readyState !== 'loading') setTimeout(window._miniOnAirPaint, 0);
