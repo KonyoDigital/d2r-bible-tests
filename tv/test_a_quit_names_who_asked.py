@@ -127,6 +127,23 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         self.assertLess(i, r.find("_request_console_exit"),
                         "the refusal is checked AFTER the exit has already been requested")
 
+    def test_a_WHITESPACE_name_does_not_defeat_the_refusal(self):
+        """★ v3281 — found by the cross-family eye on v3280, and real.
+
+        `str(body.get("from") or "")` treats `"   "` as truthy, so `{"from": "   "}` satisfies
+        `not _qfrom` and walks straight past the refusal. **A guard that a space defeats is not a
+        guard**, and whitespace is exactly what a sloppy caller or a fuzzer sends.
+
+        ⚠ No known trigger today — the one real caller sends a string literal — but the entire
+        point of the refusal is callers nobody has written yet.
+        """
+        r = self._route()
+        i = r.find('.get("from")')
+        self.assertGreater(i, -1, "the attribution is no longer read from the body")
+        self.assertIn(".strip()", r[i:i + 200],
+                      "a whitespace-only `from` still counts as naming yourself, so the refusal "
+                      "is defeated by a single space")
+
     def test_the_refusal_TELLS_HIM_HOW_to_quit_on_purpose(self):
         """⚠ IT IS A REFUSAL, NOT A LOCK. Any caller may still quit by saying who it is — one
         field. A guard that blocks an action without naming the remedy turns a bug into a

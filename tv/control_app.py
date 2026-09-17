@@ -5465,6 +5465,29 @@ def _win_nudge_onscreen():
         pass
 
 
+def _objc_can(obj, selector):
+    """Will this Objective-C object answer this selector? -> bool
+
+    ⚠⚠ v3281 — THIS IS THE ONLY REAL PROTECTION AGAINST THE v3206 CRASH, and v3207 said so while
+    not having it: *"an Objective-C exception or a bad selector does NOT raise a Python exception —
+    it kills the process. A Python try cannot catch a SIGTRAP, so 'individually wrapped' bought
+    nothing against the failure that actually happened."*
+
+    `respondsToSelector_` asks BEFORE sending, so an unanswerable message is never sent and there
+    is no exception to catch. That converts an uncatchable process death into an ordinary `if`.
+
+    ⚠ It is deliberately total: a None object, a missing `respondsToSelector_`, or any raise all
+    answer False. The caller then does nothing, which is the correct outcome for cosmetics.
+    """
+    try:
+        if obj is None:
+            return False
+        rs = getattr(obj, "respondsToSelector_", None)
+        return bool(rs and rs(selector))
+    except Exception:
+        return False
+
+
 def _mac_tint_caption():
     """v3199 — KILL THE GREY "TV DIABLO" STRIP ON macOS WITHOUT COSTING HIM THE WINDOW BUTTONS.
 
@@ -5522,22 +5545,40 @@ def _mac_tint_caption():
     # number rather than a crash. A bare literal would be a guess with a value.
     # [[unknown-stays-unknown]]
     _title_hidden = getattr(AppKit, "NSWindowTitleHidden", 1)
-    for fn in (lambda: native.setTitlebarAppearsTransparent_(True),
-               lambda: native.setTitleVisibility_(_title_hidden)):
+    # ⚠ v3281 — ASK BEFORE SENDING. MEASURED on his macOS against a real NSWindow: all three
+    # selectors below exist, and the theme frame's last subview is an
+    # NSKVONotifying_NSTitlebarContainerView which DOES respond to setBackgroundColor:. So on this
+    # machine every message here is answerable — and the guard stays anyway, because the next
+    # macOS is the one that changes the private view hierarchy, and that failure is not catchable.
+    for _sel, _fn in (("setTitlebarAppearsTransparent:",
+                       lambda: native.setTitlebarAppearsTransparent_(True)),
+                      ("setTitleVisibility:",
+                       lambda: native.setTitleVisibility_(_title_hidden))):
+        if not _objc_can(native, _sel):
+            continue
         try:
-            fn()
+            _fn()
         except Exception:
             pass
     # the repaint, down pywebview's own path — same lookup, console black instead of system grey
+    # ⚠⚠ THE LINE THAT WALKS THE PRIVATE THEME FRAME — the crash candidate, and the only call
+    # here that is not documented public API. Every hop is checked, so a hierarchy that has
+    # changed shape produces NOTHING rather than a message to something that cannot answer it.
     try:
         black = AppKit.NSColor.colorWithSRGBRed_green_blue_alpha_(
             7 / 255.0, 6 / 255.0, 5 / 255.0, 1.0)      # #070605, the console ground
-        native.contentView().superview().subviews().lastObject().setBackgroundColor_(black)
+        _cv = native.contentView() if _objc_can(native, "contentView") else None
+        _sv = _cv.superview() if _objc_can(_cv, "superview") else None
+        _subs = _sv.subviews() if _objc_can(_sv, "subviews") else None
+        _last = _subs.lastObject() if (_subs is not None and len(_subs)) else None
+        if _objc_can(_last, "setBackgroundColor:"):
+            _last.setBackgroundColor_(black)
     except Exception:
         pass
     try:
-        native.setBackgroundColor_(
-            AppKit.NSColor.colorWithSRGBRed_green_blue_alpha_(7 / 255.0, 6 / 255.0, 5 / 255.0, 1.0))
+        if _objc_can(native, "setBackgroundColor:"):
+            native.setBackgroundColor_(
+                AppKit.NSColor.colorWithSRGBRed_green_blue_alpha_(7 / 255.0, 6 / 255.0, 5 / 255.0, 1.0))
     except Exception:
         pass
 
@@ -6108,8 +6149,24 @@ def open_control_window():
                 # The window chrome is cosmetic. His console is not. Re-enable only behind a real
                 # opt-in (TV_MAC_CHROME=1) once the crash is reproduced OFF his machine.
                 # [[unknown-stays-unknown]]
-                if str(os.environ.get("TV_MAC_CHROME", "")).strip() in ("1", "true", "yes", "on"):
+                # ⚠⚠⚠ v3281 — HIS RULING, 2026-09-17: *"what banner? i dont wnat the banner
+                # uptop i want it clean"*. So the tint is armed BY DEFAULT again — but only the
+                # tint, and only now that the uncatchable failure mode is gone.
+                #
+                # v3207 disabled TWO hooks together after the v3206 launch crash and never
+                # isolated which one died. They are not equal risks:
+                #     _mac_tint_caption      documented NSWindow API + ONE private-hierarchy hop,
+                #                            every message now gated by respondsToSelector_
+                #     _mac_force_fullscreen  UNTESTED, and fullscreen is already the default, so
+                #                            it buys nothing — it stays behind the opt-in
+                # MEASURED on his macOS against a real NSWindow: every selector the tint sends
+                # exists, and the theme frame's last subview answers setBackgroundColor:.
+                #
+                # ⚠ `TV_MAC_CHROME=0` turns the tint OFF, so if it ever misbehaves on launch he
+                # has a way back in without editing code. An opt-OUT, because he asked for clean.
+                if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() not in ("0", "false", "no", "off"):
                     win.events.shown += _mac_tint_caption
+                if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() in ("1", "true", "yes", "on"):
                     win.events.shown += _mac_force_fullscreen
             except Exception:
                 pass
@@ -29674,7 +29731,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3280",
+        "ver": "v3281",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -34233,7 +34290,12 @@ class Handler(BaseHTTPRequestHandler):
             # evidence. A cause nobody can name is one nobody can fix.
             # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
             try:
-                _qfrom = str((body or {}).get("from") or "")[:60] if isinstance(body, dict) else ""
+                # ⚠ v3281 — `.strip()`, because the cross-family eye found that `{"from": "   "}`
+                # satisfies `not _qfrom` and walks straight past v3280's refusal. A guard that a
+                # space defeats is not a guard, and whitespace is exactly what a sloppy caller or
+                # a fuzzer sends. No known trigger today — the one real caller sends a literal —
+                # but the whole point of the refusal is callers nobody has written yet.
+                _qfrom = str((body or {}).get("from") or "").strip()[:60] if isinstance(body, dict) else ""
             except Exception:
                 _qfrom = ""
             _qwho = ("api-quit:" + _qfrom) if _qfrom else "api-quit:UNATTRIBUTED"

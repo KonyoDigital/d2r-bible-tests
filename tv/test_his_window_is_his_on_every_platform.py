@@ -155,6 +155,90 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
         self.assertFalse(r["ok"])
         self.assertIn("no Window.toggle_fullscreen", r["why"])
 
+    # ── the banner he asked to be rid of ────────────────────────────────────────────────────
+    def test_an_unanswerable_message_is_NEVER_SENT(self):
+        """★ v3281 — THE ONLY REAL PROTECTION AGAINST THE v3206 LAUNCH CRASH.
+
+        v3207 disabled the Mac chrome hooks and said exactly why, while not having this: *"an
+        Objective-C exception or a bad selector does NOT raise a Python exception — it kills the
+        process. A Python try cannot catch a SIGTRAP, so 'individually wrapped' bought nothing
+        against the failure that actually happened."*
+
+        `respondsToSelector_` asks BEFORE sending, so an unanswerable message is never sent and
+        there is no exception to catch. An uncatchable process death becomes an ordinary `if`.
+        """
+        can = self.ca._objc_can
+        self.assertFalse(can(None, "x:"), "a nil object was treated as answerable")
+        self.assertFalse(can(object(), "x:"), "an object with no respondsToSelector_ passed")
+
+        class _Raises(object):
+            def respondsToSelector_(self, s):
+                raise RuntimeError("boom")
+
+        self.assertFalse(can(_Raises(), "x:"),
+                         "a raising probe was treated as a yes — the guard must fail CLOSED")
+
+        class _Yes(object):
+            def respondsToSelector_(self, s):
+                return True
+
+        self.assertTrue(can(_Yes(), "x:"), "a genuine yes was refused, so the fix does nothing")
+
+    def test_EVERY_dynamic_call_in_the_tint_is_gated(self):
+        """⚠ The tint sends four messages. Three are documented NSWindow API; the fourth walks the
+        PRIVATE theme frame — `contentView().superview().subviews().lastObject()` — and that is the
+        crash candidate. Every hop is checked, so a macOS that changes the hierarchy produces
+        NOTHING rather than a message to something that cannot answer it.
+
+        MEASURED on his macOS against a real NSWindow: all three window selectors exist and the
+        theme frame's last subview is an NSKVONotifying_NSTitlebarContainerView which DOES respond
+        to setBackgroundColor:. The guard stays anyway — the next macOS is the one that changes it.
+        """
+        src = _py_only(SRC)
+        i = src.find("def _mac_tint_caption(")
+        self.assertGreater(i, -1, "the Mac tint is gone or renamed")
+        j = src.find("def _mac_force_fullscreen(", i)
+        body = src[i:j if j > i else i + 3000]
+        for sel in ("setTitlebarAppearsTransparent:", "setTitleVisibility:", "setBackgroundColor:"):
+            self.assertIn('_objc_can(', body, "the tint sends messages without asking first")
+            self.assertIn(sel, body, "the tint no longer sends %s" % sel)
+        for hop in ("contentView", "superview", "subviews"):
+            self.assertIn('_objc_can(native, "contentView")' if hop == "contentView"
+                          else '"%s")' % hop, body,
+                          "the private theme-frame hop %r is walked unguarded" % hop)
+
+    def test_the_TINT_is_armed_by_default_and_the_UNTESTED_hook_is_NOT(self):
+        """★ HIS RULING, 2026-09-17: *"what banner? i dont wnat the banner uptop i want it clean"*.
+
+        ⚠ v3207 disabled TWO hooks together after one crash and never isolated which died. They
+        are not equal risks: the tint is documented API plus one guarded private hop;
+        `_mac_force_fullscreen` is untested AND buys nothing, because fullscreen is already the
+        default. So the tint is armed by default and that one stays behind the opt-in.
+        """
+        src = _py_only(SRC)
+        i = src.find("win.events.shown += _mac_tint_caption")
+        self.assertGreater(i, -1, "the tint is never armed, so the banner stays")
+        guard = src[max(0, i - 400):i]
+        self.assertIn('not in ("0", "false", "no", "off")', guard,
+                      "the tint is behind an opt-IN again, so his console still shows the banner "
+                      "unless he sets an env var before launch")
+        j = src.find("win.events.shown += _mac_force_fullscreen")
+        self.assertGreater(j, -1, "the untested hook vanished rather than staying opt-in")
+        g2 = src[max(0, j - 300):j]
+        self.assertIn('in ("1", "true", "yes", "on")', g2,
+                      "the UNTESTED fullscreen hook is now armed by default — it was never "
+                      "cleared of the v3206 crash")
+
+    def test_he_can_turn_the_tint_OFF_without_editing_code(self):
+        """⚠ An opt-OUT, because he asked for clean. If it ever misbehaves on launch he needs a
+        way back in that is not a code edit."""
+        src = _py_only(SRC)
+        i = src.find("win.events.shown += _mac_tint_caption")
+        guard = src[max(0, i - 400):i]
+        self.assertIn("TV_MAC_CHROME", guard,
+                      "there is no env switch to disable the tint, so a launch problem would need "
+                      "a code change to escape")
+
     # ── the joins ───────────────────────────────────────────────────────────────────────────
     def test_the_route_EXISTS_and_reaches_the_helper(self):
         """⚠ a helper nobody routes to is [[the-unjoined-end]]: built, correct, unreachable."""

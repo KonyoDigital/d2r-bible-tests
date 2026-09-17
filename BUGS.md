@@ -36626,6 +36626,90 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1090 — the TV·DIABLO banner: he ruled, so it stopped being parked and became work
+
+His ruling, 2026-09-17: **"what banner? i dont wnat the banner uptop i want it clean."**
+
+It is **not the page** — there is no darwin branch anywhere in `control_ui.html`. It is pywebview's
+own cocoa code painting the macOS titlebar with `NSColor.windowBackgroundColor`, system light grey,
+directly above a `#070605` console.
+
+A fix existed (`_mac_tint_caption`) and was disabled at **v3207**, because at v3206 it crashed his
+console on launch — *"Python quit unexpectedly"*, splash reading "starting v3206". v3207 wrote down
+exactly why a retry would be dangerous, and it is the same sentence that shows what was missing:
+
+> an Objective-C exception or a bad selector does NOT raise a Python exception — it kills the
+> process. A Python try cannot catch a SIGTRAP, so "individually wrapped" bought nothing against
+> the failure that actually happened.
+
+**So the answer is not to try again and hope — it is to never send an unanswerable message.**
+`respondsToSelector_` asks BEFORE sending, which converts an uncatchable process death into an
+ordinary `if`. That is `_objc_can`, and it fails CLOSED on a nil object, a missing probe, or a
+raising one.
+
+**MEASURED on his macOS against a real NSWindow — no console, no port, nothing of his touched:**
+
+```
+window responds to setTitlebarAppearsTransparent:   True
+window responds to setTitleVisibility:              True
+window responds to setBackgroundColor:              True
+contentView -> superview (theme frame) -> 4 subviews
+lastObject: NSKVONotifying_NSTitlebarContainerView
+  ⚠ responds to setBackgroundColor:                 True
+```
+
+Every message the tint sends is answerable on this machine. The guard stays regardless — **the next
+macOS is the one that changes the private view hierarchy**, and that failure is the uncatchable
+kind.
+
+⚠ **v3207 disabled TWO hooks together after one crash and never isolated which one died.** They are
+not equal risks:
+
+| hook | what it is | armed? |
+|---|---|---|
+| `_mac_tint_caption` | documented `NSWindow` API + **one** private hop, every message now gated | **by default** |
+| `_mac_force_fullscreen` | **untested**, and buys nothing — fullscreen is already the default | stays opt-in |
+
+**Shipped in v3281.** The tint is armed by default — an opt-**OUT**, because he asked for clean —
+and `TV_MAC_CHROME=0` turns it off without a code edit, so a launch problem has a way back in.
+
+⚠ **What is still UNKNOWN:** whether the v3206 crash was the tint or the fullscreen hook. This
+removes the tint's uncatchable failure mode and leaves the untested hook disabled; it does not
+prove which one crashed. If his console dies on the next launch, `TV_MAC_CHROME=0` is the escape
+and that is the finding. [[unknown-stays-unknown]]
+
+Four laws, five sabotages, every one RED, each anchor matching exactly once.
+
+### The cross-family review of v3280 — one finding taken, two declined with reasons
+
+**1. "Whitespace-only `from` bypasses the check" — TAKEN, and it hollowed the guard.**
+`str(body.get("from") or "")` treats `"   "` as truthy, so `{"from": "   "}` satisfies
+`not _qfrom` and walks straight past the refusal. **A guard a single space defeats is not a
+guard**, and whitespace is exactly what a sloppy caller or a fuzzer sends. `.strip()` added, with
+a law and a red-proof. Measured across six bodies:
+
+```
+{'from': 'escape-empty-stack'} -> refused False
+{'from': '   '}                -> refused TRUE
+{'from': ''}                   -> refused TRUE
+{}                             -> refused TRUE
+{'from': 42}                   -> refused False
+None                           -> refused TRUE
+```
+
+**2. "Non-string `from` is coerced and accepted" — DECLINED, with the reason.** `{"from": 42}`
+becomes `api-quit:42` and proceeds. That is not a weakening: the refusal exists to stop an exit
+**nobody claimed**, and a caller sending `42` has claimed it — badly, and the log records exactly
+that. Rejecting it would trade a recorded claim for a rejected one and buy nothing.
+
+**3. "Refusal returns HTTP 200" — DECLINED, because it is the house convention.**
+`window_action` and this route's own success path both answer `200` with `ok:false` and a `why`.
+Changing one route to 4xx would make it the inconsistent one, and the single real caller never
+reaches this path. The contract here is `ok`, not the status line.
+
+⇒ The finding with a mechanism was taken; the two resting on convention were answered rather than
+obeyed. [[review-after-ship]]
+
 ## REG-1089 — the worst-ranked trap stops being an observation: an unattributed quit is now REFUSED
 
 Grok Bot, driving the native seat as a user: *"Mule 2->3 arrow -> native window closed
