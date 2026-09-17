@@ -36626,6 +36626,92 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1089 — the worst-ranked trap stops being an observation: an unattributed quit is now REFUSED
+
+Grok Bot, driving the native seat as a user: *"Mule 2->3 arrow -> native window closed
+(`window gone (api-quit)` in log). No Esc sent."* — **ranked worst of four traps.** His console
+died from a vault arrow click.
+
+**v3262 made it diagnosable** — every quit names who asked, an unnamed one records as
+`UNATTRIBUTED`. That was the right first move while the cause was unknown, and it has been sitting
+there ever since **waiting for a recurrence**. Waiting is not a fix.
+
+**MEASURED, and it is what makes refusing safe rather than reckless:**
+
+| | |
+|---|---|
+| page callers of `/api/quit` | `bible.html` **0** · `control_ui.html` **1** |
+| that one caller | names itself `from: 'escape-empty-stack'` |
+| script / shell / python callers | **ZERO** across the whole repo |
+| the ✕ and webview-return | go through `_request_console_exit` **directly**, never over HTTP |
+
+So every legitimate HTTP quit that exists already names itself, and an unattributed one is **by
+construction something nobody wrote**. Performing it kills his console on the word of a caller that
+will not say who it is.
+
+**Fixed in v3280.** An unattributed `/api/quit` is refused, the console stays up, and the refusal
+is logged as loudly as the quit was:
+
+```
+🛑 /api/quit REFUSED — unattributed. The console was NOT closed.
+```
+
+⚠ **It is a refusal, not a lock.** Any caller may still quit by saying who it is — one field — and
+the answer says exactly that, so a human with curl is told the remedy instead of left guessing. A
+guard that blocks an action without naming the way through turns a bug into a mystery, which is
+the shape this whole ticket started as.
+
+⚠ **And the guard has its own guard.** Refusing unattributed quits is only safe while the one real
+caller attributes itself; a law now fails if the page's Escape handler ever stops sending
+`escape-empty-stack`, because that would silently kill Escape-to-quit and this is the thing that
+would say why.
+
+⚠ Untested by the console demo: his `:17772` imported `control_app` before this change, so the
+demo exercised the old route. Not restarted — his third eye's standing instruction is "do not
+relaunch this Mac", and a restart can cost the Screen-Recording grant.
+
+Three laws, four sabotages, every one RED, each anchor matching exactly once.
+
+### ⚠ And one found by reading my own bytes AFTER the eye called v3279 clean
+
+Grok reviewed v3279 and answered *"The code is correct. No defects."* Re-reading the shipped
+bytes myself: `mkHead` inserts its label as **HTML**, and the population clause interpolated a
+retention tag name **unescaped** — while the sibling clause two lines above already does
+`esc(String(SHELF_MOUTH.why))`.
+
+Those tag names come from `reel_retention`'s own rules, so nothing hostile reaches there today.
+But an unescaped backend string in an HTML label is a **habit, not a risk assessment**, and the
+inconsistency is the part that rots — the next tag might not come from a constant. Escaped, and
+verified against a hostile name:
+
+```
+a HOSTILE tag -> " · 9 on disk in all (1 &lt;img src=x onerror=1&gt;)"
+```
+
+⇒ A clean cross-family verdict is not a proof that nobody needs to look again.
+[[review-after-ship]]
+
+### And the ledger REFUSED the first look, correctly
+
+The first v3279 answer was *"The code is correct. No defects."* — and
+`second_eye_ledger` rejected it: **"the answer was 32 chars — EMPTY SEAT, not agreement."** A bare
+verdict is not a review, and the ledger exists to say so. Asked again for what it actually
+examined, the same eye returned a real one and found something worth acting on:
+
+> **Missing type validation on numeric fields.** The guard verifies `sums === true` and `onDisk`
+> being a number, then trusts `fixtures`, `owed`, `releasable` and the values inside `other`
+> blindly. `sums:true, onDisk:20, fixtures:"8", owed:null, other:{"bad":"x"}` renders
+> *"20 on disk in all (8 hidden fixtures · 0 waiting on a lane · NaN releasable · x bad)"*.
+
+Real, and on the one line whose entire job is to make numbers trustworthy. Fixed in v3280: `_n`
+returns a positive integer or 0, and **0 prints nothing**, so a malformed count becomes SILENCE
+rather than a figure he might act on. Verified in node — that exact garbage payload now renders
+`""`.
+
+It also confirmed three things as NOT defects, with reasons: the `ok:false` path is already
+rejected by `typeof P.onDisk !== 'number'`; `sums !== true` is correctly stricter than a truthy
+check; and nothing in the block can throw and collapse the header.
+
 ## REG-1088 — the census answered the question on the doctor, and he asks it on the shelf
 
 v3278 measured the population and joined it to the **doctor**, which supervises it. But the

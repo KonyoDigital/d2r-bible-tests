@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3279",
+  "ver": "v3280",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3279: HEART: v3278 joined the reel census to the doctor, but the confusion he reported happens on the SHELF where a count is on screen and its context is not. api river now carries population and the river header states it - 20 on disk in all, 8 hidden fixtures, 3 waiting on a lane, 1 releasable. A reconciliation that does not sum prints NOTHING because a total whose parts do not add up looks authoritative and is wrong; only parts that exist are named; and a tag the census could not place reaches the screen too. Run in node against five payload shapes. 4 red-proofs. REG-1088.",
+  "note": "v3280: HEART: Grok Bot ranked it worst of four traps - a vault mule arrow click closed his native console with api-quit in the log and no Esc sent. v3262 made it diagnosable and then waited for a recurrence, which is an observation not a fix. Measured: bible.html has 0 callers of the route, control_ui.html has 1 and it names itself escape-empty-stack, and no script shell or python calls it at all, while the X and webview-return go through _request_console_exit directly. So an unattributed quit is by construction something nobody wrote, and it is now refused with the console left running. A refusal not a lock - the answer names the field that allows it. 4 red-proofs. REG-1089.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

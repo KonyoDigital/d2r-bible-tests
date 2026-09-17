@@ -590,6 +590,37 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("typeof P.onDisk !== 'number'", blk,
                       "a missing onDisk would render as undefined on his screen")
 
+    def test_every_COUNT_is_proven_a_number_before_it_is_printed(self):
+        """★ v3280 — raised by the cross-family eye on v3279, and real.
+
+        The guard checked `sums` and `onDisk`, then trusted `fixtures`, `owed`, `releasable` and
+        the values inside `other` blindly. A payload carrying `owed:null` and `releasable:"x"`
+        would render *"0 waiting on a lane · NaN releasable"* — garbage that still reads as a
+        measurement, on the one line whose whole job is to make numbers trustworthy.
+
+        `_n` returns a positive integer or 0, and 0 prints nothing, so a malformed count becomes
+        SILENCE rather than a number he might act on. Verified in node: a payload with
+        `fixtures:"8", owed:null, releasable:NaN, other:{bad:"x"}` renders "".
+        [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        """
+        blk = self._pop_clause()
+        self.assertIn("var _n = function(v)", blk,
+                      "the counts are printed without being proven numeric")
+        self.assertIn("typeof v === 'number'", blk, "_n does not check the type at all")
+        self.assertIn("isFinite(v)", blk, "_n admits NaN and Infinity")
+        self.assertIn("_n(P.other[oth[i]])", blk,
+                      "the counts inside `other` are still printed unvalidated, so a malformed "
+                      "one reaches his screen through the newest branch")
+
+    def test_the_tag_NAME_is_escaped_into_the_header(self):
+        """⚠ `mkHead` inserts its label as HTML, and the sibling clause already does
+        `esc(String(SHELF_MOUTH.why))`. These tag names come from reel_retention's own rules, so
+        nothing hostile reaches here today — but an unescaped backend string in an HTML label is a
+        habit, not a risk assessment, and the inconsistency is what rots."""
+        blk = self._pop_clause()
+        self.assertIn("esc(String(oth[i]))", blk,
+                      "a retention tag name is interpolated into an HTML label unescaped")
+
     def test_an_unrecognised_tag_reaches_the_SCREEN_too(self):
         """⚠ the census names a tag it has never met rather than dropping it; that naming is
         worthless if the surface then drops it. Both ends, or neither. [[the-unjoined-end]]"""

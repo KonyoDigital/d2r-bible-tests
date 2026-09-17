@@ -29674,7 +29674,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3279",
+        "ver": "v3280",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -34245,6 +34245,44 @@ class Handler(BaseHTTPRequestHandler):
                 print("\U0001F4FA /api/quit requested by %s" % _qwho, flush=True)
             except Exception:
                 pass
+            # ⚠⚠⚠ v3280 — AN UNATTRIBUTED QUIT IS NOW REFUSED, NOT PERFORMED.
+            # Grok Bot, driving the native seat as a user: *"Mule 2->3 arrow -> native window
+            # closed (`window gone (api-quit)` in log). No Esc sent."* — ranked WORST of four
+            # traps. His console died from a vault arrow click.
+            #
+            # v3262 made it DIAGNOSABLE: every quit names who asked, an unnamed one records as
+            # UNATTRIBUTED. That was the right first move when the cause was unknown, and it has
+            # been waiting for a recurrence ever since — an observation, not a fix.
+            #
+            # MEASURED, and it is what makes refusing safe rather than reckless:
+            #     page callers of /api/quit   bible.html 0 · control_ui.html 1
+            #     that one caller             names itself `escape-empty-stack`
+            #     script/shell/python callers ZERO across the whole repo
+            #     the ✕ and webview-return    go through _request_console_exit DIRECTLY,
+            #                                 never over HTTP, so they are untouched by this
+            # So every legitimate HTTP quit that exists already names itself, and an UNATTRIBUTED
+            # one is by construction something nobody wrote. Performing it kills his console on
+            # the word of a caller that will not say who it is.
+            #
+            # ⚠ IT IS A REFUSAL, NOT A LOCK. Any caller may quit by saying who it is — one field.
+            # The answer says exactly that, so a human with curl is told the remedy rather than
+            # left guessing. [[unknown-stays-unknown]] [[a-wrong-answer-skips-the-fallback]]
+            if not _qfrom:
+                try:
+                    print("\U0001F6D1 /api/quit REFUSED — unattributed. The console was NOT closed.",
+                          flush=True)
+                except Exception:
+                    pass
+                self._json(200, {
+                    "ok": False, "armed": False, "windowDestroyed": False, "refused": True,
+                    "why": "this quit did not say who asked, so it was refused and the console is "
+                           "still running. Every caller that exists names itself — the page's "
+                           "Escape handler sends from='escape-empty-stack' and nothing else in "
+                           "the repo calls this route at all. To quit on purpose, POST "
+                           "{\"from\": \"<who>\"}. This refusal is the record of an exit "
+                           "nobody claimed.",
+                })
+                return
             r = None
             try:
                 r = _request_console_exit(_qwho, hard_delay=0.55)

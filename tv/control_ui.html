@@ -17921,12 +17921,33 @@ window._lockMark = function(isOpen, px, label){
               + (function(){
                   var P = SHELF_POP;
                   if (!P || P.sums !== true || typeof P.onDisk !== 'number') return '';
-                  var bits = [];
-                  if (P.fixtures) bits.push(P.fixtures + ' hidden fixture' + (P.fixtures === 1 ? '' : 's'));
-                  if (P.owed) bits.push(P.owed + ' waiting on a lane');
-                  if (P.releasable) bits.push(P.releasable + ' releasable');
+                  /* ⚠ v3280 — EVERY COUNT IS PROVEN A NUMBER BEFORE IT IS PRINTED. Raised by
+                     the cross-family eye: the guard checked `sums` and `onDisk` and then trusted
+                     `fixtures`/`owed`/`releasable` and the values inside `other` blindly. A
+                     payload carrying `owed:null` or `releasable:"x"` would render
+                     "0 waiting on a lane · NaN releasable" — garbage that still reads as a
+                     measurement. `_n` returns a positive integer or 0, and 0 prints nothing, so a
+                     malformed count becomes SILENCE rather than a number he might act on.
+                     [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+                  var _n = function(v){
+                    var x = (typeof v === 'number' && isFinite(v)) ? Math.floor(v) : 0;
+                    return x > 0 ? x : 0;
+                  };
+                  var bits = [], _fx = _n(P.fixtures), _ow = _n(P.owed), _rl = _n(P.releasable);
+                  if (_fx) bits.push(_fx + ' hidden fixture' + (_fx === 1 ? '' : 's'));
+                  if (_ow) bits.push(_ow + ' waiting on a lane');
+                  if (_rl) bits.push(_rl + ' releasable');
                   var oth = P.other && typeof P.other === 'object' ? Object.keys(P.other) : [];
-                  for (var i = 0; i < oth.length; i++) bits.push(P.other[oth[i]] + ' ' + oth[i]);
+                  /* ⚠ v3280 — ESCAPED, because `mkHead` inserts this label as HTML and the
+                     sibling clause two lines up already does `esc(String(SHELF_MOUTH.why))`.
+                     These tag names come from `reel_retention`'s own rules, so nothing hostile
+                     reaches here today — but an unescaped backend string in an HTML label is a
+                     habit, not a risk assessment, and the inconsistency is the part that rots.
+                     Caught reading my own bytes after the cross-family eye called it clean. */
+                  for (var i = 0; i < oth.length; i++) {
+                    var _on = _n(P.other[oth[i]]);
+                    if (_on) bits.push(_on + ' ' + esc(String(oth[i])));
+                  }
                   if (!bits.length) return '';
                   return ' \u00b7 ' + P.onDisk + ' on disk in all (' + bits.join(' \u00b7 ') + ')';
                 })();

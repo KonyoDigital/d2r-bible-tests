@@ -92,6 +92,64 @@ class AQuitNamesWhoAsked(unittest.TestCase):
                          "the exit is still requested with the old fixed string, so the "
                          "attribution never reaches the log")
 
+    def test_an_UNATTRIBUTED_quit_is_REFUSED_and_the_console_stays_up(self):
+        """★ v3280 — THE WORST-RANKED TRAP STOPS BEING AN OBSERVATION AND BECOMES A REFUSAL.
+
+        Grok Bot, driving the native seat as a user: *"Mule 2->3 arrow -> native window closed
+        (`window gone (api-quit)` in log). No Esc sent."* — ranked WORST of four traps. His
+        console died from a vault arrow click.
+
+        v3262 made it DIAGNOSABLE — every quit names who asked, an unnamed one records as
+        UNATTRIBUTED. That was right while the cause was unknown, and it has been waiting for a
+        recurrence ever since: an observation, not a fix.
+
+        MEASURED, and it is what makes refusing safe rather than reckless:
+
+            page callers of /api/quit      bible.html 0 · control_ui.html 1
+            that one caller                names itself `escape-empty-stack`
+            script / shell / python        ZERO across the whole repo
+            the ✕ and webview-return       go through _request_console_exit DIRECTLY, never
+                                           over HTTP — untouched by this
+
+        So every legitimate HTTP quit that exists already names itself, and an unattributed one is
+        by construction something nobody wrote. Performing it kills his console on the word of a
+        caller that will not say who it is.
+        """
+        r = self._route()
+        self.assertIn("if not _qfrom:", r,
+                      "an unattributed quit is still PERFORMED — the console can still be killed "
+                      "by a caller that will not name itself")
+        i = r.find("if not _qfrom:")
+        branch = r[i:i + 1400]
+        self.assertIn('"refused": True', branch, "the refusal does not say it refused")
+        self.assertIn("return", branch, "the refusal falls through and quits anyway")
+        # and it must refuse BEFORE the thing that actually exits
+        self.assertLess(i, r.find("_request_console_exit"),
+                        "the refusal is checked AFTER the exit has already been requested")
+
+    def test_the_refusal_TELLS_HIM_HOW_to_quit_on_purpose(self):
+        """⚠ IT IS A REFUSAL, NOT A LOCK. Any caller may still quit by saying who it is — one
+        field. A guard that blocks an action without naming the remedy turns a bug into a
+        mystery, which is the shape this whole ticket started as."""
+        r = self._route()
+        i = r.find("if not _qfrom:")
+        branch = r[i:i + 1400]
+        self.assertIn("from", branch, "the refusal never names the field that would allow it")
+        self.assertIn("still running", branch,
+                      "the refusal does not say the console survived, so a caller cannot tell a "
+                      "refusal from a failed exit")
+
+    def test_the_only_page_caller_still_NAMES_itself_or_the_refusal_locks_him_out(self):
+        """⚠⚠ THE GUARD ON THE WHOLE CHANGE. Refusing unattributed quits is only safe while the
+        ONE real caller attributes itself. If that ever stops, Escape-to-quit silently dies and
+        this law is the thing that says why."""
+        js = _js_code()
+        self.assertIn("'/api/quit'", js, "the page no longer calls the quit route at all")
+        i = js.find("'/api/quit'")
+        self.assertIn("escape-empty-stack", js[i:i + 400],
+                      "the page's quit no longer names itself, so v3280's refusal would block "
+                      "the one legitimate exit")
+
     def test_the_only_page_caller_NAMES_itself(self):
         """If the one legitimate caller did not name itself, every quit would read UNATTRIBUTED
         and the signal would be worthless — a flag that is always on."""
