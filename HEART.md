@@ -14,8 +14,8 @@ may not fall without a human saying why in `heart_floor.json`.
 | | |
 |---|---|
 | surfaces the console paints | **356** |
-| of those, watched | **8** |
-| coverage | **2.2%** |
+| of those, watched | **9** |
+| coverage | **2.5%** |
 
 ## Watched
 
@@ -25,5 +25,6 @@ may not fall without a human saying why in `heart_floor.json`.
 - `phase`
 - `sadv-sha`
 - `sadv-tip`
+- `sh-stationbar`
 - `stage`
 - `theatre`

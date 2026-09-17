@@ -176,6 +176,115 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("' of the ' + total + ' stamped reel(s)", self.fn,
                       "the chip tooltip gives a count with no denominator")
 
+    def test_a_TRAJECTORY_is_never_claimed_from_an_OCCUPANCY_count(self):
+        """★ HIS SHELF, READ BACK TO ME OFF ITS OWN TOOLTIP: *"no reel has reached triage yet"*,
+        *"no join has reached yet also"* - and then the real report, *"it just looks stuck this
+        way and as if the river IS not flowing"*.
+
+        MEASURED the same minute on his live river:
+            counts (WHERE THEY SIT)   TRIAGE 2 - JOIN 14 - CAPTURE 21 - ROUTED 21
+            visits (WHO PASSED THROUGH) TRIAGE 21 - JOIN 14 - ROUTED 33
+        21 reels have been through TRIAGE and the chip said NO REEL HAS REACHED IT. The count is
+        an OCCUPANCY and the sentence was a TRAJECTORY, and `one_funnel.py` already carries this
+        exact scar in its own gotcha - *"'no reel sits at banked' and 'no reel ever passed banked'
+        are opposite"* - carved on a neighbouring module while this surface committed it verbatim.
+
+        The law pins the JOINT, not the wording: an empty chip may not make an ever-claim unless
+        it consulted something that actually knows. [[the-unjoined-end]] [[label-outlived-referent]]
+        """
+        self.assertNotIn("NO reel has reached", self.fn,
+                         "the chip is claiming a reel has never REACHED a station from a count of "
+                         "what sits there NOW - opposite facts, and his river has passed 21 reels "
+                         "through the station it called untouched")
+        self.assertIn("SHELF_RIVER_VISITS", self.fn,
+                      "the builder never consults the river's visits, so it has nothing to answer "
+                      "'has anything ever been here' with and can only guess from occupancy")
+        self.assertIn("SHELF_RIVER_UNREACHED", self.fn,
+                      "the builder never consults the river's own unreached list")
+
+    def test_an_UNREPORTED_trajectory_stays_UNKNOWN(self):
+        """⚠ THE DANGEROUS DIRECTION. A river that answers WITHOUT `visits` must not let the chip
+        fall back to "never" - that is the same fabrication in the other direction, and it would
+        be invisible because it reads exactly like a measured zero. [[unknown-stays-unknown]]"""
+        self.assertIn("UNKNOWN", self.fn,
+                      "no branch says UNKNOWN, so a river that reported no visits is presented as "
+                      "a river that reported zero")
+        self.assertIn("=== 'number'", self.fn,
+                      "the visits read is not type-checked, so a missing key becomes undefined and "
+                      "compares as a number would not")
+
+    def test_the_REMAINDER_is_counted_even_when_stations_are_stamped(self):
+        """★ HIS SCREENSHOT: the chips summed to 12 and the header said "13 of 13". One card sat
+        in no chip at all - not even UNKNOWN - and nothing accounted for it.
+
+        The accounting existed, and ONLY inside the `!seen.length` branch: it ran only when NOTHING
+        was stamped. The moment one station held a reel - the case where a missing card is hardest
+        to spot - it stopped counting. A denominator that appears only when the numerator is zero
+        is not a denominator. [[zero-needs-a-denominator]]
+        """
+        i = self.fn.find("var total = 0;")
+        j = self.fn.find("bar.hidden = false;", i)
+        self.assertGreater(i, -1, "the total is gone; re-anchor this law")
+        self.assertGreater(j, i, "the show-the-bar line is gone; re-anchor this law")
+        main = self.fn[i:j]
+        self.assertIn("data-station-why", main,
+                      "the stamped path does not account for cards carrying no station, so a card "
+                      "in no chip vanishes from a row whose numbers are supposed to close")
+        # ⚠ THE PRINT MUST BE REACHABLE, not merely present. A first cut of this law asserted
+        # only that the class appears somewhere in the branch, which an `if (false)` around the
+        # print would have satisfied perfectly - the remainder computed, then thrown away, which
+        # is the historical behaviour this law exists to refuse. So it is anchored to the GUARD.
+        g = main.find("if (_rmWithheld || _rmNoStamp)")
+        self.assertGreater(g, -1,
+                           "the remainder has no live guard, so it is computed and never shown - "
+                           "which is the state his screenshot was in")
+        self.assertIn("sh-chip-strem", main[g:g + 1600],
+                      "nothing PRINTS the remainder inside its own guard, so it is counted and "
+                      "then thrown away")
+
+    def test_the_denominator_cannot_be_NaN(self):
+        """★ IT WAS. Found by RENDERING the shipped chip and reading its tooltip off his live
+        console: *"7 of the NaN stamped reel(s)"*.
+
+        `ordered` carries every station the river names; `tally` only the ones some card is at. So
+        the first ordered station with no cards made the sum `0 + undefined`, and every chip after
+        it printed NaN as its denominator. The sibling law above asserts the PHRASE
+        "of the N stamped reel(s)" is present - and NaN satisfies that phrase perfectly, which is
+        why it went unseen. A number printed as NaN is a missing denominator wearing a figure.
+        [[zero-needs-a-denominator]] [[regression-guard]]
+        """
+        self.assertIn("total += (tally[st] || 0)", self.fn,
+                      "the chip total sums tally entries without guarding the stations that have "
+                      "no cards, so the denominator is NaN again")
+
+    def test_an_empty_SHELF_chip_does_not_claim_an_empty_RIVER(self):
+        """⚠ THE CONTRADICTION THE FIRST CUT SHIPPED, caught on real pixels before it went out:
+        JOIN carried the DAM mark and its own sentence said *"the river flows here, it is simply
+        not holding anything"* - while the river held 14 reels at JOIN with none ever leaving.
+
+        The shelf window is 13 cards; the river is 63 reels. A chip that is empty in the WINDOW
+        must consult the RIVER's occupancy before saying anything about the river.
+        """
+        self.assertIn("SHELF_RIVER_COUNTS", self.fn,
+                      "the builder never reads the river's own occupancy, so it can only describe "
+                      "the 13-card window while appearing to describe the river")
+        # ⚠⚠ AND SOMETHING MUST WRITE IT. A sabotage that renamed the ASSIGNMENT left this law
+        # green, because the law only ever asked whether the BUILDER reads the variable - and it
+        # still did, from a name nothing sets. The read would then be null for ever and every
+        # river sentence would quietly degrade to the window-only branch, which is the exact
+        # defect this file exists to catch, one level up. Both ends, or neither.
+        # [[the-unjoined-end]] [[sabotage-is-usually-the-wrong-one]]
+        self.assertIn("SHELF_RIVER_COUNTS = (d.counts", self.code,
+                      "nothing ASSIGNS SHELF_RIVER_COUNTS from the river payload, so the builder "
+                      "reads a name that is null for ever and silently falls back to the "
+                      "shelf-window sentence")
+        i = self.fn.find("} else if (rHere > 0) {")
+        self.assertGreater(i, -1,
+                           "there is no branch for 'empty on this shelf, occupied in the river' - "
+                           "so that state falls through to a sentence about flow")
+        self.assertIn("THIS SHELF", self.fn[i:i + 700],
+                      "that branch does not name WHICH population is empty")
+
     # ── a class nobody styles is a flag nobody can see ───────────────────────────────────
     def test_every_class_the_BUILDER_EMITS_is_actually_styled(self):
         """The join, asked in the only direction that cannot be faked.

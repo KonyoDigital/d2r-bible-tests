@@ -35979,3 +35979,87 @@ restores the historical behaviour rather than nicking a clause.
 ⚠ STILL OPEN, NOT FIXED HERE: the box seat's other anomaly — SHELF theatre opens to a blank dark
 stage, last-8 **UNKNOWN**. Same shape (a box with no reels renders identically to a broken shelf)
 but a different surface, and it is not yet measured. It is NOT being reported as fixed.
+
+## REG-1063 — the SHELF told him his river was dead, while 35 of 63 reels sat behind two dams
+
+Konyo, reading his own chips' tooltips back to me: *"no reel has reached triage yet"*, *"no join
+has reached yet also"*, and then the real report — *"it just looks stuck this way and as if the
+river IS not flowing when it should be moving from fresh all the way to deleted"*.
+
+**The backend was right the whole time. Only the screen was wrong**, which is exactly what he said:
+*"it's already supposed to be architected backend wise it's just a visual thing to sync to it"*.
+
+### 1. A TRAJECTORY claimed from an OCCUPANCY count
+
+`/api/river` has always published three separate facts. `_shRiverLoad` took `d.stations` and
+dropped the other two on the floor:
+
+```
+counts   (WHERE REELS SIT)      TRIAGE  2 · EMPTY  0 · STATION  3 · PRINTER  2 · JOIN 14 · CAPTURE 21 · ROUTED 21
+visits   (WHO PASSED THROUGH)   TRIAGE 21 · EMPTY 18 · STATION 12 · PRINTER 12 · JOIN 14 · CAPTURE 21 · ROUTED 33
+unreached                       ["INTAKE", "TOMBSTONE"]
+```
+
+So **21 reels have been through TRIAGE** and the chip said NO REEL HAS REACHED IT. `one_funnel.py`
+carries this exact scar in its own gotcha — *"'no reel sits at banked' and 'no reel ever passed
+banked' are opposite"* — carved on a neighbouring module while this surface committed it verbatim.
+
+### 2. …and the river IS dammed, at exactly two stations
+
+Subtracting the river's own two numbers names the real defect he was feeling:
+
+| station | in river now | ever through | **left** |
+|---|---|---|---|
+| TRIAGE | 2 | 21 | 19 ✓ |
+| ROUTE | 0 | 18 | 18 ✓ |
+| ANALYZE | 3 | 12 | 9 ✓ |
+| SEAL | 2 | 12 | 10 ✓ |
+| **JOIN** | **14** | **14** | **0** ⛔ |
+| **CAPTURE** | **21** | **21** | **0** ⛔ |
+| TOMBSTONE(ROUTED) | 21 | 33 | 12 ✓ |
+
+**35 of 63 reels behind JOIN and CAPTURE; every other station drains.** The doctor already knew —
+`_check_the_river_has_an_outlet` says in its own note *"12 of his reels sit at CAPTURE … they
+cannot be closed out and never will be by a lane"*. The screen could not say it, so it read as a
+dead river instead of two identified blockages. A dammed chip now carries a warm edge and the
+sentence *"NOT ONE HAS EVER LEFT — this is where the river is actually stopping"*.
+
+### 3. The remainder vanished whenever anything was stamped
+
+His chips summed to 12 against a header of "13 of 13". One card was in no chip at all, not even
+UNKNOWN. The accounting existed — and only inside the `!seen.length` branch, i.e. only when NOTHING
+was stamped. **A denominator that appears only when the numerator is zero is not a denominator.**
+Withheld-on-purpose and no-reason-at-all stay separate facts, per v3215.
+
+### 4. ⚠ THE DENOMINATOR WAS LITERALLY `NaN`, AND HAD BEEN
+
+Found by RENDERING the shipped chip and reading its tooltip off his live console:
+**"7 of the NaN stamped reel(s)"**. `ordered` carries every station the river names, `tally` only
+those some card is at, so the first station with no cards made the sum `0 + undefined`. The sibling
+law asserts the phrase *"of the N stamped reel(s)"* is present — and `NaN` satisfies that phrase
+perfectly, which is why it survived. A number printed as NaN is a missing denominator wearing a
+figure. `[[zero-needs-a-denominator]]`
+
+### 5. ⚠ MY OWN FIRST CUT SHIPPED A CONTRADICTION, caught on pixels before it went out
+
+JOIN carried the DAM mark while its sentence said *"the river flows here, it is simply not holding
+anything"* — with 14 reels sitting at JOIN. The dam read the RIVER and the sentence read the
+13-card WINDOW. Both now name which population they mean, because he had already misread the pair
+once: *"7 sitting, 21 through in all but why are these sitting? like 7 out of 21?"* — a fair
+question about two numbers with different denominators and nothing saying so.
+
+HEART: `sh-stationbar` joined the WATCHES of the row it is named after. It is painted, it stated a
+falsehood about the whole system, and no organ named it. A surface that can lie earns a watcher.
+
+GATES (all in the law that already owns this surface, none new):
+`test_a_TRAJECTORY_is_never_claimed_from_an_OCCUPANCY_count`,
+`test_an_UNREPORTED_trajectory_stays_UNKNOWN`,
+`test_the_REMAINDER_is_counted_even_when_stations_are_stamped`,
+`test_the_denominator_cannot_be_NaN`,
+`test_an_empty_SHELF_chip_does_not_claim_an_empty_RIVER`. Five red-proofs, all seen RED at match
+count 1.
+
+⚠ ONE SABOTAGE CAME BACK GREEN AND THE SABOTAGE WAS WRONG — it renamed the ASSIGNMENT while the law
+only inspected the BUILDER, which still read the name. That exposed a real hole in my own law: it
+pinned the reader and never the writer, so a read of a name nothing sets would have degraded every
+river sentence silently. Both ends are pinned now. `[[the-unjoined-end]]`

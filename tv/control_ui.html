@@ -4454,6 +4454,10 @@
   /* a station the river order does not name is MARKED, never dropped — an unmapped stage is a
      finding about the router, and hiding it would make the row lie by omission */
   .sh-chip.sh-chip-stunk { border-style: dashed; }
+  /* v3257 — the remainder: cards on the shelf that no station chip counts. Not a station, so it
+     is not styled like one and it does not filter; it exists so the numbers close. */
+  .sh-chip.sh-chip-strem { border-style: dashed; opacity: .8; cursor: help;
+    border-color: color-mix(in srgb, var(--warn, var(--gold-dim)) 60%, transparent); }
   .sh-chip.sh-chip-stunk::after { content: ' ?'; color: var(--warn, var(--gold-dim)); }
   /* ⚠ v3232 — A STATION NO REEL HAS REACHED, printed rather than hidden. Its own comment in the
      removed section code says why: "a station no reel has reached is the actionable half of this
@@ -4464,6 +4468,25 @@
      a class set by the builder with no rule to render it is a flag nobody can see.
      [[plumbing-with-no-tap]] */
   .sh-chip.sh-chip-stempty { opacity: .55; border-style: dotted; }
+  /* ⚠ v3257 — AN EMPTY STATION THAT HAS FLOWED IS NOT A DEAD ONE, and dimming both the same way
+     is what made his river "look stuck". 14 reels have been through JOIN and it was drawn in the
+     same dotted grey as DELETED, which nothing has ever reached. Dotted becomes dashed - it still
+     holds nothing RIGHT NOW - and the opacity comes back, because something moved here. */
+  .sh-chip.sh-chip-stempty.sh-chip-stflowed { opacity: .82; border-style: dashed; }
+  /* v3257b — A DAM: reels reached it and not one has ever left. This is the only station state
+     that is a PROBLEM rather than a position, so it is the only one that gets a warm edge. */
+  .sh-chip.sh-chip-st.sh-chip-stdam {
+    border-color: color-mix(in srgb, var(--rar-orange, #ffa800) 62%, transparent);
+    box-shadow: inset 0 0 12px color-mix(in srgb, var(--rar-orange, #ffa800) 12%, transparent);
+  }
+  .sh-chip.sh-chip-st.sh-chip-stdam .sh-chip-thru { color: var(--rar-orange, #ffa800); }
+  /* the through-count: how many reels the river has EVER passed through this station. Quiet on
+     purpose - the big number is still the one he filters on. */
+  .sh-chip.sh-chip-st .sh-chip-thru {
+    margin-left: 5px; font-style: normal; font-size: var(--fs-2xs);
+    color: var(--acc-intel, var(--gold-dim)); opacity: .85;
+  }
+  .sh-chip.sh-chip-st .sh-chip-thru::before { content: '\21ba'; margin-right: 2px; opacity: .7; }
   .sh-chip.sh-chip-stempty b { color: var(--gold-dim, inherit); font-weight: var(--fw-regular); }
   .sh-fdiv { width: 1px; align-self: stretch; margin: 2px 5px; background: rgba(200,180,120,.16); }
   .sh-chip { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); color: var(--gold-dim); cursor: pointer;
@@ -16956,6 +16979,27 @@ window._lockMark = function(isOpen, px, label){
      ORDER from the backend. null means NOT YET ASKED, which is not the same as an empty river,
      and the header says which. [[unknown-stays-unknown]] */
   var SHELF_RIVER = null, SHELF_RIVER_ORDER = null, SHELF_RIVER_WHY = '';
+  /* ⚠⚠ v3257 — OCCUPANCY AND TRAJECTORY ARE OPPOSITE FACTS, AND THE CHIP WAS STATING ONE FROM
+     THE OTHER. Konyo, on his own shelf: *"no reel has reached triage yet"* / *"no join has
+     reached yet also"* — reading the chips' own tooltip back at me — and then the real question:
+     *"it just looks stuck this way and as if the river IS not flowing when it should be moving
+     from fresh all the way to deleted"*.
+
+     MEASURED on his live river the same minute, via /api/river:
+         counts (WHERE REELS SIT NOW)  TRIAGE 2 · STATION 3 · PRINTER 2 · JOIN 14 · CAPTURE 21 · ROUTED 21
+         visits (WHO HAS PASSED THROUGH) TRIAGE 21 · EMPTY 18 · STATION 12 · PRINTER 12 · JOIN 14 · CAPTURE 21 · ROUTED 33
+         unreached                      ["INTAKE", "TOMBSTONE"]
+     So 21 reels have been through TRIAGE and 14 through JOIN, while the screen said NO REEL HAS
+     REACHED either. His river is flowing hard; the shelf was the only thing claiming otherwise.
+
+     ⚠ THE BACKEND WAS ALREADY RIGHT — this is a WIRE, not a new engine. `/api/river` has shipped
+     `visits` and `unreached` all along; `_shRiverLoad` took `d.stations` and dropped both on the
+     floor, so the chip had nothing to answer "has anything ever been here?" with and guessed from
+     the only number it had. `one_funnel.py` carries this exact scar in its own gotcha — *"`stage`
+     is a BLOCKER, not a trajectory ... 'no reel sits at banked' and 'no reel ever passed banked'
+     are opposite"* — carved on a neighbouring module while this surface committed it verbatim.
+     [[the-unjoined-end]] [[label-outlived-referent]] [[unknown-stays-unknown]] */
+  var SHELF_RIVER_VISITS = null, SHELF_RIVER_UNREACHED = null, SHELF_RIVER_COUNTS = null;
   var SHELF_RIVER_LANES = null;   // v2987 — the FOUR lanes /api/river already publishes
   var SHELF_RIVER_LABELS = null;  // v2987 — station key -> the name HE reads (his rulings)
   /* THE MOUTH — reels that finished the journey and were closed out. `null` until /api/river has
@@ -17055,24 +17099,123 @@ window._lockMark = function(isOpen, px, label){
              .concat(seen.filter(function(st){ return order.indexOf(st) < 0; }))
       : seen;
     var total = 0;
-    ordered.forEach(function(st){ total += tally[st]; });
+    /* ⚠⚠ v3257b — THE DENOMINATOR WAS LITERALLY NaN, AND HAD BEEN. `ordered` carries every
+       station the river names, `tally` only the ones some card is at, so the first station with no
+       cards made this `0 + undefined` and every chip after it read "7 of the NaN stamped reel(s)".
+       Found by RENDERING it and reading the tooltip off his live console - the sibling law asserts
+       the phrase "of the N stamped reel(s)" is present, and NaN satisfies that perfectly. A number
+       nobody printed is a bug; a number printed as NaN is the same bug wearing a figure.
+       [[zero-needs-a-denominator]] [[regression-guard]] */
+    ordered.forEach(function(st){ total += (tally[st] || 0); });
+    /* ⚠⚠ v3257 — THE REMAINDER VANISHED WHENEVER ANY STATION WAS STAMPED. Konyo's shelf, measured
+       off his own screenshot: the chips summed to 12 and the header said "13 of 13". One card was
+       in no chip at all, including UNKNOWN, and nothing on screen accounted for it.
+       The accounting already existed — and only in the `!seen.length` branch, i.e. ONLY when
+       NOTHING was stamped. The moment one station had a reel, the very case where a missing card
+       is hardest to notice, it stopped being counted. A denominator that appears only when the
+       numerator is zero is not a denominator. [[zero-needs-a-denominator]]
+       ⚠ TWO DIFFERENT FACTS, KEPT APART, as v3215 established on the branch below: a card with a
+       `data-station-why` was WITHHELD BY THE CONSOLE ON PURPOSE (ambiguous session id, or a reel
+       the river has not routed). A card with neither a stamp nor a reason is the join failing.
+       Folding them would accuse the console of its own deliberate decision. */
+    var _rmWithheld = 0, _rmNoStamp = 0;
+    (cards || []).forEach(function(c){
+      if (c.getAttribute('data-station')) return;
+      if (c.getAttribute('data-station-why')) _rmWithheld++; else _rmNoStamp++;
+    });
     bar.innerHTML = ordered.map(function(st){
       var lab = (typeof SHELF_RIVER_LABELS !== 'undefined' && SHELF_RIVER_LABELS && SHELF_RIVER_LABELS[st]) || st;
       var on = (SHELF_F.station === st);
       var unknown = order && order.indexOf(st) < 0;
       var empty = !tally[st];
+      /* v3257 — THE RIVER'S OWN TRAJECTORY ANSWER, which this chip never asked for. `thru` is how
+         many reels have EVER been through this station, `never` is the river's own unreached list.
+         Both are null when the river did not report them, and null stays UNKNOWN rather than
+         collapsing into "never" - which is this whole defect, one level down. */
+      var thru = (SHELF_RIVER_VISITS && typeof SHELF_RIVER_VISITS[st] === 'number')
+               ? SHELF_RIVER_VISITS[st] : null;
+      var never = SHELF_RIVER_UNREACHED ? (SHELF_RIVER_UNREACHED.indexOf(st) >= 0) : null;
+      /* ⚠⚠ v3257b — A DAM: how many have LEFT this station, river-wide. Both terms come from the
+         RIVER, never from the shelf window, because subtracting a 13-card figure from a 63-reel
+         one is the denominator mistake this is here to end. null when either term is missing -
+         "nothing has left" and "nobody counted" are opposite facts. MEASURED on his river:
+         JOIN 14 in / 14 through / 0 out, CAPTURE 21 in / 21 through / 0 out. 35 of 63 reels sit
+         behind those two, and every other station drains. That is what "the river is not flowing"
+         actually was, and nothing on the screen could say it. [[unknown-stays-unknown]] */
+      var rHere = (SHELF_RIVER_COUNTS && typeof SHELF_RIVER_COUNTS[st] === 'number')
+                ? SHELF_RIVER_COUNTS[st] : null;
+      var left = (rHere !== null && thru !== null) ? (thru - rHere) : null;
+      var dammed = (left === 0 && rHere > 0);
+      var say;
+      if (!empty) {
+        /* ⚠ TWO POPULATIONS, NAMED. The first number is this shelf; the second is the whole
+           river. He read the pair as a fraction once, which is the screen's fault, not his. */
+        say = tally[st] + ' of the ' + total + ' stamped reel(s) ON THIS SHELF are at ' + lab
+            + ' right now';
+        if (rHere !== null) {
+          say += '. Across the WHOLE river, ' + rHere + ' sit here';
+          if (thru !== null) say += ' and ' + thru + ' have ever been through';
+          say += ' \u2014 these are different populations, not a fraction of one another';
+        } else if (thru !== null && thru > tally[st]) {
+          say += ', and ' + thru + ' have passed through it in all (whole river)';
+        }
+        if (dammed) {
+          say += '. NOTHING HAS EVER LEFT ' + lab + ' \u2014 every reel that reached it is still '
+               + 'here, which is where the river is actually stopping';
+        } else if (left !== null && left > 0) {
+          say += '. ' + left + ' have moved on from it';
+        }
+      } else if (never === true || thru === 0) {
+        say = 'no reel has EVER reached ' + lab + ' \u2014 the river counts 0 visits. That is the '
+            + 'actionable half of the picture, not a reason to hide the station';
+      } else if (rHere > 0) {
+        /* ⚠ v3257b — EMPTY ON THIS SHELF IS NOT EMPTY IN THE RIVER. The first cut printed
+           'the river flows here' on JOIN while the river held 14 reels there with NONE ever
+           leaving - the chip carried a dam mark and its own sentence contradicted it. The
+           shelf window is 13 cards; the river is 63 reels. Say which one is empty. */
+        say = 'none of the reel(s) on THIS SHELF is at ' + lab + ', but the river has '
+            + rHere + ' sitting there';
+        say += dammed
+          ? ' and NOT ONE HAS EVER LEFT \u2014 this is where the river is actually stopping'
+          : (left > 0 ? ' \u2014 ' + left + ' have moved on from it' : '');
+      } else if (thru > 0) {
+        say = 'none is at ' + lab + ' right now, and ' + thru + ' reel(s) have already passed '
+            + 'through it \u2014 the river flows here, it is simply not holding anything';
+      } else if (never === false) {
+        say = 'none is at ' + lab + ' right now. The river reports it HAS been reached before, '
+            + 'but not how many times';
+      } else {
+        say = 'none of the ' + total + ' stamped reel(s) on the shelf is at ' + lab + ' right now. '
+            + 'Whether any reel has EVER been through it is UNKNOWN \u2014 the river did not '
+            + 'report its visits';
+      }
       return '<button type="button" class="sh-chip sh-chip-st' + (on ? ' on' : '')
            + (unknown ? ' sh-chip-stunk' : '') + (empty ? ' sh-chip-stempty' : '')
+           + (empty && thru > 0 ? ' sh-chip-stflowed' : '') + (dammed ? ' sh-chip-stdam' : '')
            + '" data-f="st:' + escC(st) + '" title="'
-           + escC((empty
-                   ? 'NO reel has reached ' + lab + ' yet — which is the actionable half of the '
-                     + 'picture, not a reason to hide the station'
-                   : tally[st] + ' of the ' + total + ' stamped reel(s) on the shelf are at '
-                     + lab) + (unknown ? ' \u2014 a station the river order does not name, which is '
-                                     + 'worth knowing rather than hiding' : '')
+           + escC(say + (unknown ? ' \u2014 a station the river order does not name, which is '
+                                 + 'worth knowing rather than hiding' : '')
                   + '. Click to show only those.')
-           + '">' + escC(lab) + ' <b>' + (tally[st] || 0) + '</b></button>';
+           + '">' + escC(lab) + ' <b>' + (tally[st] || 0) + '</b>'
+           + (thru > 0 ? '<i class="sh-chip-thru">' + thru + '</i>' : '') + '</button>';
     }).join('');
+    /* v3257 — and it is PRINTED, beside the stations, so the two numbers he can see add up. */
+    if (_rmWithheld || _rmNoStamp) {
+      var _rmTip = (_rmWithheld
+            ? _rmWithheld + ' card(s) the console withheld a station from ON PURPOSE - a session '
+              + 'id shared by several runs, or a reel the river has not routed. Those carry their '
+              + 'own reason and are not a fault. '
+            : '')
+          + (_rmNoStamp
+            ? _rmNoStamp + ' card(s) carry no station AND no reason, which is the river and the '
+              + 'grid failing to meet on session id. '
+            : '')
+          + 'The station chips above count ' + total + ' stamped reel(s); this row shows '
+          + (cards || []).length + ' card(s) in all.';
+      bar.innerHTML += '<span class="sh-chip sh-chip-strem" title="' + escC(_rmTip) + '">'
+        + escC(_rmNoStamp ? 'no station' : 'withheld')
+        + ' <b>' + (_rmNoStamp || _rmWithheld) + '</b></span>';
+    }
     bar.hidden = false;
   }
   window._shStationChips = _shStationChips;
@@ -17103,6 +17246,7 @@ window._lockMark = function(isOpen, px, label){
          would leave it "reading" for ever and `{}` would draw four empty stations as though they
          were measured. Those are three different facts and only one of them is true. */
       SHELF_RIVER = false; SHELF_RIVER_WHY = why;
+      SHELF_RIVER_VISITS = null; SHELF_RIVER_UNREACHED = null; SHELF_RIVER_COUNTS = null;   /* null = nobody looked */
       /* the one-shot is released so a later open can try again — a bounded failure is recoverable,
          and pinning it closed would re-create the defect this fixes */
       try { window.__shRiverAsked = 0; } catch (e2) {}
@@ -17121,6 +17265,7 @@ window._lockMark = function(isOpen, px, label){
       if (!d || d.ok !== true){
         /* an unreadable river must not render as a river with nothing in it */
         SHELF_RIVER = false; SHELF_RIVER_WHY = String((d && d.why) || 'the river could not be read');
+        SHELF_RIVER_VISITS = null; SHELF_RIVER_UNREACHED = null; SHELF_RIVER_COUNTS = null;
       } else {
         var m = {};
         (d.detail || []).forEach(function(x){
@@ -17145,6 +17290,17 @@ window._lockMark = function(isOpen, px, label){
                      at: (hops.length ? hops[hops.length - 1].at : null), hops: hops.length };
         });
         SHELF_RIVER = m; SHELF_RIVER_ORDER = d.stations || null; SHELF_RIVER_WHY = '';
+        /* ⚠ ABSENT STAYS ABSENT. A river that answers without `visits` leaves this null, and the
+           chip then says the trajectory is UNKNOWN rather than inventing "never". */
+        SHELF_RIVER_VISITS = (d.visits && typeof d.visits === 'object') ? d.visits : null;
+        /* ⚠ v3257b — AND THE RIVER'S OWN OCCUPANCY. Konyo, reading the first cut: *"7 sitting, 21
+           through in all but why are these sitting? like 7 out of 21?"* — and he was right to ask,
+           because those two numbers had DIFFERENT DENOMINATORS and nothing said so. The 7 is out of
+           the 13 cards on his shelf; the 21 is out of the whole 63-reel river. Side by side with no
+           scale, it reads as a fraction. Carrying the river's own count lets the chip compare like
+           with like and say how many have actually LEFT. [[zero-needs-a-denominator]] */
+        SHELF_RIVER_COUNTS = (d.counts && typeof d.counts === 'object') ? d.counts : null;
+        SHELF_RIVER_UNREACHED = Array.isArray(d.unreached) ? d.unreached : null;
         /* v2987 — THE RIVER HAS FOUR LANES AND THE SHELF WAS THROWING THEM AWAY. Konyo,
            2026-09-12, on a screenshot of his own shelf: "i want it down a river lane. from
            top to bottom intake/WHATEVER IS REALLY FIRST and then tombstone at the bottom of

@@ -3822,7 +3822,13 @@ WATCHES = {
     # asks /api/river and compares the stamped population against the label map, so what it covers
     # is the station-chip row on the SHELF and the river strip those chips are drawn from. Named,
     # not empty: this check does render on a screen he opens, which is why it exists at all.
-    "the shelf tabs are his stations": ("shelf-cards", "river-strip", "console-tabs"),
+    # ⚠ v3257 — `sh-stationbar` JOINED. It is the element this row is actually named after: the
+    # station chips he reads the river off. It was painted, it could state a falsehood about the
+    # whole system (it told him "NO reel has reached JOIN" while 14 reels sat at JOIN with none
+    # ever leaving), and no organ named it. A surface that can lie earns a watcher - that is the
+    # heart's own rule, and the gap was on the one surface this check exists for.
+    "the shelf tabs are his stations": ("shelf-cards", "river-strip", "console-tabs",
+                                        "sh-stationbar"),
     # v3247 — the chip renders on the BOARD (bible.html), which this console does not paint, so
     # it names no console surface. The empty tuple is a DECLARATION, not an oversight: what this
     # check watches is the DOOR that feeds it, and that door has no id of its own.
