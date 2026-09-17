@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3250",
+  "ver": "v3251",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3250: he pressed auto sort twice and nothing moved because every unsorted item carries one suggestion, discard, and auto sort will not throw his items away. the sorter was right and the dock was right and the screen said neither, so the bar now carries the sorters own verdict. HEART: the reason is derived entirely board side from suggestMule, which is the same function the sorter itself uses, so there is no console door to watch and no second source to corroborate against. Its one failure mode is going silent, and test_the_dock_says_why_it_is_still_full runs the SHIPPED block in node and asserts it stays loud when a sorter is absent, when one item raises, and when the dock is mixed",
+  "note": "v3251: filed was the size of the assignment map rather than the owned names it files, so orphan rows counted and an empty locker value put one name in both totals. an unreadable set pieces or assign store collapsed into a confident none of them. a list of objects crashed the door. and the sentence claimed to be the dock count while being a wider population by three names",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

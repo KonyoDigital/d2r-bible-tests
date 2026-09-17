@@ -21791,24 +21791,56 @@ def vault_population(board=None):
         return {"ok": False, "owned": None, "byLocker": None,
                 "why": "d2r_owned did not come back as a list, so the population is UNKNOWN - "
                        "not empty"}
-    assign = _load("d2r_muleAssign")
-    assign = assign if isinstance(assign, dict) else {}
-    sets = _load("d2r_setPieces")
-    sets_s = set(sets if isinstance(sets, list) else (sets or {}).keys())
+    # ⚠ A LIST IS NOT NECESSARILY A LIST OF NAMES. `d2r_owned` as `[{"name": "Shako"}]` passes the
+    # isinstance check and then `set(owned)` raises TypeError on the unhashable dict — a crash in
+    # a door the heart reads, which renders as silence. This repo already sabotages that exact
+    # shape elsewhere. A non-string element is UNKNOWN, not something to guess at.
+    if any(not isinstance(n, str) for n in owned):
+        return {"ok": False, "owned": None, "byLocker": None,
+                "why": "d2r_owned holds %d non-string element(s), so what he owns is UNKNOWN - "
+                       "not empty" % len([n for n in owned if not isinstance(n, str)])}
+    # ⚠⚠ AN UNREADABLE SIDE STORE IS UNKNOWN TOO, and this collapsed it to a confident answer:
+    # a missing or unparseable `d2r_setPieces` made `sets_s` empty and the payload still said
+    # `ok: True, alsoSetPiece: 0, notSetPiece: <all of them>` — "none of your items are set
+    # pieces", stated from a store nobody could read. [[unknown-stays-unknown]]
+    assign_raw = _load("d2r_muleAssign")
+    sets_raw = _load("d2r_setPieces")
+    for nm, val in (("d2r_muleAssign", assign_raw), ("d2r_setPieces", sets_raw)):
+        if val is None:
+            return {"ok": False, "owned": None, "byLocker": None,
+                    "why": "%s could not be read, so how his items are classified is UNKNOWN - "
+                           "not none" % nm}
+    assign = assign_raw if isinstance(assign_raw, dict) else {}
+    sets_s = set(sets_raw if isinstance(sets_raw, list) else (sets_raw or {}).keys())
     owned_s = set(owned)
     by = {}
     for n in owned_s:
         k = assign.get(n) or "\u00abunfiled\u00bb"
         by[k] = by.get(k, 0) + 1
     unfiled = [n for n in owned_s if not assign.get(n)]
-    return {"ok": True, "owned": len(owned_s), "filed": len(assign), "setPieces": len(sets_s),
+    # ⚠ `filed` USED TO BE len(assign) — THE SIZE OF THE MAP, NOT THE NAMES IT FILES. bible.html
+    # documents the live case: a reload dropped `d2r_owned` and left `d2r_muleAssign` unchanged,
+    # "orphan rows pointing at nothing". Those rows kept counting. And a row whose value is ""
+    # was counted as filed here while being counted as UNFILED four lines up — the same name in
+    # both totals. It counts OWNED NAMES THAT HAVE A LOCKER, which is the only figure that can
+    # sit beside `unfiled` and add up. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+    filed = len(owned_s) - len(unfiled)
+    return {"ok": True, "owned": len(owned_s), "filed": filed, "setPieces": len(sets_s),
+            "assignRows": len(assign),
+            "orphanAssignRows": len([n for n in assign if n not in owned_s]),
             "byLocker": dict(sorted(by.items(), key=lambda kv: -kv[1])),
             "alsoSetPiece": len(owned_s & sets_s), "notSetPiece": len(owned_s - sets_s),
             "unfiled": len(unfiled),
             "unfiledSetPieces": len([n for n in unfiled if n in sets_s]),
             "unfiledOther": sorted(n for n in unfiled if n not in sets_s)[:20],
+            # ⚠ "the dock" IS A DIFFERENT POPULATION. The dock is `ownedPool()` minus assignment,
+            # and ownedPool drops aggregates, the shared stash, and names matching no item table —
+            # so this figure is NEAR the dock and is not it. Measured the same minute: 49 here, 46
+            # in the dock. Saying "which is what fills the dock" was an overreach by three names.
             "why": ("%d owned = %d that are NOT set pieces + %d that ALSO sit in d2r_setPieces. "
-                    "%d are filed to no locker, which is what fills the dock."
+                    "%d are filed to no locker (the dock is a NARROWER population - it also drops "
+                    "aggregates, the shared stash and unmatched names - so this is close to the "
+                    "dock count and is not it)."
                     % (len(owned_s), len(owned_s - sets_s), len(owned_s & sets_s), len(unfiled)))}
 
 
@@ -29425,7 +29457,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3250",
+        "ver": "v3251",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

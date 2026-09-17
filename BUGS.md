@@ -35640,3 +35640,42 @@ guard → red; removing the per-item `try` → red.
 crash" proves nothing about the inner guard. Its real job is that **one** item whose suggestion
 raises must not take the other 45 with it — a single bad name would turn a measured reason into
 silence, and silence is what he already read as a broken sorter. The law tests that now.
+
+## REG-1056 — the population door counted the map instead of the names, and called itself the dock
+
+**2026-09-17 · v3251 · `tv/control_app.py`** — *five findings from a cross-family review of v3249,
+the version that built the door.*
+
+**1. HIGH — `filed` was `len(assign)`, the SIZE OF THE MAP, not the names it files.** `bible.html`
+documents the live case: a reload dropped `d2r_owned` and left `d2r_muleAssign` unchanged —
+*"orphan rows pointing at nothing"* — and those rows kept counting. Worse, a row whose value is
+`""` counted as **filed** while counting as **unfiled** four lines up: the same name in both
+totals, so they could not add up. It counts owned names that have a locker now, and reports
+`assignRows` and `orphanAssignRows` separately. On his tree today: 173 / 173 / 0 — the old figure
+was right **only by luck**.
+
+**2. HIGH — it called itself the dock and is not.** The dock is `ownedPool()` minus assignment, and
+`ownedPool` also drops aggregates, the shared stash and names matching no item table. Measured the
+same minute: **49 here, 46 in the dock.** The `why` said *"which is what fills the dock"* —
+overreaching by three names, in the one sentence written to answer his question.
+
+**3. MEDIUM — an unreadable side store collapsed into a confident answer.** A missing or
+unparseable `d2r_setPieces` left `sets_s` empty and the payload still said `ok: True,
+alsoSetPiece: 0, notSetPiece: <all of them>` — *"none of your items are set pieces"*, from a store
+nobody could read. Same for `d2r_muleAssign`: *"he has filed nothing"* and *"we could not ask"* are
+different facts. Both are UNKNOWN now. `[[unknown-stays-unknown]]`
+
+**4. MEDIUM — `set(owned)` crashed on a list of objects.** `[{"name": "Shako"}]` passes
+`isinstance(list)` and then `set()` raises `TypeError` on the unhashable dict — a crash in a door
+the heart reads, which renders as silence. This repo already sabotages that exact shape elsewhere.
+
+⚠ One superseded law was TIGHTENED rather than deleted: it used to assert that with no
+`d2r_muleAssign` every name reads as unfiled. True-sounding, and a claim made from a store nobody
+could read.
+
+11 laws, red-proofed four ways — every sabotage red, each naming its own defect.
+
+⚠ **Seventh consecutive version in which a cross-family eye found real defects in my own work.**
+Not one has been a bad fix; each was correct and each carried a new defect one layer out. That is
+what building at this pace looks like from the outside, and it is the argument for the eye running
+on every version rather than when I remember. `[[review-after-ship]]`
