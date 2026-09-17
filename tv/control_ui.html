@@ -16930,9 +16930,23 @@ window._lockMark = function(isOpen, px, label){
          panel" he photographed earlier and I mis-attributed to a rejected thOpen().
          If THE SHELF was the door, ✕ closes everything. If he opened the shelf from inside the
          theatre, ✕ returns him to the REEL, which is where he actually was. */
-      if (e.target.closest && e.target.closest('#th-shelf-x')){
+      /* ⚠⚠ v3264 — ONE DISMISS, BECAUSE v2451 FIXED THIS AT ONE SITE AND LEFT ITS SIBLING
+         THIRTEEN LINES BELOW. The ✕ learned to leave the way he came in; the CLICK-OUTSIDE path
+         a few lines down still did a bare `ov.hidden = true`, so dismissing the shelf by clicking
+         beside a card left him on the same black rectangle v2451 exists to prevent — a stage he
+         never asked for, with no reel under it.
+
+         Reported as the real code debt on #229: *"outside-click on SHELF does not honor
+         shelfIsDoor, so it can leave a bare stage."* Correct, and it is the same two lines.
+
+         Extracted rather than copied: two call sites with the same rule is how the first one got
+         fixed alone. [[sweep-dont-ask]] [[copy-drift]] */
+      var _shDismiss = function(){
         ov.hidden = true;
         if (_thShelfWasTheDoor()) { try { thClose(); } catch(_e){} }
+      };
+      if (e.target.closest && e.target.closest('#th-shelf-x')){
+        _shDismiss();
         return;
       }
       var chip = e.target.closest && e.target.closest('.sh-chip');
@@ -16943,7 +16957,7 @@ window._lockMark = function(isOpen, px, label){
       var hi = e.target.closest && e.target.closest('.shi-clk');
       if (hi && hi.dataset.n){ _sessionDossier(Number(hi.dataset.n) || 1); return; }   // D17 — a highlight card jumps to that run's dossier
       var c = e.target.closest('.sh-card');
-      if (!c){ ov.hidden = true; return; }   // click-outside a card = dismiss
+      if (!c){ _shDismiss(); return; }   // click-outside a card = dismiss, the SAME way ✕ does
       _sessionDossier(Number(c.dataset.n) || 1);   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
     };
     };   // end _paintShelf
@@ -16968,9 +16982,30 @@ window._lockMark = function(isOpen, px, label){
     var _reopenClear = function(){
       if (!SHELF_F.station) return;
       var _ovc = $('th-shelfov'); if (!_ovc) return;
+      /* ⚠⚠ v3264 — "DID IT MATCH" IS NOT "IS IT ON SCREEN", AND v3263 ASKED THE WRONG ONE.
+         A cross-family review (v3263 look, xai) called this high severity and it REPRODUCED on his
+         live shelf the same minute:
+
+             station   cards  capped by the FIFO 8
+             CAPTURE     7         3
+             ROUTED      3         1
+             PRINTER     1         1   <- ALL of them
+             STATION     1         0
+
+         `PRINTER` — the one he reads as SEAL — has exactly one reel and the river cap hides it.
+         The first cut treated `data-river-out` as "did not match", so filtering to SEAL matched a
+         REAL reel, showed nothing because the CAP hid it, and this would have silently cleared the
+         filter he had just set. Taking his filter away is the one thing this must never do.
+
+         Two different reasons a card is off screen, and only one of them means "nothing matched":
+             style.display = 'none'   -> the FILTER rejected it        -> not a match
+             data-river-out           -> the FIFO cap hid it           -> IT MATCHED
+         So the test asks only about the filter. A filter whose matches are all past the river
+         stays, and the rail's "N past the river" is what explains the empty screen.
+         [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
       var _any = false, _cc = _ovc.querySelectorAll('.sh-card');
       for (var _q = 0; _q < _cc.length; _q++){
-        if (_cc[_q].style.display !== 'none' && !_cc[_q].getAttribute('data-river-out')){ _any = true; break; }
+        if (_cc[_q].style.display !== 'none'){ _any = true; break; }
       }
       if (_any) return;                       // it still matches — his filter, his business
       SHELF_F.station = null;

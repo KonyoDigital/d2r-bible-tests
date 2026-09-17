@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3263",
+  "ver": "v3264",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3263: grok bot ranked it second of four traps and it reproduced exactly. the shelf reopened with a station filter that survived the close so thirteen cards sat in the dom with every one filtered out and it read as broken. the clear runs only on open and only when the remembered filter would show nothing so a filter he just clicked is untouched. HEART: three red proofs and the law now pins every call site",
+  "note": "v3264: outside click on the shelf did not honor shelfIsDoor so it could leave him on a bare stage, and v3263 clear could have taken a filter away when its only matches were past the fifo cap. HEART: one dismiss for both paths and the match test asks the filter not the screen, five red proofs",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

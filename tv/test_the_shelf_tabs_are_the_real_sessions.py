@@ -407,6 +407,18 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                       "the clear does not check whether the remembered filter still MATCHES, so "
                       "it would throw away a filter he deliberately left on and that still shows "
                       "him something")
+        # ⚠⚠ AND "MATCHED" MEANS THE FILTER, NOT THE SCREEN. v3263's first cut also treated a card
+        # hidden by the FIFO cap (`data-river-out`) as "did not match" — and a cross-family review
+        # reproduced it on his live shelf: PRINTER (he reads it as SEAL) holds exactly ONE reel and
+        # the cap hides it, so filtering to SEAL matched a real reel, showed nothing because of the
+        # CAP, and the filter he had just set would have been cleared out from under him.
+        #     style.display = 'none'  -> the FILTER rejected it  -> not a match
+        #     data-river-out          -> the FIFO cap hid it     -> IT MATCHED
+        # Taking his filter away is the one thing this must never do.
+        _loop = body[body.find("for (var _q"):body.find("if (_any) return;")]
+        self.assertNotIn("data-river-out", _loop,
+                         "the match test counts a FIFO-capped card as 'did not match', so a filter "
+                         "whose reels are all past the river gets cleared even though it matched")
         self.assertIn("SHELF_F.station = null", body,
                       "the clear never actually clears the station")
         # and it must be REACHED from the open path, not merely defined
@@ -423,6 +435,43 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("if (_had) { _paintShelf(); _reopenClear(); }", src,
                       "the CACHED open path does not clear — that is the re-open path, the one "
                       "the trap was reported on")
+
+    def test_EVERY_dismiss_leaves_the_way_he_came_in(self):
+        """★ THE REAL CODE DEBT, filed as #229: *"outside-click on SHELF does not honor
+        shelfIsDoor, so it can leave a bare stage."*
+
+        v2451 taught the ✕ to leave the way he came in — if THE SHELF was the door, closing it
+        closes everything; if he opened the shelf from inside the theatre, it returns him to the
+        reel. That fix was applied at ONE site and its sibling THIRTEEN LINES BELOW — the
+        click-outside-a-card dismiss — kept doing a bare `ov.hidden = true`. Dismissing by clicking
+        beside a card left him on the same black rectangle v2451 exists to prevent.
+
+        ⚠ THE LAW IS THAT THERE IS ONE DISMISS, not that two sites each remember. Two call sites
+        with the same rule is exactly how the first one got fixed alone. [[sweep-dont-ask]]
+
+        Verified on pixels: shelf opened as the door -> theatre flex 1044x978; outside-click
+        dismiss -> theatre display:none, box [0,0]. No bare stage.
+        """
+        src = _py_only(self.src)
+        i = src.find("var _shDismiss = function()")
+        self.assertGreater(
+            i, -1,
+            "there is no single dismiss for the shelf, so the ✕ and the click-outside paths each "
+            "carry their own rule and one of them will be fixed alone again")
+        body = src[i:i + 320]
+        self.assertIn("_thShelfWasTheDoor()", body,
+                      "the shared dismiss does not ask whether THE SHELF was the door, so it can "
+                      "leave him on a bare stage with no reel under it")
+        self.assertIn("thClose()", body,
+                      "the shared dismiss never closes the stage it opened")
+        # ⚠ BOTH paths must GO THROUGH it — a helper nothing calls is the defect wearing a fix
+        self.assertNotIn("if (!c){ ov.hidden = true; return; }", src,
+                         "the click-outside dismiss still hides the overlay directly instead of "
+                         "going through the shared dismiss — the bare-stage path is back")
+        self.assertGreaterEqual(
+            src.count("_shDismiss()"), 2,
+            "the shared dismiss is reached from fewer than both paths, so one of ✕ / "
+            "click-outside still carries its own rule")
 
     # ── a class nobody styles is a flag nobody can see ───────────────────────────────────
     def test_every_class_the_BUILDER_EMITS_is_actually_styled(self):

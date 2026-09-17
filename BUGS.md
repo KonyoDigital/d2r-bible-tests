@@ -36445,3 +36445,79 @@ one by name. Three red-proofs, all RED.
 
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
+
+## REG-1073 — outside-click on THE SHELF left a bare stage, because v2451 fixed one site and not its sibling
+
+Filed as **#229**: *"The real code debt is outside-click on SHELF. It does not honor shelfIsDoor,
+so it can leave a bare stage."* Correct, and it is the same two lines that were already written.
+
+**v2451** taught the ✕ to leave the way he came in — if THE SHELF was the door, closing it closes
+everything; if he opened the shelf from inside the theatre, it returns him to the reel. Its own
+note says it was measured against *"a black rectangle he never asked for"*.
+
+That fix landed at ONE site. Its sibling **thirteen lines below** — the click-outside-a-card
+dismiss — kept doing a bare `ov.hidden = true`:
+
+```js
+if (e.target.closest('#th-shelf-x')){ ov.hidden = true;
+                                      if (_thShelfWasTheDoor()) thClose(); return; }   // fixed
+...
+if (!c){ ov.hidden = true; return; }   // click-outside a card = dismiss                 NOT fixed
+```
+
+So dismissing the shelf by clicking beside a card left him on exactly the black rectangle v2451
+exists to prevent. `[[sweep-dont-ask]]` — the handed fix was applied and its sibling was not swept.
+
+**Extracted, not copied.** Both paths now go through one `_shDismiss()`, because two call sites
+carrying the same rule is precisely how the first one got fixed alone. `[[copy-drift]]`
+
+VERIFIED ON PIXELS, opening the shelf AS THE DOOR from a cold console:
+
+```
+0. cold console          theatre hidden, box [0,0]
+1. shelf opened as door  theatre flex, box [1044, 978]
+2. outside-click dismiss theatre display:none, box [0,0]   <- no bare stage
+```
+
+GATE: `test_EVERY_dismiss_leaves_the_way_he_came_in` — there is ONE dismiss, it asks
+`_thShelfWasTheDoor()`, it closes the stage, the bare `ov.hidden = true` form is gone, and BOTH
+paths actually reach it (a helper nothing calls is the defect wearing a fix). Three red-proofs,
+all RED.
+
+⚠ DELIBERATELY NOT TOUCHED, per #229: the v3259 CAPTURE rail is not rebuilt, and **Esc on an empty
+console POSTing /api/quit is intentional and HIS CALL** — v3262 only made that route say WHO asked,
+which changes no behaviour and is not a silent fix of it.
+
+⚠ ALSO RECORDED FROM #229, correcting a Grok Bot finding I had taken at face value: vault drag to
+mule / section lanes is **YES on the BOARD vault in bible.html**; the console proposal panel is
+**not a drag surface**, so "drag Dock→Shared moved nothing" was driving a surface that never
+dragged. `KEEP_MIN_WITNESSES=2` and the `vault_apply` re-gate are WIRED.
+
+### v3264 addendum — REG-1072's clear could have taken his filter away
+
+A cross-family review of v3263 (xai) called this **high severity**, and it **reproduced on his live
+shelf the same minute**:
+
+```
+station    cards   capped by the FIFO 8
+CAPTURE      7          3
+ROUTED       3          1
+PRINTER      1          1     <- ALL of them
+STATION      1          0
+```
+
+`PRINTER` — the station he reads as **SEAL** — holds exactly one reel, and the river cap hides it.
+REG-1072's match test treated `data-river-out` as *"did not match"*, so filtering to SEAL matched a
+REAL reel, showed nothing **because of the cap**, and on the next open the filter he had just set
+would have been **silently cleared out from under him**. Taking his filter away is the one thing
+that fix must never do.
+
+Two different reasons a card is off screen, and only one of them means nothing matched:
+
+| how it is hidden | meaning |
+|---|---|
+| `style.display = 'none'` | the FILTER rejected it — **not a match** |
+| `data-river-out` | the FIFO cap hid it — **it matched** |
+
+The test now asks only about the filter. A filter whose matches are all past the river stays, and
+the rail's *"N past the river"* is what explains the empty screen. Two red-proofs, both RED.
