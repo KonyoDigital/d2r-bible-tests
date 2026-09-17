@@ -885,6 +885,16 @@
   "purpose": "Grades the LIVE console's /api/status uiBeat — panel geometry (ZERO-HEIGHT / OFF-SIDE / BELOW-FOLD / ON-SCREEN) plus whether the Advanced drawer's fill and refreshers actually ran.",
   "territory": "console-ui"
  },
+ "live_store.py": {
+  "entryPoints": [
+   "LIVE_STORE_MARK",
+   "missing",
+   "require"
+  ],
+  "gotcha": "⚠ A SKIP IS NOT A PASS, which is the whole reason the MARK is a constant and not a sentence typed per call: `test_a_live_store_skip_is_counted` greps for it and asserts the population, so a gate that quietly stops asserting still shows up as a number. ⚠ It opens nothing itself — callers hand it paths — so it is NOT a declared toucher of any store in store_owners.STORES, and it must not become one. Its module docstring names those stores in a table, which is exactly the prose that made the coupling graph report it as an undeclared writer until `_code_only` learned to strip docstrings (v3246). ⚠ `missing()` answers ABSENT, never EMPTY — a store that exists and holds nothing is a measurement and must reach the assertion.",
+  "purpose": "The one door a gate goes through when it needs a store that exists only on HIS Mac (tv/chron_evidence.json, the vault accumulator, ~/d2r_ledger_backups). `missing(*paths)` names which of them are absent; `require(case, *paths, why=)` skips the case with LIVE_STORE_MARK in the reason so the skip is COUNTED rather than silent. REG-1050: eleven gates were RED on origin and GREEN here, and neither verdict was about the shipped code — they were reading his untracked machine.",
+  "territory": "gates-proofs"
+ },
  "lock_evidence_corroborate.py": {
   "entryPoints": [
    "corroborate",

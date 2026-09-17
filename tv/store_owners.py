@@ -258,13 +258,32 @@ def _modules():
 
 
 def _code_only(src):
-    """`src` with whole-line comments removed. -> str
+    """`src` with comments AND DOCSTRINGS removed; ordinary string literals KEPT. -> str
 
-    Only `#`-leading lines are dropped: a store named inside a string literal on a code line is a
-    real reference and must keep counting. This is deliberately not a tokeniser — it answers the
-    one question that was being got wrong, which is whether a mention is executable at all.
+    ⚠⚠ v3246 — A DOCSTRING IS PROSE, AND THIS FUNCTION USED TO COUNT IT AS CODE. The rule below
+    about string literals is right and stays: a real toucher opens a store BY NAME —
+    `os.path.join(HERE, "vault_accum.json")` — and that name is a string, so stripping all strings
+    would blind the graph to every genuine coupling. But a DOCSTRING is not a reference at all,
+    and this dropped only `#`-leading lines, so prose in a triple-quoted block counted as a touch.
+    Measured: `live_store.py` was reported as an undeclared toucher of `vault_accum.json` on the
+    strength of ONE LINE OF ITS MODULE DOCSTRING — a table of his untracked stores explaining why
+    the module exists. It opens nothing; it is handed paths by its callers.
+
+    ⚠ THIS IS NOT A SECOND IMPLEMENTATION. `frame_authority._executable_only` already answers
+    exactly this question, for exactly this reason, and it is the one that carries the evidence:
+    it was written after prose-named reels held 4.8 GB of his footage under a false reason. Two
+    strippers with one job drift, and the weaker one is always the one still running somewhere.
+    [[copy-drift]] [[source-reading-guard]] [[feedback-comments-vs-code]]
+
+    The fallback is the OLD behaviour, deliberately: if that import ever fails, this must still
+    strip comments rather than count them, because holding a false coupling is quieter than
+    dropping a real one.
     """
-    return "\n".join(l for l in src.split("\n") if not l.lstrip().startswith("#"))
+    try:
+        from frame_authority import _executable_only
+        return _executable_only(src, ".py")
+    except Exception:
+        return "\n".join(l for l in src.split("\n") if not l.lstrip().startswith("#"))
 
 
 def audit():
@@ -310,7 +329,16 @@ def audit():
         # under a name nobody re-checked.
         rows.append({
             "store": store, "owner": owner, "holds": spec["holds"],
-            "ownerMentionsIt": owner in touching,
+            # ⚠ v3246 — THE WEAK QUESTION, ANSWERED WITH THE STRICT SET. This read `touching`,
+            # which is the comment-free scan built for the OTHER question. The paragraph
+            # directly above says these two are asked differently on purpose, and this line
+            # sat one statement before it doing the opposite. It only stayed quiet because
+            # `_code_only` still counted docstrings: `vault_retro` names vault_accum.json
+            # nowhere but its docstring, so the moment the strict scan became correctly
+            # strict, the owner of a store it genuinely owns was reported as never having
+            # heard of it. "Does this module refer to the store at all" is the prose-
+            # inclusive question, and `mentions` is the set that answers it.
+            "ownerMentionsIt": owner in mentions,
             "declared": len(declared), "touching": len(touching),
             "undeclared": undeclared, "stale": stale,
         })

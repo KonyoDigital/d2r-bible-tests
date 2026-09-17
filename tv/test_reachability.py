@@ -189,6 +189,13 @@ _DECL_PATTERNS = [re.compile(p) for p in (
     r"([A-Za-z_$][\w$]*)\s*[:=]\s*(?:async\s+)?function",
     r"([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>",
 )]
+#: a function's parameter list — `function f(a, b)`, `function (a, b)`, `f: function (a)`.
+#: Defaults and destructuring are deliberately not parsed: a name that does not match _NAME_RX is
+#: skipped rather than guessed at, so this can only ever ADD real identifiers.
+_PARAM_RX = re.compile(r"function\s*[A-Za-z_$][\w$]*\s*\(([^)]*)\)"
+                       r"|function\s*\(([^)]*)\)")
+_NAME_RX = re.compile(r"^[A-Za-z_$][\w$]*$")
+
 _GUARD_PATTERNS = [
     re.compile(r"typeof\s+([A-Za-z_$][\w$]*)\s*===?\s*['\"]function['\"]"),
     re.compile(r"typeof\s+window\.([A-Za-z_$][\w$]*)\s*===?\s*['\"]function['\"]"),
@@ -254,6 +261,36 @@ def scan_symbols(path):
                 continue
             for p in _DECL_PATTERNS:
                 declared.update(m.group(1) for m in p.finditer(line))
+            # ⚠⚠ A PARAMETER IS A DECLARATION, and leaving it out flagged the most ordinary
+            # defensive idiom there is. MEASURED 2026-09-17: v3247 added
+            #     function _vaultAskProven(then){ ... if (typeof then === 'function') then(); }
+            # and this law reported "the guarded symbol 'then' is declared nowhere — permanently
+            # false, the branch never runs". It is a parameter, the caller passes
+            # `function(){ renderVault(); }`, and the branch runs every time the ask succeeds.
+            #
+            # Every optional callback added from here on would have been flagged the same way, and
+            # a law that cries wolf on a correct idiom is one whose next red gets waved through —
+            # the exact cost this repo measured when Routine M was correctly red for ten runs and
+            # walked past every time.
+            #
+            # ⚠ THE PRECISION COST, STATED: parameters are collected file-wide, not per-scope, so
+            # a guard naming a symbol that merely shares a name with some unrelated function's
+            # parameter is no longer flagged. That is a real loss and it is the smaller one — the
+            # alternative is a permanent false positive on every `function f(cb)`. The file's own
+            # rule already chose this direction: "Conservative in the safe direction — missing one
+            # is survivable in a way that fabricating three is not."
+            # [[regression-guard]] [[feedback-comments-vs-code]]
+            for m in _PARAM_RX.finditer(line):
+                # ⚠ TWO ALTERNATIVES, TWO GROUPS — group(1) is None whenever the ANONYMOUS form
+                # matched, and `.split` on None is an AttributeError that takes the whole law
+                # down. Caught in the first run after adding it.
+                for grp in (m.group(1), m.group(2)):
+                    if not grp:
+                        continue
+                    for raw in grp.split(","):
+                        nm = raw.strip()
+                        if _NAME_RX.match(nm):
+                            declared.add(nm)
             for p in _GUARD_PATTERNS:
                 for m in p.finditer(line):
                     guarded.setdefault(m.group(1), n)

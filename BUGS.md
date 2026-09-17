@@ -35751,3 +35751,51 @@ data.
 Measured both venues: with his stores, **19 ran, 0 skipped**, examining 60 names against 49 banked.
 Without them, **19 ran, 3 skipped, 0 failures** — the other 16 laws in the file still execute, so
 this is a scoped stand-down and not a file-wide green.
+
+## REG-1059 — three gates went red on my own new file, and two were the LAW being wrong
+
+Adding `tv/live_store.py` (REG-1050) turned three gates red. None was a defect in the new module;
+two were laws that had been quietly wrong for versions and only now had an input that showed it.
+
+**1. `test_reachability` — a parameter is a declaration.** v3247 added the most ordinary idiom in
+JavaScript:
+
+```js
+function _vaultAskProven(then){ ... if (typeof then === 'function') then(); }
+```
+
+and the law reported *"the guarded symbol 'then' is declared nowhere"*. `_DECL_PATTERNS` covered
+`var`/`let`/`const`/`function f()`/assigned arrows and had **no pattern for a parameter list**.
+Every optional-callback the repo ever adds would have been flagged identically. Fixed with
+`_PARAM_RX`; the precision cost is stated in the code — parameters are collected file-wide, not
+per-scope, which the law already does for every other declaration form.
+RED-PROOF: a genuinely absent symbol still fails —
+`bible.html:39213 — the guarded symbol '_totallyUndeclaredSymbol_zz' is declared nowhere`.
+
+**2. `test_store_owners` — a DOCSTRING is prose, and the coupling graph counted it as code.**
+`live_store.py` was named an undeclared toucher of `vault_accum.json` on the strength of **one
+line of its module docstring**, a table of his untracked stores explaining why the module exists.
+It opens nothing — callers hand it paths. `_code_only` dropped only `#`-leading lines.
+
+⚠ The fix was NOT to write a docstring stripper. `frame_authority._executable_only` already is
+one, written for the same reason after prose-named reels held **4.8 GB** of his footage under a
+false reason. `_code_only` now delegates to it, with the old behaviour as the fallback, because
+two strippers with one job drift and the weaker one is always the one still running. `[[copy-drift]]`
+
+**3. …which exposed the real defect: the weak question was being answered with the strict set.**
+`ownerMentionsIt` read `touching` — the comment-free scan built for the *other* question. The
+paragraph directly above it in `store_owners.py` says the two are asked differently on purpose
+(UNDECLARED is strict and code-only; STALE is prose-inclusive, because paths are threaded through
+helpers and a strict scan would report 4 legitimate owners as stale). That line sat one statement
+before the paragraph doing the opposite. It stayed quiet only while `_code_only` counted
+docstrings — so the moment the strict scan became correctly strict, **`vault_retro` was reported
+as never having heard of the store it owns**. Now reads `mentions`.
+RED-PROOF: pointing the store at an owner that names it nowhere → `ownerMentionsIt: False`.
+RED-PROOF: an executable `open("vault_accum.json")` in an undeclared module → still caught.
+
+**4. `test_the_blueprint_names_the_engine`** — `live_store.py` was absent from the 187-module
+curated `tv/engine_index.json`. Added as the 188th, same as `heart_map.py` at REG-1041.
+
+The lesson is the one already carved: a new file is a new INPUT, and an input a law has never seen
+is the only thing that can tell you the law was wrong. Two of these four had been wrong for
+versions with every gate green. `[[regression-guard]]` `[[source-reading-guard]]`
