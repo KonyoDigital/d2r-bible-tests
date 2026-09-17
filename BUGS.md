@@ -35409,3 +35409,40 @@ It now walks the assignment and requires: the test is `want is None`; the count-
 `.replace` with exactly **2** arguments; the declared-count branch calls it with **3**, the third
 being `want`. Red-proofed against all three wrong ternaries above — each goes red.
 `[[regression-guard]]` — pin the law, not the spelling.
+
+## REG-1050 — eleven gates were red on origin and green here, and neither verdict was about the code
+
+**2026-09-17 · v3245 · `tv/live_store.py`, `tv/test_a_live_store_skip_is_counted.py`**
+
+Once the code-level CI reds were cleared (28 → 13 on origin, measured across five runs), what
+remained shared one cause. These gates read stores that exist **only on his machine**:
+
+```
+tv/chron_evidence.json    2,210,553 bytes locally · NOT tracked -> absent in CI
+tv/vault_accum.json          96,485 bytes locally · NOT tracked -> absent in CI
+~/d2r_ledger_backups/            73 files         · outside the repo entirely
+```
+
+In CI those reads return None or 0, and the gate fails with `AssertionError: None != 100.0`,
+`the vault bank holds no named rows`, `chron_evidence.json unreadable`, `no ledger backup exists
+yet` — **sentences that read as product defects and are statements about a runner having no data.**
+On his Mac the same gates pass. Neither verdict is about the shipped code.
+
+⚠ **They cannot simply be committed.** `chron_evidence.json` is 2.2 MB of HIS ledger evidence and
+this repo is PUBLIC.
+
+**Built:** `live_store.require(case, *paths, why=...)` stands a gate down with a reason, the file
+named, and a recognisable `LIVE_STORE_MARK` — plus `test_a_live_store_skip_is_counted.py`, which
+globs for that mark and **prints the population and the names**, so the number lands on a screen
+instead of dissolving into a green run. Deliberately the same shape as `node unavailable — a skip
+is NOT a pass`: one venue, one mark, one counter.
+
+⚠ **The helper refuses to excuse a venue that HAS the data** — pinned by a law — because a skip
+taken where the store exists destroys the only distinction it is for: *"nobody could look"* versus
+*"it looked and the answer was wrong"*. `[[regression-guard]]` `[[unknown-stays-unknown]]`
+
+⚠ **NOT yet applied to the eleven.** Each reads its store INDIRECTLY through a module, so which
+store empties in CI has to be read off that gate's own CI failure rather than grepped. Skipping a
+gate for the wrong reason is worse than the red it replaces, so the mechanism ships first and the
+application is per-gate, with its CI line as the evidence. Current population: **0**, which the
+law prints honestly.

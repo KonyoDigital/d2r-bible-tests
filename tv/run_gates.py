@@ -155,6 +155,13 @@ GATES = [
              "runner, so Routine G scored 7/8 and stayed red on the absence of a desktop app "
              "beside 320/320 items and 0 page errors. Pins the bucket is narrow (other loopback "
              "ports still gate) and still PRINTED, using the audit's OWN regexes"),
+    Gate("test_live_store_skip", [sys.executable,
+                                  os.path.join(HERE, "test_a_live_store_skip_is_counted.py")], 60,
+         why="REG-1050 — eleven gates read stores that exist only on his Mac (chron_evidence.json "
+             "2.2MB untracked, vault_accum.json, 73 ledger backups outside the repo), so they "
+             "were RED on origin and GREEN here and neither was about the code. The helper skips "
+             "with a MARK and this counts the population, because a silent skip is the same "
+             "defect as a green that lies"),
     Gate("test_countless_proof", [sys.executable,
                                   os.path.join(HERE, "test_a_countless_proof_can_still_tamper.py")], 60,
          why="REG-1048 — a proof with no declared match count reached str.replace as its count, "

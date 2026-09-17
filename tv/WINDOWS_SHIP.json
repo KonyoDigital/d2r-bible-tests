@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3244",
+  "ver": "v3245",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3244: the node probe modelled an element with only innerHTML while the shipped renderer also asks it for a fold child, so three laws failed on a harness gap. and the button matrix gave a freshly booted console three seconds for a call this repo has profiled at nineteen and a half seconds cold",
+  "note": "v3245: eleven gates read stores that exist only on his mac, so they failed on the runner and passed here while neither verdict was about the shipped code. the helper stands a gate down with the file named and a mark, and a watchdog prints the population, because a silent skip is the same defect as a green that lies",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
