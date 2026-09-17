@@ -2122,7 +2122,18 @@ def _check_the_river_joints_carry():
                          % (dry, n, (", %d unmeasured" % unk) if unk else "",
                             say or ("first blockage: %s" % first)))
     if unk:
-        return UNKNOWN, "%d of %d joint(s) could not be measured" % (unk, n)
+        # ⚠⚠ v3269 — AND THIS SENTENCE SWALLOWED THE ONE v3267 ADDED. The branches are ordered
+        # unk-before-ub, which is right (unmeasured outranks unbuilt), but the sentence named only
+        # the unmeasured ones — so on his live tree, with `gate` UNKNOWN and `slot` UNBUILT, the
+        # row read "1 of 11 joint(s) could not be measured" and the unbuilt joint was INVISIBLE.
+        # That is the quiet corner v3267's own comments warn about, built one branch above the
+        # guard that was supposed to prevent it. A precedence rule decides which fact LEADS, never
+        # which facts are REPORTED. [[the-unjoined-end]] [[zero-needs-a-denominator]]
+        return UNKNOWN, ("%d of %d joint(s) could not be measured%s"
+                         % (unk, n,
+                            ("" if not ub else
+                             "; a further %d has never been built or switched on — %s"
+                             % (ub, say or "see the river"))))
     if ub:
         # ⚠ NOT MISSING. Nothing is broken and nothing here is mine to fix — the remedy is a
         # decision he has not made (authorising the live hover autopilot). Reporting it red would

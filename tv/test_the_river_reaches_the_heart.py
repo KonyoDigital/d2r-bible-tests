@@ -416,6 +416,27 @@ class TheRiverNamesTheRightCulprit(unittest.TestCase):
         self.assertIn("slot", rep["say"])
         self.assertIn("never been built or switched on", rep["say"])
 
+    def test_an_UNMEASURED_joint_does_not_SWALLOW_the_unbuilt_one(self):
+        """★ v3269 — the quiet corner built one branch above the guard meant to prevent it.
+        The row checks `unk` before `ub`, which is the right precedence, and then named only the
+        unmeasured joints. MEASURED on his live tree: `gate` UNKNOWN + `slot` UNBUILT produced
+        "1 of 11 joint(s) could not be measured" and the unbuilt joint vanished from the sentence.
+        A precedence rule decides which fact LEADS, never which facts are REPORTED."""
+        import river as _rv
+        real_t, real_s = _rv.trace, _rv.summary
+        _rv.trace = lambda: [{"joint": "a", "state": _rv.CARRIES, "why": ""},
+                             {"joint": "gate", "state": _rv.UNKNOWN, "why": "no store"},
+                             {"joint": "slot", "state": _rv.UNBUILT, "why": "never switched on"}]
+        _rv.summary = lambda rows=None: {"say": "slot has never been built",
+                                         "firstBlockage": None, "awaiting": "slot"}
+        try:
+            st, say = dict(D.CHECKS)["river joints"]()
+        finally:
+            _rv.trace, _rv.summary = real_t, real_s
+        self.assertIn("could not be measured", say, "the unmeasured joint stopped leading")
+        self.assertIn("never been built or switched on", say,
+                      "the UNBUILT joint was swallowed by the unmeasured sentence")
+
     def test_the_DOCTOR_does_not_report_ALL_JOINTS_CARRY_over_an_unbuilt_one(self):
         """⚠ THE THIRD CONSUMER. The row counted DRY and UNKNOWN only, so a new state word would
         have fallen through to OK, "all 11 river joint(s) carry" — green over a joint that has

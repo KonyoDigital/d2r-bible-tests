@@ -36446,6 +36446,33 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1079 — the unmeasured sentence swallowed the unbuilt one, in the guard written to prevent exactly that
+
+v3267 added the UNBUILT state and a branch so an unbuilt joint could never hide inside
+"all N river joint(s) carry". One branch ABOVE that guard, the row reads:
+
+```python
+if unk:
+    return UNKNOWN, "%d of %d joint(s) could not be measured" % (unk, n)
+if ub:
+    ...
+```
+
+The precedence is right — an unmeasured joint outranks an unbuilt one — but the sentence named
+only the unmeasured ones. MEASURED on his live tree the hour v3267 landed, with `gate` UNKNOWN and
+`slot` UNBUILT:
+
+```
+river joints   unknown   1 of 11 joint(s) could not be measured
+```
+
+**The unbuilt joint was invisible.** The quiet corner I wrote two guards against in the same file,
+rebuilt one branch higher by an ordering decision.
+
+**The rule this makes explicit: a precedence rule decides which fact LEADS, never which facts are
+REPORTED.** Fixed in v3269 — the unmeasured sentence carries the unbuilt count and its reason.
+Two sabotages, both RED.
+
 ## REG-1078 — the doctor counted a switched-off laptop as a ledger figure out of date
 
 The `ledger staleness` row read:
