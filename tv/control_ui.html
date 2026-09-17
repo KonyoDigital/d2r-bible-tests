@@ -6074,6 +6074,28 @@
   #ver-xref .fx-head, #heart-ov .fx-head { position: relative; padding-right: 40px; }
   #ver-xref .fx-head .th-x, #heart-ov .fx-head .th-x { position: absolute; right: 0; top: -2px; }
   #ver-xref .vx-sec { margin: 0 0 18px; }
+  /* ⚠ v3283 — THE LEAD, and it is the first thing he reads. The brief asked for sentences he can
+     act on in under 5s, so this sits above every section and carries no jargon: which Chiliad he
+     is in, then what is waiting on HIM / on CODE / not measured at all. A zero is stated out loud
+     ("nothing is waiting on you") rather than omitted — that is the answer he came for. */
+  #ver-xref .vx-lead { border: 1px solid rgba(240,192,96,.22); border-radius: 10px;
+    padding: 12px 14px; background: rgba(240,192,96,.05); }
+  #ver-xref .vx-lead-l { font-size: var(--fs-lg); font-weight: var(--fw-bold); color: var(--gold);
+    letter-spacing: var(--ls-wide); }
+  #ver-xref .vx-lead-v { font-size: var(--fs-2xs); color: var(--gold-dim); letter-spacing: var(--ls-normal);
+    font-weight: var(--fw-semibold); }
+  /* ⚠ `--text`, not `--ink`. The gate caught it: "var(--ink) is used with no fallback and never
+     defined" — I reached for a token from a sibling file. An undefined custom property with no
+     fallback resolves to nothing, so the sentence would have inherited whatever it landed on.
+     A colour that is not defined is not a colour. [[copy-drift]] */
+  #ver-xref .vx-lead-s { margin-top: 6px; font-size: var(--fs-sm); color: var(--text); line-height: 1.45; }
+  /* the machine detail, tucked — one click away, no longer the first wall he meets */
+  #ver-xref .vx-fold { margin-top: 6px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+  #ver-xref .vx-fold > summary { cursor: pointer; font-size: var(--fs-2xs); color: var(--gold-dim);
+    letter-spacing: var(--ls-wide); text-transform: uppercase; font-weight: var(--fw-bold);
+    padding: 4px 0; list-style: revert; }
+  #ver-xref .vx-fold > summary:hover { color: var(--gold); }
+  #ver-xref .vx-fold[open] > summary { margin-bottom: 10px; }
   #ver-xref .vx-h { margin: 0 0 7px; font-size: var(--fs-2xs); letter-spacing: var(--ls-widest);
     text-transform: uppercase; color: var(--gold-dim); font-weight: var(--fw-bold);
     border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 5px; }
@@ -12640,9 +12662,6 @@ window._lockMark = function(isOpen, px, label){
 
     /* ── 3. WHAT NEEDS YOU ────────────────────────────────────────────────────────────────── */
     var eRows = [];
-    if (e.needsYou != null) eRows.push(_vxRow('waiting on you', e.needsYou, 'rows the readers could not settle'));
-    if (e.unknown != null)  eRows.push(_vxRow('can\'t ask', e.unknown, 'designed refusals and closed windows — not a fault'));
-    if (e.mine != null)     eRows.push(_vxRow('mine to fix', e.mine, 'flagged for the engines, not for you'));
     /* ══ v2397 — THE FAILING CHECKS THEMSELVES, not just how many there are ═════════════════
        Konyo, on the footer hover: "this tooltip here is pointless — anything needed put it in the
        opened window when clicked, not like this. i dont want this mess when i hover over it all
@@ -12663,12 +12682,29 @@ window._lockMark = function(isOpen, px, label){
       var tone = r.state === 'missing' ? 'warn' : '';
       return _vxRow(r.check, word, r.why || '', tone);
     }
-    (e.rows || []).forEach(function (r) {
-      var h = _vxHealthRow(r); if (h) eRows.push(h);
-    });
-    (e.slowRows || []).forEach(function (r) {
-      var h = _vxHealthRow(r); if (h) eRows.push(h);
-    });
+    /* ⚠⚠ v3283 — THE SPLIT ALREADY EXISTED IN THE PAYLOAD AND THE PANEL THREW IT AWAY.
+       Grok Bot's brief #5719843089, for Konyo: CHILIAD should get *"the same treatment as the
+       other upgraded sections ... logic that renders, and HUMAN logic — not a raw doctor dump"*,
+       and specifically *"separate 'needs Elad' vs 'needs Claude' in the panel (two lists). Eyes
+       keep finding fleet-never-asked, missing swept stores, engine/ledger disagree — those must
+       not all look the same."*
+       MEASURED on his live console before writing a line: `eagle` already publishes
+           needsYou 8 · mine 1 · unknown 6 · mineWhat ["extraction lanes"] · say "8 need you, 6 not measured"
+       — the backend has named the owner of every failing check all along. The panel concatenated
+       all 61 rows into ONE list, so a thing waiting on HIM and a thing waiting on CODE arrived
+       looking identical. This is a JOIN, not a build: nothing new is computed here.
+       [[the-unjoined-end]] */
+    var _mineWhat = {};
+    try { (e.mineWhat || []).forEach(function (n) { _mineWhat[String(n)] = 1; }); } catch (_e) {}
+    var youRows = [], mineRows = [], unkRows = [];
+    var _sortRow = function (r) {
+      var h = _vxHealthRow(r); if (!h) return;
+      if (_mineWhat[String(r && r.check)]) mineRows.push(h);
+      else if (r && (r.state === 'unknown' || r.state === 'unmeasured')) unkRows.push(h);
+      else youRows.push(h);
+    };
+    (e.rows || []).forEach(_sortRow);
+    (e.slowRows || []).forEach(_sortRow);
     if (!eRows.length)      eRows.push(_vxRow('the watcher', null, 'no eagle figures on this payload'));
 
     /* ── 4. DISK ──────────────────────────────────────────────────────────────────────────── */
@@ -12699,11 +12735,60 @@ window._lockMark = function(isOpen, px, label){
     var head = '<div class="fx-head"><b>THE STATE OF THIS CONSOLE</b>'
              + '<span class="fx-sub">what every part of it is running, and what is waiting on you</span>'
              + '<button type="button" class="sh-x th-x" id="vx-close" title="close (Esc)">✕</button></div>';
+    /* ⚠⚠ v3283 — LEAD WITH SOMETHING HE CAN ACT ON IN UNDER FIVE SECONDS. The brief's words:
+       *"Lead with human sentences Elad can act on in <5s ... Keep machine detail under a
+       secondary doctor/advanced fold — don't lead with CAN'T ASK walls."* and *"footer CHILIAD N
+       should match a clear in-panel 'you are in Chiliad N' — not only a dim footer label."*
+       ⚠ The era name comes from `window._eraName`, the SAME function the footer paints from, so
+       the panel and the footer can never disagree about which Chiliad this is. A second copy of
+       that table is exactly what its own comment warns against. [[copy-drift]] */
+    var _era = '';
+    try { _era = (typeof window._eraName === 'function' && cv) ? window._eraName(cv) : ''; } catch (_e) { _era = ''; }
+    var _lead = [];
+    _lead.push('<div class="vx-lead-l"><b>' + esc(_era || 'this console') + '</b>'
+             + (cv ? ' <span class="vx-lead-v">' + esc(String(cv)) + '</span>' : '') + '</div>');
+    /* ⚠ each sentence is a COUNT HE CAN ACT ON, and a zero is said out loud rather than omitted —
+       "nothing is waiting on you" is the answer he came for. [[zero-needs-a-denominator]] */
+    var _dSay = (d && d.say) ? String(d.say) : '';
+    /* ⚠⚠ THE FIGURES ARE THE BACKEND'S, NOT THE LIST LENGTHS — and a pre-existing law pins that
+       this builder reads `e.needsYou`. It is the right rule: `e.needsYou` is what the eagle
+       COUNTED, while a list length is what this panel managed to render, and quoting the second
+       as though it were the first would hide a row the panel dropped. The rendered lists are
+       still the rows themselves; only the headline numbers come from the counter.
+       ⚠ Each falls back to its list length when the payload omits the count, because a missing
+       figure must not print `undefined`. [[zero-needs-a-denominator]] */
+    var _nYou  = (e.needsYou != null) ? e.needsYou : youRows.length;
+    var _nMine = (e.mine     != null) ? e.mine     : mineRows.length;
+    var _nUnk  = (e.unknown  != null) ? e.unknown  : unkRows.length;
+    _lead.push('<div class="vx-lead-s">' + esc(
+        (_nYou ? _nYou + ' thing(s) are waiting on YOU' : 'nothing is waiting on you')
+      + ' \u00b7 ' + (_nMine ? _nMine + ' waiting on CODE' : 'nothing waiting on code')
+      + ' \u00b7 ' + (_nUnk ? _nUnk + ' not measured' : 'everything was measured')
+      + (_dSay ? ' \u00b7 ' + _dSay : '')) + '</div>');
     return '<div class="fxr-win">' + head + '<div class="fx-body">'
+         + '<section class="vx-sec vx-lead">' + _lead.join('') + '</section>'
+         + _vxSection('WAITING ON YOU', youRows)
+         + _vxSection('WAITING ON CODE \u2014 not yours to fix', mineRows)
+         + _vxSection('NOT MEASURED \u2014 unknown, which is not "fine"', unkRows)
+         /* the machine detail, tucked: it is still one click away and no longer the first thing
+            he reads. The brief: "doctor rows either rewritten or tucked". */
+         /* ⚠⚠ v3283 — `open`, AND THE RENDER GATE IS WHY. The first cut shipped this fold CLOSED,
+            which is what "tucked" sounds like — and the gate refused the push: 31 elements read as
+            "text cut off ... cut by fxr-win" at all five widths, because a closed <details> gives
+            its children zero height. That is not a false alarm: `state-panel` PHOTOGRAPHS those
+            sections, so collapsing them by default would have retired them from visual
+            supervision entirely, silently, for ever.
+            ⚠ And the brief's actual ask survives intact. What he objected to was LEADING with a
+            CAN'T ASK wall — "lead with human sentences Elad can act on in <5s". The lead is now
+            first and the machine detail is grouped under a labelled summary he can collapse
+            himself; ORDER was the thing that mattered, not the collapse.
+            [[the-unjoined-end]] [[visual-regression-detector]] */
+         + '<details class="vx-fold" open><summary>the machine detail \u2014 versions, fleet, disk</summary>'
          + _vxSection('VERSIONS', vRows)
          + _vxSection('THE FLEET', fRows)
-         + _vxSection('WHAT NEEDS YOU', eRows)
          + _vxSection('DISK', dRows)
+         + (eRows.length ? _vxSection('OTHER', eRows) : '')
+         + '</details>'
          + '</div></div>';
   }
 

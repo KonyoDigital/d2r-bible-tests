@@ -281,12 +281,41 @@ class TheHeadOfTheOwedListCannotStarveTheRest(unittest.TestCase):
         """⚠ THE SUBTLE HALF. Advancing only after a successful sweep would leave a reel that
         always refuses sitting at the head again next tick — the same starvation, one level down."""
         body = self._tick_src()
+        # ⚠ BOTH ENDS ANCHORED ON REAL CODE. The first cut sliced a fixed 420 chars from the
+        # loop head; adding a comment above the assignment pushed it past the window and the law
+        # went red over code that was correct. A window that runs out is a law about my guess.
+        # [[source-window-shortcut]]
         i = body.find("for d in owed_list:")
         self.assertGreater(i, -1, "the loop over the owed list is gone")
-        head = body[i:i + 420]
+        j = body.find('if rid in _VAULT_AUTOREAD["retired"]:', i)
+        self.assertGreater(j, i, "the first decision in the loop is gone — anchor lost")
+        head = body[i:j]
         self.assertIn('_VAULT_AUTOREAD["cursor"] = rid', head,
                       "the cursor is not set at the top of the loop, so it can only advance on "
                       "paths that succeed")
+
+    def test_the_cursor_is_PERSISTED_where_it_changes_not_only_where_it_acts(self):
+        """★ raised by the cross-family eye on v3282, and real.
+
+        The cursor was written in memory and saved only by the requeue / retire / success
+        branches. A tick that ended on a `continue` — retired, still growing, already sealed — or
+        on the `deferred` early return left the position unsaved. In-process that is invisible,
+        because the dict survives between ticks; across a RESTART the rotation resumes from a
+        stale point and the fairness this whole version buys is partly lost.
+
+        ⚠ This suite is named for exactly that failure mode: the vault lane REMEMBERS ACROSS A
+        RESTART. A field that only some paths persist does not.
+        """
+        body = self._tick_src()
+        i = body.find('_VAULT_AUTOREAD["cursor"] = rid')
+        self.assertGreater(i, -1, "the cursor is no longer set in the loop")
+        near = body[max(0, i - 200):i + 260]
+        self.assertIn("_vault_autoread_save()", near,
+                      "the cursor is set without being persisted, so a restart loses the rotation "
+                      "position on every path that does not act")
+        self.assertIn('_VAULT_AUTOREAD.get("cursor") != rid', near,
+                      "the save is unconditional, so an unchanged cursor rewrites the store on "
+                      "every reel of every tick")
 
     def test_the_list_itself_is_STILL_the_doctrine_and_was_not_widened(self):
         """⚠⚠ MONEY. The vault lane SPENDS on reads. v2877 records a rewrite that would have

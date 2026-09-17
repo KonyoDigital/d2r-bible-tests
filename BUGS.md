@@ -36626,6 +36626,124 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1092 — CHILIAD was a raw doctor dump, and the split it needed was already in the payload
+
+Grok Bot's brief **#5719843089**, written for Konyo: CHILIAD should get *"the same treatment as the
+other upgraded sections ... logic that renders, and HUMAN logic — not a raw doctor dump"*, and
+specifically:
+
+> **Separate "needs Elad" vs "needs Claude" in the panel (two lists).** Eyes keep finding
+> fleet-never-asked, missing swept stores, engine/ledger disagree — those must not all look the same.
+
+His eyes SAW it as a dump again on LOOKED **#5720120566**, after a literal footer click and a full
+scroll.
+
+**MEASURED on the live console before writing a line — the backend had named the owner of every
+failing check all along:**
+
+```
+eagle.needsYou 8 · mine 1 · unknown 6
+eagle.mineWhat ["extraction lanes"]
+eagle.say      "8 need you, 6 not measured"
+```
+
+The panel concatenated all **61** rows into ONE list, so a thing waiting on HIM and a thing waiting
+on CODE arrived looking identical, under a heading that called all of them "WHAT NEEDS YOU".
+**This is a join, not a build** — nothing new is computed. [[the-unjoined-end]]
+
+**Shipped in v3283:**
+
+- **Three lists instead of one wall** — `WAITING ON YOU` · `WAITING ON CODE — not yours to fix` ·
+  `NOT MEASURED — unknown, which is not "fine"`. Verified against his live payload:
+  **8 · 1 · 6**, reproducing the backend's own figures exactly, with the 46 ok rows tucked.
+- **A human lead**, first thing read: which Chiliad he is in, then one sentence —
+  *"8 thing(s) are waiting on YOU · 1 waiting on CODE · 6 not measured · in sync on v3282"*.
+- **The era comes from `window._eraName`**, the same function the footer paints from, so the panel
+  and the footer can never disagree about which Chiliad this is. [[copy-drift]]
+- **A zero is said out loud** — *"nothing is waiting on you"* is the answer he came for; an empty
+  list that simply vanishes reads as "not measured". [[zero-needs-a-denominator]]
+- **The machine detail is TUCKED, not deleted** — versions, fleet and disk live one click away in a
+  fold, exactly as the brief asked ("doctor rows either rewritten or tucked").
+
+⚠ **The owner is never guessed here.** A private map in the UI would be a second authority that
+drifts the day a check changes hands; `eagle.mineWhat` is the backend's own answer and there is a
+law that fails if the panel starts deciding for itself.
+[[derived-correctly-from-a-guess]]
+
+### Also in v3283 — the cross-family review of v3282, one finding taken
+
+**"The cursor is set on paths that never persist it" — TAKEN.** `_VAULT_AUTOREAD["cursor"] = rid`
+was written in memory and saved only by the requeue / retire / success branches. A tick ending on a
+`continue` — retired, still growing, already sealed — or on the `deferred` early return left the
+position unsaved. In-process that is invisible, because the dict survives between ticks; across a
+**restart** the rotation resumes from a stale point and part of the fairness v3282 bought is lost.
+⚠ And this suite is named for exactly that failure mode — *the vault lane remembers across a
+restart*. A field only some paths persist does not.
+
+Fixed by saving **where it changes**: one small write per reel CONSIDERED, bounded by the owed
+list, and guarded by `!= rid` so an unchanged cursor never rewrites the store.
+
+It also confirmed three things as NOT defects, with reasons: a cursor naming a departed reel falls
+back to the doctrine's order via `if _cur in _ids`; the rotation is a pure cyclic shift so no reel
+is removed from consideration; and the spend is unchanged — still one sweep per tick, still
+`_vault_owed_reels()`.
+
+⚠ **And my own law had the scar it was written to avoid.** Its first cut sliced a fixed 420 chars
+from the loop head; adding the comment above the assignment pushed it past the window and the law
+went red over code that was correct. Re-anchored on real code at both ends.
+[[source-window-shortcut]]
+
+### ⚠⚠ The gate refused v3283 a THIRD time, at the render, and that one was the real defect
+
+`state-panel` came back **🔴 clipped 31/45 at all five widths** — *"vx-h :: VERSIONS [cut by
+fxr-win]; vx-k :: console [cut by fxr-win] …"*.
+
+**Cause: I shipped the machine-detail fold CLOSED.** A closed `<details>` gives its children zero
+height, and `state-panel` **photographs those sections**. Collapsing them by default would have
+retired VERSIONS, THE FLEET and DISK from visual supervision entirely — silently, for ever — which
+is a far worse outcome than a wall he has to scroll past.
+
+⚠ **And the brief's actual ask survives `open`.** What he objected to was LEADING with a CAN'T ASK
+wall: *"lead with human sentences Elad can act on in <5s"*. The lead is first now, and the machine
+detail sits under a labelled summary he can collapse himself. **Order was the thing that mattered,
+not the collapse.** After: `clipped 0/45` at every width.
+
+### ⚠⚠⚠ And I ran `--bless` when nothing needed blessing, then reverted it
+
+The render log also carried five **🟠 coverage STALE** lines (`advanced-fleet` floor 14, measured
+15 — my new lead section grew it). Those are WARNINGS. The 🔴 was `state-panel`. I read the orange
+as the block, ran `python3 tv/render_check.py --bless`, and it rewrote **555 lines** of
+`render_coverage.json` — raising `heart 1120x900` from **16 to 48** and swapping whole node lists
+(`● flowing — / ● watched 20` → `● flowing 20 / ● watched 0`).
+
+That is my LOCAL heart state baked into the ratchet, which is precisely what the tool's own
+warning says: *"a floor that only appears after repeated local runs is an artefact of the seeded
+sandbox, not a measurement — bless from a cold tree."* A floor set from a warm tree is a gate that
+stays green while real nodes vanish. **Reverted whole**, and the fix was the `open` attribute all
+along. [[regression-guard]] [[a-gate-can-perturb-what-it-measures]]
+
+### ⚠ The gate refused v3283 and was right twice
+
+**1. `var(--ink)` is used with no fallback and never defined.** I reached for a token from a
+sibling file. An undefined custom property with no fallback resolves to nothing, so the lead
+sentence would have inherited whatever colour it landed on. **A colour that is not defined is not
+a colour.** The token here is `--text`. [[copy-drift]]
+
+**2. `e.needsYou` was no longer read by the builder** — a pre-existing law pins that, and it is the
+right rule. `e.needsYou` is what the eagle **counted**; a list length is what the panel managed to
+**render**. Quoting the second as though it were the first would hide a row the panel dropped. The
+headline figures now come from the counter, each falling back to its list length only when the
+payload omits the count, so a missing figure never prints `undefined`.
+
+⚠ **And a fixed-size window bit my own laws TWICE in one version.** `src[i:i+1100]` and
+`src[i:i+420]` both reached their strings until a comment was added above them, and then went red
+over code that was correct — a law about my guess at a length, not about the file. Both re-anchored
+on real bytes at both ends. That is the third time this session. [[source-window-shortcut]]
+
+Seven laws, seven sabotages, every one RED. ⚠ One came back with **0 matches** on the first run —
+my sabotage's indentation was wrong, not the law. Re-anchored on the real bytes, it went red.
+[[sabotage-is-usually-the-wrong-one]]
+
 ## REG-1091 — "why is it not flowing?" — because the head of the queue could never be passed
 
 His question, on the census showing 3 reels tagged `panels-never-banked`: **"why lol? why is it

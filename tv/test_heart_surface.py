@@ -926,6 +926,140 @@ class TheConsoleCanSeeHARDENED(unittest.TestCase):
         self.assertEqual(got["routesProven"], 2)
 
 
+class TheChiliadPanelSpeaksHumanLogic(unittest.TestCase):
+    """★ v3283 — CHILIAD WAS A RAW DOCTOR DUMP, AND THE SPLIT IT NEEDED WAS ALREADY IN THE PAYLOAD.
+
+    Grok Bot's brief #5719843089, written for Konyo: CHILIAD should get *"the same treatment as the
+    other upgraded sections ... logic that renders, and HUMAN logic — not a raw doctor dump"*, and
+    specifically *"separate 'needs Elad' vs 'needs Claude' in the panel (two lists). Eyes keep
+    finding fleet-never-asked, missing swept stores, engine/ledger disagree — those must not all
+    look the same."* His eyes SAW it as a dump again on LOOKED #5720120566.
+
+    MEASURED on the live console BEFORE writing a line — the backend has named the owner of every
+    failing check all along:
+
+        eagle.needsYou 8 · mine 1 · unknown 6
+        eagle.mineWhat ["extraction lanes"]
+        eagle.say      "8 need you, 6 not measured"
+
+    The panel concatenated all 61 rows into ONE list, so a thing waiting on HIM and a thing waiting
+    on CODE arrived looking identical. **This is a join, not a build.** Verified against his live
+    payload: WAITING ON YOU 8 · WAITING ON CODE 1 · NOT MEASURED 6 — reproducing the backend's own
+    figures exactly, with the 46 ok rows tucked. [[the-unjoined-end]]
+    """
+
+    def setUp(self):
+        self.src = io.open(UI, encoding="utf-8").read()
+
+    def _sorter(self):
+        i = self.src.find("var _mineWhat = {};")
+        self.assertGreater(i, -1, "the owner sorter is gone or renamed")
+        j = self.src.find("(e.slowRows || []).forEach(_sortRow);", i)
+        self.assertGreater(j, i, "the sorter never reaches the slow rows")
+        return self.src[i:j + 40]
+
+    def test_the_OWNER_comes_from_the_payload_not_from_a_map_here(self):
+        """⚠ The panel must not decide who owns a check. `eagle.mineWhat` is the backend's own
+        answer; a private list in the UI would be a second authority that drifts the day a check
+        changes hands. [[copy-drift]] [[derived-correctly-from-a-guess]]"""
+        blk = self._sorter()
+        self.assertIn("e.mineWhat", blk,
+                      "the panel no longer reads the backend's owner list, so it is guessing who "
+                      "owns each failing check")
+        self.assertIn("_mineWhat[String(r && r.check)]", blk,
+                      "rows are not matched against the owner list by name")
+
+    def test_a_row_the_backend_calls_MINE_never_lands_in_WAITING_ON_YOU(self):
+        """⚠⚠ THE WHOLE POINT. If code's work shows up under 'waiting on you', he is handed a
+        chore that was never his — which is the wall the brief asked to end."""
+        blk = self._sorter()
+        i = blk.find("if (_mineWhat[")
+        self.assertGreater(i, -1, "the mine branch is gone")
+        self.assertLess(i, blk.find("else if"),
+                        "the ownership test is no longer FIRST, so a row that is code's can fall "
+                        "into another bucket before it is ever checked")
+        self.assertIn("mineRows.push", blk[i:i + 160],
+                      "a row the backend calls mine does not go to the code list")
+
+    def test_all_THREE_lists_are_rendered_and_named_in_his_language(self):
+        self.assertIn("WAITING ON YOU", self.src, "the list of his own work is gone")
+        self.assertIn("WAITING ON CODE", self.src, "the code list is gone — the split is invisible")
+        self.assertIn("NOT MEASURED", self.src, "unmeasured checks are not shown as their own thing")
+        self.assertNotIn("_vxSection('WHAT NEEDS YOU'", self.src,
+                         "the single undifferentiated wall is back")
+
+    def _lead_block(self):
+        """The lead's own code, both ends anchored on real bytes.
+
+        ⚠ A FIXED WINDOW BIT ME TWICE IN ONE VERSION. `src[i:i+1100]` reached the sentence until a
+        comment was added above it, and then the law went red over code that was correct — a law
+        about my guess at a length, not about the file. [[source-window-shortcut]]
+        """
+        i = self.src.find("var _lead = [];")
+        self.assertGreater(i, -1, "the human lead is gone")
+        j = self.src.find("return '<div class=\"fxr-win\">'", i)
+        self.assertGreater(j, i, "the panel's return is gone — anchor lost")
+        return self.src[i:j]
+
+    def test_the_lead_names_the_ERA_from_the_ONE_function_the_footer_uses(self):
+        """⚠ The brief: *"footer CHILIAD N should match a clear in-panel 'you are in Chiliad N'"*.
+        `window._eraName` is that one function — a second copy of its era table is what its own
+        comment warns against."""
+        i = self.src.find("var _era = '';")
+        self.assertGreater(i, -1, "the era lookup is gone")
+        j = self.src.find("var _lead = [];", i)
+        self.assertGreater(j, i, "the lead is gone — anchor lost")
+        blk = self.src[i:j]
+        self.assertIn("window._eraName", blk,
+                      "the panel computes the era itself instead of asking the function the "
+                      "footer paints from, so the two can now disagree")
+
+    def test_a_ZERO_is_said_out_loud_not_omitted(self):
+        """⚠ "nothing is waiting on you" is the answer he came for. An empty list that simply
+        vanishes reads as "not measured". [[zero-needs-a-denominator]]"""
+        blk = self._lead_block()
+        self.assertIn("nothing is waiting on you", blk,
+                      "a zero on his own list disappears instead of being stated")
+        self.assertIn("everything was measured", blk,
+                      "a zero on the unmeasured list disappears instead of being stated")
+
+    def test_the_headline_figures_come_from_the_COUNTER_not_the_list_lengths(self):
+        """⚠ A pre-existing law in test_control pins that this builder reads `e.needsYou`, and it
+        is the right rule: `e.needsYou` is what the eagle COUNTED, while a list length is what the
+        panel managed to RENDER. Quoting the second as though it were the first would hide a row
+        the panel dropped."""
+        blk = self._lead_block()
+        for f in ("e.needsYou", "e.mine", "e.unknown"):
+            self.assertIn(f, blk,
+                          "the lead no longer quotes %s, so its headline is the panel's own "
+                          "rendering rather than the counter's finding" % f)
+        self.assertIn("youRows.length", blk,
+                      "there is no fallback when the payload omits the count, so a missing figure "
+                      "would print as undefined")
+
+    def test_the_machine_detail_is_TUCKED_not_deleted(self):
+        """⚠ The brief said *"doctor rows either rewritten or TUCKED"* — tucked, not lost. Versions,
+        fleet and disk stay one click away."""
+        # ⚠ `open` is load-bearing, not cosmetic: a CLOSED <details> gives its children zero
+        # height, and `state-panel` PHOTOGRAPHS these sections — the render gate refused the first
+        # cut with "31 element(s) have text cut off ... cut by fxr-win" at all five widths.
+        # Collapsing them by default would retire them from visual supervision, silently.
+        self.assertIn('<details class="vx-fold" open>', self.src,
+                      "the machine-detail fold is closed by default, which zero-heights every "
+                      "section the render gate photographs")
+        i = self.src.find('<details class="vx-fold" open>')
+        blk = self.src[i:i + 700]
+        for sec in ("VERSIONS", "THE FLEET", "DISK"):
+            self.assertIn(sec, blk, "%s was dropped rather than tucked" % sec)
+
+    def test_every_class_the_lead_emits_is_styled(self):
+        """⚠ this repo already has a law for the shelf's builder; the same rule applies here — a
+        class nobody styles is a flag nobody can see."""
+        for cls in ("vx-lead", "vx-lead-l", "vx-lead-v", "vx-lead-s", "vx-fold"):
+            self.assertIn("#ver-xref ." + cls, self.src,
+                          "the panel emits .%s and nothing styles it" % cls)
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

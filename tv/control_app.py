@@ -23427,7 +23427,19 @@ def vault_autoreel_tick():
         # ⚠ the cursor moves on EVERY reel this tick considers, not only on a successful sweep.
         # Advancing only on success would leave a reel that always refuses sitting at the head
         # again — the exact starvation being fixed, one level down.
-        _VAULT_AUTOREAD["cursor"] = rid
+        # ⚠ v3283 — PERSIST IT WHERE IT CHANGES, not only on the paths that act. Raised by the
+        # cross-family eye on v3282: the cursor was written in memory and saved only by the
+        # requeue/retire/success branches, so a tick that ended on a `continue` (retired, still
+        # growing, already sealed) or on the `deferred` early return left the position unsaved.
+        # In-process that is invisible — the dict survives between ticks — and across a RESTART the
+        # rotation resumes from a stale point. Saving on change covers every path in one line, and
+        # at most one small write per reel CONSIDERED, which is bounded by the owed list.
+        if _VAULT_AUTOREAD.get("cursor") != rid:
+            _VAULT_AUTOREAD["cursor"] = rid
+            try:
+                _vault_autoread_save()
+            except Exception:
+                pass
         if rid in _VAULT_AUTOREAD["retired"]:
             continue
         if _reel_is_growing(str(d)):
@@ -29763,7 +29775,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3282",
+        "ver": "v3283",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

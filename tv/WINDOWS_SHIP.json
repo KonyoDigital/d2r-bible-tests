@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3282",
+  "ver": "v3283",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3282: HEART: he asked why 3 reels were not flowing like the others. Nothing makes them special - the loop always walked the owed list from index 0 and returns as soon as it acts, so the head reel exhausts its tries, hits the panels-never-banked branch which resets tries to 0 and returns back to the top of the river, and the next tick starts on the same reel again. It can never get past position 0, so positions 1 and 2 were never tried at all. The owed list is now rotated by a persisted cursor that advances on every reel considered, not only on success. Still at most one sweep per tick and still _vault_owed_reels, with a law that fails if the tick ever enumerates reels itself. 3 red-proofs. REG-1091.",
+  "note": "v3283: HEART: Grok Bots brief asked for CHILIAD to get the same treatment as the other upgraded sections - human logic not a raw doctor dump - and specifically to separate needs Elad from needs Claude. Measured before writing a line: eagle already publishes needsYou 8, mine 1, unknown 6 and mineWhat naming which check is codes. The panel concatenated all 61 rows into one wall so both looked identical. Now three named lists reproducing those figures exactly, a human lead carrying the era from the one function the footer uses, a zero said out loud, and the machine detail tucked in a fold. 7 red-proofs. REG-1092.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
