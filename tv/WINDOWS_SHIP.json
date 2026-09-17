@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3255",
+  "ver": "v3256",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3255: live_store joined before expanding so a home path was always reported absent and a gate would stand down on a machine that has the data. and a review saying no concrete defects found was filed as findings because Nothing was missing from the negation vocabulary",
+  "note": "v3256: the grok bot box seat reported a journal read error that was really a machine with no journal, because load returns none for missing and corrupt alike. and the reason printed his absolute path into output that is relayed to a public issue. HEART: three laws beside the sibling reader_health family, all seen red",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

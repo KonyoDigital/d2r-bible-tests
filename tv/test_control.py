@@ -6328,6 +6328,71 @@ class TestV2291NotOKIsNotABrokenLink(unittest.TestCase):
         self.assertIn("never had a panel to read", src,
                       "the honest half is missing — he is owed the reason the count is not a fault")
 
+    def test_an_ABSENT_journal_is_not_a_read_ERROR(self):
+        """★ THE GROK BOT BOX SEAT REPORTED THIS TO A PUBLIC ISSUE AS A DEFECT.
+
+        `lma.load` returns None for a MISSING file and a CORRUPT one alike, so a machine that has
+        simply never recorded a session read as broken. `sessions.jsonl` is UNTRACKED - 3.4 MB of
+        his own journal on his Mac - so it is absent BY CONSTRUCTION on every fresh checkout, CI
+        runner and box seat. Each of them saw "journal-read error" for "no data here yet".
+
+        Same collapse the sibling laws above already refuse one level up, where "never saw the
+        panel" was counted as a broken link on 197 of 200 findings. [[unknown-stays-unknown]]
+        """
+        import tempfile
+        ca = self._ca()
+        old = os.environ.get("TV_SESSIONS")
+        try:
+            os.environ["TV_SESSIONS"] = os.path.join(
+                tempfile.mkdtemp(prefix="nojournal_"), "sessions.jsonl")
+            r = ca.reader_health()
+            self.assertIs(True, r.get("absent"),
+                          "a journal that does not exist is not reported as ABSENT, so 'no data "
+                          "yet' is indistinguishable from a fault: %r" % (r.get("why"),))
+            self.assertNotIn("could not be read", r.get("why") or "",
+                             "an empty machine is described as a read failure: %r" % r.get("why"))
+        finally:
+            if old is None:
+                os.environ.pop("TV_SESSIONS", None)
+            else:
+                os.environ["TV_SESSIONS"] = old
+
+    def test_an_UNREADABLE_journal_still_says_so(self):
+        """⚠ THE OTHER DIRECTION, AND IT IS THE DANGEROUS ONE. Splitting absent from unreadable
+        must not turn a real read failure into a shrug - a journal that IS here and will not parse
+        is UNKNOWN, never clean."""
+        import tempfile
+        ca = self._ca()
+        d = tempfile.mkdtemp(prefix="badjournal_")
+        p = os.path.join(d, "sessions.jsonl")
+        os.mkdir(p)                      # a directory where a file belongs: exists, unreadable
+        old = os.environ.get("TV_SESSIONS")
+        try:
+            os.environ["TV_SESSIONS"] = p
+            r = ca.reader_health()
+            self.assertIs(False, r.get("absent"),
+                          "a journal that EXISTS and cannot be read was filed as absent: %r" % r)
+            self.assertIn("UNKNOWN", r.get("why") or "",
+                          "an unreadable journal no longer says UNKNOWN: %r" % r.get("why"))
+        finally:
+            if old is None:
+                os.environ.pop("TV_SESSIONS", None)
+            else:
+                os.environ["TV_SESSIONS"] = old
+
+    def test_the_reason_never_carries_his_directory(self):
+        """⚠ THIS ROUTE'S OUTPUT IS RELAYED VERBATIM INTO A PUBLIC GITHUB ISSUE by the Grok Bot
+        harness. The old sentence printed the ABSOLUTE path. The basename answers "which journal";
+        the directory only identifies him, and the repo is public."""
+        import inspect
+        ca = self._ca()
+        src = _code_only(inspect.getsource(ca.reader_health))
+        self.assertIn("os.path.basename(path)", src,
+                      "reader_health stopped reducing the journal path to its basename, so a "
+                      "reason relayed into the public queue would carry his home directory")
+        self.assertNotIn('journal at %s" % path', src,
+                         "the absolute path is back in a reason string that gets published")
+
     def test_it_reproduces_on_HIS_journal(self):
         """⚠ NOT A FIXTURE. The refutation that closed this the first time was about live data, so
         the re-open has to be about live data too. Skips rather than passes when the journal is

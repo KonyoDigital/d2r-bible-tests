@@ -15897,7 +15897,31 @@ def reader_health():
     path = _journal_path()
     rows = lma.load(path)
     if rows is None:
-        return {"ok": False, "why": "could not read this machine's journal at %s" % path}
+        # ⚠⚠ v3256 — ABSENT IS NOT UNREADABLE, AND THE PATH IS NOT PUBLISHABLE. Two defects in
+        # one sentence, both caught by the Grok Bot box seat, which posted "journal-read error on
+        # sessions.jsonl" to #180 — a PUBLIC issue.
+        #
+        #   1. `lma.load` returns None for a MISSING file and for a CORRUPT one alike, so a
+        #      machine that has simply never recorded a session reads as BROKEN. On any fresh
+        #      checkout `sessions.jsonl` is absent BY CONSTRUCTION: it is untracked (3.4 MB of his
+        #      own journal on his Mac, and this repo is public), so every box seat and every CI
+        #      runner sees a defect that is really "no data here yet". That is the same collapse
+        #      the sibling laws below already refuse one level up, where "never saw the panel" was
+        #      being counted as a broken link — 197 of his 200.
+        #   2. it printed the ABSOLUTE path, and this route's output is relayed verbatim into a
+        #      public GitHub issue. `/Users/<him>/…` is exactly what a brief may never carry. The
+        #      BASENAME answers "which journal"; the directory only identifies him.
+        #
+        # `absent` is a separate field rather than a wording change, so a caller can branch on the
+        # fact instead of matching prose. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        _nm = os.path.basename(path)
+        if not os.path.exists(path):
+            return {"ok": False, "absent": True,
+                    "why": "no journal on this machine yet - %s does not exist, so nothing has "
+                           "been recorded here. That is an empty machine, not a fault" % _nm}
+        return {"ok": False, "absent": False,
+                "why": "%s is here but could not be read, so how this machine reads is UNKNOWN - "
+                       "not clean" % _nm}
     res = lma.audit(rows)
     findings = [{"session": a, "tab": b, "verdict": c, "detail": d, "fix": lma._fix_for(c)}
                 for a, b, c, d in res["findings"]]
@@ -29492,7 +29516,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3255",
+        "ver": "v3256",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

@@ -35931,3 +35931,51 @@ return `(UNKNOWN, str)`, and honestly said it could not rule without the caller.
 caller is `for name, fn in CHECKS: state, why = fn()` and stores `why` verbatim; **39 existing
 checks in that file already return the tuple shape**. Established and supported. The eye was right
 to raise it and right to refuse to rule on it. `[[review-after-ship]]`
+
+## REG-1062 — "journal-read error" was an EMPTY MACHINE, and the reason published his home directory
+
+The Grok Bot box seat posted this to **#180, a public issue**, as a TV·D anomaly:
+
+> `2. TV·D mid: could not read …/tv/sessions.jsonl`
+
+It is not a read error. It is two defects sharing one line in `reader_health()`:
+
+```python
+if rows is None:
+    return {"ok": False, "why": "could not read this machine's journal at %s" % path}
+```
+
+**1. ABSENT and UNREADABLE were folded.** `live_miss_audit.load()` returns `None` for a missing
+file and a corrupt one alike, and this sentence describes both as a failure. Measured:
+`tv/sessions.jsonl` is **3,397,418 bytes on his Mac and NOT tracked** — it is absent *by
+construction* on every fresh checkout, every CI runner, and every box seat. All of them were being
+told a machine that has simply never recorded a session is BROKEN.
+
+This is the same collapse the sibling laws in this very class already refuse one level up, where
+"never saw the panel" was counted as a broken link on **197 of 200 findings**. The fix there was to
+report the two facts separately; the file-level read underneath it kept folding them.
+`[[unknown-stays-unknown]]` `[[zero-needs-a-denominator]]`
+
+**2. The reason carried the ABSOLUTE path, and this route's output is relayed verbatim into a
+public GitHub issue** by the Grok Bot harness. `CLAUDE.md` §4 is explicit — a brief may never carry
+`/Users/konyo` paths, hostnames or install ids — and the rule was being broken by the *server*,
+upstream of any brief anyone writes by hand. The basename answers "which journal"; the directory
+only identifies him.
+
+`absent` is now a separate boolean field rather than a rewording, so a caller branches on the FACT
+instead of matching prose.
+
+| state | `absent` | says |
+|---|---|---|
+| no journal here yet | `True` | "an empty machine, not a fault" |
+| here but will not parse | `False` | "…is UNKNOWN - not clean" |
+
+GATES, added beside the sibling laws rather than as a new file:
+`test_an_ABSENT_journal_is_not_a_read_ERROR`, `test_an_UNREADABLE_journal_still_says_so` (the
+dangerous direction — splitting the two must not turn a real read failure into a shrug), and
+`test_the_reason_never_carries_his_directory`. All three seen RED at match count 1; each sabotage
+restores the historical behaviour rather than nicking a clause.
+
+⚠ STILL OPEN, NOT FIXED HERE: the box seat's other anomaly — SHELF theatre opens to a blank dark
+stage, last-8 **UNKNOWN**. Same shape (a box with no reels renders identically to a broken shelf)
+but a different surface, and it is not yet measured. It is NOT being reported as fixed.
