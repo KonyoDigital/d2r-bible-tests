@@ -58,6 +58,38 @@ import control_app as CA  # noqa: E402
 SRC = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
 
 
+UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+
+
+def _js_only(src):
+    """JS with /* ... */ comments removed. -> str
+
+    ⚠ A LAW MUST NEVER READ ITS OWN COMMENTARY. This file's neighbours have been satisfied four
+    times by explanatory prose that names the very thing being asserted, so every assertion below
+    runs on executable text. [[presence-law-vs-reachability-law]]
+    """
+    out, i = [], 0
+    while True:
+        j = src.find("/*", i)
+        if j < 0:
+            out.append(src[i:]); break
+        out.append(src[i:j])
+        k = src.find("*/", j)
+        if k < 0:
+            break
+        i = k + 2
+    return "".join(out)
+
+
+def _between(src, start, end):
+    """The text between two REAL anchors, or None. Never a fixed-size window. -> str|None"""
+    i = src.find(start)
+    if i < 0:
+        return None
+    j = src.find(end, i + len(start))
+    return src[i:j + len(end)] if j > i else None
+
+
 def _code_of(fn_name):
     """One function's CODE, with its docstring and comments removed.
 
@@ -199,6 +231,85 @@ class TheRiverHasAMouth(unittest.TestCase):
     def test_it_still_parses(self):
         ast.parse(SRC)
 
+
+
+class TheShelfTellsTheMouthTheSameWayTheLedgerDoes(unittest.TestCase):
+    """★ v3270 — THE SAME FACT, TOLD TWO WAYS, ON ONE SCREEN, IN ONE GLANCE.
+
+    GrokBot filed it from his NATIVE Linux seat (#180): *"River header still notes tombstone
+    ledger would not answer (content otherwise populated)."*
+
+    Measured on ONE `/api/river` payload the same minute:
+
+        header (his Mac)   "453 closed out · 9.9 GB freed"
+        station chip       "no reel has EVER reached DELETED — the river counts 0 visits"
+
+    Both true to the field they read, and flatly contradictory to a person. A reel that reaches the
+    MOUTH leaves the disk: it stops being something the router can station, so the stamp journal
+    can never record it there. `control_app.river_mouth`'s own docstring records me drawing that
+    wrong conclusion once and having to retract it.
+
+    And GrokBot's header read differently from mine for a REAL reason: `tv/reel_tombstones.json`
+    is runtime state, gitignored (.gitignore:164), so his fresh Linux checkout has none. The
+    backend already said the careful thing —
+
+        "there is no tombstone ledger on this venue - retention has no record here,
+         which is NOT the same as no reel having ever finished"
+
+    — and the header threw that whole sentence away for the words "would not answer", which
+    describe a malfunction. Absent is not broken, and neither is zero.
+    [[label-outlived-referent]] [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+
+    def _chip(self):
+        blk = _between(_js_only(UI), "var _isMouth = (SHELF_MOUTH_STATION",
+                       "not a reason to hide the station';")
+        self.assertIsNotNone(blk, "the mouth-aware station branch is gone or renamed")
+        return blk
+
+    def test_the_chip_asks_the_LEDGER_before_saying_a_terminus_was_never_reached(self):
+        blk = self._chip()
+        self.assertIn("SHELF_MOUTH", blk,
+                      "the chip still decides 'never reached' from the stamp journal alone, so it "
+                      "contradicts the ledger figure printed in the header beside it")
+        self.assertIn("LEAVES THE DISK", blk,
+                      "it does not say WHY the journal is silent about the mouth, so the next "
+                      "reader draws the same wrong conclusion")
+
+    def test_an_UNREADABLE_ledger_is_UNKNOWN_and_never_NEVER_REACHED(self):
+        """⚠ GrokBot's seat exactly: no ledger on this venue. The chip must not convert that into
+        'no reel has ever finished'."""
+        blk = self._chip()
+        self.assertIn("UNKNOWN, not zero", blk,
+                      "a venue with no retention ledger reads as a terminus nothing ever reached")
+
+    def test_a_NON_mouth_station_keeps_the_original_sentence(self):
+        """⚠ the guard against over-reach: only the station the RIVER calls the mouth gets the
+        ledger treatment. Every other empty station keeps its actionable 'never reached'."""
+        blk = self._chip()
+        self.assertIn("no reel has EVER reached", blk,
+                      "the original sentence is gone, so an ordinary unreached station can no "
+                      "longer be reported as the actionable fact it is")
+
+    def test_WHICH_station_is_the_mouth_comes_from_the_PAYLOAD(self):
+        """⚠ [[copy-drift]] — a literal "TOMBSTONE" in the shelf is a second copy of a name
+        `river.py` owns, and the two drift the day a station is renamed."""
+        ui = _js_only(UI)
+        self.assertIn("d.vocab && d.vocab.mouth", ui,
+                      "the shelf does not read the river's own name for the terminus")
+        blk = self._chip()
+        self.assertNotIn("'TOMBSTONE'", blk,
+                         "the mouth station is hard-coded in the chip instead of read from vocab")
+
+    def test_the_HEADER_quotes_the_backends_reason_instead_of_calling_it_a_malfunction(self):
+        ui = _js_only(UI)
+        blk = _between(ui, "SHELF_MOUTH.ok === false", "mouthTxt = ' \u00b7 ' + SHELF_MOUTH.n")
+        self.assertIsNotNone(blk, "the header's unreadable-ledger branch is gone or renamed")
+        self.assertIn("SHELF_MOUTH.why", blk,
+                      "the header invents its own wording instead of quoting the backend, which "
+                      "already distinguishes an ABSENT ledger from a broken one")
+        self.assertNotIn("would not answer", blk,
+                         "the header still calls a venue with no ledger a malfunction")
 
 
 RED_PROOF = [

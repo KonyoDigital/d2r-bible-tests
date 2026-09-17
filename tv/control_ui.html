@@ -17080,6 +17080,11 @@ window._lockMark = function(isOpen, px, label){
   /* THE MOUTH — reels that finished the journey and were closed out. `null` until /api/river has
      answered, which is NOT the same as an empty ledger and must never render as "0 finished". */
   var SHELF_MOUTH = null;
+  /* ⚠ v3270 — WHICH station is the terminus is the RIVER'S to say (`vocab.mouth`), never a
+     literal in this file. `river.py` names it, `_river_vocab_facts()` publishes it, and a second
+     copy here is how the two drift apart the day a station is renamed. null = the river did not
+     say, and then nothing special is claimed about any station. [[copy-drift]] */
+  var SHELF_MOUTH_STATION = null;
   /* ══ v3202 — THE STATION CHIPS ARE BUILT FROM THE REELS, NOT FROM A LIST ═══════════════
      Konyo, three times: *"the tabs ontop need updating related to the reels sessions.. not random
      or outdated like it is"*, *"accorindgly relevant to the sessions"*, and *"the tabs within
@@ -17299,8 +17304,32 @@ window._lockMark = function(isOpen, px, label){
           say += '. ' + left + ' have moved on from it';
         }
       } else if (never === true || thru === 0) {
-        say = 'no reel has EVER reached ' + lab + ' \u2014 the river counts 0 visits. That is the '
-            + 'actionable half of the picture, not a reason to hide the station';
+        /* ⚠⚠ v3270 — AND THE SAME FACT, TOLD WRONG, ONE RENDERER AWAY. This chip said "no reel has
+           EVER reached DELETED — the river counts 0 visits" while the header beside it read
+           "453 closed out · 9.9 GB freed". Both from ONE payload, in one glance.
+           A reel at the MOUTH leaves the disk: it stops being something the router can station, so
+           the stamp journal can never record it there. `control_app.py` records me making exactly
+           this misreading once before and calling it a finding — "the river's mouth has been
+           reached 453 times; nothing surfaced it."
+           ⇒ the journal's silence about a TERMINUS is not evidence of nothing finishing, and the
+           ledger figure is already on screen. Ask the ledger, and only say "never" of a station
+           the ledger cannot speak for. [[label-outlived-referent]] [[zero-needs-a-denominator]] */
+        var _isMouth = (SHELF_MOUTH_STATION && st === SHELF_MOUTH_STATION);
+        var _mouthN = (SHELF_MOUTH && SHELF_MOUTH.ok !== false
+                       && typeof SHELF_MOUTH.n === 'number') ? SHELF_MOUTH.n : null;
+        if (_isMouth && _mouthN !== null) {
+          say = 'the stamp journal has never recorded a reel AT ' + lab + ', and that is not what '
+              + 'it looks like: ' + _mouthN + ' reel(s) have finished here. A reel that reaches '
+              + lab + ' LEAVES THE DISK, so it stops being something the journal can stamp — the '
+              + 'retention ledger is the witness for this station, and it counts ' + _mouthN;
+        } else if (_isMouth) {
+          say = 'the stamp journal has never recorded a reel AT ' + lab + ', and the retention '
+              + 'ledger — the only witness that CAN speak for a station reels leave the disk to '
+              + 'reach — could not be read here. That is UNKNOWN, not zero';
+        } else {
+          say = 'no reel has EVER reached ' + lab + ' \u2014 the river counts 0 visits. That is the '
+              + 'actionable half of the picture, not a reason to hide the station';
+        }
       } else if (rHere > 0) {
         /* ⚠ v3257b — EMPTY ON THIS SHELF IS NOT EMPTY IN THE RIVER. The first cut printed
            'the river flows here' on JOIN while the river held 14 reels there with NONE ever
@@ -17449,6 +17478,9 @@ window._lockMark = function(isOpen, px, label){
         try { SHELF_RIVER_LANES = (d.lanes && d.lanes.lanes) || null; } catch(e){ SHELF_RIVER_LANES = null; }
         try { SHELF_RIVER_LABELS = d.labels || null; } catch(e){ SHELF_RIVER_LABELS = null; }
         SHELF_MOUTH = d.mouth || null;
+        try {
+          SHELF_MOUTH_STATION = (d.vocab && d.vocab.mouth) ? String(d.vocab.mouth) : null;
+        } catch(e){ SHELF_MOUTH_STATION = null; }
       }
       try { if (then) then(); } catch (e) {}
     }).catch(function(e){
@@ -17758,7 +17790,23 @@ window._lockMark = function(isOpen, px, label){
       if (SHELF_MOUTH === null) {
         mouthTxt = ' · tombstone ledger not read yet';
       } else if (SHELF_MOUTH && SHELF_MOUTH.ok === false) {
-        mouthTxt = ' · tombstone ledger would not answer';
+        /* ⚠⚠ v3270 — THIS THREW AWAY THE ONE SENTENCE THAT SAID WHAT WAS ACTUALLY TRUE.
+           GrokBot filed it as an anomaly from his LINUX seat: "River header still notes tombstone
+           ledger would not answer (content otherwise populated)". He was reading his own machine
+           correctly — `tv/reel_tombstones.json` is RUNTIME STATE and gitignored (.gitignore:164),
+           so a fresh checkout genuinely has none. But "would not answer" describes a MALFUNCTION,
+           and `river_mouth()` had already written the honest version:
+               "there is no tombstone ledger on this venue - retention has no record here,
+                which is NOT the same as no reel having ever finished"
+           The backend distinguished ABSENT from BROKEN and the header collapsed both into the
+           word that reads as broken. Measured the same minute: his Mac 453 closed out / 9.9 GB,
+           GrokBot's Linux seat none at all — same code, same version, two true answers.
+           ⚠ `why` is the backend's own words, not a second copy of them here. A parallel sentence
+           in this file is exactly what the STATIONS/labels comments warn against. [[copy-drift]]
+           [[unknown-stays-unknown]] [[label-outlived-referent]] */
+        mouthTxt = ' · ' + (SHELF_MOUTH.why
+                            ? esc(String(SHELF_MOUTH.why))
+                            : 'the tombstone ledger could not be read here — UNKNOWN, not zero');
       } else if (_mouthHasRows) {
         var _mbn = SHELF_MOUTH.mb;
         var _mb = (typeof _mbn === 'number')

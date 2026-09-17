@@ -2132,14 +2132,27 @@ def _check_the_river_joints_carry():
         return UNKNOWN, ("%d of %d joint(s) could not be measured%s"
                          % (unk, n,
                             ("" if not ub else
-                             "; a further %d has never been built or switched on — %s"
-                             % (ub, say or "see the river"))))
+                             # ⚠ v3270 — the cross-family eye: "a further 2 HAS never been built"
+                             # is ungrammatical at ub>=2. Cosmetic, real, and its twin below had
+                             # the same shape — so both agree the verb with the count now.
+                             "; a further %d %s never been built or switched on — %s"
+                             % (ub, "has" if ub == 1 else "have", say or "see the river"))))
     if ub:
-        # ⚠ NOT MISSING. Nothing is broken and nothing here is mine to fix — the remedy is a
-        # decision he has not made (authorising the live hover autopilot). Reporting it red would
+        # ⚠ NOT MISSING. Nothing is broken and nothing here is mine to fix.
+        # ⚠⚠ v3270 — AND THE REMEDY IS NOT "A DECISION HE HAS NOT MADE". v3267 wrote that and it
+        # was already false: he RULED AGAINST the hover autopilot on 2026-09-09 ("i decided MINI
+        # automatic isnt needed.. the whole button surgically remvoe it"). v2856 removed the
+        # button, lamp, mode block, CSS and consent chip; v2857 gutted the handlers (REG-823),
+        # which now refuse by name. Re-confirmed by him 2026-09-17: the recording options are
+        # ON AIR, MINI and SHADOW READER — AUTOMATIC is not among them. So `slot` is not awaiting
+        # authorisation, it is PERMANENTLY UNBUILT by his decision, and a comment inviting someone
+        # to switch it on is an invitation to undo a ruling.
+        # [[label-outlived-referent]] [[design-is-fine-until-he-says]]
+        # Reporting it red would
         # train him to ignore a red; reporting it green would hide a joint that cannot carry.
-        return UNKNOWN, ("%d of %d joint(s) carry; %d has never been built or switched on — %s"
-                         % (n - ub, n, ub, say or "see the river"))
+        return UNKNOWN, ("%d of %d joint(s) carry; %d %s never been built or switched on — %s"
+                         % (n - ub, n, ub, "has" if ub == 1 else "have",
+                            say or "see the river"))
     return OK, "all %d river joint(s) carry" % n
 
 

@@ -36446,6 +36446,89 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1080 — the shelf told the same fact two ways, on one screen, in one glance
+
+GrokBot filed it from his NATIVE Linux seat (#180): *"River header still notes tombstone ledger
+would not answer (content otherwise populated)."* Measured on ONE `/api/river` payload:
+
+```
+header (his Mac)   453 closed out · 9.9 GB freed
+station chip       no reel has EVER reached DELETED — the river counts 0 visits
+```
+
+Both true to the field they read, and flatly contradictory to a person reading them together.
+
+**Why the journal is silent about the mouth:** a reel that reaches TOMBSTONE **leaves the disk**.
+It stops being something `reel_router` can station, so the stamp journal can never record it there.
+`control_app.river_mouth`'s own docstring records me drawing the wrong conclusion from that once —
+*"the river's mouth has been reached 453 times; nothing surfaced it"* — and the chip was still
+drawing it.
+
+**Why GrokBot's header differed from mine, legitimately:** `tv/reel_tombstones.json` is runtime
+state, **gitignored at `.gitignore:164`**, so his fresh Linux checkout has none. Same code, same
+version, two true answers. And the backend had already written the careful sentence:
+
+> there is no tombstone ledger on this venue - retention has no record here, which is NOT the same
+> as no reel having ever finished
+
+The header threw that whole sentence away and printed **"would not answer"**, which describes a
+malfunction. **Absent is not broken, and neither is zero.**
+
+**Fixed in v3270**, as one shared rule rather than two patched sentences:
+
+- the chip asks the **ledger** before saying a terminus was never reached, and says WHY the journal
+  is silent, so the next reader does not repeat the inference
+- an unreadable ledger is **UNKNOWN, not zero** — GrokBot's venue exactly
+- **which station is the mouth comes from `vocab.mouth`**, never a literal in the shelf; a second
+  copy of a name `river.py` owns is how the two drift the day a station is renamed
+- the header **quotes the backend's own `why`** instead of inventing wording beside it
+- every NON-mouth station keeps the original actionable "never reached" sentence
+
+### And a third: v3268's own test read HIS LIVE BACKUP DIRECTORY
+
+`staleness()` calls `newest_backup()` unconditionally, so a **"newest restore point" row from his
+real machine** joined the fixture's rows. When his last backup happened to be 83 minutes old,
+`staleHereN` came back **1 instead of 0** and both v3268 laws failed. They passed when written
+purely because a backup had run minutes earlier.
+
+**That is the v2308 scar I cited while writing v3266, walked into inside my own test one version
+later.** A test whose verdict depends on when a daemon last ran on the machine it happens to
+execute on is not measuring the fixture. [[feedback-fixtures-never-touch-live-data]]
+
+⚠ And the first correction was itself wrong: I asserted the row must be ABSENT. Stubbing
+`newest_backup` to None takes the `else` branch, which appends the same-named row with
+`stale=None` — correct, honest, and counted toward nothing. The law now asserts the row's
+**influence** is gone (`stale is None`), not its name. It went red immediately, which is the test
+doing its job.
+
+⚠⚠ **And I committed and pushed with `FAILED (failures=2)` printed in the same block.** The push
+was killed before the gate could publish and `origin/main` never moved — but the discipline exists
+precisely because the block's exit status is not the verdict: **run the check and READ it in one
+call, act in the NEXT.** [[exit-status-of-the-block]]
+
+### Also in v3270 — two things the cross-family eye and his ruling corrected
+
+**1. "a further 2 HAS never been built".** Grok's v3269 review found it: the sentence hardcodes the
+singular verb, so it is ungrammatical at `ub >= 2`. Reproduced, and its TWIN one branch below had
+the same shape. Both now agree the verb with the count.
+
+⚠ My first patch for that twin also claimed it printed the WRONG NUMBER at ub>=2. **That was my own
+transcription error, not a defect** — the real code computes `n - ub` and is correct. The bad
+anchor aborted the patch before it was written, which is exactly what the match-count check is for.
+[[sabotage-is-usually-the-wrong-one]]
+
+**2. A comment inviting someone to undo his ruling.** v3267's UNBUILT branch said the remedy was
+*"a decision he has not made (authorising the live hover autopilot)"*. It was already false when
+written: he ruled against it on **2026-09-09** — *"i decided MINI automatic isnt needed.. the whole
+button surgically remvoe it"* — **v2856** removed the button, lamp, mode block, CSS and consent
+chip, and **v2857** gutted the handlers (REG-823), which now refuse by name. Re-confirmed by him
+2026-09-17: the recording options are **ON AIR, MINI and SHADOW READER**; AUTOMATIC is not among
+them. So `slot` is not awaiting authorisation — it is **permanently unbuilt by his decision**.
+
+Verified by running the real branch in node against three real payload shapes — his Mac
+(`453 finished`), GrokBot's absent ledger (`UNKNOWN`), and no-vocab (falls back, claims nothing).
+Five sabotages, every one RED, each anchor matching exactly once.
+
 ## REG-1079 — the unmeasured sentence swallowed the unbuilt one, in the guard written to prevent exactly that
 
 v3267 added the UNBUILT state and a branch so an unbuilt joint could never hide inside

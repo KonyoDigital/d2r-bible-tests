@@ -1300,7 +1300,33 @@ class AMachineThatIsOffIsNotAFigureGoingStale(unittest.TestCase):
         }
 
     def _rows(self, fleet):
-        st = LA.staleness(own=None, fleet=fleet, table={})
+        """⚠⚠ v3270 — AND THIS FIXTURE READ HIS LIVE BACKUP DIRECTORY, which is the v2308 scar I
+        cited while writing v3266 and then walked into inside my own test. `staleness()` calls
+        `newest_backup()` unconditionally, so a "newest restore point" row from HIS MACHINE joined
+        the fixture's rows — and when his last backup happened to be 83 minutes old, `staleHereN`
+        came back 1 instead of 0 and both laws failed. They passed when I wrote them purely
+        because a backup had run minutes earlier.
+
+        A test whose verdict depends on when a daemon last ran on the machine it happens to
+        execute on is not measuring the fixture. The beacon rows are what these laws are about, so
+        the backup row is stubbed out — named and deliberate, never silently filtered.
+        [[feedback-fixtures-never-touch-live-data]] [[a-gate-can-perturb-what-it-measures]]
+        """
+        _real = LA.newest_backup
+        LA.newest_backup = lambda *a, **k: None
+        try:
+            st = LA.staleness(own=None, fleet=fleet, table={})
+        finally:
+            LA.newest_backup = _real
+        # ⚠ the row still EXISTS — with no backup readable, `staleness` appends its honest
+        # "no restore point for this world could be read ... UNKNOWN" row, which is correct and
+        # carries stale=None so it counts toward nothing. What must be gone is its INFLUENCE:
+        # a stale=True backup from his live machine. Asserting the NAME was absent was the wrong
+        # law and it went red immediately, which is the test doing its job.
+        _bk = [r for r in st["rows"] if r["name"] == "newest restore point"]
+        for r in _bk:
+            self.assertIsNone(r.get("stale"),
+                              "his live backup directory is still deciding this fixture's verdict")
         return {r["name"]: r for r in st["rows"]}, st
 
     def test_an_OFFLINE_peer_is_marked_and_kept_out_of_the_stale_count(self):
