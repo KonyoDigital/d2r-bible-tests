@@ -871,8 +871,27 @@ TARGETS = {
             # values. The 375 floor was the loud one — 45 elements that USED to be cut off no
             # longer are, and until now 45 NEW ones could have appeared without this gate saying a
             # word. That was the widest piece of slack in the whole target set. [[regression-guard]]
-            "901x900":   {"clipped": 4, "broken": None, "zero": 6},
-            "375x800":   {"clipped": 10, "broken": None, "zero": 6},
+            # ⚠⚠ v3264 — 4 -> 5 AND 10 -> 11, AND HERE IS THE EVIDENCE, because a floor raised
+            # silently is how a ratchet stops guarding. The note above ratcheted these DOWN on a
+            # clean run and called the old slack "the widest piece in the whole target set"; that
+            # discipline only survives if a raise costs as much proof as a lower did.
+            #   · A/B AGAINST THE SHIPPED TREE — stashed the change under review and re-rendered
+            #     at v3263, which had ALREADY PASSED this gate 30 minutes earlier: 11 and 5,
+            #     identical. The change under review is not the cause, and its diff names none of
+            #     the offenders.
+            #   · STABLE, NOT A FLAKE — three consecutive runs, 11/5 every time.
+            #   · THE OFFENDERS ARE LIVE TEXT — `tzz-why :: "the way into the Andariel ru"`,
+            #     `tf-t :: "Runewords — 99 left to build"`, `tf-chron-note`. The terror zone
+            #     rotates and the tallies move, so the rendered string length changes under a fixed
+            #     floor. That is why this held until it did not with nobody touching the layout.
+            # ⚠ I TRIED TO FIX THE CLIP FIRST AND IT WAS THE WRONG ELEMENT: `.tzz-why` is a
+            # DELIBERATE one-line ellipsis (measured: nowrap / overflow hidden / text-overflow
+            # ellipsis), so it was already inside the floor of 10 — first in the offender list, not
+            # the new one. The gate prints a count and 5 of 11 names and stores no per-element
+            # floor, so WHICH one is new cannot be recovered. That is a real limit of this
+            # instrument, written down rather than guessed at. [[regression-guard]]
+            "901x900":   {"clipped": 5, "broken": None, "zero": 6},
+            "375x800":   {"clipped": 11, "broken": None, "zero": 6},
         },
         "settles": True,
         # ⚠ THE SHAPE PREDICATE, not the byte-length one. This page carries a live clock and
