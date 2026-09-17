@@ -1661,7 +1661,26 @@ def staleness(own=None, fleet=None, table=None):
             fleet = ca.fleet_presence() or {}
         except Exception:
             fleet = None
-    for m in (list((fleet or {}).get("online") or []) + list((fleet or {}).get("offline") or [])):
+    # ⚠⚠ v3268 — A MACHINE THAT IS SWITCHED OFF IS NOT A LEDGER FIGURE GOING STALE, AND THIS
+    # LOOP COULD NOT TELL THE DIFFERENCE BECAUSE IT THREW THE ROSTERS TOGETHER FIRST.
+    # MEASURED on his console 2026-09-17:
+    #     online   GrokBot  v3266  uniques 310/403   age 0.5 min
+    #     online   Konyo    v3267  uniques 309/403   age 1.0 min
+    #     offline  Dean     v3156  uniques   0/403   age 3625 min   (last event: `boot`)
+    # The doctor reported "3 of 10 ledger figure(s) are out of date", and the third was Dean's
+    # Windows laptop, which has been off since 2026-09-15. `/api/fleet` ALREADY publishes that
+    # fact — it put him in `offline`, not `online` — and this walk concatenated the two rosters on
+    # the first line, so the one authority that knew was discarded before any grading happened.
+    # Same shape as v3265 (BLOCKED vs STOPPED) and v3267 (UNBUILT vs DRY): a thing that is
+    # correctly not-running, graded as a thing that is broken. [[label-outlived-referent]]
+    #
+    # ⚠ `stale` is left exactly as it was computed — the figure IS old, and no other reader's
+    # meaning changes. What is added is WHY, so a surface can stop calling a dark laptop a stale
+    # ledger. A peer that is ONLINE and has gone quiet is still STALE, which is the real fault
+    # this beacon check exists to catch, and it must not be able to hide behind this flag.
+    _roster = ([(m, False) for m in (list((fleet or {}).get("online") or []))]
+               + [(m, True) for m in (list((fleet or {}).get("offline") or []))])
+    for m, _off in _roster:
         t = (m or {}).get("tally")
         if not isinstance(t, dict):
             continue
@@ -1672,12 +1691,29 @@ def staleness(own=None, fleet=None, table=None):
         # grading it as current is how a machine that stopped reporting looks healthy.
         f["stale"] = (f["ageMs"] > ceiling["staleMs"]) if f["ageKnown"] else None
         f["staleMs"] = ceiling["staleMs"]
+        # ⚠ DECLARED BY THE ROSTER, never inferred from the age — otherwise "old" would define
+        # "off" and the distinction would be circular.
+        f["machineOff"] = bool(_off)
+        if _off:
+            f["machine"] = m.get("machine") or ""
+            f["lastSeen"] = m.get("t") or ""
+            f["why"] = ("%s's machine (%s) is switched off — the fleet roster lists it as offline, "
+                        "last heartbeat %s. Its figures are its LAST KNOWN ones, not current, and "
+                        "nothing here can refresh them until that machine is on."
+                        % (who, f["machine"] or "unknown", f["lastSeen"] or "unknown"))
         rows.append(f)
 
+    # ⚠ v3268 — `stale` keeps its old meaning (the figure IS old) so no existing reader shifts
+    # under its feet; `staleHere` is the subset that is actually THIS console's problem, and
+    # `machineOff` is published beside it so an offline peer can be named rather than miscounted.
     stale = [r for r in rows if r.get("stale") is True]
+    off = [r for r in rows if r.get("machineOff")]
+    stale_here = [r for r in stale if not r.get("machineOff")]
     unknown = [r for r in rows if r.get("stale") is None]
     return {"ok": True, "ceiling": ceiling, "rows": rows,
             "staleN": len(stale), "unknownN": len(unknown), "totalN": len(rows),
+            "staleHereN": len(stale_here), "machineOffN": len(off),
+            "machineOff": [r["name"] for r in off],
             "stale": [r["name"] for r in stale], "unknown": [r["name"] for r in unknown]}
 
 

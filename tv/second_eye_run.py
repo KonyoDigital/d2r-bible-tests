@@ -422,7 +422,16 @@ _PROVIDER_ERROR_RX = re.compile(
 
 
 _NO_DEFECT_RX = re.compile(
-    r"\bno\s+(?:\w+\s+){0,2}(?:defects?|issues?|bugs?|problems?)\s+"
+    # ⚠⚠ v3268 — THE TRAILING `\s+` HERE IS WHY THE BARE FORM COULD NEVER MATCH, and it is also
+    # why v3268's first cut LOOKED like it worked. "No concrete defects." puts a `.` straight
+    # after the noun, so a REQUIRED space fails before the tail is ever tried. The optional-tail
+    # branch added below was therefore unreachable for exactly the input it was written for — and
+    # the test passed anyway, because `_findings_from` returns NO blocks for a one-line answer and
+    # `_verdict_for` reads "a declaration with nothing listed" as clean. A green arrived by a
+    # route that had nothing to do with the fix. [[matches-once-can-still-prove-nothing]]
+    # The separator moves INTO the verb branch, where it belongs: a verb needs a space before it,
+    # a full stop does not.
+    r"\bno\s+(?:\w+\s+){0,2}(?:defects?|issues?|bugs?|problems?)\b"
     # ⚠ v3216 — `evident` AND `present` ADDED, and `is` to the copula list. An OpenAI seat wrote
     # "No concrete functional defect is evident in this diff", every block scored
     # claims_a_defect=False, and the row STILL said verdict=findings — because the declaration
@@ -439,9 +448,22 @@ _NO_DEFECT_RX = re.compile(
     # looser pattern: this regex only ever GRANTS clean, only when no block makes a defect claim
     # (`_DEFECT_MARK_RX`), so a false match cannot clear a real finding — it can only spare a
     # clean look from the stricter bucket. [[feedback-blind-fixture-green-gate]]
-    r"(?:were\s+|are\s+|was\s+|is\s+)?"
+    # ⚠⚠⚠ v3268 — AND THE VERB CAN BE ABSENT ENTIRELY. Widening the participle list in v3267 was
+    # still chasing vocabulary. Taking the very next look, Grok opened with "**No concrete
+    # defects.**" — full stop, no verb at all — and the row was filed verdict=findings AGAIN. That
+    # is four phrasings in three versions (v3216 `evident`, v3216 `present`, v3267 `meeting`, this).
+    # The lesson is that enumerating how a model says "nothing is wrong" does not converge: the
+    # declaration is the NOUN PHRASE, and everything after it is optional decoration.
+    # So the tail is now `verb | end-of-clause`, which covers the bare form and every future one.
+    # ⚠ Still safe by construction, and the guard is unchanged: this only ever GRANTS clean, and
+    # only when NO block makes a defect claim. A red-proof asserts that a P1 following the
+    # declaration is still filed as findings. [[unknown-stays-unknown]]
+    r"(?:"
+    r"\s+(?:were\s+|are\s+|was\s+|is\s+)?"
     r"(?:found|identified|detected|visible|apparent|evident|present|noted|observed|seen|"
-    r"reported|meeting|matching|warranting|meriting)\b",
+    r"reported|meeting|matching|warranting|meriting)\b"
+    r"|\s*(?:\*+\s*)?(?:[.;:!]|$)"      # "No concrete defects." / "**No concrete defects.**"
+    r")",
     re.I)
 
 # a block that carries one of these is making a CLAIM about a defect, not describing a change.

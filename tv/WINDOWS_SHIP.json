@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3267",
+  "ver": "v3268",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3267: HEART: prune read plan delete and remove, keys reel_retention has never published, so it reported a planner that releases nothing while the planner said 1 reel may go. slot blamed a reader for dropping geometry no reader has ever had - 0 of 14322 sightings carry a coordinate because the only producer is the hover autopilot he has not authorised. New UNBUILT state, declared never inferred, measured never assumed, and joined into the doctor which would otherwise have said all 11 joints carry. 6 red-proofs. REG-1076.",
+  "note": "v3268: HEART: the ledger staleness row counted Deans switched off Windows laptop as a ledger figure out of date, when api fleet already lists it as offline - staleness concatenated the two rosters and threw that away. Its figure was a boot time placeholder too, 0 uniques beside 131 sets. Now machineOff is declared by the roster never inferred, an ONLINE peer that went quiet is still STALE, and the offline peer is named with its last heartbeat. 4 red-proofs. REG-1078.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

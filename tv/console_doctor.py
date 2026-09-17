@@ -2718,8 +2718,17 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
                         "front of it is not a pass"
     ceil = st["ceiling"]
     drifted = [r for r in rows if r.get("kind") == LA.FROZEN and r.get("stale") is True]
-    old = [r for r in rows if r.get("kind") == LA.BEACON and r.get("stale") is True]
-    dark = [r for r in rows if r.get("stale") is None]
+    # ⚠⚠ v3268 — A SWITCHED-OFF LAPTOP IS NOT A LEDGER FIGURE OUT OF DATE. This row said
+    # "3 of 10 ledger figure(s) are out of date" and the third was Dean's Windows machine, off
+    # since 2026-09-15 — a fact `/api/fleet` already publishes by putting it in `offline`.
+    # Counting it here inflates the number he acts on with something no action of his can fix,
+    # and buries the two that he CAN act on. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+    # ⚠ AND IT IS NOT SILENCED: `off` gets its own sentence below. A peer that is ONLINE and has
+    # gone quiet stays in `old`, which is the real fault this check exists to catch.
+    off = [r for r in rows if r.get("machineOff")]
+    old = [r for r in rows
+           if r.get("kind") == LA.BEACON and r.get("stale") is True and not r.get("machineOff")]
+    dark = [r for r in rows if r.get("stale") is None and not r.get("machineOff")]
 
     if drifted or old:
         bits = []
@@ -2731,13 +2740,26 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
         for r in old:
             bits.append("%s last spoke %.1f min ago (stale past %.1f min)"
                         % (r["name"], (r["ageMs"] or 0) / 60000.0, ceil["staleMs"] / 60000.0))
-        return MISSING, ("%d of %d ledger figure(s) are out of date: %s. Threshold arithmetic: "
+        # ⚠ the offline peers ride along in the same sentence rather than in a second row, so
+        # the count in front and the explanation behind can never drift apart.
+        _offsay = ("" if not off else
+                   " · %d peer(s) are switched off rather than stale: %s"
+                   % (len(off), "; ".join(str(r.get("why") or r["name"]) for r in off[:2])))
+        return MISSING, ("%d of %d ledger figure(s) are out of date: %s.%s Threshold arithmetic: "
                          "beacon %.0fs + tally TTL %.0fs + fleet cache %.0fs = %.0fs ceiling, "
                          "x%d = %.0fs stale line (%s)."
-                         % (len(drifted) + len(old), len(rows), "; ".join(bits[:4]),
+                         % (len(drifted) + len(old), len(rows), "; ".join(bits[:4]), _offsay,
                             ceil["parts"]["beaconPeriodS"], ceil["parts"]["tallyTtlS"],
                             ceil["parts"]["fleetCacheS"], ceil["ceilingMs"] / 1000.0,
                             ceil["parts"]["multiple"], ceil["staleMs"] / 1000.0, ceil["how"]))
+    if off:
+        # ⚠ NOT OK. Nothing is broken and nothing here is this console's to fix, but a figure whose
+        # machine is dark is not a current one, and "every beacon is inside N min" would be a
+        # measured claim about a peer nobody has heard from. Same call as the river's UNBUILT.
+        return UNKNOWN, ("%d of %d ledger figure(s) are current; %d peer(s) are switched off, so "
+                         "their figures are last-known rather than stale: %s"
+                         % (len(rows) - len(off), len(rows), len(off),
+                            "; ".join(str(r.get("why") or r["name"]) for r in off[:2])))
     if dark:
         return UNKNOWN, ("%d of %d ledger figure(s) could not be dated at all (%s) — UNKNOWN age is "
                          "not a fresh one" % (len(dark), len(rows),

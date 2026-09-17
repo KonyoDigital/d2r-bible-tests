@@ -1260,5 +1260,98 @@ RED_PROOF = [
 ]
 
 
+class AMachineThatIsOffIsNotAFigureGoingStale(unittest.TestCase):
+    """★ v3268 — THE DOCTOR COUNTED A SWITCHED-OFF LAPTOP AS A LEDGER FIGURE OUT OF DATE.
+
+    MEASURED on his console 2026-09-17, from `/api/fleet`:
+
+        online   GrokBot  v3266  uniques 310/403   age    0.5 min
+        online   Konyo    v3267  uniques 309/403   age    1.0 min
+        offline  Dean     v3156  uniques   0/403   age 3625 min   (last event: `boot`)
+
+    The row said **"3 of 10 ledger figure(s) are out of date"**, and the third was Dean's Windows
+    machine, off since 2026-09-15. `/api/fleet` ALREADY publishes that fact — it puts him in
+    `offline`, not `online` — and `staleness()` concatenated the two rosters on its first line,
+    discarding the one authority that knew before any grading happened.
+
+    ⚠ And the figure it was grading is itself a placeholder: Dean's last beacon was a `boot`, so
+    `uniques.have` was **0** while `sets.have` on the same payload was **131**. A board with 131
+    of 135 sets does not have 0 of 403 uniques. So the sentence inflated a count he acts on with a
+    number no action of his could fix, and buried the two he CAN act on. The `Wife PC` row is the
+    proof the schema supports the honest shape: all of its figures are `null`, not 0.
+    [[zero-needs-a-denominator]] [[label-outlived-referent]]
+
+    This is the third time in one day that a thing which is correctly NOT RUNNING was graded as a
+    thing that is BROKEN — v3265 (BLOCKED vs STOPPED), v3267 (UNBUILT vs DRY), and now this.
+    """
+
+    @staticmethod
+    def _peer(nick, at_ms, have, offline):
+        return {"nickname": nick, "machine": "%s-BOX" % nick, "t": "2026-09-15T00:24:28.324Z",
+                "tally": {"ok": True, "at": at_ms,
+                          "uniques": {"have": have, "total": 403}}}
+
+    def _fleet(self, now_ms):
+        fresh = now_ms - 30_000
+        ancient = now_ms - 220_000_000          # ~61 hours
+        return {
+            "online": [self._peer("Konyo", fresh, 309, False)],
+            "offline": [self._peer("Dean", ancient, 0, True)],
+        }
+
+    def _rows(self, fleet):
+        st = LA.staleness(own=None, fleet=fleet, table={})
+        return {r["name"]: r for r in st["rows"]}, st
+
+    def test_an_OFFLINE_peer_is_marked_and_kept_out_of_the_stale_count(self):
+        import time
+        now = int(time.time() * 1000)
+        rows, st = self._rows(self._fleet(now))
+        self.assertTrue(rows["Dean tally"]["machineOff"])
+        self.assertFalse(rows["Konyo tally"]["machineOff"])
+        self.assertEqual(st["staleHereN"], 0,
+                         "a switched-off laptop was counted as a figure THIS console must fix")
+        self.assertEqual(st["machineOffN"], 1)
+
+    def test_an_ONLINE_peer_that_HAS_gone_quiet_is_still_STALE(self):
+        """⚠⚠ THE LAW THE WHOLE CHANGE TURNS ON. A machine that is ON and has stopped reporting is
+        the real fault this beacon check exists to catch, and it must not be able to hide behind
+        the offline flag."""
+        import time
+        now = int(time.time() * 1000)
+        fl = self._fleet(now)
+        fl["online"] = [self._peer("Konyo", now - 220_000_000, 309, False)]
+        rows, st = self._rows(fl)
+        self.assertTrue(rows["Konyo tally"]["stale"])
+        self.assertFalse(rows["Konyo tally"]["machineOff"])
+        self.assertEqual(st["staleHereN"], 1,
+                         "an ONLINE peer that went quiet stopped counting as stale")
+
+    def test_machineOff_is_declared_by_the_ROSTER_not_inferred_from_age(self):
+        """If age defined offline, the distinction would be circular: every stale beacon would
+        excuse itself as 'switched off' and the check would grade nothing."""
+        import time
+        now = int(time.time() * 1000)
+        fl = {"online": [self._peer("Dean", now - 220_000_000, 0, False)], "offline": []}
+        rows, _ = self._rows(fl)
+        self.assertFalse(rows["Dean tally"]["machineOff"],
+                         "a peer on the ONLINE roster was called switched-off because it was old")
+        self.assertTrue(rows["Dean tally"]["stale"])
+
+    def test_the_offline_peer_is_NAMED_and_never_merely_dropped(self):
+        """⚠ the guard against the quiet corner — the same one v3267's UNBUILT needed. Removing a
+        row from a count is only honest if the row still reaches him in words."""
+        import time
+        now = int(time.time() * 1000)
+        rows, st = self._rows(self._fleet(now))
+        self.assertIn("Dean tally", st["machineOff"])
+        why = rows["Dean tally"]["why"]
+        self.assertIn("switched off", why)
+        self.assertIn("LAST KNOWN", why)
+        self.assertIn("2026-09-15", why, "the sentence does not say WHEN it was last heard from")
+        self.assertNotIn("0 of 403", why,
+                         "it republished the boot-time placeholder as if it were Dean's tally")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

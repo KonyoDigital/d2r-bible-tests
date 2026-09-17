@@ -112,6 +112,23 @@ class ACleanLookIsFiledAsClean(unittest.TestCase):
         self.assertEqual("clean", _verdict(
             "The diff is correct as shown (no concrete defects meeting the criteria)."))
 
+    def test_the_BARE_declaration_with_no_verb_at_all_is_clean(self):
+        """★ v3268 — AND THE VERY NEXT LOOK BROKE v3267's FIX. Grok opened the v3267 review with
+        '**No concrete defects.**' — full stop, no verb — and it was filed as findings again.
+        Four phrasings in three versions (v3216 `evident`, v3216 `present`, v3267 `meeting`, this
+        one). Enumerating how a model says 'nothing is wrong' does not converge, so the verb is
+        now optional: the declaration is the NOUN PHRASE and everything after it is decoration.
+        """
+        for a in ("**No concrete defects.**", "No defects.", "No issues.",
+                  "No concrete defects; the diff is fine.", "**No bugs.**"):
+            self.assertEqual("clean", _verdict(a),
+                             "a bare declaration with no verb was filed as findings: %r" % a)
+
+    def test_the_BARE_form_still_cannot_bury_a_claim(self):
+        self.assertEqual("findings", _verdict(
+            "**No concrete defects.**\n\n"
+            "P1: the caller and the callee disagree about the key name, so it fails on every run."))
+
     def test_the_other_phrasings_that_mean_NOTHING_IS_WRONG(self):
         for tail in ("meeting the criteria", "matching the criteria", "warranting a report",
                      "noted", "observed", "seen", "reported"):

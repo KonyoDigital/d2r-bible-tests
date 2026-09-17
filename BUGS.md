@@ -36446,6 +36446,68 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1078 — the doctor counted a switched-off laptop as a ledger figure out of date
+
+The `ledger staleness` row read:
+
+```
+3 of 10 ledger figure(s) are out of date: uniques seed is +63 behind the live figure;
+sets seed is +25 behind the live figure; Dean tally last spoke 3624.3 min ago
+```
+
+Measured from `/api/fleet` at the same moment:
+
+| roster | who | ver | uniques | age |
+|---|---|---|---|---|
+| online | GrokBot | v3266 | 310 / 403 | 0.5 min |
+| online | Konyo | v3267 | 309 / 403 | 1.0 min |
+| **offline** | **Dean** | v3156 | **0 / 403** | **3625 min** |
+| offline | Wife PC | v2101 | `null` / `null` | — |
+
+The third figure is **Dean's Windows laptop, switched off since 2026-09-15.** `/api/fleet` already
+publishes that fact — it puts him in `offline`, not `online` — and `ledger_authority.staleness()`
+concatenated the two rosters on its very first line, discarding the one authority that knew before
+any grading happened.
+
+⚠ **And the figure it was grading is itself a placeholder.** Dean's last heartbeat was an `event:
+boot`, so `uniques.have` was **0** while `sets.have` on the same payload was **131**. A board with
+131 of 135 sets does not have 0 of 403 uniques — that zero is a not-yet-computed figure published
+as a measurement, and it has sat there for sixty hours. The `Wife PC` row proves the schema
+supports the honest shape: every one of its figures is `null`, not 0.
+[[zero-needs-a-denominator]]
+
+So the sentence inflated a count he acts on with something no action of his can fix, and buried the
+two he actually can.
+
+**This is the third time in one day that a thing which is correctly NOT RUNNING was graded as a
+thing that is BROKEN:** REG-1074 (BLOCKED vs STOPPED), REG-1076 (UNBUILT vs DRY), and this. Same
+remedy every time — ask the authority that already knows.
+
+**Fixed in v3268.** `staleness()` carries the roster through instead of flattening it, marks an
+offline peer `machineOff`, and publishes `staleHereN` beside the old `staleN` so no existing
+reader's meaning shifts. The doctor gives offline peers their own sentence and their own verdict:
+UNKNOWN, not MISSING — nothing is broken and nothing here is this console's to fix, but a figure
+whose machine is dark is not a current one either.
+
+⚠ Two guards, the same pair v3267 needed:
+
+1. **`machineOff` is DECLARED by the roster, never inferred from age.** If age defined "off", every
+   stale beacon would excuse itself and the check would grade nothing.
+2. **An ONLINE peer that has gone quiet is still STALE.** That is the real fault this beacon check
+   exists to catch and it must not be able to hide behind the new flag.
+
+Plus: the offline peer is still NAMED, with its machine and last-heartbeat time, and the sentence
+deliberately does NOT quote the boot-time `0` as Dean's tally.
+
+**After:** *"2 of 10 ledger figure(s) are out of date … · 1 peer(s) are switched off rather than
+stale: Dean's machine (LAPTOP-QNFL860M) … last heartbeat 2026-09-15T00:24:28.324Z."*
+
+⚠ **The remaining two are HIS call, not mine.** `uniques seed +63` and `sets seed +25` are
+hardcoded transcriptions in `bible.html` that have fallen behind his live figures. Updating a seed
+changes a number he acts on, so it is reported precisely and left for him.
+
+Four sabotages, every one RED, each anchor matching exactly once.
+
 ## REG-1077 — a clean cross-family look was filed as findings, for the third time, on a different verb
 
 Taking the v3266 second-eye look, Grok answered:
@@ -36469,6 +36531,54 @@ the stricter bucket. There is a red-proof asserting exactly that — a P1 follow
 still reads as findings.
 
 Added: `noted · observed · seen · reported · meeting · matching · warranting · meriting`.
+
+### ⚠ v3268 — AND THE VERY NEXT LOOK BROKE THAT FIX
+
+Taking the v3267 look one version later, Grok opened with:
+
+> **No concrete defects.**
+
+Full stop. **No verb at all** — so the widened participle list did not help, and the row was filed
+`verdict=findings` again. That is four phrasings in three versions: `evident` (v3216), `present`
+(v3216), `meeting` (v3267), and the bare noun phrase (this).
+
+**The lesson is that enumerating how a model says "nothing is wrong" does not converge.** Each fix
+chased vocabulary and the next answer used a form outside it. The declaration is the **noun
+phrase** — `no <adj>? <defects|issues|bugs|problems>` — and everything after it is decoration. So
+the tail became `verb | end-of-clause`, which covers the bare form and every future one.
+
+The guard is unchanged and re-proved for the bare form: a `P1:` block following the declaration is
+still filed as findings, because the pattern only ever GRANTS clean and only when no block makes a
+defect claim.
+
+### ⚠⚠ AND THE FIRST CUT OF THAT FIX PASSED FOR THE WRONG REASON
+
+Adding the end-of-clause branch made the tests go green, and it was **unreachable for the exact
+input it was written for.** The pattern's noun group ended:
+
+```python
+r"\bno\s+(?:\w+\s+){0,2}(?:defects?|issues?|bugs?|problems?)\s+"
+```
+
+A **required trailing space.** "No concrete defects." puts a `.` straight after the noun, so the
+match failed there and never reached the new branch at all. The test passed anyway, because
+`_findings_from` returns NO blocks for a one-line answer and `_verdict_for` reads "a declaration
+with nothing listed" as clean — a green that arrived by a route with nothing to do with the fix.
+
+It surfaced only because one case in the loop was `"No concrete defects; the diff is fine."`, where
+the trailing text keeps the block non-empty and the accidental path is unavailable. **One input in
+five was the difference between a real fix and a decoration.**
+[[matches-once-can-still-prove-nothing]] [[sabotage-is-usually-the-wrong-one]]
+
+The separator now lives inside the verb branch, where it belongs: a verb needs a space before it, a
+full stop does not. The sabotage that proves it is reverting `)\b` to `)\s+`, and it goes RED.
+
+Verified across ten phrasings — bare, `**bolded**`, semicolon-continued, verb-carrying, and two
+that must stay `findings`.
+
+⚠ **The v3266 and v3267 rows are left as they stand.** Both over-report, which is the safe
+direction the file designs for, and appending corrected rows would inflate the look count for two
+looks that each happened once. Fixed forward, not rewritten.
 
 ⚠ **The v3266 row is left as it stands.** It over-reports, which is the safe direction the file
 designs for (*"over-reporting a finding costs a re-read, under-reporting one ships a defect with a
