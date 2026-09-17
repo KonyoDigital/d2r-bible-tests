@@ -164,14 +164,23 @@ def check_lanes():
         return _row("lanes", UNKNOWN, "lane health could not be loaded — %s" % e)
     rep = LH.report()
     bad = [l for l in rep["lanes"].values() if l["state"] == "stalled"]
+    # ⚠⚠ v3265 — BLOCKED MUST STILL REACH HIM, OR THE THIRD STATE IS AN OFF SWITCH.
+    # `lane_health` learned to say BLOCKED (owes work, can act on none of it) this same version.
+    # This line existed before that word did, so the moment the new state shipped, a lane owing 4
+    # reads would have fallen out of `bad`, matched nothing else, and landed on
+    # "every extraction lane is fresh and aligned" — a GREEN HEART over the exact fault I was
+    # fixing. A new verdict word is a JOIN, not a rename. [[the-unjoined-end]] [[regression-guard]]
+    blk = [l for l in rep["lanes"].values() if l["state"] == "blocked"]
     unk = [l for l in rep["lanes"].values() if l["state"] == "unknown"]
     div = [d for d in rep["divergences"] if d["state"] == "diverged"]
     ev = [l["why"] for l in rep["lanes"].values()] + [d["why"] for d in rep["divergences"]]
     if unk:
         return _row("lanes", UNKNOWN, "a lane's store could not be read", ev)
-    if bad or div:
-        worst = (bad + div)[0]
-        n = len(bad) + len(div)
+    if bad or div or blk:
+        # ⚠ a genuinely stopped lane and a disagreement both outrank BLOCKED, which is waiting on
+        # a declaration rather than failing — so blocked leads only when it is the ONLY fault.
+        worst = (bad + div + blk)[0]
+        n = len(bad) + len(div) + len(blk)
         # ★ v2437 — THE DECIDING SENTENCE LEADS, BECAUSE THE CONSOLE ONLY PRINTS TWO.
         # console_doctor renders `"; ".join(_clip(x, 110) for x in evidence[:2])`, and `ev` was
         # built lanes-first, divergences-last. With two lanes and one divergence the [:2] kept
@@ -191,12 +200,19 @@ def check_lanes():
         # different remedies, and the heading called them the same thing.
         if worst.get("pair"):
             head = "%s and %s disagree" % tuple(worst["pair"][:2])
+        elif worst.get("state") == "blocked":
+            # ⚠ NOT "has stopped". The remedy is different: a stopped lane needs its thread
+            # looked at, a blocked lane needs the thing it is waiting for. Measured 2026-09-17:
+            # the chronicle thread was alive, switched on and correct the whole time the panel
+            # said STOPPED, and the word sent me hunting a fault that did not exist.
+            head = "%s is blocked on %s owed read(s) it cannot act on" % (
+                worst.get("lane"), worst.get("owed"))
         else:
             head = "%s has stopped" % worst.get("lane")
         return _row("lanes", WARN,
                     "%s%s" % (head, ("" if n == 1 else " (+%d more)" % (n - 1))),
                     ev)
-    return _row("lanes", OK, "every extraction lane is fresh and aligned", ev)
+    return _row("lanes", OK, "every extraction lane is fresh, unblocked and aligned", ev)
 
 
 

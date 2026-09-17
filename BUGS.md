@@ -36446,6 +36446,52 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1074 — the doctor called a lane STOPPED while its thread was alive, its switch on, and its sweeper saying nothing was waiting
+
+He asked me to "fix chronicle stopped". The panel had said, for three days:
+
+```
+extraction lanes   warn   chronicle has stopped
+chronicle: 424 session(s), last did work 62.2 h ago
+```
+
+**Nothing was stopped.** Measured, in this order, before touching anything:
+
+| checked | found |
+|---|---|
+| the switch `TV_CHRON_AUTOREEL` | default `"1"`, unset in his env → **ON** |
+| the thread | `("tvd-chron-autoread", _chron_autoread_loop)` — **in the roster, alive** |
+| `chronicle_sweep_now.py` dry run | *"nothing waiting: every reel with a chosen Chronicle focus has been swept"* |
+| `_unswept_chron_reels(limit=50)` | **0** |
+| `lane_health` owed | **4**, and it names them |
+
+So the lane owes four reads and can perform **none** of them — those four reels have no chosen
+Chronicle focus, and the sweeper will not invent one. It is waiting on a declaration nobody has
+made. `lane_health` had exactly two boxes for a stale lane, IDLE (owed 0) and STOPPED (owed > 0),
+and this is a third thing. It went in the STOPPED box, and the word sent me hunting a dead thread
+that was alive and entirely correct.
+
+**Both cheap fixes are worse than the bug.** Calling it IDLE hides four reels that genuinely owe
+work. Treating an uncounted `actionable` as zero marks every lane BLOCKED on any venue that cannot
+count — an off switch wearing a verdict. So `actionable=None` keeps whatever verdict it had,
+the same discipline `owed=None` has carried since v2272. [[unknown-stays-unknown]]
+
+**The join is the half that could have gone wrong silently.** `health_engine.check_lanes` collected
+`state == "stalled"` and nothing else. The moment BLOCKED shipped, a lane owing four reads would
+have matched no bucket and landed on *"every extraction lane is fresh and aligned"* — a **green
+heart over the exact fault being fixed**. A new verdict word is a JOIN, not a rename, and the
+sabotage that proves it (`if bad or div or blk:` → `if bad or div:`) is in the suite.
+
+**Fixed in v3265.** `tv/lane_health.py` gains `actionable_counts()` and a `blocked` verdict;
+`tv/health_engine.py` collects it, ranks it below a real stop and below a divergence, and says
+*"chronicle is blocked on 4 owed read(s) it cannot act on"* rather than *"has stopped"*.
+Six red-proofs in `TestBlockedIsNotStopped`; all five sabotages measured RED, each anchor matching
+exactly once.
+
+⚠ **What this does NOT fix:** the four reels still owe a read. BLOCKED is the true name for the
+state, not a repair — the repair is a chosen focus, which is his call, and the panel now says so
+in words he can act on.
+
 ## REG-1073 — outside-click on THE SHELF left a bare stage, because v2451 fixed one site and not its sibling
 
 Filed as **#229**: *"The real code debt is outside-click on SHELF. It does not honor shelfIsDoor,

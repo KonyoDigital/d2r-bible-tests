@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3264",
+  "ver": "v3265",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3264: outside click on the shelf did not honor shelfIsDoor so it could leave him on a bare stage, and v3263 clear could have taken a filter away when its only matches were past the fifo cap. HEART: one dismiss for both paths and the match test asks the filter not the screen, five red proofs",
+  "note": "v3265: HEART: lane_health gains a third state. The chronicle lane owes 4 reads and can act on 0 because none of those reels has a chosen Chronicle focus, so it was never stopped - its thread is alive and the sweeper says nothing is waiting. health_engine joins the new word so a blocked lane still WARNs instead of falling out of the bad list into every lane is fresh. 6 red-proofs, all five sabotages RED.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

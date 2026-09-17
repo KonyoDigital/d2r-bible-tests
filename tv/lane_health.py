@@ -118,7 +118,7 @@ def _newest_ts(blob):
     return best
 
 
-def lane(name, now_ms=None, owed=None):
+def lane(name, now_ms=None, owed=None, actionable=None):
     """One lane's health. -> dict
 
     ★ v2301 — A LANE WITH NOTHING TO DO IS NOT A LANE THAT STOPPED, and this could not tell them
@@ -155,8 +155,23 @@ def lane(name, now_ms=None, owed=None):
     age = (now - ts) / 3600000.0
     over = age > stall_h
     idle = bool(over and isinstance(owed, int) and owed == 0)
-    stalled = bool(over and not idle)
-    if idle:
+    # ⚠⚠ v3265 — BLOCKED IS NOT STOPPED. A lane that owes work and can act on NONE of it is
+    # waiting on something nobody has supplied, not failing to run. Measured: chronicle owed 4,
+    # sweepable 0, because none of those reels has a chosen Chronicle focus. "STOPPED" sent me
+    # looking for a dead thread that was alive, switched on, and entirely correct.
+    # ⚠ `actionable is None` means nobody counted, so the verdict is left exactly as it was.
+    blocked = bool(over and not idle and isinstance(owed, int) and owed > 0
+                   and isinstance(actionable, int) and actionable == 0)
+    stalled = bool(over and not idle and not blocked)
+    if blocked:
+        tail = (" — past the %.0f h mark, BUT it owes %d read(s) and can act on NONE of them, so "
+                "this lane is BLOCKED, not stopped: it is waiting on something nobody has "
+                "supplied. Measured 2026-09-17: the four reels it owes have no chosen Chronicle "
+                "focus, and `chronicle_sweep_now` answers 'nothing waiting: every reel with a "
+                "chosen Chronicle focus has been swept'. A dead thread and a lane with nothing it "
+                "may touch are different faults and only one of them is fixed by restarting "
+                "anything." % (stall_h, owed))
+    elif idle:
         tail = (" — but %s owed a read, so this lane is IDLE, not stopped: it has swept everything "
                 "there is" % ("nothing" if owed == 0 else "%d" % owed))
     elif stalled:
@@ -173,7 +188,11 @@ def lane(name, now_ms=None, owed=None):
         # it meaning. [[unknown-stays-unknown]] [[stale-reading]]
         tail = " — well inside the %.0f h mark, so this lane is FRESH" % stall_h
     return {
-        "lane": name, "state": ("idle" if idle else ("stalled" if stalled else "fresh")),
+        "lane": name,
+        "state": ("idle" if idle else ("blocked" if blocked else ("stalled" if stalled else "fresh"))),
+        # ⚠ v3265 — published beside the state so a caller can act on the GAP rather than re-derive
+        # it. owed - actionable is the number of units this lane is holding but may not touch.
+        "actionable": actionable,
         "sessions": len(blob), "ageHours": round(age, 1), "stallAfterHours": stall_h,
         "what": what, "owed": owed,
         "why": "%s: %d session(s), last did work %.1f h ago%s" % (name, len(blob), age, tail),
@@ -286,6 +305,41 @@ def divergence(a, b):
     }
 
 
+def actionable_counts():
+    """How many owed units each lane can ACTUALLY ACT ON right now. -> {lane: int or None}
+
+    ⚠⚠ v3265 — THE THIRD STATE. `owed_counts` answers "how much is waiting"; this answers "how
+    much of it can this lane touch". They are different numbers on purpose and the gap between
+    them is the finding.
+
+    MEASURED on his console, 2026-09-17, with the doctor reporting the chronicle lane STOPPED:
+        owed by the loop rule   4   (reel_s_1789419985817_32179, …_1789419736164_30857,
+                                     …_1789330829280_66296, …_1788993875843_44020)
+        sweepable right now     0
+        chronicle_sweep_now     "nothing waiting: every reel with a chosen Chronicle focus has
+                                 been swept"
+    The lane is neither STOPPED nor IDLE. It owes four reads and can perform none of them, because
+    none of those reels has a chosen Chronicle focus — it is BLOCKED, waiting on a declaration
+    nobody has made. Filing that as "STOPPED" sends him looking for a dead thread that is alive and
+    correct, and filing it as IDLE would hide four reels that genuinely owe work.
+
+    ⚠ None means NOBODY COUNTED, exactly as in `owed_counts`, and an uncounted lane keeps whatever
+    verdict it had. [[unknown-stays-unknown]]
+    """
+    out = {n: None for n in LANES}
+    try:
+        import control_app as _ca
+    except Exception:
+        return out
+    try:
+        w = _ca._unswept_chron_reels(limit=50)
+        if isinstance(w, list):
+            out["chronicle"] = len(w)
+    except Exception:
+        pass
+    return out
+
+
 def owed_counts():
     """How many units of work each lane actually has WAITING. -> {lane: int or None}
 
@@ -350,7 +404,8 @@ def report(now_ms=None, owed=None):
     [[feedback-fixtures-never-touch-live-data]]
     """
     _owed = owed_counts() if owed is None else dict(owed)
-    lanes = {n: lane(n, now_ms, owed=_owed.get(n)) for n in LANES}
+    _act = actionable_counts()
+    lanes = {n: lane(n, now_ms, owed=_owed.get(n), actionable=_act.get(n)) for n in LANES}
     divs = [divergence(a, b) for a, b in CORROBORATE]
     # "idle" is a HEALTHY state: swept everything, nothing owed. Only stalled/unknown are bad.
     bad = [l for l in lanes.values() if l["state"] in ("stalled", "unknown")]

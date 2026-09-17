@@ -352,6 +352,98 @@ class TestTheCorroboratorCanSayALIGNED(_Tree):
 
 
 
+class TestBlockedIsNotStopped(_Tree):
+    """★ v3265 — A LANE THAT OWES WORK IT CANNOT TOUCH IS BLOCKED, AND BLOCKED IS NOT STOPPED.
+
+    `TestIdleIsNotStopped` above split "stale" into IDLE (nothing owed) and STOPPED (work owed).
+    Two boxes. A third state walked in on 2026-09-17 and had nowhere to go:
+
+        the doctor said   chronicle lane STOPPED 62.2 h ago
+        the switch        TV_CHRON_AUTOREAD default "1", unset in env -> ON
+        the thread        ("tvd-chron-autoread", _chron_autoread_loop) -> IN THE ROSTER, alive
+        the sweeper       "nothing waiting: every reel with a chosen Chronicle focus has been swept"
+        owed by the rule  4    (…_1789419985817_32179 and three more, named)
+        sweepable NOW     0
+
+    Nothing was stopped. The lane owes four reads and may perform none of them, because none of
+    those reels has a chosen Chronicle focus — it is waiting on a declaration nobody has made.
+    The word "STOPPED" sent me hunting a dead thread that was alive, switched on and correct.
+
+    ⚠ The cheap wrong fix is to call it IDLE and move on. That HIDES four reels that genuinely owe
+    work. The other cheap wrong fix is to treat an uncounted `actionable` as zero, which would mark
+    every lane BLOCKED on any venue that cannot count and turn the whole check off.
+    [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+
+    def test_owed_but_NONE_actionable_is_BLOCKED_and_refuses_the_word_stopped(self):
+        self._write("chronicle_swept.json", self._seal(36, 64.0))
+        r = LH.lane("chronicle", self.now, owed=4, actionable=0)
+        self.assertEqual(r["state"], "blocked")
+        self.assertIn("BLOCKED, not stopped", r["why"])
+        self.assertNotIn("STOPPED", r["why"])
+        # the count he can act on travels WITH the verdict, so a reader need not re-derive the gap
+        self.assertEqual(r["actionable"], 0)
+
+    def test_an_UNCOUNTED_actionable_leaves_a_stalled_lane_STALLED(self):
+        """⚠⚠ THE LAW THE WHOLE THIRD STATE TURNS ON, and the exact sibling of the `owed=None`
+        law twenty lines up. "it can act on nothing" and "nobody counted what it can act on" must
+        never reach the same box. If they do, the venue with no counter reports every stopped lane
+        as merely blocked — an off switch wearing a verdict."""
+        self._write("vault_swept.json", self._seal(8, 151.5))
+        r = LH.lane("vault", self.now, owed=2, actionable=None)
+        self.assertEqual(r["state"], "stalled")
+        self.assertIn("STOPPED", r["why"])
+
+    def test_owed_work_it_CAN_do_is_still_STOPPED(self):
+        """A lane holding work it is able to perform, and not performing it, is the original
+        fault and must keep the original word."""
+        self._write("vault_swept.json", self._seal(8, 151.5))
+        r = LH.lane("vault", self.now, owed=2, actionable=2)
+        self.assertEqual(r["state"], "stalled")
+        self.assertIn("STOPPED", r["why"])
+        self.assertNotIn("BLOCKED", r["why"])
+
+    def test_nothing_owed_stays_IDLE_even_when_actionable_is_zero(self):
+        """owed=0 and actionable=0 is the SWEPT-EVERYTHING lane. Zero of zero is not blocked."""
+        self._write("chronicle_swept.json", self._seal(36, 64.0))
+        r = LH.lane("chronicle", self.now, owed=0, actionable=0)
+        self.assertEqual(r["state"], "idle")
+        self.assertIn("IDLE, not stopped", r["why"])
+
+    def test_a_FRESH_lane_is_never_relabelled_BLOCKED(self):
+        self._write("chronicle_swept.json", self._seal(3, 2))
+        for act in (0, 2, None):
+            self.assertEqual(LH.lane("chronicle", self.now, owed=4, actionable=act)["state"],
+                             "fresh")
+
+    def test_a_BLOCKED_lane_still_makes_the_whole_report_NOT_ok(self):
+        """⚠ THE JOIN. A new verdict word that no consumer knows is an off switch: `health_engine`
+        collected `state == "stalled"` and nothing else, so on the day BLOCKED shipped, a lane
+        owing four reads would have fallen out of the bad list and landed on "every extraction lane
+        is fresh and aligned" — a GREEN HEART over the fault being fixed. [[the-unjoined-end]]"""
+        import sys as _sys
+        import health_engine as HE
+        rep = {"lanes": {"chronicle": {"state": "blocked", "owed": 4, "lane": "chronicle",
+                                       "why": "chronicle: BLOCKED, not stopped"}},
+               "divergences": []}
+        class _Stub:
+            @staticmethod
+            def report(*a, **k):
+                return rep
+        real = _sys.modules.get("lane_health")
+        _sys.modules["lane_health"] = _Stub
+        try:
+            row = HE.check_lanes()
+        finally:
+            if real is not None:
+                _sys.modules["lane_health"] = real
+            else:
+                _sys.modules.pop("lane_health", None)
+        self.assertNotEqual(row["state"], "ok", "the heart went GREEN over a blocked lane")
+        self.assertIn("blocked", row["line"])
+        self.assertNotIn("has stopped", row["line"])
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs
