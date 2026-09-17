@@ -35398,3 +35398,14 @@ been reporting `FAILED 1` for it. **A threshold BELOW the floor is the mirror of
 Raised to 45s, above the profiled cold figure with room, with the measurement written at the site.
 It stays a real bound: red-proofed by setting it to 0.001s → `FAILED 1: sessions: timed out`, so a
 genuine hang still fails rather than hanging. Result now: **ALL CHECKS PASSED**.
+
+⚠ **Addendum to REG-1048 — the new gate pinned the SHAPE, not the contract.** It asserted only
+that an `IfExp` was present in the `_tampered` assignment, and **any** ternary satisfies that:
+defaulting the count to 1, inverting the branches so `want` goes to the None side, or keying the
+test on something other than `want is None` would each leave all five laws green while restoring
+the defect. Named by a cross-family review of v3243, the version that added the law.
+
+It now walks the assignment and requires: the test is `want is None`; the count-less branch calls
+`.replace` with exactly **2** arguments; the declared-count branch calls it with **3**, the third
+being `want`. Red-proofed against all three wrong ternaries above — each goes red.
+`[[regression-guard]]` — pin the law, not the spelling.

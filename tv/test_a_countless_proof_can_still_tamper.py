@@ -63,12 +63,49 @@ class TestACountlessProofCanStillTamper(unittest.TestCase):
         """★ str.replace's third argument must be an int or absent — never None."""
         node = self._tamper_expr()
         self.assertIsNotNone(node, "the tamper assignment is gone — re-anchor this gate")
-        src = ast.dump(node)
-        self.assertIn("IfExp", src,
-                      "`_tampered` is a single unconditional call, so whatever `want` holds is "
-                      "handed to str.replace as its count. With a count-less proof that is None, "
-                      "and None is a TypeError — every 4-tuple proof would raise at the moment it "
-                      "tampers. Assignment:\n%s" % ast.dump(node))
+        # ⚠⚠ PIN THE CONTRACT, NOT THE SHAPE. The first cut asserted only that an `IfExp` was
+        # present — and ANY ternary satisfies that, including "default the count to 1" or an
+        # inverted one that passes `want` on the None branch. Both would leave all five laws green
+        # while restoring the defect. Named by a cross-family review of v3243, the version that
+        # added this law. [[regression-guard]] — pin the law, not the spelling.
+        self.assertIsInstance(node.value, ast.IfExp,
+                              "`_tampered` is a single unconditional call, so whatever `want` "
+                              "holds reaches str.replace as its count — and for a count-less "
+                              "proof that is None, which is a TypeError. Assignment:\n%s"
+                              % ast.dump(node))
+        test = node.value.test
+        self.assertTrue(
+            isinstance(test, ast.Compare) and len(test.ops) == 1
+            and isinstance(test.ops[0], ast.Is)
+            and isinstance(test.comparators[0], ast.Constant)
+            and test.comparators[0].value is None
+            and isinstance(test.left, ast.Name) and test.left.id == "want",
+            "the branch is not keyed on `want is None`, so it is deciding on something other "
+            "than whether a count was declared: %s" % ast.dump(test))
+
+        def _replace_args(call, which):
+            self.assertIsInstance(call, ast.Call, "%s branch is not a call: %s"
+                                                  % (which, ast.dump(call)))
+            self.assertEqual(getattr(call.func, "attr", None), "replace",
+                             "%s branch does not call .replace: %s" % (which, ast.dump(call)))
+            return call.args
+
+        no_count = _replace_args(node.value.body, "the count-less")
+        counted = _replace_args(node.value.orelse, "the declared-count")
+        self.assertEqual(
+            len(no_count), 2,
+            "the count-less branch passes %d argument(s) to .replace — with no declaration the "
+            "tamper must change EVERY occurrence, which is exactly what `got` counted and what "
+            "`got >= 1` just accepted. Passing anything as the count re-opens the TypeError or "
+            "silently limits the tamper: %s" % (len(no_count), ast.dump(node.value.body)))
+        self.assertEqual(
+            len(counted), 3,
+            "the declared-count branch does not pass a count, so a proof that says `matches: 1` "
+            "would tamper every occurrence instead of one: %s" % ast.dump(node.value.orelse))
+        self.assertEqual(
+            getattr(counted[2], "id", None), "want",
+            "the declared-count branch passes something other than `want` as the count: %s"
+            % ast.dump(node.value.orelse))
 
     def test_replace_with_no_count_changes_every_occurrence(self):
         """The rule, stated as behaviour: no declaration means tamper them all."""
