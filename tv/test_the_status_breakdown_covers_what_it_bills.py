@@ -97,6 +97,18 @@ def _timed_and_untimed():
                 timed.append(n.args[0].value)
             for sub in ast.walk(n):
                 covered.add(id(sub))
+    # ⚠⚠ A `raise` IS NOT A PRODUCER. This law is about work whose cost lands in
+    # `unattributedMs` where nobody can act on it. `raise RuntimeError("journal unread: %s" % ...)`
+    # — v3208's guard, and a correct one — constructs an exception on the FAILURE path and
+    # produces nothing; timing it would be timing the error message.
+    # MEASURED 2026-09-17: that single line was the whole of this gate's red, reported as
+    # `{'RuntimeError': [29224]}`, which reads as an untimed producer rather than as a guard.
+    # Excluded STRUCTURALLY rather than by adding "RuntimeError" to a name list, so the next
+    # ValueError or KeyError in a guard does not re-open it. [[label-outlived-referent]]
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Raise):
+            for sub in ast.walk(n):
+                covered.add(id(sub))
     untimed = {}
     for n in ast.walk(fn):
         if isinstance(n, ast.Call) and id(n) not in covered:

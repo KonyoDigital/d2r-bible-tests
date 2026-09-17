@@ -35282,3 +35282,41 @@ declaration nobody made. Meanwhile the well-formedness law (same diff) already t
 **Two readers, one field, two policies** — the shape this repo's defects keep starting from. Now
 identical on both sides: `got >= 1` always; the exact count only when somebody declared one.
 `[[unknown-stays-unknown]]` `[[copy-drift]]`
+
+## REG-1047 — a gate demanded a number his own ruling forbids, on four widths, since v3178
+
+**2026-09-17 · v3242 · `tv/test_the_render_fixture_can_reach_the_card_branch.py`,
+`tv/test_the_status_breakdown_covers_what_it_bills.py`**
+
+**1. The render floor law assumed every seeded run paints.** It derived the structural minimum as
+`2 * rc.FILM_RUNS` — 24 seeded runs × 2 unconditional nodes per card = 48 — and asserted every
+width's blessed floor was at least that. His **v3180 one-river ruling keeps only the last 8 cards
+on screen** (`RIVER_KEEP = 8`); the rest are pushed out of view. So four of the five widths can
+never paint more than 8 cards.
+
+MEASURED, from this file's OWN `nodes` diagnostics, which record *which* nodes were seen:
+
+```
+1120x628 · 1120x900 · 375x800 · 901x900   ->  Sessions 1-8    (16 nodes)
+1440x1000                                 ->  Sessions 1-24   (48 nodes)
+```
+
+The blessed floor is `{16, 16, 48, 16, 16}` — **exactly what is measured**. v3178 lowered four
+widths from 48 to 16 and was right to; the LAW was what had been wrong, demanding 48 on widths
+where his ruling forbids it, and red on origin ever since.
+
+⚠ I nearly re-blessed this the other way: memory records a session where I blessed a floor of 48
+from a WARM tree. The `nodes` diagnostics settled it in one read — a count cannot say what left,
+but a list of *which* nodes were seen can, which is exactly why v3201 added them.
+
+**Fixed:** `low = 2 * min(FILM_RUNS, RIVER_KEEP)`, with `RIVER_KEEP` **read from
+`control_ui.html`** rather than written here — a second copy of his ruling is how the two drift
+apart. Red-proofed both ways: dropping a floor below what the shelf paints → red; changing
+`RIVER_KEEP` to 24 → red, because the law follows the source.
+
+**2. `raise` is not a producer.** `test_no_producer_is_silently_untimed` census'd every `Call`
+inside `status_payload` and flagged `RuntimeError` at line 29224 — v3208's journal guard. An
+exception constructor on the failure path produces nothing; timing it would be timing the error
+message. Excluded STRUCTURALLY (every node under an `ast.Raise`) rather than by adding
+`"RuntimeError"` to a name list, so the next `ValueError` in a guard does not re-open it.
+Red-proofed: a real untimed producer → red naming it; swapping the exception type → still green.

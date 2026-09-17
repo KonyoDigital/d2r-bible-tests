@@ -45,6 +45,7 @@ import base64
 import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -214,13 +215,33 @@ class TestTheRenderFixtureCanReachTheCardBranch(unittest.TestCase):
         self.assertTrue(shelf, "shelf-cards has no floor at all, so a drop to zero reads as clean")
         # `.shc-hero` and `.shc-sess` are unconditional per card in the builder; `.shc-area` is
         # guarded by `(sm.areas || []).length`. So 2 x cards is the part that is STRUCTURAL.
-        low = 2 * rc.FILM_RUNS
+        #
+        # ⚠⚠ BUT "CARDS" IS NOT "SEEDED RUNS", AND THIS LAW ASSUMED IT WAS. It read
+        # `2 * rc.FILM_RUNS` — 24 seeded runs, so 48 nodes — and his v3180 one-river ruling keeps
+        # only the last 8 on screen (`RIVER_KEEP = 8` in control_ui.html); the rest are pushed out
+        # of view. So four of the five widths can only ever paint 8 cards.
+        #
+        # MEASURED from this file's own `nodes` diagnostics, which record WHICH nodes were seen:
+        #     1120x628 · 1120x900 · 375x800 · 901x900   ->  Sessions 1-8    (16 nodes)
+        #     1440x1000                                 ->  Sessions 1-24   (48 nodes)
+        # The blessed floor is exactly that. The FLOOR was right and the LAW was wrong — it had
+        # been demanding a number his own ruling forbids, on four widths, since v3178.
+        #
+        # ⚠ READ THE KEEP FROM THE SOURCE, never a literal 8 here: a second copy of his ruling is
+        # how the two drift apart. [[label-outlived-referent]] [[copy-drift]]
+        _ui = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        _m = re.search(r"var RIVER_KEEP\s*=\s*(\d+)", _ui)
+        self.assertIsNotNone(_m, "RIVER_KEEP is gone from control_ui.html — re-anchor this law "
+                                 "rather than guessing how many cards the shelf keeps")
+        river_keep = int(_m.group(1))
+        low = 2 * min(rc.FILM_RUNS, river_keep)
         for width, n in sorted(shelf.items()):
             print("   floor shelf-cards %-10s = %-4d (structural minimum %d)" % (width, n, low))
             self.assertGreaterEqual(
                 n, low,
-                "%s floor is %d, below the %d nodes %d seeded run(s) always paint — a floor under "
-                "the structural minimum cannot notice the grid emptying" % (width, n, low, rc.FILM_RUNS))
+                "%s floor is %d, below the %d nodes the shelf always paints (min of %d seeded "
+                "run(s) and RIVER_KEEP=%d) — a floor under the structural minimum cannot notice "
+                "the grid emptying" % (width, n, low, rc.FILM_RUNS, river_keep))
             self.assertLessEqual(
                 n, 3 * rc.FILM_RUNS + 4,
                 "%s floor is %d, above the %d nodes %d seeded run(s) can paint even with every "

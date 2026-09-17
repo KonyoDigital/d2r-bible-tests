@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3241",
+  "ver": "v3242",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3241: the re anchor from v3240 matched exactly once and was behaviourally inert, so the well formedness law went green over a tamper that flips no law. verified by execution this time. and the prover read an absent match count as a declared one while the law beside it treated it as unknown, which would have filed thirty two tuple proofs invalid for a declaration nobody made",
+  "note": "v3242: the render floor law derived its minimum from twenty four seeded runs while his one river ruling keeps eight on screen, so it demanded forty eight nodes on four widths that can only paint sixteen and had been red on origin since v3178. the minimum reads RIVER_KEEP from the page now. and a raise statement stopped counting as an untimed producer",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
