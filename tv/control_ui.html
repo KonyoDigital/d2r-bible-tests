@@ -12760,11 +12760,26 @@ window._lockMark = function(isOpen, px, label){
     var _nYou  = (e.needsYou != null) ? e.needsYou : youRows.length;
     var _nMine = (e.mine     != null) ? e.mine     : mineRows.length;
     var _nUnk  = (e.unknown  != null) ? e.unknown  : unkRows.length;
+    /* ⚠⚠ v3284 — WHEN THE HEADLINE AND THE LIST DISAGREE, SAY SO. Raised by the cross-family eye
+       on v3283: the counts come from the payload while the lists are bucketed here, so the panel
+       could read "8 thing(s) are waiting on YOU" above seven rows and nothing would explain the
+       missing one. Silence there is the worst outcome — he would either trust a number with no
+       referent or distrust a list that is correct.
+       ⚠ NEITHER FIGURE IS DROPPED. The counter's number leads because it is what the eagle
+       measured; the rendered number follows when they differ, because that is what he can
+       actually see. A gap is a finding about the panel, not a reason to hide one of them.
+       [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+    var _gap = [];
+    if (_nYou !== youRows.length)  _gap.push('you ' + _nYou + ' vs ' + youRows.length + ' shown');
+    if (_nMine !== mineRows.length) _gap.push('code ' + _nMine + ' vs ' + mineRows.length + ' shown');
+    if (_nUnk !== unkRows.length)  _gap.push('not-measured ' + _nUnk + ' vs ' + unkRows.length + ' shown');
     _lead.push('<div class="vx-lead-s">' + esc(
         (_nYou ? _nYou + ' thing(s) are waiting on YOU' : 'nothing is waiting on you')
       + ' \u00b7 ' + (_nMine ? _nMine + ' waiting on CODE' : 'nothing waiting on code')
       + ' \u00b7 ' + (_nUnk ? _nUnk + ' not measured' : 'everything was measured')
-      + (_dSay ? ' \u00b7 ' + _dSay : '')) + '</div>');
+      + (_dSay ? ' \u00b7 ' + _dSay : '')
+      + (_gap.length ? ' \u00b7 \u26a0 the counter and this panel disagree (' + _gap.join(', ')
+                       + ') \u2014 a row was counted that this panel did not draw' : '')) + '</div>');
     return '<div class="fxr-win">' + head + '<div class="fx-body">'
          + '<section class="vx-sec vx-lead">' + _lead.join('') + '</section>'
          + _vxSection('WAITING ON YOU', youRows)

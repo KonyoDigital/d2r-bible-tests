@@ -36626,6 +36626,54 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1093 — the handoffs stacked because I never posted back, and the panel could contradict itself
+
+### Why the third-eye ledger kept carrying paid items — and it was mine
+
+His ask: *"the handoffs from GROKBOT and GROK two separate entities posting on github with visual
+and backend third eye vies check and fix those and optimize them as we go so they dont stack up."*
+
+The cause was in the brief itself: **"Claude monitor: silent since #5713001046 (~10h)."** I had
+shipped **twenty versions** (v3265 → v3283) and never once posted back. The ledger kept listing
+items as unpaid because nothing ever told it otherwise. That is not a defect in their loop — it is
+a missing reply in mine.
+
+**Fixed by closing the loop:** posted a PAID/UNPAID reply to #180 (comment **5721203603**) mapping
+each brief item to the version that discharged it, and naming for every still-open item **what
+evidence would unblock it**. Checked against the public-repo rule first — no install ids, no
+hostnames, no tokens, no local paths.
+
+⚠ **And the two streams are not one stream.** GrokBot posts `GB-L-GUEST LOOKED` — a **sighting** on
+real pixels. Grok on the Mac posts `GB-L-MAC THIRD-EYE → Claude` — a **ledger of debt** over those
+sightings. Conflating them is how "SAW 8/8" got mistaken for "the no-relaunch blank is paid".
+
+### And the panel could contradict itself in silence
+
+The cross-family review of v3283: the headline counts come from the payload while the lists are
+bucketed client-side, so the panel could read *"8 thing(s) are waiting on YOU"* above **seven**
+rows with nothing to explain the missing one. Silence there is the worst outcome — he either
+trusts a number with no referent, or distrusts a list that is correct.
+
+**Fixed in v3284, without dropping either figure.** The counter's number leads, because it is what
+the eagle measured; the rendered number follows *when they differ*:
+
+```
+⚠ the counter and this panel disagree (you 8 vs 7 shown) — a row was counted that this panel did not draw
+```
+
+A gap is a finding **about the panel**, not a reason to hide one of the two numbers. Verified in
+node across three shapes: agreeing renders no warning, 8-vs-7 names the gap, all-zero still says
+"nothing is waiting on you". [[zero-needs-a-denominator]] [[label-outlived-referent]]
+
+⚠ **One finding declined, with the reason.** The eye also flagged that a check named in `mineWhat`
+whose state is `unknown` lands under WAITING ON CODE rather than NOT MEASURED. Ownership is
+deliberately the FIRST axis: the question that panel answers is *who acts*, and a check that is
+code's remains code's whether or not it was measured. Nothing is lost either — `_vxHealthRow`
+prints the row's own state word (`CAN'T ASK` / `MISSING` / `NEVER`) inside it, so the state travels
+with the row into whichever list it lands in.
+
+One law, three sabotages, every one RED.
+
 ## REG-1092 — CHILIAD was a raw doctor dump, and the split it needed was already in the payload
 
 Grok Bot's brief **#5719843089**, written for Konyo: CHILIAD should get *"the same treatment as the

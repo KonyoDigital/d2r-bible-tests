@@ -1037,6 +1037,29 @@ class TheChiliadPanelSpeaksHumanLogic(unittest.TestCase):
                       "there is no fallback when the payload omits the count, so a missing figure "
                       "would print as undefined")
 
+    def test_a_DISAGREEMENT_between_the_counter_and_the_panel_is_said_out_loud(self):
+        """★ v3284 — raised by the cross-family eye on v3283, and real.
+
+        The headline counts come from the payload (`e.needsYou` etc.) while the lists are bucketed
+        client-side, so the panel could read *"8 thing(s) are waiting on YOU"* above **seven** rows
+        with nothing to explain the missing one. Silence there is the worst outcome: he either
+        trusts a number with no referent, or distrusts a list that is correct.
+
+        ⚠ NEITHER FIGURE IS DROPPED. The counter's number leads, because it is what the eagle
+        measured; the rendered number follows when they differ, because that is what he can see.
+        A gap is a finding ABOUT THE PANEL, not a reason to hide one of the two.
+        Verified in node: agreeing renders no warning, `8 vs 7` renders
+        "⚠ the counter and this panel disagree (you 8 vs 7 shown)".
+        [[zero-needs-a-denominator]] [[label-outlived-referent]]
+        """
+        blk = self._lead_block()
+        self.assertIn("var _gap = []", blk, "the panel no longer compares its lists to the counts")
+        for pair in ("_nYou !== youRows.length", "_nMine !== mineRows.length",
+                     "_nUnk !== unkRows.length"):
+            self.assertIn(pair, blk, "%s is not compared, so that list can drift silently" % pair)
+        self.assertIn("disagree", blk,
+                      "a mismatch between the counter and the panel is not said out loud")
+
     def test_the_machine_detail_is_TUCKED_not_deleted(self):
         """⚠ The brief said *"doctor rows either rewritten or TUCKED"* — tucked, not lost. Versions,
         fleet and disk stay one click away."""
