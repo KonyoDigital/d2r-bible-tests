@@ -5201,11 +5201,24 @@
      an absent surface is honest where an empty one is not. */
   body[data-view="sessions"] .stage { display: none !important; }
   .hub-bible { display: none; }
-  body[data-view="sessions"] .hub-bible { display: inline-flex; align-items: center; gap: 7px; grid-column: 1 / -1;
-    justify-self: end; margin: -2px 0 2px; padding: 6px 12px; border: 1px solid var(--edge); border-radius: 8px;
-    background: rgba(0,0,0,.35); color: var(--gold-dim); font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono);
-    letter-spacing: var(--ls-wide); text-transform: uppercase; text-decoration: none; cursor: pointer; transition: border-color .15s, color .15s; }
-  body[data-view="sessions"] .hub-bible:hover { border-color: var(--gold); color: var(--gold); }
+  /* v3286 - THE DOOR TO THE FULL BIBLE LOOKED LIKE A FOOTNOTE. Konyo: "the button within the
+     console that routes us to the full bible page i want also upgraded and emphasized and seen
+     better and stretched and bigger and glowing". It was 6px of --gold-dim on a dim --edge,
+     justify-self:end, in the smallest type the shell declares - the quietest thing on a screen
+     whose whole job is to route him into the deep data. Now it spans the row, carries the live
+     gold rather than the dim one, and has a halo. Static glow, not an animation: nothing here
+     needs to pulse, and a pulsing control reads as an alert. */
+  body[data-view="sessions"] .hub-bible { display: flex; align-items: center; justify-content: center; gap: 10px;
+    grid-column: 1 / -1; justify-self: stretch; width: 100%; margin: 4px 0 8px; padding: 13px 18px;
+    border: 1px solid var(--gold); border-radius: 10px;
+    background: linear-gradient(180deg, rgba(240,192,96,.10), rgba(0,0,0,.42));
+    color: var(--gold); font: var(--fw-bold) var(--fs-xs)/1 var(--mono);
+    letter-spacing: var(--ls-wider); text-transform: uppercase; text-decoration: none; cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(240,192,96,.12), 0 0 18px -4px rgba(240,192,96,.45);
+    transition: border-color .15s, color .15s, box-shadow .2s, background .2s; }
+  body[data-view="sessions"] .hub-bible:hover { border-color: var(--gold-hi); color: var(--gold-hi);
+    background: linear-gradient(180deg, rgba(240,192,96,.16), rgba(0,0,0,.42));
+    box-shadow: 0 0 0 1px rgba(255,223,154,.22), 0 0 26px -2px rgba(240,192,96,.70); }
   /* ══ v1378 (SESSIONS FLAGSHIP R4) — the chronicle CREST + GRAIL-METER signature + the NEXT GRAIL hero.
      Flagship-only: shown in the console-native Sessions view, never on the TV·D cockpit. Locked tokens
      (Cinzel via --serif, --fw-*, gold), disciplined motion. ══ */

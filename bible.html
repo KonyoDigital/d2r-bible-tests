@@ -9524,6 +9524,21 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-session .sc-kpi{min-width:86px;text-align:center;padding:8px 12px;border:1px solid rgba(212,168,71,.3);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01))}
 #tab-session .sc-kpi b{display:block;font-size:16px;color:var(--gold-bright)}
 #tab-session .sc-kpi span{font-size:9.5px;letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--text-dim)}
+/* v3286 - THE CHIPS WEAR THE COLOUR OF THE ROOM THEY NAME. Konyo: "even top corner chronicles
+   set uniques and runewords should color match the tabs in main console". Two of them read
+   CHRONICLE - 99/99 runewords and 309/403 uniques - two different quantities under one word,
+   which is the "a number under a word naming another quantity" defect. They now say what they
+   count. The hues are the ones already declared at the top of this file and in control_ui.html;
+   nothing new is invented here. Runewords takes --rune (#ff7d3c) rather than the gold a runeword
+   NAME is painted, because v1631 settled that split: an item NAME obeys the game, a TAB is a
+   label for a ROOM, and the Forge room wears the rune colour. These chips label rooms. */
+#tab-session .sc-kpi.k-rw  b{color:var(--rune)}
+#tab-session .sc-kpi.k-uni b{color:var(--q-unique)}
+#tab-session .sc-kpi.k-set b{color:var(--q-set)}
+#tab-session .sc-kpi.k-rw {border-color:color-mix(in srgb,var(--rune) 42%,transparent)}
+#tab-session .sc-kpi.k-uni{border-color:color-mix(in srgb,var(--q-unique) 42%,transparent)}
+#tab-session .sc-kpi.k-set{border-color:color-mix(in srgb,var(--q-set) 34%,transparent)}
+#tab-session .sc-kpi.k-rw span,#tab-session .sc-kpi.k-uni span,#tab-session .sc-kpi.k-set span{color:var(--text-muted)}
 #tab-session .sc-fresh{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 #tab-session .sc-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text-muted);font-size:11.5px;cursor:pointer}
 #tab-session .sc-chip:hover{border-color:var(--border-light);color:var(--text)}
@@ -49886,10 +49901,10 @@ window.renderSessionCockpit = function(){
     };
     try {
       var rwT = (typeof RUNEWORD_TIP!=='undefined') ? Object.keys(RUNEWORD_TIP).length : 0;
-      if (rwT) kh.push('<div class="sc-kpi"><b>'+_scRwMade()+'/'+rwT+'</b><span>Chronicle</span></div>');
+      if (rwT) kh.push('<div class="sc-kpi k-rw"><b>'+_scRwMade()+'/'+rwT+'</b><span>Runewords</span></div>');
     } catch(e){}
     var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}
-    if (_scFuni) kh.push('<div class="sc-kpi"><b>'+_scFuni.found+'/'+window.d2rChronTotal(_scFuni)+'</b><span>Chronicle</span></div>');
+    if (_scFuni) kh.push('<div class="sc-kpi k-uni"><b>'+_scFuni.found+'/'+window.d2rChronTotal(_scFuni)+'</b><span>Uniques</span></div>');
     /* v1562 — THIS TILE HAS NEVER RENDERED, NOT ONCE.
        The guard needs `SETS`, and there is no SETS anywhere in this file — the array is ITEM_SETS.
        `typeof` on a name that was never declared does not throw, it returns 'undefined', so the
@@ -49904,7 +49919,7 @@ window.renderSessionCockpit = function(){
     try {
       var _fsk = (typeof window.fsetsScan==='function') ? window.fsetsScan() : null;
       if (_fsk && _fsk.totalPieces)
-        kh.push('<div class="sc-kpi"><b>'+_fsk.havePieces+'/'+_fsk.totalPieces+'</b><span>Sets</span></div>');
+        kh.push('<div class="sc-kpi k-set"><b>'+_fsk.havePieces+'/'+_fsk.totalPieces+'</b><span>Sets</span></div>');
     } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>'+((typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'0'))+'%</b><span>MF</span></div>'); } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>/p'+((typeof players!=='undefined')?players:(window.LSR.getItem('d2r_players')||'1'))+'</b><span>Players</span></div>'); } catch(e){}
@@ -50717,7 +50732,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3286', name:'v3286 - the vault says how many things it holds', date:'2026-09-18', note:'HEART: Konyo at a Vault screenshot - this is still here 200 plus items that should not be. The vault drew lockers and a dock and never stated its own population, so the 200 plus had no referent and the number that settled it had to come off the API rather than the surface he was reading. Measured on his board: owned 222 equals filed 173 plus unfiled 49, the 49 splitting 31 set pieces and 18 other, lockers summing exactly to 173. Two things this settles that I had wrong going in: the dock 46 was never a defect, it was v3250 reading 46 on 2026-09-17 and three items arriving since, me comparing the age of the FETCH not the age of the THING; and filed means two different things, the API 173 counting shared stash and keep while the page filed-to-mules is 166 because shared stash is never muled. Every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed plus loose equals pool and pool plus shared equals owned by construction. Verified in node across four shapes, all partitioning. New gate test_vault_population, 3 red-proofs all PROVEN at 1 match each - the second came back INVALID at 0 matches first because I wrote 8 spaces where the file has 6, the sabotage wrong not the law. REG-1095.' };
+  window.D2R_BUILD = { id:'v3287', name:'v3287 - the chips name what they count and the full bible door is a door', date:'2026-09-18', note:'HEART: Konyo - even top corner chronicles set uniques and runewords should color match the tabs in main console, same keywords and typography. Grok Bot brief 5721489103 asked the same from the other side. THE DEFECT: the Sessions header drew 99 of 99 CHRONICLE for runewords and 309 of 403 CHRONICLE for uniques - two different quantities under one word, side by side, both numbers right and the noun wrong. Nothing new invented for the colours: both files already declared identical values and every chip was simply hardcoded to gold-bright. Runewords takes the RUNE hue not the gold a runeword NAME is painted, because v1631 settled that an item NAME obeys the game while a TAB labels a ROOM. Measured on rendered pixels at 1440: Runewords rgb 255 125 60, Uniques rgb 199 179 119, Sets rgb 0 252 0, MF and Players left gold chrome. THE DOOR: hub-bible was 6px of gold-dim on a dim edge, justify-self end, smallest type the shell declares - the quietest control on a screen whose job is routing him into the deep data. Now spans the row, 1046px at 1440 and 351px at 375 with no overflow and no horizontal body scroll, live gold, static halo not animated. New gate test_kpi_chip_names, 4 red-proofs all PROVEN at 1 match each. Its first anchor sliced from var rwT which appears TWICE, the first hit an unrelated builder, so the region read a Chronicle belonging to neither chip - re-anchored on a byte that matches once. REG-1096.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

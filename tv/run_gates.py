@@ -163,6 +163,9 @@ GATES = [
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding. 4 red-proofs"),
+    Gate("test_kpi_chip_names", [sys.executable,
+                                 os.path.join(HERE, "test_a_kpi_chip_names_what_it_counts.py")], 60,
+         why="v3287 - Konyo: 'even top corner chronicles set uniques and runewords should color match the tabs in main console'. The Sessions header drew 99/99 CHRONICLE (runewords) and 309/403 CHRONICLE (uniques) - two different quantities under one word, four inches apart, both numbers right and the noun wrong. Pins that the chips name what they count, declare their room class, and take the SHARED tokens (--rune / --q-unique / --q-set) rather than a forked hex; and that the FULL BIBLE door spans the row and glows instead of hugging the end in --gold-dim. Runewords wears --rune not gold by v1631s ruling that a TAB labels a ROOM. 4 red-proofs"),
     Gate("test_vault_population", [sys.executable,
                                    os.path.join(HERE, "test_the_vault_says_its_own_population.py")], 60,
          why="v3286 - Konyo at a Vault screenshot: 'this is still here 200+ items that should not be'. The vault drew lockers and a dock and never said how many things it holds, so the 200+ had no referent and the number that settled it had to come off /api/vault_population rather than off the surface he was reading. Measured: 222 owned = 173 filed + 49 loose, the 49 splitting 31 set pieces / 18 other. Pins that the line exists, that renderVault actually fills it, and - the one that matters - that every figure is DERIVED BY SUBTRACTION from the two pools renderVault already built, so filed+loose==pool and pool+shared==owned by construction rather than by luck. 3 red-proofs"),

@@ -36626,6 +36626,50 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1096 — two different quantities wore the same word, four inches apart
+
+**v3287.** Konyo, 2026-09-18: *"even top corner chronicles set uniques and runewords should color
+match the tabs in main console.. same keywords and typography and structural pass"*. Grok Bot's
+brief `#5721489103` asked for the same thing from the other side: *"Full Bible item colors must
+match the rest of the console (sets green, uniques gold, runewords/crafts reds/oranges)"*.
+
+**The defect, spotted in his screenshot and then confirmed in source.** The Sessions header drew
+
+```
+  99/99   CHRONICLE     <- runewords forged          bible.html:49849
+  309/403 CHRONICLE     <- chronicle uniques found   bible.html:49852
+```
+
+Two different quantities under one word, side by side. **Neither number was wrong — the noun
+was.** Same family as REG-1093's counter-vs-panel and the Kai console arc where six versions were
+one defect: a number under a word naming another quantity. [[label-outlived-referent]]
+
+**Nothing new was invented for the colours.** Both files already declared identical values
+(`--q-unique #c7b377`, `--q-set #00fc00`, `--rune #ff7d3c`); every chip was simply hardcoded to
+`--gold-bright` at `bible.html:9525`. Runewords takes **`--rune`, not the gold a runeword's NAME
+is painted**, because v1631 already settled that split against his own install: *"an item NAME
+obeys the game... a TAB is a label for a ROOM, and the Forge's room is where runes become words,
+so it wears the RUNE colour"*. These chips label rooms.
+
+**Measured on rendered pixels at 1440:** `Runewords rgb(255,125,60)` · `Uniques rgb(199,179,119)`
+· `Sets rgb(0,252,0)` · MF and Players left as `rgb(240,192,96)` gold chrome. Those are the
+tokens exactly.
+
+**The door.** `#hub-bible` — his words, *"upgraded and emphasized and seen better and stretched
+and bigger and glowing... all in general inside and out"*. It was 6px of `--gold-dim` on a dim
+`--edge`, `justify-self:end`, in the smallest type the shell declares: the quietest control on a
+screen whose whole job is to route him into the deep data. Now it spans the row (1046px at 1440,
+351px at 375, no overflow and no horizontal body scroll at either), carries the live gold, and
+has a static halo. Static, not animated — a pulsing control reads as an alert.
+
+**Gate:** `test_kpi_chip_names`, 4 red-proofs, all PROVEN at exactly 1 match each.
+
+⚠ **The law's first anchor was wrong and the failure was instructive.** It sliced from
+`var rwT = ...`, which appears **twice** — the first hit being the unrelated `chron` builder — so
+the region ran across a huge span and read a "Chronicle" belonging to neither chip. A non-unique
+anchor is not a near miss, it is a different region. Re-anchored on `if (rwT) kh.push(`, which
+matches once. [[source-reading-guard]]
+
 ## REG-1095 — the vault never said how many things it holds, so "200+" had no referent
 
 **v3286.** Konyo, at a screenshot of the Vault: *"this is still here 200+ items that should not
