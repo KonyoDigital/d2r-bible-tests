@@ -36446,6 +36446,71 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1081 — the console could not be minimised or windowed on Windows or Linux, and this was the second report
+
+HIS REPORT, 2026-09-17, across three machines:
+
+> *"on windows theres no way to minimize or windows mode it, it automatically opens fullscreen
+> which is good but it needs to have an option available ... its like frameless when opened on
+> linux pc on grokbot too ... only on my macbook the macbook has its own option to windows it
+> regardless"*
+
+He described the platform difference exactly. `create_window(fullscreen=True)` is set
+**unconditionally** unless `TV_WINDOWED` is in the environment, and:
+
+| platform | what fullscreen does |
+|---|---|
+| macOS | keeps its traffic-light controls — he can always escape |
+| Windows | **no titlebar** — no minimise, no restore |
+| Linux | the same |
+
+So the escape hatch existed and was reachable only by setting an env var **before launch**, which
+is no use from inside a running window.
+
+⚠ **And v3179 already recorded him reporting this once** — *"now i cant minimize or window mode
+the console"* — after v3175 tried frameless. That attempt was reverted and **the unconditional
+fullscreen underneath it was left in place**, so the symptom survived the fix that was written for
+it. [[the-unjoined-end]]
+
+**Fixed in v3271.** Measured first: `Window.minimize`, `Window.restore` and
+`Window.toggle_fullscreen` all exist on the installed pywebview, so this needed no new dependency
+and no relaunch — only a door he can reach.
+
+- `window_action()` + `POST /api/window` — one helper, reporting what it DID rather than what it
+  attempted. A console with no native window answers ok:false with a reason; so does a build
+  missing the method, and so does an action that raises.
+- two controls in the console's own rail header, so every platform can reach them
+- **hidden until the console confirms it has a window**, because a browser tab has its own chrome
+  and a button that does nothing is worse than no button
+- ⚠ **fullscreen stays the default** — his words were *"it automatically opens fullscreen which is
+  good"*. The fix adds a door; it must not change what he opens into. There is a law pinning that.
+
+⚠ One ordering defect found and fixed during the build: the first cut checked for a window BEFORE
+validating the action, so `window_action("explode")` on a headless console answered *"there is no
+native window"* — a true sentence about the wrong question, which sends the caller to fix the wrong
+thing. [[a-wrong-answer-skips-the-fallback]]
+
+⚠ **And the gate refused the first push, correctly.** `TestNoOrphanSuite.test_every_suite_is_in_the_gate_set` caught that the new suite existed and **no gate ran it** — *"these suites exist but no gate runs them, so they can rot for a hundred versions while still looking maintained (REG-079)"*. Registered as gate 426 with its `why`. My local run had exercised the suite directly, which is exactly the blind spot that law exists for: a suite passing when I invoke it by hand says nothing about whether the gate will ever invoke it again. [[matches-once-can-still-prove-nothing]]
+
+### The TV·DIABLO banner — DIAGNOSED, and deliberately NOT re-armed
+
+The other half of his report: *"that TVdaiblo banner lol still there uptop only on my macbook ...
+on the linux it does not appear"*.
+
+It is **not the page** — there is no darwin branch anywhere in `control_ui.html`. It is pywebview's
+own cocoa code painting the macOS titlebar with `NSColor.windowBackgroundColor` — system light grey
+— directly above a `#070605` console. That is also why v3175's frameless attempt appeared not to
+fix it: frameless takes the other branch entirely.
+
+**A fix exists (`_mac_tint_caption`) and is deliberately DISABLED.** At v3206 it crashed his
+console on launch — *"Python quit unexpectedly"* with the splash reading "starting v3206" — because
+an Objective-C exception is not a Python exception, so `try/except` around a PyObjC call buys
+nothing against the failure that actually happened. It is gated behind `TV_MAC_CHROME=1` until the
+crash is reproduced OFF his machine.
+
+⇒ **Left parked, with the reason stated.** The window chrome is cosmetic; his console is not, and
+re-arming a launch crash to remove a grey strip is a bad trade he has already paid for once.
+
 ## REG-1080 — the shelf told the same fact two ways, on one screen, in one glance
 
 GrokBot filed it from his NATIVE Linux seat (#180): *"River header still notes tombstone ledger

@@ -3792,6 +3792,61 @@ def _force_kill_all_agents(reason=""):
             "farewell": False, "sessionSaved": True, "bridgeDown": dead, "forced": True}
 
 
+def window_action(what):
+    """minimise / restore / toggle fullscreen on the console's own window. -> dict
+
+    ⚠⚠ v3271 — WINDOWS AND LINUX HAD NO WAY OUT OF FULLSCREEN, AND THIS IS THE SECOND REPORT.
+    HIS WORDS, 2026-09-17: *"on windows theres no way to minimize or windows mode it, it
+    automatically opens fullscreen which is good but it needs to have an option ... its like
+    frameless when opened on linux pc on grokbot too ... only on my macbook the macbook has its
+    own option to windows it regardless"*.
+
+    He is describing the platform difference exactly. `create_window(fullscreen=True)` is set
+    unconditionally unless TV_WINDOWED is in the environment, and:
+        macOS    keeps its traffic-light controls in fullscreen, so he can always escape
+        Windows  fullscreen means NO TITLEBAR — no minimise, no restore
+        Linux    the same
+    So the escape hatch existed and was reachable only by setting an env var BEFORE launch, which
+    is no use at all from inside a running window. v3179 already recorded him reporting this once
+    — *"now i cant minimize or window mode the console"* — after v3175 tried frameless; that was
+    reverted, and the UNCONDITIONAL FULLSCREEN behind it was left in place.
+
+    MEASURED on the installed pywebview: `Window.minimize`, `Window.restore` and
+    `Window.toggle_fullscreen` all exist, so this needs no new dependency and no relaunch.
+
+    ⚠ It reports what it DID, never what it attempted. A control that says "ok" while the window
+    ignored it is worse than one that says it failed. [[unknown-stays-unknown]]
+    """
+    # ⚠ THE ARGUMENT IS JUDGED BEFORE THE ENVIRONMENT. The first cut checked for a window first,
+    # so `window_action("explode")` on a headless console answered "there is no native window" —
+    # a true sentence about the wrong question, and precisely the class of misdirection that
+    # makes a caller fix the wrong thing. A bad name is a bad name on every venue.
+    # [[a-wrong-answer-skips-the-fallback]]
+    _fn = {"minimize": "minimize", "restore": "restore",
+           "fullscreen": "toggle_fullscreen"}.get(str(what or ""))
+    if not _fn:
+        return {"ok": False, "did": None,
+                "why": "%r is not a window action — minimize, restore or fullscreen" % what}
+    win = globals().get("_MAIN_WIN")
+    if win is None:
+        return {"ok": False, "did": None,
+                "why": "there is no native window on this console (headless or --no-open), so "
+                       "nothing could be minimised or resized — that is UNKNOWN, not a refusal"}
+    f = getattr(win, _fn, None)
+    if not callable(f):
+        return {"ok": False, "did": None,
+                "why": "this pywebview build has no Window.%s, so the action is unavailable "
+                       "here rather than failed" % _fn}
+    try:
+        f()
+    except Exception as e:
+        return {"ok": False, "did": None,
+                "why": "Window.%s raised %s" % (_fn, type(e).__name__)}
+    # ⚠ pywebview exposes no reliable post-hoc read of the frame state across all three
+    # platforms, so this says WHAT WAS CALLED and does not claim to have verified the result.
+    return {"ok": True, "did": _fn, "why": ""}
+
+
 def _mark_window_gone(reason=""):
     """v1410 — drop every live-window handle FIRST so no thread can evaluate_js a dying
     WKWebView (the hang-report class). Safe to call many times; never blocks."""
@@ -29533,7 +29588,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3270",
+        "ver": "v3271",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -34051,6 +34106,18 @@ class Handler(BaseHTTPRequestHandler):
                 "why": why_nav,
             })
             return
+        if path == "/api/window":
+            # v3271 — HIS WINDOW, HIS CALL, ON EVERY PLATFORM. See window_action() for why this
+            # exists: fullscreen is the default he likes, and on Windows/Linux it took the
+            # titlebar with it, leaving no minimise and no way back to a window.
+            _wact = ""
+            try:
+                _wact = str((body or {}).get("do") or "") if isinstance(body, dict) else ""
+            except Exception:
+                _wact = ""
+            self._json(200, window_action(_wact))
+            return
+
         if path == "/api/quit":
             # v1410/v1420 — Esc empty-stack + programmatic quit: same force-exit path as ✕
             # v1576 — ANSWER HONESTLY. Both this call and its fallback swallowed every

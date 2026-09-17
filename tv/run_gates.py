@@ -163,6 +163,19 @@ GATES = [
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding. 4 red-proofs"),
+    Gate("test_his_window", [sys.executable,
+                             os.path.join(HERE, "test_his_window_is_his_on_every_platform.py")], 60,
+         why="REG-1081 - he reported across three machines that the console cannot be minimised "
+             "or windowed on Windows or on GrokBot's Linux: it opens fullscreen, which he likes, "
+             "and fullscreen takes the titlebar with it everywhere except macOS, which keeps its "
+             "own controls. The escape hatch was TV_WINDOWED, readable only BEFORE launch, which "
+             "is no use from inside a running window - and this was the SECOND report, v3179 "
+             "having recorded the first. These laws pin the behaviour end to end: every action "
+             "reaches the pywebview method that performs it, no window / no method / a raising "
+             "call each answer with their own reason, a bad action name is named as such even "
+             "where there is no window, the route reaches the helper, both controls exist and "
+             "POST to it, they stay HIDDEN until the console confirms it has a window, and "
+             "FULLSCREEN REMAINS THE DEFAULT he asked for. 7 red-proofs"),
     Gate("test_no_footage_tracked", [sys.executable,
                                      os.path.join(HERE, "test_no_reel_footage_is_ever_tracked.py")], 60,
          why="REG-1066 - v3258 committed a 97.84MB tarball holding HIS JOURNAL and two of HIS "
