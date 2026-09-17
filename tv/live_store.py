@@ -33,8 +33,23 @@ def missing(*paths):
     """Which of these do not exist here. -> [path]  (absolute or repo-relative)"""
     out = []
     for p in paths:
-        full = p if os.path.isabs(p) else os.path.join(HERE, p)
-        if not os.path.exists(os.path.expanduser(full)):
+        # ⚠⚠ v3255 — EXPAND BEFORE DECIDING, NOT AFTER. This joined HERE with the raw path FIRST
+        # and only then called expanduser, so `~` was never at the start of the string it expanded.
+        # `~/d2r_ledger_backups` became `<repo>/tv/~/d2r_ledger_backups`, which exists nowhere, and
+        # the helper reported his 72 ledger backups as ABSENT. A cross-family review found it
+        # (v3245 look, xai); reproduced here the same minute.
+        #
+        # ⚠ THE DAMAGE IS THE ONE THING THIS MODULE EXISTS TO PREVENT. A false `missing` makes
+        # `require()` stand a gate down ON A MACHINE THAT HAS THE DATA — its own docstring calls
+        # that out: "a skip taken where the data exists destroys exactly that distinction".
+        # It stayed green because no caller passes a `~` path YET, while the module header lists
+        # `~/d2r_ledger_backups/` as one of the three stores it was written for. The next caller
+        # to follow that docstring would have got a silent, permanent, honest-looking skip.
+        # [[a-wrong-answer-skips-the-fallback]] [[unknown-stays-unknown]]
+        full = os.path.expanduser(p)
+        if not os.path.isabs(full):
+            full = os.path.join(HERE, full)
+        if not os.path.exists(full):
             out.append(p)
     return out
 

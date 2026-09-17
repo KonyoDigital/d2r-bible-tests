@@ -406,7 +406,22 @@ _DEFECT_MARK_RX = re.compile(
 # every one of them DENIED. Matching them read a reviewer listing what it did NOT find as a
 # reviewer finding it. The clause is cut at the first `.`/`;`/`:` so a genuine claim sharing the
 # block ("No defects found. P1: ...") still survives the strip. [[measured-true-read-wrong]]
-_NEGATED_RX = re.compile(r"\b(?:no|not|none|never|without|free\s+of)\b[^.;:]*", re.I)
+# ⚠⚠ v3255 — AND "NOTHING" IS A NEGATION TOO. THIRD TIME THIS CLASS HAS BITTEN THIS FILE (v2808,
+# v3198, now). Measured on the real v3252 answer, whose FIRST LINE is "**No concrete defects
+# found.**": its closing sentence is *"Nothing in the shown hunks indicates a caller/callee
+# contract violation, a race, a leak, an unreachable state, or any other observable defect."*
+# `\bno\b` does not match "Nothing" — there is no word boundary after the "no" — so three marker
+# words survived the strip and a review that said NO DEFECTS was filed as verdict="findings", in
+# the ledger whose entire job is recording what another family concluded. Exactly the v2808
+# defect, through a door the v3189 fix did not cover.
+#
+# ⚠ THIS WIDENS THE STRIP, WHICH IS THE DANGEROUS DIRECTION, AND IT IS BOUNDED ON PURPOSE. The
+# strip is only consulted by `_verdict_for` AFTER the answer has already DECLARED no defects in
+# its first block; an answer with no such declaration never reaches it. Measured both ways before
+# shipping: "No defects found. P1: the caller crashes on empty input." still files as findings,
+# and "Nothing validates the payload, so it crashes" (no declaration) still files as findings.
+# [[measured-true-read-wrong]] [[strictness-that-closes-the-lane]]
+_NEGATED_RX = re.compile(r"\b(?:nothing|no|not|none|never|without|free\s+of)\b[^.;:]*", re.I)
 
 
 def _claims_a_defect(block):

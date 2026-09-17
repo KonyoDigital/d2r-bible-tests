@@ -122,6 +122,35 @@ class ACleanLookIsFiledAsClean(unittest.TestCase):
             "No defects found. P1: the walker leaks a handle on every refused reel."),
             "a real claim was stripped along with the denial that preceded it")
 
+    def test_NOTHING_is_a_denial_like_every_other_one(self):
+        """★ THE REAL v3252 ANSWER, whose FIRST LINE is "**No concrete defects found.**".
+
+        It was filed as verdict="findings". `\\bno\\b` does not match "Nothing" - there is no word
+        boundary after the "no" - so "a race, a leak, an unreachable state" survived the strip and
+        a review that said NO DEFECTS was recorded as one that found three. Third time this class
+        has bitten this file: v2808, v3198, and this. [[measured-true-read-wrong]]
+        """
+        self.assertFalse(R._claims_a_defect(
+            "Nothing in the shown hunks indicates a caller/callee contract violation, a race, "
+            "a leak, an unreachable state, or any other observable defect."),
+            "a sentence beginning 'Nothing ... indicates' was read as a defect claim")
+        self.assertEqual("clean", _verdict(
+            "**No concrete defects found.**\n\nThe diff contains only version bumps.\n"
+            "Nothing in the shown hunks indicates a caller/callee contract violation, a race, "
+            "a leak, an unreachable state, or any other observable defect."),
+            "the real v3252 answer is still not filed as the clean look it is")
+
+    def test_a_REAL_claim_after_NOTHING_still_counts(self):
+        """⚠ WIDENING THE NEGATION VOCABULARY IS THE DANGEROUS DIRECTION, so it is bounded here.
+
+        Over-reporting a finding costs a re-read; under-reporting one ships a defect with a clean
+        stamp. The strip is cut at the first sentence end for exactly this reason, and that cut is
+        what this asserts - not the word list.
+        """
+        self.assertTrue(R._claims_a_defect(
+            "Nothing is cached here. P1: the caller crashes on empty input."),
+            "a real claim was stripped along with the 'Nothing' sentence that preceded it")
+
     def test_the_ledger_word_for_an_unreachable_eye_is_not_clean(self):
         """[[grok-second-eye]] -- silence is an EMPTY SEAT, never agreement. An empty answer has
         no declaration in it, so it must never fall through to clean."""
@@ -140,6 +169,10 @@ RED_PROOF = [
      "test_an_ADJECTIVE_does_not_defeat_the_declaration"),
     ("second_eye_run.py", "_NEGATED_RX.sub(\" \", block or \"\")", "(block or \"\")",
      "test_a_DENIED_marker_word_is_not_a_finding"),
+    # ⚠ RESTORES THE HISTORICAL BUG rather than nicking a clause: dropping "nothing" from the
+    # vocabulary is precisely the state the real v3252 answer was misfiled in.
+    ("second_eye_run.py", "(?:nothing|no|not|none|", "(?:no|not|none|",
+     "test_NOTHING_is_a_denial_like_every_other_one"),
 ]
 
 if __name__ == "__main__":

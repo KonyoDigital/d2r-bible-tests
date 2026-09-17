@@ -26,6 +26,7 @@ already uses for the node venue: one venue, one mark, one counter. [[regression-
 import glob
 import io
 import os
+import shutil
 import sys
 import unittest
 
@@ -93,6 +94,42 @@ class TestALiveStoreSkipIsCounted(unittest.TestCase):
         LS.require(c, "live_store.py")
         with self.assertRaises(unittest.SkipTest):
             LS.require(c, "definitely_not_here_%d.json" % os.getpid())
+
+    def test_a_HOME_path_that_exists_is_not_reported_missing(self):
+        """★ FOUND BY A CROSS-FAMILY REVIEW (the v3245 look, xai) AND REPRODUCED THE SAME MINUTE.
+
+        `missing('~/d2r_ledger_backups')` returned it as ABSENT while 72 files sat there: the join
+        happened BEFORE expanduser, so what got stat'd was `<repo>/tv/~/d2r_ledger_backups`, which
+        exists nowhere. Every gate stayed green because no caller passes a `~` path yet - while
+        this module's own header lists `~/d2r_ledger_backups/` as one of the three stores it was
+        written for.
+
+        ⚠ THAT IS THE ONE FAILURE THIS MODULE EXISTS TO PREVENT. A false `missing` makes
+        `require()` stand a gate down ON A MACHINE THAT HAS THE DATA, which the sibling law above
+        calls "destroying the only distinction this is for". A wrong answer never reaches the
+        safety net; an absent one does. [[a-wrong-answer-skips-the-fallback]]
+        """
+        import tempfile
+        d = tempfile.mkdtemp(prefix="lshome_")
+        self.addCleanup(shutil.rmtree, d, True)
+        with io.open(os.path.join(d, "there.json"), "w", encoding="utf-8") as f:
+            f.write("{}")
+        old = os.environ.get("HOME")
+        os.environ["HOME"] = d
+        try:
+            self.assertEqual(
+                [], LS.missing("~/there.json"),
+                "a ~ path that EXISTS was reported missing, so require() would skip a gate on a "
+                "machine that has the data - the exact confusion this module refuses")
+            self.assertEqual(
+                ["~/not_there.json"], LS.missing("~/not_there.json"),
+                "a ~ path that is genuinely absent stopped being reported, which is the other "
+                "direction and the worse one")
+        finally:
+            if old is None:
+                os.environ.pop("HOME", None)
+            else:
+                os.environ["HOME"] = old
 
     def test_the_skip_says_why_and_names_the_file(self):
         class _Case(unittest.TestCase):

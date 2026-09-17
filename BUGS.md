@@ -35860,3 +35860,74 @@ rule rather than by an exception list.
 `verdict === 'chronicle' || 'keep'`, so the `grail` branch never runs. Adding a rarity call there
 would be plumbing with no tap. Its `keep` branch paints a VERDICT colour, a different vocabulary
 from quality, and was left alone deliberately. `[[the-unjoined-end]]` `[[plumbing-with-no-tap]]`
+
+## REG-1061 — two instruments that lie quietly, one found by the cross-family eye
+
+Both were found while clearing the second-eye backlog (v3245–v3254, all looked at by `xai` after
+**both** configured eyes went down: the Grok CLI timed out at 300s and Codex answered
+`You've hit your usage limit … try again Oct 12th` **while exiting 0**, which is exactly the trap
+`gpt-eye §2` records — parse the output, never the status). Both empty seats were recorded as
+unreached rather than agreement.
+
+### 1. `live_store.missing()` reported his 72 ledger backups as ABSENT — GROK FOUND THIS
+
+Handed the v3245 diff cold, the eye returned a ranked defect:
+
+> `missing()` mishandles any path beginning with `~` that is not already absolute … `isabs("~/…")`
+> is False, `join(HERE, "~/…")` produces a literal string containing both the repo path and the
+> tilde, and `expanduser` has no effect on that result.
+
+**Reproduced the same minute, before believing it:**
+
+```
+missing('~/d2r_ledger_backups')  ->  ['~/d2r_ledger_backups']     …while 72 files sit there
+it actually stats:  /Users/konyo/d2r_bible_tests/tv/~/d2r_ledger_backups
+```
+
+⚠ **This is the one failure the module exists to prevent.** A false `missing` makes `require()`
+stand a gate down **on a machine that HAS the data** — and `live_store.py`'s own docstring says a
+skip taken where the data exists *"destroys exactly that distinction"*. It reads as an honest,
+counted, marked skip, which is worse than a red.
+
+It stayed green because **no caller passes a `~` path yet**, while the module header lists
+`~/d2r_ledger_backups/` as one of the three stores it was written for. The next caller to follow
+that docstring inherits a permanent silent skip. Fixed by expanding **before** deciding
+absolute-vs-relative. `[[a-wrong-answer-skips-the-fallback]]`
+
+### 2. The second-eye ledger filed a CLEAN review as one that found defects — third time
+
+Grok's v3252 answer opens `**No concrete defects found.**` and was recorded `verdict=findings`.
+
+`_NEGATED_RX` knew `no|not|none|never|without|free of` — and **not `"Nothing"`**. `\bno\b` cannot
+match "Nothing": there is no word boundary after the "no". So the closing sentence *"Nothing in
+the shown hunks indicates a caller/callee contract violation, a race, a leak, an unreachable
+state"* kept three marker words and read as three defect claims — in the ledger whose entire job
+is recording what another family concluded.
+
+**This is the same class for the third time in this one file** — v2808 (a clean look filed as
+findings), v3198 (`len(findings) > 1`, wrong in both directions), and now. Each fix was correct
+for the inputs it was measured against and blind to the next phrasing.
+
+⚠ **Widening a negation vocabulary is the DANGEROUS direction**, so it is bounded and measured,
+not assumed. The strip is only consulted after the answer has already DECLARED no defects in its
+first block, and the span is cut at the first sentence end. Measured before shipping:
+
+| input | verdict |
+|---|---|
+| the real v3252 answer | **clean** ✓ (was `findings`) |
+| `"No defects found. P1: the caller crashes…"` | findings ✓ |
+| declaration + three listed defects | findings ✓ |
+| `"Nothing validates the payload, so it crashes"` (no declaration) | findings ✓ |
+| the real v3253 answer | clean ✓ |
+
+GATES: `test_a_HOME_path_that_exists_is_not_reported_missing` and
+`test_NOTHING_is_a_denial_like_every_other_one` + `test_a_REAL_claim_after_NOTHING_still_counts`,
+both added to the laws that already own those questions rather than as new files. Each red-proof
+RESTORES THE HISTORICAL BUG rather than nicking a clause, and both were seen RED at match count 1.
+
+⚠ ALSO RECORDED, NOT A DEFECT: on v3247 the eye flagged that
+`_check_the_vault_can_say_what_it_proves` returns `(OK, (str, list))` while its UNKNOWN paths
+return `(UNKNOWN, str)`, and honestly said it could not rule without the caller. Checked: the
+caller is `for name, fn in CHECKS: state, why = fn()` and stores `why` verbatim; **39 existing
+checks in that file already return the tuple shape**. Established and supported. The eye was right
+to raise it and right to refuse to rule on it. `[[review-after-ship]]`
