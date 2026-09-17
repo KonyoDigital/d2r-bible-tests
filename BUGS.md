@@ -36626,6 +36626,45 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1088 — the census answered the question on the doctor, and he asks it on the shelf
+
+v3278 measured the population and joined it to the **doctor**, which supervises it. But the
+confusion he reported — *"Shelf shows 13, disk holds 20"* — happens **on the shelf**, where a count
+is on screen and its context is not. A census only the doctor can read cannot answer the question
+at the moment it is asked. [[the-unjoined-end]]
+
+**Fixed in v3279.** `/api/river` now carries `population`, and the river header states it:
+
+```
+🌊 River — flowing, newest first · 8 RUNS · 20 on disk in all
+   (8 hidden fixtures · 3 waiting on a lane · 1 releasable)
+```
+
+Run in node against **five** payload shapes, both ends anchored on real code:
+
+| payload | header prints |
+|---|---|
+| his tree (20/8/8/3/1) | `· 20 on disk in all (8 hidden fixtures · 3 waiting on a lane · 1 releasable)` |
+| nothing extra (8 = 8) | **nothing** |
+| an unrecognised tag | `· 9 on disk in all (1 odd-rule)` |
+| **does NOT sum** | **nothing** |
+| absent | **nothing** |
+
+⚠ **A reconciliation that does not sum prints NOTHING.** A total whose parts do not add up is worse
+on a screen than no total at all — it looks authoritative and is wrong. The guard is
+`P.sums !== true`, not `!P.sums`, so a **missing** field also prints nothing rather than being read
+as truthy; and `typeof P.onDisk !== 'number'` stops an `undefined` reaching his screen.
+
+⚠ **Only the parts that EXIST are named** — a "+ 0 releasable" is noise, and noise is how a real
+number stops being read.
+
+⚠ **An unrecognised tag reaches the SCREEN too.** v3278 made the census name a tag it has never met
+rather than dropping it; that naming is worthless if the surface then drops it. Both ends, or
+neither.
+
+Three laws on the render, one on the payload join. Four sabotages, every one RED, each anchor
+matching exactly once.
+
 ## REG-1087 — three numbers on three surfaces and nothing said how they relate
 
 He reported it as **"Shelf shows 13, disk holds 20"**, and corrected my restatement of his spec

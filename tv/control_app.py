@@ -29674,7 +29674,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3278",
+        "ver": "v3279",
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
@@ -32384,6 +32384,13 @@ class Handler(BaseHTTPRequestHandler):
                     # reel's position still comes only from its own reading evidence, and the mouth
                     # comes from the record of what retention actually did.
                     "mouth": river_mouth(),
+                    # ⚠ v3279 — THE RECONCILIATION TRAVELS WITH THE NUMBERS IT RECONCILES.
+                    # v3278 built `reel_census` and joined it to the DOCTOR, which supervises it —
+                    # but the confusion he reported ("Shelf shows 13, disk holds 20") happens ON
+                    # THE SHELF, where a count is on screen and its context is not. A census only
+                    # the doctor can see cannot answer the question at the moment it is asked.
+                    # [[the-unjoined-end]]
+                    "population": reel_census(),
                     "walked": _walked, "rowMeta": _rowmeta,
                     "why": _cen.get("why") or "",
                     "detail": _reels,

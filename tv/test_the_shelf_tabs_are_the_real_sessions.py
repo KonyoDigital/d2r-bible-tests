@@ -556,6 +556,48 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("th-shelfov", blk,
                       "the closed-stage branch does not check that an overlay is actually up")
 
+    def _pop_clause(self):
+        src = _py_only(self.src)
+        i = src.find("var P = SHELF_POP;")
+        self.assertGreater(i, -1, "the header's population clause is gone or renamed")
+        j = src.find("})();", i)
+        self.assertGreater(j, i, "the population clause never closes")
+        return src[i:j]
+
+    def test_the_header_ANSWERS_why_the_disk_holds_more_than_he_sees(self):
+        """★ v3279 — "Shelf shows 13, disk holds 20", answered where he asks it.
+
+        v3278 measured the population and joined it to the DOCTOR. Measured on his tree:
+        20 on disk = 8 he sees + 8 hidden fixtures the suite opens by name + 3 the vault still
+        owes a bank + 1 the prune may release. Run in node against five payload shapes, the
+        header now reads:
+
+            " · 20 on disk in all (8 hidden fixtures · 3 waiting on a lane · 1 releasable)"
+        """
+        blk = self._pop_clause()
+        self.assertIn("on disk in all", blk, "the header no longer states the disk total")
+        self.assertIn("hidden fixture", blk, "the hidden fixtures are not accounted for on screen")
+        self.assertIn("waiting on a lane", blk, "reels a lane owes are not named")
+
+    def test_a_reconciliation_that_does_NOT_SUM_prints_NOTHING(self):
+        """⚠⚠ THE LAW THIS TURNS ON. A total whose parts do not add up is worse on a screen than
+        no total at all — it looks authoritative and is wrong. The clause is dropped entirely
+        unless the census says it sums, and `sums !== true` is deliberate: a MISSING field must
+        also print nothing, not be read as truthy."""
+        blk = self._pop_clause()
+        self.assertIn("P.sums !== true", blk,
+                      "the header will print a reconciliation the census says does not add up")
+        self.assertIn("typeof P.onDisk !== 'number'", blk,
+                      "a missing onDisk would render as undefined on his screen")
+
+    def test_an_unrecognised_tag_reaches_the_SCREEN_too(self):
+        """⚠ the census names a tag it has never met rather than dropping it; that naming is
+        worthless if the surface then drops it. Both ends, or neither. [[the-unjoined-end]]"""
+        blk = self._pop_clause()
+        self.assertIn("P.other", blk,
+                      "the header ignores tags the census could not place, so a new retention "
+                      "rule would silently go missing from the only sentence that adds up")
+
     def _shelf_door_rule(self):
         src = _py_only(self.src)
         i = src.find("#btn-shelf { margin-top: auto")

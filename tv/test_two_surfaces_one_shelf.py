@@ -442,6 +442,18 @@ class EveryReelOnDiskIsAccountedFor(unittest.TestCase):
         self.assertFalse(c["ok"])
         self.assertIsNone(c["onDisk"], "an unreadable plan reported a COUNT, which invents a fact")
 
+    def test_the_census_TRAVELS_on_the_river_payload(self):
+        """⚠ v3279 — the doctor supervises the census, but the confusion he reported happens on the
+        SHELF, where a count is on screen and its context is not. A census only the doctor can read
+        cannot answer the question at the moment it is asked. [[the-unjoined-end]]"""
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        i = src.find('"mouth": river_mouth(),')
+        self.assertGreater(i, -1, "the river payload's mouth field is gone — anchor lost")
+        blk = src[i:i + 900]
+        self.assertIn('"population": reel_census()', blk,
+                      "the river payload does not carry the population, so the shelf cannot say "
+                      "why the disk holds more than he can see")
+
     def test_the_doctor_row_is_REGISTERED_and_reds_on_a_broken_sum(self):
         """⚠ a census nobody reads is [[the-unjoined-end]]. And it must go red on the one thing
         that makes every downstream figure suspect."""

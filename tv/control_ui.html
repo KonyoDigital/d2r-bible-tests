@@ -17151,6 +17151,7 @@ window._lockMark = function(isOpen, px, label){
      copy here is how the two drift apart the day a station is renamed. null = the river did not
      say, and then nothing special is claimed about any station. [[copy-drift]] */
   var SHELF_MOUTH_STATION = null;
+  var SHELF_POP = null;   // v3279 — control_app.reel_census(): every reel on disk, by one reason
   /* ══ v3202 — THE STATION CHIPS ARE BUILT FROM THE REELS, NOT FROM A LIST ═══════════════
      Konyo, three times: *"the tabs ontop need updating related to the reels sessions.. not random
      or outdated like it is"*, *"accorindgly relevant to the sessions"*, and *"the tabs within
@@ -17544,6 +17545,10 @@ window._lockMark = function(isOpen, px, label){
         try { SHELF_RIVER_LANES = (d.lanes && d.lanes.lanes) || null; } catch(e){ SHELF_RIVER_LANES = null; }
         try { SHELF_RIVER_LABELS = d.labels || null; } catch(e){ SHELF_RIVER_LABELS = null; }
         SHELF_MOUTH = d.mouth || null;
+        /* v3279 — the population reconciliation, carried so the header can answer "why does the
+           disk hold more than I can see" at the moment he asks it. null = the console did not
+           report one, which stays UNKNOWN rather than becoming a silent zero. */
+        SHELF_POP = (d.population && typeof d.population === 'object') ? d.population : null;
         try {
           SHELF_MOUTH_STATION = (d.vocab && d.vocab.mouth) ? String(d.vocab.mouth) : null;
         } catch(e){ SHELF_MOUTH_STATION = null; }
@@ -17902,7 +17907,29 @@ window._lockMark = function(isOpen, px, label){
                  [[zero-needs-a-denominator]] [[label-outlived-referent]] */
               + (pushedN ? (' · ' + pushedN + ' pushed past the ' + keptN + ' (still on disk)') : '')
               + (pinN ? (' · ' + pinN + ' pinned kept') : '')
-              + mouthTxt;
+              + mouthTxt
+              /* ⚠⚠ v3279 — THE SENTENCE THAT ANSWERS "SHELF SHOWS 13, DISK HOLDS 20".
+                 v3278 measured the population and joined it to the DOCTOR, which supervises it.
+                 The confusion happens HERE, where a count is on screen and its context is not,
+                 and a census only the doctor can read cannot answer the question at the moment it
+                 is asked. MEASURED on his tree: 20 on disk = 8 he sees + 8 hidden fixtures the
+                 suite opens by name + 3 the vault still owes a bank + 1 the prune may release.
+                 ⚠ Only the parts that EXIST are named — a "+ 0 releasable" would be noise — and
+                 the whole clause is dropped unless the census ADDS UP, because a reconciliation
+                 that does not sum is worse on a screen than none at all.
+                 [[zero-needs-a-denominator]] [[the-unjoined-end]] */
+              + (function(){
+                  var P = SHELF_POP;
+                  if (!P || P.sums !== true || typeof P.onDisk !== 'number') return '';
+                  var bits = [];
+                  if (P.fixtures) bits.push(P.fixtures + ' hidden fixture' + (P.fixtures === 1 ? '' : 's'));
+                  if (P.owed) bits.push(P.owed + ' waiting on a lane');
+                  if (P.releasable) bits.push(P.releasable + ' releasable');
+                  var oth = P.other && typeof P.other === 'object' ? Object.keys(P.other) : [];
+                  for (var i = 0; i < oth.length; i++) bits.push(P.other[oth[i]] + ' ' + oth[i]);
+                  if (!bits.length) return '';
+                  return ' \u00b7 ' + P.onDisk + ' on disk in all (' + bits.join(' \u00b7 ') + ')';
+                })();
       mkHead(lab, keptN + pinN, flow[0],
              ' sh-rivergroup' + (_mouthHasRows ? ' sh-rivermouth' : ''));
       /* ⚠⚠ v3261 — THE HEADER COUNTED FILTER-MATCHES WHILE THE RIVER HAD CAPPED THE SCREEN.
