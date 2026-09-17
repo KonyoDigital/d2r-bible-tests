@@ -18522,9 +18522,23 @@ window._lockMark = function(isOpen, px, label){
        handler would give a closed theatre the arrow keys. [[the-unjoined-end]] */
     if (!TH.open) {
       if (e.key !== 'Escape') return;
-      var _sv = $('th-shelfov'), _dv = $('th-dossier-ov');
-      var _up = (_sv && !_sv.hidden) || (_dv && !_dv.hidden);
-      if (!_up) return;
+      /* ⚠⚠ v3275 — `!hidden` IS NOT "HE CAN SEE IT", and this file already says so twice.
+         MEASURED by counting div nesting from `id="theatre"`:
+             #th-shelfov     12 <div vs 11 </div>  -> net +1, it IS a CHILD of #theatre
+             #th-dossier-ov  167 <div vs 168 </div> -> net -1, it is a SIBLING
+         #theatre is display:none while shut, so an un-hidden SHELF inside it can be a zero-height
+         box he cannot see — the exact trap `_shelfRefused`'s own comment records ("the overlay
+         reported height 0 with the full refusal text inside it"), and the reason the door path
+         proves itself from `getBoundingClientRect()`. Firing Escape on an invisible overlay would
+         tear down state he never opened. The DOSSIER is a sibling, which is why the off-air home
+         strip can show one with no theatre at all — that one is genuinely visible.
+         ⇒ one rule for both: a rect, never a flag. [[unknown-stays-unknown]] */
+      var _seen = function(el){
+        if (!el || el.hidden) return false;
+        try { var r = el.getBoundingClientRect(); return !!r && r.height > 2 && r.width > 2; }
+        catch (_e) { return false; }
+      };
+      if (!_seen($('th-shelfov')) && !_seen($('th-dossier-ov'))) return;
       thEscUnwind(); e.preventDefault();
       return;
     }
@@ -20167,6 +20181,24 @@ window._lockMark = function(isOpen, px, label){
        full refusal text inside it. The toast is outside .shell and always visible, so the refusal
        reaches him whether or not the stage came up. A message only visible when the thing works is
        not an error message. [[unknown-stays-unknown]] */
+    /* ⚠⚠ v3275 — AND THE ✕ MUST NOT DEPEND ON A PAINTER THAT MAY NEVER HAVE RUN. The shared
+       dismiss is `ov.onclick`, assigned INSIDE `_paintShelf` — delegation, so it survives an
+       innerHTML replacement once it exists. But `_shelfRefused` stands in for `_paintShelf`
+       precisely when the shelf failed to open, so on a FIRST-EVER open that fails before the
+       painter runs, nothing is bound and the ✕ v3274 added would be inert — a close button that
+       looks like an exit and is furniture. Raised by the cross-family eye on v3274 and reproduced
+       here. Bound only when absent, so the shared dismiss stays the one rule wherever it exists.
+       [[the-unjoined-end]] */
+    try {
+      if (ov && !ov.onclick) {
+        ov.onclick = function(ev){
+          if (ev.target && ev.target.closest && ev.target.closest('#th-shelf-x')) {
+            ov.hidden = true;
+            if (_thShelfWasTheDoor()) { try { thClose(); } catch (_e) {} }
+          }
+        };
+      }
+    } catch (e0) {}
     try { toast('The Shelf did not open — ' + why, 6000); } catch (e1) {}
     try { console.error('[shelf] refused to open:', why); } catch (e2) {}
     /* one vocabulary, the one the console already collects faults in */

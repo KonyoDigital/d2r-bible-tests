@@ -528,17 +528,24 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
     def test_ESCAPE_still_works_when_the_STAGE_never_opened(self):
         """★ v3274 — THE STATE HE COULD NOT CLICK HIS WAY OUT OF, filed as "no ✕, Escape no-op".
 
-        `btn-shelf` does `if (!TH.open) { try { await thOpen(); } catch (e) { openErr = e; } }` —
-        it CAPTURES the stage failure and opens the shelf anyway. So when `thOpen()` rejects:
+        ⚠⚠ v3275 CORRECTION — v3274 blamed a failing `thOpen()` for the dead Escape and that was
+        WRONG. Every statement before `TH.open = true;` sits inside one try/catch, so a rejecting
+        `thOpen()` leaves TH.open TRUE; and `thClose()` already hides `#th-shelfov` itself. Both
+        candidate paths are closed.
 
-            TH.open stays FALSE
-            `_shelfRefused` replaces the overlay's innerHTML, taking the ✕ with it
-              (the ✕ belongs to `_paintShelf`, which this overwrote)
-            the keydown handler's `if (!TH.open) return;` then swallowed Escape
+        THE REACHABLE TRIGGER IS THE OFF-AIR HOME STRIP, `control_ui.html:21440`:
 
-        No ✕, no Escape, and the panel's own advice was "press ON AIR" — the RECORDING control.
-        Three ways out, all of them closed, in the one state where he most needs one.
-        [[the-unjoined-end]]
+            el.onclick = function(e){ var c = e.target.closest('.hh-card');
+                                      if (c) _sessionDossier(Number(c.dataset.hn) || 1); };
+
+        No `thOpen()`. So TH.open is FALSE, `#th-dossier-ov` IS up, and `if (!TH.open) return;`
+        swallowed Escape — a dead end reached from the same opener REG-1083 fixed the label for.
+        One entry point, two traps: a button naming a place it was not going, and no Escape at all.
+
+        The other half of v3274 stands on its own: `_shelfRefused` replaces the overlay's
+        innerHTML, and the ✕ it overwrites belongs to `_paintShelf`, so the refusal state had no
+        close control — and its advice was "press ON AIR", the RECORDING control.
+        [[the-unjoined-end]] [[a-wrong-answer-skips-the-fallback]]
         """
         blk = self._theatre_keys()
         self.assertIn("if (!TH.open) {", blk,
@@ -548,6 +555,29 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
                       "refusal panel is a dead end")
         self.assertIn("th-shelfov", blk,
                       "the closed-stage branch does not check that an overlay is actually up")
+
+    def test_the_HOME_STRIP_really_does_open_the_dossier_with_NO_theatre(self):
+        """★ v3275 — THE MEASURED TRIGGER, pinned so the bug cannot be hidden by accident.
+
+        The closed-stage Escape branch only matters because something opens an overlay without a
+        theatre. `control_ui.html:21440` is that something: the off-air HOME strip calls
+        `_sessionDossier` directly, with no `thOpen()`.
+
+        ⚠ If a later change makes this path open the theatre first, TH.open becomes true, the
+        branch stops being exercised, and it rots as dead code that still looks maintained. Then
+        this law goes red and says why — which is the only way that stays visible.
+        [[matches-once-can-still-prove-nothing]]
+        """
+        src = _py_only(self.src)
+        i = src.find("var c = e.target.closest('.hh-card')")
+        self.assertGreater(i, -1, "the off-air home strip's card handler is gone or renamed")
+        handler = src[max(0, i - 120):i + 200]
+        self.assertIn("_sessionDossier(", handler,
+                      "the home strip no longer opens the dossier")
+        self.assertNotIn("thOpen(", handler,
+                         "the home strip now opens the theatre first — TH.open is true, so the "
+                         "closed-stage Escape branch is no longer exercised by this path and is "
+                         "at risk of rotting untested")
 
     def test_the_closed_stage_branch_lets_ONLY_escape_through(self):
         """⚠ THE GUARD ON THAT FIX. Every other key in this handler belongs to an OPEN theatre —
@@ -560,6 +590,52 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("e.key !== 'Escape'", branch,
                       "the closed-stage branch does not restrict itself to Escape, so a shut "
                       "theatre now answers the transport keys")
+
+    def test_escape_proves_the_RECT_not_the_hidden_FLAG(self):
+        """★ v3275 — `!hidden` IS NOT "HE CAN SEE IT", and this file says so twice already.
+
+        MEASURED by counting div nesting from `id="theatre"` in control_ui.html:
+
+            #th-shelfov      12 <div vs 11 </div>   -> net +1, it IS A CHILD of #theatre
+            #th-dossier-ov  167 <div vs 168 </div>  -> net -1, it is a SIBLING
+
+        `#theatre` is `display:none` while shut, so an un-hidden SHELF inside it is a zero-height
+        box he cannot see — the exact trap `_shelfRefused`'s own comment records ("the overlay
+        reported height 0 with the full refusal text inside it"), and the reason the door path
+        proves itself from `getBoundingClientRect()`. Firing Escape on an invisible overlay would
+        tear down state he never opened.
+
+        The DOSSIER being a sibling is what makes the off-air home strip's dossier genuinely
+        visible with no theatre — which is why that trap was real. One rule covers both: a rect,
+        never a flag. Raised by the cross-family eye on v3274 and reproduced.
+        """
+        blk = self._theatre_keys()
+        self.assertIn("getBoundingClientRect", blk,
+                      "the closed-stage Escape branch still trusts .hidden, so it can fire on a "
+                      "shelf sitting invisible inside a display:none theatre")
+        self.assertNotIn("!_sv.hidden) || (_dv && !_dv.hidden)", blk,
+                         "the flag-only test is still the one deciding")
+
+    def test_the_refusal_panel_BINDS_its_own_close_when_none_exists(self):
+        """⚠ THE ✕ MUST NOT DEPEND ON A PAINTER THAT MAY NEVER HAVE RUN. The shared dismiss is
+        `ov.onclick`, assigned inside `_paintShelf` — delegation, so it survives an innerHTML
+        replacement once it exists. But `_shelfRefused` stands in for `_paintShelf` exactly when
+        the shelf failed to open, so on a FIRST-EVER open that fails before the painter runs,
+        nothing is bound and v3274's ✕ would be inert: a close button that is furniture.
+
+        ⚠ Bound only when ABSENT, so the shared dismiss stays the one rule wherever it exists —
+        a second unconditional binding would be the duplicate v3264 collapsed into one.
+        """
+        src = _py_only(self.src)
+        i = src.find("function _shelfRefused(")
+        self.assertGreater(i, -1, "the refusal handler is gone or renamed")
+        body = src[i:i + 2200]
+        self.assertIn("!ov.onclick", body,
+                      "the refusal panel does not bind its own close, so a shelf that fails "
+                      "before it was ever painted shows an inert ✕")
+        self.assertIn("th-shelf-x", body, "the bound handler does not look for the ✕")
+        self.assertIn("_thShelfWasTheDoor()", body,
+                      "the refusal close does not leave the way he came in")
 
     def test_the_REFUSAL_panel_keeps_a_way_out(self):
         """⚠ The refusal panel replaces innerHTML, which is where the ✕ lived. It must re-emit one

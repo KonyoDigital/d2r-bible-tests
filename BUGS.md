@@ -36463,10 +36463,75 @@ thShelf(true);
 It **captures the stage failure and opens the shelf anyway** — deliberately, so the refusal can be
 reported rather than swallowed. But when `thOpen()` rejects, three things follow:
 
-1. `TH.open` stays **false**.
-2. `_shelfRefused` replaces the overlay's `innerHTML` — and **the ✕ it overwrites belongs to
+1. `_shelfRefused` replaces the overlay's `innerHTML` — and **the ✕ it overwrites belongs to
    `_paintShelf`**, so the refusal state had no close control at all.
-3. The theatre's keydown handler opens with `if (!TH.open) return;`, so **Escape was swallowed**.
+2. Its own instruction named a recording control.
+
+### ⚠⚠ CORRECTION (v3275): HALF OF THAT CAUSAL CHAIN WAS WRONG, AND I SHIPPED IT
+
+v3274 also claimed *"`TH.open` stays false, so the keydown handler swallowed Escape"*. **Measured
+afterwards, that is false.** Every executable statement between `async function thOpen(){` and
+`TH.open = true;` sits inside one `try { … } catch (e) { }`:
+
+```
+try {
+  if (document.body.getAttribute('data-view') === 'sessions'
+      && typeof window._toTVD === 'function') { window._toTVD(); }
+} catch (e) { }
+```
+
+So **a failing `thOpen()` leaves `TH.open` TRUE** — it is set before anything that can reject — and
+Escape would not have been swallowed by that route. `thClose()` closes the other candidate path: it
+already hides `#th-shelfov` itself. The story was plausible, and the code refutes it.
+
+**But the Escape fix is right, for a trigger I had not found.** The off-air HOME strip opens the
+dossier with **no theatre at all** — `control_ui.html:21440`:
+
+```js
+el.onclick = function(e){ var c = e.target.closest('.hh-card');
+                          if (c) _sessionDossier(Number(c.dataset.hn) || 1); };
+```
+
+No `thOpen()`. So on the off-air home: `TH.open` is **false**, `#th-dossier-ov` **is** visible, and
+`if (!TH.open) return;` swallowed Escape. **That is a reachable dead end, and v3274's branch already
+covers it** — it checks `#th-dossier-ov` as well as `#th-shelfov`.
+
+⇒ It is the **same opener** that REG-1083 fixed the label for. One entry point, two separate traps:
+the button named a place it was not going, and Escape did nothing at all.
+
+### And the cross-family review of v3274 found two more, both of which survived reproduction
+
+**1. The ✕ v3274 added could be INERT.** The shared dismiss is `ov.onclick`, assigned **inside
+`_paintShelf`** — delegation, so it survives an `innerHTML` replacement *once it exists*. But
+`_shelfRefused` stands in for `_paintShelf` precisely when the shelf failed to open. On a
+**first-ever open that fails before the painter runs**, nothing is bound and the ✕ is furniture: a
+close button that looks like an exit and does nothing. Fixed — the refusal panel binds its own
+handler, **only when none exists**, so the shared dismiss stays the one rule everywhere else.
+
+**2. `!hidden` is not "he can see it"** — and this file already says so twice. Measured by counting
+div nesting from `id="theatre"`:
+
+| overlay | `<div` vs `</div>` | verdict |
+|---|---|---|
+| `#th-shelfov` | 12 vs 11 → **net +1** | **a CHILD of `#theatre`** |
+| `#th-dossier-ov` | 167 vs 168 → **net −1** | **a SIBLING** |
+
+`#theatre` is `display:none` while shut, so an un-hidden **shelf** inside it is a zero-height box —
+the exact trap `_shelfRefused`'s own comment records (*"the overlay reported height 0 with the full
+refusal text inside it"*). Escape would have fired on something invisible. Now it proves visibility
+from `getBoundingClientRect()`, the same rule the door path already uses.
+
+⚠ That measurement also **confirms** the REG-1083 story rather than undermining it: the dossier is a
+SIBLING, which is exactly why the off-air home strip can show one with no theatre at all.
+
+**3. "`thEscUnwind` may reach the close-theatre leg with the theatre already shut" — not acted on.**
+With an overlay up, the unwind hits the dossier or shelf branch first and returns; the closing leg
+is not reached. Left as measured rather than defended against speculatively.
+
+⚠ What is still UNKNOWN: whether the "Escape no-op" GrokBot filed **on a blank SHELF** is this same
+mechanism. He reported it with the shelf up, not the home strip. The home-strip dead end is proven;
+his exact instance is not, and no amount of reading settles it — it needs a no-relaunch LOOKED.
+[[unknown-stays-unknown]] [[a-wrong-answer-skips-the-fallback]]
 
 And the panel's own instruction was *"Press **ON AIR** to close the stage and try again"* — **ON AIR
 is the recording control.** It told him to start filming in order to escape an error panel, and
