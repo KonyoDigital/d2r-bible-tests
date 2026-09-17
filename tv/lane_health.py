@@ -218,7 +218,78 @@ def _reels_on_disk():
         return None, "cannot read %s: %s" % (hist, e)
 
 
-def divergence(a, b):
+def _tally(sessions, held):
+    """'4 test-fixture, 5 recent' — the reasons, counted, in one phrase."""
+    counts = {}
+    for s in sessions:
+        counts[held.get(s) or "unlabelled"] = counts.get(held.get(s) or "unlabelled", 0) + 1
+    return ", ".join("%d %s" % (n, t) for t, n in
+                     sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def held_by_design(sessions):
+    """Why is each of these reels being kept? -> {sid: tag} or None if nobody could say.
+
+    ⚠⚠ v3266 — THE DIVERGENCE WAS DESCRIBING A CORRECT SYSTEM AS A BACKLOG. It said, on his
+    console, in the sentence the heart leads with:
+
+        9 reel(s) still on disk need a vault sweep — chronicle read them, vault never sealed
+        them, and vault's seal is the one the frame deleter reads, so they stay held.
+        Sweep vault to free them.
+
+    MEASURED 2026-09-17, every one of the nine, against `reel_retention.plan()`:
+
+        4  test-fixture   the TEST SUITE opens this reel by name
+        5  recent         one of the 8 most recent, kept so a re-sweep always has material
+
+    And against the vault lane's own doctrine (`_vault_owed_reels`), which owes **3** reels,
+    NONE of them in the nine: the vault owes not one of the reels the panel told him to sweep.
+    The prescription could not be followed, and following it is exactly the 2026-09-01 incident
+    the retention rules were written to stop — a rewrite that would have queued 26 reels, 10 of
+    them explicitly held, at a measured cost of up to 97 paid reads.
+
+    So the count was right and the WORD OVER IT stopped being true. [[label-outlived-referent]]
+
+    ⚠ None means nobody could ask, which is UNKNOWN and keeps the old sentence. An empty dict
+    means the question was asked and nothing is held — a different fact.
+    """
+    try:
+        import reel_retention as _RR
+        _p = _RR.plan()
+    except Exception:
+        return None
+    if not _p.get("ok"):
+        return None
+    out = {}
+    for _rec in list(_p.get("candidates") or []) + list(_p.get("kept") or []):
+        _r = str((_rec or {}).get("reel") or "")
+        if _r:
+            out[_sid(_r)] = (_rec or {}).get("tag")
+    return {s: out[s] for s in sessions if s in out}
+
+
+def owed_sessions(lane_name):
+    """Which sessions does this lane ACTUALLY owe a read? -> set or None (uncounted).
+
+    ⚠ This is the lane's own doctrine, not a ledger difference. The two disagree on purpose:
+    a ledger difference says "b never sealed this", the doctrine says "and b is right not to".
+    """
+    try:
+        import control_app as _ca
+    except Exception:
+        return None
+    if lane_name != "vault":
+        return None
+    try:
+        rows = _ca._vault_owed_reels()
+    except Exception:
+        return None
+    if rows is None:
+        return None
+    return {_sid(os.path.basename(str(r).rstrip("/"))) for r in rows}
+
+
+def divergence(a, b, owed_by=None, held=None):
     """Sessions lane A covered that lane B never did. -> dict
 
     Neither lane can see this on its own, which is exactly why it hid a five-day stall: the
@@ -280,7 +351,24 @@ def divergence(a, b):
         # adding context to it. A raw difference presented as a measured one is the lie.
         tail = " (footage could not be listed: %s — so this is the raw difference)" % disk_why
 
-    if actionable:
+    # ⚠⚠ v3266 — SPLIT "b HAS NOT SEALED IT" FROM "b OWES IT". See held_by_design: all nine of
+    # his were held ON PURPOSE and the vault owed none of them, while the panel told him to sweep.
+    # ⚠ owed_by is None -> UNCOUNTED, and the sentence below is left exactly as it was. Collapsing
+    # an unasked question into "owes nothing" would turn this check off on every venue that cannot
+    # ask. [[unknown-stays-unknown]]
+    waiting, kept, orphan = actionable, [], []
+    if owed_by is not None and actionable:
+        waiting = [s for s in actionable if s in owed_by]
+        rest = [s for s in actionable if s not in owed_by]
+        _held = held if held is not None else {}
+        kept = [s for s in rest if _held.get(s)]
+        # ⚠ AND THE LEFTOVERS STAY RED. A reel on disk that no lane owes and no retention rule
+        # names is the one real fault in this family: nothing automatic will ever deliver it, and
+        # it would be the easiest thing in the world to sweep into the "held by design" bucket and
+        # never see again. That is the gap he asked about — "whats not moving them along".
+        orphan = [s for s in rest if not _held.get(s)]
+
+    if waiting or orphan:
         # ⚠ THE OLD SENTENCE ASSERTED A CONSEQUENCE THAT WAS FALSE FOR 93% OF WHAT IT COUNTED.
         # It said "every one of those reels is held as 'not sealed'". Against the frame
         # deleter's own tally of 5022 held frames: NOT SEALED 1247, while the LARGEST held
@@ -289,18 +377,39 @@ def divergence(a, b):
         # ⚠ AND IT SAYS WHAT TO DO. Grok's other findings on the v2437 text: nothing named an
         # action, and nothing said whether it needed attention now. A panel that diagnoses and
         # never prescribes leaves him to guess, which is the state this whole check replaced.
-        why = ("%d reel(s) still on disk need a %s sweep — %s read them, %s never sealed them, and "
-               "%s's seal is the one the frame deleter reads, so they stay held. Sweep %s to free "
-               "them." % (len(actionable), b, a, b, b, b)) + tail
+        bits = []
+        if waiting:
+            bits.append("%d reel(s) still on disk need a %s sweep — %s read them, %s never sealed "
+                        "them, and %s's seal is the one the frame deleter reads, so they stay "
+                        "held. Sweep %s to free them." % (len(waiting), b, a, b, b, b))
+        if orphan:
+            bits.append("%d reel(s) on disk that %s has not sealed, %s does not owe, and no "
+                        "retention rule holds — nothing automatic will ever deliver them, so they "
+                        "sit until someone says what to do with them." % (len(orphan), b, b))
+        if kept:
+            bits.append("(%d more differ but are held ON PURPOSE: %s — no sweep is owed for those)"
+                        % (len(kept), _tally(kept, held or {})))
+        why = " ".join(bits) + tail
+    elif kept:
+        # ⚠ ALIGNED, not diverged — and it must still SAY the number, or a reader who remembers
+        # yesterday's "9" reads today's silence as the reels having vanished. Same number, true
+        # word. [[label-outlived-referent]]
+        why = ("%s has not sealed %d reel(s) still on disk and owes none of them: %s. Held on "
+               "purpose — nothing is waiting." % (b, len(kept), _tally(kept, held or {}))) + tail
     else:
         why = ("%s and %s agree on every session whose footage is still on disk" % (a, b)) + tail
 
     return {
-        "pair": [a, b], "state": ("diverged" if actionable else "aligned"),
+        "pair": [a, b], "state": ("diverged" if (waiting or orphan) else "aligned"),
         "onlyInFirst": len(only),          # unchanged meaning: the raw lifetime difference
-        "actionable": len(actionable),     # what a lane could still do something about
+        "actionable": len(waiting) + len(orphan),   # what somebody could still do something about
+        # ⚠ published separately so a surface can show the three populations rather than one
+        # number wearing whichever word was written first.
+        "waiting": len(waiting),           # the lane owes these and has not done them
+        "orphan": len(orphan),             # nobody owes these and nothing holds them
+        "heldByDesign": len(kept),         # held on purpose; no sweep is owed
         "historyOnly": (None if historic is None else len(historic)),
-        "sample": actionable[:4] if actionable else only[:4],
+        "sample": (waiting or orphan or kept or only)[:4],
         "why": why,
     }
 
@@ -392,7 +501,7 @@ def owed_counts():
     return out
 
 
-def report(now_ms=None, owed=None):
+def report(now_ms=None, owed=None, actionable=None):
     """Everything, in one object a caller can render or a gate can fail on. -> dict
 
     ⚠ v2308 — `owed` IS AN ARGUMENT BECAUSE MEASURING IT REACHES INTO THE LIVE TREE. v2301 called
@@ -404,11 +513,38 @@ def report(now_ms=None, owed=None):
     [[feedback-fixtures-never-touch-live-data]]
     """
     _owed = owed_counts() if owed is None else dict(owed)
-    _act = actionable_counts()
+    # ⚠⚠ v3266 — v3265 CALLED actionable_counts() UNCONDITIONALLY AND RE-OPENED THE HOLE v2308
+    # CLOSED FOR `owed` ONE LINE ABOVE. actionable_counts() imports control_app and asks the REAL
+    # machine, so a fixture sealing a deliberately stalled lane would have had its verdict decided
+    # by whatever his console happened to owe — "a gate whose answer depends on the machine it
+    # runs on is not measuring the fixture", in v2308's own words, which I read while writing the
+    # line that broke it. A caller supplying `owed` IS a fixture: it gets {} here, every lane
+    # comes back actionable=None, and None keeps whatever verdict the lane already had.
+    # [[feedback-fixtures-never-touch-live-data]] [[unknown-stays-unknown]]
+    _act = (actionable_counts() if (owed is None and actionable is None)
+            else ({} if actionable is None else dict(actionable)))
     lanes = {n: lane(n, now_ms, owed=_owed.get(n), actionable=_act.get(n)) for n in LANES}
-    divs = [divergence(a, b) for a, b in CORROBORATE]
+    # ⚠ same fixture discipline as `_act` above: a caller supplying `owed` is a fixture, and a
+    # fixture must not have its divergence decided by his live retention plan. It gets None for
+    # both, which is UNCOUNTED, which keeps the pre-v3266 sentence exactly.
+    _live = (owed is None and actionable is None)
+    divs = []
+    for _a, _b in CORROBORATE:
+        _ob = owed_sessions(_b) if _live else None
+        _hd = None
+        if _live:
+            _sa, _ = _load(LANES.get(_a, ("", "", 0))[0])
+            _sb, _ = _load(LANES.get(_b, ("", "", 0))[0])
+            if _sa is not None and _sb is not None:
+                _hd = held_by_design(sorted(set(_sa) - set(_sb)))
+        divs.append(divergence(_a, _b, owed_by=_ob, held=_hd))
     # "idle" is a HEALTHY state: swept everything, nothing owed. Only stalled/unknown are bad.
-    bad = [l for l in lanes.values() if l["state"] in ("stalled", "unknown")]
+    # ⚠⚠ v3266 — AND THE SAME OMISSION ONE LEVEL DOWN. v3265 taught `health_engine` the new
+    # word and left THIS list, so `report()["ok"]` came back True for a lane owing 4 reads it
+    # cannot touch. A new verdict is a join at EVERY consumer, and there were three: this list,
+    # `say()`'s mark map, and health_engine. I found two of them only by grepping for the old
+    # word after shipping. [[the-unjoined-end]] [[regression-guard]]
+    bad = [l for l in lanes.values() if l["state"] in ("stalled", "blocked", "unknown")]
     bad += [d for d in divs if d["state"] in ("diverged", "unknown")]
     return {"ok": not bad, "lanes": lanes, "divergences": divs,
             "why": ("every lane is fresh and aligned" if not bad
@@ -419,7 +555,12 @@ def say(rep):
     """Lines a person reads. -> list[str]"""
     out = []
     for n, l in sorted(rep["lanes"].items()):
-        mark = {"fresh": "🟢", "stalled": "🔴", "unknown": "⚪"}.get(l["state"], "·")
+        # ⚠ v3266 — 🟡 is BLOCKED, deliberately not 🔴: the remedy is a declaration he has to
+        # make, not a thread to restart, and painting it the same red as a dead lane is what sent
+        # me hunting a dead thread in the first place. `idle` is named rather than defaulting,
+        # so a state nobody thought about still lands on "·" and is visible as unnamed.
+        mark = {"fresh": "🟢", "idle": "🟢", "blocked": "🟡",
+                "stalled": "🔴", "unknown": "⚪"}.get(l["state"], "·")
         out.append("%s %-10s %s" % (mark, n, l["why"]))
     for d in rep["divergences"]:
         mark = {"aligned": "🟢", "diverged": "🔴", "unknown": "⚪"}[d["state"]]

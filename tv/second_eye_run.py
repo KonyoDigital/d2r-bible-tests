@@ -144,8 +144,46 @@ def versions_in_history(n=400):
     return vs, ""
 
 
+def _bound_commit(version):
+    """The commit TASKS.md says this version shipped as. -> sha | None
+
+    ⚠⚠ v3266 — `bump_version.py` ALREADY WRITES THIS AND NOBODY ASKED IT. Every bump prints
+    "bound N version row(s) to a commit" and leaves a row in TASKS.md:
+
+        | **v3265** | `25a6ad2b` | v3265 — HEART: lane_health gains a third state ...
+
+    `commit_for` re-derived the same fact by string-matching COMMIT SUBJECTS, so a version whose
+    subject did not happen to contain its own stamp was invisible to its own runner. MEASURED
+    2026-09-17: v3265 shipped as *"fix: BLOCKED is not STOPPED — the chronicle lane was never
+    stopped"*, which names the defect and not the version, and `second_eye_run v3265` answered
+    "no commit subject names v3265 in the last 400". The look could not be taken, so the NEXT
+    push would have been refused at the gate for a version that was sitting right there, bound,
+    in a file written by the tool that stamped it. Two halves of one fact, never joined.
+    [[the-unjoined-end]] [[copy-drift]]
+    """
+    path = os.path.join(REPO, "TASKS.md")
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            body = fh.read()
+    except Exception:
+        return None
+    m = re.search(r"\|\s*\*\*%s\*\*\s*\|\s*`([0-9a-f]{7,40})`" % re.escape(version), body)
+    return m.group(1) if m else None
+
+
 def commit_for(version):
-    """The commit whose subject stamps this version. -> sha | None"""
+    """The commit that shipped this version. -> (sha | None, why)
+
+    Asks the BINDING first (see _bound_commit), then falls back to scanning subjects — a repo
+    without a TASKS.md row still works exactly as it did.
+    """
+    bound = _bound_commit(version)
+    if bound:
+        # ⚠ trust it only if the object actually exists; a stale or hand-edited row must not
+        # send the runner at a sha that is not there. [[unknown-stays-unknown]]
+        _ok, _ = _sh(["git", "cat-file", "-e", "%s^{commit}" % bound])
+        if _ok is not None:
+            return bound, ""
     out, why = _sh(["git", "log", "--format=%H %s", "-400"])
     if out is None:
         return None, why
@@ -154,7 +192,8 @@ def commit_for(version):
         sha, _, subject = line.partition(" ")
         if rx.search(subject):
             return sha, ""
-    return None, "no commit subject names %s in the last 400" % version
+    return None, ("no TASKS.md row binds %s to a commit, and no commit subject names it in the "
+                  "last 400" % version)
 
 
 _PY_COMMENT = re.compile(r"^\s*#")

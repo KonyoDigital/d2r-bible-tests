@@ -444,6 +444,130 @@ class TestBlockedIsNotStopped(_Tree):
         self.assertNotIn("has stopped", row["line"])
 
 
+class TestTheDivergenceKnowsWhatIsOWED(TestDivergenceCountsOnlyWhatALaneCanStillActOn):
+    """★ v3266 — "STILL ON DISK AND UNSEALED" AND "THE LANE OWES IT" ARE DIFFERENT QUESTIONS,
+    AND THE PANEL WAS ANSWERING THE SECOND WITH THE FIRST.
+
+    v2437 taught this check to count only reels whose footage still exists. Correct, and still
+    one question short. MEASURED on his console 2026-09-17, in the sentence the heart LEADS with:
+
+        9 reel(s) still on disk need a vault sweep — chronicle read them, vault never sealed
+        them ... Sweep vault to free them.
+
+    Asked of `reel_retention.plan()`, all nine:   4 test-fixture, 5 recent.
+    Asked of the vault lane itself (`_vault_owed_reels`): it owes **3**, and NOT ONE of them is
+    in the nine. The panel prescribed a sweep the lane owes for none of the reels named, and
+    following it is the 2026-09-01 incident the retention rules exist to prevent — a queue of 26
+    reels, 10 explicitly held, up to 97 paid reads.
+
+    The count was right and the WORD OVER IT had stopped being true. [[label-outlived-referent]]
+
+    ⚠ The trap in fixing it is making the check quieter. A reel on disk that no lane owes AND no
+    retention rule names is a REAL fault — nothing automatic will ever deliver it — and it is one
+    line of carelessness away from being swept into the held-by-design bucket and never seen.
+    """
+
+    def _ledgers(self, n_diverged):
+        """chronicle has swept n reels the vault has not, and all of them still have footage."""
+        sids = ["s_%d" % i for i in range(n_diverged)]
+        self._write("chronicle_swept.json",
+                    {s: {"ts": self.now, "rows": 1} for s in sids})
+        self._write("vault_swept.json", {"s_other": {"ts": self.now, "rows": 1}})
+        for s in sids:
+            self._reel(s)
+        return sids
+
+    def test_held_BY_DESIGN_is_aligned_and_STILL_SAYS_THE_NUMBER(self):
+        """⚠ It must not go quiet. A reader who saw "9" yesterday reads today's silence as the
+        reels having vanished. Same number, true word, named reasons."""
+        sids = self._ledgers(3)
+        d = LH.divergence("chronicle", "vault", owed_by=set(),
+                          held={sids[0]: "test-fixture", sids[1]: "recent", sids[2]: "recent"})
+        self.assertEqual(d["state"], "aligned")
+        self.assertEqual(d["heldByDesign"], 3)
+        self.assertIn("3 reel(s)", d["why"])
+        self.assertIn("2 recent", d["why"])
+        self.assertIn("1 test-fixture", d["why"])
+        self.assertNotIn("Sweep", d["why"], "it still prescribes a sweep nobody owes")
+
+    def test_a_reel_NOBODY_owes_and_NOTHING_holds_stays_RED(self):
+        """⚠⚠ THE LAW THE WHOLE CHANGE TURNS ON. This is the only genuinely broken state in the
+        family and the easiest one to lose while making the panel calmer."""
+        sids = self._ledgers(2)
+        d = LH.divergence("chronicle", "vault", owed_by=set(),
+                          held={sids[0]: "test-fixture"})     # sids[1] held by NOTHING
+        self.assertEqual(d["state"], "diverged")
+        self.assertEqual(d["orphan"], 1)
+        self.assertIn("nothing automatic will ever deliver them", d["why"])
+
+    def test_a_reel_the_lane_DOES_owe_still_prescribes_the_sweep(self):
+        sids = self._ledgers(2)
+        d = LH.divergence("chronicle", "vault", owed_by={sids[0]},
+                          held={sids[1]: "recent"})
+        self.assertEqual(d["state"], "diverged")
+        self.assertEqual(d["waiting"], 1)
+        self.assertEqual(d["heldByDesign"], 1)
+        self.assertIn("need a vault sweep", d["why"])
+        self.assertIn("Sweep vault to free them", d["why"])
+        self.assertIn("held ON PURPOSE", d["why"], "the held ones vanished from the sentence")
+
+    def test_an_UNCOUNTED_doctrine_leaves_the_OLD_sentence_exactly(self):
+        """⚠ owed_by=None means nobody could ask the lane. Collapsing that into "owes nothing"
+        turns the check off wherever the doctrine cannot be read — the same discipline `owed` and
+        `actionable` carry. [[unknown-stays-unknown]]"""
+        self._ledgers(2)
+        d = LH.divergence("chronicle", "vault")          # no doctrine injected at all
+        self.assertEqual(d["state"], "diverged")
+        self.assertEqual(d["waiting"], 2)
+        self.assertEqual(d["heldByDesign"], 0)
+        self.assertIn("need a vault sweep", d["why"])
+
+
+class TestTheThirdStateReachesEveryConsumer(_Tree):
+    """★ v3266 — v3265 SHIPPED A NEW VERDICT WORD AND JOINED ONE OF ITS THREE CONSUMERS.
+
+    `health_engine` was taught BLOCKED. `report()["ok"]` and `say()` were not, and both were
+    found by grepping for the OLD word after the ship rather than before it. A new verdict is a
+    join at every consumer or it is an off switch at the ones that were missed.
+    [[the-unjoined-end]]
+    """
+
+    def test_report_is_NOT_ok_when_a_lane_is_blocked(self):
+        self._write("chronicle_swept.json", self._seal(36, 64.0))
+        self._write("vault_swept.json", self._seal(8, 2.0))
+        rep = LH.report(self.now, owed={"chronicle": 4}, actionable={"chronicle": 0})
+        self.assertEqual(rep["lanes"]["chronicle"]["state"], "blocked")
+        self.assertFalse(rep["ok"], "report() went green over a lane that owes 4 and can do none")
+
+    def test_say_gives_blocked_its_OWN_mark(self):
+        self._write("chronicle_swept.json", self._seal(36, 64.0))
+        self._write("vault_swept.json", self._seal(8, 2.0))
+        rep = LH.report(self.now, owed={"chronicle": 4}, actionable={"chronicle": 0})
+        line = [l for l in LH.say(rep) if "chronicle:" in l][0]
+        self.assertTrue(line.startswith("\U0001f7e1"),
+                        "blocked has no mark of its own, so it reads as either healthy or dead: %r"
+                        % line[:12])
+
+    def test_a_FIXTURE_never_asks_the_LIVE_machine_what_is_actionable(self):
+        """⚠⚠ v3265 RE-OPENED THE HOLE v2308 CLOSED ONE LINE ABOVE IT. `actionable_counts()`
+        imports control_app and asks the REAL console, and v3265 called it unconditionally from
+        report() — so a fixture sealing a deliberately stalled lane would have had its verdict
+        decided by whatever HIS machine happened to owe. A caller supplying `owed` is a fixture
+        and must get UNCOUNTED, which preserves the verdict it is actually testing."""
+        self._write("vault_swept.json", self._seal(8, 151.5))
+        calls = []
+        real = LH.actionable_counts
+        LH.actionable_counts = lambda: calls.append(1) or {"vault": 0}
+        try:
+            rep = LH.report(self.now, owed={"vault": 2})
+        finally:
+            LH.actionable_counts = real
+        self.assertEqual(calls, [], "report() measured the LIVE machine for a fixture")
+        self.assertIsNone(rep["lanes"]["vault"]["actionable"])
+        self.assertEqual(rep["lanes"]["vault"]["state"], "stalled",
+                         "the fixture's own verdict changed because of the venue it ran on")
+
+
 if __name__ == "__main__":
     try:
         import console_safe as _cs

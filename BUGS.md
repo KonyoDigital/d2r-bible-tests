@@ -36446,6 +36446,63 @@ one by name. Three red-proofs, all RED.
 STILL OPEN from the same report: Vault Shared/Gems tabs → no visible change; drag Dock→Shared →
 ghost and highlight but the item never moves; and the mule-arrow quit, now diagnosable via REG-1071.
 
+## REG-1075 — the heart told him to sweep nine reels the vault lane owes none of
+
+The sentence the doctor LEADS with, on his console, for as long as the check has existed:
+
+```
+9 reel(s) still on disk need a vault sweep — chronicle read them, vault never sealed them,
+and vault's seal is the one the frame deleter reads, so they stay held. Sweep vault to free them.
+```
+
+Measured 2026-09-17, all nine, against `reel_retention.plan()`:
+
+| held because | n |
+|---|---|
+| `test-fixture` — the TEST SUITE opens this reel by name | 4 |
+| `recent` — one of the 8 most recent, kept so a re-sweep always has material | 5 |
+
+And against the vault lane's own doctrine, `_vault_owed_reels()`: it owes **3 reels, and not one
+of them is in the nine.** The panel prescribed an action the lane owes for none of the reels it
+named. Following it is precisely the 2026-09-01 incident the retention rules were written to
+stop — a rewrite that would have queued 26 reels, 10 of them explicitly held, at a measured cost
+of up to 97 paid reads.
+
+So the count was correct and the WORD OVER IT had stopped being true. The check was differencing
+two ledgers and calling the difference a backlog, when "b has not sealed it" and "b owes it" are
+different questions and the retention doctrine answers the second. [[label-outlived-referent]]
+
+**This is also the true shape of three of the five gaps he asked about.** "445 unread frames dam
+the whole river" and "12 dead-ended" and "5 reels no automatic lane delivers" are, measured, the
+same nine reels held on purpose — plus the four the chronicle lane is BLOCKED on (REG-1074). The
+river is not dammed. It is holding exactly what it was told to hold, and saying so in the wrong
+words.
+
+**Fixed in v3266.** `divergence()` takes the lane's own doctrine and splits one number into three:
+
+- **waiting** — the lane owes it and has not done it → still red, still prescribes the sweep
+- **heldByDesign** — no lane owes it and a retention rule names it → **aligned, and it still
+  prints the number and the reasons**, because a reader who saw "9" yesterday reads today's
+  silence as the reels having vanished
+- **orphan** — on disk, no lane owes it, no rule holds it → **stays red**: nothing automatic will
+  ever deliver it. This is the one real fault in the family and the easiest to lose while making
+  a panel calmer, so it has its own red-proof.
+
+⚠ `owed_by=None` means nobody could ask the lane, which keeps the pre-v3266 sentence exactly.
+Collapsing an unasked question into "owes nothing" would turn the check off on every venue that
+cannot ask. [[unknown-stays-unknown]]
+
+**And v3265's own gap, found the same hour.** v3265 taught `health_engine` the word BLOCKED and
+left its two other consumers alone: `report()["ok"]` still collected only `stalled`/`unknown`, so
+it returned **True** for a lane owing four reads it cannot touch, and `say()` had no mark for it.
+Worse, v3265 called `actionable_counts()` unconditionally from `report()` — re-opening the hole
+v2308 closed one line above, where a fixture's verdict is decided by whatever HIS live console
+happens to owe. All three are fixed here with their own proofs. A new verdict word is a join at
+EVERY consumer, and I found two of the three by grepping for the old word AFTER shipping.
+[[the-unjoined-end]]
+
+Seven sabotages, every one measured RED, each anchor matching exactly once.
+
 ## REG-1074 — the doctor called a lane STOPPED while its thread was alive, its switch on, and its sweeper saying nothing was waiting
 
 He asked me to "fix chronicle stopped". The panel had said, for three days:
