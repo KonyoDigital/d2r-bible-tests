@@ -6845,7 +6845,30 @@
   aside.rail > * { margin-top: 0 !important; flex: 0 0 auto; }
   .b-sim { min-height: 64px; }
   .b-on { min-height: 72px; }
-  #btn-shelf { margin-top: auto !important; padding: 14px 12px; justify-content: center; }   /* anchored to the rail floor */
+  /* ⚠⚠ v3277 — THE DOOR WAS ANCHORED TO A FLOOR THAT IS OFF-SCREEN AT HIS RESOLUTION.
+     Filed by the Mac third eye four briefs running as "1280x800 rail-clip unpaid: door still
+     after Console-rail scroll to floor", and every native LOOKED reaches THE SHELF "via
+     Console-rail scroll" rather than by seeing it.
+     MEASURED at 1280x800 against the live console:
+         .rail   height 629   content 741   overflow-y auto   canScroll 112   scrollTop 0
+         #btn-shelf  top 779  bottom 849   viewport 800  ->  FULLY OFF-SCREEN
+         any fade / "more below" affordance: NONE
+     `margin-top: auto` puts it last in the flex column — the CONTENT floor. When the rail
+     overflows, that floor is past the fold, so the primary door to THE SHELF silently leaves the
+     screen and the rail gives no hint that anything is below.
+     ⚠ THE INTENT IS KEPT, NOT OVERRULED. He anchored this to the floor on purpose; `sticky`
+     still puts it last and at the bottom — it just makes the bottom mean the VISIBLE bottom
+     instead of the content's. Nothing is reordered, and the engines-first layout v1354 chose is
+     untouched. [[design-is-fine-until-he-says]] */
+  /* ⚠⚠ AND A STICKY ELEMENT NEEDS AN OPAQUE BACK. The first cut kept `.act`'s
+     `rgba(0,0,0,.28)`, and the geometry was perfect — in view at 1280x800, 1440x900 and a tall
+     viewport. LOOKING at it showed the defect: with the rail scrolled 60px, "last read — duration
+     not recorded" reads STRAIGHT THROUGH the button, across the words THE SHELF. A door you
+     cannot read is not a door. The console's base is `html { rgb(6,5,4) }` under a body radial
+     gradient, so this is that base, opaque — dark enough to sit in the rail without a seam and
+     solid enough that nothing scrolls through it. [[visual-regression-detector]] */
+  #btn-shelf { margin-top: auto !important; padding: 14px 12px; justify-content: center;
+    position: sticky; bottom: 0; z-index: 3; background: #0a0908; }   /* the rail floor — the VISIBLE one */
   /* ══ v3206 — THE ENGINE FOLD. His ruling: "it can be in the TV-D tab but collapsed and
      organized". Seven lamps at full height are a wall; folded they are one line.
      ⚠⚠ THE CLOSED LINE MUST CARRY THE COUNT, and this is the entire risk of collapsing a STATUS

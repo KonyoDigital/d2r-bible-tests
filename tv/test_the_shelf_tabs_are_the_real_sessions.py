@@ -556,6 +556,67 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertIn("th-shelfov", blk,
                       "the closed-stage branch does not check that an overlay is actually up")
 
+    def _shelf_door_rule(self):
+        src = _py_only(self.src)
+        i = src.find("#btn-shelf { margin-top: auto")
+        self.assertGreater(i, -1, "the shelf door's rule is gone or renamed")
+        j = src.find("}", i)
+        self.assertGreater(j, i, "the shelf door's rule never closes")
+        return src[i:j + 1]
+
+    def test_the_SHELF_DOOR_is_anchored_to_the_VISIBLE_floor(self):
+        """★ v3277 — THE DOOR WAS ANCHORED TO A FLOOR THAT IS OFF-SCREEN AT HIS RESOLUTION.
+
+        Filed by the Mac third eye four briefs running as *"1280x800 rail-clip unpaid: door still
+        after Console-rail scroll to floor"*, and every native LOOKED reaches THE SHELF "via
+        Console-rail scroll" rather than by seeing it.
+
+        MEASURED at 1280x800 against the live console:
+
+            .rail        height 629   content 741   overflow-y auto   canScroll 112   scrollTop 0
+            #btn-shelf   top 779   bottom 849   viewport 800   ->  FULLY OFF-SCREEN
+            any "more below" affordance: NONE
+
+        `margin-top: auto` puts it last in the flex column — the CONTENT floor. When the rail
+        overflows, that floor is past the fold and the primary door silently leaves the screen.
+
+        ⚠ HIS INTENT IS KEPT, NOT OVERRULED. He anchored it to the floor on purpose; sticky still
+        puts it last and at the bottom — it just makes "the bottom" mean the VISIBLE bottom.
+        Nothing is reordered and v1354's engines-first layout is untouched.
+        After: in view at 1280x800 (top 667), 1440x900 and 1280x1100.
+        """
+        rule = self._shelf_door_rule()
+        self.assertIn("position: sticky", rule,
+                      "the door is pinned to the content floor again, which is off-screen at "
+                      "1280x800 — his own resolution")
+        self.assertIn("bottom: 0", rule, "the sticky door has no edge to stick to")
+        self.assertIn("margin-top: auto", rule,
+                      "the door is no longer last in the rail — his floor anchoring was dropped")
+
+    def test_the_sticky_door_is_OPAQUE(self):
+        """⚠⚠ THE GUARD THE GEOMETRY COULD NOT GIVE. The first cut kept `.act`'s
+        `rgba(0,0,0,.28)` and measured perfectly — in view at all three viewports. LOOKING at it
+        showed the defect: with the rail scrolled 60px, "last read — duration not recorded" reads
+        STRAIGHT THROUGH the button, across the words THE SHELF. A door you cannot read is not a
+        door.
+
+        A sticky element has content scrolling behind it, so a translucent background is not a
+        style choice — it is a legibility bug waiting for the first scroll.
+        [[visual-regression-detector]]
+        """
+        rule = self._shelf_door_rule()
+        self.assertIn("background:", rule,
+                      "the sticky door has no background of its own, so the rail's content shows "
+                      "through it the moment anything scrolls behind")
+        import re
+        bg = re.search(r"background:\s*([^;}]+)", rule)
+        self.assertIsNotNone(bg, "the door's background could not be read")
+        val = bg.group(1).strip()
+        self.assertNotIn("rgba", val,
+                         "the sticky door's background is translucent (%r) — scrolling content "
+                         "reads through it" % val)
+        self.assertNotIn("transparent", val, "the sticky door is transparent")
+
     def test_the_HOME_STRIP_really_does_open_the_dossier_with_NO_theatre(self):
         """★ v3275 — THE MEASURED TRIGGER, pinned so the bug cannot be hidden by accident.
 

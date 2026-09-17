@@ -36626,6 +36626,50 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1086 — the door to THE SHELF was anchored to a floor that is off-screen at his resolution
+
+The Mac third eye has carried this four briefs running: **"1280x800 rail-clip unpaid
+(#5714017256): door still after Console-rail scroll to floor."** And every native LOOKED describes
+reaching THE SHELF *"via Console-rail scroll"* — he finds the door by scrolling for it, never by
+seeing it.
+
+**MEASURED at 1280x800 against the live console:**
+
+```
+.rail        height 629   content 741   overflow-y auto   canScroll 112   scrollTop 0
+#btn-shelf   top 779   bottom 849   viewport 800     ->  FULLY OFF-SCREEN
+any fade / "more below" affordance                 ->  NONE
+```
+
+The cause is one declaration: `#btn-shelf { margin-top: auto !important; }` — *"anchored to the
+rail floor"*. In a flex column that puts it last, at the **content** floor. The moment the rail
+overflows, that floor is past the fold, and the primary door to THE SHELF silently leaves the
+screen while the rail gives no hint anything is below it.
+
+**Fixed in v3277:** `position: sticky; bottom: 0`. ⚠ **His intent is kept, not overruled** — he
+anchored it to the floor deliberately, and sticky still puts it last and at the bottom. It only
+changes what "the bottom" means: the **visible** floor rather than the content's. Nothing is
+reordered and v1354's engines-first layout is untouched. [[design-is-fine-until-he-says]]
+
+Measured after: in view at **1280x800 (top 667)**, 1440x900, and a tall 1280x1100 where the rail
+does not overflow at all.
+
+### ⚠ And the geometry was perfect while the pixels were broken
+
+The first cut kept `.act`'s `rgba(0,0,0,.28)` background. Every measurement passed — in view at all
+three viewports, inside the rail, correct z-order. **Looking** at it with the rail scrolled 60px
+showed the defect immediately: *"last read — duration not recorded"* reads **straight through the
+button, across the words THE SHELF.** A door you cannot read is not a door.
+
+A sticky element has content scrolling behind it, so a translucent background is not a style choice
+— it is a legibility bug waiting for the first scroll. The console's base is `html { rgb(6,5,4) }`
+under a body radial gradient, so the door now paints that base opaque: dark enough to sit in the
+rail without a seam, solid enough that nothing reads through it. Both states photographed.
+[[visual-regression-detector]] — **that is twice in two versions that the numbers said fine and the
+frame said otherwise.**
+
+Two laws, five sabotages, every one RED, each anchor matching exactly once.
+
 ## REG-1085 — the collapse shipped and he could not find it: a control that looks like text is not a control
 
 v3272 made the world ribbon collapsible. GrokBot's **next** native LOOKED, on **v3274** — two
@@ -36653,7 +36697,36 @@ to before the change; badge box 30x16. Looked at both states on real pixels: col
 reads clean with the badge out at the left edge; expanded, the chip reads as a control.
 
 Two laws pin it — one that the badge looks like a control, one that the affordance **cannot** change
-the ribbon's height. Four sabotages, every one RED, each anchor matching exactly once.
+the ribbon's height.
+
+### The cross-family review of v3276 — three findings, all about height, all refuted by measuring
+
+Grok raised: (1) the badge's padding grows the ribbon on ≤700px viewports, breaking all five
+clamps; (2) the collapsed state exceeds 35px because only the badge remains; (3) the badge is not
+scaled in the media query, so at narrow widths it is disproportionate and can overflow.
+
+Every one is a height claim, so every one is measurable. Measured on real pixels, **both states at
+five widths**:
+
+| width | expanded | collapsed | badge box | off-edge |
+|---|---|---|---|---|
+| 1440 | **35px** | **35px** | 30×16 | no |
+| 901 | **35px** | **35px** | 30×16 | no |
+| 700 | **21px** | **21px** | 21×9 | no |
+| 480 | **21px** | **21px** | 21×9 | no |
+| 375 | **21px** | **21px** | 21×9 | no |
+
+**Height is pairwise identical, expanded vs collapsed, at every width.** The five clamps are safe.
+
+- **(1) refuted at its premise.** It assumes `.cr-tog` has vertical padding. It does not:
+  `padding:0 5px` is horizontal-only, which is precisely the guard built for this and pinned by
+  `test_the_affordance_CANNOT_change_the_ribbon_height`.
+- **(2) refuted directly** — 35px collapsed at 1440 and 901, 21px at the rest.
+- **(3) refuted** — the badge inherits `font:inherit`, so the media query scales it with the band
+  (30×16 → 21×9). The collapsed ribbon is 42px at 375 and `offEdge` is false at every width.
+
+⇒ Three findings, three refutations, all from one measurement the review could not run.
+**Nothing changed.** [[review-after-ship]] Four sabotages, every one RED, each anchor matching exactly once.
 
 ### The cross-family review of v3275 — four findings, none survived
 
