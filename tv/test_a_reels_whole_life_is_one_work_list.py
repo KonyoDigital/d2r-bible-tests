@@ -333,9 +333,26 @@ def _render(payload):
     if i < 0 or j < 0:
         raise AssertionError("_shLanesRender is no longer findable in control_ui.html — this "
                              "gate has lost its target and is measuring nothing")
+    # ⚠⚠ THE FAKE ELEMENT MUST ANSWER EVERYTHING THE SHIPPED CODE ASKS IT. This stub carried
+    # `innerHTML` alone, and `_shLanesRender` also does:
+    #     var _fd = el.querySelector('.shr-fold');
+    #     if (_fd) _fd.addEventListener('toggle', ... localStorage.setItem(...) ...)
+    # so the probe died with "el.querySelector is not a function" and all three laws failed on a
+    # HARNESS gap while reporting as if the shipped renderer were broken. Same class as
+    # test_fleet_mask's node harness modelling a page with no LSR (REG-1041): a fixture that
+    # cannot satisfy the code it drives measures nothing, and fails naming the wrong subject.
+    #
+    # ⚠ It returns a REAL-SHAPED fold element rather than null. Null would also pass — the `if
+    # (_fd)` guard would simply skip — but it would silently stop exercising the listener branch,
+    # and a stub that answers "not there" to everything is how a fixture drifts into testing less
+    # than it claims. `localStorage` is stubbed for the same reason: the callback writes to it.
+    # [[feedback-blind-fixture-green-gate]]
     js = ("var out = '';\n"
+          "var _fold = { open: false, addEventListener: function(){} };\n"
+          "var localStorage = { setItem: function(){}, getItem: function(){ return null; } };\n"
           "var document = { getElementById: function(){ return { set innerHTML(v){ out = v; },"
-          " get innerHTML(){ return out; } }; } };\n"
+          " get innerHTML(){ return out; },"
+          " querySelector: function(sel){ return sel === '.shr-fold' ? _fold : null; } }; } };\n"
           "var esc = function(s){ return String(s === undefined ? '' : s)"
           ".replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\"/g,'&quot;'); };\n"
           + ui[i:j] + "\n_shLanesRender(" + _json.dumps(payload) + ");\n"

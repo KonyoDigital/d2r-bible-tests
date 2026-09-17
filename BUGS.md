@@ -35363,3 +35363,38 @@ above it is theatre. Red-proofed: restoring the unconditional call → red.
 eye** — v3233 → v3235 → v3237 → v3239 → v3241 → v3243. Not one was a bad fix; each was correct and
 each moved the defect one reader further out. That is what a repair looks like in a system with
 more consumers than the author is holding in mind. `[[review-after-ship]]`
+
+## REG-1049 — two harnesses that could not satisfy the code they drive
+
+**2026-09-17 · v3244 · `tv/test_a_reels_whole_life_is_one_work_list.py`, `tv/test_button_matrix.py`**
+
+**1. The node probe's fake element answered only `innerHTML`.** `_shLanesRender` also does
+`var _fd = el.querySelector('.shr-fold')` and attaches a fold-state listener, so the probe died
+with *"el.querySelector is not a function"* and **all three rendered-strip laws failed on a HARNESS
+gap while reporting as though the shipped renderer were broken.** Same class as `test_fleet_mask`'s
+node harness modelling a page with no LSR (REG-1041): a fixture that cannot satisfy the code it
+drives measures nothing, and fails naming the wrong subject.
+
+⚠ The stub returns a **real-shaped** fold element rather than `null`. Null would also have passed —
+the `if (_fd)` guard skips — but it would silently stop exercising the listener branch, and a stub
+that answers "not there" to everything is how a fixture drifts into testing less than it claims.
+`localStorage` is stubbed for the same reason: the callback writes to it.
+`[[feedback-blind-fixture-green-gate]]`
+
+Red-proofed twice against the SHIPPED renderer: dropping the closure chip's source label → red;
+putting the `+` back in the chip → red.
+
+**2. `test_button_matrix` gave a cold first call a 3-second budget.** It boots its own private
+console and then calls `/api/sessions` with `get()`'s 3s default. That console is seconds old, so
+the call is always a FIRST call — and this repo's own profiling records that path
+(`heart.vessels` → `_vault_owed_reels` → `reel_retention.plan` → `frame_authority.
+test_referenced_reels`) at **19.5s cold versus 0.05s warm**, with both the memo and the on-disk
+cache empty until something fills them. Measured on the live warm console for contrast: **0.016s**.
+
+So `sessions: timed out` was a statement about a budget, not about the product, and the matrix had
+been reporting `FAILED 1` for it. **A threshold BELOW the floor is the mirror of
+`[[feedback-threshold-above-the-ceiling]]`** — one can never fire, the other can never pass.
+
+Raised to 45s, above the profiled cold figure with room, with the measurement written at the site.
+It stays a real bound: red-proofed by setting it to 0.001s → `FAILED 1: sessions: timed out`, so a
+genuine hang still fails rather than hanging. Result now: **ALL CHECKS PASSED**.

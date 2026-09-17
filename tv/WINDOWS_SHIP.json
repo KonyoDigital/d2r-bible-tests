@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3243",
+  "ver": "v3244",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3243: making an absent match count mean unknown was right for the comparison and wrong one line later, where the same value is handed to str replace as its count and None is a type error. all thirty two count less proofs would have raised at the moment they tamper. one field, three readers, and I had taught only two",
+  "note": "v3244: the node probe modelled an element with only innerHTML while the shipped renderer also asks it for a fold child, so three laws failed on a harness gap. and the button matrix gave a freshly booted console three seconds for a call this repo has profiled at nineteen and a half seconds cold",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

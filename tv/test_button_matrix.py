@@ -296,8 +296,20 @@ def main():
     check("log endpoint", lg.get("ok") is True)
 
     print("\n· SESSIONS theatre backend (history API)")
+    # ⚠⚠ THE 3s DEFAULT IS BELOW THIS CALL'S COLD FLOOR, NOT ABOVE ITS WARM COST. This console
+    # was spawned seconds ago, so /api/sessions is always a FIRST call — and the repo's own
+    # profiling records that path (heart.vessels -> _vault_owed_reels -> reel_retention.plan ->
+    # frame_authority.test_referenced_reels) at 19.5s COLD versus 0.05s warm, with the memo and
+    # the on-disk cache both empty until something fills them. Measured on the live, warm console
+    # for contrast: 0.016s.
+    #
+    # So `sessions: timed out` was a statement about a budget, not about the product, and this
+    # matrix has been reporting FAILED 1 for it. A threshold BELOW the floor is the mirror of
+    # [[feedback-threshold-above-the-ceiling]]: one can never fire, the other can never pass.
+    # 45s, above the profiled cold figure with room, and it stays a real bound — a hang still
+    # fails. The sibling `post()` already allows 30s for the same reason.
     try:
-        sess = get(CTRL + "/api/sessions")
+        sess = get(CTRL + "/api/sessions", t=45)
         check("sessions list", "sessions" in sess, sess)
     except Exception as e:
         FAILS.append(f"sessions: {e}")
