@@ -397,11 +397,31 @@ def _check_the_sweep_would_find_something():
         return UNKNOWN, "could not list reels: %s" % str(e)[:90]
     if not dirs:
         return MISSING, "no reels on disk — record one: open TV DIABLO and press ON AIR"
+    # ⚠ v3297 — THE INSTRUMENT, NOT THE FOOTAGE. stash_screen_open returns None when its
+    # imports break, and panel_density returns 0.0 for an unreadable reel — so a dead OCR
+    # toolchain and a shelf with no stash panels used to print the IDENTICAL sentence.
+    # gate_failures() is the truth channel built for exactly this (v1854: "310 versions of every
+    # caller reading None as an answer about his footage when it was really an answer about a
+    # NameError") and this verdict was never joined to it. Snapshot it around the density pass:
+    # a zero taken while the gate was failing is an answer about the INSTRUMENT and must say so.
+    # [[unknown-stays-unknown]] [[the-unjoined-end]]
+    try:
+        _gb0 = int(ca.gate_failures())
+    except Exception:
+        _gb0 = None
     try:
         dens = {d: vr.panel_density(d, ca.stash_screen_open_cached) for d in dirs}
     except Exception as e:
         return UNKNOWN, "the panel gate would not run: %s" % str(e)[:90]
+    try:
+        _gb = (int(ca.gate_failures()) - _gb0) if _gb0 is not None else None
+    except Exception:
+        _gb = None
     withpanel = [d for d, v in dens.items() if v > 0]
+    if not withpanel and _gb:
+        return UNKNOWN, ("the stash gate FAILED %d time(s) during the density pass — this zero "
+                         "is an answer about the INSTRUMENT, not the footage; no reel was judged"
+                         % _gb)
     if not withpanel:
         return MISSING, ("%d reel(s) on disk and NONE shows a stash panel — a vault sweep would "
                          "read nothing. Open the stash (and hover items) while a reel is rolling"
@@ -846,6 +866,16 @@ def _check_the_printer_can_reach_the_corpus():
     if seals is None or ok_n is None:
         # a count nobody took is not zero
         return UNKNOWN, "the report carried no seal counts, so nothing is known about reach"
+    # ⚠ v3297 — DO NOT RE-MANUFACTURE THE ZERO. printer_reach already distinguishes the two
+    # zeros: its empty arm returns state=UNKNOWN with "there is no seal store to read — 0 seals,
+    # so the contract was never asked to admit anything". This row used to branch on COUNTS only
+    # and print the populated-case sentence over an EMPTY world — "NOT ONE of 0 seal(s) …
+    # refused everything" — a false confession seen verbatim on the guest board 2026-09-18.
+    # With 0 seals nothing was refused; the honest sentence exists upstream, so pass it through.
+    # [[zero-needs-a-denominator]] [[the-unjoined-end]]
+    if str(r.get("state") or "") == "UNKNOWN" or not seals:
+        return UNKNOWN, str(r.get("why") or "0 seals — the contract was never asked, so nothing "
+                                            "about this corpus was established")
     if ok_n:
         return OK, ("%s of %s seal(s) satisfy the extraction contract, so the pipeline can act on "
                     "the corpus" % (ok_n, seals))
@@ -2079,9 +2109,36 @@ def _check_the_river_has_an_outlet():
     drv_at = (drv or {}).get("at")
     drv_runs = int((drv or {}).get("runs") or 0)
     if waiting and not drv_runs:
-        return MISSING, ("%d of %d reel(s) can be closed out RIGHT NOW and have not been, and the "
-                         "route lane HAS NEVER RUN in this process — nothing is driving the "
-                         "river. ROUTED holds %d%s" % (waiting, shelf, routed, tail))
+        # ⚠ v3297 — runs==0 used to CONFLATE THREE OPPOSITE FACTS: a lane the roster stood down
+        # by design (TV_STUB), a process younger than the sleep-first 90s tick, and a tick that
+        # raises upstream of the runs counter every round for ever. A dead loop, a deliberate
+        # absence and a failing loop are different findings and must not share a sentence — the
+        # guest board read a stood-down driver as "nothing is driving the river" 2026-09-18.
+        head = ("%d of %d reel(s) can be closed out RIGHT NOW and have not been"
+                % (waiting, shelf))
+        try:
+            import control_app as _ca3
+        except Exception:
+            _ca3 = None
+        stood = getattr(_ca3, "_LANES_STOOD_DOWN", None) or ()
+        tick = getattr(_ca3, "_TRIAGE_TICK", None) or {}
+        att = int(tick.get("attempts") or 0)
+        if "tvd-retro-triage" in stood:
+            return MISSING, ("%s — the route lane's driver is STOOD DOWN in this world (TV_STUB "
+                             "harness): it will never run here BY DESIGN, which is not a dead "
+                             "loop. ROUTED holds %d%s" % (head, routed, tail))
+        if att and tick.get("raised"):
+            return MISSING, ("%s — the triage tick has ATTEMPTED %d time(s) in this process and "
+                             "RAISED before reaching the route lane (last: %s): a FAILING driver, "
+                             "not a dead one. ROUTED holds %d%s"
+                             % (head, att, str(tick.get("raised"))[:90], routed, tail))
+        if not att:
+            return MISSING, ("%s — no triage tick has been ATTEMPTED yet in this process (the "
+                             "loop sleeps %ss before its first tick), so 'never ran' may only "
+                             "mean the process is young. ROUTED holds %d%s"
+                             % (head, getattr(_ca3, "_TRIAGE_EVERY_S", 90), routed, tail))
+        return MISSING, ("%s, and the route lane HAS NEVER RUN in this process — nothing is "
+                         "driving the river. ROUTED holds %d%s" % (head, routed, tail))
     if waiting:
         import time as _t
         age = int(_t.time() - float(drv_at)) if drv_at else None

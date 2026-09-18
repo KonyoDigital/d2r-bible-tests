@@ -5736,6 +5736,10 @@ def _win_tint_caption():
 _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
                       "tvd-retro-triage")
 
+#: v3297 — lanes the roster SKIPPED at boot (TV_STUB harness), kept module-readable so a doctor
+#: row can say "stood down by design" instead of grading a deliberate absence as a dead loop.
+_LANES_STOOD_DOWN = set()
+
 
 def _orphan_watch_pid():
     """Which pid this console should die with, or 0 for "watch nothing". -> int
@@ -5918,6 +5922,7 @@ def start_background_watchers(why):
         if harness and name in _HARNESS_ONLY_SKIP:
             # NAMED, not silent: "it did not run" and "it is not there" must never look the same.
             stood_down.append(name)
+            _LANES_STOOD_DOWN.add(name)   # v3297 — readable by the doctor, not only printed
             continue
         try:
             threading.Thread(target=fn, daemon=True, name=name).start()
@@ -23226,6 +23231,14 @@ def retro_triage_tick():
 _ROUTE_LANE = {"at": None, "runs": 0, "ok": None, "routed": None, "already": None,
                "refused": None, "declined": None, "why": ""}
 
+#: ⚠ v3297 — THE TICK'S OWN PULSE, SEPARATE FROM THE ROUTE LANE'S. `runs` above increments only
+#: INSIDE the route-lane block, so a `retro_triage_tick()` that raises upstream of it left runs at
+#: 0 for ever while the loop failed every 90s — and the doctor row then read a FAILING loop as one
+#: that "HAS NEVER RUN", the exact conflation the v2770 note beside the runs counter says must not
+#: share a sentence. `attempts` is stamped BEFORE the tick; `raised` records the last upstream
+#: failure. runs==0 with attempts>0 can now be told from a young process and a stood-down lane.
+_TRIAGE_TICK = {"attempts": 0, "at": None, "raised": None}
+
 _RIVER_WALK = {"at": None, "ok": None, "reels": None, "moved": None, "why": "",
                "walks": 0, "lastMovedAt": None, "unchanged": None, "refused": None}
 
@@ -23361,7 +23374,11 @@ def _retro_triage_loop():
         try:
             time.sleep(_TRIAGE_EVERY_S)
             _lane_tick('tvd-retro-triage', _TRIAGE_EVERY_S)
+            # v3297 — attempt stamped BEFORE the tick, cleared raise on success; see _TRIAGE_TICK.
+            globals()["_TRIAGE_TICK"] = {"attempts": int(_TRIAGE_TICK.get("attempts") or 0) + 1,
+                                         "at": time.time(), "raised": _TRIAGE_TICK.get("raised")}
             r = retro_triage_tick()
+            _TRIAGE_TICK["raised"] = None
             if r.get("ok") and r.get("reel"):
                 print("\U0001f9ea triage: %s - %s frame(s), %s panel(s), %s left"
                       % (r["reel"], r.get("frames"), r.get("panels"), r.get("remaining")),
@@ -23478,7 +23495,13 @@ def _retro_triage_loop():
                 _RIVER_WALK["moved"] = None
                 _RIVER_WALK["why"] = "the walk raised: %s" % str(_rve)[:120]
                 print("\U0001f30a river: walk failed - %s" % str(_rve)[:120], flush=True)
-        except Exception:
+        except Exception as _tte:
+            # v3297 — a swallowed raise is still a FACT: record it so runs==0 stops reading as
+            # "never ran" while the loop fails every tick. [[unknown-stays-unknown]]
+            try:
+                _TRIAGE_TICK["raised"] = "%s: %s" % (type(_tte).__name__, str(_tte)[:90])
+            except Exception:
+                pass
             try:
                 time.sleep(_TRIAGE_EVERY_S)
             except Exception:
@@ -29948,7 +29971,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3296",
+        "ver": "v3297",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

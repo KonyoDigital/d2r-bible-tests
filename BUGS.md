@@ -38502,3 +38502,40 @@ and must not be quoted as a count of blind code. One instance proven; extent UNK
 WORKAROUND ONLY: v3296's law counts call sites on RAW source with a per-hit not-in-a-comment check,
 documented at the assertion. The scanner itself is unfixed and the affected laws are unaudited.
 [[source-reading-guard]] [[zero-needs-a-denominator]]
+
+## REG-1109 — FOUR READERS TURNED "NOBODY LOOKED" INTO "I LOOKED AND FOUND NOTHING"
+Every durable *what was DONE* store is **gitignored** — `capture_doors.json`, `vault_swept.json`,
+`retro_triage.json`, `chronicle_swept.json`, `vault_accum.json`, `river_stamp.jsonl`,
+`board_tally.json`, `vault_seen.json`, `chron_evidence.json`, `sessions.jsonl` — while the journal
+**SEED is TRACKED**. So any fresh clone is structurally **journal-rich and ledger-empty**: it
+inherits his testimony about what HAPPENED and holds no record of what was DONE. Four readers
+coerced that absence into `0` and each reported a defect that did not exist:
+1. **The absent capture ledger.** `_capture_door_load` swallows a missing file into `{}`; the report
+   coerces each door to `int 0`; the invariant's UNKNOWN arm fires only on a NON-INT — a condition a
+   missing FILE can never reach. It manufactured *"journal says 56, ledger says 0"* on a board that
+   had never opened a door, **the 56 being HIS imported journal**.
+2. **The printer-reach doctor.** `printer_reach` already returns `state=UNKNOWN` with *"a filter
+   that rejected NOTHING is not a filter that rejected EVERYTHING"*. The doctor branched on COUNTS
+   ONLY and re-manufactured the populated-case confession over an empty world.
+3. **The sweep verdict.** Never joined to `gate_failures()`, so a **dead OCR toolchain** and a shelf
+   with **no stash panels** printed the identical sentence.
+4. **The route lane.** `runs == 0` conflated stood-down-by-design, a process younger than the
+   sleep-first tick, and a tick that raises upstream of the counter for ever.
+GATE: `test_empty_world_unknown`, 4 red-proofs, all **PROVEN**. Shipped v3297.
+
+## REG-1110 — TWO RED-PROOFS CAME BACK BLIND AND BOTH WERE THE TEST, NOT THE CODE
+`heart2 --prove` returned **BLIND** on 2 of 4 on the first attempt. Match counts were 1 for every
+anchor, so it was not the anchor problem that accounts for most of them. Diagnosed by measurement
+rather than by rewriting the guard:
+- **The printer-reach fixture had the WRONG SHAPE.** `report()` returns its numbers under `counts`;
+  my mock was flat. A flat dict trips the EARLIER `not r.get("counts")` arm — which also returns
+  UNKNOWN with `r["why"]` — so **the test passed while never reaching the branch it names**, and
+  removing that branch changed nothing. `regression-guard` §5a question 2, verbatim: *does the
+  test's own path reach the line you broke?*
+- **The ordering assertion was TOO WEAK.** It searched for `_TRIAGE_TICK.get("attempts")` before the
+  tick call. The sabotage `int(0 * (... or 0))` **keeps that string, keeps the order, and makes the
+  counter permanently 0** — green through its own defeat. Now the expression is EVALUATED against a
+  known prior and required to rise.
+Both fixed, re-proved **4 of 4**. Recording because the instinct on a BLIND proof is to weaken or
+rewrite the guard, and in both cases the guard and the sabotage were fine.
+[[regression-guard]] [[source-reading-guard]]

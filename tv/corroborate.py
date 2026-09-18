@@ -1199,8 +1199,19 @@ def _inv_every_door_counts_the_reels_it_opened():
             return None
 
     def right():
-        """Opens claimed by the doors — the parent's testimony."""
+        """Opens claimed by the doors — the parent's testimony.
+
+        ⚠ v3297 — AN ABSENT LEDGER IS UNKNOWN, NEVER 0. `_capture_door_load` swallows a missing
+        file into {}, and the report then coerces every door to int 0 — so "no ledger exists in
+        this world" and "672 attempts, 0 opens" were byte-identical to this reading. Measured
+        2026-09-18: the guest seed world ships the journal (56 door-stamped sessions) and NO
+        capture_doors.json, and this arm manufactured the 56-vs-0 disagreement on its panel. The
+        non-int check below can never catch a missing FILE, because {} always yields int 0, so
+        the absence is refused HERE, before the report flattens it. [[zero-needs-a-denominator]]
+        """
         try:
+            if not os.path.exists(ca._capture_doors_path()):
+                return None
             rep = ca.capture_door_report() or {}
             tot = 0
             for _d, row in rep.items():
