@@ -593,7 +593,71 @@ def _blank(spec, meta):
             "seedStale": None, "manual": None, "unfound": None, "verdicts": None}
 
 
-def _stale(seed_n, have, parts):
+#: ⚠⚠ v3313 — A SEED NAME COUNT AND A ROSTER-ROW COUNT ARE NOT THE SAME POPULATION, AND
+#: SUBTRACTING THEM MANUFACTURES A PERMANENT FAULT. `uniques` publishes its live figure as
+#: `funiScan().found` — a walk of the ROSTER asking `_ownedHas` of each row, which resolves a
+#: store name to its canonical form before matching. A seed is a list of NAMES the boot floor
+#: would write. The two can never be level: the seed legitimately carries alias spellings that
+#: have no row of their own (the six `Latent <sunder>` forms are dropped by `_uniItems`, and
+#: `Harlequin Crest (Shako)` resolves onto the row spelled `Harlequin Crest`), while his store
+#: legitimately holds rows the seed never listed.
+#:
+#: MEASURED 2026-09-18 on his live board: seed 312 names, `chronFound` 309 rows, and of those 312
+#: names ZERO are absent from his store. The gap is not missing work — it is the two figures
+#: counting different things. The row read `+63 behind` before a sync and `-3 behind` after one,
+#: and neither number named an action that would close it.
+#:
+#: ⚠ THE FACT WAS ALREADY RECORDED AND NOBODY ASKED. Every ledger declares `usesStoreLength`, and
+#: `canonical_figure` already refuses the comparison on exactly that field — *"NOT A COMPARISON,
+#: AND SAYING SO MATTERS"*. Two other sites subtracted anyway. [[the-unjoined-end]]
+#:
+#: ⚠ AND THE REAL FINDING SURVIVES. `sets` and `runewords` ARE store lengths, so their drift is a
+#: true subtraction and stays graded — Dean's runewords read 94 against a seed of 99, five seeded
+#: rows genuinely missing from his store. Exempting those would be the cure killing the patient.
+def seed_drift(spec, seed_n, live):
+    """How far a frozen seed sits from its live figure, or why no distance may be taken. -> dict
+
+    Returns `comparable`, `drift`, `stale`, `why`. THREE STATES, and collapsing any two is the
+    defect:
+
+        comparable True  + drift int   the figures count one population; the subtraction is real
+        comparable False + drift None  they count DIFFERENT populations — no distance exists
+        comparable True  + drift None  they would compare, but nobody published a live figure
+
+    ⚠ `comparable` is a property of the LEDGER, not of the reading, so it is decided before the
+    live figure is looked at. A ledger that cannot be compared must say so even when the board is
+    silent, or a dark board would read as "comparable, just unmeasured" and the exemption would
+    vanish the moment anything went quiet. [[unknown-stays-unknown]]
+    """
+    out = {"drift": None, "stale": None, "comparable": None, "why": ""}
+    if not isinstance(spec, dict):
+        out["why"] = "no ledger spec was supplied, so whether these two figures may be " \
+                     "subtracted is UNKNOWN"
+        return out
+    if not spec.get("usesStoreLength"):
+        out["comparable"] = False
+        out["why"] = ("%s does not publish len(%s) as its figure — it publishes a walk of the "
+                      "ROSTER, which resolves each store name to a canonical row before matching. "
+                      "A seed NAME COUNT and a roster-ROW count are different populations, so no "
+                      "drift between them exists to report. This is NOT a fault and NOT an unknown "
+                      "age: it is a subtraction that was never valid."
+                      % (spec.get("name"), spec.get("store")))
+        return out
+    out["comparable"] = True
+    if not isinstance(seed_n, int) or not isinstance(live, int):
+        out["why"] = ("%s would compare (its figure is len(%s)), but no live figure was published, "
+                      "so the drift is UNKNOWN rather than zero"
+                      % (spec.get("name"), spec.get("store")))
+        return out
+    out["drift"] = live - seed_n
+    out["stale"] = out["drift"] != 0
+    out["why"] = ("%s is len(%s), the same population the seed lists, so the subtraction is real: "
+                  "live %d against a seed of %d." % (spec.get("name"), spec.get("store"), live,
+                                                     seed_n))
+    return out
+
+
+def _stale(seed_n, have, parts, spec=None):
     """How far behind the live tally the seed is, and the age it CANNOT establish. -> dict | None
 
     Konyo: *"_GRAIL_SEED 245 uniques but this is my owner seed.. and even that is so outdated..
@@ -606,15 +670,25 @@ def _stale(seed_n, have, parts):
     """
     if not isinstance(seed_n, int):
         return None
+    # ⚠ v3313 — ASK THE SAME QUESTION `canonical_figure` ASKS. `behind` used to be taken for every
+    # ledger; for one whose figure is a roster walk it is a category difference wearing an
+    # arithmetic face, and it is the number that sent 67 names into the seed to close a gap that
+    # cannot close. The caveat rides ON the row rather than beside it, so a reader cannot take
+    # `behind` without it. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _cmp = seed_drift(spec, seed_n, have) if isinstance(spec, dict) else None
     newest = None
     for p in (parts or []):
         d = p.get("newestFindDate")
         if d and (newest is None or d > newest):
             newest = d
+    _comparable = (_cmp or {}).get("comparable")
     return {
         "seedN": seed_n,
         "liveHave": have if isinstance(have, int) else None,
-        "behind": (have - seed_n) if isinstance(have, int) else None,
+        "comparable": _comparable,
+        "comparableWhy": (_cmp or {}).get("why") or "",
+        "behind": (None if _comparable is False
+                   else ((have - seed_n) if isinstance(have, int) else None)),
         "newestFindDate": newest,
         "stampedAt": None,
         "why": ("the seed is a hardcoded literal with no transcription timestamp, so its AGE is "
@@ -697,7 +771,7 @@ def classify_local(own=None, path=None, table=None):
             row["why"] = "the seed could not be read: %s" % meta
             out["ledgers"].append(row)
             continue
-        row["seedStale"] = _stale(len(names), row["have"], (meta or {}).get("parts"))
+        row["seedStale"] = _stale(len(names), row["have"], (meta or {}).get("parts"), spec)
 
         # rows the OTHER seeds wrote into this same store, so they are not counted as this ledger's
         foreign = set()
@@ -834,9 +908,26 @@ def classify_row(tally, world=None, path=None, table=None):
             out["ledgers"].append(row)
             continue
         seed_n = len(names)
-        row["seedStale"] = _stale(seed_n, row["have"], (meta or {}).get("parts"))
+        row["seedStale"] = _stale(seed_n, row["have"], (meta or {}).get("parts"), spec)
 
-        if on_seed is True and isinstance(row["have"], int):
+        # ⚠⚠ v3313 — THE THIRD COPY OF THE SAME SUBTRACTION, found by sweeping for the class after
+        # fixing `_stale` and the FROZEN row builder. `beyondSeed` is `have - seed_n` too, so for a
+        # ledger whose figure is a roster walk it is the same category difference wearing an
+        # arithmetic face. It surfaced the moment the seed grew: a peer holding 249 against a seed
+        # of 312 began reporting "63 seeded row(s) are MISSING from its store", which is a claim
+        # about rows derived from a count of names. [[sweep-dont-ask]] [[copy-drift]]
+        _cmp = seed_drift(spec, seed_n, row["have"])
+        if on_seed is True and _cmp["comparable"] is False:
+            # SEEDED is still the right provenance — the seed did land; what cannot be done is
+            # split this board's figure into inherited and earned from counts alone.
+            row["derived"] = True
+            row["seedRows"] = seed_n
+            row["beyondSeed"] = None
+            row["provenance"] = SEEDED
+            row["why"] = ("this board runs on the owner's seed (%s row(s)), but its own progress "
+                          "cannot be separated out: %s So how much was earned there is UNKNOWN, "
+                          "not zero and not the difference." % (seed_n, _cmp["why"]))
+        elif on_seed is True and isinstance(row["have"], int):
             row["derived"] = True
             row["seedRows"] = seed_n
             row["beyondSeed"] = row["have"] - seed_n      # SIGNED. never clamped.
@@ -1620,14 +1711,22 @@ def staleness(own=None, fleet=None, table=None):
                              name="%s seed" % spec["name"], stale=None))
             continue
         live = live_by_ledger.get(spec["name"])
-        drift = (live - len(names)) if isinstance(live, int) else None
+        # v3313 — ONE definition of "may these two be subtracted", shared with `_stale`. This site
+        # and that one drifted from `canonical_figure`, which already refused the comparison.
+        _sd = seed_drift(spec, len(names), live)
+        drift = _sd["drift"]
         f = figure(len(names), "bible.html:%s" % ",".join(spec["seeds"]), FROZEN,
                    namespace=ns, drift=drift)
         f["name"] = "%s seed" % spec["name"]
+        f["comparable"] = _sd["comparable"]
+        f["comparableWhy"] = _sd["why"]
         f["newestFindDate"] = max([p["newestFindDate"] for p in (meta or {}).get("parts") or []
                                    if p.get("newestFindDate")] or [None])
         # ⚠ DRIFT, NOT AGE, IS THE VERDICT HERE — and `None` drift is UNKNOWN, never fine.
-        f["stale"] = None if drift is None else (drift != 0)
+        # ⚠ v3313 — except where no drift EXISTS. `stale` is None for both, which is why the row
+        # also carries `comparable`: the doctor must tell "nobody could date this" apart from
+        # "this was never a distance", and only one of those is a gap in knowledge.
+        f["stale"] = _sd["stale"]
         f["why"] = (f["why"] + " Live figure is %s; the seed is %s behind."
                     % (live, drift) if drift else f["why"])
         rows.append(f)

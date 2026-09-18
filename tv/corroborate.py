@@ -2142,6 +2142,14 @@ COVERED_BY = {
     # joint reads the same two calibration constants the check already reads. One survived.
     'shadow watch': ('shadow-armed-is-watching',),
     "reel extract":      ("chronicle-owed", "swept-split-adds-up"),
+    # v3313 (#63) — BOTH HALVES OF THAT CHECK ARE ALREADY JOINTED, which is why this is a
+    # COVERED_BY rather than a NO_JOINT_YET. `router-and-shelf-agree` pins the DENOMINATOR (the
+    # reel universe, counted independently by reel_router and reel_story), and
+    # `swept-split-adds-up` pins the SUM (onDisk + retained against the sweep memory), which is
+    # the check's own stated red condition: "THE RED CONDITION IS THE SUM, not the number".
+    # ⚠ WHAT IT DOES NOT COVER, stated so the claim cannot over-reach: neither joint grades the
+    # RETENTION TAG VOCABULARY — a tag this console cannot name would still pass both.
+    "reel population":   ("router-and-shelf-agree", "swept-split-adds-up"),
     "sweep would find":  ("vault-worklist",),
     "shadow gate":       ("shadow-sample-fits",),
     "vault stores":      ("owned-is-contained",),

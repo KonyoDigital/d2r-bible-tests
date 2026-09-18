@@ -2880,7 +2880,19 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
     off = [r for r in rows if r.get("machineOff")]
     old = [r for r in rows
            if r.get("kind") == LA.BEACON and r.get("stale") is True and not r.get("machineOff")]
-    dark = [r for r in rows if r.get("stale") is None and not r.get("machineOff")]
+    # ⚠⚠ v3313 — A COMPARISON THAT WAS NEVER VALID IS NOT AN UNKNOWN AGE. `uniques seed` carried
+    # a permanent `+N behind` because its live figure is a ROSTER WALK and the seed is a NAME LIST.
+    # It billed him every tick with a number no action could move, and it billed ME: it is why 67
+    # names were written into the seed on 2026-09-18. Excluded here with its reason stated, the
+    # same discipline as `off` above and `_BY_DESIGN_STATIONS` on the river row — an exemption that
+    # can be audited instead of silently growing.
+    nocmp = [r for r in rows if r.get("comparable") is False]
+    _nocmpsay = ("" if not nocmp else
+                 " · %d figure(s) are not comparable by construction rather than out of date: %s"
+                 % (len(nocmp), "; ".join(str(r.get("comparableWhy") or r["name"])
+                                          for r in nocmp[:2])))
+    dark = [r for r in rows if r.get("stale") is None and not r.get("machineOff")
+            and r.get("comparable") is not False]
 
     if drifted or old:
         bits = []
@@ -2907,10 +2919,11 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
         _offsay = ("" if not off else
                    " · %d peer(s) are switched off rather than stale: %s"
                    % (len(off), "; ".join(str(r.get("why") or r["name"]) for r in off[:2])))
-        return MISSING, ("%d of %d ledger figure(s) are out of date: %s.%s Threshold arithmetic: "
+        return MISSING, ("%d of %d ledger figure(s) are out of date: %s.%s%s Threshold arithmetic: "
                          "beacon %.0fs + tally TTL %.0fs + fleet cache %.0fs = %.0fs ceiling, "
                          "x%d = %.0fs stale line (%s)."
                          % (len(drifted) + len(old), len(rows), "; ".join(bits[:4]), _offsay,
+                            _nocmpsay,
                             ceil["parts"]["beaconPeriodS"], ceil["parts"]["tallyTtlS"],
                             ceil["parts"]["fleetCacheS"], ceil["ceilingMs"] / 1000.0,
                             ceil["parts"]["multiple"], ceil["staleMs"] / 1000.0, ceil["how"]))
@@ -2918,17 +2931,24 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
         # ⚠ NOT OK. Nothing is broken and nothing here is this console's to fix, but a figure whose
         # machine is dark is not a current one, and "every beacon is inside N min" would be a
         # measured claim about a peer nobody has heard from. Same call as the river's UNBUILT.
+        # ⚠ v3313 — the exempt rows come OUT of "are current" here too. Counting a figure that
+        # was never comparable as a current one is the same over-claim the OK branch carried, one
+        # branch away, and this is the branch that fires on his console today.
         return UNKNOWN, ("%d of %d ledger figure(s) are current; %d peer(s) are switched off, so "
-                         "their figures are last-known rather than stale: %s"
-                         % (len(rows) - len(off), len(rows), len(off),
-                            "; ".join(str(r.get("why") or r["name"]) for r in off[:2])))
+                         "their figures are last-known rather than stale: %s%s"
+                         % (len(rows) - len(off) - len(nocmp), len(rows), len(off),
+                            "; ".join(str(r.get("why") or r["name"]) for r in off[:2]),
+                            _nocmpsay))
     if dark:
         return UNKNOWN, ("%d of %d ledger figure(s) could not be dated at all (%s) — UNKNOWN age is "
-                         "not a fresh one" % (len(dark), len(rows),
-                                              ", ".join(r["name"] for r in dark[:4])))
-    return OK, ("%d ledger figure(s) are current; every frozen constant is level with its live "
-                "figure and every beacon is inside %.0f min"
-                % (len(rows), ceil["staleMs"] / 60000.0))
+                         "not a fresh one.%s" % (len(dark), len(rows),
+                                                 ", ".join(r["name"] for r in dark[:4]), _nocmpsay))
+    # ⚠ v3313 — THE CLEAN SENTENCE MUST NOT OVER-CLAIM. "every frozen constant is level with its
+    # live figure" would be false the moment one of them is exempt from the comparison, and a
+    # clean verdict that quietly covers an unexamined row is the green that lies.
+    return OK, ("%d of %d ledger figure(s) are current; every COMPARABLE frozen constant is level "
+                "with its live figure and every beacon is inside %.0f min.%s"
+                % (len(rows) - len(nocmp), len(rows), ceil["staleMs"] / 60000.0, _nocmpsay))
 
 
 def _check_read_names_lane(*_a, **_k):
@@ -4198,8 +4218,19 @@ WATCHES = {
     # whole system (it told him "NO reel has reached JOIN" while 14 reels sat at JOIN with none
     # ever leaving), and no organ named it. A surface that can lie earns a watcher - that is the
     # heart's own rule, and the gap was on the one surface this check exists for.
-    "the shelf tabs are his stations": ("shelf-cards", "river-strip", "console-tabs",
-                                        "sh-stationbar"),
+    # ⚠ v3313 (#63) — `sh-stationbar` WAS DECLARED HERE AND NEVER MATCHED ANYTHING. This map
+    # speaks SURFACE names (organ_matrix.surfaces(), 60 of them); `sh-stationbar` is a DOM id in
+    # control_ui.html. Two vocabularies in one map, so the entry read as considered coverage while
+    # providing none — the exact green that lies `test_every_declared_surface_is_a_real_surface`
+    # exists to catch, and it HAS been red for it. Not a typo: there is no near-match in the
+    # registry (closest are `shelf-cards`, `state-panel`, `heart-stored`), and no surface contains
+    # "station" at all. Removing it loses NO coverage because it never provided any, and the
+    # station bar is painted inside `shelf-cards`, which is still declared.
+    # ⚠ THE INTENT IS KEPT AS A NOTE RATHER THAN AS A DEAD DECLARATION: if the station bar should
+    # be watched in its own right, it needs a SURFACE in organ_matrix first — and adding one
+    # creates a real obligation for every organ to name it, which is a deliberate act, not a
+    # side effect of fixing a registry gap.
+    "the shelf tabs are his stations": ("shelf-cards", "river-strip", "console-tabs"),
     # v3247 — the chip renders on the BOARD (bible.html), which this console does not paint, so
     # it names no console surface. The empty tuple is a DECLARATION, not an oversight: what this
     # check watches is the DOOR that feeds it, and that door has no id of its own.
@@ -4251,6 +4282,11 @@ WATCHES = {
     "end routes reachable":        (),
     "the river":                   ("river-strip",),
     "screen still painting":       ("console",),
+    # v3313 (#63) — `reel population` shipped into CHECKS and was declared in NEITHER registry,
+    # which turned TWO gates permanently red for one omission. Its three numbers (the river shows
+    # 8, the console's onDisk shows 12, the disk holds 20) land on exactly these two surfaces, so
+    # this is a MEASUREMENT of where it renders, not an empty declaration.
+    "reel population":             ("shelf-cards", "river-strip"),
     "shelf is where it says":      ("shelf-cards",),
     "progress number":             (),
     "ledger entries":              (),

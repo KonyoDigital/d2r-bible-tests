@@ -320,9 +320,14 @@ class FleetRowsAreDerivedAndSaySo(unittest.TestCase):
         """No item name crosses the fleet boundary (functions/api/console.js states it), so a
         remote row's seedRows is inferred from the code, not measured. Presenting it unlabelled
         would let it be read as a measurement."""
+        # ⚠ v3313 — through `runewords`, whose figure IS len(d2r_rwMade) and so can genuinely be
+        # split into inherited and earned. Driven through `uniques` this asserted a sentence built
+        # from a subtraction that was never valid, and the enlarged seed flipped it to the deficit
+        # branch — "63 seeded row(s) are MISSING" — a claim about ROWS derived from a count of
+        # NAMES. The label-it-derived rule is unchanged; only the ledger carrying it moved.
         v = LA.classify_row({"ok": True, "onOwnerSeed": True,
-                             "uniques": {"have": 249, "total": 403}})
-        u = _led(v, "uniques")
+                             "runewords": {"have": 120, "total": 135}})
+        u = _led(v, "runewords")
         self.assertTrue(u["derived"])
         self.assertFalse(u["measured"])
         self.assertIn("no item name crosses", u["why"])
@@ -805,13 +810,19 @@ class AFrozenConstantIsNeverFresh(unittest.TestCase):
 
     def test_a_frozen_constant_is_graded_by_DRIFT(self):
         """You cannot date the seed; you CAN measure how far behind the live figure it has fallen.
-        MEASURED on his board: uniques 246 vs a live 292. Asserts the RULE, not the 46."""
+        MEASURED on his board: uniques 246 vs a live 292. Asserts the RULE, not the 46.
+
+        ⚠ v3313 — THE VEHICLE MOVED, THE RULE DID NOT. This drove the rule through `uniques`, and
+        uniques is the one ledger whose live figure is a ROSTER WALK rather than len(store), so
+        that subtraction was never valid and now reports no drift at all. `sets` is a store length
+        (`usesStoreLength: True`), so a seed 40 behind it is a real 40. Pin the law, not the
+        roster. [[regression-guard]]"""
         t = LA.seed_table()
-        n = len(LA.seed_names_for("uniques", table=t)[0])
-        own = _board(counts={"chronFound": n + 40, "setPieces": 0, "runewordsMade": 0,
+        n = len(LA.seed_names_for("sets", table=t)[0])
+        own = _board(counts={"chronFound": None, "setPieces": n + 40, "runewordsMade": 0,
                              "chronTotal": None, "setsTotal": None, "runewordsTotal": None})
         st = LA.staleness(own=own, fleet={}, table=t)
-        row = [r for r in st["rows"] if r["name"] == "uniques seed"][0]
+        row = [r for r in st["rows"] if r["name"] == "sets seed"][0]
         self.assertEqual(LA.FROZEN, row["kind"])
         self.assertEqual(40, row["drift"])
         self.assertTrue(row["stale"], "a seed 40 behind the live figure was not called stale")
@@ -819,9 +830,15 @@ class AFrozenConstantIsNeverFresh(unittest.TestCase):
 
     def test_a_LEVEL_seed_is_not_stale_and_an_UNMEASURABLE_one_is_UNKNOWN(self):
         t = LA.seed_table()
-        n = len(LA.seed_names_for("uniques", table=t)[0])
-        st = LA.staleness(own=_board(counts={"chronFound": n}), fleet={}, table=t)
-        self.assertFalse([r for r in st["rows"] if r["name"] == "uniques seed"][0]["stale"])
+        # ⚠ v3313 — `sets`, and `assertIs(False, ...)` rather than assertFalse. Driven through
+        # `uniques` this half went INERT the moment that ledger stopped being compared: its
+        # `stale` became None, and `assertFalse(None)` passes while measuring nothing. A level
+        # seed must be measured-and-level, which is False — never merely not-True.
+        n = len(LA.seed_names_for("sets", table=t)[0])
+        st = LA.staleness(own=_board(counts={"setPieces": n}), fleet={}, table=t)
+        self.assertIs(False, [r for r in st["rows"] if r["name"] == "sets seed"][0]["stale"],
+                      "a seed level with its live figure must read measured-and-level; None here "
+                      "would mean this case cannot tell level from ungraded")
         # nothing live to compare against -> drift None -> stale None, NEVER False
         st2 = LA.staleness(own={"ok": False}, fleet={}, table=t)
         for r in st2["rows"]:
