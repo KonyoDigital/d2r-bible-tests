@@ -103,9 +103,13 @@ class TestAGuestMayNotWalkThroughHisDoor(unittest.TestCase):
         # ⚠⚠ THIS COUNT IS TAKEN ON RAW SOURCE, DELIBERATELY, AND HERE IS THE MEASUREMENT.
         # `_executable_only` DROPS A REAL CALL SITE: bible.html L38004,
         # `return window._d2rIntakeEndpoint();` inside `_aicIntakeEndpoint()`, disappears from the
-        # stripped text. The two lines above it hold REGEX LITERALS — /[?&]engine=1/ and
-        # /:(17772|17771)\b/ — and their slashes are being read as a comment, so live code after
-        # them is swallowed. Measured 2026-09-18: raw 10 call sites, stripped 9.
+        # stripped text. Measured 2026-09-18: raw 10 call sites, stripped 9.
+        # ⚠ CORRECTED v3299 — THE CAUSE I FIRST WROTE HERE WAS WRONG, and a wrong recorded cause is
+        # worse than none: it sends the next reader to inspect innocent code. I blamed the two REGEX
+        # LITERALS immediately above the line (/[?&]engine=1/ and /:(17772|17771)\b/). They are not
+        # it. The swallowing `/*` is **`accept="image/*"` at bible.html:37910** — the `/*` inside
+        # `image/*` opens a comment for the context-free scanner — and it sits **94 LINES UPSTREAM**
+        # of the code it eats. Re-measured here: 4 such attributes, at 6026, 9862, 9946, 37910.
         # Counting on the stripped text would make this law quietly wrong by one, forever.
         # ⚠ The risk raw-counting reintroduces is a COMMENT satisfying the assertion, so each hit
         # is checked to be real code rather than trusted. [[source-reading-guard]]

@@ -38489,8 +38489,19 @@ GATE: `test_guest_intake_door`, 2 red-proofs, both **PROVEN**. Shipped v3296. [[
 `frame_authority._executable_only` — which many laws depend on — **silently removes executable
 JavaScript**. Proven: `bible.html` L38004 `return window._d2rIntakeEndpoint();` inside
 `_aicIntakeEndpoint()` is absent from the stripped text. Measured **raw 10 call sites, stripped 9**.
-CAUSE: the two lines above it hold regex literals — `/[?&]engine=1/` and `/:(17772|17771)\b/` — and
-their delimiting slashes are read as comment syntax, swallowing the code that follows.
+CAUSE: ⚠ **RETRACTED AND CORRECTED, v3299 — the cause recorded here was WRONG.** I wrote that the
+two regex literals above the line (`/[?&]engine=1/`, `/:(17772|17771)\b/`) opened the region. They
+do not. The swallowing `/*` is **`accept="image/*"` at bible.html:37910**, where the `/*` inside
+`image/*` opens a comment for the context-free scanner — and it sits **94 LINES UPSTREAM** of the
+code it eats. Re-measured: 4 such attributes, at bible.html:6026, 9862, 9946, 37910.
+A wrong recorded cause is worse than no note: it sends the next reader to inspect innocent code and
+leaves the real opener unguarded. Extent, measured the same day: ~12,353 destroyed live tokens
+(2,423 JS + ~9,930 in four application/json blocks), 120,749 of 6,382,638 chars (1.89%), 858 of
+55,433 lines, 3 regions of 1,903 `/*` matches.
+⚠ AND THE v3296 LAW IS DEFEATABLE BECAUSE OF THIS: a second hardcoded `bull-4-u.com/api/intake`
+placed inside a blind region leaves the stripped PUBLIC_DOOR count at 1, so the guard passes with two
+live production doors in the file. Its raw-source call-site count is unaffected; the PUBLIC_DOOR
+count is the blind half, and fixing that is cheaper than fixing the scanner.
 **WHY IT MATTERS:** the stripper exists so a law cannot be satisfied by its own commentary
 (REG-1070). But a stripper that DELETES code creates the mirror failure — a law goes green because
 the violating code was never shown to it. A blind region and a prose-satisfied assertion are both
