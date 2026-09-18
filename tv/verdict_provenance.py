@@ -347,6 +347,27 @@ def _compare(was, now):
             continue
         if after == "UNKNOWN":
             new.append("%s: NEW and empty — not debt yet, and not clean either" % store)
+        elif after == "REFERENCE":
+            # ⚠⚠ v3328 — A ROSTER ARRIVING IS NOT DEBT, AND THIS FILE ALREADY KNEW IT.
+            # `_verdict` defines REFERENCE as a row with no producer key AND no clock, and line 20
+            # spells out what that means: "a roster or lookup table — no clock, so the question
+            # does not apply". A store the provenance question does not apply to cannot owe an
+            # answer to it, so reddening it is asking a lookup table when it was last written by
+            # whom.
+            #
+            # ⚠ THE SAME FALSE RED ALREADY BIT ONCE AND WAS PATCHED BY NAME. The ratchet's OWN
+            # baseline arrived REFERENCE and was reported as "new debt" on the very first clean
+            # run; the fix was to exclude that one filename in _split. That closed the instance
+            # and left the class open, and the class re-fired the moment two more rosters arrived:
+            # MEASURED 2026-09-18, heart_floor.json and test_reel_refs.json, both reddening a gate
+            # that was otherwise reporting 12 genuine improvements. A rule learned once and
+            # generalised to nothing. [[copy-drift]] [[the-unjoined-end]]
+            #
+            # ⚠ SILENT AND PARTIAL STILL COUNT AS DEBT, deliberately. SILENT means the row HAS a
+            # clock and still names no writer — the question applies and went unanswered, which is
+            # exactly engine_index.json today and must stay red. Only the class where the question
+            # is inapplicable is exempt, and it says so rather than going quiet.
+            new.append("%s: NEW and a ROSTER — no clock, so provenance does not apply" % store)
         elif RANK.get(after, 0) < RANK["ANSWERS"]:
             reg.append("%s: NEW store arrives %s — new debt" % (store, after))
         else:

@@ -7,6 +7,47 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1140 — a roster arriving was filed as new debt, and the class fix was patched by name
+
+**v3328, 2026-09-18.** `_verdict` defines REFERENCE as a row with **no producer key and no clock**,
+and the module's own line 20 says what that means: *"a roster or lookup table — no clock, so the
+question does not apply."* A store the provenance question does not apply to cannot owe an answer.
+
+`_compare`'s new-arrival branch reddened everything ranking below ANSWERS. Measured live:
+
+```
+🔴 engine_index.json:   NEW store arrives SILENT    — real debt, correctly red
+🔴 heart_floor.json:    NEW store arrives REFERENCE — FALSE
+🔴 test_reel_refs.json: NEW store arrives REFERENCE — FALSE
+```
+
+Two of three reds were rosters being asked when they were last written and by whom — on a gate
+otherwise reporting **12 genuine improvements** nobody could bank.
+
+⚠⚠ **The same false red already bit once and was patched by name.** The ratchet's own baseline
+arrived REFERENCE and was reported as new debt on the very first clean run; the fix excluded that
+one filename in `_split`. It closed the instance and left the class open — and the class re-fired
+the moment two more rosters landed.
+
+⚠ **My earlier diagnosis of this was wrong** and the ship corrects it: I claimed taking REFERENCE
+off the RANK axis would clear "both false reds". There were **three** reds, none was a rank
+comparison, and RANK is only consulted when a store **moves**. The SILENT/REFERENCE tie is
+deliberate — *"ranking one over the other would invent a distinction the census does not draw"* —
+and is now pinned untouched.
+
+⚠ **SILENT and PARTIAL still count as debt**, pinned as the baseline half. SILENT means the row HAS
+a clock and still names no writer: the question applies and went unanswered. That is
+`engine_index.json` today and it stays red. The exemption is for **inapplicability, never
+inconvenience** — widening it would turn a ratchet into an off switch.
+
+3 reds → **1**. Law `test_roster_not_debt`, 2 red-proofs PROVEN.
+
+⚠ **The 12 improvements remain unbanked, deliberately.** `--write-baseline` records the CURRENT
+state, so banking them now would also bank `engine_index.json`'s real debt and silence it. Fixing
+that store is not a one-liner — `blueprint.py:445` reads the whole JSON as module→entry, so a
+top-level `_prov` key could read as an extra module and disturb
+`test_the_blueprint_names_the_engine`, which asserts `unindexed == []`. That is its own piece.
+
 ### REG-1139 — 15 set pieces carried first-found dates for items the game says he lacks
 
 **v3327, 2026-09-18.** Found by reading CI, which #26's own ship never did.
