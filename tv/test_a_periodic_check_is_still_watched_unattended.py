@@ -104,36 +104,58 @@ class TestPeriodicIsStillWatched(unittest.TestCase):
                       "the first tick after a restart skips the periodic tier, so a console that "
                       "restarts more often than the cadence never runs it at all")
 
-    def test_run_actually_skips_and_includes_on_the_flag(self):
-        """Drive run() itself with a stubbed roster, so this measures the function rather than
-        a reading of it."""
+    def test_run_skips_EXECUTION_but_still_emits_a_not_asked_row(self):
+        """⚠⚠ v3298 — THE LAW INVERTED WITH #35, ON PURPOSE. The old assertion here was
+        `assertNotIn("costly-one", names)`: a skipped PERIODIC check emitted NOTHING, so its
+        absence from the row list was the proof it did not run. Since v3298 a skipped check
+        EMITS an UNMEASURED not-asked row — its NAME is in every pass so no consumer reads
+        absence as fine — and the thing that must still be proven is that its FUNCTION did not
+        execute. So the pin moved from the roster to the EXECUTION: a probe list records the
+        call, and the skipped pass must leave it empty while the row carries notAsked. Keeping
+        the old assertion would have made the fix unshippable; deleting it without this
+        docstring would have made the inversion invisible. [[regression-guard]]"""
         seen = []
         real_checks, real_slow, real_periodic = cd.CHECKS, cd.SLOW, cd.PERIODIC
         try:
             cd.CHECKS = [("cheap-one", lambda: (cd.OK, "fine")),
-                         ("costly-one", lambda: (cd.OK, "fine"))]
+                         ("costly-one", lambda: seen.append(1) or (cd.OK, "fine"))]
             cd.SLOW = ()
             cd.PERIODIC = ("costly-one",)
-            names = [r["check"] for r in cd.run(include_slow=False, include_periodic=False)]
-            self.assertIn("cheap-one", names)
-            self.assertNotIn("costly-one", names,
-                             "include_periodic=False still ran the periodic check")
-            names = [r["check"] for r in cd.run(include_slow=False, include_periodic=True)]
-            self.assertIn("costly-one", names,
+            rows = cd.run(include_slow=False, include_periodic=False)
+            by = {r["check"]: r for r in rows}
+            self.assertIn("cheap-one", by)
+            self.assertIn("costly-one", by,
+                          "a skipped periodic check vanished from the pass — the 5-of-6-ticks "
+                          "blindness #35 exists to end")
+            self.assertEqual(seen, [],
+                             "include_periodic=False still EXECUTED the periodic check")
+            self.assertTrue(by["costly-one"].get("notAsked"),
+                            "the emitted row does not say it was NOT ASKED")
+            self.assertEqual(by["costly-one"]["state"], cd.UNMEASURED)
+            rows = cd.run(include_slow=False, include_periodic=True)
+            by = {r["check"]: r for r in rows}
+            self.assertIn("costly-one", by,
                           "include_periodic=True did NOT run the periodic check — the tier is "
                           "unreachable in both directions, which is worse than the regression")
+            self.assertEqual(seen, [1],
+                             "include_periodic=True did not EXECUTE the periodic check exactly "
+                             "once")
+            self.assertEqual(by["costly-one"]["state"], cd.OK)
         finally:
             cd.CHECKS, cd.SLOW, cd.PERIODIC = real_checks, real_slow, real_periodic
-        del seen
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 # A constant False is the same "never" the tier exists to undo, wearing a keyword.
 RED_PROOF = [{
-    "why": "include_periodic=False returns the corroborator to never-runs-unattended",
+    "why": "include_periodic=False returns the corroborator to never-runs-unattended. "
+           "(v3298 re-anchored: the tick handoff split the call across two lines, which left "
+           "the old one-line anchor at 0 matches — an inert proof reporting success.)",
     "file": "control_app.py",
-    "find": "        rows = _cd.run(include_slow=_include_slow, include_periodic=_include_periodic)",
-    "replace": "        rows = _cd.run(include_slow=_include_slow, include_periodic=False)",
+    "find": "        rows = _cd.run(include_slow=_include_slow, include_periodic=_include_periodic,\n"
+            "                       tick=_tick)",
+    "replace": "        rows = _cd.run(include_slow=_include_slow, include_periodic=False,\n"
+               "                       tick=_tick)",
     "matches": 1,
 }]
 

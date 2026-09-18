@@ -339,10 +339,15 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "v2943/B — stops subtracting PERIODIC, so a pass that skipped it is still expected to have run it. MEASURED on his tree before the fix: 'rows says 53 and expected 54' on 5 of every 6 passes — a permanently-red pair, which is the cry-wolf shape.",
+        "why": "v2943/B, INVERTED at v3298 — REINTRODUCES the retired skipped-tick subtraction. "
+               "With not-asked rows in-band since #35, every labelled pass covers the same "
+               "population, so a surviving subtraction under-expects by `per` on 5 of 6 passes "
+               "and test_a_pass_that_SKIPPED_periodic_covers_the_same_population goes red. "
+               "(The old proof anchored the subtraction this fix deleted — 0 matches, an inert "
+               "proof reporting success.)",
         "file": 'corroborate.py',
-        "find": '            return _base - len([c for c in cd.CHECKS\n                                if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])\n',
-        "replace": '            return _base\n',
+        "find": '            # v2944 precedent, cost stated rather than hidden. [[regression-guard]]\n            return _base\n',
+        "replace": '            # v2944 precedent, cost stated rather than hidden. [[regression-guard]]\n            return _base - len([c for c in cd.CHECKS\n                                if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])\n',
         "matches": 1,
     },
     {

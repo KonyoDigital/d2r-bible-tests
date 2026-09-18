@@ -16563,9 +16563,11 @@ def _chron_reel_owes_a_read(rid, mem=None):
             # MEASURED on his APFS: for ONE capture event the frame's CONTENT mtime lands ~35us
             # AFTER the directory's ENTRY mtime, so a bare `_fnew > _dm` re-owes EVERY freshly
             # looked reel forever (its own red-proof caught it before ship). The 0.5s tolerance is
-            # the SAME one _chron_hunt_more_to_search uses for newest-mtime wobble, and it is wide
-            # enough to swallow the same-event skew while a real post-look capture — a
-            # prune-then-capture is seconds later in production — clears it easily.
+            # the SAME one _chron_hunt_more_to_search uses for newest-mtime wobble. ⚠ Which half
+            # is which: the ~35us skew IS MEASURED (APFS, 2026-09-18); "a prune-then-capture is
+            # seconds later in production" is an ASSUMPTION about cadence, not a measurement —
+            # and the census check above fires FIRST regardless, so only an equal-count
+            # prune-then-capture inside 0.5s could ever hide, which no observation has shown.
             _fnew = max((os.stat(_p).st_mtime for _p in _ff), default=0.0)
             return _fnew > float(_dm) + 0.5   # a frame landed AFTER the look -> prune-then-capture
         except Exception:

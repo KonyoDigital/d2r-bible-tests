@@ -38550,3 +38550,45 @@ rather than by rewriting the guard:
 Both fixed, re-proved **4 of 4**. Recording because the instinct on a BLIND proof is to weaken or
 rewrite the guard, and in both cases the guard and the sabotage were fine.
 [[regression-guard]] [[source-reading-guard]]
+
+## REG-1111 — my #25 fix would have re-owed EVERY freshly-looked reel, and its own red-proof caught it before ship
+
+**Mine, in the uncommitted v3298 work, caught 2026-09-18 by the law written beside it.**
+
+The #25 fix demanded FRAME evidence before re-owing a chronicle read: census moved, or newest
+f_*.jpg mtime > dirMtimeAtLook. The first cut compared them BARE — and MEASURED on his APFS, for
+ONE capture event the frame's CONTENT mtime lands **~35 microseconds AFTER** the directory's ENTRY
+mtime (`frame 1789723223.2050936` vs `dir 1789723223.205058`). So `_fnew > _dm` was true on every
+clean, freshly-looked reel: the fix re-introduced the exact defect it exists to remove — a
+permanent false re-owe — invisible to reading, invisible to reasoning, visible only when the
+red-proof ran against real filesystem behaviour and `test_a_sidecar_write_does_NOT_reowe` failed
+`True is not false` on the FIXED tree.
+
+FIXED with the +0.5s tolerance `_chron_hunt_more_to_search` already uses — and the first scar
+comment had argued AGAINST that tolerance; the comment now states which half is measured (the
+35us skew) and which is assumption (production prune-then-capture cadence), with the census check
+firing first regardless.
+
+⚠ THE LESSON: a comparison between two timestamps OF THE SAME EVENT taken by two different
+bookkeeping paths is not a comparison of two events. Sub-second ordering between an entry mtime
+and a content mtime is filesystem bookkeeping, not causality. [[stale-reading]]
+
+## REG-1112 — my coordination guard was an echo that cannot go red, and I wrote into a running gate THROUGH it
+
+**Mine, 2026-09-18, the third two-writers incident of the day — and the guard I added after the
+second one was the defect.**
+
+After #46 (writes into a running pre-push voided a 10-minute verdict and minted 14 phantom
+failures), I added a check before my apply script: `ps ... | grep pre-push` followed by
+`echo "── no gate running"`. The ps ran, FOUND the team-lead's new gate (pid 8468, 2m13s old),
+PRINTED it into my own output — and the apply executed anyway, writing five files into the grading
+window. The "check" was an unconditional echo: a guard whose two arms never intersect, exactly the
+class v3297 shipped to fix in the console (a check that runs, returns, prints, and cannot fail).
+
+FIXED as an executable refusal: the guard is now a script that `exit 97`s on any pre-push match
+BEFORE a byte is written — the apply cannot proceed through it, only past a clean exit.
+
+⚠ THE LESSON: prose beside a command is not a gate; only an exit code that BLOCKS the next step
+is. The same green-that-lies shape as [[the-unjoined-end]]'s sixth joint, arriving in a shell
+script — and it survived one round on luck (zero failures) before this entry, which is why "it
+was fine" is not evidence that it is safe.
