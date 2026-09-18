@@ -38597,3 +38597,33 @@ BEFORE a byte is written — the apply cannot proceed through it, only past a cl
 is. The same green-that-lies shape as [[the-unjoined-end]]'s sixth joint, arriving in a shell
 script — and it survived one round on luck (zero failures) before this entry, which is why "it
 was fine" is not evidence that it is safe.
+
+## REG-1113 — THE SECOND EYE REVIEWED ONE COMMIT OF A FOUR-COMMIT PUSH, AND ATTACKED DELETED CODE
+`second_eye_run.payload_for(sha)` runs `git show <sha>` on the **one commit carrying the version
+stamp**. A push carries as many commits as it carries, so every `fix:` commit landing after the bump
+is **never seen by any eye** — while the ledger row reads as though the push was reviewed.
+MEASURED 2026-09-18, v3298 — four commits shipped, the eye saw one:
+```
+bc6b74b4  v3298                                  <- the only commit reviewed
+d284f7e7  fix: retract REG-1108's cause          NEVER LOOKED AT
+b70e1af8  fix: invert the law, re-anchor proofs  NEVER LOOKED AT
+1a110dae  fix: re-owe is MEMBERSHIP not timing   NEVER LOOKED AT
+```
+The last took **three cuts, two of them wrong**, and was the most consequential change in the push.
+**AND THE CONSEQUENCE LANDED IN THE VERDICT IMMEDIATELY:** the eye's finding #4 attacked
+`_fnew > _dm + 0.5` — code **superseded two commits later**. That is not the eye being wrong; it is
+the gate handing it bytes that no longer ship.
+⚠ ALSO FROM THAT SAME VERDICT, assessed before recording: finding #1 claimed `unknown_age` does not
+exist. It does — `tv/unknown_age.py`, 4,197 bytes, imports, `age_say` returns "1m". **The
+strongest-sounding finding was false.** One draw, from a reader proven non-deterministic the same day
+(REG for #56). Of four findings: one refuted, one aimed at deleted code, two minor.
+FIX SHIPPED: the runner now **states its own reach** — `uncovered_commits(sha)` names every commit
+that ships unreviewed, with a count. Three states, and collapsing any two is the defect: a LIST =
+these ship unreviewed; `[]` = MEASURED AND NONE; `None` = the range could not be listed, which is
+UNKNOWN and never "nothing was missed".
+⚠ THIS DOES NOT CLOSE THE GAP. Closing it means a wider payload, and the payload already truncates at
+~35% of the diff — **the eye does not see what ships, in two different ways at once**, and the cost
+of fixing either is HIS call.
+GATE: `test_eye_declares_reach`, 2 red-proofs, both PROVEN. Pins the RULE not the shas (HEAD~1/HEAD),
+so it survives the next ship. Shipped v3299.
+[[source-reading-guard]] [[zero-needs-a-denominator]] [[unknown-stays-unknown]]

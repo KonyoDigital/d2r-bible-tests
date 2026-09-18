@@ -267,6 +267,30 @@ def _opens_block(body):
     return i >= 0 and "*/" not in body[i + 2:]
 
 
+def uncovered_commits(sha):
+    """-> list of "sha subject" lines that ship WITH `sha` but are NOT in its payload, or None.
+
+    ⚠⚠ v3299 — THE LOOK COVERS ONE COMMIT AND THE PUSH CARRIES MANY. `payload_for` runs
+    `git show <sha>` on the single commit that carries the version stamp, so every `fix:` commit
+    landing after the bump and before the push is NEVER SEEN BY ANY EYE — while the row that lands
+    reads as though the push was reviewed.
+
+    MEASURED 2026-09-18 on v3298: FOUR commits shipped in one push and the eye saw ONE. The unseen
+    three included the membership discriminator, which took THREE cuts (two of them wrong) and was
+    the most consequential change in the push. The verdict then attacked `_fnew > _dm + 0.5` — code
+    SUPERSEDED two commits later. That is not the eye being wrong; it is the gate handing it bytes
+    that no longer ship.
+
+    ⚠ None means "the range could not be listed", which is UNKNOWN and must never be rendered as
+    "nothing was missed". An empty list means MEASURED-AND-NONE. Those are different facts and the
+    caller must not collapse them. [[zero-needs-a-denominator]] [[source-reading-guard]]
+    """
+    out, _why = _sh(["git", "log", "--oneline", "%s..HEAD" % sha], timeout=30)
+    if out is None:
+        return None
+    return [l.strip() for l in out.splitlines() if l.strip()]
+
+
 def payload_for(sha):
     """-> (prompt, dropped_note). Code only, comments stripped, truncation declared."""
     # ⚠ PYTHON FIRST, and the reason is measurable: control_ui.html diffs in this repo run to tens
@@ -704,6 +728,30 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     print("  %s  %s  payload: %d chars in %d fence(s)%s"
           % (version, sha[:8], sent["chars"], sent["fences"],
              ("  ⚠ " + dropped) if dropped else ""))
+    # ⚠⚠ v3299 — SAY WHAT THIS LOOK DOES **NOT** COVER. `payload_for` runs `git show <sha>` on the
+    # ONE commit carrying the version stamp, so every `fix:` commit landing after the bump and
+    # before the push is NEVER SEEN BY ANY EYE — and the row that lands reads as though the push
+    # was reviewed.
+    # MEASURED 2026-09-18, v3298: four commits shipped in one push and the eye saw ONE of them.
+    # The unseen three included the membership discriminator, which went through THREE cuts (two
+    # wrong) and is the most consequential change in the push. The verdict then attacked
+    # `_fnew > _dm + 0.5` — code SUPERSEDED two commits later. That is not the eye being wrong;
+    # it is the gate handing it bytes that no longer ship.
+    # ⚠ This prints the gap rather than closing it. Closing it means a wider payload, and the
+    # payload already truncates at ~35% — the two are one problem and the cost is HIS call.
+    # A guard that cannot state its own reach is the defect this repo keeps re-learning.
+    # [[source-reading-guard]] [[zero-needs-a-denominator]]
+    _rows = uncovered_commits(sha)
+    if _rows is None:
+        print("     ⚠ could not list commits after %s — what this look MISSES is UNKNOWN, not zero"
+              % sha[:8])
+    elif _rows:
+        print("     ⚠ THIS LOOK COVERS %s ONLY. %d later commit(s) ship with it and are NOT "
+              "reviewed:" % (sha[:8], len(_rows)))
+        for _r in _rows[:6]:
+            print("        %s" % _r[:96])
+        if len(_rows) > 6:
+            print("        ... +%d more" % (len(_rows) - 6))
     if sent["chars"] == 0:
         print("     nothing to look at — the diff carried no code. NOT recorded.")
         return False

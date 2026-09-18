@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3298",
+  "ver": "v3299",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3298: REG: a moved reel dir is not moved film (kai_report.json sidecar re-owed a read of unchanged film, the retire deadlock minting mechanism) and a skipped PERIODIC doctor check now emits a not-asked row instead of vanishing 5 of 6 ticks. Both laws seen RED on HEAD then GREEN. HEART: the changed code IS the watcher layer (console_doctor rows, corroborate invariant, the triage tick counter); its own gates test_a_sidecar_does_not_reowe_a_read and test_a_skipped_periodic_check_still_emits_a_row watch it.",
+  "note": "v3299: The second eye reviews the VERSION COMMIT, not what ships. payload_for runs git show on the one commit carrying the stamp, so every fix commit landing after the bump and before the push is NEVER SEEN BY ANY EYE while the ledger row reads as though the push was reviewed. MEASURED on v3298: FOUR commits shipped in one push and the eye saw ONE. The unseen three included the membership discriminator, which took three cuts two of which were wrong and was the most consequential change in the push - and the verdict then attacked a comparison that had been SUPERSEDED two commits later. That is not the eye being wrong, it is the gate handing it bytes that no longer ship. This does NOT close the gap: closing it means a wider payload and the payload already truncates at roughly 35 percent, so the two are one problem and the cost is HIS call. What ships is that the runner STATES ITS OWN REACH - it names every commit that ships unreviewed, with a count. Three states and collapsing any two is the defect: a LIST means these commits ship unreviewed, an empty list means MEASURED AND NONE, and None means the range could not be listed which is UNKNOWN and never nothing-was-missed. HEART: gate test_eye_declares_reach registered with 2 red-proofs, both PROVEN. The law pins the RULE rather than the shas of the day, using HEAD~1 and HEAD so it survives the next ship.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
