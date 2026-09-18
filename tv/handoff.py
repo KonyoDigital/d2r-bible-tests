@@ -71,11 +71,24 @@ def _gh(path, method=None, fields=None):
 
 
 def _marks():
+    """-> dict of watermarks, or None when the store cannot be READ.
+
+    ⚠⚠ v3325 — ABSENT AND UNREADABLE ARE DIFFERENT FACTS, and collapsing them here is destructive
+    rather than merely vague. `--mark` does `marks = _marks()`, adds one key, and writes the WHOLE
+    DICT BACK. Returning {} for a corrupt or unreadable file therefore writes {} + one key OVER A
+    GOOD STORE, destroying every other watermark — in the tool that drains his queue.
+    MEASURED 2026-09-18: tv/.handoff_seen.json holds keys 179, 180, 230; the path was LATENT, not
+    fired. The rule is the one `_vault_autoread_save` already earned: never write memory over a
+    store this process has not read. [[unknown-stays-unknown]]
+    """
     try:
         with io.open(MARKS, encoding="utf-8") as fh:
-            return json.load(fh)
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except IOError:
+        return {}            # absent: nothing marked yet, and that IS a measurement
     except Exception:
-        return {}
+        return None          # malformed/unreadable: UNKNOWN
 
 
 def _classify(body):
@@ -95,6 +108,12 @@ def _classify(body):
 def drain(issue, since=None, limit=40):
     marks = _marks()
     key = str(issue)
+    if marks is None:
+        # UNKNOWN watermark: drain from the beginning, and SAY so. Silently starting at zero
+        # reads as "the queue is enormous" rather than "the store could not be read".
+        print("⚠ the watermark store could not be READ — draining #%s from the beginning. "
+              "That is UNKNOWN, not an empty queue." % issue)
+        marks = {}
     since = since or marks.get(key, {}).get("ts")
     path = "repos/%s/issues/%s/comments?per_page=100" % (REPO, issue)
     if since:
@@ -157,6 +176,13 @@ def mark(issue):
     rows.sort(key=lambda c: c.get("created_at") or "")
     newest = rows[-1]
     marks = _marks()
+    if marks is None:
+        # ⚠⚠ REFUSE, DO NOT OVERWRITE. Writing here would replace a store this process could not
+        # read with {} plus one key, and the file would then look authoritative — strictly worse
+        # than not marking at all. [[unknown-stays-unknown]]
+        print("⚠ REFUSED to advance the watermark: %s could not be READ, and writing now would "
+              "destroy every other issue's mark. Fix or remove the file, then re-run." % MARKS)
+        return
     marks[str(issue)] = {"id": newest.get("id"), "ts": newest.get("created_at"),
                          "updated": newest.get("updated_at")}
     with io.open(MARKS, "w", encoding="utf-8") as fh:

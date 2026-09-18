@@ -24074,16 +24074,27 @@ def _shadow_watch_stored():
     docstring cites [[label-outlived-referent]] — it is an instance of the scar it was written to
     catch. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
     """
+    # ⚠⚠ v3325 — ABSENT vs UNREADABLE, and here it is destructive. `_shadow_watch_note` does
+    # `cur = _shadow_watch_stored(); cur.update(kw)` and writes `cur` back wholesale, so returning
+    # {} for a corrupt file REPLACES the store with just the new keys. Same shape as the handoff
+    # watermark wipe fixed in this version, and the same rule `_vault_autoread_save` already
+    # carries: never write memory over a store this process has not read.
+    # ⚠ This function's own docstring cites [[unknown-stays-unknown]] and
+    # [[label-outlived-referent]] — it was written about this scar and contained it.
     try:
         with open(_shadow_watch_path(), encoding="utf-8") as fh:
             j = json.load(fh)
-        return j if isinstance(j, dict) else {}
+        return j if isinstance(j, dict) else None
+    except IOError:
+        return {}            # absent: never written yet, and that IS a measurement
     except Exception:
-        return {}
+        return None          # malformed/unreadable: UNKNOWN
 
 
 def _shadow_watch_note(**kw):
     cur = _shadow_watch_stored()
+    if cur is None:
+        return               # ⚠ UNKNOWN: refuse rather than replace the store with these keys
     cur.update(kw)
     # `ok` is a verdict the READ path invents to describe itself; it is never stored state. Popping
     # it here also HEALS the record already poisoned on his disk, on the very next tick.
@@ -30363,7 +30374,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3324",
+        "ver": "v3326",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

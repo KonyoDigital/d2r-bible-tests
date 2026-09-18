@@ -12787,7 +12787,7 @@ window._lockMark = function(isOpen, px, label){
        failing checks appeared. The panel carried the COUNTS ('3 need you') and never the NAMES, so
        stripping the hover would have removed information rather than moved it. Counts tell him
        there is a problem; names tell him which. [[the-unjoined-end]] */
-    function _vxHealthRow(r){
+    function _vxHealthRow(r, bucket){
       /* CF-10 — four states, two words was the defect. ok is hidden; missing is a fault;
          unknown is a designed refusal (CAN'T ASK); unmeasured is NEVER. Same row height,
          no fifth accent: the WORD is the distinguisher, warn-tone only on missing. */
@@ -12800,11 +12800,28 @@ window._lockMark = function(isOpen, px, label){
          The engine now says which (`everAsked`), so this stops guessing. ⚠ The fallback when the
          field is absent is NEVER, the louder word, because an older payload that cannot tell us
          must not be rounded down to the reassuring answer. [[unknown-stays-unknown]] */
-      var word = r.state === 'missing' ? 'MISSING'
+      /* ⚠⚠ v3326 (#84) — ONE WORD WAS DOING THREE JOBS, AND HIS SCREEN SHOWED ALL THREE.
+         MEASURED on his console at v3323: every row under WAITING ON CODE and under RED ON
+         PURPOSE read MISSING — including `end routes reachable` and `the river`, which the
+         heading directly above them calls "RULED NOT A DEFECT, NOTHING FOR YOU TO DO", and
+         `console UI faults`, whose own sentence reads "the console healed itself ... It
+         recovered". Absent, ruled-fine, and already-recovered are three different facts.
+
+         v3321 fixed the SECTIONS and the count; this fixes the word inside them. The bucket was
+         already computed one line later in `_sortRow` — the word simply never saw it, so this is
+         a JOIN, not a new judgement: nothing here decides ownership, it only reads it.
+
+         ⚠ THE unmeasured/unknown WORDS ARE UNTOUCHED ON PURPOSE. CAN'T ASK / NEVER / NOT THIS
+         TICK already say exactly the right thing, each with a reason and an age, and v3309
+         earned that distinction the hard way. [[label-outlived-referent]] */
+      var word = bucket === 'design' ? 'BY DESIGN'
+               : bucket === 'mine' ? 'CLAUDE OWES'
+               : r.state === 'missing' ? 'MISSING'
                : r.state === 'unmeasured' ? (r.everAsked ? 'NOT THIS TICK' : 'NEVER')
                : r.state === 'unknown' ? 'CAN\'T ASK'
                : 'UNKNOWN';
-      var tone = r.state === 'missing' ? 'warn' : '';
+      /* the warn tone is for a fault HE must act on; a ruling and my backlog are not that */
+      var tone = (r.state === 'missing' && !bucket) ? 'warn' : '';
       return _vxRow(r.check, word, r.why || '', tone);
     }
     /* ⚠⚠ v3283 — THE SPLIT ALREADY EXISTED IN THE PAYLOAD AND THE PANEL THREW IT AWAY.
@@ -12842,9 +12859,12 @@ window._lockMark = function(isOpen, px, label){
     try { (e.byDesignWhat || []).forEach(function (n) { _designWhat[String(n)] = 1; }); } catch (_e) {}
     var youRows = [], mineRows = [], unkRows = [], designRows = [];
     var _sortRow = function (r) {
-      var h = _vxHealthRow(r); if (!h) return;
-      if (_mineWhat[String(r && r.check)]) mineRows.push(h);
-      else if (_designWhat[String(r && r.check)]) designRows.push(h);
+      /* v3326 — decide the bucket BEFORE the word, so the word can say which one it is */
+      var _nm = String(r && r.check);
+      var _bk = _mineWhat[_nm] ? 'mine' : (_designWhat[_nm] ? 'design' : null);
+      var h = _vxHealthRow(r, _bk); if (!h) return;
+      if (_mineWhat[_nm]) mineRows.push(h);
+      else if (_designWhat[_nm]) designRows.push(h);
       else if (r && (r.state === 'unknown' || r.state === 'unmeasured')) unkRows.push(h);
       else youRows.push(h);
     };

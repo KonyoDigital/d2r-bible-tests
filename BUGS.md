@@ -7,6 +7,57 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1138 — one word did four jobs, and his screen showed all four
+
+**v3326, 2026-09-18.** His #35 ruling gives WAITING ON YOU a precise meaning; v3321 built the
+sections for it and never touched the WORD inside them. From his own screenshots at v3323:
+
+| row | word | the heading directly above it |
+|---|---|---|
+| END ROUTES REACHABLE | MISSING | *RED ON PURPOSE — RULED NOT A DEFECT, NOTHING FOR YOU TO DO* |
+| THE RIVER | MISSING | same |
+| CONSOLE UI FAULTS | MISSING | its own text: *"the console healed itself … It recovered"* |
+| LEDGER PROVENANCE | MISSING | *WAITING ON CODE — NOT YOURS TO FIX* |
+
+Absent, ruled-fine, already-recovered and owed-by-Claude are four different facts.
+
+⚠ **A JOIN, NOT A NEW JUDGEMENT.** `_sortRow` already computed the bucket from `mineWhat` /
+`byDesignWhat` — the server has named every row's owner since v3307 — but on the line **after** the
+word was chosen. Moving it one line earlier is the whole fix.
+
+⚠ The `unmeasured`/`unknown` words are untouched: CAN'T ASK / NEVER / NOT THIS TICK were already
+right, and v3309 earned that distinction.
+
+⚠⚠ **Baseline pinned:** a row genuinely his and genuinely absent still reads MISSING, in warn tone.
+Law `test_word_says_whose`, 3 red-proofs PROVEN.
+
+### REG-1137 — three stores are read-modify-written; the guard existed in one
+
+**v3325, 2026-09-18.** Found via the swallow ratchet (Routine M, red 12 runs since 09-17 09:51).
+
+| store | reader | writer | state |
+|---|---|---|---|
+| `.vault_autoread.json` | `_vault_autoread_load` | `_vault_autoread_save` | **guarded since v2904** |
+| `.handoff_seen.json` | `_marks` | `--mark` | collapsed malformed → `{}`, wrote it back |
+| `shadow_watch.json` | `_shadow_watch_stored` | `_shadow_watch_note` | same |
+
+`_vault_autoread_save` carries the lesson verbatim — *"NEVER WRITE MEMORY OVER A STORE THIS PROCESS
+HAS NOT READ"* — learned once and generalised to nothing.
+
+⚠ The handoff one is the **queue drain**: `--mark` reads the watermarks, adds one issue, writes them
+all back. A corrupt file would have destroyed #179 and #180 while printing a success line. **Latent,
+not fired** — measured readable, 332 bytes, keys intact.
+
+⚠ Attributed by matching each candidate to its **enclosing function** across trees (lines drift
+26,662 → 35,443; names don't): `_shadow_watch_stored` is v2982, `_marks` is v3301 (mine). My first
+bisect used the wrong reference — the last-green CI run instead of the baseline file `1240f2a8` —
+and over-reported 10+ candidates against a +1 delta.
+
+Three states: `{}` absent-and-measured · dict read · `None` UNREADABLE, no write may proceed.
+Law `test_store_guard`, 3 red-proofs PROVEN — and **proven RED before the fix existed**: 2 failures
+on the readers, 2 errors where the writers crash on `None` instead of refusing, and 1 PASS on the
+vault baseline, which is what shows it distinguishes the guarded store rather than failing on all.
+
 ### REG-1136 — a lane ticking every 45s whose own counter says it never ran
 
 **v3324, 2026-09-18.** Found by the post-ship review of **my own v3323 diff**, one version after
