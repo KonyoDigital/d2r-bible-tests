@@ -39023,3 +39023,52 @@ the resolver over, because a parameter nothing passes is decorative.
 ⚠ **HIS RULING ON THE THIRD PIECE, recorded in the law itself so it cannot be reversed by
 accident:** the Wilson lock must **NOT** be wired to the prune — *"leave it off and surgically
 remove it we need pruning."*
+
+## REG-1130 — THE RIVER CARRIED SHADOW REELS INVISIBLY (v3312, #65)
+
+His ask: *"the shadow reels that get shadow recorder they too need to be within the river and seen
+visually just like the others."*
+
+⚠ **THE FIRST HALF WAS ALREADY TRUE, AND THREE WRONG INSTRUMENTS OF MINE SAID OTHERWISE:**
+1. searched reel dirs for `origin` → none → "nothing records which ones they are". **WRONG** —
+   `tv_diablo.py:553` states outright *"THE FIELD IS `door`, NOT `origin`"*.
+2. searched per-reel files for `door` → none → same wrong conclusion. It lives in the **journal**.
+3. globbed `*journal*` → **no files** → reported "0 rows". The journal is `tv/sessions.jsonl`.
+   **A zero from a glob that matched nothing is not a measurement.**
+
+**WHAT IS TRUE:** shadow reaches its reel through `start_agent`, so a shadow reel is an ordinary
+reel and nothing ever filtered it. The join is complete and gated (`TV_DOOR` exported at :1388,
+popped at :1390, `test_entry_door_stamp` pins all three halves).
+
+**THE REAL GAP:** `river.py` mentioned `door` **zero** times, so shadow flowed every joint
+invisibly and *"shadow contributed N"* had no answer — which is how an evening producing **zero**
+shadow reels stayed hidden until he noticed the absence himself.
+
+**MEASURED** on `sessions.jsonl` (5,169 rows): `shadow 761 · onair 759 · mini 2`, 1,522 rows
+carrying both `sessionId` and `door`. Reels on disk: **onair 7 · shadow 1 · 16 UNKNOWN**.
+
+⚠ **THE 16 STAY UNKNOWN.** Absence of a record is not evidence of the common door, and a
+manufactured provenance cannot be told from a real one afterwards. A red-proof makes `door_of`
+default to `"onair"` and the law goes red for it.
+
+**GUARD:** `test_reel_door`, 4 red-proofs PROVEN. `reel_door` is ONE definition for the river and
+the shelf — the v3308 lesson, where the partition was written twice and the screen said 9 while the
+engine said 7.
+
+## REG-1131 — "ALREADY ON AIR" WAS TRUE ABOUT A REEL AND MISLEADING ABOUT WHOSE (v3312, #66)
+
+Pressing ON AIR while a SHADOW reel rolls returned `"already on air"`. The reel keeps `door=shadow`,
+so the session is stamped shadow while the reply said on air. The payload carried `mode` and
+**omitted the door** — the one field that would have explained it.
+
+⚠ **THERE IS NO RACE AND THERE NEVER WAS.** `shadow_watch_tick` refuses outright while anything is
+rolling, and this branch spawns nothing. **The defect was the sentence.**
+
+**FIX:** the reply names the rolling door and says what to do —
+*"a SHADOW reel is already rolling and keeps the shadow door — stop it first if you want this
+session recorded as ONAIR"* — plus `door` / `askedFor` / `doorMatches`. Spoken through
+`_door_of_origin()`, whose own docstring says the two vocabularies are *"joined HERE and nowhere
+else"*.
+
+⚠ **IT STILL REFUSES NOTHING AND KILLS NOTHING**, and a proof pins that: the fold runs at seal
+(v2071), so pre-empting a rolling reel orphans its frames.

@@ -1173,6 +1173,17 @@
   "purpose": "Walks his REAL reels through every printer station and checks downstream against route_totals' REGISTERED numbers. Reads, never writes.",
   "territory": "river-reels"
  },
+ "reel_door.py": {
+  "entryPoints": [
+   "door_map",
+   "door_of",
+   "split",
+   "say"
+  ],
+  "gotcha": "⚠ A DOORLESS REEL IS UNKNOWN, NEVER THE COMMON DOOR. 16 of his reels predate the v2687 stamp and carry no door row; door_of() returns None for them and split() keeps `unknown` as its own bucket, because a manufactured provenance cannot be told from a real one afterwards. ⚠ THE FIELD IS `door`, NOT `origin` - tv_diablo already uses `origin` for the dispatch context (settle/heartbeat/text-eye/farewell), a different question. ⚠ An UNREADABLE journal returns ({}, why) and the why is what separates 'nobody recorded a door' from 'nobody could look'. ⚠ Pure stdlib and no console import, so the laws can drive it with a throwaway journal.",
+  "purpose": "Which DOOR opened each reel - onair, shadow or mini - read once from the play journal so the river and the shelf quote the same answer instead of each rolling its own.",
+  "territory": "river-reels"
+ },
  "reel_index.py": {
   "entryPoints": [
    "ensure_reel_index"

@@ -149,8 +149,27 @@ def j_capture():
         return _joint("capture", "reels on disk", None, None, str(e)[:70], "reel")
     # upstream for capture is the game itself, which we cannot measure — so a zero here is
     # UNKNOWN-shaped, not STARVED. Report the count and say the upstream is unmeasurable.
-    return _joint("capture", "reels on disk", len(reels), len(reels) or None,
-                  "the upstream of capture is him playing, which this cannot measure", "reel")
+    j = _joint("capture", "reels on disk", len(reels), len(reels) or None,
+               "the upstream of capture is him playing, which this cannot measure", "reel")
+    # ⚠⚠ v3312 (#65) — WHICH DOOR EACH REEL CAME BY. Konyo: "the shadow reels that get shadow
+    # recorder they too need to be within the river and seen visually just like the others".
+    # MEASURED: they were ALREADY in the river — shadow reaches its reel through start_agent, so
+    # a shadow reel is an ordinary reel and nothing here ever filtered them out. What the river
+    # could not do is SAY which ones they are: this module mentioned `door` zero times, so shadow
+    # flowed every joint INVISIBLY and "shadow contributed N" had no answer. A count nobody can
+    # attribute is the shape that hid an entire evening of play producing ZERO shadow reels.
+    # ⚠ NEVER FATAL. The split is decoration on a joint that already graded itself; if the
+    # journal cannot be read the joint keeps its verdict and the doors line says UNKNOWN.
+    try:
+        import reel_door as _rd
+        _dmap, _dwhy = _rd.door_map()
+        j["doors"] = _rd.split(reels, _dmap)
+        j["doorsSay"] = _rd.say(j["doors"]) if _dmap else (
+            "which door opened each reel is UNKNOWN — %s" % _dwhy)
+    except Exception as _e:
+        j["doors"] = None
+        j["doorsSay"] = "the door split could not be read (%s)" % type(_e).__name__
+    return j
 
 
 def j_survey():
@@ -533,6 +552,12 @@ def main(argv=None):
     s = summary(rows)
     print("\n  " + json.dumps(s["counts"]))
     print("  " + s["say"])
+    # v3312 — the capture joint CARRIES, and a CARRIES joint never prints its `why` (see the loop
+    # below). So the door split gets its own line, always, rather than hiding behind a state it
+    # will never reach. ⚠ UNKNOWN is printed too: "nobody could attribute these" is a reading.
+    for r in rows:
+        if r.get("joint") == "capture" and r.get("doorsSay"):
+            print("  doors: " + r["doorsSay"])
     for r in rows:
         if r["state"] in (DRY, UNBUILT, UNKNOWN) and r["why"]:
             print("\n  %-8s %-14s %s" % (r["state"], r["joint"], r["why"]))

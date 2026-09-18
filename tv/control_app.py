@@ -3492,7 +3492,35 @@ def start_agent(sim=False, test=False, mini=None, focus=None, origin="hand"):
         with _lock:
             owned = _agent_proc is not None and _agent_proc.poll() is None
         if owned and _bridge_ping() is not None and not sim:
-            return {"ok": True, "msg": "already on air", "mode": _agent_mode or "live",
+            # ⚠⚠ v3312 (#66) — SAY WHOSE REEL IS ROLLING, NOT JUST THAT ONE IS.
+            # Konyo: "if shadow is on it shouldnt let me do ON AIR maybe so they dont clash?"
+            # MEASURED: there is no clash and never was. shadow_watch_tick refuses outright while
+            # anything is rolling ("a reel is already rolling — shadow never starts a second"), and
+            # this branch does not spawn a second reel either. What was wrong is the SENTENCE: he
+            # presses ON AIR, is told "already on air", and the reel he gets keeps door=shadow.
+            # True about a reel, misleading about whose — and the reply carried `mode` while
+            # omitting the one field that would have explained it. [[label-outlived-referent]]
+            #
+            # ⚠ IT STILL REFUSES NOTHING AND KILLS NOTHING. ON AIR must never pre-empt a rolling
+            # shadow reel: the fold runs at seal (v2071), so stopping mid-session ORPHANS its
+            # frames — the same reasoning that makes _exec_relaunch_soon abort on a failed stop.
+            # And the door of a ROLLING reel is never rewritten; it records who OPENED it, and
+            # changing it mid-reel would make the record lie about its own provenance.
+            #
+            # ⚠ SPOKEN THROUGH _door_of_origin, THE ONE JOINER. origin is hand|shadow|mini and the
+            # ledger speaks onair|shadow|mini — "joined HERE and nowhere else" (:1320). Mapping it
+            # again inline is how that pair drifts until one side grows a fourth value.
+            _rolling = _door_of_origin(_agent_origin)
+            _asked = _door_of_origin(origin)
+            _same = (_rolling == _asked)
+            return {"ok": True,
+                    "msg": ("already on air" if _same else
+                            "a %s reel is already rolling and keeps the %s door — stop it first "
+                            "if you want this session recorded as %s"
+                            % (_rolling.upper(), _rolling, _asked.upper())),
+                    "mode": _agent_mode or "live",
+                    # the field whose absence made the old reply unexplainable
+                    "door": _rolling, "askedFor": _asked, "doorMatches": _same,
                     "pid": _agent_proc.pid if _agent_proc else None}
         # Orphan / stale / wrong mode → kill cleanly (no second farewell if already stopping)
         stop_agent(farewell=False)
@@ -30210,7 +30238,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3311",
+        "ver": "v3312",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
