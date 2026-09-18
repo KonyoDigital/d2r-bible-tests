@@ -2043,10 +2043,41 @@ _WILSON_Z = 1.96          # 95%. Stated rather than buried: a different z is a d
 # `printed` is the GAME saying it, which no amount of re-reading a screenshot can equal.
 WITNESS_TIER = {
     "printed":       1.00,   # the game's own First Found line
+    # ⚠⚠ v3311 — THREE TAGS WERE PRODUCED AND NONE WAS WEIGHED, SO THEY SCORED 0.00.
+    # `hand` (v2462), `cross-surface` (v2380) and `same-slot` (v2393) were all added to
+    # witnesses() AFTER this table was written, and confluence() scores an unknown tag 0.0. The
+    # worst of the three contradicts his own standing ruling: the LIVE gate counts his manual tick
+    # as a full witness while the SHADOW paid it NOTHING — "manual anything is enough witness
+    # obivously" (2026-09-02). A STALE LAW, not a stale reading. [[manual-tally-is-witness]]
+    #
+    # ⚠ SAFE BY CONSTRUCTION, AND THIS WAS CHECKED BEFORE TOUCHING IT: confluence() has exactly
+    # ONE caller — wilson_shadow at :2084 — and the note above this table says the weighting "only
+    # reports". Nothing live grounds on these numbers, so correcting them changes what the SHADOW
+    # thinks and cannot change what lands in his chronicle.
+    #
+    # EVERY WEIGHT BELOW IS DERIVED, NOT PICKED:
+    "hand":          1.00,   # his own tick. CONFLUENCE_FLOOR is 1.00, so "enough witness on its
+                             # own" HAS a number and this is it — the same bar `printed` clears.
+                             # ⚠ It stays its OWN TAG on purpose: this file insists `hand` must
+                             # never masquerade as cross-reel or printed, because a reader asking
+                             # WHY a name grounded must see "he says so". Equal WEIGHT, separate
+                             # NAME — the docstring's requirement is about identity, not magnitude.
     "cross-reel-3+": 0.80,   # three separate recordings
     "cross-lane":    0.70,   # two different readers agreed
+    "cross-surface": 0.70,   # the same item on two different PANELS. His own words for the case:
+                             # "i find it on the floor from farming.. and then its in my inventory
+                             # and then its identified and then its seen and registerd also as a
+                             # chronicle... so thats two witnesses". Two independent views of one
+                             # item — the same class as cross-lane, priced with it.
     "cross-reel":    0.55,   # two separate recordings
     "cross-frame":   0.30,   # two frames inside ONE reel — the weakest, and today it counts as 1
+    "same-slot":     0.30,   # two reads agreeing on the CELL as well as the text. slot_identity's
+                             # own argument: "two reads of one panel can share a misread of the
+                             # TEXT, but agreeing on the cell as well means they agree about a
+                             # second, independent fact." ⚠ It is A WITNESS, NOT A NAME — it
+                             # corroborates something another signal proposed and can never
+                             # propose alone, so it is priced with cross-frame, the weakest tier,
+                             # and deliberately NOT high enough to ground anything by itself.
 }
 
 
@@ -2062,7 +2093,7 @@ def confluence(tags):
 
 
 def wilson_shadow(sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES,
-                  wilson_floor=None, confluence_floor=None):
+                  wilson_floor=None, confluence_floor=None, surface_of=None):
     """What the Wilson rule WOULD say. Decides nothing. -> dict
 
     k = the looks that cleared the reader's own confidence floor
@@ -2080,7 +2111,15 @@ def wilson_shadow(sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNESSES,
         except (TypeError, ValueError):
             pass
     lo = wilson_lower(k, n)
-    tags = witnesses(sightings)
+    # ⚠⚠ v3311 — THE SHADOW WAS SHOWN A POORER WITNESS LIST THAN LIVE SAW, INSIDE ONE CALL.
+    # `_gate_verdict_live` gets `surface_of=surface_of` and this did not, so a name grounded via
+    # CROSS-SURFACE — the same item seen on two different panels, which is his own described
+    # lifecycle ("i find it on the floor... then its in my inventory... then a chronicle") — was
+    # invisible to the shadow. The two rules were then compared on DIFFERENT INPUTS and every
+    # resulting difference was filed as a disagreement about POLICY when it was a difference in
+    # what each was allowed to see. A comparison whose sides are fed differently measures the
+    # feeding. [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+    tags = witnesses(sightings, surface_of=surface_of)
     conf_w = confluence(tags)
     # The floors are chosen so the shadow AGREES with the live gate on the common case, which is
     # what makes a disagreement worth looking at rather than noise. wilson_lower(2,2) = 0.342.
@@ -2207,7 +2246,8 @@ def gate_verdict(name, sightings, conf_floor=CONF_FLOOR, min_witnesses=MIN_WITNE
     v = _gate_verdict_live(name, sightings, conf_floor, min_witnesses,
                            surface_of=surface_of)
     try:
-        sh = wilson_shadow(sightings, conf_floor, min_witnesses)
+        # v3311 — hand it the SAME resolver the live verdict just got, one line above.
+        sh = wilson_shadow(sightings, conf_floor, min_witnesses, surface_of=surface_of)
         sh["agrees"] = bool(sh["wouldPass"]) == bool(v.get("pass"))
         v["shadow"] = sh
     except Exception as _e:

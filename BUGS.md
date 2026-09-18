@@ -38977,3 +38977,49 @@ re-files and corrections against one version read as DISAGREE. An unqualified pe
 distrust.
 
 **GUARD:** `test_two_looks_two_rows`, 3 red-proofs PROVEN, every case driving a throwaway ledger.
+
+## REG-1128 — THE SHADOW PAID HIS MANUAL TICK 0.00 (v3311, #31)
+
+`WITNESS_TIER` was written before three tags existed. `hand` (v2462), `cross-surface` (v2380) and
+`same-slot` (v2393) were all added to `witnesses()` **afterwards**, and `confluence()` scores an
+unknown tag `0.0`.
+
+So the **LIVE** gate counted his manual tick as a full witness while the **SHADOW** paid it
+**nothing** — directly against his 2026-09-02 ruling: *"manual anything is enough witness
+obivously."* A **stale LAW**, not a stale reading.
+
+**SAFE BY CONSTRUCTION, AND CHECKED BEFORE TOUCHING IT:** `confluence()` has exactly one caller
+(`wilson_shadow`) and the tier's own note says the weighting *"only reports"*. Nothing live grounds
+on these numbers.
+
+**WEIGHTS DERIVED, NOT PICKED:**
+- `hand` **1.00** — `CONFLUENCE_FLOOR` is 1.00, so "enough witness on its own" *has* a number.
+  ⚠ It keeps its **own tag**: the file insists `hand` must never masquerade as `cross-reel` or
+  `printed`, because a reader asking *why* a name grounded must see "he says so". That requirement
+  is about **identity, not magnitude**.
+- `cross-surface` **0.70** — priced with `cross-lane`; his own words for the case are *"thats two
+  witnesses"*.
+- `same-slot` **0.30** — priced with `cross-frame`; `slot_identity` calls it *"A WITNESS, NOT A
+  NAME"*, so it must never ground alone. The law pins that direction too.
+
+## REG-1129 — THE SHADOW WAS FED LESS THAN LIVE, INSIDE ONE CALL (v3311, #31)
+
+`_gate_verdict_live` received `surface_of=surface_of`. `wilson_shadow` did not — and had no such
+parameter at all. So a name grounded via **cross-surface** was invisible to the shadow, the two
+rules were compared on **different inputs**, and every resulting difference was filed as a
+disagreement about **policy** when it was a difference in what each was allowed to **see**.
+
+**MEASURED**, same sightings, resolver the only variable:
+```
+without -> ['cross-frame']                  confluence 0.30  wouldPass False
+with    -> ['cross-frame', 'cross-surface'] confluence 1.00  wouldPass True
+```
+The same evidence flips the verdict. **A comparison whose two sides are fed differently measures
+the feeding.**
+
+**GUARD:** `test_shadow_fed_like_live`, 4 red-proofs PROVEN — including the caller actually handing
+the resolver over, because a parameter nothing passes is decorative.
+
+⚠ **HIS RULING ON THE THIRD PIECE, recorded in the law itself so it cannot be reversed by
+accident:** the Wilson lock must **NOT** be wired to the prune — *"leave it off and surgically
+remove it we need pruning."*
