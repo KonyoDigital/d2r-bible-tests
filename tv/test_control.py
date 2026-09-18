@@ -39619,7 +39619,22 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
             sites += 1
             if "vault" in names and "READ_CLEARS" not in names:
                 bad.append(_ast.dump(n)[:90])
-        self.assertTrue(sites, "no comprehension reads OWED_BY — this law is vacuous")
+        # v3295 — THE ANCHOR MOVED, AND THIS LAW CORRECTLY CAUGHT ITSELF GOING HOLLOW. The three
+        # hand-written copies of `vault ∩ READ_CLEARS` were centralised into
+        # shelf_driver.lane_read_tags(), so ZERO comprehensions remain — and `sites == 0` fired
+        # exactly as designed: "this law is vacuous". It was right. The subset it guards is now
+        # identical at both sites BY CONSTRUCTION rather than by two comprehensions agreeing, so
+        # the law must accept that stronger arrangement WITHOUT accepting silence.
+        # A helper call and a narrowed comprehension are both valid; NEITHER is not.
+        _helper = sum(1 for _n in _ast.walk(tree)
+                      if isinstance(_n, _ast.Call)
+                      and isinstance(_n.func, _ast.Attribute)
+                      and _n.func.attr == "lane_read_tags")
+        self.assertTrue(
+            sites or _helper,
+            "no comprehension reads OWED_BY *and* nothing calls shelf_driver.lane_read_tags() — "
+            "this law is vacuous. One of the two must hold: either the subset is selected inline "
+            "and narrowed to READ_CLEARS, or it comes from the one shared definition.")
         self.assertEqual(
             [], bad,
             "%d site(s) select vault tags from OWED_BY WITHOUT narrowing to READ_CLEARS in the "
