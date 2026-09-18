@@ -60,10 +60,12 @@ class TestSidecarVsCapture(unittest.TestCase):
                          "the exact deadlock minting mechanism")
 
     def test_a_prune_then_capture_at_EQUAL_count_still_reowes(self):
-        """The half the strict dir stamp exists for — it must survive the sidecar fix."""
-        time.sleep(0.7)   # > the 0.5s frame-vs-dir tolerance; production gap is seconds
+        """The half the strict dir stamp exists for — it must survive the sidecar fix. The
+        discriminator is MEMBERSHIP (a look-era frame is GONE), so this holds at ANY timing;
+        TestV2202's 0.02s-gap fixture stays the tighter pin and refused the +0.5-on-newest cut."""
+        time.sleep(0.05)
         os.remove(os.path.join(self.rd, "f_0.jpg"))
-        open(os.path.join(self.rd, "f_9.jpg"), "wb").write(b"y")   # count back to 3, frame NEWER
+        open(os.path.join(self.rd, "f_9.jpg"), "wb").write(b"y")   # count back to 3, f_0 GONE
         self.assertTrue(ca._chron_reel_owes_a_read(self.rid, self.mem),
                         "a prune-then-capture that leaves the count at N went invisible — "
                         "the regression :16550's comment warns against")

@@ -38564,10 +38564,15 @@ permanent false re-owe — invisible to reading, invisible to reasoning, visible
 red-proof ran against real filesystem behaviour and `test_a_sidecar_write_does_NOT_reowe` failed
 `True is not false` on the FIXED tree.
 
-FIXED with the +0.5s tolerance `_chron_hunt_more_to_search` already uses — and the first scar
-comment had argued AGAINST that tolerance; the comment now states which half is measured (the
-35us skew) and which is assumption (production prune-then-capture cadence), with the census check
-firing first regardless.
+FIRST CORRECTED with the +0.5s tolerance `_chron_hunt_more_to_search` uses — and THAT cut was
+ALSO wrong, refused by the full pre-push gate twenty minutes later: TestV2202's prune-then-capture
+fixture writes its churn frame 0.02s after the look, inside the tolerance, so the sub-half-second
+case the original strict comment exists for went invisible. A THIRD cut (a 0.5s pad on the OLD
+side of a membership census) failed its own law the same way — the pad admitted the churn frame
+as look-era. FINAL FORM, both bounds measured: count look-era frames (mtime <= dirMtimeAtLook +
+5ms) and re-owe when one is GONE. The 5ms pad sits 27x above the worst same-event skew over 300
+samples (183us) and 4x below the tightest gate-pinned churn gap (20ms). Membership, not timing:
+a sidecar removes nothing at any clock; churn removes a look-era frame at any gap above 5ms.
 
 ⚠ THE LESSON: a comparison between two timestamps OF THE SAME EVENT taken by two different
 bookkeeping paths is not a comparison of two events. Sub-second ordering between an entry mtime

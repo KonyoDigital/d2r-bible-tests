@@ -16559,17 +16559,24 @@ def _chron_reel_owes_a_read(rid, mem=None):
             _ff = _g3.glob(os.path.join(_rd, "f_*.jpg"))
             if len(_ff) != _at:
                 return True               # the census moved -> the film itself changed
-            # ⚠⚠ v3298 — AND THE FRAME-vs-DIR COMPARE NEEDS THE +0.5 THE FIRST CUT DISMISSED.
-            # MEASURED on his APFS: for ONE capture event the frame's CONTENT mtime lands ~35us
-            # AFTER the directory's ENTRY mtime, so a bare `_fnew > _dm` re-owes EVERY freshly
-            # looked reel forever (its own red-proof caught it before ship). The 0.5s tolerance is
-            # the SAME one _chron_hunt_more_to_search uses for newest-mtime wobble. ⚠ Which half
-            # is which: the ~35us skew IS MEASURED (APFS, 2026-09-18); "a prune-then-capture is
-            # seconds later in production" is an ASSUMPTION about cadence, not a measurement —
-            # and the census check above fires FIRST regardless, so only an equal-count
-            # prune-then-capture inside 0.5s could ever hide, which no observation has shown.
-            _fnew = max((os.stat(_p).st_mtime for _p in _ff), default=0.0)
-            return _fnew > float(_dm) + 0.5   # a frame landed AFTER the look -> prune-then-capture
+            # ⚠⚠ v3298 — MEMBERSHIP, NOT TIMING. Two cuts of this comparison failed in OPPOSITE
+            # directions, each caught by a gate: a bare `newest > _dm` re-owed EVERY freshly
+            # looked reel (MEASURED: the frame's CONTENT mtime lands ~35us AFTER the dir's ENTRY
+            # mtime for the SAME capture event — its own red-proof went red pre-ship, REG-1111);
+            # then `newest > _dm + 0.5` went blind to TestV2202's prune-then-capture at a 0.02s
+            # gap — the sub-half-second case the original strict comment exists for, and the
+            # full pre-push gate refused that cut ("which no observation has shown" stood here
+            # for twenty minutes before an observation showed it). The honest discriminator is
+            # not WHEN the new frame landed but WHETHER the look-era film is still present:
+            # count frames at/below the look's dir stamp, padded for the same-event skew. The
+            # pad is 5ms, and both of its bounds are MEASURED, not chosen: the worst skew over
+            # 300 same-event samples on his APFS is 183us (27x headroom below the pad), and the
+            # tightest churn gap any gate pins is TestV2202's 20ms (4x above it). A wider pad
+            # was tried and admitted the churn frame as look-era — the third wrong cut, caught
+            # by its own law. A sidecar removes nothing, so the look-era census holds and no
+            # read is bought; churn removed a look-era frame, visible at any gap above 5ms.
+            _old = sum(1 for _p in _ff if os.stat(_p).st_mtime <= float(_dm) + 0.005)
+            return _old < _at             # a look-era frame is GONE -> churn under a stable count
         except Exception:
             return True                   # unmeasurable -> never skip on a guess
     # A 0-PAGE SEAL IS NOT "DONE", BUT IT IS ALSO NOT WORK. retention says it exactly: "that is
