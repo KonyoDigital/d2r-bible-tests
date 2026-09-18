@@ -24202,12 +24202,60 @@ def _shadow_watch_loop():
             pass
 
 
+#: v3323 (#28) — the feeder's lane state, in the SHARED vocabulary (on / worked / lastTs / owed).
+#: LIFETIME, never per-process: a counter that resets on restart cannot answer "has this ever
+#: worked", which is the only question that separates a working lane from an inert one.
+#: `owed` is None when the split could not measure — UNKNOWN, never 0. [[heart-first]] §2 §3 §7
+_RNF_STATE = {"runs": 0, "banked": 0, "lastTs": None, "owed": None, "ok": None, "why": ""}
+
+
 def _vault_autoread_loop():
     while True:
         try:
             time.sleep(_VAULT_AUTOREAD_EVERY_S)
             _lane_tick('tvd-vault-autoread', _VAULT_AUTOREAD_EVERY_S)
             _r = vault_autoreel_tick()
+            # ⚠⚠ v3323 (#28) — THE FEEDER'S ONE CALLER. read_names_lane.split() has always judged
+            # every journal-ring PANEL name through the REAL gate and separated HELD from OWED, and
+            # NOTHING called it to write: its own header said "the accumulator has no other
+            # feeder ... they were never judged". Built 2026-09-18 and joined to nothing until now,
+            # which is the defect this repo keeps paying for. [[the-unjoined-end]]
+            #
+            # ⚠ ITS OWN LANE NAME, NOT vault-autoread's. They are different jobs: the tick above
+            # SPENDS (paid sweeps), this one banks names already read and costs nothing. Sharing a
+            # lane name would make one supervisor row answer for two lanes, and no supervisor can
+            # ask sixteen lanes one question in sixteen vocabularies. [[heart-first]] §3
+            #
+            # ⚠ MEASURED AT SHIP, 2026-09-18: split() is MEASURED, names 60, auto 6, manual 54,
+            # autoOwed **0**, autoHeld 1 (Crescent Moon — referents UNIQUE *and* RUNEWORD, so it
+            # can never name one cell). plan() answered ok=True, bankable 0, declined 0. It banks
+            # NOTHING today, and that is the honest state of the lane, not a broken feeder — five
+            # of the six are already banked and the sixth is correctly held.
+            # ⚠⚠ WHICH MEANS "ON" MUST NOT READ AS "WORKING": a lane with lifetime work 0 is the
+            # vault_autoreel_tick scar exactly, so the counters below are LIFETIME and the doctor
+            # row reads them. [[heart-first]] §2
+            try:
+                _lane_tick('tvd-read-names-feeder', _VAULT_AUTOREAD_EVERY_S)
+                import read_names_feeder as _rnf
+                _fp = _rnf.plan()
+                _RNF_STATE["lastTs"] = int(time.time() * 1000)
+                _RNF_STATE["ok"] = bool(_fp.get("ok"))
+                _RNF_STATE["why"] = str(_fp.get("why") or "")[:200]
+                _bank = list(_fp.get("bankable") or [])
+                _RNF_STATE["owed"] = (len(_bank) if _fp.get("ok") else None)
+                if _bank:
+                    # ⚠ `by` is REQUIRED and is a STRING naming what fed the write — not
+                    # the rows. apply() recomputes the plan itself; handing it the list
+                    # would stamp a stringified list as the author of every banked name.
+                    _fa = _rnf.apply('tvd-read-names-feeder', limit=_rnf.MAX_PER_TICK)
+                    _RNF_STATE["banked"] = int(_RNF_STATE.get("banked") or 0) + int(_fa.get("banked") or 0)
+                    _RNF_STATE["runs"] = int(_RNF_STATE.get("runs") or 0) + 1
+                    if not _fa.get("ok"):
+                        # the door refusing is a RESULT, never a swallow
+                        print("   \u26a0 read-names feeder: %s" % str(_fa.get("why"))[:140], flush=True)
+            except Exception as _rnfe:
+                _RNF_STATE["why"] = "the feeder raised %s" % type(_rnfe).__name__
+                _RNF_STATE["ok"] = False
             # v2225 — say it out loud when the lane retires a reel or cannot tell. Silence here is
             # what made a permanently-idle watchdog look identical to a busy one.
             if isinstance(_r, dict) and (_r.get("retired") or _r.get("unknown")):
@@ -30244,7 +30292,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3322",
+        "ver": "v3323",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

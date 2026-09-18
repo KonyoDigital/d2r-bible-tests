@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1135 — the #28 feeder was complete, correct, and called by nobody
+
+**v3323, 2026-09-18.** `read_names_lane.split()` has always judged every journal-ring PANEL name
+through the real gate (`vault_retro.gate`, 0.55 conf / 2 witnesses) and separated HELD from OWED.
+Its own header said it: *"the accumulator has no other feeder … they were never judged."*
+
+`tv/read_names_feeder.py` — 151 lines — was written to be that caller. It lived **only** in a
+scratch directory that is deleted with the job. `grep -rn read_names_feeder tv/*.py` returned
+**zero**. Complete, correct, unreachable, and applied to his own authorised ruling.
+
+**Re-measured before shipping**, because his ruling named ~3 autoOwed and that has drained:
+
+```
+split()  state=MEASURED  names 60 · auto 6 · manual 54 · autoOwed 0 · autoHeld 1
+plan()   ok=True  bankable 0  declined 0
+```
+
+Five of the six are already banked; the sixth (*Crescent Moon*) carries referents `UNIQUE` **and**
+`RUNEWORD`, so it can never name one cell and holding it is correct. The feeder banks **nothing**
+today — the honest state of the lane, not a broken feeder.
+
+⚠ **Which is exactly why the caller and the counters ship with it.** A lane that is ON with lifetime
+work 0 is the `vault_autoreel_tick` scar, so `_RNF_STATE` is lifetime and `owed` starts `None`.
+It ticks under its **own** lane name `tvd-read-names-feeder`, never vault-autoread's: that tick
+SPENDS on paid sweeps, this one banks names already read and costs nothing.
+
+⚠ **Reading the code to strengthen the law caught a bug in my own caller:** `apply(by, sp, limit)`
+takes `by` as a **required string**, and I had passed the bankable *list* as `by` — stamping a
+stringified list as the author of every banked name. `apply()` recomputes the plan itself.
+
+⚠⚠ **A BLIND SABOTAGE, INVESTIGATED RATHER THAN ACCEPTED.** `MAX_PER_TICK = 4 → 0` matched exactly
+once and the law stayed GREEN. Correct count + green law = the LAW is weak: every case called
+`apply()` with no limit, so the cap the caller actually passes was never exercised. A cap of 0 is
+an off switch that reads as healthy. New case `test_the_per_tick_cap_permits_flow`.
+
+The join class is new and is the half that was missing: the recovered law's cases pin what the
+feeder DOES when called; not one asked whether anything CALLS it.
+
+Law `test_feeder_to_the_door`, **3 red-proofs PROVEN** — one of which removes the caller and puts
+the module back exactly where it was found.
+
+⛔ **Half B is NOT in this ship.** `test_a_seal_carries_what_its_session_read.py` was recovered too,
+but it pins `_journal_names_by_session` in `control_app` — measured **0 definitions, 0 use sites**
+against a law demanding 1 and 3. Shipping a law whose subject was never written is a guaranteed red.
+
 ### REG-1134 — "WAITING ON YOU" billed him for seven rows he could not act on
 
 **v3321, 2026-09-18.** His #35 ruling: *WAITING ON YOU means action needed FROM HIM RIGHT NOW.*
