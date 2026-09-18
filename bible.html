@@ -4053,6 +4053,38 @@ window._D2R_LPFX = window._D2R_OWNER ? 'L·' : ('IL·' + String(window._D2R_INST
 // Seeds are suppressed on any load that is not the owner's. This is what makes an unclaimed load
 // safe: with the seeds off, an unclaimed load writes no bare account key at all.
 window._isCousinShell = !window._D2R_OWNER;
+/* v3296 — ONE DEFINITION OF THE INTAKE DOOR, AND A GUEST MAY NOT WALK THROUGH HIS.
+   This expression was written out BY HAND AT TEN SITES (24312, 26090, 26722, 26960, 27672, 37972,
+   39894, 46859, 47559, 52952) and the copies had already drifted: nine read `localStorage`, one
+   read `window.LSR`. Ten hand-copies of a PRODUCTION URL is the same shape as the lane work list
+   fixed in v3295, except a miss here posts real data to a live public door.
+
+   ⚠⚠ THE SAFETY HALF. Over file:// the old default was the production endpoint FOR EVERY BOARD.
+   His own Mac board posting to his own live door is CORRECT and stays exactly as it was. A GUEST
+   board — no ownerClaim, which is precisely what the Linux test console is — doing it silently is
+   not: running the two consoles in parallel would write a test board's intake into his real
+   intake, and nothing would say so. A guest on file:// with no explicit `d2r_intakeUrl` now falls
+   back to the RELATIVE path, which cannot reach the public host; the fetch fails locally and the
+   caller's existing error handling counts it. Set `d2r_intakeUrl` on a guest to give it a door.
+   [[copy-drift]] [[a-wrong-answer-skips-the-fallback]] */
+window._d2rIntakeEndpoint = function(){
+  var explicit = null;
+  try {
+    explicit = (window.LSR && window.LSR.getItem)
+      ? window.LSR.getItem('d2r_intakeUrl')
+      : localStorage.getItem('d2r_intakeUrl');
+  } catch(e){}
+  if (explicit) return explicit;
+  if (location.protocol !== 'file:') return '/api/intake';
+  if (window._D2R_OWNER) return 'https://bull-4-u.com/api/intake';
+  if (!window.__d2rIntakeWarned) {
+    window.__d2rIntakeWarned = true;
+    window._d2rIntakeRefusedPublic = true;
+    try { console.warn('[intake] guest board on file:// — refusing the public door. '
+                     + 'Set d2r_intakeUrl to give this board an endpoint.'); } catch(e){}
+  }
+  return '/api/intake';
+};
 /* ⚠⚠ v2692 — WHICH LEDGER IS THIS? Konyo: "this is outdated.. it should be registerd accordingly
    to ledger/profile and ledger name."
    THE DEFECT IT FIXES, reported by him from his cousin Dean's board: the Uniques tab read
@@ -24309,7 +24341,7 @@ window.setIntake = async function(files){
   for (var i=0;i<files.length;i++){
     try{
       var b64=await downscale(files[i]);
-      var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+      var endpoint = window._d2rIntakeEndpoint();
       // items mode (reads NAMES from tooltips), not tally — a set piece is owned-or-not
       var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab})});
       if(!resp.ok){ errors++; continue; }
@@ -26087,7 +26119,7 @@ window._runeSheetPrep = _runeSheetPrep;
 // over-read into the total; a majority needs agreement, killing phantom stacks and one-off miscounts.
 async function _tallyRead(b64, vocab, layout, kind){
   kind = kind || (window._tallyPrepForeign ? 'tally2' : 'tally');   // v661 — foreign captures use the compression-hardened prompt; the locked 'tally' path is unchanged for Konyo's own fullscreens
-  var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  var endpoint = window._d2rIntakeEndpoint();
   async function onePass(){
     try{
       var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:kind,layout:layout||undefined})});
@@ -26719,7 +26751,7 @@ function _askMd(t){ return _askEsc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').repl
 window.askBible = function(q){
   q=String(q||'').trim(); if(!q) return;
   var out=document.getElementById('ask-thread'); if(!out) return;
-  var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  var base=window._d2rIntakeEndpoint();
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   out.insertAdjacentHTML('beforeend','<div class="ask-q">'+_askEsc(q)+'</div><div class="ask-a ask-bubble ask-loading" id="ask-pending">consulting the bible…</div>');
   out.scrollTop=out.scrollHeight;
@@ -26957,7 +26989,7 @@ window.dailyCreateAi = function(force){
     try { if(typeof window.renderCreateNow==='function') window.renderCreateNow(); } catch(e){}
     return;
   }
-  var base=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+  var base=window._d2rIntakeEndpoint();
   var askUrl=base.replace(/\/api\/intake$/,'/api/ask');
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
   fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:'In ONE short sentence (no preamble), name the single highest-value thing to make right now from my Top Picks and why. PRIORITISE an unmade RUNEWORD from snapshot.forge.makeNow — finishing runewords advances my Chronicle (use snapshot.chronicle.made and snapshot.chronicle.total verbatim - never a round figure) and a runeword outweighs a craft. Recommend a CRAFT (e.g. a caster amulet) ONLY if I have no makeable unmade runeword left. Once my Chronicle is complete it is naturally all crafts/items.',snapshot:snap})})
@@ -27669,7 +27701,7 @@ function _craftPrepImage(file){
   });
 }
 async function _craftRead(b64, vocab){
-  var endpoint = localStorage.getItem('d2r_intakeUrl') || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+  var endpoint = window._d2rIntakeEndpoint();
   try {
     var resp = await fetch(endpoint, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ image: b64, media_type:'image/jpeg', names: vocab, kind:'craft' }) });
     if (!resp.ok) return null;
@@ -37969,7 +38001,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (/[?&]engine=1/.test(location.search || '')) return '/api/intake';
       if (/:(17772|17771)\b/.test(location.host || '')) return '/api/intake';
     } catch(e){}
-    return localStorage.getItem('d2r_intakeUrl') || (location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+    return window._d2rIntakeEndpoint();
   }
   window._aicIntakeEndpoint = _aicIntakeEndpoint;
   // v468 — testable response handler: takes the parsed /api/intake JSON, fills the draft from the RICHEST
@@ -39891,8 +39923,7 @@ function renderJournal(){
     }
     var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false }; });
     try { _vPruneShots(100); } catch(e){}   // v570 — keep the newest 100 full-res shots (was: wipe-all each scan → old cards lost their expandable screenshot)
-    var endpoint = localStorage.getItem('d2r_intakeUrl')
-      || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+    var endpoint = window._d2rIntakeEndpoint();
     var doneCount = 0;
     // v342.6 — process screenshots CONCURRENTLY via a small worker pool. Was strictly sequential, so
     // 62 shots × 2 calls each (locate + read) crawled — painfully so when the tab is backgrounded and
@@ -46856,8 +46887,7 @@ function renderJournal(){
     if (!files || !files.length) return null;
     var ledger = window._chronShotLedger === 'sets' ? 'sets' : 'uniques';
     var kind = ledger === 'sets' ? 'chronicle-sets' : 'chronicle-uniques';
-    var endpoint = window.LSR.getItem('d2r_intakeUrl') ||
-      (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+    var endpoint = window._d2rIntakeEndpoint();
     var V = _grailVocab();
     // the vocabulary is the ledger's OWN, not both: offering unique names while reading a Sets page
     // invites exactly the cross-ledger match this design exists to prevent
@@ -47556,7 +47586,7 @@ function renderJournal(){
     if(!files||!files.length) return;
     var rep=document.getElementById('grail-intake-report');
     var show=function(html){ if(rep){ rep.style.display='block'; rep.innerHTML=html; } };
-    var endpoint=localStorage.getItem('d2r_intakeUrl')||(location.protocol==='file:'?'https://bull-4-u.com/api/intake':'/api/intake');
+    var endpoint=window._d2rIntakeEndpoint();
     var V=_grailVocab(); var found=new Set(); var unknown=new Set(); var errs=0;
     for(var i=0;i<files.length;i++){
       show('📸 reading chronicle screenshot <b>'+(i+1)+' / '+files.length+'</b>… ('+found.size+' found so far)');
@@ -50732,7 +50762,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3295', name:'v3295 - a lane has one work list', date:'2026-09-18', note:'The vault lane work list OWED_BY intersect READ_CLEARS was written out by hand in THREE places and the copies drifted. control_app autoread candidates and its awaiting-a-sweep count were correct since v2878; river_walk PRINTER probe still counted the single tag vault-owes, so the river printed that the lane queue is EMPTY and this reel waits for a seal nothing will write, while the lane actually held 3 panels-never-banked reels. The THIRD copy was found by the grep that wrote the law, not by the investigation. Now there is ONE definition, shelf_driver.lane_read_tags, and all three callers read it. Separately river.py j_prune stopped naming a cause it never measured: the DRY why hard-coded while the disk is full, and j_disk measured 22.0 GB FREE in the same run, so the task tracking that joint carried a false cause in its title for days; it now quotes the planner own say, which reads NOTHING is safe to delete yet and that is an answer not a failure. HEART: gate test_one_work_list registered in run_gates with 2 red-proofs, both PROVEN under heart2 --prove.' };
+  window.D2R_BUILD = { id:'v3296', name:'v3296 - a guest may not walk through his door', date:'2026-09-18', note:'The intake endpoint expression was written out BY HAND AT TEN SITES in bible.html and the copies had already drifted - nine read localStorage, one read window.LSR. Over file the old default was the production endpoint FOR EVERY BOARD, so a GUEST board with no ownerClaim - exactly what the Linux parallel-test console is - posted its intake into HIS REAL INTAKE, silently. Running the two consoles in parallel is the precise activity that fires it, so the test we wanted to run was the thing that would contaminate the data we were testing against. Now there is ONE definition, window._d2rIntakeEndpoint, and the production return sits behind a _D2R_OWNER test with a relative fallback after it. HIS OWN board on file still reaches his own live door and that was never the defect. HEART: gate test_guest_intake_door registered with 2 red-proofs, both PROVEN. Also recorded separately: frame_authority._executable_only DROPS a real call site at bible.html L38004 after two regex literals - raw 10 call sites, stripped 9 - so this law counts on raw source with a per-hit comment check, and the stripper blind region is now tracked as its own item.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -52949,8 +52979,7 @@ var body = JSON.stringify({ tab: tab, owner: owner, ttlMs: _ttl });
     if (tab !== 'personal' && tab !== 'shared') tab = 'personal';
     files = Array.prototype.slice.call(files || []);
     if (!files.length) return { ok:false, why:'no-file', total:0, counts:{}, kind:'vault-count', tab:tab };
-    var endpoint = localStorage.getItem('d2r_intakeUrl')
-      || (location.protocol === 'file:' ? 'https://bull-4-u.com/api/intake' : '/api/intake');
+    var endpoint = window._d2rIntakeEndpoint();
     function downscale(file){
       return new Promise(function(resolve, reject){
         var img = new Image(), url = URL.createObjectURL(file);

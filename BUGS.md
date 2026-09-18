@@ -38469,3 +38469,36 @@ Note this is the SECOND false blockage from this one function: v3267 fixed a cal
 disagreement that made `gone` permanently `len([])`. Same function, same class - an instrument
 asserting more than it measured.
 Shipped v3295. [[unknown-stays-unknown]] [[stale-reading]]
+
+## REG-1107 — THE LIVE PUBLIC DOOR WAS THE DEFAULT FOR EVERY BOARD, HARDCODED AT TEN SITES
+The intake endpoint was written out **by hand at ten sites** in `bible.html` (24312, 26090, 26722,
+26960, 27672, 37972, 39894, 46859, 47559, 52952), each carrying the production URL as its `file://`
+fallback. The copies had **already drifted**: nine read `localStorage`, one read `window.LSR`.
+**THE SAFETY HALF:** over `file://` that default was the production endpoint **for every board**. A
+GUEST board — no `d2r_ownerClaim`, which is exactly what the Linux parallel-test console is — posted
+its intake into **HIS REAL INTAKE**, silently. Running the two consoles in parallel is the precise
+activity that fires it, so the test we wanted to run was the thing that would contaminate the data
+we were testing against.
+FIX: one definition, `window._d2rIntakeEndpoint()`. The production return sits behind a
+`_D2R_OWNER` test with a relative fallback after it, plus a one-time console warning.
+**His own board on `file://` still reaches his own live door — that was never the defect**, and the
+law pins it so a future "fix" cannot break his intake.
+GATE: `test_guest_intake_door`, 2 red-proofs, both **PROVEN**. Shipped v3296. [[copy-drift]]
+
+## REG-1108 — THE COMMENT STRIPPER EATS LIVE CODE AFTER A REGEX LITERAL
+`frame_authority._executable_only` — which many laws depend on — **silently removes executable
+JavaScript**. Proven: `bible.html` L38004 `return window._d2rIntakeEndpoint();` inside
+`_aicIntakeEndpoint()` is absent from the stripped text. Measured **raw 10 call sites, stripped 9**.
+CAUSE: the two lines above it hold regex literals — `/[?&]engine=1/` and `/:(17772|17771)\b/` — and
+their delimiting slashes are read as comment syntax, swallowing the code that follows.
+**WHY IT MATTERS:** the stripper exists so a law cannot be satisfied by its own commentary
+(REG-1070). But a stripper that DELETES code creates the mirror failure — a law goes green because
+the violating code was never shown to it. A blind region and a prose-satisfied assertion are both
+"the law did not read what shipped".
+⚠ **THE EXTENT IS UNMEASURED.** The strip removes 21.6% of `bible.html`, roughly the expected
+comment volume, so most of it is correct. A crude line-presence heuristic flagged 14,820 of 55,419
+lines, but that figure **cannot distinguish a correctly-removed comment from wrongly-removed code**
+and must not be quoted as a count of blind code. One instance proven; extent UNKNOWN.
+WORKAROUND ONLY: v3296's law counts call sites on RAW source with a per-hit not-in-a-comment check,
+documented at the assertion. The scanner itself is unfixed and the affected laws are unaudited.
+[[source-reading-guard]] [[zero-needs-a-denominator]]
