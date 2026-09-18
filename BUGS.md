@@ -36626,6 +36626,60 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1099 — 154 runs were leaving the shelf through a door with no counter on it
+
+**v3290.** Konyo, 2026-09-18: *"the shelf is showing 12 runs why not 8? what happened there? make
+sure its a unified logic"*, and at the river strip: *"THE RIVER also reading some weird not synced
+numbers here should either be hidden or fixed and synced accordingly"*.
+
+**FIVE SURFACES, FIVE NUMBERS — measured on his console:**
+
+```
+/api/sessions   419 runs
+/api/river       63 reels · 11 on the shelf · 454 closed out
+the pipeline     11 reels surveyed
+ACTIVITY         15 runs — over a 14-DAY WINDOW
+FIFO              8
+the SHELF        12 cards
+```
+
+⚠⚠ **THEY MUST NOT BE FORCED EQUAL, AND THAT IS A RULING RATHER THAN A PREFERENCE.**
+`test_a_lane_count_names_the_population_it_counted` (2026-09-13) measured this exact shape and
+settled it: *"THE NUMBER WAS NEVER WRONG... Only the NOUN was wrong. This file guards the noun"*,
+and *"THE STRIP IS NOT THE DEFECT — DO NOT FIX IT. Its arithmetic is internally consistent...
+A second attempt there would undo work that is correct."* The river's lanes sum to its own
+headline; it was left alone.
+
+**What WAS broken is a silent subtraction, and it is large.** The shelf skips four kinds of run.
+Three had chips — fixtures, retired, unknown. The fourth, a **stub** (under three real rows and no
+reel, so it never HAD film), was dropped with no counter anywhere:
+
+```javascript
+if (!_shBuildGhosts && sm && sm.stub) return '';        // 154 of his 419 runs
+```
+
+So the panel drew 12 cards and said nothing about the other 407. **That gap is the whole reason he
+asked the question.**
+
+**With the stub bucket counted, the population closes exactly — measured on glass:**
+
+```
+ 12 shown  +  8 fixtures  +  232 retired  +  154 stubs  +  13 unknown  =  419
+```
+
+and the head now reads **"12 of 419 runs kept film"**. No remainder clause printed, because there
+is no remainder — and if the parts ever stop summing, the difference is **printed rather than
+absorbed**, which is the failure this replaces.
+
+⚠ The shown count is measured **before** `cards.join('')`. Afterwards the population is a string
+and unknowable — a denominator you can only compute at one moment must be computed at that moment.
+
+**Gate:** `test_shelf_accounts_for_every_run`, 3 red-proofs, all PROVEN at exactly 1 match each.
+
+⚠ Its patch was refused once before writing: the join anchor matched **3** times, so the whole
+change was rejected rather than applied to the wrong two sites. A non-unique anchor is a different
+region, not a near miss. [[source-reading-guard]]
+
 ## REG-1098 — the shelf chose where to open before the chart above it existed
 
 **v3289.** Konyo, 2026-09-18: *"the row where it says BEST RUN MOST READS TOP READS BEST COVERAGE

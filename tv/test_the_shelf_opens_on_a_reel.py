@@ -92,6 +92,37 @@ class TestTheShelfOpensOnAReel(unittest.TestCase):
                       "of 0 - the guard against measuring before layout must stay")
 
 
+    def test_it_yields_the_scrollbar_to_a_person_who_used_it(self):
+        """v3290, raised by the cross-family eye on v3289 and real.
+
+        The routine runs TWICE — once at open, once after the chart is real. If he scrolls between
+        them, the second call would yank the panel out from under him. So the call that scrolls
+        stamps where it left the panel, and a later call acts only if it is still exactly there.
+
+        Verified in node across four shapes: first call scrolls to 745; the second, untouched,
+        computes the SAME 745 (the target is invariant because the card's rect moves with the
+        scroll, so it cannot double-scroll); a shelf whose card is already visible stays at 0; and
+        a panel he moved to 1200 is left at 1200.
+        """
+        body = self._fn_body()
+        self.assertIn("ov.__shAutoTop != null && Math.round(ov.scrollTop) !== ov.__shAutoTop",
+                      body,
+                      "nothing checks whether he moved the panel between the two calls, so the "
+                      "second one overrides a scroll he chose")
+        self.assertIn("ov.__shAutoTop = Math.round(ov.scrollTop);", body,
+                      "the auto-scroll never records where it left the panel, so the guard above "
+                      "has nothing to compare against and can never fire")
+        self.assertIn("ov.__shAutoTop = null;", self.code,
+                      "a fresh open must clear the stamp, or the PREVIOUS open's claim blocks this "
+                      "one before he has touched anything")
+
+    def _fn_body(self):
+        i = self.code.find("window._shOpenOnAReel = function (ov)")
+        self.assertGreater(i, -1, "the opening-scroll function vanished")
+        j = self.code.find("window._shOpenOnAReel(ov);", i)
+        return self.code[i:j if j > i else i + 1800]
+
+
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 RED_PROOF = [
     {
@@ -106,6 +137,20 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "    try { window._shOpenOnAReel(ov); } catch (e) {}",
         "replace": "    try { void 0; } catch (e) {}",
+        "matches": 1,
+    },
+    {
+        "why": "without the stamp check the second call overrides a scroll he chose himself",
+        "file": "tv/control_ui.html",
+        "find": "        if (ov.__shAutoTop != null && Math.round(ov.scrollTop) !== ov.__shAutoTop) return;",
+        "replace": "        if (false) return;",
+        "matches": 1,
+    },
+    {
+        "why": "never recording where it left the panel leaves the guard unable to fire",
+        "file": "tv/control_ui.html",
+        "find": "        ov.__shAutoTop = Math.round(ov.scrollTop);",
+        "replace": "        void 0;",
         "matches": 1,
     },
     {

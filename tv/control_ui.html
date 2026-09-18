@@ -6104,6 +6104,9 @@
   #ver-xref .vx-lead-s { margin-top: 6px; font-size: var(--fs-sm); color: var(--text); line-height: 1.45; }
   /* v3288 — the server-is-stale line. Amber, not red: nothing is broken and nothing was lost;
      a restart picks it up. Red would send him looking for damage that is not there. */
+  /* v3290 — the shelf head's population clause: a denominator, never a headline */
+  #th-shelfov .sh-head-pop { display: block; margin-top: 3px; font-size: var(--fs-2xs);
+    font-weight: var(--fw-regular); letter-spacing: var(--ls-wide); color: var(--text-dim); }
   #ver-xref .vx-mf { color: #9a8c72; }
   #ver-xref .vx-mf-stale { color: #d8a94a; }
   /* the machine detail, tucked — one click away, no longer the first wall he meets */
@@ -16647,7 +16650,7 @@ window._lockMark = function(isOpen, px, label){
        ⚠ CLIENT SIDE, and `return ''` rather than .filter(): data-n is the card->session join and
        /api/reel_path indexes sess[n-1] POSITIONALLY, so a server-side cut would desync the dossier,
        the home digest and the heatmap. */
-    var _shRetiredN = 0, _shUnknownN = 0;
+    var _shRetiredN = 0, _shUnknownN = 0, _shStubN = 0;
     var cards = (TH.sessions || []).map(function(sm, i){
       if (sm && sm.fixture) { _shFixtureN++; return ''; }
       /* ⚠⚠ v3095 — THE STUB CHECK MUST COME FIRST, AND v3092 PUT IT LAST. A STUB is a run with
@@ -16659,7 +16662,11 @@ window._lockMark = function(isOpen, px, label){
          in the very commit whose comment insisted the two states be kept apart. The numbers I
          reported (266 / 138) were measured BEFORE the code and never re-measured against it.
          [[label-outlived-referent]] [[zero-needs-a-denominator]] */
-      if (!_shBuildGhosts && sm && sm.stub) return '';
+      /* v3290 — A STUB WAS THE ONE DROPPED BUCKET WITH NO COUNTER. Fixtures, retired and
+         unknown each get a chip; a stub simply vanished. That is a silent subtraction, and it is
+         most of the gap between the run total and the cards on screen — which is exactly what he
+         asked about: "the shelf is showing 12 runs why not 8? what happened there?" */
+      if (!_shBuildGhosts && sm && sm.stub) { _shStubN++; return ''; }
       if (sm && !(sm.footageN || 0) && !_shBuildGhosts){
         if (String(sm.footageState || '') === 'retired') { _shRetiredN++; return ''; }
         if (String(sm.footageState || '') === 'unknown') { _shUnknownN++; return ''; }
@@ -16883,7 +16890,12 @@ window._lockMark = function(isOpen, px, label){
           + (_fp ? '<span class="shc-fp">' + _fp + '</span>' : '')
           + (footLine ? '<div class="shc-foot">' + footLine + '</div>' : '')
         + '</div></div>';
-    }).join('');
+    });
+    /* v3290 — MEASURED BEFORE JOINING, because after `.join('')` the population is unknowable.
+       `cards` becomes the same string it always was on the next line; nothing downstream changes. */
+    var _shShownN = cards.filter(function (c) { return !!c; }).length;
+    var _shRunsN  = (TH.sessions || []).length;
+    cards = cards.join('');
     var body = cards
       ? '<div class="sh-grid">' + cards + '</div>'
       : '<div class="sh-empty-hero"><div class="she-emoji">🎞</div><div class="she-lead">No runs recorded yet</div>'   // v1275 (D3) — first-run/empty state (was a bare empty grid)
@@ -16949,6 +16961,10 @@ window._lockMark = function(isOpen, px, label){
         + (_shRetiredN ? '<span class="sh-chip sh-chip-hist" title="the film gave up its '
             + 'information and was then retired by the river — the run is history, not a reel you '
             + 'can open">\ud83d\udcfc ' + _shRetiredN + ' retired to history</span>' : '')
+        + (_shStubN ? '<span class="sh-chip sh-chip-stub" title="a run with under three real rows '
+            + 'and no reel - it never HAD film, so nothing was retired and nothing is missing. '
+            + 'Counted here because a bucket with no chip is a silent subtraction.">\ud83e\udeb5 '
+            + _shStubN + ' never had film</span>' : '')
         + (_shUnknownN ? '<span class="sh-chip sh-chip-unk" title="no film and no retention record '
             + '\u2014 an unanswered question, NOT a finding that nothing was recorded">\u2753 '
             + _shUnknownN + ' with no film and no record</span>' : '')
@@ -16980,7 +16996,30 @@ window._lockMark = function(isOpen, px, label){
     ov.innerHTML = '<button class="sh-x th-x" id="th-shelf-x" type="button" title="close the shelf (Esc)">✕</button>'
       /* v2199 — it is NOT "every recorded run" while 2,261 of 2,461 are hidden by default.
          A heading that contradicts the list under it is the same lie as a silent truncation. */
-      + '<div class="sh-head">🎞 THE SHELF — your reels</div>'
+      /* ══ v3290 — THE HEAD NAMES ITS POPULATION ════════════════════════════════════════════
+         Konyo, 2026-09-18: *"the shelf is showing 12 runs why not 8? what happened there? make
+         sure its a unified logic"*. Five surfaces reported five run-counts and none said what it
+         counted. MEASURED on his console: /api/sessions holds 419 runs, the river holds 63 reels
+         with 11 on the shelf, the pipeline surveyed 11, ACTIVITY counts 15 over a 14-DAY WINDOW,
+         and FIFO is 8. Every one is correct FOR A DIFFERENT QUESTION, which is why forcing them
+         equal would break work that is right: the standing ruling in
+         test_a_lane_count_names_the_population_it_counted is "the number was never wrong, only
+         the NOUN was", and "the strip is NOT the defect - do not fix it".
+         So this guards the noun on the surface he named. v2199 already stopped the head claiming
+         "every recorded run"; it still never said how many of how many.
+         ⚠ AND IT REFUSES TO HIDE A REMAINDER. If shown plus the four named buckets does not
+         account for every run, the difference is PRINTED rather than absorbed — an unexplained
+         gap is the thing that made him ask. [[label-outlived-referent]]
+         [[zero-needs-a-denominator]] */
+      + '<div class="sh-head">🎞 THE SHELF — your reels'
+        + (_shRunsN ? '<span class="sh-head-pop">' + esc(
+              _shShownN + ' of ' + _shRunsN + ' runs kept film'
+            + (function () {
+                var _named = _shShownN + _shFixtureN + _shStubN + _shRetiredN + _shUnknownN;
+                var _rest  = _shRunsN - _named;
+                return _rest > 0 ? ' \u00b7 \u26a0 ' + _rest + ' unaccounted for' : '';
+              })()) + '</span>' : '')
+      + '</div>'
       /* v2383 — THE PIPELINE BOARD. Konyo: "reels need to be visually connected to the backend
          coding of the pruning and optimization and extracting process... so its logically showing
          visually whats happening and needs to happen", and "the 10-15% of real footage and the
@@ -17106,6 +17145,11 @@ window._lockMark = function(isOpen, px, label){
        second is the one that decides. [[stale-reading]] [[the-unjoined-end]] */
     window._shOpenOnAReel = function (ov) {
       try {
+        /* ⚠ v3290 — A PERSON WHO SCROLLED OWNS THE SCROLLBAR. Raised by the cross-family eye on
+           v3289: this runs TWICE, and a scroll between the two calls would be silently overridden
+           — the panel would jump out from under him. The call that scrolls stamps where it left
+           the panel; a later call acts only if it is still exactly there. */
+        if (ov.__shAutoTop != null && Math.round(ov.scrollTop) !== ov.__shAutoTop) return;
         var _firstCard = null;
         var _cds = ov.querySelectorAll('.sh-grid .sh-card');
         for (var _ci = 0; _ci < _cds.length; _ci++){
@@ -17122,8 +17166,12 @@ window._lockMark = function(isOpen, px, label){
         if (_ovH > 0 && _top >= _ovH){
           ov.scrollTop = Math.max(0, _top - Math.round(_ovH * 0.18));
         }
+        ov.__shAutoTop = Math.round(ov.scrollTop);
       } catch (e) {}
     };
+    /* a fresh open starts with no claim on the scrollbar - otherwise last open's stamp would
+       block this one before he has touched anything */
+    try { ov.__shAutoTop = null; } catch (e) {}
     window._shOpenOnAReel(ov);
     try { _shLiveRender(window.__lastStatus); } catch(e){}   // D24 — populate the live "recording now" card from the last poll (shown only on-air)
     /* v2383 — fill the pipeline board, through window.* rather than a bare call.
