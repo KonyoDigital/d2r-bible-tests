@@ -116,20 +116,51 @@ class TestAnEmptyWorldSaysUnknown(unittest.TestCase):
             % (why,))
 
     def test_a_failing_stash_gate_is_an_answer_about_the_instrument(self):
-        """BEHAVIOURAL: zero panels WHILE the gate was failing must not read as 'no panels'."""
+        """BEHAVIOURAL: zero panels WHILE the gate was failing must not read as 'no panels'.
+
+        ⚠⚠ v3300 — THE FIRST CUT OF THIS TEST HAD AN INERT MOCK AND PASSED FOR THE WRONG REASON.
+        It patched `cd._hist_dirs` with create=True. MEASURED: `git grep _hist_dirs` over the whole
+        tracked repo returns ONE match — that mock line. The name exists nowhere else, and an AST
+        walk of `_check_the_sweep_would_find_something` shows its reachable calls are
+        os.path.isdir / os.path.join / cr.reel_dirs / ca.gate_failures / vr.panel_density /
+        vr.rank_by_panel. **The mock created an attribute nothing reads.**
+        So the check ran against HIS REAL tv/frames/hist (gitignored; 799 entries on his Mac, 0
+        tracked) and the test passed on his machine while FAILING ON CI — where the function returns
+        at its first guard with "no frames/hist on this machine" and never reaches the INSTRUMENT
+        branch at all. A fixture that exists on one machine. [[regression-guard]] [[test-venue]]
+
+        THE FIX IS A REAL TREE, NOT A BIGGER MOCK: `hist` is derived as
+        os.path.join(HERE, "frames", "hist"), so pointing cd.HERE at a temp dir drives the genuine
+        path — os.path.isdir passes on a real directory, cr.reel_dirs lists real reel_* dirs, and
+        load_index rebuilds an index from the frame names (which is why the fixture writes actual
+        f_*.jpg bytes rather than empty dirs).
+        """
+        import shutil
+        import tempfile
         import unittest.mock as mock
         import console_doctor as cd
         import control_app as ca
         import vault_retro as vr
 
+        root = tempfile.mkdtemp(prefix="sweep_gate_")
+        self.addCleanup(shutil.rmtree, root, True)
+        hist = os.path.join(root, "frames", "hist")
+        for reel in ("reel_a", "reel_b"):
+            d = os.path.join(hist, reel)
+            os.makedirs(d)
+            # real bytes: reel_dirs drops a directory whose index cannot be rebuilt from frames
+            with io.open(os.path.join(d, "f_1780000000000.jpg"), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xe0" + b"0" * 64)
+
         bumps = iter([0, 3])          # gate_failures moved by 3 across the density pass
-        with mock.patch.object(cd, "_hist_dirs", lambda *a, **k: ["reel_a", "reel_b"], create=True), \
+        with mock.patch.object(cd, "HERE", root), \
              mock.patch.object(ca, "gate_failures", lambda *a, **k: next(bumps)), \
              mock.patch.object(vr, "panel_density", lambda *a, **k: 0.0):
-            try:
-                state, why = cd._check_the_sweep_would_find_something()
-            except Exception as e:                       # the helper name may differ
-                self.skipTest("could not drive the check in isolation: %s" % e)
+            state, why = cd._check_the_sweep_would_find_something()
+
+        # ⚠ NO skipTest ESCAPE. The previous cut swallowed any exception into a skip, so a rename
+        # would have made the whole case vanish silently — a skip is not a pass, and an escape
+        # hatch on a law is a law that can stop existing without anyone noticing.
 
         self.assertEqual(
             state, cd.UNKNOWN,

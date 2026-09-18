@@ -38627,3 +38627,33 @@ of fixing either is HIS call.
 GATE: `test_eye_declares_reach`, 2 red-proofs, both PROVEN. Pins the RULE not the shas (HEAD~1/HEAD),
 so it survives the next ship. Shipped v3299.
 [[source-reading-guard]] [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+
+## REG-1114 — MY OWN LAW HAD AN INERT MOCK AND PASSED FOR THE WRONG REASON
+`test_empty_world_unknown`, shipped in v3297, was **RED ON CI and GREEN on his Mac** — and the cause
+was a dead name inside my own guard.
+It patched `cd._hist_dirs` with `create=True`. **MEASURED: `git grep _hist_dirs` over the whole
+tracked repo returns ONE match — the mock line itself.** An AST walk of
+`_check_the_sweep_would_find_something` gives its reachable calls as `os.path.isdir`, `os.path.join`,
+`cr.reel_dirs`, `ca.gate_failures`, `vr.panel_density`, `vr.rank_by_panel`. **The mock created an
+attribute nothing reads.**
+So the check ran against his REAL `tv/frames/hist` — gitignored, **799 entries on his Mac, 0
+tracked** — and on a runner it returned at the FIRST guard (*"no frames/hist on this machine"*),
+never reaching the INSTRUMENT branch the law exists to pin. A fixture that exists on one machine,
+which `regression-guard` §3 names by that exact description.
+⚠ **THE OBVIOUS REMEDY WAS REFUTED BEFORE IT WAS TRIED.** Editing the reason string at
+`console_doctor.py:393` would turn the gate green while `:421-424` — the actual INSTRUMENT branch —
+still never executes on any runner, and would re-merge the two facts the v3297 comment at `:400-407`
+was written to separate. **That in-file ruling outranks the fix.**
+FIX: a REAL TREE, not a bigger mock. `hist` derives from `HERE`, so pointing `cd.HERE` at a temp
+directory drives the genuine path — `isdir` passes on a real directory, `reel_dirs` lists real
+`reel_*` dirs, and `load_index` rebuilds an index from frame names (which is why the fixture writes
+actual jpg bytes, not empty dirs). The `skipTest` escape is gone too: it swallowed any exception into
+a skip, so a rename would have made the case vanish silently.
+PROVEN BY VENUE: the law now passes **with his `tv/frames/hist` moved aside** — the condition that
+used to fail. All 4 red-proofs re-proved PROVEN after the change.
+⚠ CONTEXT, attributed by delta: of the FOUR CI workflows red today, **three predate v3295 and were
+moved by none of my ships** — Routine M first red 21h50m before v3295 with an identical site at every
+commit; Routine I with zero successes in 100 runs and an identical failing set (ADDED 0 / FIXED 0);
+Publish red at `5ac970a9`. And v3296 silently FIXED one nobody counted
+(`test_every_store_read_is_routed`, 83 -> 85). **This was the only red that was ours.**
+Shipped v3300. [[regression-guard]] [[test-venue]] [[feedback-blind-fixture-green-gate]]
