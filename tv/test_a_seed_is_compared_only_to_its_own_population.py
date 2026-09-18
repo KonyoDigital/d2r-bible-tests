@@ -265,6 +265,47 @@ class TestASeedIsComparedOnlyToItsOwnPopulation(unittest.TestCase):
             "exemption has swallowed the fault it was carved beside. Said:\n  %s" % say2)
 
 
+    def test_a_row_excluded_for_two_reasons_is_subtracted_once(self):
+        """v3317, FOUND BY THE SECOND EYE ON v3314. Two counts, one row, subtracted twice.
+
+        `len(rows) - len(off) - len(nocmp)` double-subtracts a row that is BOTH switched-off and
+        non-comparable. Measured on the live walk the day it was found: rows=10, off=1, nocmp=1,
+        BOTH=0 — so the printed figure was correct THAT DAY, by accident. `machineOff` is stamped
+        in the fleet-beacon loop and `comparable` in the FROZEN seed loop, and nothing makes those
+        populations disjoint. This case builds the overlap the live data does not happen to have,
+        which is the only way a latent divergence can be seen RED. [[regression-guard]]
+        """
+        import console_doctor as CD
+
+        rows = [
+            {"name": "peer seed", "kind": LA.FROZEN, "value": 1, "drift": None, "stale": None,
+             "comparable": False, "comparableWhy": "a roster walk, not a store length",
+             "machineOff": True, "why": "that laptop is switched off",
+             "ageKnown": False, "ageMs": None},
+            {"name": "local live", "kind": LA.LIVE, "value": 2, "drift": None, "stale": False,
+             "ageKnown": True, "ageMs": 1000, "machineOff": False},
+        ]
+
+        _br, _g, _st = CD._board_read, CD._get, LA.staleness
+        try:
+            CD._board_read = lambda *a, **k: {"ok": True}
+            CD._get = lambda *a, **k: {"ok": True}
+            LA.staleness = lambda *a, **k: {"rows": rows, "ceiling": CEIL}
+            _state, say = CD._check_no_ledger_FIGURE_has_gone_stale_unnoticed()
+        finally:
+            CD._board_read, CD._get, LA.staleness = _br, _g, _st
+
+        self.assertIn(
+            "1 of 2 ledger figure(s) are current", say,
+            "one row is excluded for TWO reasons and was subtracted twice, so the count of "
+            "current figures is under-reported — and on a smaller ledger it would go negative. "
+            "Said:\n  %s" % say)
+        self.assertNotIn(
+            "0 of 2 ledger figure(s) are current", say,
+            "the double-subtraction is still there: 2 rows minus one row counted twice is 0. "
+            "Said:\n  %s" % say)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -289,6 +330,13 @@ RED_PROOF = [
         "file": "tv/ledger_authority.py",
         "find": '        if on_seed is True and _cmp["comparable"] is False:',
         "replace": '        if False:',
+        "matches": 1,
+    },
+    {
+        "why": "subtracting two counts double-counts a row excluded for both reasons",
+        "file": "tv/console_doctor.py",
+        "find": "                         % (len(rows) - len(_excluded), len(rows), len(off),",
+        "replace": "                         % (len(rows) - len(off) - len(nocmp), len(rows), len(off),",
         "matches": 1,
     },
     {

@@ -2887,6 +2887,16 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
     # same discipline as `off` above and `_BY_DESIGN_STATIONS` on the river row — an exemption that
     # can be audited instead of silently growing.
     nocmp = [r for r in rows if r.get("comparable") is False]
+    # ⚠⚠ v3317 — SUBTRACT A SET, NOT TWO COUNTS. Found by the second eye on v3314: a row that is
+    # BOTH machineOff and non-comparable would be subtracted TWICE from "how many are current",
+    # under-reporting the figure and, on a small ledger, underflowing past zero.
+    # MEASURED on the live walk when it was found: rows=10, off=1, nocmp=1, BOTH=0 — so the
+    # printed number was correct THAT DAY. It was correct by accident: `machineOff` is stamped in
+    # the fleet-beacon loop and `comparable` in the FROZEN seed loop, and nothing makes those two
+    # populations disjoint. A count that is right only because two builders happen not to overlap
+    # is a count waiting to diverge from the thing it counts. Identity, not equality: two distinct
+    # rows may legitimately carry the same name. [[zero-needs-a-denominator]]
+    _excluded = {id(r) for r in off} | {id(r) for r in nocmp}
     _nocmpsay = ("" if not nocmp else
                  " · %d figure(s) are not comparable by construction rather than out of date: %s"
                  % (len(nocmp), "; ".join(str(r.get("comparableWhy") or r["name"])
@@ -2936,7 +2946,7 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
         # branch away, and this is the branch that fires on his console today.
         return UNKNOWN, ("%d of %d ledger figure(s) are current; %d peer(s) are switched off, so "
                          "their figures are last-known rather than stale: %s%s"
-                         % (len(rows) - len(off) - len(nocmp), len(rows), len(off),
+                         % (len(rows) - len(_excluded), len(rows), len(off),
                             "; ".join(str(r.get("why") or r["name"]) for r in off[:2]),
                             _nocmpsay))
     if dark:
@@ -2948,7 +2958,7 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
     # clean verdict that quietly covers an unexamined row is the green that lies.
     return OK, ("%d of %d ledger figure(s) are current; every COMPARABLE frozen constant is level "
                 "with its live figure and every beacon is inside %.0f min.%s"
-                % (len(rows) - len(nocmp), len(rows), ceil["staleMs"] / 60000.0, _nocmpsay))
+                % (len(rows) - len(_excluded), len(rows), ceil["staleMs"] / 60000.0, _nocmpsay))
 
 
 def _check_read_names_lane(*_a, **_k):
