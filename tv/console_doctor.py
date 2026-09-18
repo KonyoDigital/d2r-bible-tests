@@ -4056,8 +4056,20 @@ def run(include_slow=True, include_periodic=None, tick=None):
                     _why += " · last asked %s ago, last state %s" % (_age, _prev.get("state"))
                 else:
                     _why += " · never asked since the sidecar began. NEVER, not missing."
+                # ⚠⚠ v3309 (#35) — PERSIST THE DISTINCTION, DO NOT MAKE THE SCREEN RE-DERIVE IT
+                # FROM PROSE. His screenshot: "ENGINES CORROBORATE **NEVER** — not asked this tick
+                # ... last asked 2m ago, last state missing". The SENTENCE was right and the WORD
+                # was wrong, because the panel maps `unmeasured` to NEVER unconditionally and the
+                # payload gave it no way to tell the two cases apart. They are different facts:
+                #   everAsked False -> genuinely NEVER asked since the sidecar began
+                #   everAsked True  -> asked before, just NOT ON THIS TICK; it carries its last
+                #                      verdict and its age, and does NOT bill him (his #35 rule)
+                # A reader that has to parse a sentence to recover a fact the writer already knew
+                # is the defect heart-first rule 6 is about. [[label-outlived-referent]]
                 rows.append({"check": name, "state": UNMEASURED, "why": _why,
                              "notAsked": True,
+                             "everAsked": bool(_prev),
+                             "lastState": (_prev.get("state") if _prev else None),
                              "surfaces": list(WATCHES.get(name, ()))})
                 continue
             try:

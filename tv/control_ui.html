@@ -12792,8 +12792,16 @@ window._lockMark = function(isOpen, px, label){
          unknown is a designed refusal (CAN'T ASK); unmeasured is NEVER. Same row height,
          no fifth accent: the WORD is the distinguisher, warn-tone only on missing. */
       if (!r || r.state === 'ok') return '';
+      /* ⚠⚠ v3309 (#35) — NEVER AND NOT-THIS-TICK ARE DIFFERENT FACTS, AND HIS SCREEN SAID
+         NEVER ABOUT A ROW ASKED TWO MINUTES AGO. `unmeasured` covers both: a periodic that has
+         genuinely never run, and one that simply was not asked on this tick and is carrying its
+         last verdict. His ruling is that the second must NOT read as a failure or bill him —
+         "if nothing is actually required of him, it does not belong in the count he acts on".
+         The engine now says which (`everAsked`), so this stops guessing. ⚠ The fallback when the
+         field is absent is NEVER, the louder word, because an older payload that cannot tell us
+         must not be rounded down to the reassuring answer. [[unknown-stays-unknown]] */
       var word = r.state === 'missing' ? 'MISSING'
-               : r.state === 'unmeasured' ? 'NEVER'
+               : r.state === 'unmeasured' ? (r.everAsked ? 'NOT THIS TICK' : 'NEVER')
                : r.state === 'unknown' ? 'CAN\'T ASK'
                : 'UNKNOWN';
       var tone = r.state === 'missing' ? 'warn' : '';
@@ -12813,10 +12821,30 @@ window._lockMark = function(isOpen, px, label){
        [[the-unjoined-end]] */
     var _mineWhat = {};
     try { (e.mineWhat || []).forEach(function (n) { _mineWhat[String(n)] = 1; }); } catch (_e) {}
-    var youRows = [], mineRows = [], unkRows = [];
+    /* ══ v3309 — THE PANEL WAS THE FIFTH COPY OF THE PARTITION, AND HIS SCREEN SAID SO ═══════
+       HIS SCREENSHOT, v3307: "⚠ the counter and this panel disagree (you 9 vs 11 shown) — a row
+       was counted that this panel did not draw". The arithmetic is exact: 11 − 9 = 2, the two
+       BY_DESIGN rows. v3307 taught the ENGINE that a row ruled NOT-A-DEFECT stops billing him
+       (#29 end routes, #30 the river); v3308 taught the ROUTE the same thing; this panel still
+       swept them into "waiting on YOU" because it bucketed by its own rule and only knew
+       `mineWhat`.
+
+       ⚠ THE DISAGREEMENT WARNING IS NOT THE DEFECT — IT IS THE SYSTEM WORKING. v3284 added it
+       precisely so a headline and a list could not quietly diverge, and it caught this within
+       minutes of the ship. Silencing the warning instead of closing the gap would have been the
+       real failure. [[zero-needs-a-denominator]]
+
+       ⚠ AND THEY STAY ON SCREEN. A BY_DESIGN row is not hidden, it MOVES — to its own heading,
+       at its real state and colour, carrying the ruling that closed it. A row that vanishes from
+       his count with nothing showing where it went is silencing by another name, which is the
+       one thing the MINE mechanism's own comment forbids. [[copy-drift]] [[the-unjoined-end]] */
+    var _designWhat = {};
+    try { (e.byDesignWhat || []).forEach(function (n) { _designWhat[String(n)] = 1; }); } catch (_e) {}
+    var youRows = [], mineRows = [], unkRows = [], designRows = [];
     var _sortRow = function (r) {
       var h = _vxHealthRow(r); if (!h) return;
       if (_mineWhat[String(r && r.check)]) mineRows.push(h);
+      else if (_designWhat[String(r && r.check)]) designRows.push(h);
       else if (r && (r.state === 'unknown' || r.state === 'unmeasured')) unkRows.push(h);
       else youRows.push(h);
     };
@@ -12886,14 +12914,19 @@ window._lockMark = function(isOpen, px, label){
        measured; the rendered number follows when they differ, because that is what he can
        actually see. A gap is a finding about the panel, not a reason to hide one of them.
        [[zero-needs-a-denominator]] [[label-outlived-referent]] */
+    /* v3309 — the fourth bucket gets a figure and a gap check like the other three, because a
+       bucket nobody counts is the next place a row can go missing without anyone noticing. */
+    var _nDesign = (e.byDesign != null) ? e.byDesign : designRows.length;
     var _gap = [];
     if (_nYou !== youRows.length)  _gap.push('you ' + _nYou + ' vs ' + youRows.length + ' shown');
     if (_nMine !== mineRows.length) _gap.push('code ' + _nMine + ' vs ' + mineRows.length + ' shown');
     if (_nUnk !== unkRows.length)  _gap.push('not-measured ' + _nUnk + ' vs ' + unkRows.length + ' shown');
+    if (_nDesign !== designRows.length) _gap.push('by-design ' + _nDesign + ' vs ' + designRows.length + ' shown');
     _lead.push('<div class="vx-lead-s">' + esc(
         (_nYou ? _nYou + ' thing(s) are waiting on YOU' : 'nothing is waiting on you')
       + ' \u00b7 ' + (_nMine ? _nMine + ' waiting on CODE' : 'nothing waiting on code')
       + ' \u00b7 ' + (_nUnk ? _nUnk + ' not measured' : 'everything was measured')
+      + (_nDesign ? ' \u00b7 ' + _nDesign + ' RED ON PURPOSE (not yours)' : '')
       + (_dSay ? ' \u00b7 ' + _dSay : '')
       + (_gap.length ? ' \u00b7 \u26a0 the counter and this panel disagree (' + _gap.join(', ')
                        + ') \u2014 a row was counted that this panel did not draw' : '')) + '</div>');
@@ -12922,6 +12955,8 @@ window._lockMark = function(isOpen, px, label){
          + '<section class="vx-sec vx-lead">' + _lead.join('') + '</section>'
          + _vxSection('WAITING ON YOU', youRows)
          + _vxSection('WAITING ON CODE \u2014 not yours to fix', mineRows)
+         /* v3309 — its own heading, so a row ruled not-a-defect is VISIBLE and not billed. */
+         + _vxSection('RED ON PURPOSE \u2014 ruled not a defect, nothing for you to do', designRows)
          + _vxSection('NOT MEASURED \u2014 unknown, which is not "fine"', unkRows)
          /* the machine detail, tucked: it is still one click away and no longer the first thing
             he reads. The brief: "doctor rows either rewritten or tucked". */

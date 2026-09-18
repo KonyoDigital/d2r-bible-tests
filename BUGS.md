@@ -38896,3 +38896,48 @@ after a crash), and now this one — **and this time I was the one who drifted i
 2. Red-proof [2] came back **BLIND at match count 1**. The mock was an *empty* dict, and
    `getattr(...) or {}` short-circuits on falsy — so the exception never fired and the sabotaged
    branch was never reached. A mock that cannot raise tests nothing.
+
+## REG-1125 — THE PANEL WAS THE FIFTH COPY OF THE PARTITION (v3309)
+
+His console at v3307, verbatim: *"9 thing(s) are waiting on YOU … ⚠ the counter and this panel
+disagree (you 9 vs 11 shown) — a row was counted that this panel did not draw."*
+
+**The arithmetic names it: 11 − 9 = 2, the two BY_DESIGN rows.** v3307 taught the ENGINE that a row
+ruled not-a-defect stops billing him; v3308 taught the ROUTE; the panel still bucketed client-side
+and knew only `mineWhat`.
+
+⚠ **THE DISAGREEMENT WARNING IS THE SYSTEM WORKING, NOT THE DEFECT.** v3284 added it so a headline
+and a list could not diverge in silence, and it caught this within minutes of the ship. Silencing
+the warning instead of closing the gap would have been the real failure.
+
+**FIX:** the panel reads `byDesignWhat` and those rows **MOVE** to their own heading — *"RED ON
+PURPOSE — ruled not a defect, nothing for you to do"* — rather than vanishing. A row that leaves his
+count with nothing showing where it went is silencing by another name. The new bucket gets a
+counter-vs-drawn gap check like the other three, because a bucket nobody counts is the next place a
+row goes missing unnoticed.
+
+⚠ Order is pinned: the by-design test must run BEFORE the `youRows` fallback, or the rows reach his
+count regardless of what is read.
+
+## REG-1126 — "NEVER" WAS PRINTED ABOUT A ROW ASKED TWO MINUTES AGO (v3309, #35)
+
+Same screenshot: *"ENGINES CORROBORATE **NEVER** — not asked this tick (PERIODIC — every 6 eagle
+ticks; next ask in 2) · last asked 2m ago, last state missing."* **The sentence was right and the
+word was wrong** — the word contradicting the line directly beneath it.
+
+The panel mapped `unmeasured` → NEVER unconditionally, because the payload gave it no way to tell
+two different facts apart:
+
+```
+everAsked False -> genuinely never asked since the sidecar began
+everAsked True  -> asked before, simply NOT ON THIS TICK; carries its last verdict and age,
+                   and does NOT bill him (his #35 standing rule)
+```
+
+**FIX:** the engine PERSISTS `everAsked` / `lastState`. A reader that must parse a sentence to
+recover a fact the writer already knew is the defect heart-first rule 6 names.
+
+⚠ The fallback stays **NEVER** when the field is absent — an older payload that cannot tell us must
+not be rounded down to the reassuring word.
+
+**GUARD:** `test_screen_parity`, 4 red-proofs PROVEN.
