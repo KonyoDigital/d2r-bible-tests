@@ -208,6 +208,33 @@ def _heart_gate(note):
 
 
 def bump(ver, name, note, repo=None):
+    # ⚠⚠ v3330 (#72) — DO NOT BANK A VERSION INTO A TREE SOMEONE IS GRADING.
+    #
+    # His ruling from the #46 false alarm: "do not write while a gate runs" must be a REFUSAL, not
+    # a habit. It has existed as PROSE in CLAUDE.md, in regression-guard and in every staged
+    # apply-script — four copies, none enforcing — and an entire session was spent hand-typing
+    # `pgrep -f hooks/pre-push` before each write. That worked every time, which is exactly what a
+    # habit looks like until the once it does not.
+    #
+    # WHY HERE: hooks/pre-push grades the WORKING TREE, not the commit (REG-1131). A version banked
+    # mid-run earns a green verdict about bytes that are not the ones shipping — the most expensive
+    # wrong answer this repo produces, because it is indistinguishable from a correct one. This is
+    # the one chokepoint EVERY ship passes, so putting it here makes that case structurally
+    # impossible even when the discipline slips.
+    #
+    # ⚠ IT CANNOT COVER AN AD-HOC EDIT and does not pretend to: a heredoc writing bible.html will
+    # never consult a module it does not import. What it covers is the BANK step. [[the-unjoined-end]]
+    try:
+        import tree_busy as _tb
+        _busy = _tb.why(repo or REPO)
+    except Exception as _tbe:
+        _busy = ("tree_busy could not be asked (%s) — that is UNKNOWN, not free"
+                 % type(_tbe).__name__)
+    if _busy:
+        raise SystemExit(
+            "REFUSED to bump %s: %s\n"
+            "   Wait for it to finish, then bump again. Nothing has been written."
+            % (ver, _busy))
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
     _heart_gate(note)
