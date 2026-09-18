@@ -274,6 +274,26 @@ class TestASeedIsComparedOnlyToItsOwnPopulation(unittest.TestCase):
         in the fleet-beacon loop and `comparable` in the FROZEN seed loop, and nothing makes those
         populations disjoint. This case builds the overlap the live data does not happen to have,
         which is the only way a latent divergence can be seen RED. [[regression-guard]]
+
+        ⚠⚠ THE SECOND EYE THEN REVIEWED v3317 ITSELF AND RETURNED THREE FINDINGS. Two are REFUTED
+        by code it could not see — it flagged the diff as truncated and said so — and the third is
+        real. All three are recorded, because a refuted finding nobody wrote down gets re-raised
+        for ever, and a real one buried in a review nobody re-reads is lost.
+
+          1. REFUTED — "a row with machineOff=True reaches the final `return OK`, so that
+             numerator changed meaning". It cannot: `if off:` returns UNKNOWN BEFORE the OK
+             return, so when OK is reached `off` is empty and `_excluded` is exactly
+             `{id(r) for r in nocmp}`. The OK numerator is unchanged.
+          2. REAL, and a TRADE-OFF rather than a bug. Keying on `id()` works because both lists
+             filter the SAME dict objects; a future copy or projection of a row would defeat it
+             and double-count. The alternative — keying on the row NAME — defeats on the opposite
+             input, two distinct rows legitimately sharing a name, and dicts are unhashable so
+             equality is not available. The choice is deliberate and now carries BOTH risks in
+             writing rather than only the one that argued for it.
+          3. REFUTED — "the fixture never executes the OK path, so the shipped test would pass
+             even if that line were unchanged". It does:
+             `test_the_doctor_neither_bills_him_for_it_nor_counts_it_as_current` drives the OK
+             branch and asserts both `state == CD.OK` and the count "1 of 2".
         """
         import console_doctor as CD
 
