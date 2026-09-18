@@ -36,6 +36,15 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+# This module PRINTS its reason (main() writes the busy sentence to stderr) and those sentences
+# carry non-ASCII. On a cp1255 console that crash happens WHILE REPORTING, so a tree that is
+# merely busy would exit non-zero for a reason unrelated to the check — the report killing the
+# messenger. Caught by the pre-push encoding gate, which refused this version for exactly it.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 REPO = os.path.dirname(HERE)
 
 
