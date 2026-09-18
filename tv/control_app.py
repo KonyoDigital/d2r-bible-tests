@@ -14803,6 +14803,77 @@ def _runaway_watch_loop():
 #: loop is impossible and short enough that he is not the fallback for a whole session.
 _RESCUE_ESCALATE_EVERY_S = 900.0
 
+# ── v3301 — THE RELAUNCH INTERLOCK REGISTER (task #38, his ruling) ───────────────────────────
+# Pure stdlib, no console imports, so its LAW runs on a GitHub runner instead of needing his Mac.
+# The rules all live in the module; this file only owns the dict and calls the release path.
+import relaunch_hold as _rh                                                          # noqa: E402
+_RELAUNCH_HOLD = _rh.new_state()
+
+
+def relaunch_hold_state():
+    """The interlock in the shared supervision vocabulary. -> dict (on/worked/lastTs/owed)."""
+    try:
+        return _rh.contract(_RELAUNCH_HOLD)
+    except Exception as e:
+        # UNKNOWN, never a confident idle. [[unknown-stays-unknown]]
+        return {"on": None, "worked": None, "lastTs": None, "owed": None,
+                "say": "the interlock register could not be read (%s)" % type(e).__name__}
+
+
+def relaunch_green_light_tick():
+    """THE GREEN LIGHT. Called on the rescue tick; fires a held relaunch once the work ends.
+
+    ⚠ This is the half that did not exist. Before v3301 a relaunch refused mid-sweep was
+    ABANDONED — the request was dropped and nothing ever re-fired it. -> (fired, say).
+    """
+    if not _RELAUNCH_HOLD.get("held"):
+        return False, "nothing is held"
+    try:
+        _ok, _why = nothing_in_flight("relaunch the console")
+    except Exception as e:
+        # ⚠ THREE STATES. An unreadable world is None, and None does not open the door.
+        _ok, _why = None, "could not tell what is in flight (%s)" % type(e).__name__
+    try:
+        _rh.note_clear(_RELAUNCH_HOLD, _ok)
+    except Exception:
+        pass
+    fire, say = _rh.release(_RELAUNCH_HOLD, _ok, _why)
+    if not fire:
+        return False, say
+    print("   %s" % say, flush=True)
+    try:
+        ui_fault_record("relaunch-green-light", why=say, where="relaunch_green_light_tick")
+    except Exception:
+        pass
+    _exec_relaunch_now()
+    return True, say
+
+
+def _exec_relaunch_now():
+    """Replace the process, the green light having already asked. -> None. Never raises."""
+    def _go():
+        try:
+            stop_agent(farewell=False)
+        except Exception as _se:
+            # Same ruling as v2774: a failed stop ABORTS. An orphaned capture ruins footage.
+            try:
+                ui_fault_record("relaunch-green-light-abandoned-stop-failed",
+                                why="stop_agent raised %s" % type(_se).__name__,
+                                where="_exec_relaunch_now")
+            except Exception:
+                pass
+            return
+        try:
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        except Exception as e:
+            try:
+                print("   green-light relaunch failed (%s) - the window stays as it is"
+                      % type(e).__name__, flush=True)
+            except Exception:
+                pass
+    threading.Thread(target=_go, daemon=True, name="tvd-greenlight-relaunch").start()
+
+
 
 def _recording_or_unknown():
     """Is a reel being recorded — treating a DEGRADED answer as YES. -> bool
@@ -14888,9 +14959,15 @@ def _exec_relaunch_soon():
                 # ⛔ ABANDON, do not queue. The cooldown was already stamped by the caller, so this
                 # cannot spin — the next attempt is at least _RESCUE_ESCALATE_EVERY_S away, by which
                 # time the sweep has normally finished and an ordinary rescue may have fixed it.
-                ui_fault_record("console-escalation-abandoned-in-flight", why=str(_why),
+                # ⛔ v3301 — HELD, NOT ABANDONED. This used to drop the request on the floor
+                # ("ABANDON, do not queue"), so a rescue that decided the console needed replacing
+                # would simply forget, and the next chance was a whole escalation period away.
+                # His #38 ruling is that it waits and then fires by itself. The register bounds
+                # the wait, so this still cannot spin. [[the-unjoined-end]]
+                _hsay = _rh.hold(_RELAUNCH_HOLD, str(_why), "rescue")
+                ui_fault_record("console-escalation-held-in-flight", why=str(_why),
                                 where="_exec_relaunch_soon")
-                print("   escalation ABANDONED - %s" % str(_why)[:150], flush=True)
+                print("   escalation HELD - %s" % str(_hsay)[:180], flush=True)
                 return
             stop_agent(farewell=False)
         except Exception as _se:
@@ -14940,6 +15017,13 @@ def _console_rescue_loop():
             _UI_BLANK_TICK[0] = int(_UI_BLANK_TICK[0]) + 1
             if _UI_BLANK_TICK[0] % 6 == 0:
                 _pixel_blank_report()
+            # v3301 — THE GREEN LIGHT, on a thread that already exists and is already
+            # instrumented. Adding a 22nd thread to a roster that can only see 11 is the
+            # precise scar heart-first records; this borrows the 10s tick instead.
+            try:
+                relaunch_green_light_tick()
+            except Exception:
+                pass
             win = globals().get("_MAIN_WIN")
             if win is None:
                 continue
@@ -29999,7 +30083,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3300",
+        "ver": "v3301",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -34344,54 +34428,34 @@ class Handler(BaseHTTPRequestHandler):
                 # the WEAKER one is the one with a button on it"), which is how I know it is the
                 # standing shape here rather than an accident. Same question, same answer, whoever
                 # is asking. [[copy-drift]] [[the-unjoined-end]]
-                _busy = []
-                try:
-                    if _CHRON_JOB.get("running"):
-                        if not sweep_past_its_ceiling()[0]:
-                            _busy.append("a chronicle sweep is reading")
-                except Exception:
-                    # ⚠ v2179 — FAIL CLOSED. This was `pass`, so a _CHRON_JOB that was not a
-                    # mapping made the sweep vanish from the busy list and ALLOWED a relaunch
-                    # mid-read — the opposite default to the ceiling check three lines up, in the
-                    # same function, both silent. An unreadable job state is not an idle one.
-                    # [[unknown-stays-unknown]]
-                    _busy.append("could not tell whether a chronicle sweep is reading")
-                try:
-                    if _VAULT_JOB.get("running"):
-                        _busy.append("a vault sweep is reading")
-                except Exception:
-                    # v2179 — FAIL CLOSED, same as the chronicle clause above. The review found
-                    # one inverted default here and the sweep for its siblings found two more:
-                    # an unreadable vault job and an unreadable mini state both read as IDLE and
-                    # allowed a relaunch on top of live work. [[feedback-generalize-fixes]]
-                    _busy.append("could not tell whether a vault sweep is reading")
-                try:
-                    if mini_state().get("running"):
-                        _busy.append("a mini is recording")
-                except Exception:
-                    _busy.append("could not tell whether a mini is recording")
-                # v2111 — AND THE ONE THAT MEANS HE IS FILMING. This route checked three job
-                # flags and not `_agent_alive()`, while `drift_may_relaunch()` — the AUTOMATIC
-                # path, added later — checks it and explains exactly why: "Restarting then both
-                # interrupts the session and ORPHANS the frames of the session it kills, because
-                # the reel fold runs at seal (v2071)."
-                # The two paths guarded different things, and the WEAKER one is the one with a
-                # button on it. v2107 put RELAUNCH NOW in the fleet banner, which made this a
-                # one-click way to do the exact thing the other path refuses. Same question, same
-                # answer, whoever is asking. [[copy-drift]]
-                try:
-                    # v2155 — the route asked whether a PROCESS existed too. Same correction
-                    # as nothing_in_flight: what must not be interrupted is a session MID-FILM.
-                    if _agent_mode in ("live", "sim"):
-                        _busy.append("the console is ON AIR (%s) — you are filming" % _agent_mode)
-                    elif _agent_alive() and _reel_is_growing(HIST_DIR):
-                        _busy.append("frames are still landing — a session is mid-film")
-                except Exception:
-                    _busy.append("could not tell whether the agent is alive")
-                if _busy:
-                    self._json(200, {"ok": False, "why": " and ".join(_busy)
+                # ⚠⚠ v3301 — THE THIRD COPY IS GONE, AND IT WAS THE WEAKEST OF THE THREE.
+                # This route built its own busy list. v2178.1's comment above records the fix for
+                # a runaway sweep landing on ONE of the two doors and leaving the clicked one
+                # deadlocked — the same shape, already corrected once here, and the copy that
+                # caused it was left in place. So it drifted again, and this time worse:
+                #
+                #   the copy appended "the console is ON AIR" from `_agent_mode` ALONE.
+                #
+                # `nothing_in_flight` fixed exactly that in v2161 — *"a STALE MODE DEADLOCKS IT
+                # FOREVER. `_agent_mode` is written only by start/stop, so after a CRASH it stays
+                # 'live' while `_agent_alive()` is False"* — and the fix landed on the automatic
+                # door only. ⚠⚠ THE CONSEQUENCE IS THE CRUEL PART: after an agent crash the mode
+                # string is stuck at "live", so THE RELAUNCH BUTTON REFUSES FOREVER — and it is
+                # the button you would press to recover from a crash. His console then goes back
+                # only through tvd-scan.sh, which is the terminal step v2027 existed to remove.
+                #
+                # One definition. Same question, same answer, whoever is asking.
+                # [[copy-drift]] [[the-unjoined-end]] [[v3295]]
+                _ok, _why = nothing_in_flight("relaunch the console")
+                if not _ok:
+                    # ⛔ v3301 — AND IT IS NOW HELD, NOT MERELY REFUSED. His #38 ruling: the
+                    # relaunch waits for the sweep and then a green light fires it by itself.
+                    _say = _rh.hold(_RELAUNCH_HOLD, _why, "button")
+                    self._json(200, {"ok": False, "why": _why
                                      + " — relaunching now would throw away a paid read. "
-                                       "Let it finish, then press again.", "busy": True})
+                                       "IT IS HELD and will fire by itself when the work "
+                                       "finishes; you do not need to press again.",
+                                     "busy": True, "held": True, "heldSay": _say})
                     return
                 # v2070 — THIS LAMP HAS READ `false` ON EVERY RELAUNCH SINCE v2027.
                 # It was `bool((doctor_payload() or {}).get("screen_recording"))`, and

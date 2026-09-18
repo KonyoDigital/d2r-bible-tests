@@ -38657,3 +38657,49 @@ commit; Routine I with zero successes in 100 runs and an identical failing set (
 Publish red at `5ac970a9`. And v3296 silently FIXED one nobody counted
 (`test_every_store_read_is_routed`, 83 -> 85). **This was the only red that was ours.**
 Shipped v3300. [[regression-guard]] [[test-venue]] [[feedback-blind-fixture-green-gate]]
+
+## REG-1115 — THE RELAUNCH BUTTON IS DEADLOCKED FOREVER BY A CRASHED AGENT (v3301)
+
+`/api/relaunch` kept its **own** copy of the in-flight busy list, and that copy appended
+`"the console is ON AIR"` from `_agent_mode` **alone** — with no `_agent_alive()` test.
+
+`nothing_in_flight` fixed exactly this in v2161, in its own words: *"A STALE MODE DEADLOCKS IT
+FOREVER. `_agent_mode` is written only by start/stop, so after a CRASH it stays 'live' while
+`_agent_alive()` is False."* **That fix landed on the automatic door only.**
+
+**The consequence is the cruel part.** After the agent crashes, the mode string is stuck at
+`"live"`, so the RELAUNCH BUTTON refuses forever — and it is the button you press to recover from a
+crash. His console then goes back only through `tvd-scan.sh`, which is the terminal step v2027
+existed to remove.
+
+⚠ **This is the SECOND drift of this same copy.** The v2178.1 comment directly above it records the
+ceiling fix landing on one of two doors and leaving the clicked one deadlocked, and notes *"the
+WEAKER one is the one with a button on it"*. The comment was written; **the copy was left in
+place**, so it drifted again into a worse defect.
+
+**FIX:** the copy is gone. The route calls `nothing_in_flight("relaunch the console")` — the one
+definition. Same question, same answer, whoever is asking.
+
+**GUARD:** `test_relaunch_interlock` · `test_the_route_no_longer_keeps_its_own_busy_list` counts
+`_busy = []` in comment-stripped source and requires **0**. Red-proof [4] restores the copy and the
+law goes red. [[copy-drift]] [[the-unjoined-end]]
+
+## REG-1116 — A RELAUNCH REFUSED MID-SWEEP WAS DROPPED, NOT QUEUED (v3301)
+
+`_exec_relaunch_soon`, verbatim: **"⛔ ABANDON, do not queue."** So a relaunch the rescue decided
+was needed, refused because a sweep was reading, was **thrown away**. Nothing re-fired it. The next
+chance was a whole escalation period later and might never come.
+
+**MEASURED 2026-09-18** from the GrokBot seat's own `GB-L-LOOKED · NATIVE ... (mandatory relaunch)`
+rows: **8 relaunches in one day**, gaps of 84 / 42 / 30 / 21 / 28 / 14 / 40 minutes — median ~30
+against a **60-110 minute** chronicle sweep. The conflict is the NORMAL path, not a corner case.
+
+**FIX (his #38 ruling):** it is now HELD and a GREEN LIGHT fires it by itself when the work
+finishes. Bounded from the FIRST ask; ⚠ a re-ask updates the reason and **must not** move the
+deadline, or pressing the button on any timer shorter than the TTL makes a bounded hold unbounded.
+UNKNOWN never fires.
+
+**GUARD:** `test_relaunch_interlock`, 11 cases, 5 red-proofs PROVEN. **HEART:** doctor check
+`relaunch green light` corroborates the register against `nothing_in_flight` — two independent
+sides — so a release path that stops being called is visible instead of silently expiring a held
+request unfired.

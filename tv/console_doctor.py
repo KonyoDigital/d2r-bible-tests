@@ -3585,11 +3585,61 @@ def _check_the_screen_is_still_painting():
                    "speak for now" % (len(stale), STALE_S / 3600.0)))
 
 
+def _check_a_held_relaunch_is_not_stuck():
+    """v3301 (#38) — THE INTERLOCK'S OWN SUPERVISOR: is the GREEN LIGHT still firing?
+
+    The corroborator's two sides are genuinely independent, which is the whole point:
+
+        side A — our own register says a relaunch is HELD
+        side B — `nothing_in_flight()`, computed by control_app from the sweep / mini / agent
+                 state, which knows nothing about the register
+
+    A hold while side B says BUSY is the interlock working, and must read green. A hold that
+    persists while side B has said CLEAR past the grace means the release path has stopped being
+    called — the request will sit there and expire UNFIRED, which is the pre-v3301 abandon coming
+    back through a different door. That is the one state nobody would otherwise notice, because a
+    held relaunch looks pending right up until it silently is not.
+
+    ⚠ A CONSOLE THAT IS NOT UP IS UNKNOWN, NEVER OK. Nothing can be held in a process that does
+    not exist, and reporting that as healthy is a zero with no denominator.
+    [[heart-first]] [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    """
+    try:
+        import control_app as ca
+        import relaunch_hold as rh
+    except Exception as e:
+        return UNKNOWN, "could not import the interlock: %s" % str(e)[:90]
+    try:
+        st = getattr(ca, "_RELAUNCH_HOLD", None)
+        if not isinstance(st, dict):
+            return UNKNOWN, ("this console has no relaunch register, so whether a relaunch is "
+                             "being held cannot be asked")
+        if not st.get("held"):
+            n = int(st.get("fired") or 0)
+            d = int(st.get("dropped") or 0)
+            return OK, ("no relaunch is held (fired %d, dropped-unfired %d since boot)" % (n, d))
+        try:
+            ok, _why = ca.nothing_in_flight("relaunch the console")
+        except Exception as e:
+            return UNKNOWN, ("a relaunch is held and what is in flight could not be read (%s), "
+                             "so whether the green light is late is UNKNOWN" % type(e).__name__)
+        bad, say = rh.stuck(st, ok)
+        if bad:
+            return MISSING, say
+        return OK, say
+    except Exception as e:
+        return UNKNOWN, "the interlock could not be read: %s" % str(e)[:90]
+
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
     # than hashing its own import.
     ("running code matches disk", _check_the_running_code_is_the_code_on_disk),
+    # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
+    # still fires. A held relaunch looks pending right up until it expires unfired, so the only
+    # way to see the release path die is to corroborate the register against the world.
+    ("relaunch green light", _check_a_held_relaunch_is_not_stuck),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
