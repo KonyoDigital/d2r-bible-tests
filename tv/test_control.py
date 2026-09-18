@@ -22183,10 +22183,24 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # than the code allows, so noise can only ever push a reading UP. This is not leniency —
         # a genuine 17-second tick is slow on both passes and still fails, which is the case the
         # gate exists for. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+        # ⚠⚠ v3320 — AND THE RE-MEASURE PRICED A DIFFERENT, LARGER POPULATION THAN THE FIRST
+        # PASS. The first loop skips `_skip` = SLOW | PERIODIC; this one skipped only SLOW, so it
+        # re-ran `engines corroborate` and `sweep would find` — the two checks PERIODIC exists to
+        # keep OFF the every-tick bill. MEASURED on his Mac 2026-09-18, same tick, same code:
+        #
+        #     first-pass population (63 checks)   4,134 ms    <- under the 9,000 ms budget
+        #     retry population      (65 checks)   8,859 ms
+        #     the surcharge: engines corroborate 3,057 + sweep would find 1,667 = 4,725 ms
+        #
+        # `min()` over two different populations is not a minimum of anything. It meant the retry
+        # could only ever absolve a burst LARGER than 8,859 ms — so the mechanism this block calls
+        # "what actually decides" was unreachable for every realistic burst, and the gate refused
+        # a legitimate push at 10,146 ms while the subset it names cost 4,134. A reading is only
+        # comparable to a reading of the SAME population. [[v3313]] [[v3317]]
         if total >= BUDGET_MS * 3:
             _t2 = 0.0
             for _n, _f in cd.CHECKS:
-                if _n in cd.SLOW:
+                if _n in _skip:
                     continue
                 _r0 = _t.time()
                 try:
@@ -22194,8 +22208,10 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                 except Exception:
                     pass
                 _t2 += (_t.time() - _r0) * 1000.0
-            print("   \u21bb whole subset re-measured: %.0f ms (first pass %.0f ms) "
-                  "— taking the lower of the two" % (_t2, total), flush=True)
+            print("   \u21bb the same %d-check population re-measured: %.0f ms "
+                  "(first pass %.0f ms) — taking the lower of the two"
+                  % (len([n for n, _ in cd.CHECKS if n not in _skip]), _t2, total),
+                  flush=True)
             total = min(total, _t2)
         self.assertLess(total, BUDGET_MS * 3,
                         "the whole cheap subset costs %.0f ms across TWO passes — it is in the "
@@ -22208,7 +22224,7 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                   "(%d of %d check(s) took over 1 ms). A green result here is UNMEASURED, not "
                   "proof the subset is cheap — the 16.6 s check this caught was only catchable on "
                   "a tree with a console, art and footage."
-                  % (did_work, len([n for n, _ in cd.CHECKS if n not in cd.SLOW])), flush=True)
+                  % (did_work, len([n for n, _ in cd.CHECKS if n not in _skip])), flush=True)
 
     def test_a_check_moved_to_SLOW_is_still_RUN_somewhere(self):
         """The mirror: moving a check into SLOW stops the watchdog running it. That is only safe

@@ -7,6 +7,47 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1132 — the gate re-measured a LARGER population than it first measured, and refused a push
+
+**v3320, 2026-09-18.** `test_the_cheap_subset_is_actually_CHEAP` refused a legitimate push with
+*"the whole cheap subset costs 10146 ms across TWO passes"*. It cost 4,134.
+
+The gate prices the every-tick doctor roster, and when the total goes over budget it re-measures and
+keeps `min(first, second)` — correct reasoning, and its own comment records why: a wall-clock figure
+moved **4,132 ms and 11,105 ms** between runs of unchanged code, so for a floor-bounded quantity the
+minimum is the honest estimator.
+
+**The two passes measured different populations.**
+
+| pass | skipped | checks | cost |
+|---|---|---|---|
+| first | `_skip` = `SLOW \| PERIODIC` | 63 | **4,134 ms** |
+| re-measure | `cd.SLOW` only | 65 | **8,859 ms** |
+
+The surcharge is `engines corroborate` (3,057 ms) + `sweep would find` (1,667 ms) = **4,725 ms that
+the every-tick path never pays** — PERIODIC exists precisely to keep them off that bill. So `min()`
+ran over two different things, and the retry could only ever absolve a burst LARGER than 8,859 ms.
+The block's own comment calls the retry *"what actually decides"*. It decided nothing.
+
+The same defect sat in the *"measured almost nothing"* denominator, which counted 65 checks where 63
+were timed — a warning whose fraction had a different bottom than top.
+
+⚠ **THIRD INSTANCE OF ONE SHAPE**, which is why it became a law rather than a fix: **v3313** a seed
+compared only to its own population · **v3317** the heart dividing by the population it counted ·
+this. Each time the numerator was right, the denominator was a different set, and the arithmetic ran
+anyway.
+
+**Attributed by blame, not assumed:** `70d5e39b5`, 2026-09-08 — ten days before the arc that hit it.
+
+**Swept:** four other `cd.SLOW` populations exist in `test_control.py`. None is a sibling — they
+count the EAGLE rows, where `include_slow=False` genuinely means all-but-SLOW.
+
+Law: `tv/test_a_remeasurement_covers_the_same_population.py` (gate `test_remeasure_population`,
+3 red-proofs PROVEN). It asks **ast**, not a grep: its own docstring names `cd.SLOW` four times, so a
+text law would read the explanation of the defect as the defect. And it pins WHICH set — a law
+asserting only that the two loops agree goes green when both are narrowed to `cd.SLOW`, which is the
+bug applied consistently.
+
 ### REG-837 — a law that SKIPPED was recorded as BLIND, and v2865 shipped that verdict
 
 **v2866.** `heart2.py --prove` reported `test_the_lock_derives_from_the_heart[1] BLIND ← stayed
