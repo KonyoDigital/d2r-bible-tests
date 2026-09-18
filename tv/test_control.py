@@ -25411,19 +25411,56 @@ class TestV2111TheQueueWasRightAboutFour(unittest.TestCase):
             self.ui = f.read()
 
     def test_relaunch_refuses_while_he_is_filming(self):
-        body = _between(self, self.app, 'path == "/api/relaunch"', "self._json(200, {\"ok\": False",
-                        what="the relaunch route", min_len=200)
-        # STRIP THE PROSE. The comment explaining this fix NAMES `_agent_alive()` — so with the
-        # real call deleted the assertion below still found the word and PASSED. That is the
-        # dangerous direction of this scar: not a false red, a false GREEN over a live defect.
-        # Caught only because the sabotage run reported "MISSED" and I checked the sabotage had
-        # actually applied instead of trusting the verdict. [[feedback-comments-vs-code]]
-        code = "\n".join(ln for ln in body.splitlines() if not ln.lstrip().startswith("#"))
-        self.assertGreater(len(code.strip()), 120, "the comment strip ate the route body")
-        self.assertIn("_agent_alive()", code,
-                      "the manual relaunch no longer checks whether he is FILMING. It replaces "
-                      "the process, and the reel fold runs at seal — restarting mid-session "
-                      "orphans that session's frames. The automatic path has always refused here")
+        """⚠⚠ REWRITTEN v3302, FROM TEXT TO BEHAVIOUR — and the rewrite is the stronger test.
+
+        This read the route's source for `_agent_alive()`. v3301 collapsed the route's duplicate
+        busy list into nothing_in_flight(), so the symbol left the route and this went red over a
+        change that made the guarantee STRONGER, not weaker: the route now reaches the filming
+        check through the one definition, which additionally handles the stale-mode case the
+        route's own copy got wrong (a crashed agent left `_agent_mode` at "live" with no
+        `_agent_alive()` test, deadlocking the BUTTON forever — REG-1115).
+
+        The rule was never "this file contains that symbol". It is "a relaunch is refused while
+        he is filming, because the reel fold runs at seal and replacing the process orphans that
+        session's frames". So drive it: put the console ON AIR and require a refusal that says so.
+        A behavioural test cannot be satisfied by a comment, which is the failure mode the old
+        prose-strip below was defending against. [[source-reading-guard]] §1"""
+        import unittest.mock as mock
+        sys.path.insert(0, HERE)
+        import control_app as ca
+
+        with mock.patch.object(ca, "_agent_mode", "live"), \
+             mock.patch.object(ca, "_agent_alive", lambda *a, **k: True):
+            ok, why = ca.nothing_in_flight("relaunch the console")
+        self.assertFalse(
+            ok,
+            "a relaunch was ALLOWED while the console is ON AIR. It replaces the process, and the "
+            "reel fold runs at seal (v2071) — so restarting mid-session ORPHANS that session's "
+            "frames, with no parent left to seal the reel. why=%r" % why)
+        self.assertIn("filming", why,
+                      "the refusal does not tell him he is filming, so the reason he cannot "
+                      "relaunch is invisible: %r" % why)
+
+        # ⚠ AND THE OTHER DIRECTION, or the assertion above is satisfied by a guard that refuses
+        # everything. A mode label with no live process must NOT hold the door — that stale-mode
+        # deadlock is exactly what left the button dead after a crash.
+        with mock.patch.object(ca, "_agent_mode", "live"), \
+             mock.patch.object(ca, "_agent_alive", lambda *a, **k: False), \
+             mock.patch.object(ca, "_reel_is_growing", lambda *a, **k: False):
+            ok2, why2 = ca.nothing_in_flight("relaunch the console")
+        self.assertTrue(
+            ok2,
+            "a STALE 'live' mode with no process behind it still refused the relaunch. "
+            "`_agent_mode` is written only by start/stop, so after a crash it stays 'live' "
+            "forever — and this is the door he uses to RECOVER from that crash. why=%r" % why2)
+
+        # and the route must still be the thing that asks
+        route = _between(self, self.app, 'path == "/api/relaunch"', 'if path == "/api/',
+                         what="the relaunch route", min_len=200)
+        code = "\n".join(ln for ln in route.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertIn('nothing_in_flight("relaunch the console")', code,
+                      "/api/relaunch no longer asks nothing_in_flight, so the behaviour proven "
+                      "above is not reached by the button he presses. [[the-unjoined-end]]")
 
     def test_the_eyes_card_does_not_ship_hidden(self):
         i = self.ui.find('id="g5-eyes-card"')
@@ -30345,7 +30382,13 @@ class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):
     def _route_src(self):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         i = src.index('if path == "/api/relaunch":')
-        j = src.index('self._json(200, {"ok": False, "why": " and ".join(_busy)', i)
+        # ⚠ v3302 — THE END ANCHOR WAS THE THING UNDER TEST. It searched for the route's own
+        # `" and ".join(_busy)` reply, so when v3301 collapsed that duplicate list into
+        # nothing_in_flight() this helper raised ValueError and took three cases down with it.
+        # A slice anchored on the implementation dies WITH the implementation. Bound it by the
+        # next route instead — a structural edge that survives any rewrite of this one.
+        # [[source-reading-guard]]
+        j = src.index('if path == "/api/', i + 10)
         # ⚠ COMMENTS OUT FIRST. This very block explains the defect in prose that names every
         # symbol the guard looks for, so a scanner reading its own documentation passes forever.
         # [[source-reading-guard]]
@@ -30363,9 +30406,19 @@ class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):
         self.assertIn("def sweep_past_its_ceiling(", src,
                       "the shared ceiling helper is gone — the two doors are copies again")
         route = self._route_src()
-        self.assertIn("sweep_past_its_ceiling", route,
-                      "/api/relaunch does not call the shared ceiling helper, so the button he "
-                      "presses can refuse forever while the automatic path has been released")
+        # ⚠⚠ v3302 — THE STRONGEST FORM OF THIS TEST, AND THE ONE ITS OWN DOCSTRING ASKS FOR:
+        # *"The only way two doors cannot disagree is if there is one door."* v3301 made that
+        # literally true — the route no longer lists conditions, it calls nothing_in_flight().
+        # So the ceiling helper is no longer expected INSIDE the route; requiring it there would
+        # now be requiring the copy back. What must hold is that the route reaches it THROUGH the
+        # single definition, which cannot drift because there is nothing left to drift from.
+        self.assertIn('nothing_in_flight("relaunch the console")', route,
+                      "/api/relaunch no longer delegates to nothing_in_flight(). Either it has "
+                      "gone back to building its own busy list — the copy that deadlocked the "
+                      "BUTTON for a crashed agent, REG-1115 — or it now guards nothing at all.")
+        self.assertNotIn("_busy = []", route,
+                         "/api/relaunch is building its own busy list again; that copy drifted "
+                         "twice and the second drift was worse than the first. [[copy-drift]]")
         i = src.index("def nothing_in_flight(")
         j = src.index("\ndef ", i + 10)
         self.assertIn("sweep_past_its_ceiling", src[i:j],
@@ -30388,29 +30441,43 @@ class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):
                                    "that relaunches on top of a live paid read" % (job,))
 
     def test_a_job_state_that_cannot_be_read_still_BLOCKS_the_relaunch(self):
-        """The route's outer `except: pass` made an unreadable _CHRON_JOB read as idle, allowing a
-        relaunch mid-read — the opposite default to the ceiling check three lines above it, in the
-        same function, both silent."""
-        # ⚠ NOT A CHAR WINDOW. `route[i:i+700]` cut off mid-way through the third clause and
-        # reported it missing — a guard failing on its own REACH rather than on the code, for the
-        # fifth time in this repo. Slice between two anchors that bound the thing itself.
-        # [[source-reading-guard]]
-        route = self._route_src()
-        i = route.index("_busy = []")
-        j = route.index("if _busy:", i)
-        tail = route[i:j]
-        # ⚠ AND ITS TWO SIBLINGS. The review named the chronicle clause; sweeping for the shape
-        # found the vault job and the mini state doing the identical thing, so an unreadable
-        # answer from ANY of the three read as "idle" and allowed a relaunch on top of live work.
-        # [[feedback-generalize-fixes]]
-        self.assertNotIn("except Exception:\n                    pass", tail,
-                         "a busy check in /api/relaunch still falls through to `pass`, so an "
-                         "unreadable job state vanishes from the busy list and the relaunch is "
-                         "allowed mid-read:\n%s" % tail[:400])
-        for said in ("could not tell whether a chronicle sweep is reading",
-                     "could not tell whether a vault sweep is reading",
-                     "could not tell whether a mini is recording"):
-            self.assertIn(said, tail, "the route does not fail CLOSED on %r" % said)
+        """An unreadable job state is not an idle one — and after v3301 there is ONE place to ask.
+
+        ⚠⚠ REWRITTEN v3302, FROM TEXT TO BEHAVIOUR. This used to slice the route for `_busy = []`
+        and grep three sentences out of it. v3301 collapsed that duplicate into
+        nothing_in_flight(), so the slice raised ValueError and the case died — a guard taken down
+        by the removal of the defect it was watching.
+
+        Reading source for this was always the weaker question. The property is not "these three
+        strings appear"; it is "an unreadable job REFUSES". So ask the function, with each job in
+        turn made unreadable, and require a refusal that NAMES which one could not be read —
+        because v3301's merge had to carry over the one thing the route's copy did better.
+        [[source-reading-guard]] §1 [[unknown-stays-unknown]]"""
+        import unittest.mock as mock
+        ca = self.ca
+
+        class _Unreadable(dict):
+            def get(self, k, d=None):
+                raise RuntimeError("this job state cannot be read")
+
+        for label, attr, said in (
+                ("chronicle", "_CHRON_JOB", "could not tell whether a chronicle sweep is reading"),
+                ("vault", "_VAULT_JOB", "could not tell whether a vault sweep is reading")):
+            with mock.patch.object(ca, attr, _Unreadable()):
+                ok, why = ca.nothing_in_flight("relaunch the console")
+            self.assertFalse(ok, "an unreadable %s job ALLOWED a relaunch. An unreadable state is "
+                                 "UNKNOWN, and a relaunch on top of a live paid read is exactly "
+                                 "what this refuses. why=%r" % (label, why))
+            self.assertIn(said, why, "the refusal does not say WHICH job could not be read, so he "
+                                     "is told 'something' is wrong with no way to act: %r" % why)
+
+        def _boom(*a, **k):
+            raise RuntimeError("mini state cannot be read")
+        with mock.patch.object(ca, "mini_state", _boom):
+            ok, why = ca.nothing_in_flight("relaunch the console")
+        self.assertFalse(ok, "an unreadable mini state ALLOWED a relaunch: %r" % why)
+        self.assertIn("could not tell whether a mini is recording", why,
+                      "the refusal does not name the mini: %r" % why)
 
     def test_the_two_doors_refuse_on_the_same_conditions(self):
         """The class, not the instance: every condition one door refuses on, the other must too."""
@@ -30419,15 +30486,22 @@ class TestV2178BothDoorsAnswerTheSameQuestion(unittest.TestCase):
         j = src.index("\ndef ", i + 10)
         fn = "\n".join(L for L in src[i:j].split("\n") if not L.strip().startswith("#"))
         route = self._route_src()
+        # ⚠⚠ v3302 — THE CONDITIONS ARE PINNED ON THE ONE DOOR, AND THE ROUTE IS PINNED TO
+        # USE IT. Asserting each condition appears in BOTH is what a two-copy world needs; in a
+        # one-door world it would be an assertion that the copy still exists. The class docstring
+        # names the ideal — "the only way two doors cannot disagree is if there is one door" —
+        # and v3301 built it, so this now checks exactly that and nothing weaker.
         for cond in ("_CHRON_JOB", "_VAULT_JOB", "mini_state", "_agent_mode",
                      "_reel_is_growing", "sweep_past_its_ceiling"):
             self.assertIn(cond, fn, "nothing_in_flight no longer asks about %s — this guard has "
                                     "lost its reference side" % cond)
-            self.assertIn(cond, route,
-                          "/api/relaunch does not ask about %s while nothing_in_flight does. The "
-                          "automatic path and the BUTTON must answer the same question, or the "
-                          "one with a button on it is the weaker guard — v2111 corrected exactly "
-                          "this once already." % cond)
+        self.assertIn('nothing_in_flight("relaunch the console")', route,
+                      "/api/relaunch does not delegate to nothing_in_flight, so the BUTTON and "
+                      "the automatic path can once again answer the same question differently. "
+                      "That divergence has now been corrected three times: v2111, v2178.1, and "
+                      "v3301 — where the route's surviving copy tested `_agent_mode` with no "
+                      "`_agent_alive()`, so a CRASHED agent deadlocked the relaunch button "
+                      "forever. [[copy-drift]] [[the-unjoined-end]]")
 
 
 class TestV2178TheInterlockCannotBecomeAPermanentLock(unittest.TestCase):

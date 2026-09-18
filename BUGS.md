@@ -38703,3 +38703,64 @@ UNKNOWN never fires.
 `relaunch green light` corroborates the register against `nothing_in_flight` — two independent
 sides — so a release path that stops being called is visible instead of silently expiring a held
 request unfired.
+
+## REG-1117 — THE PUSH GATE AND CI ASKED DIFFERENT QUESTIONS UNDER ONE NAME (v3302)
+
+`hooks/pre-push:300` runs `blueprint.py --check`. It asked only: *does BLUEPRINT.md match what
+`render()` would produce right now?*
+
+But `render()` **faithfully writes the drift into the document** — BLUEPRINT.md:787 reads
+`188 modules · 3 unindexed` and then names them. So a tree with unindexed modules produces a
+document that **accurately records the problem**, `--check` confirms the document is current, and
+the push proceeds. **The guard was satisfied by an honest description of the defect.**
+
+CI's `test_the_blueprint_names_the_engine` asks the real question — `engine_index()["unindexed"]
+== []`.
+
+**MEASURED:** `rulings.py` landed in v3294 (`5ac970a9`) with no engine-index entry. Every push
+since passed the local step; **CI has been red on every run since that commit — seven versions.**
+
+⚠ Two gates, one name, and **the weaker one is the one that blocks the push**. That is the same
+shape as REG-1115 one layer up, and the third time this repo has recorded it.
+
+**FIX:** `--check` now also refuses when `unindexed` is non-empty, quoting the CI gate by name; an
+UNREADABLE index refuses rather than passing as complete. Plus the three missing entries.
+
+**PROVEN RED** by a canary module added to disk *with the document regenerated*, so the pre-existing
+stale-branch could not be the thing that caught it. ⚠ My first sabotage removed an index entry and
+fired the STALE branch instead — it proved nothing about the new one, and I re-ran it properly.
+
+## REG-1118 — A PRUNED REEL BOUGHT A PAID READ IT COULD ONLY LOSE ON (v3303)
+
+`_chron_reel_owes_a_read`'s own docstring: *"re-owe the moment the reel GROWS, because new frames
+are new evidence and **that is the only thing** that makes a re-read worth paying for."*
+
+The code disagreed, in two places at once:
+
+```
+if len(_ff) != _at:  return True      # `!=` includes SHRINKAGE
+return _old < _at                     # a look-era frame GONE == deletion
+```
+
+So a **pure prune** — frames deleted, nothing captured — bought a paid read of a reel now holding
+**less** film than when it was last read. It can only find less than the answer already recorded.
+His money, spent to re-confirm a smaller version of what the ledger already says.
+
+⚠ v3298 neither introduced nor fixed this; it made the second branch *explicitly* deletion-triggered
+while correcting a different defect. The contradiction stood for versions.
+
+**FIX — ONE RULE, subsuming both branches without weakening either:**
+`new film = (frames now) − (look-era frames still present)`, re-owe iff `> 0`.
+
+| case | old | new |
+|---|---|---|
+| nothing moved | no | no (REG-1111 keeps its verdict) |
+| pure growth +3 | yes | yes |
+| **pure DELETION −3** | **yes** | **NO** ← the only row that changes |
+| prune 3 + capture 3, stable count | yes | yes (TestV2202 keeps its verdict) |
+| prune 3 + capture 1 | yes | yes |
+
+v3298's 5ms pad and both of its measured bounds are untouched.
+
+**GUARD:** `test_new_film_buys_a_read` — 5 BEHAVIOURAL cases building their own temp reel, so it
+runs on a runner rather than needing his `frames/hist`. 2 red-proofs PROVEN.

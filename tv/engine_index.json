@@ -592,6 +592,14 @@
   "purpose": "The Grok actor for the guest seat plus the redaction that keeps a public mirror publishable: a stable identity, and a deep scrub of the owner's install id, hostname, user and home paths out of every payload the box will serve.",
   "territory": "guest"
  },
+ "handoff.py": {
+  "entryPoints": [
+   "main"
+  ],
+  "gotcha": "⚠ THE WATERMARK MOVES ONLY WITH --mark, NEVER BY DRAINING - so reading the queue can never mark an unanswered ACT as read. Measured 2026-09-18: #180 held 1,177 comments / 2.55 MB and was taking 140 comments a day against 10 replies; the watermark drain is 65.5x cheaper. It still drains the CLOSED queues 179/180 on purpose, because the GrokBot native seat kept posting there after the rotation to #230.",
+  "purpose": "Drains the GrokBot/Grok handoff queues in O(new) rather than O(all), using a stored watermark plus the REST `since` parameter, and sorts each comment into ACT / ASK / FYI so a brief cannot be lost in a wall of watch ticks.",
+  "territory": "routines-infra"
+ },
  "health_engine.py": {
   "entryPoints": [
    "report",
@@ -1281,6 +1289,19 @@
   "purpose": "Grid paint witness: measures an N×M grid of the console window and reports which CELLS are drawn vs blank, so 'this half is painted and that half is not' is expressible.",
   "territory": "render-pixels"
  },
+ "relaunch_hold.py": {
+  "entryPoints": [
+   "new_state",
+   "hold",
+   "release",
+   "contract",
+   "stuck",
+   "note_clear"
+  ],
+  "gotcha": "Pure functions over a plain dict, deliberately - control_app owns the state so the LAW can run on a GitHub runner instead of importing pywebview and a live port. ⚠ THREE TRAPS. (1) `release(ok=None)` is UNKNOWN and MUST NOT FIRE; firing then relaunches into a sweep it merely failed to see. (2) A re-ask updates the reason and MUST NOT move the deadline, or pressing the button on any timer shorter than HOLD_TTL_S makes a bounded hold unbounded. (3) The expiry is checked BEFORE the world, so a permanently-stuck sweep cannot outlive the bound.",
+  "purpose": "The relaunch INTERLOCK (his #38 ruling): hold a relaunch while a sweep is reading, then GREEN-LIGHT it by itself when the work finishes, so a sweep is never killed mid-read and the request is never silently dropped.",
+  "territory": "console"
+ },
  "render_check.py": {
   "entryPoints": [
    "check",
@@ -1446,6 +1467,15 @@
   ],
   "gotcha": "",
   "purpose": "Deletes or renames what each route lane claims to have found in a safe_copy tree, re-runs the module in a subprocess, and banks real refusals into self_arming; zero-match attempts are dropped, not counted.",
+  "territory": "gates-proofs"
+ },
+ "rulings.py": {
+  "entryPoints": [
+   "scan",
+   "main"
+  ],
+  "gotcha": "⚠ EXTRACTION WAS TRIED FIRST AND MEASURED TO FAIL: four designs, one acceptance test (find v1631's tab colour, v2397's removed hover wall, and the lane-count strip ruling). Marker+prohibition found 0 of 3; bare prohibition language returned 13,974 hits. The marker is not a reliable key, which is why the list is MARKED BY HAND rather than mined. Unindexed since v3294 (5ac970a9) and that is exactly when test_the_blueprint_names_the_engine went red on CI.",
+  "purpose": "Reports the STANDING RULINGS that must stop a fix before it is written - a marked, auditable list of decisions Konyo has already made, with a denominator that admits what it cannot see.",
   "territory": "gates-proofs"
  },
  "run_gates.py": {

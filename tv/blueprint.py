@@ -772,7 +772,45 @@ def main(argv=None):
             return 1
         strip = code_only
         if strip(have) == strip(txt):
-            print("BLUEPRINT.md is current.")
+            # ⚠⚠ v3302 — CURRENT IS NOT THE SAME QUESTION AS COMPLETE, AND THE GAP SHIPPED A
+            # PERMANENTLY-RED CI GATE FOR SEVEN VERSIONS.
+            #
+            # `--check` asked only "does BLUEPRINT.md match what render() would produce now".
+            # render() faithfully WRITES THE DRIFT INTO THE DOCUMENT — "188 modules · 3 unindexed"
+            # and then names them — so a tree with unindexed modules produces a document that
+            # accurately records the problem, and this check confirmed the document was current
+            # and exited 0. **The guard was satisfied by an honest description of the defect.**
+            # That is the shape source-reading-guard exists to prevent, arriving from the other
+            # side: not prose mistaken for code, but a correct report mistaken for a clean bill.
+            #
+            # MEASURED 2026-09-18: `rulings.py` landed in v3294 (5ac970a9) with no engine-index
+            # entry. Every push since passed this step, and CI's
+            # test_the_blueprint_names_the_engine — which asks `engine_index()["unindexed"] == []`
+            # — has been RED on every run since that commit. Two gates, one name, and the WEAKER
+            # one is the one that blocks the push. [[the-unjoined-end]] [[regression-guard]] §1
+            #
+            # Asking the same question locally is the whole fix.
+            try:
+                _rows, _drift = engine_index()
+                _un = list(_drift.get("unindexed") or [])
+            except Exception as _e:
+                # ⚠ UNKNOWN IS NOT CLEAN. If the index cannot be read, say so and refuse, rather
+                # than letting an unreadable map pass as a complete one.
+                print("BLUEPRINT.md is current, but the engine index could NOT BE READ (%s) — "
+                      "refusing, because whether every module is named is now UNKNOWN."
+                      % type(_e).__name__)
+                return 1
+            if _un:
+                print("BLUEPRINT.md is current, but %d module(s) on disk have NO engine-index "
+                      "entry, so the map does not describe them:" % len(_un))
+                for _m in _un:
+                    print("     %s" % _m)
+                print("   add an entry to tv/engine_index.json (entryPoints / purpose / gotcha / "
+                      "territory), then: python3 tv/blueprint.py")
+                print("   ⚠ this is the same question CI's test_the_blueprint_names_the_engine "
+                      "asks. It was RED there and green here for seven versions.")
+                return 1
+            print("BLUEPRINT.md is current, and every module on disk is named.")
             return 0
         print("BLUEPRINT.md is STALE — the map no longer matches the code.")
         print("   regenerate it:  python3 tv/blueprint.py")

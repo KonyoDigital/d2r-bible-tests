@@ -16641,8 +16641,6 @@ def _chron_reel_owes_a_read(rid, mem=None):
             # is newer than the directory was at the look. A sidecar moves neither.
             # [[unknown-stays-unknown]]
             _ff = _g3.glob(os.path.join(_rd, "f_*.jpg"))
-            if len(_ff) != _at:
-                return True               # the census moved -> the film itself changed
             # ⚠⚠ v3298 — MEMBERSHIP, NOT TIMING. Two cuts of this comparison failed in OPPOSITE
             # directions, each caught by a gate: a bare `newest > _dm` re-owed EVERY freshly
             # looked reel (MEASURED: the frame's CONTENT mtime lands ~35us AFTER the dir's ENTRY
@@ -16659,8 +16657,30 @@ def _chron_reel_owes_a_read(rid, mem=None):
             # was tried and admitted the churn frame as look-era — the third wrong cut, caught
             # by its own law. A sidecar removes nothing, so the look-era census holds and no
             # read is bought; churn removed a look-era frame, visible at any gap above 5ms.
+            # ⚠⚠ v3302 (#57) — ONE RULE: IS THERE NEW FILM? NOT: HAS THE FILM CHANGED.
+            # The two branches this replaces both re-owed on a census that merely MOVED, and
+            # `!=` includes SHRINKAGE. So a pure prune — frames deleted, nothing captured — bought
+            # a paid read of a reel that now holds LESS than when it was last read. It can only
+            # find less. This function's own docstring states the contract and the code has
+            # disagreed with it for versions: *"re-owe the moment the reel GROWS, because new
+            # frames are new evidence and THAT IS THE ONLY THING that makes a re-read worth
+            # paying for."*
+            #
+            # New film is exactly `total now - look-era still present`, and that single expression
+            # subsumes both old branches without weakening either. Verdicts, all measured against
+            # the cases the gates already pin:
+            #
+            #   freshly looked, nothing happened   old=at, now=at    -> 0 new  -> no  (REG-1111)
+            #   pure growth (+3 captured)          old=at, now=at+3  -> 3 new  -> yes
+            #   pure DELETION (-3 pruned)          old=at-3, now=at-3-> 0 new  -> NO   <-- the fix
+            #   prune 3 + capture 3, count stable  old=at-3, now=at  -> 3 new  -> yes (TestV2202)
+            #   prune 3 + capture 1                old=at-3, now=at-2-> 1 new  -> yes
+            #
+            # Only the deletion row changes. The 5ms pad and its two measured bounds are v3298's
+            # and are untouched — 183us worst same-event skew (27x headroom), 20ms tightest
+            # gate-pinned churn gap (4x above). [[the-unjoined-end]] [[copy-drift]]
             _old = sum(1 for _p in _ff if os.stat(_p).st_mtime <= float(_dm) + 0.005)
-            return _old < _at             # a look-era frame is GONE -> churn under a stable count
+            return (len(_ff) - _old) > 0  # NEW film bought it; a smaller reel buys nothing
         except Exception:
             return True                   # unmeasurable -> never skip on a guess
     # A 0-PAGE SEAL IS NOT "DONE", BUT IT IS ALSO NOT WORK. retention says it exactly: "that is
@@ -18596,7 +18616,21 @@ def nothing_in_flight(consequence=None):
     # with no consequence supplied it states the fact and stops. [[label-outlived-referent]]
     busy = []
     try:
-        if _CHRON_JOB.get("running"):
+        # ⚠⚠ v3302 — FAIL CLOSED *PER CLAUSE*, NOT ONLY AT THE OUTER except.
+        # v3301 collapsed /api/relaunch's duplicate busy list into this function. The copy was
+        # weaker in the ways that mattered (a stale `_agent_mode` deadlocked the BUTTON forever),
+        # but it was STRONGER in one: it named WHICH job it could not read. This function had a
+        # single outer `except` saying only "could not tell what is running", so the collapse
+        # would have traded three specific diagnoses for one vague one. A merge must not lose the
+        # better half of what it absorbs, so the specific sentences move here and the guard that
+        # pinned them now points at this function. [[copy-drift]] [[unknown-stays-unknown]]
+        try:
+            _chron_running = bool(_CHRON_JOB.get("running"))
+        except Exception:
+            _chron_running = None          # UNKNOWN. Never idle.
+        if _chron_running is None:
+            busy.append("could not tell whether a chronicle sweep is reading")
+        elif _chron_running:
             # v2156 — AND SAY HOW LONG. Konyo, looking at this exact banner: "when does the read
             # finish? do we have a time estimate ... so i know." A refusal that names a condition
             # he cannot see the end of is a refusal he can only wait out blind.
@@ -18615,9 +18649,21 @@ def nothing_in_flight(consequence=None):
                 busy.append("a chronicle sweep is reading — %s" % _e["say"])
             else:
                 busy.append("a chronicle sweep is reading")
-        if _VAULT_JOB.get("running"):
+        try:
+            _vault_running = bool(_VAULT_JOB.get("running"))
+        except Exception:
+            _vault_running = None
+        if _vault_running is None:
+            busy.append("could not tell whether a vault sweep is reading")
+        elif _vault_running:
             busy.append("a vault sweep is reading")
-        if (mini_state() or {}).get("running"):
+        try:
+            _mini_running = bool((mini_state() or {}).get("running"))
+        except Exception:
+            _mini_running = None
+        if _mini_running is None:
+            busy.append("could not tell whether a mini is recording")
+        elif _mini_running:
             busy.append("a mini is recording")
         # ── v2155 — ASK WHETHER FOOTAGE IS BEING WRITTEN, NOT WHETHER A PROCESS EXISTS. ──────
         # `_agent_alive()` is true whenever the TVD agent process is up, and v1823 already wrote
@@ -30083,7 +30129,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3301",
+        "ver": "v3303",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
