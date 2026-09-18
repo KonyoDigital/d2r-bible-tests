@@ -12298,6 +12298,47 @@ window._lockMark = function(isOpen, px, label){
   }
   window._shLanesRender = _shLanesRender;
 
+  /* ══ v3292 — ONE PLACE THAT TURNS A STAMP INTO WORDS, AND A TICK THAT KEEPS IT TRUE ═══════
+     All three raised by the cross-family eye on v3291, and all three real:
+
+       1. THE FRESHNESS LINE ITSELF WENT STALE. _shStoryRender runs once per shelf open, and the
+          only other callers of thShelf() are event-driven — a dossier note edit, an art-map
+          repaint. Leave the shelf open two minutes and it still said "measured just now". A
+          staleness warning that goes stale is worse than none, because it is believed.
+       2. CLOCK SKEW WAS TRUSTED. atMs is the SERVER's wall clock and Date.now() is the client's.
+          The console binds 0.0.0.0, so a second machine can hold this panel open against a clock
+          that disagrees. A wrong number is worse than UNKNOWN.
+       3. A NON-NUMBER TOOK THE GOOD BRANCH. `if (!_a)` lets the JSON string "1789..." through,
+          and the subtraction then renders "measured NaNs ago".
+
+     Returning null for every unusable case means the caller prints the UNKNOWN sentence, and
+     there is exactly one definition of the words — the initial render and the tick cannot drift
+     apart. [[stale-reading]] [[unknown-stays-unknown]] [[copy-drift]] */
+  window._shAgeText = function (a, n) {
+    if (typeof a !== 'number' || !isFinite(a) || a <= 0) return null;
+    var s = Math.round((Date.now() - a) / 1000);
+    if (s < -5) return null;          // his clock is behind the server's: say UNKNOWN, not a lie
+    if (s < 0) s = 0;
+    return 'measured '
+         + (s < 3 ? 'just now' : (s < 90 ? s + 's ago' : Math.round(s / 60) + 'm ago'))
+         + (n != null ? ' against ' + n + ' reel' + (n === 1 ? '' : 's') + ' on disk' : '');
+  };
+  /* The tick. Cheap, bounded and self-silencing: it does nothing at all unless the shelf is open
+     AND carries a stamped line, so it costs one getElementById while he is elsewhere. */
+  window._shAgeTick = function () {
+    try {
+      var ov = document.getElementById('th-shelfov');
+      if (!ov || ov.hidden) return;
+      var el = ov.querySelector('.shs-age[data-at]');
+      if (!el) return;
+      var txt = window._shAgeText(Number(el.getAttribute('data-at')),
+                                  el.hasAttribute('data-n') ? Number(el.getAttribute('data-n')) : null);
+      el.textContent = txt || '\u26a0 this reading carries no usable timestamp, so how current '
+                            + 'it is is UNKNOWN';
+    } catch (e) {}
+  };
+  try { setInterval(window._shAgeTick, 15000); } catch (e) {}
+
   function _shStoryRender(st){
     var el = document.getElementById('sh-story');
     if (!el) return;
@@ -12378,17 +12419,15 @@ window._lockMark = function(isOpen, px, label){
            reading of unknown age wear the same face as one taken a second ago.
            [[stale-reading]] [[zero-needs-a-denominator]] */
         +   (function () {
-              var _a = st.atMs;
-              if (!_a) {
+              var _a = st.atMs, _n = (st.measuredReels != null) ? st.measuredReels : null;
+              var _txt = window._shAgeText(_a, _n);
+              if (_txt == null) {
                 return '<div class="shs-ysub shs-age shs-age-unk">\u26a0 this reading carries no '
-                     + 'timestamp, so how current it is is UNKNOWN</div>';
+                     + 'usable timestamp, so how current it is is UNKNOWN</div>';
               }
-              var _s = Math.max(0, Math.round((Date.now() - _a) / 1000));
-              var _n = (st.measuredReels != null) ? st.measuredReels : null;
-              return '<div class="shs-ysub shs-age">measured '
-                   + (_s < 3 ? 'just now' : (_s < 90 ? _s + 's ago' : Math.round(_s / 60) + 'm ago'))
-                   + (_n != null ? ' against ' + _n + ' reel' + (_n === 1 ? '' : 's') + ' on disk' : '')
-                   + '</div>';
+              /* the stamp rides on the element so the tick can re-say it without another fetch */
+              return '<div class="shs-ysub shs-age" data-at="' + _a + '"'
+                   + (_n != null ? ' data-n="' + _n + '"' : '') + '>' + esc(_txt) + '</div>';
             })()
         + '</div>';
     }

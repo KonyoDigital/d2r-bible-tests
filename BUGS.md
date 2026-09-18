@@ -36626,6 +36626,73 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1101 — a proof that proved nothing reported success, and nothing ran it anyway
+
+**v3292.** Konyo, on being handed three "lessons learned": *"why not fix them?"* — correctly, a
+lesson is worth less than a guard.
+
+**THE LESSON.** A red-proof came back **BLIND**: it matched its anchor **exactly once**, deleted
+the clause it targeted, and the law stayed **GREEN**. It had been asserting two phrases against
+the whole of `control_ui.html`, and both occur **three times** because neighbouring panels share
+the idiom — so unrelated sites satisfied it and it had never pinned its own branch. A correct
+match count is what separated that from a wrong sabotage: **the anchor was right and the LAW was
+weak.**
+
+**TWO GAPS, BOTH MEASURED, NEITHER WHAT I FIRST ASSUMED.**
+
+⚠ I first reported that `--prove` "exits 0 whether every proof passes or the gate has no proof".
+That measurement was right and **my inference from it was wrong**: heart2 already ended with
+`if results and BLIND in results.values(): return 1`. **BLIND was always consequential.** My runs
+exited 0 because none of them contained a BLIND.
+
+What was NOT consequential is **INVALID** — the verdict meaning the sabotage matched **nothing**,
+so the proof changed no byte and the gate has no working red-proof while reporting that it has
+one. Measured with a throwaway gate whose `find` was deliberately absent:
+
+```
+"INVALID — the tamper matched 0 time(s)"     ->   exit 0
+```
+
+**Twice in one session a REAL proof went INVALID on a ROTTED anchor** — once on a line my own
+refactor had deleted. Both printed the word and exited 0. Any hook or CI step calling this would
+have recorded success. That is how inert proofs accumulate exactly where the static law cannot see
+them. [[matches-once-can-still-prove-nothing]] [[exit-status-of-the-block]]
+
+**And nothing ran it.** `grep heart2 hooks/pre-push` returned **nothing**. The organ that asks
+whether the gates can still go red was never consulted by the gate that ships.
+
+**WHAT SHIPPED.**
+
+1. `prove_exit_code(results)` — extracted from `main()` deliberately, because *a decision reachable
+   only by building a sandbox is a decision nothing will ever test*. BLIND and INVALID fail and are
+   **named**; **UNPROVABLE is named and NOT failed**, because it means the tree was already red,
+   which is the suite's finding — a tool red for somebody else's reason is one you learn to ignore.
+2. A pre-push step proving **only the gates whose test file is in this push**. All 435 would add
+   minutes to a gate already running 12–20, and the laws at risk are the ones just written.
+   It **fails OPEN** when it cannot derive the gate names (announced as a skip, never as a pass)
+   and **fails CLOSED** on a real BLIND/INVALID — a hook that blocks his push over its own
+   confusion is one that gets bypassed. Gate names are derived by **importing** `run_gates`, not by
+   regex over it.
+
+**Gate:** `test_inert_proof_exit`, 3 red-proofs, all PROVEN at exactly 1 match each — behavioural,
+calling `prove_exit_code` with fixtures across six shapes.
+
+✅ **IT CAUGHT A ROTTED PROOF THE SAME HOUR IT SHIPPED, ON MY OWN WORK.** While extending
+`test_pipeline_reading_age` in this very commit I refactored `var _a = st.atMs;` into
+`var _a = st.atMs, _n = …`. Its red-proof still anchored on the old spelling, matched **0** times,
+and went **INVALID** — and the new exit code turned that into a failure instead of a silent 0.
+Three of my own assertions in that one law rotted the same way and had to be re-anchored. This is
+not a rare shape; it is what happens whenever a law and the code it pins are edited together.
+
+⚠ Also fixed here, all three raised by the cross-family eye on v3291 and all real:
+the freshness line **itself went stale** (it rendered once per shelf open and nothing re-said it,
+so a panel left open kept reading *"measured just now"* — a staleness warning that goes stale is
+worse than none, because it is believed); **clock skew was trusted** (the console binds 0.0.0.0, so
+a second machine can hold that panel against a disagreeing clock — a >5s negative age now reads
+UNKNOWN rather than printing a number); and `if (!_a)` **let a JSON string through**, rendering
+*"measured NaNs ago"*. One helper, `_shAgeText`, now owns the wording so the render and the tick
+cannot drift into two dialects.
+
 ## REG-1100 — the board's strongest claim was the one thing he could not check
 
 **v3291.** Konyo at the pipeline board, 2026-09-18: *"pipeline though might need some updated 8

@@ -58,10 +58,13 @@ class TestThePipelineReadingCarriesItsAge(unittest.TestCase):
                       "are needed for the reading to mean anything")
 
     def test_the_panel_prints_the_age_beside_the_figures(self):
-        self.assertIn("var _a = st.atMs;", self.ui,
+        # ⚠ re-anchored at v3292: the declaration gained a second variable, so the trailing
+        # semicolon moved and the old anchor matched nothing. My own refactor rotted my own
+        # assertion - the same shape the INVALID verdict exists to catch.
+        self.assertIn("var _a = st.atMs,", self.ui,
                       "the panel never reads the stamp, so the server measures an age nothing "
                       "shows - built and unreachable")
-        self.assertIn("' reel' + (_n === 1 ? '' : 's') + ' on disk'", self.ui,
+        self.assertIn("' reel' + (n === 1 ? '' : 's') + ' on disk'", self.ui,
                       "the population is not said on screen, or its singular is wrong")
 
     def _age_clause(self):
@@ -75,7 +78,7 @@ class TestThePipelineReadingCarriesItsAge(unittest.TestCase):
         law stayed GREEN. The match count is what exposed it.
         [[presence-law-vs-reachability-law]] [[source-reading-guard]]
         """
-        i = self.ui.find("var _a = st.atMs;")
+        i = self.ui.find("var _a = st.atMs,")
         self.assertGreater(i, -1, "the age branch vanished")
         j = self.ui.find("})()", i)
         self.assertGreater(j, i, "the age branch has no end anchor")
@@ -89,9 +92,44 @@ class TestThePipelineReadingCarriesItsAge(unittest.TestCase):
                       "exactly like one taken a second ago")
         self.assertIn("UNKNOWN</div>", clause,
                       "it must say UNKNOWN in the word he recognises, not merely omit the age")
-        self.assertIn("if (!_a)", clause,
-                      "there is no branch for the absent stamp at all, so the UNKNOWN wording "
+        self.assertIn("if (_txt == null)", clause,
+                      "there is no branch for the unusable stamp at all, so the UNKNOWN wording "
                       "below it can never be reached")
+
+
+    def test_the_age_is_re_said_on_a_tick_so_it_cannot_itself_go_stale(self):
+        """v3292, raised by the cross-family eye on v3291 — and it is the sharpest of the three.
+
+        `_shStoryRender` runs once per shelf open. The only other callers of `thShelf()` are
+        event-driven — a dossier note edit, an art-map repaint — so leaving the shelf open two
+        minutes left it still reading "measured just now". **A staleness warning that goes stale
+        is worse than none, because it is believed.** [[stale-reading]]
+        """
+        self.assertIn("window._shAgeTick = function ()", self.ui,
+                      "nothing re-says the age, so it freezes at whatever it was when the panel "
+                      "was opened")
+        self.assertIn("setInterval(window._shAgeTick", self.ui,
+                      "the tick exists and nothing runs it")
+        self.assertIn("data-at=", self.ui,
+                      "the stamp does not ride on the element, so the tick would have to re-fetch "
+                      "to know what it is re-saying")
+        self.assertIn("ov.hidden) return", self.ui,
+                      "the tick must do nothing while the shelf is closed - a timer that works "
+                      "when nobody is looking is a cost with no reader")
+
+    def test_a_skewed_or_malformed_stamp_reads_UNKNOWN_rather_than_a_wrong_number(self):
+        """Also raised on v3291. The console binds 0.0.0.0, so a second machine can hold this
+        panel open against a clock that disagrees; and `if (!_a)` let the JSON string through,
+        which rendered "measured NaNs ago"."""
+        i = self.ui.find("window._shAgeText = function (a, n)")
+        self.assertGreater(i, -1, "the age wording is not in one place, so the render and the "
+                                  "tick can drift into two dialects")
+        body = self.ui[i:self.ui.find("};", i)]
+        self.assertIn("typeof a !== 'number' || !isFinite(a) || a <= 0", body,
+                      "a string or a zero takes the good branch and renders NaN")
+        self.assertIn("if (s < -5) return null", body,
+                      "a client clock behind the server's renders a negative age as though it "
+                      "were a measurement")
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
@@ -106,8 +144,26 @@ RED_PROOF = [
     {
         "why": "a panel that does not read the stamp leaves the server measuring for nobody",
         "file": "tv/control_ui.html",
-        "find": "              var _a = st.atMs;",
-        "replace": "              var _a = 1;",
+        # ⚠ RE-ANCHORED AT v3292, AND BY THE GUARD THIS VERSION SHIPS. The declaration gained a
+        # second variable, so `var _a = st.atMs;` matched nothing and this proof went INVALID —
+        # which until v3292 exited 0 and would have read as success. It was caught because the
+        # same commit made an inert proof fail. Third rotted anchor in this one law today.
+        "find": "              var _a = st.atMs, _n = (st.measuredReels != null) ? st.measuredReels : null;",
+        "replace": "              var _a = 1, _n = null;",
+        "matches": 1,
+    },
+    {
+        "why": "without the tick the freshness line freezes and keeps saying just now for minutes",
+        "file": "tv/control_ui.html",
+        "find": "  try { setInterval(window._shAgeTick, 15000); } catch (e) {}",
+        "replace": "  try { void 0; } catch (e) {}",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the type guard renders a JSON string stamp as measured NaNs ago",
+        "file": "tv/control_ui.html",
+        "find": "    if (typeof a !== 'number' || !isFinite(a) || a <= 0) return null;",
+        "replace": "    if (!a) return null;",
         "matches": 1,
     },
     {

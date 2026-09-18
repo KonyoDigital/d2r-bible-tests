@@ -309,6 +309,58 @@ except Exception:
   # Written down rather than left as a silent hole. [[unknown-stays-unknown]]
 fi
 
+# ══ v3292 — A CHANGED LAW MUST DEMONSTRATE IT CAN STILL GO RED ════════════════════════════════
+# A red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause
+# it targeted, and the law stayed GREEN — it had been asserting phrases that occur three times
+# elsewhere in the file, so unrelated sites satisfied it and it never pinned its own branch. It was
+# caught only because `heart2.py --prove` happened to be run BY HAND. Nothing in this hook ran it.
+#
+# ⚠ ONLY THE GATES WHOSE TEST FILE IS IN THIS PUSH. Proving all 435 would add minutes to a gate
+# that already runs 12-20, and the laws at risk are the ones just written or edited.
+#
+# ⚠ THE ASYMMETRY IS DELIBERATE: it FAILS OPEN when it cannot work out which gates changed (a skip,
+# announced as a skip, never as a pass) and FAILS CLOSED on an actual BLIND or INVALID verdict. A
+# hook that blocks his push over its own confusion is one that gets bypassed.
+_chg_tests="$(git diff --name-only @{push}.. 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
+if [ -n "$_chg_tests" ]; then
+  _gates="$(python3 - $_chg_tests <<'PYGATE' 2>/dev/null || true
+import sys, os
+sys.path.insert(0, "tv")
+try:
+    import run_gates
+except Exception:
+    sys.exit(0)
+changed = {os.path.basename(p) for p in sys.argv[1:]}
+out = []
+for g in run_gates.GATES:
+    for part in (getattr(g, "argv", None) or []):
+        if os.path.basename(str(part)) in changed:
+            out.append(g.name)
+            break
+print(" ".join(sorted(set(out))))
+PYGATE
+)"
+  if [ -z "$_gates" ]; then
+    echo "pre-push: ⚠ tv/test_*.py changed but no gate name could be derived, so no red-proof was"
+    echo "          exercised. THIS IS A SKIP, NOT A PASS."
+  else
+    _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
+    if python3 "$REPO/tv/heart2.py" --prove $_gates > "$_prove_log" 2>&1; then
+      echo "pre-push: ✅ every changed law demonstrated it can still go red."
+    else
+      echo "pre-push: ❌ a changed law has a red-proof that PROVES NOTHING — push blocked."
+      echo "          Reproduce: python3 tv/heart2.py --prove $_gates"
+      echo "          ── last 24 lines ───────────────────────────────────────────"
+      tail -24 "$_prove_log" | sed 's/^/          /'
+      echo "          ────────────────────────────────────────────────────────────"
+      echo "          A law that cannot go red is not a law. BLIND means the sabotage ran and the"
+      echo "          law stayed green; INVALID means the anchor matched nothing, so the proof"
+      echo "          changed no byte. Both report coverage they do not provide."
+      exit 1
+    fi
+  fi
+fi
+
 if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
   echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
   echo "            actually does. Fix it, or say why it is now correct, then push again."

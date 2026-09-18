@@ -1477,6 +1477,34 @@ def triage(say=print):
     return {"writable": [n for n, _ in writable], "unprovable": [n for n, _ in unprovable]}
 
 
+def prove_exit_code(results):
+    """(exit_code, broken, idle) for a set of prove() verdicts. Decides; prints nothing.
+
+    ══ v3292 — THE VERDICT MUST BE RETURNED, NOT ONLY PRINTED ═══════════════════════════════
+    BLIND already exited 1 and that was right. INVALID did not — and INVALID is the verdict that
+    says the sabotage MATCHED NOTHING, so the proof changed no byte and demonstrated nothing. The
+    gate it belongs to has no working red-proof at all, while reporting that it has one.
+
+    MEASURED 2026-09-18 with a throwaway gate whose `find` was deliberately absent:
+        "INVALID — the tamper matched 0 time(s)"  ->  exit 0
+    Twice in one session a REAL proof went INVALID because its anchor had rotted — once on a line
+    my own refactor had deleted. Both printed the word and exited 0, so any hook or CI step
+    calling this recorded success. That is how inert proofs accumulate precisely where the static
+    law cannot see them. [[matches-once-can-still-prove-nothing]] [[exit-status-of-the-block]]
+
+    ⚠ UNPROVABLE is NAMED AND NOT FAILED, deliberately. It means the law was already red before
+    the tamper — a fact about the working tree, which the suite is the organ to report. Failing it
+    here would make this tool red for something it did not find, and a tool that is red for
+    somebody else's reason is one you learn to ignore.
+
+    Extracted from main() so it can be exercised with fixtures: a decision that can only be
+    reached by building a sandbox is a decision nothing will ever test.
+    """
+    broken = sorted(n for n, v in (results or {}).items() if v in (BLIND, INVALID))
+    idle = sorted(n for n, v in (results or {}).items() if v == UNPROVABLE)
+    return (1 if broken else 0), broken, idle
+
+
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--report", action="store_true")
@@ -1550,8 +1578,33 @@ def main(argv):
         with io.open(STATE, "w", encoding="utf-8") as fh:
             json.dump(_out, fh)
         print("\n  ✓ RATCHET: unproven %d (was %s)" % (now, base if base < 10 ** 9 else "unset"))
-    if results and BLIND in results.values():
-        return 1
+    # ══ v3292 — AN INERT PROOF MUST NOT EXIT 0 ═══════════════════════════════════════════════
+    # BLIND already returned 1 and that was right. INVALID did not, and INVALID is the verdict
+    # that says the sabotage MATCHED NOTHING — the proof changed no byte, so it demonstrated
+    # nothing and the gate it belongs to has no working red-proof at all.
+    #
+    # MEASURED 2026-09-18 with a throwaway gate whose `find` was deliberately absent:
+    #     "INVALID — the tamper matched 0 time(s)"  ->  exit 0
+    # Twice in one session a real proof went INVALID because its anchor had ROTTED — once on a
+    # line my own refactor had deleted. Both printed the word and exited 0, so any harness, hook
+    # or CI step calling this would have recorded success. That is how inert proofs pile up
+    # exactly where the static law cannot see them. [[matches-once-can-still-prove-nothing]]
+    # [[exit-status-of-the-block]]
+    #
+    # ⚠ UNPROVABLE is deliberately NOT failed here. It means the law was ALREADY RED before the
+    # tamper, which is a fact about the working tree, and the test suite is the organ that reports
+    # that. Failing it twice would make this tool red for a reason it did not find.
+    if results:
+        _code, _broken, _idle = prove_exit_code(results)
+        if _idle:
+            print("\n  ⚪ %d gate(s) UNPROVABLE — already red before the tamper, so nothing was "
+                  "demonstrated. Not failed here: that is the suite's finding, not this one.\n     %s"
+                  % (len(_idle), ", ".join(_idle[:6]) + (" …" if len(_idle) > 6 else "")))
+        if _broken:
+            print("\n  ✗ %d gate(s) have a red-proof that PROVES NOTHING (blind or inert):\n     %s"
+                  % (len(_broken), ", ".join(_broken[:8]) + (" …" if len(_broken) > 8 else "")))
+        if _code:
+            return _code
     return 0
 
 
