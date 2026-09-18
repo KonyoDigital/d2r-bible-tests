@@ -71,6 +71,15 @@ tv/.board_identity.json.tmp
 # failures, the IP-dependent verdict), exactly like .tvd_identity.json beside it. Committing
 # it would push one machine's beacon history onto every other machine that pulls.
 tv/.tvd_beacon.json
+# v3328 — the read-names feeder's LANE STATE, per-machine and rewritten every 45s.
+# Every sibling lane store is ignored (.vault_autoread.json, .second_eye.jsonl,
+# .heart2.json, .handoff_seen.json); I copied _vault_autoread_save's persistence idiom
+# in v3324 and not its gitignore treatment, so this one shipped TRACKED. Committing it
+# puts a 45-second counter in every diff and makes his Mac and Windows fight over a file
+# neither should share. LIFETIME still means what it said: the file persists on the
+# machine that wrote it, which is the only machine whose lane history it describes.
+tv/.read_names_feeder.json
+tv/.read_names_feeder.json.tmp
 
 # scratch probes used while debugging — never ship
 _forgecheck.html
