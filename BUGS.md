@@ -38868,3 +38868,31 @@ make the rows vanish with nothing showing where they went — silencing by anoth
 ⚠ `river joints` is **deliberately not** in the roster: it is red for a STATE-DEPENDENT reason
 ("blocked at prune — NOTHING is safe to delete yet"), genuinely his the day something IS safe to
 delete. A static entry would silence it permanently — the mute button the MINE comment forbids.
+
+## REG-1124 — THE SCREEN SAID 9 WHILE THE ENGINE SAID 7 (v3308)
+
+v3307 taught the watchdog's `_EAGLE` partition about `BY_DESIGN`. The **`/api/eagle` route — the one
+his console actually reads — kept its own copy** and knew only about `MINE`.
+
+**MEASURED on his live console, minutes after the ship:** the engine partitioned to **7** and the
+route still answered **`needsYou=9`**, with `byDesign` absent entirely. Two surfaces, one question,
+and it is a number he acts on.
+
+⚠ **THE ROUTE'S COMMENT SAID IT WAS FINE.** Verbatim: *"the SAME rule as the _EAGLE partition, and
+the only one any surface may quote from here on."* True when written; **my change made it false.**
+That is exactly how a copy drifts — nobody edits the comment when they change the other copy.
+
+⚠ **THIRD INSTANCE OF THIS SHAPE IN ONE ARC:** v3295 (`lane_read_tags`, three copies of a lane's
+work list), v3301/REG-1115 (`/api/relaunch`'s third busy list, drifted into deadlocking the button
+after a crash), and now this one — **and this time I was the one who drifted it.**
+
+**FIX:** `eagle_partition()` is the one definition; both callers use it.
+
+**GUARD:** `test_one_partition`, 3 red-proofs PROVEN.
+⚠ Two of my own errors caught while writing it, both by counting rather than by reading:
+1. The structural scan reported **3 hits, all inside the definition** — a law that bans its own
+   subject everywhere flags the fix as the defect. The owner is now exempt, as `shelf_driver` is in
+   `test_a_lane_has_one_work_list`.
+2. Red-proof [2] came back **BLIND at match count 1**. The mock was an *empty* dict, and
+   `getattr(...) or {}` short-circuits on falsy — so the exception never fired and the sabotaged
+   branch was never reached. A mock that cannot raise tests nothing.

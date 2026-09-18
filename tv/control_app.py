@@ -18809,6 +18809,49 @@ def _drift_loop():
 # about two minutes, which is fine for a button and not fine every ten. It ANNOUNCES ONCE per
 # distinct problem, because a watchdog that repeats itself is one he learns to scroll past, and it
 # clears that memory when the problem goes, so a RETURNING fault is said again. It fixes nothing.
+def eagle_partition(rows):
+    """THE ONE partition of doctor rows into his / mine / by-design / unknown. -> dict.
+
+    ⚠⚠ v3308 — THIS EXISTS BECAUSE THE RULE WAS WRITTEN TWICE AND I DRIFTED IT MYSELF, IN THE
+    SAME HOUR I SHIPPED IT. v3307 taught the watchdog's `_EAGLE` partition about BY_DESIGN so
+    rows already ruled NOT-DEFECTS stop billing him. The `/api/eagle` ROUTE — the one his console
+    actually reads — kept its own copy and knew only about MINE. So the screen went on saying
+    needsYou=9 while the engine had been taught to say 7, and the two disagreed about a number he
+    acts on.
+
+    ⚠ The route's own comment claimed "the SAME rule as the _EAGLE partition, and the only one any
+    surface may quote from here on". It was true when written and my change made it false, which
+    is exactly how a copy drifts: nobody edits the comment. Prose cannot hold two copies in step;
+    one definition can. Same fix as v3295's lane_read_tags, and the same as v3301 collapsing
+    /api/relaunch's third busy list (REG-1115). [[copy-drift]] [[the-unjoined-end]]
+
+    ⚠ UNREADABLE ROSTERS BILL EVERYTHING. A roster that will not load must never SILENCE a row —
+    that would quietly shrink the count he acts on for a reason nobody can see.
+    """
+    try:
+        import console_doctor as _cd0
+        mine_names = set(getattr(_cd0, "MINE", {}) or {})
+    except Exception:
+        mine_names = set()
+    try:
+        import console_doctor as _cd1
+        design_names = set(getattr(_cd1, "BY_DESIGN", {}) or {})
+    except Exception:
+        design_names = set()
+    rows = list(rows or [])
+    miss = [r for r in rows if isinstance(r, dict) and r.get("state") == "missing"]
+    not_his = mine_names | design_names
+    return {
+        "bad":      [r for r in miss if r.get("check") not in not_his],
+        "mine":     [r for r in miss if r.get("check") in mine_names],
+        "byDesign": [r for r in miss if r.get("check") in design_names],
+        # UNKNOWN is reported, never folded into OK. `unmeasured` is a periodic that was not
+        # asked this tick — his #35 ruling: it carries its last verdict and does not bill him.
+        "unk":      [r for r in rows if isinstance(r, dict)
+                     and r.get("state") in ("unknown", "unmeasured")],
+    }
+
+
 _EAGLE = {"checked": None, "needsYou": None, "unknown": None, "rows": [], "say": "not measured yet",
           "ticks": 0}   # v2802 — declared, not conjured by .get() on first use
 _EAGLE_EVERY_S = float(os.environ.get("TV_EAGLE_EVERY_S", "600") or 600)
@@ -18924,14 +18967,10 @@ def _eagle_once():
     # v3307 (#62) — BY_DESIGN joins MINE in not billing him. Same mechanism, same guarantee:
     # the row still renders red, it just stops inflating the count of things HE can act on.
     # Measured before: needsYou=9, two of which were rows already ruled NOT DEFECTS.
-    try:
-        _design_names = set(getattr(_cd, "BY_DESIGN", {}) or {})
-    except Exception:
-        _design_names = set()          # unreadable roster -> bill everything, never silence on a guess
-    _not_his = _mine_names | _design_names
-    bad = [r for r in _missing if r.get("check") not in _not_his]
-    mine = [r for r in _missing if r.get("check") in _mine_names]
-    by_design = [r for r in _missing if r.get("check") in _design_names]
+    # v3308 — THE ONE partition. Was three lines of set arithmetic here and a fourth copy in the
+    # /api/eagle route; the route knew only about MINE, so the screen said 9 while this said 7.
+    _part = eagle_partition(_drawn)
+    bad, mine, by_design = _part["bad"], _part["mine"], _part["byDesign"]
     unk = [r for r in _drawn if r.get("state") in ("unknown", "unmeasured")]
     # v2079 — AND WHAT IT DOES WITH WHAT IT SAW. Konyo: "give it the capabilities to see this so
     # when it happens in the future it can auto scar / auto heal / auto fix."
@@ -30171,7 +30210,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3307",
+        "ver": "v3308",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -33242,22 +33281,19 @@ class Handler(BaseHTTPRequestHandler):
                 # two of the three were MY defects, fixable by no click of his. Billing him for
                 # my bugs is how the number becomes noise, after which the one line that really
                 # is his gets skimmed with the rest.
-                try:
-                    _mine_names = set(getattr(_cd, "MINE", {}) or {})
-                except Exception:
-                    _mine_names = set()
-                _miss = [r for r in _rows if r.get("state") == "missing"]
+                # ⚠ v3308 — CALLS THE ONE PARTITION. This used to recompute the rule inline
+                # and knew only about MINE, so after v3307 taught the engine about BY_DESIGN the
+                # ROUTE HIS CONSOLE READS still said 9 while the engine said 7. The comment here
+                # claimed it was "the SAME rule as the _EAGLE partition"; it was, until it wasn't,
+                # and nobody edits a comment when they change the other copy. [[copy-drift]]
+                _p = eagle_partition(_rows)
                 self._json(200, {"ok": True, "checks": _rows,
-                                 # the SAME rule as the _EAGLE partition, and the only one any
-                                 # surface may quote from here on.
-                                 "needsYou": len([r for r in _miss
-                                                  if r.get("check") not in _mine_names]),
-                                 "mine": len([r for r in _miss
-                                              if r.get("check") in _mine_names]),
-                                 "mineWhat": [r.get("check") for r in _miss
-                                              if r.get("check") in _mine_names],
-                                 "unknown": len([r for r in _rows
-                                                 if r.get("state") == "unknown"]),
+                                 "needsYou": len(_p["bad"]),
+                                 "mine": len(_p["mine"]),
+                                 "mineWhat": [r.get("check") for r in _p["mine"]],
+                                 "byDesign": len(_p["byDesign"]),
+                                 "byDesignWhat": [r.get("check") for r in _p["byDesign"]],
+                                 "unknown": len(_p["unk"]),
                                  "generatedTs": int(time.time() * 1000)})
             except Exception as _e:
                 # a doctor that cannot run must say so, never answer "all clear"
