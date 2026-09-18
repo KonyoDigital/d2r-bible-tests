@@ -19928,8 +19928,7 @@ def _retention_once():
     # [[feedback-contradiction-is-the-finding]] [[unknown-stays-unknown]] [[label-outlived-referent]]
     try:
         import shelf_driver as _sd_lane
-        _vault_lane_tags = frozenset(t for t, l in _sd_lane.OWED_BY.items()
-                                     if l == "vault" and t in _sd_lane.READ_CLEARS)
+        _vault_lane_tags = _sd_lane.lane_read_tags("vault")
     except Exception:
         _vault_lane_tags = None
     if _vault_lane_tags is None:
@@ -23101,8 +23100,7 @@ def _vault_owed_reels(hist=None):
         # vault tags, and `rows-not-banked` is not a read — the sweep already ran and made
         # rows; the missing thing is a durable BANK, so a re-read spends and clears nothing,
         # then retires the reel as "still owed". READ_CLEARS is the subset a read can fix.
-        _vault_tags = frozenset(t for t, lane in _sd.OWED_BY.items()
-                                if lane == "vault" and t in _sd.READ_CLEARS)
+        _vault_tags = _sd.lane_read_tags("vault")
     except Exception:
         return None
     if not _vault_tags:
@@ -29950,7 +29948,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3294",
+        "ver": "v3295",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

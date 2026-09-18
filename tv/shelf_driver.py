@@ -94,6 +94,27 @@ HELD = ("recent", "test-fixture", "holds-proof", "target-met",
         "no-witness-index", "ledger-unreadable")
 
 
+def lane_read_tags(lane):
+    """The tags `lane` owns THAT A PAID READ CAN CLEAR — the one definition of a lane's work list.
+
+    v3295 — THIS EXISTS BECAUSE THE SAME EXPRESSION WAS WRITTEN TWICE AND THE COPIES DRIFTED.
+    `control_app._vault_autoread_candidates` computed `OWED_BY ∩ READ_CLEARS` (v2878) while
+    `river_walk`'s PRINTER probe still counted the single tag `vault-owes`. The lane held 3
+    `panels-never-banked` reels and the river printed "the lane's queue is EMPTY ... this reel
+    waits for a seal nothing will write" — an instrument and the thing it measures disagreeing
+    about what the lane is for, which is the whole failure this module's docstring is against.
+
+    Returning a frozenset rather than a tuple is deliberate: callers test membership, and a
+    caller that wants an ordered label should sort it at the point of display.
+
+    ⚠ An unreadable map is UNKNOWN, never an empty set. This cannot raise on a well-formed
+    module, so a caller that gets back an empty set is being told THIS LANE OWNS NOTHING A READ
+    CAN FIX — a real answer — and must not render it as "idle". [[copy-drift]] [[the-unjoined-end]]
+    """
+    return frozenset(t for t, owner in OWED_BY.items()
+                     if owner == lane and t in READ_CLEARS)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════════════════════
 # THE LANE CENSUS — Heart 2.0's discipline, aimed at LANES instead of GATES
 # ═══════════════════════════════════════════════════════════════════════════════════════════════

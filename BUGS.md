@@ -38436,3 +38436,36 @@ Two different reasons a card is off screen, and only one of them means nothing m
 
 The test now asks only about the filter. A filter whose matches are all past the river stays, and
 the rail's *"N past the river"* is what explains the empty screen. Two red-proofs, both RED.
+
+## REG-1105 — ONE LANE, THREE WORK LISTS: the instrument and the sweeper disagreed about what the lane is for
+The vault lane's work list is `OWED_BY` INTERSECT `READ_CLEARS`. That expression was written out by
+hand in **three** separate places and the copies drifted:
+`control_app._vault_autoread_candidates` and control_app's "awaiting a sweep" count were both
+correct since v2878; **`river_walk`'s PRINTER probe still counted the single tag `vault-owes`.**
+So the river printed *"the lane's queue is EMPTY ... this reel waits for a seal nothing will write"*
+while the lane was in fact holding **3 `panels-never-banked` reels**. The instrument was the one
+being believed, because it is the one that renders.
+**THE THIRD COPY WAS FOUND BY THE GREP THAT WROTE THE LAW, NOT BY THE INVESTIGATION** — two were
+known when the fix started. That is why the structural half of the new gate bans walking `OWED_BY`
+at all rather than checking the two known callers: a law scoped to what I already knew would have
+shipped green over the third copy.
+FIX: one definition, `shelf_driver.lane_read_tags(lane)`; all three callers read it. The existing
+UNKNOWN policy (an unreadable map is UNKNOWN, never 0) is preserved at each call site.
+GATE: `test_one_work_list` (`test_a_lane_has_one_work_list.py`), 2 red-proofs, both **PROVEN**.
+Shipped v3295. [[copy-drift]] [[the-unjoined-end]]
+
+## REG-1106 — AN INSTRUMENT THAT NAMED A CAUSE IT NEVER MEASURED, AND THE TASK TITLE INHERITED IT
+`river.j_prune` hard-coded its DRY reason as *"a planner that releases nothing **while the disk is
+full** is the blockage"*. `j_disk` measured **22.0 GB FREE in the same run**. The joint had never
+looked at the disk; the sentence was a guess frozen into a string.
+The cost was not cosmetic: the open task tracking this joint carried **"blocked at prune while the
+disk is full" in its TITLE for days**, so every reader inherited a diagnosis nothing had measured,
+and the real split (16 of 19 held for HIS rulings - 8 test fixtures, 8 recent - and only 3 genuine)
+stayed invisible behind it.
+FIX: quote the planner's own `say` instead of inventing a cause; where `say` is empty, state plainly
+that the cause is **NOT measured at this joint**. It now reads *"NOTHING is safe to delete yet - and
+that is an answer, not a failure. every reel is recent, unread, or still owed to a lane."*
+Note this is the SECOND false blockage from this one function: v3267 fixed a caller/callee key-name
+disagreement that made `gone` permanently `len([])`. Same function, same class - an instrument
+asserting more than it measured.
+Shipped v3295. [[unknown-stays-unknown]] [[stale-reading]]

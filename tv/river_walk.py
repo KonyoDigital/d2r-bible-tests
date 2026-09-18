@@ -315,22 +315,41 @@ def walk(reel, hist=None):
                         "about it — UNKNOWN, never 'nobody is needed'"}
     # the PRINTER station's lane has a queue that is empty on his shelf BY CONSTRUCTION, and
     # saying "a lane owns this" without that is the half-truth this whole file is against.
-    # ⚠ THIS IS A CANDIDATE-SET CHECK, NOT A SIMULATION OF THE TICK. The vault lane's work list is
-    # retention's `vault-owes` set; that tag is read here from reel_story, which quotes the same
-    # reel_retention.plan() the lane's own selector quotes. It models none of the tick's backoffs.
+    # ⚠ THIS IS A CANDIDATE-SET CHECK, NOT A SIMULATION OF THE TICK. It reads the same tag->lane
+    # map the lane's own selector reads, from reel_story, which quotes the same
+    # reel_retention.plan(). It models none of the tick's backoffs.
     if sta == "PRINTER":
-        owes = sum(1 for r in rows if r.get("tag") == "vault-owes")
-        lane["queue"] = {
-            "tag": "vault-owes", "carryingIt": owes, "shelf": len(rows),
-            "why": ("%d of %d reels carry the tag this lane selects on. %s"
-                    % (owes, len(rows),
-                       ("The lane's queue is EMPTY: retention's rules are first-match-wins and "
-                        "`vault-owes` is the LAST one, so every reel matches something earlier. "
-                        "The lane publishes owed:0, which reads as a healthy idle lane, and this "
-                        "reel waits for a seal nothing will write."
-                        if not owes else "The lane has work it could pick up.")))}
-        if not owes:
-            lane["consumes"] = False
+        # v3295 - THIS COUNTED ONE TAG WHILE THE LANE SELECTS ON TWO. The live selector is
+        # `shelf_driver.OWED_BY` intersected with `READ_CLEARS` for the vault lane
+        # (control_app.py:23098-23107, v2878) = {vault-owes, panels-never-banked}. Counting only
+        # `vault-owes` here printed "the lane's queue is EMPTY ... a seal nothing will write"
+        # while the lane actually held 3 panels-never-banked reels, so the panel and the sweeper
+        # disagreed about what the lane is for. A stale copy of a superseded selector.
+        # [[copy-drift]] [[the-unjoined-end]]
+        # ⚠ An unreadable map is UNKNOWN, never 0 - the same doctrine control_app states.
+        try:
+            import shelf_driver as _sd
+            _tags = _sd.lane_read_tags("vault")
+        except Exception:
+            _tags = None
+        if not _tags:
+            lane["queue"] = {
+                "tag": None, "carryingIt": None, "shelf": len(rows),
+                "why": ("shelf_driver could not be read, so what this lane selects on is "
+                        "UNKNOWN - not zero, and not an idle lane")}
+        else:
+            owes = sum(1 for r in rows if r.get("tag") in _tags)
+            lane["queue"] = {
+                "tag": " + ".join(sorted(_tags)), "carryingIt": owes, "shelf": len(rows),
+                "why": ("%d of %d reels carry a tag this lane selects on. %s"
+                        % (owes, len(rows),
+                           ("The lane's queue is EMPTY: retention's rules are first-match-wins, "
+                            "so every reel matched something earlier. The lane publishes owed:0, "
+                            "which reads as a healthy idle lane, and this reel waits for a seal "
+                            "nothing will write."
+                            if not owes else "The lane has work it could pick up.")))}
+            if not owes:
+                lane["consumes"] = False
     out["next"] = lane
     out["farEnd"] = _far_end(prep if isinstance(prep, dict) else {}, router)
     out["ok"] = True

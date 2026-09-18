@@ -442,10 +442,18 @@ def j_prune():
         # reads them, and an empty `candidates` beside a populated `delete` must not read as 0.
         gone = len(plan.get("candidates") or plan.get("delete") or plan.get("remove") or [])
         kept = len(plan.get("kept") or [])
+        # v3295 - THIS NAMED A CAUSE IT NEVER MEASURED. The why hard-coded "while the disk is
+        # full"; j_disk measured 22.0 GB FREE in the same run. An instrument that asserts an
+        # unmeasured cause is worse than one saying UNKNOWN, because the reader acts on it - the
+        # task tracking this joint carried "while the disk is full" in its TITLE for days.
+        # The planner already publishes its own reason in `say`; quote that, never invent one.
+        say = str(plan.get("say") or "").strip()
     except Exception as e:
         return _joint("prune", "reels the planner would release", None, None, str(e)[:70], "reel")
     return _joint("prune", "reels the planner would release", gone, gone + kept,
-                  "a planner that releases nothing while the disk is full is the blockage", "reel")
+                  (("the planner's own reading: %s" % say) if say
+                   else "the planner released nothing and gave no reason; the cause is NOT "
+                        "measured at this joint"), "reel")
 
 
 def j_disk():
