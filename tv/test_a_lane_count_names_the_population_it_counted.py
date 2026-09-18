@@ -16,6 +16,10 @@ Two populations differing by 26x, one word covering both, four inches apart on o
 NOUN was wrong — the same shape as `stash ×19` counting frames of a scene and `frames` counting
 journal rows in a group. This file guards the noun. [[label-outlived-referent]]
 
+@@RULING: THE RIVER STRIP IS NOT THE DEFECT - do not "fix" its arithmetic. Its lanes sum to its
+own headline and that was verified. When surfaces disagree about a count, the number was never
+wrong - only the NOUN was. Guard the noun; leave the strip alone.
+
 ⚠ AND THE STRIP IS NOT THE DEFECT — DO NOT "FIX" IT. Its arithmetic is internally consistent and
 was verified: lane sum 16 == L.shelf 16, and 16 + 446 closed = 462 lifetimes. v2822 (#36) already
 solved the denominator problem for that header after one of its figures covered 8.7% of the river.

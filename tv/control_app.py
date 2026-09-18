@@ -18733,11 +18733,30 @@ def _eagle_once():
     #
     # slow_surface() is a CACHED read (_load_slow), not a sub-doctor run, so hoisting it here
     # costs nothing — and it is reused for the payload below instead of being called twice.
+    _slow_why = ""
     try:
         _slow_rows = getattr(_cd, "slow_surface", lambda: [])() or []
-    except Exception:
+    except Exception as _se:
+        # ⚠ v3294 — A SWALLOWED FAILURE HERE SHRINKS THE FIGURES IN SILENCE. Raised by the
+        # cross-family eye on v3293: replacing the list with [] on an exception makes the counts
+        # under-report while the panel still draws whatever it received, which re-creates the very
+        # disagreement this widening was built to end — only now with no cause on screen.
         _slow_rows = []
-    _drawn = list(rows) + list(_slow_rows)
+        _slow_why = "the slow surface could not be read (%s), so these figures cover the fast " \
+                    "rows only" % type(_se).__name__
+    # ⚠ de-duplicated BY CHECK NAME. Today `rows` comes from run(include_slow=False) and is
+    # disjoint from slow_surface() — MEASURED: 61 fast, 1 slow, overlap 0. But `_include_slow` is a
+    # variable, and the day it is True the two lists overlap and every figure doubles the slow
+    # rows. A guard that costs one set is cheaper than that surprise.
+    _seen_checks = set()
+    _drawn = []
+    for _r in list(rows) + list(_slow_rows):
+        _k = _r.get("check")
+        if _k is not None and _k in _seen_checks:
+            continue
+        if _k is not None:
+            _seen_checks.add(_k)
+        _drawn.append(_r)
     _missing = [r for r in _drawn if r.get("state") == "missing"]
     bad = [r for r in _missing if r.get("check") not in _mine_names]
     mine = [r for r in _missing if r.get("check") in _mine_names]
@@ -18778,6 +18797,7 @@ def _eagle_once():
             # CF-12 — the two SLOW checks live here, not inside `rows`. Mixing them into a cheap
             # pass makes eagle-ran-every-check 34 vs 32, permanently red. Last-known or NEVER.
             "slowRows": _slow_rows,   # v3293 — the same list the figures above counted
+            "slowWhy": _slow_why,     # v3294 — empty unless the slow surface could not be read
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
@@ -29930,7 +29950,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3293",
+        "ver": "v3294",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

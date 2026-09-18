@@ -64,9 +64,16 @@ class TestTheEagleCountsWhatThePanelDraws(unittest.TestCase):
                       "UNMEASURED row is drawn and not counted")
 
     def test_the_slow_rows_are_counted_not_only_published(self):
-        self.assertIn("_drawn = list(rows) + list(_slow_rows)", self.app,
+        # ⚠ re-anchored at v3294: the concatenation became a de-duplicating loop when the
+        # cross-family eye pointed out that `rows` and `slowRows` would overlap the day
+        # `_include_slow` is True. The LAW is about slowRows reaching the figures, not about the
+        # shape of the expression, so it asserts the join and the guard rather than one line.
+        self.assertIn("for _r in list(rows) + list(_slow_rows):", self.app,
                       "slowRows is published and bucketed by the panel but counted by none of the "
                       "three figures — an unjoined end inside one payload")
+        self.assertIn("if _k is not None and _k in _seen_checks:", self.app,
+                      "nothing de-duplicates the two lists, so the day include_slow is True every "
+                      "slow row is counted twice and the figures overshoot the panel")
         self.assertIn("_missing = [r for r in _drawn", self.app,
                       "needsYou/mine still count `rows` alone, so a missing slow row is drawn and "
                       "uncounted exactly like the unknown ones were")
@@ -104,8 +111,11 @@ RED_PROOF = [
     {
         "why": "dropping slowRows from the counted set restores the uncounted published list",
         "file": "tv/control_app.py",
-        "find": "    _drawn = list(rows) + list(_slow_rows)",
-        "replace": "    _drawn = list(rows)",
+        # ⚠ re-anchored at v3294 with the de-dup refactor. The old anchor was deleted by that
+        # change and this proof went INVALID — caught by the exit code v3292 shipped, which is the
+        # third time in three versions that a proof rotted alongside the code it pins.
+        "find": "    for _r in list(rows) + list(_slow_rows):",
+        "replace": "    for _r in list(rows):",
         "matches": 1,
     },
     {

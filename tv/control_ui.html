@@ -45,7 +45,11 @@
        forum. Consequence he accepted explicitly: the Forge tab and F·Uniques now read the same,
        because in D2 they ARE the same colour. */
     --rar-runeword:   #c7b377;
-    /* v1631 — THE FORGE TAB IS SIGNAGE, NOT AN ITEM NAME. Konyo: "these two colors cant be the
+    /* @@RULING v1631: a TAB is a label for a ROOM, an item NAME obeys the game. The Forge tab
+       wears --rar-rune (#ff7d3c) and a runeword's NAME stays gold. Do not "sync" them - his words
+       were "these two colors cant be the same", and there IS no runeword colour to extract:
+       _profilehd.json has no FontColorRuneword. Verified in his own install, not a forum.
+       v1631 — THE FORGE TAB IS SIGNAGE, NOT AN ITEM NAME. Konyo: "these two colors cant be the
        same... RUNEWORD is separate from the F-UNIQUES".
        He is right that the tabs must differ, and checking the game settles WHY this was stuck:
        there is no runeword colour to extract. _profilehd.json has no FontColorRuneword, and the
@@ -10748,7 +10752,11 @@ window._lockMark = function(isOpen, px, label){
        than a corner of a status line. Two places saying it was the redundancy. */
     $('foot-ver').textContent = _lbl.split(' · ')[0];
     try {
-      /* ⚠ v2397 — THE HOVER WALL IS GONE, AND SO IS THE CODE THAT BUILT IT.
+      /* @@RULING v2397: the footer bar carries the VERSION AND NOTHING ELSE. Its hover wall was
+         removed on his instruction - "i dont want this mess when i hover over it all the time. i
+         want it clean" - so do not re-add a permanent chip, tooltip or status clause here. A line
+         that appears only when there is something to act on is a different thing and is allowed.
+         ⚠ v2397 — THE HOVER WALL IS GONE, AND SO IS THE CODE THAT BUILT IT.
          Konyo: "i dont want this mess when i hover over it all the time. i want it clean."
          Everything it assembled — the drift line, the eagle line, the disk figure WITH ITS AGE
          STAMP, and the individual failing checks — now renders in #ver-xref, which opens on
@@ -17154,7 +17162,12 @@ window._lockMark = function(isOpen, px, label){
       + _shHighlights()
       + timelineDiv
       + searchBar + body
-      /* ⚠⚠ v2985 (#58) — THE RIVER STRIP MOVES BELOW THE LIST, AND THIS REVERSES v2965 ON PURPOSE.
+      /* @@RULING v2985: the RIVER STRIP and the PIPELINE BOARD stay BELOW the reel list. Measured
+         at his real 1120x660: 1433px of furniture above the list put the first card 2101px below
+         the panel's own bottom edge - 530 cards rendered and not one on screen. v3289 later raised
+         the records strip and the chart ONLY, and only with an open-on-a-reel guard; these two did
+         not move and must not.
+         ⚠⚠ v2985 (#58) — THE RIVER STRIP MOVES BELOW THE LIST, AND THIS REVERSES v2965 ON PURPOSE.
          v2965 put the strip ABOVE the list and called it "the organisation he asked for", quoting
          him: "those reels coming in should be seen timestamped and recent 8 left there... and the
          rest organized relating and relevant to the coding and backend."

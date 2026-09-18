@@ -110,6 +110,12 @@ def audit(repo=None):
 
 if __name__ == "__main__":
     import sys as _sys
+    # ⚠ THE AUDITOR MUST SURVIVE THE CONSOLE IT AUDITS. Raised by the cross-family eye on v3293:
+    # these lines print non-ASCII, which is the exact hazard being reported — and the audit cannot
+    # see it, because the source spells them as \u2713 escapes and is therefore pure ASCII. So the
+    # tool would have crashed on a cp1255 console while telling somebody else off for the same
+    # thing. It calls its own fix first.
+    enable()
     # an optional repo root, so a test can exercise the FAILING path on a fixture. Without it the
     # only reachable case is the clean tree, and a law that never sees the failure cannot pin it:
     # the v3293 red-proof that flipped exit(1) to exit(0) came back BLIND for exactly that reason.

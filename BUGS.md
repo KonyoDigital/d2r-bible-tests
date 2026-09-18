@@ -36626,6 +36626,95 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1104 — the gate that refuses an unmeasured page could not reliably measure
+
+**v3294.** `crest_loudness` reloads the page and refuses to score until it can prove the document
+is NEW — correctly, since capturing the page the reload was meant to replace is the exact false
+reading it exists to prevent.
+
+**Its proof was a clock, and that made it a race.** It sampled `performance.now()` before the
+reload and waited for a reading BELOW it, because the clock restarts at ~0 on a real navigation.
+⚠ **That is only observable for `_before` milliseconds after the navigation.** A page open a long
+time gives a large `_before` and an easy test; a page that had just loaded gives a small one, and
+the whole window can close between two 0.1s polls. **The probe's reliability depended on how long
+the page happened to be open.**
+
+**MEASURED, back to back, nothing else changing:**
+
+```
+run 1   exit 0 in  6s   "the crest is #151, behind .help-btn"
+run 2   exit 2 in 21s   "no new document within 20s of the reload"
+```
+
+It blocked **two pushes** on a tree that was fine — I retried the first as transient, and only
+when it happened again did I reproduce it standalone instead of assuming noise. **A gate that
+intermittently cannot measure spends its credibility on noise**, and the next real UNKNOWN gets
+waved through as "that flake again".
+
+**A marker has no window.** The old document is tagged before the reload; a new document simply
+does not carry the tag, for as long as it takes to look. **Five consecutive runs after the fix:
+all green, 5-6s each.**
+
+⚠ **The refusal is untouched.** A page that genuinely did not navigate is still UNKNOWN and still
+returns 2. This fixed WHEN the probe can see the truth, not WHETHER it insists on it.
+[[unknown-stays-unknown]]
+
+**Gate:** `test_freshness_probe_window`, 3 red-proofs, all PROVEN at exactly 1 match each — one
+puts the clock back, one un-marks the old document, one softens the refusal.
+
+## REG-1103 — a rulings index cannot be extracted, and the first three attempts proved it
+
+**v3294.** Three times in one session a recorded ruling stopped me shipping the obvious fix —
+v1631 (a TAB labels a ROOM, so the Forge tab wears rune-orange), v2397 (the footer hover wall was
+removed on his instruction; do not re-add), and the lane-count ruling (*"THE STRIP IS NOT THE
+DEFECT — DO NOT FIX IT"*). Each found by grep. Each missable.
+
+⚠⚠ **EXTRACTION WAS TRIED AND MEASURED DEAD.** Four designs, one acceptance test — does it find
+those three?
+
+```
+⚠⚠ marker + prohibition language ....  223 entries, finds 0 of 3
+prohibition language, any marker ....  13,974 hits (2,547 even restricted to DO NOT / NEVER)
+topic + prohibition ................  usable counts, finds v2397, MISSES v1631
+topic + comment blocks, no filter ..  noisier (36 for "forge tab"), misses more
+```
+
+The reasons are structural, not fixable by a better regex. **The marker is not a reliable key** —
+v1631 carries no warning marker at all, and the other two use a single `⚠`. **The language is not
+distinctive** — v1631's constraint is a plain fact in his own words (*"these two colors cant be
+the same"*) containing no prohibition word.
+
+**A 223-row index that omits every ruling that matters is worse than no index, because it reads
+as complete.** It was not shipped. [[zero-needs-a-denominator]]
+
+**What shipped instead: an explicit marker, seeded, with a denominator that admits its blind spot.**
+
+⚠ **The first marker collided.** A plain `RULING:` matched **nine** existing places — comments
+quoting him with *"HIS RULING:"* — so the index would have opened with nine phantom entries
+indistinguishable from real ones. `@@RULING` occurs **zero** times in the repo. A marker that can
+collide with prose is not a marker.
+
+⚠ **And the sigil is ASCII on purpose.** A non-ASCII one inside a python entry point would trip
+the encoding rule shipped one version earlier — a guard fighting a guard.
+
+⚠ **Then the tool indexed ITSELF.** First run: 6 "rulings", of which **two** were this file's own
+usage example and the marker string inside the law's red-proof. 33% wrong on day one, and the
+phantoms look exactly like the real entries. Only those two files contain the marker as an
+*example*, so only those two are excluded — test files in general are not, because a real ruling
+lives in one. [[presence-law-vs-reachability-law]]
+
+**Seeded with FOUR, not five.** v3121 (*"ACTIVITY LEADS THE ANALYTIC BAND, AND THAT IS AS HIGH AS
+IT MAY GO"*) was **superseded by v3289**, when he asked twice and it was raised with an
+open-on-a-reel guard. Marking a superseded ruling as standing would be worse than not marking it:
+the index's only value is that what is in it is currently true.
+
+Every answer ends with the sentence that keeps it safe to publish: *"N ruling(s) are MARKED. An
+UNMARKED ruling is invisible here, and absence from this list is not permission."*
+
+**Gate:** `test_ruling_index_honest`, 3 red-proofs, all PROVEN at exactly 1 match each — one
+weakens the sigil back to prose-matchable, one removes the blind-spot sentence, one un-marks a
+seeded ruling.
+
 ## REG-1102 — the figures counted a narrower set than the panel drew, and the rule you learn at 500s
 
 **v3293.** Two fixes, and the first was found BY a guard rather than by me.

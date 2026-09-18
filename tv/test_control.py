@@ -40354,7 +40354,20 @@ class TestV2426TheCrestGateWAITSViaTheSharedHelper(unittest.TestCase):
                       "page events are not enabled before the reload, so nothing can wait on it")
         after = _between(self, src, 't.send("Page.reload")', "_selector_ready(t",
                          what="the post-reload wait")
-        self.assertIn("performance.now()", after,
+        # ⚠⚠ v3294 — THE INTENT IS UNCHANGED; THE MECHANISM MOVED, AND THIS LAW PINNED THE
+        # MECHANISM. It required `performance.now()` by name. That proof was a CLOCK: sample it
+        # before the reload and wait for a reading below it, since it restarts at ~0 on a real
+        # navigation — which is only observable for `_before` MILLISECONDS afterwards. MEASURED
+        # back to back with nothing else changing: run 1 exit 0 in 6s, run 2 exit 2 in 21s. The
+        # probe's reliability depended on how long the page happened to be open, and it blocked
+        # two clean pushes.
+        # A MARKER has no window: the old document is tagged before the reload and a new one does
+        # not carry the tag, for as long as it takes to look. Five consecutive runs green after.
+        # What this law protects is UNCHANGED and still enforced below: `.bd-sigil` is true on
+        # both sides of a reload, so SOMETHING between the reload and the element wait must
+        # distinguish the new document from the old. Only the name of that something changed.
+        # [[label-outlived-referent]]
+        self.assertIn("__crestGen", after,
                       "nothing between the reload and the element wait distinguishes the NEW "
                       "document from the old one")
 

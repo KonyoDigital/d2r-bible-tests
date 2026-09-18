@@ -119,20 +119,38 @@ def main():
         # ⚠ SEPARATE try, BECAUSE SHARING ONE DISABLED THE ONLY CHECK. Previously the enable and
         # this sample sat in one block: an enable failure set `_before = None` and silently skipped
         # the new-document test entirely. One failure must not disarm an unrelated guard.
+        # ══ v3294 — A MARKER, NOT A CLOCK. THE CLOCK WAS A RACE BY CONSTRUCTION ═════════════
+        # This used performance.now(): sample it before the reload, then wait for a reading BELOW
+        # that, since the clock restarts at ~0 on a real navigation.
+        #
+        # ⚠ THAT IS ONLY OBSERVABLE FOR `_before` MILLISECONDS AFTER THE NAVIGATION. If the page
+        # had been open a long time `_before` is large and the test is easy; if it had just
+        # loaded, `_before` is small and the whole window can close between two 0.1s polls. The
+        # detector's reliability therefore depended on HOW LONG THE PAGE HAPPENED TO BE OPEN.
+        #
+        # MEASURED 2026-09-18, run back to back with nothing else changing:
+        #     run 1  exit 0 in 6s   "the crest is #151, behind .help-btn"
+        #     run 2  exit 2 in 21s  "no new document within 20s of the reload"
+        # It blocked two pushes of mine on a tree that was fine, and a gate that intermittently
+        # cannot measure spends its credibility on noise - after which a real UNKNOWN gets waved
+        # through as "that flake again". [[unknown-stays-unknown]]
+        #
+        # A marker has no window at all: a new document simply does not have it, for as long as it
+        # takes to look. The refusal below is unchanged - this only stops it firing on a page that
+        # DID navigate.
         try:
-            _before = float(t.ev("String(performance.now())"))
+            t.ev("String(window.__crestGen = 'v3294')")
+            _before = "marked"
         except Exception:
             _before = None
         t.send("Page.reload")
-        # performance.now() restarts at ~0 on a real navigation, so a value BELOW the pre-reload
-        # reading is evidence THIS is a new document. It is a proxy and it is named as one.
         _fresh = None
         if _before is not None:
             _dl = time.time() + 20.0
             _err = 0
             while time.time() < _dl:
                 try:
-                    if float(t.ev("String(performance.now())")) < _before:
+                    if t.ev("String(typeof window.__crestGen)").strip() == "undefined":
                         _fresh = True
                         break
                 except Exception:
