@@ -2664,6 +2664,38 @@ BY_DESIGN = {
 }
 
 MINE = {
+    # ⚠⚠ v3321 — SIX MORE, AND HIS OWN RULING IS WHAT DEMANDS IT. #35: "WAITING ON YOU means
+    # action needed FROM HIM RIGHT NOW". MEASURED on his live console 2026-09-18, the panel
+    # headed WAITING ON YOU carried EIGHT rows and `owner_of` answered "you" for every one —
+    # while exactly ONE of them was his. He read the panel and asked "this is the missing on me?"
+    #
+    # A column that cries for him on seven rows he cannot act on is the same defect as a gate
+    # that is always red: he stops reading it, and the one row that IS his goes with it.
+    #
+    # ⚠ NOT A MUTE BUTTON, same semantics as the two above: each still renders, at its real state
+    # and colour. What changes is only whose name is on it. A row removed is a row nobody can
+    # reopen. [[regression-guard]] [[feedback-contradiction-is-the-finding]]
+    "engines corroborate":
+        "#81 — two engines disagreeing IS the finding, and the check says so itself: 'the one "
+        "that is wrong is not knowable from the pair alone'. He cannot arbitrate a pair neither "
+        "side can settle; joining them is my work.",
+    "console UI faults":
+        "#24 — its own sentence is 'the console healed itself from N fault(s) in 24h ... It "
+        "recovered'. A thing that already repaired itself is a report, not an errand.",
+    "ledger provenance":
+        "#71 — the row carries its own named fix ('publish the provenance on the board POST too, "
+        "and per ledger'). A defect that names its own patch is mine by definition.",
+    "footage has a reel":
+        "#80 — an unsealed recording no sweep can reach. `orphan_fold.py` shows the plan; "
+        "running it is my job, not a decision he makes.",
+    "names banked":
+        "#28 — names were READ and none are banked. The check itself states 'no paid read is "
+        "owed here', so there is nothing for him to authorise; the banking lane is mine to widen.",
+    "stage shows the dom":
+        "#24 — 'a stale composite, which every rect/content guard reports as success'. He is not "
+        "the detector [[visual-regression-detector]]; a guard that reports success over blank "
+        "cells is my defect to fix.",
+
     "second eye asked twice":
         "#56 — asking the eye twice is MY job, not his. He cannot act on a look I did not take, "
         "so a SINGLE look must never appear in the count he reads. ⚠ It still renders red, "

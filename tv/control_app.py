@@ -15089,10 +15089,16 @@ def _console_rescue_loop():
                 # equal to the deleter), because a wrong BLANK does not lose footage, it REPLACES
                 # THE WINDOW HE IS LOOKING AT.
                 #
-                # ⛔ IT SHIPS LOCKED AND THAT IS THE POINT. `may()` returns False today, so this
-                # block records and falls through to the same `continue` as before — the behaviour
-                # is byte-for-byte what it was. It opens itself only when the witness has survived
-                # three independent families of attack, and never by anyone editing this file.
+                # ⛔ IT SHIPPED LOCKED, AND THE LOCK HAS SINCE OPENED ITSELF — the design working,
+                # not a change of policy. ⚠ DO NOT READ THE LOCK STATE OUT OF THIS COMMENT: ask
+                # `self_arming.may("console.pixel_rescue")`. It was shut at v2784 and open on
+                # 2026-09-18, on 32 of 32 distinct attacks refused (wilson 0.893, kinds 2.50), and
+                # nobody edited a file to move it. That is the whole point of declaring a lock
+                # rather than wiring one — and it is exactly why a comment restating the state
+                # goes stale by construction. [[REG-1133]]
+                # While it is shut this block records and falls through to the same `continue` as
+                # before. It opens only once the witness has survived three independent families
+                # of attack, and never by anyone editing this file.
                 #
                 # ⚠ A STALE VERDICT IS NOT A VERDICT. The report runs every 6th tick of a 10s loop,
                 # so the freshest reading can be ~60s old; anything older than that means the
@@ -30238,7 +30244,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3320",
+        "ver": "v3322",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

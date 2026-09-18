@@ -7,6 +7,46 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1134 — "WAITING ON YOU" billed him for seven rows he could not act on
+
+**v3321, 2026-09-18.** His #35 ruling: *WAITING ON YOU means action needed FROM HIM RIGHT NOW.*
+MEASURED on his live console, that panel carried **8 rows and `owner_of()` answered "you" for all
+eight**, while exactly one was his. He read it and asked *"this is the missing on me?"*
+
+Six were mine by their own sentences — `engines corroborate` (*"the one that is wrong is not
+knowable from the pair alone"*), `console UI faults` (*"the console healed itself … It
+recovered"*), `ledger provenance` (carries its own named fix), `footage has a reel`,
+`names banked` (*"no paid read is owed here"*), `stage shows the dom` (*"a stale composite, which
+every rect/content guard reports as success"*). 8 → 2.
+
+⚠ **The baseline is the half that matters most.** The cheap way to quiet this panel is to call
+everything mine, which empties the one column he relies on while looking like a fix. `shadow gate`
+is pinned as still reaching him — *"that list … is yours to read"*.
+
+⚠ `river joints` deliberately NOT moved: by-design today, genuinely his the day something IS safe
+to delete. That needs the check to answer conditionally — named as open, not silenced.
+
+Law `test_waiting_on_you`, 2 red-proofs PROVEN.
+
+### REG-1133 — a self-arming lock that OPENED still said "⛔ IT SHIPS LOCKED"
+
+**v3322, 2026-09-18.** `may("console.pixel_rescue")` = **True** (32 of 32 distinct attacks refused,
+wilson 0.893 ≥ 0.839, kinds 2.50 ≥ 1.80) while three production sites said it ships locked and
+`may()` returns False today.
+
+`self_arming` opens a lock **without anyone editing a file** — so every comment restating a lock
+state is guaranteed to go stale by design. It matters more than an ordinary stale comment because
+of which lock: that block's own docstring says a wrong verdict *"does not lose footage, it REPLACES
+THE WINDOW HE IS LOOKING AT"*. I read "ships locked" and stopped; only calling `may()` caught it.
+
+The law is a **corroborator, not a word ban** — prose may say shut while it is shut; it fails only
+on disagreement. ⚠ Its first run accused correct code: judged per comment BLOCK, a 40-line run
+names the lock in one paragraph and says *"`ui_rescue_due` returns False"* in another about a
+different function. Narrowed to SENTENCE scope. `run_gates` why= strings are dated ship notes and
+are not scanned.
+
+Law `test_lock_state_asked`, 2 red-proofs PROVEN.
+
 ### REG-1132 — the gate re-measured a LARGER population than it first measured, and refused a push
 
 **v3320, 2026-09-18.** `test_the_cheap_subset_is_actually_CHEAP` refused a legitimate push with

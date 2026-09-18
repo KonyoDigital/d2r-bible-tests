@@ -246,10 +246,13 @@ LOCKS = {
     #
     # ⛔ THE BAR IS THE STRICTEST ONE ON THE BOARD, equal to the deleter, and deliberately so. A
     # wrong BLANK does not lose footage — it REPLACES THE WINDOW HE IS LOOKING AT, mid-use. His
-    # standing rule is that nothing auto-heals until it has proven itself, so this ships LOCKED:
-    # `may()` returns False today, the rescue loop keeps firing on `due` exactly as it does now,
-    # and NOTHING CHANGES until the witness has survived the attacks. That is the point of
-    # declaring it rather than wiring it. [[unknown-stays-unknown]]
+    # standing rule is that nothing auto-heals until it has proven itself, so it was DECLARED SHUT
+    # and left to earn its way open. ⚠ ASK `may("console.pixel_rescue")` FOR THE STATE — do not
+    # read it out of this paragraph. Shut at v2784; open on 2026-09-18 after 32 of 32 distinct
+    # attacks were refused (wilson 0.893 >= 0.839, kinds 2.50 >= 1.80), with nobody editing a file
+    # to move it. While it is shut the rescue loop keeps firing on `due` exactly as it did, and
+    # NOTHING CHANGES until the witness has survived the attacks. That is the point of declaring
+    # it rather than wiring it. [[unknown-stays-unknown]] [[REG-1133]]
     #
     # ⚠ THREE PROVERS, because one kind can never open it (kinds_bar 1.8). The families are chosen
     # to fail DIFFERENTLY: synthetic distributions built to fool the arithmetic, his real window

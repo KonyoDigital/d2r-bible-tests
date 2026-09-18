@@ -10,9 +10,10 @@ and POST-GRADES (`rescue_worked`). It may not TRIGGER: the rescue fires on `due`
 the PAGE — and a blank page can still beat. That is the exact state he was looking at on
 2026-09-08, window black, hover art still painting, asking why nothing had noticed.
 
-=== ⛔ IT SHIPS LOCKED, AND THAT IS THE POINT ===
-`may("console.pixel_rescue")` returns False today, so the loop falls through to the same `continue`
-it always did — the behaviour is byte-for-byte unchanged. The lock opens ITSELF once the witness
+=== ⛔ IT SHIPPED SHUT, AND THAT IS THE POINT ===
+⚠ ASK `may("console.pixel_rescue")` FOR THE STATE — this paragraph is not it. Shut at v2784; open
+on 2026-09-18 after 32 of 32 distinct attacks were refused. While shut, the loop falls through to
+the same `continue` it always did and the behaviour is byte-for-byte unchanged. The lock opens ITSELF once the witness
 has survived three independent families of attack, and never by anyone editing a file. His standing
 rule, mechanised rather than restated.
 
