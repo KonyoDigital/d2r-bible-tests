@@ -1152,6 +1152,16 @@
   "purpose": "Wilson evidence for the `prune.arm` lock — attacks retention_may_act() with off-spellings, unknown/raising worlds and cross-family drift.",
   "territory": "gates-proofs"
  },
+ "read_names_feeder.py": {
+  "entryPoints": [
+   "plan",
+   "apply",
+   "MAX_PER_TICK"
+  ],
+  "gotcha": "⛔ BANKING IS WHAT RELEASES FOOTAGE. Its sibling read_names_lane.py records why it writes nothing: landing a name lets reel_retention drop the reel's `rows-not-banked` hold, and footage has no un-delete. That is DELIBERATE here and it is the whole point - banking through the board is the legitimate release path - but it is why this module is capped at MAX_PER_TICK=4, asks self_arming.may('vault.apply') and FAILS CLOSED on an unreadable lock, declines any name whose container is UNPLACED rather than guessing a lane, and treats the door's refusal as a RESULT carried back in `why` rather than a swallow. ⚠ IT BANKS NOTHING TODAY: measured at ship 2026-09-18, split() gives autoOwed 0 (names 60, auto 6, manual 54, autoHeld 1 - Crescent Moon, referents UNIQUE *and* RUNEWORD so it can never name one cell). A lane that is ON with lifetime work 0 is the vault_autoreel_tick scar, so control_app._RNF_STATE counts runs/banked LIFETIME and starts owed=None - UNKNOWN, never a confident 0. It ticks in _vault_autoread_loop under its OWN lane name tvd-read-names-feeder, never vault-autoread's: that tick SPENDS on paid sweeps and this one costs nothing, and one supervisor row must not answer for two lanes.",
+  "purpose": "The ONE caller of read_names_lane.split() that writes. split() has always judged every journal-ring PANEL name through the real gate (vault_retro.gate, 0.55 conf / 2 witnesses) and separated HELD from OWED, and until v3323 nothing consumed autoOwed - its own header said 'the accumulator has no other feeder ... they were never judged'. This module hands each bankable owed name to control_app.vault_apply and invents NO judgement of its own: the door re-gates every row at the write and the board's vaultAccumApply does the landing - dated, merge-max, undoable, the same tick his hand uses. plan() writes nothing and can be read freely.",
+  "territory": "vault"
+ },
  "read_names_lane.py": {
   "entryPoints": [
    "split",
