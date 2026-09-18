@@ -320,9 +320,22 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         ok, why = SA._heart_says_watched()
         if not ok:
             self.skipTest("the heart is not currently permitting — nothing to read")
-        self.assertIn("proved", why,
-                      "the permit says the instruments are watched and does not say how much was "
-                      "actually proved: %r" % why)
+        # ⚠ v3318 — THIS ASSERTED THE LOWERCASE WORD, AND THE WORD IS NOT THE POINT. The
+        # docstring above says the coverage "must never be INVISIBLE"; a sentence containing the
+        # string "proved" and no figures satisfies the old check while showing nothing. v3318
+        # rewrote the permit to say "395 of 418 gate(s) that declare a proof are PROVEN" — more
+        # coverage than before, in this repo's own PROVEN vocabulary — and the lowercase literal
+        # went red for a wording change that improved what it was guarding.
+        # STRENGTHENED, NOT RELAXED: the numbers are now REQUIRED. A permit that says "proved"
+        # with no ratio used to pass and now fails, which is the case this law exists for.
+        self.assertRegex(
+            why, r"(?i)\bprov(?:ed|en)\b",
+            "the permit never mentions proof at all: %r" % why)
+        self.assertRegex(
+            why, r"\d+\s+of\s+\d+",
+            "the permit says the instruments are watched and does not say HOW MUCH was actually "
+            "proved — no count over a denominator appears anywhere in it, so blind=[] with almost "
+            "nothing exercised would read exactly like full coverage: %r" % why)
 
     def test_an_UNREADABLE_gate_does_not_hash_like_an_EMPTY_one(self):
         """★★ v2864 — a cross-family review found the collapse: _read_text returns None for an

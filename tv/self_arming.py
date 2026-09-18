@@ -1156,8 +1156,30 @@ def _heart_says_watched():
     # everything for ever; gating on a proved/total threshold would mean picking a figure out of
     # the air and calling it a law. The reason string now carries the coverage so it can never be
     # invisible to whoever reads the permit. [[zero-needs-a-denominator]]
-    return True, ("instruments watched: %s of %s gates proved, 0 blind, census current"
-                  % (_st.get("proved"), _st.get("total")))
+    # ⚠⚠ v3318 — THE DENOMINATOR WAS THE WRONG POPULATION, AND THE 40 VANISHED INTO IT.
+    # `proved` counts gates that DECLARE a red-proof and were proven. Dividing it by `total` —
+    # every registered gate, including those that declare no proof at all — puts a numerator from
+    # one population over a denominator from another. MEASURED 2026-09-18 from run_gates.GATES and
+    # the test files themselves: 457 registered, 417 declaring a RED_PROOF, 394 proven. So this
+    # printed "394 of 457" (86.2%) where the true figure for that population is 394 of 417 (94.5%).
+    #
+    # ⚠ IT UNDER-STATED, which is the safe direction and exactly why it would have survived: a
+    # number that looks worse than reality never gets challenged.
+    #
+    # ⚠⚠ AND THE REAL LOSS WAS THE 40. Forty registered gates declare NO red-proof — gates that
+    # have never been SEEN to refuse. Folding them into a denominator turns "we have not proven
+    # these" into "we proved a smaller fraction", which is far less actionable. They now get their
+    # own clause. control_app.py:19460 has printed it correctly all along ("N of <declared>
+    # gate(s) can still go red; M carry no executable proof and are UNKNOWN") — one fact, two
+    # readers, and only this one was wrong. [[zero-needs-a-denominator]] [[copy-drift]]
+    _proved, _decl, _tot = _st.get("proved"), _st.get("declared"), _st.get("total")
+    _noproof = ((_tot - _decl) if isinstance(_tot, int) and isinstance(_decl, int) else None)
+    return True, ("instruments watched: %s of %s gate(s) that declare a proof are PROVEN, "
+                  "0 blind, census current%s"
+                  % (_proved, _decl,
+                     ("" if _noproof is None else
+                      ("; %d of %d registered gate(s) declare NO executable proof and have never "
+                       "been seen to refuse" % (_noproof, _tot)))))
 
 
 #: the two phrases _heart_says_watched() uses for the two failures that mean different things.
