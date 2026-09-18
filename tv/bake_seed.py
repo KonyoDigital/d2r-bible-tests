@@ -128,6 +128,29 @@ def one_shot_owned(src):
     return {n for pair in re.findall(r"'([^']{3,40})'|\"([^\"]{3,40})\"", region) for n in pair if n}
 
 
+#: ⚠⚠ v3327 — SEEDED NAMES THE GAME LISTS AS REMAINING, DECLARED RATHER THAN SILENTLY KEPT.
+#:
+#: A first-found date is a HISTORICAL POSITIVE; the Remaining list is PRESENT OWNERSHIP. Found and
+#: later sold satisfies both, so a name on both lists is not automatically wrong — and deleting a
+#: real find is a worse error than keeping a questionable one. [[stale-reading]] §8: never compare
+#: a positive and a negative observation as flat set membership.
+#:
+#: ⚠ BUT A DECLARATION IS NOT A LOOPHOLE. Only a name carrying its OWN distinct date may be
+#: declared. The 15 that shipped in v3313 all shared ONE stamp, "Sep 16, 2026 · 15:28" — fifteen
+#: set pieces are not found in one minute, so that date orders against nothing and the name is
+#: UNDATABLE. Those were REMOVED, not declared, and the law refuses any declaration whose stamp is
+#: shared by five or more pieces. [[unknown-stays-unknown]]
+SEED_EXEMPT = {
+    "Laying of Hands (bramble mitts)":
+        "seeded Aug 24, 2026 - 01:10, its own distinct stamp, while the game lists it Remaining. "
+        "Found-then-sold satisfies both readings, so this is SURFACED for his ruling rather than "
+        "stripped. Remove it only if he says he never had it.",
+    "Taebaek's Glory (ward)":
+        "seeded Aug 23, 2026 - 17:46, its own distinct stamp, while the game lists it Remaining. "
+        "Same reading as above: a real find he no longer holds is not a fabricated date.",
+}
+
+
 def game_says_missing(src):
     m = re.search(r"window\._SET_MISSING\s*=\s*(\{.*?\});", src, re.S)
     if m:

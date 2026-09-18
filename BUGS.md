@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1139 — 15 set pieces carried first-found dates for items the game says he lacks
+
+**v3327, 2026-09-18.** Found by reading CI, which #26's own ship never did.
+
+MEASURED on `bible.html`: the game's Remaining list holds **19** names, and `_SET_SEED` carried
+**17** of them **with first-found dates** — set pieces he does not have, on a live page, published
+because a push to main deploys. `_GRAIL_SEED` carried **0**; the unique half was always clean.
+
+**Attributed by bisect** across seven ships — v3308/09/10/11/12 all read 108 seeded / 0
+contradictions; `12bcb40c` (v3313+v3314) reads **133 / 17**. Neither `bake_seed.py` nor its law
+changed in that range, so the gate went red on **data**.
+
+**Root cause proven by elimination:** `bake()` rule 3 skips any name in the Remaining list,
+`_SET_MISSING` is untouched by that commit, and the list measures 19 at every ref — therefore no
+run of `bake()` produced these. The literal was **hand-written past the baker's rules**. And it is
+one-way: `bake()` asserts `old_set <= new_set`, so re-baking can never remove a contaminated name.
+
+**The 25 that v3313 added split three ways, and the fix follows the split, not the count:**
+
+| | |
+|---|---|
+| **15** share ONE stamp, `Sep 16, 2026 · 15:28`, and **all 15** are on the Remaining list | **REMOVED** — fifteen set pieces are not found in one minute; that date orders against nothing, so the name is UNDATABLE |
+| **2** are on the Remaining list but carry their **own distinct** dates — Laying of Hands (Aug 24 · 01:10), Taebaek's Glory (Aug 23 · 17:46) | **DECLARED + SURFACED** — first-found is a historical positive, Remaining is present ownership, and found-then-sold satisfies both. Deleting a real find is the worse error |
+| **8** dated and uncontradicted | **KEPT** |
+
+133 → **118**, contradictions 17 → **2** (the surfaced pair).
+
+⚠ **The declaration is not a loophole.** A declared name whose stamp is shared by 5+ pieces is
+refused — precisely what re-admitting the 15 would require. Every declaration carries a reason, and
+one naming a name no longer seeded is refused as a stale permission.
+
+Law `test_seed_vs_remaining`, **2 red-proofs PROVEN**.
+
 ### REG-1138 — one word did four jobs, and his screen showed all four
 
 **v3326, 2026-09-18.** His #35 ruling gives WAITING ON YOU a precise meaning; v3321 built the
