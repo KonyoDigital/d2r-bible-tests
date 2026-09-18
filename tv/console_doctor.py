@@ -405,8 +405,14 @@ def _check_the_sweep_would_find_something():
     # NameError") and this verdict was never joined to it. Snapshot it around the density pass:
     # a zero taken while the gate was failing is an answer about the INSTRUMENT and must say so.
     # [[unknown-stays-unknown]] [[the-unjoined-end]]
+    # ⚠⚠ v3304 (#55) — THIS THREAD'S TALLY, NOT THE PROCESS'S. v3297 (mine) took this delta from
+    # the PROCESS counter, so a chronicle or vault sweep breaking a frame on another thread during
+    # the density pass was charged to the density pass — and this check then answered UNKNOWN
+    # ("the instrument failed") over a footage answer that was perfectly measured, suppressing the
+    # very MISSING it exists to raise. gate_failures_here() is thread-local, so only a failure this
+    # pass actually caused can convict it. [[unknown-stays-unknown]]
     try:
-        _gb0 = int(ca.gate_failures())
+        _gb0 = int(ca.gate_failures_here())
     except Exception:
         _gb0 = None
     try:
@@ -414,7 +420,7 @@ def _check_the_sweep_would_find_something():
     except Exception as e:
         return UNKNOWN, "the panel gate would not run: %s" % str(e)[:90]
     try:
-        _gb = (int(ca.gate_failures()) - _gb0) if _gb0 is not None else None
+        _gb = (int(ca.gate_failures_here()) - _gb0) if _gb0 is not None else None
     except Exception:
         _gb = None
     withpanel = [d for d, v in dens.items() if v > 0]
@@ -2630,6 +2636,33 @@ def _health(check_id):
 #: it simply stops inflating the count of things HE can act on, and is listed under its own
 #: heading with the task that owns it. Anything not named here counts as his, so a new check is
 #: his by default and has to be argued out rather than in.
+#: ── v3307 (#62) — RED ON PURPOSE IS NOT WAITING ON HIM ──────────────────────────────────────
+#: HIS STANDING RULE, 2026-09-18: "WAITING ON YOU MEANS ACTION IS NEEDED FROM HIM RIGHT NOW. Not
+#: 'was red once'. Not 'might need looking at'... If nothing is actually required of him, it does
+#: not belong in the count he acts on." And: a count that mixes the two "trains him to stop reading
+#: it — which is the same failure as a gate that is always red."
+#:
+#: MEASURED on his live console 2026-09-18: needsYou=9, and two of the nine were rows we had
+#: already CLOSED as not-defects, months of ruling ago. They were billing him for design.
+#:
+#: ⚠ SAME SEMANTICS AS MINE BELOW, DELIBERATELY — it renders, at its real state and colour, and
+#: simply stops inflating the count. NOT a mute button. A row removed is a row nobody can reopen.
+#:
+#: ⚠⚠ AND THE ONE THAT IS DELIBERATELY *NOT* HERE: 'river joints'. It is red for a STATE-DEPENDENT
+#: reason — "blocked at 'prune' — the planner's own reading: NOTHING is safe to delete yet", which
+#: the planner itself finishes with "and that is an answer, not a failure". By-design TODAY and
+#: genuinely his the day something IS safe to delete. A static entry would silence it permanently,
+#: including when it becomes real — turning the rule into the mute button this comment forbids.
+#: That one needs the CHECK to answer conditionally, which is a different and smaller job.
+BY_DESIGN = {
+    "end routes reachable":
+        "#29 — a state display that is RED ON PURPOSE. 11 of 19 reels are dead-ended BY the "
+        "end-route rules, with numbers; the row exists to show the shape, not to ask for a fix.",
+    "the river":
+        "#30 — an exact subset of #29 with the same by-design exemptions. Closed as NOT A DEFECT "
+        "after measuring that every reel it names is held by a rule that is working.",
+}
+
 MINE = {
     "extraction lanes": "#75 — the vault lane cannot seal 'examined, nothing here'",
     "board join": "#76 — _BOARD_WIN is set in a child process the server cannot read",
@@ -4075,6 +4108,11 @@ WATCHES = {
     # wrote. The empty tuple is the honest answer and a DECLARATION: vault_bank reads the sweep's
     # own accumulation off disk and renders on no screen of its own yet.
     "stash bank":                  (),
+    # v3304 (#55/#38) — the interlock has no screen element of its OWN yet. The empty tuple is a
+    # DECLARATION, not an omission (see the note above this map): its state reaches him through
+    # the eagle row and relaunch_hold_state()'s shared on/worked/lastTs/owed contract, not through
+    # a element id anyone can point at. When it gets a lamp, name it here.
+    "relaunch green light":        (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never

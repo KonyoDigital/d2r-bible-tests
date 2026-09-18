@@ -38764,3 +38764,107 @@ v3298's 5ms pad and both of its measured bounds are untouched.
 
 **GUARD:** `test_new_film_buys_a_read` — 5 BEHAVIOURAL cases building their own temp reel, so it
 runs on a runner rather than needing his `frames/hist`. 2 red-proofs PROVEN.
+
+## REG-1119 — A GATE FAILURE ON ANOTHER THREAD WAS CHARGED TO THE DENSITY PASS (v3304)
+
+`_check_the_sweep_would_find_something` measured its own pass by snapshotting `gate_failures()` —
+a **process-wide** counter — while the console gates frames on several threads at once.
+
+**REPRODUCED, not argued:** the doctor's window was opened, a separate thread broke exactly one
+gate inside it, and the delta read **1** while the density pass had broken nothing.
+
+⚠ **THE HARM IS NOT THE WRONG SENTENCE.** Returning UNKNOWN means the genuine MISSING — *"N reels
+on disk and NONE shows a stash panel; a vault sweep would read nothing"* — is **never raised**. A
+check suppresses the exact finding it exists to produce, and does so more often the busier the
+console is.
+
+⚠ **THE LESSON WAS CARVED THIRTY LINES AWAY IN THE SAME FILE.** v2191, on the BLIND channel: *"THE
+BLIND STATE IS NOW A PER-CALL RECEIPT, NOT A PROCESS COUNTER"* — Konyo called it critical. The
+FAILURE channel was left as a process counter, and v3297 used it in exactly the pattern v2191
+removed.
+
+**FIX:** `_gate_broke` also bumps a thread-local tally; `gate_failures_here()` is the attributable
+counterpart. `gate_failures()` keeps its process-wide meaning — a total is a legitimate thing to
+report. The defect was never the counter; it was using a total to ATTRIBUTE.
+
+**GUARD:** `test_failure_attribution`, 2 red-proofs PROVEN.
+⚠ This change made `test_empty_world_unknown`'s mock INERT (it patched the old name) and that law
+went RED for it — same class as v3300's `_hist_dirs`. Mock the name the code CALLS.
+
+## REG-1120 — AN OVERTAKEN THEATRE OPEN RE-SHOWED A STAGE THAT HAD BEEN TORN DOWN (v3305)
+
+His report, five times: the theatre fails to open — and it is **always the reopen after a close**,
+never the first open. That pattern is the diagnosis.
+
+`thOpen()` sets `TH.open = true` **before** awaiting `/api/sessions` (v859, "pixels BEFORE
+network"; bounded to 8s by v2228). For those 8 seconds the toggle `if (TH.open) { thClose(); }`
+means a second click **closes** the half-opened stage — correct. What is not correct: the pending
+`thOpen()` then resolves and unconditionally re-runs `TH.open = true; hidden = false;
+classList.add('theatre-open')`, re-showing a stage `thClose()` already tore down.
+
+⚠ **AND THE MIRROR:** the catch branch was equally unguarded, so an open that timed out at 8s tore
+down a stage belonging to a **later** open.
+
+**MEASURED:** grep for `thOpening|TH.opening|_thBusy|inFlight|TH.loading` returned **zero** — no
+re-entry guard existed anywhere in the file.
+
+**FIX:** a GENERATION counter, deliberately **not** a busy flag — a bare `if (TH.opening) return`
+silently drops the close he asked for, a different wrong behaviour. `thClose()` bumps it BEFORE
+tearing down, so a resolve racing between the two cannot win.
+**GUARD:** `test_overtaken_open`, 3 red-proofs PROVEN.
+
+## REG-1121 — THE CONSOLE NEVER GOT THE TOOLTIP DISMISSAL THE BOARD HAS (v3305)
+
+Every `_itemTip` exit in `control_ui.html` is an event about the POINTER or the WINDOW — focusout,
+scroll, blur, Escape. **None is about the TRIGGER**, so a modal opening under a stationary cursor
+fires none of them and the tooltip outlives the click that opened its own modal.
+
+`bible.html:28694` has had the click-capture joint. The board got it; the console never did.
+
+⚠ `click`, **not** `mousedown` — load-bearing. mousedown fires BEFORE the focusin listener, which
+calls `say(hint, true)` with zero delay; since `hide() -> release()` restores the title, a
+focusable `<button>` like `#heart-chip` would have its bubble instantly RE-OPENED. The remedy
+would reproduce the bug.
+⚠ Not a z-index change: `#itip` at 9999 is why a stranded bubble is VISIBLE, not why it SURVIVES.
+
+## REG-1122 — A HYPOTHETICAL WORE THE PAST TENSE, AND I MISREAD IT MYSELF (v3306)
+
+The corroborator row read **"reels FREED outside the offer says 4"**. Nothing has been freed:
+`plan_frames()` reports, and `control_app.py:17935` says *"Deletes nothing, ever."* A standing
+design warning was wearing the clothes of an incident, and I filed it as an emergency before
+measuring.
+
+The relation is **unchanged and still red**, correctly: if the frame deleter were ever ARMED while
+the planner holds everything, it would take **1,904 frames from 4 reels** held on purpose — three
+held *because* a survey found panel frames there, the witness behind his vault rows.
+
+Also dropped a hardcoded "3" from the docstring (re-measured: 4). A number in prose goes stale the
+day the tree moves and then contradicts the row it describes.
+
+⚠ **TWO TRAPS HIT WHILE FIXING IT, BOTH CAUGHT BY COUNTING:**
+1. The label anchor matched **twice** — the twin is `_inv_the_deleter_is_never_looser_than_the_planner`,
+   which is in RETIRED and **has never run**. Editing it would have changed text nobody reads.
+   Fixed by scoping the edit to the live function's slice.
+2. Placing the explanatory comment between `right()` and the return turned the corroborator's OWN
+   self-audit red: that audit resolves each side's callees FROM SOURCE, `right()` is a literal
+   `return 0`, and my comment naming `frame_authority.plan_frames` inside its window made both
+   sides look like one engine — *"no invariant corroborates a thing against ITSELF"*. **My prose,
+   someone else's guard, and the guard was right.** The note now lives in the enclosing docstring.
+
+## REG-1123 — RED ON PURPOSE WAS BILLING HIM (v3307)
+
+His standing rule: *"WAITING ON YOU MEANS ACTION IS NEEDED FROM HIM RIGHT NOW… If nothing is
+actually required of him, it does not belong in the count he acts on."*
+
+**MEASURED on his live console:** `needsYou=9`, and two of the nine were rows already CLOSED as
+not-defects — `end routes reachable` (#29, "a state display that is RED ON PURPOSE") and `the
+river` (#30, "an exact subset of #29, same by-design exemptions").
+
+**FIX:** `BY_DESIGN` joins `MINE` in the bucket split, with identical semantics — the row still
+renders at its real state and colour and simply stops inflating the count. Surfaced as
+`byDesign` / `byDesignWhat` beside `mine` / `mineWhat`, because a computation nobody reads would
+make the rows vanish with nothing showing where they went — silencing by another name.
+
+⚠ `river joints` is **deliberately not** in the roster: it is red for a STATE-DEPENDENT reason
+("blocked at prune — NOTHING is safe to delete yet"), genuinely his the day something IS safe to
+delete. A static entry would silence it permanently — the mute button the MINE comment forbids.

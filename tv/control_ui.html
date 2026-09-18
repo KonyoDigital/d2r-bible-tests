@@ -9417,6 +9417,31 @@ window._lockMark = function(isOpen, px, label){
       document.addEventListener('scroll', function(){ _itemTip.hide(); }, true);
       window.addEventListener('blur', function(){ _itemTip.hide(); });
       document.addEventListener('keydown', function(e){ if (e.key === 'Escape') _itemTip.hide(); });
+      /* ══ v3305 (#34) — A CLICK DISMISSES THE BUBBLE. THE BOARD HAS HAD THIS; THE CONSOLE NEVER DID.
+         MEASURED: every existing exit above is an event about the POINTER or the WINDOW — focusout,
+         scroll, blur, Escape. NONE is about the TRIGGER. So a modal opening under a STATIONARY
+         cursor fires none of them, and the tooltip outlives the click that opened its own modal.
+         That is why CHILIAD's bubble survived onto the panel it launched.
+
+         ⚠⚠ AND THE GUARD THAT ALREADY LANDED MAKES TWO SURFACES WORSE, NOT BETTER. `_guard()`
+         hides only when `!r || (!r.width && !r.height)`. #heart-chip and #foot-ver stay CONNECTED
+         AND LAID OUT beneath a `position:fixed; inset:0` overlay, so the guard takes the other
+         branch and RE-PINS the bubble over the modal every 200ms. CHILIAD is worse again: its
+         `title` is rewritten on every status poll and say()'s MutationObserver re-steals it, so
+         the orphan stays CURRENT instead of decaying.
+
+         ⚠ `click`, NOT `mousedown`, AND THE DISTINCTION IS LOAD-BEARING. A mousedown hook fires
+         BEFORE the focusin listener above, which calls say(hint, true) with ZERO delay — and since
+         hide() -> release() restores the title, a focusable <button> like #heart-chip would have
+         its bubble instantly RE-OPENED before _heartOpen() even runs. The remedy would reproduce
+         the bug it targets.
+
+         ⚠ AND NOT A Z-INDEX CHANGE. #itip at 9999 is why a stranded bubble is VISIBLE, not why it
+         SURVIVES. Lowering it hides the symptom and keeps the defect.
+
+         The proven version is bible.html:28694, capture-phase, same shape. There is no design
+         question here — only a missing line. [[copy-drift]] [[the-unjoined-end]] */
+      document.addEventListener('click', function(){ _itemTip.hide(); }, true);
       /* a tap synthesises a hover; `title` never showed on touch anyway, so suppress the lane
          briefly after one rather than flashing a bubble the finger is already covering */
       document.addEventListener('touchstart', function(){ _itemTip.touched(); }, { passive: true, capture: true });
@@ -16115,6 +16140,28 @@ window._lockMark = function(isOpen, px, label){
         window._toTVD();   // v1627 — clears data-view too; _shellHome alone left the stage hidden
       }
     } catch (e) { /* routing must never stop the reel from opening */ }
+    /* ══ v3304 (#59) — THE OPEN CAN BE OVERTAKEN, AND THE LOSER MUST NOT TOUCH THE DOM ═══════
+       HIS REPORT: the theatre fails to open — and it is ALWAYS the REOPEN AFTER A CLOSE, never
+       the first open. Five instances, and that pattern is the whole diagnosis.
+
+       v859 opens the shell BEFORE the network on purpose (the line below), so `TH.open` is TRUE
+       for up to the 8 seconds v2228 allows /api/sessions. The toggle is
+       `if (TH.open) { thClose(); return; }` — so a SECOND CLICK IN THAT WINDOW CLOSES the
+       half-opened stage. That is correct and desirable. What is not correct is what the still
+       pending thOpen() does when it finally resolves: it unconditionally re-runs
+       `TH.open = true; $('theatre').hidden = false; classList.add('theatre-open')` — re-showing a
+       stage whose state thClose() has already torn down. Open, closed, then re-opened empty.
+
+       ⚠ AND THE MIRROR, found reading thClose: the CATCH branch is just as unguarded. An open
+       that times out at 8s tears the stage down — even if the user has since closed it and opened
+       it again successfully. The abandoned attempt would close a stage that legitimately belongs
+       to a later one.
+
+       A bare `if (TH.opening) return` is NOT the fix: it makes the second click do nothing at
+       all, which is a different wrong behaviour and loses the close the user asked for. A
+       GENERATION counter keeps every click meaningful and only silences the loser.
+       [[the-unjoined-end]] [[unknown-stays-unknown]] */
+    var _thGen = (TH.gen = (TH.gen | 0) + 1);
     // v859 (Grok UX #4) — pixels BEFORE network: the theatre shell opens instantly
     TH.open = true;
     try { thArtInit(); } catch (e) {}   // v945 — warm the HD-art map so item icons are ready
@@ -16150,8 +16197,15 @@ window._lockMark = function(isOpen, px, label){
       r = await fetch('/api/sessions', _ac ? { signal: _ac.signal } : undefined);
       clearTimeout(_to);
       j = await r.json();
+      /* ⚠ THE POINT OF NO RETURN. Anything below touches TH state and the DOM, so a request
+         that has been overtaken stops HERE and leaves the winner's stage alone. */
+      if (_thGen !== TH.gen) return;
     } catch (_e) {
       /* ⚠ CLOSE IT. Leaving theatre-open set would keep the black stage he reported. */
+      /* ⚠ v3304 — DO NOT TEAR DOWN SOMEONE ELSE'S STAGE. If this attempt was overtaken while
+         it waited, the visible theatre belongs to a LATER open and closing it here would be the
+         failure this fix exists to remove, arriving from the error path instead of the happy one. */
+      if (_thGen !== TH.gen) return;
       try {
         TH.open = false;
         $('theatre').hidden = true;
@@ -16210,6 +16264,10 @@ window._lockMark = function(isOpen, px, label){
     thLit();
   }
   function thClose(){
+    /* v3304 (#59) — INVALIDATE ANY OPEN STILL IN FLIGHT. Without this the pending thOpen()
+       resolves after the teardown and re-shows an empty stage; that is the reopen-after-close
+       failure he reported five times. */
+    TH.gen = (TH.gen | 0) + 1;
     TH.open = false; clearTimeout(TH.timer); TH.playing = false;
     try { window._backFromLive && window._backFromLive(); } catch(e){}   // v1627 — back to where he opened it from
     $('theatre').hidden = true;

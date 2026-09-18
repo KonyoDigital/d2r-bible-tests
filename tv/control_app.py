@@ -18921,8 +18921,17 @@ def _eagle_once():
             _seen_checks.add(_k)
         _drawn.append(_r)
     _missing = [r for r in _drawn if r.get("state") == "missing"]
-    bad = [r for r in _missing if r.get("check") not in _mine_names]
+    # v3307 (#62) — BY_DESIGN joins MINE in not billing him. Same mechanism, same guarantee:
+    # the row still renders red, it just stops inflating the count of things HE can act on.
+    # Measured before: needsYou=9, two of which were rows already ruled NOT DEFECTS.
+    try:
+        _design_names = set(getattr(_cd, "BY_DESIGN", {}) or {})
+    except Exception:
+        _design_names = set()          # unreadable roster -> bill everything, never silence on a guess
+    _not_his = _mine_names | _design_names
+    bad = [r for r in _missing if r.get("check") not in _not_his]
     mine = [r for r in _missing if r.get("check") in _mine_names]
+    by_design = [r for r in _missing if r.get("check") in _design_names]
     unk = [r for r in _drawn if r.get("state") in ("unknown", "unmeasured")]
     # v2079 — AND WHAT IT DOES WITH WHAT IT SAW. Konyo: "give it the capabilities to see this so
     # when it happens in the future it can auto scar / auto heal / auto fix."
@@ -18963,6 +18972,11 @@ def _eagle_once():
             "slowWhy": _slow_why,     # v3294 — empty unless the slow surface could not be read
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
+            # v3307 (#62) — AND IT MUST REACH A SURFACE, or this is a correct computation nobody
+            # reads: the rows would vanish from his count with nothing to show where they went,
+            # which is silencing by another name. Same pair of fields as `mine` above.
+            "byDesign": len(by_design),
+            "byDesignWhat": [r.get("check") for r in by_design],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
             # could not look is the defect it exists to catch. [[unknown-stays-unknown]]
             "healed": [t["scar"].get("check") for t in tended if t.get("state") == "healed"],
@@ -25987,6 +26001,20 @@ def _gate_broke(where, exc):
     the log it is trying to warn in.
     """
     _GATE_BROKE["n"] += 1
+    # ⚠⚠ v3304 (#55) — AND ON THIS THREAD'S OWN TALLY. The process counter cannot say WHO broke.
+    # v2191 already carved this exact lesson for the BLIND channel — "THE BLIND STATE IS NOW A
+    # PER-CALL RECEIPT, NOT A PROCESS COUNTER", which Konyo called critical — and its comment sits
+    # thirty lines below this one. The FAILURE channel was left as a process counter, so v3297's
+    # sweep check (mine) snapshotted gate_failures() before and after its density pass and read any
+    # movement as "this pass failed". The console gates frames on several threads at once, so a
+    # chronicle or vault sweep breaking during that window is attributed to the density pass — and
+    # the check then reports UNKNOWN ("the instrument failed") over a footage answer that was
+    # perfectly measured. That SUPPRESSES A REAL MISSING: "no reel shows a stash panel" is the
+    # finding it exists to raise. [[copy-drift]] [[unknown-stays-unknown]]
+    try:
+        _GATE_LAST.broke_here = int(getattr(_GATE_LAST, "broke_here", 0)) + 1
+    except Exception:
+        pass
     _gate_stamp(broke=True)                   # v2193 — the failure channel rides the receipt too
     if not _GATE_BROKE["said"]:
         _GATE_BROKE["said"] = True
@@ -25995,8 +26023,22 @@ def _gate_broke(where, exc):
 
 
 def gate_failures():
-    """How many times the stash gate broke this process. 0 means it ran; it never means 'unknown'."""
+    """How many times the stash gate broke this process. 0 means it ran; it never means 'unknown'.
+
+    ⚠ PROCESS-WIDE. Use this to REPORT a total, never to attribute a failure to a piece of work —
+    several threads gate frames at once. For "did MY pass fail", use gate_failures_here().
+    """
     return int(_GATE_BROKE["n"])
+
+
+def gate_failures_here():
+    """How many times the stash gate broke ON THIS THREAD. -> int.
+
+    The attributable counterpart of gate_failures(). A caller measuring its own pass takes a delta
+    of THIS, so another thread's failure can never be charged to it. Same reasoning, and the same
+    threading.local, as the per-call receipt v2191 built for the BLIND channel.
+    """
+    return int(getattr(_GATE_LAST, "broke_here", 0))
 
 
 # v1864 — how often the tab-chrome OCR came back with NOTHING, against how often it came back with
@@ -30129,7 +30171,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3303",
+        "ver": "v3307",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

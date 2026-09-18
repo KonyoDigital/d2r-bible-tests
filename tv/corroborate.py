@@ -480,6 +480,23 @@ def _inv_the_two_deleters_stay_at_their_own_granularity():
     What must stay true is the ordering: the FRAME deleter, being the stricter one, must never free
     more than the reel planner is willing to let go. If that inverts, the thing protecting his
     witness frames has become the looser of the two. [[feedback-contradiction-is-the-finding]]
+
+    ⚠⚠ v3304 (#61) — THE LABELS SAY "WOULD FREE", NOT "FREED", AND THAT IS NOT PEDANTRY.
+    `frame_authority.plan_frames()` REPORTS; control_app.py:17935 says it outright — "Deletes
+    nothing, ever." Nothing has been freed from any reel. But the row rendered "reels freed
+    outside the offer says 4" on his console, which reads as four reels having LOST footage, and
+    I read it that way myself before measuring. A standing design warning was wearing the clothes
+    of an incident. The relation is UNCHANGED and must stay red: if the frame deleter were ever
+    ARMED while the planner holds everything, it would take 1,904 frames from 4 reels held on
+    purpose — three of them held BECAUSE a full survey found panel frames there, which are the
+    witness standing behind his vault rows. [[unknown-stays-unknown]]
+
+    ⚠ AND THIS NOTE LIVES HERE, NOT BESIDE THE RETURN, FOR A MEASURED REASON. Written between
+    `right()` and the return it turned the corroborator's OWN self-audit red: that audit resolves
+    each side's callees FROM SOURCE, `right()` is a literal `return 0`, and a comment of mine
+    naming `frame_authority.plan_frames` inside its window made both sides look like one engine —
+    "no invariant corroborates a thing against ITSELF". My prose, someone else's guard, and the
+    guard was right. [[source-reading-guard]]
     """
     import frame_authority as fa
     import reel_retention as rr
@@ -497,9 +514,21 @@ def _inv_the_two_deleters_stay_at_their_own_granularity():
         side's present value of 798. The relation was structurally biased to fire the moment
         anything at all was prunable. [[label-outlived-referent]]
 
-        ⚠ IT STAYS RED, AND THAT IS THE POINT. On his tree this reads 3 — three reels the frame
-        deleter would free from that the planner is still holding. The arithmetic is corrected; the
-        finding underneath is NOT swept up with it.
+        ⚠ IT STAYS RED, AND THAT IS THE POINT — the arithmetic was corrected and the finding
+        underneath was NOT swept up with it. What it means: these are reels the frame deleter
+        WOULD free from while the planner is still holding them. Nothing has been freed;
+        plan_frames only ever reports.
+
+        ⚠ AND THE COUNT IS NOT QUOTED HERE ANY MORE. This said "reads 3"; re-measured 2026-09-18
+        it reads 4 (1,904 frames). A number written into prose goes stale the day the tree moves
+        and then contradicts the row it describes — pin the LAW, never the number.
+        [[regression-guard]] [[stale-reading]]
+
+        ⚠ WHY IT IS RED RIGHT NOW, which the row cannot say for itself: the planner offers ZERO
+        candidates, and that is a MEASURED zero with its own sentence — "NOTHING is safe to delete
+        yet ... every reel is recent, unread, or still owed to a lane." So everything the frame
+        deleter would touch is outside the offer by construction. That does not make the relation
+        wrong; it makes the warning precise.
         """
         try:
             plan = fa.plan_frames(hist)
@@ -529,7 +558,8 @@ def _inv_the_two_deleters_stay_at_their_own_granularity():
     return ("frame-deleter-not-looser",
             "the frame deleter never frees a frame from a reel the planner is still holding",
             "let frame_authority clear frames inside a reel retention is holding and this inverts",
-            "reels freed outside the offer", left, "reels allowed outside the offer", right, "<=")
+            "reels the frame deleter WOULD free, outside the offer", left,
+            "reels it is allowed to free outside the offer", right, "<=")
 
 def _inv_the_two_readers_measure_the_same_screen():
     """★ TWO READERS, TWO COPIES OF ONE MEASUREMENT OF HIS MONITOR.
@@ -2131,6 +2161,18 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3304 (#55/#38) — the relaunch interlock's green light. It IS the corroboration, so a joint
+    # would be the same question asked twice. Its two sides are already independent: our own
+    # register (a relaunch is HELD) against control_app.nothing_in_flight() (something is ACTUALLY
+    # in flight), which is computed from the sweep/mini/agent state and knows nothing about the
+    # register. A river joint over that pair would resolve to the same two engines one level down
+    # — precisely what this file's own self-audit refuses. ⚠ What it genuinely CANNOT be jointed
+    # to is an independent witness that the relaunch HAPPENED: os.execv replaces the process, so
+    # no reader on this side survives to confirm it. Saying so beats leaving it unexplained, which
+    # is indistinguishable from forgotten. [[heart-first]] [[the-unjoined-end]]
+    'relaunch green light': 'it IS the corroboration - the register against nothing_in_flight, '
+                            'two engines that know nothing of each other; and execv leaves no '
+                            'witness this process survives to read',
     # v3232 — `the shelf tabs are his stations` (v3204's station chips). It is NOT jointed, and
     # its own docstring is why: it "asks the RIVER, which is the same source the chips are built
     # from". Comparing a render against the data that built it is one engine checked against its

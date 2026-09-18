@@ -152,9 +152,17 @@ class TestAnEmptyWorldSaysUnknown(unittest.TestCase):
             with io.open(os.path.join(d, "f_1780000000000.jpg"), "wb") as fh:
                 fh.write(b"\xff\xd8\xff\xe0" + b"0" * 64)
 
-        bumps = iter([0, 3])          # gate_failures moved by 3 across the density pass
+        # ⚠⚠ v3304 — THIS MOCK WENT INERT WHEN THE CHECK MOVED TO THE ATTRIBUTABLE COUNTER,
+        # and this law caught it by going RED rather than by anyone noticing. #55 replaced the
+        # PROCESS-WIDE `gate_failures()` with the thread-local `gate_failures_here()`, because
+        # another thread's failure was being charged to this pass. The mock still patched the old
+        # name, so the simulated failure never reached the check, the delta read 0, and the state
+        # came back MISSING instead of UNKNOWN — the very conflation this case exists to pin.
+        # Same class as v3300's `_hist_dirs` mock: a patched attribute nothing reads.
+        # ⚠ Patch the name the code CALLS, and let the law go red when that name moves.
+        bumps = iter([0, 3])          # gate_failures_here moved by 3 across the density pass
         with mock.patch.object(cd, "HERE", root), \
-             mock.patch.object(ca, "gate_failures", lambda *a, **k: next(bumps)), \
+             mock.patch.object(ca, "gate_failures_here", lambda *a, **k: next(bumps)), \
              mock.patch.object(vr, "panel_density", lambda *a, **k: 0.0):
             state, why = cd._check_the_sweep_would_find_something()
 
