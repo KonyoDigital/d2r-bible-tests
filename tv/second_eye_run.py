@@ -115,6 +115,44 @@ _VER_LEADING_RUN = re.compile(r"^(v\d{4}(?:\s*[+,&]\s*v\d{4})*)\b")
 _VER_TOKEN = re.compile(r"v\d{4}")
 
 
+#: ⚠⚠ v3316 — A HYPHEN IS A RANGE, AND THIS REPO WRITES ONE. `_VER_LEADING_RUN` accepts `+`, `,`
+#: and `&` between versions because v2862 was bitten by "v2859+v2860 — ..." registering only
+#: v2859. The SAME defect returned with a hyphen: `0bf8cb6d` is titled "v3304-v3307" and ships
+#: FOUR versions, of which the parser saw one — so v3305 and v3306 were invisible to the backlog
+#: and shipped with no second-eye look at all. Measured over 200 subjects on origin/main: 1
+#: hyphen range, hiding 3 versions.
+#:
+#: ⚠ THE SEPARATOR MUST NOT EAT THE TITLE. Subjects read "v3312 — the river ..." with a spaced
+#: EM-DASH; a range is a bare hyphen-minus with no spaces between two version tokens. Requiring
+#: `v\d{4}-v\d{4}` adjacency is what keeps the two apart, and the title case is pinned in the law.
+_VER_RANGE = re.compile(r"^v(\d{4})-v(\d{4})\b")
+
+
+def versions_in_run(subject):
+    """Every version a commit subject SHIPS, expanding a range. -> [vNNNN]
+
+    Only the LEADING run counts, which is v2854's protection and it survives unchanged: a subject
+    reading "fix: the v2804 row narrated the catcher" ships nothing.
+    """
+    s = str(subject or "").strip()
+    m = _VER_RANGE.match(s)
+    if m:
+        a, b = int(m.group(1)), int(m.group(2))
+        # A backwards or absurd range is not a range. Refusing beats inventing 900 versions.
+        if b < a or (b - a) > 24:
+            return ["v%04d" % a]
+        return ["v%04d" % n for n in range(a, b + 1)]
+    m = _VER_LEADING_RUN.match(s)
+    if not m:
+        return []
+    out, seen = [], set()
+    for tok in _VER_TOKEN.findall(m.group(1)):
+        if tok not in seen:
+            seen.add(tok)
+            out.append(tok)
+    return out
+
+
 def versions_in_history(n=400):
     """Every version stamped by a commit subject, newest first. -> ([version], why)
 
@@ -134,10 +172,9 @@ def versions_in_history(n=400):
         return [], why
     seen, vs = set(), []
     for line in out.splitlines():
-        m = _VER_LEADING_RUN.match(line)
-        if not m:
-            continue
-        for tok in _VER_TOKEN.findall(m.group(1)):
+        # v3316 — ONE parser for "what does this subject ship", so the backlog and any future
+        # range-aware gate cannot disagree about it. [[copy-drift]]
+        for tok in versions_in_run(line):
             if tok not in seen:
                 seen.add(tok)
                 vs.append(tok)
@@ -490,6 +527,49 @@ _NO_DEFECT_RX = re.compile(
     r")",
     re.I)
 
+#: ⚠⚠⚠ v3315 — THE FIFTH PHRASING, AND IT IS A DIFFERENT PART OF SPEECH. `_NO_DEFECT_RX` is a
+#: NOUN-PHRASE pattern: it needs `no <...> defects|issues|bugs|problems`. Four versions widened its
+#: vocabulary (v3216 `evident`, v3216 `present`, v3267 `meeting`, v3268 the bare full stop) and the
+#: lesson drawn was "the declaration is the NOUN PHRASE". This shape has no such noun at all.
+#:
+#: MEASURED 2026-09-18 on the real v3301 look. Grok answered:
+#:
+#:     **Findings**
+#:
+#:     none found
+#:
+#: and the row was filed verdict="findings", findings=2 — the ledger asserting the eye found two
+#: things when it had answered the opposite. The blocks were `**Findings** none found …` and
+#: `**Visibility note** …`; `_claims_a_defect` was FALSE for both, so the only failing condition
+#: was the declaration itself never matching. A reviewer told to say "none found" per category
+#: says exactly that, and the prompt this repo sends ASKS for that wording.
+#:
+#: ⚠ SAFE BY CONSTRUCTION, on the same argument every prior widening used: this can only ever
+#: GRANT clean, and only when `_claims_a_defect` is false for EVERY block. A review that says
+#: "off-by-one: none found" and then lists a real P1 still lands in `findings`, because the claim
+#: check is unchanged. A miss costs a noisy row; a false match cannot clear a real defect.
+_NO_FINDING_RX = re.compile(
+    r"(?:\bnone\s+found\b"
+    r"|\bnothing\s+(?:found|wrong|to\s+report|of\s+note|to\s+flag)\b"
+    r"|\bfindings?\b\s*[:\-\u2013\u2014]?\s*none\b"
+    r"|\bnone\s*(?:\*+\s*)?(?:[.;:!]|$))", re.I)
+
+
+def _declares_none(text):
+    """Does this text DECLARE that nothing was found? -> bool
+
+    Two shapes, and they are different parts of speech:
+      · the NOUN PHRASE  — "no concrete defects found" (`_NO_DEFECT_RX`)
+      · the PRONOUN      — "none found", "findings: none" (`_NO_FINDING_RX`)
+
+    Kept as two named patterns rather than one, because the noun-phrase one has been corrected
+    four times and restructuring it to carry a different part of speech is how the fifth
+    correction becomes a sixth. [[copy-drift]]
+    """
+    t = text or ""
+    return bool(_NO_DEFECT_RX.search(t) or _NO_FINDING_RX.search(t))
+
+
 # a block that carries one of these is making a CLAIM about a defect, not describing a change.
 # Used only to refuse a clean verdict, never to grant one — so a miss here costs nothing and a
 # false hit only keeps a look in the stricter bucket.
@@ -557,12 +637,12 @@ def _verdict_for(answer, findings):
     Anything else stays "findings". That is deliberately asymmetric: over-reporting a finding
     costs a re-read, under-reporting one ships a defect with a clean stamp on it.
     """
-    decl_anywhere = _NO_DEFECT_RX.search(answer or "")
+    decl_anywhere = _declares_none(answer)
     if not decl_anywhere:
         return ("findings" if findings else "clean"), findings
     if not findings:
         return "clean", []
-    opens_clean = bool(_NO_DEFECT_RX.search(findings[0] or ""))
+    opens_clean = _declares_none(findings[0])
     claims = [f for f in findings if _claims_a_defect(f)]
     if opens_clean and not claims:
         return "clean", []
@@ -646,7 +726,7 @@ def _findings_from(answer):
 # The one thing neither mode may do is let an unanswered ask read as agreement.
 
 
-def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model=""):
+def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model="", sha=""):
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
@@ -688,7 +768,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
         SEL.record(version=version, model=(_model_from_answer(answer) or answer_model or ""),
                    verdict="", findings=[], images=[],
                    asked=COLD_FRAMING.strip()[:200], answer_head=_reply[:200], reached=False,
-                   path=None, seen_path=None, sent=sent)
+                   path=None, seen_path=None, sent=sent, sha=sha)
         print("  %s: %s — EMPTY SEAT, not agreement" % (version, _why))
         return False
     # ⚠⚠ v3216 — STRIP THE ECHO AND READ WHO ACTUALLY ANSWERED, because handoff mode was doing
@@ -709,7 +789,8 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
                verdict=_verdict,
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
-               answer_head=answer[:400], reached=True, path=None, seen_path=None, sent=sent)
+               answer_head=answer[:400], reached=True, path=None, seen_path=None, sent=sent,
+               sha=sha)
     print("  %s: LOOKED — %d finding(s) recorded" % (version, len(findings)))
     return True
 
@@ -765,7 +846,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
             # the PROMPT is passed so the echo can be stripped, and the model is read from the
             # answer's own bytes rather than inherited from whatever THIRD_EYE_MODEL happens to be
             return record_answer(version, fh.read(), sent, dropped,
-                                 prompt_text=prompt, answer_model=answer_model)
+                                 prompt_text=prompt, answer_model=answer_model, sha=sha)
     if dry:
         return True
     answer, reached, awhy = ask(prompt)
@@ -773,7 +854,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
         SEL.record(version=version, model=EYE_MODEL, verdict="", findings=[], images=[],
                    asked=COLD_FRAMING.strip()[:200],
                    answer_head=(answer or "")[:200], reached=False,
-                   path=None, seen_path=None, sent=sent)
+                   path=None, seen_path=None, sent=sent, sha=sha)
         print("     EMPTY SEAT — %s  (recorded as unreached, never as agreement)" % awhy)
         return False
     # ⚠⚠⚠ v3221 — ONE RECORDER, NOT TWO. v3220 fixed the empty-seat guard in `record_answer` and

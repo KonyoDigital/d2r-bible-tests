@@ -364,7 +364,7 @@ def code_was_transmitted(sent):
 
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
-           answer_head=None, reached=True, path=None, seen_path=None, sent=None):
+           answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -406,6 +406,19 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         verdict = "cannot-tell"
     row = {
         "version": norm_version(version) or str(version or "").strip(),
+        # ⚠⚠ v3316 — WHICH COMMIT WAS ACTUALLY READ. `payload_for(sha)` resolves a commit, builds
+        # the diff from it, and the sha was then THROWN AWAY: across all 824 rows written before
+        # this, there is no sha key at all. So the ledger could answer "was this VERSION looked
+        # at" and could not answer "was this COMMIT looked at" — and the second question is the
+        # one that matters, because this repo batches 3-4 versions per commit on purpose.
+        #
+        # MEASURED 2026-09-18: `0bf8cb6d` is titled "v3304-v3307" and ships FOUR versions. Asking
+        # the eye once per version would have sent the SAME 10,016-byte payload four times — four
+        # paid looks at one set of bytes, filed as four independent reviews. That is n inflated by
+        # repetition, which is fake confluence, and it is the error this field exists to prevent.
+        # One look, one sha, credited to every version that commit shipped.
+        # [[heart-first]] §6 — persist what you KNEW, not a summary of it.
+        "sha": (str(sha).strip() or None) if sha else None,
         "ts": int(time.time() * 1000),
         "model": str(model or ""),
         "family": family_of(model),
@@ -415,7 +428,10 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         "images": [os.path.basename(str(i)) for i in (images or [])],
         "asked": (str(asked or "")[:400]) or None,
         # the head of the RAW answer, so a plausible-sounding summary cannot stand in for a look
-        "answerHead": (str(answer_head or "")[:600]) or None,
+        "answerHead": (str(answer_head or "")[:ANSWER_HEAD_CAP]) or None,
+        # v3315 — WHICH GENERATION OF THE PARSER REACHED THIS VERDICT. 824 rows were written
+        # without it, and 64 of those carry a verdict their own stored answer contradicts.
+        "judgedBy": PARSER_GEN,
         # ⚠⚠ WHAT WAS ACTUALLY PHOTOGRAPHED. Until this existed, a look was bound to a version
         # NUMBER and to nothing else, so "was v2694 looked at" could only ever be answered from a
         # label somebody typed. MEASURED over all 343 rows: SIXTEEN looks are credited to more
@@ -564,6 +580,113 @@ def agreement(version, path=None):
                    "INSTRUMENT." % (len(verdicts), ", ".join(verdicts))}
 
 
+#: ⚠⚠ v3315 — WHICH PARSER WROTE THIS VERDICT. Bump this string whenever `_verdict_for` or
+#: `_findings_from` changes behaviour. Without it a row's verdict has no provenance, and a reader
+#: cannot tell one written by today's parser from one written by a parser since corrected.
+#:
+#: MEASURED 2026-09-18 over all 824 rows: 64 carry `verdict="findings"` while their OWN STORED
+#: ANSWER declares no defects were found — "No defects found in any of the four images.", and
+#: several structured answers whose every slot reads "NOTHING FOUND". Re-judged with today's
+#: parser, ALL 64 come back CLEAN, and 0 of them sat on the 600-char answerHead cap, so every one
+#: of those re-judgements read the full stored text rather than a prefix.
+#:
+#: ⚠ SO THE PARSER IS NOT THE LIVE DEFECT — THE STORED ROWS ARE. v2808 and v3198 fixed the
+#: parsing; nothing went back and said so, and nothing records which generation judged a row. Any
+#: statistic over the ledger's history therefore reads 64 clean looks as looks that found
+#: something. [[stale-reading]] — a verdict with no provenance is not a verdict.
+PARSER_GEN = "v3315"
+
+#: The verdicts `_verdict_for` can actually return. Anything else in the field was written by a
+#: person and is not a parser judgement, so it must never be re-judged as though it were.
+PARSER_VERDICTS = frozenset(("clean", "findings", "cannot-tell", ""))
+
+#: The cap `record()` applies to a stored answer. A row sitting exactly on it is a PREFIX, and a
+#: re-judgement of a prefix is not a judgement of the answer.
+ANSWER_HEAD_CAP = 600
+
+
+def verdict_provenance(path=None):
+    """Which stored verdicts can still be trusted to mean what today's parser means. -> dict
+
+    THIS NEVER WRITES. A stored verdict is the record of what was concluded at the time, and
+    overwriting it would destroy the only evidence that the conclusion was ever different. What
+    this does is MEASURE the disagreement so a reader can discount it.
+
+    FOUR BUCKETS, and collapsing any of them into "agrees" is the defect:
+
+        agree       today's parser reaches the same verdict on the stored answer
+        disagree    it does not — the stored verdict is from a superseded generation
+        prefixOnly  the stored answer sits on ANSWER_HEAD_CAP, so only a prefix survives and no
+                    honest re-judgement is possible. UNKNOWN, never counted as agreement.
+        noAnswer    nothing of the answer was stored at all. UNKNOWN for a different reason, and
+                    kept apart because one is truncation and the other is absence.
+    """
+    out = {"total": 0, "stamped": 0, "unstamped": 0, "agree": 0, "disagree": 0,
+           "prefixOnly": 0, "noAnswer": 0, "handWritten": 0, "which": [], "ok": True, "why": ""}
+    try:
+        # Lazy, and inside the function ON PURPOSE: second_eye_run imports THIS module, so a
+        # top-level import here is a cycle. An unimportable runner is UNKNOWN, not clean.
+        import second_eye_run as _run
+    except Exception as exc:
+        out["ok"] = False
+        out["why"] = ("the verdict parser could not be imported (%s), so whether the stored "
+                      "verdicts still mean what they say is UNKNOWN — not agreed"
+                      % type(exc).__name__)
+        return out
+
+    for r in _rows(path):
+        out["total"] += 1
+        if r.get("judgedBy"):
+            out["stamped"] += 1
+        else:
+            out["unstamped"] += 1
+        # ⚠⚠ ONLY RE-JUDGE WHAT THE PARSER COULD HAVE WRITTEN. The verdict field also carries
+        # HAND-WRITTEN annotations — "CORRECTION-to-my-own-earlier-row",
+        # "CI-FOUND-TWO-THAT-THE-LOCAL-SUITE-COULD-NOT", "clean-for-the-shipped-change" — which
+        # no parser ever produced. Comparing those against a parser verdict is a comparison
+        # between two populations, and on the first run it manufactured 169 "disagreements" out of
+        # annotations nobody ever claimed were parser output. That is precisely the defect v3313
+        # removed from the seed row, reappearing one file away. [[unknown-stays-unknown]]
+        if str(r.get("verdict") or "") not in PARSER_VERDICTS:
+            out["handWritten"] += 1
+            continue
+        head = str(r.get("answerHead") or "")
+        if not head.strip():
+            out["noAnswer"] += 1
+            continue
+        if len(head) >= ANSWER_HEAD_CAP:
+            out["prefixOnly"] += 1
+            continue
+        try:
+            # ⚠ `_verdict_for` returns a TUPLE (verdict, findings). Assigning it whole and
+            # comparing against a verdict STRING can never match, so every row reads as a
+            # disagreement — 709 of them on the first run, which is what a broken
+            # instrument looks like when it is confident. Unpack it.
+            now, _kept = _run._verdict_for(head, _run._findings_from(head))
+        except Exception:
+            out["noAnswer"] += 1
+            continue
+        if str(r.get("verdict") or "") == str(now):
+            out["agree"] += 1
+        else:
+            out["disagree"] += 1
+            if len(out["which"]) < 12:
+                out["which"].append({"version": r.get("version"), "was": r.get("verdict"),
+                                     "now": now, "head": head[:90]})
+
+    _judged = out["agree"] + out["disagree"]
+    out["say"] = ("%d of %d stored verdict(s) could be re-judged; %d still agree with today's "
+                  "parser and %d DO NOT. %d could not be re-judged (%d stored only a prefix, %d "
+                  "stored no answer, %d carry a HAND-WRITTEN verdict no parser produced) and are "
+                  "UNKNOWN rather than agreeing. %d row(s) carry no parser stamp at all, so their "
+                  "provenance is UNKNOWN by construction."
+                  % (_judged, out["total"], out["agree"], out["disagree"],
+                     out["prefixOnly"] + out["noAnswer"] + out["handWritten"],
+                     out["prefixOnly"], out["noAnswer"], out["handWritten"],
+                     out["unstamped"]))
+    return out
+
+
 def agreement_census(path=None, recent=40):
     """How much of the ledger can even answer the question. -> dict. ⚠ Denominator first."""
     seen = {}
@@ -577,8 +700,14 @@ def agreement_census(path=None, recent=40):
                            and str(x.get("verdict") or "").strip()]) >= 2]
     recent_v = sorted(asked_twice, key=_vnum)[-int(recent):]
     dis = [v for v in recent_v if agreement(v, path)["state"] == "DISAGREE"]
+    # v3315 — the provenance rides WITH the rate. A disagreement rate computed over rows whose
+    # verdicts were written by three different generations of the parser is a measurement of the
+    # parser's history as much as of the eye's steadiness, and saying so is cheaper than the
+    # reader discovering it. [[stale-reading]]
+    _prov = verdict_provenance(path)
     return {"versions": len(seen), "askedTwice": len(asked_twice),
             "recent": len(recent_v), "disagreed": len(dis), "which": sorted(dis, key=_vnum),
+            "provenance": _prov,
             # ⚠⚠ THE RATE IS AN UPPER BOUND, CONTAMINATED BY MY OWN WORKFLOW, AND MUST SAY SO.
             # A second ROW is not always a second OPINION. Measured 2026-09-18: v3300's two rows
             # are a wrapper misparse followed by the re-filed raw answer, and several older pairs
@@ -591,9 +720,35 @@ def agreement_census(path=None, recent=40):
             "say": ("%d of %d version(s) were ever asked twice (%.1f%%); of the %d most recent of "
                     "those, %d differed. ⚠ UPPER BOUND: a second ROW is not always a second "
                     "OPINION — re-files and corrections against one version read as DISAGREE here, "
-                    "so this is not a measurement of the eye's steadiness."
+                    "so this is not a measurement of the eye's steadiness. %s"
                     % (len(asked_twice), len(seen),
-                       100.0 * len(asked_twice) / max(1, len(seen)), len(recent_v), len(dis)))}
+                       100.0 * len(asked_twice) / max(1, len(seen)), len(recent_v), len(dis),
+                       _prov.get("say") or _prov.get("why") or ""))}
+
+
+def looked_at_commit(sha, path=None):
+    """Has any different-family eye read THIS commit? -> True | False | None
+
+    ⚠ None is a THIRD state and the important one: rows written before v3316 carry no sha, so a
+    commit they reviewed is UNKNOWN here, never False. Returning False would make every look
+    taken before this field existed read as "never looked at", which would demand the whole
+    824-row history be bought again. [[unknown-stays-unknown]]
+    """
+    want = str(sha or "").strip()
+    if not want:
+        return None
+    any_stamped = False
+    for r in _rows(path):
+        got = str(r.get("sha") or "").strip()
+        if not got:
+            continue
+        any_stamped = True
+        if r.get("reached") is False or not str(r.get("verdict") or "").strip():
+            continue
+        # accept either side being the abbreviated form; git shortens to 8 here
+        if got.startswith(want) or want.startswith(got):
+            return True
+    return False if any_stamped else None
 
 
 def owes_a_look(version, path=None):
