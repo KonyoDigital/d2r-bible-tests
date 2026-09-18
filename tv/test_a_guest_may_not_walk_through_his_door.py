@@ -61,26 +61,50 @@ PUBLIC_DOOR = "bull-4-u.com/api/intake"
 HELPER = "_d2rIntakeEndpoint"
 
 
+#: ⚠⚠ v3329 (#41) — HOW MUCH OF THE FILE THE LAW IS ALLOWED NOT TO SEE.
+#: MEASURED 2026-09-18: the strip keeps 5,007,436 of 6,385,003 chars — 78.4%, so 21.6% is invisible
+#: to every count taken from it. The old denominator guard was `len(body) > 500000` against an
+#: expected ~5,000,000: it can only fire when 92% of the file vanishes, so it has never been able
+#: to see a 21.6% strip. A guard whose threshold sits an order of magnitude past the failure it
+#: was written for is the [[feedback-threshold-above-the-ceiling]] shape — the same as the
+#: cpus*1.5 load guard that never fired at measured loads of 12.82 and below.
+#: Set just under today's measured 78.4% so ordinary drift does not flap it, while any FURTHER
+#: collapse of the stripper refuses the verdict instead of quietly shrinking the haystack.
+MIN_KEPT_RATIO = 0.70
+
+
 def _executable_bible():
+    """-> (stripped_body, raw_len). The raw length is returned because a count over a strip is
+    only as trustworthy as the fraction of the file the strip kept."""
     with io.open(BIBLE, encoding="utf-8") as fh:
         src = fh.read()
     # ".js" is the idiom for taking the comment-stripping branch — _executable_only dispatches on
     # EXTENSION, and ".html" falls through to the Python branch where ast.parse throws and the
     # source is returned UNSTRIPPED, which would read the very prose this law must ignore.
-    return _executable_only(src, ".js")
+    return _executable_only(src, ".js"), len(src)
 
 
 class TestAGuestMayNotWalkThroughHisDoor(unittest.TestCase):
 
     def test_the_public_door_is_named_exactly_once(self):
         """ONE DEFINITION: ten hand-copies drifted; a re-inlined eleventh would drift too."""
-        body = _executable_bible()
+        body, _raw = _executable_bible()
 
-        # A zero needs a denominator: if the strip ate the file, a clean count proves nothing.
-        self.assertGreater(
-            len(body), 500000,
-            "the comment strip returned only %d chars of bible.html — it ran away, so any count "
-            "taken from it is meaningless. [[zero-needs-a-denominator]]" % len(body))
+        # ⚠⚠ v3329 — A RATIO, NOT A FLOOR. The old check was `len(body) > 500000` against an
+        # expected ~5,000,000, so it could only fire once 92% of the file was gone and never saw
+        # the 21.6% that IS being stripped today. Any region the law does not scan can hide a
+        # second copy of the live door, which is the exact condition v3296 shipped to prevent.
+        # The measured percentage is PRINTED in the failure so the next reader gets the number
+        # rather than a verdict. [[zero-needs-a-denominator]]
+        _kept = (float(len(body)) / _raw) if _raw else 0.0
+        self.assertGreaterEqual(
+            _kept, MIN_KEPT_RATIO,
+            "the comment strip kept only %.1f%% of bible.html (%d of %d chars), under the %.0f%% "
+            "floor. Every count below is taken from that fraction, so a second copy of the live "
+            "door sitting in the discarded %.1f%% would read as 'exactly once' and this law would "
+            "be GREEN over two public doors. Refusing to judge rather than judging a haystack "
+            "that shrank." % (_kept * 100.0, len(body), _raw, MIN_KEPT_RATIO * 100.0,
+                              (1.0 - _kept) * 100.0))
 
         hits = body.count(PUBLIC_DOOR)
         self.assertEqual(
@@ -93,7 +117,7 @@ class TestAGuestMayNotWalkThroughHisDoor(unittest.TestCase):
 
     def test_every_caller_goes_through_the_helper(self):
         """The helper existing proves nothing if the call sites still roll their own."""
-        body = _executable_bible()
+        body, _raw = _executable_bible()
 
         self.assertIn(
             "window.%s = function" % HELPER, body,
@@ -135,7 +159,7 @@ class TestAGuestMayNotWalkThroughHisDoor(unittest.TestCase):
 
     def test_a_guest_cannot_reach_the_public_door(self):
         """THE SAFETY HALF. Structure alone would pass a helper that hands it to everyone."""
-        body = _executable_bible()
+        body, _raw = _executable_bible()
 
         i = body.find("window.%s = function" % HELPER)
         self.assertGreater(i, -1, "%s is not defined at all" % HELPER)
@@ -167,7 +191,7 @@ class TestAGuestMayNotWalkThroughHisDoor(unittest.TestCase):
 
     def test_the_owner_still_has_his_door(self):
         """Breaking HIS intake would be far worse than the defect. Pin it explicitly."""
-        body = _executable_bible()
+        body, _raw = _executable_bible()
         i = body.find("window.%s = function" % HELPER)
         j = body.find("\n};", i)
         fn = body[i:j]
@@ -195,6 +219,25 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "  if (window._D2R_OWNER) return 'https://bull-4-u.com/api/intake';",
         "replace": "  return 'https://bull-4-u.com/api/intake';",
+        "matches": 1,
+    },
+    {
+        # ⚠ v3329 — THE SABOTAGE IS A COLLAPSED STRIP, NOT A MOVED THRESHOLD. Raising
+        # MIN_KEPT_RATIO past today's 78.4% would prove only that an assertion fires. The failure
+        # this guard exists for is the HAYSTACK SHRINKING, so the proof shrinks the haystack: the
+        # body is truncated and the raw length left untouched, which is exactly what a stripper
+        # running away looks like from the caller's side.
+        "why": "a strip that eats the file lets a second public door hide in the part never scanned",
+        "file": "tv/test_a_guest_may_not_walk_through_his_door.py",
+        # ⚠⚠ SPLIT ON PURPOSE — DO NOT REJOIN. This proof tampers THIS FILE, so a contiguous
+        # literal would appear twice in it: once as the code, once as this declaration. Measured:
+        # the first cut matched 2 and heart2 correctly called it INVALID. Adjacent-string
+        # concatenation is merged by the parser (the value is exact) while the source text never
+        # holds the needle in one piece. [[source-reading-guard]] §4
+        "find": '    return _executable_only(src, ".js")'
+                ', len(src)',
+        "replace": '    return _executable_only(src, ".js")[:1000]'
+                   ', len(src)',
         "matches": 1,
     },
 ]
