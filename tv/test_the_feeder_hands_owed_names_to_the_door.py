@@ -208,6 +208,73 @@ class TestTheFeederIsActuallyRun(unittest.TestCase):
             "silently. The refusal is a RESULT, not an error.")
 
 
+
+class TestTheLaneCanSayItIsAlive(unittest.TestCase):
+    """⚠⚠ v3324 — ADDED BY THE POST-SHIP REVIEW OF v3323, ONE VERSION LATE.
+
+    v3323 incremented `runs` INSIDE `if _bank:`. autoOwed is 0 today, so `_bank` is always empty —
+    `runs` would have stayed 0 forever and a lane ticking every 45s would have reported that it has
+    never run. That is the "ON is not working" confusion the feeder shipped to prevent, inverted:
+    alive, with its own counter calling it dead.
+
+    And the counters were a module global while the comment called them LIFETIME — a claim in prose
+    the code did not keep, shipped one version after a law about exactly that shape.
+    [[heart-first]] §2 [[measured-true-read-wrong]]
+    """
+
+    def _code(self):
+        import io as _io, os as _os
+        here = _os.path.dirname(_os.path.abspath(__file__))
+        with _io.open(_os.path.join(here, "control_app.py"), encoding="utf-8") as fh:
+            raw = fh.read()
+        return [l.split("#", 1)[0].rstrip() for l in raw.split("\n")]
+
+    def test_runs_counts_every_tick_not_only_the_banking_ones(self):
+        """The counter that proves the lane is ALIVE must not sit behind the work branch."""
+        lines = self._code()
+        runs = [i for i, l in enumerate(lines) if '_RNF_STATE["runs"]' in l and "+ 1" in l]
+        self.assertEqual(
+            len(runs), 1,
+            "expected exactly ONE place that increments runs; found %d. Two would double-count "
+            "and none would leave the lane unable to say it is alive." % len(runs))
+        i = runs[0]
+        ifb = [j for j, l in enumerate(lines) if l.strip() == "if _bank:"]
+        self.assertEqual(len(ifb), 1, "could not find the single `if _bank:` branch to compare "
+                                      "against; refusing to judge on a guess")
+        j = ifb[0]
+        ind_runs = len(lines[i]) - len(lines[i].lstrip())
+        ind_if = len(lines[j]) - len(lines[j].lstrip())
+        self.assertLessEqual(
+            ind_runs, ind_if,
+            "the runs counter is indented deeper than `if _bank:` (%d vs %d), so it only fires on "
+            "ticks that banked something. With autoOwed 0 — today's measured state — that is "
+            "NEVER, and the lane reports it has never run while ticking every 45 seconds."
+            % (ind_runs, ind_if))
+
+    def test_the_counters_survive_a_restart(self):
+        """LIFETIME means on disk. A module global answers 'has this ever worked' wrong."""
+        import control_app as CA
+        for fn in ("_rnf_path", "_rnf_load", "_rnf_save", "_rnf_prime"):
+            self.assertTrue(hasattr(CA, fn),
+                            "control_app.%s is missing — the counters cannot outlive the process, "
+                            "so calling them LIFETIME is a claim the code does not keep." % fn)
+
+    def test_an_unreadable_store_is_refused_not_overwritten(self):
+        """⚠ A save before a good read would write a fresh zero over a real history."""
+        import control_app as CA
+        _saved = dict(CA._RNF_STORE)
+        try:
+            CA._RNF_STORE["tried"] = True
+            CA._RNF_STORE["readable"] = None          # malformed on disk == UNKNOWN
+            self.assertFalse(
+                CA._rnf_save(),
+                "a save proceeded over a store this process could not READ. That writes zeros "
+                "over a real history and the file then looks authoritative — strictly worse than "
+                "not persisting at all. [[unknown-stays-unknown]]")
+        finally:
+            CA._RNF_STORE.clear(); CA._RNF_STORE.update(_saved)
+
+
 RED_PROOF = [
     {"why": "swallowing the door's refusal turns the feeder into the unjoined end with a wire "
             "through it — autoOwed nonempty + door refused must be RED",
@@ -224,6 +291,16 @@ RED_PROOF = [
      "file": "tv/control_app.py",
      "find": "                import read_names_feeder as _rnf",
      "replace": "                import json as _rnf  # caller removed",
+     "matches": 1},
+    {"why": "putting runs back inside the banking branch makes a live lane report it never ran",
+     "file": "tv/control_app.py",
+     "find": "                _RNF_STATE[\"runs\"] = int(_RNF_STATE.get(\"runs\") or 0) + 1\n                if _bank:",
+     "replace": "                if _bank:\n                    _RNF_STATE[\"runs\"] = int(_RNF_STATE.get(\"runs\") or 0) + 1",
+     "matches": 1},
+    {"why": "saving over a store this process could not read writes zeros over a real history",
+     "file": "tv/control_app.py",
+     "find": "    if _RNF_STORE[\"readable\"] is None:\n        return False",
+     "replace": "    if False:\n        return False",
      "matches": 1},
 ]
 

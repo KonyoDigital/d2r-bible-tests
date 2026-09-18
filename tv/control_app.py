@@ -24208,6 +24208,68 @@ def _shadow_watch_loop():
 #: `owed` is None when the split could not measure — UNKNOWN, never 0. [[heart-first]] §2 §3 §7
 _RNF_STATE = {"runs": 0, "banked": 0, "lastTs": None, "owed": None, "ok": None, "why": ""}
 
+#: ⚠⚠ v3324 — v3323 CALLED THESE COUNTERS "LIFETIME" AND THEY WERE A MODULE GLOBAL. Caught by the
+#: post-ship review of my own diff, ONE VERSION after shipping a law about exactly this shape: a
+#: claim in prose the code does not keep. heart-first §2 is explicit — "a counter that resets on
+#: restart cannot answer 'has this ever worked'" — and an in-memory dict answers it wrong after
+#: every console restart. [[measured-true-read-wrong]]
+_RNF_STORE = {"tried": False, "readable": None}
+
+
+def _rnf_path():
+    return os.path.join(_fixture_root_for_state(), ".read_names_feeder.json")
+
+
+def _rnf_load():
+    """-> dict, or None when the store cannot be READ. None is UNKNOWN, never an empty lane."""
+    _RNF_STORE["tried"] = True
+    try:
+        with io.open(_rnf_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        _RNF_STORE["readable"] = d if isinstance(d, dict) else None
+    except IOError:
+        _RNF_STORE["readable"] = {}          # absent is MEASURED-AND-EMPTY: a lane that never ran
+    except Exception:
+        _RNF_STORE["readable"] = None        # malformed is UNKNOWN and must not be overwritten
+    return _RNF_STORE["readable"]
+
+
+def _rnf_save():
+    """Persist runs/banked/lastTs. tmp + os.replace, so a reader never sees a torn file.
+
+    ⚠⚠ NEVER WRITE MEMORY OVER A STORE THIS PROCESS HAS NOT READ — the rule
+    `_vault_autoread_save` earned the hard way: a save before any load writes a fresh zero over a
+    real history, and the file then looks authoritative. Load first; refuse an UNREADABLE store
+    rather than replacing it. [[unknown-stays-unknown]]
+    """
+    if not _RNF_STORE["tried"]:
+        _rnf_load()
+    if _RNF_STORE["readable"] is None:
+        return False
+    try:
+        _tmp = _rnf_path() + ".tmp"
+        with io.open(_tmp, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({k: _RNF_STATE[k] for k in ("runs", "banked", "lastTs")},
+                                ensure_ascii=False))
+        os.replace(_tmp, _rnf_path())
+        return True
+    except Exception:
+        return False
+
+
+def _rnf_prime():
+    """Fold the persisted history in, once, before the first tick reports anything."""
+    if _RNF_STORE["tried"]:
+        return
+    d = _rnf_load() or {}
+    for k in ("runs", "banked"):
+        try:
+            _RNF_STATE[k] = max(int(_RNF_STATE.get(k) or 0), int(d.get(k) or 0))
+        except Exception:
+            pass
+    if d.get("lastTs") and not _RNF_STATE.get("lastTs"):
+        _RNF_STATE["lastTs"] = d["lastTs"]
+
 
 def _vault_autoread_loop():
     while True:
@@ -24236,6 +24298,7 @@ def _vault_autoread_loop():
             # row reads them. [[heart-first]] §2
             try:
                 _lane_tick('tvd-read-names-feeder', _VAULT_AUTOREAD_EVERY_S)
+                _rnf_prime()
                 import read_names_feeder as _rnf
                 _fp = _rnf.plan()
                 _RNF_STATE["lastTs"] = int(time.time() * 1000)
@@ -24243,16 +24306,24 @@ def _vault_autoread_loop():
                 _RNF_STATE["why"] = str(_fp.get("why") or "")[:200]
                 _bank = list(_fp.get("bankable") or [])
                 _RNF_STATE["owed"] = (len(_bank) if _fp.get("ok") else None)
+                # ⚠⚠ v3324 — `runs` COUNTS TICKS, NOT ONLY TICKS THAT BANKED. v3323 incremented
+                # it inside the branch below, and autoOwed is 0 today — so `_bank` is always
+                # empty, `runs` would have stayed 0 FOREVER, and a lane ticking every 45s would
+                # report that it has never run. That is the "ON is not working" confusion this
+                # feeder shipped to prevent, inverted: alive, with its own counter calling it
+                # dead. `runs` proves the lane is ALIVE; `banked` proves it has ever DONE
+                # anything. Two questions, two counters. [[heart-first]] §2
+                _RNF_STATE["runs"] = int(_RNF_STATE.get("runs") or 0) + 1
                 if _bank:
                     # ⚠ `by` is REQUIRED and is a STRING naming what fed the write — not
                     # the rows. apply() recomputes the plan itself; handing it the list
                     # would stamp a stringified list as the author of every banked name.
                     _fa = _rnf.apply('tvd-read-names-feeder', limit=_rnf.MAX_PER_TICK)
                     _RNF_STATE["banked"] = int(_RNF_STATE.get("banked") or 0) + int(_fa.get("banked") or 0)
-                    _RNF_STATE["runs"] = int(_RNF_STATE.get("runs") or 0) + 1
                     if not _fa.get("ok"):
                         # the door refusing is a RESULT, never a swallow
                         print("   \u26a0 read-names feeder: %s" % str(_fa.get("why"))[:140], flush=True)
+                _rnf_save()
             except Exception as _rnfe:
                 _RNF_STATE["why"] = "the feeder raised %s" % type(_rnfe).__name__
                 _RNF_STATE["ok"] = False
@@ -30292,7 +30363,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3323",
+        "ver": "v3324",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

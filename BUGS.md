@@ -7,6 +7,34 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1136 — a lane ticking every 45s whose own counter says it never ran
+
+**v3324, 2026-09-18.** Found by the post-ship review of **my own v3323 diff**, one version after
+shipping a law about exactly this shape.
+
+**Defect 1 — `runs` counted the wrong thing.** It was incremented *inside* `if _bank:`. `autoOwed`
+is **0** today, so `_bank` is always empty — `runs` would have stayed **0 forever** while the lane
+ticked every 45 seconds. That is the "ON is not working" confusion the feeder shipped to prevent,
+inverted: alive, with its own counter calling it dead.
+
+`runs` now counts **ticks** (the lane is ALIVE); `banked` counts **work** (it has ever DONE
+something). Two questions, two counters.
+
+**Defect 2 — "LIFETIME" was a module global.** The comment and the gate note both said LIFETIME;
+`_RNF_STATE` was in-memory and reset on every console restart. `heart-first` §2 is explicit — *"a
+counter that resets on restart cannot answer 'has this ever worked'"*. Now persisted to
+`.read_names_feeder.json` via tmp + `os.replace`, with the rule `_vault_autoread_save` earned:
+**never write memory over a store this process has not read**, and an UNREADABLE store is refused
+rather than replaced (writing zeros over a real history is strictly worse than not persisting,
+because the file then looks authoritative).
+
+⚠ **My law was weak in the same place.** Its cases checked that the state keys exist and that
+`owed` starts `None` — none checked that `runs` ever moves. Three cases added: the counter must not
+be indented deeper than `if _bank:`; the persistence helpers must exist; and a save over an
+unreadable store must be refused.
+
+Law `test_feeder_to_the_door` — 14 cases, **5 red-proofs PROVEN**, two of them new.
+
 ### REG-1135 — the #28 feeder was complete, correct, and called by nobody
 
 **v3323, 2026-09-18.** `read_names_lane.split()` has always judged every journal-ring PANEL name
