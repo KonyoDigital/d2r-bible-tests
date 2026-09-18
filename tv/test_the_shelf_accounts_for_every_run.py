@@ -79,6 +79,10 @@ class TestTheShelfAccountsForEveryRun(unittest.TestCase):
                       self.code, "nothing compares the named buckets against the run total")
         self.assertIn("unaccounted for", self.code,
                       "a remainder is absorbed silently, which is the exact defect this replaces")
+        self.assertIn("counted twice", self.code,
+                      "only a POSITIVE remainder is reported, so a future edit that let one "
+                      "session fall through two counters would overshoot the run total and be "
+                      "hidden - the same silence, in the other direction")
 
     def test_the_stub_bucket_has_a_chip_like_its_three_siblings(self):
         self.assertIn("sh-chip-stub", self.code,
@@ -104,8 +108,15 @@ RED_PROOF = [
     {
         "why": "absorbing the remainder is how the gap became invisible in the first place",
         "file": "tv/control_ui.html",
-        "find": "                return _rest > 0 ? ' \\u00b7 \\u26a0 ' + _rest + ' unaccounted for' : '';",
-        "replace": "                return '';",
+        "find": "                if (_rest > 0) return ' \\u00b7 \\u26a0 ' + _rest + ' unaccounted for';",
+        "replace": "                if (false) return '';",
+        "matches": 1,
+    },
+    {
+        "why": "reporting only the positive direction hides a double-count behind the same silence",
+        "file": "tv/control_ui.html",
+        "find": "                if (_rest < 0) return ' \\u00b7 \\u26a0 ' + (-_rest) + ' counted twice';",
+        "replace": "                if (false) return '';",
         "matches": 1,
     },
 ]

@@ -6105,6 +6105,9 @@
   /* v3288 — the server-is-stale line. Amber, not red: nothing is broken and nothing was lost;
      a restart picks it up. Red would send him looking for damage that is not there. */
   /* v3290 — the shelf head's population clause: a denominator, never a headline */
+  /* v3291 — the pipeline reading's own age, dimmer than the figures it qualifies */
+  #th-shelfov .shs-age { color: var(--text-dim); }
+  #th-shelfov .shs-age-unk { color: #9a8c72; }
   #th-shelfov .sh-head-pop { display: block; margin-top: 3px; font-size: var(--fs-2xs);
     font-weight: var(--fw-regular); letter-spacing: var(--ls-wide); color: var(--text-dim); }
   #ver-xref .vx-mf { color: #9a8c72; }
@@ -12365,6 +12368,28 @@ window._lockMark = function(isOpen, px, label){
         +     '<span class="shs-dim"> · ' + y.emptyPct + '% carried nothing</span></div>'
         +   '<div class="shs-ysub">' + y.panels + ' panels / ' + y.frames + ' frames · '
         +     y.reelsMeasured + ' reels surveyed' + warn + '</div>'
+        /* ══ v3291 — THE AGE OF THE READING, BESIDE THE READING ═══════════════════════════════
+           His ask: *"make sure its not stale.. and its all moving along"*. This board tells him
+           the counts "stand still by design, not by neglect" — the strongest claim on the panel,
+           and until now the one thing he could not check. The payload now carries when it looked
+           and at how many reels, so the claim is falsifiable instead of reassuring.
+           ⚠ AN ABSENT STAMP IS UNKNOWN, NOT FRESH. An older console that has not restarted still
+           serves this panel, and its payload has no atMs; printing nothing there would let a
+           reading of unknown age wear the same face as one taken a second ago.
+           [[stale-reading]] [[zero-needs-a-denominator]] */
+        +   (function () {
+              var _a = st.atMs;
+              if (!_a) {
+                return '<div class="shs-ysub shs-age shs-age-unk">\u26a0 this reading carries no '
+                     + 'timestamp, so how current it is is UNKNOWN</div>';
+              }
+              var _s = Math.max(0, Math.round((Date.now() - _a) / 1000));
+              var _n = (st.measuredReels != null) ? st.measuredReels : null;
+              return '<div class="shs-ysub shs-age">measured '
+                   + (_s < 3 ? 'just now' : (_s < 90 ? _s + 's ago' : Math.round(_s / 60) + 'm ago'))
+                   + (_n != null ? ' against ' + _n + ' reel' + (_n === 1 ? '' : 's') + ' on disk' : '')
+                   + '</div>';
+            })()
         + '</div>';
     }
 
@@ -17017,7 +17042,16 @@ window._lockMark = function(isOpen, px, label){
             + (function () {
                 var _named = _shShownN + _shFixtureN + _shStubN + _shRetiredN + _shUnknownN;
                 var _rest  = _shRunsN - _named;
-                return _rest > 0 ? ' \u00b7 \u26a0 ' + _rest + ' unaccounted for' : '';
+                /* v3291 — BOTH DIRECTIONS. The cross-family eye confirmed the four skips
+                   partition the sessions exactly once, so a NEGATIVE remainder is unreachable
+                   today. It is still said out loud, because "unreachable" is a property of the
+                   code as it stands now: a future edit that lets one session fall through two
+                   counters would make _named exceed the run total, and a clause that only
+                   printed for _rest > 0 would hide exactly that. Costs one comparison.
+                   [[zero-needs-a-denominator]] */
+                if (_rest > 0) return ' \u00b7 \u26a0 ' + _rest + ' unaccounted for';
+                if (_rest < 0) return ' \u00b7 \u26a0 ' + (-_rest) + ' counted twice';
+                return '';
               })()) + '</span>' : '')
       + '</div>'
       /* v2383 — THE PIPELINE BOARD. Konyo: "reels need to be visually connected to the backend

@@ -36626,6 +36626,42 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1100 — the board's strongest claim was the one thing he could not check
+
+**v3291.** Konyo at the pipeline board, 2026-09-18: *"pipeline though might need some updated 8
+releasable? 3 not? make sure its not stale.. and its all moving along"*.
+
+**MEASURED first, and his worry was not borne out.** `/api/reel_story` reports
+`stages: {banked 3, releasable 8}` — exactly the HELD BANKED 3 and HELD DONE·AWAITING RELEASE 8 in
+his screenshot — across `onDisk 11`, `reelsUnmeasured 0`. And the handler calls
+`reel_story.story()`, which re-reads `reel_retention.plan()` **on every request**. Nothing is
+cached; the numbers were current when he read them.
+
+**The defect is that the panel could not prove it, while making the strongest claim on the
+screen:** *"none of them is free to move — every one is held, so these counts stand still by
+design, not by neglect"*. **Stillness-by-design and stillness-by-neglect look identical**, and the
+board asked him to take the difference on trust. Its payload carried no timestamp of any kind —
+the keys were `eligibleMb · hist · ok · onDisk · printerCounts · printerJoined · printerStations ·
+printerWhy · reels · stages · unreadable · yield`.
+
+*"Trust me, it is current"* and *"measured 2s ago against 11 reels on disk"* are different
+sentences, and only the second one can be WRONG. [[stale-reading]]
+
+⚠ **An absent stamp reads as UNKNOWN, not fresh, and that case is real rather than theoretical:**
+an older console that has not restarted still serves this panel from the module it imported, and
+its payload has no `atMs`. Printing nothing there would let a reading of unknown age wear the same
+face as one taken a second ago. [[zero-needs-a-denominator]]
+
+**Gate:** `test_pipeline_reading_age`, 3 red-proofs, all PROVEN at exactly 1 match each.
+
+⚠⚠ **ITS THIRD PROOF FIRST CAME BACK BLIND, AND THAT IS THE FINDING WORTH KEEPING.** The sabotage
+matched **exactly once**, deleted the clause it targeted, and the law **stayed GREEN**. The law
+was asserting `"this reading carries no "` and `"UNKNOWN</div>"` against the WHOLE file — and both
+phrases occur **three times**, because other panels share the idiom. Two unrelated sites satisfied
+the assertions, so the law had never pinned this branch at all. A correct match count is exactly
+what distinguishes this from a wrong sabotage: the anchor was right and the LAW was weak. Now
+sliced to the branch under test. [[presence-law-vs-reachability-law]] [[source-reading-guard]]
+
 ## REG-1099 — 154 runs were leaving the shelf through a door with no counter on it
 
 **v3290.** Konyo, 2026-09-18: *"the shelf is showing 12 runs why not 8? what happened there? make

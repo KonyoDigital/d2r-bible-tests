@@ -29896,7 +29896,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3290",
+        "ver": "v3291",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -32720,6 +32720,16 @@ class Handler(BaseHTTPRequestHandler):
                     _story["printerJoined"] = None
                     _story["printerWhy"] = ("the printer could not be walked (%s), so the stages "
                                             "below carry no station verdicts" % str(_pe)[:80])
+                # ══ v3291 — WHEN THIS WAS MEASURED, AND AGAINST WHAT ═══════════════════════
+                # Konyo at the pipeline board: *"pipeline though might need some updated 8
+                # releasable? 3 not? make sure its not stale.. and its all moving along"*.
+                # The board already says the counts "stand still by design, not by neglect" —
+                # a strong claim it gave him no way to check. The numbers ARE fresh: story()
+                # re-reads reel_retention.plan() on every request. But "trust me, it is
+                # current" and "measured 2s ago against 11 reels on disk" are different
+                # sentences, and only the second one can be wrong. [[stale-reading]]
+                _story["atMs"] = int(time.time() * 1000)
+                _story["measuredReels"] = _story.get("onDisk")
                 self._json(200, _story)
             except Exception as e:
                 # A board that cannot be built says so. It must never answer {} — an empty shelf
