@@ -189,26 +189,28 @@ class TheInvariantCanNowActuallyInvert(_Base):
         finally:
             ca._EAGLE = was
 
-    def test_a_pass_that_SKIPPED_periodic_is_not_expected_to_have_run_it(self):
-        """⚠⚠ A PERMANENTLY-RED PAIR CANNOT REPORT A DROPPED CHECK. The unattended eagle tick skips
-        PERIODIC on 5 of every 6 passes, and this expectation counted the roster minus SLOW only —
-        so it was one too high almost always. MEASURED on his tree before the fix: "rows in the
-        last eagle pass says 53 and rows that pass was expected to cover says 54". That is the
-        cry-wolf shape: a finding he learns to skip is worse than no finding.
-        [[feedback-threshold-above-the-ceiling]]"""
+    def test_a_pass_that_SKIPPED_periodic_covers_the_same_population(self):
+        """⚠⚠ v3298 — THE LAW INVERTED WITH #35, ON PURPOSE. The old assertion here pinned
+        `cheap - per == skipped`, because a skipped PERIODIC check emitted NO row and expecting
+        it would make the pair permanently red (the 53-vs-54 cry-wolf, measured). Since v3298 a
+        skipped PERIODIC check EMITS an UNMEASURED not-asked row — run() covers the same
+        population on every labelled pass — so the expectation is `cheap` regardless of the
+        periodic flag, and a subtraction surviving here would under-expect by `per` on 5 of 6
+        passes: the same dropped-check blindness, mirrored. [[regression-guard]]"""
         import console_doctor as cd
         cheap = len([c for c in cd.CHECKS if c[0] not in cd.SLOW])
         per = len([c for c in cd.CHECKS if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])
         self.assertGreater(per, 0, "no PERIODIC check is also cheap — re-derive this law")
         skipped = self._eagle_expectation({"checked": 1, "slow": False, "periodic": False})
         included = self._eagle_expectation({"checked": 1, "slow": False, "periodic": True})
-        self.assertEqual(cheap - per, skipped,
-                         "a pass that skipped PERIODIC is still expected to have run it: %r" % skipped)
+        self.assertEqual(cheap, skipped,
+                         "a skipped-periodic pass now emits not-asked rows and must be expected "
+                         "to cover the whole cheap population: %r" % skipped)
         self.assertEqual(cheap, included,
                          "a pass that INCLUDED periodic is under-expected: %r" % included)
-        self.assertNotEqual(skipped, included,
-                            "the expectation does not depend on `periodic` at all, so the pair is "
-                            "back to disagreeing on 5 of every 6 passes")
+        self.assertEqual(skipped, included,
+                         "the two labelled passes cover the same population since v3298; a "
+                         "difference here means the not-asked row stopped being emitted")
 
     def test_a_LEGACY_record_stays_GRADEABLE(self):
         """⚠⚠ THE RULE I GOT WRONG, AND THE GATE CAUGHT IT. v2943 returned UNKNOWN for a record

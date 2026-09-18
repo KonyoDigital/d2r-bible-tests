@@ -16544,12 +16544,30 @@ def _chron_reel_owes_a_read(rid, mem=None):
             _dm = e.get("dirMtimeAtLook")
             if _dm is None:
                 return False              # older record, no dir stamp -> count is all we have
-            # ⚠ STRICT, NOT +0.5. I copied the tolerance from _chron_hunt_more_to_search, where it
-            # guards a NEWEST-FILE mtime that can wobble between runs. A DIRECTORY mtime moves only
-            # when an entry is actually added or removed, so a tolerance here just blinds it: a
-            # prune-then-capture inside half a second becomes invisible, which is the exact case
-            # this comparison was added for. The guard caught it.
-            return os.stat(_rd).st_mtime > float(_dm)
+            # ⚠ THE DIR COMPARE IS EXACT; THE FRAME COMPARE IS NOT. A directory mtime moves only
+            # when an entry is added or removed, so `<= _dm` is a clean "nothing changed at all".
+            if os.stat(_rd).st_mtime <= float(_dm):
+                return False              # directory never moved -> nothing new to buy
+            # ⚠ v3298 — A MOVED DIRECTORY IS NOT MOVED FILM. Sidecars land IN the reel dir —
+            # kai_report.json above all — and every one bumps the directory mtime with ZERO frame
+            # change, so this trigger alone minted a false re-owe for a sealed reel the moment its
+            # report was written. The strict dir stamp above STAYS the trigger — it is still what
+            # catches a prune-then-capture that leaves the count at N (the case :16550 exists for)
+            # — but it now needs FRAME evidence to convict: the f_*.jpg census moved, or a frame
+            # is newer than the directory was at the look. A sidecar moves neither.
+            # [[unknown-stays-unknown]]
+            _ff = _g3.glob(os.path.join(_rd, "f_*.jpg"))
+            if len(_ff) != _at:
+                return True               # the census moved -> the film itself changed
+            # ⚠⚠ v3298 — AND THE FRAME-vs-DIR COMPARE NEEDS THE +0.5 THE FIRST CUT DISMISSED.
+            # MEASURED on his APFS: for ONE capture event the frame's CONTENT mtime lands ~35us
+            # AFTER the directory's ENTRY mtime, so a bare `_fnew > _dm` re-owes EVERY freshly
+            # looked reel forever (its own red-proof caught it before ship). The 0.5s tolerance is
+            # the SAME one _chron_hunt_more_to_search uses for newest-mtime wobble, and it is wide
+            # enough to swallow the same-event skew while a real post-look capture — a
+            # prune-then-capture is seconds later in production — clears it easily.
+            _fnew = max((os.stat(_p).st_mtime for _p in _ff), default=0.0)
+            return _fnew > float(_dm) + 0.5   # a frame landed AFTER the look -> prune-then-capture
         except Exception:
             return True                   # unmeasurable -> never skip on a guess
     # A 0-PAGE SEAL IS NOT "DONE", BUT IT IS ALSO NOT WORK. retention says it exactly: "that is
@@ -18689,7 +18707,8 @@ def _eagle_once():
         # would otherwise never reach a periodic tick at all, which is the same "never" wearing a
         # different number. [[feedback-threshold-above-the-ceiling]]
         _include_periodic = (_tick == 1) or (_tick % _every == 0)
-        rows = _cd.run(include_slow=_include_slow, include_periodic=_include_periodic)
+        rows = _cd.run(include_slow=_include_slow, include_periodic=_include_periodic,
+                       tick=_tick)
     except Exception as e:
         with _PRUNE_LOCK:
             _EAGLE.update({"checked": int(time.time() * 1000), "needsYou": None, "unknown": None,
@@ -29971,7 +29990,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3297",
+        "ver": "v3298",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

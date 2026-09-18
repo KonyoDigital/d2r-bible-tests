@@ -2849,9 +2849,19 @@ def _check_no_ledger_FIGURE_has_gone_stale_unnoticed():
         bits = []
         for r in drifted:
             # NAME the figure and say HOW FAR, never a count — a count alone is not actionable
-            bits.append("%s is %+d behind the live figure (value %s, newest date it records %s, "
-                        "AGE UNKNOWN — a hardcoded literal records no transcription time)"
-                        % (r["name"], r["drift"], r["value"], r.get("newestFindDate") or "none"))
+            _ts = r.get("transcribedAt")
+            if isinstance(_ts, (int, float)) and _ts > 0:
+                bits.append("%s is %+d behind the live figure (value %s, newest date it records "
+                            "%s, transcribed %s — %.1f day(s) before this read; drift, not age, "
+                            "is still the verdict)"
+                            % (r["name"], r["drift"], r["value"],
+                               r.get("newestFindDate") or "none",
+                               time.strftime("%Y-%m-%d", time.gmtime(_ts / 1000.0)),
+                               max(0.0, (time.time() * 1000.0 - _ts) / 86400000.0)))
+            else:
+                bits.append("%s is %+d behind the live figure (value %s, newest date it records "
+                            "%s, AGE UNKNOWN — a hardcoded literal records no transcription time)"
+                            % (r["name"], r["drift"], r["value"], r.get("newestFindDate") or "none"))
         for r in old:
             bits.append("%s last spoke %.1f min ago (stale past %.1f min)"
                         % (r["name"], (r["ageMs"] or 0) / 60000.0, ceil["staleMs"] / 60000.0))
@@ -3777,12 +3787,32 @@ def _load_slow():
 def _persist_slow(rows):
     """CF-12 — the two SLOW checks reach a durable sidecar, not the cheap pass.
 
-    Joining them INTO `run(include_slow=False)` would make that pass emit 34 rows, and
-    eagle-ran-every-check (which expects 32 on a labelled cheap pass) would go permanently
-    red again — the exact alarm he photographed. Persist here; `slow_surface()` is the tap.
+    v3298 (#35): PERIODIC rows persist here too (merged by check), so a skipped tick can
+    quote a last-known reading with its age. eagle-ran-every-check now expects the SAME
+    population on every labelled pass — the not-asked placeholder rows keep the count
+    constant, so the old skipped-tick subtraction (and the 53-vs-54 alarm it compensated
+    for) retired with the defect. `slow_surface()` stays the SLOW tap.
     """
-    blob = {"at": int(time.time() * 1000),
-            "rows": [dict(r) for r in (rows or []) if r.get("check") in SLOW]}
+    # ⚠ v3298 — #35: PERIODIC results persist here too, so a skipped tick can say "last asked
+    # <age> ago, last state <s>" instead of nothing. MERGE by check, never replace: a
+    # periodic-only pass carries no SLOW rows, and a whole-blob rewrite would erase the
+    # last-known SLOW state — the sidecar forgetting a reading it was built to keep. Each row
+    # carries its OWN `at`; the top-level `at` (slow_surface's age source) moves only when a
+    # SLOW row was actually measured this pass. A `notAsked` placeholder is a row about NOT
+    # looking and must never persist as a measurement. [[stale-reading]] [[copy-drift]]
+    now = int(time.time() * 1000)
+    prev = _load_slow()
+    prev = prev if isinstance(prev, dict) else {}
+    by = {r.get("check"): dict(r) for r in (prev.get("rows") or []) if isinstance(r, dict)}
+    fresh = [dict(r) for r in (rows or [])
+             if (r.get("check") in SLOW or r.get("check") in PERIODIC)
+             and not r.get("notAsked")]
+    for r in fresh:
+        r["at"] = now
+        by[r["check"]] = r
+    slow_here = any(r.get("check") in SLOW for r in fresh)
+    blob = {"at": now if slow_here else prev.get("at"),
+            "rows": [by[k] for k in sorted(by, key=lambda x: str(x))]}
     p = _slow_path()
     tmp = p + ".tmp"
     try:
@@ -3895,9 +3925,11 @@ def tick_caches():
         _routes_cache["active"], _routes_cache["got"] = False, None
 
 
-def run(include_slow=True, include_periodic=None):
+def run(include_slow=True, include_periodic=None, tick=None):
     """-> rows. `include_periodic` defaults to `include_slow` so every existing caller keeps its
-    exact behaviour; the eagle passes it explicitly on its own cadence."""
+    exact behaviour; the eagle passes it explicitly on its own cadence. `tick` is the eagle's
+    tick counter (v3298) — without it a skipped PERIODIC row says next-ask UNKNOWN, never a
+    guessed number."""
     if include_periodic is None:
         include_periodic = include_slow
     rows = []
@@ -3909,10 +3941,41 @@ def run(include_slow=True, include_periodic=None):
     # same way instead of timing a different branch. One source; a divergence is now impossible
     # rather than merely unlikely.
     with tick_caches():
+        _last = _load_slow()
+        _last = _last if isinstance(_last, dict) else {}
+        _last_by = {r.get("check"): r for r in (_last.get("rows") or []) if isinstance(r, dict)}
         for name, fn in CHECKS:
             if not include_slow and name in SLOW:
                 continue
             if not include_periodic and name in PERIODIC:
+                # ⚠ v3298 — #35: A SKIPPED PERIODIC CHECK EMITS A ROW, NEVER SILENCE. On 5 of
+                # every 6 eagle ticks this branch used to `continue`, so the check vanished from
+                # the pass entirely — indistinguishable from a check nobody wrote. 'engines
+                # corroborate' is the SOLE caller of corroborate.verdict(), so every tick it was
+                # absent was supervision downtime wearing the shape of a clean board. The row is
+                # UNMEASURED (this tick did not look), the WHY carries the cadence, the next ask,
+                # and the last-known reading off the sidecar — a reading carries the age of the
+                # thing it measured. [[stale-reading]] [[unknown-stays-unknown]]
+                _nxt = "next ask tick UNKNOWN — caller passed no tick"
+                if isinstance(tick, int) and tick > 0 and PERIODIC_EVERY:
+                    _nxt = "next ask in %d tick(s)" % (PERIODIC_EVERY - (tick % PERIODIC_EVERY))
+                _why = "not asked this tick (PERIODIC — every %d eagle ticks; %s)" % (
+                    PERIODIC_EVERY, _nxt)
+                _prev = _last_by.get(name)
+                if _prev:
+                    _age = "UNKNOWN"
+                    try:
+                        import unknown_age as _ua
+                        _age = _ua.age_say(_prev.get("at") or _last.get("at"),
+                                           int(time.time() * 1000))
+                    except Exception:
+                        pass
+                    _why += " · last asked %s ago, last state %s" % (_age, _prev.get("state"))
+                else:
+                    _why += " · never asked since the sidecar began. NEVER, not missing."
+                rows.append({"check": name, "state": UNMEASURED, "why": _why,
+                             "notAsked": True,
+                             "surfaces": list(WATCHES.get(name, ()))})
                 continue
             try:
                 state, why = fn()
@@ -3925,8 +3988,8 @@ def run(include_slow=True, include_periodic=None):
             # disagreeing about one organ's vocabulary. [[copy-drift]]
             rows.append({"check": name, "state": state, "why": why,
                          "surfaces": list(WATCHES.get(name, ()))})
-    if include_slow:
-        _persist_slow(rows)
+    if include_slow or include_periodic:
+        _persist_slow(rows)   # v3298 — periodic-inclusive passes bank their reading too
     try:
         import unknown_age as _ua
         _ua.attach(rows)

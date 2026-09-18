@@ -995,10 +995,12 @@ def _inv_the_eagle_can_still_look():
                 # the moment the console writes one record carrying the key.
                 # [[feedback-blind-fixture-green-gate]] [[copy-drift]]
                 return _base
-            if periodic:
-                return _base
-            return _base - len([c for c in cd.CHECKS
-                                if c[0] in getattr(cd, "PERIODIC", ()) and c[0] not in cd.SLOW])
+            # ⚠ v3298 — #35: a skipped PERIODIC check now EMITS a not-asked row instead of
+            # vanishing, so every labelled pass covers the same population and the subtraction
+            # that lived here went with the defect it compensated for. A legacy periodic=False
+            # record from a pre-v3298 console can read red until one new record lands — the
+            # v2944 precedent, cost stated rather than hidden. [[regression-guard]]
+            return _base
         # ⚠⚠ AN UNLABELLED PASS IS UNKNOWN, NOT "ASSUME THE WHOLE ROSTER" — AND MY DEFENCE OF THE
         # STRICT DEFAULT WAS WRONG ON ITS OWN TERMS. I argued that defaulting to `full` keeps a
         # skipped check catchable. It does not: a skip is caught by a LABELLED cheap pass reporting

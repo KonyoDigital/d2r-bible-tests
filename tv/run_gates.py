@@ -3845,6 +3845,21 @@ GATES = [
              "from visibilitychange (_shellRestoreConsole drops shell-open and would kick him out "
              "of the board tab he was reading). 6 laws, 5 sabotages RED."),
 
+    Gate("test_a_sidecar_does_not_reowe_a_read",
+         [sys.executable, os.path.join(HERE, "test_a_sidecar_does_not_reowe_a_read.py")], 120,
+         why="#25 (v3298) — A MOVED DIRECTORY IS NOT MOVED FILM. kai_report.json bumps the reel "
+             "dir mtime with zero frame change and used to re-buy a read of unchanged film — the "
+             "retirement deadlock's minting mechanism. BOTH halves pinned and SEEN RED on HEAD: "
+             "a sidecar-only touch reads owes=False (was True), and a prune-then-capture at EQUAL "
+             "count still reads owes=True (the case the strict dir stamp exists for, kept)."),
+    Gate("test_a_skipped_periodic_check_still_emits_a_row",
+         [sys.executable, os.path.join(HERE, "test_a_skipped_periodic_check_still_emits_a_row.py")],
+         120,
+         why="#35 (v3298) — a PERIODIC check skipped this tick EMITS an UNMEASURED not-asked row "
+             "instead of vanishing 5 of 6 ticks — 'engines corroborate' is the sole caller of "
+             "corroborate.verdict(), so its silent absence was supervision downtime. SEEN RED on "
+             "HEAD (KeyError: the row simply did not exist). Also pins the sidecar MERGE keeping "
+             "SLOW readings, and that a placeholder never persists as a measurement."),
     Gate("test_read_names_lane",
          [sys.executable, os.path.join(HERE, "test_read_names_lane.py")], 180,
          why="TWO READERS, ONE BANKING STORE, AND ONLY ONE WAS WIRED TO IT. His question: 'if it "
