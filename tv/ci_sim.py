@@ -39,6 +39,22 @@ HOST_STUBS = (
      "while the tree is mid-edit (REG-400), which is right in production and a hidden input in a "
      "test. Unstubbed it passes on a clean checkout and fails on the machine of anyone actually "
      "editing the repo - CI green, his Mac red, for a reason that is not in the diff"),
+    # ⚠⚠ v3319 — ADDED BECAUSE CI DISAGREED WITH HIS MAC FOR TEN CONSECUTIVE DEPLOYS AND THIS
+    # SIMULATOR COULD NOT SEE IT. `slow_surface()` always returns len(SLOW) rows and emits
+    # UNMEASURED when no full pass was ever stored ("NEVER, not missing"). His Mac has stored
+    # passes so `the other doctors` reads ok; a runner never has, so it reads UNMEASURED — and
+    # since v3293 the eagle buckets 'unknown' OR 'unmeasured'.
+    # MEASURED by reproducing both worlds on the engine: slow=UNMEASURED -> unknown 2,
+    # slow=ok -> unknown 1. That 2 failed `test_UNKNOWN_is_never_folded_into_all_clear` on every
+    # Publish run, so THE LIVE SITE DID NOT DEPLOY ALL DAY while the code was correct throughout.
+    # ⚠ The stub returns [] rather than an ok row ON PURPOSE: [] claims nothing about the slow
+    # tier's health, it only removes the VENUE from the count. [[test-venue]]
+    ("console_doctor", "slow_surface",
+     lambda *a, **k: [],
+     "slow_surface is a CACHED read of _load_slow, not a sub-doctor run, so patching run() never "
+     "reaches it. On his Mac a stored full pass makes it 'ok'; on a runner nothing was ever stored "
+     "so it is UNMEASURED and counts toward `unknown` - CI red, his Mac green, for a reason that "
+     "is not in the diff"),
 )
 
 

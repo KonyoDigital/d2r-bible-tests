@@ -21933,14 +21933,43 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         ca = self._ca()
         rows = [{"check": "a", "state": "ok", "why": ""},
                 {"check": "b", "state": "unknown", "why": "console not answering"}]
+        # ⚠⚠ v3319 — THE MOCK DID NOT REACH THE WHOLE POPULATION, AND IT COST TEN DEPLOYS.
+        # This patched `run` only. But `_eagle_once` counts over `_drawn = rows + slowRows`, and
+        # slowRows comes from `slow_surface()` — a CACHED read of _load_slow, not a sub-doctor
+        # run, so no patch of `run` can touch it. `slow_surface` ALWAYS returns len(SLOW) rows and
+        # emits UNMEASURED when no full pass was ever stored ("NEVER, not missing"), and the
+        # counter buckets 'unknown' OR 'unmeasured' since v3293.
+        #
+        # MEASURED 2026-09-18: on HIS Mac the stored pass exists so `the other doctors` reads ok
+        # and the count is 1; on a GitHub runner nothing was ever stored, so it is UNMEASURED and
+        # the count is 2. The Publish workflow failed on TEN CONSECUTIVE RUNS with `2 != 1` — the
+        # live site did not deploy all day — and the code was right every time.
+        # Same command locally: 2283 tests OK with 14 skips; CI: 27 skips and this one failure.
+        # THE VENUE WAS THE VARIABLE. [[regression-guard]] §3 — a test that needs his machine is a
+        # test that runs nowhere else.
         with mock.patch.dict(sys.modules):
             import console_doctor as cd
-            with mock.patch.object(cd, "run", lambda **k: rows):
+            with mock.patch.object(cd, "run", lambda **k: rows), \
+                 mock.patch.object(cd, "slow_surface", lambda *a, **k: []):
                 ca._eagle_once()
         st = ca.eagle_state()
-        self.assertEqual(st["unknown"], 1)
+        # THE LAW, not the count. The rule this test is named for is that an UNMEASURED check is
+        # never folded into all-clear — not that exactly one thing is unknown on every machine.
+        self.assertGreaterEqual(
+            st["unknown"], 1,
+            "the unknown row was not counted AT ALL — that is the fold this test exists to catch")
+        self.assertIn(
+            "b", [r.get("check") for r in (st.get("rows") or [])],
+            "the unknown row was dropped from the drawn population, so the count above could be "
+            "reached by something else entirely")
         self.assertNotIn("all clear", st["say"],
                          "a check that could not be measured was reported as all clear")
+        # ...and with the slow surface neutralised the figure is DETERMINISTIC, so the venue can
+        # no longer move it. Asserting only >= 1 would pass on a board drowning in unknowns.
+        self.assertEqual(
+            st["unknown"], 1,
+            "with slow_surface stubbed empty the only unknown is the mocked one; a different "
+            "number means something outside this fixture is still contributing rows")
 
     def test_the_five_new_checks_are_on_the_roster(self):
         """Each one exists because a defect of that exact shape shipped and HE found it."""
