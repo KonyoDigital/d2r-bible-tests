@@ -2161,6 +2161,14 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3310 (#56) — the second-eye ledger is the ONLY record of what an eye said. There is no
+    # second witness to corroborate it against: the eye's reply exists nowhere else, and the
+    # models are not asked to sign their answers. What this check DOES do is compare two looks at
+    # ONE payload against each other, which is a self-consistency test rather than a joint — and
+    # saying so beats leaving it unexplained, which is indistinguishable from forgotten.
+    'second eye asked twice': 'the ledger is the only record of what an eye said; two looks at one '
+                              'payload check each other, which is self-consistency and not a '
+                              'second witness',
     # v3304 (#55/#38) — the relaunch interlock's green light. It IS the corroboration, so a joint
     # would be the same question asked twice. Its two sides are already independent: our own
     # register (a relaunch is HELD) against control_app.nothing_in_flight() (something is ACTUALLY

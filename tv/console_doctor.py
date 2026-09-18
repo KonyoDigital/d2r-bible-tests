@@ -2664,6 +2664,10 @@ BY_DESIGN = {
 }
 
 MINE = {
+    "second eye asked twice":
+        "#56 — asking the eye twice is MY job, not his. He cannot act on a look I did not take, "
+        "so a SINGLE look must never appear in the count he reads. ⚠ It still renders red, "
+        "because the omission is real and I spent a whole arc reporting pairs I had not recorded.",
     "extraction lanes": "#75 — the vault lane cannot seal 'examined, nothing here'",
     "board join": "#76 — _BOARD_WIN is set in a child process the server cannot read",
 }
@@ -3618,6 +3622,52 @@ def _check_the_screen_is_still_painting():
                    "speak for now" % (len(stale), STALE_S / 3600.0)))
 
 
+def _check_the_second_eye_was_asked_twice():
+    """v3310 (#56) — was the last shipped version looked at TWICE, and did the looks AGREE?
+
+    His #56 ruling: *ask the second eye TWICE and keep both; wire the disagreement to the heart.*
+
+    ⚠⚠ THIS CHECK EXISTS BECAUSE I WAS NOT DOING IT AND REPORTED THAT I WAS. Through the whole
+    v3301-v3309 arc I wrote "asked twice, both looks agree" — while pasting the second look INTO
+    the first answer's text. `record_answer` then wrote ONE row carrying both, so the ledger has
+    no pairs, nothing can compute agreement, and no disagreement could ever reach the heart. A
+    second opinion that lives inside the first opinion's prose is not data. This is heart-first
+    rule 6 committed inside the mechanism built to catch it. [[the-unjoined-end]]
+
+    THREE STATES, and collapsing any two is the defect this file is full of:
+      AGREE    -> two reached looks, same verdict. The eye is steady on this payload.
+      DISAGREE -> two reached looks, different verdicts. ⚠ THE FINDING IS ABOUT THE INSTRUMENT:
+                  which verdict shipped was decided by timing, not by the code.
+      SINGLE   -> asked once. Not a failure of the code and NOT his to act on — it is mine, so
+                  this check is named in MINE and does not bill him. [[his #35 ruling]]
+    """
+    try:
+        import second_eye_ledger as L
+    except Exception as e:
+        return UNKNOWN, "the second-eye ledger will not import: %s" % str(e)[:90]
+    try:
+        v = L.current_version()
+    except Exception as e:
+        return UNKNOWN, "could not read the current version: %s" % str(e)[:90]
+    if not v:
+        return UNKNOWN, "no current version could be read, so there is nothing to ask about"
+    try:
+        a = L.agreement(v)
+        c = L.agreement_census()
+    except Exception as e:
+        return UNKNOWN, "the agreement reader raised: %s" % str(e)[:110]
+    # ⚠ THE DENOMINATOR TRAVELS WITH THE VERDICT, always. [[zero-needs-a-denominator]]
+    tail = " · " + c.get("say", "")
+    st = a.get("state")
+    if st == "DISAGREE":
+        return MISSING, a.get("say", "two looks disagree") + tail
+    if st == "AGREE":
+        return OK, a.get("say", "the looks agree") + tail
+    if st == "SINGLE":
+        return MISSING, a.get("say", "looked at once") + tail
+    return UNKNOWN, (a.get("say") or "nothing recorded") + tail
+
+
 def _check_a_held_relaunch_is_not_stuck():
     """v3301 (#38) — THE INTERLOCK'S OWN SUPERVISOR: is the GREEN LIGHT still firing?
 
@@ -3673,6 +3723,9 @@ CHECKS = [
     # still fires. A held relaunch looks pending right up until it expires unfired, so the only
     # way to see the release path die is to corroborate the register against the world.
     ("relaunch green light", _check_a_held_relaunch_is_not_stuck),
+    # v3310 (#56) — his ruling is ask TWICE and keep both. Named in MINE below: a single look is
+    # MY omission, not something he can act on.
+    ("second eye asked twice", _check_the_second_eye_was_asked_twice),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
@@ -4125,6 +4178,8 @@ WATCHES = {
     # the eagle row and relaunch_hold_state()'s shared on/worked/lastTs/owed contract, not through
     # a element id anyone can point at. When it gets a lamp, name it here.
     "relaunch green light":        (),
+    # v3310 — the ledger is a file, not a screen. Empty tuple as a DECLARATION, not an omission.
+    "second eye asked twice":      (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never

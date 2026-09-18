@@ -517,6 +517,85 @@ def looked_at(version, path=None):
     return sorted(out, key=lambda r: -(r.get("ts") or 0))
 
 
+def agreement(version, path=None):
+    """Did two looks at ONE payload agree? -> dict. His #56 ruling: ask twice and KEEP BOTH.
+
+    ⚠⚠ THIS EXISTS BECAUSE I WAS NOT ACTUALLY KEEPING BOTH. All through the v3301-v3309 arc I
+    reported "asked twice, both looks agree" — and the ledger contains no such pairs, because I
+    pasted the second look INTO the first answer's text as a bracketed note. `record_answer` then
+    wrote ONE row carrying both. A second opinion that lives inside the first opinion's prose is
+    not data: nothing can compute agreement from it and no disagreement can ever reach the heart.
+    That is heart-first rule 6 — persist what you knew, not a summary of it — committed inside the
+    mechanism built to catch exactly that. [[the-unjoined-end]]
+
+    ⚠ IT CARRIES ITS OWN DENOMINATOR, ALWAYS. Measured 2026-09-18: 42 of 767 versions were ever
+    asked twice — 5.5%. Any rate computed from this store is a rate over that 5.5%, and a
+    percentage that does not say so is the confident number this repo keeps re-learning to
+    distrust. [[zero-needs-a-denominator]]
+
+    ⚠ AN EMPTY SEAT IS NOT AN OPINION. A row with reached=False is an unreachable eye, never
+    agreement and never disagreement — it is excluded from both sides and counted separately, or
+    two failed calls would read as a unanimous verdict. [[unknown-stays-unknown]]
+    """
+    version = norm_version(version)
+    seen = [r for r in _rows(path) if norm_version(r.get("version") or "") == version]
+    reached = [r for r in seen if r.get("reached") is not False]
+    empty = len(seen) - len(reached)
+    verdicts = [str(r.get("verdict") or "").strip() for r in reached]
+    verdicts = [v for v in verdicts if v]
+    if not verdicts:
+        return {"version": version, "looks": 0, "empty": empty, "state": "NONE",
+                "verdicts": [],
+                "say": "no look with a verdict is recorded for %s%s" % (
+                    version, (" (%d empty seat(s))" % empty) if empty else "")}
+    if len(verdicts) == 1:
+        return {"version": version, "looks": 1, "empty": empty, "state": "SINGLE",
+                "verdicts": verdicts,
+                "say": "%s was looked at ONCE (%s) — asked twice is his #56 ruling, and one look "
+                       "cannot show whether the eye is steady on this payload" % (version, verdicts[0])}
+    if len(set(verdicts)) == 1:
+        return {"version": version, "looks": len(verdicts), "empty": empty, "state": "AGREE",
+                "verdicts": verdicts,
+                "say": "%d looks at %s AGREE (%s)" % (len(verdicts), version, verdicts[0])}
+    return {"version": version, "looks": len(verdicts), "empty": empty, "state": "DISAGREE",
+            "verdicts": verdicts,
+            "say": "%d looks at ONE payload DISAGREE (%s) — the eye is not steady here, and which "
+                   "verdict shipped was decided by timing. That is a finding about the "
+                   "INSTRUMENT." % (len(verdicts), ", ".join(verdicts))}
+
+
+def agreement_census(path=None, recent=40):
+    """How much of the ledger can even answer the question. -> dict. ⚠ Denominator first."""
+    seen = {}
+    for r in _rows(path):
+        v = norm_version(r.get("version") or "")
+        if not v:
+            continue
+        seen.setdefault(v, []).append(r)
+    asked_twice = [v for v, rs in seen.items()
+                   if len([x for x in rs if x.get("reached") is not False
+                           and str(x.get("verdict") or "").strip()]) >= 2]
+    recent_v = sorted(asked_twice, key=_vnum)[-int(recent):]
+    dis = [v for v in recent_v if agreement(v, path)["state"] == "DISAGREE"]
+    return {"versions": len(seen), "askedTwice": len(asked_twice),
+            "recent": len(recent_v), "disagreed": len(dis), "which": sorted(dis, key=_vnum),
+            # ⚠⚠ THE RATE IS AN UPPER BOUND, CONTAMINATED BY MY OWN WORKFLOW, AND MUST SAY SO.
+            # A second ROW is not always a second OPINION. Measured 2026-09-18: v3300's two rows
+            # are a wrapper misparse followed by the re-filed raw answer, and several older pairs
+            # are corrections recorded against the same version. Those read as DISAGREE and are
+            # not evidence of an unsteady eye. Presenting this figure as "the eye disagrees with
+            # itself N% of the time" would be a confident number built from a 2.7% sample that
+            # also contains artifacts — exactly the shape this repo keeps learning to distrust.
+            # The honest use is the PER-VERSION verdict; this census exists to state the reach.
+            # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+            "say": ("%d of %d version(s) were ever asked twice (%.1f%%); of the %d most recent of "
+                    "those, %d differed. ⚠ UPPER BOUND: a second ROW is not always a second "
+                    "OPINION — re-files and corrections against one version read as DISAGREE here, "
+                    "so this is not a measurement of the eye's steadiness."
+                    % (len(asked_twice), len(seen),
+                       100.0 * len(asked_twice) / max(1, len(seen)), len(recent_v), len(dis)))}
+
+
 def owes_a_look(version, path=None):
     """True when `version` shipped and no different family has looked at it."""
     return not looked_at(version, path)

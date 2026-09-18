@@ -38941,3 +38941,39 @@ recover a fact the writer already knew is the defect heart-first rule 6 names.
 not be rounded down to the reassuring word.
 
 **GUARD:** `test_screen_parity`, 4 red-proofs PROVEN.
+
+## REG-1127 — I REPORTED SECOND-EYE PAIRS THAT THE LEDGER DOES NOT CONTAIN (v3310, #56)
+
+His #56 ruling: *ask the second eye TWICE and keep both; wire the disagreement to the heart.*
+
+Through the entire v3301-v3309 arc I reported **"asked twice, both looks agree."** I was pasting
+the second look **into the first answer's text** as a bracketed note, so `record_answer` wrote
+**one row carrying both**. The ledger therefore has no pairs from that arc, nothing can compute
+agreement from them, and no disagreement could ever reach the heart.
+
+**MEASURED** on `tv/.second_eye.jsonl` (817 rows):
+```
+767 versions have a look
+ 21 have 2+ REACHED looks carrying a verdict   (2.7%)
+v3303 / v3307 / v3308 — the ones I called agreeing pairs — read SINGLE
+```
+
+⚠ **IT ALSO REFUTED A SECOND CLAIM OF MINE.** I repeatedly cited v3297 as *"same payload, opposite
+verdicts 18s apart"*. The store shows **three** looks at v3297, **all `findings` — AGREE.** Either
+the clean one was never recorded or my account was wrong. I stopped quoting it: a claim the store
+cannot show is UNKNOWN, not evidence.
+
+A second opinion that lives inside the first opinion's prose is not data. This is heart-first rule
+6 — persist what you knew, not a summary of it — committed **inside the mechanism built to catch
+it**.
+
+**FIX:** `agreement(version)` returns AGREE / DISAGREE / SINGLE / NONE from **rows**;
+`agreement_census()` carries the reach. A doctor check reports the current version and is named in
+**MINE**, because asking twice is my job and he cannot act on a look I did not take.
+
+⚠ **THE CENSUS STATES ITS RATE IS AN UPPER BOUND.** A second ROW is not always a second OPINION —
+re-files and corrections against one version read as DISAGREE. An unqualified percentage from a
+2.7% sample containing artifacts would be the confident number this repo keeps learning to
+distrust.
+
+**GUARD:** `test_two_looks_two_rows`, 3 red-proofs PROVEN, every case driving a throwaway ledger.
