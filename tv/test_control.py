@@ -4729,17 +4729,15 @@ class TestToolsCanReportTheirVerdict(unittest.TestCase):
         return sorted(out)
 
     def test_every_cli_that_prints_non_ascii_is_encoding_safe(self):
-        unsafe = []
-        for path in self._scripts():
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                src = fh.read()
-            if "__main__" not in src:
-                continue                                    # importable module, not an entry point
-            if not re.search(r"[^\x00-\x7F]", src):
-                continue                                    # pure ASCII output cannot hit this
-            if "reconfigure" in src or self.VIA_IMPORT.search(src):
-                continue
-            unsafe.append(os.path.relpath(path, self.REPO))
+        # ⚠ v3293 — THE RULE MOVED TO console_safe.audit() AND THIS CALLS IT. It used to be
+        # spelled out here, which made it reachable only by running a ~500s suite at push time —
+        # the most expensive moment to learn that a one-line import is missing. It now also has a
+        # CLI (`python3 tv/console_safe.py`) that answers in under a second, and the pre-push hook
+        # runs that first. Keeping a second copy of the rule here is how two rules begin to
+        # disagree, so this asserts on the SAME function the fast path calls. [[copy-drift]]
+        sys.path.insert(0, self.TV)
+        import console_safe
+        unsafe = console_safe.audit(self.REPO)
         self.assertEqual(
             unsafe, [],
             "these print non-ASCII but never make stdout encoding-safe, so on a non-UTF-8 console "

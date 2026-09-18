@@ -36626,6 +36626,67 @@ Walk his two scenarios with that in mind:
 carries no failure of its own. **Nothing changed.** [[review-after-ship]] — a good reviewer earns a
 measurement, not obedience, and this one earned a re-derivation that confirmed the design.
 
+## REG-1102 — the figures counted a narrower set than the panel drew, and the rule you learn at 500s
+
+**v3293.** Two fixes, and the first was found BY a guard rather than by me.
+
+### The eagle counted a narrower population than the panel drew
+
+Grok Bot's native eyes on v3291 reported:
+
+> `CHILIAD: YOU 10 / CODE 1 / not measured 23 (panel 23-vs-25 disagree)`
+
+**That sentence is v3284's clause working.** It exists to refuse two numbers sitting side by side
+in silence, and it caught a real defect underneath — **two** of them:
+
+1. **One spelling versus two.** `control_app.py` counted `state == "unknown"`; the panel buckets
+   `'unknown' || 'unmeasured'` (`control_ui.html:12787`). `console_doctor` emits **UNMEASURED** for
+   a SLOW check that has never had a full pass, so any board without one carries rows the counter
+   never saw.
+2. **A whole list.** `slowRows` is published in the same payload and bucketed by the panel through
+   the same `_sortRow` — and `bad`/`mine`/`unk` were all computed from `rows` alone. **Nothing in
+   slowRows was counted by any of the three figures**, so `needsYou` could drift too, not only
+   `unknown`.
+
+**MEASURED on his Mac the same hour:** `rows 61 = ok 45 + missing 11 + unknown 5`, the eagle said
+`10 / 1 / 5`, and reproducing the client bucketing by hand gave exactly `10 / 1 / 5` — because that
+board has no `unmeasured` rows and its single SLOW check read `ok`. `len(SLOW)` is 1, so slowRows
+accounts for **one** of the two; the other is an `unmeasured` row inside `rows`. After the fix, live:
+`rows 61 + slow 1 = 62 drawn`, unknown **6 → 7**.
+
+⚠ **Fixed at the NOUN.** Setting a counter to its list's length would re-hide exactly what the
+clause exposed, so the FIGURES widened to the drawn population and the panel is untouched. A
+red-proof pins that too: narrowing the panel would buy agreement by drawing less, which is the same
+silence in a new place. [[label-outlived-referent]]
+
+### The encoding rule moved to where it can be learned in a second
+
+A test of mine printed non-ASCII without `console_safe.enable()`. **The rule was never the
+problem** — it refused mine, and `lane_census.py:474`, `rung_accounting_wilson.py:603` and
+`render_check.py:55` each carry a comment saying it refused them on their first run. The defect was
+**when you learn**: it lived inside `test_control`, ~500s into a suite that runs at push time. The
+crash it prevents happens *while reporting a failure*, so on his cp1255 console a clean tree exits
+non-zero for a reason unrelated to the check.
+
+It is now `console_safe.audit()` — beside the `enable()` it tells you to call — with a CLI that
+answers in under a second and a **pre-push step that runs it first, before anything expensive**.
+One definition, three callers; a second copy is how two rules begin to disagree.
+
+⚠⚠ **AND ITS FIRST LAW WAS WEAK, WHICH THE PROVER SAID OUT LOUD.** The red-proof flipping
+`exit(1)` → `exit(0)` came back **BLIND at a match count of 1**. The anchor was right, so the law
+was wrong: my test only ran the CLI against the **clean** tree, so the failing path was never
+observed at all. A correct match count with a green law means the LAW is weak, not the sabotage —
+which is the rule v3292 shipped, catching v3293's own law one version later. The CLI now takes an
+optional repo root so the failure can be exercised on a fixture, and the law asserts exit 1 **and**
+that the offending file is named.
+
+**Gates:** `test_eagle_counts_drawn` (3 red-proofs) and `test_encoding_rule_one_def` (3
+red-proofs), all PROVEN at exactly 1 match each.
+
+⚠ Owned: measuring this called `console_doctor.run()`, which is not purely read-only — it printed
+`♻ 2 stale reel id(s) dropped from the autoread record`. Harmless housekeeping for footage already
+gone, but a write caused by a measurement. [[a-gate-can-perturb-what-it-measures]]
+
 ## REG-1101 — a proof that proved nothing reported success, and nothing ran it anyway
 
 **v3292.** Konyo, on being handed three "lessons learned": *"why not fix them?"* — correctly, a

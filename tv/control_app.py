@@ -18704,10 +18704,44 @@ def _eagle_once():
         _mine_names = set(getattr(_cd, "MINE", {}) or {})
     except Exception:
         _mine_names = set()
-    _missing = [r for r in rows if r.get("state") == "missing"]
+    # ══ v3293 — COUNT WHAT THE PANEL DRAWS, NOT A NARROWER SET ═══════════════════════════════
+    # Found by Grok Bot's native eyes on v3291 — and found because v3284's clause REFUSED to let
+    # two numbers sit side by side in silence. It reported:
+    #     "CHILIAD: YOU 10 / CODE 1 / not measured 23 (panel 23-vs-25 disagree)"
+    #
+    # TWO INDEPENDENT DIVERGENCES, both making the panel draw MORE than these figures admit:
+    #   1. ONE SPELLING vs TWO. This counted state == "unknown" only, while control_ui.html:12787
+    #      buckets 'unknown' OR 'unmeasured'. console_doctor emits UNMEASURED for a SLOW check
+    #      that has never had a full pass, so a board that has not run one carries rows this
+    #      never saw.
+    #   2. A WHOLE LIST. `slowRows` is published at the bottom of this payload and the panel
+    #      buckets it through the same _sortRow — but bad/mine/unk were computed from `rows`
+    #      alone, so nothing in slowRows was ever counted by ANY of the three figures. That means
+    #      needsYou could drift too, not only unknown.
+    #
+    # MEASURED on his Mac the same hour: rows 61 = ok 45 + missing 11 + unknown 5, eagle says
+    # 10/1/5, and reproducing the client bucketing gives exactly 10/1/5 — because this board has
+    # no 'unmeasured' rows and its one SLOW check reads 'ok'. The disagreement lives on boards
+    # where it does not. len(SLOW) is 1, so slowRows explains ONE of the two; the other is an
+    # 'unmeasured' row inside `rows`.
+    #
+    # ⚠ FIXED AT THE NOUN, NOT BY FORCING EQUALITY. Setting a counter to its list's length would
+    # re-hide precisely what the clause exposed, and the standing ruling in
+    # test_a_lane_count_names_the_population_it_counted is that the number was never wrong, only
+    # the population it named. So the figures widen to the drawn population; the panel is
+    # unchanged. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+    #
+    # slow_surface() is a CACHED read (_load_slow), not a sub-doctor run, so hoisting it here
+    # costs nothing — and it is reused for the payload below instead of being called twice.
+    try:
+        _slow_rows = getattr(_cd, "slow_surface", lambda: [])() or []
+    except Exception:
+        _slow_rows = []
+    _drawn = list(rows) + list(_slow_rows)
+    _missing = [r for r in _drawn if r.get("state") == "missing"]
     bad = [r for r in _missing if r.get("check") not in _mine_names]
     mine = [r for r in _missing if r.get("check") in _mine_names]
-    unk = [r for r in rows if r.get("state") == "unknown"]
+    unk = [r for r in _drawn if r.get("state") in ("unknown", "unmeasured")]
     # v2079 — AND WHAT IT DOES WITH WHAT IT SAW. Konyo: "give it the capabilities to see this so
     # when it happens in the future it can auto scar / auto heal / auto fix."
     #   SCAR is unconditional: every red is written to a durable ledger with when it first
@@ -18743,7 +18777,7 @@ def _eagle_once():
             "tick": _tick,
             # CF-12 — the two SLOW checks live here, not inside `rows`. Mixing them into a cheap
             # pass makes eagle-ran-every-check 34 vs 32, permanently red. Last-known or NEVER.
-            "slowRows": getattr(_cd, "slow_surface", lambda: [])(),
+            "slowRows": _slow_rows,   # v3293 — the same list the figures above counted
             "needsYou": len(bad), "unknown": len(unk), "mine": len(mine),
             "mineWhat": [r.get("check") for r in mine],
             # UNKNOWN is reported, never folded into OK — a watchdog that says "fine" because it
@@ -29896,7 +29930,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3292",
+        "ver": "v3293",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

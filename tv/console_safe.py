@@ -53,3 +53,74 @@ def enable(*streams):
             # a StringIO under test). Nothing to do and nothing worth crashing over.
             ok = False
     return ok
+
+# ══ v3293 — THE AUDIT LIVES BESIDE THE FIX ═══════════════════════════════════════════════════
+# test_control has carried this rule for a long time and it WORKS — it refused three files in tv/
+# on their first run (lane_census.py, rung_accounting_wilson.py, render_check.py each say so in a
+# comment) and it refused one of mine this session. The defect is not the rule, it is WHEN you
+# learn: it sits inside a ~500s suite that runs at push time, which is the most expensive moment
+# to discover a missing one-line import.
+#
+# So the rule moves HERE, next to the enable() it tells you to call, and test_control calls this
+# instead of keeping its own copy. One definition, three callers (the suite, the CLI, the hook) —
+# a second copy of a rule is how two rules start disagreeing. [[copy-drift]]
+import glob as _glob
+import os as _os
+import re as _re
+
+# an entry point that imports any of these is already safe: they call enable() on import
+_VIA_IMPORT = _re.compile(r"^\s*(?:import|from)\s+(control_app|tv_diablo|console_safe)\b", _re.M)
+_NON_ASCII = _re.compile(r"[^\x00-\x7F]")
+
+
+def scripts(repo=None):
+    """Every python entry point this rule covers. One list, so the suite and the CLI agree."""
+    repo = repo or _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    tv = _os.path.join(repo, "tv")
+    out = list(_glob.glob(_os.path.join(tv, "*.py")))
+    out.append(_os.path.join(repo, "visual_lock_invariant.py"))
+    return sorted(p for p in out if _os.path.exists(p))
+
+
+def audit(repo=None):
+    """-> [repo-relative paths] that print non-ASCII and never make stdout encoding-safe.
+
+    On a cp1255 console such a script crashes WHILE REPORTING, so a clean tree exits non-zero for
+    a reason that has nothing to do with what it was checking.
+    """
+    repo = repo or _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    bad = []
+    for path in scripts(repo):
+        try:
+            # plain open(): this module imports only `sys` at the top, deliberately — it is the
+            # first thing other scripts import, so it stays as small as it can be.
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                src = fh.read()
+        except OSError:
+            continue
+        if "__main__" not in src:
+            continue                       # an importable module, not an entry point
+        if not _NON_ASCII.search(src):
+            continue                       # pure ASCII output cannot hit this
+        if "reconfigure" in src or _VIA_IMPORT.search(src):
+            continue
+        bad.append(_os.path.relpath(path, repo))
+    return bad
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    # an optional repo root, so a test can exercise the FAILING path on a fixture. Without it the
+    # only reachable case is the clean tree, and a law that never sees the failure cannot pin it:
+    # the v3293 red-proof that flipped exit(1) to exit(0) came back BLIND for exactly that reason.
+    _root = _sys.argv[1] if len(_sys.argv) > 1 else None
+    _bad = audit(_root)
+    if _bad:
+        print("\u2717 %d script(s) print non-ASCII and never make stdout encoding-safe:" % len(_bad))
+        for _p in _bad:
+            print("    " + _p)
+        print("  On a cp1255 console these crash WHILE REPORTING, so a clean tree exits non-zero")
+        print("  for a reason unrelated to the check. Add at the top:")
+        print("      from console_safe import enable; enable()")
+        _sys.exit(1)
+    print("\u2713 encoding-safe: %d entry point(s) checked, 0 unsafe." % len(scripts(_root)))

@@ -171,6 +171,24 @@ if ! gate_run "version-stamp" "python3 tv/version_stamp_gate.py" 30 -- \
   exit 1
 fi
 
+# ── ENCODING-SAFE, IN UNDER A SECOND, BEFORE ANYTHING EXPENSIVE ───────────────────────────────
+# v3293 — this rule already existed and already WORKED: it has refused lane_census.py,
+# rung_accounting_wilson.py and render_check.py on their first runs (each says so in a comment),
+# and it refused a test of mine this session. The defect was never the rule, it was WHEN you learn:
+# it lived inside test_control, which runs ~500s in, at push time. That is the most expensive
+# possible moment to discover a missing one-line import — and the crash it prevents happens WHILE
+# REPORTING a failure, so on his cp1255 Windows console a clean tree exits non-zero for a reason
+# that has nothing to do with what was being checked.
+# It is the same definition (console_safe.audit), not a copy: test_control calls it too.
+if ! python3 "$REPO/tv/console_safe.py"; then
+  echo "pre-push: ❌ a script prints non-ASCII and never makes stdout encoding-safe — push blocked."
+  echo "          Reproduce: python3 tv/console_safe.py"
+  echo "          On a cp1255 console it crashes WHILE REPORTING, so a clean tree exits non-zero"
+  echo "          for a reason unrelated to the check. Add at the top of the file named above:"
+  echo "              from console_safe import enable; enable()"
+  exit 1
+fi
+
 # ── THE SECOND EYE OWES A LOOK ────────────────────────────────────────────────────────────────
 # Konyo's standing order since 2026-07-15 is one Grok pass after every ship — "its like ping pong.
 # you fix and ship and then ask it what can be perfected". On 2026-08-26 v2137 through v2142 shipped
@@ -321,21 +339,44 @@ fi
 # ⚠ THE ASYMMETRY IS DELIBERATE: it FAILS OPEN when it cannot work out which gates changed (a skip,
 # announced as a skip, never as a pass) and FAILS CLOSED on an actual BLIND or INVALID verdict. A
 # hook that blocks his push over its own confusion is one that gets bypassed.
-_chg_tests="$(git diff --name-only @{push}.. 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
-if [ -n "$_chg_tests" ]; then
-  _gates="$(python3 - $_chg_tests <<'PYGATE' 2>/dev/null || true
-import sys, os
+# ⚠ v3293 — FOUR HOLES THE CROSS-FAMILY EYE FOUND IN v3292'S FIRST CUT, all real:
+#   · `@{push}` is not always resolvable (detached HEAD, no upstream, odd remote name). The old
+#     `2>/dev/null || true` turned that into a SILENT no-check. A skip must announce itself.
+#   · a DELETED test file still resolved to a gate name, so removing a test would have blocked the
+#     push over a proof for a file that is gone. Only files still on disk are considered.
+#   · gate names were interpolated unvalidated. They stay unquoted on purpose — word-splitting is
+#     what passes several names as several arguments — so the NAMES are validated instead.
+#   · the temp log was never removed.
+_chg_tests=""
+if git rev-parse --verify --quiet '@{push}' >/dev/null 2>&1; then
+  _chg_tests="$(git diff --name-only '@{push}..' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
+elif git rev-parse --verify --quiet 'origin/main' >/dev/null 2>&1; then
+  _chg_tests="$(git diff --name-only 'origin/main..HEAD' 2>/dev/null | grep -E '^tv/test_.*\.py$' || true)"
+else
+  echo "pre-push: ⚠ neither @{push} nor origin/main resolves, so the changed-law set is UNKNOWN"
+  echo "          and no red-proof was exercised. THIS IS A SKIP, NOT A PASS."
+fi
+# a test file deleted in this push has no law left to prove — drop it before deriving gates
+_chg_live=""
+for _f in $_chg_tests; do
+  [ -f "$REPO/$_f" ] && _chg_live="$_chg_live $_f"
+done
+if [ -n "$_chg_live" ]; then
+  _gates="$(python3 - $_chg_live <<'PYGATE' 2>/dev/null || true
+import sys, os, re
 sys.path.insert(0, "tv")
 try:
     import run_gates
 except Exception:
     sys.exit(0)
 changed = {os.path.basename(p) for p in sys.argv[1:]}
+SAFE = re.compile(r"^[A-Za-z0-9_.-]+$")       # a name that is safe to pass as a bare argument
 out = []
 for g in run_gates.GATES:
     for part in (getattr(g, "argv", None) or []):
         if os.path.basename(str(part)) in changed:
-            out.append(g.name)
+            if SAFE.match(str(g.name or "")):
+                out.append(g.name)
             break
 print(" ".join(sorted(set(out))))
 PYGATE
@@ -347,6 +388,7 @@ PYGATE
     _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
     if python3 "$REPO/tv/heart2.py" --prove $_gates > "$_prove_log" 2>&1; then
       echo "pre-push: ✅ every changed law demonstrated it can still go red."
+      rm -f "$_prove_log"
     else
       echo "pre-push: ❌ a changed law has a red-proof that PROVES NOTHING — push blocked."
       echo "          Reproduce: python3 tv/heart2.py --prove $_gates"
@@ -356,6 +398,7 @@ PYGATE
       echo "          A law that cannot go red is not a law. BLIND means the sabotage ran and the"
       echo "          law stayed green; INVALID means the anchor matched nothing, so the proof"
       echo "          changed no byte. Both report coverage they do not provide."
+      rm -f "$_prove_log"
       exit 1
     fi
   fi
