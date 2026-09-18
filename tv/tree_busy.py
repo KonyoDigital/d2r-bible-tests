@@ -79,17 +79,57 @@ def _gate_lock_held(repo=None):
             pass
 
 
+#: Interpreters that can legitimately be RUNNING the hook. The hook path appearing anywhere else
+#: on a command line is a MENTION, not an invocation.
+_RUNNERS = ("sh", "bash", "zsh", "dash", "ksh", "perl")
+
+
+def _is_hook_invocation(cmd):
+    """Does this command line RUN the pre-push hook, or merely NAME it?
+
+    ⚠⚠ THE SECOND EYE FOUND THIS (v3331). The first cut was `pgrep -f "hooks/pre-push"`, which
+    matches ANY process whose argv contains that substring: `vi hooks/pre-push`, `less
+    hooks/pre-push`, a shell whose history line mentions it. Every one of those would have read
+    as a running gate and refused EVERY bump, permanently — a guard that fails closed on an
+    ordinary editor session is an off switch, not a check. [[strictness-that-closes-the-lane]]
+    This is the same correction test-venue already carries for the Playwright scan: match an
+    INVOCATION, and pin a mention as a negative fixture.
+    """
+    toks = (cmd or "").split()
+    if not toks:
+        return False
+    # `git push ...` is what spawns the hook in the first place, and it cannot be confused with
+    # an editor. Named in the reason string so a false positive here is diagnosable.
+    if os.path.basename(toks[0]) == "git" and "push" in toks[1:3]:
+        return True
+    for i, t in enumerate(toks):
+        if not t.endswith("hooks/pre-push"):
+            continue
+        if i == 0:
+            return True                       # the hook executed directly
+        prev = os.path.basename(toks[i - 1])
+        return prev in _RUNNERS or prev.startswith("python")
+    return False
+
+
 def _prepush_running(repo=None):
-    """-> (running, detail). None when pgrep could not be asked."""
+    """-> (running, detail). None when pgrep could not be asked — never False on failure."""
     try:
-        r = subprocess.run(["pgrep", "-f", "hooks/pre-push"],
+        r = subprocess.run(["pgrep", "-fl", "hooks/pre-push|git"],
                            capture_output=True, text=True, timeout=10)
     except Exception as e:
         return None, "pgrep could not be asked (%s)" % type(e).__name__
-    pids = [x for x in (r.stdout or "").split() if x.strip()]
-    if not pids:
+    hits = []
+    for line in (r.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        pid, _, cmd = line.partition(" ")
+        if _is_hook_invocation(cmd):
+            hits.append(pid)
+    if not hits:
         return False, ""
-    return True, "pid %s" % ", ".join(pids[:4])
+    return True, "pid %s" % ", ".join(hits[:4])
 
 
 def why(repo=None):
@@ -109,9 +149,19 @@ def why(repo=None):
         return ("a pre-push hook is running (%s). It grades the WORKING TREE across renders, "
                 "console demos and the Playwright smoke — writing now makes its green verdict "
                 "about bytes that are not shipping." % detail)
-    if held is None and running is None:
-        return ("whether a gate is running could not be determined (%s; %s). That is UNKNOWN, "
-                "not free." % (who, detail))
+    # ⚠⚠ `or`, NOT `and` — THE SECOND EYE FOUND THIS TOO (v3331). The first cut required BOTH
+    # signals to be unaskable before saying UNKNOWN. So a blind flock plus a pgrep that cleanly
+    # found nothing fell straight through to `return None` = FREE, with the PRIMARY signal dark.
+    # That is the exact confident-zero this module was written to prevent, inside the module that
+    # prevents it. One signal silent is enough to refuse. [[unknown-stays-unknown]]
+    _dark = []
+    if held is None:
+        _dark.append(who or "the gate lock could not be read")
+    if running is None:
+        _dark.append(detail or "the process list could not be read")
+    if _dark:
+        return ("whether a gate is running could not be determined (%s). That is UNKNOWN, "
+                "not free." % "; ".join(_dark))
     return None
 
 

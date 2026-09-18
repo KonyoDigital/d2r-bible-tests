@@ -80,6 +80,57 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
             "That is the exact state measured on a live gate — the hook holds the tree through "
             "renders, demos and smoke while the flock is released." % w)
 
+    def test_ONE_dark_signal_is_already_UNKNOWN(self):
+        """⚠⚠ THE CASE THE FIRST CUT MISSED, AND A SECOND EYE FOUND IT.
+
+        `why()` originally said UNKNOWN only when BOTH signals were unaskable (`held is None and
+        running is None`). So the flock going dark while pgrep cleanly found nothing fell through
+        to `return None` = FREE — with the PRIMARY signal blind. The old UNKNOWN case stubbed
+        BOTH as None and therefore could never see it: it tested the one arrangement that
+        happened to work. A guard is only as good as the combinations its law actually walks.
+        [[unknown-stays-unknown]] [[regression-guard]]
+        """
+        # flock dark, process list clean — the exact mixed pair that read as FREE.
+        self._stub((None, "fcntl unavailable"), (False, ""))
+        w = TB.why()
+        self.assertTrue(
+            w and "UNKNOWN" in w,
+            "the gate lock could not be read and this answered FREE because the OTHER signal "
+            "happened to work. One silent signal is enough to refuse - a bump banked here lands "
+            "in a tree that may be mid-grade. Got: %r" % w)
+
+        # and the mirror, so neither ordering is privileged
+        self._stub((False, ""), (None, "pgrep unavailable"))
+        w = TB.why()
+        self.assertTrue(
+            w and "UNKNOWN" in w,
+            "the process list could not be read and this answered FREE. Got: %r" % w)
+
+    def test_a_MENTION_of_the_hook_is_not_a_RUNNING_hook(self):
+        """A guard that fails closed on an ordinary editor session is an off switch.
+
+        The first cut matched `pgrep -f hooks/pre-push`, which any command line NAMING the hook
+        satisfies. Opening it in an editor would have refused every bump, permanently. Negative
+        fixtures are pinned here because that is the half test-venue learned the hard way when a
+        watchdog was accused for the string it prints.
+        """
+        for cmd in ("vi /repo/hooks/pre-push",
+                    "less hooks/pre-push",
+                    "cat /repo/hooks/pre-push",
+                    "grep -n smoke /repo/hooks/pre-push"):
+            self.assertFalse(
+                TB._is_hook_invocation(cmd),
+                "%r was read as a RUNNING pre-push. It only mentions the path - matching that "
+                "blocks every bump for as long as the editor is open." % cmd)
+
+        for cmd in ("/bin/sh /repo/hooks/pre-push origin git@host:r.git",
+                    "bash hooks/pre-push",
+                    "/usr/bin/git push origin main"):
+            self.assertTrue(
+                TB._is_hook_invocation(cmd),
+                "%r is a real invocation and was not recognised - the signal this whole module "
+                "exists for would be silent exactly when it matters." % cmd)
+
     def test_UNKNOWN_is_not_free(self):
         self._stub((None, "fcntl unavailable"), (None, "pgrep unavailable"))
         w = TB.why()
@@ -142,6 +193,23 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        # ⚠ Restores the `and` the second eye refuted: UNKNOWN then requires BOTH signals dark,
+        # so one blind signal plus one clean one reads as FREE again.
+        "why": "requiring BOTH signals to be dark lets one blind signal read as a free tree",
+        "file": "tv/tree_busy.py",
+        "find": "    if _dark:",
+        "replace": "    if held is None and running is None:",
+        "matches": 1,
+    },
+    {
+        # Any command line NAMING the hook counts as running it — an open editor blocks every bump.
+        "why": "counting a MENTION of the hook as a RUNNING hook refuses every bump forever",
+        "file": "tv/tree_busy.py",
+        "find": '        return prev in _RUNNERS or prev.startswith("python")',
+        "replace": "        return True",
+        "matches": 1,
+    },
+    {
         "why": "dropping the pre-push signal calls the tree free while a hook is grading it",
         "file": "tv/tree_busy.py",
         "find": "    running, detail = _prepush_running(repo)\n    if running:",
@@ -153,13 +221,6 @@ RED_PROOF = [
         "file": "tv/bump_version.py",
         "find": "    if _busy:\n        raise SystemExit(",
         "replace": "    if False:\n        raise SystemExit(",
-        "matches": 1,
-    },
-    {
-        "why": "answering FREE when neither signal can be asked is a confident zero",
-        "file": "tv/tree_busy.py",
-        "find": "    if held is None and running is None:",
-        "replace": "    if False:",
         "matches": 1,
     },
 ]
