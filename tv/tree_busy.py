@@ -88,37 +88,49 @@ def _gate_lock_held(repo=None):
             pass
 
 
-#: Interpreters that can legitimately be RUNNING the hook. The hook path appearing anywhere else
-#: on a command line is a MENTION, not an invocation.
-_RUNNERS = ("sh", "bash", "zsh", "dash", "ksh", "perl")
+#: Commands that merely READ a file. EVERYTHING ELSE naming the hook is treated as RUNNING it.
+#: ⚠⚠ v3332 — THIS LIST IS A DENY-LIST ON PURPOSE, AND v3331 HAD IT INVERTED. That cut
+#: ALLOW-LISTED the runners (sh, bash, perl, python...), so any wrapper it had not thought of fell
+#: through to "not running": a second eye found it and MEASURED 5 of 10 cases wrong, every one a
+#: FALSE NEGATIVE — `nohup hooks/pre-push`, `env FOO=1 hooks/pre-push`, `stdbuf -o0
+#: hooks/pre-push`, a repo path containing a space, and `git -c k=v push`. A false negative here
+#: says FREE while a gate is grading, which banks a version mid-run: the exact failure this whole
+#: module exists to prevent, reintroduced by the fix for its opposite.
+#: An allow-list fails OPEN on the unknown; a deny-list fails CLOSED. Here the unknown must refuse.
+#: [[strictness-that-closes-the-lane]] is the OTHER direction and is still respected — the readers
+#: below are a small, enumerable, testable set, so an editor session still never blocks a bump.
+_READERS = ("vi", "vim", "nvim", "nano", "pico", "emacs", "view",
+            "less", "more", "cat", "bat", "head", "tail",
+            "grep", "egrep", "fgrep", "rg", "ag", "ack",
+            "open", "code", "subl", "diff", "wc", "md5", "shasum", "file", "stat")
+
+#: The hook path as it appears on any command line that runs it.
+_HOOK = "hooks/pre-push"
 
 
 def _is_hook_invocation(cmd):
-    """Does this command line RUN the pre-push hook, or merely NAME it?
+    """Does this command line RUN the pre-push hook, or merely NAME it? -> bool
 
-    ⚠⚠ THE SECOND EYE FOUND THIS (v3331). The first cut was `pgrep -f "hooks/pre-push"`, which
-    matches ANY process whose argv contains that substring: `vi hooks/pre-push`, `less
-    hooks/pre-push`, a shell whose history line mentions it. Every one of those would have read
-    as a running gate and refused EVERY bump, permanently — a guard that fails closed on an
-    ordinary editor session is an off switch, not a check. [[strictness-that-closes-the-lane]]
-    This is the same correction test-venue already carries for the Playwright scan: match an
-    INVOCATION, and pin a mention as a negative fixture.
+    Two ways to be a gate, and both are checked on the RAW string rather than on tokens, because
+    tokenising is what v3331 got wrong: a repo path with a space in it splits into pieces and no
+    token ends in the hook path at all.
     """
-    toks = (cmd or "").split()
+    cmd = cmd or ""
+    toks = cmd.split()
     if not toks:
         return False
-    # `git push ...` is what spawns the hook in the first place, and it cannot be confused with
-    # an editor. Named in the reason string so a false positive here is diagnosable.
-    if os.path.basename(toks[0]) == "git" and "push" in toks[1:3]:
+    base0 = os.path.basename(toks[0])
+
+    # 1. `git ... push ...` — what spawns the hook. Scanned across ALL tokens, not a fixed window:
+    #    v3331 looked at toks[1:3] only, so `git -c http.version=HTTP/1.1 push` pushed `push` out
+    #    of range and read as not-a-push.
+    if base0 == "git" and any(os.path.basename(t) == "push" for t in toks[1:]):
         return True
-    for i, t in enumerate(toks):
-        if not t.endswith("hooks/pre-push"):
-            continue
-        if i == 0:
-            return True                       # the hook executed directly
-        prev = os.path.basename(toks[i - 1])
-        return prev in _RUNNERS or prev.startswith("python")
-    return False
+
+    # 2. the hook itself, however it was wrapped. Substring, so a path with spaces still matches.
+    if _HOOK not in cmd:
+        return False
+    return base0 not in _READERS
 
 
 def _prepush_running(repo=None):

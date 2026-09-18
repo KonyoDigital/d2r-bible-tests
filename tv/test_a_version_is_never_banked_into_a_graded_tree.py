@@ -123,9 +123,20 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
                 "%r was read as a RUNNING pre-push. It only mentions the path - matching that "
                 "blocks every bump for as long as the editor is open." % cmd)
 
+        # ⚠⚠ v3332 — THE WRAPPERS, AND EVERY ONE OF THESE WAS MEASURED WRONG IN v3331.
+        # That cut ALLOW-LISTED the interpreters, so anything it had not thought of fell through
+        # to "not running" — 5 of 10 cases missed, all FALSE NEGATIVES, which is the direction
+        # that banks a version into a tree a gate is grading. A second eye found it. The list is
+        # now a DENY-list of readers, so an unknown wrapper refuses rather than waves through.
         for cmd in ("/bin/sh /repo/hooks/pre-push origin git@host:r.git",
                     "bash hooks/pre-push",
-                    "/usr/bin/git push origin main"):
+                    "/usr/bin/git push origin main",
+                    "git --no-pager push origin main",
+                    "git -c http.version=HTTP/1.1 push origin main",   # push outside toks[1:3]
+                    "nohup /repo/hooks/pre-push origin git@host:r.git",
+                    "env FOO=1 /repo/hooks/pre-push origin",
+                    "stdbuf -o0 /repo/hooks/pre-push origin",
+                    "/bin/sh /my repo/hooks/pre-push origin"):          # a path with a SPACE
             self.assertTrue(
                 TB._is_hook_invocation(cmd),
                 "%r is a real invocation and was not recognised - the signal this whole module "
@@ -193,20 +204,29 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        # ⚠ Puts v3331's ALLOW-LIST back: an unknown wrapper (nohup/env/stdbuf) then reads as
+        # "not running" and a real gate goes undetected. FALSE NEGATIVE = a bump into a graded tree.
+        "why": "allow-listing runners makes every unknown wrapper read as no-gate-running",
+        "file": "tv/tree_busy.py",
+        "find": "    return base0 not in _READERS",
+        "replace": "    return base0 in (\"sh\", \"bash\", \"zsh\", \"perl\")",
+        "matches": 1,
+    },
+    {
+        # Narrows the git-push scan back to a fixed window, so `git -c k=v push` stops counting.
+        "why": "a fixed token window misses git push behind any -c or --flag",
+        "file": "tv/tree_busy.py",
+        "find": 'if base0 == "git" and any(os.path.basename(t) == "push" for t in toks[1:]):',
+        "replace": 'if base0 == "git" and "push" in toks[1:3]:',
+        "matches": 1,
+    },
+    {
         # ⚠ Restores the `and` the second eye refuted: UNKNOWN then requires BOTH signals dark,
         # so one blind signal plus one clean one reads as FREE again.
         "why": "requiring BOTH signals to be dark lets one blind signal read as a free tree",
         "file": "tv/tree_busy.py",
         "find": "    if _dark:",
         "replace": "    if held is None and running is None:",
-        "matches": 1,
-    },
-    {
-        # Any command line NAMING the hook counts as running it — an open editor blocks every bump.
-        "why": "counting a MENTION of the hook as a RUNNING hook refuses every bump forever",
-        "file": "tv/tree_busy.py",
-        "find": '        return prev in _RUNNERS or prev.startswith("python")',
-        "replace": "        return True",
         "matches": 1,
     },
     {
