@@ -11522,9 +11522,30 @@ window._lockMark = function(isOpen, px, label){
     }
     return start;
   }
+  /* ⚠⚠ v3333 (#80) — ONE DEFINITION OF A SESSION CLOCK, AND A FALLBACK THAT IS EVIDENCE.
+     MEASURED 2026-09-19 against his live console: 2 of 422 sessions carry NO t0 — n=30
+     (s_1789330829280_66296, 753 frames) and n=50 (s_1788879402448_41906, 10 frames). Both hold
+     real footage and both sit in the river, so the card had a session and no clock to print: d0
+     went null, the date rendered as an em-dash and the title fell back to "Session N". He saw it
+     as cards that never paint a date.
+     THE FALLBACK IS THE REEL ID, AND IT IS NOT AN INVENTED TIMESTAMP: the id is
+     s_<epoch-ms>_<n>, and on all 12 sessions checked where BOTH exist the embedded ms and t0
+     agree to the minute.
+     ⚠ mtime CANNOT serve here. All 19 reels on disk carry an mtime from one bulk pass on 16 Sep,
+     skews 1.8 to 53.1 days, so it reports two months of footage as simultaneous. The id is the
+     only sound clock. [[stale-reading]] [[unknown-stays-unknown]]
+     ⚠ DELIBERATELY NOT APPLIED to the three other t0->Date sites (11873 day-set, 14973 dset
+     builder, 22420 today-filter): those feed COUNTS, and widening a clock that feeds a count
+     changes the count. Named here rather than silently skipped. */
+  function _shSessionMs(sm){
+    var t = (sm && sm.t0) ? +sm.t0 : 0;
+    if (t) return t;
+    var m = String((sm && sm.sessionId) || '').match(/^s_(\d{10,})_/);
+    return m ? +m[1] : 0;
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
-    var d0 = sm.t0 ? new Date(sm.t0) : null;
+    var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
     var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
     var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
     var when = d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—';
@@ -11695,7 +11716,7 @@ window._lockMark = function(isOpen, px, label){
   }
   function _dossierRecapText(sm){
     var n = sm.n || 1, nt = _sesNoteGet(sm.sessionId) || {}, L = [];
-    var d0 = sm.t0 ? new Date(sm.t0) : null;
+    var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
     var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
     var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
     L.push('TV DIABLO — Session Recap');
@@ -16857,7 +16878,7 @@ window._lockMark = function(isOpen, px, label){
         if (String(sm.footageState || '') === 'unknown') { _shUnknownN++; return ''; }
       }
       var n = sm.n || (i + 1);
-      var d0 = sm.t0 ? new Date(sm.t0) : null;
+      var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
       var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
       var foot = (sm.footageN || 0);
       var inLine = (sm.intakes || 0) ? ('📸 ' + sm.intakes + ' intake' + (sm.intakes > 1 ? 's' : '') + ' · ') : '';
@@ -21952,7 +21973,7 @@ window._lockMark = function(isOpen, px, label){
     if (chev) chev.style.display = '';
     if (sub) sub.textContent = runs.length + ' run' + (runs.length === 1 ? '' : 's') + ' · tap to explore';
     el.innerHTML = runs.slice(0, 14).map(function(sm){
-      var n = sm.n || 1, d0 = sm.t0 ? new Date(sm.t0) : null;
+      var n = sm.n || 1, _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
       var art = sm.thumb
         ? '<img class="hh-art" src="/hist/' + encodeURI(sm.thumb) + '?w=160" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'hh-art-fb\')">'
         : '<div class="hh-art hh-art-fb"></div>';

@@ -529,6 +529,45 @@ def _check_the_visual_lock_holds():
                      % ("; ".join(bad)[:230] or "see visual_lock_invariant.py"))
 
 
+def _check_every_reel_can_date_itself():
+    """Can every reel on disk still yield a clock from its own id? -> (state, why)
+
+    v3333 (#80) — THE PRECONDITION THE CARD FIX RESTS ON, WATCHED RATHER THAN ASSUMED.
+    MEASURED on his console: 2 of 422 sessions carry no `t0` at all (n=30, 753 frames; n=50, 10
+    frames), so the card had a session and no clock and rendered an em-dash where a date belongs.
+    The fix falls back to the epoch ms embedded in the id — `s_<ms>_<n>` — which is sound because
+    on all 12 sessions checked where BOTH exist the two agree to the minute.
+
+    ⚠ THE GATE PINS THE CODE; THIS ASKS WHETHER THE DATA STILL SATISFIES IT. If reels ever start
+    being named differently, the fallback stops working SILENTLY: no test changes, no error, and
+    a card quietly loses its date again. A guard that only reads source cannot see that.
+
+    ⚠ mtime IS NOT AN ALTERNATIVE and that is measured, not assumed: all 19 reels on disk carry an
+    mtime from a single bulk pass on 16 Sep 18:10-20:14, skews of 1.8 to 53.1 days. It reports two
+    months of footage as simultaneous, so a clock taken from it cannot order anything.
+    [[stale-reading]] [[unknown-stays-unknown]]
+    """
+    import glob
+    import re as _re
+    hist = os.path.join(HERE, "frames", "hist")
+    if not os.path.isdir(hist):
+        return UNKNOWN, ("there is no frames/hist on this machine, so whether a reel can date "
+                         "itself is unmeasured here - not clean")
+    reels = [os.path.basename(p) for p in glob.glob(os.path.join(hist, "reel_s_*"))]
+    if not reels:
+        return UNKNOWN, ("frames/hist holds no reels, so the id-clock has nothing to be measured "
+                         "against. A zero here is an empty room, not a clean one")
+    rx = _re.compile(r"^reel_s_(\d{10,})_")
+    mute = [r for r in reels if not rx.match(r)]
+    if mute:
+        return MISSING, ("%d of %d reel(s) cannot yield a clock from their id (%s) - a card for "
+                         "one of these has no date to fall back on and renders an em-dash where "
+                         "a time belongs"
+                         % (len(mute), len(reels), ", ".join(sorted(mute)[:3])))
+    return OK, ("all %d reel(s) carry a parseable epoch in their id, so every card can date "
+                "itself even when its session lost t0" % len(reels))
+
+
 def _check_the_art_corpus():
     """1,233 sprites the board draws. A prune, a bad sync or a rename takes them with nothing
     failing — the page just starts drawing placeholders where it drew items."""
@@ -3852,6 +3891,7 @@ CHECKS = [
     # "connect it all to the heart of the console so nothing becomes stale again".
     ("ledger staleness", _check_no_ledger_FIGURE_has_gone_stale_unnoticed),
     ("visual lock", _check_the_visual_lock_holds),
+    ("reel clocks", _check_every_reel_can_date_itself),
     ("art corpus", _check_the_art_corpus),
     ("footage has a reel", _check_footage_belongs_to_a_reel),
     ("vault stores", _check_the_vault_stores_are_readable),
