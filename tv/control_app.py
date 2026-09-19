@@ -23160,6 +23160,7 @@ def reel_census(hist_dir=None):
     A private copy is how the two drift the day a tag is added. [[copy-drift]]
     """
     out = {"ok": False, "onDisk": None, "his": 0, "fixtures": 0, "owed": 0, "owedBy": {},
+           "owedTags": {},
            "releasable": 0, "other": {}, "sums": None, "why": ""}
     try:
         import reel_retention as _rr
@@ -23187,6 +23188,11 @@ def reel_census(hist_dir=None):
             out["owed"] += 1
             lane = _owed_by[tag]
             out["owedBy"][lane] = out["owedBy"].get(lane, 0) + 1
+            # ⚠ v3344 — AND KEEP THE TAG. It is read one line above, used to look up the lane,
+            # and was then discarded — so the screen could name which LANE owns a reel and never
+            # which of FIVE conditions it is in. The richer fact was in hand and free to keep.
+            # [[one-to-one-store-for-a-one-to-many-fact]] [[heart-first]] §6
+            out["owedTags"][str(tag)] = out["owedTags"].get(str(tag), 0) + 1
         elif tag == "eligible":
             out["releasable"] += 1
         else:
@@ -23203,8 +23209,22 @@ def reel_census(hist_dir=None):
         return out
     _bits = ["%d he sees" % out["his"], "%d hidden fixture(s) the suite opens by name" % out["fixtures"]]
     if out["owed"]:
-        _bits.append("%d waiting on a lane (%s)"
-                     % (out["owed"], ", ".join("%s: %d" % (k, v) for k, v in sorted(out["owedBy"].items()))))
+        # ⚠⚠ v3344 — SAY WHAT EACH TAG MEANS, NOT WHICH LANE OWNS IT. This read
+        #     "%d waiting on a lane (vault: %d)"
+        # which asks the OWED_BY map a question only READ_CLEARS can answer. OWED_BY says which lane
+        # OWNS a reel; it does not say a lane pass will ever clear it. `rows-not-banked` is the
+        # proof — v2878 ruled it owed a BANK not a READ and kept it OUT of READ_CLEARS, so no sweep
+        # will ever clear it, and the screen still filed it under "waiting on a lane".
+        # ⚠ The wording comes from shelf_driver.OWED_SAYS, beside the map it describes — a private
+        # copy here is how the two drift the day a tag is added. [[copy-drift]]
+        try:
+            import shelf_driver as _sd2
+            _says = dict(getattr(_sd2, "OWED_SAYS", {}) or {})
+        except Exception:
+            _says = {}
+        _parts = ["%d %s" % (_n, _says.get(_t) or _t)
+                  for _t, _n in sorted(out["owedTags"].items())]
+        _bits.append("%d still owed (%s)" % (out["owed"], ", ".join(_parts)))
     if out["releasable"]:
         _bits.append("%d the prune may release" % out["releasable"])
     for _t, _n in sorted(out["other"].items()):
@@ -30380,7 +30400,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3343",
+        "ver": "v3344",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

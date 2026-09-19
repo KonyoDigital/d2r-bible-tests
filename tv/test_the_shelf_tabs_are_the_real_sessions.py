@@ -572,12 +572,24 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         owes a bank + 1 the prune may release. Run in node against five payload shapes, the
         header now reads:
 
-            " · 20 on disk in all (8 hidden fixtures · 3 waiting on a lane · 1 releasable)"
+            " · 20 on disk in all (8 hidden fixtures · 3 still owed · 1 releasable)"
         """
         blk = self._pop_clause()
         self.assertIn("on disk in all", blk, "the header no longer states the disk total")
         self.assertIn("hidden fixture", blk, "the hidden fixtures are not accounted for on screen")
-        self.assertIn("waiting on a lane", blk, "reels a lane owes are not named")
+        # ⚠⚠ v3344 — THIS PINNED "waiting on a lane" AND THE DOCSTRING ABOVE CONTRADICTED IT.
+        # Three lines up this law says the 3 are ones "the vault still owes a BANK", and it then
+        # asserted the screen calls them "waiting on a lane" — the OWED_BY question (which lane owns
+        # this) standing in for the READ_CLEARS question (can a read clear it). `rows-not-banked` is
+        # the proof they are different: v2878 kept it OUT of READ_CLEARS because it is owed a BANK,
+        # so no lane pass will ever clear it, and the sentence filed it with the other four anyway.
+        # The screen now names the TAG, so the docstring above is true rather than contradicted.
+        self.assertIn("still owed", blk, "reels that are still owed are not named")
+        self.assertNotIn(
+            "waiting on a lane", blk,
+            "the shelf is back to calling every owed reel 'waiting on a lane'. That is true only "
+            "where a READ clears it; a rows-not-banked reel waits for a BANK and no sweep will "
+            "ever come. Name the tag, not the owner.")
 
     def test_a_reconciliation_that_does_NOT_SUM_prints_NOTHING(self):
         """⚠⚠ THE LAW THIS TURNS ON. A total whose parts do not add up is worse on a screen than

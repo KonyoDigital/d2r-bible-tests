@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3343",
+  "ver": "v3344",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3343: v3342 gave heart.vessels a riders shelf and stopped there: the api heart route hand-picks its keys and dropped it, and control_ui.html never read it, so the feeder was computed and discarded ONE HOP LATER than before. My own law permitted that by asserting the key exists in the module and going no further, at exactly the boundary where this repo keeps finding its most repeated defect. The route now forwards riders and the heart panel names each one with the vessel it rides. HEART: the rider shelf is rendered in the heart panel, and the law now reaches the route and the screen instead of stopping at the module.",
+  "note": "v3344: His console read 3 waiting on a lane (vault: 3). It grouped owed reels by the LANE THAT OWNS them and printed the word WAITING, which is the READ_CLEARS question asked of the OWED_BY map. rows-not-banked proves they differ: v2878 kept it OUT of READ_CLEARS because it is owed a BANK not a read, so no sweep will ever clear it, and the screen filed it with the other four anyway. THREE prose sites already said BANK and only the rendered sentence disagreed. The root is that the tag was read, used to look up the lane, and discarded. Measured on his tree: 3 waiting on a lane (vault: 3) became 3 still owed (3 panels on film, nothing banked). HEART: the shelf header now names the tag, and owedTags is pinned to sum to owed so a breakdown can never disagree with its own total.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

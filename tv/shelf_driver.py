@@ -89,6 +89,27 @@ OWED_BY = {
 #: [[label-outlived-referent]] [[feedback-contradiction-is-the-finding]]
 READ_CLEARS = ("never-chronicle-swept", "zero-pages", "panels-never-banked", "vault-owes")
 
+#: ⚠⚠ v3344 — WHAT EACH OWED TAG MEANS, IN HIS WORDS. The shelf said "N waiting on a lane (vault: N)"
+#: for every owed reel, and "waiting on a lane" is the READ_CLEARS question asked of the OWED_BY map,
+#: which cannot answer it. OWED_BY says WHICH LANE OWNS a reel; it does not say a lane pass will ever
+#: clear it. `rows-not-banked` is the proof: v2878 ruled it owed a BANK, not a READ, so it is
+#: deliberately absent from READ_CLEARS above and no sweep will ever clear it — yet the screen filed
+#: it under "waiting on a lane" with the other four.
+#:
+#: ⚠ KEYED ON THE TAG, NOT THE SENTENCE — v2392's lesson, the same reason OWED_BY is. Improving the
+#: wording must never change what runs.
+#: ⚠ THREE PROSE SITES ALREADY SAID THIS AND ONLY THE SCREEN DID NOT: control_app.reel_census's own
+#: docstring ("panels-never-banked 3 — the VAULT still owes a bank"), the law that pins the sentence
+#: (test_the_shelf_tabs_are_the_real_sessions: "3 the vault still owes a BANK"), and the v2878 note
+#: above. Every author who described this population got it right in prose.
+OWED_SAYS = {
+    "never-chronicle-swept": "never chronicle-swept",
+    "zero-pages":            "no pages to read",
+    "panels-never-banked":   "panels on film, nothing banked",
+    "rows-not-banked":       "owed a bank, not a read",
+    "vault-owes":            "the vault has never swept it",
+}
+
 #: Tags that mean the reel is finished and held for a reason no lane can clear.
 HELD = ("recent", "test-fixture", "holds-proof", "target-met",
         "no-witness-index", "ledger-unreadable")

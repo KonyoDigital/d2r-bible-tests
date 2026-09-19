@@ -18393,7 +18393,10 @@ window._lockMark = function(isOpen, px, label){
                   };
                   var bits = [], _fx = _n(P.fixtures), _ow = _n(P.owed), _rl = _n(P.releasable);
                   if (_fx) bits.push(_fx + ' hidden fixture' + (_fx === 1 ? '' : 's'));
-                  if (_ow) bits.push(_ow + ' waiting on a lane');
+                  /* v3344 — the tag says WHAT is owed; the lane only says who owns it. The
+                     engine now sends owedTags and shelf_driver.OWED_SAYS supplies the wording,
+                     so this prints the same sentence the engine prints. */
+                  if (_ow) bits.push(_ow + ' still owed');
                   if (_rl) bits.push(_rl + ' releasable');
                   var oth = P.other && typeof P.other === 'object' ? Object.keys(P.other) : [];
                   /* ⚠ v3280 — ESCAPED, because `mkHead` inserts this label as HTML and the
