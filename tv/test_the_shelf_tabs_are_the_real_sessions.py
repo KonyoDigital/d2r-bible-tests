@@ -53,6 +53,37 @@ def _py_only(src):
     return re.sub(r"(?m)^\s*//.*$", " ", src)
 
 
+def _fn_body(code, start):
+    """-> the source of the JS function beginning at `start`, brace-balanced, or "".
+
+    ⚠⚠ v3350 — A BYTE COUNT IS A GUESS ABOUT WHERE A FUNCTION ENDS, AND BOTH DIRECTIONS BITE.
+    MEASURED in control_ui.html: `_shelfRefused` is 4,057 chars and its law read `src[i:i+1600]`,
+    so 61% of the function it polices was never examined — under assertNotIn that is an absence
+    reported without looking. `window._dossierClose` is 112 chars and its law read `src[i:i+260]`,
+    so it reached 148 chars PAST the function into the next one, where an innocent `thShelf(` in
+    a neighbour would have failed it. One under-reached, one over-reached, same root.
+
+    ⚠ IT RETURNS "" ONLY WHEN IT CANNOT BOUND THE BLOCK — anchor absent, or braces never balance.
+    Callers MUST fail on that rather than assert over it: `assertNotIn(anything, "")` passes, and
+    a helper that quietly yields an empty region under a negative assertion rebuilds the exact
+    silence this replaces. [[unknown-stays-unknown]] [[source-reading-guard]] §3
+    """
+    i = code.find(start)
+    if i < 0:
+        return ""
+    depth, seen = 0, False
+    for k in range(i, len(code)):
+        c = code[k]
+        if c == "{":
+            depth += 1
+            seen = True
+        elif c == "}":
+            depth -= 1
+            if seen and depth == 0:
+                return code[i:k + 1]
+    return ""
+
+
 def _between(src, start, end):
     i = src.find(start)
     if i < 0:
@@ -800,8 +831,15 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         Telling him to record his way out of an error panel is not an exit, and GrokBot's own
         standing rules for driving this console are "no ON AIR"."""
         src = _py_only(self.src)
-        i = src.find("function _shelfRefused(")
-        body = src[i:i + 1600]
+        # ⚠⚠ v3350 — TWO DEFECTS HERE, AND THE UNGUARDED FIND WAS THE WORSE ONE. `i = src.find(...)`
+        # had NO check, so a rename makes i == -1, `src[-1:1599]` is a ONE-CHARACTER window, and
+        # this assertNotIn passes having read a single byte. On top of that the window was 1,600
+        # against a function MEASURED at 4,057 chars, so even when the anchor hit, 61% of the
+        # subject went unread. Both are now bounded by the function itself.
+        body = _fn_body(src, "function _shelfRefused(")
+        self.assertTrue(body, "could not bound _shelfRefused — it is renamed, gone, or its braces "
+                              "do not balance. Refusing to report that a phrase is absent from a "
+                              "region this law could not locate.")
         self.assertNotIn("Press <b>ON AIR</b>", body,
                          "the refusal panel still names the recording control as the way out")
 
@@ -812,7 +850,12 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         src = _py_only(self.src)
         i = src.find("window._dossierClose = function()")
         self.assertGreater(i, -1, "the dossier close is gone or renamed")
-        body = src[i:i + 260]
+        # ⚠ v3350 — the function is MEASURED at 112 chars and this read 260, reaching 148 chars
+        # into the NEXT function; a neighbour that legitimately calls thShelf( would have failed
+        # the three assertNotIn below on code this law says nothing about.
+        body = _fn_body(src, "window._dossierClose = function()")
+        self.assertTrue(body, "could not bound _dossierClose, so the forbidden-jump check below "
+                              "would be measuring a region this law could not locate")
         self.assertIn("hidden = true", body, "the close no longer hides the dossier")
         for forbidden in ("thShelf(", "thOpen(", "shellOpen("):
             self.assertNotIn(forbidden, body,

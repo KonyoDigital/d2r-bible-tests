@@ -95,8 +95,13 @@ def _is_fixed_window(node):
 
 
 def scan():
-    """-> (total, silent, rows, unparsed). Rows are (file, function, line, N, negatives)."""
-    total = silent = unparsed = 0
+    """-> (total, silent, rows, unparsed, silent_loose).
+
+    `silent` counts windows a negative assertion actually CONSUMES — the population the law's own
+    sentence is true of. `silent_loose` is the old function-scope count, kept and reported so that
+    tightening this can never hide anything. Rows are (file, function, line, negatives-strict).
+    """
+    total = silent = silent_loose = unparsed = 0
     rows = []
     for name in sorted(os.listdir(HERE)):
         if not name.endswith(".py"):
@@ -111,11 +116,40 @@ def scan():
             wins = [n.lineno for n in ast.walk(fn) if _is_fixed_window(n)]
             if not wins:
                 continue
-            negs = sum(1 for n in ast.walk(fn)
-                       if isinstance(n, ast.Call) and getattr(n.func, "attr", "") in _NEGATIVE)
+            # ⚠⚠ v3350 — A NEGATIVE MUST ACTUALLY CONSUME THE WINDOW. This counted every negative
+            # ANYWHERE IN THE FUNCTION and marked every window in it silent, then NAMED each site
+            # and said it "PASSES having examined nothing" — a claim about that site, false
+            # wherever the negative never reads it. MEASURED: of the 6 it reported, 3 were real
+            # and 3 were functions whose assertFalse/assertNotIn takes an unrelated value.
+            # Suspect the instrument before the tree; the count is the tell.
+            # ⚠ BOTH NUMBERS ARE KEPT. The strict one is what the ratchet judges, because it is
+            # the one the law's sentence is true of; the loose one is still reported so that
+            # narrowing a ratchet can never quietly shrink a population out of view.
+            _wnames = set()
+            for n in ast.walk(fn):
+                if isinstance(n, ast.Assign) and _is_fixed_window(n.value):
+                    for t in n.targets:
+                        _wnames |= {x.id for x in ast.walk(t) if isinstance(x, ast.Name)}
+            negs_loose = sum(1 for n in ast.walk(fn)
+                             if isinstance(n, ast.Call)
+                             and getattr(n.func, "attr", "") in _NEGATIVE)
+            negs = 0
+            for n in ast.walk(fn):
+                if not (isinstance(n, ast.Call)
+                        and getattr(n.func, "attr", "") in _NEGATIVE):
+                    continue
+                for a in n.args:
+                    used = {x.id for x in ast.walk(a) if isinstance(x, ast.Name)}
+                    # a window passed INLINE counts too: assertNotIn(x, src[i:i + N])
+                    inline = any(_is_fixed_window(x) for x in ast.walk(a))
+                    if (used & _wnames) or inline:
+                        negs += 1
+                        break
             total += len(wins)
             if negs:
                 silent += len(wins)
+            if negs_loose:
+                silent_loose += len(wins)
             for ln in wins:
                 rows.append((name, fn.name, ln, negs))
         # module-level windows count too — a helper outside a class is where _river_payload lived
@@ -126,7 +160,7 @@ def scan():
         total += len(loose)
         for ln in loose:
             rows.append((name, "<module>", ln, 0))
-    return total, silent, rows, unparsed
+    return total, silent, rows, unparsed, silent_loose
 
 
 class ASourceWindowMustReachItsSubject(unittest.TestCase):
@@ -135,7 +169,7 @@ class ASourceWindowMustReachItsSubject(unittest.TestCase):
     def test_the_scanner_is_not_blind(self):
         """★ THE COUNT IS THE TELL. A scanner that finds nothing passes everything, and this whole
         law would then be furniture."""
-        total, silent, rows, unparsed = scan()
+        total, silent, rows, unparsed, _loose = scan()
         self.assertEqual(unparsed, 0,
                          "%d file(s) would not parse, so their windows are UNMEASURED — this law "
                          "cannot report a total it did not read" % unparsed)
@@ -147,7 +181,7 @@ class ASourceWindowMustReachItsSubject(unittest.TestCase):
 
     # ── ⚠⚠ THE RATCHETS ──────────────────────────────────────────────────────────────────────
     def test_the_total_never_GROWS(self):
-        total, _s, rows, _u = scan()
+        total, _s, rows, _u, _loose = scan()
         worst = {}
         for f, _fn, _ln, _n in rows:
             worst[f] = worst.get(f, 0) + 1
@@ -162,7 +196,7 @@ class ASourceWindowMustReachItsSubject(unittest.TestCase):
     def test_the_SILENT_subset_never_GROWS(self):
         """★★ THE ONE THAT MATTERS. Under a negative assertion a short window does not fail — it
         reports absence it never looked for."""
-        _t, silent, rows, _u = scan()
+        _t, silent, rows, _u, loose = scan()
         named = sorted({(f, fn) for f, fn, _ln, negs in rows if negs})
         self.assertLessEqual(
             silent, SILENT_CEILING,
@@ -171,6 +205,13 @@ class ASourceWindowMustReachItsSubject(unittest.TestCase):
             "shape as a 0 with no denominator, with no author. Either anchor both ends, or assert "
             "the slice did not end exactly at its cap before trusting the verdict. Sites: %s"
             % (silent, SILENT_CEILING, named[:12]))
+        # ⚠ THE LOOSE COUNT IS PRINTED, ALWAYS. v3350 narrowed this ratchet to windows a negative
+        # actually CONSUMES, which is the population its sentence is true of — and a narrowed
+        # ratchet must never be the reason a number quietly falls out of view. If these two drift
+        # far apart that is itself worth looking at: it means many functions mix a windowed read
+        # with an unrelated negative assertion.
+        print("silent windows: %d consumed by a negative (ratchet), %d at function scope (loose)"
+              % (silent, loose))
 
     # ── ⛔ AND THE ONE THAT WAS FIXED STAYS FIXED ─────────────────────────────────────────────
     def test_the_river_mouth_guard_is_anchored_at_both_ends(self):

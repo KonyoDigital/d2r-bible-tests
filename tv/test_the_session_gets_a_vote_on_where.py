@@ -46,6 +46,57 @@ def _src():
         return re.sub(r"(?m)^\s*#.*$", " ", fh.read())
 
 
+def _stmt_and_block(callee):
+    """-> the source of the statement calling `callee` PLUS the block that follows it, or "".
+
+    ⚠ A REAL BOUNDARY, PARSED. A fixed-size window is a guess about how far a subject reaches, and
+    the subject grows every time somebody documents it — which is how this law came to read 700 of
+    the 1,856 chars it is about. ast knows where the statement ends; nothing else does.
+
+    ⚠ IT RETURNS "" ONLY WHEN IT GENUINELY CANNOT BOUND THE REGION, and every caller must treat
+    that as UNKNOWN and fail, never as an empty region that satisfies a negative assertion. An
+    empty string passes `assertNotIn` for anything at all — that is the same silence this helper
+    exists to remove, one level up. [[unknown-stays-unknown]]
+    """
+    import ast as _ast
+    import re as _re
+    with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+        raw = fh.read()
+    try:
+        tree = _ast.parse(raw)
+    except SyntaxError:
+        return ""
+    hit = None
+    for n in _ast.walk(tree):
+        if isinstance(n, _ast.Call) and getattr(n.func, "attr", "") == callee:
+            hit = n
+            break
+    if hit is None:
+        return ""
+    for parent in _ast.walk(tree):
+        body = getattr(parent, "body", None)
+        if not isinstance(body, list):
+            continue
+        for k, st in enumerate(body):
+            if getattr(st, "lineno", None) != hit.lineno:
+                continue
+            end = getattr(st, "end_lineno", st.lineno)
+            if k + 1 < len(body):
+                end = max(end, getattr(body[k + 1], "end_lineno", end))
+            # ⚠⚠ SLICE THE RAW SOURCE, NEVER THE STRIPPED ONE. My first cut sliced what `_src()`
+            # returns, on the stated assumption that blanking comment LINES preserves numbering.
+            # MEASURED: it does not. `_src()` uses `^\s*#.*$` and `\s` MATCHES NEWLINES, so a run
+            # of blank lines before a comment is absorbed into one space — control_app.py goes
+            # 35,484 lines to 35,172, losing 312. Every line number past the first comment is off,
+            # and the window silently lands on unrelated code: the first run of this helper handed
+            # back a slice of gameplay-filter logic and the law failed on an innocent region.
+            # ast's line numbers describe the RAW file, so the slice must too.
+            seg = "\n".join(raw.split("\n")[st.lineno - 1:end])
+            # comments out of the SLICE, with a pattern that cannot cross a line boundary
+            return _re.sub(r"(?m)^[ \t]*#.*$", " ", seg)
+    return ""
+
+
 def _rows(*locs):
     out = []
     for i, l in enumerate(locs):
@@ -85,9 +136,23 @@ class TheSessionGetsAVoteOnWhere(unittest.TestCase):
     def test_it_never_overwrites_loc(self):
         """the function's OWN ruling: a second look, not an automatic correction."""
         src = _src()
-        i = src.find("_rg.corroborate_location(")
-        self.assertGreater(i, 0)
-        window = src[i:i + 700]
+        # ⚠⚠ v3350 — THE END IS THE STATEMENT'S OWN END, NOT A BYTE COUNT. This read
+        # `src[i:i + 700]` under a NEGATIVE assertion. MEASURED, and the direction is the OPPOSITE
+        # of what I first wrote: the real region — the call plus the `if _cons:` block it guards,
+        # control_app.py 8136-8162 — is 1,856 raw chars but only 499 once comments are stripped,
+        # which is what this law reads. So 700 did not run SHORT of the subject, it ran 200 chars
+        # PAST it, into code the law says nothing about. Either direction is the same defect: a
+        # byte count is a guess about where a subject ends, and under assertNotIn an over-reach
+        # can fail on innocent neighbouring code while an under-reach reports an absence it never
+        # looked for. My 38%-of-its-subject claim counted comments the reader never sees.
+        # ⚠ ASK THE COMPILER, NOT THE TEXT. ast gives the exact end_lineno of the statement and of
+        # the block that follows it, and `_src()` substitutes comment LINES with a space rather
+        # than deleting them, so line numbers survive the strip and the mapping is exact.
+        # [[source-reading-guard]] §1, §3
+        window = _stmt_and_block("corroborate_location")
+        self.assertTrue(window, "could not bound the corroboration statement from the parse tree, "
+                                "so there is no region to judge — refusing to report an absence "
+                                "measured over nothing")
         self.assertNotIn('_r["loc"] =', window,
                          "the corroboration is WRITING loc — that replaces one unverified claim "
                          "with another and destroys the evidence that they disagreed")
