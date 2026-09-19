@@ -4275,6 +4275,14 @@ WATCHES = {
     # wrote. The empty tuple is the honest answer and a DECLARATION: vault_bank reads the sweep's
     # own accumulation off disk and renders on no screen of its own yet.
     "stash bank":                  (),
+    # ⚠ v3340 — DECLARED, NOT OMITTED, and it was omitted first. v3333 added `reel clocks` as
+    # the HEART half of #80 and never entered it here, so the organ table read ABSENT for it —
+    # a claim nobody made, indistinguishable from a check nobody wrote. CI said so within hours,
+    # and the net count hid it: 27 -> 27, because that ship fixed two gates and broke two.
+    # The empty tuple is the honest answer: this row has no screen element of its OWN. It asks
+    # whether every reel on disk can still yield an epoch from its id, and it reaches him through
+    # the eagle line rather than through a element of its own.
+    "reel clocks":                  (),
     # v3304 (#55/#38) — the interlock has no screen element of its OWN yet. The empty tuple is a
     # DECLARATION, not an omission (see the note above this map): its state reaches him through
     # the eagle row and relaunch_hold_state()'s shared on/worked/lastTs/owed contract, not through

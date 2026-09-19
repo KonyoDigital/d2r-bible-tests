@@ -2169,6 +2169,18 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3340 (#95) — `reel clocks` asks whether every reel on disk can still yield an epoch from
+    # its id, which is the precondition v3333's card fix rests on. It sits HERE and not in
+    # COVERED_BY because I have no joint to cite: nothing pairs it with a second independent
+    # source today, and test_every_covered_claim_cites_a_joint_that_actually_runs would rightly
+    # refuse a coverage claim I cannot back. The gate test_session_card_has_a_clock pins the CODE;
+    # this row watches the DATA; neither corroborates the other.
+    # ⚠ A REAL JOINT IS AVAILABLE AND UNBUILT: the console's own session list and the reel ids on
+    # disk are two genuinely independent sources for the same question. Building it would move
+    # this row to COVERED_BY honestly, and that is heart-first work rather than a registry edit.
+    'reel clocks': 'no second source is paired with it yet; the gate pins the code and this row '
+                   'watches the data, so neither corroborates the other. The console session list '
+                   'versus the reel ids on disk would be a real joint and is not built.',
     # v3310 (#56) — the second-eye ledger is the ONLY record of what an eye said. There is no
     # second witness to corroborate it against: the eye's reply exists nowhere else, and the
     # models are not asked to sign their answers. What this check DOES do is compare two looks at
