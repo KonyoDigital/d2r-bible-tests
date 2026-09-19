@@ -2262,6 +2262,22 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # ⚠⚠ v3357 (#111) — `swallowed reads` LANDED IN NEITHER REGISTRY AND CI CAUGHT IT, not the
+    # push. v3355 added the row and registered it in CHECKS, the surface map and the MINE map —
+    # three places — and missed this pair, so `test_every_doctor_check_is_explained` went red on
+    # the runner the same hour. It never ran locally because the pre-push derives its gates from
+    # CHANGED TEST FILES and v3355 changed console_doctor.py, not that law. A sample is not a
+    # verdict. [[regression-guard]] §1
+    # ⚠ HERE AND NOT COVERED_BY, for the #95 reason: I have no joint to cite. The row recounts
+    # rank 1 from the AST and compares it to a baseline file — one source read twice, which is a
+    # ratchet rather than a corroboration. A REAL JOINT IS AVAILABLE AND UNBUILT: the census's own
+    # per-file breakdown against a second walker that asks the same question from the exception
+    # side would be two genuinely independent counts. That is heart-first work, not a registry
+    # edit, and claiming coverage I cannot back is what this registry exists to prevent.
+    'swallowed reads': 'the row recounts rank 1 from the AST and compares it to a baseline file, '
+                       'which is one source read twice - a ratchet, not a second witness. A '
+                       'second independent walker counting from the exception side would be a '
+                       'real joint and is not built.',
     # v3340 (#95) — `reel clocks` asks whether every reel on disk can still yield an epoch from
     # its id, which is the precondition v3333's card fix rests on. It sits HERE and not in
     # COVERED_BY because I have no joint to cite: nothing pairs it with a second independent

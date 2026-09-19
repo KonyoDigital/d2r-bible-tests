@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3356"   # A REACH CLAIM MUST NOT DEPEND ON A VERDICT
+VERSION = "v3357"   # A DOCTOR ROW LANDS IN BOTH REGISTRIES OR NEITHER EXPLAINS IT
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
