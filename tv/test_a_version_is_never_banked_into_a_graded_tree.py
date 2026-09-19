@@ -167,7 +167,11 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
                     # unlisted flag each hid a real push, which is the direction that banks a
                     # version mid-grade.
                     "/usr/bin/git --git-dir /path/with spaces push origin main",
-                    "git --super-prefix foo/ push origin main"):
+                    "git --super-prefix foo/ push origin main",
+                    # ⚠ v3338 — a second eye found this: the -C VALUE was being read as the
+                    # SUBCOMMAND. A directory literally named `log` matched the list and returned
+                    # False on a real push — a FALSE NEGATIVE, which banks a version mid-grade.
+                    "git -C log push origin main"):
             self.assertTrue(
                 TB._is_hook_invocation(cmd),
                 "%r is a real invocation and was not recognised - the signal this whole module "
@@ -234,6 +238,15 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        # Stops value-flags consuming their value, so `-C log push` reads the DIRECTORY as the
+        # subcommand, matches the list and returns False on a real push.
+        "why": "a value-flag value read as a subcommand hides a real push behind git -C",
+        "file": "tv/tree_busy.py",
+        "find": "        if t in _GIT_VALUE_FLAGS:\n            i += 2",
+        "replace": "        if False:\n            i += 2",
+        "matches": 1,
+    },
     {
         # ⚠ Restores v3334's behaviour exactly: decide on the FIRST bare token. A git-dir with a
         # space, or any unlisted value-flag, then puts its VALUE there and the real push is missed.

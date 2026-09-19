@@ -119,20 +119,44 @@ _GIT_TAKES_PUSH_AS_ARG = (
     "rev-parse", "cherry-pick", "restore", "worktree", "notes", "bisect", "blame")
 
 
+#: Global flags whose NEXT TOKEN is a value, never a subcommand.
+#: ⚠ v3338 — WITHOUT THIS, A VALUE COULD IMPERSONATE A SUBCOMMAND. A second eye found it:
+#: `git -C log push origin main` skipped the `-C` but then read the DIRECTORY `log` as the
+#: subcommand, matched it in _GIT_TAKES_PUSH_AS_ARG and returned False on a real push. v3336
+#: dropped value-consumption deliberately, because the flag list can never be complete — but the
+#: fix for that was the SCAN-ONWARD fallback below, not blindness to the flags we DO know.
+#: Both together: known value-flags consume their value; an unknown bare token keeps scanning.
+_GIT_VALUE_FLAGS = ("-c", "-C", "--git-dir", "--work-tree", "--namespace",
+                    "--exec-path", "--super-prefix", "--config-env")
+
+
 def _git_runs_push(toks):
     """Does this git command line RUN `push`? -> bool
 
-    Fails toward TRUE on an unknown leading token, because a missed push is the dangerous
-    direction here and a spurious refusal only costs one re-run.
+    Fails toward TRUE on an unknown bare token, because a missed push is the dangerous direction
+    here and a spurious refusal only costs one re-run.
+
+    ⚠ STATED LIMIT, NOT A BUG TO FIND LATER: an ALIAS cannot be seen from the command line.
+    `git -c alias.p=push p` runs a push and reads as False here, because nothing in the argv says
+    what `p` expands to. Resolving it would mean running `git config`, which is a second process on
+    every liveness check. The flock signal covers the window this misses — and this is written down
+    so the next reader does not rediscover it as a defect.
     """
-    for t in toks[1:]:
+    i = 1
+    while i < len(toks):
+        t = toks[i]
+        if t in _GIT_VALUE_FLAGS:
+            i += 2               # the next token is its VALUE and can never be the subcommand
+            continue
         if t.startswith("-"):
+            i += 1
             continue
         b = os.path.basename(t)
         if b == "push":
             return True
         if b in _GIT_TAKES_PUSH_AS_ARG:
-            return False      # a later `push` is its ARGUMENT, not the subcommand
+            return False         # a later `push` is its ARGUMENT, not the subcommand
+        i += 1                   # an unlisted flag's value looks like this — keep scanning
     return False
 
 
