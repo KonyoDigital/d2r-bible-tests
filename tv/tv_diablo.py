@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3355"   # AN UNREADABLE STORE IS NOT AN ABSENT ONE
+VERSION = "v3356"   # A REACH CLAIM MUST NOT DEPEND ON A VERDICT
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -76,11 +76,22 @@ class ANameItCannotLoadIsUnknown(unittest.TestCase):
     def test_a_class_outside_test_control_is_actually_found(self):
         """The other half: the reach really did widen, not just the wording."""
         code, out = _run("TestAnExaminedPanelIsNotAnUnreadOne")
-        self.assertEqual(
-            code, 0,
-            "a class that exists in tv/ could not be simulated (exit %d). The search is supposed "
-            "to fall through from test_control to whichever test file DEFINES the name:\n%s"
-            % (code, out[-600:]))
+        # ⚠⚠ v3356 — NOT-2, NEVER ==0, AND THE FIRST CUT OF THIS LINE WAS CI-RED FOR EXACTLY THE
+        # DIVERGENCE THIS FILE IS ABOUT. It asserted exit 0, which asks whether the CLASS PASSES —
+        # a different fact from whether the SEARCH REACHED IT, and the only one this case is
+        # about. `test_an_examined_panel_is_not_an_unread_one` is one of the gates failing on a
+        # GitHub runner, so ci_sim exits 1 there, correctly saying "ran and failed". MEASURED on
+        # v3354: `AssertionError: 1 != 0`, on the runner only, because the class passes on his Mac.
+        # A test that needs his machine is a test that runs nowhere else. [[regression-guard]] §3
+        self.assertNotEqual(
+            code, 2,
+            "a class that exists in tv/ could not be LOADED (exit 2). The search is supposed to "
+            "fall through from test_control to whichever test file DEFINES the name:\n%s"
+            % out[-600:])
+        self.assertNotIn(
+            "could not LOAD", out,
+            "the simulator says it could not load a name that IS defined in tv/, so the "
+            "fall-through search is gone:\n%s" % out[-600:])
         self.assertIn(
             "test_an_examined_panel_is_not_an_unread_one", out,
             "the run does not name the module it actually loaded, so its reach is unstated")
