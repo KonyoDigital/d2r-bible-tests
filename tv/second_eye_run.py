@@ -693,6 +693,29 @@ def _verdict_for(answer, findings):
     """
     decl_anywhere = _declares_none(answer)
     if not decl_anywhere:
+        # ⚠⚠ v3346 — AN UNPARSED ANSWER IS `cannot-tell`, NEVER A DEFECT. This branch fires when the
+        # answer does not DECLARE cleanliness in a phrasing _declares_none recognises. v3343 landed
+        # here saying "The diff is correct. No defects, races, contract mismatches, leaks, or
+        # unreachable states are present" — a comma-tail #76 measured and REFUSED to widen for, and
+        # rightly: _claims_a_defect covers only 103 of 628 findings-rows, so the narrow declaration
+        # IS the safety.
+        #
+        # So the fix is not in the declaration. It is that the "finding" here was the WHOLE ANSWER:
+        # no line started a finding, so _findings_from had nothing to split on and swallowed it. A
+        # parse that found no structure is UNKNOWN, and the ledger already has the word for it —
+        # `cannot-tell` is in PARSER_VERDICTS and 13 rows use it.
+        #
+        # ⚠ ALL THREE CONDITIONS, because this function has been wrong here twice (v2808, v3198 —
+        # "wrong in both directions"). It fires ONLY when nothing parsed AND nothing is claimed:
+        #   · a real findings answer NUMBERS its findings -> has structure -> untouched
+        #   · a prose answer that CLAIMS a defect          -> stays `findings`, never downgraded
+        #   · v3341/v3342/v3344 declare cleanliness        -> never reach this branch at all
+        # MEASURED across the four looks taken today: exactly ONE (v3343) satisfies all three.
+        # `cannot-tell` is not clean either, so nothing is cleared by it. [[unknown-stays-unknown]]
+        if findings and not _has_finding_structure(answer) \
+                and not any(_claims_a_defect(f) for f in findings) \
+                and _SAYS_NO_DEFECT_RX.search(answer):
+            return "cannot-tell", []
         return ("findings" if findings else "clean"), findings
     if not findings:
         return "clean", []
@@ -749,13 +772,56 @@ def _strip_echo(answer, prompt):
     return a.lstrip()
 
 
+#: ⚠⚠ DOWNGRADE-ONLY, AND THAT IS THE WHOLE SAFETY ARGUMENT. This may move a row from `findings`
+#: to `cannot-tell`. It may NEVER produce `clean`, and `_declares_none` — the function that DOES
+#: decide clean — is untouched. #76 measured that widening _declares_none cannot be made safe
+#: (_claims_a_defect covers only 103 of 628 findings-rows), and that ruling stands; this is a
+#: different question asked in a different direction.
+#:
+#: ⚠ SIZED AGAINST THE REAL LEDGER BEFORE SHIPPING, because my first cut was REFUTED by it. Without
+#: this phrase test the structure-absence rule alone would have reclassified 172 of 637 findings
+#: rows — including v2180 "FINDING 1: Saved OFF is overruled by an env ON", a real defect. With it,
+#: 13 flip, and reading them: v2805 "No defects found", v2850/v2851/v3207/v3266 "The diff is correct
+#: as shown", v3147 "No concrete defects found" — clean looks that were misfiled as findings, the
+#: same defect as v3343. ONE is a wrong flip, v2837 ("real hazard, cache never cleared"), and it
+#: lands on cannot-tell rather than clean, so nothing is cleared and a re-read is prompted. That is
+#: the safe direction this function's own docstring names. [[regression-guard]] §5a
+_SAYS_NO_DEFECT_RX = re.compile(
+    r"(no\s+(concrete\s+)?(defects?|issues?|problems?|bugs?)\b"
+    r"|the\s+diff\s+is\s+correct"
+    r"|is\s+correct\s+(on|as)\s+(the\s+)?(bytes|shown)"
+    r"|correct\s+as\s+shown)", re.I)
+
+#: What STARTS a finding. ONE definition — _findings_from splits on it and _has_finding_structure
+#: asks whether it ever matched, and a second copy is how the two disagree about the same answer.
+#: [[copy-drift]]
+_FINDING_START_RX = re.compile(r"^(\d+[\.\)]|[-*•]|\*\*\d+)")
+
+
+def _has_finding_structure(answer):
+    """Did ANY line start a finding? -> bool
+
+    ⚠ v3346 — THIS IS THE DIFFERENCE BETWEEN A DEFECT AND AN UNPARSED ANSWER. _findings_from joins
+    every non-starting line onto the block above, so an answer with NO numbered or bulleted line
+    comes back as ONE finding whose text is the WHOLE ANSWER — REACH line, verdict and all. That is
+    not something the eye reported; it is a parse that found no structure, and it read as the worse
+    of the two. MEASURED on v3343: the eye said "The diff is correct. No defects, races, contract
+    mismatches, leaks, or unreachable states are present" and the row was filed verdict=findings,
+    findings=1. [[unknown-stays-unknown]]
+    """
+    for ln in (answer or "").splitlines():
+        if _FINDING_START_RX.match(ln.strip()):
+            return True
+    return False
+
+
 def _findings_from(answer):
     """Split the answer into findings without interpreting them. Numbered or bulleted lines start
     a finding; everything else joins the one above."""
     out, cur = [], []
     for ln in answer.splitlines():
         s = ln.strip()
-        if re.match(r"^(\d+[\.\)]|[-*•]|\*\*\d+)", s) and cur:
+        if _FINDING_START_RX.match(s) and cur:
             out.append(" ".join(cur).strip())
             cur = [s]
         elif s:

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3345",
+  "ver": "v3346",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3345: His ruling was make it one word and unified. v2760 fixed the PYTHON half and its docstring already named the cause: bible.html spells four items CURLY in the item rows and STRAIGHT in ITEM_VALUE, in the same file. THE BOARD HALF WAS NEVER FIXED - _chMapHas and _chSetHas decide whether a roster row reads as FOUND and they folded CASE and not the apostrophe. MEASURED on his live board: of 445 dated names exactly TWO carry the typographic byte, and both his dates and gameFound stores key them that way consistently, so the lookup could never reach his rows and an item he genuinely owns read as NOT FOUND. The fold now runs on BOTH sides, and only after a direct miss. His stored bytes are untouched because they are testimony; the reader is made tolerant. Verified in node that a qualifier is still NOT folded. HEART: the found-or-not decision on his board is now byte-insensitive, and a law pins that both membership tests fold both sides.",
+  "note": "v3346: v3343 said the diff is correct and no defects are present, and was filed verdict=findings with ONE finding whose text was the WHOLE ANSWER. The cause is the parser, not the declaration: _findings_from starts a block only on a numbered or bulleted line, so an answer with no such line comes back as one block containing everything. _declares_none is NOT widened - the phrasing that slipped past it is the comma-tail #76 measured and refused. MY FIRST DESIGN WAS REFUTED BY MEASUREMENT: firing on structure-absence alone would have reclassified 172 of 637 findings-rows including a real defect. With the phrase test the radius is 8 of 637 and they are the same defect being corrected; the one wrong flip lands on cannot-tell rather than clean, so nothing is cleared. The phrase test is downgrade-only and a law pins structurally that it can never reach a clean return.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
