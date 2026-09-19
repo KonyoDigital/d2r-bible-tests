@@ -27789,6 +27789,25 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         window._thEmptyFor = (window._thEmptyFor || 0) + 1;
         if (window._thEmptyFor >= 4) {               /* ~12s open and never finished loading */
           window._thEmptyFor = 0;
+          /* v3365 (#24) — MEASURE BEFORE CLOSING. The next three lines destroy the only evidence
+             of what this stage actually held, and for 192 of 200 recorded faults that evidence is
+             simply gone: the row says nothing was there and can never say WHAT was there. That is
+             the one fact separating a stage that never painted from one that painted where nobody
+             looked, and it is why #24 sat unactionable across 27 of these events.
+             ⚠ READ-ONLY and wrapped: a measurement that throws must never stop the self-heal. */
+          var _before = null;
+          try {
+            var _cards = document.querySelectorAll('#th-sessions .th-card, #th-sessions [data-session]');
+            var _r = th.getBoundingClientRect();
+            _before = {
+              cards: _cards ? _cards.length : null,
+              thW: Math.round(_r.width), thH: Math.round(_r.height),
+              scrollH: th.scrollHeight, clientH: th.clientHeight,
+              innerH: window.innerHeight, scrollY: Math.round(window.scrollY || 0),
+              sessions: (window.TH && TH.sessions) ? TH.sessions.length : null,
+              painted: !!painted, loaded: !!loaded
+            };
+          } catch (e) { _before = {measureFailed: String(e && e.message || e)}; }
           document.body.classList.remove('theatre-open');
           th.hidden = true;
           try { window.TH && (window.TH.open = false); } catch(e){}
@@ -27802,6 +27821,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                       ? 'still held no sessions though a frame was painted (v2322 shape)'
                       : 'had nothing on it at all (v2228 shape)') + ' - it closed itself',
                 where:'control_ui thOpen / self-heal',
+                before: _before,
                 ink: (window._thInk || {}).ink, inkWhy: (window._thInk || {}).why})});
           } catch(e){}
         }

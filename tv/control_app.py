@@ -30429,7 +30429,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3364",
+        "ver": "v3365",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -33973,7 +33973,13 @@ class Handler(BaseHTTPRequestHandler):
             if not _k:
                 self._json(400, {"ok": False, "why": "a fault must name its kind"})
                 return
-            _row = ui_fault_record(_k, (body or {}).get("why"), (body or {}).get("where"))
+            # ⚠⚠ v3365 (#24) — THE ROUTE WAS DROPPING THE SNAPSHOT. `ui_fault_record` has taken
+            # and stored `before` since CF-4, whose own comment says "the reload destroys the only
+            # evidence" — and this call never forwarded it, so the far end could not send one
+            # usefully either. MEASURED: 8 of 200 rows carry evidence, and 1 of 11 call sites
+            # passes it. Built at one end, never joined. [[the-unjoined-end]]
+            _row = ui_fault_record(_k, (body or {}).get("why"), (body or {}).get("where"),
+                                   before=(body or {}).get("before"))
             try:
                 print("   \u26a0 UI FAULT reported by the console: %s \u2014 %s"
                       % (_k, str((body or {}).get("why"))[:120]), flush=True)

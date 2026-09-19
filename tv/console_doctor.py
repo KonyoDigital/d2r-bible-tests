@@ -2735,6 +2735,10 @@ MINE = {
         "the detector [[visual-regression-detector]]; a guard that reports success over blank "
         "cells is my defect to fix.",
 
+    "fault evidence":
+        "#24 — a recorder that destroys its own evidence before writing the row is MY\n"
+        "defect. He reported the black stage twice with screenshots; the machine had 27\n"
+        "of them on file and could say nothing useful about any.",
     "item vocabulary":
         "#60 — generating the vocabulary from HIS install and keeping it in step with a\n"
         "game patch is MY job. He asked for the feature; a stale affix table is not\n"
@@ -3899,6 +3903,70 @@ def _check_the_second_eye_was_asked_twice():
     return UNKNOWN, (a.get("say") or "nothing recorded") + tail
 
 
+#: v3365 (#24) — the instant the console gained the ability to send a pre-rescue snapshot.
+#: A fault row older than this CANNOT carry one, so counting it would make the heart row
+#: red on the day it was born. Historical boundary, not a threshold: it never moves.
+EVIDENCE_SINCE_MS = 1789833019729
+
+
+def _check_a_ui_fault_keeps_its_evidence():
+    """v3365 (#24) — ARE NEW UI FAULTS STILL ARRIVING WITH A PRE-RESCUE SNAPSHOT?
+
+    A console fault row that records only THAT nothing painted, never WHAT was there, cannot tell a
+    stage that never painted from one that painted off-screen — and that is the single question #24
+    turned on for 27 events. MEASURED when this shipped: 200 rows, 8 carrying evidence (4%).
+
+    ⚠⚠ THE FAILURE MODE IS SILENT AND LOOKS EXACTLY LIKE HEALTH. If the JS stops measuring, or the
+    route goes back to dropping `before`, new rows simply arrive without it — byte-identical to the
+    192 historical rows that never had one. Nothing errors. The lane keeps recording. It just stops
+    recording the only field that made the rows usable. That is the vault-lane shape: on for months,
+    reads 0, and truthfully reported. [[heart-first]] §2
+
+    THREE STATES:
+      OK       -> faults recorded since this version DO carry evidence; says how many
+      MISSING  -> faults arrived since this version and NOT ONE carries it — a writer stopped
+      UNKNOWN  -> no fault has been recorded since this version, or the ledger cannot be read.
+                  ⚠ NEVER OK: no rows is an absent denominator, not a clean bill of health.
+                  [[zero-needs-a-denominator]]
+    """
+    try:
+        import control_app as CA
+    except Exception as e:
+        return UNKNOWN, "control_app will not import: %s" % str(e)[:90]
+    # ⚠ IT RETURNS (rows, why), NOT rows. Its own docstring states the contract this file is full
+    # of — "UNKNOWN is None, never an empty list" — and my first cut treated the TUPLE as the list
+    # and died on `'list' object has no attribute 'get'`. It surfaced only because the unpacking
+    # sat outside the try; swallowed, this row would have answered about nothing forever.
+    try:
+        rows, why = CA.ui_faults_recent(hours=24 * 14)
+    except Exception as e:
+        return UNKNOWN, "the fault ledger will not read: %s" % str(e)[:110]
+    if rows is None:
+        return UNKNOWN, ("the fault ledger could not be read (%s), so evidence cannot be counted"
+                         % (why or "no reason given"))
+    # Only the console-reported kinds can carry a snapshot; a server-side row has no DOM to measure.
+    # ⚠⚠ AND ONLY ROWS WRITTEN AFTER THE FIX SHIPPED. Without this boundary the row read MISSING
+    # the moment it was born — 35 console faults in 14 days, none carrying evidence, every one of
+    # them recorded by code that could not yet send any. That is a TRUE sentence about the WRONG
+    # POPULATION, and a row that is red on arrival is furniture: it would be ignored long before
+    # it had anything real to say. Rows before the boundary are EXPECTED to lack evidence.
+    # The constant is a HISTORICAL boundary — the instant the writer gained the ability — so
+    # unlike a freshness threshold it legitimately never moves. [[zero-needs-a-denominator]]
+    mine = [r for r in rows
+            if str((r or {}).get("where") or "").startswith("control_ui")
+            and ((r or {}).get("at") or 0) >= EVIDENCE_SINCE_MS]
+    if not mine:
+        return UNKNOWN, ("no console-reported fault since the snapshot shipped, so whether it "
+                         "travels is UNMEASURED - not clean, and not a defect either")
+    have = [r for r in mine if isinstance((r or {}).get("before"), dict)]
+    if not have:
+        return MISSING, ("%d console-reported fault(s) in 14 days and NOT ONE carries a pre-rescue "
+                         "snapshot. The measurement or the route has stopped, and a stopped one is "
+                         "byte-identical to the 192 rows that never had one" % len(mine))
+    return OK, ("%d of %d console-reported fault(s) carry a pre-rescue snapshot (was 8 of 200 "
+                "across all kinds when this shipped)" % (len(have), len(mine)))
+
+
 def _check_the_item_vocabulary_can_name_his_loot():
     """v3364 (#60) — CAN THE VAULT NAME A MAGIC OR RARE ITEM, AND IS THE LEXICON STILL THE INSTALL'S?
 
@@ -4085,6 +4153,7 @@ CHECKS = [
     ("second eye asked twice", _check_the_second_eye_was_asked_twice),
     ("eye reach per file", _check_the_eye_reach_is_still_being_measured),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
+    ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
@@ -4582,6 +4651,9 @@ WATCHES = {
     # element of its own. Empty tuple as a DECLARATION, not an omission: it reaches him
     # through the eagle line today, and through the unsure rows once they render a vocab.
     "item vocabulary":             (),
+    # v3365 (#24) — the fault ledger is a FILE. Empty tuple as a DECLARATION, not an
+    # omission: it reaches him through the eagle line, not through an element of its own.
+    "fault evidence":              (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never

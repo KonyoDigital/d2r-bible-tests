@@ -2315,6 +2315,12 @@ NO_JOINT_YET = {
     # parse against. ⚠ AND THE OBVIOUS SECOND SOURCE IS A FAKE ONE: the root and base\\
     # copies of rareprefix/raresuffix are BYTE-IDENTICAL (sha256, measured), so citing
     # them as two witnesses for the rare half is n inflated by repetition.
+    # v3365 (#24) — NO_JOINT_YET, not COVERED_BY: the second witness would be a RENDERED
+    # capture of the stage at the instant it went blank, and nothing captures on that
+    # trigger. The render targets prove a page CAN paint, never that it did at 12s.
+    'fault evidence': 'the row counts snapshots on console-reported fault rows; the real second source '
+                          'would be a capture taken at the moment the stage went blank, and no capture is '
+                          'triggered by that event.',
     'item vocabulary': 'the row re-derives the lexicon from the install and compares sourceHash; a real '
                           'second source would be the game reporting its own affix decomposition, which it '
                           'never does - and the base\\ table copies are byte-identical for the rare half, so '
