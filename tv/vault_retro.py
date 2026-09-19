@@ -924,6 +924,42 @@ _RESOLVER_WARNED = [False]
 _GRAIL_WARNED = [False]
 
 
+_VOCAB_WARNED = [False]
+
+
+def _vocab_of(name):
+    """-> (vocab, why). What the game's own affix tables say this NAME is.
+
+    v3364 (#60) — his ask: *"the vault needs to know every single item in its data base ... it also
+    needs to know what to route to garbage and what is considered HIGH QUALITY"*. The roster names
+    uniques, sets and runewords — 1,059 of them. It cannot name anything MAGIC or RARE, because
+    those are COMPOSED at drop time from four affix tables and a base type rather than drawn from a
+    list. `affix_lexicon` carries that vocabulary, pulled from his own install.
+
+    ⚠ THE FIELD IS `vocab`, NOT `kind`. The unsure row already carries `"kind": "item"` — a
+    hardcoded literal naming the ROW's kind, not the item's class. Reusing that name would put two
+    referents under one label and the older one would win silently.
+    [[label-outlived-referent]]
+
+    ⚠ AN ABSENT LEXICON IS UNKNOWN, NOT A CRASH AND NOT A GUESS. The store is generated from a
+    28 GB game install that a CI runner does not have, so `None` here is the ordinary case off his
+    Mac. It says so ONCE rather than returning a quiet default.
+    [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]]
+    """
+    try:
+        import affix_lexicon as _al
+    except Exception as e:
+        if not _VOCAB_WARNED[0]:
+            _VOCAB_WARNED[0] = True
+            print("   \u26a0 the affix lexicon will not import (%s) \u2014 no name can be read as "
+                  "magic or rare here" % str(e)[:80])
+        return None, "the lexicon module is unavailable"
+    try:
+        return _al.classify(name)
+    except Exception as e:
+        return None, "the lexicon raised: %s" % str(e)[:90]
+
+
 def _grail_guard():
     """A predicate: is this name a GRAIL ITEM — a named unique or set piece he is hunting?
 
@@ -1457,8 +1493,15 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             #
             # The evidence rides along; the GATE is untouched. Whether this grounds is still decided
             # by `gate()` on distinct sessions and the confidence floor.
+            # v3364 (#60) — WHAT THE GAME'S OWN TABLES SAY THIS NAME IS. Measured over his 43
+            # real unsure rows: GRAIL 14 · BASE 12 · MAGIC 8 · RARE 4 · UNKNOWN 5. The five
+            # refusals are honest — `scarab` is one of exactly SIX rare keys with no display
+            # string in either of the game's string tables, so `Storm Scarab` cannot be named from
+            # this data and says so instead of being guessed into a lane.
+            _vk, _vw = _vocab_of(key[0])
             unsure.append({"name": key[0], "why": "%s in %s — %s" % (key[0], key[1], v["why"]),
                            "lane": key[1], "kind": "item",
+                           "vocab": _vk, "vocabWhy": _vw,
                            "conf": v.get("bestConf"),
                            "sessions": v.get("sessions") or [],
                            "witnesses": [dict(e) for e in ev if isinstance(e, dict)],

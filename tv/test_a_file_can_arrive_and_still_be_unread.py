@@ -237,6 +237,40 @@ class TheRowCarriesIt(unittest.TestCase):
                           "a look whose per-file reach was never measured is being stored as "
                           "something other than UNKNOWN")
 
+    def test_EVERY_recording_door_forwards_it(self):
+        """⚠⚠ THE CASE THIS LAW SHOULD HAVE HAD ON DAY ONE, AND DID NOT.
+
+        v3363 added `reach` to `record_answer`'s signature AND the forwarding from it into the
+        ledger, and wired NEITHER OF THE TWO CALLERS. So `record_answer` dutifully passed its
+        default `None` through, every new row carried `reach: null`, and a row written by the new
+        code was byte-identical to one written before the field existed.
+
+        MEASURED, on v3363's own row, the version this all exists for: the eye answered
+        "REACH 2/7" and the row came back `reach=NoneType`.
+
+        The case below it asserted `"sha=sha, absent=absent, reach=reach)"` was present — and that
+        is the INNER call, `record_answer` -> ledger. It pinned the last segment of the chain and
+        was perfectly happy while the segment feeding it was cut. A join test that checks one link
+        of a three-link chain is testing the link, not the join. [[the-unjoined-end]]
+
+        So this asks the structural question instead: does EVERY call forward it?
+        """
+        src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        calls = re.findall(r"(?<!def )record_answer\((?:[^()]|\([^()]*\))*\)", code)
+        self.assertGreaterEqual(
+            len(calls), 2,
+            "found %d record_answer call site(s); there are two doors (handoff --answer-in and the "
+            "CLI) and a pattern that cannot see both cannot police both. [[copy-drift]]"
+            % len(calls))
+        missing = [" ".join(c.split())[:90] for c in calls if "reach=" not in c]
+        self.assertEqual(
+            missing, [],
+            "%d recording door(s) do not forward the per-file reach map: %s. The parameter exists "
+            "and the ledger stores it, so a dropped one here is silent — the row simply reads "
+            "reach: null, which is exactly what a row written before this version looks like."
+            % (len(missing), missing))
+
     def test_the_join_is_made_at_the_recording_call(self):
         """[[the-unjoined-end]] — computed, used, and dropped before the row is this repo's most
         repeated defect, and #104 is the same wire one field along."""

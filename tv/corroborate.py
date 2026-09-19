@@ -2309,6 +2309,16 @@ NO_JOINT_YET = {
     # prose REACH line, and that was measured at 5.2% of 854 answered rows with 16 of 44
     # unparsable — too thin to corroborate anything. Claiming coverage here would be claiming
     # the very thing that is missing.
+    # v3364 (#60) — NO_JOINT_YET, not COVERED_BY, for the #95 reason: the second witness
+    # would be the GAME's own composed name as the reader saw it on a tooltip, and the
+    # reader gives a NAME, never a decomposition — so there is nothing to compare the
+    # parse against. ⚠ AND THE OBVIOUS SECOND SOURCE IS A FAKE ONE: the root and base\\
+    # copies of rareprefix/raresuffix are BYTE-IDENTICAL (sha256, measured), so citing
+    # them as two witnesses for the rare half is n inflated by repetition.
+    'item vocabulary': 'the row re-derives the lexicon from the install and compares sourceHash; a real '
+                          'second source would be the game reporting its own affix decomposition, which it '
+                          'never does - and the base\\ table copies are byte-identical for the rare half, so '
+                          'they are one witness, not two.',
     'eye reach per file': 'the row recounts the payload from git and compares it against the ledger field; a '
                           'genuine second source would be the eye OWN reported reach, measured at 5.2% of 854 '
                           'rows with 16 of 44 unparsable, which is too thin to be a witness.',

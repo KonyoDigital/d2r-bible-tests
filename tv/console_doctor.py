@@ -2735,6 +2735,10 @@ MINE = {
         "the detector [[visual-regression-detector]]; a guard that reports success over blank "
         "cells is my defect to fix.",
 
+    "item vocabulary":
+        "#60 — generating the vocabulary from HIS install and keeping it in step with a\n"
+        "game patch is MY job. He asked for the feature; a stale affix table is not\n"
+        "something he can act on, and a silently-unconsulted lexicon even less so.",
     "eye reach per file":
         "#114 — whether the eye actually READ the bytes I paid for is mine to measure. He\n"
         "cannot act on a payload that was cut in transit, and a row that silently stops\n"
@@ -3895,6 +3899,71 @@ def _check_the_second_eye_was_asked_twice():
     return UNKNOWN, (a.get("say") or "nothing recorded") + tail
 
 
+def _check_the_item_vocabulary_can_name_his_loot():
+    """v3364 (#60) — CAN THE VAULT NAME A MAGIC OR RARE ITEM, AND IS THE LEXICON STILL THE INSTALL'S?
+
+    His ask: the vault and the AI item checker must know every item, and must know what to route to
+    garbage. The roster names uniques, sets and runewords. MAGIC and RARE names are COMPOSED at drop
+    time from four affix tables plus a base type, so they can never be a list — `affix_lexicon`
+    carries that vocabulary, generated from his own install.
+
+    ⚠⚠ TWO WAYS THIS GOES QUIETLY WRONG, AND BOTH ARE WHY THIS ROW EXISTS.
+      · THE STORE GOES STALE. It is generated ONCE from a 28 GB install. A game patch moves the
+        affix tables and nothing tells anyone: every classification keeps answering confidently out
+        of last month's vocabulary. `sourceHash` is re-derived here and compared.
+      · THE LEXICON STOPS BEING CONSULTED. If the soft import breaks, every name silently reads
+        UNKNOWN — which is indistinguishable from a machine that simply has no install. So this
+        counts how many of his CURRENT unsure rows can actually be named, and a sudden collapse to
+        zero is visible instead of looking like an ordinary CI box.
+
+    THREE STATES:
+      OK       -> lexicon matches the install; says how many unsure names it can read
+      MISSING  -> the install has changed since the lexicon was generated (STALE, act on it)
+      UNKNOWN  -> no lexicon here, or it cannot be re-derived on this machine. ⚠ NEVER OK: a CI
+                  runner has no game install, and "I could not look" is not "all is well".
+    """
+    try:
+        import affix_lexicon as AL
+    except Exception as e:
+        return UNKNOWN, "the affix lexicon will not import: %s" % str(e)[:90]
+    try:
+        code, say = AL.verify()
+    except Exception as e:
+        return UNKNOWN, "the lexicon verifier raised: %s" % str(e)[:110]
+    if code == getattr(AL, "SKIP", 77):
+        return UNKNOWN, say
+    if code != 0:
+        return MISSING, say
+    # It is fresh. Now: does anything actually READ it? Count against his live unsure rows.
+    named = total = 0
+    try:
+        import json
+        p = os.path.join(os.path.dirname(os.path.abspath(AL.__file__)), "vault_last_result.json")
+        # ⚠ `io` IS NOT IMPORTED IN THIS MODULE and the first cut of this row used io.open.
+        # The check still answered OK - with "(name 'io' is not defined)" in its own
+        # sentence, which is the only reason it was caught. This is the scar from
+        # [[test-venue]] verbatim: an io.open in a module that never imports io, whose
+        # NameError got swallowed and left the check answering forever about nothing.
+        with open(p, "rb") as _fh:
+            _raw = _fh.read().decode("utf-8", "replace")
+        rows = ((json.loads(_raw) or {}).get("result") or {}).get("unsure") or []
+        for r in rows:
+            nm = (r or {}).get("name")
+            if not nm:
+                continue
+            total += 1
+            k, _w = AL.classify(nm)
+            if k and k != "UNKNOWN":
+                named += 1
+    except Exception as e:
+        return OK, say + (" \u00b7 how many of his unsure names it can read is UNKNOWN (%s)"
+                          % str(e)[:60])
+    if not total:
+        # ⚠ A ZERO NEEDS A DENOMINATOR. No unsure rows is not evidence the lexicon works.
+        return OK, say + " \u00b7 no unsure rows on disk to read, so its live reach is UNMEASURED"
+    return OK, say + (" \u00b7 it can name %d of %d unsure name(s)" % (named, total))
+
+
 def _check_the_eye_reach_is_still_being_measured():
     """v3363 (#114) — IS THE PER-FILE REACH MEASUREMENT STILL LANDING ON NEW ROWS?
 
@@ -4015,6 +4084,7 @@ CHECKS = [
     ("swallowed reads", _check_a_failed_read_is_never_handed_back_as_data),
     ("second eye asked twice", _check_the_second_eye_was_asked_twice),
     ("eye reach per file", _check_the_eye_reach_is_still_being_measured),
+    ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
@@ -4508,6 +4578,10 @@ WATCHES = {
     # DECLARATION, not an omission: it reaches him through the eagle line, and the day it gets
     # a lamp of its own, name it here.
     "eye reach per file":          (),
+    # v3364 (#60) — the lexicon is a generated FILE and a classifier, with no screen
+    # element of its own. Empty tuple as a DECLARATION, not an omission: it reaches him
+    # through the eagle line today, and through the unsure rows once they render a vocab.
+    "item vocabulary":             (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never

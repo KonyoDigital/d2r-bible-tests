@@ -1128,9 +1128,14 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
         with io.open(answer_in, encoding="utf-8") as fh:
             # the PROMPT is passed so the echo can be stripped, and the model is read from the
             # answer's own bytes rather than inherited from whatever THIRD_EYE_MODEL happens to be
+            # v3364 - AND `reach` TRAVELS TOO. v3363 added the parameter to record_answer and
+            # the forwarding INTO the ledger, and wired NEITHER CALLER - so every row it wrote
+            # carried reach=None, which is byte-identical to a row written before the field
+            # existed. Found by using it: v3363's OWN row came back reach=NoneType while the eye
+            # had said "REACH 2/7". [[the-unjoined-end]] - third time in this one area.
             return record_answer(version, fh.read(), sent, dropped,
                                  prompt_text=prompt, answer_model=answer_model, sha=sha,
-                                 absent=absent)
+                                 absent=absent, reach=reach)
     if dry:
         return True
     answer, reached, awhy = ask(prompt)
@@ -1155,7 +1160,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     # v3229 — the transport names the family when the answer does not. FALLBACK ONLY:
     # record_answer prefers the model the answer's own bytes name.
     return record_answer(version, answer, sent, dropped, prompt_text=prompt,
-                         answer_model=_model_from_transport(), absent=absent)
+                         answer_model=_model_from_transport(), absent=absent, reach=reach)
 
 
 def main(argv):
