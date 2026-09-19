@@ -721,6 +721,72 @@ def _write_auto_relaunch(path, on):
     return True
 
 
+
+def _js_fn_from(text, anchor):
+    """-> the brace-balanced JS function beginning at `anchor`, or "" if it cannot be bound.
+
+    ⚠ v3351 — the JS half of the same rule. MEASURED in bible.html: toggleTooltipPass is 6,814
+    chars and its guard read 12,000, reaching 5,186 into the NEXT function where an innocent match
+    would satisfy a positive assertIn and pass falsely; vaultAccumApply is 41,387 and its guard
+    read 30,000, never seeing the last 28%. Both stop at the function's own closing brace now.
+    """
+    i = text.find(anchor)
+    if i < 0:
+        return ""
+    depth, seen = 0, False
+    for k in range(i, len(text)):
+        c = text[k]
+        if c == "{":
+            depth += 1
+            seen = True
+        elif c == "}":
+            depth -= 1
+            if seen and depth == 0:
+                return text[i:k + 1]
+    return ""
+
+
+def _py_fn_around(src, anchor):
+    """-> the source of the PYTHON FUNCTION containing `anchor`, or "" if it cannot be bound.
+
+    ⚠⚠ v3351 — A REAL BOUNDARY INSTEAD OF A BYTE COUNT. These guards read
+    `src[i:i + N]` after finding an anchor, and N is a guess about how far the subject reaches —
+    a guess that goes stale every time somebody documents the code. MEASURED on the two largest
+    in this file: `_toggle_body` read 12,000 of a 6,814-char function, reaching 5,186 chars into
+    its NEIGHBOUR, where an innocent match would satisfy a positive assertIn and go GREEN falsely;
+    `_apply_body` read 30,000 of 41,387 and never saw the last 28%.
+
+    ⚠ UNDER A POSITIVE assertIn THE DANGEROUS DIRECTION IS OVER-REACH. A short window fails loudly
+    and gets fixed; a long one can be satisfied by code the law says nothing about, which is the
+    silent direction. Both are removed by ending where the function ends.
+
+    ⚠ IT RETURNS "" ONLY WHEN IT GENUINELY CANNOT BOUND — anchor absent, source unparseable, or no
+    enclosing function. Callers must fail on that, never assert over it. [[source-reading-guard]] §3
+    """
+    import ast as _ast
+    i = src.find(anchor)
+    if i < 0:
+        return ""
+    line = src.count("\n", 0, i) + 1
+    try:
+        tree = _ast.parse(src)
+    except SyntaxError:
+        return ""
+    best = None
+    for n in _ast.walk(tree):
+        if not isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            continue
+        end = getattr(n, "end_lineno", None)
+        if end is None or not (n.lineno <= line <= end):
+            continue
+        # innermost wins: a nested def is the tighter, truer boundary
+        if best is None or n.lineno > best.lineno:
+            best = n
+    if best is None:
+        return ""
+    return "\n".join(src.split("\n")[best.lineno - 1:best.end_lineno])
+
+
 class TestTheatre(unittest.TestCase):
     """v765 — Konyo: 'its not really simulated anymore… its own independent VIEW, eyes on
     history' — the theatre serves REAL journaled sessions + REAL archived frames."""
@@ -12741,7 +12807,9 @@ class TestV1830ASealIsOnlyAsGoodAsItsReader(unittest.TestCase):
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find('swept["reel_" + str(st["reel"])]')
         self.assertGreater(i, 0, "the seal writer moved — find it and re-point this guard")
-        self.assertIn("promptVer", src[i:i + 700],
+        _blk = _py_fn_around(src, 'swept["reel_" + str(st["reel"])]')
+        self.assertTrue(_blk, "could not bound the seal writer's function — refusing to judge")
+        self.assertIn("promptVer", _blk,
                       "seals are written without the reader stamp, so nothing will ever reopen")
 
 
@@ -12950,7 +13018,9 @@ class TestV1832TheSuiteMustNotTouchHisSweepLock(unittest.TestCase):
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find("def _breathe()")
         self.assertGreater(i, 0, "_breathe moved — re-point this guard")
-        self.assertIn("_sweep_lock_touch()", src[i:i + 1400],
+        _blk = _py_fn_around(src, "def _breathe()")
+        self.assertTrue(_blk, "could not bound _breathe — refusing to judge")
+        self.assertIn("_sweep_lock_touch()", _blk,
                       "the sweep's per-read hook no longer beats the lock")
 
 
@@ -13031,7 +13101,9 @@ class TestV1834ANamedReelIsReachableAndPricedAsItself(unittest.TestCase):
         self.assertGreater(i, 0,
                            "an undeclared reel is unreachable again — --reel filters a list it can "
                            "never appear in, which is how v1830's eight reopened reels were stranded")
-        self.assertIn("declares no Chronicle focus", src[i:i + 700],
+        _blk = _py_fn_around(src, "if args.reel and not waiting:")
+        self.assertTrue(_blk, "could not bound the reel-filter function")
+        self.assertIn("declares no Chronicle focus", _blk,
                       "it reaches the reel without SAYING the focus filter was bypassed")
 
     def test_the_cli_prices_the_named_reel(self):
@@ -13341,8 +13413,8 @@ class TestV1843TheFoldReceiptReachesASurface(unittest.TestCase):
     def test_it_reports_both_halves(self):
         # a count of corrections without a count of retirements answers only half the question
         src = self._cli()
-        i = src.find('.get("fold")')
-        body = src[i:i + 600]
+        body = _py_fn_around(src, '.get("fold")')
+        self.assertTrue(body, "could not bound the fold reporter")
         self.assertIn("corrected", body)
         self.assertIn("retired as debris", body)
 
@@ -13361,8 +13433,8 @@ class TestV1843TheFoldReceiptReachesASurface(unittest.TestCase):
         # actionable half missing from a block it was never looking at.
         anchor = '_v = (st.get("result") or {}).get("verdict")'
         self.assertIn(anchor, src, "the sweep verdict is published and read by nothing")
-        i = src.find(anchor)
-        body = src[i:i + 400]
+        body = _py_fn_around(src, anchor)
+        self.assertTrue(body, "could not bound the sweep-verdict printer")
         self.assertIn('_v.get("do")', body, "the actionable half of the verdict is dropped")
         self.assertIn('!= "found"', body,
                       "a successful sweep would repeat itself — the count already says that")
@@ -13371,7 +13443,9 @@ class TestV1843TheFoldReceiptReachesASurface(unittest.TestCase):
         # "no corrections" and "no fold ran" must not print the same line
         src = self._cli()
         i = src.find('.get("fold")')
-        self.assertIn("if _fx or _rt:", src[i:i + 400],
+        _blk = _py_fn_around(src, '.get("fold")')
+        self.assertTrue(_blk, "could not bound the fold reporter")
+        self.assertIn("if _fx or _rt:", _blk,
                       "an empty fold would print a receipt for work that never happened")
 
 
@@ -13408,6 +13482,11 @@ class TestV1844TheReopenedReelsRideInTheState(unittest.TestCase):
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find("_skip, _reopened = _chron_skip_set(")
         self.assertGreater(i, 0, "the skip split moved — re-point this guard")
+        # ⚠ v3351 — LEFT AS A BYTE WINDOW ON PURPOSE, AND THE MEASUREMENT IS THE REASON. The
+        # enclosing function is 51,705 chars, so "bound it to the function" would widen this read
+        # by 36x. Under a POSITIVE assertIn the dangerous direction is OVER-reach — a needle found
+        # in code this law says nothing about passes GREEN — so the byte window is the tighter and
+        # therefore safer bound here. A real boundary only beats a guess when it is a CLOSER one.
         self.assertIn("_tick(reopenedReels=", src[i:i + 1400],
                       "the reopened list is computed and then only printed, which is where it was")
 
@@ -13585,7 +13664,9 @@ class TestTheReReadCap(unittest.TestCase):
         src = open(ca.__file__, encoding="utf-8").read()
         i = src.find("def _read_one(p, k):")
         self.assertGreater(i, 0)
-        self.assertIn("_chron_read_capped(", src[i:i + 900],
+        _blk = _py_fn_around(src, "def _read_one(p, k):")
+        self.assertTrue(_blk, "could not bound _read_one — refusing to judge")
+        self.assertIn("_chron_read_capped(", _blk,
                       "the cap exists and the read loop never asks it")
 
 
@@ -13666,6 +13747,10 @@ class TestBoardOwnershipReadBack(unittest.TestCase):
         i = src.find('path == "/api/board_ownership"')
         # 900, not 400: the route carries a long note and a short window stopped before the call —
         # the third time today a guard failed on its own reach rather than on the code.
+        # ⚠ v3351 — LEFT AS A BYTE WINDOW: this anchor sits at MODULE level, so there is no
+        # enclosing function to bound it with; _py_fn_around returns "" and converting it would
+        # have made the guard assert over an empty string, which passes for nothing and fails for
+        # everything. Measured before changing it, not after.
         self.assertIn("board_ownership(", src[i:i + 900])
 
     def test_it_reads_all_three_stores(self):
@@ -18059,7 +18144,8 @@ class TestV2019TheTooltipPassGivesBackWhatItTook(unittest.TestCase):
         with open(bib, encoding="utf-8") as fh:
             text = fh.read()
         start = text.index("window.toggleTooltipPass = function(){")
-        body = text[start:start + 12000]
+        body = _js_fn_from(text, "window.toggleTooltipPass = function(){")
+        assert body, "could not bound toggleTooltipPass"
         # Comments out first, bounded - this block's own prose names every marker below, so an
         # unstripped read would find them in the explanation rather than in the code.
         body = re.sub(r"/\*.{0,6000}?\*/", " ", body, flags=re.S)
@@ -18277,7 +18363,8 @@ class TestV2025OneLaneSwitchMeansTheSameThingEverywhere(unittest.TestCase):
         with open(bib, encoding="utf-8") as fh:
             text = fh.read()
         start = text.index("window.vaultAccumApply = function(payload)")
-        body = text[start:start + 30000]
+        body = _js_fn_from(text, "window.vaultAccumApply = function(payload)")
+        assert body, "could not bound vaultAccumApply"
         body = re.sub(r"/\*.{0,8000}?\*/", " ", body, flags=re.S)
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
         return body
@@ -33458,7 +33545,9 @@ class TestV2244DiskHistoryReachesBackADay(unittest.TestCase):
         # Dropping rows we failed to parse would silently shrink the window and look like retention.
         src = self._src()
         i = src.index("_DISK_HISTORY_DAYS * 86400000")
-        self.assertIn("_keep.append(_ln)", src[i:i + 700],
+        _blk = _py_fn_around(src, "_DISK_HISTORY_DAYS * 86400000")
+        self.assertTrue(_blk, "could not bound the retention window's function")
+        self.assertIn("_keep.append(_ln)", _blk,
                       "an unparseable row is discarded, so a parse bug would masquerade as age")
 
 

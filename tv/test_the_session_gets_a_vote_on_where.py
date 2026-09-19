@@ -66,20 +66,37 @@ def _stmt_and_block(callee):
         tree = _ast.parse(raw)
     except SyntaxError:
         return ""
-    hit = None
-    for n in _ast.walk(tree):
-        if isinstance(n, _ast.Call) and getattr(n.func, "attr", "") == callee:
-            hit = n
-            break
-    if hit is None:
+    # ⚠⚠ v3351 — AMBIGUITY IS REFUSED, NOT RESOLVED BY ARRIVAL ORDER. The cross-family eye found
+    # both of these on v3350, latent: `ast.walk` yields DFS order, NOT source order, so taking the
+    # FIRST matching Call picks an arbitrary site the moment `callee` is called twice — and the
+    # window would then describe a different call than the one under test, handing a NEGATIVE
+    # assertion a clean region and shipping the bug it exists to catch. Measured when it was
+    # written: corroborate_location has exactly ONE call site, so nothing was live; the second
+    # call added by anybody would have made it live and silent.
+    # Refusing beats guessing here: "" makes the caller fail loudly and say which name is
+    # ambiguous, which is the state this helper already documents for every other failure.
+    # [[unknown-stays-unknown]] [[source-reading-guard]] §2 — anchor on something UNIQUE.
+    hits = [n for n in _ast.walk(tree)
+            if isinstance(n, _ast.Call) and getattr(n.func, "attr", "") == callee]
+    if len(hits) != 1:
         return ""
+    hit = hits[0]
+    # ⚠ THE SAME RULE ONE LEVEL DOWN. A statement belongs to exactly one body, but a ONE-LINE
+    # construct (`if cond: call()`) puts the `if` and the call on the same lineno, so two bodies
+    # can match and the first one visited wins — truncating before the assignment or swallowing
+    # unrelated later code. Collect every candidate and refuse unless there is exactly one.
+    cands = []
     for parent in _ast.walk(tree):
         body = getattr(parent, "body", None)
         if not isinstance(body, list):
             continue
         for k, st in enumerate(body):
-            if getattr(st, "lineno", None) != hit.lineno:
-                continue
+            if getattr(st, "lineno", None) == hit.lineno:
+                cands.append((body, k, st))
+    if len(cands) != 1:
+        return ""
+    for body, k, st in cands:
+        if True:
             end = getattr(st, "end_lineno", st.lineno)
             if k + 1 < len(body):
                 end = max(end, getattr(body[k + 1], "end_lineno", end))
