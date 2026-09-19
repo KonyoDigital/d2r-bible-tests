@@ -405,6 +405,16 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
     if _sent and _sent["unsent"]:
         reached = False
         verdict = "cannot-tell"
+    # ⚠⚠ `or`, NOT `if head_cap is None` — AND A SECOND EYE ASKED FOR THE OPPOSITE. It read
+    # `head_cap=0` silently becoming 600 as a defect. It is the correct behaviour, and MEASURED
+    # here: a non-positive cap is meaningless for a HEAD field (storing nothing is not a cap), so
+    # falling back to the default is the only sensible answer.
+    # ⚠ AND THE "FIX" WOULD CREATE A REAL ONE. The same review also flagged that a row whose
+    # headCap is 0 lands in prefixOnly regardless of length. Today that is UNREACHABLE precisely
+    # because this `or` means record() can never WRITE a 0. Make 0 stay 0 and the second finding
+    # becomes live. The two findings are in tension; the safe pair is the one already here.
+    # Verified: head_cap=0 -> headCap=600, and a hand-written headCap=0 row with a non-empty head
+    # does land in prefixOnly. [[sabotage-is-usually-the-wrong-one]]
     _cap = int(head_cap or ANSWER_HEAD_CAP)
     row = {
         "version": norm_version(version) or str(version or "").strip(),
