@@ -222,6 +222,37 @@ REGISTRY = {
     "extract_ui_icons.py:FRAMEWORK": (
         "CASC_FRAMEWORK", "import-bound",
         "0 call-time readers; /tmp CascLib build dir, not live state."),
+
+    # ---- affix_lexicon (v3364, mine): the CASC toolchain the lexicon is built from. Registered
+    # v3377 after this gate caught all three unregistered. MEASURED by running, not reading:
+    # setting each env AFTER import and re-reading the attribute returns the original value.
+    "affix_lexicon.py:D2R": (
+        "D2R_INSTALL", "import-bound",
+        "MEASURED v3377: setting D2R_INSTALL after import does NOT move it. 3 call-time readers "
+        "of the attribute, all os.path.join(D2R, 'Data') — the CrossOver game install, READ-ONLY "
+        "and never a write target, so this is not the data-loss class the other entries warn "
+        "about. mock.patch.object(affix_lexicon, 'D2R', tmp) does redirect those three."),
+    "affix_lexicon.py:EXTRACT": (
+        "CASC_EXTRACT", "import-bound",
+        "MEASURED v3377: does not move with a later CASC_EXTRACT. 3 call-time readers; the "
+        "casc_extract BINARY, executed via subprocess and never written to."),
+    "affix_lexicon.py:FRAMEWORK": (
+        "CASC_FRAMEWORK", "import-bound",
+        "MEASURED v3377: does not move with a later CASC_FRAMEWORK. 1 call-time reader, passed "
+        "as DYLD_FRAMEWORK_PATH to the subprocess env. READ-ONLY."),
+
+    # ---- frozen_frames (v3367, mine): ⚠⚠ THE CONSTANT AND THE LIVE RESOLVER DISAGREE BY DESIGN.
+    "frozen_frames.py:DEFAULT_DIR": (
+        "TV_GB_SHELF", "import-bound",
+        "⚠⚠ MEASURED v3377, AND THE TWO SIDES DO NOT AGREE — that is the point of the entry. "
+        "DEFAULT_DIR does NOT move with a later TV_GB_SHELF (import-bound) and resolves to "
+        "~/gb-shelf. `default_dir()` DOES move (call-time) and resolves by default to the "
+        "watcher's own verify-evidence folder. v3367 moved every PRODUCTION caller onto the "
+        "function precisely because ~/gb-shelf is the folder that stopped being written to 7.5 "
+        "days earlier; 0 production readers of the constant remain. It survives only as a test "
+        "anchor (test_frozen_frames.py). So patching DEFAULT_DIR redirects NOTHING live — it is "
+        "the documented trap `default_dir()` own docstring warns about, kept because deleting a "
+        "symbol a test reads is a separate change. [[the-unjoined-end]] [[stale-reading]]"),
 }
 
 _KINDS = ("import-bound", "call-time")
@@ -406,6 +437,47 @@ class TestClassificationStillHolds(unittest.TestCase):
             "_CHRON_EVIDENCE_PATH now moves with TV_CHRON_EVIDENCE. If that is deliberate, "
             "reclassify it 'call-time' in REGISTRY — the fixture advice changes with it.")
 
+    def test_the_affix_toolchain_constants_are_import_bound(self):
+        """v3377 — all three were unregistered until this gate named them. Pinned by RUNNING."""
+        import affix_lexicon
+        for name, var in (("D2R", "D2R_INSTALL"), ("EXTRACT", "CASC_EXTRACT"),
+                          ("FRAMEWORK", "CASC_FRAMEWORK")):
+            before = getattr(affix_lexicon, name)
+            after = self._with_env(var, "/tmp/should-never-be-used",
+                                   lambda: getattr(affix_lexicon, name))
+            self.assertEqual(
+                before, after,
+                "affix_lexicon.%s now moves with %s. If that is deliberate, reclassify it "
+                "'call-time' in REGISTRY — the fixture advice changes with it." % (name, var))
+
+    def test_the_shelf_constant_and_the_shelf_RESOLVER_disagree_on_purpose(self):
+        """⚠⚠ v3377 — THE DIVERGENCE IS THE SAFETY, AND IT MUST NOT BE QUIETLY CLOSED.
+
+        v3367 (#115) moved every production caller off the module constant and onto
+        `default_dir()`, because the constant names ~/gb-shelf — the folder the watcher had
+        stopped writing to 7.5 days earlier — while the resolver follows the live seat.
+
+        MEASURED at v3377 by running both: the constant does NOT move with a later TV_GB_SHELF,
+        the function DOES. If someone later teaches the constant to move, patching it will look
+        like a working redirect while production still resolves elsewhere; if someone freezes the
+        function, the dead folder comes back. Either direction reds here, cheaply, instead of
+        inside a fixture that has already read the wrong shelf. [[stale-reading]]
+        """
+        import frozen_frames as FF
+        c_before, f_before = FF.DEFAULT_DIR, FF.default_dir()
+        c_after = self._with_env("TV_GB_SHELF", "/tmp/shelf-redirect-proof",
+                                 lambda: FF.DEFAULT_DIR)
+        f_after = self._with_env("TV_GB_SHELF", "/tmp/shelf-redirect-proof", FF.default_dir)
+        self.assertEqual(
+            c_before, c_after,
+            "frozen_frames.DEFAULT_DIR now moves with TV_GB_SHELF. It is registered "
+            "'import-bound'; reclassify it, or a fixture will trust a redirect that does not "
+            "reach production.")
+        self.assertNotEqual(
+            f_before, f_after,
+            "frozen_frames.default_dir() stopped honouring TV_GB_SHELF at call time. That is the "
+            "v3366 half-fix returning: the CLI goes back to reading the folder nobody writes to.")
+
     def test_patching_the_attribute_is_the_redirect_that_takes(self):
         """The remedy the conftest canary prescribes, proven to work — an instruction nobody has
         run is a rumour."""
@@ -502,6 +574,28 @@ class TheBoardSyncIsolationRecipeIsTRUE(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "teaching the shelf CONSTANT to follow the env makes it look patchable while "
+               "production resolves through default_dir(); the divergence this entry documents "
+               "silently closes and a fixture trusts a redirect that never reaches live code",
+        "file": "tv/frozen_frames.py",
+        "find": 'DEFAULT_DIR = os.path.expanduser(os.environ.get("TV_GB_SHELF") or "~/gb-shelf")',
+        "replace": 'DEFAULT_DIR = property(lambda _s: 0)  # _HEART2_TAMPER_',
+        "matches": 1,
+    },
+    {
+        "why": "freezing the shelf RESOLVER onto the import-bound constant is the v3366 half-fix "
+               "coming back: the CLI returns to the folder the watcher stopped writing to 7.5 days "
+               "before v3367 found it. ⚠ The FIRST cut of this proof edited the except-arm "
+               "fallback and came back BLIND at a correct match count of 1 — measured: "
+               "frozen_frame_watch imports fine here, so that arm is DEAD and the sabotage never "
+               "reached the path the case exercises. Anchored on the LIVE return instead. "
+               "[[source-reading-guard]] section 4c",
+        "file": "tv/frozen_frames.py",
+        "find": "        return _w.shelf_dir()",
+        "replace": "        return DEFAULT_DIR",
+        "matches": 1,
+    },
     {
         'why': 'Deletes the env binding the registry entry "board_sync.py:REPO" describes: REPO stops reading D2R_REPO at import, so the AST scanner no longer finds it and the registry\'s claim becomes a note about code that is gone — exactly the drift this gate exists to catch.  MEASURED: untampered OK — Ran 11 tests in 6.145s, exit 0 (python3 tv/test_import_bound_paths.py from ; tampered (all 1) FAILED (failures=3) — Ran 11 tests in 2.492s. Red laws: TestImportBoundPathRegis; reddened law test_import_bound_paths.TestImportBoundPathRegistry.test_registry_has_; ALONE FAILED (failures=1) — run in a fresh process as `python3 -m unittest test_import_bound_paths.TestImp.',
         'file': 'board_sync.py',
