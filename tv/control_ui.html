@@ -17302,9 +17302,37 @@ window._lockMark = function(isOpen, px, label){
          ⚠ ORDER ONLY. Nothing is removed, no id moves, and _shHighlights/_shTimeline/
          _shLanesLoad/_shStoryRender each still find their block by getElementById exactly as
          before. [[borrowed-surface]] [[visual-regression-detector]] */
-      + _shHighlights()
-      + timelineDiv
+      /* ⚠⚠⚠ v3358 (#99) — THE LIST COMES BACK FIRST, AND v2985's SCAR IS REOPENED NO LONGER.
+         MEASURED on his LIVE console at his real 1120x660, shelf freshly opened at scrollTop 0:
+             .sh-head        top 123  h  60
+             .sh-hi          top 197  h 174   <- the five highlight tiles
+             #sh-timeline    top 387  h 156   <- the ACTIVITY chart
+             .sh-search-wrap top 559  h  42
+             .sh-grid        top 670           FIRST REEL CARD AT 708, viewport is 660
+         Not one of his twelve reels was on screen. I opened it and looked: heading, five tiles,
+         a chart, and the fold. The panel named "your reels" was showing none of them — which is
+         v2985's measurement happening again, at 330px of furniture instead of 549.
+
+         ⚠ ATTRIBUTED BY DELTA, not by argument. Walking tv/control_ui.html back: through v3288
+         (df16a1e3) the order was cards -> ACTIVITY -> lanes -> story -> highlights, exactly the
+         BAND that test_the_shelf_shows_reels_before_it_shows_charts pins. v3289 changed it to
+         highlights -> ACTIVITY -> cards, and BOTH laws have been red on both venues ever since.
+
+         ⚠⚠ AND THE COMMENT ABOVE PROMISED A GUARD THE CODE NEVER HAD. It says v3289 "raised the
+         records strip and the chart ONLY, and only with an open-on-a-reel guard". There is no
+         such guard: the highlights builder returns '' only when there are NO runs, and the
+         timeline div
+         is non-empty whenever `cards` is. It also raised the HIGHLIGHTS, which that sentence does
+         not claim. A comment stating a rule the adjacent code does not implement is worse than no
+         comment — it is why this sat red for sixty-odd versions with its own laws pointing at it.
+         [[measured-true-read-wrong]] [[visual-regression-detector]]
+
+         ⚠ ORDER ONLY, exactly as v2985 and v3121 each promised: nothing is removed, no id moves,
+         and _shHighlights/_shTimeline/_shLanesLoad/_shStoryRender each still find their block by
+         getElementById. v3121's ruling is kept too — ACTIVITY still LEADS the analytic band, it
+         just leads it from below the list where the band lives. */
       + searchBar + body
+      + timelineDiv
       /* @@RULING v2985: the RIVER STRIP and the PIPELINE BOARD stay BELOW the reel list. Measured
          at his real 1120x660: 1433px of furniture above the list put the first card 2101px below
          the panel's own bottom edge - 530 cards rendered and not one on screen. v3289 later raised
@@ -17343,7 +17371,8 @@ window._lockMark = function(isOpen, px, label){
          `_shStoryRender` each still find their block by getElementById exactly as before.
          [[borrowed-surface]] [[visual-regression-detector]] */
       + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
-      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>';
+      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
+      + _shHighlights();
     ov.hidden = false;
     /* ⚠⚠ v3029 (#58) — OPEN ON A REEL, NOT ON FURNITURE. MEASURED on his live console at 1120x660
        with the shelf open and measurable: clientH 361, firstCardTop 426 — the first reel card sits

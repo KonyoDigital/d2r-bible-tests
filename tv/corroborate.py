@@ -2262,6 +2262,15 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3358 (#99) — the row reads the ASSEMBLY ORDER out of control_ui.html. The real joint is a
+    # RENDERED one: the first reel card's top against the viewport height at his real 1120x660,
+    # which is the measurement that actually caught this (708px in a 660px window). It is NOT
+    # built — the render target that watches this grid proves cards ARRIVE and never that one is
+    # above the fold — so claiming coverage here would be claiming the very thing that was missing.
+    'shelf leads with reels': 'the row reads source order; the second source would be RENDERED '
+                              'geometry - first card top against viewport height at 1120x660 - '
+                              'and that is not built. The render target proves arrival, not '
+                              'position, which is how this survived 68 versions.',
     # ⚠⚠ v3357 (#111) — `swallowed reads` LANDED IN NEITHER REGISTRY AND CI CAUGHT IT, not the
     # push. v3355 added the row and registered it in CHECKS, the surface map and the MINE map —
     # three places — and missed this pair, so `test_every_doctor_check_is_explained` went red on

@@ -161,7 +161,11 @@ RED_PROOF = [
     {
         "why": "collapsing malformed back to {} lets --mark wipe every other issue's watermark",
         "file": "tv/handoff.py",
-        "find": "        return None          # malformed/unreadable: UNKNOWN",
+        # ⚠ v3358 — CODE ONLY. This anchored the line WITH its trailing comment, and v3355
+        # reworded that comment from "malformed/unreadable" to "malformed OR unreadable" — so the
+        # proof matched 0 times and stopped proving anything, silently, in the same push that
+        # repaired the thing it guards. Anchor bytes the subject cannot reword.
+        "find": "    except Exception:\n        return None",
         "replace": "        return {}            # malformed/unreadable: UNKNOWN",
         "matches": 1,
     },

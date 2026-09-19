@@ -204,7 +204,11 @@ RED_PROOF = [
     {
         "why": "a reader that does not count partial looks lets two blind looks read as agreement",
         "file": "tv/second_eye_ledger.py",
-        "find": '    _partial = [r for r in reached if r.get("absent")]',
+        # ⚠ v3358 — RE-ANCHORED. v3354 rewrote this line to read `_blind[id(r)]` so a version
+        # stamp would stop counting as a blind spot, and in doing so it disarmed the proof of the
+        # law that line belongs to. Third time in four versions that a fix silently made an
+        # EARLIER law's proof inert, and only the heart's census saw any of them.
+        "find": "    _partial = [r for r in reached if _blind[id(r)]]",
         "replace": "    _partial = []",
         "matches": 1,
     },
