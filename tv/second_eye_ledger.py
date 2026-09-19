@@ -364,7 +364,8 @@ def code_was_transmitted(sent):
 
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
-           answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None):
+           answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None,
+           head_cap=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -404,6 +405,7 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
     if _sent and _sent["unsent"]:
         reached = False
         verdict = "cannot-tell"
+    _cap = int(head_cap or ANSWER_HEAD_CAP)
     row = {
         "version": norm_version(version) or str(version or "").strip(),
         # ⚠⚠ v3316 — WHICH COMMIT WAS ACTUALLY READ. `payload_for(sha)` resolves a commit, builds
@@ -428,7 +430,20 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         "images": [os.path.basename(str(i)) for i in (images or [])],
         "asked": (str(asked or "")[:400]) or None,
         # the head of the RAW answer, so a plausible-sounding summary cannot stand in for a look
-        "answerHead": (str(answer_head or "")[:ANSWER_HEAD_CAP]) or None,
+        # ⚠⚠ v3339 (#77) — ONE TRUNCATION, AND THE ROW REMEMBERS THE CAP. The cap used to be
+        # written in FOUR places: this line plus three slices in second_eye_run (400 on the
+        # reached path, 200 on each unreached one). The runner cut FIRST, so a row capped at 400
+        # never reached 600 and verdict_provenance re-judged it as if the whole answer were there.
+        # MEASURED on 843 rows: 381 sit at 400 and prefixOnly reported 98 where the honest figure
+        # is 479 — and the census, counting only this 600, said 91. Two readings disagreeing
+        # because one number lived in four places. [[copy-drift]] [[heart-first]] §6 — persist what
+        # you knew, not a summary of it.
+        # ⚠ `head_cap` is resolved HERE, not in the signature: ANSWER_HEAD_CAP is defined further
+        # down this file, and a default evaluated at import time freezes whatever the bar was the
+        # day the line was written. [[regression-guard]] §4
+        "answerHead": (str(answer_head or "")[:_cap]) or None,
+        # what that head was cut to, so a reader never has to guess which cap applied
+        "headCap": _cap,
         # v3315 — WHICH GENERATION OF THE PARSER REACHED THIS VERDICT. 824 rows were written
         # without it, and 64 of those carry a verdict their own stored answer contradicts.
         "judgedBy": PARSER_GEN,
@@ -654,7 +669,19 @@ def verdict_provenance(path=None):
         if not head.strip():
             out["noAnswer"] += 1
             continue
-        if len(head) >= ANSWER_HEAD_CAP:
+        # ⚠⚠ v3339 (#77) — ASK THE ROW WHAT IT WAS CUT TO. This tested a hardcoded 600 while the
+        # RUNNER had already cut at 400, so 381 of 843 rows were re-judged as if the whole answer
+        # were present and prefixOnly reported 98 where the honest figure is 479. The cap now
+        # travels ON THE ROW.
+        # ⚠ A LEGACY ROW HAS NO headCap AND THAT IS UNKNOWN, NOT WHOLE: rows written before this
+        # sat on either the runner's 400 or the writer's 600, and nothing on disk says which. Both
+        # are treated as prefix-only, which moves them OUT of agreement and never into it.
+        _cap = r.get("headCap")
+        if _cap is None:
+            _prefix = len(head) in (200, 400, ANSWER_HEAD_CAP)
+        else:
+            _prefix = len(head) >= int(_cap)
+        if _prefix:
             out["prefixOnly"] += 1
             continue
         try:

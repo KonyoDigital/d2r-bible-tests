@@ -767,7 +767,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
                else ("the answer was %d chars" % len(_reply))
         SEL.record(version=version, model=(_model_from_answer(answer) or answer_model or ""),
                    verdict="", findings=[], images=[],
-                   asked=COLD_FRAMING.strip()[:200], answer_head=_reply[:200], reached=False,
+                   asked=COLD_FRAMING.strip()[:200], answer_head=_reply, head_cap=200, reached=False,
                    path=None, seen_path=None, sent=sent, sha=sha)
         print("  %s: %s — EMPTY SEAT, not agreement" % (version, _why))
         return False
@@ -789,7 +789,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
                verdict=_verdict,
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
-               answer_head=answer[:400], reached=True, path=None, seen_path=None, sent=sent,
+               answer_head=answer, head_cap=400, reached=True, path=None, seen_path=None, sent=sent,
                sha=sha)
     print("  %s: LOOKED — %d finding(s) recorded" % (version, len(findings)))
     return True
@@ -853,7 +853,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     if not reached:
         SEL.record(version=version, model=EYE_MODEL, verdict="", findings=[], images=[],
                    asked=COLD_FRAMING.strip()[:200],
-                   answer_head=(answer or "")[:200], reached=False,
+                   answer_head=(answer or ""), head_cap=200, reached=False,
                    path=None, seen_path=None, sent=sent, sha=sha)
         print("     EMPTY SEAT — %s  (recorded as unreached, never as agreement)" % awhy)
         return False
