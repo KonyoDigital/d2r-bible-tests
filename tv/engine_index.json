@@ -1141,17 +1141,6 @@
     "purpose": "Scores what Wilson WOULD say about a prune pass (k = candidates with a demonstrably live OCR reader over n considered). Decides nothing.",
     "territory": "river-reels"
   },
-  "prune_wilson.py": {
-    "entryPoints": [
-      "score",
-      "baseline_can_say_yes",
-      "bank_into_proof_queue",
-      "main"
-    ],
-    "gotcha": "Its own docstring corrects itself in place and the correction is the lesson: 'main() is the only module-level call' is FALSE — an AST walk finds 119 calls outside the __main__ guard, and importing the console DOES write to disk (tv_diablo runs os.makedirs). What is true, and is the only property this harness needs, is that start_background_watchers() has no import-time call site, so importing does not start the DELETER. The v2082 scar it re-attempts: the switch matched the exact byte '0' and nothing else, so off/false/no/OFF and '0 ' ALL ARMED an unattended deleter. Every TV_AUTO_PRUNE value it writes is a spelling of OFF; test_prune_wilson.py asserts that by reading this file's source, and strips comments first.",
-    "purpose": "Wilson evidence for the `prune.arm` lock — attacks retention_may_act() with off-spellings, unknown/raising worlds and cross-family drift.",
-    "territory": "gates-proofs"
-  },
   "read_names_feeder.py": {
     "entryPoints": [
       "plan",
@@ -1830,6 +1819,15 @@
     "purpose": "Follows one named item across reel, ledger, routing decision and endpoint, and proves the negative half: that a chronicle or farming scenario deposits nothing in the vault.",
     "territory": "routing"
   },
+  "tree_busy.py": {
+    "entryPoints": [
+      "why",
+      "main"
+    ],
+    "gotcha": "⚠⚠ TWO SIGNALS, AND THE LOCK ALONE IS NOT ENOUGH. run_gates takes the flock, but the hook runs renders, console demos and the Playwright smoke OUTSIDE that claim - MEASURED during the v3328 push, the flock read FREE while a pre-push had been grading 15 minutes with smoke in flight. ⚠ UNKNOWN IS NOT FREE, and EITHER signal going dark is enough: the first cut used `and` so a blind flock plus a clean process list fell through to free with the primary signal silent - the second eye found it, and the law could not have, because it stubbed both signals as None. ⚠ The process probe matches an INVOCATION, never a MENTION: `pgrep -f hooks/pre-push` also matches `vi hooks/pre-push`, which would refuse every bump while an editor stayed open. ⚠ It RELEASES the flock the moment it has tested it - holding it would make the checker the second gate run REG-162 is about. ⚠ Its reach is bounded and stated: an ad-hoc heredoc that writes bible.html directly will never consult a module it does not import.",
+    "purpose": "Answers ONE question with ONE definition: is this working tree being graded right now? `hooks/pre-push` grades the WORKING TREE rather than the commit, so a version banked mid-run gets a green verdict about bytes that are not the ones shipping. bump_version consults it and REFUSES to stamp when the answer is anything but free. It returns a REASON string rather than a bare bool, so the refusal can say which signal fired.",
+    "territory": "routines-infra"
+  },
   "tv_diablo.py": {
     "entryPoints": [
       "READ_PROMPT / PROMPT_VER :385-387",
@@ -2036,14 +2034,5 @@
     "gotcha": "It ONLY observes — it records and calls straight through to the originals, never redirecting, blocking or fabricating a write. ⚠ And it PROVES NOTHING UNTIL SOMETHING RUNS under `with watching()`: enabling it does not gather evidence, so the per-store answer is a measurement nobody has taken yet — which is not the same fact as 'one writer'. It exists because two static detectors (filename-adjacency grep, AST constant-resolution) both returned ZERO writers for all four stores, measuring the instruments rather than the code. Related trap recorded in write_census.py: patching only `open` also yields 0 — this codebase writes via io.open.",
     "purpose": "Runtime witness that patches open/io.open/os.replace to RECORD which module actually writes each watched reel store (vault_swept, vault_accum, reel_tombstones, retro_triage, chron_evidence).",
     "territory": "vault"
-  },
-  "tree_busy.py": {
-    "entryPoints": [
-      "why",
-      "main"
-    ],
-    "purpose": "Answers ONE question with ONE definition: is this working tree being graded right now? `hooks/pre-push` grades the WORKING TREE rather than the commit, so a version banked mid-run gets a green verdict about bytes that are not the ones shipping. bump_version consults it and REFUSES to stamp when the answer is anything but free. It returns a REASON string rather than a bare bool, so the refusal can say which signal fired.",
-    "gotcha": "⚠⚠ TWO SIGNALS, AND THE LOCK ALONE IS NOT ENOUGH. run_gates takes the flock, but the hook runs renders, console demos and the Playwright smoke OUTSIDE that claim - MEASURED during the v3328 push, the flock read FREE while a pre-push had been grading 15 minutes with smoke in flight. ⚠ UNKNOWN IS NOT FREE, and EITHER signal going dark is enough: the first cut used `and` so a blind flock plus a clean process list fell through to free with the primary signal silent - the second eye found it, and the law could not have, because it stubbed both signals as None. ⚠ The process probe matches an INVOCATION, never a MENTION: `pgrep -f hooks/pre-push` also matches `vi hooks/pre-push`, which would refuse every bump while an editor stayed open. ⚠ It RELEASES the flock the moment it has tested it - holding it would make the checker the second gate run REG-162 is about. ⚠ Its reach is bounded and stated: an ad-hoc heredoc that writes bible.html directly will never consult a module it does not import.",
-    "territory": "routines-infra"
   }
 }

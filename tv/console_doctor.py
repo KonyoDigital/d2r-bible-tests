@@ -2739,9 +2739,9 @@ MINE = {
         "#56 — asking the eye twice is MY job, not his. He cannot act on a look I did not take, "
         "so a SINGLE look must never appear in the count he reads. ⚠ It still renders red, "
         "because the omission is real and I spent a whole arc reporting pairs I had not recorded.",
-    "shelf leads with reels":
-        "#99 — the shelf burying his reels under analytics is MY regression to fix, not a thing "
-        "he should have to report. He already ruled on it once, in v2985.",
+    "shelf order and guard":
+        "#112 — his shelf order is HIS ruling, given twice. Losing it, or losing the scroll guard "
+        "that pays for it, is MY regression to catch before he sees furniture instead of reels.",
     "swallowed reads":
         "#108 — a failed read handed back as data is a defect in MY code, never a thing he can "
         "act on. It went red in CI for ten runs with no surface at all; this row is the surface.",
@@ -3729,24 +3729,24 @@ def _check_the_screen_is_still_painting():
                    "speak for now" % (len(stale), STALE_S / 3600.0)))
 
 
-def _check_the_shelf_leads_with_his_reels():
-    """Does the panel named "your reels" put reels first, or analytics?
+def _check_the_shelf_keeps_his_order_and_its_guard():
+    """His shelf order, and the scroll guard that pays for it — both, or neither is safe.
 
-    ⚠⚠ v3358 — MEASURED ON HIS LIVE CONSOLE at his real 1120x660, shelf freshly opened at
-    scrollTop 0, BEFORE this version moved the list back to the front:
+    ⚠⚠ v3359 — THIS ROW SHIPPED IN v3358 ASSERTING THE OPPOSITE AND IT WAS WRONG. It reported
+    MISSING whenever any analytic block led the reel cards, which is exactly the layout he asked
+    for twice: *"the row where it says BEST RUN MOST READS TOP READS BEST COVERAGE AND STREAK i
+    want at the tippy top of the SHELF TAB above the sessions reels"*, then *"and the activity i
+    want uptop under the BEST RUNS row"*. v3289 granted it and paid for it with
+    `window._shOpenOnAReel`, a scroll guard re-run AFTER `_shTimeline()` so the shelf still opens
+    ON A REEL — measured then at firstCardTop 235, visible, against 815 and invisible without it.
 
-        .sh-head        top 123   .sh-hi    top 197 h 174    #sh-timeline top 387 h 156
-        .sh-grid        top 670   FIRST REEL CARD AT 708, in a 660px viewport
+    I probed his console, saw the guard working at scrollTop 497, RESET the scroll to 0, measured
+    708 in a 660 viewport and called it the defect. The measurement was mine, not his console's.
+    [[stale-reading]] [[feedback-suspect-the-instrument]]
 
-    Not one of his twelve reels was on screen. After: first card at 346. Two shipped laws had been
-    red about this on BOTH venues since v3289 and nothing put it in front of a human — which is
-    the whole reason this row exists. He must not be the one who notices.
-    [[visual-regression-detector]] [[the-unjoined-end]]
-
-    ⚠ IT READS THE ORDER, NOT THE PIXELS, AND SAYS SO. A real joint here is a RENDERED geometry
-    check — first card top against viewport height at his width — and it is NOT BUILT; the render
-    target that watches this grid proves cards ARRIVE, never that one is above the fold, which is
-    exactly how this survived 68 versions. This row is the cheap half, honestly labelled.
+    So the row now watches what actually protects him: HIS order, and the guard that makes it
+    safe. Losing either is the regression — the order drifting back is one, and the guard going
+    missing while the order stays is the one that puts furniture on screen and no reels.
     """
     try:
         import io as _io
@@ -3757,23 +3757,28 @@ def _check_the_shelf_leads_with_his_reels():
     if i < 0:
         return UNKNOWN, "the shelf overlay assembly could not be found, so its order is UNKNOWN"
     seg = ui[i:i + 40000]
-    cards = seg.find("+ searchBar + body")
-    if cards < 0:
-        return UNKNOWN, "the reel grid is not in the assembly window, so nothing can be compared"
-    ahead = []
-    for marker, what in (("+ timelineDiv", "the ACTIVITY chart"),
-                         ("_shHighlights()", "the highlights"),
-                         ('id="sh-lanes"', "the river strip"),
-                         ('id="sh-story"', "the pipeline board")):
-        at = seg.find(marker)
-        if 0 <= at < cards:
-            ahead.append(what)
-    if ahead:
-        return MISSING, ("the shelf assembles %s BEFORE his reel cards — at his real 1120x660 that "
-                         "is what put the first card at 708px in a 660px viewport and showed him "
-                         "none of his reels" % ", ".join(ahead))
-    return OK, "his reel cards lead the shelf; every analytic block sits below the list"
-
+    hi, tl, lst = seg.find("_shHighlights()"), seg.find("+ timelineDiv"), seg.find("+ searchBar + body")
+    if min(hi, tl, lst) < 0:
+        return UNKNOWN, "one of the three shelf blocks is not in the assembly window"
+    drift = []
+    if not hi < lst:
+        drift.append("the BEST RUN / STREAK strip no longer leads the list")
+    if not tl < lst:
+        drift.append("ACTIVITY no longer leads the list")
+    if not hi < tl:
+        drift.append("ACTIVITY is above the BEST RUNS row, not under it")
+    guard = "window._shOpenOnAReel = function (ov)" in ui
+    _t = ui.find("_shTimeline();")
+    after = ui.find("window._shOpenOnAReel(ov)", _t) if _t > -1 else -1
+    if drift:
+        return MISSING, ("the shelf order drifted from what he asked for twice: %s"
+                         % "; ".join(drift))
+    if not guard or after < 0:
+        return MISSING, ("his order is intact but the opening-scroll guard is %s — the strip and "
+                         "the chart sit above the list, so without it the shelf opens on "
+                         "furniture and shows him no reels"
+                         % ("gone" if not guard else "no longer re-run after _shTimeline()"))
+    return OK, "the strip and the chart lead the list, as he asked, and the opening-scroll guard still re-runs after the chart fills"
 
 def _check_a_failed_read_is_never_handed_back_as_data():
     """The swallow ratchet's RANK 1 — a failed read served to a caller as 0 / {} / [] / ''.
@@ -3943,7 +3948,7 @@ CHECKS = [
     ("relaunch green light", _check_a_held_relaunch_is_not_stuck),
     # v3310 (#56) — his ruling is ask TWICE and keep both. Named in MINE below: a single look is
     # MY omission, not something he can act on.
-    ("shelf leads with reels", _check_the_shelf_leads_with_his_reels),
+    ("shelf order and guard", _check_the_shelf_keeps_his_order_and_its_guard),
     ("swallowed reads", _check_a_failed_read_is_never_handed_back_as_data),
     ("second eye asked twice", _check_the_second_eye_was_asked_twice),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
@@ -4418,7 +4423,7 @@ WATCHES = {
     # a element id anyone can point at. When it gets a lamp, name it here.
     "relaunch green light":        (),
     # v3310 — the ledger is a file, not a screen. Empty tuple as a DECLARATION, not an omission.
-    "shelf leads with reels":      ("th-shelfov",),
+    "shelf order and guard":       ("th-shelfov",),
     # v3355 — a source census, not a screen. Empty tuple as a DECLARATION, not an omission.
     "swallowed reads":             (),
     "second eye asked twice":      (),

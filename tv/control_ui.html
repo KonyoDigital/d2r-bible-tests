@@ -17331,8 +17331,9 @@ window._lockMark = function(isOpen, px, label){
          and _shHighlights/_shTimeline/_shLanesLoad/_shStoryRender each still find their block by
          getElementById. v3121's ruling is kept too — ACTIVITY still LEADS the analytic band, it
          just leads it from below the list where the band lives. */
-      + searchBar + body
+      + _shHighlights()
       + timelineDiv
+      + searchBar + body
       /* @@RULING v2985: the RIVER STRIP and the PIPELINE BOARD stay BELOW the reel list. Measured
          at his real 1120x660: 1433px of furniture above the list put the first card 2101px below
          the panel's own bottom edge - 530 cards rendered and not one on screen. v3289 later raised
@@ -17371,8 +17372,7 @@ window._lockMark = function(isOpen, px, label){
          `_shStoryRender` each still find their block by getElementById exactly as before.
          [[borrowed-surface]] [[visual-regression-detector]] */
       + '<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>'
-      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>'
-      + _shHighlights();
+      + '<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>';
     ov.hidden = false;
     /* ⚠⚠ v3029 (#58) — OPEN ON A REEL, NOT ON FURNITURE. MEASURED on his live console at 1120x660
        with the shelf open and measurable: clientH 361, firstCardTop 426 — the first reel card sits

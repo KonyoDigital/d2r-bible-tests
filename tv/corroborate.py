@@ -2267,7 +2267,7 @@ NO_JOINT_YET = {
     # which is the measurement that actually caught this (708px in a 660px window). It is NOT
     # built — the render target that watches this grid proves cards ARRIVE and never that one is
     # above the fold — so claiming coverage here would be claiming the very thing that was missing.
-    'shelf leads with reels': 'the row reads source order; the second source would be RENDERED '
+    'shelf order and guard': 'the row reads source order and the presence of the scroll guard; the second source would be RENDERED '
                               'geometry - first card top against viewport height at 1120x660 - '
                               'and that is not built. The render target proves arrival, not '
                               'position, which is how this survived 68 versions.',

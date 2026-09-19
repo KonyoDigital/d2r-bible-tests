@@ -2394,9 +2394,29 @@ def board_mask(ledger="sets"):
     # the console UI that _MAIN_WIN holds. Falling back to _MAIN_WIN is kept only so an older
     # single-window build still behaves as it did, and the failure below now NAMES the window it
     # asked rather than accusing the build.
+    # ⚠⚠ v3359 (#112) — SAY WHICH OF THE TWO, BECAUSE ONE OF THEM IS ACTIONABLE AND THE OTHER
+    # IS NOT. Konyo, looking at THE FLEET: *"dean already opened to console it should have synced
+    # the board automatically ... we had this bug a few times already its still not properly
+    # fixed"*. MEASURED on his live console the same minute, /api/fleet_compare for Dean:
+    #     theirHave 131 / theirTotal 135 · maskWhy "no board window" · mineNames 133, mineWhy null
+    # So HIS side publishes a mask and Dean side does not, and the only thing either of them was
+    # ever told is the string "no board window". That sentence is accurate and it names no action:
+    # Dean cannot tell from it whether to open the board, relaunch the console, or wait, and the
+    # panel truthfully adds "Waiting will not clear that on its own" without saying what would.
+    #
+    # THE TWO STATES ARE ALREADY DISTINGUISHABLE HERE AND WERE BEING COLLAPSED. `_MAIN_WIN` is set
+    # to None on the headless path (`control_app.py --no-open`, which the console supervisor
+    # revives with), and this file ALREADY writes the honest sentence for it one surface over:
+    # "there is no native window on this console (headless or --no-open)". A console with no
+    # window can COUNT its pieces forever and can never NAME one, and no amount of opening a
+    # browser page changes that - it needs a relaunch WITH a window.
+    # [[headless-console-looks-like-lost-data]] [[unknown-stays-unknown]]
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None:
-        return _mask_give_up(ledger, "no board window")
+        return _mask_give_up(
+            ledger,
+            "this console has no native window (headless or --no-open), so it can COUNT its "
+            "pieces but can never NAME them - relaunch it WITH a window")
     js = ("(function(){try{"
           "var R=%s;"
           # ⚠⚠ v3213 — THE MASK PUBLISHER READS THE BOARD, SO IT MUST HOP LIKE THE BOARD READERS.
@@ -30409,7 +30429,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3358",
+        "ver": "v3359",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

@@ -23,6 +23,26 @@ not a taste call on his design.
 at 325px above it NO card is fully visible at his window size. That is a structural choice — a
 taller home for the shelf, or a shorter card — and it is stated here rather than quietly closed.
 [[unknown-stays-unknown]]
+
+=== ⛔ THE ORDERING CLAUSES OF THIS LAW ARE RETIRED — HIS RULING SUPERSEDED THEM (v3359) ===
+v3289 records his words twice over: *"the row where it says BEST RUN MOST READS TOP READS BEST
+COVERAGE AND STREAK i want at the tippy top of the SHELF TAB above the sessions reels"*, then
+*"and the activity i want uptop under the BEST RUNS row"*. That request reopens v2985's scar ON
+PURPOSE and pays for it with `window._shOpenOnAReel`, a scroll guard that runs AFTER `_shTimeline()`
+so the shelf still OPENS ON A REEL. v3289 measured both states on his live console at 1120x660:
+
+    order alone      scrollTop 0     firstCardTop 815   firstCardVisible FALSE
+    order + guard    scrollTop 476   firstCardTop 235   firstCardVisible TRUE
+
+⚠⚠ I BROKE THE GUARD AND THEN READ THE RESULT AS THE DEFECT. In v3358 I probed his console, saw
+the first card at 211 with scrollTop 497 — the guard working — then RESET scrollTop to 0 "to see
+what he sees when it opens", measured 708 in a 660 viewport, and reordered the shelf to put the
+list first. That overturned a ruling he gave twice, on a measurement I created by disabling the
+mechanism that exists to make his ruling safe. v3289's own law went red and named it.
+[[stale-reading]] [[feedback-suspect-the-instrument]]
+
+THE AUTHORITY ON SHELF ORDER IS `test_the_shelf_opens_on_a_reel`. What survives here is everything
+that is NOT about order: nothing dropped, the controls preceding the list, the badge facts.
 """
 import io
 import os
@@ -96,31 +116,6 @@ class TheReelsComeFirst(unittest.TestCase):
     def setUp(self):
         self.asm = _assembly(self)
 
-    def test_the_grid_is_assembled_before_every_analytic_block(self):
-        """`body` is the card grid. Anything analytic that precedes it is chrome the reader must
-        scroll past to reach the thing the panel is named after."""
-        grid = self.asm.find("+ body")
-        self.assertGreater(grid, 0,
-                           "the card grid (`body`) is no longer in the overlay assembly at all")
-        # ⚠⚠ v2985 (#58) — THE RIVER STRIP JOINS THIS LIST. It was deliberately absent before, and
-        # correctly so: v2965 defined "everything analytic" as exactly the three blocks below and
-        # placed the strip ABOVE the list as "the organisation he asked for". That was one half of
-        # his sentence; the other half was "those reels coming in should be SEEN", and measured at
-        # his real 1120x660 the strip's ~337px helped put every card off-screen — the panel named
-        # "your reels" showed none. So the strip moved below too, and this law now pins it there;
-        # without the entry, a future edit could restore the old order and silently undo #58 while
-        # this gate stayed green. [[label-outlived-referent]]
-        for name, token in (("the pipeline board", 'id="sh-story"'),
-                            ("the highlights strip", "_shHighlights()"),
-                            ("the 14-day timeline", "timelineDiv"),
-                            ("the river strip", 'id="sh-lanes"')):
-            at = self.asm.find(token)
-            self.assertGreater(at, 0, "%s is gone from the assembly (%r)" % (name, token))
-            self.assertGreater(at, grid,
-                               "%s is assembled BEFORE the reels. Measured at his window size, "
-                               "1433px of blocks like this put the first card 2101px below the "
-                               "panel's bottom edge and showed 0 of 530 cards." % name)
-
     def test_the_controls_still_precede_the_list_they_filter(self):
         """A filter bar below the list it filters is a different defect, not a fix."""
         self.assertLess(self.asm.find("searchBar"), self.asm.find("+ body"),
@@ -168,7 +163,7 @@ class TheRiverBadgeIsOneLine(unittest.TestCase):
                           "exists at all" % token)
 
 
-RED_PROOF = [{'why': 'putting the grid back at the end of the assembly restores the measured defect: 1433px of analysis above the reels and 0 of 530 cards on screen', 'file': 'control_ui.html', 'find': '      + searchBar + body\n', 'replace': '      + searchBar\n', 'matches': 1}, {'why': 'putting the river strip back ABOVE the list is the v2965 order that helped push every card off his 660px screen — the clause added in v2985 must turn red on it. ⚠ v3358 RE-ANCHORED: the old anchor quoted the v2985 comment as it sat directly under `+ searchBar + body`, and v3358 moved that line, so this proof matched 0 times and proved nothing while the law it guards was itself red', 'file': 'control_ui.html', 'find': '      + searchBar + body\n      + timelineDiv\n      /* @@RULING v2985: the RIVER STRIP and the PIPELINE BOARD stay BELOW the reel list. Measured\n         at his real 1120x660: 1433px of furniture above the list put the first card 2101px below\n         the panel\'s own bottom edge - 530 cards rendered and not one on screen. v3289 later raised\n         the records strip and the chart ONLY, and only with an open-on-a-reel guard; these two did\n         not move and must not.\n         ⚠⚠ v2985 (#58) — THE RIVER STRIP MOVES BELOW THE LIST, AND THIS REVERSES v2965 ON PURPOSE.\n         v2965 put the strip ABOVE the list and called it "the organisation he asked for", quoting\n         him: "those reels coming in should be seen timestamped and recent 8 left there... and the\n         rest organized relating and relevant to the coding and backend."\n\n         MEASURED at his real 1120x660: the overlay is trapped inside .stage — a grid row worth\n         ~449px of a 660px window — and 549px of furniture sits above the first reel card, so THE\n         CARDS ARE ENTIRELY OFF-SCREEN. The panel named "your reels" was showing none of them. The\n         half of his sentence that v2965 served was "organized"; the half it broke was "should be\n         SEEN". This restores the second without discarding the first.\n\n         Weighed and rejected: raising the ceiling with position:fixed buys ~210px but covers the\n         transport deck, and :1738 is a recorded ruling — "the shelf must never bury the transport\n         deck (📚 stays a true toggle)". A scar outranks a layout preference.\n\n         ⚠ NOTHING IS REMOVED, NO ID MOVES, NOTHING IS COLLAPSED behind a click. The strip renders\n         in full — all four lanes, the station tallies, the ledger chip and both footnotes — it is\n         an ORDER change only, and _shLanesLoad/_shLanesRender find it by getElementById exactly as\n         before. It now sits with the other analytic blocks (pipeline board, highlights, timeline)\n         that v2965 itself placed below the list. */\n      /* ⚠⚠ v3121 (#58) — ACTIVITY LEADS THE ANALYTIC BAND, AND THAT IS AS HIGH AS IT MAY GO.\n         Konyo: *"for the ACTIVITY section i like i just want it stretched from top to bottom more\n         so its more representing chart and uptop organized with the other data/anlytics TOP of the\n         SHELF section move"*. Read literally that is "above the list", and v2985 already MEASURED\n         what that costs at his real 1120x660: the overlay is trapped inside `.stage` — a grid row\n         worth ~449px of a 660px window — and 549px of furniture above the first card put every\n         reel off-screen, so the panel named "your reels" showed none of them. A scar outranks a\n         layout preference, so the half of his sentence this serves is "organized WITH the other\n         data/analytics": the chart moves to the FRONT of the band instead of the back of it.\n         ⚠ ORDER ONLY. No id moves, nothing is removed, and `_shTimeline`/`_shLanesLoad`/\n         `_shStoryRender` each still find their block by getElementById exactly as before.\n         [[borrowed-surface]] [[visual-regression-detector]] */\n      + \'<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>\'\n      + \'<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>\'\n      + _shHighlights();', 'replace': '      + \'<div class="sh-lanes" id="sh-lanes"><div class="shr-wait">reading the river…</div></div>\'\n      + searchBar + body\n      /* @@RULING v2985: the RIVER STRIP and the PIPELINE BOARD stay BELOW the reel list. Measured\n         at his real 1120x660: 1433px of furniture above the list put the first card 2101px below\n         the panel\'s own bottom edge - 530 cards rendered and not one on screen. v3289 later raised\n         the records strip and the chart ONLY, and only with an open-on-a-reel guard these two did\n         not move and must not.\n         ⚠⚠ v2985 (#58) — THE RIVER STRIP MOVES BELOW THE LIST, AND THIS REVERSES v2965 ON PURPOSE.\n         v2965 put the strip ABOVE the list and called it "the organisation he asked for", quoting\n         him: "those reels coming in should be seen timestamped and recent 8 left there... and the\n         rest organized relating and relevant to the coding and backend."\n\n         MEASURED at his real 1120x660: the overlay is trapped inside .stage — a grid row worth\n         ~449px of a 660px window — and 549px of furniture sits above the first reel card, so THE\n         CARDS ARE ENTIRELY OFF-SCREEN. The panel named "your reels" was showing none of them. The\n         half of his sentence that v2965 served was "organized" the half it broke was "should be\n         SEEN". This restores the second without discarding the first.\n\n         Weighed and rejected: raising the ceiling with position:fixed buys ~210px but covers the\n         transport deck, and :1738 is a recorded ruling — "the shelf must never bury the transport\n         deck (📚 stays a true toggle)". A scar outranks a layout preference.\n\n         ⚠ NOTHING IS REMOVED, NO ID MOVES, NOTHING IS COLLAPSED behind a click. The strip renders\n         in full — all four lanes, the station tallies, the ledger chip and both footnotes — it is\n         an ORDER change only, and _shLanesLoad/_shLanesRender find it by getElementById exactly as\n         before. It now sits with the other analytic blocks (pipeline board, highlights, timeline)\n         that v2965 itself placed below the list. */\n      /* ⚠⚠ v3121 (#58) — ACTIVITY LEADS THE ANALYTIC BAND, AND THAT IS AS HIGH AS IT MAY GO.\n         Konyo: *"for the ACTIVITY section i like i just want it stretched from top to bottom more\n         so its more representing chart and uptop organized with the other data/anlytics TOP of the\n         SHELF section move"*. Read literally that is "above the list", and v2985 already MEASURED\n         what that costs at his real 1120x660: the overlay is trapped inside `.stage` — a grid row\n         worth ~449px of a 660px window — and 549px of furniture above the first card put every\n         reel off-screen, so the panel named "your reels" showed none of them. A scar outranks a\n         layout preference, so the half of his sentence this serves is "organized WITH the other\n         data/analytics": the chart moves to the FRONT of the band instead of the back of it.\n         ⚠ ORDER ONLY. No id moves, nothing is removed, and `_shTimeline`/`_shLanesLoad`/\n         `_shStoryRender` each still find their block by getElementById exactly as before.\n         [[borrowed-surface]] [[visual-regression-detector]] */\n      + timelineDiv\n      + \'<div class="sh-story" id="sh-story"><div class="shs-wait">reading the pipeline…</div></div>\'\n      + _shHighlights();', 'matches': 1}, {'why': "inlining the reason again re-wraps it across three lines and takes the card back over the panel's own height", 'file': 'control_ui.html', 'find': '        if (r.why) b.title = String(r.why);\n', 'replace': '', 'matches': 1}]
+RED_PROOF = [{'why': 'putting the grid back at the end of the assembly restores the measured defect: 1433px of analysis above the reels and 0 of 530 cards on screen', 'file': 'control_ui.html', 'find': '      + searchBar + body\n', 'replace': '      + searchBar\n', 'matches': 1}, {'why': "inlining the reason again re-wraps it across three lines and takes the card back over the panel's own height", 'file': 'control_ui.html', 'find': '        if (r.why) b.title = String(r.why);\n', 'replace': '', 'matches': 1}]
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

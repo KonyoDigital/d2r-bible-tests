@@ -113,6 +113,14 @@ var grid = { appendChild: function(c){ appended.push(c); } };
 var heads = [];
 function mkHead(lab, n, before, cls){ heads.push({lab: lab, n: n, cls: cls}); }
 var SHELF_MOUTH = %(mouth)s;
+/* ⚠⚠ v3359 — SHELF_POP IS A PAGE-LEVEL NAME THE BLOCK ACQUIRED AND THIS HARNESS WAS NEVER TOLD.
+   v3279 added `var SHELF_POP = null;` at control_ui.html top level and the river block began
+   reading it as `var P = SHELF_POP;`. The block is EXTRACTED and run alone here, so node threw
+   `SHELF_POP is not defined` and FOUR cases failed on both venues — about code that is correct on
+   the page. Declared at its own shipped initial value, beside SHELF_MOUTH, which is the same
+   dependency one version earlier. [[source-reading-guard]] — an extracted region carries its free
+   names with it, and a harness that does not declare them measures its own gaps. */
+var SHELF_POP = %(pop)s;
 
 %(block)s
 
@@ -129,8 +137,9 @@ console.log(JSON.stringify({
 
 class TheRiverIsOneFlowOfEight(unittest.TestCase):
 
-    def drive(self, cards, mouth="null"):
-        js = HARNESS % {"cards": json.dumps(cards), "block": _block(), "mouth": mouth}
+    def drive(self, cards, mouth="null", pop="null"):
+        js = HARNESS % {"cards": json.dumps(cards), "block": _block(), "mouth": mouth,
+                        "pop": pop}
         fd, p = tempfile.mkstemp(prefix=".river_drive_", suffix=".js", dir=HERE)
         try:
             with io.open(fd, "w", encoding="utf-8") as fh:
