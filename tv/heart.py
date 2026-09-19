@@ -329,9 +329,23 @@ def vessels():
             _watchers.add(_w)
     _scorable = flow_is_measurable(_watchers, scored)
 
-    out, not_vessels = [], 0
+    out, not_vessels, riders = [], 0, []
     for row in rows:
         name, kind, watcher, via = _read_census_row(row)
+        # ⚠⚠ v3342 — A RIDER IS SUPERVISED WITHOUT BEING A VESSEL, and it gets its OWN section
+        # rather than a vessel row or a bare notVessels tally. It has its own lane name and its own
+        # lifetime counters, but NO THREAD — it runs inside another lane's tick. Counting it as a
+        # vessel would claim a thread that does not exist (the lie NOT_A_VESSEL exists to prevent,
+        # and the first cut of this change did exactly that: vessels went 20 -> 21 with the rider
+        # reported UNKNOWN). Folding it into notVessels would hide it again, which is the state
+        # `tvd-read-names-feeder` sat in for 18 versions while his #28 asked for it to be WATCHED.
+        # Neither. A third shelf, that names the vessel it rides. [[heart-first]] [[the-unjoined-end]]
+        if kind == "RIDER":
+            riders.append({"name": (row.get("lane") if isinstance(row, dict) else None) or watcher,
+                           "rides": (row.get("rides") if isinstance(row, dict) else None),
+                           "fn": name,
+                           "credit": (row.get("credit") if isinstance(row, dict) else None)})
+            continue
         if kind in NOT_A_VESSEL:
             not_vessels += 1
             continue
@@ -450,6 +464,7 @@ def vessels():
         "counts": counts,
         "flowingWhy": _flow_why,
         "notVessels": not_vessels,
+        "riders": riders,
         "locks": locks,
         "why": "; ".join([w for w in (organ_why, lock_why) if w]),
     }

@@ -311,7 +311,13 @@ def census(src=None):
         # (_lane_dormant, a claim that may be made at the spawn site and is weaker than a beat).
         # Folding the three into one green is how "watched" quietly loses its meaning.
         # [[label-outlived-referent]] [[feedback-suspect-the-instrument]]
-        _beat = stamped["tick_by_encloser"].get(n)
+        # v3342 - A DEF MAY BEAT FOR MORE THAN ONE LANE, and until now the second beat was
+        # DISCARDED at the write. `_vault_autoread_loop` stamps tvd-vault-autoread AND
+        # tvd-read-names-feeder (v3323, deliberately: the tick it rides SPENDS money while the
+        # feeder banks names already read, so one supervisor row must never answer for both).
+        # The FIRST stamp keeps its old meaning exactly; the rest become RIDER rows below.
+        _beats = stamped["tick_by_encloser"].get(n) or []
+        _beat = _beats[0] if _beats else None
         _decl = (n in stamped["declared"]) or (n in stamped["strings"] and _beat is None
                                                and n not in stamped["tick_by_encloser"])
         _sup = (n in registered) or (_beat is not None) or _decl
@@ -322,6 +328,33 @@ def census(src=None):
                                ("heartbeat" if _beat is not None else
                                 ("declared" if _decl else None))),
                     "via": ("lane_liveness" if (_sup and n not in registered) else None)})
+    # ⚠⚠ v3342 — RIDERS, EMITTED ONCE FOR EVERY BRANCH ABOVE. A rider is work with its OWN lane
+    # name and its OWN lifetime counters that runs inside ANOTHER lane's tick, owning no thread.
+    # `_vault_autoread_loop` stamps tvd-vault-autoread AND tvd-read-names-feeder — v3323 did that
+    # deliberately, because the tick it rides SPENDS money on paid sweeps while the feeder banks
+    # names already read and costs nothing, so one supervisor row must never answer for both.
+    # Until now the second stamp was parsed at every census and dropped, so the feeder his #28
+    # ruling asked to be "built AND watched" shipped built and unwatched for 18 versions.
+    #
+    # ⚠ THIS RUNS AFTER THE LOOP ON PURPOSE. A roster lane gets its row from the EXPANSION branch,
+    # which `continue`s — a rider emitted inside the loop body is unreachable for exactly the lane
+    # that needed it. Measured: the first cut produced 0 riders. [[feedback-suspect-the-instrument]]
+    #
+    # ⚠ A RIDER IS NOT A VESSEL and must never be counted as one: the census enumerates THREADS and
+    # a rider has none, so heart.py's NOT_A_VESSEL reasoning is honoured rather than overruled.
+    _seen_fns = {}
+    for _r in out:
+        _seen_fns.setdefault(_r.get("fn"), _r.get("lane"))
+    for _fn, _names in sorted(stamped["tick_by_encloser"].items()):
+        if _fn not in _seen_fns or len(_names) < 2:
+            continue
+        _own = _seen_fns.get(_fn) or _names[0]
+        for _extra in _names:
+            if _extra == _own:
+                continue
+            out.append({"fn": _fn, "kind": "RIDER", "lane": _extra,
+                        "supervised": True, "credit": "heartbeat",
+                        "via": "lane_liveness", "rides": _own})
     return out
 
 
@@ -372,7 +405,9 @@ def _lane_stamps(src):
                 elif stack:
                     # the LEAF def owns the heartbeat; a nested helper still credits itself,
                     # which is the honest reading — the beat proves THAT body runs.
-                    out["tick_by_encloser"].setdefault(stack[-1], nm)
+                    _seen = out["tick_by_encloser"].setdefault(stack[-1], [])
+                    if nm not in _seen:
+                        _seen.append(nm)
             _walk(child, stack)
 
     _walk(tree, [])

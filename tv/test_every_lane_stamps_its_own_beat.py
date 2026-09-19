@@ -48,17 +48,50 @@ class TestEveryLaneStampsItsOwnBeat(unittest.TestCase):
         return [c for c in _ast.walk(self.fns[fn]) if isinstance(c, _ast.Call)
                 and getattr(c.func, "id", "") == "_lane_tick"]
 
-    def test_every_registered_lane_stamps_exactly_one_beat(self):
-        """Zero beats is the dangerous number: the loop still runs, and nothing can tell."""
+    def test_every_registered_lane_stamps_at_least_one_beat(self):
+        """⚠ ZERO IS THE DANGEROUS NUMBER — this law's own words, and they are what it still pins.
+
+        v3342 — THIS SAID `exactly one` AND IT WAS RED IN CI FOR EIGHTEEN VERSIONS. v3323 gave
+        `_vault_autoread_loop` a SECOND stamp deliberately: it drives the paid vault sweep AND
+        rides a feeder that banks names already read and costs nothing, so "one supervisor row must
+        never answer for two lanes". This law was written at v3148 when one def meant one lane, and
+        nobody reconciled the two — every CI run printed
+            ['tvd-vault-autoread (_vault_autoread_loop) stamps 2'] != []
+        and a permanently-red gate is a gate nobody reads. [[regression-guard]] §2
+
+        ⚠ NOT WEAKENED TO GREEN. Zero beats still fails — that is the whole point, a lane that
+        stamps nothing is UNKNOWN to liveness forever and reads as fine. And every beat must still
+        be a LITERAL naming a tvd- lane (or the function's own name, which tvd-runaway-watch
+        legitimately does), so an invented or typo'd stamp is still filed where nobody watches and
+        is still caught here. What changed is only that a def MAY drive more than one lane.
+        """
         bad = []
         for fn, (lane, _a, _b) in sorted(self.spans.items()):
-            n = len(self._ticks(fn))
-            if n != 1:
-                bad.append("%s (%s) stamps %d" % (lane, fn, n))
+            if len(self._ticks(fn)) < 1:
+                bad.append("%s (%s) stamps nothing" % (lane, fn))
         self.assertEqual(bad, [],
-                         "a lane must stamp its beat exactly once — %s. A lane that stamps nothing "
-                         "is UNKNOWN to liveness forever, which reads as fine and is worse."
-                         % "; ".join(bad))
+                         "a registered lane must stamp its beat at least once — %s. A lane that "
+                         "stamps nothing is UNKNOWN to liveness forever, which reads as fine and "
+                         "is worse." % "; ".join(bad))
+
+    def test_no_lane_stamps_a_name_nobody_watches(self):
+        """⚠ THE HALF THAT KEEPS THE ABOVE HONEST. Allowing several beats per def would be a hole
+        if any string counted: a beat under an invented name is filed where no watcher asks, which
+        is indistinguishable from not beating at all."""
+        stray = []
+        for fn, (lane, _a, _b) in sorted(self.spans.items()):
+            for c in self._ticks(fn):
+                if not c.args or not isinstance(c.args[0], _ast.Constant) \
+                        or not isinstance(c.args[0].value, str):
+                    stray.append("%s (%s) stamps a non-literal" % (lane, fn))
+                    continue
+                nm = c.args[0].value
+                if not nm.startswith("tvd-") and nm != fn:
+                    stray.append("%s (%s) stamps %r" % (lane, fn, nm))
+        self.assertEqual(stray, [],
+                         "a beat must name a tvd- lane or the loop's own function — %s. "
+                         "lane_liveness looks a beat up by watcher name then vessel name; anything "
+                         "else is a heartbeat nobody is listening for." % "; ".join(stray))
 
     def test_the_name_a_lane_stamps_can_be_resolved_back_to_it(self):
         """`_live_of` looks the beat up by the WATCHER name first and the vessel name second, so a

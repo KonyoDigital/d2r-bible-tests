@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3341",
+  "ver": "v3342",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3341: payload_for declared its truncation as a character count, which cannot say WHICH files are missing. Measured by rebuilding it for v3300-v3340: 22 of 36 versions with code changes had at least one changed code file never reach the eye, and in several the dropped file is the version whole subject. The roster now comes from git rather than the fetched text, because a file the payload never asked for is missing from the QUESTION and not from any buffer. Three states: a LIST names what never arrived, empty means measured-and-none, None means the roster was unreadable and stays UNKNOWN.",
+  "note": "v3342: tvd-read-names-feeder shipped in v3323 with its own counters and nothing surfaced it, against his #28 ruling that it be built AND watched. The stamp was SEEN at every census and DISCARDED at every census: tick_by_encloser is a def-to-ONE-stamp map and _vault_autoread_loop stamps two lanes. A law was shouting the whole time - test_every_lane_stamps_its_own_beat has been RED in CI since v3323, eighteen versions. The law is repaired to its own stated intent, zero beats still fails, and the census now emits a RIDER row that names the vessel it rides. Vessels stays 20: a rider owns no thread and is never counted as one. HEART: riders get their own shelf in heart.vessels().",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
