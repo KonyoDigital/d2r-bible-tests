@@ -539,7 +539,12 @@ RED_PROOF = [
         # empty-station chip's count. A tamper count is a MEASUREMENT of the tree and it
         # moves whenever the tree does; left stale it makes the proof unverifiable, and
         # this one sat wrong while heart2 could not read 32 of its siblings at all.
-        'matches': 3,
+        # v3347 — 4, not 3. A FOURTH legitimate var(--fw-regular) landed (.hdc-len), so the
+        # count moved again exactly as the note above predicts it will. The four live at
+        # control_ui.html L2654, L4511, L6116 and L6782 and ALL FOUR are real CSS — checked for
+        # the comment trap, none is prose. The breadth IS the proof here: this anchor is a
+        # deliberate token CENSUS, so the honest repair is the count, never a narrower anchor.
+        'matches': 4,
     },
 ]
 

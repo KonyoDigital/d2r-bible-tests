@@ -67,8 +67,8 @@ RED_PROOF = [
         # left `return _HEART2_TAMPERED_` followed by the call's remaining arguments, so
         # heart2 reported INVALID (unexpected indent) rather than RED — a sabotage that
         # cannot compile proves nothing about the law. Rename the witness, keep the syntax.
-        "find": '("router-and-shelf-agree",',
-        "replace": '("_HEART2_TAMPERED_",',
+        "find": 'return ("router-and-shelf-agree",',
+        "replace": 'return ("_HEART2_TAMPERED_",',
         "matches": 1,
     },
 ]

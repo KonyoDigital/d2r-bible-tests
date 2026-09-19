@@ -124,7 +124,7 @@ RED_PROOF = [
                "had film — is counted as a reel whose film was retired after giving up its "
                "information. On his console that made the chip read 2,424 against a true 138",
         "file": "control_ui.html",
-        "find": "      if (!_shBuildGhosts && sm && sm.stub) return '';\n      if (sm && !(sm.footageN || 0) && !_shBuildGhosts){",
+        "find": "      if (!_shBuildGhosts && sm && sm.stub) { _shStubN++; return ''; }\n      if (sm && !(sm.footageN || 0) && !_shBuildGhosts){",
         "replace": "      if (sm && !(sm.footageN || 0) && !_shBuildGhosts){",
         "matches": 1,
     },

@@ -100,10 +100,29 @@ class TheMacTitlebarIsTheConsolesOwn(unittest.TestCase):
     def test_it_reverses_pywebviews_own_line_down_pywebviews_own_path(self):
         """a different path would paint a different view and leave the strip."""
         code = _code_only(self.tint)
-        self.assertIn("contentView().superview().subviews().lastObject().setBackgroundColor_",
-                      code,
-                      "the repaint no longer walks the same lookup pywebview uses, so it is "
-                      "painting some other view and the grey strip survives")
+        # ⚠⚠ v3347 — THE WALK WAS SPLIT, NOT ABANDONED. This pinned ONE chained expression,
+        # `contentView().superview().subviews().lastObject().setBackgroundColor_`, and the code now
+        # takes the IDENTICAL path in _objc_can-guarded steps — each hop checked before it is made,
+        # which is strictly safer on a PyObjC call that sits on his launch path and cannot be
+        # caught if it fails natively. A law that pins the SYNTAX of a walk goes red the day
+        # somebody makes that walk defensive, which is the opposite of what it wants. So it pins
+        # the PATH: the four hops, IN ORDER, and a paint at the end.
+        _hops = ("contentView()", "superview()", "subviews()", "lastObject()")
+        _at = []
+        for _hop in _hops:
+            _i = code.find(_hop, (_at[-1] if _at else 0))
+            self.assertGreater(
+                _i, -1,
+                "the repaint no longer calls %s, so it is not walking pywebview's own lookup and "
+                "it is painting some other view — the grey strip survives" % _hop)
+            _at.append(_i)
+        self.assertEqual(
+            _at, sorted(_at),
+            "the hops appear out of order (%r). A different path paints a different view, which "
+            "is the whole failure this law exists for." % (_at,))
+        self.assertIn(
+            "setBackgroundColor_", code,
+            "the walk is made and nothing is painted at the end of it")
 
     def test_the_two_titlebar_calls_are_both_made(self):
         code = _code_only(self.tint)
@@ -246,17 +265,33 @@ RED_PROOF = [
     # ⚠ matches=2 on the first run — there are TWO TV_MAC_CHROME guards (the class-level tabbing
     # call and these subscriptions) and replace(...,1) tampered the WRONG one, leaving the hooks
     # still guarded and the proof green. Anchor on the guard that actually wraps the hooks.
+    # ⚠⚠ v3347 — matches=0, because THE GUARD INVERTED. It used to be an opt-IN
+    # (`in ("1","true","yes","on")`); it is now an opt-OUT
+    # (`.strip().lower() not in ("0","false","no","off")`), default ON, "because he asked for
+    # clean". So TWO things were wrong, not one: the anchor was dead AND the tamper direction
+    # had become inert — `if True:` cannot disable a guard that is already true. Re-anchored on
+    # the live guard and flipped to `if False:`, which is what actually turns the hooks off.
+    # A dead anchor is loud; an inert tamper is silent, and this entry had both.
+    # [[sabotage-is-usually-the-wrong-one]]
     ("control_app.py",
-     'if str(os.environ.get("TV_MAC_CHROME", "")).strip() in ("1", "true", "yes", "on"):\n'
+     'if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() not in ("0", "false", "no", "off"):\n'
      '                    win.events.shown += _mac_tint_caption',
-     'if True:\n                    win.events.shown += _mac_tint_caption',
+     'if False:\n                    win.events.shown += _mac_tint_caption',
      "test_the_native_hooks_are_OFF_unless_explicitly_opted_IN"),
     # ⚠ ANCHORED ON `native.` — the bare lookup appears TWICE, because the docstring above quotes
     # pywebview's own line verbatim. The first proof run reported matches=2 and STAYED GREEN: the
     # tamper landed in the prose and left the code untouched. The match count is what told me, and
     # printing it is the whole reason this harness prints it. [[sabotage-is-usually-the-wrong-one]]
-    ("control_app.py", "native.contentView().superview().subviews().lastObject()",
-     "native.contentView()",
+    # ⚠⚠ v3347 — RE-ANCHORED ONTO A LINE THE LAW ACTUALLY READS. The old anchor
+    # (`native.contentView().superview()...`) matched 0 after the walk was split into guarded
+    # steps. My first repair pointed it at `self.window.contentView()...`, which DOES exist — in a
+    # DIFFERENT function. That is this very defect wearing a fresh coat: an anchor that matches
+    # once and tampers a site the law never looks at. The law reads `_mac_tint_caption`, so the
+    # tamper must land inside it. Breaking the `subviews()` hop removes one step of the walk,
+    # which is exactly what the law now pins.
+    ("control_app.py",
+     '_subs = _sv.subviews() if _objc_can(_sv, "subviews") else None',
+     '_subs = _sv if _objc_can(_sv, "subviews") else None',
      "test_it_reverses_pywebviews_own_line_down_pywebviews_own_path"),
 ]
 

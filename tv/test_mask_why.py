@@ -60,7 +60,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in control_ui.html; deleting it must turn the gate red',
         "file": 'control_ui.html',
-        "find": '_artRarity(n)',
+        "find": '_w._artRarity(n) || rar',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

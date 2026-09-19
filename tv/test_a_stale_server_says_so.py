@@ -110,8 +110,18 @@ class TestAStaleServerSaysSo(unittest.TestCase):
         """Built and never published is the defect this board keeps re-learning."""
         import inspect
         src = inspect.getsource(control_app.status_payload)
-        self.assertIn('"moduleFreshness": module_freshness()', src,
-                      "the reading exists and no surface can reach it — an unjoined end")
+        # ⚠ v3347 — THE CALL GAINED A _t() TIMING WRAPPER AND THIS WENT RED ON A REFACTOR THAT
+        # CHANGED NOTHING IT CARES ABOUT. It pinned the bare `"moduleFreshness": module_freshness()`
+        # while the payload now builds it as `_t("moduleFreshness", module_freshness)`. What this
+        # law wants is in its own docstring — the reading REACHES THE WIRE — and that is a claim
+        # about the KEY and its READER, never about call syntax. Its red-proof had drifted for the
+        # same reason and on the same line. [[source-reading-guard]] §2
+        self.assertIn('"moduleFreshness"', src,
+                      "status_payload no longer publishes the moduleFreshness KEY, so the reading "
+                      "exists and no surface can reach it — an unjoined end")
+        self.assertIn("module_freshness", src,
+                      "the key is published but nothing computes it, so the payload would carry a "
+                      "name with no measurement behind it")
 
 
     def test_the_panel_reads_it_and_stays_quiet_when_there_is_nothing_to_say(self):
@@ -251,7 +261,7 @@ RED_PROOF = [
     {
         "why": "not publishing it leaves the reading built and unreachable",
         "file": "tv/control_app.py",
-        "find": '        "moduleFreshness": module_freshness(),',
+        "find": '        "moduleFreshness": _t(\"moduleFreshness\", module_freshness),',
         "replace": '        "moduleFreshnessX": module_freshness(),',
         "matches": 1,
     },

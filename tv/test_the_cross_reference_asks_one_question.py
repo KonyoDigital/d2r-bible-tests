@@ -443,8 +443,8 @@ RED_PROOF = [
     {
         "why": 'law: a pair carries exactly ONE decidable flag. `comparable` is the key every caller branches on; deleting it from the returned dict must turn the gate red',
         "file": 'ledger_authority.py',
-        "find": '"comparable": _comparable',
-        "replace": '"_HEART2_TAMPERED_": _comparable',
+        "find": '"comparable": _comparable, "why": _why})',
+        "replace": '"_HEART2_TAMPERED_": _comparable, "why": _why})',
         "matches": 1,
     },
     {
