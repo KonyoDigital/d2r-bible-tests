@@ -100,6 +100,91 @@ class TestACleanLookIsNeverFiledAsFindings(unittest.TestCase):
                 "the noun-phrase declaration %r stopped being recognised — a previous "
                 "correction was undone by this one." % txt)
 
+    # ── v3376: the ledger vocabulary is `clean`, and the parser did not know the word ────────
+    #
+    # MEASURED LIVE on v3375 own look. The answer FIRST LINE was "VERDICT: clean"; the row came
+    # back verdict=findings with FOUR findings, every one of them the answer explaining why it is
+    # clean, finding [0] containing the words VERDICT: clean inside itself. `_declares_none`
+    # recognises the NOUN PHRASE and the PRONOUN and has never known the adjective the ledger
+    # itself uses. agreement() reads verdicts, so the ledger asserted four defects that do not
+    # exist. Sixth phrasing to defeat this check. [[the-unjoined-end]]
+
+    #: the real v3375 answer, in the shape that was misfiled.
+    STATED_CLEAN = (
+        "VERDICT: clean\n\n"
+        "The visible diff only performs three narrow, mechanical things, all of which are "
+        "internally consistent on the code shown:\n\n"
+        "- version strings are bumped in the two places that contain them;\n"
+        "- record() grows a new optional keyword parameter stripped=None;\n"
+        "- the two test files are updated to assert the new call-site spelling.\n"
+    )
+
+    def test_a_STATED_verdict_of_clean_is_read_as_clean(self):
+        """BEHAVIOURAL, on the exact text that was misfiled at v3375."""
+        self.assertEqual(
+            R._stated_verdict(self.STATED_CLEAN), "clean",
+            "an answer whose first line is literally 'VERDICT: clean' does not state a verdict "
+            "this parser can read.")
+        verdict, kept = R._verdict_for(self.STATED_CLEAN, R._findings_from(self.STATED_CLEAN))
+        self.assertEqual(
+            verdict, "clean",
+            "the real v3375 answer was filed as %r. It says VERDICT: clean on its first line."
+            % (verdict,))
+        self.assertEqual(kept, [],
+                         "%d finding(s) kept from an answer that states it is clean." % len(kept))
+
+    def test_a_STATED_verdict_of_findings_is_honoured_too(self):
+        """Reading the declared field must work in BOTH directions, or it is a clean-stamp."""
+        txt = "VERDICT: findings\n\n1. control_app.py:12 crashes on empty input"
+        self.assertEqual(R._stated_verdict(txt), "findings")
+        self.assertEqual(R._verdict_for(txt, R._findings_from(txt))[0], "findings")
+
+    def test_a_MENU_of_verdicts_is_not_a_declaration(self):
+        """⚠ A line naming TWO verdict words offers a CHOICE; it does not declare one.
+
+        ⚠⚠ THE FIXTURE HERE IS LOAD-BEARING AND MY FIRST ONE WAS NOT. I wrote this case with
+        "1. VERDICT: clean / findings" — the numbered form the review prompt actually uses — and
+        its red-proof came back BLIND at a correct match count of 1. Measured: the numbered form
+        never matches the line anchor at all (a leading "1. " is not in the character class), so
+        it returned None for a reason that has nothing to do with the menu guard. The sabotage was
+        right and the CASE could not see it. The bare form below does reach the guard.
+        [[source-reading-guard]] section 4c, cause 2: the test was too weak, not the law.
+        """
+        self.assertTrue(
+            R._VERDICT_LINE_RX.search("VERDICT: clean / findings"),
+            "the bare menu form no longer reaches the line anchor, so this case is measuring "
+            "the anchor and not the guard it was written for.")
+        self.assertIsNone(
+            R._stated_verdict("VERDICT: clean / findings"),
+            "a line offering a CHOICE of verdicts was read as declaring one, so an eye echoing "
+            "its instructions would clear any review it appears in.")
+
+    def test_a_NUMBERED_instruction_line_is_not_a_declaration(self):
+        """The separate protection: the review prompt own line is "1. VERDICT: clean / findings",
+        and a declaration has to START the line. This is the anchor doing the work, not the menu
+        guard — they are two different doors and each needs its own case."""
+        echo = "1. VERDICT: clean / findings\n2. For each finding: FILE:LINE"
+        self.assertIsNone(
+            R._stated_verdict(echo),
+            "the review prompt own numbered instruction line was read as declaring a verdict.")
+
+    def test_a_STATED_clean_still_cannot_clear_a_real_defect(self):
+        """⚠ THE DANGEROUS DIRECTION — without this, reading the field is an off switch."""
+        danger = "VERDICT: clean\n\nP1: the caller crashes on empty input, which is a race."
+        verdict, kept = R._verdict_for(danger, R._findings_from(danger))
+        self.assertEqual(
+            verdict, "findings",
+            "a STATED clean verdict cleared a block claiming a P1 crash and a race, filing %r. "
+            "Under-reporting a finding ships a defect with a clean stamp on it." % (verdict,))
+        self.assertTrue(kept, "the real defect block was discarded along with the verdict.")
+
+    def test_the_prose_paths_still_work_beside_the_stated_one(self):
+        """[[two-fixes-broke-each-other]] — the new door must not close the two beside it."""
+        v, k = R._verdict_for(PRONOUN_CLEAN, R._findings_from(PRONOUN_CLEAN))
+        self.assertEqual(v, "clean", "the pronoun path stopped working when the stated one landed")
+        self.assertTrue(R._declares_none("**No defects found.**"),
+                        "the noun-phrase path stopped working when the stated one landed")
+
     def test_a_row_says_which_parser_generation_judged_it(self):
         """A verdict with no provenance is not a verdict. [[stale-reading]]"""
         fd, path = tempfile.mkstemp(suffix=".jsonl")
@@ -181,6 +266,30 @@ RED_PROOF = [
         "file": "tv/second_eye_ledger.py",
         "find": '        "judgedBy": PARSER_GEN,',
         "replace": '        "judgedBy": None,',
+        "matches": 1,
+    },
+    {
+        "why": "not reading a STATED verdict puts v3375 back: an answer whose first line is "
+               "VERDICT: clean filed as findings, with the explanation harvested as the findings",
+        "file": "tv/second_eye_run.py",
+        "find": "    stated = _stated_verdict(answer)",
+        "replace": "    stated = None",
+        "matches": 1,
+    },
+    {
+        "why": "dropping the menu guard lets the review prompt own echoed instruction line "
+               "(VERDICT: clean / findings) clear every review it appears in",
+        "file": "tv/second_eye_run.py",
+        "find": "        if len(set(words)) == 1:",
+        "replace": "        if words:",
+        "matches": 1,
+    },
+    {
+        "why": "letting a stated clean verdict skip the defect-claim check turns reading the "
+               "declared field into an off switch for the whole law",
+        "file": "tv/second_eye_run.py",
+        "find": "        _claimed = [f for f in findings if _claims_a_defect(f)]",
+        "replace": "        _claimed = []",
         "matches": 1,
     },
 ]

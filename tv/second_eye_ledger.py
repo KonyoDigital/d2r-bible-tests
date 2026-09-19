@@ -836,7 +836,7 @@ def agreement(version, path=None):
 #: tv/second_eye_ledger.py on v3354 at 48.6% — the file that version exists to change.
 REACH_CUT_BAR = 0.50
 
-PARSER_GEN = "v3315"
+PARSER_GEN = "v3376"
 
 #: The verdicts `_verdict_for` can actually return. Anything else in the field was written by a
 #: person and is not a parser judgement, so it must never be re-judged as though it were.

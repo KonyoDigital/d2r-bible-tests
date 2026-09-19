@@ -2809,6 +2809,10 @@ MINE = {
         "#60 — generating the vocabulary from HIS install and keeping it in step with a\n"
         "game patch is MY job. He asked for the feature; a stale affix table is not\n"
         "something he can act on, and a silently-unconsulted lexicon even less so.",
+    "verdict matches the answer":
+        "#125 — how MY parser reads another family answer is mine to get right. He cannot\n"
+        "act on a verdict I misread, and a clean look filed as findings quietly becomes a\n"
+        "disagreement in the confluence figures he does read.",
     "eye told what was stripped":
         "#122 — what my own transport removes before the eye sees it is mine, not his. He\n"
         "cannot act on a review of a diff with the author's account cut out of it, and a row\n"
@@ -4281,6 +4285,75 @@ def _check_the_eye_reach_is_still_being_measured():
                    (" (%s)" % ", ".join(sorted(set(hit))[:4])) if hit else ""))
 
 
+def _check_no_row_contradicts_its_own_stated_verdict():
+    """v3376 (#125) — DOES A ROW WRITTEN BY TODAY PARSER AGREE WITH THE ANSWER IT CAME FROM?
+
+    TWO INDEPENDENT SIDES:
+        side A — `verdict`, what OUR parser concluded
+        side B — the verdict the OTHER FAMILY stated in its own words, re-read from `answerHead`
+
+    ⚠⚠ SCOPED TO THE CURRENT PARSER GENERATION, AND MY FIRST CUT WAS NOT. Without that scope this
+    row reports 118 rows the ledger ALREADY accounts for: `verdict_provenance()` re-judges every
+    stored verdict and reports "331 could be re-judged; 213 still agree with today parser and 118
+    DO NOT". Those are old rows honestly stamped with the parser that judged them — that is
+    re-judgement DEBT, already measured, and repeating it here would be a second derivation of one
+    reader wearing two names. [[copy-drift]] [[heart-first]] rule 1
+    MEASURED: v3375 carries judgedBy=v3315 and PARSER_GEN is now v3376, so it is exactly one of
+    that 118 and belongs to that reader, not to this one.
+
+    So this asks the question NOTHING ELSE asks: has the parser running RIGHT NOW written a row
+    that its own answer denies? That is a live break rather than history.
+
+    THREE STATES:
+      OK       -> rows written by this generation were re-read and none contradicts itself
+      MISSING  -> this generation wrote a row its own answer denies; NAMES the versions
+      UNKNOWN  -> no row carries this generation stamp AND an answer yet, so there is nothing to
+                  conclude. ⚠ Never OK: zero comparable rows is an absent denominator, and a
+                  freshly bumped PARSER_GEN legitimately starts here.
+                  [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    try:
+        import second_eye_ledger as L
+        import second_eye_run as R
+    except Exception as e:
+        return UNKNOWN, "the second-eye modules will not import: %s" % str(e)[:90]
+    try:
+        rows = L._rows()
+    except Exception as e:
+        return UNKNOWN, "the ledger will not read: %s" % str(e)[:110]
+    if rows is None:
+        return UNKNOWN, "the ledger read returned nothing, so no verdict can be corroborated"
+    if not hasattr(R, "_stated_verdict"):
+        return UNKNOWN, ("this build has no _stated_verdict reader, so side B cannot be computed "
+                         "- the comparison is UNMEASURED, not clean")
+
+    gen = getattr(L, "PARSER_GEN", "")
+    mine = [r for r in rows
+            if str(r.get("judgedBy") or "") == gen and (r.get("answerHead") or "").strip()]
+    older = len([r for r in rows
+                 if str(r.get("judgedBy") or "") not in ("", gen)])
+    if not mine:
+        return UNKNOWN, ("no look carrying this parser generation (%s) has stored an answer yet, "
+                         "so whether today parser contradicts itself is UNMEASURED - not clean. "
+                         "%d row(s) from earlier generations are re-judgement debt and belong to "
+                         "verdict_provenance()" % (gen, older))
+    bad = []
+    for r in mine:
+        try:
+            stated = R._stated_verdict(r.get("answerHead") or "")
+        except Exception:
+            continue
+        stored = str(r.get("verdict") or "")
+        if stated and stored and stated != stored:
+            bad.append("%s(stored %s, said %s)" % (r.get("version"), stored, stated))
+    if bad:
+        return MISSING, ("%d of %d look(s) judged by %s store a verdict their own answer denies: "
+                         "%s" % (len(bad), len(mine), gen, ", ".join(sorted(set(bad))[:5])))
+    return OK, ("%d look(s) judged by %s were re-read against their own words; none contradicts "
+                "itself (%d older row(s) are re-judgement debt, counted by verdict_provenance)"
+                % (len(mine), gen, older))
+
+
 def _check_the_eye_is_told_what_was_stripped():
     """v3375 (#122) — IS THE EYE STILL BEING TOLD WHAT WAS REMOVED FROM ITS PAYLOAD?
 
@@ -4414,6 +4487,10 @@ CHECKS = [
     # of each file ARRIVED; this asks whether the eye is told what was deliberately REMOVED
     # before transport. A payload can be 100% reach and still have the author's note stripped.
     ("eye told what was stripped", _check_the_eye_is_told_what_was_stripped),
+    # v3376 (#125) — the parser output against the other family OWN WORDS. A misread verdict
+    # is laundered straight into agreement(), so this asks the one question the ledger cannot
+    # ask itself: does the row agree with the answer it was written from?
+    ("verdict matches the answer", _check_no_row_contradicts_its_own_stated_verdict),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
@@ -4914,6 +4991,8 @@ WATCHES = {
     # v3375 (#122) — no lamp of its own; it reaches him through the eagle line, same as its
     # sibling above. Empty tuple as a DECLARATION, not an omission.
     "eye told what was stripped":  (),
+    # v3376 (#125) — no lamp of its own; reaches him through the eagle line. DECLARATION.
+    "verdict matches the answer":  (),
     # v3364 (#60) — the lexicon is a generated FILE and a classifier, with no screen
     # element of its own. Empty tuple as a DECLARATION, not an omission: it reaches him
     # through the eagle line today, and through the unsure rows once they render a vocab.

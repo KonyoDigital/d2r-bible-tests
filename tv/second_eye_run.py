@@ -1003,6 +1003,39 @@ def _claims_a_defect(block):
     return bool(_DEFECT_MARK_RX.search(_NEGATED_RX.sub(" ", block or "")))
 
 
+# ⚠⚠ v3376 — THE LEDGER VOCABULARY IS `clean`, THE PROMPT ASKS FOR `clean`, AND THE PARSER DID
+# NOT KNOW THE WORD. MEASURED on v3375 own look: the answer first line was literally
+# "VERDICT: clean", `_declares_none` returned False, and the row was filed verdict=findings with
+# FOUR findings — every one of them the answer explaining why it is clean. agreement() reads
+# verdicts, so the ledger asserted four defects in v3375 that do not exist. Sixth phrasing to
+# defeat this check (#67 was the fifth at v3315). [[the-unjoined-end]]
+#
+# ⚠ THIS IS NOT A WIDENING OF `_declares_none`, AND MUST NOT BECOME ONE. #76 measured that
+# widening the prose matcher cannot be made safe, and #117 measured that a bullet filter would EAT
+# A REAL FINDING. This reads a DECLARED FIELD instead: a line that states the verdict in the
+# ledger own vocabulary, anchored at line start. Prose is never consulted here.
+#
+# ⚠⚠ AND A MENU IS NOT A DECLARATION. The review prompt itself contains the line
+# "1. VERDICT: clean / findings", so an eye that echoes its instructions would otherwise be read
+# as declaring CLEAN. Any line naming two or more verdict words is a menu and is ignored.
+_VERDICT_LINE_RX = re.compile(r"(?im)^[\s>*_#\-]*verdict\b\s*[:\u2013\u2014\-]\s*(.+)$")
+_VERDICT_WORD_RX = re.compile(r"\b(clean|findings|cannot[-\s]tell)\b", re.I)
+
+
+def _stated_verdict(answer):
+    """-> "clean" | "findings" | "cannot-tell" | None when the answer states no verdict.
+
+    None means NOBODY DECLARED ONE, which is different from declaring clean, and the caller
+    falls back to the prose path unchanged. [[unknown-stays-unknown]]
+    """
+    for m in _VERDICT_LINE_RX.finditer(answer or ""):
+        words = [w.group(1).lower() for w in _VERDICT_WORD_RX.finditer(m.group(1))]
+        words = ["cannot-tell" if w.startswith("cannot") else w for w in words]
+        if len(set(words)) == 1:
+            return words[0]
+    return None
+
+
 def _verdict_for(answer, findings):
     """"clean" or "findings" — and a declaration alone can never clear a real defect claim.
 
@@ -1034,6 +1067,20 @@ def _verdict_for(answer, findings):
     Anything else stays "findings". That is deliberately asymmetric: over-reporting a finding
     costs a re-read, under-reporting one ships a defect with a clean stamp on it.
     """
+    # ⚠ v3376 — A STATED VERDICT IS READ FIRST, AND IT STILL CANNOT CLEAR A REAL CLAIM.
+    # The asymmetry of this function is preserved exactly: a declaration of cleanliness is
+    # overruled by any block that CLAIMS a defect, so this can never become an off switch.
+    stated = _stated_verdict(answer)
+    if stated == "findings":
+        return "findings", findings
+    if stated == "cannot-tell":
+        return "cannot-tell", []
+    if stated == "clean":
+        _claimed = [f for f in findings if _claims_a_defect(f)]
+        if _claimed:
+            return "findings", findings
+        return "clean", []
+
     decl_anywhere = _declares_none(answer)
     if not decl_anywhere:
         # ⚠⚠ v3346 — AN UNPARSED ANSWER IS `cannot-tell`, NEVER A DEFECT. This branch fires when the

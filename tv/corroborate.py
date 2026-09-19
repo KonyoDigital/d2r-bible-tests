@@ -2338,6 +2338,7 @@ NO_JOINT_YET = {
                           'second source would be the game reporting its own affix decomposition, which it '
                           'never does - and the base\\ table copies are byte-identical for the rare half, so '
                           'they are one witness, not two.',
+    'verdict matches the answer': 'the check IS the corroboration - our parser verdict against the other family own stated words, two independent sources. It is scoped to the CURRENT parser generation on purpose: every older row is re-judgement debt already counted by verdict_provenance(), which reported 213 agree and 118 do not, and repeating that here would be one reader wearing two names.',
     'eye told what was stripped': 'the only record of what the transport removed is the transport\'s own '
                           'count, so a second side would have to re-run the same two strip functions over '
                           'the same diff - one engine derived twice, which heart-first rule 1 says is one '
