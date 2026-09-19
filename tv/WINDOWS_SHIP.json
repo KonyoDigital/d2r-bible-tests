@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3344",
+  "ver": "v3345",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3344: His console read 3 waiting on a lane (vault: 3). It grouped owed reels by the LANE THAT OWNS them and printed the word WAITING, which is the READ_CLEARS question asked of the OWED_BY map. rows-not-banked proves they differ: v2878 kept it OUT of READ_CLEARS because it is owed a BANK not a read, so no sweep will ever clear it, and the screen filed it with the other four anyway. THREE prose sites already said BANK and only the rendered sentence disagreed. The root is that the tag was read, used to look up the lane, and discarded. Measured on his tree: 3 waiting on a lane (vault: 3) became 3 still owed (3 panels on film, nothing banked). HEART: the shelf header now names the tag, and owedTags is pinned to sum to owed so a breakdown can never disagree with its own total.",
+  "note": "v3345: His ruling was make it one word and unified. v2760 fixed the PYTHON half and its docstring already named the cause: bible.html spells four items CURLY in the item rows and STRAIGHT in ITEM_VALUE, in the same file. THE BOARD HALF WAS NEVER FIXED - _chMapHas and _chSetHas decide whether a roster row reads as FOUND and they folded CASE and not the apostrophe. MEASURED on his live board: of 445 dated names exactly TWO carry the typographic byte, and both his dates and gameFound stores key them that way consistently, so the lookup could never reach his rows and an item he genuinely owns read as NOT FOUND. The fold now runs on BOTH sides, and only after a direct miss. His stored bytes are untouched because they are testimony; the reader is made tolerant. Verified in node that a qualifier is still NOT folded. HEART: the found-or-not decision on his board is now byte-insensitive, and a law pins that both membership tests fold both sides.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

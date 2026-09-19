@@ -50762,7 +50762,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3344', name:'v3344 - the shelf says what is owed, not who owns it', date:'2026-09-19', note:'His console read 3 waiting on a lane (vault: 3). It grouped owed reels by the LANE THAT OWNS them and printed the word WAITING, which is the READ_CLEARS question asked of the OWED_BY map. rows-not-banked proves they differ: v2878 kept it OUT of READ_CLEARS because it is owed a BANK not a read, so no sweep will ever clear it, and the screen filed it with the other four anyway. THREE prose sites already said BANK and only the rendered sentence disagreed. The root is that the tag was read, used to look up the lane, and discarded. Measured on his tree: 3 waiting on a lane (vault: 3) became 3 still owed (3 panels on film, nothing banked). HEART: the shelf header now names the tag, and owedTags is pinned to sum to owed so a breakdown can never disagree with its own total.' };
+  window.D2R_BUILD = { id:'v3345', name:'v3345 - the board folds the apostrophe too', date:'2026-09-19', note:'His ruling was make it one word and unified. v2760 fixed the PYTHON half and its docstring already named the cause: bible.html spells four items CURLY in the item rows and STRAIGHT in ITEM_VALUE, in the same file. THE BOARD HALF WAS NEVER FIXED - _chMapHas and _chSetHas decide whether a roster row reads as FOUND and they folded CASE and not the apostrophe. MEASURED on his live board: of 445 dated names exactly TWO carry the typographic byte, and both his dates and gameFound stores key them that way consistently, so the lookup could never reach his rows and an item he genuinely owns read as NOT FOUND. The fold now runs on BOTH sides, and only after a direct miss. His stored bytes are untouched because they are testimony; the reader is made tolerant. Verified in node that a qualifier is still NOT folded. HEART: the found-or-not decision on his board is now byte-insensitive, and a law pins that both membership tests fold both sides.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -50975,10 +50975,24 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
   function _chLsSet(key, val){
     try { if (window.LSR && window.LSR.setItem) window.LSR.setItem(key, JSON.stringify(val)); } catch(e){}
   }
+  function _chFoldApos(s){
+    /* v3345 (#68) - HIS RULING: "make it one word and unified."
+       MEASURED on his live board via POST /api/board_ownership: of 445 dated names exactly TWO
+       carry a typographic apostrophe - Atma\u2019s Scarab and Saracen\u2019s Chance - and his
+       gameFound map is keyed with that byte for both. The roster spells them with the ASCII byte,
+       so _chNameKeys built ["Atma's Scarab","atma's scarab"] and looked them up in a map keyed
+       "Atma\u2019s Scarab". No match, so an item he genuinely owns read as NOT FOUND.
+       The apostrophe is RENDERING, not IDENTITY - tv/item_identity.py already rules exactly that
+       and cites this very item, while Latent/Renewed ARE identity and must never be folded.
+       \u26a0 HIS STORED BYTES ARE NOT TOUCHED. They are testimony; the READER is made tolerant. */
+    return String(s == null ? '' : s).replace(/[\u2018\u2019\u02BC\u02B9\u00B4`]/g, "'");
+  }
   function _chNameKeys(nm){
     var s = String(nm || '').trim();
     if (!s) return [];
     var keys = [s, s.toLowerCase()];
+    var f = _chFoldApos(s);
+    if (f !== s){ keys.push(f); keys.push(f.toLowerCase()); }
     // loose: strip trailing " Rune" / quality noise for key match
     var bare = s.replace(/\s+rune$/i, '').trim();
     if (bare && bare !== s){ keys.push(bare); keys.push(bare.toLowerCase()); }
@@ -50986,20 +51000,33 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
   }
   function _chMapHas(map, nm){
     if (!map || typeof map !== 'object') return false;
-    return _chNameKeys(nm).some(function(k){ return map[k] != null && map[k] !== false; });
+    if (_chNameKeys(nm).some(function(k){ return map[k] != null && map[k] !== false; })) return true;
+    /* v3345 - AND FOLD THE MAP'S OWN KEYS. Folding only the QUERY cannot help: the map is keyed
+       with whatever byte HIS store holds, so a straight-apostrophe query still misses a curly key.
+       Both sides are folded here. Runs only after a direct miss, so the common path is untouched. */
+    var want = _chFoldApos(nm).trim().toLowerCase();
+    if (!want) return false;
+    for (var k in map){
+      if (!Object.prototype.hasOwnProperty.call(map, k)) continue;
+      if (map[k] == null || map[k] === false) continue;
+      if (_chFoldApos(k).trim().toLowerCase() === want) return true;
+    }
+    return false;
   }
   function _chSetHas(arrOrSet, nm){
     if (!arrOrSet) return false;
-    var low = String(nm || '').trim().toLowerCase();
+    /* v3345 - folded on BOTH sides, same reason as _chMapHas. This already folded CASE and not
+       the apostrophe, which is why a curly-keyed entry read as absent. */
+    var low = _chFoldApos(nm).trim().toLowerCase();
     if (!low) return false;
     if (arrOrSet instanceof Set){
       if (arrOrSet.has(nm) || arrOrSet.has(low)) return true;
       var hit = false;
-      arrOrSet.forEach(function(x){ if (String(x).toLowerCase() === low) hit = true; });
+      arrOrSet.forEach(function(x){ if (_chFoldApos(x).trim().toLowerCase() === low) hit = true; });
       return hit;
     }
     if (Array.isArray(arrOrSet)){
-      return arrOrSet.some(function(x){ return String(x).toLowerCase() === low; });
+      return arrOrSet.some(function(x){ return _chFoldApos(x).trim().toLowerCase() === low; });
     }
     return false;
   }
