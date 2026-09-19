@@ -30374,12 +30374,16 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3336",
+        "ver": "v3337",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
         # Two stamps on one screen are only confusing while neither says what it is.
-        "moduleFreshness": module_freshness(),
+        # ⚠ v3337 — TIMED, because an untimed producer inside status_payload puts its cost
+        # in `unattributedMs` where nobody can act on it. Added untimed at v3288 and the
+        # breakdown law has been red in CI ever since, while the pre-push hook (a SUBSET)
+        # printed green.
+        "moduleFreshness": _t("moduleFreshness", module_freshness),
         # v2037 — what the rolling prune has ACTUALLY freed, so the disk is a number he can see
         # rather than a surprise. Konyo: "just the data should be registered and rendering.. like
         # witnesses and any other data information related ledger style maybe?" Zeros here mean

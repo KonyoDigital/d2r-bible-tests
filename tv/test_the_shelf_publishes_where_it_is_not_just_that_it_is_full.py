@@ -245,11 +245,34 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         #: ⚠ START AT THE `try {`, not inside it. My first cut anchored on `var _firstCard` and
         #: extracted the BODY without its opening brace, so node refused the block with a dangling
         #: `} catch` — a fixture that cannot even parse is the same defect one layer up.
-        m = _re.search(r"    try \{\n      var _firstCard = null;.*?\n    \} catch \(e\) \{\}",
-                       ui, _re.S)
-        self.assertIsNotNone(m, "the scroll-on-open block could not be located in control_ui.html "
-                                "— this law is reading nothing and must fail, not skip")
-        blk = m.group(0)
+        # ⚠⚠ v3337 — THE OLD REGEX PINNED INDENTATION AND WENT BLIND.
+        # It required `    try {` followed IMMEDIATELY by `      var _firstCard = null;`. v3289
+        # inserted a guard line between them (`if (ov.__shAutoTop != null && ...) return;`) and
+        # re-indented the block from 6 to 8 spaces, so the regex matched 0 and this law could not
+        # read its own subject for every commit since. It failed rather than skipped, which is the
+        # one thing it got right.
+        # ⚠ AND THE OBVIOUS REPAIR WAS WORSE: a loosened `[ \t]*try \{ ... \} catch` matched an
+        # UNRELATED fetch block 585,430 chars long with unbalanced braces. MEASURED before it was
+        # used — a fixture that cannot parse is the defect one layer up.
+        # So: anchor from the UNIQUE line outward. Indentation is not this law's subject.
+        # [[source-reading-guard]] §2 unique anchor, §3 anchor BOTH ends.
+        _KEY = "var _firstCard = null;"
+        self.assertEqual(
+            ui.count(_KEY), 1,
+            "`%s` occurs %d time(s) in control_ui.html; this law needs exactly one so the block it "
+            "extracts is unambiguous." % (_KEY, ui.count(_KEY)))
+        _i = ui.find(_KEY)
+        _a = ui.rfind("try {", 0, _i)
+        _b = ui.find("} catch (e) {}", _i)
+        self.assertTrue(_a > -1 and _b > _i,
+                        "the scroll-on-open block could not be located in control_ui.html "
+                        "— this law is reading nothing and must fail, not skip")
+        blk = ui[ui.rfind("\n", 0, _a) + 1: _b + len("} catch (e) {}")]
+        self.assertEqual(
+            blk.count("{"), blk.count("}"),
+            "the extracted block has unbalanced braces (%d vs %d), so node cannot parse it and "
+            "any verdict from it is about the extraction, not the code."
+            % (blk.count("{"), blk.count("}")))
         fc = "null" if first_card_top is None else (
             "{ style:{display:''}, getBoundingClientRect:function(){ return {top:%d}; } }"
             % first_card_top)
@@ -260,7 +283,12 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
             "  getBoundingClientRect: function(){ return {top: 0}; },\n"
             "  querySelectorAll: function(){ return _cardList; }\n"
             "};\n"
-            "%s\n"
+            # ⚠ v3337 — THE BLOCK RUNS INSIDE AN IIFE, and that is load-bearing. v3289 added an
+            # early `return` to the open path; node's CommonJS wrapper makes a TOP-LEVEL return
+            # legal, so it exited the module and the console.log below never ran. The law then
+            # reported "the runner printed nothing" — a harness fault wearing the clothes of a
+            # finding. Containing the block means a return ends the BLOCK, not the measurement.
+            "(function(){\n%s\n})();\n"
             "console.log(JSON.stringify({scrollTop: ov.scrollTop}));\n"
             % (("[]" if first_card_top is None else "[" + fc + "]"), client_h, blk))
         d = tempfile.mkdtemp(prefix="shopen_")

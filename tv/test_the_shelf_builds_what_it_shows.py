@@ -78,7 +78,7 @@ class TheShelfBuildsWhatItShows(unittest.TestCase):
     def test_a_withheld_ghost_is_NOT_BUILT(self):
         blk = _between(UI, "var cards = (TH.sessions || []).map(function(sm, i){", "data-stub=")
         self.assertIsNotNone(blk, "could not read the card builder")
-        self.assertIn("if (!_shBuildGhosts && sm && sm.stub) return '';", blk,
+        self.assertIn("if (!_shBuildGhosts && sm && sm.stub) { _shStubN++; return ''; }", blk,
                       "the builder makes a card for every session again. 2,557 of his 3,086 are "
                       "empty runs the filter immediately hides — 58,811 elements, 70% of the "
                       "page, built only to be invisible, which is what stops the window painting.")
@@ -155,7 +155,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'control_ui.html',
-        "find": "if (!_shBuildGhosts && sm && sm.stub) return '';",
+        "find": "if (!_shBuildGhosts && sm && sm.stub) { _shStubN++; return ''; }",
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },

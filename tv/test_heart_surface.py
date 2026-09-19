@@ -966,7 +966,12 @@ class TheChiliadPanelSpeaksHumanLogic(unittest.TestCase):
         self.assertIn("e.mineWhat", blk,
                       "the panel no longer reads the backend's owner list, so it is guessing who "
                       "owns each failing check")
-        self.assertIn("_mineWhat[String(r && r.check)]", blk,
+        # ⚠ v3337 — RE-ANCHORED. v3326 hoisted the name out: `_mineWhat[String(r && r.check)]`
+        # became `_mineWhat[_nm]`. The claim is unchanged — rows are still matched against the
+        # backend's owner list by name — but this pinned the SPELLING and went red in CI for
+        # eight commits while the pre-push hook (a SUBSET) printed green. This is the FOURTH law
+        # that one hoist broke. [[regression-guard]] §4 — pin the LAW, not how it is written.
+        self.assertIn("_mineWhat[_nm]", blk,
                       "rows are not matched against the owner list by name")
 
     def test_a_row_the_backend_calls_MINE_never_lands_in_WAITING_ON_YOU(self):
