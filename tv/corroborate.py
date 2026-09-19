@@ -330,6 +330,85 @@ def _inv_swept_memory_matches_the_disk():
             "onDisk + retained", left, "sweep memory entries", right, "==")
 
 
+def _inv_a_stored_reach_still_matches_git():
+    """v3354 (#106) — THE LEDGER'S OWN CLASSIFICATION, AGAINST GIT, ON THE SAME ROWS.
+
+    `absentKind` decides whether a look that missed a file gets WARNED ABOUT or waved through, so a
+    wrong value there is silent in the dangerous direction: "stamp" SILENCES the warning. It is
+    written once, at record time, and then trusted forever — which is exactly the shape
+    [[stale-reading]] §4 names, a verdict with no expiry.
+
+    TWO GENUINELY DIFFERENT ENGINES, and the left one deliberately does NOT call `blind_to`:
+        left   the STORED dict on each row, read as a dict and nothing else
+        right  the same files re-derived from the COMMIT, by git, ignoring the store
+
+    A disagreement means the persisted classification no longer describes the commit it names —
+    a rebase, an amended history, or a writer that stored the wrong thing. Equality is the whole
+    claim, so the relation is "==" and not a bound.
+
+    ⚠ IT COUNTS BLIND FILES, NOT ROWS. Rows are few; files are the thing being classified, and a
+    per-row count would hide one file flipping inside a row that stays blind either way.
+
+    ⚠ UNKNOWN ON EITHER SIDE MAKES THE WHOLE READING UNKNOWN. A sha this clone cannot resolve —
+    a shallow checkout, a CI runner — must not read as "0 blind files, all agree". That is the
+    confident zero [[unknown-stays-unknown]] exists to refuse, and here it would report perfect
+    agreement precisely when nothing could be compared.
+    """
+    import second_eye_ledger as _sel
+
+    def _rows_with_reach():
+        try:
+            rows = _sel._rows()
+        except Exception:
+            return None
+        if not rows:
+            return None
+        mine = [r for r in rows
+                if r.get("absent") and isinstance(r.get("absentKind"), dict) and r.get("sha")]
+        # ⚠⚠ AN EMPTY POPULATION IS UNKNOWN, NOT AGREEMENT — and this invariant shipped GREEN at
+        # `0 == 0` on its first run for exactly that reason: no row carried `absentKind` yet, so
+        # both sides summed over nothing and the pair reported perfect agreement about a
+        # comparison that never happened. That is the confident zero this repo keeps re-learning
+        # to distrust, committed inside the corroborator built to catch it.
+        # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        return mine or None
+
+    def left():
+        rows = _rows_with_reach()
+        if rows is None:
+            return None
+        n = 0
+        for r in rows:
+            kinds = r.get("absentKind") or {}
+            for f in r["absent"]:
+                k = kinds.get(f)
+                if k is None:
+                    return None          # the store cannot answer: UNKNOWN, never a zero
+                if k != "stamp":
+                    n += 1
+        return n
+
+    def right():
+        rows = _rows_with_reach()
+        if rows is None:
+            return None
+        n = 0
+        for r in rows:
+            for f in r["absent"]:
+                k = _sel.absent_kind(r.get("sha"), f)
+                if k == "unknown":
+                    return None          # git cannot answer here: UNKNOWN, never a zero
+                if k != "stamp":
+                    n += 1
+        return n
+
+    return ("second-eye-reach",
+            "the stored absentKind still says what git says about the same commit",
+            "store 'stamp' for a file whose commit diff is 37 lines and these part by one",
+            "absentKind as persisted on the row", left,
+            "the same files re-derived from the commit by git", right, "==")
+
+
 def _inv_chronicle_owed_agrees():
     """The #167 stall class: the reader's own count against retention's view of it."""
     import control_app as ca
@@ -2118,6 +2197,7 @@ BUILDERS = (_inv_the_router_and_the_shelf_count_the_SAME_reels,
             _inv_a_lane_that_is_ON_has_either_worked_or_says_why_not,
             _inv_shadow_names_fit_the_universe,
             _inv_swept_memory_matches_the_disk,
+            _inv_a_stored_reach_still_matches_git,
             _inv_chronicle_owed_agrees,
             _inv_shadow_switch_matches_the_watcher,
             _inv_the_two_deleters_stay_at_their_own_granularity,

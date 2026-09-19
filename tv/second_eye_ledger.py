@@ -58,6 +58,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -365,7 +366,7 @@ def code_was_transmitted(sent):
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
            answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None,
-           head_cap=None, absent=None):
+           head_cap=None, absent=None, absent_kinds=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -454,6 +455,18 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         # blind, which is exactly the v3347 row.
         # [[one-to-one-store-for-a-one-to-many-fact]] [[unknown-stays-unknown]] [[the-unjoined-end]]
         "absent": (list(absent) if absent is not None else None),
+        # ⚠⚠ v3354 — WHAT KIND OF CHANGE EACH ABSENT FILE CARRIED: {path: stamp|substantive|
+        # unknown}. `absent` alone cannot say whether a look missed anything a reviewer could have
+        # held an opinion about, because bible.html and tv/tv_diablo.py are absent from almost
+        # every payload while carrying two lines of version stamp — so the v3349 warning built on
+        # it fired on 7 of 7 rows where the honest count was 2. The classification is knowable the
+        # moment the row is written; persisting it is free and re-deriving it costs a git call per
+        # file, per read. [[heart-first]] §6 — persist what you KNEW, not a summary of it.
+        # ⚠ THREE STATES, matching `absent` exactly: a dict means measured, {} means measured and
+        # nothing was missing, null means reach was never established — which is every one of the
+        # 867 rows before this version. Those are measured ON READ from their own sha rather than
+        # assumed to be stamps; assuming would be the confident zero this field exists to refuse.
+        "absentKind": _kinds_for(absent, absent_kinds, sha),
         "verdict": str(verdict or ""),
         "findings": list(findings or []),
         "images": [os.path.basename(str(i)) for i in (images or [])],
@@ -577,6 +590,106 @@ def looked_at(version, path=None):
     return sorted(out, key=lambda r: -(r.get("ts") or 0))
 
 
+#: what a version stamp looks like in a diff line. ONE definition — `absent_kind` is its only
+#: reader, and a second copy would disagree the day the stamp format changes. [[copy-drift]]
+_VER_TOKEN_RX = re.compile(r"v\d{4}")
+
+#: memo for absent_kind — a (sha, path) pair is finished history, so one answer is final.
+_KIND_MEMO = {}
+
+#: the repo root, so the git question is asked of THIS tree however the module was imported
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def absent_kind(sha, path):
+    """Was this commit's change to `path` NOTHING BUT the version stamp? -> str.
+
+        "stamp"        MEASURED: every changed line in that file carries a vNNNN token
+        "substantive"  MEASURED: at least one changed line does not
+        "unknown"      the diff could not be read (no sha, sha gone, path renamed)
+
+    ⚠⚠ IT CLASSIFIES THE CHANGE, NEVER THE FILENAME, and that is the whole design. Across the
+    last 120 version commits SIX files change in >=99% of them — tv/WINDOWS_SHIP.json, TASKS.md,
+    tv/tv_diablo.py, bible.html, tv/control_app.py and BLUEPRINT.md — so a name allow-list looks
+    obvious and is wrong in both directions. MEASURED, one filename, opposite verdicts:
+
+        bible.html         @ e850b847 (v3345)  SUBSTANTIVE  37 changed lines — the apostrophe fold
+        bible.html         @ c08875ad (v3352)  STAMP         2 changed lines, both version tokens
+        tv/control_app.py  @ d2b3f3cf (v3343)  SUBSTANTIVE   8 changed lines — the rider route
+        tv/control_app.py  @ c08875ad (v3352)  STAMP         2 changed lines, both version tokens
+
+    An allow-list would excuse the two SUBSTANTIVE rows: a genuinely blind look waved through on
+    the day one of those files IS the subject. [[the-unjoined-end]] §6 — a check that cannot
+    discriminate is a constant wearing a measurement.
+
+    ⚠ UNKNOWN IS NEVER AN EXCUSE. This function only ever REMOVES a warning, and it may do that
+    only where the change was MEASURED to be a stamp. A diff nobody could read is not evidence
+    that nothing was missed, so it stays outside the excuse. [[unknown-stays-unknown]]
+    """
+    sha = str(sha or "").strip()
+    path = str(path or "").strip()
+    if not sha or not path:
+        return "unknown"
+    key = (sha, path)
+    if key in _KIND_MEMO:
+        return _KIND_MEMO[key]
+    out = "unknown"
+    try:
+        p = subprocess.Popen(["git", "diff", "--unified=0", "%s~1" % sha, sha, "--", path],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=_REPO)
+        raw, _err = p.communicate(timeout=30)
+        d = (raw or b"").decode("utf-8", "replace")
+        body = [ln for ln in d.split("\n")
+                if (ln.startswith("+") or ln.startswith("-"))
+                and not ln.startswith("+++") and not ln.startswith("---")]
+        if body:
+            stampy = [ln for ln in body if _VER_TOKEN_RX.search(ln)]
+            out = "stamp" if len(stampy) == len(body) else "substantive"
+    except Exception:
+        out = "unknown"
+    _KIND_MEMO[key] = out
+    return out
+
+
+def _kinds_for(absent, given, sha):
+    """The stored `absentKind`. Three states, exactly as `absent` has three.
+
+    ⚠ CLASSIFIED AT THE DOOR so no caller can forget: `record()` takes the measurement itself
+    unless one is handed in. [[heart-first]] §4 — instrument the single place things are created.
+    """
+    if absent is None:
+        return None                       # nobody established reach at all
+    if given is not None:
+        return dict(given)                # the caller already measured it
+    return dict((f, absent_kind(sha, f)) for f in absent)
+
+
+def blind_to(row):
+    """The absent files this look genuinely missed -> list, or None when reach was never recorded.
+
+    A VERSION STAMP IS NOT A BLIND SPOT. MEASURED 2026-09-19 over the 7 rows carrying `absent`:
+    v3349's counter flagged 7 of 7, and 12 of their 16 absent-file entries were bible.html or
+    tv/tv_diablo.py changed by exactly two lines, both carrying a version token. Only TWO rows had
+    missed anything a reviewer could have held an opinion about. A warning that fires on every row
+    carries no information. [[regression-guard]] [[zero-needs-a-denominator]]
+    """
+    ab = row.get("absent")
+    if ab is None:
+        return None
+    kinds = row.get("absentKind") or {}
+    out = []
+    for f in ab:
+        k = kinds.get(f)
+        if k is None:
+            # ⚠ NOT a back-filled guess. (sha, path) -> git is the SAME measurement from the SAME
+            # source the writer would have taken, taken later. Every row written from v3354 on
+            # carries it, so this path covers only the 7 legacy rows and then nothing.
+            k = absent_kind(row.get("sha"), f)
+        if k != "stamp":
+            out.append(f)
+    return out
+
+
 def agreement(version, path=None):
     """Did two looks at ONE payload agree? -> dict. His #56 ruling: ask twice and KEEP BOTH.
 
@@ -613,13 +726,25 @@ def agreement(version, path=None):
     # looks reading as AGREEMENT about a change neither of them saw.
     # ⚠ `absent` is UNKNOWN on every row written before this version (missing key or null), and
     # unknown is not zero — those rows are counted apart rather than assumed complete.
-    _partial = [r for r in reached if r.get("absent")]
+    # ⚠⚠ v3354 — A VERSION STAMP IS NOT A BLIND SPOT, and this counter was 71% noise. The line
+    # replaced here read `[r for r in reached if r.get("absent")]`, firing on ANY absent file.
+    # MEASURED 2026-09-19 over the 7 rows carrying `absent`: it flagged 7 of 7, while 12 of their
+    # 16 absent-file entries were bible.html or tv/tv_diablo.py changed by exactly two lines, both
+    # carrying a version token. Only TWO rows missed anything a reviewer could have held an
+    # opinion about — v3349 (its own 218-line subject, filed `clean`) and v3351. A warning that
+    # fires on every row is furniture, which is the same defect as a gate that is always green.
+    # [[regression-guard]] [[zero-needs-a-denominator]]
+    _blind = dict((id(r), blind_to(r)) for r in reached)
+    _partial = [r for r in reached if _blind[id(r)]]
     _unknown_reach = [r for r in reached if r.get("absent") is None]
     _pnote = ""
     if _partial:
-        _pnote = (" ⚠ %d of %d look(s) NEVER SAW part of the change (files absent from the "
-                  "payload), so that much of this is agreement about bytes nobody read"
-                  % (len(_partial), len(reached)))
+        _names = sorted(set(f for r in _partial for f in (_blind[id(r)] or [])))
+        _pnote = (" ⚠ %d of %d look(s) NEVER SAW a SUBSTANTIVE part of the change (%s), so that "
+                  "much of this is agreement about bytes nobody read"
+                  % (len(_partial), len(reached),
+                     ", ".join(_names[:6]) +
+                     (" +%d more" % (len(_names) - 6) if len(_names) > 6 else "")))
     if not verdicts:
         return {"version": version, "looks": 0, "empty": empty, "state": "NONE",
                 "verdicts": [], "partial": len(_partial), "reachUnknown": len(_unknown_reach),
