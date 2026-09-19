@@ -2338,6 +2338,11 @@ NO_JOINT_YET = {
                           'second source would be the game reporting its own affix decomposition, which it '
                           'never does - and the base\\ table copies are byte-identical for the rare half, so '
                           'they are one witness, not two.',
+    'eye told what was stripped': 'the only record of what the transport removed is the transport\'s own '
+                          'count, so a second side would have to re-run the same two strip functions over '
+                          'the same diff - one engine derived twice, which heart-first rule 1 says is one '
+                          'number wearing two names. The honest corroborator is the EYE saying it could not '
+                          'see the note, and no look has been asked that question yet.',
     'eye reach per file': 'the row recounts the payload from git and compares it against the ledger field; a '
                           'genuine second source would be the eye OWN reported reach, measured at 5.2% of 854 '
                           'rows with 16 of 44 unparsable, which is too thin to be a witness.',

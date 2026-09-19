@@ -2809,6 +2809,10 @@ MINE = {
         "#60 — generating the vocabulary from HIS install and keeping it in step with a\n"
         "game patch is MY job. He asked for the feature; a stale affix table is not\n"
         "something he can act on, and a silently-unconsulted lexicon even less so.",
+    "eye told what was stripped":
+        "#122 — what my own transport removes before the eye sees it is mine, not his. He\n"
+        "cannot act on a review of a diff with the author's account cut out of it, and a row\n"
+        "that silently stops carrying the map looks exactly like one written before v3375.",
     "eye reach per file":
         "#114 — whether the eye actually READ the bytes I paid for is mine to measure. He\n"
         "cannot act on a payload that was cut in transit, and a row that silently stops\n"
@@ -4277,6 +4281,74 @@ def _check_the_eye_reach_is_still_being_measured():
                    (" (%s)" % ", ".join(sorted(set(hit))[:4])) if hit else ""))
 
 
+def _check_the_eye_is_told_what_was_stripped():
+    """v3375 (#122) — IS THE EYE STILL BEING TOLD WHAT WAS REMOVED FROM ITS PAYLOAD?
+
+    `payload_for` strips two things before the eye ever sees the diff: comment-only added lines,
+    and (in run_gates.py only) the `why=` ship notes. Both are deliberate and both are a REACH
+    REDUCTION — the author's own account of the change is taken out — and for 15 versions neither
+    was declared anywhere. A comment in second_eye_run.py even asserted they were "already
+    declared", which was false the whole time.
+
+    MEASURED on v3374: notes 7,885 chars (22% of the raw diff), comments 2,049. Across 39 version
+    commits the comment strip fired 39/39 and the ship-note strip 22/39. THE COST IS NOT
+    HYPOTHETICAL: v3374's own cross-family look came back reporting that "the test file claims
+    panel-sourced names auto-bank; the banking step is not present" — a claim-versus-delivery
+    finding assembled from a docstring, because the author's real note said the OPPOSITE and had
+    been replaced by a stub the eye was never told about.
+
+    ⚠⚠ THIS ROW EXISTS BECAUSE ON ≠ WORKING. The declaration lives in the PROMPT, which nothing
+    keeps; the only durable trace is the `stripped` map on the row. If payload_for stops handing
+    it back, or a caller drops it — which is exactly what happened to `reach` between v3363 and
+    v3364 — every new row simply carries `stripped: null`, the same bytes a row written before
+    this version carries. A measurement that quietly stops is indistinguishable from one nobody
+    has needed yet. [[heart-first]] §2 [[the-unjoined-end]]
+
+    THREE STATES:
+      OK       -> looks since this version DO carry the map; says how much the eye never saw
+      MISSING  -> looks were recorded since this version and NOT ONE carries it — the wire broke
+      UNKNOWN  -> no look recorded since this version. ⚠ Never OK: zero rows is an absent
+                  denominator, not a clean bill of health. [[zero-needs-a-denominator]]
+    """
+    try:
+        import second_eye_ledger as L
+    except Exception as e:
+        return UNKNOWN, "the second-eye ledger will not import: %s" % str(e)[:90]
+    try:
+        rows = L._rows()
+    except Exception as e:
+        return UNKNOWN, "the ledger will not read: %s" % str(e)[:110]
+    if rows is None:
+        return UNKNOWN, "the ledger read returned nothing, so the strip map cannot be counted"
+    SINCE = 3375
+
+    def _n(r):
+        v = str(r.get("version") or "").lstrip("v")
+        return int(v) if v.isdigit() else -1
+
+    fresh = [r for r in rows if _n(r) >= SINCE and r.get("reached") is not False]
+    if not fresh:
+        return UNKNOWN, ("no look has been recorded since v%d, so whether the eye is still told "
+                         "what was stripped from its payload is UNMEASURED - not clean" % SINCE)
+    carry = [r for r in fresh if isinstance(r.get("stripped"), dict)]
+    if not carry:
+        return MISSING, ("%d look(s) since v%d and NOT ONE carries a strip map. The eye is being "
+                         "handed a diff with the author's own account removed and is not being "
+                         "told, which is the v3374 shape" % (len(fresh), SINCE))
+    tot = 0
+    worst, worst_n = "", -1
+    for r in carry:
+        s = r.get("stripped") or {}
+        n = sum(int(v or 0) for v in s.values() if isinstance(v, (int, float)))
+        tot += n
+        if n > worst_n:
+            worst, worst_n = str(r.get("version") or "?"), n
+    return OK, ("%d of %d look(s) since v%d carry a strip map; %s characters of the author's own "
+                "account were removed before the eye saw them%s"
+                % (len(carry), len(fresh), SINCE, "{:,}".format(tot),
+                   (" (worst %s at %s)" % (worst, "{:,}".format(worst_n))) if worst_n > 0 else ""))
+
+
 def _check_a_held_relaunch_is_not_stuck():
     """v3301 (#38) — THE INTERLOCK'S OWN SUPERVISOR: is the GREEN LIGHT still firing?
 
@@ -4338,6 +4410,10 @@ CHECKS = [
     ("swallowed reads", _check_a_failed_read_is_never_handed_back_as_data),
     ("second eye asked twice", _check_the_second_eye_was_asked_twice),
     ("eye reach per file", _check_the_eye_reach_is_still_being_measured),
+    # v3375 (#122) — a SIBLING question, not the same one: "eye reach per file" asks how much
+    # of each file ARRIVED; this asks whether the eye is told what was deliberately REMOVED
+    # before transport. A payload can be 100% reach and still have the author's note stripped.
+    ("eye told what was stripped", _check_the_eye_is_told_what_was_stripped),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
@@ -4835,6 +4911,9 @@ WATCHES = {
     # DECLARATION, not an omission: it reaches him through the eagle line, and the day it gets
     # a lamp of its own, name it here.
     "eye reach per file":          (),
+    # v3375 (#122) — no lamp of its own; it reaches him through the eagle line, same as its
+    # sibling above. Empty tuple as a DECLARATION, not an omission.
+    "eye told what was stripped":  (),
     # v3364 (#60) — the lexicon is a generated FILE and a classifier, with no screen
     # element of its own. Empty tuple as a DECLARATION, not an omission: it reaches him
     # through the eagle line today, and through the unsure rows once they render a vocab.

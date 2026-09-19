@@ -246,10 +246,16 @@ class TheVaultProposalIsWatched(unittest.TestCase):
 # question is whether deleting this text is the defect the law exists to catch.
 RED_PROOF = [
     {
-        "why": 'the law requires this text in console_doctor.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
+        "why": 'the vault row must re-grade the STORED proposal against the live bar; handing '
+               'gate() an empty witness list instead of the rows own witnesses makes the '
+               'comparison meaningless and must turn the gate red. v3375 - the anchor used to be '
+               'the bare r.get("witnesses") with a why claiming it occurs exactly once. MY OWN '
+               'v3369 added a second occurrence in _wits() for the item-facts row, so the proof '
+               'went ill-formed (2 matches, declares 1) and heart2 could no longer trust it. '
+               'Anchored on the call itself, which is unique. [[source-reading-guard]] section 2',
         "file": 'console_doctor.py',
-        "find": 'r.get("witnesses")',
-        "replace": '_HEART2_TAMPERED_',
+        "find": 'g = _vr.gate(r.get("witnesses") or [],',
+        "replace": 'g = _vr.gate([],',
         "matches": 1,
     },
     {

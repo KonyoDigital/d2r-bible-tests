@@ -124,18 +124,65 @@ class AShipNoteIsNotCode(unittest.TestCase):
         self.assertNotIn("a real ship note about a gate", R._strip_ship_notes(drop),
                          "the run_gates.py hunk is no longer stripped, so the whole saving is gone")
 
+    _NOTE_DIFF = (
+        "diff --git a/tv/run_gates.py b/tv/run_gates.py\nindex 1..2 100644\n"
+        "--- a/tv/run_gates.py\n+++ b/tv/run_gates.py\n@@ -1,3 +1,6 @@\n GATES = [\n"
+        '+    Gate("planted-law", ["python3", "-m", "unittest", "x"], 60,\n'
+        '+         why="PLANTED SHIP NOTE that must not survive the transport."),\n ]\n')
+
     def test_payload_for_actually_calls_it(self):
-        """[[the-unjoined-end]] — a correct helper nothing calls changes nothing."""
+        """[[the-unjoined-end]] — a correct helper nothing calls changes nothing.
+
+        ⚠⚠ v3375 — THIS WAS TWO TEXT MATCHES AND BOTH MOVED WITHOUT THE JOIN BREAKING.
+        It pinned the literal `_strip_ship_notes(_strip_comments(out))` and demanded the helper
+        appear at least THREE times, reasoning "its definition, the python diff and the html
+        diff". v3375 folded BOTH diffs through one `_prep()` so each strip could be COUNTED and
+        declared to the eye — so the literal is gone and the count is 2, while the stripping
+        became structurally guaranteed instead of duplicated. A law that counts CALL SITES goes
+        red exactly when two correct call sites are collapsed into one, which is the wrong
+        direction to punish. [[regression-guard]] §4 PIN THE LAW, NOT THE NUMBER.
+
+        It now asks the question BEHAVIOURALLY: hand payload_for a run_gates.py hunk carrying a
+        ship note and require that the note does not survive into the prompt. Prose cannot satisfy
+        that, and it holds through any future refactor of how the strip is reached.
+        """
+        real_sh, real_absent = R._sh, R.absent_from
+        calls = {"n": 0}
+
+        def _fake_sh(argv, timeout=None):
+            calls["n"] += 1
+            return (self._NOTE_DIFF, "") if calls["n"] == 1 else ("", "")
+
+        R._sh = _fake_sh
+        R.absent_from = lambda sha, body: ([], "")
+        try:
+            out = R.payload_for("PLANTED")
+        finally:
+            R._sh, R.absent_from = real_sh, real_absent
+        prompt = (out or [""])[0] or ""
+        self.assertNotIn(
+            "PLANTED SHIP NOTE", prompt,
+            "a why= ship note inside a run_gates.py hunk reached the eye intact, so payload_for "
+            "is no longer stripping and the budget is back to paying full price for prose")
+        self.assertIn(
+            "<ship note stripped for the eye>", prompt,
+            "the note is gone and so is its stub, so the eye cannot tell a stripped note from a "
+            "gate that never carried one")
+
+        # ⚠ AND THE HTML HALF, which the old >=3 count was really protecting: the second fetch
+        # must not be folded into the body raw. This is the only part that still has to be read
+        # from source, because the html branch needs a budget the fixture above does not spend.
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
-        self.assertIn("_strip_ship_notes(_strip_comments(out))", code,
-                      "payload_for no longer strips ship notes from the python diff, so the eye "
-                      "is back to paying for prose out of a budget that truncates")
-        self.assertGreaterEqual(
-            code.count("_strip_ship_notes("), 3,
-            "the helper is called fewer than three times (its definition, the python diff and the "
-            "html diff) — one of the two diffs is unstripped and the saving is half of what the "
-            "measurement claims")
+        i = code.find("def payload_for(")
+        j = code.find("\ndef ", i + 1)
+        blk = code[i:j] if j > i else code[i:]
+        self.assertIn("_strip_ship_notes(", blk,
+                      "payload_for no longer reaches the ship-note strip at all")
+        self.assertNotIn(
+            'body = body + "\\n" + _more', blk,
+            "the html diff is folded into the body without passing through the strip, so a ship "
+            "note arriving through *.html is paid for in full")
 
 
 if __name__ == "__main__":
@@ -156,7 +203,7 @@ RED_PROOF = [
         "why": "not calling the helper from payload_for leaves the eye paying full price for every "
                "ship note out of a budget that truncates at 9,000 chars",
         "file": "tv/second_eye_run.py",
-        "find": "    body = _strip_ship_notes(_strip_comments(out))",
+        "find": "    body = _prep(out)",
         "replace": "    body = _strip_comments(out)",
         "matches": 1,
     },

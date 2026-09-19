@@ -126,7 +126,7 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
         real = R.absent_from
         R.absent_from = lambda sha, body: (["tv/PLANTED_ABSENT_FILE.py"], "")
         try:
-            prompt, dropped, _absent, _reach = R.payload_for("HEAD")
+            prompt, dropped, _absent, _reach, _strip = R.payload_for("HEAD")
         finally:
             R.absent_from = real
         self.assertIsNotNone(prompt, "payload_for returned nothing for HEAD")
@@ -145,7 +145,7 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
         real = R.absent_from
         R.absent_from = lambda sha, body: (None, "planted: the roster could not be read")
         try:
-            prompt, dropped, _absent, _reach = R.payload_for("HEAD")
+            prompt, dropped, _absent, _reach, _strip = R.payload_for("HEAD")
         finally:
             R.absent_from = real
         self.assertIn(
@@ -167,6 +167,163 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
             "absent is None", blk,
             "payload_for does not branch on `absent is None`. Comments are stripped before this "
             "check, because the prose above it explains exactly this distinction. [[REG-1070]]")
+
+
+    # ── v3375: the two STRIPS are a reach reduction, and reach must be declared ───────────────
+    #
+    # v3360 built the ship-note strip. v3341/v3349 built "the payload names what it left out".
+    # Neither knew about the other for 15 versions, so the eye was handed a diff with the
+    # author's own account of the change removed and was never told. [[the-unjoined-end]]
+    #
+    # MEASURED on v3374's own look: ship-note strip 7,885 chars (22% of the raw diff), comment
+    # strip 2,049. The cross-family answer came back reporting that "the test file claims
+    # panel-sourced names auto-bank; the banking step is not present" — a claim-versus-delivery
+    # finding invented out of a docstring, because the author's real note said the OPPOSITE and
+    # had been replaced by a stub. Over 39 version commits: comments 39/39, notes 22/39.
+
+    _CLEAN = (
+        "diff --git a/tv/t.py b/tv/t.py\nindex 1..2 100644\n--- a/tv/t.py\n+++ b/tv/t.py\n"
+        "@@ -1,2 +1,3 @@\n def f():\n+    x = 1\n     return 1\n")
+    _NOTE = (
+        "diff --git a/tv/run_gates.py b/tv/run_gates.py\nindex 1..2 100644\n"
+        "--- a/tv/run_gates.py\n+++ b/tv/run_gates.py\n@@ -1,3 +1,6 @@\n GATES = [\n"
+        '+    Gate("planted-law", ["python3", "-m", "unittest", "x"], 60,\n'
+        '+         why="PLANTED SHIP NOTE, long enough that the strip has real work to do."),\n ]\n')
+    _CMT = (
+        "diff --git a/tv/t.py b/tv/t.py\nindex 1..2 100644\n--- a/tv/t.py\n+++ b/tv/t.py\n"
+        "@@ -1,2 +1,5 @@\n def f():\n"
+        "+    # PLANTED COMMENT ONE, long enough to matter to a character count.\n"
+        "+    # PLANTED COMMENT TWO, long enough to matter to a character count.\n"
+        "     return 1\n")
+
+    def _header_for(self, diff):
+        """Build a payload from a planted diff and hand back only the prose above the fence.
+
+        ⚠ The fixtures are VALIDATED, not assumed: `test_the_fixtures_actually_exercise_each_strip`
+        below asserts each one drives the strip it is named for and the CLEAN one drives neither.
+        A case built on a fixture that does not reach the subject measures the fixture.
+        """
+        real_sh, real_absent = R._sh, R.absent_from
+        calls = {"n": 0}
+
+        def _fake_sh(argv, timeout=None):
+            calls["n"] += 1
+            return (diff, "") if calls["n"] == 1 else ("", "")
+
+        R._sh = _fake_sh
+        R.absent_from = lambda sha, body: ([], "")
+        try:
+            out = R.payload_for("PLANTED")
+        finally:
+            R._sh, R.absent_from = real_sh, real_absent
+        self.assertIsNotNone(out and out[0], "payload_for returned nothing for the planted diff")
+        return out[0].split("```diff")[0]
+
+    def test_the_fixtures_actually_exercise_each_strip(self):
+        """Prove the planted diffs reach the subject BEFORE any case is believed. [[regression-guard]]"""
+        for label, diff, want_c, want_n in (
+                ("CLEAN", self._CLEAN, False, False),
+                ("NOTE", self._NOTE, False, True),
+                ("CMT", self._CMT, True, False)):
+            c = R._strip_comments(diff)
+            n = R._strip_ship_notes(c)
+            dc = len(diff.rstrip("\n")) - len(c.rstrip("\n"))
+            dn = len(c.rstrip("\n")) - len(n.rstrip("\n"))
+            self.assertEqual(
+                bool(dc), want_c,
+                "%s fixture: comment strip removed %d chars, expected %s. A fixture that does not "
+                "drive the strip it is named for measures nothing." % (label, dc, want_c))
+            self.assertEqual(
+                bool(dn), want_n,
+                "%s fixture: ship-note strip removed %d chars, expected %s." % (label, dn, want_n))
+
+    def test_a_stripped_ship_note_is_declared_with_its_size(self):
+        head = self._header_for(self._NOTE)
+        self.assertIn(
+            "AND THE AUTHOR'S OWN SHIP NOTE IS NOT IN THIS PAYLOAD", head,
+            "the ship note was removed from the payload and the eye was not told. It then has no "
+            "way to tell 'the author claimed nothing' from 'the author's claim was deleted in "
+            "transit', and answers about intent from whatever prose survived the cut.")
+        self.assertRegex(
+            head, r"SHIP NOTE IS NOT IN THIS PAYLOAD - \d+ characters",
+            "the declaration carries no measured size, so it reads as a standing disclaimer rather "
+            "than a fact about THIS payload. [[zero-needs-a-denominator]]")
+
+    def test_a_stripped_comment_block_is_declared_with_its_size(self):
+        head = self._header_for(self._CMT)
+        self.assertIn(
+            "COMMENT-ONLY ADDED LINES WERE REMOVED", head,
+            "comment-only added lines were removed and the eye was not told, so it can report a "
+            "change as undocumented on the strength of a payload the documentation was cut from.")
+        self.assertRegex(
+            head, r"COMMENT-ONLY ADDED LINES WERE REMOVED \(\d+ characters\)",
+            "the comment-strip declaration carries no measured size.")
+
+    def test_a_strip_that_removed_nothing_is_not_declared(self):
+        """⚠ THE OTHER DIRECTION, AND MY FIRST CUT FAILED IT.
+
+        `_strip_comments` ends `return "\n".join(keep)`, so splitlines() drops the trailing newline
+        and EVERY diff came back one character shorter. A bare truthiness test on the delta would
+        have declared a comment strip on every payload ever built — a confident, false statement
+        about a payload where nothing was stripped. Declaring a strip that did not happen is the
+        same class of lie as hiding one that did. [[unknown-stays-unknown]]
+        """
+        head = self._header_for(self._CLEAN)
+        self.assertNotIn(
+            "AND THE AUTHOR'S OWN SHIP NOTE IS NOT IN THIS PAYLOAD", head,
+            "a payload with no ship note in it still told the eye one had been stripped.")
+        self.assertNotIn(
+            "COMMENT-ONLY ADDED LINES WERE REMOVED", head,
+            "a payload with no comments in it still told the eye comments had been removed.")
+
+    def test_every_strip_the_builder_applies_is_on_the_roster(self):
+        """A third stripper added without a roster entry is an UNDECLARED reach cut."""
+        blk = _payload_for_block()
+        called = set(re.findall(r"_strip_(\w+)\(", blk))
+        self.assertTrue(called, "payload_for calls no _strip_* helper at all — the anchor moved.")
+        self.assertEqual(
+            len(called), len(R._STRIPS_APPLIED),
+            "payload_for applies %d distinct strips (%s) but _STRIPS_APPLIED names %d (%s). Every "
+            "transformation applied to the body is a reduction in what the eye can see, and one "
+            "that is not on the roster is never counted and never declared."
+            % (len(called), ", ".join(sorted(called)),
+               len(R._STRIPS_APPLIED), ", ".join(R._STRIPS_APPLIED)))
+
+    def test_every_name_on_the_roster_is_counted_and_declared(self):
+        """[[the-unjoined-end]] — counting it and never printing it is the half-built form."""
+        blk = _payload_for_block()
+        for key in R._STRIPS_APPLIED:
+            self.assertIn(
+                '_stripped["%s"]' % key, blk,
+                "the roster names %r but payload_for never adds to _stripped[%r], so its size is "
+                "always 0 and it can never be declared." % (key, key))
+            guard = '_stripped.get("%s")' % key
+            i = blk.find(guard)
+            self.assertGreater(
+                i, -1,
+                "the roster names %r but no `if _stripped.get(%r):` guards a declaration for it. "
+                "Either it is declared unconditionally — a false statement whenever it removed "
+                "nothing — or it is not declared at all." % (key, key))
+            j = blk.find("\n    if ", i + 1)
+            self.assertIn(
+                "note +=", blk[i:j] if j > i else blk[i:],
+                "the guard for %r adds nothing to the header, so the strip is measured and then "
+                "dropped before it reaches the eye." % key)
+
+
+def _payload_for_block():
+    """payload_for's own source, COMMENTS STRIPPED — this law's subject documents its own shapes.
+
+    ⚠ Anchored on the CALL and the SUBSCRIPT, never on the bare name: `_stripped` and
+    `_STRIPS_APPLIED` both appear in the prose above the code, so a comment would satisfy a
+    name-only assertion and the guard would read green over a deleted declaration.
+    [[source-reading-guard]] §4b
+    """
+    src = _code(os.path.join(HERE, "second_eye_run.py"))
+    i = src.find("def payload_for(")
+    assert i > -1, "payload_for is gone"
+    j = src.find("\ndef ", i + 1)
+    return src[i:j] if j > i else src[i:]
 
 
 def _code(path):
@@ -207,6 +364,48 @@ RED_PROOF = [
         "file": "tv/second_eye_run.py",
         "find": '                 % ", ".join(absent))',
         "replace": '                 % len(absent))',
+        "matches": 1,
+    },
+    {
+        "why": "the eye is never told the author's ship note was removed - the v3374 case, where it then invented a claim-versus-delivery finding out of a docstring",
+        "file": "tv/second_eye_run.py",
+        "find": '    if _stripped.get("notes"):\n        note += ("\\nAND THE AUTHOR\'S OWN SHIP NOTE IS NOT IN THIS PAYLOAD - %d characters of it "\n                 "were replaced with the stub why=\\"<ship note stripped for the eye>\\" before you "\n                 "were sent this. You cannot see what the author CLAIMED this change does, so do "\n                 "not report a claim as undelivered, and do not infer the author\'s intent from "\n                 "whatever prose happens to remain. Judge the code.\\n" % _stripped["notes"])\n',
+        "replace": '    if False:\n        pass\n\n',
+        "matches": 1,
+    },
+    {
+        "why": 'the eye is never told comment-only lines were removed, so it can report a change as undocumented on a payload the documentation was cut from',
+        "file": "tv/second_eye_run.py",
+        "find": '    if _stripped.get("comments"):\n        note += ("\\nAND COMMENT-ONLY ADDED LINES WERE REMOVED (%d characters). You are reading the "\n                 "code, not the author\'s account of it. Do not report a change as undocumented or "\n                 "unexplained on the strength of this payload.\\n" % _stripped["comments"])\n',
+        "replace": '    if False:\n        pass\n\n',
+        "matches": 1,
+    },
+    {
+        "why": 'declaring the ship-note strip UNCONDITIONALLY states it as a fact about payloads where nothing was stripped',
+        "file": "tv/second_eye_run.py",
+        "find": '    if _stripped.get("notes"):',
+        "replace": '    if True:',
+        "matches": 1,
+    },
+    {
+        "why": 'counting the raw length delta re-lands the trailing-newline artifact: _strip_comments ends in "\\n".join(keep), so every payload loses 1 char and declares a strip that never happened',
+        "file": "tv/second_eye_run.py",
+        "find": '        _stripped["comments"] += len(_raw.rstrip("\\n")) - len(_c.rstrip("\\n"))',
+        "replace": '        _stripped["comments"] += len(_raw) - len(_c)',
+        "matches": 1,
+    },
+    {
+        "why": 'a strip missing from _STRIPS_APPLIED is never counted and never declared - the exact shape the ship-note strip had for 15 versions',
+        "file": "tv/second_eye_run.py",
+        "find": '_STRIPS_APPLIED = ("comments", "notes")',
+        "replace": '_STRIPS_APPLIED = ("comments",)',
+        "matches": 1,
+    },
+    {
+        "why": 'dropping the measured size turns the declaration into a standing disclaimer rather than a fact about THIS payload. First cut of this proof came back BLIND at a correct match count of 1: it edited the SECOND line of the string while the %d it claims to remove sits on the FIRST, so it broke something adjacent to the property, never the property',
+        "file": "tv/second_eye_run.py",
+        "find": ' - %d characters of it "\n                 "were replaced with the stub why=\\"<ship note stripped for the eye>\\" before you "\n                 "were sent this. You cannot see what the author CLAIMED this change does, so do "\n                 "not report a claim as undelivered, and do not infer the author\'s intent from "\n                 "whatever prose happens to remain. Judge the code.\\n" % _stripped["notes"])',
+        "replace": ' - some of it "\n                 "was replaced with a stub before you were sent this. Judge the code.\\n")',
         "matches": 1,
     },
 ]

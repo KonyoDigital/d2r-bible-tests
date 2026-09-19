@@ -237,6 +237,14 @@ _PY_COMMENT = re.compile(r"^\s*#")
 _JS_COMMENT = re.compile(r"^\s*(/\*|\*|//)")
 
 
+# ⚠⚠ v3375 — THE ROSTER OF EVERY TRANSFORMATION `payload_for` APPLIES TO THE BODY BEFORE THE CAP.
+# Each entry MUST be counted in `_stripped` and MUST get its own conditional declaration in the
+# header, and `test_a_payload_names_what_it_left_out.py` checks all three against each other. A
+# strip added without an entry here is a reach reduction the eye is never told about — which is
+# exactly what the ship-note strip was for 15 versions. [[the-unjoined-end]]
+_STRIPS_APPLIED = ("comments", "notes")
+
+
 def _strip_comments(diff):
     """Drop comment-only ADDED lines. The code still reads; the author's account of it does not.
 
@@ -616,7 +624,7 @@ def SER_has_any_section(body):
 
 
 def payload_for(sha):
-    """-> (prompt, dropped_note). Code only, comments stripped, truncation declared."""
+    """-> (prompt, dropped_note, absent, reach, stripped). Code only, strips declared."""
     # ⚠ PYTHON FIRST, and the reason is measurable: control_ui.html diffs in this repo run to tens
     # of thousands of characters that are largely prose, so a single combined diff spends the whole
     # budget on comments the stripper cannot remove (they sit inside string literals and JS block
@@ -633,13 +641,33 @@ def payload_for(sha):
     # reached the eye (65 missed -> 58), 6 versions better and none worse.
     # ⚠ It does NOT widen the cap. v3299 ruled that cost is HIS; this only stops spending the
     # budget on prose. [[the-unjoined-end]]
-    body = _strip_ship_notes(_strip_comments(out))
+    # ⚠⚠ v3375 — AND EVERY STRIP IS COUNTED AS IT IS APPLIED, because the header has to declare
+    # it and a declaration nobody measured is prose. `_STRIPS_APPLIED` is the roster the law
+    # checks against: adding a third stripper without an entry here is a reach reduction the eye
+    # is never told about. [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _stripped = dict((_k, 0) for _k in _STRIPS_APPLIED)
+
+    def _prep(_raw):
+        # ⚠⚠ THE DELTA IS TAKEN ON rstrip("\n") BOTH SIDES, AND MY OWN FIXTURE CAUGHT WHY.
+        # `_strip_comments` ends `return "\n".join(keep)`: splitlines() drops the trailing
+        # newline and the join never restores it, so a diff with NO comments in it still came
+        # back exactly 1 character shorter. A bare `if _stripped["comments"]` would then have
+        # declared a comment strip on every payload ever built, including the ones where nothing
+        # was stripped — a false statement about THIS payload, which is the defect one door down
+        # from the one this version exists to fix. [[unknown-stays-unknown]]
+        _c = _strip_comments(_raw)
+        _n = _strip_ship_notes(_c)
+        _stripped["comments"] += len(_raw.rstrip("\n")) - len(_c.rstrip("\n"))
+        _stripped["notes"] += len(_c.rstrip("\n")) - len(_n.rstrip("\n"))
+        return _n
+
+    body = _prep(out)
     _full_len_holder = [body]
     if len(body) < _cap():
         _more, _ = _sh(["git", "show", "--format=", "--unified=3", sha, "--", "*.html"],
                        timeout=90)
         if _more:
-            body = body + "\n" + _strip_ship_notes(_strip_comments(_more))
+            body = body + "\n" + _prep(_more)
     _full_len_holder = [body]
     dropped = ""
     if len(body) > _cap():
@@ -686,7 +714,11 @@ def payload_for(sha):
     absent, _nwhy = absent_from(sha, body)
     # v3363 - AND HOW MUCH OF EACH FILE THAT DID ARRIVE. Measured against the pre-truncation body,
     # so it isolates what the TRANSPORT lost; the comment strip and the ship-note strip are
-    # deliberate and already declared, and charging them here would read as loss.
+    # deliberate and are declared separately below, and charging them here would read as loss.
+    # ⚠⚠ v3375 — THIS COMMENT USED TO END "and already declared", AND THAT WAS FALSE FOR 15
+    # VERSIONS. The header declared three things (diff / truncated / absent files) and neither
+    # strip. A comment stating a rule the adjacent code does not implement is the same as not
+    # having the rule. [[stale-reading]] [[presence-law-vs-reachability-law]]
     reach = reach_of(_full_len_holder[0], body)
 
     note = ("\nNOTE: this is a DIFF, not whole files. A name used in one hunk may be DECLARED "
@@ -700,6 +732,26 @@ def payload_for(sha):
                  "boundary. Do not report a function, statement or block as incomplete, "
                  "unterminated or missing a return merely because the excerpt stops before it "
                  "does.\n")
+    # ⚠⚠ v3375 — THE AUTHOR'S ACCOUNT OF THE CHANGE IS REMOVED BEFORE THE EYE SEES IT, AND
+    # UNTIL NOW NOBODY TOLD THE EYE. MEASURED on v3374's own look: the ship-note strip removed
+    # 7,885 chars (22% of the raw diff) and the comment strip 2,049, and the cross-family answer
+    # came back with "the test file claims panel-sourced names auto-bank; the banking step is not
+    # present" — a claim-versus-delivery finding invented from a docstring, because the author's
+    # real note said the opposite and had been replaced by a stub. Over 39 version commits the
+    # comment strip fired 39/39 and the ship-note strip 22/39.
+    # ⚠ CONDITIONAL AND MEASURED. A strip that removed nothing is not declared: saying "notes were
+    # stripped" about a payload where none were is a false statement about THIS payload, which is
+    # the defect one door down. [[unknown-stays-unknown]]
+    if _stripped.get("notes"):
+        note += ("\nAND THE AUTHOR'S OWN SHIP NOTE IS NOT IN THIS PAYLOAD - %d characters of it "
+                 "were replaced with the stub why=\"<ship note stripped for the eye>\" before you "
+                 "were sent this. You cannot see what the author CLAIMED this change does, so do "
+                 "not report a claim as undelivered, and do not infer the author's intent from "
+                 "whatever prose happens to remain. Judge the code.\n" % _stripped["notes"])
+    if _stripped.get("comments"):
+        note += ("\nAND COMMENT-ONLY ADDED LINES WERE REMOVED (%d characters). You are reading the "
+                 "code, not the author's account of it. Do not report a change as undocumented or "
+                 "unexplained on the strength of this payload.\n" % _stripped["comments"])
     if absent is None:
         note += ("\nThe roster of changed files could not be read (%s), so WHICH of this commit's "
                  "files reached you is UNKNOWN. Do not treat this payload as complete.\n"
@@ -724,7 +776,13 @@ def payload_for(sha):
     # and the STORE was wrong. [[one-to-one-store-for-a-one-to-many-fact]]
     # `absent` keeps its THREE states all the way to the row: a LIST (measured, these are missing),
     # [] (measured, nothing missing) and None (nobody could ask). [[unknown-stays-unknown]]
-    return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped, absent, reach
+    # ⚠⚠ v3375 — `stripped` TRAVELS TOO, and the comment 20 lines up is the precedent: "the ROW
+    # must carry it too, or a later reader sees a clean verdict with no way to know its reach
+    # without rebuilding the payload by hand". That was written about `absent`. The strips are the
+    # same class of fact and were left in the PROMPT ONLY, so no reader of the ledger could ask
+    # how much of the author's account the eye never saw. [[the-unjoined-end]]
+    return (COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n",
+            dropped, absent, reach, dict(_stripped))
 
 
 def _model_from_transport():
@@ -1132,7 +1190,7 @@ def _findings_from(answer):
 
 
 def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model="",
-                  sha="", absent=None, reach=None):
+                  sha="", absent=None, reach=None, stripped=None):
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
@@ -1196,7 +1254,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
                answer_head=answer, head_cap=400, reached=True, path=None, seen_path=None, sent=sent,
-               sha=sha, absent=absent, reach=reach)
+               sha=sha, absent=absent, reach=reach, stripped=stripped)
     print("  %s: LOOKED — %d finding(s) recorded" % (version, len(findings)))
     return True
 
@@ -1207,7 +1265,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     if not sha:
         print("  %s: cannot find the commit — %s" % (version, why))
         return False
-    prompt, dropped, absent, reach = payload_for(sha)
+    prompt, dropped, absent, reach, stripped = payload_for(sha)
     if prompt is None:
         print("  %s: cannot build the payload — %s" % (version, dropped))
         return False
@@ -1258,7 +1316,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
             # had said "REACH 2/7". [[the-unjoined-end]] - third time in this one area.
             return record_answer(version, fh.read(), sent, dropped,
                                  prompt_text=prompt, answer_model=answer_model, sha=sha,
-                                 absent=absent, reach=reach)
+                                 absent=absent, reach=reach, stripped=stripped)
     if dry:
         return True
     answer, reached, awhy = ask(prompt)
@@ -1283,7 +1341,8 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     # v3229 — the transport names the family when the answer does not. FALLBACK ONLY:
     # record_answer prefers the model the answer's own bytes name.
     return record_answer(version, answer, sent, dropped, prompt_text=prompt,
-                         answer_model=_model_from_transport(), absent=absent, reach=reach)
+                         answer_model=_model_from_transport(), absent=absent, reach=reach,
+                         stripped=stripped)
 
 
 def main(argv):

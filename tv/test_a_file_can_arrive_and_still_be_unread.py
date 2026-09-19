@@ -276,8 +276,13 @@ class TheRowCarriesIt(unittest.TestCase):
         repeated defect, and #104 is the same wire one field along."""
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        # ⚠ v3375 — THE TRAILING PAREN WAS PART OF THE ANCHOR, SO WIDENING THE CALL READ AS
+        # BREAKING IT. v3375 appends `stripped=stripped` to this same call; the join is intact and
+        # carries one more field. Anchor the JOIN (sha + absent + reach together on one call),
+        # never the punctuation that happens to follow the last argument today.
+        # [[regression-guard]] §4 PIN THE LAW, NOT THE NUMBER.
         self.assertIn(
-            "sha=sha, absent=absent, reach=reach)", code,
+            "sha=sha, absent=absent, reach=reach", code,
             "the LOOKED path records without the reach map. Computing it and dropping it before "
             "the row is precisely what v3341 did with the absent list for 8 versions.")
         self.assertIn("reach", inspect.signature(R.record_answer).parameters,
@@ -308,8 +313,8 @@ RED_PROOF = [
         "why": "dropping the map at the record call puts the row back to knowing nothing about "
                "how much of each arrived file the eye actually got",
         "file": "tv/second_eye_run.py",
-        "find": "               sha=sha, absent=absent, reach=reach)",
-        "replace": "               sha=sha, absent=absent)",
+        "find": "               sha=sha, absent=absent, reach=reach, stripped=stripped)",
+        "replace": "               sha=sha, absent=absent, stripped=stripped)",
         "matches": 1,
     },
     {

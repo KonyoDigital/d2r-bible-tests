@@ -366,7 +366,7 @@ def code_was_transmitted(sent):
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
            answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None,
-           head_cap=None, absent=None, absent_kinds=None, reach=None):
+           head_cap=None, absent=None, absent_kinds=None, reach=None, stripped=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -465,6 +465,18 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         # can be moved; a bool here would bake in a number nobody measured.
         # ⚠ None means nobody could measure. [[unknown-stays-unknown]]
         "reach": (dict(reach) if isinstance(reach, dict) else None),
+        # ⚠⚠ v3375 — AND HOW MUCH OF THE AUTHOR'S OWN ACCOUNT WAS REMOVED BEFORE THE EYE SAW
+        # IT: {"comments": n, "notes": n}, in characters. payload_for strips comment-only added
+        # lines and (in run_gates.py) `why=` ship notes, and until v3375 it told NOBODY — not the
+        # eye in the prompt, not the ledger in the row. MEASURED on v3374: notes 7,885 chars, 22%
+        # of the raw diff; over 39 version commits the comment strip fired 39/39 and the ship-note
+        # strip 22/39. The cost showed up in v3374's own look, which reported a claim-versus-
+        # delivery finding invented from a docstring because the author's real note had been
+        # replaced by a stub.
+        # ⚠ null is NOBODY MEASURED — every row written before this version — and is never 0.
+        # A dict with a 0 in it means MEASURED AND NOTHING WAS STRIPPED, which is a different
+        # fact and the one that lets a reader trust the look. [[unknown-stays-unknown]]
+        "stripped": (dict(stripped) if isinstance(stripped, dict) else None),
         # ⚠⚠ v3354 — WHAT KIND OF CHANGE EACH ABSENT FILE CARRIED: {path: stamp|substantive|
         # unknown}. `absent` alone cannot say whether a look missed anything a reviewer could have
         # held an opinion about, because bible.html and tv/tv_diablo.py are absent from almost
