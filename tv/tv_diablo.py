@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3367"   # one resolver means one resolver on both paths
+VERSION = "v3368"   # a bare name cannot price an item
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -5634,7 +5634,7 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # with nothing; the vault side recorded only a timestamp, which makes its seal permanent however much
 # the reader improves. That is the same "a stale verdict made permanent" defect v1830 fixed on the
 # other lane, still live on this one. BUMP THIS WHENEVER VAULT_READ_PROMPT CHANGES.
-VAULT_PROMPT_VER = "vp2017"   # v2017 — and never to complete a partial name
+VAULT_PROMPT_VER = "vp3368"   # v2017 — and never to complete a partial name
 
 VAULT_READ_PROMPT = (
     # ── v2016 — THE VAULT READER WAS NEVER TOLD ABOUT THE HOVER TOOLTIP ──────────────────────
@@ -5673,8 +5673,31 @@ VAULT_READ_PROMPT = (
     # INVISIBLE: every throw-out suggestion in his review bucket carried the same generic sentence,
     # and it read like the reader's opinion rather than a default standing in for one.
     # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    # ⚠⚠ v3368 (#60) — SOCKETS, ETHEREAL AND QUALITY ARE THE THREE FACTS THAT DECIDE WHAT A BASE
+    # ITEM IS WORTH, and until now this lane READ them and THREW THEM AWAY. They appear in this
+    # prompt only as throw-out criteria ("sockets and no magical text", "white base, no sockets"),
+    # so the reader used them to form a junk opinion and returned a bare name. MEASURED on his real
+    # stores: 44 sighting rows, and "socket"/"ethereal"/"quality" occur ZERO times in any of them.
+    # A plain Gorgon Crossbow and an ethereal 4-socket one arrive as the SAME ROW, and no price list
+    # can ever separate them because the distinguishing fact was never stored.
+    # His ask names this case outright: "even base item with buffs socketed items", and his own
+    # vocabulary for it: "white/blue/gold/unique/green for set", plus socketed and ethereal.
+    # [[heart-first]] §6 — persist what you KNEW, not a summary of it. Third instance of that shape.
+    #
+    # ⚠ THE KEYS GO IN THE TEMPLATE OR THEY WILL NOT COME BACK. v2011 measured exactly this on
+    # `throwWhy`: it was read by the parser, absent from this template, and therefore never emitted
+    # — "a model told to reply with STRICT JSON matching a template emits the template's keys".
+    # ⚠ NULL IS THE HONEST DEFAULT, NOT ZERO. `"sockets":0` is a CLAIM that the item has none;
+    # null means the reader could not tell. Collapsing them would invent a fact about his loot.
     'Each item = {{"name":"<exact text you can read>","kind":"rune|gem|material|item",'
-    '"count":<int or null>,"throwOut":false,"throwWhy":""}}\n'
+    '"count":<int or null>,"sockets":<int or null>,"eth":<true|false|null>,'
+    '"quality":"white|blue|gold|unique|set|null",'
+    '"throwOut":false,"throwWhy":""}}\n'
+    'sockets = how many socket holes you can SEE, or null if you cannot tell. 0 means you can see '
+    'it has none. eth = true only if the tooltip or label says Ethereal, false only if you can see '
+    'it does not, else null. quality = the item colour: white normal, blue magic, gold rare, unique, '
+    'set(green) - null if the colour is not legible. NEVER GUESS ANY OF THESE FROM THE ICON ALONE: '
+    'null costs a second look, a wrong one is banked against his loot forever.\n'
     # v2017 — NEVER COMPLETE A PARTIAL NAME. READ_PROMPT has said this since the chronicle lane
     # existed ("Never invent from icons alone. Never complete partial names."). The vault prompt
     # covered the first half in its own words — "an icon you recognise but whose label you cannot

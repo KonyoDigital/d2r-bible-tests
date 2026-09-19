@@ -2322,6 +2322,12 @@ NO_JOINT_YET = {
     # saying where it just wrote; it posts prose to a queue and names no path, so there is
     # nothing machine-readable to compare the chosen root against. Claiming coverage here
     # would be claiming exactly what is missing.
+    # v3368 (#60) — NO_JOINT_YET, not COVERED_BY. The second witness would be the FRAME
+    # itself re-read for sockets, which costs a paid look and is exactly the cost this
+    # version exists to avoid paying twice. Claiming coverage would claim the thing missing.
+    'item facts captured': 'the row counts sightings carrying the three facts against sightings read by this '
+                          'prompt version; a real second source would be re-reading the frame, which costs '
+                          'a paid look.',
     'capture root live': 'the row ages the newest capture in the root the watcher chose; a real second source '
                           'would be the seat declaring its own write path, which it does not do in any '
                           'machine-readable form.',

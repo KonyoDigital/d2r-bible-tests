@@ -399,6 +399,25 @@ def normalize_item(raw, surface, lane_default, page_conf):
         "lane": lane,
         "kind": kind,
         "count": _count_of(raw.get("count")),
+        # v3368 (#60) — THE THREE FACTS THAT DECIDE A BASE ITEM'S VALUE. Until now the reader was
+        # told to look at sockets, used them to judge junk, and the fact was discarded: 44 rows on
+        # his disk, ZERO carrying sockets/eth/quality. Prices are downstream of this — an averaged
+        # price cannot be applied to a row that does not say whether the item is socketed.
+        # ⚠ NULL IS NOT ZERO AT ANY OF THE THREE. 0 sockets is a MEASUREMENT ("it has none"); null
+        # is "the reader could not tell". eth False is "visibly not ethereal"; None is "unknown".
+        # [[unknown-stays-unknown]] [[heart-first]] §6
+        "sockets": _sockets_of(raw.get("sockets")),
+        "eth": (True if raw.get("eth") is True
+                else (False if raw.get("eth") is False else None)),
+        "quality": _quality_of(raw.get("quality")),
+        # ⚠⚠ v3368 — WHICH PROMPT PRODUCED THIS ROW. Without it a null socket count from the OLD
+        # prompt (which never asked) is indistinguishable from a null the NEW one genuinely could
+        # not read, and the heart row that watches this cannot name its own population.
+        # MEASURED before adding it: `promptVer` appears 0 times in vault_seen.json, while the
+        # heart row keyed on it — a reader with no writer, which would have sat UNKNOWN forever
+        # while the version note claimed "a row records which prompt produced it".
+        # [[the-unjoined-end]] [[stale-reading]]
+        "promptVer": _prompt_ver(),
         "conf": _conf_of(raw.get("conf"), page_conf),
         "throwOut": raw.get("throwOut") is True,
         # v2011 — SAY WHEN THIS IS A DEFAULT. The reader was never asked for throwWhy in the JSON
@@ -958,6 +977,51 @@ def _vocab_of(name):
         return _al.classify(name)
     except Exception as e:
         return None, "the lexicon raised: %s" % str(e)[:90]
+
+
+def _prompt_ver():
+    """-> the vault prompt version that read this item, or None.
+
+    ⚠ None, never a guess. If tv_diablo cannot be imported the version is UNKNOWN, and stamping a
+    remembered constant would attribute the row to a prompt that may not have run.
+    """
+    try:
+        import tv_diablo as _td
+        return str(getattr(_td, "VAULT_PROMPT_VER", "") or "") or None
+    except Exception:
+        return None
+
+
+#: the colours his items actually come in, in his own words: "white/blue/gold/unique/green for set"
+QUALITIES = ("white", "blue", "gold", "unique", "set")
+
+
+def _sockets_of(v):
+    """-> int 0..6, or None. ⚠ None and 0 are DIFFERENT ANSWERS and must never collapse."""
+    if v is None or v is True or v is False:
+        return None
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return None
+    # ⚠ BOUNDED BY THE GAME, NOT BY TASTE. Nothing in D2R carries more than 6 sockets, so a larger
+    # number is a misread rather than a rare item, and banking it would be a fact about his loot
+    # that the game cannot produce.
+    return n if 0 <= n <= 6 else None
+
+
+def _quality_of(v):
+    """-> one of QUALITIES, or None. An unrecognised colour is UNKNOWN, never a nearest match."""
+    q = str(v or "").strip().lower()
+    if q in ("green",):
+        q = "set"          # his word for it; the store keeps one spelling
+    if q in ("normal",):
+        q = "white"
+    if q in ("magic",):
+        q = "blue"
+    if q in ("rare",):
+        q = "gold"
+    return q if q in QUALITIES else None
 
 
 def _grail_guard():

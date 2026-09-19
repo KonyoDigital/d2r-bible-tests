@@ -2735,6 +2735,10 @@ MINE = {
         "the detector [[visual-regression-detector]]; a guard that reports success over blank "
         "cells is my defect to fix.",
 
+    "item facts captured":
+        "#60 — capturing what the reader already SEES is MY job. He asked for garbage vs\n"
+        "HIGH QUALITY and named socketed bases; a row that drops sockets cannot answer it,\n"
+        "and no price he could supply would help.",
     "capture root live":
         "#115 — following the seat when it moves where it writes is MY job. He cannot act\n"
         "on a detector that spent 7.5 days reporting FROZEN off an abandoned folder, and\n"
@@ -3913,6 +3917,62 @@ def _check_the_second_eye_was_asked_twice():
 EVIDENCE_SINCE_MS = 1789833019729
 
 
+def _check_the_item_facts_are_reaching_the_row():
+    """v3368 (#60) — ARE SOCKETS / ETHEREAL / QUALITY ACTUALLY LANDING ON NEW SIGHTINGS?
+
+    A base item's value is decided by those three facts, not by its name. Until v3368 the reader
+    was TOLD to look at sockets, used them to form a junk opinion, and discarded the fact: 44 rows
+    on his disk, ZERO carrying any of the three.
+
+    ⚠⚠ THE FAILURE MODE IS SILENT AND LOOKS EXACTLY LIKE THE PAST. If the model stops honouring the
+    template keys, or a parse regression drops them, new rows simply arrive with all three null —
+    byte-identical to every row written before the field existed. Nothing errors. The sweep keeps
+    sweeping. It just stops recording the only facts that let a price be applied.
+    [[heart-first]] §2 — ON is not WORKING.
+
+    THREE STATES:
+      OK       -> sightings read by this prompt DO carry at least one of the three; says how many
+      MISSING  -> sightings were read by THIS prompt and NOT ONE carries any — the keys stopped
+                  coming back, and a null from the new prompt is indistinguishable from an old row
+      UNKNOWN  -> no sighting has been read by this prompt yet. ⚠ NEVER OK: that is an absent
+                  denominator, not a clean bill. [[zero-needs-a-denominator]]
+    """
+    import json as _json
+    import os as _os
+    try:
+        import tv_diablo as _td
+        ver = str(getattr(_td, "VAULT_PROMPT_VER", "") or "")
+    except Exception as e:
+        return UNKNOWN, "tv_diablo will not import, so the prompt version is unknown: %s" % str(e)[:70]
+    if not ver:
+        return UNKNOWN, "the vault prompt declares no version, so no row can be attributed to it"
+    p = _os.path.join(HERE, "vault_seen.json")
+    if not _os.path.isfile(p):
+        return UNKNOWN, "no sighting store on this machine, so nothing can be counted"
+    try:
+        with open(p, "rb") as _fh:
+            rows = (_json.loads(_fh.read().decode("utf-8", "replace")) or {}).get("rows") or []
+    except Exception as e:
+        return UNKNOWN, "the sighting store will not read: %s" % str(e)[:90]
+    # ⚠ ONLY ROWS THIS PROMPT PRODUCED. Rows from vp2017 and earlier were read by a prompt that
+    # never asked, so counting them would make this row red on the day it was born — the mistake
+    # the `fault evidence` row made and had to be given a boundary for.
+    mine = [r for r in rows if isinstance(r, dict) and str(r.get("promptVer") or "") == ver]
+    if not mine:
+        return UNKNOWN, ("no sighting has been read by prompt %s yet, so whether the three facts "
+                         "travel is UNMEASURED - not clean, and not a defect either" % ver)
+    have = [r for r in mine
+            if r.get("sockets") is not None or r.get("eth") is not None
+            or r.get("quality") is not None]
+    if not have:
+        return MISSING, ("%d sighting(s) read by %s and NOT ONE carries sockets, eth or quality. "
+                         "The template keys have stopped coming back, and a null from this prompt "
+                         "looks exactly like a row from before the fields existed"
+                         % (len(mine), ver))
+    return OK, ("%d of %d sighting(s) read by %s carry at least one of sockets/eth/quality"
+                % (len(have), len(mine), ver))
+
+
 def _check_the_capture_root_is_still_being_written():
     """v3366 (#115) — IS THE FOLDER THE SCREEN-WATCHER READS STILL RECEIVING CAPTURES?
 
@@ -4207,6 +4267,7 @@ CHECKS = [
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
+    ("item facts captured", _check_the_item_facts_are_reaching_the_row),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
@@ -4710,6 +4771,9 @@ WATCHES = {
     # v3366 (#115) — a folder on disk, with no element of its own. Empty tuple as a
     # DECLARATION: it reaches him through the eagle line.
     "capture root live":           (),
+    # v3368 (#60) — a STORE field, no element of its own yet. Empty tuple as a
+    # DECLARATION: it reaches him through the eagle line until the vault panel shows it.
+    "item facts captured":         (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never
