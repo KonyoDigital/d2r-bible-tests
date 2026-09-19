@@ -139,6 +139,57 @@ class TestARiderIsWatchedWithoutClaimingAThread(unittest.TestCase):
             "the feeder is not on the heart's rider shelf (%r). His #28 asked for it to be BUILT "
             "AND WATCHED; this is the watched half." % (names,))
 
+    # ── v3343: the last two hops. A shelf the route drops and the screen never reads ──────────
+    def test_the_route_forwards_riders_to_the_screen(self):
+        """⚠⚠ v3342 STOPPED HERE AND THIS LAW LET IT. It asserted `riders` exists in
+        heart.vessels() and went no further — at exactly the boundary this repo's most repeated
+        defect lives on. heart_state() hand-picks its keys, so the rider was computed and dropped
+        one hop later: the same fate its own beat had for 18 versions, moved along by one layer."""
+        import io as _io, os as _os, re as _re
+        with _io.open(_os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            raw = fh.read()
+        code = "\n".join(_re.sub(r"#.*$", "", l) for l in raw.split("\n"))
+        self.assertIn(
+            '"riders": rep.get("riders")', code,
+            "the /api/heart route does not forward `riders`, so heart.vessels() computes the rider "
+            "and nothing downstream ever receives it. Comments are stripped before this check "
+            "because the line above it explains exactly this. [[the-unjoined-end]]")
+
+    def test_the_console_actually_renders_the_rider(self):
+        """⚠ A forwarded key no screen reads is the same invisibility, one hop further along.
+        ANCHORED ON THE LIVE EXPRESSION, never the bare word `riders` — that appears in the comment
+        explaining the line, and a positive assertion satisfied by its own comment passes GREEN,
+        which is the quiet direction. [[source-reading-guard]] §4b"""
+        import io as _io, os as _os
+        from frame_authority import _executable_only
+        with _io.open(_os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            raw = fh.read()
+        body = _executable_only(raw, ".js")
+        self.assertGreater(
+            float(len(body)) / max(1, len(raw)), 0.50,
+            "the comment strip kept only %.1f%% of control_ui.html — every count below is "
+            "meaningless. [[zero-needs-a-denominator]]" % (100.0 * len(body) / max(1, len(raw))))
+        # ⚠⚠ ANCHOR ON THE WHOLE LIVE CONDITION, NOT THE NAME. A first cut asserted `"d.riders" in
+        # body` and came back BLIND with a CORRECT match count of 1: the sabotage
+        # `(d.riders && d.riders.length)` -> `(false && d.riders.length)` disables the render while
+        # LEAVING the substring `d.riders` in place, so the guard was satisfied by a fragment that
+        # outlives the thing it guards. That is the law being weak, not the sabotage being wrong —
+        # the one case where a correct count does mean rewrite the law.
+        # [[regression-guard]] §5a [[source-reading-guard]] §4c
+        self.assertIn(
+            "d.riders && d.riders.length", body,
+            "the heart panel does not GUARD on d.riders before rendering, so either the rider is "
+            "never drawn or an empty list prints an empty parenthetical. His #28 asked for the "
+            "feeder to be WATCHED, and watched means it reaches HIS SCREEN.")
+        self.assertIn(
+            "d.riders.map(", body,
+            "the panel never maps over the riders, so no rider is named on screen — a count with "
+            "no names cannot say WHICH lane is riding or what it rides.")
+        self.assertIn(
+            "rides", body,
+            "the rendered sentence does not name what each rider RIDES, so it reads as a lane with "
+            "a thread of its own — the claim heart.NOT_A_VESSEL exists to prevent.")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -178,6 +229,20 @@ RED_PROOF = [
         "file": "tv/heart.py",
         "find": '        "riders": riders,',
         "replace": '        "ridersX": riders,',
+        "matches": 1,
+    },
+    {
+        "why": "the route dropping the key is exactly where v3342 stopped - computed, then discarded",
+        "file": "tv/control_app.py",
+        "find": '        "riders": rep.get("riders") or [],',
+        "replace": '        "ridersX": rep.get("riders") or [],',
+        "matches": 1,
+    },
+    {
+        "why": "a key the screen never reads is the same invisibility one hop further along",
+        "file": "tv/control_ui.html",
+        "find": "      + _hrtEsc((d.riders && d.riders.length)",
+        "replace": "      + _hrtEsc((false && d.riders.length)",
         "matches": 1,
     },
 ]

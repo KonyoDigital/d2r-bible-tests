@@ -14227,6 +14227,15 @@ window._lockMark = function(isOpen, px, label){
       + 'waiting for, is readable without opening anything. They open themselves when their Wilson '
       + 'score clears the bar, and never by hand.'
       + _hrtEsc(d.notVessels ? ' (' + d.notVessels + ' one-shot tasks are excluded: they inherit their caller’s vessel, so a roster entry would be a lie.)' : '')
+      /* v3343 — A RIDER RUNS INSIDE ANOTHER LANE'S TICK AND OWNS NO THREAD, so it is never
+         counted among the vessels above. It is not nothing either: it has its own lane name
+         and its own lifetime counters. Named here with the vessel it rides, so the sentence
+         can never imply a thread that does not exist. Same model as the line above — say WHY,
+         never a bare number. */
+      + _hrtEsc((d.riders && d.riders.length)
+                ? ' (' + d.riders.length + ' rider(s) run inside another lane’s tick and own no thread, so they are supervised without being counted as vessels: '
+                  + d.riders.map(function(r){ return r.name + ' rides ' + r.rides; }).join(', ') + '.)'
+                : '')
       + _hrtEsc(age) + '</div>'
       /* ⚠⚠ CF-16 — SAY WHICH QUANTITY, OR TWO CORRECT NUMBERS READ AS A CONTRADICTION. A cold
          cross-family read of this panel reported "runeword · 105 names" against the fleet's

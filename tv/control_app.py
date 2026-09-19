@@ -19544,6 +19544,12 @@ def heart_state(force=False):
         # same half-join this whole version exists to close. [[zero-needs-a-denominator]]
         "flowingWhy": rep.get("flowingWhy", ""),
         "notVessels": rep.get("notVessels"),
+        # ⚠ v3343 — A RIDER REACHED THE MODULE AND DIED THERE. v3342 gave heart.vessels() a
+        # `riders` shelf and this route hand-picks its keys, so the feeder was computed and
+        # dropped one hop later — the same fate its own beat had for 18 versions, moved along
+        # by one layer. His #28 asks for it to be WATCHED, and watched means HE can see it.
+        # [[the-unjoined-end]]
+        "riders": rep.get("riders") or [],
         "vessels": rep.get("vessels") or [],
         "locks": locks.get("locks") or [],
         # v2487 — THE ROUTES, on the same heart, from the same report. Nine of them, each earning
@@ -30374,7 +30380,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3342",
+        "ver": "v3343",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

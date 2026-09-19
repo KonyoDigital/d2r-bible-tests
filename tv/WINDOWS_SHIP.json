@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3342",
+  "ver": "v3343",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3342: tvd-read-names-feeder shipped in v3323 with its own counters and nothing surfaced it, against his #28 ruling that it be built AND watched. The stamp was SEEN at every census and DISCARDED at every census: tick_by_encloser is a def-to-ONE-stamp map and _vault_autoread_loop stamps two lanes. A law was shouting the whole time - test_every_lane_stamps_its_own_beat has been RED in CI since v3323, eighteen versions. The law is repaired to its own stated intent, zero beats still fails, and the census now emits a RIDER row that names the vessel it rides. Vessels stays 20: a rider owns no thread and is never counted as one. HEART: riders get their own shelf in heart.vessels().",
+  "note": "v3343: v3342 gave heart.vessels a riders shelf and stopped there: the api heart route hand-picks its keys and dropped it, and control_ui.html never read it, so the feeder was computed and discarded ONE HOP LATER than before. My own law permitted that by asserting the key exists in the module and going no further, at exactly the boundary where this repo keeps finding its most repeated defect. The route now forwards riders and the heart panel names each one with the vessel it rides. HEART: the rider shelf is rendered in the heart panel, and the law now reaches the route and the screen instead of stopping at the module.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
