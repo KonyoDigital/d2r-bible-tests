@@ -350,6 +350,47 @@ def absent_from(sha, body):
     return [f for f in (l.strip() for l in names.splitlines()) if f and f not in sent], ""
 
 
+#: a `why=` in run_gates.py is a SHIP NOTE — prose wearing code's clothes. `_strip_comments`
+#: cannot touch it because it is a string LITERAL, so the eye pays full price for it out of a
+#: budget that truncates. MEASURED over the last 24 versions: run_gates.py took 31.5% of v3354's
+#: whole payload and the file that version exists to change reached 0% of it.
+#: ⚠⚠ NO PARENTHESES IN THIS PATTERN, AND THE LAW CAUGHT WHY ON ITS FIRST RUN. The first cut
+#: allowed an optional `(` before the chunks and an optional `)` after them, and on
+#: `why="a one line note"),` it ATE THE CLOSING PAREN — handing the eye a diff whose `Gate(...)`
+#: call no longer closes. Mangling registration structure is the `gate_insert_missing_comma`
+#: family, and the file-header count I measured with could not see it: a broken diff still has
+#: its `diff --git` lines. The pattern now touches the `why=` and its string chunks and nothing
+#: else; a parenthesised note is simply left alone, which costs reach and cannot cost correctness.
+_WHY_NOTE_RX = re.compile(
+    r'why=\s*(?:"(?:[^"\\]|\\.)*"\s*|\'(?:[^\'\\]|\\.)*\'\s*)+', re.S)
+
+
+def _strip_ship_notes(diff):
+    """Replace every `why=` ship note in a diff with a stub, KEEPING THE LINE COUNT.
+
+    ⚠⚠ THE NEWLINES ARE THE WHOLE TRICK, AND MY FIRST CUT LOST THEM. Collapsing a multi-line
+    `why=` onto one line pulls the NEXT `diff --git` off the start of its own line, and every
+    line-anchored reader — including the one measuring whether this change helps — stops seeing
+    that file. That instrument reported the strip making THREE versions blinder; with the line
+    count preserved the same measurement says 65 missed files -> 58 over 24 versions, 6 better
+    and ZERO worse. The regression was mine, in the measuring tool, not in the idea.
+    [[feedback-suspect-the-instrument]] [[source-reading-guard]]
+
+    ⚠ ONLY THE NOTE. The `Gate(...)` registrations around it are real code — a missing separating
+    comma there is a live defect class in this repo — so nothing else in run_gates.py is touched.
+
+    ⚠⚠ AND IT REMOVES LESS THAN IT LOOKS LIKE, STATED SO THE NUMBER IS NOT OVER-READ. In a DIFF
+    every continuation line begins with `+`, `-` or a space, and the pattern's `\s*` cannot cross
+    that marker — so a note spanning five lines loses its FIRST quoted chunk and keeps the rest.
+    That is deliberate: widening the pattern to eat `^[+- ]\s*"..."` would start eating ordinary
+    string literals in ordinary code, and the 65 -> 58 measurement above is of THIS narrow form,
+    not of a fuller one. A wider strip needs its own measurement before it is worth anything.
+    """
+    def _repl(m):
+        return 'why="<ship note stripped for the eye>"' + "\n" * m.group(0).count("\n")
+    return _WHY_NOTE_RX.sub(_repl, diff or "")
+
+
 def payload_for(sha):
     """-> (prompt, dropped_note). Code only, comments stripped, truncation declared."""
     # ⚠ PYTHON FIRST, and the reason is measurable: control_ui.html diffs in this repo run to tens
@@ -360,13 +401,21 @@ def payload_for(sha):
                     "--", "*.py", "*.mjs", "*.sh"], timeout=90)
     if out is None:
         return None, why
-    body = _strip_comments(out)
+    # ⚠⚠ v3360 — THE SHIP NOTES GO BEFORE THE CAP DOES. run_gates.py carries one `why=` per gate
+    # and each is a paragraph of prose the eye never needs to review; `_strip_comments` cannot
+    # reach them because they are string LITERALS. MEASURED on v3354: corroborate.py 59.3%,
+    # run_gates.py 31.5%, control_app.py 9.2% — and tv/second_eye_ledger.py, the file that version
+    # exists to change, got 0%. Over the last 24 versions this recovers 7 changed files that never
+    # reached the eye (65 missed -> 58), 6 versions better and none worse.
+    # ⚠ It does NOT widen the cap. v3299 ruled that cost is HIS; this only stops spending the
+    # budget on prose. [[the-unjoined-end]]
+    body = _strip_ship_notes(_strip_comments(out))
     _full_len_holder = [body]
     if len(body) < _cap():
         _more, _ = _sh(["git", "show", "--format=", "--unified=3", sha, "--", "*.html"],
                        timeout=90)
         if _more:
-            body = body + "\n" + _strip_comments(_more)
+            body = body + "\n" + _strip_ship_notes(_strip_comments(_more))
     _full_len_holder = [body]
     dropped = ""
     if len(body) > _cap():
