@@ -85,10 +85,19 @@ def _marks():
         with io.open(MARKS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else None
-    except IOError:
+    # ⚠⚠ v3355 — `FileNotFoundError`, NOT `IOError`. In Python 3 `IOError is OSError` (measured
+    # True), so `except IOError` also catches PermissionError, IsADirectoryError and EMFILE — an
+    # EXISTING, GOOD store that merely cannot be READ took the ABSENT arm and this returned {}.
+    # MEASURED on a real file holding watermarks 179, 180 and 230 at mode 000: `_marks()` gave {}
+    # and `--mark` would then write {"999": 1} over it, destroying all three — the exact wipe the
+    # docstring above says must never happen, surviving inside the fix written to prevent it and
+    # separated from it only by an errno the `except` clause cannot see.
+    # ⚠ The second arm's comment said "malformed/unreadable" and only MALFORMED ever reached it:
+    # a JSON error is a ValueError, an unreadable FILE is an OSError. Now both land there.
+    except FileNotFoundError:
         return {}            # absent: nothing marked yet, and that IS a measurement
     except Exception:
-        return None          # malformed/unreadable: UNKNOWN
+        return None          # malformed OR unreadable: UNKNOWN
 
 
 def _classify(body):

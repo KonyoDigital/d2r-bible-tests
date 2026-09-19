@@ -2739,7 +2739,10 @@ MINE = {
         "#56 — asking the eye twice is MY job, not his. He cannot act on a look I did not take, "
         "so a SINGLE look must never appear in the count he reads. ⚠ It still renders red, "
         "because the omission is real and I spent a whole arc reporting pairs I had not recorded.",
-    "extraction lanes": "#75 — the vault lane cannot seal 'examined, nothing here'",
+    "swallowed reads":
+        "#108 — a failed read handed back as data is a defect in MY code, never a thing he can "
+        "act on. It went red in CI for ten runs with no surface at all; this row is the surface.",
+        "extraction lanes": "#75 — the vault lane cannot seal 'examined, nothing here'",
     "board join": "#76 — _BOARD_WIN is set in a child process the server cannot read",
 }
 
@@ -3723,6 +3726,71 @@ def _check_the_screen_is_still_painting():
                    "speak for now" % (len(stale), STALE_S / 3600.0)))
 
 
+def _check_a_failed_read_is_never_handed_back_as_data():
+    """The swallow ratchet's RANK 1 — a failed read served to a caller as 0 / {} / [] / ''.
+
+    ⚠⚠ v3355 — THIS RATCHET WAS RED IN CI FOR TEN CONSECUTIVE RUNS AND NOTHING SAID SO. Routine M
+    runs `tv/swallow_census.py --check` and reported 76 against a baseline of 74 on every push from
+    at least v3344 to v3353. The pre-push hook derives its gates from CHANGED TEST FILES and never
+    runs the full set, so the only reader was a CI page nobody opened. A red nobody reads is the
+    same as a green. [[regression-guard]] §2 [[the-unjoined-end]]
+
+    WHAT THE TWO EXTRA SITES WERE, when they were finally read: three loaders written by v3325 to
+    refuse an unread store, each saying `except IOError: return {}`. `IOError is OSError` in
+    Python 3, so an EXISTING store that merely could not be READ took the ABSENT arm — and every
+    one of those loaders feeds a caller that writes the whole dict back. Measured on a real file
+    holding watermarks 179, 180 and 230 at mode 000: `--mark` would have written `{"999": 1}`
+    over all three.
+
+    ⚠ IT REPORTS THE BASELINE BESIDE THE COUNT, ALWAYS. "76 sites" alone is not a verdict about
+    anything; 76 against 74 is. [[zero-needs-a-denominator]]
+    """
+    try:
+        import swallow_census as _sc
+    except Exception as e:
+        return UNKNOWN, "the swallow census will not import: %s" % str(e)[:90]
+    try:
+        # ⚠ LOCAL IMPORTS. This module does not import `io` or `json` at the top, and the first
+        # cut of this row used a bare `io.open`. The UNKNOWN arm below caught it and NAMED the
+        # NameError rather than swallowing it — which is the only reason it took one run instead
+        # of forever. The same slip in this same file once made a guard answer "no browser suite
+        # here" for every input, because a bare `except Exception: continue` ate it. [[test-venue]]
+        import io as _io
+        import json as _json
+        _bp = _sc._baseline_path()
+        _base = _json.load(_io.open(_bp, encoding="utf-8"))
+    except Exception as e:
+        # ⚠ A count with no baseline is not a verdict, so this is UNKNOWN rather than a number.
+        return UNKNOWN, ("the ratchet baseline could not be read (%s), so a site count has "
+                         "nothing to be measured against" % str(e)[:90])
+    try:
+        _by = _sc._rank1_by_file(_sc.scan())
+    except Exception as e:
+        return UNKNOWN, "the census raised: %s" % str(e)[:110]
+    _now = sum(_by.values())
+    # ⚠ THE BASELINE IS NESTED, and reading it flat is how a count becomes a type error. The file
+    # carries `_why`, `counts` and `rank1ByFile`; the ratchet's number is counts.rank1 and the
+    # per-file breakdown is rank1ByFile. Summing the top level once produced
+    # `int() argument must be ... not 'dict'`, caught on the first run of this row.
+    _was_by = dict(_base.get("rank1ByFile") or {})
+    _was = int((_base.get("counts") or {}).get("rank1") or 0)
+    if not _was:
+        return UNKNOWN, ("the baseline records no rank-1 total, so %d site(s) here has nothing to "
+                         "be measured against" % _now)
+    if _now > _was:
+        _rose = sorted(((f, n, int(_was_by.get(f, 0))) for f, n in _by.items()
+                        if n > int(_was_by.get(f, 0))), key=lambda t: t[2] - t[1])
+        _where = ", ".join("%s %d->%d" % (f, w, n) for f, n, w in _rose[:3])
+        return MISSING, ("%d site(s) hand a failed read back as DATA, against a baseline of %d — "
+                         "a caller cannot tell that from a real measurement (%s)"
+                         % (_now, _was, _where or "no single file rose"))
+    if _now < _was:
+        return MISSING, ("down to %d from a baseline of %d — good, and the baseline must move with "
+                         "it (python3 tv/swallow_census.py --write-baseline) or the gap becomes "
+                         "slack a future regression can hide inside" % (_now, _was))
+    return OK, "no failed read is handed back as data beyond the %d known site(s)" % _was
+
+
 def _check_the_second_eye_was_asked_twice():
     """v3310 (#56) — was the last shipped version looked at TWICE, and did the looks AGREE?
 
@@ -3826,6 +3894,7 @@ CHECKS = [
     ("relaunch green light", _check_a_held_relaunch_is_not_stuck),
     # v3310 (#56) — his ruling is ask TWICE and keep both. Named in MINE below: a single look is
     # MY omission, not something he can act on.
+    ("swallowed reads", _check_a_failed_read_is_never_handed_back_as_data),
     ("second eye asked twice", _check_the_second_eye_was_asked_twice),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
@@ -3994,7 +4063,17 @@ SLOW = ("the other doctors",)
 # So: SLOW keeps its meaning (on demand only, ~2 minutes, a human is waiting). PERIODIC is the
 # honest tier for a check that is too expensive for every ten-minute tick and too important to go
 # unwatched — it runs unattended on a longer cadence instead of not at all.
-PERIODIC = ("engines corroborate", "sweep would find")
+# ⚠⚠ v3355 — "swallowed reads" JOINED PERIODIC BECAUSE THE PUSH GATE REFUSED IT, correctly.
+# The row parses every .py in the tree to recount the swallow census, and that costs
+# 2,436 / 2,436 / 2,455 / 2,433 ms measured four times on an IDLE machine against a 3,000 ms
+# budget. It PASSED a full test_control run minutes earlier and then failed the gate at
+# 3,668 ms and 3,272 ms on retry — so the earlier pass was ~550 ms of headroom, not cheapness.
+# A check that clears a budget only while nothing else is running is not cheap, it is lucky, and
+# the cheap subset runs on the ten-minute timer AND at every console boot.
+# ⚠ PERIODIC, not SLOW: SLOW means NEVER RUNS UNATTENDED, and a ratchet nobody reads is the exact
+# defect this row was added for — it had been red in CI for ten runs with no surface at all.
+# Precedent tier: engines corroborate at 6,638-13,038 ms and sweep would find at 1,660-16,585 ms.
+PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -4289,6 +4368,8 @@ WATCHES = {
     # a element id anyone can point at. When it gets a lamp, name it here.
     "relaunch green light":        (),
     # v3310 — the ledger is a file, not a screen. Empty tuple as a DECLARATION, not an omission.
+    # v3355 — a source census, not a screen. Empty tuple as a DECLARATION, not an omission.
+    "swallowed reads":             (),
     "second eye asked twice":      (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE

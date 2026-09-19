@@ -162,6 +162,31 @@ def _checked_right_after(handler):
     return False
 
 
+#: exception classes that mean THERE IS NOTHING TO READ, as opposed to THE READ FAILED. Absence is
+#: a state of the world a caller can act on; a failure is not. Kept deliberately to the one class
+#: that carries no other meaning — PermissionError, IsADirectoryError and the rest are failures.
+ABSENCE_ONLY = frozenset(("FileNotFoundError",))
+
+
+def _catches_absence_only(handler):
+    """Does this `except` clause catch absence and NOTHING wider? -> bool
+
+    ⚠ A bare `except:` and `except Exception:` both answer False, and so does any tuple carrying
+    one wider name. `IOError` is the case this exists to refuse: it IS `OSError` in Python 3, so
+    it reads as absence and catches every failure there is.
+    """
+    t = getattr(handler, "type", None)
+    if isinstance(t, ast.Name):
+        names = {t.id}
+    elif isinstance(t, ast.Tuple):
+        names = {x.id for x in t.elts if isinstance(x, ast.Name)}
+        if len(names) != len(t.elts):
+            return False                     # something that is not a bare name — refuse to judge
+    else:
+        return False                         # bare except, or an expression we cannot read
+    return bool(names) and names <= ABSENCE_ONLY
+
+
 def _rank(try_node, handler):
     calls = _calls(ast.Module(body=list(try_node.body), type_ignores=[]))
     reads = [c for c in calls if c in READS]
@@ -184,6 +209,26 @@ def _rank(try_node, handler):
         if shape == "assign-falsy" and _checked_right_after(handler):
             return 2, "a failed %s assigns %s and the very next statements TEST it — a checked " \
                       "sentinel, not a claim" % (reads[0], hb)
+        # ⚠⚠ v3355 — AN ABSENCE IS A MEASUREMENT; ONLY A FAILURE IS A LIE. This rule asked what
+        # the handler RETURNS and never what it CATCHES, so `except FileNotFoundError: return {}`
+        # ranked identically to `except OSError: return {}` — and those are opposite facts. A file
+        # that has never been written and a store written as {} mean the SAME thing to a caller:
+        # nothing recorded. A file that exists and cannot be opened means something else entirely.
+        #
+        # ⚠ IT COST A WHOLE FIX. v3355 repaired three loaders from `except IOError` (which is
+        # `except OSError`, so it caught PermissionError on an existing store and returned {}) to
+        # `except FileNotFoundError`. The defect was real, the fix was real — and this count did
+        # not move, because the ranker could not tell the two apart. A ratchet whose number
+        # survives the repair of the thing it flagged teaches its reader to re-baseline.
+        #
+        # ⚠ NARROW ON PURPOSE: a BARE except, `except Exception` or any tuple containing something
+        # wider gets NO pass. Only a clause that catches absence and nothing else.
+        # MEASURED: 6 of 76 rank-1 sites qualify, so rank 1 goes 76 -> 70 and the baseline moves
+        # down with it in this same commit. [[unknown-stays-unknown]]
+        if hb in LIES_AS_DATA and _catches_absence_only(handler):
+            return 2, "a failed %s becomes %s, but the handler catches ABSENCE ONLY — a store " \
+                      "that was never written and one written empty are the same fact" \
+                      % (reads[0], hb)
         if hb in LIES_AS_DATA:
             return 1, "a failed %s becomes %s — 'could not ask' is indistinguishable from a real " \
                       "measurement" % (reads[0], hb)

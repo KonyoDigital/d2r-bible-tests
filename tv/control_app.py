@@ -24111,10 +24111,15 @@ def _shadow_watch_stored():
         with open(_shadow_watch_path(), encoding="utf-8") as fh:
             j = json.load(fh)
         return j if isinstance(j, dict) else None
-    except IOError:
+    # ⚠⚠ v3355 — `FileNotFoundError`, NOT `IOError`. `IOError is OSError` in Python 3 (measured
+    # True), so the ABSENT arm was also catching PermissionError and IsADirectoryError: an
+    # existing store that cannot be READ returned {}, and `_shadow_watch_note` then wrote
+    # `{} + kw` over it. The comment six lines above already described this destruction exactly
+    # and the code under it committed it. [[measured-true-read-wrong]] [[unknown-stays-unknown]]
+    except FileNotFoundError:
         return {}            # absent: never written yet, and that IS a measurement
     except Exception:
-        return None          # malformed/unreadable: UNKNOWN
+        return None          # malformed OR unreadable: UNKNOWN
 
 
 def _shadow_watch_note(**kw):
@@ -24264,10 +24269,14 @@ def _rnf_load():
         with io.open(_rnf_path(), encoding="utf-8") as fh:
             d = json.load(fh)
         _RNF_STORE["readable"] = d if isinstance(d, dict) else None
-    except IOError:
+    # ⚠⚠ v3355 — `FileNotFoundError`, NOT `IOError`. Same shape as the two sites this version
+    # repairs: `IOError is OSError`, so an unreadable-but-present store took the ABSENT arm,
+    # `readable` became {} rather than None, and `_rnf_save` — which refuses only on None — wrote
+    # runs/banked/lastTs straight over a real history.
+    except FileNotFoundError:
         _RNF_STORE["readable"] = {}          # absent is MEASURED-AND-EMPTY: a lane that never ran
     except Exception:
-        _RNF_STORE["readable"] = None        # malformed is UNKNOWN and must not be overwritten
+        _RNF_STORE["readable"] = None        # malformed OR unreadable: UNKNOWN, never overwritten
     return _RNF_STORE["readable"]
 
 
@@ -30400,7 +30409,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3354",
+        "ver": "v3355",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

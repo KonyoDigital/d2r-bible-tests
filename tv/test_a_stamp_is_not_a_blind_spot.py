@@ -260,6 +260,51 @@ class HisRealLedgerStopsWarningOnEverything(unittest.TestCase):
             "it has been turned off rather than sharpened. [[regression-guard]] §5")
 
 
+class TheCorroboratorReadsONESnapshot(unittest.TestCase):
+    """⚠⚠ THE CROSS-FAMILY EYE FOUND THIS ON THE DAY v3354 SHIPPED, and it reproduces.
+
+    `_inv_a_stored_reach_still_matches_git` had each side call `_rows_with_reach()` for itself.
+    The ledger is APPEND-ONLY and `second_eye_run --answer-in` writes to it, so one row landing
+    between the two calls makes a perfectly healthy store report DISAGREE. REPRODUCED by handing
+    the sides populations of 1 and 2 rows: left 0, right 1, relation "==" false, no defect
+    anywhere. The asymmetric case is worse — one side None and the other a number reads as
+    UNKNOWN, which is the agreement-about-nothing this invariant exists to refuse.
+
+    ⚠ Sharing the SUBJECT is not self-corroboration. The METHOD must differ — the stored dict on
+    one side, git on the other; two sides judging different rows corroborate nothing at all.
+    """
+
+    def test_both_sides_judge_the_same_rows(self):
+        import corroborate as C
+        import second_eye_ledger as SEL
+        A = {"version": "vX", "sha": "c08875ad", "absent": ["bible.html"],
+             "absentKind": {"bible.html": "stamp"}}
+        B = {"version": "vY", "sha": "e850b847", "absent": ["bible.html"],
+             "absentKind": {"bible.html": "substantive"}}
+        calls = {"n": 0}
+        real = SEL._rows
+
+        def growing(path=None):
+            calls["n"] += 1
+            return [A] if calls["n"] == 1 else [A, B]
+        SEL._rows = growing
+        try:
+            _n, _d, _s, _ln, left, _rn, right, rel = C._inv_a_stored_reach_still_matches_git()
+            l, r = left(), right()
+        finally:
+            SEL._rows = real
+        self.assertEqual(
+            calls["n"], 1,
+            "the ledger was read %d times while building one reading. The store is append-only "
+            "and a look can land between the two calls, so the two sides would be judging "
+            "different populations." % calls["n"])
+        self.assertEqual(
+            l, r,
+            "a row appended between the two sides made a healthy store report %r vs %r. A "
+            "supervisor that cries wolf on its own timing is worse than no supervisor."
+            % (l, r))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -286,6 +331,14 @@ RED_PROOF = [
         "file": "tv/second_eye_ledger.py",
         "find": "    out = \"unknown\"\n    try:\n        p = subprocess.Popen",
         "replace": "    out = \"stamp\"\n    try:\n        p = subprocess.Popen",
+        "matches": 1,
+    },
+    {
+        "why": "giving each side of the corroborator its own ledger read lets one appended look "
+               "make a healthy store report DISAGREE — reproduced at 0 vs 1 with no defect present",
+        "file": "tv/corroborate.py",
+        "find": "    def left():\n        rows = _snapshot",
+        "replace": "    def left():\n        rows = _rows_with_reach()",
         "matches": 1,
     },
     {

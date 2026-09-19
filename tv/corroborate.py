@@ -373,8 +373,21 @@ def _inv_a_stored_reach_still_matches_git():
         # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
         return mine or None
 
+    # ⚠⚠ ONE SNAPSHOT, READ ONCE, SHARED BY BOTH SIDES — and the cross-family eye found this on
+    # the day v3354 shipped. Each side used to call `_rows_with_reach()` for itself, and the
+    # ledger is an APPEND-ONLY file that `second_eye_run --answer-in` writes: a single row landing
+    # between the two calls makes a perfectly healthy store report DISAGREE. REPRODUCED by handing
+    # the sides populations of 1 and 2 rows: left 0, right 1, relation "==" false, no defect
+    # present. The asymmetric case is worse still — one side None and the other a number reads as
+    # UNKNOWN, which is the "agreement about nothing" this invariant was written to refuse.
+    #
+    # ⚠ SHARING THE SUBJECT IS NOT SELF-CORROBORATION. What must be independent is the METHOD —
+    # the stored dict on one side, git on the other — never the rows being judged. Two sides
+    # looking at different subjects are not corroborating anything.
+    _snapshot = _rows_with_reach()
+
     def left():
-        rows = _rows_with_reach()
+        rows = _snapshot
         if rows is None:
             return None
         n = 0
@@ -389,7 +402,7 @@ def _inv_a_stored_reach_still_matches_git():
         return n
 
     def right():
-        rows = _rows_with_reach()
+        rows = _snapshot
         if rows is None:
             return None
         n = 0
