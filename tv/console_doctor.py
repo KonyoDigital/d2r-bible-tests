@@ -2735,6 +2735,10 @@ MINE = {
         "the detector [[visual-regression-detector]]; a guard that reports success over blank "
         "cells is my defect to fix.",
 
+    "capture root live":
+        "#115 — following the seat when it moves where it writes is MY job. He cannot act\n"
+        "on a detector that spent 7.5 days reporting FROZEN off an abandoned folder, and\n"
+        "the failure was silent: nothing errored, it simply answered about the wrong one.",
     "fault evidence":
         "#24 — a recorder that destroys its own evidence before writing the row is MY\n"
         "defect. He reported the black stage twice with screenshots; the machine had 27\n"
@@ -3909,6 +3913,54 @@ def _check_the_second_eye_was_asked_twice():
 EVIDENCE_SINCE_MS = 1789833019729
 
 
+def _check_the_capture_root_is_still_being_written():
+    """v3366 (#115) — IS THE FOLDER THE SCREEN-WATCHER READS STILL RECEIVING CAPTURES?
+
+    This row is the supervision that was missing for 7.5 days. The seat moved where it writes; the
+    frozen-screen detector kept reading the folder it left behind; and because a folder nobody
+    writes to has a newest-two that are BYTE-IDENTICAL by construction, it reported FROZEN the
+    whole time — a confident claim about a screen it was not looking at.
+
+    MEASURED 2026-09-19, same code, two roots: the abandoned one said FROZEN (425 PNGs, newest
+    178.9 h old); the live one said MOVING (2,692 PNGs, newest 0.4 h old).
+
+    ⚠⚠ NOTHING WAS BROKEN. No exception, no empty result, no missing file. The detector ran every
+    time it was asked and answered fluently about the wrong folder. That is the failure this row
+    exists for, and it is why the question here is about the RECORDER, never about his screen:
+    a detector reading a dead folder is not a detector. [[stale-reading]] [[heart-first]] §2
+
+    THREE STATES:
+      OK       -> captures are arriving; says how old the newest one is
+      MISSING  -> the root has gone quiet past the measured bound — the RECORDER stopped, and any
+                  FROZEN verdict drawn from it is about then, not now
+      UNKNOWN  -> no root exists here, or it holds no captures at all. ⚠ NEVER OK: a machine with
+                  no capture folder cannot report on his screen. [[zero-needs-a-denominator]]
+    """
+    try:
+        import frozen_frame_watch as W
+    except Exception as e:
+        return UNKNOWN, "the frozen-frame watcher will not import: %s" % str(e)[:90]
+    try:
+        root = W.shelf_dir()
+        age = W.newest_capture_age_s(root)
+    except Exception as e:
+        return UNKNOWN, "the capture root could not be resolved: %s" % str(e)[:110]
+    short = os.path.basename(root.rstrip("/")) or root
+    if not os.path.isdir(root):
+        return UNKNOWN, ("no capture folder on this machine (%s), so nothing here can say whether "
+                         "his screen is painting - that is not a clean bill" % short)
+    if age is None:
+        return UNKNOWN, ("the capture folder %s holds no captures at all, so its liveness is "
+                         "UNMEASURED - not clean" % short)
+    if age > W.STALE_ROOT_S:
+        return MISSING, ("the capture folder %s has received nothing for %.1f h (bound %.1f h). "
+                         "Any frozen-screen verdict from it describes THEN, not now - and a folder "
+                         "nobody writes to always looks frozen"
+                         % (short, age / 3600.0, W.STALE_ROOT_S / 3600.0))
+    return OK, ("captures are arriving in %s - newest is %.1f min old (bound %.1f h)"
+                % (short, age / 60.0, W.STALE_ROOT_S / 3600.0))
+
+
 def _check_a_ui_fault_keeps_its_evidence():
     """v3365 (#24) — ARE NEW UI FAULTS STILL ARRIVING WITH A PRE-RESCUE SNAPSHOT?
 
@@ -4154,6 +4206,7 @@ CHECKS = [
     ("eye reach per file", _check_the_eye_reach_is_still_being_measured),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
+    ("capture root live", _check_the_capture_root_is_still_being_written),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
@@ -4654,6 +4707,9 @@ WATCHES = {
     # v3365 (#24) — the fault ledger is a FILE. Empty tuple as a DECLARATION, not an
     # omission: it reaches him through the eagle line, not through an element of its own.
     "fault evidence":              (),
+    # v3366 (#115) — a folder on disk, with no element of its own. Empty tuple as a
+    # DECLARATION: it reaches him through the eagle line.
+    "capture root live":           (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never

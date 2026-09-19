@@ -73,9 +73,82 @@ MIN_GAP_S = 2.0
 #: would make the denominator a lie. [[zero-needs-a-denominator]]
 MIN_WINDOW_W, MIN_WINDOW_H = 640, 480
 
+#: ⚠⚠ HOW OLD THE NEWEST CAPTURE MAY BE BEFORE THIS TOOL STOPS TALKING ABOUT HIS SCREEN.
+#: This is the constant #115 exists for. MEASURED 2026-09-19 on the folder the seat actually
+#: writes — 2,804 captures — the gap between consecutive frames is: median 8.0s, p90 58.0s,
+#: p99 1,070s, and the WORST observed gap in the whole history is 0.8 h. The folder this tool had
+#: been reading for 7.5 days had a newest capture 178.9 h old, which is 220x that worst live gap.
+#: 2 h is ~2.5x the worst live gap and ~1/90th of the dead one, so it separates the two by a wide
+#: margin instead of splitting them finely. It is a bound on the RECORDER, never on his screen.
+#: [[feedback-threshold-above-the-ceiling]] — stated with its denominator so it can be moved.
+STALE_ROOT_S = 2 * 3600
+
+
+def newest_capture_age_s(root, now=None):
+    """-> seconds since the newest PNG in `root`, or None when there is nothing to age.
+
+    ⚠ None is UNKNOWN, never 0. An empty folder has no age, and answering 0 would make it look
+    like a capture had just arrived. [[unknown-stays-unknown]]
+    """
+    newest = None
+    try:
+        for dirpath, _dirs, files in os.walk(root):
+            for f in files:
+                if not f.lower().endswith(".png"):
+                    continue
+                try:
+                    m = os.path.getmtime(os.path.join(dirpath, f))
+                except (IOError, OSError):
+                    continue
+                if newest is None or m > newest:
+                    newest = m
+    except (IOError, OSError):
+        return None
+    if newest is None:
+        return None
+    return max(0.0, (now if now is not None else time.time()) - newest)
+
+
+#: ⚠⚠ v3366 (#115) — THE SEAT MOVED AND NOTHING NOTICED FOR 7.5 DAYS. A single hardcoded default
+#: is a guess about where another program writes, and it was wrong for a week while this tool
+#: reported FROZEN off the folder it left behind. Repointing the constant would only move the guess.
+#: So the known roots are a LIST, the freshest one that actually has captures wins, and the chosen
+#: root travels on every verdict beside its age — a self-correcting choice that is never silent.
+#: ⚠ No absolute path: the repo is PUBLIC, so these are ~-relative and carry no username.
+KNOWN_ROOTS = ("~/gb-shelf", "~/Desktop/CLAUDE HERE/tv-diablo-eyes/verify-evidence")
+
+_ROOT_MEMO = [None]
+
 
 def shelf_dir():
-    return os.path.expanduser(os.environ.get(SHELF_ENV) or SHELF_DEFAULT)
+    """-> the capture folder. Env wins; otherwise the KNOWN root with the freshest capture.
+
+    ⚠ FRESHEST, NOT FIRST. Choosing by order is how a folder that stopped being written to keeps
+    being read. Choosing by freshness means the day the seat moves again, this follows it — and
+    because `report()` publishes both `root` and `newestAgeS`, the choice is always visible rather
+    than inferred. [[stale-reading]]
+    """
+    env = os.environ.get(SHELF_ENV)
+    if env:
+        return os.path.expanduser(env)
+    # ⚠ MEMOISED FOR THE PROCESS. Choosing by freshness walks each candidate, and report()
+    # resolves the root more than once per run - on the live folder that is ~6,000 files a
+    # walk. The chosen root need not change within one process, and re-walking it on every
+    # doctor tick is the poll-slower-than-its-interval shape. [[poll-slower-than-its-interval]]
+    if _ROOT_MEMO[0] is not None:
+        return _ROOT_MEMO[0]
+    best, best_age = None, None
+    for cand in KNOWN_ROOTS:
+        d = os.path.expanduser(cand)
+        if not os.path.isdir(d):
+            continue
+        age = newest_capture_age_s(d)
+        if age is None:
+            continue
+        if best_age is None or age < best_age:
+            best, best_age = d, age
+    _ROOT_MEMO[0] = best or os.path.expanduser(SHELF_DEFAULT)
+    return _ROOT_MEMO[0]
 
 
 def png_geometry(path):
@@ -210,6 +283,9 @@ def report(root=None, now=None):
               "cropGeometries": len(crops),
               "cropFrames": sum(c["frames"] for c in crops)}
 
+    # computed for every verdict, not only the stale one: a reader must be able to see the age
+    # beside a MOVING or FROZEN answer and judge it, without rerunning anything.
+    _age_s = newest_capture_age_s(root, now=now)
     if not os.path.isdir(root):
         state, why = UNKNOWN, ("the capture folder does not exist here, so nothing about his "
                                "screen is known from this machine. That is not a clean bill.")
@@ -217,6 +293,22 @@ def report(root=None, now=None):
         state, why = UNKNOWN, ("read %d PNG(s) across %d geometry(ies) and NONE had two frames of "
                                "the same window to compare. Nothing was measured."
                                % (len(fs), len(groups)))
+    elif _age_s is not None and _age_s > STALE_ROOT_S:
+        # ⚠⚠ #115 — THE ARM THIS TOOL SPENT 7.5 DAYS WITHOUT, AND IT ANSWERED "FROZEN" THE WHOLE
+        # TIME. The capture folder moved; this kept reading the old one; and a folder nobody writes
+        # to has a newest-two that are byte-identical BY CONSTRUCTION. MEASURED both ways, minutes
+        # apart, same code: the dead root said FROZEN (1 of 17 series, 425 PNGs), the live root said
+        # MOVING (all painting, 2,692 PNGs).
+        # A FROZEN verdict is a claim about HIS SCREEN. When the newest capture is hours old the
+        # only supportable claim is about the RECORDER, and those two must never share a word.
+        # ⚠ IT SITS ABOVE THE FROZEN ARM ON PURPOSE. Below it, `counts["frozen"]` wins first and
+        # the age is computed, stored and never consulted — which is this repo's most repeated
+        # defect wearing a fresh coat. [[stale-reading]] [[the-unjoined-end]]
+        state = UNKNOWN
+        why = ("the newest capture in this folder is %.1f h old (bound %.1f h), so NOTHING here is "
+               "evidence about his screen now — it is evidence about then. This is a statement "
+               "about the RECORDER, not about whether the screen is painting."
+               % (_age_s / 3600.0, STALE_ROOT_S / 3600.0))
     elif counts["frozen"]:
         state = FROZEN
         why = ("%d of %d comparable window series stopped painting (%d PNG(s) read)"
@@ -229,7 +321,11 @@ def report(root=None, now=None):
         why += (" — %d frame(s) across %d sub-window geometry(ies) were excluded as crops, not "
                 "windows" % (counts["cropFrames"], counts["cropGeometries"]))
     return {"state": state, "why": why, "series": series, "crops": crops,
-            "counts": counts, "root": root}
+            "counts": counts, "root": root,
+            # ⚠ None = nothing to age (empty folder), never 0. A reader that sees 0 would read
+            # "a capture just arrived". [[unknown-stays-unknown]]
+            "newestAgeS": (round(_age_s, 1) if _age_s is not None else None),
+            "staleBoundS": STALE_ROOT_S}
 
 
 if __name__ == "__main__":

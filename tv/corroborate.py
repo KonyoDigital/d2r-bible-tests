@@ -2318,6 +2318,13 @@ NO_JOINT_YET = {
     # v3365 (#24) — NO_JOINT_YET, not COVERED_BY: the second witness would be a RENDERED
     # capture of the stage at the instant it went blank, and nothing captures on that
     # trigger. The render targets prove a page CAN paint, never that it did at 12s.
+    # v3366 (#115) — NO_JOINT_YET, not COVERED_BY. The second witness would be the SEAT
+    # saying where it just wrote; it posts prose to a queue and names no path, so there is
+    # nothing machine-readable to compare the chosen root against. Claiming coverage here
+    # would be claiming exactly what is missing.
+    'capture root live': 'the row ages the newest capture in the root the watcher chose; a real second source '
+                          'would be the seat declaring its own write path, which it does not do in any '
+                          'machine-readable form.',
     'fault evidence': 'the row counts snapshots on console-reported fault rows; the real second source '
                           'would be a capture taken at the moment the stage went blank, and no capture is '
                           'triggered by that event.',

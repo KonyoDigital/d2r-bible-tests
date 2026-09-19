@@ -173,7 +173,12 @@ CAPTURE_EXTS = (".png",)
 
 #: where Grok Bot puts his window. Only a DEFAULT for the CLI — nothing in this module reads it
 #: unless a caller asks for it, and no test may point at it. [[feedback-fixtures-never-touch-live-data]]
-DEFAULT_DIR = os.path.expanduser("~/gb-shelf")
+#: ⚠⚠ v3366 (#115) — ONE RESOLVER, AND THIS FILE DID NOT HAVE ONE. `frozen_frame_watch` has
+#: honoured TV_GB_SHELF since it was written; this module hardcoded the same path with no override,
+#: so pointing one pointed only one. Two modules, one concept, different behaviour — [[copy-drift]]
+#: — and it is why the watcher could be redirected in a test while this CLI still read the folder
+#: that stopped being written to 7.5 days ago.
+DEFAULT_DIR = os.path.expanduser(os.environ.get("TV_GB_SHELF") or "~/gb-shelf")
 
 _PNG_SIG = b"\x89PNG\r\n\x1a\n"
 #: samples/channels per PNG colour type. 3 (palette) is absent on purpose — it needs PLTE and no
