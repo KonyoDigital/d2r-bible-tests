@@ -180,6 +180,26 @@ class TheHARNESSESAllPassIt(unittest.TestCase):
                     break
             if found:
                 continue
+            # ⚠⚠ v3347 — A RETIRED PAIR IS EXEMPT, AND THE EXEMPTION IS MEASURED, NEVER WAIVED.
+            # His ruling retired `prune.arm` and `prune_wilson.py` went with the ceremony, leaving
+            # 19 banked rows behind. They MUST stay declared — dropping them from PROVES makes
+            # _rows() return None and fails all nine surviving locks CLOSED — but they must also
+            # be unable to open anything. bank() already refuses a lock absent from LOCKS; the
+            # clause worth PROVING rather than believing is that no LIVE lock reads them, so that
+            # is asserted here against his real ledger instead of argued in a comment.
+            # Measured 2026-09-19: dropping all 19 changes 0 of 9 live scores.
+            _declared = SA.PROVES.get(lab) or ()
+            if _declared and all(lk in getattr(SA, "RETIRED_LOCKS", {}) for lk in _declared):
+                _without = [r for r in (_rows or []) if str(r.get("src")) != lab]
+                for _lk in SA.LOCKS:
+                    _a, _b = SA.score(_lk, _rows), SA.score(_lk, _without)
+                    self.assertEqual(
+                        (_a["state"], _a["n"], _a["k"]), (_b["state"], _b["n"], _b["k"]),
+                        "%r is declared only for RETIRED locks, so its rows must reach no live "
+                        "surface — and %s moves when they are dropped. An exemption that lets "
+                        "untraceable evidence into a live lock is the exact defect this law "
+                        "exists to refuse." % (lab, _lk))
+                continue
             self.assertEqual(
                 banked.get(lab, 0), 0,
                 "%r has banked %d row(s), has no module of its own, and no harness in the tree "

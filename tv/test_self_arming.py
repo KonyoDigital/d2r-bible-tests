@@ -155,16 +155,32 @@ class TestWilsonAndConfluenceBOTH(_Ledger):
 
 
 class TestHisOrderIsEnforced(_Ledger):
-    """He gave a chain: printer+reels -> theatre+shelf -> routing -> the deleter. Proving the
-    deleter in isolation proves nothing about the river feeding it."""
+    """He gave a chain: printer+reels -> theatre+shelf -> routing -> the deleter. Proving a lock
+    in isolation proves nothing about the lanes feeding it.
 
-    def test_the_deleter_cannot_open_before_its_prerequisites(self):
-        # a flawless record for the prune itself, and NOTHING upstream
-        self.put("prune.arm", "sabotage", True, n=60)
-        self.put("prune.arm", "cross-family", True, n=20)
-        self.put("prune.arm", "live", True, n=20)
-        ok, why = SA.may("prune.arm")
-        self.assertFalse(ok, "the deleter armed itself with no proof of the lanes that feed it")
+    ⚠⚠ v3347 - THE DELETER LEFT THE CHAIN, BY HIS RULING: *"leave it off and surgically remove
+    it we need pruning"*. `prune.arm` was this class's subject. The MECHANISM it demonstrated is
+    untouched and still live - `vault.apply` and `vault.forget` each wait on `vault.sweep_start` -
+    so these cases drive the vault chain instead. The law is the ORDERING; the deleter was only
+    the lock that happened to demonstrate it. [[regression-guard]] §4.
+    """
+
+    #: the live subject, DERIVED - a retirement moves this law rather than breaking it
+    @property
+    def subject(self):
+        withafter = sorted(k for k, v in SA.LOCKS.items() if (v.get("after") or []))
+        self.assertTrue(withafter, "no lock declares a prerequisite any more, so his ordering "
+                                   "rule is enforced nowhere and these cases have no subject")
+        return withafter[0]
+
+    def test_a_lock_cannot_open_before_its_prerequisites(self):
+        subj = self.subject
+        # a flawless record for the lock itself, and NOTHING upstream
+        self.put(subj, "sabotage", True, n=60)
+        self.put(subj, "cross-family", True, n=20)
+        self.put(subj, "live", True, n=20)
+        ok, why = SA.may(subj)
+        self.assertFalse(ok, "%s armed itself with no proof of the lanes that feed it" % subj)
         self.assertIn("blocked upstream", why)
         # ⚠⚠ REG-575 — THIS PINNED A NAME AND v2570 MOVED IT. It required the refusal to say
         # "vault.sweep_start"; then `printer.stream` was added ahead of it as step 1 of his river
@@ -173,29 +189,48 @@ class TestHisOrderIsEnforced(_Ledger):
         # ORDERED list. So it now pins the property that is actually his ruling: the refusal names
         # a REAL, DECLARED, GENUINELY-UNPROVEN prerequisite, and it names them IN HIS ORDER.
         # A rule about the order survives an insertion; a rule naming one lock does not.
-        named = [lk for lk in SA.LOCKS["prune.arm"]["after"] if lk in why]
+        named = [lk for lk in SA.LOCKS[subj]["after"] if lk in why]
         self.assertTrue(named, "the refusal named no prerequisite at all, so a high score reads "
                                "as 'nearly there' when the real blocker is elsewhere: %s" % why)
         for lk in named:
             self.assertNotEqual(SA.score(lk)["state"], SA.OPEN,
                                 "%s was named as the blocker and is already OPEN" % lk)
-        first_unproven = next(lk for lk in SA.LOCKS["prune.arm"]["after"]
+        first_unproven = next(lk for lk in SA.LOCKS[subj]["after"]
                               if SA.score(lk)["state"] != SA.OPEN)
         self.assertIn(first_unproven, why,
                       "it skipped past the FIRST unmet prerequisite in his order and reported a "
                       "later one, which reads as further along the river than it is")
 
-    def test_proving_the_FIRST_prerequisite_moves_the_refusal_to_the_NEXT(self):
-        """⚠ BASELINE — or the test above passes on a chain that never advances. Satisfying step 1
-        must move the blocker to step 2, not open the deleter and not keep naming step 1."""
-        self.put("prune.arm", "sabotage", True, n=60)
-        self.put("printer.stream", "sabotage", True, n=60)
-        ok, why = SA.may("prune.arm")
-        self.assertFalse(ok, "proving ONE upstream lane armed the deleter")
-        self.assertNotIn("printer.stream is UNPROVEN", why,
-                         "step 1 was proven and is still being named as the blocker")
-        self.assertIn("vault.sweep_start", why,
-                      "the refusal did not advance to the next unmet step in his order")
+    def test_proving_the_prerequisite_CHANGES_the_answer(self):
+        """⚠ BASELINE — or the test above passes on a chain that never advances. Satisfying the
+        upstream step must change the refusal, never leave it naming a lane that is now proven.
+
+        ⚠⚠ AND THE MULTI-STEP ARM HAS NO SUBJECT TODAY. With `prune.arm` retired the longest live
+        chain is ONE step, so "the refusal moves to the NEXT unmet prerequisite" cannot be
+        exercised by any lock in the table. That is ASSERTED here rather than silently skipped —
+        a skip is not a pass — and the moment a two-step chain is declared this case drives it.
+        [[regression-guard]] §2, §6."""
+        subj = self.subject
+        chain = SA.LOCKS[subj]["after"]
+        self.put(subj, "sabotage", True, n=60)
+        for lk in chain:
+            self.put(lk, "sabotage", True, n=60)
+            self.put(lk, "cross-family", True, n=20)
+        ok, why = SA.may(subj)
+        for lk in chain:
+            self.assertNotIn("%s is UNPROVEN" % lk, why,
+                             "%s was proven and is still being named as the blocker" % lk)
+        self.assertNotIn("blocked upstream", why,
+                         "every prerequisite of %s is proven and the refusal still says the "
+                         "chain is holding it: %s" % (subj, why))
+        longest = max(len(v.get("after") or []) for v in SA.LOCKS.values())
+        if longest < 2:
+            # Reach, stated out loud. Nothing here can prove the ADVANCE behaviour.
+            self.assertEqual(
+                len(chain), 1,
+                "the longest declared chain is %d step(s), so this case proves only that ONE "
+                "satisfied prerequisite changes the answer. The advance-to-the-next arm is "
+                "UNMEASURED, not passing." % longest)
 
 
 class TestItFailsCLOSED(_Ledger):
@@ -323,16 +358,22 @@ class TestBankingCannotOpenALockByBeingLookedAt(unittest.TestCase):
 
     def test_an_UNDECLARED_source_is_refused(self):
         with self.assertRaises(ValueError) as cm:
-            SA.bank("prune.arm", "sabotage", "some_new_harness", n=99, k=99)
+            SA.bank("vault.apply", "sabotage", "some_new_harness", n=99, k=99)
         self.assertIn("not a declared evidence source", str(cm.exception))
 
     def test_a_source_may_not_bank_where_it_does_NOT_prove(self):
-        """render_check proves the RENDER GATE. It says nothing about whether footage may be
-        deleted, and prune.arm has no undo."""
+        """render_check proves the RENDER GATE. It says nothing about whether the vault may
+        apply a change to his board, and an apply has no undo.
+
+        ⚠ v3347 - the subject was `prune.arm` until his ruling retired it. A RETIRED lock is the
+        wrong fixture here: bank() refuses it at an earlier door ("no such lock or route is
+        declared"), so the test would go green without ever reaching the PROVES allow-list it
+        exists to check. [[regression-guard]] §5 - a case that cannot fail for its own reason is
+        measuring something else."""
         with self.assertRaises(ValueError) as cm:
-            SA.bank("prune.arm", "sabotage", "render_check", n=40, k=40)
+            SA.bank("vault.apply", "sabotage", "render_check", n=40, k=40)
         self.assertIn("does not prove", str(cm.exception))
-        self.assertEqual(SA.score("prune.arm")["n"], 0,
+        self.assertEqual(SA.score("vault.apply")["n"], 0,
                          "the refusal still wrote a row — a refusal that banks anyway is not a "
                          "refusal")
 

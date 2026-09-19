@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3346",
+  "ver": "v3347",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3346: v3343 said the diff is correct and no defects are present, and was filed verdict=findings with ONE finding whose text was the WHOLE ANSWER. The cause is the parser, not the declaration: _findings_from starts a block only on a numbered or bulleted line, so an answer with no such line comes back as one block containing everything. _declares_none is NOT widened - the phrasing that slipped past it is the comma-tail #76 measured and refused. MY FIRST DESIGN WAS REFUTED BY MEASUREMENT: firing on structure-absence alone would have reclassified 172 of 637 findings-rows including a real defect. With the phrase test the radius is 8 of 637 and they are the same defect being corrected; the one wrong flip lands on cannot-tell rather than clean, so nothing is cleared. The phrase test is downgrade-only and a law pins structurally that it can never reach a clean return.",
+  "note": "v3347: His ruling: leave it off and surgically remove it we need pruning. The prune.arm ceremony is REMOVED - lock out of LOCKS, prune_wilson.py deleted, its gate de-registered, 473 gates. MEASURED WHEN THE SUITE WENT RED: dropping the PROVES declaration alongside them made _rows() return None over his 349-row ledger and failed ALL NINE surviving locks CLOSED, because 19 rows are banked by prune_wilson against prune.arm. RETIRED now means readable, never bankable, reaches nothing - and that last clause is measured, not argued: dropping all 19 rows moves 0 of 9 live scores. _PRUNE_SAFE_TO_RUN untouched at 53 refs across 20 files and pinned by a law. STATED CONSEQUENCE HE OWNS: the only code enforcing that the deleter waits for the river went with the lock. 474 gates, 3 red-proofs PROVEN.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

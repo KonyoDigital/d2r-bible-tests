@@ -89,8 +89,16 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
         mid-use. So it sits at the deleter's bar, not a convenient one."""
         spec = SA.LOCKS.get(LOCK)
         self.assertIsNotNone(spec, "the pixel-rescue lock is gone - the pixels would act ungated")
-        self.assertGreaterEqual(spec["bar"], SA.LOCKS["prune.arm"]["bar"],
-                                "the pixel lock now sits below the deleter's bar")
+        # ⚠ v3347 - prune.arm was the reference and his ruling RETIRED it. The CLAIM is
+        # unchanged - a wrong blank must sit at the bar of the locks that destroy things - so the
+        # reference is DERIVED from the table instead of naming one lock, and it survives the next
+        # retirement too. [[regression-guard]] §4, pin the LAW not the number.
+        _destructive = [s["bar"] for s in SA.LOCKS.values() if s.get("destructive")]
+        self.assertTrue(_destructive,
+                        "no lock in the table destroys anything any more, so this law is "
+                        "comparing against nothing and would pass at any bar at all")
+        self.assertGreaterEqual(spec["bar"], max(_destructive),
+                                "the pixel lock now sits below the strictest DESTRUCTIVE bar")
         self.assertGreaterEqual(spec["kinds_bar"], 1.8,
                                 "one family of evidence could open the pixel lock")
 

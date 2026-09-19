@@ -262,21 +262,29 @@ LOCKS = {
         "surface": "THE CONSOLE", "acts": "lets a PIXEL verdict trigger a rescue of his window",
         "bar": 0.839, "kinds_bar": 1.8, "after": [],
     },
-    "prune.arm": {
-        "surface": "THE RIVER", "acts": "deletes footage — there is no undo",
-        "destructive": True,   # its own words: there is no undo
-        "bar": 0.839, "kinds_bar": 1.8,
-        # ⚠⚠ v2570 — `printer.stream` ADDED, and this is the wiring he asked for. His order is
-        # "printer + reels -> theatre + shelf -> routing -> the deleter", and this module's own
-        # docstring says a lock late in it "cannot open early no matter how good its own score is
-        # — proving the deleter in isolation proves nothing about the river feeding it." The
-        # deleter was waiting on the two VAULT locks and on nothing in the river it deletes from.
-        # This is strictly more conservative: prune.arm can now be held by a printer that is not
-        # proven, and never opened by one.
-        # v2721 — and on the frame gate. Safe by construction: prune.arm is already
-        # LOCKED, so this can only ADD a prerequisite, never remove one.
-        "after": ["printer.stream", "vault.sweep_start", "vault.apply", "frame.release"],
-    },
+}
+
+#: ⚠⚠ RETIRED LOCKS — A REMOVED CEREMONY'S BANKED ROWS MUST STILL READ.
+#:
+#: HIS RULING, 2026-09-19: *"leave it off and surgically remove it we need pruning"*. `prune.arm`
+#: is gone from LOCKS, its harness (`prune_wilson.py`) is deleted and its gate is de-registered —
+#: that is the removal, and it is complete. This map is the other half.
+#:
+#: ⚠⚠ MEASURED, AND IT IS WHY THIS EXISTS. His live ledger holds **19 rows** banked by
+#: `prune_wilson` against `prune.arm` (a real sabotage record, n=18/k=18 on the newest). Deleting
+#: the PROVES declaration does not delete them — it makes `_row_fault` reject one row, `_rows()`
+#: return None, and **every one of the NINE surviving locks fail CLOSED** with "an unreadable
+#: proof queue fails CLOSED". Measured on all four sampled: vault.apply, miniauto.run,
+#: prune.reports, reel.route. His ruling ends "keep self_arming for other surfaces"; un-declaring
+#: the source does the exact opposite of that, for every surface at once.
+#:
+#: RETIRED means READABLE, NEVER BANKABLE, and the second half needs no new code: `bank()` already
+#: refuses any lock absent from LOCKS — verified, `bank("prune.arm", …)` → *"no such lock or
+#: route is declared"*. So the door is shut by the removal itself, and this map only keeps the
+#: testimony legible. [[manual-tally-is-witness]] — once witnessed, never un-witnessed.
+RETIRED_LOCKS = {
+    "prune.arm": "removed 2026-09-19 by his ruling; pruning is gated by _PRUNE_SAFE_TO_RUN, which "
+                 "is untouched at 53 sites and is the actual safety",
 }
 
 #: ⚠⚠ THE ROUTES, ON THE SAME ARITHMETIC. His ruling: "each of the locked routes needs that same
@@ -486,6 +494,10 @@ PROVES = {
     "pixel_witness_wilson": ("console.pixel_rescue",),
     "pixel_witness_live": ("console.pixel_rescue",),
     "pixel_witness_crossfamily": ("console.pixel_rescue",),
+    # ⚠ RETIRED, AND DELIBERATELY STILL HERE. prune.arm is no longer a lock and prune_wilson.py
+    # is deleted, so nothing can bank through this pair ever again — bank() refuses a lock absent
+    # from LOCKS. It stays declared so the 19 rows already in his ledger READ; dropping it fails
+    # all nine surviving locks CLOSED. See RETIRED_LOCKS.
     "prune_wilson": ("prune.arm",),
     # v2721 — frame_release_wilson attacks `frame_authority.seal_releases_frames` in states where
     # it MUST refuse: a seal that never looked, one saying only "nothing was taken", one whose

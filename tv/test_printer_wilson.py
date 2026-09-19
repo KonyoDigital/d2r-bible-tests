@@ -97,15 +97,40 @@ class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
                       "the printer walks every reel he owns and had no lock at all; fourteen "
                       "locks were declared and not one named the printer, the river or selection")
 
-    def test_the_deleter_waits_on_the_river_that_feeds_it(self):
+    def test_the_deleter_lock_is_RETIRED_and_its_evidence_STILL_READS(self):
+        """⚠⚠ v3347 — HIS RULING, 2026-09-19: *"leave it off and surgically remove it we need
+        pruning"*.
+
+        This case asserted that `prune.arm.after` contained `printer.stream` — his order, "printer
+        + reels -> theatre + shelf -> routing -> the deleter". That ordering rule was encoded ONLY
+        here and in the lock's own prerequisite list, so retiring the lock removes the only place
+        code enforced that the deleter waits for the river. **That is the intended effect of his
+        ruling, not an oversight**, and `_PRUNE_SAFE_TO_RUN` (53 sites) is untouched and is the
+        actual safety.
+
+        What replaces it is the half that was never his to waive. MEASURED when the ceremony was
+        cut: his ledger holds **19 rows** banked by `prune_wilson` against `prune.arm`, and simply
+        dropping the PROVES declaration made `_rows()` return None — failing **all nine surviving
+        locks CLOSED** on "an unreadable proof queue fails CLOSED". Retired means READABLE, NEVER
+        BANKABLE. [[manual-tally-is-witness]] — once witnessed, never un-witnessed."""
         import self_arming as SA
-        after = SA.LOCKS["prune.arm"]["after"]
-        self.assertIn("printer.stream", after,
-                      "prune.arm must wait on printer.stream. His order is 'printer + reels -> "
-                      "theatre + shelf -> routing -> the deleter', and self_arming's own docstring "
-                      "says proving the deleter in isolation proves nothing about the river "
-                      "feeding it. Without this the deleter waited on the two VAULT locks and on "
-                      "NOTHING in the river it deletes from.")
+        self.assertNotIn(
+            "prune.arm", SA.LOCKS,
+            "prune.arm is a live lock again. His ruling was to REMOVE the ceremony, so gating the "
+            "deleter on Wilson evidence once more is a decision of his, not a restoration.")
+        self.assertIn(
+            "prune.arm", SA.RETIRED_LOCKS,
+            "prune.arm is neither a live lock nor a declared retirement, so the rows his ledger "
+            "already holds for it are accounted for by nothing and the next reader must guess.")
+        self.assertIn(
+            "prune.arm", SA.PROVES.get("prune_wilson") or (),
+            "the retired pair is no longer declared in PROVES. That is not a tidy-up: _row_fault "
+            "rejects those 19 rows, _rows() returns None, and EVERY lock fails CLOSED.")
+        _rows, _fault = SA._rows()
+        self.assertFalse(
+            _fault,
+            "the ledger no longer reads: %s. A retirement that costs his banked evidence is not a "
+            "surgical removal." % _fault)
 
     def test_an_unproven_printer_actually_holds_the_deleter(self):
         """BEHAVIOURAL, and it is the point: the chain must BITE, not merely be declared."""
@@ -144,11 +169,24 @@ class TheRiverIsWiredIntoTheDeleter(unittest.TestCase):
 
 RED_PROOF = [
     {
-        'why': 'Deletes the actual wiring the gate exists to pin: prune.arm\'s prerequisite list in LOCKS (tv/self_arming.py line 270) no longer names printer.stream, so the deleter would wait on the two VAULT locks and the frame gate but on NOTHING in the river it deletes from — exactly the v2570 defect. It is executable code inside the LOCKS declaration, not a comment and not a string in a message; the surrounding comment block still says "printer.stream ADDED", so a prose-based guard would miss it, and this one does not.  MEASURED: untampered python3 tv/test_printer_wilson.py -> Ran 7 tests, OK, exit 0; tampered (all 1) python3 tv/test_printer_wilson.py -> Ran 7 tests, FAILED (failures=1), exit 1. Red law: Th; reddened law TheRiverIsWiredIntoTheDeleter.test_the_deleter_waits_on_the_river_that; ALONE python3 -m unittest test_printer_wilson.TheRiverIsWiredIntoTheDeleter.test_the_deleter_waits_on_the_river_that.',
-        'file': 'self_arming.py',
-        'find': '"after": ["printer.stream", "vault.sweep_start", "vault.apply", "frame.release"],',
-        'replace': '"after": ["vault.sweep_start", "vault.apply", "frame.release"],',
-        'matches': 1,
+        "why": "Puts the retired ceremony back. v3347 removed prune.arm from LOCKS by his ruling - "
+               "'leave it off and surgically remove it we need pruning' - and this law is what "
+               "keeps that removal honest from the printer's side. ⚠ THE PREVIOUS SABOTAGE HERE "
+               "WENT INVALID AT 0 MATCHES AND THE PUSH GATE CAUGHT IT: it anchored on prune.arm's "
+               "own `after` list, which went with the lock, so it changed no byte and reported "
+               "coverage it did not provide. The sabotage was wrong, not the law. "
+               "[[sabotage-is-usually-the-wrong-one]] This one restores the lock at a DIFFERENT "
+               "byte from the three proofs in test_a_retired_lock_keeps_its_testimony, so the two "
+               "laws are not both riding one edit. MEASURED: untampered -> Ran 7 tests, OK; "
+               "tampered -> test_the_deleter_lock_is_RETIRED_and_its_evidence_STILL_READS fails on "
+               "assertNotIn(prune.arm, LOCKS).",
+        "file": "tv/self_arming.py",
+        "find": "RETIRED_LOCKS = {",
+        "replace": ('LOCKS["prune.arm"] = dict(surface="THE RIVER", acts="deletes footage",\n'
+                    '                          destructive=True, bar=0.839, kinds_bar=1.8,\n'
+                    '                          after=["printer.stream"])\n'
+                    'RETIRED_LOCKS = {'),
+        "matches": 1,
     },
 ]
 
