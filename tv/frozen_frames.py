@@ -180,6 +180,33 @@ CAPTURE_EXTS = (".png",)
 #: that stopped being written to 7.5 days ago.
 DEFAULT_DIR = os.path.expanduser(os.environ.get("TV_GB_SHELF") or "~/gb-shelf")
 
+
+def default_dir():
+    """-> the capture folder, resolved at CALL time by the ONE resolver.
+
+    ⚠⚠ v3367 (#115) — v3366 FIXED HALF OF THIS AND I ONLY FOUND OUT BY TESTING BOTH PATHS.
+    It taught DEFAULT_DIR to honour TV_GB_SHELF, and left the FALLBACK hardcoded, so:
+
+        with the env set   watch -> /tmp/fixture        frames -> /tmp/fixture       agreed
+        with NO env        watch -> verify-evidence     frames -> ~/gb-shelf         DISAGREED
+
+    which is the dead folder this whole item exists about, still being read by default on the very
+    path most runs take. A fix that only covers the overridden case is the unjoined end wearing the
+    fix for the unjoined end. [[the-unjoined-end]] [[copy-drift]]
+
+    ⚠ AND IT RESOLVES AT CALL TIME, NOT AT IMPORT. `DEFAULT_DIR` is a module constant evaluated
+    once when the module loads, so an env set afterwards — by a test, by a caller, by anything —
+    silently does not take. That is the scar control_app already carries in its own words: "an env
+    honoured only at import is a redirect that silently does not take". [[stale-reading]]
+    """
+    try:
+        import frozen_frame_watch as _w
+        return _w.shelf_dir()
+    except Exception:
+        # ⚠ The fallback is the ENV FIRST, then the historical default — never the bare constant,
+        # or a machine whose watcher will not import quietly goes back to reading the dead folder.
+        return os.path.expanduser(os.environ.get("TV_GB_SHELF") or "~/gb-shelf")
+
 _PNG_SIG = b"\x89PNG\r\n\x1a\n"
 #: samples/channels per PNG colour type. 3 (palette) is absent on purpose — it needs PLTE and no
 #: screen capture produces it, so it is reported UNKNOWN rather than half-decoded.
@@ -738,7 +765,7 @@ def _verdict(rep):
 
 
 def main(argv):
-    directory, as_json, strict = DEFAULT_DIR, False, False
+    directory, as_json, strict = default_dir(), False, False
     newest, decode = NEWEST_HASHED, NEWEST_DECODED
     i = 0
     while i < len(argv):

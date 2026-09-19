@@ -159,6 +159,51 @@ class TheArmSitsAboveTheFrozenArm(unittest.TestCase):
 class OneResolverForBothModules(unittest.TestCase):
     """[[copy-drift]] — pointing one must point the other."""
 
+    def test_both_modules_agree_WITHOUT_an_env_too(self):
+        """⚠⚠ THE CASE v3366 DID NOT HAVE, AND THE HALF-FIX IT LET THROUGH.
+
+        v3366 taught frozen_frames to honour TV_GB_SHELF and left its FALLBACK hardcoded. Measured
+        on the shipped tree:
+
+            env set    watch -> /tmp/fixture      frames -> /tmp/fixture     agreed
+            NO env     watch -> verify-evidence   frames -> ~/gb-shelf       DISAGREED
+
+        So on the path most runs actually take, one module read the live folder and the other read
+        the abandoned one — the exact defect this file exists about, surviving inside its own fix.
+        Checking only the overridden path is what let it through. [[copy-drift]]
+        """
+        import frozen_frames as F
+        saved = os.environ.pop("TV_GB_SHELF", None)
+        try:
+            a = os.path.realpath(W.shelf_dir())
+            b = os.path.realpath(F.default_dir())
+        finally:
+            if saved is not None:
+                os.environ["TV_GB_SHELF"] = saved
+        self.assertEqual(
+            a, b,
+            "with NO env set the two modules resolve DIFFERENT capture folders:\n"
+            "    frozen_frame_watch -> %s\n    frozen_frames      -> %s\n"
+            "One resolver means one resolver on both paths, not only the overridden one." % (a, b))
+
+    def test_it_resolves_at_CALL_time_not_at_import(self):
+        """⚠ A module constant is evaluated once at load, so an env set afterwards never takes —
+        the redirect that silently does not apply. [[stale-reading]]"""
+        import frozen_frames as F
+        saved = os.environ.get("TV_GB_SHELF")
+        os.environ["TV_GB_SHELF"] = "/tmp/set-after-import-xyz"
+        try:
+            got = os.path.realpath(F.default_dir())
+        finally:
+            if saved is None:
+                os.environ.pop("TV_GB_SHELF", None)
+            else:
+                os.environ["TV_GB_SHELF"] = saved
+        self.assertEqual(
+            got, os.path.realpath("/tmp/set-after-import-xyz"),
+            "an env set AFTER import did not take (%s) — the value is frozen at module load, so a "
+            "test or caller redirecting it is silently ignored" % got)
+
     def test_frozen_frames_honours_the_same_env(self):
         src = io.open(os.path.join(HERE, "frozen_frames.py"), encoding="utf-8").read()
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
@@ -196,10 +241,22 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "hardcoding the folder again means redirecting the watcher redirects only half the tooling",
+        # ⚠ v3367 — THE PROOF FOR THE HALF-FIX v3366 SHIPPED. It taught the env path and left the
+        # FALLBACK hardcoded, so with NO env set the two modules read DIFFERENT folders and one of
+        # them was the dead one. Only testing BOTH paths found it.
+        "why": "returning the hardcoded fallback puts frozen_frames back on the dead folder whenever no env is set - the path most runs take",
         "file": "tv/frozen_frames.py",
-        "find": 'DEFAULT_DIR = os.path.expanduser(os.environ.get("TV_GB_SHELF") or "~/gb-shelf")',
-        "replace": 'DEFAULT_DIR = os.path.expanduser("~/gb-shelf")',
+        "find": "        import frozen_frame_watch as _w\n        return _w.shelf_dir()",
+        "replace": '        return os.path.expanduser("~/gb-shelf")',
         "matches": 1,
     },
+    # ⚠⚠ RETIRED IN v3367, DELIBERATELY — ITS SUBJECT MOVED. This proof tampered
+    # `DEFAULT_DIR`, which v3366 had taught to read the env. v3367 made the CLI call
+    # `default_dir()` instead, resolving at CALL time through the ONE shared resolver, so
+    # DEFAULT_DIR is no longer consulted by anything the law checks — and the string this proof
+    # removed still survives inside default_dir()'s own fallback, which is why it went BLIND at
+    # match count 1 rather than at 0. An INERT sabotage, caused by the code moving underneath it.
+    # The proof directly above replaces it and tampers the live path.
+    # Retired, not deleted-in-silence: a premise that changed must be retired on purpose.
+    # [[regression-guard]] §4 · [[source-reading-guard]] §4c cause (3)
 ]
