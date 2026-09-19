@@ -102,21 +102,38 @@ _EXEC = ("sh", "bash", "zsh", "dash", "ksh", "perl",
 
 _HOOK = "hooks/pre-push"
 
-#: git flags that CONSUME the next token, so the subcommand is not simply toks[1].
-_GIT_ARG_FLAGS = ("-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path")
+#: git subcommands that legitimately take `push` as an ARGUMENT — a branch, a ref, a pattern.
+#: ⚠⚠ v3336 — THIS REPLACED A FLAG-SKIPPING PARSE, AND A SECOND EYE MEASURED WHY.
+#: v3334 found the subcommand by stepping over global flags, consuming one extra token for each
+#: flag in a known list. That list can never be complete, and MEASURED 2 of 6 wrong — both FALSE
+#: NEGATIVES, the direction that banks a version mid-grade:
+#:     git --git-dir /path/with spaces push origin   -> subcommand read as 'spaces'
+#:     git --super-prefix foo/ push origin           -> subcommand read as 'foo/'
+#: A path containing a space, or any flag the list has not heard of, silently hid a real push.
+#: THE SET OF VALUE-TAKING FLAGS IS OPEN; THE SET OF SUBCOMMANDS THAT TAKE `push` AS AN ARGUMENT
+#: IS SMALL AND STABLE. So scan for whichever comes FIRST — `push`, or one of these — and let an
+#: unrecognised bare token (a flag's value, an unknown subcommand) simply keep scanning.
+_GIT_TAKES_PUSH_AS_ARG = (
+    "branch", "checkout", "switch", "log", "tag", "config", "remote", "show", "diff",
+    "add", "commit", "rebase", "merge", "status", "stash", "grep", "reflog", "describe",
+    "rev-parse", "cherry-pick", "restore", "worktree", "notes", "bisect", "blame")
 
 
-def _git_subcommand(toks):
-    """The actual git subcommand, skipping global flags and their values. -> str or ''"""
-    i = 1
-    while i < len(toks):
-        t = toks[i]
-        if t in _GIT_ARG_FLAGS:
-            i += 2; continue
+def _git_runs_push(toks):
+    """Does this git command line RUN `push`? -> bool
+
+    Fails toward TRUE on an unknown leading token, because a missed push is the dangerous
+    direction here and a spurious refusal only costs one re-run.
+    """
+    for t in toks[1:]:
         if t.startswith("-"):
-            i += 1; continue
-        return t
-    return ""
+            continue
+        b = os.path.basename(t)
+        if b == "push":
+            return True
+        if b in _GIT_TAKES_PUSH_AS_ARG:
+            return False      # a later `push` is its ARGUMENT, not the subcommand
+    return False
 
 
 def _is_hook_invocation(cmd):
@@ -146,7 +163,7 @@ def _is_hook_invocation(cmd):
 
     if base0 == "git":
         # v3332 counted ANY bare `push` token, so `git branch push` read as a push.
-        return _git_subcommand(toks) == "push"
+        return _git_runs_push(toks)
     if base0 in _READERS:
         return False
 

@@ -136,7 +136,9 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
                     # coverage at all and its sabotage came back BLIND with a correct match count.
                     # A leader that is neither a reader nor a known runner, with the hook sitting
                     # behind a flag, is the only input that exercises it.
-                    "mytool --config /repo/hooks/pre-push"):
+                    "mytool --config /repo/hooks/pre-push",
+                    "git config push.default simple",        # `push` inside a CONFIG KEY
+                    "git remote add push http://x"):         # a REMOTE named push
             self.assertFalse(
                 TB._is_hook_invocation(cmd),
                 "%r was read as a RUNNING pre-push. It only mentions the path - matching that "
@@ -158,7 +160,14 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
                     "/bin/sh /my repo/hooks/pre-push origin",           # a path with a SPACE
                     "FOO=1 /repo/hooks/pre-push origin",                # leading env assignment
                     "/repo/hooks/pre-push origin",                      # executed directly
-                    "weirdwrapper /repo/hooks/pre-push origin"):        # UNKNOWN leader -> CLOSED
+                    "weirdwrapper /repo/hooks/pre-push origin",         # UNKNOWN leader -> CLOSED
+                    # ⚠⚠ v3336 — BOTH MEASURED WRONG IN v3334, found by a second eye. That cut
+                    # stepped over global flags using a list of the ones that consume a value.
+                    # That list can never be complete: a git-dir containing a SPACE and an
+                    # unlisted flag each hid a real push, which is the direction that banks a
+                    # version mid-grade.
+                    "/usr/bin/git --git-dir /path/with spaces push origin main",
+                    "git --super-prefix foo/ push origin main"):
             self.assertTrue(
                 TB._is_hook_invocation(cmd),
                 "%r is a real invocation and was not recognised - the signal this whole module "
@@ -226,10 +235,12 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
-        "why": "counting any bare push token makes git branch push read as a running gate",
+        # ⚠ Restores v3334's behaviour exactly: decide on the FIRST bare token. A git-dir with a
+        # space, or any unlisted value-flag, then puts its VALUE there and the real push is missed.
+        "why": "deciding on the first bare token lets a spaced git-dir hide a real push",
         "file": "tv/tree_busy.py",
-        "find": '        return _git_subcommand(toks) == "push"',
-        "replace": '        return any(os.path.basename(t) == "push" for t in toks[1:])',
+        "find": '        if b == "push":\n            return True',
+        "replace": '        return b == "push"',
         "matches": 1,
     },
     {
