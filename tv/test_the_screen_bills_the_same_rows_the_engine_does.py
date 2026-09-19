@@ -78,7 +78,11 @@ class TestTheScreenBillsTheSameRowsTheEngineDoes(unittest.TestCase):
             "there is no by-design bucket; byDesignWhat is read and then thrown away.")
         # ⚠ ORDER MATTERS: the design test must come BEFORE the youRows fallback, or the rows
         # still land in his count no matter what is read.
-        i = self.code.find("_designWhat[String(r && r.check)]")
+        # ⚠ v3335 — RE-ANCHORED. v3326 hoisted the name out: `_designWhat[String(r && r.check)]`
+        # became `_designWhat[_nm]`. The refactor is an improvement; this find() went
+        # stale with it and the gate has been red in CI ever since, while the pre-push
+        # hook (a SUBSET) printed green. [[regression-guard]] §4 — pin the LAW.
+        i = self.code.find("_designWhat[_nm]")
         j = self.code.find("else youRows.push(h)")
         self.assertGreater(i, -1, "the by-design test is gone from the bucketing")
         self.assertTrue(
@@ -145,7 +149,7 @@ RED_PROOF = [
     {
         "why": "without the by-design bucket the panel bills him for rows the engine excluded (his 9 vs 11)",
         "file": "tv/control_ui.html",
-        "find": "      else if (_designWhat[String(r && r.check)]) designRows.push(h);\n",
+        "find": "      else if (_designWhat[_nm]) designRows.push(h);\n",
         "replace": "",
         "matches": 1,
     },

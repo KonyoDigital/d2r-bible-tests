@@ -671,6 +671,14 @@ class NothingHereArmsAnything(unittest.TestCase):
                 "after banking an attempt, so the operator sees UNPROVEN/LOCKED rather than "
                 "assuming the bank opened it. It gates nothing — the return value is printed and "
                 "dropped."),
+            "read_names_feeder.py": (
+                "v3323 — apply() asks may('vault.apply') at the ONE seat that writes, BEFORE any "
+                "name is banked, and fails CLOSED on every refusal including a lock it could not "
+                "read. It is the designed consumer this law was un-blanket-ed for in v2795: a "
+                "lane ASKS and is refused until the evidence is in. It BANKS names the door has "
+                "already gated and REMOVES NOTHING, so it is not in DELETERS and the absolute "
+                "half of this law — no deleter may ask — is untouched. Declared rather than "
+                "appearing, which is the discipline this map exists to enforce."),
         }
         armed_deleter = [h for h in hits if h.split(":")[0] in DELETERS]
         self.assertEqual(

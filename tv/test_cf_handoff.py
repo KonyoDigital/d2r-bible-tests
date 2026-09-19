@@ -24,8 +24,11 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in control_ui.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'control_ui.html',
-        "find": "r.state === 'missing' ? 'warn' : ''",
-        "replace": '_HEART2_TAMPERED_',
+        # ⚠ v3335 — the anchor was the PRE-v3326 spelling and matched 0, so it proved nothing.
+        # It now tampers the live expression, and the sabotage lets a SECOND state reach warn —
+        # which is the defect the law is about, not merely a different spelling of the same code.
+        "find": "(r.state === 'missing' && !bucket) ? 'warn' : ''",
+        "replace": "(r.state === 'missing' || r.state === 'unknown') ? 'warn' : ''",
         "matches": 1,
     },
 ]
@@ -132,15 +135,69 @@ class TestCF10FourStatesAreFourWords(unittest.TestCase):
         self.assertIn("slowRows", self.code)
 
     def test_warn_tone_is_only_on_missing(self):
-        # the helper assigns warn only for missing, not for unknown/unmeasured
-        self.assertIn("r.state === 'missing' ? 'warn' : ''", self.code)
+        """The warn tone is for a fault HE must act on — and nothing else may claim it.
+
+        ⚠⚠ v3335 — THIS PINNED A SPELLING AND WENT STALE THE DAY THE SPELLING IMPROVED.
+        It asserted the literal "r.state === 'missing' ? 'warn' : ''". v3326 made the tone
+        bucket-aware — `(r.state === 'missing' && !bucket) ? 'warn' : ''` — which is HIS OWN
+        RULING that a ruling row and my own backlog are not faults he must act on. The CODE was
+        right and this test was wrong, and it sat red in CI for eight commits while the pre-push
+        hook (which runs a SUBSET) kept printing green. [[regression-guard]] §4 — PIN THE LAW.
+        """
+        import re
+        # ⚠ TWO sites assign `var tone` — the other is a coverage class
+        # (`pct >= 85 ? ' dsr-cov-hi' ...`). My first cut of this law matched the FIRST one and
+        # failed on innocent code. Select by CONTENT and assert the selection is unique.
+        # [[source-reading-guard]] §2 — anchor on something unique, and count before believing.
+        alls = re.findall(r"var tone\s*=\s*([^;]+);", self.code)
+        cands = [a for a in alls if "'warn'" in a]
+        self.assertEqual(
+            len(cands), 1,
+            "expected exactly ONE tone expression mentioning 'warn'; found %d of %d total. A "
+            "second one means the tone has two writers and they can disagree."
+            % (len(cands), len(alls)))
+        expr = cands[0]
+        self.assertIn("'missing'", expr,
+                      "the warn tone no longer keys on the missing state: %r" % expr)
+        self.assertIn("'warn'", expr, "the tone expression no longer yields 'warn': %r" % expr)
+        # THE LAW: no OTHER state may reach 'warn'. A spelling may change; this may not.
+        for other in ("'unknown'", "'unmeasured'", "'ok'", "'by-design'"):
+            self.assertNotIn(
+                other, expr,
+                "state %s appears in the tone expression %r. Only a MISSING row may go warn — "
+                "an unmeasured or unknown row is not a fault he must act on, and shouting at him "
+                "about one teaches him to ignore the colour." % (other, expr))
 
     def test_sabotage_collapsing_unknown_and_unmeasured_is_caught(self):
         """HOW TO PROVE IT RED: change the word map so unmeasured and unknown both say UNKNOWN.
         Expected failure: 'the two-word ternary is back' from test_the_old_two_word_ternary_is_gone
         OR this assertion on NEVER."""
+        # ⚠⚠ v3335 — ALSO A STALE SPELLING. This required the exact ternary
+        # `unmeasured' ? 'NEVER'`. v3309 split that fact in two on HIS report that the screen said
+        # NEVER about a row asked two minutes ago: unmeasured now reads NOT THIS TICK when
+        # everAsked, and NEVER when it has genuinely never run. Pinning the old one-word form
+        # made the law demand the defect back. What must hold is that the two STATES never
+        # collapse into one WORD. [[unknown-stays-unknown]]
+        import re
         self.assertIn("unmeasured", self.code)
-        self.assertRegex(self.code, r"unmeasured['\"]\s*\?\s*['\"]NEVER['\"]")
+        # ⚠ `[^:]+` stopped at the colon INSIDE the nested ternary — it captured only
+        # "(r.everAsked ? 'NOT THIS TICK'" and never saw NEVER. Bound each branch at the NEXT
+        # state test instead, which is its real end. [[source-reading-guard]] §3 — anchor both ends.
+        m_un = re.search(r"state\s*===\s*'unmeasured'\s*\?(.*?)(?=:\s*r\.state\s*===|\n)",
+                         self.code, re.S)
+        m_uk = re.search(r"state\s*===\s*'unknown'\s*\?(.*?)(?=:\s*r\.state\s*===|\n)",
+                         self.code, re.S)
+        self.assertTrue(m_un, "no branch words the `unmeasured` state at all")
+        self.assertTrue(m_uk, "no branch words the `unknown` state at all")
+        w_un, w_uk = m_un.group(1).strip(), m_uk.group(1).strip()
+        self.assertIn("NEVER", w_un,
+                      "the unmeasured branch no longer reaches NEVER: %r. A check that has never "
+                      "run must say so in the louder word, not be rounded down." % w_un)
+        self.assertNotEqual(
+            w_un, w_uk,
+            "unmeasured and unknown now produce the SAME word (%r). They are different facts — "
+            "one was never asked, the other cannot be asked — and collapsing them is the "
+            "confident-zero this panel exists to avoid." % w_un)
 
 
 class TestCF12SlowChecksReachASidecar(unittest.TestCase):
