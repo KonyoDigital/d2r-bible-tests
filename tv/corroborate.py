@@ -2325,6 +2325,24 @@ NO_JOINT_YET = {
     # v3368 (#60) — NO_JOINT_YET, not COVERED_BY. The second witness would be the FRAME
     # itself re-read for sockets, which costs a paid look and is exactly the cost this
     # version exists to avoid paying twice. Claiming coverage would claim the thing missing.
+    # v3378 (#28) - NO_JOINT_YET, not COVERED_BY, for the #95 reason. The row DOES compare two
+    # readings - the printer's own station and the routed row - but they are not two engines:
+    # `_evidence` is DOWNSTREAM of `printer.stream()`, so the pair is honest about the WIRE and
+    # is one source twice over for the verdict itself. A real second witness would be an
+    # independent reading of the reel's names, which costs a paid look. Claiming coverage here
+    # would claim exactly the thing that is missing. [[heart-first]] section 1
+    # v3379 (#128) - NO_JOINT_YET, not COVERED_BY, for the #95 reason. The row compares the
+    # banked TALLY against the banked STORES, and both were written by the same board on the
+    # same beat - one witness in two files, not two witnesses. A real second source would be a
+    # live board read, which is precisely the thing a windowless console cannot do and this
+    # whole version exists to work around.
+    'fleet can name what it counts': 'the row compares the banked tally against the banked stores, both '
+                          'written by the same board on the same beat; a real second source would be a '
+                          'live board read, which the console this protects cannot perform.',
+    'river owes what its engine says': 'the row compares the printed station against the routed row, which '
+                          'is upstream and downstream of the one wire it watches rather than two engines; '
+                          'a real second source would be an independent read of the reel names, and that '
+                          'costs a paid look.',
     'item facts captured': 'the row counts sightings carrying the three facts against sightings read by this '
                           'prompt version; a real second source would be re-reading the frame, which costs '
                           'a paid look.',

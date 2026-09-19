@@ -175,7 +175,12 @@ OWES = {
 #: ⚠⚠ THE FIELDS A STATION MAY BE DERIVED FROM. Anything outside this set is the keep-reason
 #: wearing a disguise. `assert_independent_of_retention()` enforces it by walking THIS module's
 #: own AST, because a rule that lives only in a docstring is a rule the next edit will not see.
-EVIDENCE_FIELDS = ("sealed", "names", "worthReading", "surveyed")
+#: ⚠⚠ v3378 — `extractSay` IS extract_gap's OWN FIVE-STATE VERDICT, forwarded rather than
+#: re-derived. printer.py:508 has put it on every row as `stations.extract.say` since v2572 and
+#: this module threw it away, then re-derived a cruder answer from `sealed AND names` — so the
+#: river contradicted the engine it names as this station's authority. Measured on his shelf
+#: 2026-09-20: 1 of 19 reels. It is EVIDENCE about what the reader found, never a keep-reason.
+EVIDENCE_FIELDS = ("sealed", "names", "worthReading", "surveyed", "extractSay")
 
 #: the fields that answer "why are we KEEPING these bytes". Reading any of them to decide a
 #: station re-creates the exact defect. Named so the guard can fail on them by name.
@@ -284,6 +289,67 @@ def _station_of(ev):
     return "STATION", "the survey found panels and no name has ever been read from it"
 
 
+#: ⚠⚠ v3378 — THE ONE THING A REEL AT `JOIN` MAY OWE THAT IS NOTHING. Kept OUT of `OWES` on
+#: purpose: `OWES` is the map from STATION to standing gate and `_label_of` derives the shelf's
+#: lane names from it, so a per-reel override living in there would invent a tenth lane.
+NOTHING_OWED = ("NOTHING — sealed, the names WERE read, and not one of them can become a "
+                "holding. No join is owed here and no footage is owed either.")
+
+
+def _owes_of(station, ev):
+    """What THIS reel owes at that station. -> (text, why)
+
+    ⚠⚠ THE MODULE ALREADY PROMISED THIS AND THE CODE DID NOT DELIVER IT. `STATIONS` says, in its
+    own comment: *"A reel's station is its POSITION; what it OWES is the named gate in front of
+    it. Keeping those separate is the whole point — two reels can sit at the same position and
+    owe different work, and one word for both is how `route` became the retention tag."* Then
+    `route()` wrote `"owes": OWES.get(station)` — ONE string per station, handed to every reel
+    standing there. A rule stated in a comment that the adjacent code does not implement is a
+    rule nobody is keeping. [[measured-true-read-wrong]] [[plumbing-with-no-tap]]
+
+    ⚠⚠ AND IT COST A REAL CONTRADICTION, MEASURED ON HIS SHELF 2026-09-20. Two reels sit at
+    JOIN, and `extract_gap` — the engine `printer.py:508` names as this station's authority —
+    gives them OPPOSITE verdicts on the same rows the router was reading:
+
+        reel_s_1784984019250_95276   2 names, 1 with a container OPEN   -> RECOVERABLE
+        reel_s_1786385768689_67392  45 names, every one on a Chronicle  -> NOT_A_HOLDING
+            its own why: "Nothing is owed here: it is neither a join nor a capture gap."
+
+    The router threw `say` away, re-derived `sealed AND names -> JOIN`, and handed the second
+    reel the text "the seal does not carry them. Code." — 45 names filed as owed work against
+    a law (v2772 `holding_possible`) that had already measured they can never be a holding: a
+    Chronicle page is a checklist of items he mostly does not own, no container is open, so the
+    contract's `location` has nothing to take. [[the-unjoined-end]] [[copy-drift]]
+
+    ⚠ THE ASYMMETRY IS DELIBERATE AND IS THE SAFETY. Only the EXPLICIT `NOT_A_HOLDING` may
+    downgrade the owed work to nothing. An unreadable verdict, an unrecognised word, a reel the
+    engine could not answer for — every one of those keeps the station's standing text, because
+    the direction that costs something is claiming nothing is owed when nobody could tell.
+    [[unknown-stays-unknown]]
+
+    ⚠ THIS MOVES NO REEL AND RELEASES NO FOOTAGE. The station is unchanged, `counts` is
+    unchanged, and `seal_releases_frames` is not consulted here at all — the only thing that
+    changes is the sentence describing what is waiting, which is the thing that was wrong.
+    """
+    base = OWES.get(station)
+    if station != "JOIN":
+        return base, ""
+    say = (ev or {}).get("extractSay") if isinstance(ev, dict) else None
+    if say is None:
+        return base, ("extract_gap did not answer for this reel, so whether a join is owed is "
+                      "UNKNOWN — the station's standing text stands rather than a guess")
+    if say == "NOT_A_HOLDING":
+        return NOTHING_OWED, ("extract_gap ruled NOT_A_HOLDING for this reel: the names were "
+                              "read and none of them can satisfy the contract's `location`, so "
+                              "there is no join to write. Forwarded from the engine, not "
+                              "re-derived here")
+    if say == "RECOVERABLE":
+        return base, ("extract_gap ruled RECOVERABLE for this reel — the names exist, a cell box "
+                      "exists for them, and the seal carries neither. The join IS owed")
+    return base, ("extract_gap answered %r, which is not a verdict this station knows how to "
+                  "downgrade, so the standing gate stands" % (say,))
+
+
 def _evidence(hist=None):
     """Per-reel evidence from the printer's own walk. -> (dict reel -> ev, why)
 
@@ -348,6 +414,9 @@ def _evidence(hist=None):
             "sealed": ex.get("sealed"),
             "names": None if n is None else int(n),
             "worthReading": tp.get("worthReading"),
+            # ⚠ extract_gap's verdict, PASSED THROUGH. None stays None: a station whose engine
+            # could not be asked is UNKNOWN about what is owed, never "nothing is owed".
+            "extractSay": ex.get("say"),
             # a reel the template station could not classify was never surveyed. `say` absent is
             # UNKNOWN-shaped and is passed through as None rather than turned into False.
             "surveyed": None if tp.get("say") is None else True,
@@ -538,16 +607,26 @@ def route(hist=None, path=None):
         # The old axis compared two module constants and could never have found it.
         # [[the-unjoined-end]] [[unknown-stays-unknown]]
         _e = e if isinstance(e, dict) else {}
+        # ⚠ AFTER the outlet overlay above, never before: a reel the overlay moved to ROUTED owes
+        # what ROUTED owes, and asking on the pre-overlay station would print the old gate.
+        _owes, _owes_why = _owes_of(station, _e)
         rows.append({
             "reel": reel,
             "station": station,
             "why": swhy,
-            "owes": OWES.get(station),
+            "owes": _owes,
+            # ⚠ the REASON the owed work is what it is, beside it and never instead of it. A row
+            # that reads NOTHING with no citation is indistinguishable from a row nobody asked
+            # about. [[zero-needs-a-denominator]]
+            "owesWhy": _owes_why,
             "capturedMs": ms,
             "clockFrom": src,
             "sealed": _e.get("sealed"),
             "names": _e.get("names"),
             "worthReading": _e.get("worthReading"),
+            # the engine's own verdict, on the row, so a reader can check the owed work against
+            # it rather than taking this module's word for it
+            "extractSay": _e.get("extractSay"),
             "surveyedAt": _e.get("surveyedAt"),
         })
     # FIFO: oldest capture first. ⚠ A reel with NO readable clock sorts LAST, never first — None
@@ -847,6 +926,14 @@ def assert_independent_of_retention():
         # have passed green while the entry above claimed to cover exactly that place.
         (_routed_by_a_lane, RETENTION_FIELDS,
          "reads the actor rows the outlet overlay is driven by"),
+        # ⚠⚠ v3378 — THE FOURTH HALF. `_string_keys_read_by` does not recurse into callees, so
+        # `route`'s entry above watches the composition point while `_owes_of`'s own key reads sit
+        # one call down — exactly the hole v2770 found for `_routed_by_a_lane` and closed the same
+        # way. A per-reel owed-work text is a fresh place for a keep-reason to enter (`held` and
+        # `holdKind` are precisely the words a future edit would reach for to explain a hold), and
+        # unwatched it would pass green while the entry above claimed to cover it.
+        (_owes_of, RETENTION_FIELDS,
+         "decides what THIS reel owes at its station"),
     ):
         try:
             seen = _string_keys_read_by(fn)

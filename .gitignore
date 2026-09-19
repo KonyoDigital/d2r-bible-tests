@@ -112,6 +112,12 @@ tv/auto_relaunch.json
 # too. Live state, and it names his progress: never committed to a PUBLIC repo.
 tv/board_tally.json
 tv/board_tally.json.tmp
+# v3379 - the STORES the board hands over, beside the TALLY above. It holds his actual
+# item NAMES - measured on his tree 445 foundLog + 222 owned + 133 setPieces = 800 - and
+# his install id. THIS REPO IS PUBLIC. The tally was ignored and this was not, so one
+# `git add -A` would have published his ledger. The .tmp is the atomic-write partner.
+tv/board_stores.json
+tv/board_stores.json.tmp
 tv/shadow_ledger.json
 tv/.render_shots/
 

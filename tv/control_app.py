@@ -2340,15 +2340,206 @@ _MASK_TTL_S = 300.0
 _MASK_WHY = {"sets": None, "uniques": None}
 
 
-def _mask_give_up(ledger, why):
-    """Omit the mask AND remember why. -> None
+def _mask_fallback(ledger, why):
+    """The live path could not answer. Try the board hand-over; omit and remember why if it
+    cannot either. -> mask | None
 
     ⚠ `if m:` on a dict is True even for `{ok: False}`. Returning a failure object would
     PUBLISH it onto the fleet wire as a mask. None stays omitted; the why rides separately.
+
+    ⚠⚠ v3379 — THIS WAS `_mask_give_up` AND IT GAVE UP TOO EARLY, which is the whole of Konyo's
+    2026-09-20 report. Every refusal in `board_mask` funnels through here, and the sibling
+    question — the TALLY — has had a disk fallback since v2188. So a console with no native
+    window published a count and never a list, for ever, and the fleet panel showed a peer at
+    131 of 135 beside "not published - no board window" in both cross-reference columns.
+    Routing the fallback through THIS one function is deliberate: `board_mask` refuses in six
+    places, and a fallback wired at five of them is the defect wearing a fix's clothes.
+
+    ⚠ THE NAME MOVED WITH THE BEHAVIOUR. A function called `give_up` that sometimes succeeds is
+    [[label-outlived-referent]], and this file has paid for that more than once.
+
+    ⚠ AND THE RECORDED REASON NAMES BOTH FAILURES, never just the second. "no store handed over"
+    alone would hide that the window path was tried and why it refused.
     """
     key = str(ledger or "").strip().lower() or "sets"
-    _MASK_WHY[key] = str(why or "gave up")[:160]
+    live = str(why or "gave up")
+    try:
+        m, bwhy = _mask_from_board_store(key)
+    except Exception as e:
+        m, bwhy = None, "the banked hand-over raised %s" % type(e).__name__
+    if m:
+        _MASK_WHY[key] = None
+        return m
+    _MASK_WHY[key] = ("%s; and the board has not handed its stores over either (%s)"
+                      % (live, bwhy or "no reason given"))[:400]
     return None
+
+
+def _board_stores_path():
+    return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "board_stores.json")
+
+
+#: the most names one banked store may carry. His uniques roster is ~403 and his sets roster 135,
+#: so this is roughly 25x the largest real store — big enough that a growing ledger never trips it,
+#: small enough that a malformed POST cannot fill his disk.
+_BOARD_STORE_MAX = 10000
+
+
+def board_stores_save(doc):
+    """Bank the raw ledger stores the BOARD handed over. -> True when it landed.
+
+    ⚠⚠ v3379 — THE HALF THAT MAKES A CROSS-REFERENCE POSSIBLE WITHOUT A NATIVE WINDOW, and the
+    reason it was missing is the shape this tree keeps finding. `grail_tally()` has had a disk
+    fallback since v2188 (`_tally_from_board_store`), so a console with no native window still
+    publishes a COUNT. `board_mask()` never got one, so the same console can never publish a
+    LIST. Konyo, 2026-09-20, on his own screen: *"fleet is still not working from dean or from my
+    side.. we cant see or cross reference the items we each have or both need"* — and the panel
+    showed exactly that asymmetry, THEIR count 131 of 135 beside "not published - no board window"
+    in both list columns.
+
+    MEASURED, and it is arithmetic: a count of 131 cannot be produced without knowing WHICH 131.
+    `window.__tallyPersist` calls fsetsScan/funiScan, which ENUMERATE, and then posts only
+    {have, total}. The per-item knowledge was in hand at the moment of the write and was dropped.
+    [[heart-first]] section 6 [[the-unjoined-end]]
+
+    ⚠ NO ITEM NAME EVER LEAVES THE MACHINE. This is the SAME-ORIGIN loopback POST that already
+    carries the counts; the fleet wire still receives only the base64 bit mask that
+    `fleet_mask.encode` mints against this console's own roster. The board already keeps these
+    exact names in its own localStorage on this same disk, so nothing is exposed that was not.
+    """
+    pth = _board_stores_path()
+    try:
+        d = os.path.dirname(pth)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        tmp = pth + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, indent=1, sort_keys=True)
+        os.replace(tmp, pth)
+        return True
+    except Exception:
+        return False
+
+
+def board_stores_load():
+    try:
+        with open(_board_stores_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        return d if isinstance(d, dict) else None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
+def accept_handed_stores(body, who):
+    """Validate and bank the stores a board just handed over. -> (saved, why | None)
+
+    ⚠⚠ v3379 — A FUNCTION, NOT A BLOCK INSIDE `do_POST`, AND A RED-PROOF IS WHAT FORCED IT.
+    The first cut lived inline in the route, so the only law that could reach it read the
+    handler's SOURCE for ordering — and a sabotage that disabled the banking outright
+    (`if _clean:` -> `if False:`) left that text untouched and the law GREEN. Measured: the
+    tamper matched exactly once, so the anchor was right and the LAW was weak, which is the
+    case the sabotage rule sends you to look at the law rather than the tamper.
+    v2877 carved this exact lesson on `_shelf_visible`: *"IT IS A FUNCTION, NOT A BLOCK IN THE
+    HANDLER, where no law could reach it — logic a gate cannot call is logic nothing can prove."*
+    [[regression-guard]] section 5a [[feedback-blind-fixture-green-gate]]
+
+    THE THREE FACTS A STORE CAN CARRY, and each is answered differently:
+      a LIST (even empty)  a MEASUREMENT. Banked. An empty list means "he owns none of these",
+                           which is a real answer this panel needs — refusing it would recreate
+                           the v3175 collapse where one missing half blanked both columns.
+      absent / not a list  the board said it could not read this store. DROPPED, never banked
+                           as [], so the reader reports UNKNOWN. [[unknown-stays-unknown]]
+      over the cap         refused and NAMED, so a malformed post cannot fill his disk quietly.
+    """
+    st_in = body.get("stores") if isinstance(body, dict) else None
+    if not isinstance(st_in, dict):
+        return 0, None
+    why = None
+    clean = {}
+    for k, v in list(st_in.items())[:32]:
+        if not isinstance(k, str) or not k or len(k) > 80:
+            continue
+        if not isinstance(v, list):
+            continue
+        if len(v) > _BOARD_STORE_MAX:
+            why = "store %s carried %d names, over the cap" % (k, len(v))
+            continue
+        clean[k] = [str(x)[:200] for x in v if isinstance(x, str)]
+    if not clean:
+        return 0, (why or "no readable store in that hand-over")
+    board_stores_save({"v": 1, "who": who, "route": who, "stores": clean,
+                       "storeWhy": (body.get("storeWhy")
+                                    if isinstance(body.get("storeWhy"), dict) else {}),
+                       "at": int(time.time() * 1000)})
+    try:
+        for lk in ("sets", "uniques"):
+            _MASK_CACHE[lk]["t"] = 0.0     # let the next beacon mint from what just landed
+    except Exception:
+        pass
+    return len(clean), why
+
+
+def _mask_from_board_store(ledger="sets"):
+    """The mask, built from the stores the board handed over. -> (mask | None, why)
+
+    The exact sibling of `_tally_from_board_store`, for the exact same reason: the live path needs
+    a native window to evaluate JS in, and his console is very often a PAGE IN A BROWSER pointed
+    at a headless console. That machine can be handed facts by the board over HTTP; it cannot be
+    asked for them.
+
+    ⚠ THE LEDGER DEFINITION STAYS IN ONE PLACE. The board hands over raw stores BY KEY and this
+    composes the union from `fleet_mask.LEDGERS[...]["stores"]` — the same list the live board JS
+    is handed. If the board and this file each decided which stores a ledger means, they would
+    drift and the two paths would answer differently about the same ledger. [[copy-drift]]
+
+    ⚠ ABSENT IS NOT EMPTY, AT EVERY STEP. A store the board could not read is omitted from the
+    payload entirely; NOT ONE store present means UNKNOWN and this returns None, never a mask of
+    zeros saying he owns nothing. [[unknown-stays-unknown]]
+    """
+    try:
+        import fleet_mask as _fm
+    except Exception as e:
+        return None, "fleet_mask will not import (%s)" % str(e)[:60]
+    spec, _lwhy = _fm.ledger_spec(ledger)
+    if not spec:
+        return None, (_lwhy or "unknown ledger")
+    doc = board_stores_load()
+    if not isinstance(doc, dict):
+        return None, "the board has not handed its stores to this console yet"
+    stores = doc.get("stores")
+    if not isinstance(stores, dict):
+        return None, "the banked hand-over carries no stores"
+    # ⚠ WHOSE STORES. The tally reader refuses a doc whose route does not identify itself, and a
+    # mask published under the wrong world is worse than no mask — v3213/v3215 are both scars
+    # about exactly that. Same bar here.
+    route = doc.get("route") if isinstance(doc.get("route"), dict) else doc.get("who")
+    if not isinstance(route, dict) or not route.get("id"):
+        return None, "the banked hand-over does not say whose board wrote it"
+    names, seen = set(), []
+    for key in (spec.get("stores") or [spec["store"]]):
+        v = stores.get(key)
+        if v is None:
+            continue
+        if not isinstance(v, list):
+            return None, "the banked store %s is not a list" % key
+        seen.append(key)
+        for nm in v:
+            names.add(str(nm))
+    if not seen:
+        return None, ("the board handed over no store for %s, so what it holds is UNKNOWN - "
+                      "not empty" % spec["name"])
+    roster, fp = _fm.load_roster_for(spec["name"])
+    if not roster or not fp:
+        return None, "no roster/fingerprint for %s" % spec["name"]
+    mask = _fm.encode(sorted(names), roster, fp)
+    if not mask:
+        return None, "the roster would not encode that store"
+    san = _fm.sanitize_for_wire(mask)
+    if not san:
+        return None, "sanitize refused the mask"
+    return san, ""
 
 
 def board_mask(ledger="sets"):
@@ -2378,13 +2569,13 @@ def board_mask(ledger="sets"):
     try:
         import fleet_mask as _fm
     except Exception as e:
-        return _mask_give_up(ledger, "fleet_mask will not import (%s)" % str(e)[:70])
+        return _mask_fallback(ledger, "fleet_mask will not import (%s)" % str(e)[:70])
     spec, _lwhy = _fm.ledger_spec(ledger)
     if not spec:
-        return _mask_give_up(ledger, _lwhy or "unknown ledger")
+        return _mask_fallback(ledger, _lwhy or "unknown ledger")
     roster, fp = _fm.load_roster_for(spec["name"])
     if not roster or not fp:
-        return _mask_give_up(ledger, "no roster/fingerprint for %s" % spec["name"])
+        return _mask_fallback(ledger, "no roster/fingerprint for %s" % spec["name"])
     # the same accessor board_ownership uses — a module global set when TV DIABLO opens the board.
     # ⚠ I first wrote `_board_window()`, a function that does not exist in this file. It would have
     # raised NameError inside the caller's `except Exception: return None`, so the mask would have
@@ -2413,7 +2604,7 @@ def board_mask(ledger="sets"):
     # [[headless-console-looks-like-lost-data]] [[unknown-stays-unknown]]
     w = globals().get("_BOARD_WIN") or globals().get("_MAIN_WIN")
     if w is None:
-        return _mask_give_up(
+        return _mask_fallback(
             ledger,
             "this console has no native window (headless or --no-open), so it can COUNT its "
             "pieces but can never NAME them - relaunch it WITH a window")
@@ -2491,15 +2682,15 @@ def board_mask(ledger="sets"):
     try:
         raw = _ejs(w, js, timeout=8.0)
     except Exception as e:
-        return _mask_give_up(ledger, "_ejs threw (%s)" % str(e)[:70])
+        return _mask_fallback(ledger, "_ejs threw (%s)" % str(e)[:70])
     if not raw:
-        return _mask_give_up(ledger, "_ejs returned empty")
+        return _mask_fallback(ledger, "_ejs returned empty")
     try:
         out = json.loads(raw)
     except Exception:
-        return _mask_give_up(ledger, "board JS was not JSON")
+        return _mask_fallback(ledger, "board JS was not JSON")
     if not isinstance(out, dict) or out.get("ok") is not True:
-        return _mask_give_up(ledger, "board JS: %s"
+        return _mask_fallback(ledger, "board JS: %s"
                              % str((out or {}).get("why") if isinstance(out, dict) else "not a dict")[:80])
     # ⚠⚠ v2938 — THE LIVE PATH MINTS THE MASK, AND v2934's CHECK WAS NOT ON IT.
     # v2934 taught fleet_mask.encode()/decode() to carry `r`, the identity of the ORDERED
@@ -2512,7 +2703,7 @@ def board_mask(ledger="sets"):
             "n": out.get("n"), "have": out.get("have"), "b": out.get("b")}
     san = _fm.sanitize_for_wire(mask)
     if not san:
-        return _mask_give_up(ledger, "sanitize refused the mask")
+        return _mask_fallback(ledger, "sanitize refused the mask")
     _MASK_WHY[str(ledger or "").strip().lower()] = None
     return san
 
@@ -30429,7 +30620,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3377",
+        "ver": "v3379",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -34011,20 +34202,35 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"ok": False, "why": "the tally must say whose it is "
                                                      "({id, p, pfx}) or it cannot be published"})
                 return
+            # ⚠⚠ v3379 — BANK THE STORES BEFORE, AND INDEPENDENTLY OF, THE COUNTS.
+            # The board now hands over the raw ledger stores as well as the totals, which is what
+            # lets a console with NO NATIVE WINDOW publish a per-item mask instead of only a
+            # number. It is banked first and on its own so that a hand-over carrying stores but no
+            # readable count is not thrown away by the refusal below — one missing half blanking
+            # the other is the exact defect v3175 fixed one surface over.
+            #
+            # ⚠ NOTHING IS RE-DERIVED HERE. The board says which names its own stores hold; the
+            # ledger DEFINITION (which stores make up "sets" or "uniques") stays in
+            # fleet_mask.LEDGERS and is applied at read time by _mask_from_board_store.
+            # [[copy-drift]] [[the-unjoined-end]]
+            _st_saved, _st_why = accept_handed_stores(body, _who)
             _t = {"v": 1, "who": _who, "route": _who,
                   "sets": _pair(body.get("sets")), "uniques": _pair(body.get("uniques")),
                   "runewords": _pair(body.get("runewords")),
                   "at": int(time.time() * 1000)}
             if not (_t["sets"] or _t["uniques"] or _t["runewords"]):
                 # nothing to say is not zero, and must not land on a good tally
-                self._json(200, {"ok": False, "why": "no readable counts in that tally"})
+                # ⚠ the STORES may still have landed, and saying so is the difference between
+                # "we got nothing from you" and "we got your list but not your totals".
+                self._json(200, {"ok": False, "why": "no readable counts in that tally",
+                                 "storesSaved": _st_saved, "storeWhy": _st_why})
                 return
             ok = board_tally_merge(_t)
             try:
                 _TALLY_CACHE["t"] = 0.0        # let the next beacon pick it up immediately
             except Exception:
                 pass
-            self._json(200, {"ok": bool(ok)})
+            self._json(200, {"ok": bool(ok), "storesSaved": _st_saved, "storeWhy": _st_why})
             return
         if path == "/api/chronicle_apply":
             # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.

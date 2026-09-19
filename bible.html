@@ -45616,6 +45616,27 @@ function renderJournal(){
                                             pfx: (typeof _rt.pfx === 'string' ? _rt.pfx : null) };
       } catch(e){ who = null; }
       if (!who) return false;          // no route means no way to say whose this is
+      /* v3379 — the raw stores, read the same way the console's own board JS reads them:
+         absent is skipped with a reason, unparseable is a FAULT and never folded in as empty. */
+      var _sd = (function(){
+        var got = {}, why = {}, any = false;
+        var KS = ['d2r_setPieces', 'd2r_foundLog', 'd2r_owned'];
+        for (var i = 0; i < KS.length; i++) {
+          var K = KS[i], raw = null;
+          try { raw = window.LSR.getItem(K); }
+          catch (e) { why[K] = 'the read threw'; continue; }
+          if (raw == null || raw === '') { why[K] = 'absent on this board'; continue; }
+          var pj = null;
+          try { pj = JSON.parse(raw); } catch (e) { why[K] = 'will not parse'; continue; }
+          var sp = Array.isArray(pj) ? pj
+                 : (pj && typeof pj === 'object' ? Object.keys(pj) : null);
+          if (!sp) { why[K] = 'neither a list nor an object'; continue; }
+          var arr = [];
+          for (var j = 0; j < sp.length; j++) arr.push(String(sp[j]));
+          got[K] = arr; any = true;
+        }
+        return { stores: any ? got : null, why: why };
+      })();
       var out = {
         v: 1,
         who: who,
@@ -45658,6 +45679,35 @@ function renderJournal(){
            chronicle. It is a named constant, so the number has ONE home and the next person can
            see what it is and why. [[feedback-state-the-bar-not-the-routes]] */
         runewords: rw ? pair(Object.keys(rw).length, RUNEWORD_CHRONICLE_TOTAL) : null,
+        /* ⚠⚠ v3379 — HAND THE STORES OVER, NOT JUST THE TOTALS. Konyo, 2026-09-20, on his own
+           fleet panel: "we cant see or cross reference the items we each have or both need".
+           The panel showed Dean at 131 of 135 beside "not published - no board window" in BOTH
+           list columns, and the contradiction is arithmetic: a count of 131 cannot be produced
+           without knowing WHICH 131. fsetsScan/funiScan above ENUMERATE, and this function then
+           posted only {have,total} - the per-item knowledge was in hand at the write and thrown
+           away. [[heart-first]] section 6
+
+           WHY THE COUNT SURVIVES A MISSING WINDOW AND THE LIST DOES NOT: the console mints its
+           mask by EVALUATING JS inside a native pywebview window. A console opened as a PAGE IN
+           A BROWSER has no such window, so it can be HANDED facts over HTTP and can never be
+           asked for them - and grail_tally has had a disk fallback since v2188 while board_mask
+           never got one.
+
+           ⚠ NO ITEM NAME LEAVES THE MACHINE. This is the same-origin loopback POST that already
+           carries the counts; the console encodes these against its OWN roster and only the
+           base64 bit mask reaches the fleet, exactly as before.
+
+           ⚠ BY STORE KEY, NOT BY LEDGER, AND THAT IS DELIBERATE. Which stores make up "sets" or
+           "uniques" is declared once in fleet_mask.LEDGERS and applied console-side. If this page
+           also decided it, the two would drift and the live path and the fallback would answer
+           differently about the same ledger. [[copy-drift]]
+
+           ⚠ ABSENT, UNPARSEABLE AND EMPTY ARE THREE DIFFERENT FACTS. A store this board has
+           never written is OMITTED with a reason, never sent as []; a real measured empty IS
+           sent, because "he owns none of these" is an answer and "I could not look" is not.
+           [[unknown-stays-unknown]] */
+        stores: _sd.stores,
+        storeWhy: _sd.why,
         at: Date.now()
       };
       /* Nothing to say is not the same as zero: if no scan answered, do not write a row of nulls
@@ -50762,7 +50812,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3377', name:'v3377 - four env-bound paths nobody had classified', date:'2026-09-20', note:'The CI red test_import_bound_paths was mine, and it was FOUR constants, not the one CI named. CI reported affix_lexicon.py; the local run named affix_lexicon D2R, EXTRACT and FRAMEWORK (my v3364) AND frozen_frames DEFAULT_DIR (my v3367). Every one is a module-level env-bound PATH with no registry entry, which is the gate doing exactly its job. EACH CLASSIFIED BY RUNNING IT, NEVER BY READING IT, which is what the law asks for: set the env AFTER import, re-read the attribute. D2R, EXTRACT, FRAMEWORK and DEFAULT_DIR all MOVED=False - import-bound, every one. The three affix paths are READ-ONLY (the game install, the casc_extract binary, the CascLib framework dir), so they are not the data-loss class the other entries warn about, and the registry note says so. AND THE MEASUREMENT FOUND A DIVERGENCE THE REGISTRY GAP WAS HIDING frozen_frames.DEFAULT_DIR resolves to ~/gb-shelf and does NOT move with a later TV_GB_SHELF. frozen_frames.default_dir() resolves to the watcher own verify-evidence folder and DOES move. They disagree BY DEFAULT. That is not an accident: v3367 moved every PRODUCTION caller onto the function precisely because ~/gb-shelf is the folder the watcher stopped writing to 7.5 days before #115 found it. 0 production readers of the constant remain; it survives only as a test anchor in test_frozen_frames.py. So patching DEFAULT_DIR redirects NOTHING live - it is the trap the function own docstring warns about. Registered with that stated in full, and PINNED BEHAVIOURALLY IN BOTH DIRECTIONS: if the constant starts moving, a fixture will trust a redirect that never reaches production; if the resolver stops moving, the dead folder comes back. Either direction reds here, cheaply, instead of inside a fixture that has already read the wrong shelf. WARNING I NEARLY DELETED DEFAULT_DIR AS DEAD CODE ON A GREP THAT HAD NOT RUN. An AST scan inside frozen_frames.py said stores=1 loads=0, and a tree-wide grep appeared to say 0 hits elsewhere - but zsh had globbed --include=*.py and the command ERRORED. I read that silence as a measurement. The working grep, with its exit status checked and a positive control, found 9 hits and a LIVE reader at tv/test_frozen_frames.py line 465. Removing it would have broken that test. A zero with no denominator, caught one step before it did damage. WARNING A RED-PROOF CAME BACK BLIND AT A CORRECT MATCH COUNT OF 1 AND THE SABOTAGE WAS THE FAULT. It edited the except-arm fallback of default_dir(); measured, frozen_frame_watch imports fine here, so that arm is DEAD and the tamper never reached the path the case exercises. Repointed at the live return. 3 of 3 PROVEN. 13 cases, 3 red-proofs PROVEN. HEART: no new console_doctor row, deliberately. The question this version raises - is any env-bound path unclassified - IS this gate, and a live row asking it again would be one reader wearing two names, the mistake I made and corrected in v3376. The heart work is that the CLASSIFICATION IS NOW SELF-PROVING: two behavioural cases perform the env change and assert the measured side, so a constant changing sides goes red where it is cheap rather than inside a fixture that has already written to live data.' };
+  window.D2R_BUILD = { id:'v3379', name:'v3379 - The board hands its stores over', date:'2026-09-20', note:'A console with no native window could COUNT its items and never NAME one: the count rides a loopback POST with a disk fallback since v2188, the list needed JS evaluated inside a native window and board_mask had no fallback at all. The board now hands its raw stores over on the same POST and fleet_mask.encode mints the mask. Measured with no window: 131 of 135 in, 131 real names back. 492 gates, 17 cases, 8 red-proofs PROVEN' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

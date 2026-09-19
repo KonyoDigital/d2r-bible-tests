@@ -2785,6 +2785,20 @@ MINE = {
     "footage has a reel":
         "#80 — an unsealed recording no sweep can reach. `orphan_fold.py` shows the plan; "
         "running it is my job, not a decision he makes.",
+    # v3378 (#28) — MINE, and it is the same territory as "names banked" just below: a river
+    # printing owed work its own engine contradicts is a wiring defect with a named fix, not a
+    # decision he can make. Nothing here asks him to authorise or rule on anything.
+    # v3379 (#128) — MINE. A console that counts and cannot name is a wiring defect with a
+    # named fix; there is nothing here for him to rule on or authorise.
+    "fleet can name what it counts":
+        "#128 — a ledger publishing a count and no list is a cut hand-over, not a decision. "
+        "The fix is code and it is mine.",
+
+    "river owes what its engine says":
+        "#28 — the river re-derived a verdict extract_gap had already given, and disagreed with "
+        "it on one reel. Forwarding a value the printer already puts on the row is my work; "
+        "there is nothing here for him to rule on.",
+
     "names banked":
         "#28 — names were READ and none are banked. The check itself states 'no paid read is "
         "owed here', so there is nothing for him to authorise; the banking lane is mine to widen.",
@@ -4354,6 +4368,156 @@ def _check_no_row_contradicts_its_own_stated_verdict():
                 % (len(mine), gen, older))
 
 
+def _check_the_fleet_can_name_what_it_counts():
+    """v3379 (#128) — DOES THIS CONSOLE PUBLISH A LIST FOR EVERY LEDGER IT PUBLISHES A COUNT FOR?
+
+    Konyo, 2026-09-20, on his own fleet panel: *"we cant see or cross reference the items we each
+    have or both need"*. The panel showed a peer at 131 of 135 beside "not published - no board
+    window" in BOTH list columns — a COUNT with no LIST, which is the asymmetry this row exists
+    to name out loud from now on.
+
+    ⚠⚠ NO GATE CAN ASK THIS. The gates prove the hand-over and the fallback are correct TODAY.
+    This asks whether his RUNNING console is still being handed the stores — and the failure is
+    silent by construction: if the board stops posting them, the fallback correctly reports
+    UNKNOWN, the count keeps publishing, and the panel goes back to exactly the screen he
+    photographed with nothing anywhere reporting a fault. That is the same shape as `reach`
+    dropping between v3363 and v3364. [[heart-first]] section 2 [[the-unjoined-end]]
+
+    ⚠ IT READS DISK, NEVER THE BOARD. Asking the live board would cost a window evaluation on a
+    heartbeat and would perturb the very thing it measures. board_tally.json is what the board
+    last said it COUNTS; board_stores.json is what it last HANDED OVER; the question is whether
+    the second can answer for every ledger the first speaks for.
+    [[a-gate-can-perturb-what-it-measures]]
+
+    FOUR STATES:
+      OK         -> every ledger with a count can also be named; says how many bits each carries
+      MISSING    -> a ledger publishes a COUNT and no LIST — the exact screen he reported
+      UNMEASURED -> this console publishes no counts yet, so there is no asymmetry to have
+      UNKNOWN    -> the readers would not run. Never OK. [[zero-needs-a-denominator]]
+    """
+    try:
+        import control_app as _CA
+        import fleet_mask as _FM
+    except Exception as e:
+        return UNKNOWN, "the fleet readers will not import: %s" % str(e)[:90]
+    try:
+        tally = _CA.board_tally_load()
+    except Exception as e:
+        return UNKNOWN, "the banked tally would not read (%s)" % type(e).__name__
+    if not isinstance(tally, dict):
+        return UNMEASURED, ("this console has no banked tally, so it publishes no count and "
+                            "there is no count-without-a-list to find")
+    counted = [k for k in sorted(_FM.LEDGERS)
+               if isinstance(tally.get(k), dict)
+               and isinstance((tally.get(k) or {}).get("have"), int)]
+    if not counted:
+        return UNMEASURED, ("the banked tally carries no readable count for any ledger the fleet "
+                            "compares, so there is nothing to be missing a list for")
+    named, blind = [], []
+    for k in counted:
+        try:
+            mask, why = _CA._mask_from_board_store(k)
+        except Exception as exc:
+            mask, why = None, "the reader raised %s" % type(exc).__name__
+        if mask:
+            named.append("%s %d/%s" % (k, mask.get("have"), mask.get("n")))
+        else:
+            blind.append("%s (%s)" % (k, str(why or "no reason given")[:70]))
+    if blind:
+        return MISSING, ("%d ledger(s) publish a COUNT and no LIST — %s. That is the panel he "
+                         "photographed: a peer at 131 of 135 with both cross-reference columns "
+                         "empty. The board is not handing its stores to this console."
+                         % (len(blind), "; ".join(blind)))
+    return OK, ("every ledger this console counts it can also name: %s" % ", ".join(named))
+
+
+def _check_a_reel_owes_what_its_engine_says():
+    """v3378 (#28) — IS THE RIVER STILL CARRYING extract_gap's VERDICT, OR HAS IT GONE BACK TO
+    RE-DERIVING ONE?
+
+    `printer.py:508` has put `extract_gap`'s five-state answer on every printed row as
+    `stations.extract.say` since v2572. `reel_router` read `sealed` and `names` off that same
+    dict, threw the verdict away, and re-derived `sealed AND names -> JOIN, owes code`. MEASURED
+    2026-09-20 on his 19 reels, the two disagreed on one:
+
+        reel_s_1786385768689_67392   45 names, every one on a Chronicle page
+            extract_gap:  NOT_A_HOLDING — "neither a join nor a capture gap"
+            the river:    "sealed AND the names are on disk; the seal does not carry them. Code."
+
+    ⚠⚠ THIS ROW EXISTS BECAUSE THE WIRE CAN BREAK SILENTLY AND LOOK EXACTLY LIKE BEFORE. If
+    `_evidence` ever stops forwarding `say`, every reel arrives with `extractSay=None`, the
+    decider's UNKNOWN arm correctly keeps the standing gate, and the screen goes back to the old
+    wrong sentence with NOTHING anywhere reporting a fault — the fix would simply stop applying.
+    That is the same shape as `reach` dropping between v3363 and v3364, and no gate can see it:
+    a gate proves the code is right today, this asks whether his running river still carries it.
+    [[heart-first]] §2 [[the-unjoined-end]]
+
+    FOUR STATES:
+      OK       -> every reel agrees with its own engine; says how many, and the JOIN split
+      MISSING  -> a reel printed a verdict the row did not carry (the wire), or a row prints
+                  owed work its own evidence does not derive (the decider)
+      UNMEASURED -> the shelf is readable and holds no reel at this station — nothing to grade
+      UNKNOWN  -> the route or the printer could not be read. ⚠ Never OK: an unreadable shelf
+                  is an absent denominator, not a clean bill. [[zero-needs-a-denominator]]
+    """
+    try:
+        import reel_router as _RR
+        import printer as _P
+    except Exception as e:
+        return UNKNOWN, "the river will not import: %s" % str(e)[:90]
+    try:
+        rep = _RR.route()
+    except Exception as e:
+        return UNKNOWN, "the route raised %s, so no reel could be graded" % type(e).__name__
+    if not rep.get("ok"):
+        return UNKNOWN, ("the route could not be read (%s), so whether the river still carries "
+                         "the verdict is UNKNOWN" % str(rep.get("why") or "no reason given")[:90])
+    rows = rep.get("reels") or []
+    if not rows:
+        return UNMEASURED, ("the shelf is readable and holds no reel, so there is no row to grade "
+                            "— that is an empty denominator, not agreement")
+
+    # ⚠ THE SECOND SIDE IS THE PRINTER ITSELF, not this module re-deriving the verdict. A row is
+    # only accused of a cut wire when the PRINTED station demonstrably carried a `say` the routed
+    # row does not — otherwise a reel the engine genuinely could not answer for would be filed as
+    # a broken join. [[unknown-stays-unknown]]
+    printed = {}
+    try:
+        pr = _P.stream()
+        if pr.get("ok"):
+            for r in (pr.get("rows") or []):
+                printed[str(r.get("reel") or "")] = (
+                    ((r.get("stations") or {}).get("extract") or {}).get("say"))
+    except Exception:
+        printed = {}
+
+    cut, wrong, join, nothing = [], [], 0, 0
+    for r in rows:
+        want, _why = _RR._owes_of(r.get("station"), r)
+        if r.get("owes") != want:
+            wrong.append(str(r.get("reel")))
+        if r.get("station") == "JOIN":
+            join += 1
+            if r.get("owes") == _RR.NOTHING_OWED:
+                nothing += 1
+        p_say = printed.get(str(r.get("reel")))
+        if p_say is not None and r.get("extractSay") is None:
+            cut.append(str(r.get("reel")))
+
+    if cut:
+        return MISSING, ("%d reel(s) were PRINTED with an engine verdict the routed row does not "
+                         "carry (%s) — the forward from printer to evidence is cut, so the river "
+                         "is silently back to re-deriving its own answer"
+                         % (len(cut), ", ".join(cut[:3])))
+    if wrong:
+        return MISSING, ("%d reel(s) print owed work their own evidence does not derive (%s) — "
+                         "the row and the decider disagree about the same reel"
+                         % (len(wrong), ", ".join(wrong[:3])))
+    return OK, ("%d reel(s) on the shelf, every one printing the owed work its own engine "
+                "derives; %d at JOIN, of which %d owe nothing because extract_gap ruled their "
+                "names can never become a holding" % (len(rows), join, nothing))
+
+
 def _check_the_eye_is_told_what_was_stripped():
     """v3375 (#122) — IS THE EYE STILL BEING TOLD WHAT WAS REMOVED FROM ITS PAYLOAD?
 
@@ -4491,6 +4655,14 @@ CHECKS = [
     # is laundered straight into agreement(), so this asks the one question the ledger cannot
     # ask itself: does the row agree with the answer it was written from?
     ("verdict matches the answer", _check_no_row_contradicts_its_own_stated_verdict),
+    # v3378 (#28) — the RIVER half, and a different question from every gate on it: the gates
+    # prove _owes_of is correct, this asks whether his running river is still BEING HANDED the
+    # verdict. A cut forward reverts the sentence and raises nothing.
+    # v3379 (#128) — the FLEET half, and no gate can ask it: the gates prove the hand-over is
+    # correct today, this asks whether his running console is still BEING handed the stores.
+    # A cut hand-over publishes a count for ever and a list never, silently.
+    ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
+    ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
     ("capture root live", _check_the_capture_root_is_still_being_written),
@@ -4952,6 +5124,13 @@ WATCHES = {
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody
     # wrote. The empty tuple is the honest answer and a DECLARATION: vault_bank reads the sweep's
     # own accumulation off disk and renders on no screen of its own yet.
+    # v3378 (#28) — DECLARED, NOT OMITTED. This row has no element of its OWN: it grades the
+    # `owes` sentence the shelf already renders per reel, so the empty tuple is the honest answer
+    # and saying so is what keeps it out of the ABSENT column v3340 was carved over.
+    # v3379 (#128) — DECLARED, NOT OMITTED. It grades what the fleet card already renders per
+    # peer, so it owns no element of its own and the empty tuple is the honest answer.
+    "fleet can name what it counts": (),
+    "river owes what its engine says": (),
     "stash bank":                  (),
     # ⚠ v3340 — DECLARED, NOT OMITTED, and it was omitted first. v3333 added `reel clocks` as
     # the HEART half of #80 and never entered it here, so the organ table read ABSENT for it —
