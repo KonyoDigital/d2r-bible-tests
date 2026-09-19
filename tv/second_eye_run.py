@@ -553,8 +553,18 @@ def _share_the_budget(body, cap):
             take[p] = share
         break
     out, cuts, absent = [], [], []
-    if sized[0][1] > 0:
-        out.append(body[:sized[0][1]])      # anything before the first header is kept
+    if lead > 0:
+        # ⚠ NO SEPARATE EMISSION BOUND HERE, AND THAT IS DELIBERATE — I WROTE ONE AND MEASURED IT
+        # DEAD. A cross-family review of v3372 was right that the preamble could escape the cap, so
+        # the first fix cut it to `cap` here. Its red-proof then came back BLIND with a correct
+        # match count, which by the taxonomy means the SUBJECT is inert, not the law — and it is:
+        # when lead >= cap the pool is 0, every file starves, the body carries no `diff --git`, and
+        # the code-free refusal below returns "" regardless. 108 shapes measured, 0 exceeding the
+        # cap either way. The branch could only ever trim a body about to be discarded.
+        #
+        # Dead code behind a proof that proves nothing is worse than no code — that is the inert
+        # red-proof scar. ONE fix closes both findings, and it is the refusal below.
+        out.append(body[:lead])
     for p, a, b, n in sized:                # ORIGINAL order on the wire, not the allocation order
         want = int(take.get(p, 0))
         if want <= 0:
@@ -589,7 +599,20 @@ def _share_the_budget(body, cap):
     note = None
     if cuts:
         note = "shown in part: %s" % ", ".join(cuts)
-    return "".join(out), note, absent
+    body_out = "".join(out)
+    # ⚠ A PAYLOAD WITH NO CODE IS NOT A SMALL LOOK, IT IS NO LOOK. When the preamble alone eats
+    # the cap, every file starves into `absent` and what remains is context with nothing to review
+    # — measured cap=1600 -> 361 chars, 0 files emitted, 2 named absent. The accounting stays
+    # truthful, but paying an eye to read it can only produce a confident nothing, so return an
+    # empty body and let the caller's existing `sent["chars"] == 0` refusal fire.
+    if not SER_has_any_section(body_out):
+        return "", note, absent
+    return body_out, note, absent
+
+
+def SER_has_any_section(body):
+    """-> True when at least one `diff --git` header survived into the emitted body."""
+    return bool(_file_sections(body))
 
 
 def payload_for(sha):

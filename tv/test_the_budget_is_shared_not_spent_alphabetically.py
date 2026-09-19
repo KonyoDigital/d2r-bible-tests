@@ -264,12 +264,55 @@ class TestTheBudgetIsSharedNotSpentAlphabetically(unittest.TestCase):
         for q, a, b in SER._file_sections(out):
             self.assertTrue(out[a:b].endswith("\n"), "%s emitted unterminated" % q)
 
+    def test_a_preamble_larger_than_the_cap_never_escapes_it(self):
+        """⚠ v3372 FIXED THE ACCOUNTING AND LEFT THE EMISSION UNBOUNDED — half a fix.
+
+        `pool = max(0, cap - lead)` took the preamble out of the budget, while the line that
+        actually writes it appended `body[:lead]` WHOLE. Measured by a cross-family review of
+        v3372: a 361-char preamble at cap 200 still returned 361 chars. The arithmetic was right
+        and the write was not, which is the half that reaches the wire.
+
+        ⚠ LATENT, NOT LIVE, AND MEASURED AS SUCH: across 40 real version diffs the preamble is 0
+        chars every time. This pins a contract on an input the pipeline has not met yet.
+        """
+        lead = "PREAMBLE " * 40 + "\n"
+        body = lead + _diff(("tv/a.py", 400), ("tv/b.py", 400))
+        self.assertGreater(body.find("diff --git"), 0, "fixture must HAVE a preamble")
+        for cap in (200, 300, 361, 400, 2000, 9000):
+            out, _n, _a = SER._share_the_budget(body, cap)
+            self.assertLessEqual(len(out), cap,
+                                 "cap %d exceeded by %d — the preamble escaped the emission bound"
+                                 % (cap, len(out) - cap))
+
+    def test_a_payload_with_no_code_comes_back_empty(self):
+        """A payload of pure context is not a small look — it is no look, and it costs a paid call.
+
+        When the preamble eats the cap, every file starves into `absent` and what is left has
+        nothing to review. The accounting stays truthful, but an eye reading it can only return a
+        confident nothing. Returning an empty body lets the caller's existing `sent["chars"] == 0`
+        refusal fire instead. [[zero-needs-a-denominator]]
+        """
+        lead = "PREAMBLE " * 40 + "\n"
+        body = lead + _diff(("tv/a.py", 400), ("tv/b.py", 400))
+        out, _note, absent = SER._share_the_budget(body, 1600)
+        self.assertEqual(SER._file_sections(out), [],
+                         "fixture must actually starve every file, or it measures nothing")
+        self.assertEqual(out, "", "a body carrying no diff section must be empty, not context-only")
+        self.assertTrue(absent, "and the starved files must still be NAMED")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "a payload of pure context buys a paid look that can only return a confident nothing",
+        "file": "tv/second_eye_run.py",
+        "find": "    if not SER_has_any_section(body_out):",
+        "replace": "    if False:",
+        "matches": 1,
+    },
     {
         "why": "a preamble appended outside the pool breaks the cap, the one promise this function makes",
         "file": "tv/second_eye_run.py",
