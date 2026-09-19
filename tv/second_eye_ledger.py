@@ -365,7 +365,7 @@ def code_was_transmitted(sent):
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
            answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None,
-           head_cap=None):
+           head_cap=None, absent=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -435,6 +435,25 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         "model": str(model or ""),
         "family": family_of(model),
         "reached": bool(reached),
+        # ⚠⚠ v3349 — WHICH CHANGED FILES NEVER REACHED THE EYE, AS A LIST. payload_for() has
+        # computed this since v3341 and used it to WARN THE EYE inside the prompt; the ROW only
+        # ever got it as a 400-char-capped prose suffix on `asked`, so no reader could tell a
+        # complete look from a blind one. MEASURED on v3347: the payload cut 8,967 of 92,115 diff
+        # chars and dropped 10 files INCLUDING tv/self_arming.py, the one the version exists to
+        # change; the eye answered "all other listed files UNKNOWN"; the row said verdict=clean.
+        #
+        # ⚠ THREE STATES, KEPT APART, and the middle one is the whole point:
+        #     [...]  measured, and these files are missing
+        #     []     measured, and nothing is missing
+        #     null   nobody could ask — which is also what a MISSING key means, i.e. every row
+        #            written before this version
+        # Collapsing null into [] would turn "we never checked" into "we checked and it was fine",
+        # which is the confident zero this repo keeps re-learning to distrust.
+        # ⚠ `reached` answers a DIFFERENT question and is not a substitute: it means the SEAT
+        # ANSWERED. A reachable eye handed two hunks of a twelve-file change is reached=True and
+        # blind, which is exactly the v3347 row.
+        # [[one-to-one-store-for-a-one-to-many-fact]] [[unknown-stays-unknown]] [[the-unjoined-end]]
+        "absent": (list(absent) if absent is not None else None),
         "verdict": str(verdict or ""),
         "findings": list(findings or []),
         "images": [os.path.basename(str(i)) for i in (images or [])],
@@ -584,25 +603,47 @@ def agreement(version, path=None):
     empty = len(seen) - len(reached)
     verdicts = [str(r.get("verdict") or "").strip() for r in reached]
     verdicts = [v for v in verdicts if v]
+    # ⚠⚠ v3349 — A LOOK THAT NEVER REACHED THE CHANGE IS NOT AN OPINION ABOUT IT. This is the
+    # companion to the empty-seat rule above, and it is the quieter of the two: an empty seat is
+    # visibly absent, while a PARTIAL look answers fluently about the fraction it was handed. On
+    # v3347 the payload dropped 10 of 12 changed files including the one the version exists to
+    # change, the eye said "all other listed files UNKNOWN", and the row was filed clean.
+    # ⚠ THEY ARE NAMED, NOT EXCLUDED. What the eye said about the bytes it DID see is real
+    # evidence and throwing it away would be its own lie; what must never happen is two partial
+    # looks reading as AGREEMENT about a change neither of them saw.
+    # ⚠ `absent` is UNKNOWN on every row written before this version (missing key or null), and
+    # unknown is not zero — those rows are counted apart rather than assumed complete.
+    _partial = [r for r in reached if r.get("absent")]
+    _unknown_reach = [r for r in reached if r.get("absent") is None]
+    _pnote = ""
+    if _partial:
+        _pnote = (" ⚠ %d of %d look(s) NEVER SAW part of the change (files absent from the "
+                  "payload), so that much of this is agreement about bytes nobody read"
+                  % (len(_partial), len(reached)))
     if not verdicts:
         return {"version": version, "looks": 0, "empty": empty, "state": "NONE",
-                "verdicts": [],
+                "verdicts": [], "partial": len(_partial), "reachUnknown": len(_unknown_reach),
                 "say": "no look with a verdict is recorded for %s%s" % (
-                    version, (" (%d empty seat(s))" % empty) if empty else "")}
+                    version, (" (%d empty seat(s))" % empty) if empty else "") + _pnote}
     if len(verdicts) == 1:
         return {"version": version, "looks": 1, "empty": empty, "state": "SINGLE",
-                "verdicts": verdicts,
+                "verdicts": verdicts, "partial": len(_partial),
+                "reachUnknown": len(_unknown_reach),
                 "say": "%s was looked at ONCE (%s) — asked twice is his #56 ruling, and one look "
-                       "cannot show whether the eye is steady on this payload" % (version, verdicts[0])}
+                       "cannot show whether the eye is steady on this payload"
+                       % (version, verdicts[0]) + _pnote}
     if len(set(verdicts)) == 1:
         return {"version": version, "looks": len(verdicts), "empty": empty, "state": "AGREE",
-                "verdicts": verdicts,
-                "say": "%d looks at %s AGREE (%s)" % (len(verdicts), version, verdicts[0])}
+                "verdicts": verdicts, "partial": len(_partial),
+                "reachUnknown": len(_unknown_reach),
+                "say": ("%d looks at %s AGREE (%s)" % (len(verdicts), version, verdicts[0]))
+                       + _pnote}
     return {"version": version, "looks": len(verdicts), "empty": empty, "state": "DISAGREE",
-            "verdicts": verdicts,
+            "verdicts": verdicts, "partial": len(_partial),
+            "reachUnknown": len(_unknown_reach),
             "say": "%d looks at ONE payload DISAGREE (%s) — the eye is not steady here, and which "
                    "verdict shipped was decided by timing. That is a finding about the "
-                   "INSTRUMENT." % (len(verdicts), ", ".join(verdicts))}
+                   "INSTRUMENT." % (len(verdicts), ", ".join(verdicts)) + _pnote}
 
 
 #: ⚠⚠ v3315 — WHICH PARSER WROTE THIS VERDICT. Bump this string whenever `_verdict_for` or

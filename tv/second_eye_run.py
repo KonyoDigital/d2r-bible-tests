@@ -439,7 +439,14 @@ def payload_for(sha):
     elif absent is None:
         dropped = ((dropped + " - ") if dropped else "") + (
             "which changed files reached the eye is UNKNOWN (%s)" % (_nwhy or "unreadable"))
-    return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped
+    # ⚠⚠ v3349 — THE LIST TRAVELS, NOT ONLY THE SENTENCE. `dropped` is PROSE, and the row was
+    # carrying it as a 400-char-capped suffix on `asked`, so the one-to-many fact "these files
+    # never reached the eye" arrived at the ledger flattened into another field and truncated.
+    # The comment above this line already says "the ROW must carry it too"; the intent was right
+    # and the STORE was wrong. [[one-to-one-store-for-a-one-to-many-fact]]
+    # `absent` keeps its THREE states all the way to the row: a LIST (measured, these are missing),
+    # [] (measured, nothing missing) and None (nobody could ask). [[unknown-stays-unknown]]
+    return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped, absent
 
 
 def _model_from_transport():
@@ -846,7 +853,8 @@ def _findings_from(answer):
 # The one thing neither mode may do is let an unanswered ask read as agreement.
 
 
-def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model="", sha=""):
+def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model="",
+                  sha="", absent=None):
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
@@ -910,7 +918,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
                answer_head=answer, head_cap=400, reached=True, path=None, seen_path=None, sent=sent,
-               sha=sha)
+               sha=sha, absent=absent)
     print("  %s: LOOKED — %d finding(s) recorded" % (version, len(findings)))
     return True
 
@@ -921,7 +929,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     if not sha:
         print("  %s: cannot find the commit — %s" % (version, why))
         return False
-    prompt, dropped = payload_for(sha)
+    prompt, dropped, absent = payload_for(sha)
     if prompt is None:
         print("  %s: cannot build the payload — %s" % (version, dropped))
         return False
@@ -966,7 +974,8 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
             # the PROMPT is passed so the echo can be stripped, and the model is read from the
             # answer's own bytes rather than inherited from whatever THIRD_EYE_MODEL happens to be
             return record_answer(version, fh.read(), sent, dropped,
-                                 prompt_text=prompt, answer_model=answer_model, sha=sha)
+                                 prompt_text=prompt, answer_model=answer_model, sha=sha,
+                                 absent=absent)
     if dry:
         return True
     answer, reached, awhy = ask(prompt)
@@ -991,7 +1000,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     # v3229 — the transport names the family when the answer does not. FALLBACK ONLY:
     # record_answer prefers the model the answer's own bytes name.
     return record_answer(version, answer, sent, dropped, prompt_text=prompt,
-                         answer_model=_model_from_transport())
+                         answer_model=_model_from_transport(), absent=absent)
 
 
 def main(argv):
