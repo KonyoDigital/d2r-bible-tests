@@ -88,49 +88,81 @@ def _gate_lock_held(repo=None):
             pass
 
 
-#: Commands that merely READ a file. EVERYTHING ELSE naming the hook is treated as RUNNING it.
-#: ⚠⚠ v3332 — THIS LIST IS A DENY-LIST ON PURPOSE, AND v3331 HAD IT INVERTED. That cut
-#: ALLOW-LISTED the runners (sh, bash, perl, python...), so any wrapper it had not thought of fell
-#: through to "not running": a second eye found it and MEASURED 5 of 10 cases wrong, every one a
-#: FALSE NEGATIVE — `nohup hooks/pre-push`, `env FOO=1 hooks/pre-push`, `stdbuf -o0
-#: hooks/pre-push`, a repo path containing a space, and `git -c k=v push`. A false negative here
-#: says FREE while a gate is grading, which banks a version mid-run: the exact failure this whole
-#: module exists to prevent, reintroduced by the fix for its opposite.
-#: An allow-list fails OPEN on the unknown; a deny-list fails CLOSED. Here the unknown must refuse.
-#: [[strictness-that-closes-the-lane]] is the OTHER direction and is still respected — the readers
-#: below are a small, enumerable, testable set, so an editor session still never blocks a bump.
+#: Commands that merely READ a file. Kept because it is the cheapest, clearest rejection.
 _READERS = ("vi", "vim", "nvim", "nano", "pico", "emacs", "view",
             "less", "more", "cat", "bat", "head", "tail",
             "grep", "egrep", "fgrep", "rg", "ag", "ack",
-            "open", "code", "subl", "diff", "wc", "md5", "shasum", "file", "stat")
+            "open", "code", "subl", "diff", "wc", "md5", "shasum", "file", "stat",
+            "find", "rsync", "tar", "cp", "mv", "ln", "du", "xargs", "node")
 
-#: The hook path as it appears on any command line that runs it.
+#: Things that legitimately EXECUTE something else. If one of these leads, whatever follows is
+#: being RUN, even behind flags of its own (`stdbuf -o0 <hook>`).
+_EXEC = ("sh", "bash", "zsh", "dash", "ksh", "perl",
+         "nohup", "env", "stdbuf", "time", "sudo", "ionice", "nice", "setsid")
+
 _HOOK = "hooks/pre-push"
+
+#: git flags that CONSUME the next token, so the subcommand is not simply toks[1].
+_GIT_ARG_FLAGS = ("-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path")
+
+
+def _git_subcommand(toks):
+    """The actual git subcommand, skipping global flags and their values. -> str or ''"""
+    i = 1
+    while i < len(toks):
+        t = toks[i]
+        if t in _GIT_ARG_FLAGS:
+            i += 2; continue
+        if t.startswith("-"):
+            i += 1; continue
+        return t
+    return ""
 
 
 def _is_hook_invocation(cmd):
     """Does this command line RUN the pre-push hook, or merely NAME it? -> bool
 
-    Two ways to be a gate, and both are checked on the RAW string rather than on tokens, because
-    tokenising is what v3331 got wrong: a repo path with a space in it splits into pieces and no
-    token ends in the hook path at all.
+    ⚠⚠ v3334 — THIRD CUT, AND THE SECOND EYE MEASURED THE SECOND ONE CLOSING THE LANE.
+    v3331 allow-listed interpreters and failed OPEN (5 of 10 wrong, all false negatives).
+    v3332 inverted to a reader deny-list and failed CLOSED far too hard: MEASURED 7 of 11 wrong,
+    all FALSE POSITIVES — `find -path */hooks/pre-push`, `rsync -a hooks/pre-push /tmp/`,
+    `git branch push`, `git log --grep push`, `node tool.js hooks/pre-push.json` each blocked
+    every bump. A guard that refuses on ordinary inspection commands is an off switch.
+    [[strictness-that-closes-the-lane]]
+
+    NEITHER LIST WORKS ALONE. What decides it is POSITION: the hook counts only where it could
+    plausibly BE the program — first token, or behind something that executes things. A token
+    sitting after a flag is an ARGUMENT, not a program. Unknown leaders still fail CLOSED, so the
+    dangerous direction stays guarded.
     """
     cmd = cmd or ""
-    toks = cmd.split()
+    toks = [t for t in cmd.split() if t]
+    # A leading `K=V` is an environment assignment, not the program.
+    while toks and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[0]):
+        toks.pop(0)
     if not toks:
         return False
     base0 = os.path.basename(toks[0])
 
-    # 1. `git ... push ...` — what spawns the hook. Scanned across ALL tokens, not a fixed window:
-    #    v3331 looked at toks[1:3] only, so `git -c http.version=HTTP/1.1 push` pushed `push` out
-    #    of range and read as not-a-push.
-    if base0 == "git" and any(os.path.basename(t) == "push" for t in toks[1:]):
-        return True
-
-    # 2. the hook itself, however it was wrapped. Substring, so a path with spaces still matches.
-    if _HOOK not in cmd:
+    if base0 == "git":
+        # v3332 counted ANY bare `push` token, so `git branch push` read as a push.
+        return _git_subcommand(toks) == "push"
+    if base0 in _READERS:
         return False
-    return base0 not in _READERS
+
+    # The hook must END at a boundary: `hooks/pre-push.log` and `-pre-push.bak` are other files.
+    m = re.search(re.escape(_HOOK) + r"(?![\w.\-])", cmd)
+    if not m:
+        return False
+    if os.path.basename(toks[0]).endswith("pre-push") or toks[0].endswith(_HOOK):
+        return True                      # executed directly
+    if base0 in _EXEC:
+        return True                      # a known runner leads
+    # Anything flagged before the hook makes it an argument to that command.
+    before = cmd[:m.start()].split()
+    if any(t.startswith("-") for t in before[1:]):
+        return False
+    return True                          # unknown leader -> fail CLOSED
 
 
 def _prepush_running(repo=None):

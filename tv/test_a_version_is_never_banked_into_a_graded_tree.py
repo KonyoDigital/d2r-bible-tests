@@ -114,10 +114,29 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
         fixtures are pinned here because that is the half test-venue learned the hard way when a
         watchdog was accused for the string it prints.
         """
+        # ⚠⚠ v3334 — EVERY ONE OF THESE WAS MEASURED WRONG IN v3332, AND A SECOND EYE FOUND THEM.
+        # That cut inverted v3331's allow-list into a reader deny-list and CLOSED THE LANE: 7 of
+        # 11 probes came back FALSE POSITIVES, so ordinary inspection commands blocked every bump.
+        # A guard that refuses on `find` or on `git branch push` is an off switch, not a check.
+        # [[strictness-that-closes-the-lane]]
         for cmd in ("vi /repo/hooks/pre-push",
                     "less hooks/pre-push",
                     "cat /repo/hooks/pre-push",
-                    "grep -n smoke /repo/hooks/pre-push"):
+                    "grep -n smoke /repo/hooks/pre-push",
+                    "find /work -path */hooks/pre-push",      # the hook is a FLAG ARGUMENT
+                    "rsync -a hooks/pre-push /tmp/",
+                    "tar tf hooks/pre-push.tar",              # a DIFFERENT file (.tar)
+                    "node tool.js hooks/pre-push.json",       # a DIFFERENT file (.json)
+                    "cat hooks/pre-push.log",
+                    "git branch push",                        # `push` as a BRANCH, not a command
+                    "git log --grep push",
+                    "git checkout -b push",
+                    # ⚠ THE ONE THAT REACHES THE POSITION RULE. Every case above is rejected
+                    # earlier — by _READERS or by the git branch — so the position rule had NO
+                    # coverage at all and its sabotage came back BLIND with a correct match count.
+                    # A leader that is neither a reader nor a known runner, with the hook sitting
+                    # behind a flag, is the only input that exercises it.
+                    "mytool --config /repo/hooks/pre-push"):
             self.assertFalse(
                 TB._is_hook_invocation(cmd),
                 "%r was read as a RUNNING pre-push. It only mentions the path - matching that "
@@ -136,7 +155,10 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
                     "nohup /repo/hooks/pre-push origin git@host:r.git",
                     "env FOO=1 /repo/hooks/pre-push origin",
                     "stdbuf -o0 /repo/hooks/pre-push origin",
-                    "/bin/sh /my repo/hooks/pre-push origin"):          # a path with a SPACE
+                    "/bin/sh /my repo/hooks/pre-push origin",           # a path with a SPACE
+                    "FOO=1 /repo/hooks/pre-push origin",                # leading env assignment
+                    "/repo/hooks/pre-push origin",                      # executed directly
+                    "weirdwrapper /repo/hooks/pre-push origin"):        # UNKNOWN leader -> CLOSED
             self.assertTrue(
                 TB._is_hook_invocation(cmd),
                 "%r is a real invocation and was not recognised - the signal this whole module "
@@ -204,20 +226,17 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
-        # ⚠ Puts v3331's ALLOW-LIST back: an unknown wrapper (nohup/env/stdbuf) then reads as
-        # "not running" and a real gate goes undetected. FALSE NEGATIVE = a bump into a graded tree.
-        "why": "allow-listing runners makes every unknown wrapper read as no-gate-running",
+        "why": "counting any bare push token makes git branch push read as a running gate",
         "file": "tv/tree_busy.py",
-        "find": "    return base0 not in _READERS",
-        "replace": "    return base0 in (\"sh\", \"bash\", \"zsh\", \"perl\")",
+        "find": '        return _git_subcommand(toks) == "push"',
+        "replace": '        return any(os.path.basename(t) == "push" for t in toks[1:])',
         "matches": 1,
     },
     {
-        # Narrows the git-push scan back to a fixed window, so `git -c k=v push` stops counting.
-        "why": "a fixed token window misses git push behind any -c or --flag",
+        "why": "without the position rule a hook named as a flag argument reads as a running gate",
         "file": "tv/tree_busy.py",
-        "find": 'if base0 == "git" and any(os.path.basename(t) == "push" for t in toks[1:]):',
-        "replace": 'if base0 == "git" and "push" in toks[1:3]:',
+        "find": '    if any(t.startswith("-") for t in before[1:]):',
+        "replace": "    if False:",
         "matches": 1,
     },
     {
