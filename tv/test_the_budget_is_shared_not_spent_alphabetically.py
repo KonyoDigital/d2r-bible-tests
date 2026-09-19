@@ -214,12 +214,69 @@ class TestTheBudgetIsSharedNotSpentAlphabetically(unittest.TestCase):
         self.assertIn("tv/one.py", absent,
                       "it was dropped without being named, which reads as coverage it never had")
 
+    def test_a_preamble_comes_out_of_the_budget(self):
+        """⚠ FOUND BY A CROSS-FAMILY REVIEW OF v3370, AND MY OWN FIXTURES WERE BLIND TO IT.
+
+        Every other case here builds a diff starting with `diff --git` at position 0, so
+        sized[0][1] == 0 and the preamble branch never executes. Anything before the first header
+        was appended with NO pool accounting, so the ONE promise this function makes — the cap —
+        could be broken by however many leading bytes happened to exist.
+
+        Measured before the fix: cap 5000, a 361-char preamble, 5319 chars returned.
+        """
+        lead = "PREAMBLE " * 40 + "\n"
+        body = lead + _diff(("tv/a.py", 400), ("tv/b.py", 400))
+        self.assertGreater(body.find("diff --git"), 0,
+                           "this fixture must actually HAVE a preamble or it measures nothing")
+        for cap in (2000, 5000, 9000):
+            out, _n, _a = SER._share_the_budget(body, cap)
+            self.assertLessEqual(len(out), cap,
+                                 "cap %d exceeded by %d chars — the preamble escaped the budget"
+                                 % (cap, len(out) - cap))
+
+    def test_a_section_with_no_line_boundary_is_dropped_and_named(self):
+        """The contract, pinned. ⚠ NO RED-PROOF FOR THIS ONE, DELIBERATELY.
+
+        A cross-family review flagged the `c > 0` branch as able to emit an unterminated slice.
+        The branch is real, but it is UNREACHABLE on well-formed input: a diff section always opens
+        `diff --git a/... b/...` + newline, so its first newline sits at ~34 chars, and
+        rfind("\n", 0, want) can only return -1 when want <= 34 — far below MIN_USEFUL_SLICE, so
+        the floor drops and names the slice whichever branch ran. `c >= 0` is kept as HARDENING.
+
+        ⚠ I FIRST REPORTED THIS AS REPRODUCED AND IT WAS NOT. My fixture joined two sections
+        mid-line, so the second file's header was never at line start IN THE INPUT and
+        _file_sections saw one section — I measured my own malformed fixture and read it as a code
+        defect. A reproduction that CONFIRMS can be the fixture's fault too, and it gets less
+        scrutiny than a refuting one precisely because it feels like proof.
+
+        A red-proof here would come back BLIND for a legitimate reason, which is worse than none:
+        it would sit in the ledger looking like coverage. [[regression-guard]] §5
+        """
+        big = "diff --git a/tv/one.py b/tv/one.py\n--- a/tv/one.py\n+++ b/tv/one.py\n"
+        big += "+" + ("x" * 40000) + "\n"          # terminated: the NEXT header is at line start
+        body = big + _diff(("tv/two.py", 300))
+        self.assertEqual(len(SER._file_sections(body)), 2,
+                         "the fixture must present TWO sections, or it is testing its own join")
+        out, _note, absent = SER._share_the_budget(body, 9000)
+        seen = [q for q, _a, _b in SER._file_sections(out)]
+        self.assertIn("tv/two.py", seen, "the well-formed neighbour must survive")
+        self.assertIn("tv/one.py", absent, "an unusable slice is dropped AND NAMED, never silent")
+        for q, a, b in SER._file_sections(out):
+            self.assertTrue(out[a:b].endswith("\n"), "%s emitted unterminated" % q)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "a preamble appended outside the pool breaks the cap, the one promise this function makes",
+        "file": "tv/second_eye_run.py",
+        "find": "    take, pool, cand = {}, max(0, cap - lead), sorted(sized, key=lambda x: x[3])",
+        "replace": "    take, pool, cand = {}, cap, sorted(sized, key=lambda x: x[3])",
+        "matches": 1,
+    },
     {
         "why": "the alphabetical prefix is the defect: it reviewed by filename, so the end of the alphabet was never reviewed",
         "file": "tv/second_eye_run.py",
@@ -230,8 +287,8 @@ RED_PROOF = [
     {
         "why": "cutting before the trailing newline merges two files and makes the second invisible",
         "file": "tv/second_eye_run.py",
-        "find": "            seg = seg[:c + 1] if c > 0 else seg[:want]",
-        "replace": "            seg = seg[:c] if c > 0 else seg[:want]",
+        "find": '            seg = seg[:c + 1] if c >= 0 else ""',
+        "replace": '            seg = seg[:c] if c >= 0 else ""',
         "matches": 1,
     },
     {

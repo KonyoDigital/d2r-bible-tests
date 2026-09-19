@@ -535,7 +535,12 @@ def _share_the_budget(body, cap):
         cut = body.rfind("\n", 0, cap)
         return body[:cut if cut > 0 else cap], None, []
     sized = [(p, a, b, b - a) for p, a, b in secs]
-    take, pool, cand = {}, cap, sorted(sized, key=lambda x: x[3])
+    # ⚠ THE PREAMBLE COMES OUT OF THE POOL. Anything before the first `diff --git` is emitted
+    # below, so leaving it out of the accounting lets the ONE promise this function makes — the
+    # cap — be exceeded by however many leading bytes happen to be there. Measured by a
+    # cross-family review of v3370: cap 5000, a 361-char preamble, 5319 chars returned.
+    lead = sized[0][1]
+    take, pool, cand = {}, max(0, cap - lead), sorted(sized, key=lambda x: x[3])
     while cand:
         share = pool // len(cand)
         if share < MIN_USEFUL_SLICE:
@@ -564,8 +569,15 @@ def _share_the_budget(body, cap):
             # two files merge on the wire and the second becomes INVISIBLE to the eye and to every
             # parser downstream, including the absent-file accounting. Caught by re-parsing this
             # function own output and finding vault_retro.py missing while the note claimed 45%.
+            # ⚠ `>= 0`, NOT `> 0`, AND NO UNTERMINATED FALLBACK. When there is no newline in the
+            # first `want` bytes, seg[:want] does not end on a line boundary, so the NEXT file's
+            # `diff --git` header lands mid-line and stops being a header: the two files merge and
+            # the second disappears from the payload AND from `absent`, which is the exact defect
+            # this function exists to remove. Reproduced on a section whose header is followed by
+            # one unbroken 40,000-char line — tv/two.py vanished entirely and was never named.
+            # An empty slice falls through to the floor below, which drops and NAMES it.
             c = seg.rfind("\n", 0, want)
-            seg = seg[:c + 1] if c > 0 else seg[:want]
+            seg = seg[:c + 1] if c >= 0 else ""
             # ⚠ A LINE-BOUNDARY CUT CAN COLLAPSE. WINDOWS_SHIP.json is one long line, so the cut
             # landed at 6% of it — a sliver, which is what the floor exists to prevent. Judge the
             # slice AFTER the cut, not by the share that was allocated, and drop it if it is not
