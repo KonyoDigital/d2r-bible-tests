@@ -144,11 +144,22 @@ def _named(blob, col="name"):
 
 
 def _strings(blob):
-    """item-*.json is [{Key, enUS, ...}] -> {key.lower(): enUS}."""
+    """item-*.json is [{Key, enUS, ...}] -> {key.lower(): enUS}, or None if it will not parse.
+
+    ⚠ None, NEVER {}. A blob that ARRIVED and would not parse is a different fact from one that
+    parsed to nothing, and `{}` made them the same: the lexicon then reported 0 affixes with total
+    confidence and classify() answered UNKNOWN for every name in the game — which reads as "the
+    game has no such affixes" rather than "I could not read the file". The caller already writes a
+    specific sentence for an ABSENT source; a corrupt one earns the same.
+
+    Caught by CI's swallow ratchet on the day v3364 shipped this file (RANK 1, a failed read handed
+    back as DATA, baseline 70 -> 71) — and then ignored for five consecutive versions because
+    nobody read CI. [[unknown-stays-unknown]] §1 [[sweep-dont-ask]] §2
+    """
     try:
         rows = json.loads((blob or b"").decode("utf-8-sig", "replace"))
     except Exception:
-        return {}
+        return None
     m = {}
     for e in rows or ():
         k = str((e or {}).get("Key") or "").strip()
@@ -172,6 +183,18 @@ def build():
                          "present" if os.path.isdir(os.path.join(D2R, "Data")) else "MISSING"))
     aff = _strings(blobs.get("nameaffixes"))
     nms = _strings(blobs.get("itemnames"))
+    # ⚠ ARRIVED-BUT-CORRUPT IS ITS OWN ANSWER. `blob is not None` is what separates it from the
+    # ABSENT case handled above — an absent source is already counted in `absent`, and reporting it
+    # here as unparseable would name the wrong cause.
+    _unreadable = [_lbl for _lbl, _blob, _m in
+                   (("nameaffixes", blobs.get("nameaffixes"), aff),
+                    ("itemnames", blobs.get("itemnames"), nms))
+                   if _blob is not None and _m is None]
+    if _unreadable:
+        return None, ("pulled but would not parse: %s — a corrupt source is not an empty one, and "
+                      "a lexicon built from it would report 0 affixes with total confidence"
+                      % ", ".join(_unreadable))
+    aff, nms = aff or {}, nms or {}
 
     def resolve(keys):
         hit, miss = set(), []

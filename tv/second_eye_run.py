@@ -493,6 +493,93 @@ def reach_of(full_body, final_body):
                 for p, n in full.items() if int(got.get(p, 0)) > 0)
 
 
+
+# ── v3370 (#116) — THE BUDGET IS SHARED, NOT SPENT ALPHABETICALLY ───────────────────────────
+# MEASURED on v3368: the admitted set was EXACTLY sorted(changed files)[:5]. Nothing weighed
+# relevance, size or risk — git's default sort decided who got reviewed, so the files late in the
+# alphabet were never reviewed at all. TWENTY-THREE engine files sort behind all 460 tv/test_*.py,
+# and they are the whole vault lane plus tree_busy, tv_diablo, unknown_age, verdict_provenance,
+# window_visibility, write_census, write_witness.
+#
+# The feedback loop made it worse: the standing order is JOIN -> GATE -> HEART -> BANK, so nearly
+# every version adds a large new tv/test_*.py, which alphabetically lands AHEAD of the engine it
+# protects and pushes it past the cap. The law crowded out its own subject. v3368 lost
+# vault_retro.py and tv_diablo.py — its entire fix — and the eye said so itself: "the only consumer
+# of the three new fields is the new doctor check; its producer lives in the missing files."
+#
+# MEASURED over 30 real versions / 182 changed code files:
+#     alphabetical prefix (before)    68/182  37.4%   median cov   -    slivers <15%:  0
+#     engine-first ordering           74/182  40.7%                     <- refuted, barely moves
+#     fair share, no floor           182/182 100.0%   median cov  66%   slivers <15%: 26
+#     fair share, floor 1500         151/182  83.0%   median cov 100%   slivers <15%:  1
+#
+# ⚠⚠ THE NO-FLOOR VARIANT IS A TRAP, AND THIS FILE ALREADY RECORDS WHY. v2803: the payload ended
+# at `+    return ` and the eye returned TWO high-severity defects about a function whose last two
+# characters the cap had removed. v2850: `drift` reported as never declared, when the declaration
+# sat above the first changed line. A SLIVER OF A FILE DOES NOT MERELY FAIL TO HELP — IT
+# MANUFACTURES FINDINGS, and each false one has to be chased and refuted by hand. So a file gets a
+# USEFUL slice or none at all, and the ones that get none are named by the v3341 mechanism.
+MIN_USEFUL_SLICE = 1500
+
+
+def _share_the_budget(body, cap):
+    """-> (body, cut_note, absent_extra). Every file gets a useful slice of the cap, or none.
+
+    Max-min fair: the smallest diffs complete cheaply and donate what they do not need. When the
+    remaining pool cannot give everyone a USEFUL slice, the largest file is dropped rather than
+    everyone being shaved into slivers — a partial file the eye can reason about beats several it
+    cannot.
+    """
+    secs = _file_sections(body)
+    if len(secs) < 2:
+        cut = body.rfind("\n", 0, cap)
+        return body[:cut if cut > 0 else cap], None, []
+    sized = [(p, a, b, b - a) for p, a, b in secs]
+    take, pool, cand = {}, cap, sorted(sized, key=lambda x: x[3])
+    while cand:
+        share = pool // len(cand)
+        if share < MIN_USEFUL_SLICE:
+            cand.pop()                      # cannot serve everyone usefully; drop the largest
+            continue
+        p, a, b, n = cand[0]
+        if n <= share:
+            take[p] = n; pool -= n; cand.pop(0); continue
+        for p, a, b, n in cand:
+            take[p] = share
+        break
+    out, cuts, absent = [], [], []
+    if sized[0][1] > 0:
+        out.append(body[:sized[0][1]])      # anything before the first header is kept
+    for p, a, b, n in sized:                # ORIGINAL order on the wire, not the allocation order
+        want = int(take.get(p, 0))
+        if want <= 0:
+            absent.append(p); continue
+        seg = body[a:b]
+        if want < n:
+            # ⚠ LINE BOUNDARY, same as the single cut it replaces — a mid-statement cut is what
+            # manufactured the v2803 findings.
+            #
+            # ⚠⚠ AND THE SLICE MUST KEEP ITS TRAILING NEWLINE. Cutting BEFORE it leaves the next
+            # file header appended to a half-line, so `diff --git` is no longer at line start: the
+            # two files merge on the wire and the second becomes INVISIBLE to the eye and to every
+            # parser downstream, including the absent-file accounting. Caught by re-parsing this
+            # function own output and finding vault_retro.py missing while the note claimed 45%.
+            c = seg.rfind("\n", 0, want)
+            seg = seg[:c + 1] if c > 0 else seg[:want]
+            # ⚠ A LINE-BOUNDARY CUT CAN COLLAPSE. WINDOWS_SHIP.json is one long line, so the cut
+            # landed at 6% of it — a sliver, which is what the floor exists to prevent. Judge the
+            # slice AFTER the cut, not by the share that was allocated, and drop it if it is not
+            # useful. An absent file is named; a sliver manufactures findings.
+            if len(seg) < MIN_USEFUL_SLICE:
+                absent.append(p); continue
+            cuts.append("%s %d%%" % (p, int(round(100.0 * len(seg) / float(n)))))
+        out.append(seg)
+    note = None
+    if cuts:
+        note = "shown in part: %s" % ", ".join(cuts)
+    return "".join(out), note, absent
+
+
 def payload_for(sha):
     """-> (prompt, dropped_note). Code only, comments stripped, truncation declared."""
     # ⚠ PYTHON FIRST, and the reason is measurable: control_ui.html diffs in this repo run to tens
@@ -533,10 +620,11 @@ def payload_for(sha):
         # artefact of the transport as a defect in the code. An instrument that fabricates
         # findings costs more than one that finds nothing, because each false one has to be
         # chased down and refuted by hand. [[feedback-suspect-the-instrument]]
-        cut = body.rfind("\n", 0, _cap())
-        body = body[:cut if cut > 0 else _cap()]
-        dropped = ("truncated to %d of %d diff chars at a line boundary — the eye saw the first "
-                   "part only" % (len(body), len(_full_len_holder[0])))
+        body, _cut_note, _cut_absent = _share_the_budget(body, _cap())
+        dropped = ("shared %d of %d diff chars across the changed files, each cut at a line "
+                   "boundary" % (len(body), len(_full_len_holder[0])))
+        if _cut_note:
+            dropped += " — " + _cut_note
     # ⚠⚠ v2851 — THE SCOPE WARNING BELONGS ON EVERY DIFF, NOT ONLY A TRUNCATED ONE.
     # It used to live entirely inside `if dropped:`. But a diff is ALWAYS partial — it shows
     # HUNKS, never whole functions — so a complete, untruncated diff invites the same false
