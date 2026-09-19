@@ -3957,13 +3957,29 @@ def _check_the_item_facts_are_reaching_the_row():
     # ⚠ ONLY ROWS THIS PROMPT PRODUCED. Rows from vp2017 and earlier were read by a prompt that
     # never asked, so counting them would make this row red on the day it was born — the mistake
     # the `fault evidence` row made and had to be given a boundary for.
-    mine = [r for r in rows if isinstance(r, dict) and str(r.get("promptVer") or "") == ver]
+    # ⚠⚠ v3369 — ASK WHERE THE FACTS ACTUALLY LIVE. This check was written at v3368 against a shape
+    # that did not exist yet: it read promptVer and the three facts OFF THE ROW. v3369 built the
+    # projections and deliberately put them on the WITNESS — promptVer because different sightings
+    # of one name can come from different prompts, and the facts because one (name, lane) key holds
+    # SEVERAL PHYSICAL ITEMS and a single row-level `sockets` would silently pick a winner.
+    #
+    # Left as it was, `mine` would be empty forever and this row would read UNKNOWN for good: a
+    # supervisor pointed at an address the data never moves to. That is the same defect the row
+    # exists to catch, wearing the supervisor's own clothes. [[the-unjoined-end]]
+    def _wits(r):
+        return [w for w in (r.get("witnesses") or []) if isinstance(w, dict)]
+
+    mine = [r for r in rows if isinstance(r, dict)
+            and any(str(w.get("promptVer") or "") == ver for w in _wits(r))]
     if not mine:
         return UNKNOWN, ("no sighting has been read by prompt %s yet, so whether the three facts "
                          "travel is UNMEASURED - not clean, and not a defect either" % ver)
+    # a row "has" the facts when a sighting carried one AND the row reflects it as a variant, which
+    # is the whole six-link chain end to end rather than either half of it
     have = [r for r in mine
-            if r.get("sockets") is not None or r.get("eth") is not None
-            or r.get("quality") is not None]
+            if (r.get("variants") or [])
+            or any(w.get("sockets") is not None or w.get("eth") is not None
+                   or w.get("quality") is not None for w in _wits(r))]
     if not have:
         return MISSING, ("%d sighting(s) read by %s and NOT ONE carries sockets, eth or quality. "
                          "The template keys have stopped coming back, and a null from this prompt "

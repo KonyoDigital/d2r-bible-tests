@@ -771,6 +771,16 @@ def _witness_rows(evidence):
              "frame": _f if _f else None,
              "frameNote": None if _f else "no frame was recorded for this sighting",
              "lane": e.get("lane"), "conf": e.get("conf")}
+        # v3369 — AND THE VALUE FACTS. This builder has silently dropped a needed field THREE times
+        # already — conf (v1786), the witness id (v2209), the crop (v2239) — each repaired by hand,
+        # each invisible until something downstream read a confident blank. WITNESS_NOT_CARRIED
+        # below makes the fourth kind of drop loud instead.
+        #
+        # `is not None`, never truthiness: eth=False and sockets=0 are ANSWERS, and `if e.get("eth")`
+        # would throw both away as if the reader had said nothing. [[unknown-stays-unknown]]
+        for _vf in ("sockets", "eth", "quality", "promptVer"):
+            if e.get(_vf) is not None:
+                r[_vf] = e.get(_vf)
         w = e.get("witness")
         if w:                      # falsy ("" / None) is NOT a look id; it stays absent
             r["witness"] = w
@@ -805,9 +815,61 @@ def _witness_rows(evidence):
 # in neither list — a fifth silent drop becomes a loud one.
 #
 # Empty today, and that is the honest state: every field an owned row carries is shipped.
+# ── v3369 — THE SAME DISCIPLINE, ONE BOUNDARY UP ────────────────────────────────────────────
+# v2074 (above) closed this class at apply_payload after FOUR silent drops. It did not close it at
+# _witness_rows, which by its own comments has dropped a field THREE times — conf (v1786), the
+# witness id (v2209), the crop (v2239) — and dropped four more on the day v3368 added them.
+#
+# So the sighting's field list is now DECLARED. Anything `sight` carries must either reach the
+# banked witness or be named here with a reason. The guard in test_vault_retro.py fails on any
+# field in neither list, so a fifth drop is loud.
+WITNESS_NOT_CARRIED = {
+    "ts": "the row carries lastSeenTs, folded across every sighting by _owned_row",
+    "count": "merge-max lives on the row; a per-sighting count would re-open the max",
+    "kind": "the row votes on kind across sightings; one witness's guess is not the answer",
+}
+
 APPLY_NOT_SHIPPED = {
     # "fieldname": "why the board does not need it",
+    #
+    # v3369 — `variants` is DERIVED, and its source ships. _variants_of() is a pure fold over the
+    # witnesses, and witnesses ARE in the payload, so the board can recompute it exactly and a
+    # round-trip back through gate() loses nothing. Shipping it as well would put a second copy of
+    # one fact on the wire, which is how two paths start disagreeing. [[copy-drift]]
+    #
+    # ⚠ THE MOMENT THE BOARD RENDERS VARIANTS, DELETE THIS LINE AND SHIP IT. A derived field is
+    # only safe to omit while nobody on the far side needs it in hand.
+    "variants": "derived by _variants_of from `witnesses`, which the payload already carries",
 }
+
+
+def _variants_of(evidence):
+    """The DISTINCT (sockets, eth, quality) triples under one (name, lane) key, each with its count.
+
+    ⚠ ONE KEY LEGITIMATELY HOLDS SEVERAL PHYSICAL ITEMS. A 4-socket Gorgon Crossbow and a plain one
+    are different items worth different money, and they fold to the same (name, lane). Measured on
+    his live store the day this was written: 4 of 44 rows already carry more than one witness
+    (Horadric Cube 20, War Traveler 4, Magefist 2, Gheed's Fortune 2).
+
+    So the row must NOT carry a single `sockets`. That is a one-to-many fact in a one-to-one store:
+    setdefault keeps the first, d[k] = v keeps the last, and neither says a word about the other.
+    A row carries the SET it has seen; the sighting carries what one look saw.
+
+    Triples that are entirely unknown are dropped — a variant nobody could describe is not a
+    variant, it is an absence, and counting it would inflate the answer with blanks.
+    """
+    seen = {}
+    for e in evidence:
+        if not isinstance(e, dict):
+            continue
+        trip = (e.get("sockets"), e.get("eth"), e.get("quality"))
+        if trip == (None, None, None):
+            continue
+        seen[trip] = seen.get(trip, 0) + 1
+    out = [{"sockets": t[0], "eth": t[1], "quality": t[2], "witnesses": n}
+           for t, n in seen.items()]
+    # sorted so the answer does not depend on the order the sightings arrived in
+    return sorted(out, key=lambda v: (str(v["sockets"]), str(v["eth"]), str(v["quality"])))
 
 
 def _owned_row(key, evidence):
@@ -833,7 +895,8 @@ def _owned_row(key, evidence):
     # the kind the most sightings agreed on; ties broken by name so the answer is order-independent
     kind = sorted(kinds.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if kinds else "item"
     return {"name": name, "lane": lane, "kind": kind, "count": count, "conf": round(conf, 3),
-            "witnesses": _witness_rows(evidence), "lastSeenTs": last}
+            "witnesses": _witness_rows(evidence), "lastSeenTs": last,
+            "variants": _variants_of(evidence)}
 
 
 def merge_vault(existing, incoming):
@@ -1489,6 +1552,13 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                     sight = {"session": sid, "witness": _wkey, "frame": name, "lane": item["lane"],
                              "conf": item["conf"], "count": item["count"], "kind": item["kind"],
                              "ts": ts,
+                             # v3369 — THE VALUE FACTS TRAVEL WITH THE SIGHTING. v3368 taught the
+                             # prompt to ask for sockets/eth/quality and normalize_item to parse
+                             # them, and then this dict dropped all four: the reader SAW them, used
+                             # sockets to judge junk, and banked a bare name. Six links, two built.
+                             # They belong on the SIGHTING, not the row — see _variants_of.
+                             "sockets": item.get("sockets"), "eth": item.get("eth"),
+                             "quality": item.get("quality"), "promptVer": item.get("promptVer"),
                              # v2239 — the picture, or WHY there is none. Never silently absent:
                              # "no tooltip on this frame" and "the crop store is full" are
                              # different answers and only one of them is about his footage.
@@ -1569,6 +1639,7 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                            "conf": v.get("bestConf"),
                            "sessions": v.get("sessions") or [],
                            "witnesses": [dict(e) for e in ev if isinstance(e, dict)],
+                           "variants": _variants_of(ev),
                            "lastSeenTs": max([e.get("ts") or 0 for e in ev] or [0]) or None})
             continue
         owned.append(_owned_row(key, ev))
