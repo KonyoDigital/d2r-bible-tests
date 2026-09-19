@@ -126,7 +126,7 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
         real = R.absent_from
         R.absent_from = lambda sha, body: (["tv/PLANTED_ABSENT_FILE.py"], "")
         try:
-            prompt, dropped, _absent = R.payload_for("HEAD")
+            prompt, dropped, _absent, _reach = R.payload_for("HEAD")
         finally:
             R.absent_from = real
         self.assertIsNotNone(prompt, "payload_for returned nothing for HEAD")
@@ -145,7 +145,7 @@ class TestAPayloadNamesWhatItLeftOut(unittest.TestCase):
         real = R.absent_from
         R.absent_from = lambda sha, body: (None, "planted: the roster could not be read")
         try:
-            prompt, dropped, _absent = R.payload_for("HEAD")
+            prompt, dropped, _absent, _reach = R.payload_for("HEAD")
         finally:
             R.absent_from = real
         self.assertIn(

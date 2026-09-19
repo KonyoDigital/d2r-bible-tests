@@ -366,7 +366,7 @@ def code_was_transmitted(sent):
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
            answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None,
-           head_cap=None, absent=None, absent_kinds=None):
+           head_cap=None, absent=None, absent_kinds=None, reach=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -455,6 +455,16 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         # blind, which is exactly the v3347 row.
         # [[one-to-one-store-for-a-one-to-many-fact]] [[unknown-stays-unknown]] [[the-unjoined-end]]
         "absent": (list(absent) if absent is not None else None),
+        # v3363 - AND HOW MUCH OF EACH FILE THAT *DID* ARRIVE. `absent` is answered by the
+        # presence of a `diff --git` header; truncation cuts MID-FILE, so a file whose header
+        # arrived and whose body was chopped is absent-clean and unread. MEASURED over 12
+        # versions: 8 of 67 ARRIVED files came in under half their bytes, and one of them was
+        # tv/second_eye_ledger.py on v3354 at 48.6% - the file that version exists to change,
+        # filed blind_to [] and verdict clean.
+        # ⚠ THE FRACTION, NEVER A FLAG. got/total per file keeps the bar in the READER where it
+        # can be moved; a bool here would bake in a number nobody measured.
+        # ⚠ None means nobody could measure. [[unknown-stays-unknown]]
+        "reach": (dict(reach) if isinstance(reach, dict) else None),
         # ⚠⚠ v3354 — WHAT KIND OF CHANGE EACH ABSENT FILE CARRIED: {path: stamp|substantive|
         # unknown}. `absent` alone cannot say whether a look missed anything a reviewer could have
         # held an opinion about, because bible.html and tv/tv_diablo.py are absent from almost
@@ -734,10 +744,31 @@ def agreement(version, path=None):
     # opinion about — v3349 (its own 218-line subject, filed `clean`) and v3351. A warning that
     # fires on every row is furniture, which is the same defect as a gate that is always green.
     # [[regression-guard]] [[zero-needs-a-denominator]]
+    # ⚠⚠ v3363 — A FILE CAN ARRIVE AND STILL BE UNREAD, and the two counters above cannot see
+    # it: both are answered by whether a `diff --git` header reached the payload. v3361's eye
+    # OPENED with "REACH: 19/92 hunks" and the row read clean with blind_to [].
+    _cutmap = {}
+    for _r in reached:
+        _rc = _r.get("reach")
+        if not isinstance(_rc, dict):
+            continue
+        _n = sorted(p for p, v in _rc.items()
+                    if isinstance(v, dict) and (v.get("total") or 0) > 0
+                    and float(v.get("got") or 0) / float(v["total"]) < REACH_CUT_BAR)
+        if _n:
+            _cutmap[id(_r)] = _n
+    _cut = [r for r in reached if id(r) in _cutmap]
     _blind = dict((id(r), blind_to(r)) for r in reached)
     _partial = [r for r in reached if _blind[id(r)]]
     _unknown_reach = [r for r in reached if r.get("absent") is None]
     _pnote = ""
+    if _cut:
+        _cn = sorted(set(f for r in _cut for f in _cutmap[id(r)]))
+        _pnote += (" ⚠ %d of %d look(s) got under %d%% of a file that DID arrive (%s)"
+                   " — a header reaching the eye is not the file reaching the eye"
+                   % (len(_cut), len(reached), int(REACH_CUT_BAR * 100),
+                      ", ".join(_cn[:6])
+                      + (" +%d more" % (len(_cn) - 6) if len(_cn) > 6 else "")))
     if _partial:
         _names = sorted(set(f for r in _partial for f in (_blind[id(r)] or [])))
         _pnote = (" ⚠ %d of %d look(s) NEVER SAW a SUBSTANTIVE part of the change (%s), so that "
@@ -747,25 +778,25 @@ def agreement(version, path=None):
                      (" +%d more" % (len(_names) - 6) if len(_names) > 6 else "")))
     if not verdicts:
         return {"version": version, "looks": 0, "empty": empty, "state": "NONE",
-                "verdicts": [], "partial": len(_partial), "reachUnknown": len(_unknown_reach),
+                "verdicts": [], "partial": len(_partial), "reachUnknown": len(_unknown_reach), "cut": len(_cut),
                 "say": "no look with a verdict is recorded for %s%s" % (
                     version, (" (%d empty seat(s))" % empty) if empty else "") + _pnote}
     if len(verdicts) == 1:
         return {"version": version, "looks": 1, "empty": empty, "state": "SINGLE",
                 "verdicts": verdicts, "partial": len(_partial),
-                "reachUnknown": len(_unknown_reach),
+                "reachUnknown": len(_unknown_reach), "cut": len(_cut),
                 "say": "%s was looked at ONCE (%s) — asked twice is his #56 ruling, and one look "
                        "cannot show whether the eye is steady on this payload"
                        % (version, verdicts[0]) + _pnote}
     if len(set(verdicts)) == 1:
         return {"version": version, "looks": len(verdicts), "empty": empty, "state": "AGREE",
                 "verdicts": verdicts, "partial": len(_partial),
-                "reachUnknown": len(_unknown_reach),
+                "reachUnknown": len(_unknown_reach), "cut": len(_cut),
                 "say": ("%d looks at %s AGREE (%s)" % (len(verdicts), version, verdicts[0]))
                        + _pnote}
     return {"version": version, "looks": len(verdicts), "empty": empty, "state": "DISAGREE",
             "verdicts": verdicts, "partial": len(_partial),
-            "reachUnknown": len(_unknown_reach),
+            "reachUnknown": len(_unknown_reach), "cut": len(_cut),
             "say": "%d looks at ONE payload DISAGREE (%s) — the eye is not steady here, and which "
                    "verdict shipped was decided by timing. That is a finding about the "
                    "INSTRUMENT." % (len(verdicts), ", ".join(verdicts)) + _pnote}
@@ -785,6 +816,14 @@ def agreement(version, path=None):
 #: parsing; nothing went back and said so, and nothing records which generation judged a row. Any
 #: statistic over the ledger's history therefore reads 64 clean looks as looks that found
 #: something. [[stale-reading]] — a verdict with no provenance is not a verdict.
+#: v3363 — THE READER'S BAR for calling an ARRIVED file cut short. ⚠ It lives HERE and never in
+#: the row: the row keeps got/total, so this number can move without rewriting history. A bar
+#: baked into the store is the shape of the $5 he corrected me on and of the 0.22 threshold that
+#: sat above a signal maxing at 0.133 — a branch that never ran.
+#: MEASURED 2026-09-19 over 16 versions / 67 ARRIVED files: at 0.50 it names 8, including
+#: tv/second_eye_ledger.py on v3354 at 48.6% — the file that version exists to change.
+REACH_CUT_BAR = 0.50
+
 PARSER_GEN = "v3315"
 
 #: The verdicts `_verdict_for` can actually return. Anything else in the field was written by a

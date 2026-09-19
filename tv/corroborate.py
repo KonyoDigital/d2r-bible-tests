@@ -2304,6 +2304,14 @@ NO_JOINT_YET = {
     # models are not asked to sign their answers. What this check DOES do is compare two looks at
     # ONE payload against each other, which is a self-consistency test rather than a joint — and
     # saying so beats leaving it unexplained, which is indistinguishable from forgotten.
+    # v3363 (#114) — NO_JOINT_YET and not COVERED_BY, for the #95 reason: there is no second
+    # source to cite. The only other witness to how much of a file an eye saw is the EYE's own
+    # prose REACH line, and that was measured at 5.2% of 854 answered rows with 16 of 44
+    # unparsable — too thin to corroborate anything. Claiming coverage here would be claiming
+    # the very thing that is missing.
+    'eye reach per file': 'the row recounts the payload from git and compares it against the ledger field; a '
+                          'genuine second source would be the eye OWN reported reach, measured at 5.2% of 854 '
+                          'rows with 16 of 44 unparsable, which is too thin to be a witness.',
     'second eye asked twice': 'the ledger is the only record of what an eye said; two looks at one '
                               'payload check each other, which is self-consistency and not a '
                               'second witness',

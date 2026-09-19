@@ -403,16 +403,94 @@ def _strip_ship_notes(diff):
     """
     def _repl(m):
         return 'why="<ship note stripped for the eye>"' + "\n" * m.group(0).count("\n")
+    d = diff or ""
     out, i = [], 0
-    for m in re.finditer(r"(?m)^diff --git a/(\S+)", diff or ""):
-        out.append((diff or "")[i:m.start()])
-        j = (diff or "").find("\ndiff --git a/", m.start())
-        j = len(diff or "") if j < 0 else j + 1
-        hunk = (diff or "")[m.start():j]
-        out.append(_WHY_NOTE_RX.sub(_repl, hunk) if m.group(1).endswith("run_gates.py") else hunk)
-        i = j
-    out.append((diff or "")[i:])
+    for path, a, b in _file_sections(d):
+        out.append(d[i:a])
+        hunk = d[a:b]
+        out.append(_WHY_NOTE_RX.sub(_repl, hunk) if path.endswith("run_gates.py") else hunk)
+        i = b
+    out.append(d[i:])
     return "".join(out)
+
+
+def _file_sections(diff):
+    """-> [(path, start, end)] over a diff's OWN `diff --git a/<path>` headers.
+
+    v3363 - ONE WALK, TWO READERS. `_strip_ship_notes` already walked the diff file by file, and
+    `reach_of` below needs the identical boundaries. Two copies of a boundary rule disagree the
+    day one is edited, and this particular rule is subtle enough to have been got wrong once
+    already: the end of a file's section is the NEXT header's line start, not the match start,
+    and a section that runs to EOF has no next header at all. [[copy-drift]]
+    """
+    d = diff or ""
+    outs = []
+    for m in re.finditer(r"(?m)^diff --git a/(\S+)", d):
+        j = d.find("\ndiff --git a/", m.start())
+        outs.append((m.group(1), m.start(), len(d) if j < 0 else j + 1))
+    return outs
+
+
+def reach_of(full_body, final_body):
+    """-> {path: {"got": int, "total": int}} | None. How much of each ARRIVED file the eye got.
+
+    ⚠⚠ THIS IS A DIFFERENT QUESTION FROM `absent_from`, AND THAT GAP IS THE WHOLE DEFECT.
+    `absent` answers "did this file reach the payload at all", measured by the presence of its
+    `diff --git` header. Truncation cuts MID-FILE, so a file whose header arrived and whose body
+    was chopped is `absent`-clean and unread. Every reach check built before this says it was
+    seen.
+
+    MEASURED 2026-09-19 WITH THIS FUNCTION over 16 versions. 67 files ARRIVED; 8 of them arrived
+    under half their bytes:
+        v3356  bible.html                                        259 /  8,629    3.0%
+        v3349  test_a_partial_look_is_not_agreement.py           428 / 11,337    3.8%
+        v3350  test_the_shelf_tabs_are_the_real_sessions.py      196 /  3,406    5.8%
+        v3358  test_the_shelf_shows_reels_before_analysis.py   1,224 / 12,586    9.7%
+        v3348  visual_lock_invariant.py                           64 /    516   12.4%
+        v3352  test_the_shelf_tabs_are_the_real_sessions.py    1,464 /  5,915   24.8%
+        v3347  prune_wilson.py                                 8,318 / 27,748   30.0%
+        v3354  second_eye_ledger.py                            3,499 /  7,200   48.6%
+
+    ⚠⚠ v3354 IS THE ROW THAT SETTLES IT. `second_eye_ledger.py` is the file that version exists
+    to change; its header arrived, so the row was filed `blind_to: []` and `verdict: clean` while
+    the eye held under half of its subject. v3361 did the same: the answer's OWN first line read
+    "REACH: 19/92 hunks" and the row said clean.
+
+    ⚠ THE FRACTION IS STORED, NEVER A BOOLEAN AGAINST A BAKED CONSTANT. A hardcoded 0.5 here
+    would be a bar nobody measured and nobody can move - the shape of the $5 he corrected me on
+    and of the 0.22 threshold that sat above a signal maxing at 0.133. Store got/total; let the
+    reader decide and let the bar be tuned once there are rows to tune it against.
+    [[feedback-threshold-above-the-ceiling]]
+
+    THREE STATES, and collapsing any two is the defect this exists to prevent:
+        a DICT  -> measured; compare got against total per file
+        None    -> the full body could not be established; UNKNOWN, never "all complete"
+    A file present in `final` but not in `full` cannot happen (final is a prefix of full) and is
+    recorded at its own length rather than silently dropped, so an instrument fault shows up as
+    got > total instead of disappearing.
+    """
+    if full_body is None or final_body is None:
+        return None
+    full = {}
+    for path, a, b in _file_sections(full_body):
+        full[path] = full.get(path, 0) + (b - a)
+    if not full:
+        return None
+    got = {}
+    for path, a, b in _file_sections(final_body):
+        got[path] = got.get(path, 0) + (b - a)
+    # ⚠⚠ A FILE WITH ZERO BYTES HERE DID NOT *ARRIVE SHORT* — IT DID NOT ARRIVE, and
+    # `absent_from` already names it. Including those made this counter 71% NOISE the first time
+    # it was pointed at real data: 41 of 100 files flagged over 16 versions, 33 of them at exactly
+    # 0.0%, every one already in the row's `absent` list. That is v3354's defect - a warning that
+    # fires on most rows is furniture - re-created two versions after I fixed it, and only a
+    # measurement against his real history caught it. The fixture could not: a fixture built to
+    # show a half-cut file has no wholly-cut file in it. [[regression-guard]] §5
+    # So `reach` answers exactly one question: OF THE FILES THAT ARRIVED, how much arrived.
+    # {} is therefore MEASURED-AND-NONE-ARRIVED (and `absent` carries them), which is still a
+    # different state from None = nobody could measure.
+    return dict((p, {"got": int(got[p]), "total": int(n)})
+                for p, n in full.items() if int(got.get(p, 0)) > 0)
 
 
 def payload_for(sha):
@@ -483,6 +561,10 @@ def payload_for(sha):
     # from `body` would silently report 0 for exactly the v3333 case that prompted this.
     # [[unknown-stays-unknown]] [[the-unjoined-end]]
     absent, _nwhy = absent_from(sha, body)
+    # v3363 - AND HOW MUCH OF EACH FILE THAT DID ARRIVE. Measured against the pre-truncation body,
+    # so it isolates what the TRANSPORT lost; the comment strip and the ship-note strip are
+    # deliberate and already declared, and charging them here would read as loss.
+    reach = reach_of(_full_len_holder[0], body)
 
     note = ("\nNOTE: this is a DIFF, not whole files. A name used in one hunk may be DECLARED "
             "or ASSIGNED in a part of the same function the diff does not show, because "
@@ -519,7 +601,7 @@ def payload_for(sha):
     # and the STORE was wrong. [[one-to-one-store-for-a-one-to-many-fact]]
     # `absent` keeps its THREE states all the way to the row: a LIST (measured, these are missing),
     # [] (measured, nothing missing) and None (nobody could ask). [[unknown-stays-unknown]]
-    return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped, absent
+    return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped, absent, reach
 
 
 def _model_from_transport():
@@ -927,7 +1009,7 @@ def _findings_from(answer):
 
 
 def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model="",
-                  sha="", absent=None):
+                  sha="", absent=None, reach=None):
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
@@ -991,7 +1073,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
                answer_head=answer, head_cap=400, reached=True, path=None, seen_path=None, sent=sent,
-               sha=sha, absent=absent)
+               sha=sha, absent=absent, reach=reach)
     print("  %s: LOOKED — %d finding(s) recorded" % (version, len(findings)))
     return True
 
@@ -1002,7 +1084,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     if not sha:
         print("  %s: cannot find the commit — %s" % (version, why))
         return False
-    prompt, dropped, absent = payload_for(sha)
+    prompt, dropped, absent, reach = payload_for(sha)
     if prompt is None:
         print("  %s: cannot build the payload — %s" % (version, dropped))
         return False

@@ -151,7 +151,7 @@ class TheJoinIsMade(unittest.TestCase):
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
         self.assertIn(
-            "+ body + \"\\n```\\n\", dropped, absent", code,
+            "+ body + \"\\n```\\n\", dropped, absent, reach", code,
             "payload_for no longer returns the absent LIST alongside the prose, so the caller has "
             "only a sentence to pass on and the row is back to storing a truncated summary")
 
@@ -161,7 +161,7 @@ class TheJoinIsMade(unittest.TestCase):
         src = io.open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
         code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
         self.assertIn(
-            "sha=sha, absent=absent)", code,
+            "sha=sha, absent=absent, reach=reach)", code,
             "the LOOKED path records without the absent list. That is the unjoined end this "
             "version exists to close: computed, used in the prompt, dropped before the row.")
 
@@ -190,7 +190,10 @@ RED_PROOF = [
     {
         "why": "dropping the list at the record call puts the row back to a truncated sentence",
         "file": "tv/second_eye_run.py",
-        "find": "               sha=sha, absent=absent)",
+        # ⚠ v3363 RE-ANCHORED. payload_for now also hands back the per-file reach map, so this
+        # call gained a third argument. v3354 changed a line under this same law and left its
+        # proof inert; re-anchoring in the SAME change is the correction to that.
+        "find": "               sha=sha, absent=absent, reach=reach)",
         "replace": "               sha=sha)",
         "matches": 1,
     },

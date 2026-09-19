@@ -2735,6 +2735,10 @@ MINE = {
         "the detector [[visual-regression-detector]]; a guard that reports success over blank "
         "cells is my defect to fix.",
 
+    "eye reach per file":
+        "#114 — whether the eye actually READ the bytes I paid for is mine to measure. He\n"
+        "cannot act on a payload that was cut in transit, and a row that silently stops\n"
+        "carrying the measurement looks exactly like one written before it existed.",
     "second eye asked twice":
         "#56 — asking the eye twice is MY job, not his. He cannot act on a look I did not take, "
         "so a SINGLE look must never appear in the count he reads. ⚠ It still renders red, "
@@ -3891,6 +3895,65 @@ def _check_the_second_eye_was_asked_twice():
     return UNKNOWN, (a.get("say") or "nothing recorded") + tail
 
 
+def _check_the_eye_reach_is_still_being_measured():
+    """v3363 (#114) — IS THE PER-FILE REACH MEASUREMENT STILL LANDING ON NEW ROWS?
+
+    `absent` says which changed files never reached the eye; `reach` says how much of the ones
+    that DID reach it actually arrived. Truncation cuts mid-file, so a file whose `diff --git`
+    header arrived and whose body was chopped is absent-clean and unread — measured at 8 of 67
+    arrived files over 16 versions, including tv/second_eye_ledger.py on v3354 at 48.6%, the file
+    that version exists to change, filed clean.
+
+    ⚠⚠ THIS ROW EXISTS BECAUSE ON ≠ WORKING. If `payload_for` ever stops handing the map back —
+    a refactor, a caller that drops the fourth value, an exception swallowed upstream — every new
+    row simply carries `reach: null`, which is the SAME BYTES a row written before this version
+    carries. A measurement that quietly stops looks exactly like a measurement nobody has needed
+    yet. That is the vault-lane shape: on for months, reads 0, and truthfully reported.
+    [[heart-first]] §2
+
+    THREE STATES:
+      OK       -> looks recorded since this version DO carry the map; says how many hit a cut file
+      MISSING  -> looks were recorded since this version and NOT ONE carries it — the wire broke
+      UNKNOWN  -> no look has been recorded since this version, so there is nothing to conclude.
+                  ⚠ Never OK: zero rows is an absent denominator, not a clean bill of health.
+                  [[zero-needs-a-denominator]]
+    """
+    try:
+        import second_eye_ledger as L
+    except Exception as e:
+        return UNKNOWN, "the second-eye ledger will not import: %s" % str(e)[:90]
+    try:
+        rows = L._rows()
+    except Exception as e:
+        return UNKNOWN, "the ledger will not read: %s" % str(e)[:110]
+    if rows is None:
+        return UNKNOWN, "the ledger read returned nothing, so reach cannot be counted"
+    SINCE = 3363
+    def _n(r):
+        v = str(r.get("version") or "").lstrip("v")
+        return int(v) if v.isdigit() else -1
+    fresh = [r for r in rows if _n(r) >= SINCE and r.get("reached") is not False]
+    if not fresh:
+        return UNKNOWN, ("no look has been recorded since v%d, so whether the per-file reach map "
+                         "is still being written is UNMEASURED - not clean" % SINCE)
+    carry = [r for r in fresh if isinstance(r.get("reach"), dict)]
+    if not carry:
+        return MISSING, ("%d look(s) since v%d and NOT ONE carries a per-file reach map. The "
+                         "measurement has stopped, and a stopped one is byte-identical to a row "
+                         "written before it existed" % (len(fresh), SINCE))
+    bar = getattr(L, "REACH_CUT_BAR", 0.5)
+    hit = []
+    for r in carry:
+        for p, v in (r.get("reach") or {}).items():
+            if isinstance(v, dict) and (v.get("total") or 0) > 0 \
+                    and float(v.get("got") or 0) / float(v["total"]) < bar:
+                hit.append("%s@%s" % (p.split("/")[-1], r.get("version")))
+    return OK, ("%d of %d look(s) since v%d carry a per-file reach map; %d arrived file(s) came "
+                "in under %d%%%s"
+                % (len(carry), len(fresh), SINCE, len(hit), int(bar * 100),
+                   (" (%s)" % ", ".join(sorted(set(hit))[:4])) if hit else ""))
+
+
 def _check_a_held_relaunch_is_not_stuck():
     """v3301 (#38) — THE INTERLOCK'S OWN SUPERVISOR: is the GREEN LIGHT still firing?
 
@@ -3951,6 +4014,7 @@ CHECKS = [
     ("shelf order and guard", _check_the_shelf_keeps_his_order_and_its_guard),
     ("swallowed reads", _check_a_failed_read_is_never_handed_back_as_data),
     ("second eye asked twice", _check_the_second_eye_was_asked_twice),
+    ("eye reach per file", _check_the_eye_reach_is_still_being_measured),
     # v2942 (#59) — THE DRIVER EXISTED, WAS GATED, AND NOTHING RAN IT. See the docstring: his
     # stored beat was 31.6h old while control_app imported the module under two aliases and called
     # nothing on either. [[the-unjoined-end]]
@@ -4423,10 +4487,27 @@ WATCHES = {
     # a element id anyone can point at. When it gets a lamp, name it here.
     "relaunch green light":        (),
     # v3310 — the ledger is a file, not a screen. Empty tuple as a DECLARATION, not an omission.
-    "shelf order and guard":       ("th-shelfov",),
+    # ⚠⚠ v3363 — WAS ("th-shelfov",) AND THAT WAS A CATEGORY ERROR OF MINE IN v3359. This
+    # registry is `organ_matrix.surfaces()`, derived from render targets, valves, routes and
+    # vessels — 60 names, and MEASURED: ZERO of them are DOM element ids. `th-shelfov` is a real
+    # element (control_ui.html:7611) and was never a registry surface, so the declaration could
+    # match nothing and sat there for four versions looking exactly like considered coverage —
+    # the precise failure `test_every_declared_surface_is_a_real_surface` exists to catch.
+    # ⚠ AND IT WAS INVISIBLE ON EVERY ONE OF THOSE PUSHES: the pre-push derives its gates from
+    # CHANGED TEST FILES, and nothing since v3359 touched that law. A sample is not a verdict.
+    # [[regression-guard]] §1
+    # ⚠ THE EMPTY TUPLE IS THE HONEST ANSWER, not a smaller lie. `shelf-cards`, `shelf.rows` and
+    # `shelf.scene` are all real surfaces — and this row CONSULTS NONE OF THEM. It reads the
+    # assembly order out of the source. Naming a surface it never asks would be the over-claim
+    # this law's own docstring rules against: under-claiming is the intended bias.
+    "shelf order and guard":       (),
     # v3355 — a source census, not a screen. Empty tuple as a DECLARATION, not an omission.
     "swallowed reads":             (),
     "second eye asked twice":      (),
+    # v3363 (#114) — the reach map is a LEDGER FIELD, not a screen element. Empty tuple as a
+    # DECLARATION, not an omission: it reaches him through the eagle line, and the day it gets
+    # a lamp of its own, name it here.
+    "eye reach per file":          (),
     "running code matches disk":   (),                       # code integrity, not a surface
     # ⚠ v3098 — AND THIS ONE IS NOT `()` LIKE ITS SIBLING ABOVE, WHICH IS THE WHOLE POINT OF THE
     # PAIR. "running code matches disk" compares this PROCESS's modules to the files; it never
