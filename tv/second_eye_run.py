@@ -385,10 +385,34 @@ def _strip_ship_notes(diff):
     That is deliberate: widening the pattern to eat `^[+- ]\s*"..."` would start eating ordinary
     string literals in ordinary code, and the 65 -> 58 measurement above is of THIS narrow form,
     not of a fuller one. A wider strip needs its own measurement before it is worth anything.
+
+    ⚠⚠⚠ SCOPED TO run_gates.py, AND THE CROSS-FAMILY EYE FOUND WHY ON v3360 — a real defect I
+    shipped. `why=` is a ship note ONLY in run_gates.py. MEASURED across tv/*.py: 188 occurrences
+    sit outside any `Gate(` call, and many are live message strings — `why="boot"`,
+    `why="a session ended"`, `why="disk too full"`, `why="the second-family CLI is not installed
+    here"`. Stripping those replaces the very bytes a version about wording exists to change, and
+    hands the eye a stub in place of the subject. That is the defect this whole area exists to
+    prevent, re-created by the fix for it. So the strip walks the diff FILE BY FILE and only
+    touches the run_gates.py hunks. [[the-unjoined-end]] [[sweep-dont-ask]]
+
+    ⚠ The eye's other two findings on the same diff were REFUTED by measurement and are recorded
+    so nobody re-derives them: it said the replacement drops newlines (the shipped `_repl` appends
+    `"\n" * m.group(0).count("\n")`, verified 4 -> 4) and that the strip is a no-op after
+    `_strip_comments` (measured on v3360's own payload: 18,647 -> 11,433 chars, 7,214 removed).
+    It was judging a TRUNCATED payload that cut the replacement line.
     """
     def _repl(m):
         return 'why="<ship note stripped for the eye>"' + "\n" * m.group(0).count("\n")
-    return _WHY_NOTE_RX.sub(_repl, diff or "")
+    out, i = [], 0
+    for m in re.finditer(r"(?m)^diff --git a/(\S+)", diff or ""):
+        out.append((diff or "")[i:m.start()])
+        j = (diff or "").find("\ndiff --git a/", m.start())
+        j = len(diff or "") if j < 0 else j + 1
+        hunk = (diff or "")[m.start():j]
+        out.append(_WHY_NOTE_RX.sub(_repl, hunk) if m.group(1).endswith("run_gates.py") else hunk)
+        i = j
+    out.append((diff or "")[i:])
+    return "".join(out)
 
 
 def payload_for(sha):

@@ -43,7 +43,13 @@ _console_safe_enable()
 
 import second_eye_run as R  # noqa: E402
 
+#: ⚠ THE `diff --git` HEADER IS PART OF THE FIXTURE, not decoration. The strip is SCOPED to
+#: run_gates.py hunks, so a fixture without a header is a no-op and every case below would pass
+#: over a helper that does nothing. Three of these cases silently weakened the moment the scoping
+#: landed, and the baseline case is what caught it. [[regression-guard]] §5
 NOTE = (
+    'diff --git a/tv/run_gates.py b/tv/run_gates.py\n'
+    '@@ -1,4 +1,4 @@\n'
     '     Gate("t_x", [sys.executable, "x.py"], 120,\n'
     '          why="the first chunk of a ship note"\n'
     '              "and the second chunk"),\n'
@@ -88,7 +94,8 @@ class AShipNoteIsNotCode(unittest.TestCase):
         """⚠ THE STATED LIMIT, pinned so nobody reads the saving as larger than it is. A
         continuation line in a DIFF begins with + - or a space, and the pattern must not cross it;
         widening to do so would start eating ordinary string literals in ordinary code."""
-        diff = ('+     Gate("x", [], 1,\n'
+        diff = ('diff --git a/tv/run_gates.py b/tv/run_gates.py\n'
+                '+     Gate("x", [], 1,\n'
                 '+          why="line one"\n'
                 '+               "line two"),\n')
         out = R._strip_ship_notes(diff)
@@ -97,6 +104,25 @@ class AShipNoteIsNotCode(unittest.TestCase):
                       "beginning of eating real code — and the 65 -> 58 measurement was taken of "
                       "the NARROW form, so a wider one has no measurement behind it at all.")
         self.assertEqual(out.count("\n"), diff.count("\n"))
+
+    def test_a_why_outside_run_gates_is_left_alone(self):
+        """⚠⚠ THE CROSS-FAMILY EYE FOUND THIS ON v3360, AND IT WAS A REAL DEFECT I SHIPPED.
+        `why=` is a ship note ONLY in run_gates.py. MEASURED across tv/*.py: 188 occurrences sit
+        outside any `Gate(` call, and many are live message strings — `why="boot"`,
+        `why="a session ended"`, `why="disk too full"`. Stripping those replaces the very bytes a
+        version about wording exists to change, handing the eye a stub in place of its subject —
+        the defect this whole area exists to prevent, re-created by the fix for it."""
+        keep = ('diff --git a/tv/control_app.py\n'
+                '+        out.update(state="absent", why="the lane is not installed here")\n')
+        out = R._strip_ship_notes(keep)
+        self.assertIn('why="the lane is not installed here"', out,
+                      "a live message string in control_app.py was replaced with a ship-note stub. "
+                      "A version whose whole subject is that wording would hand the eye the stub "
+                      "and nothing else.")
+        drop = ('diff --git a/tv/run_gates.py\n'
+                '+         why="a real ship note about a gate"\n')
+        self.assertNotIn("a real ship note about a gate", R._strip_ship_notes(drop),
+                         "the run_gates.py hunk is no longer stripped, so the whole saving is gone")
 
     def test_payload_for_actually_calls_it(self):
         """[[the-unjoined-end]] — a correct helper nothing calls changes nothing."""
