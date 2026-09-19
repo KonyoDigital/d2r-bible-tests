@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3361"   # THE HOOK ASKS THE CONSOLE, IT DOES NOT TIME ITS PID
+VERSION = "v3362"   # ONE BANNER, ONE SENTENCE, ONE WRITER
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
