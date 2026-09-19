@@ -727,8 +727,24 @@ def _js_fn_from(text, anchor):
 
     ⚠ v3351 — the JS half of the same rule. MEASURED in bible.html: toggleTooltipPass is 6,814
     chars and its guard read 12,000, reaching 5,186 into the NEXT function where an innocent match
-    would satisfy a positive assertIn and pass falsely; vaultAccumApply is 41,387 and its guard
-    read 30,000, never seeing the last 28%. Both stop at the function's own closing brace now.
+    would satisfy a positive assertIn and pass falsely. That one is bounded here and a
+    string-aware walk agrees with the plain one at 6,814, so the bound is trustworthy.
+
+    ⚠⚠ STATED LIMIT, FOUND BY A CROSS-FAMILY REVIEW AND THEN MEASURED. This counts RAW braces and
+    does NOT skip braces inside string literals, template literals, regex literals or comments. On
+    a body containing an unmatched brace in such a token the span is truncated or over-long while
+    still containing the anchor — so a later assertIn can pass or fail for the WRONG reason, which
+    is the silent direction.
+
+    ⚠⚠⚠ AND v3351 SHIPPED A WRONG BOUND BECAUSE OF IT. That version's note called vaultAccumApply
+    "41,387 real"; it is not. 41,387 is where a brace inside a string or comment closed the count
+    early — a string-aware walk runs to 83,951. Two methods disagreeing by 2x means the extent is
+    UNKNOWN, so that call site is back on its 30,000 byte window, which at least does not claim to
+    be the function. MEASURED across every function this repo bounds: _shelfRefused (1,621),
+    _dossierClose (113), _shDismiss (131) and toggleTooltipPass (6,814) AGREE; _reopenClear
+    (665 vs 21,689) and vaultAccumApply (41,387 vs 83,951) do NOT.
+
+    USE IT ONLY WHERE THE TWO WALKS AGREE. [[unknown-stays-unknown]] [[source-reading-guard]]
     """
     i = text.find(anchor)
     if i < 0:
@@ -18363,8 +18379,13 @@ class TestV2025OneLaneSwitchMeansTheSameThingEverywhere(unittest.TestCase):
         with open(bib, encoding="utf-8") as fh:
             text = fh.read()
         start = text.index("window.vaultAccumApply = function(payload)")
-        body = _js_fn_from(text, "window.vaultAccumApply = function(payload)")
-        assert body, "could not bound vaultAccumApply"
+        # ⚠⚠ v3352 — REVERTED TO A BYTE WINDOW. v3351 bound this with _js_fn_from and the bound
+        # WAS WRONG: the walker counts raw braces, and MEASURED here the plain walk ends at 41,387
+        # while a string-aware walk ends at 83,951. My v3351 note called 41,387 "the real size" —
+        # it is not, it is where a brace inside a string or comment closed the count early. When
+        # two methods disagree by 2x the extent is UNKNOWN, and 30,000 honest characters beat a
+        # boundary that claims to be the function and is not. [[unknown-stays-unknown]]
+        body = text[start:start + 30000]
         body = re.sub(r"/\*.{0,8000}?\*/", " ", body, flags=re.S)
         body = re.sub(r"(?m)//[^\n]*$", " ", body)
         return body

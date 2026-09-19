@@ -52,6 +52,34 @@ def _js_code():
 
 class AQuitNamesWhoAsked(unittest.TestCase):
 
+    @staticmethod
+    def _branch(text, anchor):
+        """-> the PYTHON block introduced by `anchor`, bounded by its own indentation, or "".
+
+        ⚠ v3352 — a byte count is a guess about where a block ends; indentation is not. This walks
+        from the anchor line to the first later non-blank line indented no further than it, which
+        is exactly where the block closes. No braces are involved, so the string/regex hazard that
+        forced two JS bounds back onto byte windows in this same version cannot arise here.
+
+        ⚠ Returns "" when the anchor is absent, and callers must FAIL on that rather than assert
+        over it — an empty string satisfies assertNotIn for anything at all.
+        """
+        i = text.find(anchor)
+        if i < 0:
+            return ""
+        start = text.rfind("\n", 0, i) + 1
+        ind = len(text[start:i]) - len(text[start:i].lstrip())
+        lines = text[start:].split("\n")
+        out, off = [lines[0]], len(lines[0]) + 1
+        for ln in lines[1:]:
+            if ln.strip():
+                cur = len(ln) - len(ln.lstrip())
+                if cur <= ind:
+                    break
+            out.append(ln)
+            off += len(ln) + 1
+        return "\n".join(out)
+
     def _route(self):
         src = _py_code()
         i = src.find('if path == "/api/quit":')
@@ -120,8 +148,18 @@ class AQuitNamesWhoAsked(unittest.TestCase):
                       "an unattributed quit is still PERFORMED — the console can still be killed "
                       "by a caller that will not name itself")
         i = r.find("if not _qfrom:")
-        branch = r[i:i + 1400]
+        branch = self._branch(r, "if not _qfrom:")
+        self.assertTrue(branch, "could not bound the refusal branch")
         self.assertIn('"refused": True', branch, "the refusal does not say it refused")
+        # ⚠⚠ v3352 — ADDED BECAUSE A RED-PROOF CAME BACK BLIND WITH A CORRECT MATCH COUNT OF 1.
+        # Silencing the stdout line changed a real byte and this law stayed GREEN, which by the
+        # standing rule means the LAW is weak rather than the sabotage wrong. It asserted the JSON
+        # answer and nothing else — but the JSON goes to whoever called, while the PRINT is how he
+        # sees that his console refused to die. The route's own comment says the point is that "a
+        # human with curl is told the remedy rather than left guessing"; that human reads stdout.
+        self.assertIn("/api/quit REFUSED", branch,
+                      "the refusal is silent on stdout, so a console that declined to close looks "
+                      "exactly like one that ignored the request")
         self.assertIn("return", branch, "the refusal falls through and quits anyway")
         # and it must refuse BEFORE the thing that actually exits
         self.assertLess(i, r.find("_request_console_exit"),
@@ -149,8 +187,8 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         field. A guard that blocks an action without naming the remedy turns a bug into a
         mystery, which is the shape this whole ticket started as."""
         r = self._route()
-        i = r.find("if not _qfrom:")
-        branch = r[i:i + 1400]
+        branch = self._branch(r, "if not _qfrom:")
+        self.assertTrue(branch, "could not bound the refusal branch")
         self.assertIn("from", branch, "the refusal never names the field that would allow it")
         self.assertIn("still running", branch,
                       "the refusal does not say the console survived, so a caller cannot tell a "
@@ -180,3 +218,25 @@ class AQuitNamesWhoAsked(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+RED_PROOF = [
+    {
+        "why": "removing the attribution guard lets an unnamed caller kill his console again — the "
+               "whole defect this law was written for. The branch then cannot be bound either, so "
+               "both the presence assertion and every assertion about its contents go red.",
+        "file": "tv/control_app.py",
+        "find": "            if not _qfrom:",
+        "replace": "            if False:",
+        "matches": 1,
+    },
+    {
+        "why": "silencing the refusal line leaves a caller with a console that did not close and "
+               "nothing on stdout saying why — a refusal nobody can see is the shape this law "
+               "exists to refuse.",
+        "file": "tv/control_app.py",
+        "find": '"\\U0001F6D1 /api/quit REFUSED — unattributed. The console was NOT closed."',
+        "replace": '"quit"',
+        "matches": 1,
+    },
+]

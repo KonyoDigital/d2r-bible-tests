@@ -67,12 +67,30 @@ def _fn_body(code, start):
     Callers MUST fail on that rather than assert over it: `assertNotIn(anything, "")` passes, and
     a helper that quietly yields an empty region under a negative assertion rebuilds the exact
     silence this replaces. [[unknown-stays-unknown]] [[source-reading-guard]] §3
+
+    ⚠⚠ STATED LIMIT, FOUND BY A CROSS-FAMILY REVIEW AND THEN MEASURED: this counts RAW braces and
+    does NOT skip braces inside string literals, template literals, regex literals or comments. On
+    a body containing an unmatched brace in such a token the span is truncated or over-long while
+    still containing the anchor — so a later assertIn can pass or fail for the wrong reason.
+    MEASURED across the functions this repo actually bounds: _shelfRefused (1,621), _dossierClose
+    (113) and _shDismiss (131) agree with a string-aware walk; _reopenClear (665 vs 21,689) and
+    vaultAccumApply (41,387 vs 83,951) do NOT. USE IT ONLY WHERE THE TWO AGREE, and leave the
+    others on a byte window that does not pretend to be a boundary.
     """
     i = code.find(start)
     if i < 0:
         return ""
+    # ⚠ v3352 — BALANCE FROM THE FIRST OPENING BRACE, NOT FROM CHARACTER ZERO. An anchor can
+    # legitimately OPEN with a closing brace — `} else if (rHere > 0) {` is a real branch head in
+    # this file — and balancing from there drives depth to -1 before any `{` is seen, so the walk
+    # never returns to zero and the helper reports "cannot bound" for a block it can see perfectly
+    # well. Start the count at the first `{` at or after the anchor; the RETURNED span still
+    # begins at the anchor, so the caller reads the branch head it asked for.
+    _open = code.find("{", i)
+    if _open < 0:
+        return ""
     depth, seen = 0, False
-    for k in range(i, len(code)):
+    for k in range(_open, len(code)):
         c = code[k]
         if c == "{":
             depth += 1
@@ -334,7 +352,9 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertGreater(g, -1,
                            "the remainder has no live guard, so it is computed and never shown - "
                            "which is the state his screenshot was in")
-        self.assertIn("sh-chip-strem", main[g:g + 1600],
+        _blk = _fn_body(main, "if (_rmWithheld || _rmNoStamp)")
+        self.assertTrue(_blk, "could not bound the remainder guard")
+        self.assertIn("sh-chip-strem", _blk,
                       "nothing PRINTS the remainder inside its own guard, so it is counted and "
                       "then thrown away")
 
@@ -378,7 +398,9 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         self.assertGreater(i, -1,
                            "there is no branch for 'empty on this shelf, occupied in the river' - "
                            "so that state falls through to a sentence about flow")
-        self.assertIn("THIS SHELF", self.fn[i:i + 700],
+        _blk = _fn_body(self.fn, "} else if (rHere > 0) {")
+        self.assertTrue(_blk, "could not bound the empty-on-this-shelf branch")
+        self.assertIn("THIS SHELF", _blk,
                       "that branch does not name WHICH population is empty")
 
     def test_a_LEDGER_figure_is_never_spoken_as_an_ON_DISK_one(self):
@@ -433,6 +455,13 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
             i, -1,
             "nothing clears a station filter that survived a close, so re-opening the shelf can "
             "greet him with an empty panel and thirteen cards he cannot see")
+        # ⚠⚠ v3352 — LEFT AS A BYTE WINDOW, AND THE REASON IS A DISAGREEMENT I CANNOT SETTLE.
+        # A cross-family review pointed out that _fn_body counts RAW braces and never skips those
+        # inside strings, regexes or template literals. MEASURED on this function: the plain walk
+        # ends at 665 chars, a string-aware walk ends at 21,689. Two methods disagreeing by 33x
+        # means the true extent is UNKNOWN, and a bound I cannot defend is worse than an honest
+        # guess — the guess at least does not claim to be the function. The 1,200 window stands
+        # until the walker is string-aware. [[unknown-stays-unknown]]
         body = src[i:i + 1200]
         self.assertIn("if (_any) return;", body,
                       "the clear does not check whether the remembered filter still MATCHES, so "
@@ -489,7 +518,8 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
             i, -1,
             "there is no single dismiss for the shelf, so the ✕ and the click-outside paths each "
             "carry their own rule and one of them will be fixed alone again")
-        body = src[i:i + 320]
+        body = _fn_body(src, "var _shDismiss = function()")
+        self.assertTrue(body, "could not bound _shDismiss")
         self.assertIn("_thShelfWasTheDoor()", body,
                       "the shared dismiss does not ask whether THE SHELF was the door, so it can "
                       "leave him on a bare stage with no reel under it")
@@ -763,7 +793,8 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         blk = self._theatre_keys()
         j = blk.find("if (!TH.open) {")
         self.assertGreater(j, -1, "the closed-stage branch is gone")
-        branch = blk[j:j + 420]
+        branch = _fn_body(blk, "if (!TH.open) {")
+        self.assertTrue(branch, "could not bound the closed-stage branch")
         self.assertIn("e.key !== 'Escape'", branch,
                       "the closed-stage branch does not restrict itself to Escape, so a shut "
                       "theatre now answers the transport keys")
@@ -806,7 +837,8 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         src = _py_only(self.src)
         i = src.find("function _shelfRefused(")
         self.assertGreater(i, -1, "the refusal handler is gone or renamed")
-        body = src[i:i + 2200]
+        body = _fn_body(src, "function _shelfRefused(")
+        self.assertTrue(body, "could not bound _shelfRefused")
         self.assertIn("!ov.onclick", body,
                       "the refusal panel does not bind its own close, so a shelf that fails "
                       "before it was ever painted shows an inert ✕")
@@ -821,7 +853,8 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
         src = _py_only(self.src)
         i = src.find("function _shelfRefused(")
         self.assertGreater(i, -1, "the refusal handler is gone or renamed")
-        body = src[i:i + 1600]
+        body = _fn_body(src, "function _shelfRefused(")
+        self.assertTrue(body, "could not bound _shelfRefused")
         self.assertIn("it did not open", body, "this is not the refusal panel")
         self.assertIn("th-shelf-x", body,
                       "the refusal panel has no ✕, so a failed shelf cannot be closed by clicking")
