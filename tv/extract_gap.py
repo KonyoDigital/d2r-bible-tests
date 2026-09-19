@@ -185,6 +185,17 @@ def _named_sessions():
                                           "unplaced": 0}
                     for _k in ("equipped", "contradicted", "unplaced"):
                         cur.setdefault(_k, 0)      # older callers built the 4-key shape
+                    # ⚠ v3374 — THE VERDICT PER NAME, NOT ONLY THE TALLY. This function already
+                    # decides panel/floor/chronicle FOR EACH NAME and then keeps only counts, so
+                    # "96 panel names" could be reported and never addressed: nothing downstream
+                    # could ask WHICH 96. His #28 ruling is to widen the law so panel-sourced
+                    # names auto-bank, and a widening has nothing to widen onto while the
+                    # population is a number. [[heart-first]] §6 — persist what you KNEW.
+                    #
+                    # A LIST OF PAIRS, NOT A DICT: one session can read the same name twice, and a
+                    # dict would silently fold two sightings into one. Every count above stays
+                    # derivable from this list, which is what the law checks.
+                    cur.setdefault("placed", [])
                     cur["names"] += len(names)
                     sc = str(r.get("scene") or "").strip().lower()
                     # ⚠⚠ v3043 — `cur["panel"] += len(names)` WAS THE WHOLE DEFECT. One frame carries
@@ -236,20 +247,28 @@ def _named_sessions():
                             # [[unknown-stays-unknown]]
                             if sc in PANEL_SCENES:
                                 cur["unplaced"] += 1
+                                cur["placed"].append((_nm, "unplaced"))
                             elif sc == "chronicle":
                                 cur["chronicle"] += 1
+                                cur["placed"].append((_nm, "chronicle"))
                             elif sc in FLOOR_SCENES:
                                 cur["floor"] += 1
+                                cur["placed"].append((_nm, "floor"))
                         elif _own == "inventory":
                             cur["panel"] += 1          # his, in hand — stashing or pre-stash
+                            cur["placed"].append((_nm, "panel"))
                         elif _own == "stash":
                             cur["contradicted"] += 1   # cannot happen; see his ruling above
+                            cur["placed"].append((_nm, "contradicted"))
                         elif _own == "equipped":
                             cur["equipped"] += 1       # cross-reference only, never authoritative
+                            cur["placed"].append((_nm, "equipped"))
                         elif _own == "floor" or _own in FLOOR_SCENES:
                             cur["floor"] += 1
+                            cur["placed"].append((_nm, "floor"))
                         elif _own == "chronicle":
                             cur["chronicle"] += 1
+                            cur["placed"].append((_nm, "chronicle"))
                     out[sid] = cur
         except Exception:
             continue

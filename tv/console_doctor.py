@@ -794,6 +794,43 @@ _BY_DESIGN_STATIONS = {
 }
 
 
+def _grail_of(names):
+    """-> how many of `names` resolve to one of his rosters, or None if none can be read.
+
+    ⚠ None, never 0. "No roster on this machine" and "no name matched" are different answers and
+    a 0 here would understate the lane instead of admitting it could not look.
+    [[unknown-stays-unknown]]
+    """
+    import json as _j
+    import os as _o
+    table = {}
+    for _f, _keys in (("unique_roster.json", ("names",)),
+                      ("runeword_roster.json", ("names",)),
+                      ("set_roster.json", ("pieces", "sets"))):
+        _p = _o.path.join(HERE, _f)
+        if not _o.path.isfile(_p):
+            continue
+        try:
+            with open(_p, "rb") as _fh:
+                _d = _j.loads(_fh.read().decode("utf-8", "replace"))
+        except Exception:
+            continue
+        # ⚠ set_roster keys its data as `pieces`/`sets`, NOT `names`. Asking the wrong key returns
+        # None and silently resolves ZERO set items — measured, it hid five Disciple pieces and
+        # made the grail count read 4 instead of 10. A resolver pointed at the wrong key answers
+        # plausibly and no safety net fires. [[a-wrong-answer-skips-the-fallback]]
+        for _k in _keys:
+            for _n in (_d.get(_k) or []):
+                table[str(_n).strip().lower().replace("\u2019", "'")] = True
+    if not table:
+        return None
+    hit = 0
+    for _n in set(names or []):
+        _k = str(_n).strip().lower().replace("\u2019", "'")
+        if _k in table or any(_r.split(" (")[0] == _k for _r in table):
+            hit += 1
+    return hit
+
 def _check_read_names_are_actually_banked():
     """v2751 — 119 ITEM NAMES WERE READ FROM HIS FOOTAGE AND NONE OF THEM ARE BANKED.
 
@@ -851,14 +888,35 @@ def _check_read_names_are_actually_banked():
         return OK, "every item name the readers produced is carried by a seal"
     # his filter: only PANEL names can become a holding
     panel = None
+    distinct = grail = None
     try:
         named, _why = _EG._named_sessions()
         panel = sum(int((v or {}).get("panel") or 0) for v in (named or {}).values())
+        # ⚠⚠ v3374 — "96 CAN BECOME A HOLDING" WAS THE MISLEADING HALF OF A TRUE SENTENCE. The
+        # count was right and the implication was not: once v3374 made the names addressable, the
+        # 96 turned out to be 26 DISTINCT names of which only 10 resolve to any roster — five
+        # Disciple set pieces, the set's own NAME, and four uniques. The other 86 sightings are
+        # Horadric Cube x31, Tome of Town Portal x18, Tome of Identify x18, potions, charms and
+        # bare bases. His ruling reads "auto-bank the 96"; taken literally that writes 31 Horadric
+        # Cubes into his ownership. A number he acts on must not overstate the work it implies.
+        # [[label-outlived-referent]]
+        _names = [n for v in (named or {}).values()
+                  for n, t in ((v or {}).get("placed") or []) if t == "panel"]
+        distinct = len(set(_names))
+        grail = _grail_of(_names)          # None when no roster can be read — never a guess
     except Exception:
-        panel = None
-    tail = ("" if panel is None else
-            " Of the corpus's names, %d were read with a container OPEN (stash/inventory) and can "
-            "become a holding; the rest are floor sightings with no cell to name." % panel)
+        panel = distinct = grail = None
+    if panel is None:
+        tail = ""
+    elif grail is None:
+        tail = (" Of the corpus's names, %d were read with a container OPEN (stash/inventory)"
+                "%s; how many are grail-relevant is UNKNOWN here — no roster could be read."
+                % (panel, "" if distinct is None else " (%d distinct)" % distinct))
+    else:
+        tail = (" Of the corpus's names, %d were read with a container OPEN (stash/inventory) — "
+                "%d distinct, of which %d resolve to a roster and can become a holding; the rest "
+                "are furniture, consumables and bare bases. Floor sightings have no cell to name."
+                % (panel, distinct, grail))
     return MISSING, ("%d item name(s) were READ from %d reel(s) and NONE are banked: %d sit in "
                      "sessions with NO SEAL AT ALL, and %d are under a seal that does not carry "
                      "them. The reading already happened - the names are in the journal ring - so "
