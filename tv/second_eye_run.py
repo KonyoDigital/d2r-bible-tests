@@ -328,6 +328,28 @@ def uncovered_commits(sha):
     return [l.strip() for l in out.splitlines() if l.strip()]
 
 
+def absent_from(sha, body):
+    """-> (absent, why). Which of `sha`'s changed code files are NOT present in `body`.
+
+    THREE STATES, and collapsing any two is the defect this exists to prevent:
+        a LIST  -> these changed files never reached the eye at all
+        []      -> MEASURED AND NONE: every changed code file is in the payload
+        None    -> the roster could not be read; UNKNOWN, never "nothing was missed"
+
+    ⚠ THE ROSTER COMES FROM GIT, NEVER FROM WHAT WAS FETCHED. When the python diff alone already
+    exceeds the cap, payload_for never runs the *.html show — so a dropped .html is not missing
+    from any buffer to compare against, it is missing from the QUESTION. Deriving this from the
+    fetched text would report 0 for exactly the v3333 case that prompted it.
+    [[unknown-stays-unknown]] [[the-unjoined-end]]
+    """
+    names, why = _sh(["git", "show", "--format=", "--name-only", sha,
+                      "--", "*.py", "*.mjs", "*.sh", "*.html"], timeout=90)
+    if names is None:
+        return None, (why or "the changed-file roster could not be read")
+    sent = set(re.findall(r"(?m)^diff --git a/(\S+)", body or ""))
+    return [f for f in (l.strip() for l in names.splitlines()) if f and f not in sent], ""
+
+
 def payload_for(sha):
     """-> (prompt, dropped_note). Code only, comments stripped, truncation declared."""
     # ⚠ PYTHON FIRST, and the reason is measurable: control_ui.html diffs in this repo run to tens
@@ -374,6 +396,21 @@ def payload_for(sha):
     # reasoned correctly from what it was shown; the PAYLOAD misled it. A false finding at high
     # severity costs more than a missed one, because it has to be chased and refuted by hand.
     # [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
+    # v3341 - A CHAR COUNT CANNOT NAME WHAT IS MISSING, AND 22 OF 36 VERSIONS LOST A CODE FILE.
+    # The declaration above says "truncated to 8142 of N diff chars", which is true and unusable:
+    # the eye cannot tell from it that control_ui.html is wholly absent, so it answers "the diff is
+    # correct as shown" in perfect good faith about a payload containing none of the fix. MEASURED
+    # across v3300-v3340 by rebuilding this function per commit: 22 of 36 versions with code changes
+    # had at least one changed code file never reach the eye. v3330 lost tree_busy.py and v3315 lost
+    # second_eye_run.py - in both cases the file the version exists to change.
+    #
+    # THE WANTED SET COMES FROM GIT, NEVER FROM WHAT WAS FETCHED. When the python diff alone already
+    # exceeds the cap, the *.html show above is never run at all - so a dropped .html is not missing
+    # from any buffer here, it is missing from the QUESTION. Only git can see it. Deriving the list
+    # from `body` would silently report 0 for exactly the v3333 case that prompted this.
+    # [[unknown-stays-unknown]] [[the-unjoined-end]]
+    absent, _nwhy = absent_from(sha, body)
+
     note = ("\nNOTE: this is a DIFF, not whole files. A name used in one hunk may be DECLARED "
             "or ASSIGNED in a part of the same function the diff does not show, because "
             "unchanged context is omitted by construction. Do not report a variable as "
@@ -385,6 +422,23 @@ def payload_for(sha):
                  "boundary. Do not report a function, statement or block as incomplete, "
                  "unterminated or missing a return merely because the excerpt stops before it "
                  "does.\n")
+    if absent is None:
+        note += ("\nThe roster of changed files could not be read (%s), so WHICH of this commit's "
+                 "files reached you is UNKNOWN. Do not treat this payload as complete.\n"
+                 % (_nwhy or "no reason given"))
+    elif absent:
+        note += ("\nAND THESE CHANGED FILES ARE NOT IN THIS PAYLOAD AT ALL - not truncated, absent. "
+                 "Treat them as UNKNOWN rather than as unchanged, say so if a judgement would need "
+                 "them, and do not call the change correct on their behalf: %s\n"
+                 % ", ".join(absent))
+    # The ROW must carry it too, or a later reader sees a clean verdict with no way to know its
+    # reach without rebuilding the payload by hand - which is how this went unnoticed for 22 ships.
+    if absent:
+        dropped = ((dropped + " - ") if dropped else "") + (
+            "%d changed file(s) never reached the eye: %s" % (len(absent), ", ".join(absent)))
+    elif absent is None:
+        dropped = ((dropped + " - ") if dropped else "") + (
+            "which changed files reached the eye is UNKNOWN (%s)" % (_nwhy or "unreadable"))
     return COLD_FRAMING + note + "\n```diff\n" + body + "\n```\n", dropped
 
 
