@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3352"   # THE WINDOW RATCHET CLOSES AND ITS OWN LAW BECOMES PROVABLE
+VERSION = "v3353"   # A NAME THE SIMULATOR COULD NOT FIND IS UNKNOWN
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -131,6 +131,40 @@ def _without_tests_of(suite, stubbed, module):
     return out, dropped
 
 
+def _load_failures(suite):
+    """-> names unittest could not LOAD. They are wrapped as _FailedTest and would otherwise be
+    counted as errors, i.e. as evidence about the machine rather than about the request."""
+    out = []
+    def walk(s):
+        for t in s:
+            if isinstance(t, unittest.TestSuite):
+                walk(t)
+            elif type(t).__name__ == "_FailedTest":
+                out.append(getattr(t, "_testMethodName", str(t)))
+    walk(suite)
+    return out
+
+
+def _module_defining(name):
+    """-> the imported tv/test_*.py module that DEFINES `name`, or None.
+
+    ⚠ Import failures are swallowed on purpose: a module that cannot import here is not the
+    subject of the question being asked, and letting one bad file abort the search would turn a
+    findable class into an unfindable one.
+    """
+    import importlib
+    for fn in sorted(os.listdir(HERE)):
+        if not (fn.startswith("test_") and fn.endswith(".py")):
+            continue
+        try:
+            mod = importlib.import_module(fn[:-3])
+        except Exception:
+            continue
+        if hasattr(mod, name):
+            return mod
+    return None
+
+
 def main(argv=None):
     argv = list(argv or [])
     try:
@@ -149,8 +183,32 @@ def main(argv=None):
     import test_control
     which = argv[0] if argv else None
     loader = unittest.TestLoader()
-    suite = (loader.loadTestsFromName(which, test_control) if which
+    # ⚠⚠ v3353 — IT ONLY EVER SIMULATED ONE FILE WHILE CLAIMING THE SUITE, AND A LOAD FAILURE CAME
+    # BACK AS A VERDICT ABOUT HIS MACHINE. Asked for a class living in
+    # test_an_examined_panel_is_not_an_unread_one.py, this raised
+    # "module 'test_control' has no attribute ..." inside the loader, unittest wrapped it as a
+    # _FailedTest, the runner counted it as an ERROR, and the tail printed
+    # "🔴 1 test(s) depend on something only HIS machine has". The test never ran. A name this
+    # tool could not find is UNKNOWN, and turning it into a confident claim about his machine is
+    # the collapse this whole file exists to prevent, committed by the file itself.
+    # [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    home = test_control
+    if which:
+        root = which.split(".")[0]
+        if not hasattr(test_control, root):
+            home = _module_defining(root) or test_control
+    suite = (loader.loadTestsFromName(which, home) if which
              else loader.loadTestsFromModule(test_control))
+    # a loader error is NOT a test result — refuse before anything counts it as one
+    _bad_load = _load_failures(suite)
+    if _bad_load:
+        print("\u26a0 could not LOAD %d name(s): %s" % (len(_bad_load), ", ".join(_bad_load)))
+        print("   That is UNKNOWN, not a host dependency. This tool searches test_control first "
+              "and then every tv/test_*.py that DEFINES the name; if it still cannot be found the "
+              "name is wrong or the module does not import here. Nothing was simulated.")
+        return 2
+    print("   reach: %s" % ("module %s" % home.__name__ if which else
+                            "test_control only — other test files are NOT simulated"))
     # ⚠ A TEST OF THE STUBBED FUNCTION IS NOT A TEST THAT DEPENDS ON HIS MACHINE, and the first cut
     # of this file reported four of them as host-dependent. They call `board_identity_drift`
     # directly to assert what it returns; replacing it removes their subject, so they fail for a
@@ -159,7 +217,7 @@ def main(argv=None):
     # written against. Drop them from the run and SAY how many, because silently excluding tests is
     # how a sample turns into a verdict. [[regression-guard]]
     stubbed = {attr for _m, attr, _v, _w in HOST_STUBS}
-    suite, dropped = _without_tests_of(suite, stubbed, test_control)
+    suite, dropped = _without_tests_of(suite, stubbed, home)
     if dropped:
         print("  \u2139 %d test(s) excluded because they TEST a stubbed function rather than "
               "depend on it:" % len(dropped))
