@@ -73,7 +73,16 @@ PORT = int(os.environ.get("TV_RENDER_PORT", "9224"))     # never 9222 (his Chrom
 # [[feedback-blind-fixture-green-gate]] [[gate-blind-to-unexercised-input]]
 #
 # 628 is not a breakpoint-adjacent guess. It is the number on his screen.
-WIDTHS = ((1440, 1000), (1120, 900), (901, 900), (375, 800), (1120, 628))
+# ⚠⚠ v3405 — 1280x720 IS THE WIDTH HIS ALT MACHINE ACTUALLY RUNS AT, AND NOTHING HAD EVER
+# PHOTOGRAPHED IT. MEASURED 2026-09-20 from a session-1 capture of the KONYO ALT TEST console:
+# the screen is 1280x720, and at that size the TZ TRACKER heading runs off the right edge
+# ("live terror zones - what t" and it stops mid-word) while every backend check reports green.
+# That is the shelf incident's class exactly: the engine is healthy and the SCREEN is wrong.
+# ⚠ A reading from SSH would have missed it — session 0 reports a FAKE 1024x768 VirtualScreen and
+# enumerates zero windows. Only a session-1 capture sees the real desktop.
+# ⚠ EXPECT THIS TARGET TO GO RED BEFORE IT GOES GREEN. If it blesses clean on the first run, the
+# widths are not reaching the overflowing surface and the addition is measuring nothing.
+WIDTHS = ((1440, 1000), (1280, 720), (1120, 900), (901, 900), (375, 800), (1120, 628))
 
 # ── v2406 — CAN HE FIND IT, not just does it render once you get there ──────────────────────────
 #

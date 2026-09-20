@@ -18682,6 +18682,79 @@ def drift_state():
         return dict(_DRIFT)
 
 
+_PULL = {"checked": None, "on": None, "worked": 0, "lastTs": None,
+         "before": None, "after": None, "pulled": None, "owed": None,
+         "say": "nobody has looked yet"}
+
+
+def _pull_once():
+    """Fast-forward THIS machine onto origin/main. -> True moved / False did not / None cannot ask.
+
+    ⚠⚠ v3404 - THE UPDATE MECHANISM LIVED IN THE LAUNCHERS, AND A MACHINE CAN BE STARTED ANOTHER
+    WAY. `start_tvd_mac.sh` pulls and `start_tvd_win.ps1` pulls, so Windows was never missing a
+    launcher - but his KONYO ALT TEST box runs `pythonw console.py` and `pythonw control_app.py
+    --open` directly, so every automatic pull in the codebase was bypassed. MEASURED over SSH
+    2026-09-20, minutes after origin moved: HEAD bad246d (v3395), origin dbb92b6, BEHIND 5, zero
+    scheduled tasks matching d2r/claude/konyo/pull/bible/tv, zero startup entries. It had only
+    ever been current because a human pulled by hand. His words: "still not being updated
+    automatically".
+
+    ⚠ AND THE OTHER HALF WAS ALREADY BUILT. `_drift_once()` compares running against disk and
+    `drift_may_relaunch()` decides whether this process may replace itself, with interlocks that
+    refuse mid-sweep. Nothing was missing from the relaunch path - what was missing is the thing
+    that makes the DISK newer. So this deliberately does NOT execv: it pulls, and the lane below
+    notices the drift exactly as it already does for a hand-pull. A second re-exec path would be
+    [[copy-drift]] with a restart button on it.
+
+    ⛔ IT MUST NEVER PULL OVER WORK IN PROGRESS. His console EXECS THE WORKING TREE, so on his Mac
+    an unguarded pull would land on top of whatever is being edited. Tracked modifications mean
+    this lane stands down and says so. TV_NO_AUTO_PULL still turns it off entirely, the same
+    switch both launchers honour.
+    """
+    import subprocess as _sp
+    now = int(time.time() * 1000)
+
+    def _set(**kw):
+        with _PRUNE_LOCK:
+            _PULL.update(dict({"checked": now}, **kw))
+
+    if os.environ.get("TV_NO_AUTO_PULL"):
+        _set(on=False, say="auto-pull is switched off here by TV_NO_AUTO_PULL")
+        return None
+    if not os.path.isdir(os.path.join(REPO, ".git")):
+        _set(on=None, say="this tree is not a git checkout, so whether it is current is UNKNOWN")
+        return None
+    _run = lambda a, t: _sp.run(a, cwd=REPO, capture_output=True, text=True, timeout=t,
+                                creationflags=_WIN_CREATE if IS_WIN else 0)
+    try:
+        _dirty = (_run(["git", "status", "--porcelain", "--untracked-files=no"], 20).stdout or "").strip()
+    except Exception as e:
+        _set(on=True, say="could not read the working tree (%s), so this is UNMEASURED - not clean"
+                          % type(e).__name__)
+        return None
+    if _dirty:
+        _set(on=True, say=("local tracked edits are present, so this machine is NOT auto-pulling - "
+                           "commit or stash them to rejoin the fleet"))
+        return False
+    try:
+        before = (_run(["git", "rev-parse", "--short", "HEAD"], 20).stdout or "").strip()
+        _run(["git", "fetch", "origin", "main", "--quiet"], 45)
+        _run(["git", "merge", "--ff-only", "origin/main"], 45)
+        after = (_run(["git", "rev-parse", "--short", "HEAD"], 20).stdout or "").strip()
+    except Exception as e:
+        _set(on=True, before=None, after=None, pulled=None,
+             say="the pull did not complete (%s) - UNKNOWN, not up to date" % type(e).__name__)
+        return None
+    moved = bool(before and after and before != after)
+    with _PRUNE_LOCK:
+        _PULL.update({"checked": now, "on": True, "before": before, "after": after,
+                      "pulled": moved, "lastTs": now,
+                      "worked": int(_PULL.get("worked") or 0) + (1 if moved else 0),
+                      "say": (("fleet update: %s -> %s" % (before, after)) if moved
+                              else "already level with origin/main at %s" % (after or "?"))})
+    return moved
+
+
 def _drift_once():
     running = disk = None
     try:
@@ -19228,6 +19301,13 @@ def _drift_loop():
                 time.sleep(_DRIFT_EVERY_S)
             first = False
             _lane_tick('tvd-version-drift', _DRIFT_EVERY_S)
+            # v3404 - MAKE THE DISK NEWER BEFORE ASKING WHETHER IT IS NEWER. Without this the
+            # lane below can only ever notice a pull somebody else performed, which on a machine
+            # started outside the launchers is nobody, forever.
+            try:
+                _pull_once()
+            except Exception:
+                pass          # a pull that fails must never take the drift watcher down with it
             d = _drift_once()
             # v3076 — LEAVE THE VERDICT WHERE ANOTHER PROCESS CAN DATE IT. The tick above is an
             # in-process dict; nothing outside this interpreter can see that this loop ran, so the
@@ -30899,7 +30979,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3403",
+        "ver": "v3404",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

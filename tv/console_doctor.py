@@ -5824,6 +5824,63 @@ def _check_a_hidden_element_is_actually_hidden():
                 "measured across the %d bytes the console actually served" % len(page))
 
 
+def _check_this_machine_is_keeping_itself_current():
+    """v3404 — IS THIS MACHINE STILL PULLING, OR HAS IT QUIETLY FALLEN BEHIND THE FLEET?
+
+    ⚠ HIS EXACT COMPLAINT, 2026-09-20: the KONYO ALT TEST box read CHILIAD 395 while his Mac read
+    401, "moving even further away and still not being updated automatically". MEASURED there over
+    SSH: zero scheduled tasks matching d2r/claude/konyo/pull/bible/tv, zero startup entries, and
+    both console processes launched as raw `pythonw`. Every automatic pull in this codebase lives
+    in a LAUNCHER, so a machine started any other way bypasses all of them — and is current only
+    for as long as a human keeps pulling by hand.
+
+    ⚠ ON IS NOT WORKING. A pull lane that is on and has never moved HEAD is perfectly fine while
+    nothing is owed; it is a defect only when something IS. `behind` is the denominator that tells
+    those apart, and without it "0 pulls" is unreadable. [[heart-first]] [[zero-needs-a-denominator]]
+
+    ⚠ IT NEVER FETCHES. A heart row that hits the network on every eagle tick is a new cost on a
+    surface that runs constantly, so this reads the ref the last fetch LEFT BEHIND and dates it
+    from .git/FETCH_HEAD. A reading carries the age of the thing it measured. [[stale-reading]]
+    """
+    import subprocess as _sp
+    g = os.path.join(REPO, ".git")
+    if not os.path.isdir(g):
+        return UNKNOWN, ("this tree is not a git checkout, so whether it is current is UNKNOWN")
+    try:
+        r = _sp.run(["git", "rev-list", "--count", "HEAD..origin/main"],
+                    cwd=REPO, capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            return UNKNOWN, ("git could not compare this tree against origin/main (%s), so how far "
+                             "behind it is UNKNOWN, not zero"
+                             % ((r.stderr or "").strip().splitlines() or [""])[-1][:80])
+        behind = int((r.stdout or "0").strip() or 0)
+    except Exception as e:
+        return UNKNOWN, ("could not ask git how far behind this machine is (%s) — UNKNOWN, never "
+                         "a measured zero" % type(e).__name__)
+    fh = os.path.join(g, "FETCH_HEAD")
+    age_h = None
+    try:
+        if os.path.exists(fh):
+            age_h = (time.time() - os.path.getmtime(fh)) / 3600.0
+    except Exception:
+        age_h = None
+    if age_h is None:
+        return UNKNOWN, ("this checkout has never recorded a fetch, so whether anything pulls here "
+                         "is UNKNOWN — not a clean bill")
+    if behind > 0:
+        return MISSING, ("this machine is %d commit(s) BEHIND origin/main and the last fetch was "
+                         "%.1fh ago, so it is running code the fleet has moved past. Every "
+                         "automatic pull lives in a launcher — if this console was started another "
+                         "way (raw pythonw, a shortcut, a supervisor) nothing here pulls at all"
+                         % (behind, age_h))
+    if age_h > 24:
+        return MISSING, ("this machine is level with the origin/main it last heard about, but that "
+                         "was %.1fh ago — so 'up to date' is a statement about yesterday. Nothing "
+                         "appears to be fetching here" % age_h)
+    return OK, ("level with origin/main, fetched %.1fh ago — this machine is keeping itself current"
+                % age_h)
+
+
 def _check_his_window_has_a_keyboard_door():
     """v3402 — IS THE W SHORTCUT ACTUALLY ON THE WIRE?
 
@@ -6090,6 +6147,9 @@ CHECKS = [
     # v3402 — a SIBLING question, not the same one: that row asks whether the frame can be READ;
     # this asks whether the KEY that changes it is still being served.
     ("his window has a keyboard door", _check_his_window_has_a_keyboard_door),
+    # v3404 — the fleet question, asked of THIS machine: a console that stops pulling
+    # looks identical to one that is up to date, until he notices the version gap.
+    ("this machine keeps itself current", _check_this_machine_is_keeping_itself_current),
 ]
 
 
@@ -6179,7 +6239,25 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # served page is 2 MB and the cheap subset runs on EVERY eagle tick and in the boot
             # path of every console a test spawns. A single isolated call is not the cost of a
             # thing in the loop it lives in. Its sibling above is here for the same reason.
-            "his window has a keyboard door")
+            "his window has a keyboard door",
+            # ⚠⚠ v3405 — MOVED ON MERIT, NOT TO GET UNDER A NUMBER. The question PERIODIC asks is
+            # "must this be asked every ~10 minutes, or is hourly honest?" — never "which rows are
+            # biggest". Both of these are SCANS OF THINGS THAT DO NOT CHANGE BETWEEN TICKS:
+            #   · `item vocabulary` re-derives sourceHash FROM THE 28 GB INSTALL to catch a game
+            #     patch moving the affix tables. A patch is a monthly event; hashing an install
+            #     every ten minutes to notice one is not supervision, it is a treadmill.
+            #   · `a worker read has a deadline` greps all of tv/ for a new unbounded
+            #     .stdout.readline(). Source only changes when code changes — and a code change
+            #     re-execs this console, which re-runs the check anyway.
+            # MEASURED in the real subset, lower of two passes: 1,651 ms and 1,494 ms.
+            #
+            # ⚠ NEITHER GOES TO SLOW, AND v2802 IS WHY. SLOW does not mean "runs less often", it
+            # means NEVER RUNS UNATTENDED — `engines corroborate` was moved there for a real cost
+            # and stopped being detected by anything except him pressing the eagle button, while
+            # the mirror gate passed the whole time. PERIODIC still runs on its own, every
+            # PERIODIC_EVERY ticks.
+            "item vocabulary",
+            "a worker read has a deadline")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 

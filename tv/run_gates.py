@@ -1208,6 +1208,22 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_machine_pulls_itself_current",
+         [sys.executable, os.path.join(HERE, "test_a_machine_pulls_itself_current.py")], 60,
+         why="v3404 (#149) - THE UPDATE MECHANISM LIVED IN THE LAUNCHERS AND A MACHINE CAN BE "
+             "STARTED ANOTHER WAY. start_tvd_mac.sh:126 pulls and start_tvd_win.ps1:254 pulls, "
+             "so Windows was never missing a launcher - but his KONYO ALT TEST box runs "
+             "pythonw console.py and pythonw control_app.py --open directly, bypassing every "
+             "automatic pull in the codebase. MEASURED over SSH minutes after origin moved: "
+             "BEHIND 5, zero scheduled tasks matching d2r/claude/konyo/pull/bible/tv, zero "
+             "startup entries. It was current only because a human kept pulling by hand, and "
+             "his report was exactly that - still not being updated automatically. The other "
+             "half was already built: _drift_once compares running against disk and "
+             "drift_may_relaunch owns the execv with sweep interlocks, so this is a JOIN, not a "
+             "feature, and it deliberately adds NO second re-exec path. 7 laws, 3 red-proofs. "
+             "The two that matter most: it REFUSES on tracked edits (his console execs the "
+             "working tree, so an unguarded pull lands on top of work in progress) and it "
+             "honours TV_NO_AUTO_PULL, the switch both launchers already obey."),
     Gate("test_a_probe_licenses_only_what_it_tested",
          [sys.executable, os.path.join(HERE, "test_a_probe_licenses_only_what_it_tested.py")], 180,
          why="v3401 (#147) - A PROBE MAY ONLY LICENSE THE MECHANISM IT TESTED, and this wedged "
