@@ -1145,6 +1145,17 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_the_compare_columns_ask_one_question",
+         [sys.executable, os.path.join(HERE, "test_the_compare_columns_ask_one_question.py")], 120,
+         why="v3392 (#137) - THE CROSS-REFERENCE PANEL ASKS THE SAME THREE QUESTIONS FOR EVERY "
+             "USER. He photographed his Windows ALT console reading YOU STILL NEED 86 and said it "
+             "cant be logical. v3176 replaced column 1 with his OWN missing list whenever the peer "
+             "cannot publish names, so ONE COLUMN HEADER ANSWERED TWO DIFFERENT QUESTIONS "
+             "depending on a condition invisible from the screen. His ruling: same unified logic "
+             "for every user - they have you do not, you have they do not, you both need. A column "
+             "whose names are unknown is REFUSED with its reason, never swapped for an easier "
+             "question. This law pins all three labels as invariant across BOTH arms of the "
+             "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
     Gate("test_a_beacon_records_the_check_in",
          [sys.executable, os.path.join(HERE, "test_a_beacon_records_the_check_in.py")], 120,
          why="v3390 (#135) - A BEACON RECORDS THE CHECK-IN, NOT ONLY THE CHANGE. Konyo answered "

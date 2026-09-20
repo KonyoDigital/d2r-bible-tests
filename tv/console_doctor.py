@@ -5174,6 +5174,62 @@ def _check_a_fleet_refusal_names_an_action():
                 % (len(below), known, _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(below[:4]), tail))
 
 
+def _check_the_compare_panel_can_name_a_difference():
+    """v3392 — DOES THE CROSS-REFERENCE PANEL ACTUALLY NAME ANYTHING, ON HIS REAL FLEET?
+
+    v3392 made the three columns invariant: they have - you do not, you have - they do not, you
+    both need. A column whose names are unknown is REFUSED with its reason instead of being swapped
+    for an easier question. That is CORRECT, and correctness is not the same as useful.
+
+    ⚠⚠ NO GATE CAN ASK THIS. test_the_compare_columns_ask_one_question proves the labels are
+    invariant in the SOURCE. It cannot see that every peer on his live fleet refuses every column,
+    which would leave a panel that is perfectly right and tells him nothing - the exact state he
+    photographed. A law about the code cannot measure the data. [[heart-first]] section 2
+
+    FOUR STATES:
+      OK         -> at least one peer yields a NAMED column; says how many of how many
+      MISSING    -> peers exist and NONE names anything - correct and useless, and he should know
+      UNMEASURED -> no peers to compare against, so there is no denominator
+      UNKNOWN    -> the console or the route did not answer. Never OK.
+                    [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+    """
+    fleet = _get("/api/fleet")
+    if not isinstance(fleet, dict):
+        return UNKNOWN, ("the console did not answer /api/fleet, so whether the compare panel can "
+                         "name anything is unmeasured rather than fine")
+    me = fleet.get("me")
+    rows = list(fleet.get("online") or []) + list(fleet.get("offline") or [])
+    peers = [r for r in rows
+             if isinstance(r, dict) and r.get("machine") and r.get("machine") != me]
+    if not peers:
+        return UNMEASURED, ("no peer machines are on the fleet, so there is nothing to compare "
+                            "against and a named column is not possible yet")
+    named, refused, unreachable = [], [], []
+    for r in peers:
+        m = r.get("machine")
+        from urllib.parse import quote as _q
+        j = _get("/api/fleet_compare?machine=" + _q(str(m), safe=""), timeout=6)
+        if not isinstance(j, dict):
+            unreachable.append(str(r.get("nickname") or m)[:28])
+            continue
+        if j.get("ok"):
+            named.append(str(r.get("nickname") or m)[:28])
+        else:
+            refused.append(str(r.get("nickname") or m)[:28])
+    tot = len(peers)
+    if unreachable and not named and not refused:
+        return UNKNOWN, ("the compare route answered for none of the %d peer(s), so nothing is "
+                         "known about what the panel can name: %s"
+                         % (tot, ", ".join(unreachable[:5])))
+    if named:
+        return OK, ("the panel names a real difference for %d of %d peer(s): %s%s"
+                    % (len(named), tot, ", ".join(named[:5]),
+                       " - %d refuse (no names published)" % len(refused) if refused else ""))
+    return MISSING, ("all %d peer(s) refuse every column, so the panel is CORRECT and tells him "
+                     "nothing - each says why, but no difference can be named: %s"
+                     % (tot, ", ".join(refused[:6]) or ", ".join(unreachable[:6])))
+
+
 def _check_the_fleet_can_name_what_it_counts():
     """v3379 (#128) — DOES THIS CONSOLE PUBLISH A LIST FOR EVERY LEDGER IT PUBLISHES A COUNT FOR?
 
@@ -5477,6 +5533,8 @@ CHECKS = [
     ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
     ("no browser is launched unreaped", _check_no_browser_is_launched_unreaped),
     ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
+    ("the compare panel can name a difference",
+     _check_the_compare_panel_can_name_a_difference),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
@@ -5962,6 +6020,7 @@ WATCHES = {
     "a worker read has a deadline": (),
     "no browser is launched unreaped": (),
     "fleet can name what it counts": (),
+    "the compare panel can name a difference": (),
     "river owes what its engine says": (),
     "stash bank":                  (),
     # ⚠ v3340 — DECLARED, NOT OMITTED, and it was omitted first. v3333 added `reel clocks` as

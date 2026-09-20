@@ -117,7 +117,9 @@ def _ocr_ask(wp, path, timeout=8.0):
     # later call. So a worker whose write timed out is poisoned and never used again - a wrong
     # ANSWER is worse than no answer. [[unknown-stays-unknown]]
     if getattr(wp, "_ocr_dead", False):
-        return {}
+        # v3392 — NOT a bare {}. A caller that COUNTS frames must tell "nobody could ask"
+        # from "asked, and there was nothing". [[unknown-stays-unknown]]
+        return {"_unasked": "this worker was poisoned by an earlier timeout"}
     deadline = _tm.monotonic() + timeout       # monotonic, so an NTP step cannot extend the wait
     _sent = _qm.Queue()
 
@@ -132,14 +134,14 @@ def _ocr_ask(wp, path, timeout=8.0):
     try:
         _th.Thread(target=_send, args=(wp, _sent), daemon=True, name="ocr-send").start()
         if _sent.get(timeout=max(0.05, deadline - _tm.monotonic())) is not True:
-            return {}
+            return {"_unasked": "the worker did not accept the path inside the deadline"}
     except Exception:
         # nothing arrived inside the deadline: the worker is not draining its input.
         try:
             setattr(wp, "_ocr_dead", True)
         except Exception:
             pass
-        return {}
+        return {"_unasked": "the worker is not draining its input"}
     while _tm.monotonic() < deadline:
         try:
             ln = q.get(timeout=max(0.05, deadline - _tm.monotonic()))
@@ -10747,6 +10749,11 @@ def _kai_closer_loop():
                         j = _ocr_ask(wp, fp)
                     except Exception:
                         break
+                    if j.get("_unasked"):
+                        # v3392 — a frame nobody could READ is not a frame with no items.
+                        # Counting it as scanned turned an unasked question into a confident
+                        # zero. [[zero-needs-a-denominator]]
+                        continue
                     scanned += 1
                     raw = j.get("lines") or []
                     texts = [t for t in raw if _kai_itemish(t)]
@@ -30845,7 +30852,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3391",
+        "ver": "v3392",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

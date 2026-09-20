@@ -24922,9 +24922,21 @@ function escC(s) {
              a section which disappears when it has nothing hides the very finding it exists to
              show. Both columns are drawn, refused, with a phrase — the full sentence is already
              above in `fx-why`. [[zero-needs-a-denominator]] [[unknown-stays-unknown]] */
-          ? (col('you still need', j.mineMissingNames || [], 'you have every one of them',
-                 'need-only')
-             + col('they have · you do not', null, _fxShortWhy(j), 'theirs')
+          /* ⚠⚠ v3392 — THE THREE COLUMNS ARE THE SAME THREE QUESTIONS FOR EVERY USER. His ruling,
+             2026-09-20: "the first column is what DEAN NEEDs.. any for every user same unified
+             logic... what user sti has that I DONT HAVE and the second row is what i have that
+             they dont. and the third is what we both need.. hardcode that join it and fix it like
+             it already was... something changed last coupleships when we tocuheed it."
+             WHAT CHANGED: v3176 replaced column 1 with `you still need` - HIS OWN gap list, which
+             is a DIFFERENT QUESTION from the comparison every other state asks. Its reasoning is
+             above and was honest ("what he can ACT on"), but it made the panel mean one thing when
+             the peer publishes names and another thing when it does not, so the same column header
+             answered two questions depending on a condition he cannot see. He is reading a
+             DIFFERENCE panel; a column that cannot be NAMED is REFUSED with its reason, never
+             swapped for an easier question. col(names===null) already draws exactly that.
+             ⚠ Nothing is lost: what he still needs is the Uniques/Sets tabs and the header count. */
+          ? (col('they have · you do not', null, _fxShortWhy(j), 'theirs')
+             + col('you have · they do not', null, _fxShortWhy(j), 'mine')
              + col('you both need', null, _fxShortWhy(j), 'neither'))
           : col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', 'theirs')
             + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', 'mine'))
