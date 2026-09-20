@@ -1145,6 +1145,25 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_a_beacon_records_the_check_in",
+         [sys.executable, os.path.join(HERE, "test_a_beacon_records_the_check_in.py")], 120,
+         why="v3390 (#135) - A BEACON RECORDS THE CHECK-IN, NOT ONLY THE CHANGE. Konyo answered "
+             "the one question I left him: Dean was ON THE CONSOLE, not the website - which "
+             "retired my own retraction, because his row still said 26h. Cause: "
+             "functions/api/console.js wrote lastseen: only `if (material)` (ver/mode/event/"
+             "diskVer/tally/masks/pull/eye.live), so a console OPEN and beaconing every ~4 "
+             "minutes with nothing moving left no trace, and its last-seen froze at the last "
+             "CHANGE. Dean idles without ticking, so his row froze hardest precisely because he "
+             "is the least busy user. REPRODUCED before any fix: an idle repeat beacon stored "
+             "[]. Sharper than a frozen number - console: refreshes on a timer, lastseen: had "
+             "none, so a machine reads ONLINE with a stale stamp and the offline list then "
+             "prints that stamp. THREE ARTEFACTS DISAGREED and the code was the odd one out: the "
+             "file header already promised \"written on EVERY beacon INCLUDING heartbeats\" (I "
+             "read it, believed it, and told him the beacon was healthy) and the budget sizing "
+             "REFRESH_S already paid for it - 4 x (3600/900) x 24 x 2 = 768 writes/day, where "
+             "the x 2 is BOTH keys. Fix is one condition, identical to the line above it. This "
+             "law drives the REAL handler across TWO beacons against ONE persistent store, "
+             "ageing the STORED record between them rather than hand-building it."),
     Gate("test_a_tally_says_whether_it_is_a_measurement",
          [sys.executable, os.path.join(HERE, "test_a_tally_says_whether_it_is_a_measurement.py")], 120,
          why="v3389 (#133) - A COUNT THAT WAS NEVER SYNCED IS NOT A MEASUREMENT. Konyo: \"ok: "

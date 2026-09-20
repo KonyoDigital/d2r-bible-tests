@@ -2798,6 +2798,9 @@ MINE = {
         "v3386 - discarding an answer the caller already handed over is a wiring defect. "
         "The fix is code and it is mine.",
 
+    "a present machine has a fresh last-seen":
+        "v3390 - the beacon write condition is code. The fix is mine.",
+
     "a tally agrees with its own ledger verdict":
         "v3389 - sealing the tally verdict and rendering it is code. The fix is mine.",
 
@@ -4688,6 +4691,74 @@ def _check_a_look_keeps_its_evidence():
                 % (kept, len(rows), old))
 
 
+def _check_a_present_machine_has_a_fresh_last_seen():
+    """v3390 (#135) — IS ANY MACHINE ALIVE IN PRESENCE BUT FROZEN IN LAST-SEEN?
+
+    Konyo watched Dean in the console app while his fleet row said 26 hours. Cause: the roster
+    wrote `lastseen:` only on a MATERIAL change, so an idle console checked in every ~4 minutes
+    and left no trace. Presence refreshed on a timer; the durable stamp did not.
+
+    ⚠ NO GATE CAN ASK THIS. The gate proves the handler records an idle beacon TODAY, against a
+    stub KV. Whether the rows this console is holding RIGHT NOW are internally consistent depends
+    on which build each peer is running and how long each has idled — it moves on its own.
+
+    ⚠ THE TWO SIDES ARE INDEPENDENT BY CONSTRUCTION: `online` membership comes from the `console:`
+    presence key (TTL-bounded, refreshed on a timer), and `t` comes from the `lastseen:` record.
+    Different keys, different write conditions. A machine that is ONLINE cannot honestly carry a
+    last-seen older than the presence TTL, because it must have beaconed inside that window to
+    still be listed. [[heart-first]] rule 1
+
+    ⚠ IT READS THE PRESENCE CACHE, NEVER THE NETWORK.
+
+    FOUR STATES:
+      ok         -> every online row's last-seen is inside the window it must have beaconed in
+      missing    -> an online row's stamp is older than that; names the machines and the ages
+      unmeasured -> nothing is online, so there is no row that MUST be fresh
+      unknown    -> a reader would not run. Never ok.
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, ("control_app will not import (%s), so presence cannot be read"
+                         % str(e)[:60])
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s)"
+                         % type(e).__name__)
+    last = cache.get("d") if isinstance(cache, dict) else None
+    if not isinstance(last, dict):
+        return UNMEASURED, ("this console holds no fleet roster yet, so no row can be checked - "
+                            "an absent question, not a clean answer")
+    online = [r for r in (last.get("online") or []) if isinstance(r, dict)]
+    if not online:
+        return UNMEASURED, ("no machine is online, so no row is obliged to carry a fresh "
+                            "last-seen - offline rows are ALLOWED to be old")
+    # The presence key's own TTL is the bound: to be listed online at all, a machine beaconed
+    # within it. A stamp older than that is two keys disagreeing about one machine.
+    PRESENCE_TTL_S = 2400
+    now = time.time()
+    stale = []
+    for r in online:
+        t = r.get("t")
+        if not t:
+            continue                       # no stamp to judge; a different row's question
+        try:
+            import calendar as _cal
+            age = now - _cal.timegm(time.strptime(str(t)[:19], "%Y-%m-%dT%H:%M:%S"))
+        except Exception:
+            continue                       # undatable, not stale. [[unknown-stays-unknown]]
+        if age > PRESENCE_TTL_S:
+            stale.append("%s (%dm)" % (r.get("nickname") or r.get("machine"), int(age // 60)))
+    if stale:
+        return MISSING, ("%d of %d online machine(s) carry a last-seen older than the %dm "
+                         "presence window they must have beaconed inside, so the roster is "
+                         "telling him they are away while they are here: %s"
+                         % (len(stale), len(online), PRESENCE_TTL_S // 60, "; ".join(stale[:4])))
+    return OK, ("all %d online machine(s) carry a last-seen inside the %dm window their presence "
+                "implies" % (len(online), PRESENCE_TTL_S // 60))
+
+
 def _check_a_tally_agrees_with_its_own_ledger_verdict():
     """v3389 (#133) — DOES A ROW'S HEADLINE CLAIM AGREE WITH THE VERDICT INSIDE IT?
 
@@ -5353,6 +5424,7 @@ CHECKS = [
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
     ("a look keeps its evidence", _check_a_look_keeps_its_evidence),
+    ("a present machine has a fresh last-seen", _check_a_present_machine_has_a_fresh_last_seen),
     ("a tally agrees with its own ledger verdict", _check_a_tally_agrees_with_its_own_ledger_verdict),
     ("the eye asks for every code extension", _check_the_eye_asks_for_every_code_extension),
     ("a presence reading names its door", _check_a_presence_reading_names_its_door),
@@ -5836,6 +5908,8 @@ WATCHES = {
     # v3387 — DECLARED, NOT OMITTED. It reads the presence cache and the UI source, not an element.
     # v3388 — DECLARED, NOT OMITTED. It reads a source pathspec and git, not an element.
     # v3389 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
+    # v3390 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
+    "a present machine has a fresh last-seen": (),
     "a tally agrees with its own ledger verdict": (),
     "the eye asks for every code extension": (),
     "a presence reading names its door": (),

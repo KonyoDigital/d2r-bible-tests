@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3389",
+  "ver": "v3390",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3389: Two copies of a truthiness test on a container let a board that never synced publish three zeros as progress while the ledger verdict inside the same object already said UNSYNCED",
+  "note": "v3390: The roster wrote its durable last-seen only on a material change so an idle console beaconing every four minutes left no trace and its row froze at the last change instead of the last check-in",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

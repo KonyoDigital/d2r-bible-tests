@@ -2277,6 +2277,13 @@ NO_JOINT_YET = {
     # source would be the rendered rail line a person actually reads, or the site's own
     # /visits dashboard — and that is behind VISITS_KEY, which this console does not hold.
     # Claiming coverage would claim the very join this version exists to make visible.
+    # v3390 (#135) — the two sides are the `console:` presence key and the `lastseen:` record:
+    # different keys, written under different conditions. A separate corroborate.py invariant
+    # over the same fact does not exist, and one that re-read the same payload would be the same
+    # number twice.
+    'a present machine has a fresh last-seen':
+        'the row compares online membership (from the presence key) against the last-seen stamp; '
+        'a second source would be the roster read straight from KV, which no target captures.',
     # v3389 (#133) — ⚠ THIS ROW IS ITSELF A TWO-SIDED COMPARISON: the tally's outer claim
     # against ledger_authority's nested verdict, written by different engines. What it still
     # lacks is a SEPARATE corroborate.py invariant over the same fact, and inventing one that

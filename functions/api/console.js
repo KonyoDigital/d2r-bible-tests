@@ -367,9 +367,17 @@ export async function onRequestPost(context) {
       skipped.push('console (unchanged, refreshed ' + Math.round(ageS) + 's ago)');
     }
 
-    // durable last-seen: only when something changed. Presence answers "is it here now"; this
-    // answers "what was it last time", and an identical rewrite answers neither question anew.
-    if (material) {
+    // ⚠⚠ v3390 (#135) — THE LAST CHECK-IN, NOT THE LAST CHANGE. Until now this read
+    // `if (material)`, so a console that was OPEN and beaconing every ~4 minutes with nothing
+    // moving never refreshed this key. MEASURED: Konyo watched Dean in the console app while
+    // this row said 26h, and an idle repeat beacon against the real handler stores NOTHING.
+    // Dean's row froze hardest precisely because he is the least busy user.
+    // ⚠ THE HEADER OF THIS FILE ALREADY PROMISED THIS ("written on EVERY beacon INCLUDING
+    // heartbeats") and the budget above already PAID for it: "4 x (3600/900) x 24 x 2 = 768
+    // writes/day" — the x 2 is BOTH keys at the 15-minute cadence. The code was the odd one out.
+    // ⚠ Bounded by the SAME REFRESH_S as presence, so the write budget is unchanged from the one
+    // that comment computed; this is not a new cost, it is the cost already budgeted.
+    if (material || ageS >= REFRESH_S) {
       await kv.put('lastseen:' + machine, JSON.stringify(rec), {
         expirationTtl: 60 * 60 * 24 * 400,  // 400 days
       });
