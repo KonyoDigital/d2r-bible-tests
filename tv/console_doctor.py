@@ -4465,17 +4465,17 @@ def _check_a_worker_read_has_a_deadline():
                 if isinstance(v, _ast.Attribute) and v.attr == "stdout" and not _nd.args:
                     hits.append("%s:%d" % (base, getattr(_nd, "lineno", 0)))
         if scanned == 0:
-            return ("UNKNOWN", "no module in tv/ could be read, so this is unmeasured rather than clean")
+            return ("unknown", "no module in tv/ could be read, so this is unmeasured rather than clean")
         if hits:
-            return ("MISSING",
+            return ("missing",
                     "%d unbounded pipe read(s) — a bare .stdout.readline() waits for ever if the "
                     "worker goes quiet, and surfaces as someone else's timeout: %s"
                     % (len(hits), ", ".join(hits[:6])))
-        return ("OK",
+        return ("ok",
                 "no unbounded .stdout.readline() anywhere in %d module(s) — every subprocess pipe "
                 "read carries a deadline, so a quiet worker cannot hold a caller for ever" % scanned)
     except Exception as e:
-        return ("UNKNOWN", "the pipe-read scan did not run (%s), so this is unmeasured rather "
+        return ("unknown", "the pipe-read scan did not run (%s), so this is unmeasured rather "
                            "than clean" % (e.__class__.__name__,))
 
 
@@ -4534,7 +4534,7 @@ def _check_no_browser_is_launched_unreaped():
         tree = _ast.parse(src)
         lines = src.split("\n")
     except Exception as e:
-        return ("UNKNOWN", "js_syntax_gate.py could not be read or parsed (%s), so whether the "
+        return ("unknown", "js_syntax_gate.py could not be read or parsed (%s), so whether the "
                            "browser launch is still group-reaped is unmeasured, not clean"
                            % (e.__class__.__name__,))
 
@@ -4565,11 +4565,11 @@ def _check_no_browser_is_launched_unreaped():
     helper = _body(HELPER)
     check = _body("check")
     if helper is None:
-        return ("MISSING", "%s is gone from js_syntax_gate.py — the browser launch is no longer "
+        return ("missing", "%s is gone from js_syntax_gate.py — the browser launch is no longer "
                            "routed through a group-reaping helper, which is the v3380 wedge "
                            "returning" % HELPER)
     if check is None:
-        return ("UNKNOWN", "js_syntax_gate.check() could not be located, so its launch path is "
+        return ("unknown", "js_syntax_gate.check() could not be located, so its launch path is "
                            "unmeasured rather than clean")
 
     missing = []
@@ -4581,11 +4581,11 @@ def _check_no_browser_is_launched_unreaped():
     if HELPER + "(" not in check:
         missing.append("check() no longer calls it, so the helper is inert")
     if missing:
-        return ("MISSING",
+        return ("missing",
                 "the browser launch in js_syntax_gate is not fully group-reaped: %s. That is the "
                 "v3380 wedge exactly — it passes every quiet run and then hangs a push, and the "
                 "1500s bound takes the blame for a hang it did not cause." % "; ".join(missing))
-    return ("OK",
+    return ("ok",
             "js_syntax_gate routes its browser launch through %s, which starts the launcher in "
             "its own session and kills by GROUP on timeout — a launcher that outlives its "
             "timeout cannot leave a pipe-holding grandchild behind. ⚠ This row watches that one "
