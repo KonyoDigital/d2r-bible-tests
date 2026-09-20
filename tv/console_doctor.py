@@ -2798,6 +2798,12 @@ MINE = {
         "v3386 - discarding an answer the caller already handed over is a wiring defect. "
         "The fix is code and it is mine.",
 
+    "a tally agrees with its own ledger verdict":
+        "v3389 - sealing the tally verdict and rendering it is code. The fix is mine.",
+
+    "the eye asks for every code extension":
+        "v3388 - the pathspec the second eye hands git is code. The fix is mine.",
+
     "a presence reading names its door":
         "v3387 - joining the two presence stores and rendering both ages is code. The fix "
         "is mine.",
@@ -4682,6 +4688,146 @@ def _check_a_look_keeps_its_evidence():
                 % (kept, len(rows), old))
 
 
+def _check_a_tally_agrees_with_its_own_ledger_verdict():
+    """v3389 (#133) — DOES A ROW'S HEADLINE CLAIM AGREE WITH THE VERDICT INSIDE IT?
+
+    Konyo: *"ok: True with have: 0 - a confident zero - while the mask says the board has handed
+    over nothing... join it connect it the heart properly just like everything else"*.
+
+    TWO GENUINELY INDEPENDENT SIDES, which is the whole bar for a corroborator:
+      · the OUTER claim  - ok / sets.have / uniques.have / runewords.have, written by the tally
+      · the NESTED verdict - ledgerVerdict, written by ledger_authority.classify_row
+    Different engines, and on his live roster right now they DISAGREE: row "Konyo ALT TEST"
+    carries ok:True with three have:0 beside ledgerVerdict.ok:False and three UNSYNCED
+    provenances. So this row can be seen red on real input, not only on a fixture.
+    [[heart-first]] rule 1
+
+    ⚠ AN OLDER PEER IS A REAL CAUSE, NOT AN EXCUSE. A console below v3389 seals no `measured`
+    field, so its zeros arrive unqualified. That IS the disagreement — and naming it is the
+    actionable half, because the fix is that machine updating.
+
+    ⚠ IT READS THE PRESENCE CACHE, NEVER THE NETWORK.
+    [[a-gate-can-perturb-what-it-measures]]
+
+    FOUR STATES:
+      ok         -> every row whose authority refused it also says so in its own headline
+      missing    -> a row publishes counts its own verdict refuses; names the machines
+      unmeasured -> no roster, or no row carries a verdict to compare against
+      unknown    -> a reader would not run. Never ok.
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, ("control_app will not import (%s), so no tally can be compared"
+                         % str(e)[:60])
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s)"
+                         % type(e).__name__)
+    last = cache.get("d") if isinstance(cache, dict) else None
+    if not isinstance(last, dict):
+        return UNMEASURED, ("this console holds no fleet roster yet, so there are no two sides "
+                            "to compare - an absent question, not a clean answer")
+    rows = [r for r in ((last.get("online") or []) + (last.get("offline") or []))
+            if isinstance(r, dict) and isinstance(r.get("tally"), dict)]
+    if not rows:
+        return UNMEASURED, "no row on the roster carries a tally at all"
+    judged, bad = [], []
+    for r in rows:
+        t = r["tally"]
+        lv = t.get("ledgerVerdict")
+        if not isinstance(lv, dict) or lv.get("ok") is None:
+            continue                      # no verdict to disagree WITH
+        judged.append(r)
+        if lv.get("ok") is False and t.get("measured") is not False:
+            bad.append("%s (measured=%r)" % (r.get("nickname") or r.get("machine"),
+                                             t.get("measured")))
+    if not judged:
+        return UNMEASURED, ("%d row(s) carry a tally but none carries a ledger verdict, so the "
+                            "two sides cannot be compared - UNKNOWN, not agreement" % len(rows))
+    if bad:
+        return MISSING, ("%d of %d judged row(s) publish counts their own ledger verdict "
+                         "refuses, so a 0 there reads as progress rather than as nothing ever "
+                         "handed over: %s" % (len(bad), len(judged), "; ".join(bad[:4])))
+    return OK, ("all %d judged row(s) agree with their own ledger verdict (%d row(s) carry no "
+                "verdict and were not judged)" % (len(judged), len(rows) - len(judged)))
+
+
+def _check_the_eye_asks_for_every_code_extension():
+    """v3388 (#134) — DOES THE EYE'S PATHSPEC STILL COVER THE CODE THIS REPO ACTUALLY SHIPS?
+
+    v3387 changed two Cloudflare function files and the eye saw NEITHER: both git pathspecs
+    listed *.py, *.mjs, *.sh (and *.html for the roster) and `*.js` was never there. Worse than a
+    dropped file — a file the pathspec excludes is never a CANDIDATE, so the omitted-file report
+    said 0 truthfully, about a question it was never asked. [[zero-needs-a-denominator]]
+
+    ⚠ NO GATE CAN ASK THIS. The gate proves the pathspec covers the extensions it names TODAY.
+    This asks whether the repo has started shipping an extension nobody added — which changes
+    on its own, silently, the first time a new kind of file lands.
+
+    ⚠⚠ AND IT CARRIES NO SECOND COPY OF THE LIST. The expected extensions are PARSED OUT OF THE
+    SHIPPED PATHSPEC, then compared against what the last looked version actually changed. A row
+    holding its own hardcoded list would drift from the thing it watches and agree with itself
+    for ever — one number wearing two names. [[copy-drift]] [[heart-first]] rule 1
+
+    FOUR STATES:
+      ok         -> every code file the last looked version changed is an extension the eye asks for
+      missing    -> it changed a code extension the pathspec does not name; says which
+      unmeasured -> nothing has been looked at yet, or that sha is not in this checkout
+      unknown    -> a reader would not run. Never ok.
+    """
+    import io as _io
+    import re as _re
+    import subprocess as _sp
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        src = _io.open(os.path.join(here, "second_eye_run.py"), encoding="utf-8").read()
+    except Exception as e:
+        return UNKNOWN, ("second_eye_run.py would not read (%s), so its reach is unmeasured"
+                         % type(e).__name__)
+    asked = set(m.lower() for m in _re.findall(r'"\*(\.[a-z0-9]+)"', src))
+    if not asked:
+        return UNKNOWN, ("no extension pathspec could be parsed out of second_eye_run.py, so "
+                         "what the eye asks for is unmeasured - never assume it asks for all")
+    # What this repo counts as CODE a reviewer must see. Deliberately narrow: data and config
+    # are not review subjects, and a broad list would cry wolf on every workflow edit.
+    code = {".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".html"}
+    try:
+        import second_eye_ledger as _L
+        rows = [json.loads(l) for l in _io.open(_L.LEDGER_PATH, encoding="utf-8") if l.strip()]
+    except Exception as e:
+        return UNKNOWN, ("the second-eye ledger would not read (%s), so no looked version can "
+                         "be checked" % type(e).__name__)
+    looked = [r for r in rows if isinstance(r, dict) and r.get("sha")]
+    if not looked:
+        return UNMEASURED, ("no version has been looked at yet, so there is no changed-file set "
+                            "to compare the pathspec against")
+    sha = str(looked[-1].get("sha"))
+    ver = str(looked[-1].get("version") or "?")
+    try:
+        p = _sp.run(["git", "show", "--format=", "--name-only", sha],
+                    cwd=os.path.dirname(here), capture_output=True, text=True, timeout=60)
+    except Exception as e:
+        return UNKNOWN, "git would not run (%s), so the changed-file set is unmeasured" % type(e).__name__
+    if p.returncode != 0:
+        return UNMEASURED, ("%s (%s) is not in this checkout - a shallow clone cannot answer "
+                            "this, and that is not a clean answer" % (ver, sha[:8]))
+    files = [f.strip() for f in (p.stdout or "").splitlines() if f.strip()]
+    if not files:
+        return UNMEASURED, "%s changed no files this checkout can see" % ver
+    blind = sorted({f for f in files
+                    if not f.startswith("_archive/")
+                    and os.path.splitext(f)[1].lower() in code
+                    and os.path.splitext(f)[1].lower() not in asked})
+    if blind:
+        return MISSING, ("%s changed %d code file(s) whose extension the eye never asks git for, "
+                         "so they were not even candidates to be reported missing: %s"
+                         % (ver, len(blind), ", ".join(blind[:4])))
+    return OK, ("%s: every one of %d changed file(s) is either an extension the eye asks for "
+                "(%s) or not code at all" % (ver, len(files), " ".join(sorted(asked))))
+
+
 def _check_a_presence_reading_names_its_door():
     """v3387 (#131) — DOES THE ROSTER THIS CONSOLE HOLDS CARRY BOTH DOORS, OR ONLY ONE?
 
@@ -5207,6 +5353,8 @@ CHECKS = [
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
     ("a look keeps its evidence", _check_a_look_keeps_its_evidence),
+    ("a tally agrees with its own ledger verdict", _check_a_tally_agrees_with_its_own_ledger_verdict),
+    ("the eye asks for every code extension", _check_the_eye_asks_for_every_code_extension),
     ("a presence reading names its door", _check_a_presence_reading_names_its_door),
     ("a fleet row identifies its machine", _check_a_fleet_row_identifies_its_machine),
     ("a fleet refusal names an action", _check_a_fleet_refusal_names_an_action),
@@ -5686,6 +5834,10 @@ WATCHES = {
     # v3384 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
     "a look keeps its evidence": (),
     # v3387 — DECLARED, NOT OMITTED. It reads the presence cache and the UI source, not an element.
+    # v3388 — DECLARED, NOT OMITTED. It reads a source pathspec and git, not an element.
+    # v3389 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
+    "a tally agrees with its own ledger verdict": (),
+    "the eye asks for every code extension": (),
     "a presence reading names its door": (),
     "a fleet row identifies its machine": (),
     "a fleet refusal names an action": (),

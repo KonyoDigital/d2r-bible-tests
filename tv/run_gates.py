@@ -1145,6 +1145,39 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_a_tally_says_whether_it_is_a_measurement",
+         [sys.executable, os.path.join(HERE, "test_a_tally_says_whether_it_is_a_measurement.py")], 120,
+         why="v3389 (#133) - A COUNT THAT WAS NEVER SYNCED IS NOT A MEASUREMENT. Konyo: \"ok: "
+             "True with have: 0 - a confident zero - while the mask says the board has handed "
+             "over nothing\". MEASURED on his live roster, row Konyo ALT TEST: tally.ok True, "
+             "sets/uniques/runewords all have:0, and the SAME object's tally.ledgerVerdict.ok "
+             "False with all three provenance=UNSYNCED. Cause, to the line and in TWO copies 129 "
+             "lines apart (control_app.py:2241 and :2370): out[ok] = any(out[k] for k in ...) is "
+             "a truthiness test on a container, and {have:0,total:135} is a non-empty dict - so "
+             "ok meant \"the row carries ledger keys\", never \"these numbers are a "
+             "measurement\". The second copy was found only by printing the match count. The "
+             "honest answer was already computed one field away and the outer claim never read "
+             "it. ok KEEPS its meaning so older readers survive; the second question gets its "
+             "own field. Pins his real row, THE BASELINE that a synced and genuinely empty board "
+             "keeps an honest 0, UNKNOWN when no verdict accompanies the counts, one writer for "
+             "both sites, and that the card suppresses a number only on an explicit false."),
+    Gate("test_the_eye_sees_every_code_extension",
+         [sys.executable, os.path.join(HERE, "test_the_eye_sees_every_code_extension.py")], 120,
+         why="v3388 (#134) - THE EYE WAS BLIND TO EVERY .js FILE AND FOUND IT ITSELF. Both git "
+             "pathspecs in second_eye_run.py listed *.py, *.mjs, *.sh (and *.html for the "
+             "roster); *.js was never there - the module extension had been added and the plain "
+             "one never was. MEASURED on v3387's payload, a version whose entire subject is two "
+             "Cloudflare function files: webSeenSlug 0, recordWebSeen 0, webOnly 0, and "
+             "functions/_middleware.js appeared 0 times AND was not in the omitted list, because "
+             "a file the pathspec excludes is never a candidate to be reported missing - a false "
+             "negative in the instrument v3341 and v3354 built to catch this. Blast radius "
+             "measured and small: 1 of the last 60 versions, this one. This law CAPTURES the "
+             "argv the shipped code hands to git and REPLAYS it against a purpose-built temp "
+             "repo, so it exercises the pathspec that ships and asks git what it means rather "
+             "than reading the source. Pins that the roster and the code fetch both reach .js, "
+             "that python still reaches the eye (the baseline), that an archived build chunk "
+             "does NOT, that the exclusion eats no live file, and that the html top-up stays a "
+             "single NAMED exemption."),
     Gate("test_a_presence_reading_names_its_door",
          [sys.executable, os.path.join(HERE, "test_a_presence_reading_names_its_door.py")], 180,
          why="v3387 - THE SITE RECORDS PRESENCE AT TWO DOORS AND THE FLEET COULD SEE ONE. "

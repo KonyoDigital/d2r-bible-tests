@@ -2277,6 +2277,22 @@ NO_JOINT_YET = {
     # source would be the rendered rail line a person actually reads, or the site's own
     # /visits dashboard — and that is behind VISITS_KEY, which this console does not hold.
     # Claiming coverage would claim the very join this version exists to make visible.
+    # v3389 (#133) — ⚠ THIS ROW IS ITSELF A TWO-SIDED COMPARISON: the tally's outer claim
+    # against ledger_authority's nested verdict, written by different engines. What it still
+    # lacks is a SEPARATE corroborate.py invariant over the same fact, and inventing one that
+    # re-read the same two fields would be one number wearing two names. Declared, not claimed.
+    'a tally agrees with its own ledger verdict':
+        'the row compares a tally headline against the ledgerVerdict inside the same object; a '
+        'second source would be the board store read independently of the beacon, which no '
+        'target captures.',
+    # v3388 (#134) — the row parses the SHIPPED pathspec and asks git what one version changed.
+    # A genuine second source would be the eye's own account of what it could not see — which is
+    # exactly what failed here, since an excluded file is never reported missing. Claiming that
+    # as corroboration would cite the broken witness.
+    'the eye asks for every code extension':
+        'the row parses the extensions out of second_eye_run.py and diffs them against the last '
+        'looked version\'s changed files; the second source would be the eye\'s own omitted-file '
+        'report, which cannot see a file the pathspec excluded.',
     'a presence reading names its door':
         'the row asks whether the cached roster carries a webAt half and whether control_ui '
         'renders the joined phrase; the second source would be the RENDERED rail age, or '

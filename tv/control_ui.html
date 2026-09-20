@@ -24134,7 +24134,7 @@ function escC(s) {
         } catch (e) {}
         return null;
       })();
-      var _bar = function (lab, p, isMe) {
+      var _bar = function (lab, p, isMe, meas, measWhy) {
         if (!p || typeof p.have !== 'number') return '';
         var own = (typeof p.total === 'number' && p.total > 0) ? p.total : null;
         var shared = (_ROSTERS && typeof _ROSTERS[lab] === 'number' && _ROSTERS[lab] > 0)
@@ -24162,6 +24162,28 @@ function escC(s) {
           : ('this machine reported ' + p.have + ' and nothing could say what to measure it '
              + 'against \u2014 not even this console\u2019s own roster \u2014 so the bar is left '
              + 'empty rather than drawn full. ' + (d.why || ''));
+        /* ══ v3389 (#133) — A NUMBER THAT WAS NEVER SYNCED IS NOT A COUNT ═══════════════════
+           Konyo, on his new PC's row: *"ok: True with have: 0 - a confident zero - while the
+           mask says the board has handed over nothing"*. MEASURED on his live roster that
+           minute: tally.ok True, sets/uniques/runewords all {have:0}, and the SAME object's
+           tally.ledgerVerdict.ok False with all three provenance=UNSYNCED. The honest answer was
+           already computed and sitting one field away; this row printed the 0 anyway.
+
+           A 0 here does not mean "found nothing". It means nothing was ever handed over, and
+           those are different facts that must not share a glyph. [[unknown-stays-unknown]]
+
+           ⚠ ONLY `false` SUPPRESSES. `undefined` is a peer on a build older than v3389 that
+           sends no verdict at all, and `null` is a tally that genuinely has none (the board-store
+           path, which grail_tally returns before the authority is consulted). Neither may be
+           read as "not a measurement" — that would accuse every older console of lying.
+           [[label-outlived-referent]] */
+        if (meas === false) {
+          val = '\u2014';
+          unit = 'never synced';
+          pct = null;
+          ttl = String(measWhy || 'that board never synced this ledger, so the figure it sent is '
+                                + 'not a count of anything');
+        }
         var _mine = (_MINE && _MINE[lab] && typeof _MINE[lab].have === 'number')
                     ? _MINE[lab].have : null;
         /* ⚠⚠ v2875 — THE NUMBERS COME BACK, AND THE VERDICT BECOMES ONE WORD PER MACHINE.
@@ -24252,8 +24274,10 @@ function escC(s) {
             + '</div></div>';
         }
         var _isMe = !!(m && m.machine && j && j.me && m.machine === j.me);
-        var _cs = [_bar('sets', t.sets, _isMe), _bar('uniques', t.uniques, _isMe),
-                   _bar('runewords', t.runewords, _isMe)].filter(function (s) { return !!s; });
+        var _cs = [_bar('sets', t.sets, _isMe, t.measured, t.measuredWhy),
+                   _bar('uniques', t.uniques, _isMe, t.measured, t.measuredWhy),
+                   _bar('runewords', t.runewords, _isMe, t.measured, t.measuredWhy)]
+                  .filter(function (s) { return !!s; });
         var bars = _cs.length
           ? '<div class="ftt-counts">' + _cs.join('<i class="ftt-sep">\u00b7</i>') + '</div>'
           : '';

@@ -351,7 +351,8 @@ def absent_from(sha, body):
     [[unknown-stays-unknown]] [[the-unjoined-end]]
     """
     names, why = _sh(["git", "show", "--format=", "--name-only", sha,
-                      "--", "*.py", "*.mjs", "*.sh", "*.html"], timeout=90)
+                      "--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",
+                      ":(exclude)_archive/*"], timeout=90)
     if names is None:
         return None, (why or "the changed-file roster could not be read")
     sent = set(re.findall(r"(?m)^diff --git a/(\S+)", body or ""))
@@ -629,8 +630,24 @@ def payload_for(sha):
     # of thousands of characters that are largely prose, so a single combined diff spends the whole
     # budget on comments the stripper cannot remove (they sit inside string literals and JS block
     # comments spanning lines) and the eye never reaches the logic. Ask for the code first.
+    # ⚠⚠ v3388 — `*.js` WAS NEVER HERE, AND THE EYE ITSELF FOUND IT. Reviewing v3387 — a
+    # version whose entire subject is two Cloudflare function files — it answered: "Also absent:
+    # any Cloudflare worker / functions code that actually performs the lastseen/webseen lookup,
+    # key matching, throttling, null-handling". MEASURED on that payload: webSeenSlug 0,
+    # recordWebSeen 0, _fleetSeen 0, webOnly 0. functions/_middleware.js appeared ZERO times and
+    # was not even listed as omitted, because a file excluded by the pathspec is never a
+    # candidate to be reported missing — a false NEGATIVE in the instrument v3341 and v3354 built
+    # to catch exactly this. `*.mjs` was here; the plain extension never was.
+    # ⚠ _archive/ is excluded with it: 67 tracked .js, the bulk archived build chunks under
+    # _archive/phase_z_20260715/assets/. 0 of the last 60 versions touch that tree, so the
+    # exclusion is a measured no-op today and a guard against one archived rebuild flooding a
+    # payload and starving the real files — the failure v3370 fixed for the allocator.
+    # ⚠ BLAST RADIUS IS SMALL AND STATED: 1 of the last 60 versions had an unseen .js change, and
+    # it is v3387. My first count said 60 of 60; that was my own broken loop, not the defect.
+    # [[the-unjoined-end]] [[zero-needs-a-denominator]] [[feedback-suspect-the-instrument]]
     out, why = _sh(["git", "show", "--format=", "--unified=3", sha,
-                    "--", "*.py", "*.mjs", "*.sh"], timeout=90)
+                    "--", "*.py", "*.js", "*.mjs", "*.sh",
+                    ":(exclude)_archive/*"], timeout=90)
     if out is None:
         return None, why
     # ⚠⚠ v3360 — THE SHIP NOTES GO BEFORE THE CAP DOES. run_gates.py carries one `why=` per gate

@@ -2164,6 +2164,72 @@ def _same_id(a, b):
     return a[:n] == b[:n]
 
 
+def _seal_tally_verdict(out, no_counts_why):
+    """TWO QUESTIONS, TWO ANSWERS: did the board ANSWER, and is what it said a MEASUREMENT?
+
+    v3389 (#133). Konyo, on his new PC's row: *"ok: True with have: 0 - a confident zero - while
+    the mask says the board has handed over nothing... join it connect it the heart properly just
+    like everything else"*.
+
+    MEASURED on his live roster, row "Konyo ALT TEST":
+        tally.ok               = True
+        tally.sets/uniques/runewords = {"have": 0, "total": 135/403/99}
+        tally.ledgerVerdict.ok = False, all three provenance=UNSYNCED
+        why: "that board declared a ledger of its own, so the owner's seed never landed - and its
+              own store is EMPTY, so nothing has been synced"
+
+    THE DEFECT, in one line: `any(out[k] for k in ("sets","uniques","runewords"))` is a TRUTHINESS
+    TEST ON A CONTAINER. `{"have": 0, "total": 135}` is a non-empty dict, so it is True whether
+    have is 0 or 135. `ok` has only ever meant "the row carries ledger KEYS" - both call sites'
+    own `why` strings prove that intent, since they can fire only when _pair() returned None.
+
+    ⚠ `ok` KEEPS THAT MEANING. v2815 settled this shape: "`ok` keeps meaning THE FETCH, and a
+    consumer that wants the last known roster asks for it by name." An older reader that branches
+    on `ok` must keep working, so the second question gets its own field rather than redefining
+    the first. [[unknown-stays-unknown]]
+
+    ⚠ AND THE HONEST ANSWER WAS ALREADY COMPUTED. `ledgerVerdict` sits in the same object, six
+    lines above, saying ok:False with three UNSYNCED provenances. Nothing needed deriving - the
+    outer claim simply never consulted it, which is v3343's scar exactly: built, correct, and both
+    DECIDERS still asking the old binary question. [[the-unjoined-end]]
+
+    measured:  True  -> the counts are a measurement
+               False -> they are not; measuredWhy says why, naming the ledgers
+               None  -> no verdict accompanies them, so nobody can say. NEVER True by default.
+    """
+    out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
+    if not out["ok"]:
+        out["why"] = no_counts_why
+        out["measured"] = False
+        out["measuredWhy"] = no_counts_why
+        return out
+    lv = out.get("ledgerVerdict")
+    if not isinstance(lv, dict):
+        # ⚠ THE BOARD-STORE PATH REACHES HERE BY DESIGN. grail_tally returns that tally directly
+        # when the window is shut, before the authority is ever consulted, so there is genuinely
+        # no verdict to read. UNKNOWN is the true answer and a cheerful True would be a lie with
+        # no author. [[unknown-stays-unknown]]
+        out["measured"] = None
+        out["measuredWhy"] = ("no ledger verdict accompanies these counts, so whether they are a "
+                              "measurement is UNKNOWN - they are not confirmed, and not denied")
+        return out
+    if lv.get("ok") is True:
+        out["measured"] = True
+        out["measuredWhy"] = ""
+        return out
+    _un = sorted({str(L.get("ledger") or "?") for L in (lv.get("ledgers") or [])
+                  if isinstance(L, dict)
+                  and str(L.get("provenance") or "").upper() not in ("EARNED", "")})
+    out["measured"] = False
+    out["measuredWhy"] = (
+        ("these counts are not a measurement: %s %s never synced on that board, so a 0 means "
+         "nothing was ever handed over, not that nothing was found"
+         % (", ".join(_un), "were" if len(_un) != 1 else "was"))
+        if _un else
+        (str(lv.get("why") or "the ledger authority refused these counts and gave no reason")))
+    return out
+
+
 def _tally_from_board_store():
     """The tally the BOARD wrote down, read off disk. -> dict | None
 
@@ -2238,10 +2304,8 @@ def _tally_from_board_store():
         out = {"ok": False, "why": None, "sets": _pair(t.get("sets")),
                "uniques": _pair(t.get("uniques")), "runewords": _pair(t.get("runewords")),
                "at": at, "source": "board-store", "profile": route.get("p")}
-        out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
-        if not out["ok"]:
-            out["why"] = "the board has written a tally but it carries no counts"
-        return out
+        return _seal_tally_verdict(
+            out, "the board has written a tally but it carries no counts")
     return None
 
 
@@ -2367,10 +2431,7 @@ def grail_tally():
         # "nothing inherited here". [[unknown-stays-unknown]]
         out["ledgerVerdict"] = {"ok": False, "why": "the authority could not classify this row: %s"
                                                     % str(_lae)[:140]}
-    out["ok"] = any(out[k] for k in ("sets", "uniques", "runewords"))
-    if not out["ok"]:
-        out["why"] = "the board answered but carried no counts"
-    return out
+    return _seal_tally_verdict(out, "the board answered but carried no counts")
 
 
 _TALLY_CACHE = {"t": 0.0, "val": None}
@@ -30748,7 +30809,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3387",
+        "ver": "v3389",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

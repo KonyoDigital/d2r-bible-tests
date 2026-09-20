@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3387",
+  "ver": "v3389",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3387: The site records presence at two doors and THE FLEET could see one - a browser page-view now writes a durable webseen key, the roster carries both ages, and every row names the door its age came from",
+  "note": "v3389: Two copies of a truthiness test on a container let a board that never synced publish three zeros as progress while the ledger verdict inside the same object already said UNSYNCED",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
