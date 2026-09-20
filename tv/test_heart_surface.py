@@ -90,6 +90,20 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 3,   # measured: window._heartRender occurs 3x in control_ui.html
     },
+    {
+        "why": "without the in-flight flag a second click during thOpen paints the shelf onto a half-open stage",
+        "file": "control_ui.html",
+        "find": "TH.shelfOpening || (TH.open && _ov0 && !_ov0.hidden)",
+        "replace": "TH.open && _ov0 && !_ov0.hidden",
+        "matches": 1,
+    },
+    {
+        "why": "without aborting a cancelled open, thShelf writes the overlay into a shut theatre",
+        "file": "control_ui.html",
+        "find": "if (!TH.open && !openErr) return",
+        "replace": "if (false && !TH.open && !openErr) return",
+        "matches": 1,
+    },
 ]
 
 def _block(code, i, cap=20000):
@@ -492,6 +506,29 @@ class TestTheShelfIsNotATrap(unittest.TestCase):
         self.assertIn("thClose()", body,
                       "clicking THE SHELF while it is open does nothing — the one control he would "
                       "reach for first cannot get him out")
+
+    def test_a_second_click_while_opening_closes(self):
+        """thOpen sets TH.open before the overlay exists. Requiring the overlay visible made a
+        second click during that wait fall through and paint the shelf onto a half-open stage."""
+        i = self.code.find("_bshelf.onclick")
+        self.assertGreater(i, 0)
+        body = _block(self.code, i)
+        self.assertIn("TH.shelfOpening", body,
+                      "the door does not mark an in-flight open, so a second click cannot tell "
+                      "cancel-this-open from open-the-shelf-on-a-reel")
+        self.assertIn("TH.shelfOpening || (TH.open && _ov0 && !_ov0.hidden)", body,
+                      "the close predicate still requires the overlay visible, which is the "
+                      "in-and-out trap: TH.open is true and the overlay is not")
+
+    def test_a_cancelled_open_does_not_paint_the_overlay(self):
+        """After await thOpen, a cancelled attempt has TH.open false. Painting thShelf(true)
+        anyway writes the overlay into a display:none theatre — hidden=false, height 0."""
+        i = self.code.find("_bshelf.onclick")
+        self.assertGreater(i, 0)
+        body = _block(self.code, i)
+        self.assertIn("if (!TH.open && !openErr) return", body,
+                      "a cancelled door-open still calls thShelf(true), so the overlay arms "
+                      "inside a shut theatre")
 
     def test_both_quiet_exits_consult_the_door(self):
         """✕ and Escape must both ask whether the shelf WAS the door. One without the other is the

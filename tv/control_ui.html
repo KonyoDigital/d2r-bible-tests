@@ -20731,12 +20731,28 @@ window._lockMark = function(isOpen, px, label){
        NOTHING AT ALL — not a toggle, not a refresh, nothing. The one control he would reach for
        first was the one that could not get him out. */
     var _ov0 = $('th-shelfov');
-    if (TH.open && _ov0 && !_ov0.hidden) { thClose(); return; }
+    /* ⚠⚠ v3405 — IN-FLIGHT OPEN IS STILL OPEN. thOpen sets TH.open = true BEFORE the overlay
+       exists (v859, pixels-before-network). The close predicate required the overlay visible, so
+       a second click during that wait neither cancelled nor closed — it fell through and painted
+       the shelf onto a half-open stage. He described it as in-and-out trapping.
+       btn-sim already closes on TH.open alone. The extra overlay check is only needed when the
+       theatre was opened as a reel (shelfIsDoor false) and he wants the shelf ON TOP. An in-flight
+       door open has no reel he asked for yet. Cancel it. [[the-unjoined-end]] */
+    if (TH.shelfOpening || (TH.open && _ov0 && !_ov0.hidden)) {
+      try { TH.shelfOpening = false; } catch (e) {}
+      thClose();
+      return;
+    }
     var openErr = null;
+    try { TH.shelfOpening = true; } catch (e) {}
+    try {
     if (!TH.open) {
       try { await thOpen(); }
       catch (e) { openErr = e; }
     }
+    /* If he cancelled while we waited, do not paint the overlay into a shut theatre.
+       A failed open (openErr) still tries the shelf — that path is _shelfRefused. */
+    if (!TH.open && !openErr) return;
     try { TH.shelfIsDoor = true; } catch (e) {}   // he came in HERE; every exit returns him here
     try {
       thShelf(true);
@@ -20771,6 +20787,9 @@ window._lockMark = function(isOpen, px, label){
       }
     } catch (e) {
       _shelfRefused(e, openErr);
+    }
+    } finally {
+      try { TH.shelfOpening = false; } catch (e) {}
     }
   };
 
