@@ -111,7 +111,7 @@ RED_PROOF = [
         "why": "restoring v3176's substitution makes column 1 answer a different question than it "
                "does in the ok arm - the exact regression he photographed",
         "file": "tv/control_ui.html",
-        "find": "          ? (col('they have · you do not', null, _fxShortWhy(j), 'theirs')",
+        "find": "          ? (col('they have · you do not', null, 'no names published', 'theirs')",
         "replace": "          ? (col('you still need', j.mineMissingNames || [], 'x', 'need-only')",
         "matches": 1,
     },
@@ -119,8 +119,8 @@ RED_PROOF = [
         "why": "a refused column that is handed a list instead of null stops being a refusal and "
                "renders a confident answer the peer never published",
         "file": "tv/control_ui.html",
-        "find": "             + col('you both need', null, _fxShortWhy(j), 'neither'))",
-        "replace": "             + col('you both need', [], _fxShortWhy(j), 'neither'))",
+        "find": "             + col('you both need', null, 'no names published', 'neither'))",
+        "replace": "             + col('you both need', [], 'no names published', 'neither'))",
         "matches": 1,
     },
     {

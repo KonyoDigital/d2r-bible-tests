@@ -5398,7 +5398,7 @@ def _check_the_compare_panel_can_name_a_difference():
     if not peers:
         return UNMEASURED, ("no peer machines are on the fleet, so there is nothing to compare "
                             "against and a named column is not possible yet")
-    named, refused, unreachable = [], [], []
+    named, refused, unreachable, mute = [], [], [], []
     for r in peers:
         m = r.get("machine")
         from urllib.parse import quote as _q
@@ -5409,12 +5409,25 @@ def _check_the_compare_panel_can_name_a_difference():
         if j.get("ok"):
             named.append(str(r.get("nickname") or m)[:28])
         else:
+            # ⚠⚠ v3396 — A REFUSAL MUST STILL CARRY A REASON HE CAN ACT ON. The reason used to be
+            # printed inside EACH refused column; his screenshot showed v3384's sentence three
+            # times over, so it now renders ONCE above them. That makes it a SINGLE POINT OF
+            # FAILURE: if the route stops forwarding a reason, the columns fall back to a bare
+            # "no names published" and the actionable half — WHICH machine, WHICH version, WHAT
+            # unblocks it — is gone, while the panel still looks deliberate.
+            # [[the-unjoined-end]] [[unknown-stays-unknown]]
+            if not (j.get("theirCanPublishWhy") or j.get("maskWhy") or j.get("why")):
+                mute.append(str(r.get("nickname") or m)[:28])
             refused.append(str(r.get("nickname") or m)[:28])
     tot = len(peers)
     if unreachable and not named and not refused:
         return UNKNOWN, ("the compare route answered for none of the %d peer(s), so nothing is "
                          "known about what the panel can name: %s"
                          % (tot, ", ".join(unreachable[:5])))
+    if mute:
+        return MISSING, ("%d of %d peer(s) refuse WITHOUT A REASON, so the panel draws a bare "
+                         "refusal and he cannot tell which machine or what unblocks it: %s"
+                         % (len(mute), tot, ", ".join(mute[:5])))
     if named:
         return OK, ("the panel names a real difference for %d of %d peer(s): %s%s"
                     % (len(named), tot, ", ".join(named[:5]),

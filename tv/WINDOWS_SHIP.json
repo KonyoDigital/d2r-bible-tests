@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3395",
+  "ver": "v3396",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3395: the WIN-1 seat ran the queue drain on his Windows box and its reader thread died with a UnicodeDecodeError on cp1255, stdout came back empty with returncode 0, and the tool printed nothing new that is a measured zero not a failure to look, which was exactly a failure to look; the gh call decoded with the locale code page while the same file passes utf-8 at three other sites, and the class defect is that a dead reader hands back empty stdout which the code turned into a confident empty list, so since gh prints an empty array for a genuinely empty result a successful call that printed nothing now raises instead, with the write lane left open because a post may legitimately print nothing",
+  "note": "v3396: his own screenshot of the Dean panel showed v3384 full actionable sentence printed three times, once inside each refused column, because v3392 made all three columns refuse where column one used to carry names; v3178 had already specified that the columns carry a short phrase with the full sentence above in fx-why, but that line only rendered on the full panel refusal branch which never fires when counts are available, so the sentence had nowhere to live except inside each column; the reason now renders once above the columns and each column carries a short marker, and the heart row widened because moving the sentence to one place makes it a single point of failure where a reasonless refusal would look deliberate",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -24904,7 +24904,18 @@ function escC(s) {
       return Math.round(s / 86400) + 'd ago';
     };
     box.innerHTML = '<div class="fxr-win">' + head
-      + '<div class="fx-body"><div class="fx-cols">'
+      + '<div class="fx-body">'
+      /* ⚠⚠ v3396 — THE REASON GOES ABOVE THE COLUMNS, ONCE. PIXEL-VERIFIED on his Mac:
+         the Dean panel printed v3384's full actionable sentence THREE TIMES, once per
+         refused column, because v3392 made all three refuse where column 1 used to carry
+         names. v3178 already said this: "Both columns are drawn, refused, with a phrase —
+         the full sentence is already above in `fx-why`". The fx-why line existed but only
+         on the FULL-panel refusal branch, which never fires when counts are available.
+         So the sentence had nowhere to live except inside each column. My own change made
+         the repetition worse (2 copies -> 3), and only his screenshot showed it.
+         [[visual-regression-detector]] */
+      + (!j.ok ? '<div class="fx-why">' + escC(_fxShortWhy(j)) + '</div>' : '')
+      + '<div class="fx-cols">'
       + (!j.ok
           /* one-sided: draw what IS known, and draw the refusal as a COLUMN so the missing half
              is visible rather than absent. col() already renders names===null as an em-dash with
@@ -24935,9 +24946,9 @@ function escC(s) {
              DIFFERENCE panel; a column that cannot be NAMED is REFUSED with its reason, never
              swapped for an easier question. col(names===null) already draws exactly that.
              ⚠ Nothing is lost: what he still needs is the Uniques/Sets tabs and the header count. */
-          ? (col('they have · you do not', null, _fxShortWhy(j), 'theirs')
-             + col('you have · they do not', null, _fxShortWhy(j), 'mine')
-             + col('you both need', null, _fxShortWhy(j), 'neither'))
+          ? (col('they have · you do not', null, 'no names published', 'theirs')
+             + col('you have · they do not', null, 'no names published', 'mine')
+             + col('you both need', null, 'no names published', 'neither'))
           : col('they have · you do not', j.theyHaveIDont || [], 'nothing they hold is new to you', 'theirs')
             + col('you have · they do not', j.iHaveTheyDont || [], 'nothing you hold is new to them', 'mine'))
       /* ⚠⚠ v3022 — THE THIRD COLUMN, AND IT PASSES `j.neitherHas` STRAIGHT THROUGH WITHOUT `|| []`.

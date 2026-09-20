@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3395"   # A FAILED READ NEVER REACHES A SENTENCE CLAIMING A MEASURED ZERO
+VERSION = "v3396"   # THE REFUSAL REASON GOES ABOVE THE COLUMNS, ONCE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
