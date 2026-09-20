@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3386",
+  "ver": "v3387",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3386: The ledger kept the verdict and threw away the evidence. MEASURED on the live store: 898 rows, 876 carrying an answer, median head 400 chars and max 600 - the cap - with the text past it stored NOWHERE. That made a re-judge impossible BY CONSTRUCTION rather than by accident, so five proposed changes to the findings parser could only ever be argued about and three were refused after measurement with no way to check the fourth against history. The caller already hands the whole answer over, because v3339 moved the truncation out of the runner into record, so nothing new is fetched: what was missing was keeping it. record now stores answerFull alongside the head, plus answerChars which is the TRUE length, so neither stored field can claim to be whole when it is not. A new reader answer_for_rejudge returns the text and a completeness flag, and returns None for all 898 older rows rather than handing a 400-character prefix to a re-judge and letting it report a verdict as though it had read the answer. The head and its cap are unchanged. The store is gitignored and local at 2.7 MB, so keeping the evidence costs a few megabytes and losing it cost every re-judge permanently. 9 cases, 3 red-proofs PROVEN, 497 gates, and a heart row in all four registries that reads 0 of 898 today and moves with every look.",
+  "note": "v3387: The site records presence at two doors and THE FLEET could see one - a browser page-view now writes a durable webseen key, the roster carries both ages, and every row names the door its age came from",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1145,6 +1145,22 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_a_presence_reading_names_its_door",
+         [sys.executable, os.path.join(HERE, "test_a_presence_reading_names_its_door.py")], 180,
+         why="v3387 - THE SITE RECORDS PRESENCE AT TWO DOORS AND THE FLEET COULD SEE ONE. "
+             "lastseen: is the console APP beaconing; a browser page-view of /d2r/ lands in "
+             "visit: and was readable only at /visits. MEASURED 2026-09-19: I read Dean's row "
+             "as 26h and told Konyo he had been gone a day; Konyo had watched him on the bible "
+             "six hours earlier. BOTH numbers were right - the rail printed one of them under "
+             "the words \"last seen\" with no statement of what the age was OF. The visit VALUE "
+             "holds the login name, so grouping page-views by person means reading every one, "
+             "and this file's own header already records that doing so blew the subrequest cap "
+             "and 500'd the page - hence webseen:<slug>, one durable key per web identity. This "
+             "pins that a page-view writes that key and an anonymous visitor is KEPT, that the "
+             "write is throttled but never frozen, that a row carries BOTH ages and names the "
+             "newer door, that a match is exact or absent, that an unmatched visitor is listed "
+             "rather than dropped, that a row with no web half is UNCHANGED (the baseline), and "
+             "that one normaliser serves both ends."),
     Gate("test_a_fleet_row_identifies_its_machine",
          [sys.executable, os.path.join(HERE, "test_a_fleet_row_identifies_its_machine.py")], 180,
          why="v3385 - A NICKNAME IS NOT AN IDENTITY. MEASURED on his live console: TWO rows both "

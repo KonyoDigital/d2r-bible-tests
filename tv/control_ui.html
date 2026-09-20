@@ -23857,6 +23857,33 @@ function escC(s) {
     if (h < 24) return h + 'h ago';
     return Math.round(h / 24) + 'd ago';
   };
+  /* ── v3387 — ONE PRESENCE PHRASE, AND IT NAMES THE DOOR IT CAME THROUGH ─────────────────
+     Konyo, 2026-09-20: "make sure to join them so there is not mismatch and unsycn between them
+     so they match and work as a one visual read."
+
+     THE MISREADING THIS ENDS, and it caught ME before it caught him. This rail printed
+     `_fleetSince(m.t)` — the age of the console APP's last beacon — under the words "last seen",
+     with nothing stating what the age was OF. On 2026-09-19 I read Dean's row as 26h and told
+     Konyo he had been away a day. He answered: "he was logged in literally 6 hours ago i saw him
+     with my eyes". BOTH were true. Dean had been on the BIBLE, in a browser, and browser
+     page-views were a different store this surface could not see. A true number under a label
+     that implies a bigger claim is the same defect as a wrong one. [[label-outlived-referent]]
+
+     So the row now says BOTH ages and whose they are. No precedence, no "freshest wins" — a
+     single merged number would re-create the ambiguity in a newer disguise, because the reader
+     still could not tell which door it came through. [[unknown-stays-unknown]] */
+  var _fleetSeen = function (m) {
+    var con = (m && m.t) || null;
+    var web = (m && m.webAt) || null;
+    if (!con && !web) return 'never, by either door';
+    if (!web) return 'console ' + _fleetSince(con);
+    if (!con) return 'on the site ' + _fleetSince(web);
+    /* ISO-8601 sorts chronologically as a string; the NEWER door is named first because that is
+       the one that answers "is this person around". */
+    return (String(web) > String(con))
+      ? ('on the site ' + _fleetSince(web) + ' \u00b7 console ' + _fleetSince(con))
+      : ('console ' + _fleetSince(con) + ' \u00b7 on the site ' + _fleetSince(web));
+  };
   /* v2843 — WHICH SIDE, AND HOW OLD. Both defined HERE, beside _fleetSince, inside the same
      script block as _fleetRefresh: a helper declared in the other block is not in scope at call
      time and the render dies silently. That has cost four regressions. [[console-ui-two-script-blocks]] */
@@ -24464,7 +24491,7 @@ function escC(s) {
                       + 'receive. It ships when the gates pass and it is pushed.">'
                       + ' · unpublished</span>' : '')
              + _lagTxt(m)
-             + ' · ' + escC(_fleetSince(m.t)))
+             + ' · ' + escC(_fleetSeen(m)))
           /* ── v2283 — A ROSTER THAT REFUSED THE WRITE IS NOT A MACHINE THAT WENT AWAY ────────
              Konyo: "i dont see anyone online in fleet. and all three consoles are definitely live
              right now. it say slast seen 2h".
@@ -24486,10 +24513,10 @@ function escC(s) {
                 return 'roster refused its beacon \u00b7 presence UNKNOWN, not offline'
                      + (lb.code ? (' \u00b7 HTTP ' + escC(String(lb.code))) : '')
                      + _lagTxt(m)
-                     + ' \u00b7 last recorded ' + escC(_fleetSince(m.t));
+                     + ' \u00b7 last recorded ' + escC(_fleetSeen(m));
               }
               return 'offline \u00b7 ' + escC(m.ver || '?') + _lagTxt(m)
-                   + ' \u00b7 last seen ' + escC(_fleetSince(m.t));
+                   + ' \u00b7 last seen ' + escC(_fleetSeen(m));
             })();
         /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell
            me visually and show me which items it has cross referenced to mine that i dont have
@@ -24547,8 +24574,21 @@ function escC(s) {
       };
       var rows = (j.online || []).map(function (m) { return _row(m, true); })
         .concat((j.offline || []).map(function (m) { return _row(m, false); }));
-      box.innerHTML = rows.length ? rows.join('')
-        : '<div class="fleet-none">no console has ever checked in</div>';
+      /* v3387 — AND THE PEOPLE THIS RAIL HAS ALWAYS BEEN BLIND TO. A cousin who reads the
+         bible and has never run the console emits no beacon, so before now he did not exist on
+         this panel at all — not "offline", ABSENT. They are listed apart from the machine rows
+         on purpose: online[]/offline[] are lists of COMPUTERS, and the console's own
+         fleet_drop_non_machines() correctly discards anything carrying no install identity.
+         ⚠ The cap is stated, never silent — a trimmed list that looks complete is how a real
+         person goes missing, which is the defect this whole version is about. */
+      var _wo = (j.webOnly || []);
+      var _woTxt = !_wo.length ? '' : ('<div class="fleet-none fleet-was">also on the site, no console here: '
+        + _wo.slice(0, 6).map(function (w) {
+            return escC((String(w.user || '').trim() || 'no login name') + ' ' + _fleetSince(w.t));
+          }).join(' \u00b7 ')
+        + (_wo.length > 6 ? (' \u00b7 +' + (_wo.length - 6) + ' more') : '') + '</div>');
+      box.innerHTML = (rows.length ? rows.join('')
+        : '<div class="fleet-none">no console has ever checked in</div>') + _woTxt;
     } catch (e) {
       box.innerHTML = '<div class="fleet-none">fleet unreachable</div>';
     }

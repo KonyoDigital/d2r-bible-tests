@@ -2798,6 +2798,10 @@ MINE = {
         "v3386 - discarding an answer the caller already handed over is a wiring defect. "
         "The fix is code and it is mine.",
 
+    "a presence reading names its door":
+        "v3387 - joining the two presence stores and rendering both ages is code. The fix "
+        "is mine.",
+
     "a fleet row identifies its machine":
         "v3385 - a label that cannot tell two machines apart is a wiring defect. The fix "
         "is code and it is mine.",
@@ -4678,6 +4682,78 @@ def _check_a_look_keeps_its_evidence():
                 % (kept, len(rows), old))
 
 
+def _check_a_presence_reading_names_its_door():
+    """v3387 (#131) — DOES THE ROSTER THIS CONSOLE HOLDS CARRY BOTH DOORS, OR ONLY ONE?
+
+    Konyo: *"he was logged in literally 6 hours ago i saw him with my eyes.. something is not
+    rendering to you properly or fethchin from the right information data"*. He was right and
+    nothing was broken: Dean's console APP really had not beaconed in 26h, and Dean really had
+    been on the bible four hours earlier in a BROWSER. The site records both; THE FLEET read one.
+
+    ⚠ NO GATE CAN ASK THIS. The gate proves the handler joins correctly on fixtures. Whether the
+    roster THIS console is currently holding carries the joined field depends on which version
+    of the Pages function answered — a deploy that has not landed, or a cached pre-v3387 payload,
+    leaves the rail reading exactly as it did when it misled me, with every test still green.
+    That is the difference between "the code is right" and "the thing is working".
+
+    ⚠ IT READS THE PRESENCE CACHE, NEVER THE NETWORK. Asking Cloudflare from a health check
+    would make the check a source of the traffic it measures.
+    [[a-gate-can-perturb-what-it-measures]]
+
+    FOUR STATES:
+      ok         -> the rows carry a web half and the rail renders the joined phrase; says how
+                    many people the second door actually accounts for
+      missing    -> rows arrived with no webAt key at all (the endpoint answering this console
+                    predates the join), or they carry it and the UI never renders it
+      unmeasured -> no roster yet, so there is nothing to be joined or unjoined
+      unknown    -> a reader would not run. Never ok. [[zero-needs-a-denominator]]
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, ("control_app will not import (%s), so presence cannot be read at all"
+                         % str(e)[:60])
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so neither "
+                         "door is readable from here" % type(e).__name__)
+    last = cache.get("d") if isinstance(cache, dict) else None
+    if not isinstance(last, dict):
+        return UNMEASURED, ("this console holds no fleet roster yet, so there is no presence "
+                            "reading to name a door for - an absent question, not a clean answer")
+    rows = [r for r in ((last.get("online") or []) + (last.get("offline") or []))
+            if isinstance(r, dict)]
+    if not rows:
+        return UNMEASURED, "the roster is empty, so no row can carry either door"
+    joined = [r for r in rows if "webAt" in r]
+    if not joined:
+        return MISSING, ("all %d roster row(s) arrived with no webAt field, so the endpoint "
+                         "answering this console still reports console beacons ONLY - the rail "
+                         "is showing the same one-door age that read Dean as 26h away while he "
+                         "was on the site" % len(rows))
+    try:
+        # ⚠ `io` is NOT module-level in this file — the sibling row above hit NameError on
+        # exactly this line and was correctly reported UNKNOWN by its own arm.
+        import io as _io
+        ui = _io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "control_ui.html"), encoding="utf-8").read()
+    except Exception as e:
+        return UNKNOWN, ("the console UI would not read (%s), so whether the joined age reaches "
+                         "his screen is unmeasured" % type(e).__name__)
+    if "escC(_fleetSeen(m))" not in ui:
+        return MISSING, ("the roster carries both doors on %d of %d row(s) and the rail never "
+                         "renders the joined phrase - the second door is fetched and thrown "
+                         "away" % (len(joined), len(rows)))
+    withweb = [r for r in joined if r.get("webAt")]
+    webnewer = [r for r in withweb if str(r.get("seenVia") or "") == "web"]
+    extra = [w for w in (last.get("webOnly") or []) if isinstance(w, dict)]
+    return OK, ("%d of %d roster row(s) carry both doors; %d have a browser half and %d are "
+                "freshest THROUGH the browser rather than the console; %d person(s) read the "
+                "bible with no console here at all"
+                % (len(joined), len(rows), len(withweb), len(webnewer), len(extra)))
+
+
 def _check_a_fleet_row_identifies_its_machine():
     """v3385 (#130) — CAN HE TELL TWO ROWS APART WHEN THEY SHARE A NICKNAME?
 
@@ -5131,6 +5207,7 @@ CHECKS = [
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
     ("a look keeps its evidence", _check_a_look_keeps_its_evidence),
+    ("a presence reading names its door", _check_a_presence_reading_names_its_door),
     ("a fleet row identifies its machine", _check_a_fleet_row_identifies_its_machine),
     ("a fleet refusal names an action", _check_a_fleet_refusal_names_an_action),
     ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
@@ -5608,6 +5685,8 @@ WATCHES = {
     # v3381 — DECLARED, NOT OMITTED. It grades source text, so it owns no element of its own.
     # v3384 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
     "a look keeps its evidence": (),
+    # v3387 — DECLARED, NOT OMITTED. It reads the presence cache and the UI source, not an element.
+    "a presence reading names its door": (),
     "a fleet row identifies its machine": (),
     "a fleet refusal names an action": (),
     "a worker read has a deadline": (),

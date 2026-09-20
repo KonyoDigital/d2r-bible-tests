@@ -39,6 +39,11 @@
  * View at /console?k=<VISITS_KEY> — Konyo-only, same key as /visits.
  */
 
+// v3387 — ONE normaliser for both ends of the presence join. The writer lives in
+// functions/_middleware.js; importing it is deliberate, because two copies of a normaliser is
+// exactly how the two console files already shared one bug (see the listAll note below).
+import { webSeenSlug } from '../_middleware.js';
+
 /**
  * List EVERY key under a prefix by following the cursor. KV caps a single list() at 1000
  * keys and signals more via list_complete/cursor; an empty keys array does NOT mean done
@@ -466,6 +471,67 @@ export async function onRequestGet(context) {
 
   offline.sort(newestFirst);
 
+  // ── v3387 — THE SECOND DOOR, JOINED TO THE FIRST ────────────────────────────────────────
+  // Konyo: "make sure to join them so there is not mismatch and unsycn between them so they
+  // match and work as a one visual read."
+  //
+  // Until now this endpoint answered ONE question — when did the console APP last beacon — and
+  // the rail printed that age with no statement of what it was the age of. A person who had
+  // been reading the bible in a browser an hour ago showed as last seen days back, truthfully
+  // and uselessly. `webseen:<slug>` (written by recordVisit in functions/_middleware.js) is the
+  // other half: one durable key per web identity, affordable to read here.
+  //
+  // ⚠ THE MATCH IS EXACT OR IT DOES NOT HAPPEN. A web identity is attached to a machine row only
+  // when its slug equals the slug of that row's own user / nickname / machine. Nothing fuzzy,
+  // no prefixes, no "looks like the same person" — inventing a link here would put one person's
+  // presence on another person's row, which is a worse lie than the silence it replaces.
+  // [[unknown-stays-unknown]]
+  //
+  // ⚠ AND AN UNMATCHED IDENTITY IS NEVER DROPPED. It goes to webOnly[] — somebody who reads the
+  // bible and has never run the console is a real person the fleet has always been blind to.
+  // They are kept OUT of online[]/offline[] on purpose: those are lists of MACHINES, and the
+  // console's own fleet_drop_non_machines() correctly discards anything with no install id.
+  const webKeys = await listAll(kv, 'webseen:');
+  const web = (await Promise.all(webKeys.map((k) =>
+    Promise.resolve(kv.get(k.name, 'json')).catch(() => null))))
+    .filter((w) => w && w.t)
+    .sort(newestFirst);
+
+  const byIdent = new Map();
+  for (const w of web) {                       // web[] is newest-first, so the first wins
+    const s = w.slug || webSeenSlug(w.user);
+    if (!byIdent.has(s)) byIdent.set(s, w);
+  }
+
+  // ISO-8601 sorts lexicographically in chronological order, which is the property every epoch
+  // cut in this codebase leans on. Either side may be absent, and absent is not "older".
+  const newerOf = (a, b) => {
+    const A = a ? String(a) : '', B = b ? String(b) : '';
+    if (!A) return B || null;
+    if (!B) return A;
+    return A >= B ? A : B;
+  };
+
+  const claimed = new Set();
+  for (const row of machines.concat(offline)) {
+    let hit = null, via = null;
+    for (const field of ['user', 'nickname', 'machine']) {
+      const s = webSeenSlug(row[field]);
+      if (s === '_anon') continue;             // an empty field matches the anonymous bucket
+      if (byIdent.has(s)) { hit = byIdent.get(s); via = field; break; }
+    }
+    row.webAt = hit ? hit.t : null;
+    row.webVia = via;                          // HOW it matched — null when nothing did
+    row.seenAt = newerOf(row.t, row.webAt);
+    // Which door produced seenAt. `null` when neither store could answer, never 'console'.
+    row.seenVia = !row.seenAt ? null
+      : (row.webAt && row.seenAt === row.webAt && row.seenAt !== row.t) ? 'web' : 'console';
+    row.seenBoth = !!(row.t && row.webAt);
+    if (hit) claimed.add(hit.slug || webSeenSlug(hit.user));
+  }
+
+  const webOnly = web.filter((w) => !claimed.has(w.slug || webSeenSlug(w.user)));
+
   // v1596 — SCAN DIAGNOSTICS. offline:[] used to be unreadable: it could mean "nobody has been
   // here" or "the scan is broken", and those look the same. These counts separate them.
   // pages/complete are derived from key counts because listAll is kept byte-identical across
@@ -484,9 +550,11 @@ export async function onRequestGet(context) {
   return json({
     ok: true,
     now: new Date().toISOString(),
-    scope: 'TV-D console APP presence only (beacons from the control app). NOT browser page-views of /d2r/ — those are a separate tracker at /visits.',
+    scope: 'BOTH doors, joined (v3387). Each machine row carries t = the console APP beacon and webAt = a browser page-view of /d2r/ by the same identity; seenAt is the newer of the two and seenVia names WHICH door it came from. A browser identity no machine row can claim is listed in webOnly[] rather than merged into anybody. Before v3387 this endpoint reported console beacons ONLY, which is why a person reading the bible could show as absent for days.',
     online: machines,
     offline,
+    web,
+    webOnly,
     scan,
   });
 }

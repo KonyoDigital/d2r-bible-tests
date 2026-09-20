@@ -2273,6 +2273,14 @@ NO_JOINT_YET = {
     # genuine second source would be the RENDERED rail: the two label strings a reader actually
     # sees for a shared nickname. No target captures that, so claiming coverage would claim the
     # very thing this version was written to make visible.
+    # v3387 (#131) — the row reads the cached roster and the UI SOURCE. A genuine second
+    # source would be the rendered rail line a person actually reads, or the site's own
+    # /visits dashboard — and that is behind VISITS_KEY, which this console does not hold.
+    # Claiming coverage would claim the very join this version exists to make visible.
+    'a presence reading names its door':
+        'the row asks whether the cached roster carries a webAt half and whether control_ui '
+        'renders the joined phrase; the second source would be the RENDERED rail age, or '
+        '/visits, which is key-gated and unreadable from here.',
     'a fleet row identifies its machine':
         'the row counts shared nicknames in the cached roster and checks the UI carries the '
         'disambiguator; the second source would be the RENDERED rail labels, which no target '
