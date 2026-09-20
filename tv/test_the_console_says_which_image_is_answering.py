@@ -140,6 +140,28 @@ class TheConsoleSaysWhichImageIsAnswering(unittest.TestCase):
                          "a console that publishes no source hash was graded %r" % st)
         self.assertIn("UNMEASURED", say)
 
+    def test_a_stale_ORGAN_is_MISSING_even_when_control_app_sha_matches(self):
+        """THE LIVE MISS. proc.srcSha matched control_app.py; console_doctor.py on disk did not."""
+        import hashlib
+        import console_doctor as cd
+        disk = hashlib.sha1(io.open(os.path.join(HERE, "control_app.py"), "rb").read()).hexdigest()
+        real = cd._get
+        try:
+            cd._get = lambda path, timeout=4: {
+                "proc": {"pid": 1, "ver": "v0", "srcSha": disk, "src": "control_app.py"},
+                "moduleFreshness": {
+                    "known": True, "stale": True,
+                    "say": "console_doctor.py was rewritten after this process loaded",
+                    "organs": [{"src": "console_doctor.py", "stale": True, "known": True}],
+                },
+            }
+            st, say = cd._check_the_running_code_is_the_code_on_disk()
+        finally:
+            cd._get = real
+        self.assertEqual(cd.MISSING, st,
+                         "a stale organ with a matching control_app sha was graded %r" % st)
+        self.assertIn("console_doctor.py", say)
+
 # THE EXECUTABLE RED-PROOF
 RED_PROOF = [
     {
@@ -172,6 +194,14 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "        _v = _app_ver()",
         "replace": '        _v = "v0000"',
+        "matches": 1,
+    },
+    {
+        "why": "law: a stale organ must reach the doctor even when control_app.py's sha matches. "
+               "Dropping the moduleFreshness.stale branch restores the 2026-09-20 false green.",
+        "file": "console_doctor.py",
+        "find": "    if isinstance(_mf, dict) and _mf.get(\"stale\") is True:",
+        "replace": "    if False and isinstance(_mf, dict) and _mf.get(\"stale\") is True:",
         "matches": 1,
     },
 ]

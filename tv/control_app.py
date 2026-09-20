@@ -18570,6 +18570,88 @@ def _src_sha():
         return None
 
 
+def _file_sha(path):
+    """sha256 of `path`, or None. Same polarity as `_src_sha`: unreadable is None, never a sentinel."""
+    try:
+        import hashlib
+        with open(path, "rb") as _fh:
+            return hashlib.sha256(_fh.read()).hexdigest()
+    except Exception:
+        return None
+
+
+#: Heart organs this process loads from disk besides itself. Measured 2026-09-20: moduleFreshness
+#: said in-sync because only control_app.py was hashed, while console_doctor.py on disk had already
+#: replaced REPO with ROOT and the live eagle row threw NameError. A freshness reading that only
+#: hashes its own file cannot see an organ change. paint_witness is the pixel well's organ.
+#: [[the-unjoined-end]]
+_FRESH_ORGAN_NAMES = ("console_doctor.py", "paint_witness.py")
+
+
+def _boot_organs():
+    """Import-time snapshot of each heart organ. None mtime/sha is UNMEASURED for that organ."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    out = {}
+    for name in _FRESH_ORGAN_NAMES:
+        p = os.path.abspath(os.path.join(here, name))
+        try:
+            out[p] = {"name": name, "mtime": os.path.getmtime(p), "sha": _file_sha(p)}
+        except OSError:
+            out[p] = {"name": name, "mtime": None, "sha": None}
+    return out
+
+
+_BOOT_ORGANS = _boot_organs()
+
+
+def _organ_freshness():
+    """Per-organ disk vs import-time snapshot. -> (rows, any_stale)
+
+    A row is always emitted, including UNMEASURED. Collapsing a missing organ into 'all in sync'
+    is the false-green this exists to refuse.
+    """
+    rows = []
+    any_stale = False
+    for path, boot in _BOOT_ORGANS.items():
+        name = boot["name"]
+        row = {"src": name, "stale": None, "known": False}
+        if boot["mtime"] is None or boot["sha"] is None:
+            row["say"] = ("%s was not readable at import, so this organ is UNMEASURED"
+                          % name)
+            rows.append(row)
+            continue
+        try:
+            now_m = os.path.getmtime(path)
+        except OSError:
+            row["say"] = ("%s cannot be read now, so this organ is UNMEASURED" % name)
+            rows.append(row)
+            continue
+        if now_m == boot["mtime"]:
+            row.update({"known": True, "stale": False, "agedS": 0})
+            rows.append(row)
+            continue
+        sha = _file_sha(path)
+        if sha is None:
+            row["say"] = ("%s mtime moved but the file could not be hashed, so UNMEASURED"
+                          % name)
+            rows.append(row)
+            continue
+        if sha == boot["sha"]:
+            row.update({"known": True, "stale": False, "agedS": 0})
+            rows.append(row)
+            continue
+        aged = int(abs(now_m - boot["mtime"]))
+        # organ-stale marker — do not copy control_app's stale-True dict literal; a RED_PROOF
+        # pins that one and must keep matching exactly once.
+        row["known"] = True
+        row["stale"] = True
+        row["agedS"] = aged
+        row["olderOnDisk"] = now_m < boot["mtime"]
+        any_stale = True
+        rows.append(row)
+    return rows, any_stale
+
+
 try:
     _BOOT_SRC_MTIME = os.path.getmtime(os.path.abspath(__file__))
 except OSError:
@@ -18597,22 +18679,48 @@ def module_freshness():
 
 
 def _module_freshness_now():
+    organs, organ_stale = _organ_freshness()
+
+    def _with_organs(payload):
+        """Persist every organ row, then let a stale organ promote the whole reading.
+
+        ⚠ A SUMMARY IS NOT A MEASUREMENT. Dropping the per-organ rows and keeping only
+        stale=true would tell him to restart without naming which file moved — the 2026-09-20
+        miss was exactly 'control_app in sync, console_doctor not'.
+        """
+        payload["organs"] = organs
+        if payload.get("stale") or payload.get("known") is False:
+            return payload
+        if not organ_stale:
+            return payload
+        stale_names = [o.get("src") for o in organs if o.get("stale") and o.get("src")]
+        aged = max((o.get("agedS") or 0) for o in organs if o.get("stale"))
+        payload.update({
+            "known": True,
+            "stale": True,
+            "agedS": aged,
+            "say": ("this server is NOT the file on disk - %s was rewritten after this "
+                    "process loaded, so PAGE changes are live and SERVER changes are not. "
+                    "Restart to pick them up." % ", ".join(stale_names)),
+        })
+        return payload
+
     if _BOOT_SRC_MTIME is None or _BOOT_SRC_SHA is None:
-        return {"known": False, "stale": None,
+        return _with_organs({"known": False, "stale": None,
                 "say": "the source was not readable at import, so this is UNMEASURED "
-                       "rather than in sync"}
+                       "rather than in sync"})
     try:
         now_mtime = os.path.getmtime(os.path.abspath(__file__))
     except OSError:
-        return {"known": False, "stale": None,
+        return _with_organs({"known": False, "stale": None,
                 "say": "the source file cannot be read now, so this is UNMEASURED rather than "
-                       "in sync"}
+                       "in sync"})
     base = {"loadedAtMs": int(_BOOT_AT * 1000), "srcWrittenMs": int(now_mtime * 1000)}
     # FAST PATH: an untouched file is the overwhelmingly common case and costs one stat.
     if now_mtime == _BOOT_SRC_MTIME:
         base.update({"known": True, "stale": False, "agedS": 0,
                      "say": "this server is the file on disk"})
-        return base
+        return _with_organs(base)
 
     # v3289 — THE MTIME MOVED, WHICH IS NOT THE SAME AS THE CODE CHANGING, AND THE DIRECTION
     # MATTERS. Both raised by the cross-family eye on v3288:
@@ -18628,12 +18736,12 @@ def _module_freshness_now():
         base.update({"known": False, "stale": None,
                      "say": "the source mtime moved but the file could not be read to confirm, "
                             "so this is UNMEASURED rather than in sync"})
-        return base
+        return _with_organs(base)
     if _sha == _BOOT_SRC_SHA:
         base.update({"known": True, "stale": False, "agedS": 0,
                      "say": "this server is the file on disk - the file was rewritten with "
                             "identical bytes, so there is nothing to restart for"})
-        return base
+        return _with_organs(base)
     aged = int(abs(now_mtime - _BOOT_SRC_MTIME))
     _older = now_mtime < _BOOT_SRC_MTIME
     base.update({
@@ -18645,7 +18753,7 @@ def _module_freshness_now():
                       "after it loaded, so PAGE changes are live and SERVER changes are not. "
                       "Restart to pick them up." % _ago_words(aged))),
     })
-    return base
+    return _with_organs(base)
 
 
 def _ago_words(sec):

@@ -3577,6 +3577,22 @@ def _check_the_running_code_is_the_code_on_disk():
     if not isinstance(d, dict):
         return UNKNOWN, ("the console could not be asked what code it is running, so whether it "
                          "matches the disk is UNMEASURED")
+    # v3404b — AN ORGAN CAN BE STALE WHILE control_app.py IS NOT.
+    # Measured 2026-09-20: moduleFreshness.stale=false (control_app sha matched) while
+    # eagle "this machine keeps itself current" threw NameError on REPO inside
+    # console_doctor that had already been fixed on disk. proc.srcSha only hashes
+    # control_app.py, so it cannot see that miss. Read the freshness the console
+    # already published rather than hashing a second copy. [[the-unjoined-end]]
+    _mf = d.get("moduleFreshness") if isinstance(d, dict) else None
+    if isinstance(_mf, dict) and _mf.get("stale") is True:
+        _org = _mf.get("organs") if isinstance(_mf.get("organs"), list) else []
+        _names = [str(o.get("src")) for o in _org
+                  if isinstance(o, dict) and o.get("stale") is True and o.get("src")]
+        _say = str(_mf.get("say") or
+                   "the console reports its loaded code is not the files on disk")
+        if _names:
+            _say = _say + " (organs: %s)" % ", ".join(_names)
+        return MISSING, _say
     proc = d.get("proc")
     if not isinstance(proc, dict) or not proc.get("srcSha"):
         return UNMEASURED, ("this console publishes no source hash — it was started before the "

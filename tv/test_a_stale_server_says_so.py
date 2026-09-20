@@ -209,6 +209,47 @@ class TestAStaleServerSaysSo(unittest.TestCase):
         self.assertEqual(r.get("agedS"), 900, "the gap must be reported as a magnitude, not a "
                                               "negative that rounds to zero")
 
+    def test_organs_are_named_even_when_fresh(self):
+        """A summary without rows is how control_app-only freshness hid console_doctor."""
+        control_app._FRESH_CACHE["val"] = None
+        r = control_app.module_freshness()
+        names = [o.get("src") for o in (r.get("organs") or [])]
+        self.assertIn("console_doctor.py", names,
+                      "freshness no longer names console_doctor, so an organ rewrite reads as in-sync")
+        self.assertIn("paint_witness.py", names)
+        self.assertFalse(r.get("stale"),
+                         "a freshly loaded process must not claim to be stale: %r" % (r.get("say"),))
+
+    def test_a_rewritten_organ_is_noticed_even_when_control_app_is_not(self):
+        """THE LIVE MISS. control_app.py bytes matched; console_doctor.py on disk did not."""
+        organ = os.path.abspath(os.path.join(HERE, "console_doctor.py"))
+        boot = (control_app._BOOT_ORGANS.get(organ) or {}).get("mtime")
+        self.assertIsNotNone(boot, "console_doctor was not snapshotted at import")
+        real_m = control_app.os.path.getmtime
+        real_sha = control_app._file_sha
+
+        def later(path):
+            return boot + 2303 if os.path.abspath(path) == organ else real_m(path)
+
+        def other_sha(path):
+            return ("c0ffee" * 8) if os.path.abspath(path) == organ else real_sha(path)
+
+        control_app._FRESH_CACHE["val"] = None
+        control_app.os.path.getmtime = later
+        control_app._file_sha = other_sha
+        try:
+            r = control_app.module_freshness()
+        finally:
+            control_app.os.path.getmtime = real_m
+            control_app._file_sha = real_sha
+            control_app._FRESH_CACHE["val"] = None
+        self.assertTrue(r.get("stale"),
+                        "an organ rewrite was not noticed: %r" % (r.get("say"),))
+        self.assertIn("console_doctor.py", r.get("say") or "")
+        self.assertIn("Restart", r.get("say") or "")
+        stale_organs = [o.get("src") for o in (r.get("organs") or []) if o.get("stale")]
+        self.assertIn("console_doctor.py", stale_organs)
+
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
 RED_PROOF = [
@@ -233,8 +274,8 @@ RED_PROOF = [
     {
         "why": "an unreadable file reported as in-sync is the false-green this exists to refuse",
         "file": "tv/control_app.py",
-        "find": '        return {"known": False, "stale": None,\n                "say": "the source file cannot be read now, so this is UNMEASURED rather than "\n                       "in sync"}',
-        "replace": '        return {"known": True, "stale": False, "say": "in sync"}',
+        "find": '        return _with_organs({"known": False, "stale": None,\n                "say": "the source file cannot be read now, so this is UNMEASURED rather than "\n                       "in sync"})',
+        "replace": '        return _with_organs({"known": True, "stale": False, "say": "in sync"})',
         "matches": 1,
     },
     {
@@ -263,6 +304,13 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": '        "moduleFreshness": _t(\"moduleFreshness\", module_freshness),',
         "replace": '        "moduleFreshnessX": module_freshness(),',
+        "matches": 1,
+    },
+    {
+        "why": "hashing only control_app.py is the 2026-09-20 miss: console_doctor can throw while freshness says in-sync",
+        "file": "tv/control_app.py",
+        "find": '_FRESH_ORGAN_NAMES = ("console_doctor.py", "paint_witness.py")',
+        "replace": "_FRESH_ORGAN_NAMES = ()",
         "matches": 1,
     },
 ]
