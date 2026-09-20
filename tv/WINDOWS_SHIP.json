@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3400",
+  "ver": "v3401",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3400: reel_retention.plan publishes its failure reason as why; shelf_driver.work read p.get(say), a key that exists only on the SUCCESS payload, so on every failure it fell through to the generic string retention could not read this shelf. v3393 had already taught plan to answer no footage tree on this machine yet and v3393s own comment names the shelf as a consumer that drew a 0x0 box, so the sentence was written and the shelf never received a word of it. Measured on his ALT console and reproduced here against an absent tree; the fix carries a machine-readable flag so the heart never greps English, and the mirror case is pinned: a console that HAS filmed and then failed still reads MISSING.",
+  "note": "v3401: browser_can_load_localhost falls back to a CDP probe when dump-dom times out and records WHICH path worked in LOOPBACK_PATH, and nothing ever read it: check asked only the boolean, so CDP works flattened into loopback works and licensed the dump-dom loads, a different mechanism. Measured on his Mac the probe returned True in 13.9s with path cdp, then each of two targets burned its full 90s and fell through to node anyway, about 180s a run against a 1500s pre-push ceiling; after the join check returns in 0.6s with the same verdict. One argv builder now serves the probe and the real load, a real timeout retires the cached verdict, and RESUME_HERE.md joins BLUEPRINT and HEART as a derived artefact that is refused when stale.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

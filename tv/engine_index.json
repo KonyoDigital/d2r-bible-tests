@@ -2058,5 +2058,16 @@
     "purpose": "Answers where THIS machine's roots are and whether a write actually lands in them, so a console that has never recorded can be told apart from one that is broken. It reports; it does not provision by being looked at.",
     "gotcha": "It is NOT a fix for a provisioning defect - there is none. tv_diablo makes the footage tree inside _film_loop, so a console that has never filmed has no frames/hist BY DESIGN, and frame_authority/reel_retention are READERS whose 0 makedirs is correct. Creating a tree in the WRONG place is worse than creating none: it turns the heart green and makes the fault invisible, so a refused anchor yields NO path rather than a guess. found requires a PROVEN WRITE, a frozen build refuses the repo anchor, and every path is _ascii()-safe because a non-ASCII profile path crashes a cp1255 console WHILE it reports.",
     "territory": "machine-tree"
+  },
+  "resume_state.py": {
+    "entryPoints": [
+      "derived() — the state block: HEAD, origin, unpushed, tree, version, gates",
+      "write(path) — replace the block between the markers, in place",
+      "--check — exit non-zero when the fingerprint no longer matches the repo",
+      "BEGIN / END — the markers; everything outside them is hand-written narrative"
+    ],
+    "purpose": "Derives the live half of RESUME_HERE.md so a resume cannot go stale, the way BLUEPRINT.md and HEART.md cannot. CLAUDE.md points every new session at that file FIRST, and on 2026-09-20 it was FOUR DAYS OLD, opening with 6 commits are built and UNPUSHED while naming five that had shipped long before. Nothing noticed because nothing could: it was prose.",
+    "gotcha": "It NEVER fetches. origin/main is whatever the last fetch left in the ref, so the block SAYS how old that knowledge is rather than implying it is current - a generator that reached the network would make every bump wait on it and could hang a ship. Staleness is judged on a FINGERPRINT OF THE FACTS (head, origin, version), never the whole block, because the block also prints a derive timestamp and a fetch age that move every minute and a gate that is always red is switched off as fast as one that is always green. dirty is excluded on purpose: uncommitted files are ordinary mid-work. The narrative OUTSIDE the markers is never touched - a resume that is only derived state cannot say WHY anything is blocked. And it prints non-ASCII, so it enables console_safe or it crashes a cp1255 console WHILE reporting.",
+    "territory": "resume-state"
   }
 }

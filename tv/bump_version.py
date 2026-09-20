@@ -622,6 +622,19 @@ def _regen_blueprint():
                                    capture_output=True, text=True, timeout=120)
                 print("   regenerated HEART.md" if h.returncode == 0 else
                       "   ⚠ HEART.md could NOT be regenerated — python3 tv/heart_map.py")
+                # v3401 — AND THE RESUME, by the same rule. MEASURED 2026-09-20: RESUME_HERE.md
+                # was FOUR DAYS STALE and described a different set of unpushed commits, and
+                # nothing noticed because nothing could — it was prose. Its derived half now
+                # travels the blueprint road: regenerated here, refused at pre-push when stale.
+                # ⚠ Only the block between the markers is written; the narrative outside them is
+                # the half a machine cannot measure and is never touched.
+                try:
+                    rs = subprocess.run([sys.executable, os.path.join(here, "resume_state.py")],
+                                        capture_output=True, text=True, timeout=60)
+                    print("   regenerated RESUME_HERE.md" if rs.returncode == 0 else
+                          "   ⚠ RESUME_HERE.md could NOT be regenerated — python3 tv/resume_state.py")
+                except Exception:
+                    print("   ⚠ RESUME_HERE.md could NOT be regenerated — python3 tv/resume_state.py")
             except Exception as exc:
                 print("   ⚠ HEART.md regeneration raised %s — run python3 tv/heart_map.py"
                       % type(exc).__name__)

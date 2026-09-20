@@ -1208,6 +1208,44 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_probe_licenses_only_what_it_tested",
+         [sys.executable, os.path.join(HERE, "test_a_probe_licenses_only_what_it_tested.py")], 180,
+         why="v3401 (#147) - A PROBE MAY ONLY LICENSE THE MECHANISM IT TESTED, and this wedged "
+             "THREE CONSECUTIVE PUSHES while the bound took the blame. "
+             "browser_can_load_localhost falls back to a CDP probe when --dump-dom times out, "
+             "records WHICH path worked in LOOPBACK_PATH - and nothing ever read it. check() "
+             "asked only the boolean, so CDP works flattened into loopback works and licensed "
+             "the --dump-dom loads, a DIFFERENT MECHANISM. The module docstring says it: "
+             "Playwright drives the same binaries over the same loopback fine, so it is THIS "
+             "LAUNCH PATH on this machine. MEASURED on his Mac: the probe returned True in 13.9s "
+             "with path=cdp (12s of dump-dom timing out, then 2s of CDP succeeding), and each of "
+             "two targets then burned its full 90s before falling through to node anyway - about "
+             "180s a run against a 1500s pre-push ceiling. After the join check() returns in 0.6s "
+             "with the same verdict. Two more defects went with it: the probe exercised DIFFERENT "
+             "FLAGS than it licensed (--headless=new on a 40-byte page vs --headless=old on 5.6 "
+             "MB), now one shared argv builder; and a cached True was never retired by a real "
+             "timeout, so target two paid again. The mirror is pinned: a machine where dump-dom "
+             "DOES work still gets the stronger browser check."),
+    Gate("test_the_resume_cannot_go_stale",
+         [sys.executable, os.path.join(HERE, "test_the_resume_cannot_go_stale.py")], 120,
+         why="v3401 - THE RESUME SAID WHERE WE LEFT OFF AND HAD BEEN WRONG FOR FOUR DAYS. "
+             "MEASURED 2026-09-20: RESUME_HERE.md was last written 2026-09-16 and opened with "
+             "6 commits are built, gated locally, and UNPUSHED - naming five commits that had "
+             "shipped long before. CLAUDE.md points every new session at that file FIRST, so the "
+             "first thing a fresh session read about this repo was four days wrong, and nothing "
+             "noticed because nothing could: it was prose. BLUEPRINT.md and HEART.md never drift "
+             "for one reason - nobody writes them. They are derived, regenerated on every bump, "
+             "and refused at pre-push when stale. His ruling when the heart map had this same "
+             "problem: we need it all updated and blueprints updated and heart updated all "
+             "derived from the console, then fix this so it is like blueprints too and has "
+             "enforcemnt. The resume now travels the same road. Staleness is judged on a "
+             "FINGERPRINT OF THE FACTS (head, origin, version) and NOT on the whole block, "
+             "because the block also prints a derive timestamp and a fetch age that move every "
+             "minute - and a gate that is always red is switched off as fast as one that is "
+             "always green. dirty is deliberately excluded: uncommitted files are ordinary "
+             "mid-work. The narrative outside the markers is the half a machine cannot measure "
+             "and a case asserts it SURVIVES regeneration, because a resume that is only derived "
+             "state cannot say WHY anything is blocked."),
     Gate("test_a_failure_reason_reaches_the_shelf",
          [sys.executable, os.path.join(HERE, "test_a_failure_reason_reaches_the_shelf.py")], 120,
          why="v3400 (#141) - THE REASON RETENTION FAILED MUST REACH THE SHELF, AND A NEW MACHINE "

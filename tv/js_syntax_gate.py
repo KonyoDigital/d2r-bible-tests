@@ -102,6 +102,27 @@ def loopback_path():
     return LOOPBACK_PATH[0] if LOOPBACK_PATH else None
 
 
+def _dump_dom_cmd(browser, prof, url, budget=9000):
+    """The ONE headless launch this module uses. -> argv list
+
+    ⚠⚠ v3401 — THE PROBE USED TO EXERCISE A DIFFERENT LAUNCH PATH THAN THE ONE IT LICENSES, and
+    that is what wedged three consecutive pushes. `browser_can_load_localhost` ran
+    `--headless=new --virtual-time-budget=2000` against a 40-BYTE page; `check()` then ran
+    `--headless=old --virtual-time-budget=9000` with three more flags against a 5.6 MB
+    bible.html. The probe's own docstring says the failure is launch-path specific - "it is THIS
+    LAUNCH PATH on this machine, not the network and not the page" - and then it probed a
+    different one. So the probe said YES, every real load timed out at 90s, and the gate paid
+    ~180s per run before falling through to node anyway.
+
+    Now there is one argv builder and both callers use it, so a probe that passes is a promise
+    about the launch that will actually run. Only the budget and the url differ. [[copy-drift]]
+    """
+    return [browser, "--headless=old", "--disable-gpu", "--no-sandbox",
+            "--user-data-dir=%s" % prof, "--blink-settings=imagesEnabled=false",
+            "--enable-logging=stderr", "--v=0", "--virtual-time-budget=%d" % int(budget),
+            "--dump-dom", url]
+
+
 def browser_can_load_localhost(browser=None, timeout=12):
     """Can this browser answer `--dump-dom` for an http://127.0.0.1 page AT ALL?
 
@@ -130,9 +151,8 @@ def browser_can_load_localhost(browser=None, timeout=12):
     try:
         with tempfile.TemporaryDirectory() as prof:
             proc = subprocess.Popen(
-                [browser, "--headless=new", "--disable-gpu", "--no-sandbox",
-                 f"--user-data-dir={prof}", "--virtual-time-budget=2000", "--dump-dom",
-                 f"http://127.0.0.1:{port}/_probe.html"],
+                _dump_dom_cmd(browser, prof,
+                              f"http://127.0.0.1:{port}/_probe.html", budget=2000),
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
             try:
                 out, _ = proc.communicate(timeout=timeout)
@@ -409,6 +429,23 @@ def check(targets=None, timeout=90):
     if not browser_can_load_localhost(browser):
         return check_with_node(targets)          # v1711 — his Mac never answers over loopback
 
+    # ⚠⚠ v3401 — A PROBE MAY ONLY LICENSE THE MECHANISM IT TESTED, AND THIS IS THE DEFECT THAT
+    # WEDGED THREE PUSHES. browser_can_load_localhost falls back to a CDP probe when --dump-dom
+    # times out, records WHICH path worked in LOOPBACK_PATH... and nothing ever read it. `check()`
+    # asked only the boolean, so "CDP works" flattened into "loopback works" and licensed the
+    # --dump-dom loads below. Those are different mechanisms: the module's own docstring says
+    # "Playwright drives the same binaries over the same loopback fine, so it is THIS LAUNCH PATH
+    # on this machine" - i.e. CDP working is exactly compatible with --dump-dom hanging.
+    #
+    # MEASURED: the probe returned True in 14.0s against its own 12s timeout - 12s of --dump-dom
+    # timing out, then ~2s of CDP succeeding. Each of the two targets below then burned its full
+    # 90s and fell through to node anyway. ~180s a run, and the pre-push ceiling is 1500s.
+    #
+    # The knowledge was recorded and unread, which is this repo's most repeated defect.
+    # [[the-unjoined-end]] [[unknown-stays-unknown]]
+    if loopback_path() != "dump-dom":
+        return check_with_node(targets)
+
     srv, port = _serve(REPO)
     problems = []
     try:
@@ -417,17 +454,22 @@ def check(targets=None, timeout=90):
                 problems.append(f"{rel}: missing")
                 continue
             with tempfile.TemporaryDirectory() as prof:
-                cmd = [
-                    browser, "--headless=old", "--disable-gpu", "--no-sandbox",
-                    f"--user-data-dir={prof}", "--blink-settings=imagesEnabled=false",
-                    "--enable-logging=stderr", "--v=0", "--virtual-time-budget=9000",
-                    "--dump-dom", f"http://127.0.0.1:{port}/{rel}",
-                ]
+                cmd = _dump_dom_cmd(browser, prof,
+                                    f"http://127.0.0.1:{port}/{rel}", budget=9000)
                 try:
                     # v3380 — NOT subprocess.run(): its timeout path cannot reach the renderer
                     # grandchildren that hold the stdout pipe, so it hangs instead of timing out.
                     r = _run_browser_bounded(cmd, timeout)
                 except subprocess.TimeoutExpired:
+                    # ⚠⚠ v3401 — ONE REAL TIMEOUT RETIRES THE PROBE'S VERDICT. _LOOPBACK_OK caches
+                    # the first answer for the whole process and nothing used to invalidate it, so
+                    # a browser that timed out on target ONE was still trusted for target TWO,
+                    # which paid another full 90s before falling through to the same node parser.
+                    # A real load timing out IS the measurement the probe was standing in for, and
+                    # it outranks it. MEASURED: loopback here answers intermittently - the probe
+                    # returned True in 14.0s (its own timeout is 12s) and minutes later three
+                    # variants all timed out at 30s. [[stale-reading]] [[unknown-stays-unknown]]
+                    _LOOPBACK_OK[:] = [False]
                     # v1808 — A TIMEOUT IS NOT A SYNTAX VERDICT, and this line used to file one.
                     # It appended to `problems`, so a slow CI runner made the gate report
                     # "bible.html: browser timed out after 90s" as a SYNTAX ERROR — the same shape
