@@ -98,12 +98,48 @@ def _ocr_ask(wp, path, timeout=8.0):
                        name="ocr-pump").start()
         except Exception:
             return {}
-    try:
-        wp.stdin.write(path + "\n")
-        wp.stdin.flush()
-    except Exception:
+    # ⚠⚠ v3391 — THE WRITE IS BOUNDED TOO, AND THE DEADLINE STARTS BEFORE IT.
+    # v3381 bounded the READ half of this transaction and left these two lines unbounded:
+    #     wp.stdin.write(path + "\n"); wp.stdin.flush()
+    # A BLOCKING WRITE DOES NOT RAISE, so the try/except below could never save it, and the
+    # deadline was computed AFTERWARDS — so a worker that stops draining its stdin holds the
+    # caller for ever with a bound that has not started.
+    #
+    # MEASURED 2026-09-20, on an IDLE REAPED machine with no orphans and nothing else running:
+    # test_control wedged with CPU FLAT at 2:59.02 -> 2:59.03 across 25s, its log +0 bytes, ONE
+    # child (ocr_mac, ALIVE and idle) and two pipes held. The pre-push gate then refused the push
+    # with "test_control HUNG - killed after 1500s on an IDLE machine (load 1.58)" - the THIRD
+    # time this class has been blamed on the bound. I first suspected my own orphaned browsers,
+    # reaped them, and it wedged again: that hypothesis is refuted, this one is read off the code.
+    #
+    # ⚠ THE ABANDONED WRITER IS MARKED, NOT FORGOTTEN. A thread still blocked in write() could
+    # later succeed and push a stale path into the pipe, desyncing request from reply for every
+    # later call. So a worker whose write timed out is poisoned and never used again - a wrong
+    # ANSWER is worse than no answer. [[unknown-stays-unknown]]
+    if getattr(wp, "_ocr_dead", False):
         return {}
     deadline = _tm.monotonic() + timeout       # monotonic, so an NTP step cannot extend the wait
+    _sent = _qm.Queue()
+
+    def _send(proc, qq2):
+        try:
+            proc.stdin.write(path + "\n")
+            proc.stdin.flush()
+            qq2.put(True)
+        except Exception:
+            qq2.put(False)
+
+    try:
+        _th.Thread(target=_send, args=(wp, _sent), daemon=True, name="ocr-send").start()
+        if _sent.get(timeout=max(0.05, deadline - _tm.monotonic())) is not True:
+            return {}
+    except Exception:
+        # nothing arrived inside the deadline: the worker is not draining its input.
+        try:
+            setattr(wp, "_ocr_dead", True)
+        except Exception:
+            pass
+        return {}
     while _tm.monotonic() < deadline:
         try:
             ln = q.get(timeout=max(0.05, deadline - _tm.monotonic()))
@@ -30809,7 +30845,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3390",
+        "ver": "v3391",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

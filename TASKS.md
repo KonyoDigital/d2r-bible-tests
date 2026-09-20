@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3390** | `(this commit)` | v3390 — The roster wrote its durable last-seen only on a material change so an idle console beaconing every four minutes left no trace and its row froze at the last change instead of the last check-in |
+| **v3391** | `(this commit)` | v3391 — v3381 bounded the read and left the write unbounded with the deadline computed after it, so a worker that never reads its input held the caller for ever and the bound took the blame for three refused pushes; the write now runs under the same deadline, a timed-out worker is poisoned, the law grew 9 to 12 cases and 6 to 7 red-proofs all PROVEN, and the heart row widened to the write half and immediately named 2 unbounded writes in tv_diablo.py |
+| **v3390** | `f3c129a1` | v3390 — The roster wrote its durable last-seen only on a material change so an idle console beaconing every four minutes left no trace and its row froze at the last change instead of the last check-in |
 | **v3389** | `0a45b9c0` | v3389 — Two copies of a truthiness test on a container let a board that never synced publish three zeros as progress while the ledger verdict inside the same object already said UNSYNCED |
 | **v3388** | `0a45b9c0` (in the v3389 commit) | v3388 — Both git pathspecs listed py mjs and sh but never js, so v3387 shipped two Cloudflare function files that the second eye never saw and that were never even candidates to be reported missing |
 | **v3387** | `73d098c2` | v3387 — The site records presence at two doors and THE FLEET could see one - a browser page-view now writes a durable webseen key, the roster carries both ages, and every row names the door its age came from |

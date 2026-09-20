@@ -4458,8 +4458,46 @@ def _check_a_worker_read_has_a_deadline():
                 L[i] = ""
         return "\n".join(L)
 
+    def _write_before_bound(src, base):
+        """v3391 — A PIPE WRITE THAT PRECEDES ITS OWN DEADLINE IS AN UNBOUNDED WRITE.
+
+        v3381 bounded the READ and left the WRITE unbounded, with the deadline computed on the
+        line AFTER it. A write to a worker's stdin blocks once the pipe buffer fills (measured:
+        16,384 bytes on this Mac), so a worker that never reads its input holds the caller for
+        ever - and the caller's own deadline, computed later, never gets to run.
+
+        ⚠ THE OBVIOUS RULE IS HOLLOW. "does the enclosing function mention a deadline" was GREEN
+        on the pre-fix code, because it mentioned one - one line too late. ORDER is the property,
+        so order is what this grades.
+        """
+        out = []
+        try:
+            t = _ast.parse(src)
+        except Exception:
+            return out
+        for fn in [n for n in _ast.walk(t)
+                   if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef))]:
+            writes, bounds = [], []
+            for nd in _ast.walk(fn):
+                if isinstance(nd, _ast.Call):
+                    f = nd.func
+                    if (isinstance(f, _ast.Attribute) and f.attr == "write"
+                            and isinstance(f.value, _ast.Attribute) and f.value.attr == "stdin"):
+                        writes.append(nd.lineno)
+                if isinstance(nd, _ast.Assign):
+                    for tg in nd.targets:
+                        if isinstance(tg, _ast.Name) and "deadline" in tg.id.lower():
+                            bounds.append(nd.lineno)
+            if not writes or not bounds:
+                continue
+            first = min(bounds)
+            for w in writes:
+                if w < first:
+                    out.append("%s:%d" % (base, w))
+        return out
+
     try:
-        scanned, hits = 0, []
+        scanned, hits, whits = 0, [], []
         for path in sorted(_glob.glob(os.path.join(HERE, "*.py"))):
             base = os.path.basename(path)
             if base.startswith("test_") or base == "console_doctor.py":
@@ -4469,6 +4507,7 @@ def _check_a_worker_read_has_a_deadline():
             except Exception:
                 continue
             scanned += 1
+            whits.extend(_write_before_bound(src, base))
             if ".stdout.readline()" not in src:
                 continue
             # ⚠ AST CALL SITES, NOT TEXT. The text version's first run accused run_gates.py,
@@ -4492,6 +4531,11 @@ def _check_a_worker_read_has_a_deadline():
                     hits.append("%s:%d" % (base, getattr(_nd, "lineno", 0)))
         if scanned == 0:
             return ("unknown", "no module in tv/ could be read, so this is unmeasured rather than clean")
+        if whits and not hits:
+            return ("missing",
+                    "%d pipe WRITE(s) that precede their own deadline - a worker that never "
+                    "reads its input blocks the writer, and the caller's later deadline never "
+                    "runs: %s" % (len(whits), ", ".join(whits[:6])))
         if hits:
             return ("missing",
                     "%d unbounded pipe read(s) — a bare .stdout.readline() waits for ever if the "

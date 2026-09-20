@@ -138,6 +138,17 @@ ECHO_WORKER = textwrap.dedent(
     """
 )
 
+# ⚠ v3391 — A WORKER THAT NEVER READS ITS INPUT AT ALL. The deaf worker above still DRAINS
+# stdin (`for _ in sys.stdin`) and merely fails to answer, so it exercises the READ bound only.
+# This one never touches stdin, so the pipe fills and the WRITE blocks — the half v3381 left
+# unbounded and the half that wedged the gate three times.
+DEAF_TO_STDIN = textwrap.dedent(
+    """
+    import time
+    time.sleep(600)
+    """
+)
+
 DYING_WORKER = textwrap.dedent(
     """
     import sys
@@ -176,12 +187,80 @@ class AWorkerReadHasADeadline(unittest.TestCase):
         p, path = _spawn(DEAF_WORKER)
         self.addCleanup(self._cleanup, p, path)
         t0 = time.monotonic()
-        got = CA._ocr_ask(p, "/nonexistent/frame.png", timeout=2.0)
+        got = self._ask_bounded(p, "/nonexistent/frame.png", timeout=2.0, wait=20.0)
         elapsed = time.monotonic() - t0
         self.assertEqual(got, {}, "a silent worker must yield {}, never a fabricated reading")
         self.assertLess(elapsed, 30.0,
                         "did not return within 30s - this is the hang that blocked the push "
                         "(measured %.1fs)" % elapsed)
+
+
+    def _ask_bounded(self, p, path, timeout, wait):
+        """Call _ocr_ask on a thread and REFUSE to inherit its hang.
+
+        ⚠ A law about deadlines must not be able to hang. Called directly, a sabotaged (unbounded)
+        _ocr_ask blocks for ever: the case would HANG rather than fail, and heart2's 180s per-proof
+        bound would report "timed out" instead of RED — a decisive proof degraded into a timeout,
+        and the bound blamed for it. That is this file's own subject, one level up.
+        """
+        import threading as _th
+        box = {}
+
+        def _run():
+            try:
+                box["r"] = CA._ocr_ask(p, path, timeout=timeout)
+            except Exception as e:          # a raise is an answer; a hang is not
+                box["e"] = e
+
+        t = _th.Thread(target=_run, daemon=True)
+        t.start()
+        t.join(wait)
+        if t.is_alive():
+            self.fail("_ocr_ask did not return within %.1fs against a %.1fs deadline - the call "
+                      "is UNBOUNDED and this is the wedge that refused three pushes" % (wait, timeout))
+        if "e" in box:
+            raise box["e"]
+        return box.get("r")
+
+    def test_a_worker_that_never_reads_its_input_cannot_hold_the_writer(self):
+        """v3391 — THE OTHER HALF OF THE TRANSACTION, and the one that actually wedged the gate.
+
+        v3381 bounded the read and left `wp.stdin.write(path); flush()` unbounded, with the
+        deadline computed AFTER it. A blocking write does not raise, so the try/except around it
+        could never fire. MEASURED on an idle reaped machine: test_control wedged with CPU flat
+        at 2:59.02 -> 2:59.03 over 25s, ONE child (ocr_mac alive and idle) and two pipes held;
+        the gate then refused the push with "HUNG - killed after 1500s on an IDLE machine".
+
+        ⚠ THE PATH IS DELIBERATELY LARGER THAN THE PIPE BUFFER (measured at 16,384 bytes by lsof
+        on the wedged process). A short path fits in the buffer and returns even when nobody is
+        reading, so a small fixture would pass against the UNBOUNDED code and prove nothing.
+        [[regression-guard]] section 5
+        """
+        p, path = _spawn(DEAF_TO_STDIN)
+        self.addCleanup(self._cleanup, p, path)
+        big = "x" * 200000
+        t0 = time.monotonic()
+        got = self._ask_bounded(p, big, timeout=2.0, wait=25.0)
+        elapsed = time.monotonic() - t0
+        self.assertEqual(got, {}, "a worker that never reads must yield {}, never a reading")
+        self.assertLess(elapsed, 30.0,
+                        "the WRITE held the caller %.1fs past a 2s deadline - this is the wedge "
+                        "that refused three pushes" % elapsed)
+
+    def test_a_poisoned_worker_is_not_reused(self):
+        """An abandoned writer thread can still complete later and push a stale path into the
+        pipe, desyncing every following request from its reply. A wrong ANSWER is worse than no
+        answer, so a worker whose write timed out is never asked again."""
+        p, path = _spawn(DEAF_TO_STDIN)
+        self.addCleanup(self._cleanup, p, path)
+        self._ask_bounded(p, "x" * 200000, timeout=1.0, wait=25.0)
+        self.assertTrue(getattr(p, "_ocr_dead", False),
+                        "the worker was not marked dead, so the next call may read a reply that "
+                        "belongs to the abandoned write")
+        t0 = time.monotonic()
+        self.assertEqual(self._ask_bounded(p, "/small.png", timeout=5.0, wait=25.0), {})
+        self.assertLess(time.monotonic() - t0, 1.0,
+                        "a poisoned worker was asked again and cost another wait")
 
     def test_a_worker_that_answers_still_returns_its_payload(self):
         """BASELINE. Without this, a helper that always returned {} would pass the case above."""
@@ -246,7 +325,61 @@ class AWorkerReadHasADeadline(unittest.TestCase):
                                 "helper")
 
 
+    def test_this_law_cannot_hang_on_its_own_deaf_fixture(self):
+        """A LAW ABOUT DEADLINES MUST NOT BE ABLE TO HANG.
+
+        MEASURED TWICE on 2026-09-20. Cases that questioned a never-answering worker through the
+        raw helper turned heart2's per-proof bound INTO the verdict: first 3 proofs, then 2, came
+        back UNPROVABLE - "tampered run: timed out after 180s" - instead of RED. The sabotages
+        were decisive every time; the instrument simply could not say so, and the bound took the
+        blame for its own subject one level up. [[feedback-suspect-the-instrument]]
+
+        Two distinct sabotages land here and BOTH become infinite waits: dropping the queue
+        timeout, and computing the deadline on the wall clock while the loop still compares a
+        monotonic one (epoch 1.7e9 against uptime - a deadline ~57 years out).
+
+        So any case that spawns a worker which cannot answer goes through the bounded wrapper,
+        which fails in seconds rather than inheriting the hang.
+        """
+        with io.open(__file__, encoding="utf-8") as _fh:
+            own = _code_only(_fh.read())
+        offenders = []
+        for chunk in own.split("\n    def ")[1:]:
+            name = chunk.split("(", 1)[0].strip()
+            if not name.startswith("test_"):
+                continue
+            if name == "test_this_law_cannot_hang_on_its_own_deaf_fixture":
+                continue          # this law must NAME the shapes it bans, so it matches itself
+            if "DEAF_WORKER" not in chunk and "DEAF_TO_STDIN" not in chunk:
+                continue
+            if "CA._ocr_ask(" in chunk:
+                offenders.append(name)
+        self.assertEqual(offenders, [],
+                         "these cases spawn a worker that cannot answer AND ask it directly, so "
+                         "a sabotaged run hangs instead of failing and every red-proof on this "
+                         "file degrades into a 180s timeout: %s" % (offenders,))
+
+
 RED_PROOF = [
+    {
+        "why": "v3381 bounded the READ and left the WRITE unbounded with the deadline computed "
+               "after it; restoring that is the exact wedge that refused three pushes",
+        "file": "tv/control_app.py",
+        "find": "        _th.Thread(target=_send, args=(wp, _sent), daemon=True, name=\"ocr-send\").start()\n"
+                "        if _sent.get(timeout=max(0.05, deadline - _tm.monotonic())) is not True:\n"
+                "            return {}",
+        "replace": "        wp.stdin.write(path + \"\\n\")\n"
+                   "        wp.stdin.flush()",
+        "matches": 1,
+    },
+    {
+        "why": "without poisoning, an abandoned writer can later push a stale path into the pipe "
+               "and every following reply belongs to the wrong request",
+        "file": "tv/control_app.py",
+        "find": "    if getattr(wp, \"_ocr_dead\", False):\n        return {}",
+        "replace": "    if False:\n        return {}",
+        "matches": 1,
+    },
     {
         "why": "the queue timeout IS the deadline; without it the reader waits for ever and the "
                "deaf-worker case must go red",
@@ -279,6 +412,15 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "    deadline = _tm.monotonic() + timeout",
         "replace": "    deadline = _tm.time() + timeout",
+        "matches": 1,
+    },
+    {
+        "why": "a case that questions a never-answering worker directly cannot fail - it HANGS, "
+               "and every red-proof on this file degrades into a 180s timeout (measured twice, "
+               "2026-09-20)",
+        "file": "tv/test_a_worker_read_has_a_deadline.py",
+        "find": '        t0 = time.monotonic()\n        got = self._ask_bounded(p, "/nonexistent/frame.png", timeout=2.0, wait=20.0)',
+        "replace": '        t0 = time.monotonic()\n        got = CA._ocr_ask(p, "/nonexistent/frame.png", timeout=2.0)',
         "matches": 1,
     },
 ]

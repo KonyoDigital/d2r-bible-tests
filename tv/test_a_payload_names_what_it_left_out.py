@@ -355,8 +355,8 @@ RED_PROOF = [
     {
         "why": "dropping *.html from the roster makes control_ui.html invisible again - the v3333 case",
         "file": "tv/second_eye_run.py",
-        "find": '                      "--", "*.py", "*.mjs", "*.sh", "*.html"], timeout=90)',
-        "replace": '                      "--", "*.py", "*.mjs", "*.sh"], timeout=90)',
+        "find": '                      "--", "*.py", "*.js", "*.mjs", "*.sh", "*.html",',
+        "replace": '                      "--", "*.py", "*.js", "*.mjs", "*.sh",',
         "matches": 1,
     },
     {
