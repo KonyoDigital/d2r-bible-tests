@@ -24678,6 +24678,16 @@ function escC(s) {
     /* the column-sized reason: what is missing, in a phrase. The full sentence stays in the
        fx-why line above, where there is room for it. */
     var _fxShortWhy = function (jj) {
+      /* ⚠⚠ v3384 — PREFER THE REASON THE READER CAN ACT ON. `maskWhy` is written by the OTHER
+         machine and arrives verbatim, so a peer that never updates keeps sending "no board
+         window" for ever — true, and naming no action. v3379 made a console able to publish item
+         names with no board window at all, so a peer BELOW that version cannot send them however
+         long he waits, and the server now forwards the peer's version to say so. Falls back to
+         the peer's own sentence, and an UNKNOWN version never reaches here as an accusation.
+         [[the-unjoined-end]] [[unknown-stays-unknown]] */
+      if (jj && jj.theirCanPublish === false && jj.theirCanPublishWhy) {
+        return String(jj.theirCanPublishWhy);
+      }
       var w = (jj && jj.maskWhy) ? String(jj.maskWhy) : '';
       return w ? ('not published \u2014 ' + w) : 'that machine published no per-item list';
     };

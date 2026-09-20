@@ -2793,6 +2793,11 @@ MINE = {
     # v3380 — MINE. A browser launched without its own session is a wiring defect with a named
     # fix; there is nothing here for him to rule on or authorise.
     # v3381 — MINE. An unbounded pipe read is a wiring defect with a named fix.
+    # v3384 — MINE. A refusal that names no action is a wiring defect with a named fix.
+    "a fleet refusal names an action":
+        "v3384 — forwarding the peer version and preferring the actionable reason is code. "
+        "The fix is mine.",
+
     "a worker read has a deadline":
         "v3381 — a subprocess pipe read with no deadline is a wiring defect. The fix is code "
         "and it is mine.",
@@ -4594,6 +4599,93 @@ def _check_no_browser_is_launched_unreaped():
 
 
 
+def _check_a_fleet_refusal_names_an_action():
+    """v3384 (#128) — WHEN A PEER CANNOT PUBLISH NAMES, DOES THIS CONSOLE SAY WHAT WOULD FIX IT?
+
+    Konyo: *"fleet still not working"*. MEASURED the same hour: the peer he meant was offline
+    since 2026-09-19T03:38Z on v3342, and its beacon carries maskWhy "no board window" — which
+    his panel rendered verbatim. True, and naming no action, which his #35 ruling forbids.
+
+    ⚠⚠ THE SIBLING ROW ASKS THE OTHER HALF. `_check_the_fleet_can_name_what_it_counts` asks
+    whether THIS console publishes a list for every count it publishes. This asks whether a PEER
+    that publishes no list is described in terms the reader can act on. Same panel, opposite end
+    of the wire, and neither covers the other.
+
+    ⚠ NO GATE CAN ASK THIS. The gate proves the forward and the wording are correct today. This
+    asks what his RUNNING roster actually contains — and the number moves on its own as other
+    machines update, which is the whole point of watching it.
+
+    ⚠ IT READS THE PRESENCE CACHE, NEVER THE NETWORK OR A BOARD. Asking the site on a heartbeat
+    would perturb the thing it measures. [[a-gate-can-perturb-what-it-measures]]
+
+    FOUR STATES:
+      ok         -> every peer below the bar carries a reason that names the fix; says how many
+      missing    -> a peer is below the bar and gets no actionable reason - his exact screen
+      unmeasured -> no roster received yet, so there is no peer to describe
+      unknown    -> the readers would not run. Never ok. [[zero-needs-a-denominator]]
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, "control_app will not import (%s), so peer refusals are unmeasured" % str(e)[:60]
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so this "
+                         "cannot see a single peer" % type(e).__name__)
+    if not hasattr(_ca, "peer_can_publish_names"):
+        return MISSING, ("control_app no longer answers peer_can_publish_names, so every peer "
+                         "below the bar is back to the bare sentence its own console wrote")
+    last = cache.get("d") if isinstance(cache, dict) else None
+    if not isinstance(last, dict):
+        return UNMEASURED, ("this console holds no fleet roster yet, so there is no peer refusal "
+                            "to describe - that is an absent question, not a clean answer")
+    me = str(getattr(_ca, "MACHINE", "") or "")
+    rows = [r for r in ((last.get("online") or []) + (last.get("offline") or []))
+            if isinstance(r, dict) and str(r.get("machine") or "") != me]
+    if not rows:
+        return UNMEASURED, ("the roster names no machine but this one, so there is no peer to "
+                            "describe")
+    below, unnamed, unknown_ver = [], [], []
+    for r in rows:
+        ver = str(r.get("ver") or "").strip()
+        try:
+            can, why = _ca.peer_can_publish_names(ver)
+        except Exception as e:
+            return UNKNOWN, ("peer_can_publish_names raised on %r (%s), so this is unmeasured"
+                             % (ver[:12], type(e).__name__))
+        name = str(r.get("nickname") or r.get("machine") or "?")[:24]
+        if can is None:
+            unknown_ver.append(name)
+        elif can is False:
+            below.append("%s %s" % (name, ver))
+            if not why:
+                unnamed.append(name)
+    if unnamed:
+        return MISSING, ("%d peer(s) are below v%d and carry NO reason naming the fix (%s), so "
+                         "the panel shows them the unactionable sentence their own console wrote"
+                         % (len(unnamed), _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(unnamed[:4])))
+    tail = ""
+    if unknown_ver:
+        tail = ("; %d report no readable version and stay UNKNOWN rather than being called out "
+                "of date (%s)" % (len(unknown_ver), ", ".join(unknown_ver[:3])))
+    # ⚠ THE DENOMINATOR IS THE PEERS THIS COULD READ, NOT EVERY PEER. A fixture caught the first
+    # cut saying "all 1 peer(s) are at or above v3379" in the same breath as "1 report no readable
+    # version" — a true count under a claim that was not true of it. An unmeasured peer belongs in
+    # neither half. [[label-outlived-referent]] [[zero-needs-a-denominator]]
+    known = len(rows) - len(unknown_ver)
+    if not known:
+        return UNMEASURED, ("no peer reports a readable version, so whether any of them could "
+                            "publish item names is UNKNOWN rather than fine%s" % tail)
+    if not below:
+        return OK, ("all %d peer(s) with a readable version are at or above v%d, so none of them "
+                    "is told it cannot publish item names%s"
+                    % (known, _ca.MASK_WITHOUT_BOARD_SINCE, tail))
+    return OK, ("%d of %d peer(s) with a readable version are below v%d and each is told what "
+                "would fix it (%s)%s"
+                % (len(below), known, _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(below[:4]), tail))
+
+
 def _check_the_fleet_can_name_what_it_counts():
     """v3379 (#128) — DOES THIS CONSOLE PUBLISH A LIST FOR EVERY LEDGER IT PUBLISHES A COUNT FOR?
 
@@ -4887,6 +4979,7 @@ CHECKS = [
     # v3379 (#128) — the FLEET half, and no gate can ask it: the gates prove the hand-over is
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
+    ("a fleet refusal names an action", _check_a_fleet_refusal_names_an_action),
     ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
     ("no browser is launched unreaped", _check_no_browser_is_launched_unreaped),
     ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
@@ -5360,6 +5453,8 @@ WATCHES = {
     # v3380 — DECLARED, NOT OMITTED. It grades source text across tv/, so it owns no element
     # of its own and the empty tuple is the honest answer.
     # v3381 — DECLARED, NOT OMITTED. It grades source text, so it owns no element of its own.
+    # v3384 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
+    "a fleet refusal names an action": (),
     "a worker read has a deadline": (),
     "no browser is launched unreaped": (),
     "fleet can name what it counts": (),

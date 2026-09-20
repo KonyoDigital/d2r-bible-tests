@@ -2262,6 +2262,13 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3384 (#128) — the row reads the PRESENCE CACHE and the capability helper. A genuine
+    # second source would be the RENDERED panel: the sentence a reader actually sees under
+    # "they have - you do not" for a peer below the bar. That is not built here, and claiming
+    # coverage would claim the very join this version was written to make.
+    'a fleet refusal names an action':
+        'the row reads the cached roster and asks the capability helper; the second source would '
+        'be the RENDERED refusal on the panel, which no target captures yet.',
     # v3358 (#99) — the row reads the ASSEMBLY ORDER out of control_ui.html. The real joint is a
     # RENDERED one: the first reel card's top against the viewport height at his real 1120x660,
     # which is the measurement that actually caught this (708px in a 660px window). It is NOT

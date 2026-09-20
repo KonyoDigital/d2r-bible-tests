@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3383",
+  "ver": "v3384",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3383: v1809 patches subprocess.run, and v3380 moved the browser launch onto _run_browser_bounded which uses Popen, so the patch stopped reaching the browser: CI got 0 problems where the law demands 2 and the Publish workflow failed, so the live site never deployed. Its sibling v1808 was GREEN for the wrong reason on the same seam. Both now hold the current launcher: clean OK, fallback sabotaged FAILED failures=2, so both bite where only one could. Two more from v3379, found by diffing the CI failing-gate NAMES: the store-keys fallback became two copies and broke a red-proof anchor 1 to 2, collapsed to one _spec_store_keys helper; and the Python encoder gained a real production caller, retiring the no-production-caller law on the terms its own failure message set and replacing it with the both-encoders-are-live join, 3 red-proofs PROVEN. Swallow baseline 70 to 69.",
+  "note": "v3384: Konyo said the fleet still was not working. MEASURED the same hour: the peer he meant is offline since 2026-09-19T03:38Z on v3342, and its beacon carries maskWhy no board window, which his panel rendered verbatim - true, and naming no action, which his #35 ruling forbids a surface to do. v3359 already fixed that wording AT THE WRITER, but the writer is the OTHER machine, so a peer that never updates keeps sending the old sentence for ever and no fix on this side could ever reach it. What closes it is that the capability is VERSIONED: v3379 taught the console to mint a mask from the banked hand-over, so a machine on v3379 or later can publish item names with no board window at all. fleet_compare now forwards the peer version and whether it can publish, and the panel prefers that reason over the sentence the peer wrote. An absent or unparseable version stays UNKNOWN and is never called out of date. 9 cases, 4 red-proofs PROVEN, 495 gates, plus a heart row in all four registries counting how many peers are below the bar.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

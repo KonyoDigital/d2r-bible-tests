@@ -29888,6 +29888,47 @@ def _fleet_show_total(ledger):
     return t, ""
 
 
+MASK_WITHOUT_BOARD_SINCE = 3379
+
+
+def peer_can_publish_names(ver):
+    """Can THAT machine publish per-item names at all? -> (True | False | None, why)
+
+    v3384 — THE REFUSAL NAMED NO ACTION, AND THE READER ALREADY KNEW WHY.
+
+    Konyo, on the FLEET panel: *"fleet still not working"*. MEASURED on his live console the same
+    hour: the peer he means is offline, last reported 2026-09-19T03:38Z (~26h), running v3342, and
+    its beacon carries maskWhy "no board window". His panel rendered that sentence verbatim.
+
+    Every word of it was true and NONE of it was actionable. v3359 (#112) already fixed the
+    wording AT THE WRITER — but the writer is the OTHER machine, so a peer that never updates
+    keeps sending the old sentence for ever and no fix on this side can reach it. That is
+    [[the-unjoined-end]] across a machine boundary.
+
+    What closes it is that the capability itself is versioned: v3379 taught the console to mint a
+    mask from the board's BANKED hand-over, so a machine on v3379+ can publish names with no board
+    window open at all. The reader has the peer's version in the same roster row it reads
+    `maskWhy` from, and was simply not looking at it.
+
+    ⚠ UNKNOWN IS NOT "TOO OLD". A peer that reports no version, or one this cannot parse, returns
+    None — never False. Accusing a machine of being out of date on the strength of a missing field
+    is the same confident-zero this codebase keeps paying for. [[unknown-stays-unknown]]
+    """
+    import re as _re
+    raw = str(ver or "").strip()
+    if not raw:
+        return None, ""
+    m = _re.match(r"^v(\d+)$", raw)
+    if not m:
+        return None, ""
+    n = int(m.group(1))
+    if n >= MASK_WITHOUT_BOARD_SINCE:
+        return True, ""
+    return False, ("their console is %s and publishing item names without an open board arrived "
+                   "in v%d - it cannot send them until that machine updates"
+                   % (raw, MASK_WITHOUT_BOARD_SINCE))
+
+
 def fleet_compare(machine, ledger="sets"):
     """What THEY have that HE does not, and the other way round. -> dict
 
@@ -29984,6 +30025,12 @@ def fleet_compare(machine, ledger="sets"):
     out["ledger"] = ledger
     out["who"] = str(them.get("nickname") or them.get("machine") or "")[:40]
     out["theirAt"] = them.get("t") or them.get("ts") or None
+    # v3384 — FORWARD THE PEER'S VERSION AND WHAT IT IMPLIES. The roster row this already reads
+    # carries `ver`; without it the panel can only echo the peer's own stale sentence.
+    out["theirVer"] = str(them.get("ver") or "").strip() or None
+    _tcp, _tcpwhy = peer_can_publish_names(out["theirVer"])
+    out["theirCanPublish"] = _tcp
+    out["theirCanPublishWhy"] = _tcpwhy
     # the roster's own age, so the box can say "as of 21h ago" instead of implying live
     out["fleetStale"] = _fleet_stale
     out["fleetStaleAgeS"] = _fleet_age if _fleet_stale else None
@@ -30695,7 +30742,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3383",
+        "ver": "v3384",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

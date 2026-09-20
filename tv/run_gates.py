@@ -1134,6 +1134,17 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_a_peer_refusal_names_an_action",
+         [sys.executable, os.path.join(HERE, "test_a_peer_refusal_names_an_action.py")], 120,
+         why="v3384 - THE FLEET REFUSAL NAMED NO ACTION. `maskWhy` is written by the OTHER "
+             "machine and arrives verbatim, so a peer that never updates keeps sending \"no "
+             "board window\" for ever and v3359's wording fix could never reach it. MEASURED on "
+             "his live console: the peer is offline since 2026-09-19T03:38Z on v3342, and the "
+             "capability to publish names with no board window arrived in v3379 - a fact the "
+             "reader already held in the same roster row and was not reading. This pins that a "
+             "peer below the bar is told what would fix it, that a peer at or above it is not "
+             "accused, that an absent or unparseable version stays UNKNOWN rather than \"too "
+             "old\", and that the verdict actually reaches the panel."),
     Gate("test_a_worker_read_has_a_deadline",
          [sys.executable, os.path.join(HERE, "test_a_worker_read_has_a_deadline.py")], 180,
          why="v3381 - THE SECOND WEDGE IN ONE SESSION, SAME CLASS AS THE FIRST. v3380 fixed a "
