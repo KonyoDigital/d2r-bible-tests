@@ -77,6 +77,26 @@ def _js_only(src):
     return "".join(out)
 
 
+RED_PROOF = [
+    {
+        "why": "without the toggle_fullscreen guard, minimize is judged by size too - and a "
+               "minimize that legitimately leaves the reported size alone is called ignored, "
+               "manufacturing a failure out of correct behaviour",
+        "file": "tv/control_app.py",
+        "find": '    if _fn == "toggle_fullscreen" and out["changed"] is False:',
+        "replace": '    if out["changed"] is False:',
+        "matches": 1,
+    },
+    {
+        "why": "without the shown check, reading the frame of a window that was never shown "
+               "blocks fifteen seconds inside the handler serving his console",
+        "file": "tv/control_app.py",
+        "find": "        if ev is not None and not ev.is_set():",
+        "replace": "        if False:",
+        "matches": 1,
+    },
+]
+
 class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
 
     def setUp(self):
@@ -277,6 +297,103 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
         src = _py_only(SRC)
         self.assertIn('kwargs["fullscreen"] = True', src,
                       "fullscreen is no longer the default he explicitly said he likes")
+
+
+    # ── v3398: the frame is MEASURED, and the read never acts ───────────────────────────────
+    class _Framed(object):
+        """A window that records what it was told to do and can be given any size."""
+        def __init__(self, size=(1440, 900), grows=False):
+            self.calls = []
+            self._size = size
+            self._grows = grows
+            self.read_width = False
+            class _Ev(object):
+                class shown(object):
+                    _set = True
+                    @classmethod
+                    def is_set(cls):
+                        return cls._set
+            self.events = _Ev()
+
+        @property
+        def width(self):
+            self.read_width = True
+            return self._size[0]
+
+        @property
+        def height(self):
+            return self._size[1]
+
+        def minimize(self):
+            self.calls.append("minimize")
+
+        def restore(self):
+            self.calls.append("restore")
+
+        def toggle_fullscreen(self):
+            self.calls.append("toggle_fullscreen")
+            if self._grows:
+                self._size = (self._size[0] * 2, self._size[1] * 2)
+
+    def test_the_frame_read_NEVER_touches_his_window(self):
+        """The heart asks this every eagle tick. A supervisor that minimises the thing it
+        supervises is a worse defect than the one it was watching for."""
+        w = self._Framed()
+        self.ca.__dict__["_MAIN_WIN"] = w
+        r = self.ca.window_action("frame")
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["did"], "frame")
+        self.assertEqual(w.calls, [],
+                         "a read-only frame request called %r on his window" % (w.calls,))
+        self.assertTrue(r["measured"])
+        self.assertEqual(r["from"], (1440, 900))
+
+    def test_a_fullscreen_toggle_THE_WINDOW_IGNORED_is_reported_as_ignored(self):
+        """v3271 could only say what it called. The whole point of v3398 is that a control which
+        does nothing must stop answering ok. [[unknown-stays-unknown]]"""
+        w = self._Framed(grows=False)
+        self.ca.__dict__["_MAIN_WIN"] = w
+        r = self.ca.window_action("fullscreen")
+        self.assertEqual(w.calls, ["toggle_fullscreen"], "the window was never told to toggle")
+        self.assertFalse(r["ok"], "the frame did not move and the route still answered ok")
+        self.assertIn("ignored the fullscreen toggle", r["why"])
+
+    def test_a_fullscreen_toggle_that_DID_move_the_frame_reports_both_sizes(self):
+        w = self._Framed(grows=True)
+        self.ca.__dict__["_MAIN_WIN"] = w
+        r = self.ca.window_action("fullscreen")
+        self.assertTrue(r["ok"], r.get("why"))
+        self.assertTrue(r["changed"])
+        self.assertEqual(r["from"], (1440, 900))
+        self.assertEqual(r["to"], (2880, 1800))
+
+    def test_MINIMIZE_is_not_judged_by_size(self):
+        """⚠ THE MIRROR OF THE DEFECT ABOVE. minimize and restore legitimately leave the reported
+        size alone on some platforms; judging them by it invents a failure."""
+        w = self._Framed(grows=False)
+        self.ca.__dict__["_MAIN_WIN"] = w
+        r = self.ca.window_action("minimize")
+        self.assertTrue(r["ok"],
+                        "minimize was called ignored because the size did not change: %s"
+                        % r.get("why"))
+        self.assertEqual(w.calls, ["minimize"])
+
+    def test_a_window_that_was_NEVER_SHOWN_is_unknown_rather_than_a_fifteen_second_stall(self):
+        """⚠ `Window.width` opens with `self.events.shown.wait(15)`. Reading the frame of an
+        unshown window costs fifteen seconds on the thread serving his console, so the shown
+        event is checked FIRST and an unshown window answers UNKNOWN cheaply."""
+        w = self._Framed()
+        w.events.shown._set = False
+        try:
+            self.ca.__dict__["_MAIN_WIN"] = w
+            r = self.ca.window_action("frame")
+            self.assertFalse(w.read_width,
+                             "the frame was read from a window that was never shown - that is "
+                             "a fifteen second block inside the HTTP handler")
+            self.assertFalse(r["measured"])
+            self.assertIsNone(r["from"])
+        finally:
+            w.events.shown._set = True
 
 
 if __name__ == "__main__":

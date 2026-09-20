@@ -928,6 +928,32 @@ TARGETS = {
         "sel": "#btn-on, #btn-mini",
         "settles": False,   # a live console never stops moving; see the note at the settle call
     },
+    "window-ctl": {
+        "serve": True,
+        "why": "HIS WINDOW CONTROLS — minimise and the fullscreen toggle, in the rail title. He "
+               "asked for this control at v3179, at v3271 and again on 2026-09-20, and all three "
+               "times it was already wired: the route answers, the buttons call it, his live "
+               "console returns ok. What was missing was that he could SEE it. Nothing had ever "
+               "photographed this corner, so two glyphs at the smallest type token and 55 percent "
+               "opacity read as finished in the source and as absent on the screen",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var b = document.getElementById('win-ctl');
+            if (!b) return false;
+            /* ⚠ FORCED VISIBLE ON PURPOSE, AND THIS TARGET DOES NOT GRADE VISIBILITY.
+               Since v3397 `hidden` actually hides, and a served console has no native window, so
+               the probe correctly refuses and the box correctly stays down. That is the RIGHT
+               behaviour and test_a_hidden_element_is_actually_hidden is what grades it. The
+               question HERE is different and cannot be answered any other way: when the control
+               IS up, does it fit the rail, and can a person read it? Two questions, two
+               instruments - conflating them is how this corner went unphotographed for good. */
+            b.hidden = false;
+            var r = b.getBoundingClientRect();
+            return !!(r.width > 2 && r.height > 2); })()""",
+        "sel": "#win-ctl, #win-min, #win-full",
+        "settles": False,
+        "warmup": 8.0,
+    },
     "state-panel": {
         "serve": True,
         "why": "THE STATE OF THIS CONSOLE — the ⟳ CHECK NOW control, the four sections, and the "

@@ -846,6 +846,22 @@
      `.fx-reassure[hidden]` all carry this exact guard. The pattern was here and I did not apply
      it. [[d2r-css-last-rule-wins]] [[feedback-generalize-fixes]] */
   button.act[hidden] { display: none !important; }
+  /* ⚠⚠ v3397 — THE SAME DEFECT AS v2443 ABOVE, SEVEN MORE TIMES, AND HE REPORTED IT AGAIN.
+     v2443 fixed `button.act` and wrote the law down — and shipped NO GATE, so nothing stopped the
+     next author (me, v3271) from adding `.win-ctl { display: inline-flex }` beside a `hidden`
+     attribute and watching the attribute do nothing. HIS WORDS, 2026-09-20: *"i want the option to
+     go windowed mode"* — the THIRD report of that control, which has been wired and reachable
+     since v3271. /api/window answers ok on his live console; the buttons were never the problem.
+     What was broken is that `#win-ctl[hidden]` could not hide them, so the "shown only where they
+     can act" rule in the JS below is decorative: on a headless or --no-open console the buttons
+     render and do nothing, which that comment itself calls worse than no button.
+     MEASURED on this file: 40 tokens carry the guard, these 7 did not. `!important` makes each one
+     order-independent, so a later author rule cannot quietly re-defeat it.
+     ⚠ `.bar > i`, `#heart-ov .hrt-chain` and `#ver-xref .vx-row` are NOT in this list — they set
+     display on a CHILD, which a hidden parent already suppresses. The first scan said 10; the
+     selector SUBJECT is what matters. [[sweep-dont-ask]] [[the-unjoined-end]] */
+  .win-ctl[hidden], .chron-run[hidden], .chron-visits[hidden], .fb-eta[hidden],
+  .kai-gate[hidden], .sh-stationbar[hidden], .signal .row[hidden] { display: none !important; }
   button.act {
     appearance: none;
     flex: 1;
@@ -2691,12 +2707,32 @@
   /* the secondary controls (advanced · Theatre), now below the engine bay */
   /* v3271 — the window controls sit at the END of the rail title, quiet until hovered. They are
      deliberately NOT styled like `.act`: those are the console's actions, these move the window. */
-  .win-ctl { margin-left: auto; display: inline-flex; gap: 4px; }
+  .win-ctl { margin-left: auto; display: inline-flex; gap: 8px; }
   .win-ctl button {
-    background: transparent; border: 1px solid var(--line, #2a2420); color: inherit;
-    border-radius: 5px; line-height: 1; padding: 2px 7px; cursor: pointer;
-    font-size: var(--fs-2xs); opacity: .55; transition: opacity .12s, border-color .12s;
+    background: transparent; border: 1px solid #5a4a33; color: inherit;
+    border-radius: 5px; line-height: 1; padding: 3px 9px; cursor: pointer;
+    font-size: var(--fs-xs); opacity: 1; transition: opacity .12s, border-color .12s;
   }
+  /* ⚠ v3399 — A SECOND MODEL FAMILY READ THESE AS ONE DROPDOWN, NOT TWO BUTTONS.
+     Shown the render cold and asked to refute "this is now findable", Grok answered that the
+     corner reads as a `CONSOLE (caret) window` dropdown and is "cramped and low-contrast ...
+     blends into the dark header". The caret it saw is the MINIMISE glyph: at .55 and even at
+     .82 the 1px borders were invisible, so two bordered buttons collapsed into one word group.
+     Raising the rest opacity and letting the border carry its own colour is what separates
+     them. The refutation was worth more than the render, which had already said clipped 0/7 at
+     every width - a layout can be perfectly unclipped and still unreadable. */
+  /* v3399 — HE ASKED FOR THIS CONTROL THREE TIMES AND IT WAS ALREADY THERE.
+     v3179, v3271, and again 2026-09-20: *"i want the option to go windowed mode"*.
+     The route answers, the buttons are wired, and his live console returns ok - so the
+     gap was never the plumbing. It was two glyphs at the smallest type token and 55%
+     opacity, tucked at margin-left:auto beside the word Console, with nothing on
+     screen saying `window`. A control he cannot find is a control he does not have.
+     MEASURED, not assumed: tv/render_check.py target `window-ctl` at 375, 901, 1120 and 1440
+     reports painted 3/3 and clipped 0/7 at every width, so the word fits even at the narrowest.
+     A first cut folded it away under 880px; that rule is GONE because its effect could not be
+     told apart from the harness reading DOM text through display:none, and CSS whose behaviour
+     I cannot name is not something to ship. One rule, one measurement. */
+  .win-ctl .wlbl { margin-left: 5px; letter-spacing: .02em; }
   .win-ctl button:hover, .win-ctl button:focus-visible { opacity: 1; border-color: var(--gold, #c8a44a); }
   .rail-h { display: flex; align-items: center; gap: 8px; }
   .rail-secondary { display: flex; flex-direction: column; gap: clamp(8px,.9vw,13px); flex: 0 0 auto; margin-top: 4px; }
@@ -7952,7 +7988,7 @@ body[data-origin="shadow"] #stage::after {
            So the buttons live IN the console, where every platform can reach them, and fullscreen
            stays the default he likes. They are hidden when there is no native window to act on -
            a browser tab has its own chrome and these would do nothing there. -->
-      <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console<span class="win-ctl" id="win-ctl" hidden><button type="button" id="win-min" title="minimise the console window">–</button><button type="button" id="win-full" title="fullscreen / windowed">⤢</button></span></div>
+      <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console<span class="win-ctl" id="win-ctl" hidden><button type="button" id="win-min" title="minimise the console window">–</button><button type="button" id="win-full" title="leave fullscreen and use a normal window">⤢<span class="wlbl">window</span></button></span></div>
       <div class="primary">
         <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>auto intake · pause on stash</span></span></button>
         <!-- v1595 — ⏱ MINI CAPTURE. Konyo: "a MINI shortcuted SPECIFICALLY FOR when im in my stash

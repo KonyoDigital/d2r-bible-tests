@@ -4211,6 +4211,31 @@ def _force_kill_all_agents(reason=""):
             "farewell": False, "sessionSaved": True, "bridgeDown": dead, "forced": True}
 
 
+def _win_frame(win):
+    """The window's own (w, h) RIGHT NOW, or None when nobody can ask. Never blocks.
+
+    v3398 — v3271 wrote "pywebview exposes no reliable post-hoc read of the frame state across
+    all three platforms", so window_action reported WHAT IT CALLED and could not say whether the
+    window obeyed. MEASURED on the installed build: `Window.width` / `Window.height` are
+    properties that call `self.gui.get_size(self.uid)` — a LIVE read, not a value cached at
+    creation. So the frame IS readable and the caveat was too pessimistic.
+
+    ⚠ BUT THE PROPERTY BLOCKS. It opens with `self.events.shown.wait(15)`, so reading the size of
+    a window that was never shown costs fifteen seconds inside an HTTP handler. The `shown` event
+    is checked FIRST and an unshown window returns None — UNKNOWN, cheaply, rather than a
+    fifteen-second stall on the thread serving his console. [[unknown-stays-unknown]]
+    """
+    if win is None:
+        return None
+    try:
+        ev = getattr(getattr(win, "events", None), "shown", None)
+        if ev is not None and not ev.is_set():
+            return None
+        return (int(win.width), int(win.height))
+    except Exception:
+        return None
+
+
 def window_action(what):
     """minimise / restore / toggle fullscreen on the console's own window. -> dict
 
@@ -4241,29 +4266,51 @@ def window_action(what):
     # a true sentence about the wrong question, and precisely the class of misdirection that
     # makes a caller fix the wrong thing. A bad name is a bad name on every venue.
     # [[a-wrong-answer-skips-the-fallback]]
-    _fn = {"minimize": "minimize", "restore": "restore",
-           "fullscreen": "toggle_fullscreen"}.get(str(what or ""))
-    if not _fn:
+    _ACTS = {"minimize": "minimize", "restore": "restore",
+             "fullscreen": "toggle_fullscreen"}
+    _name = str(what or "")
+    # v3398 — `frame` is a READ, not an action. The heart asks this on every eagle tick, so it
+    # must never touch his window: a supervisor that minimises the thing it supervises is a
+    # worse defect than the one it was watching for. It is accepted HERE, beside the real
+    # actions, so the bad-name refusal keeps being judged before the environment.
+    if _name != "frame" and _name not in _ACTS:
         return {"ok": False, "did": None,
-                "why": "%r is not a window action — minimize, restore or fullscreen" % what}
+                "why": "%r is not a window action — minimize, restore, fullscreen or frame"
+                       % what}
+    _fn = _ACTS.get(_name)
     win = globals().get("_MAIN_WIN")
     if win is None:
         return {"ok": False, "did": None,
                 "why": "there is no native window on this console (headless or --no-open), so "
                        "nothing could be minimised or resized — that is UNKNOWN, not a refusal"}
+    if _name == "frame":
+        _fr = _win_frame(win)
+        return {"ok": True, "did": "frame", "why": "", "from": _fr, "to": _fr,
+                "changed": False, "measured": _fr is not None}
     f = getattr(win, _fn, None)
     if not callable(f):
         return {"ok": False, "did": None,
                 "why": "this pywebview build has no Window.%s, so the action is unavailable "
                        "here rather than failed" % _fn}
+    before = _win_frame(win)
     try:
         f()
     except Exception as e:
         return {"ok": False, "did": None,
                 "why": "Window.%s raised %s" % (_fn, type(e).__name__)}
-    # ⚠ pywebview exposes no reliable post-hoc read of the frame state across all three
-    # platforms, so this says WHAT WAS CALLED and does not claim to have verified the result.
-    return {"ok": True, "did": _fn, "why": ""}
+    after = _win_frame(win)
+    # v3398 — SAY WHAT THE WINDOW DID, NOT WHAT WAS CALLED. `before`/`after` are live reads; None
+    # on either side means the frame could not be measured, which is UNKNOWN and stays UNKNOWN.
+    out = {"ok": True, "did": _fn, "why": "", "from": before, "to": after,
+           "changed": (None if (before is None or after is None) else (before != after))}
+    # ⚠ ONLY THE FULLSCREEN TOGGLE IS JUDGED BY SIZE. minimize and restore legitimately leave the
+    # reported size alone on some platforms, so calling them "ignored" because the numbers match
+    # would manufacture a failure out of correct behaviour — the mirror of the defect this fixes.
+    if _fn == "toggle_fullscreen" and out["changed"] is False:
+        out["ok"] = False
+        out["why"] = ("the window reported the same size %sx%s before and after, so it ignored "
+                      "the fullscreen toggle on this platform" % (before[0], before[1]))
+    return out
 
 
 def _mark_window_gone(reason=""):
@@ -30852,7 +30899,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3396",
+        "ver": "v3399",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

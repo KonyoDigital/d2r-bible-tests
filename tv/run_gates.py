@@ -1208,6 +1208,22 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_hidden_element_is_actually_hidden",
+         [sys.executable, os.path.join(HERE, "test_a_hidden_element_is_actually_hidden.py")], 120,
+         why="v3397 (#142) - `hidden` MUST ACTUALLY HIDE, AND THIS HAS COST HIM TWICE. "
+             "[hidden]{display:none} is a USER-AGENT rule, so ANY author display: on the same "
+             "element defeats it: the attribute is set, the element stays laid out, and the "
+             "source and the screen disagree with nothing to say so. v2443 found it on "
+             "button.act - and its own comment records that HE is the one who noticed - then "
+             "fixed that one element, wrote the law into a comment naming four earlier "
+             "instances, and shipped NO GATE. v3271 then added .win-ctl{display:inline-flex} "
+             "beside a hidden attribute, so his window controls have rendered ever since "
+             "whether or not they can act, which the JS beside them calls worse than no "
+             "button. He asked for that control a THIRD time on 2026-09-20. Measured: 7 "
+             "elements defeated, 40 tokens already guarded. The scanner lives in "
+             "console_doctor so the gate grades the bytes on DISK and the heart row grades the "
+             "bytes the console SERVES - one implementation, two subjects. A law written only "
+             "in a comment is a law with nothing enforcing it."),
     Gate("test_a_beacon_records_the_check_in",
          [sys.executable, os.path.join(HERE, "test_a_beacon_records_the_check_in.py")], 120,
          why="v3390 (#135) - A BEACON RECORDS THE CHECK-IN, NOT ONLY THE CHANGE. Konyo answered "

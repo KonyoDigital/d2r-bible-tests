@@ -5701,6 +5701,155 @@ def _check_a_held_relaunch_is_not_stuck():
         return UNKNOWN, "the interlock could not be read: %s" % str(e)[:90]
 
 
+
+def defeated_hidden(src):
+    """Which elements carry `hidden` while an AUTHOR rule forces them to stay laid out?
+
+    `[hidden] { display: none }` lives in the USER-AGENT stylesheet, and author rules beat UA
+    rules regardless of specificity — so any author `display:` on the same element DEFEATS the
+    attribute. v2443 found this on `button.act` AND HE IS THE ONE WHO NOTICED; it shipped a fix,
+    wrote the law into a comment, and shipped NO GATE. v3271 then added `.win-ctl` with exactly
+    the same defect, so his window controls rendered whether or not they could act.
+
+    Takes SOURCE TEXT so one implementation serves two different subjects: the gate hands it the
+    bytes on disk, the heart row hands it the bytes the live console actually serves. Two
+    questions, one scanner — the alternative is two copies that disagree. [[copy-drift]]
+
+    ⚠ THE SELECTOR SUBJECT IS WHAT MATTERS. `.bar > i` sets display on a CHILD, which a hidden
+    PARENT already suppresses. Matching anywhere in the selector reported 10 offenders where
+    there are 7 — the instrument, not the file. [[feedback-suspect-the-instrument]]
+
+    ⚠ COMMENTS ARE STRIPPED FIRST, AND THE TRAP IS MEASURED, NOT THEORETICAL. The v2443 comment
+    quotes `.sigil[hidden]`, `.stage-hold[hidden]` and the rule itself, so an unstripped scan
+    credits guards that exist only in prose: `chron-waiting` is credited by a COMMENT and by
+    nothing else. A scanner that reads its own documentation is too lenient in the quiet
+    direction. [[source-reading-guard]]
+    ⚠ And the strip is BOUNDED. An unbounded /*.*?*/ over this 5MB mixed file matches from a `/*`
+    inside a string to the next `*/` anywhere and removed 16.9% of it once.
+
+    -> {token: set(selectors)}; empty dict means every `hidden` in this source can actually hide.
+    """
+    import re as _re
+    css = "\n".join(_re.findall(r"<style[^>]*>(.*?)</style>", src, _re.S))
+    # v3397 — a NAMED switch, so the gate can PROVE the strip matters instead of asserting it.
+    # Flipping it to False must make `chron-waiting` read as guarded, because a COMMENT is the
+    # only place its guard exists. A red-proof is only as good as the anchor it can reach.
+    STRIP_COMMENTS = True
+    if STRIP_COMMENTS:
+        css = _re.sub(r"/\*.{0,4000}?\*/",
+                      lambda m: "\n" * m.group(0).count("\n"), css, flags=_re.S)
+
+    def _subject(part):
+        return _re.split(r"[\s>+~]+", part.strip())[-1]
+
+    rules, guards = [], set()
+    for m in _re.finditer(r"([^{}]+)\{([^{}]*)\}", css):
+        sel, body = m.group(1).strip(), m.group(2)
+        if "[hidden]" in sel and _re.search(r"display\s*:\s*none", body):
+            for p in sel.split(","):
+                guards.update(_re.findall(r"[.#]([A-Za-z0-9_-]+)\[hidden\]", _subject(p)))
+        d = _re.search(r"(?:^|;)\s*display\s*:\s*([a-z-]+)", body)
+        if d and d.group(1) != "none":
+            for p in sel.split(","):
+                if "[hidden]" not in p:
+                    rules.append((p.strip(), _subject(p)))
+
+    out = {}
+    for _tag, attrs in _re.findall(r"<(\w+)([^>]*\shidden(?:\s[^>]*)?)>", src):
+        if _re.search(r'hidden\s*=\s*"(?:false)?"', attrs):
+            continue
+        toks = []
+        mi = _re.search(r'id="([A-Za-z0-9_-]+)"', attrs)
+        if mi:
+            toks.append(mi.group(1))
+        mc = _re.search(r'class="([^"]+)"', attrs)
+        if mc:
+            toks += mc.group(1).split()
+        on_el = set(toks)
+        for t in toks:
+            if t in guards:
+                continue
+            for full, subj in rules:
+                if not _re.search(r"[.#]%s(?![A-Za-z0-9_-])" % _re.escape(t), subj):
+                    continue
+                # every token in the subject must be on THIS element, or the rule cannot match it
+                if not set(_re.findall(r"[.#]([A-Za-z0-9_-]+)", subj)) <= on_el:
+                    continue
+                out.setdefault(t, set()).add(full[:60])
+    return out
+
+
+def _check_a_hidden_element_is_actually_hidden():
+    """v3397 — CAN THE CONSOLE HE IS LOOKING AT ACTUALLY HIDE WHAT IT MARKS HIDDEN?
+
+    ⚠ THIS ASKS A DIFFERENT QUESTION FROM ITS GATE, DELIBERATELY. The gate scans the bytes ON
+    DISK. A console is a reading of its source taken at import, and it serves what it holds — so
+    a corrected file and a console still serving the old CSS look identical from the tree. This
+    row scans THE BYTES ON THE WIRE. [[stale-reading]]
+
+    An absent console is UNKNOWN. It is never a pass.
+    """
+    import urllib.request as _ur
+    try:
+        with _ur.urlopen(CONSOLE + "/", timeout=8) as r:
+            page = r.read().decode("utf-8", "replace")
+    except Exception as e:
+        return UNKNOWN, ("the console did not serve its own page (%s), so whether a `hidden` "
+                         "element can actually hide is UNKNOWN, not clean"
+                         % type(e).__name__)
+    if len(page) < 50000:
+        return UNKNOWN, ("the console served only %d bytes, which is not the console page, so "
+                         "nothing was measured" % len(page))
+    bad = defeated_hidden(page)
+    if bad:
+        names = ", ".join(sorted(bad)[:6])
+        return MISSING, ("%d element(s) carry `hidden` while an author display rule keeps them "
+                         "laid out, so marking them hidden does nothing: %s. `[hidden]` is a "
+                         "USER-AGENT rule and any author `display:` beats it — add "
+                         "`<sel>[hidden] { display: none !important; }`" % (len(bad), names))
+    return OK, ""
+
+
+def _check_his_window_can_be_measured():
+    """v3398 — WHEN HE PRESSES THE WINDOW BUTTON, CAN ANYONE TELL WHETHER IT WORKED?
+
+    v3271 shipped the minimise / fullscreen controls and said so honestly: "pywebview exposes no
+    reliable post-hoc read of the frame state", so the route reported WHAT IT CALLED and could
+    not say whether the window obeyed. v3398 measured that claim and it was too pessimistic —
+    `Window.width` / `Window.height` call `gui.get_size()` live — so the route now reports the
+    frame before and after.
+
+    ⚠ THIS ROW EXISTS BECAUSE A MEASUREMENT CAN GO QUIETLY DECORATIVE. If the frame stops being
+    readable, every answer keeps its `ok: true` and simply loses the numbers, which reads exactly
+    like a working control. Asking `frame` — a READ, never an action — is the only way to notice.
+
+    ⚠ It must never act on his window. The action it sends is `frame` for that reason.
+    """
+    r = _post("/api/window", {"do": "frame"}, timeout=10)
+    if not isinstance(r, dict):
+        return UNKNOWN, ("the console did not answer /api/window, so whether his window can be "
+                         "measured is UNKNOWN, not clean")
+    if not r.get("ok"):
+        why = str(r.get("why") or "")
+        if "no native window" in why:
+            return UNMEASURED, ("this console has no native window (headless or --no-open), so "
+                                "there is no frame to measure — not applicable, not a fault")
+        # ⚠ A CONSOLE OLDER THAN THIS CHECK IS NOT A BROKEN ONE. A running console is a reading
+        # of its source taken at import, so one started before v3398 answers "not a window
+        # action" — correctly, about code it has never seen. Reporting that as MISSING shows him
+        # a red he cannot interpret and did not cause. [[stale-reading]] [[unknown-stays-unknown]]
+        if "not a window action" in why:
+            return UNKNOWN, ("this console started before v3398 and does not know the read-only "
+                             "frame request, so its window cannot be measured yet — relaunch it "
+                             "to pick up the new code. That is version skew, not a fault")
+        return MISSING, ("the console refused a read-only frame request: %s" % why[:120])
+    if not r.get("measured"):
+        return MISSING, ("his window is open but its frame could not be read, so the window "
+                         "buttons report ok without anyone being able to tell whether the "
+                         "window obeyed — the measurement v3398 added is decorative here")
+    fr = r.get("from") or []
+    return OK, ""
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -5861,6 +6010,14 @@ CHECKS = [
     ("tooltip finder", _check_the_tooltip_finder_is_honest),
     ("surfaces agree", _check_the_two_surfaces_agree),
     ("the other doctors", _check_the_other_doctors),
+    # v3397 — scans the bytes the console SERVES, not the file on disk: a console holds its
+    # source from import, so a fixed file and a stale console are indistinguishable from the
+    # tree. The gate grades disk; this grades the wire.
+    ("a hidden element is actually hidden", _check_a_hidden_element_is_actually_hidden),
+    # v3398 — the window controls can now say what the window DID, not what was called.
+    # This asks whether that measurement still works; a frame that stops being readable
+    # loses the numbers and keeps the ok, which looks exactly like a working control.
+    ("his window can be measured", _check_his_window_can_be_measured),
 ]
 
 
@@ -5940,7 +6097,10 @@ SLOW = ("the other doctors",)
 # include_slow=False, so "SLOW is exactly where sweep would find went to die". A row moved
 # to SLOW stops being supervision. PERIODIC keeps it running on a cadence.
 PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
-            "the compare panel can name a difference")
+            "the compare panel can name a difference",
+            # v3397 — MEASURED 268 ms on this file. The cheap subset runs every eagle
+            # tick, and v3392 already cost that subset 1,877 ms by not measuring first.
+            "a hidden element is actually hidden")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -6399,6 +6559,12 @@ WATCHES = {
     "tooltip finder":              (),
     "surfaces agree":              (),
     "the other doctors":           (),
+    # v3397 — DECLARED, NOT OMITTED. It grades the served stylesheet, so it owns no
+    # element of its own and the empty tuple is the honest answer.
+    "a hidden element is actually hidden": (),
+    # v3398 — DECLARED, NOT OMITTED. It grades the native window frame, which is not an
+    # element on any page, so the empty tuple is the honest answer.
+    "his window can be measured": (),
 }
 
 
