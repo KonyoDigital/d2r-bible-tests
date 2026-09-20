@@ -134,6 +134,13 @@
       "1440x1000": 22,
       "375x800": 22,
       "901x900": 22
+    },
+    "window-ctl": {
+      "1120x628": 3,
+      "1120x900": 3,
+      "1440x1000": 3,
+      "375x800": 3,
+      "901x900": 3
     }
   },
   "nodes": {
@@ -3037,6 +3044,33 @@
         "div.vm-gauge",
         "div.vault-mule|🛠️WIP0⚖ 0✏️🗑next-build staging — the onl",
         "div.vm-gauge"
+      ]
+    },
+    "window-ctl": {
+      "1120x628": [
+        "span.win-ctl|–⤢window",
+        "button|–",
+        "button|⤢window"
+      ],
+      "1120x900": [
+        "span.win-ctl|–⤢window",
+        "button|–",
+        "button|⤢window"
+      ],
+      "1440x1000": [
+        "span.win-ctl|–⤢window",
+        "button|–",
+        "button|⤢window"
+      ],
+      "375x800": [
+        "span.win-ctl|–⤢window",
+        "button|–",
+        "button|⤢window"
+      ],
+      "901x900": [
+        "span.win-ctl|–⤢window",
+        "button|–",
+        "button|⤢window"
       ]
     }
   }

@@ -5855,8 +5855,26 @@ def _check_his_window_can_be_measured():
         return MISSING, ("his window is open but its frame could not be read, so the window "
                          "buttons report ok without anyone being able to tell whether the "
                          "window obeyed — the measurement v3398 added is decorative here")
+    # ⚠⚠ THE FRAME WAS MEASURED AND THEN THROWN AWAY. v3398 read `from` and returned an EMPTY
+    # why, so the one row whose entire job is proving the measurement is still alive said nothing
+    # about it — and `fr` sat assigned and unused, which is the same defect in miniature. A
+    # verdict with no why is a lamp; the size IS the evidence that the read worked, so it belongs
+    # in the row. MEASURED 2026-09-20: this failed the eagle-eye contract
+    # (test_it_runs_and_every_row_is_a_named_state) the first time the suite ran far enough.
+    # ⚠ `from` is a 2-tuple (w, h) — _win_frame returns (int(win.width), int(win.height)). It is
+    # NOT a 4-element rect, and slicing it as one would print a confident wrong number.
     fr = r.get("from") or []
-    return OK, ""
+    try:
+        _w, _h = int(fr[0]), int(fr[1])
+    except Exception:
+        _w = _h = None
+    if _w is None:
+        return OK, ("his window answered a read-only frame request and said the frame could be "
+                    "measured, but named no size — the control is live and the numbers are "
+                    "UNKNOWN, which is not the same as clean")
+    return OK, ("his window answered a read-only frame request and reported %dx%d, so a window "
+                "button's claim can still be checked against the frame it actually produced"
+                % (_w, _h))
 
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the

@@ -42,7 +42,7 @@ RED_PROOF = [
         "why": "without this the CDP fallback licenses --dump-dom again - a different mechanism - "
                "and every target burns its full 90s before falling through to node anyway",
         "file": "tv/js_syntax_gate.py",
-        "find": '    if loopback_path() != "dump-dom":\n        return check_with_node(targets)',
+        "find": '    if loopback_path() != "dump-dom" and _node_bin():\n        return check_with_node(targets)',
         "replace": '    if False:\n        return check_with_node(targets)',
         "matches": 1,
     },
@@ -52,6 +52,16 @@ RED_PROOF = [
         "file": "tv/js_syntax_gate.py",
         "find": "                    _LOOPBACK_OK[:] = [False]",
         "replace": "                    pass",
+        "matches": 1,
+    },
+    {
+        "why": "without the _node_bin() half the gate diverts into a fallback that CANNOT "
+               "answer - check_with_node returns a REASON when node is absent, and a reason "
+               "aborts the whole gate - so two unverifiable targets collapse into zero findings "
+               "plus a skip, which is precisely what v1809 forbids",
+        "file": "tv/js_syntax_gate.py",
+        "find": 'if loopback_path() != "dump-dom" and _node_bin():',
+        "replace": 'if loopback_path() != "dump-dom":',
         "matches": 1,
     },
 ]
@@ -89,7 +99,14 @@ class TestAProbeLicensesOnlyWhatItTested(unittest.TestCase):
         g.LOOPBACK_PATH[:] = ["cdp"]
         launched = []
         real = g._run_browser_bounded
+        # ⚠ NODE IS STUBBED PRESENT ON PURPOSE. Since the v1809 repair the divert reads
+        # `loopback_path() != "dump-dom" AND _node_bin()`, so on a machine with no node this case
+        # would be measuring THE ABSENCE OF NODE and reporting it as a licensing bug. The JOIN is
+        # what is under test here, never what this particular runner happens to have installed.
+        real_node, real_cwn = g._node_bin, g.check_with_node
         try:
+            g._node_bin = lambda: "/stub/node"
+            g.check_with_node = lambda targets=None: ([], None)
             g._run_browser_bounded = lambda cmd, t: launched.append(cmd)
             problems, skipped = g.check()
             self.assertEqual(
@@ -98,6 +115,46 @@ class TestAProbeLicensesOnlyWhatItTested(unittest.TestCase):
                 "that is %d wasted launch(es), 90s each" % len(launched))
         finally:
             g._run_browser_bounded = real
+            g._node_bin, g.check_with_node = real_node, real_cwn
+
+    def test_when_node_CANNOT_answer_the_targets_are_still_NAMED(self):
+        """⚠⚠ THE ARM THAT BROKE v1809 — A DIVERT INTO A FALLBACK THAT CANNOT ANSWER IS AN ABORT.
+
+        v3401 shipped `if loopback_path() != "dump-dom": return check_with_node(targets)`. When
+        node is ALSO absent, check_with_node returns ([], "no node found ...") — and a REASON
+        aborts the whole gate. v1809's law is the opposite: an unverifiable TARGET must not abort
+        the run, each one must be NAMED. So the speed-up silently converted two named,
+        unverifiable targets into zero findings plus a skip.
+
+        MEASURED 2026-09-20: test_an_unverifiable_target_never_erases_a_real_finding went red on
+        the FIRST push that ran far enough to reach it. The three pushes before that died in the
+        1500s hang and never got here — which is how a plain-looking early return survived.
+        """
+        import subprocess as _sp
+        g._LOOPBACK_OK[:] = [True]
+        g.LOOPBACK_PATH[:] = ["cdp"]
+        if not g.find_browser():
+            self.skipTest("no browser on PATH - this arm needs one to reach the target loop")
+        real_node, real_bounded = g._node_bin, g._run_browser_bounded
+
+        def _always_timeout(cmd, t):
+            raise _sp.TimeoutExpired(cmd="chrome", timeout=t)
+
+        try:
+            g._node_bin = lambda: None
+            g._run_browser_bounded = _always_timeout
+            problems, reason = g.check(targets=["bible.html", "tv/control_ui.html"])
+        finally:
+            g._node_bin, g._run_browser_bounded = real_node, real_bounded
+
+        self.assertIsNone(
+            reason,
+            "node could not answer and the gate ABORTED instead of naming its targets - the "
+            "v1809 defect the speed-up reintroduced: %r" % (reason,))
+        self.assertEqual(
+            len(problems), 2,
+            "both targets were unverifiable, so both must be named; an early return into a "
+            "fallback that cannot answer erases them: %r" % (problems,))
 
     def test_a_dump_dom_machine_IS_still_licensed(self):
         """⚠ THE MIRROR. If nothing is ever licensed the browser check is dead, not fixed."""

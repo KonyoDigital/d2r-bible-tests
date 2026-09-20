@@ -443,7 +443,17 @@ def check(targets=None, timeout=90):
     #
     # The knowledge was recorded and unread, which is this repo's most repeated defect.
     # [[the-unjoined-end]] [[unknown-stays-unknown]]
-    if loopback_path() != "dump-dom":
+    # ⚠⚠ `_node_bin()` IS PART OF THE CONDITION, NOT AN OPTIMISATION — REMOVING IT RE-BREAKS
+    # v1809. check_with_node returns ([], "no node found ...") when node is absent, and a REASON
+    # ABORTS THE WHOLE GATE. v1809's law is the opposite: "an unverifiable TARGET must not abort
+    # the whole gate as a skip" — each target must be NAMED. So diverting to a fallback that
+    # cannot answer turned two named, unverifiable targets into zero findings plus a skip.
+    # MEASURED 2026-09-20: this is exactly how v3401 failed
+    # test_an_unverifiable_target_never_erases_a_real_finding on the first push that got far
+    # enough to run it — the three pushes before that died in the 1500s hang and never reached it.
+    # When node cannot answer, FALL THROUGH to the browser loop and let each target be named,
+    # even though that costs the timeout. Naming beats speed. [[the-unjoined-end]]
+    if loopback_path() != "dump-dom" and _node_bin():
         return check_with_node(targets)
 
     srv, port = _serve(REPO)
