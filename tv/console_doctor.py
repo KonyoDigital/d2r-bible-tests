@@ -5843,12 +5843,12 @@ def _check_this_machine_is_keeping_itself_current():
     from .git/FETCH_HEAD. A reading carries the age of the thing it measured. [[stale-reading]]
     """
     import subprocess as _sp
-    g = os.path.join(REPO, ".git")
+    g = os.path.join(ROOT, ".git")
     if not os.path.isdir(g):
         return UNKNOWN, ("this tree is not a git checkout, so whether it is current is UNKNOWN")
     try:
         r = _sp.run(["git", "rev-list", "--count", "HEAD..origin/main"],
-                    cwd=REPO, capture_output=True, text=True, timeout=20)
+                    cwd=ROOT, capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
             return UNKNOWN, ("git could not compare this tree against origin/main (%s), so how far "
                              "behind it is UNKNOWN, not zero"
@@ -5877,7 +5877,11 @@ def _check_this_machine_is_keeping_itself_current():
         return MISSING, ("this machine is level with the origin/main it last heard about, but that "
                          "was %.1fh ago — so 'up to date' is a statement about yesterday. Nothing "
                          "appears to be fetching here" % age_h)
-    return OK, ("level with origin/main, fetched %.1fh ago — this machine is keeping itself current"
+    # ⚠ "NOTHING TO PULL", NOT "LEVEL". `rev-list HEAD..origin/main` counts only what is BEHIND,
+    # so it answers 0 for a machine that is level AND for one that is several commits AHEAD — his
+    # Mac is normally ahead, mid-arc. Saying "level" there is a right number under a word that no
+    # longer describes it. [[label-outlived-referent]]
+    return OK, ("nothing to pull — this machine is not behind origin/main, fetched %.1fh ago"
                 % age_h)
 
 
