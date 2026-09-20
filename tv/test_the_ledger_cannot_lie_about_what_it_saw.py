@@ -79,6 +79,19 @@ REAL_SEAM = (
 )
 
 
+RED_PROOF = [
+    {
+        "why": "without this skip a 'cannot-tell' verdict counts as a completed look, so a version "
+               "the eye SAID it could not judge satisfies the ship gate exactly like a clean one - "
+               "measured 2026-09-20 on 8 shipped versions",
+        "file": "tv/second_eye_ledger.py",
+        "find": "        if is_not_a_look(r.get(\"verdict\")):\n            continue",
+        "replace": "        if False:\n            continue",
+        "matches": 1,
+    },
+]
+
+
 class TestTheLedgerCannotLieAboutWhatItSaw(unittest.TestCase):
 
     # ── 1. the contract ──────────────────────────────────────────────────────────────────────
@@ -163,6 +176,70 @@ class TestTheLedgerCannotLieAboutWhatItSaw(unittest.TestCase):
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════════════════════
+
+class TestCannotTellIsNotALook(unittest.TestCase):
+    """v3403 — AN EYE THAT SAYS IT COULD NOT JUDGE IS NOT AGREEMENT.
+
+    MEASURED across all 915 rows, 2026-09-20: `cannot-tell` appears 20 times over 20 versions, and
+    for ELEVEN it is the only qualifying row. EIGHT of those were answering "looked at" to the ship
+    gate — v2415, v2665, v3346, v3355, v3357, v3358, v3359, v3401. looked_at() applied three tests
+    (reached, cross-family, bound to evidence) and never asked what the verdict MEANT, so three
+    states collapsed into two. [[unknown-stays-unknown]]
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.led = os.path.join(self.d, "ledger.jsonl")
+
+    def _write(self, verdict):
+        with io.open(self.led, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({
+                "version": "v9000", "model": "grok-4-1-fast-reasoning", "family": "xai",
+                "reached": True, "verdict": verdict, "findings": "a real look",
+                "bytes": {"bible": "abc"}}) + "\n")
+
+    def test_BASELINE_a_clean_row_DOES_count(self):
+        """⚠ FIRST, prove the case can distinguish. A law that refuses everything is an off
+        switch that reads as rigour, and would pass the cannot-tell case for the wrong reason."""
+        self._write("clean")
+        self.assertTrue(L.looked_at("v9000", self.led),
+                        "a clean cross-family look no longer counts - the law is now an off switch")
+        self.assertFalse(L.owes_a_look("v9000", self.led))
+
+    def test_a_cannot_tell_row_does_NOT_count_as_a_look(self):
+        self._write("cannot-tell")
+        self.assertFalse(L.looked_at("v9000", self.led),
+                         "the eye said it could not judge the change and that was accepted as a "
+                         "second-eye look")
+        self.assertTrue(L.owes_a_look("v9000", self.led),
+                        "a version whose only look was 'cannot-tell' does not owe one")
+
+    def test_the_cannot_tell_ROW_IS_STILL_RECORDED(self):
+        """⚠ It is evidence about REACH (#143) and must never be deleted or downgraded to an
+        empty seat. An articulate refusal is MORE informative than a terse pass."""
+        self._write("cannot-tell")
+        rows = [json.loads(x) for x in io.open(self.led, encoding="utf-8") if x.strip()]
+        self.assertEqual(len(rows), 1, "the row was dropped instead of merely not counting")
+        self.assertEqual(rows[0].get("verdict"), "cannot-tell",
+                         "the verdict was rewritten rather than left as the eye said it")
+
+    def test_OTHER_free_text_verdicts_STILL_COUNT(self):
+        """⚠ [[strictness-that-closes-the-lane]] — the ledger carries nine other phrasings in live
+        use. Refusing every unrecognised verdict would close the lane and read as rigour."""
+        for v in ("confirmed-fix", "two-real-one-refuted", "clean-for-the-shipped-change",
+                  "findings", "confirmed"):
+            self._write(v)
+            self.assertTrue(L.looked_at("v9000", self.led),
+                            "%r stopped counting as a look - this law pins ONE word, not all of "
+                            "them" % (v,))
+
+    def test_the_word_is_matched_case_and_space_insensitively(self):
+        for v in ("Cannot-Tell", "  cannot-tell  ", "CANNOT-TELL"):
+            self._write(v)
+            self.assertFalse(L.looked_at("v9000", self.led),
+                             "%r slipped through on capitalisation or whitespace" % (v,))
+
 
 class TestAVersionWithNoRowIsOwedByBothCommands(unittest.TestCase):
     """`--audit` walked the LEDGER only, so a version nobody ever recorded anything for did not

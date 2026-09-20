@@ -224,6 +224,34 @@ def _bytes_seen(path=None):
 # `max-width: 100%`) was real and was acted on. That is the point: a blanket retraction would have
 # been as unmeasured as the original claim. Grep the stored prompt, count the literals, and let the
 # count decide. [[unknown-stays-unknown]] [[silence-is-not-evidence]] [[the-unjoined-end]]
+# ⚠⚠ v3403 — A VERDICT THAT SAYS "I COULD NOT JUDGE THIS" IS NOT A LOOK.
+# MEASURED 2026-09-20 across all 915 rows: `cannot-tell` appears 20 times over 20 versions, and
+# for ELEVEN of them it is the ONLY qualifying row. Eight of those eleven were answering "looked
+# at" to the ship gate — v2415, v2665, v3346, v3355, v3357, v3358, v3359, v3401 — on the strength
+# of an eye that had said, in its own words, that the payload did not carry enough of the change
+# to judge. (The other three were already refused for unrelated reasons, which is how we know the
+# refusal path works and this is a VERDICT-SEMANTICS hole rather than a broken reader.)
+#
+# looked_at() applied exactly three tests — reached, cross-family, bound to evidence — and never
+# asked what the verdict MEANT. So three states (clean / found-things / COULD-NOT-REVIEW) were
+# collapsed into two, which is this codebase's most repeated defect wearing the ledger's clothes.
+# [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+#
+# ⚠ THE ROW IS STILL RECORDED. It is evidence about REACH (task #143) and must never be deleted
+# or downgraded to an empty seat — an articulate refusal is MORE informative than a terse pass,
+# it simply is not agreement.
+# ⚠ AND THIS PINS ONE WORD ON PURPOSE. Refusing every unrecognised verdict would be an off switch
+# that reads as rigour: the ledger carries nine other free-text phrasings in live use
+# (confirmed-fix, two-real-one-refuted, clean-for-the-shipped-change, ...) and they must keep
+# counting. [[strictness-that-closes-the-lane]]
+_NOT_A_LOOK = ("cannot-tell",)
+
+
+def is_not_a_look(verdict):
+    """True when the eye answered that it COULD NOT judge. -> bool"""
+    return str(verdict or "").strip().lower() in _NOT_A_LOOK
+
+
 _UNSENT_MARKERS = (
     # a file-reading expression that survived into the prompt instead of being evaluated
     (re.compile(r"open\s*\(\s*['\"][^'\"]*['\"]\s*\)\s*\.\s*read\s*\(\s*\)"),
@@ -618,6 +646,10 @@ def looked_at(version, path=None):
         # ⚠ strict True, not truthiness: the STRING "false" is truthy, and an adversarial pass used
         # exactly that to count an empty seat as a reached one.
         if r.get("reached") is not True:
+            continue
+        # v3403 — the eye was reached, cross-family and bound to evidence, and still said it could
+        # not judge the change. That is not agreement; see _NOT_A_LOOK above.
+        if is_not_a_look(r.get("verdict")):
             continue
         # ⚠ a row must be bound to something. A hollow {version, model, reached} line proved a
         # look had happened while carrying no trace of one.
@@ -1265,6 +1297,12 @@ def _cmd_check(argv):
                 if auth:
                     bits.append("%d look(s) from the family that WROTE it, which is not a second eye"
                                 % auth)
+                cant = sum(1 for r in rows
+                           if r.get("reached") and is_not_a_look(r.get("verdict")))
+                if cant:
+                    bits.append("%d look(s) where the eye answered that it COULD NOT JUDGE the "
+                                "change — widen the payload or re-ask; re-pushing changes nothing"
+                                % cant)
                 if bits:
                     why = "; ".join(bits)
             print("second eye: %s OWES A LOOK — %s" % (want, why))

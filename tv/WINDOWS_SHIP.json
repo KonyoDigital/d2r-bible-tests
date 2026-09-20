@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3402",
+  "ver": "v3403",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3402: A bare W toggles his window, never with a modifier and never while he is typing, and the heart watches the key on the wire",
+  "note": "v3403: An eye that says it could not judge the change no longer satisfies the ship gate, and the row is still recorded",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
