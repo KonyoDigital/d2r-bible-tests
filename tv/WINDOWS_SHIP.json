@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3401",
+  "ver": "v3402",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3401: browser_can_load_localhost falls back to a CDP probe when dump-dom times out and records WHICH path worked in LOOPBACK_PATH, and nothing ever read it: check asked only the boolean, so CDP works flattened into loopback works and licensed the dump-dom loads, a different mechanism. Measured on his Mac the probe returned True in 13.9s with path cdp, then each of two targets burned its full 90s and fell through to node anyway, about 180s a run against a 1500s pre-push ceiling; after the join check returns in 0.6s with the same verdict. One argv builder now serves the probe and the real load, a real timeout retires the cached verdict, and RESUME_HERE.md joins BLUEPRINT and HEART as a derived artefact that is refused when stale.",
+  "note": "v3402: A bare W toggles his window, never with a modifier and never while he is typing, and the heart watches the key on the wire",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

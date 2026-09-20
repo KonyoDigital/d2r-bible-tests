@@ -5815,7 +5815,50 @@ def _check_a_hidden_element_is_actually_hidden():
                          "laid out, so marking them hidden does nothing: %s. `[hidden]` is a "
                          "USER-AGENT rule and any author `display:` beats it — add "
                          "`<sel>[hidden] { display: none !important; }`" % (len(bad), names))
-    return OK, ""
+    # v3402 — A VERDICT WITH NO WHY IS A LAMP, and this was the LAST one in the file. It survived
+    # because the contract that refuses empty reasons runs `cd.run(include_slow=False)`, and this
+    # row is not in that path — so the law grades a SAMPLE, not the population. The row now names
+    # its DENOMINATOR too: "nothing was defeated" means nothing without saying what was scanned.
+    # [[zero-needs-a-denominator]] [[regression-guard]]
+    return OK, ("no element carries `hidden` while an author display rule keeps it laid out, "
+                "measured across the %d bytes the console actually served" % len(page))
+
+
+def _check_his_window_has_a_keyboard_door():
+    """v3402 — IS THE W SHORTCUT ACTUALLY ON THE WIRE?
+
+    ⚠ A KEY IS INVISIBLE, AND THAT ASYMMETRY IS THE WHOLE REASON THIS ROW EXISTS. A button that
+    disappears is noticed the next time he looks for it. A keyboard shortcut that disappears is
+    noticed by NOBODY: he presses W, nothing happens, and he is back to being trapped in
+    fullscreen — which is the complaint that started this. His words: "it opens and it like traps
+    you in".
+
+    ⚠ It reads THE BYTES ON THE WIRE, not the file. Its gate already scans the source; a console
+    is a reading of its source taken at import and serves what it holds, so a corrected file and
+    a console still serving the old page look identical from the tree. [[stale-reading]]
+    """
+    import urllib.request as _ur
+    try:
+        with _ur.urlopen(CONSOLE + "/", timeout=8) as r:
+            page = r.read().decode("utf-8", "replace")
+    except Exception as e:
+        return UNKNOWN, ("the console did not serve its own page (%s), so whether W still toggles "
+                         "his window is UNKNOWN, not clean" % type(e).__name__)
+    if len(page) < 50000:
+        return UNKNOWN, ("the console served only %d bytes, which is not the console page, so "
+                         "nothing was measured" % len(page))
+    if "k.toLowerCase() !== 'w'" not in page:
+        return MISSING, ("the console is serving a page with NO W shortcut, so the only way out of "
+                         "fullscreen is a button he has already reported being unable to find")
+    _gone = [n for n in ("ev.ctrlKey || ev.metaKey || ev.altKey", "'TEXTAREA'", "ev.isComposing")
+             if n not in page]
+    if _gone:
+        return MISSING, ("W is served WITHOUT its guard(s): %s. A bare letter key that does not "
+                         "exempt modifiers eats Cmd+W (close window), and one that does not yield "
+                         "to focus steals a keystroke from whatever he is typing into"
+                         % ", ".join(_gone))
+    return OK, ("W is on the wire and carries both guards, so he has a keyboard door out of "
+                "fullscreen, measured across the %d bytes served" % len(page))
 
 
 def _check_his_window_can_be_measured():
@@ -6044,6 +6087,9 @@ CHECKS = [
     # This asks whether that measurement still works; a frame that stops being readable
     # loses the numbers and keeps the ok, which looks exactly like a working control.
     ("his window can be measured", _check_his_window_can_be_measured),
+    # v3402 — a SIBLING question, not the same one: that row asks whether the frame can be READ;
+    # this asks whether the KEY that changes it is still being served.
+    ("his window has a keyboard door", _check_his_window_has_a_keyboard_door),
 ]
 
 

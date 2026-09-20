@@ -77,6 +77,19 @@ def _js_only(src):
     return "".join(out)
 
 
+def _keydown_block(ui, i):
+    """The ENCLOSING keydown listener around index i. -> str
+
+    ⚠ Bounded by the listener's own ends, never by a byte count: a fixed window measures where
+    my prose happens to sit, not where the handler is. [[source-reading-guard]]
+    """
+    s = ui.rfind("addEventListener('keydown'", 0, i)
+    e = ui.find("}, true);", i)
+    if s < 0 or e < 0:
+        return ui[max(0, i - 800):i + 800]
+    return ui[s:e + 9]
+
+
 RED_PROOF = [
     {
         "why": "without the toggle_fullscreen guard, minimize is judged by size too - and a "
@@ -93,6 +106,38 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "        if ev is not None and not ev.is_set():",
         "replace": "        if False:",
+        "matches": 1,
+    },
+    {
+        "why": "without the modifier bail a bare-letter handler swallows Cmd+W and Ctrl+W, the "
+               "close-window chord on both his machines - a convenience turned into data loss",
+        "file": "tv/control_ui.html",
+        "find": "      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;",
+        "replace": "      if (false) return;",
+        "matches": 1,
+    },
+    {
+        "why": "without the typing bail, a w typed into any field toggles his window instead of "
+               "reaching the field - a global letter key is only safe while it yields to focus",
+        "file": "tv/control_ui.html",
+        "find": "      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;",
+        "replace": "      if (false) return;",
+        "matches": 1,
+    },
+    {
+        "why": "without the hint on the control the key is undiscoverable, which is the same "
+               "defect as the button he could not find - the one that opened this task",
+        "file": "tv/control_ui.html",
+        "find": " — or just press W",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "without the guard sweep the heart row reports a W served with NO modifier guard "
+               "as healthy - so the key that eats Cmd+W ships and the watcher says fine",
+        "file": "tv/console_doctor.py",
+        "find": "    if _gone:",
+        "replace": "    if False:",
         "matches": 1,
     },
 ]
@@ -290,6 +335,89 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
                       "nothing ever reveals the controls, so they are permanently invisible")
         self.assertIn("d.ok", blk,
                       "the controls are revealed without asking whether the action succeeded")
+
+    def test_W_ALONE_TOGGLES_HIS_WINDOW(self):
+        """v3402 — HIS ASK: "clicking W makes it windowed :) that would be ausome!"
+
+        ⚠ The platform was never the trap. Driving /api/window {do:fullscreen} over SSH on his
+        Windows box took 0.14s out and 0.07s back, with session-1 screenshots either side proving
+        a real window appeared (388,159 B fullscreen -> 588,696 B windowed -> 388,962 B back). The
+        UI simply never offered a way in, so this pins the second door: the key.
+        """
+        ui = _js_only(UI)
+        i = ui.find("k.toLowerCase() !== 'w'")
+        self.assertGreater(i, -1, "nothing listens for the W key at all")
+        blk = _keydown_block(ui, i)
+        self.assertIn("_win('fullscreen')", blk,
+                      "W is listened for but never toggles the window")
+
+    def test_W_WITH_A_MODIFIER_IS_LEFT_ALONE_so_Cmd_W_STILL_CLOSES(self):
+        """⚠⚠ Cmd+W and Ctrl+W CLOSE THE WINDOW. Swallowing those turns a convenience into data
+        loss, so the handler must bail on EVERY modifier before it looks at the letter."""
+        ui = _js_only(UI)
+        i = ui.find("k.toLowerCase() !== 'w'")
+        self.assertGreater(i, -1, "nothing listens for the W key at all")
+        blk = _keydown_block(ui, i)
+        self.assertIn("ev.ctrlKey || ev.metaKey || ev.altKey", blk,
+                      "a bare-letter shortcut that does not exempt modifiers eats Cmd+W, which "
+                      "is the close-window chord on his Mac and his Windows box alike")
+
+    def test_W_IS_IGNORED_WHILE_HE_IS_TYPING(self):
+        """A global letter key that steals a keystroke from a field is worse than no shortcut.
+        ⚠ An IME composition counts as typing — keyCode 229 is the compositional catch-all."""
+        ui = _js_only(UI)
+        i = ui.find("k.toLowerCase() !== 'w'")
+        self.assertGreater(i, -1, "nothing listens for the W key at all")
+        blk = _keydown_block(ui, i)
+        for needle, why in (
+                ("'INPUT'", "typing a w into an input would toggle his window"),
+                ("'TEXTAREA'", "typing a w into a textarea would toggle his window"),
+                ("'SELECT'", "a select keeps its own type-ahead and must not be hijacked"),
+                ("t.isContentEditable", "the board's editable cells would lose the keystroke"),
+                ("ev.isComposing", "an IME composition is typing and must be exempt"),
+                ("229", "keyCode 229 is how older builds report a composition in progress")):
+            self.assertIn(needle, blk, why)
+
+    def test_THE_HEART_REFUSES_A_W_SERVED_WITHOUT_ITS_GUARDS(self):
+        """v3402 — the WATCHER, not the gate. The gate reads the file; this drives the heart row
+        against BYTES, because a console serves what it held at import. [[stale-reading]]
+
+        ⚠ A key is invisible: if W stops working nobody files a bug, he just gets trapped again."""
+        import console_doctor as cd
+        page = "x" * 60000 + "k.toLowerCase() !== 'w'" + "'TEXTAREA'" + "ev.isComposing"
+        _real = cd._check_his_window_has_a_keyboard_door
+
+        class _R(object):
+            def __init__(self, b): self.b = b
+            def read(self): return self.b.encode("utf-8")
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        import urllib.request as _ur
+        _ro = _ur.urlopen
+        try:
+            # the modifier guard is MISSING from the served bytes
+            _ur.urlopen = lambda *a, **k: _R(page)
+            state, why = _real()
+            self.assertEqual(state, cd.MISSING,
+                             "W served without its modifier guard read as healthy: %r" % (why,))
+            self.assertIn("ctrlKey", why, "the row does not NAME which guard is gone: %r" % (why,))
+            # and with every guard present it must go green, or the row is an off switch
+            ok_page = page + "ev.ctrlKey || ev.metaKey || ev.altKey"
+            _ur.urlopen = lambda *a, **k: _R(ok_page)
+            state2, why2 = _real()
+            self.assertEqual(state2, cd.OK,
+                             "a fully guarded W still reads as broken: %r" % (why2,))
+            self.assertTrue(str(why2 or "").strip(), "an OK row with no why is a lamp")
+        finally:
+            _ur.urlopen = _ro
+
+    def test_THE_KEY_IS_DISCOVERABLE_ON_THE_CONTROL_ITSELF(self):
+        """⚠ A key nobody knows about is the same defect as a button nobody can find — which is
+        the defect that opened this task. He asked three times for a control that was already
+        wired; what was missing was that he could SEE it."""
+        self.assertIn("or just press W", UI,
+                      "the shortcut is undiscoverable: nothing on the control says it exists")
 
     def test_FULLSCREEN_IS_STILL_THE_DEFAULT_he_asked_for(self):
         """⚠ HIS WORDS: "it automatically opens fullscreen WHICH IS GOOD". The fix adds a door;

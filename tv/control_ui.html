@@ -7988,7 +7988,7 @@ body[data-origin="shadow"] #stage::after {
            So the buttons live IN the console, where every platform can reach them, and fullscreen
            stays the default he likes. They are hidden when there is no native window to act on -
            a browser tab has its own chrome and these would do nothing there. -->
-      <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console<span class="win-ctl" id="win-ctl" hidden><button type="button" id="win-min" title="minimise the console window">–</button><button type="button" id="win-full" title="leave fullscreen and use a normal window">⤢<span class="wlbl">window</span></button></span></div>
+      <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console<span class="win-ctl" id="win-ctl" hidden><button type="button" id="win-min" title="minimise the console window">–</button><button type="button" id="win-full" title="leave fullscreen and use a normal window — or just press W">⤢<span class="wlbl">window</span></button></span></div>
       <div class="primary">
         <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>auto intake · pause on stash</span></span></button>
         <!-- v1595 — ⏱ MINI CAPTURE. Konyo: "a MINI shortcuted SPECIFICALLY FOR when im in my stash
@@ -20040,6 +20040,35 @@ window._lockMark = function(isOpen, px, label){
     }).catch(function(){});
     var _m = $('win-min'); if (_m) _m.onclick = function(){ _win('minimize'); };
     var _f = $('win-full'); if (_f) _f.onclick = function(){ _win('fullscreen'); };
+
+    /* ⚠⚠ v3402 — PRESS W TO WINDOW IT. His words, 2026-09-20: *"on my windows pc i literally open
+       it and i cant toggle out of the full screen... can we do shortcut for it? clicking W makes
+       it windowed :) that would be ausome!"*
+
+       MEASURED on his Windows box before building this: the toggle itself WORKS there. Driving
+       /api/window {do:'fullscreen'} over SSH took 0.14s out and 0.07s back, and session-1
+       screenshots prove it — fullscreen 388,159 B -> a real window with a TV DIABLO title bar and
+       the desktop behind it 588,696 B -> back to 388,962 B. So the platform was never the trap;
+       the UI simply never offered a way in. A button he cannot find and a key he does not know
+       are the same defect twice.
+
+       ⚠ NO MODIFIERS, EVER. Cmd+W and Ctrl+W CLOSE THE WINDOW. Intercepting those would turn a
+       convenience into data loss, so this fires only on a bare W.
+       ⚠ AND NEVER WHILE HE IS TYPING. The console has inputs, a search box and contenteditable
+       cells; a global letter key that steals a keystroke from a field is worse than no shortcut.
+       An IME composition counts as typing too. */
+    document.addEventListener('keydown', function(ev){
+      if (!ev) return;
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;      /* Cmd/Ctrl+W must still close */
+      if (ev.isComposing || ev.keyCode === 229) return;        /* mid-IME composition */
+      var k = ev.key; if (!k || k.toLowerCase() !== 'w') return;
+      var t = ev.target || {};
+      var tag = (t.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (t.isContentEditable) return;
+      ev.preventDefault();
+      _win('fullscreen');
+    }, true);
   })();
 
   /* ══ v2856 — MINI(AUTOMATIC) / HOVER MODE REMOVED, his ruling 2026-09-09: "i decided MINI
