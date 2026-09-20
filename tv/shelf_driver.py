@@ -748,9 +748,22 @@ def work(hist=None):
         p = plan(hist)
     except Exception as e:
         return {"ok": False, "why": "retention could not plan (%s)" % type(e).__name__,
+                "neverRecorded": False,
                 "owed": None, "held": None, "releasable": None}
     if not p.get("ok"):
-        return {"ok": False, "why": str(p.get("say") or "retention could not read this shelf"),
+        # ⚠⚠ v3400 — THIS READ THE WRONG KEY AND THREW AWAY THE ONLY USEFUL SENTENCE.
+        # plan() publishes its failure reason as `why`; `say` exists only on the SUCCESS payload,
+        # so `p.get("say")` was None on EVERY failure and this always fell through to the generic
+        # fallback. v3393 fixed plan() to answer "no footage tree on this machine yet" and its
+        # own comment names the shelf as a consumer that "drew a 0x0 box" — and the shelf never
+        # received a word of it. MEASURED on his ALT console 2026-09-20: the eagle read
+        # "the shelf driver's last beat 2.5h ago reported NOT ok: retention could not read this
+        # shelf" on a machine whose only fault is that nothing has ever been recorded on it.
+        # Reproduced on the Mac with plan(<absent tree>). [[the-unjoined-end]]
+        return {"ok": False,
+                "why": str(p.get("say") or p.get("why")
+                           or "retention could not read this shelf"),
+                "neverRecorded": bool(p.get("neverRecorded")),
                 "owed": None, "held": None, "releasable": None}
     owed, held = [], []
     for k in (p.get("kept") or []):
@@ -819,6 +832,10 @@ def beat(hist=None, write=True):
                "say": "the lane census could not be built (%s), so nothing is known about any "
                       "lane — which is not the same as every lane being fine" % type(e).__name__}
     out = {"at": int(time.time() * 1000), "ok": bool(w.get("ok")), "why": w.get("why") or "",
+           # v3400 — carried so the heart can tell a NEW machine from a BROKEN lane. Without it
+           # the doctor can only read the sentence, and a row that greps English is a row that
+           # breaks when the English improves.
+           "neverRecorded": bool(w.get("neverRecorded")),
            # ⚠ KEPT, AND NO LONGER THE WHOLE STORY. `owedByLane` is built by COUNTING owed reels,
            # so a lane owing zero is absent from it — measured on his tree, it read {"vault": 18}
            # and the chronicle lane appeared nowhere. Existing readers keep their field; `lanes`

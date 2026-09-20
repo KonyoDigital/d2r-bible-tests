@@ -3514,6 +3514,14 @@ def _check_the_shelf_lanes_are_still_reading():
         return MISSING, ("the shelf driver last beat %.1f HOURS ago (bar: %.0fh), so a lane that "
                          "stopped reading would not have been noticed%s"
                          % (age_h, _SHELF_BEAT_STALE_H, tail))
+    if beat.get("neverRecorded"):
+        # v3400 (#141) — #138's ruling, reaching the shelf at last. Nothing has ever been
+        # recorded on this machine, so retention has no shelf to read. That is a NEW CONSOLE,
+        # not a stalled lane, and calling it MISSING put a red row on his ALT box that he could
+        # not act on and did not cause.
+        return UNMEASURED, ("nothing has ever been recorded on this machine, so retention has "
+                            "no shelf to read yet — that is a console that has not filmed, not "
+                            "a lane that stopped")
     if not beat.get("ok", True):
         return MISSING, ("the shelf driver's last beat %.1fh ago reported NOT ok: %s"
                          % (age_h, str(beat.get("why") or "no reason given")[:90]))

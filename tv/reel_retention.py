@@ -614,10 +614,15 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
         # ⚠ NO PATH IN THIS MESSAGE: a Windows profile can carry a non-ASCII character and
         # printing it crashes a cp1255 console WHILE reporting. [[unknown-stays-unknown]]
         if getattr(e, "errno", None) == _errno.ENOENT or not os.path.exists(hist):
-            return {"ok": False, "candidates": [], "kept": [],
+            # v3400 — A FLAG, NOT A SENTENCE, because the consumer must not string-match prose.
+            # v3393 wrote the sentence above and every consumer still had to GUESS what kind of
+            # failure this was. A downstream reader that greps English breaks the moment the
+            # wording improves. [[unknown-stays-unknown]]
+            return {"ok": False, "candidates": [], "kept": [], "neverRecorded": True,
                     "why": ("no footage tree on this machine yet — nothing has been "
                             "recorded here, so there is no reel to plan for")}
-        return {"ok": False, "why": "cannot read %s: %s" % (hist, e), "candidates": [], "kept": []}
+        return {"ok": False, "why": "cannot read %s: %s" % (hist, e), "candidates": [], "kept": [],
+                "neverRecorded": False}
 
     # v2056 — sessions whose witnesses survive without the frames, read ONCE per plan.
     global _DURABLE

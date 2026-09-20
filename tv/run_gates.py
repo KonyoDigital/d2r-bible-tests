@@ -1208,6 +1208,22 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_failure_reason_reaches_the_shelf",
+         [sys.executable, os.path.join(HERE, "test_a_failure_reason_reaches_the_shelf.py")], 120,
+         why="v3400 (#141) - THE REASON RETENTION FAILED MUST REACH THE SHELF, AND A NEW MACHINE "
+             "IS NOT A BROKEN ONE. reel_retention.plan() publishes its failure reason as `why`; "
+             "shelf_driver.work() read `p.get(say)` - a key that exists only on the SUCCESS "
+             "payload - so on EVERY failure it fell through to the generic string retention "
+             "could not read this shelf. v3393 had already taught plan() to answer no footage "
+             "tree on this machine yet, and v3393s own comment names the shelf as a consumer "
+             "that drew a 0x0 box: the sentence was written and the shelf never received a word "
+             "of it. Two halves, each correct, never joined. MEASURED on his ALT console "
+             "2026-09-20 - its eagle read the shelf drivers last beat 2.5h ago reported NOT ok: "
+             "retention could not read this shelf, on a machine whose only fault is that nothing "
+             "has ever been recorded on it - and reproduced here against an absent tree. The fix "
+             "carries a FLAG, not a sentence, so the heart never has to grep English that will "
+             "change. ⚠ The mirror case is pinned too: a console that HAS filmed and then failed "
+             "must still read MISSING, or the new branch swallows the case the row exists for."),
     Gate("test_a_hidden_element_is_actually_hidden",
          [sys.executable, os.path.join(HERE, "test_a_hidden_element_is_actually_hidden.py")], 120,
          why="v3397 (#142) - `hidden` MUST ACTUALLY HIDE, AND THIS HAS COST HIM TWICE. "

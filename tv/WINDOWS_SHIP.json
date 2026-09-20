@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3399",
+  "ver": "v3400",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3399: He asked for a windowed option at v3179, at v3271 and again on 2026-09-20, and all three times it was already wired: the route answers and his live console returns ok, so the gap was never the plumbing. It was two glyphs at the smallest type token at 55 percent opacity with nothing on screen saying window. Now a bordered button reading window, at one type step up and full opacity, measured by a new render_check target at 375 901 1120 and 1440 with painted 3 of 3 and clipped 0 of 7 at every width. A second model family shown the render cold read the corner as one dropdown rather than two buttons, which is what the borders now fix.",
+  "note": "v3400: reel_retention.plan publishes its failure reason as why; shelf_driver.work read p.get(say), a key that exists only on the SUCCESS payload, so on every failure it fell through to the generic string retention could not read this shelf. v3393 had already taught plan to answer no footage tree on this machine yet and v3393s own comment names the shelf as a consumer that drew a 0x0 box, so the sentence was written and the shelf never received a word of it. Measured on his ALT console and reproduced here against an absent tree; the fix carries a machine-readable flag so the heart never greps English, and the mirror case is pinned: a console that HAS filmed and then failed still reads MISSING.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
