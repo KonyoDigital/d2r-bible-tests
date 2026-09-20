@@ -1,23 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""THE TESTED ENCODER IS NOT THE USED ENCODER.
+"""THE TESTED ENCODER WAS NOT THE USED ENCODER — AND SINCE v3379 BOTH ARE USED.
 
 ⚠⚠ THE DEFECT, measured 2026-09-05, closing B-84's surviving half.
 
 There are TWO implementations of one job — turning "which of this roster do I own" into a base64url
-bit mask for the wire — and only one of them runs in production:
+bit mask for the wire — and as of v3379 BOTH of them run in production:
 
   · `fleet_mask.encode()` — Python. Round-trip tested against `fleet_mask.decode()` in
-    `test_fleet_mask.py`. **AST-measured: ZERO production callers.** `control_app` uses only
-    `ledger_spec`, `load_roster_for`, `sanitize_for_wire`, `compare` and `LEDGERS`; `encode`,
-    `decode`, `load_roster` and `roster_fingerprint` are never reached outside tests.
+    `test_fleet_mask.py`. ⚠ UNTIL v3379 THIS HAD **ZERO production callers**, and that was the
+    entire defect this file was written about. v3379 gave it one DELIBERATELY:
+    `_mask_from_board_store` mints a mask Python-side from the board's banked hand-over, because a
+    mask must be publishable when no board window is open.
   · an INLINE JS SNIPPET built as a string inside `control_app.board_mask()` and run in the board
-    window via `_ejs`. **This is the one that produces every mask that has ever gone on the wire.**
+    window via `_ejs`. **This produced every mask that went on the wire before v3379, and still
+    produces them whenever a board window IS open.**
 
-So the suite proves a pair — encode↔decode — that never runs together in production, while the code
-that does run has no test of its own. That is [[feedback-blind-fixture-green-gate]] at its purest: a
-green suite about code that is not the code that runs. [[copy-drift]] §7 — a routine that exists
-twice, and a law that lands in one copy is not a law.
+So the ORIGINAL defect — a suite proving a pair that never runs together in production — is gone,
+and what replaces it is sharper rather than smaller: two encoders, both live, free to drift apart
+on the wire with no symptom until a count disagrees. The agreement property below stopped being
+tidiness and became load-bearing. [[copy-drift]] §7 — a routine that exists twice, and a law that
+lands in one copy is not a law.
+
+⚠ THIS PARAGRAPH IS THE FACT THE FILE ASSERTS, so it is dated on purpose: it said "only one runs in
+production" for 14 days after that stopped being true would have been [[measured-true-read-wrong]],
+a right measurement under a sentence that had quietly expired.
 
 ⚠ I BRIEFLY GOT THIS WRONG AND THE CORRECTION IS WORTH KEEPING. B-84's note said the mask is
 "built in JS inside the board". I grepped `bible.html` (6.2 MB), found ZERO occurrences of
@@ -80,19 +87,54 @@ def _inline_js_source():
 class ThereReallyAreTwoEncoders(unittest.TestCase):
     """The premise. If either half of this stops being true the guard below is measuring nothing."""
 
-    def test_the_python_encoder_has_no_production_caller(self):
-        import ast
-        import io
-        used = set()
-        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        for node in ast.walk(ast.parse(src)):
-            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+    def test_the_production_encoder_is_the_one_these_cases_compare(self):
+        """v3383 — RETIRES test_the_python_encoder_has_no_production_caller, ON ITS OWN TERMS.
+
+        That case asserted the Python encoder had ZERO production callers, and its failure message
+        said in as many words that a production caller would make it obsolete and that it should
+        then be RETIRED rather than left reporting clean. v3379 gave it one deliberately, so the
+        premise expired BY DESIGN. Retiring a law because my own code broke it is the trap; the
+        difference here is that the law's author wrote the retirement condition into the law.
+
+        What must not be retired is the RISK it stood in front of, which is now larger: two
+        encoders, both on a production path, free to drift apart. The agreement cases below compare
+        `fleet_mask.encode` against the inline JS. This case pins that the console's production
+        caller is THAT SAME module — so a hand-rolled third copy, or a local shim bound to `_fm`,
+        goes red here instead of quietly putting a different mask on the wire.
+        [[copy-drift]] [[the-unjoined-end]]
+        """
+        import ast as _ast
+        import io as _io
+        src = _io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        tree = _ast.parse(src)
+        used, imports, assigned = set(), [], []
+        for node in _ast.walk(tree):
+            if (isinstance(node, _ast.Attribute) and isinstance(node.value, _ast.Name)
                     and node.value.id in ("_fm", "fleet_mask")):
                 used.add(node.attr)
-        self.assertNotIn("encode", used,
-                         "control_app now calls fleet_mask.encode — if the production path uses "
-                         "the Python encoder, this whole guard is obsolete and should be retired "
-                         "rather than left reporting clean")
+            if isinstance(node, _ast.Import):
+                for a in node.names:
+                    if a.asname == "_fm" or a.name == "fleet_mask":
+                        imports.append(a.name)
+            if isinstance(node, _ast.Assign):
+                for t in node.targets:
+                    if isinstance(t, _ast.Name) and t.id == "_fm":
+                        assigned.append(t.lineno)
+
+        self.assertIn("encode", used,
+                      "control_app no longer reaches fleet_mask.encode. If the Python encoder has "
+                      "gone back to having NO production caller, this is the wrong law for the "
+                      "tree and the no-production-caller case belongs back in its place")
+        self.assertTrue(imports, "control_app imports no fleet_mask at all, so the encoder these "
+                                 "cases compare is not the encoder it uses")
+        self.assertEqual(sorted(set(imports)), ["fleet_mask"],
+                         "`_fm` is bound to something other than the fleet_mask module these "
+                         "cases compare: %r" % (sorted(set(imports)),))
+        self.assertEqual(assigned, [],
+                         "`_fm` is ASSIGNED in control_app at line(s) %r — an assignment can "
+                         "shadow the module with a shim, and the mask on the wire would then come "
+                         "from code no case here compares" % (assigned,))
+
 
     def test_the_inline_js_is_reachable_from_the_shipped_source(self):
         js = _inline_js_source()
@@ -359,6 +401,31 @@ class TheGuardCanFail(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        'why': 'binding `_fm` to a different module means the mask on the wire is minted by code '
+               'no case in this file compares; the production-encoder join must go red',
+        'file': 'control_app.py',
+        'find': '        import fleet_mask as _fm',
+        'replace': '        import json as _fm',
+        'matches': 4,
+    },
+    {
+        'why': 'removing the only production call to the Python encoder returns the tree to the '
+               'state the retired no-production-caller case described, and this law must say so '
+               'rather than pass quietly',
+        'file': 'control_app.py',
+        'find': '    mask = _fm.encode(sorted(names), roster, fp)',
+        'replace': '    mask = _fm.sanitize_for_wire("")',
+        'matches': 1,
+    },
+    {
+        'why': 'an ASSIGNMENT to `_fm` can shadow the module with a shim after it is imported, '
+               'which is the copy-drift this join exists to catch',
+        'file': 'control_app.py',
+        'find': '    if not mask:\n        return None, "the roster would not encode that store"',
+        'replace': '    _fm = _fm\n    if not mask:\n        return None, "the roster would not encode that store"',
+        'matches': 1,
+    },
     {
         'why': 'flipping the python encoder to MSB-first breaks agreement with the inline JS encoder, which is the whole subject: two implementations of one job, and the tested one was not the used one. Verified as heart2 will run it — BOTH occurrences replaced: FAILED (failures=6), restored OK. ⚠ FINGERPRINT_LEN WAS THE WRONG LEVER AND CAME BACK GREEN: it is a SHARED constant, so both sides moved together and still agreed. A sabotage for an agreement law must break exactly ONE implementation, never something both read.',
         'file': 'fleet_mask.py',

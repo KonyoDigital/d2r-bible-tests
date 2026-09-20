@@ -2545,6 +2545,23 @@ def accept_handed_stores(body, who):
     return len(clean), why
 
 
+def _spec_store_keys(spec):
+    """Which board stores a ledger spec names — ONE answer, for every reader.
+
+    v3383 — v3379 added a SECOND copy of this fallback: one site iterates the keys, the other
+    serialises them into the board JS. Same question, answered twice, so a spec that ever gains a
+    third way to name its stores would teach one site and silently not the other. [[copy-drift]]
+
+    It also broke the cross-reference law's red-proof, which tampers with this exact text: with two
+    copies the proof could no longer say which one it had broken, and a proof measured against the
+    wrong number is not a proof.
+
+    `stores` is the current shape; `store` is the older single-store spec, kept working rather than
+    raising on it. A spec carrying neither still raises KeyError, exactly as before.
+    """
+    return list(spec.get("stores") or [spec["store"]])
+
+
 def _mask_from_board_store(ledger="sets"):
     """The mask, built from the stores the board handed over. -> (mask | None, why)
 
@@ -2582,7 +2599,7 @@ def _mask_from_board_store(ledger="sets"):
     if not isinstance(route, dict) or not route.get("id"):
         return None, "the banked hand-over does not say whose board wrote it"
     names, seen = set(), []
-    for key in (spec.get("stores") or [spec["store"]]):
+    for key in _spec_store_keys(spec):
         v = stores.get(key)
         if v is None:
             continue
@@ -2742,7 +2759,7 @@ def board_mask(ledger="sets"):
              # ⚠ `.get("stores") or [store]` — the fallback keeps an older spec working rather
              # than raising on it, and fleet_mask declares `stores` on BOTH ledgers so this
              # branch is uniform rather than a special case for one of them.
-             json.dumps(list(spec.get("stores") or [spec["store"]]))))
+             json.dumps(_spec_store_keys(spec))))
     try:
         raw = _ejs(w, js, timeout=8.0)
     except Exception as e:
@@ -30678,7 +30695,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3382",
+        "ver": "v3383",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

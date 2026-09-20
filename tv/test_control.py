@@ -4472,6 +4472,7 @@ class TestJsSyntaxGate(unittest.TestCase):
         import js_syntax_gate as g
         import subprocess as _sp
         real_run, real_loop = _sp.run, g.browser_can_load_localhost
+        real_bounded = g._run_browser_bounded
         try:
             g.browser_can_load_localhost = lambda *a, **k: True      # pretend loopback works
             # ⚠ TIME OUT ONLY THE BROWSER. The first version of this test patched subprocess.run
@@ -4485,11 +4486,18 @@ class TestJsSyntaxGate(unittest.TestCase):
                     raise _sp.TimeoutExpired(cmd="chrome", timeout=90)
                 return real_run(cmd, *a, **k)
             _sp.run = _timeout_the_browser_only
+            # v3382 — AND THE SEAM THE BROWSER ACTUALLY GOES THROUGH NOW. v3380 moved the launch
+            # off subprocess.run onto _run_browser_bounded (Popen + killpg), so patching _sp.run
+            # alone stopped reaching the browser: this law went RED on CI with 0 problems instead
+            # of 2, and its v1808 sibling went GREEN WITHOUT THE TIMEOUT EVER FIRING — a green
+            # that lies. The law is unchanged; only the seam it holds is current.
+            g._run_browser_bounded = _timeout_the_browser_only
             if not g.find_browser():
                 self.skipTest("no browser on PATH — the branch under test needs one to be chosen")
             problems, reason = g.check(targets=["bible.html"])
         finally:
             _sp.run, g.browser_can_load_localhost = real_run, real_loop
+            g._run_browser_bounded = real_bounded
         self.assertEqual(problems, [],
                          "a browser TIMEOUT was reported as a syntax problem: %r. 'nobody could "
                          "check' must never read the same as 'it is broken'." % (problems,))
@@ -4513,6 +4521,7 @@ class TestJsSyntaxGate(unittest.TestCase):
         import js_syntax_gate as g
         import subprocess as _sp
         real_run, real_loop, real_node = _sp.run, g.browser_can_load_localhost, g._node_bin
+        real_bounded = g._run_browser_bounded
         try:
             g.browser_can_load_localhost = lambda *a, **k: True
             g._node_bin = lambda: None                       # node cannot stand in
@@ -4522,11 +4531,18 @@ class TestJsSyntaxGate(unittest.TestCase):
                     raise _sp.TimeoutExpired(cmd="chrome", timeout=90)
                 return real_run(cmd, *a, **k)
             _sp.run = _timeout_the_browser_only
+            # v3382 — AND THE SEAM THE BROWSER ACTUALLY GOES THROUGH NOW. v3380 moved the launch
+            # off subprocess.run onto _run_browser_bounded (Popen + killpg), so patching _sp.run
+            # alone stopped reaching the browser: this law went RED on CI with 0 problems instead
+            # of 2, and its v1808 sibling went GREEN WITHOUT THE TIMEOUT EVER FIRING — a green
+            # that lies. The law is unchanged; only the seam it holds is current.
+            g._run_browser_bounded = _timeout_the_browser_only
             if not g.find_browser():
                 self.skipTest("no browser on PATH — the branch under test needs one to be chosen")
             problems, reason = g.check(targets=["bible.html", "tv/control_ui.html"])
         finally:
             _sp.run, g.browser_can_load_localhost, g._node_bin = real_run, real_loop, real_node
+            g._run_browser_bounded = real_bounded
 
         self.assertIsNone(reason,
                           "an unverifiable TARGET must not abort the whole gate as a skip: %r" % (reason,))
@@ -11883,8 +11899,26 @@ class TestV2213TheFleetCrossReferenceIsJoinedEndToEnd(unittest.TestCase):
         # fleet_mask.LEDGERS. The thing this case protects — that the mask reads the board's own
         # ledger and nothing else — is checked in BOTH halves rather than dropped because the
         # string it used to grep for moved one file over. [[label-outlived-referent]]
-        self.assertIn('spec["store"]', fn,
-                      "the mask no longer reads a per-ledger store key from the ledger table")
+        # v3383 — THE STORE KEY MOVED AGAIN, AND AGAIN IT DID NOT VANISH. v3379 left this
+        # expression in TWO places (board_mask serialises the keys, _mask_from_board_store
+        # iterates them), so the same question had two answers and a red-proof anchor that must
+        # match exactly once matched twice. v3383 collapsed both onto one `_spec_store_keys()`
+        # helper: board_mask asks the helper, the helper asks the ledger table. Following the code
+        # is precisely what the v2329 note above did; dropping the check because the literal moved
+        # one function over is the failure both notes exist to prevent, and the property protected
+        # here — the mask reads the board's own ledger and nothing else — is checked in BOTH halves.
+        # [[label-outlived-referent]] [[source-reading-guard]] [[copy-drift]]
+        self.assertIn("_spec_store_keys(spec)", fn,
+                      "the mask no longer takes its store keys from the shared ledger-table "
+                      "helper; a hardcoded key here would read a store the ledger never named")
+        helper = _between(self, self.app, "def _spec_store_keys(",
+                          "def _mask_from_board_store(",
+                          what="the ledger-table store-key helper")
+        self.assertIn('spec["store"]', helper,
+                      "the helper no longer reads a per-ledger store key from the ledger table")
+        self.assertIn('spec.get("stores")', helper,
+                      "the helper no longer reads the per-ledger store LIST, so a ledger whose "
+                      "found-set is a UNION would silently read only one of its stores")
         import fleet_mask as _fm
         self.assertEqual(_fm.LEDGERS["sets"]["store"], "d2r_setPieces",
                          "the sets ledger no longer points at the board's own set pieces")

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3382",
+  "ver": "v3383",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3382: THE SUITE FINISHED FOR THE FIRST TIME TODAY - Ran 2238 tests in 801.651s, no hang, which is the proof that both v3380 and v3381 wedges are gone. It exited 1 on exactly ONE failure, and that failure was mine: TestV2026TheEagleEyeSeesTheWholeConsole asserts every heart row reports a NAMED state from the vocabulary (ok, missing, unknown, unmeasured) and both rows I added returned them UPPERCASE. AssertionError: OK not found in (ok, missing, unknown, unmeasured). The v3380 browser row carried the identical defect and had never been caught because that version never survived the suite to be checked - so the gate that finally ran found two instances of one mistake, not one. Both are lowered: 9 return sites across the two rows, and both now answer ok on a clean tree. SWEPT THE CLASS RATHER THAN THE INSTANCE: the failing row was the worker-read one, and fixing only it would have left the browser row to fail the same assertion on the next run. Also cleaned my own orphan - a headless Chrome at PPID 1 alive 1 hour 26 minutes from an earlier cut-short run; his console keeps its ocr_mac worker under PID 10357. Bound remains innocent and unraised: 801.651s against 1500s.",
+  "note": "v3383: v1809 patches subprocess.run, and v3380 moved the browser launch onto _run_browser_bounded which uses Popen, so the patch stopped reaching the browser: CI got 0 problems where the law demands 2 and the Publish workflow failed, so the live site never deployed. Its sibling v1808 was GREEN for the wrong reason on the same seam. Both now hold the current launcher: clean OK, fallback sabotaged FAILED failures=2, so both bite where only one could. Two more from v3379, found by diffing the CI failing-gate NAMES: the store-keys fallback became two copies and broke a red-proof anchor 1 to 2, collapsed to one _spec_store_keys helper; and the Python encoder gained a real production caller, retiring the no-production-caller law on the terms its own failure message set and replacing it with the both-encoders-are-live join, 3 red-proofs PROVEN. Swallow baseline 70 to 69.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
