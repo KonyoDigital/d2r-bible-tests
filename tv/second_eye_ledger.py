@@ -417,6 +417,21 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
     # Verified: head_cap=0 -> headCap=600, and a hand-written headCap=0 row with a non-empty head
     # does land in prefixOnly. [[sabotage-is-usually-the-wrong-one]]
     _cap = int(head_cap or ANSWER_HEAD_CAP)
+    # v3386 (#129) — THE ROW KEPT THE VERDICT AND THREW AWAY THE EVIDENCE.
+    # `answerHead` is a PREFIX. MEASURED over 898 rows: 876 carry a head, median 400 chars, max
+    # 600 — the cap. The text past it was never stored anywhere, so NO parser change could ever
+    # be validated against history and a re-judge was impossible BY CONSTRUCTION, not by
+    # accident. That is the exact shape [[heart-first]] §6 exists for: an engine that computes
+    # rich information, writes a lossy summary, and leaves the next stage unable to ask a
+    # question the store can no longer answer.
+    #
+    # ⚠ THE CALLER ALREADY HANDS THE WHOLE ANSWER OVER. v3339 moved the cut out of the runner
+    # into this one place, so `answer_head` arrives COMPLETE and was being discarded here. The
+    # fix is to keep what was already in hand, not to fetch anything new.
+    #
+    # ⚠ `answerChars` IS THE TRUE LENGTH, always, so neither stored field can lie about being
+    # whole: answerChars > len(answerFull) means even the full field was cut.
+    _raw = str(answer_head or "")
     row = {
         "version": norm_version(version) or str(version or "").strip(),
         # ⚠⚠ v3316 — WHICH COMMIT WAS ACTUALLY READ. `payload_for(sha)` resolves a commit, builds
@@ -505,7 +520,14 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         # ⚠ `head_cap` is resolved HERE, not in the signature: ANSWER_HEAD_CAP is defined further
         # down this file, and a default evaluated at import time freezes whatever the bar was the
         # day the line was written. [[regression-guard]] §4
-        "answerHead": (str(answer_head or "")[:_cap]) or None,
+        "answerHead": (_raw[:_cap]) or None,
+        # v3386 — THE WHOLE ANSWER, so a re-judge is possible at all. Rows written before this
+        # version carry no answerFull and a reader must treat them as UNKNOWN rather than
+        # assuming the head was everything. [[unknown-stays-unknown]]
+        "answerFull": (_raw[:FULL_ANSWER_CAP]) or None,
+        # the TRUE length of what the eye said, independent of either cap
+        "answerChars": len(_raw),
+        "fullCap": FULL_ANSWER_CAP,
         # what that head was cut to, so a reader never has to guess which cap applied
         "headCap": _cap,
         # v3315 — WHICH GENERATION OF THE PARSER REACHED THIS VERDICT. 824 rows were written
@@ -844,7 +866,39 @@ PARSER_VERDICTS = frozenset(("clean", "findings", "cannot-tell", ""))
 
 #: The cap `record()` applies to a stored answer. A row sitting exactly on it is a PREFIX, and a
 #: re-judgement of a prefix is not a judgement of the answer.
+def answer_for_rejudge(row):
+    """The text a re-judge may read, and whether it is the WHOLE answer. -> (text|None, complete)
+
+    v3386 (#129) — THE ONLY HONEST WAY TO ASK "can this row be re-judged".
+
+    Three outcomes, and the middle one is the point:
+      (text, True)   the whole answer is stored; a parser change can be validated against it
+      (text, False)  text is stored but was itself cut — usable, and it must NOT be called whole
+      (None, False)  nothing beyond a prefix was ever kept. UNKNOWN, never "the head was all"
+
+    ⚠ EVERY ROW WRITTEN BEFORE v3386 FALLS IN THE THIRD CASE, and that is 898 of them. Returning
+    `answerHead` here instead would hand a re-judge a 400-character prefix and let it report a
+    verdict as though it had read the answer — the confident-zero this whole file argues against.
+    [[unknown-stays-unknown]] [[heart-first]] section 6
+    """
+    if not isinstance(row, dict):
+        return None, False
+    full = row.get("answerFull")
+    if not isinstance(full, str) or not full:
+        return None, False
+    chars = row.get("answerChars")
+    # complete only when the TRUE length agrees with what is stored; a missing answerChars is
+    # UNKNOWN, so it reads as not-complete rather than as complete
+    return full, bool(isinstance(chars, int) and chars == len(full))
+
+
 ANSWER_HEAD_CAP = 600
+#: v3386 — the ceiling on the FULL stored answer. Generous on purpose: the store is gitignored
+#: and local (2.7 MB over 898 rows today), so the cost of keeping the evidence is a few MB and
+#: the cost of losing it was every re-judge, for ever. It is a ceiling rather than "no limit" so
+#: a runaway answer cannot fill his disk — and `answerChars` records the true length, so a row
+#: that DID hit this ceiling says so instead of looking complete.
+FULL_ANSWER_CAP = 200000
 
 
 def verdict_provenance(path=None):

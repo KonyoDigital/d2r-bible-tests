@@ -2794,6 +2794,10 @@ MINE = {
     # fix; there is nothing here for him to rule on or authorise.
     # v3381 — MINE. An unbounded pipe read is a wiring defect with a named fix.
     # v3384 — MINE. A refusal that names no action is a wiring defect with a named fix.
+    "a look keeps its evidence":
+        "v3386 - discarding an answer the caller already handed over is a wiring defect. "
+        "The fix is code and it is mine.",
+
     "a fleet row identifies its machine":
         "v3385 - a label that cannot tell two machines apart is a wiring defect. The fix "
         "is code and it is mine.",
@@ -4603,6 +4607,77 @@ def _check_no_browser_is_launched_unreaped():
 
 
 
+def _check_a_look_keeps_its_evidence():
+    """v3386 (#129) — CAN THE LOOKS IN THE LEDGER STILL BE RE-JUDGED?
+
+    `answerHead` is a PREFIX. MEASURED before v3386: 898 rows, 876 with an answer, median 400
+    chars, max 600 — the cap — and the text past it stored nowhere, so no parser change could
+    EVER be validated against what the eyes actually said.
+
+    ⚠ THE 898 OLDER ROWS ARE NOT A FAULT AND THIS MUST NOT SAY THEY ARE. They predate the field;
+    their evidence is gone and cannot be recovered. Reporting them as broken would make this row
+    permanently red and therefore furniture. What it watches is the WRITER: a row that carries a
+    length but no full text means the keeping stopped working.
+
+    ⚠ NO GATE CAN ASK THIS. The gate proves record() stores the evidence today. This asks whether
+    his actual ledger is accumulating re-judgeable rows — a number that moves on its own with
+    every look, and the only thing that ever makes a parser change arguable from data.
+
+    FOUR STATES:
+      ok         -> every row that carries an answer length also carries the text; says how many
+      missing    -> a row has answerChars and no answerFull, so the writer stopped keeping it
+      unmeasured -> no ledger yet, so there is no look to keep evidence for
+      unknown    -> the reader would not run. Never ok. [[zero-needs-a-denominator]]
+    """
+    try:
+        import second_eye_ledger as _L
+    except Exception as e:
+        return UNKNOWN, "second_eye_ledger will not import (%s), so evidence is unmeasured" % str(e)[:60]
+    if not hasattr(_L, "answer_for_rejudge"):
+        return MISSING, ("the ledger no longer answers answer_for_rejudge, so nothing can tell a "
+                         "stored answer from a stored prefix")
+    p = str(getattr(_L, "LEDGER_PATH", "") or "")
+    if not p or not os.path.exists(p):
+        return UNMEASURED, ("no second-eye ledger exists yet, so there is no look whose evidence "
+                            "could be kept - an absent question, not a clean answer")
+    import io as _io
+    import json as _json
+    rows, broken = [], []
+    try:
+        with _io.open(p, encoding="utf-8") as fh:
+            for ln in fh:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    rows.append(_json.loads(ln))
+                except Exception:
+                    continue
+    except Exception as e:
+        return UNKNOWN, "the ledger would not read (%s), so this is unmeasured" % type(e).__name__
+    if not rows:
+        return UNMEASURED, "the ledger is empty, so there is no evidence to keep"
+    kept = 0
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        chars = r.get("answerChars")
+        full = r.get("answerFull")
+        if isinstance(chars, int) and chars > 0 and not (isinstance(full, str) and full):
+            broken.append(str(r.get("version") or "?"))
+        txt, _complete = _L.answer_for_rejudge(r)
+        if txt:
+            kept += 1
+    if broken:
+        return MISSING, ("%d row(s) carry an answer length but no answer text (%s) - the writer "
+                         "stopped keeping the evidence it was handed"
+                         % (len(broken), ", ".join(broken[:4])))
+    old = len(rows) - kept
+    return OK, ("%d of %d look(s) can be re-judged; the other %d predate the field and their "
+                "evidence is gone for good - UNKNOWN by construction, not a fault"
+                % (kept, len(rows), old))
+
+
 def _check_a_fleet_row_identifies_its_machine():
     """v3385 (#130) — CAN HE TELL TWO ROWS APART WHEN THEY SHARE A NICKNAME?
 
@@ -5055,6 +5130,7 @@ CHECKS = [
     # v3379 (#128) — the FLEET half, and no gate can ask it: the gates prove the hand-over is
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
+    ("a look keeps its evidence", _check_a_look_keeps_its_evidence),
     ("a fleet row identifies its machine", _check_a_fleet_row_identifies_its_machine),
     ("a fleet refusal names an action", _check_a_fleet_refusal_names_an_action),
     ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
@@ -5531,6 +5607,7 @@ WATCHES = {
     # of its own and the empty tuple is the honest answer.
     # v3381 — DECLARED, NOT OMITTED. It grades source text, so it owns no element of its own.
     # v3384 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
+    "a look keeps its evidence": (),
     "a fleet row identifies its machine": (),
     "a fleet refusal names an action": (),
     "a worker read has a deadline": (),

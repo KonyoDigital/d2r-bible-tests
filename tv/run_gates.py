@@ -1134,6 +1134,17 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_a_look_keeps_its_evidence",
+         [sys.executable, os.path.join(HERE, "test_a_look_keeps_its_evidence.py")], 120,
+         why="v3386 (#129) - THE ROW KEPT THE VERDICT AND THREW AWAY THE EVIDENCE. MEASURED on "
+             "the live ledger: 898 rows, 876 with an answer, median head 400 chars and max 600 - "
+             "the cap - with the text past it stored NOWHERE, so a re-judge was impossible BY "
+             "CONSTRUCTION and five proposed parser changes could only ever be argued about. The "
+             "caller already hands the whole answer over (v3339 moved the cut here), so nothing "
+             "new is fetched; what was missing was keeping it. This pins that a long answer is "
+             "stored whole, that answerChars is the TRUE length so no stored field can claim to "
+             "be complete when it is not, that the head is unchanged, and that all 898 older "
+             "rows read UNKNOWN rather than handing a prefix to a re-judge."),
     Gate("test_a_fleet_row_identifies_its_machine",
          [sys.executable, os.path.join(HERE, "test_a_fleet_row_identifies_its_machine.py")], 180,
          why="v3385 - A NICKNAME IS NOT AN IDENTITY. MEASURED on his live console: TWO rows both "

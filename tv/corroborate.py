@@ -2262,6 +2262,13 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3386 (#129) — the row reads the ledger file and asks the ledger's own reader. A genuine
+    # second source would be an independent re-judge actually RUNNING over the stored answers and
+    # agreeing with the recorded verdict; that is the next version's work, and claiming it now
+    # would claim the very thing this one only made possible.
+    'a look keeps its evidence':
+        'the row counts rows whose answer text survived and asks answer_for_rejudge; the second '
+        'source would be an independent re-judge over those answers, which is not built yet.',
     # v3385 (#130) — the row reads the presence cache and greps control_ui for the helper. A
     # genuine second source would be the RENDERED rail: the two label strings a reader actually
     # sees for a shared nickname. No target captures that, so claiming coverage would claim the
