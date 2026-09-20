@@ -6172,7 +6172,14 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "the compare panel can name a difference",
             # v3397 — MEASURED 268 ms on this file. The cheap subset runs every eagle
             # tick, and v3392 already cost that subset 1,877 ms by not measuring first.
-            "a hidden element is actually hidden")
+            "a hidden element is actually hidden",
+            # v3402 — MEASURED, NOT ASSUMED, AND MY FIRST NUMBER WAS WRONG. One cold call to this
+            # row answered 38.7 ms, which read as free. A/B'd INSIDE the real subset — same
+            # process, same population, lower of two passes — it costs 1,249 ms, because the
+            # served page is 2 MB and the cheap subset runs on EVERY eagle tick and in the boot
+            # path of every console a test spawns. A single isolated call is not the cost of a
+            # thing in the loop it lives in. Its sibling above is here for the same reason.
+            "his window has a keyboard door")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -6637,6 +6644,9 @@ WATCHES = {
     # v3398 — DECLARED, NOT OMITTED. It grades the native window frame, which is not an
     # element on any page, so the empty tuple is the honest answer.
     "his window can be measured": (),
+    # v3402 — DECLARED, NOT OMITTED. It grades the served script, so it owns no element of its
+    # own and the empty tuple is the honest answer.
+    "his window has a keyboard door": (),
 }
 
 
