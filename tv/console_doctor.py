@@ -6508,19 +6508,28 @@ def run(include_slow=True, include_periodic=None, tick=None):
                              "notAsked": True,
                              "everAsked": bool(_prev),
                              "lastState": (_prev.get("state") if _prev else None),
-                             "surfaces": list(WATCHES.get(name, ()))})
+                             "surfaces": list(WATCHES.get(name, ())),
+                             "ms": None})
                 continue
+            t0 = time.time()
             try:
                 state, why = fn()
             except Exception as e:
                 state, why = UNKNOWN, "this check itself threw: %s" % str(e)[:120]
+            # v3404c — THE WHOLE IS MINUTES AND EVERY PART IS SECONDS. RESUME_HERE named this
+            # unfinished: cd.run(include_slow=False) > 8 min, 93 checks timed standalone ~24s.
+            # Without a duration ON THE ROW, the next hang cannot name which check sat, so the
+            # bound takes the blame again. Persist ms. None is not-asked, never 0.
+            # [[heart-first]] [[unknown-stays-unknown]]
+            _ms = int(round((time.time() - t0) * 1000))
             # ⚠ THE SAME DECLARATION run() PUBLISHES, because the EAGLE is this doctor's
             # run output: control_app._eagle_once() calls _cd.run() and stores the rows,
             # and organ_matrix reads them as the eagle's answer. Without this the eagle
             # column stays UNKNOWN forever while the doctor's resolves — two columns
             # disagreeing about one organ's vocabulary. [[copy-drift]]
             rows.append({"check": name, "state": state, "why": why,
-                         "surfaces": list(WATCHES.get(name, ()))})
+                         "surfaces": list(WATCHES.get(name, ())),
+                         "ms": _ms})
     if include_slow or include_periodic:
         _persist_slow(rows)   # v3298 — periodic-inclusive passes bank their reading too
     try:

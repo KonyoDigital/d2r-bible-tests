@@ -149,6 +149,12 @@ print("hover-wilson: %d claim(s) proven, 0 leaking, %d unproven"
 
 # THE GATE SET. Adding a tv/test_*.py without adding it here fails TestNoOrphanSuite.
 GATES = [
+    Gate("test_the_doctor_times_each_check", [sys.executable,
+                                    os.path.join(HERE, "test_the_doctor_times_each_check.py")], 60,
+         why="v3404c — cd.run() took >8 min while 93 checks timed standalone ~24s, and nothing "
+             "on the row said which check sat, so the 1500s bound took the blame. Pins that an "
+             "executed check carries ms, a skipped PERIODIC check carries ms=None not 0, and "
+             "that dropping the stamp makes the law red. Does not hit his live console."),
     Gate("test_missing_companion", [sys.executable,
                                     os.path.join(HERE, "test_a_missing_companion_is_not_a_regression.py")], 60,
          why="REG-1035 — bible.html probes the local console, which cannot exist on a cloud "
