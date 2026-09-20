@@ -37,6 +37,7 @@ that removed the only copy of a Ber drop. [[unknown-stays-unknown]]
 """
 import argparse
 import json
+import errno as _errno
 import os
 import shutil
 import sys
@@ -604,6 +605,18 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
     try:
         reels = sorted((d for d in os.listdir(hist) if d.startswith("reel_")), key=_reel_ts)
     except OSError as e:
+        # ⚠⚠ v3393 — THE SAME DEFECT AS end_routes.report, AT ITS SOURCE. The footage tree
+        # is created inside tv_diablo._film_loop, so a console that has never filmed has no
+        # frames/hist BY DESIGN. Answering "cannot read <path>" made his Windows box report
+        # itself broken when nothing had ever been recorded on it — and every consumer of
+        # plan() inherited that, including end_routes._safety and the shelf, which drew a
+        # 0x0 box. A legitimate EMPTY must not wear the clothes of a failure.
+        # ⚠ NO PATH IN THIS MESSAGE: a Windows profile can carry a non-ASCII character and
+        # printing it crashes a cp1255 console WHILE reporting. [[unknown-stays-unknown]]
+        if getattr(e, "errno", None) == _errno.ENOENT or not os.path.exists(hist):
+            return {"ok": False, "candidates": [], "kept": [],
+                    "why": ("no footage tree on this machine yet — nothing has been "
+                            "recorded here, so there is no reel to plan for")}
         return {"ok": False, "why": "cannot read %s: %s" % (hist, e), "candidates": [], "kept": []}
 
     # v2056 — sessions whose witnesses survive without the frames, read ONCE per plan.

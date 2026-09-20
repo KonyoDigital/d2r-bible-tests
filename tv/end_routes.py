@@ -67,6 +67,7 @@ and this module never collapses them. [[unknown-stays-unknown]]
     python3 tv/end_routes.py --json
 """
 import json
+import errno as _errno
 import os
 import sys
 
@@ -688,7 +689,22 @@ def report(hist_dir=None, safety=True):
         reels = sorted(d for d in os.listdir(hist) if d.startswith("reel_"))
         walk_why = ""
     except OSError as e:
-        reels, walk_why = [], "cannot read %s (%s)" % (hist, str(e)[:70])
+        # ⚠⚠ v3393 — A TREE THAT WAS NEVER MADE IS NOT A TREE THAT CANNOT BE READ.
+        # tv_diablo creates frames/ and frames/hist INSIDE _film_loop (tv_diablo.py:1894),
+        # so on a console that has never filmed the path is ABSENT BY DESIGN. Reporting
+        # that as "cannot read" told him his machine was BROKEN when the true answer is
+        # "nothing has been recorded here yet" — and that is what sent him hunting a sync
+        # defect that does not exist. MEASURED on his Windows ALT box: capture doors opened
+        # 0 times, "No runs recorded yet", and the shelf drew a 0x0 box off this very
+        # message. A legitimate EMPTY dressed as BROKEN is the confident-zero defect
+        # inverted. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        # ⚠ AND NO PATH IN THE NEW MESSAGE: a Windows profile can carry a non-ASCII
+        # character, and printing it crashes a cp1255 console WHILE it reports.
+        if getattr(e, "errno", None) == _errno.ENOENT or not os.path.exists(hist):
+            reels, walk_why = [], ("no footage tree on this machine yet — nothing has "
+                                   "been recorded here, so there is no reel to walk")
+        else:
+            reels, walk_why = [], "cannot read %s (%s)" % (hist, str(e)[:70])
     tags, tag_why = (_safety(hist_dir) if safety else (None, "safety ladder not asked"))
     rows, counts = [], {}
     for r in reels:

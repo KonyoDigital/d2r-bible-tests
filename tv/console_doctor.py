@@ -5174,6 +5174,74 @@ def _check_a_fleet_refusal_names_an_action():
                 % (len(below), known, _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(below[:4]), tail))
 
 
+def _check_this_console_tree_is_established():
+    """v3393 — DOES THIS MACHINE HAVE ITS OWN TREE, AND DID A WRITE ACTUALLY LAND IN IT?
+
+    HIS RULING: fix "any machine establishes its own tree", never "the Windows PC", so Dean's PC is
+    fixed BY PULLING with nobody touching it.
+
+    MEASURED on his Windows ALT box, live: tv 756 entries, but tv\\frames and tv\\frames\\hist
+    MISSING - while <home>\\d2r_ledger_backups existed AND had been written that same day. The
+    machine provisions and writes perfectly well; it is the FRAME writers that establish nothing
+    (control_app 15 scattered makedirs, frame_authority 0, reel_retention 0). Every reader of that
+    tree then fails and the shelf opens into a 0x0 box.
+
+    ⚠⚠ NO GATE CAN ASK THIS. test_a_machine_establishes_its_own_tree proves the CONTRACT - refusals
+    carry no path, found means a write landed, a frozen build refuses the repo anchor. It cannot
+    know whether THIS machine's tree exists, and it must not: a fresh machine is a legitimate state,
+    not a test failure. That question is only answerable where the machine is. [[heart-first]]
+
+    ⚠ IT REPORTS, IT NEVER PROVISIONS. ensure(create=False). A row that fixed the thing it measures
+    would destroy the only evidence that the fault was ever there.
+
+    FOUR STATES:
+      OK         -> every root established AND a write proven at each; says how many
+      MISSING    -> names the roots that are not established, and why each
+      UNMEASURED -> no root could even be resolved, so there is nothing to judge
+      UNKNOWN    -> the scan itself failed. Never OK. [[zero-needs-a-denominator]]
+    """
+    try:
+        import machine_tree as _mt
+    except Exception as e:
+        return UNKNOWN, ("the tree discoverer could not be imported (%s), so whether this console "
+                         "has its own tree is unmeasured rather than fine" % e.__class__.__name__)
+    try:
+        rows = _mt.ensure(create=False)
+    except Exception as e:
+        return UNKNOWN, ("the tree scan did not run (%s), so this is unmeasured rather than clean"
+                         % e.__class__.__name__)
+    if not rows:
+        return UNMEASURED, ("no root could be resolved on this machine, so there is nothing to "
+                            "judge - an absent question, not a clean answer")
+    bad = [r for r in rows
+           if r.get("state") in (_mt.UNUSABLE, _mt.FAILED, _mt.REFUSED)]
+    if not bad:
+        return OK, ("all %d root(s) are established and a write was PROVEN at each - existence "
+                    "alone was not accepted" % len(rows))
+
+    # ⚠⚠ THIS ROW'S OWN FIRST VERSION HAD THE DEFECT v3393 EXISTS TO FIX. The footage tree is
+    # created inside tv_diablo._film_loop, so on a console that has never filmed it is absent BY
+    # DESIGN. Calling that MISSING is TRUE and MISLEADING - it is the ordinary state of every
+    # machine before its first recording, and reporting it as a fault is what sent him hunting a
+    # sync defect that does not exist. A row that cries wolf on a normal state is a row he learns
+    # to ignore. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+    _FILM_MADE = ("frames", "frames/hist")
+    film = [b for b in bad if b.get("root") in _FILM_MADE]
+    other = [b for b in bad if b.get("root") not in _FILM_MADE]
+    if film and not other:
+        return OK, ("%d of %d root(s) are established; the footage tree is not yet on this "
+                    "machine, which is what a console looks like BEFORE its first recording - "
+                    "_film_loop makes it when something films, so this is not a fault"
+                    % (len(rows) - len(film), len(rows)))
+    return MISSING, ("%d of %d root(s) are NOT established, so every reader of them fails: %s%s"
+                     % (len(other), len(rows),
+                        "; ".join("%s (%s) %s" % (b.get("root"), b.get("state"),
+                                                  _mt._ascii(b.get("why")))
+                                  for b in other[:4]),
+                        " (the footage tree is also absent, but that is normal before a first "
+                        "recording)" if film else ""))
+
+
 def _check_the_compare_panel_can_name_a_difference():
     """v3392 — DOES THE CROSS-REFERENCE PANEL ACTUALLY NAME ANYTHING, ON HIS REAL FLEET?
 
@@ -5535,6 +5603,8 @@ CHECKS = [
     ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
     ("the compare panel can name a difference",
      _check_the_compare_panel_can_name_a_difference),
+    ("this console tree is established",
+     _check_this_console_tree_is_established),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
@@ -5717,7 +5787,17 @@ SLOW = ("the other doctors",)
 # ⚠ PERIODIC, not SLOW: SLOW means NEVER RUNS UNATTENDED, and a ratchet nobody reads is the exact
 # defect this row was added for — it had been red in CI for ten runs with no surface at all.
 # Precedent tier: engines corroborate at 6,638-13,038 ms and sweep would find at 1,660-16,585 ms.
-PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads")
+# ⚠ v3393 — "the compare panel can name a difference" JOINED PERIODIC, AND IT IS MY OWN
+# REGRESSION. I added it in v3392 and it makes ONE /api/fleet call plus ONE
+# /api/fleet_compare PER PEER, each with a 6s timeout. MEASURED: 1,877 ms - roughly 39% of
+# the cheap subset, which runs in the BOOT PATH. v3392 squeaked under the 9,000 ms budget
+# and v3393 tipped it to 9,591, refusing a legitimate push. A network sweep is not cheap by
+# nature and must say so rather than quietly spending the boot budget.
+# ⚠ PERIODIC, NOT SLOW. This file says it plainly at :205 - the eagle runs with
+# include_slow=False, so "SLOW is exactly where sweep would find went to die". A row moved
+# to SLOW stops being supervision. PERIODIC keeps it running on a cadence.
+PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
+            "the compare panel can name a difference")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -6021,6 +6101,7 @@ WATCHES = {
     "no browser is launched unreaped": (),
     "fleet can name what it counts": (),
     "the compare panel can name a difference": (),
+    "this console tree is established": (),
     "river owes what its engine says": (),
     "stash bank":                  (),
     # ⚠ v3340 — DECLARED, NOT OMITTED, and it was omitted first. v3333 added `reel clocks` as

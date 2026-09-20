@@ -1145,6 +1145,31 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_a_never_recorded_machine_is_not_a_broken_one",
+         [sys.executable, os.path.join(HERE, "test_a_never_recorded_machine_is_not_a_broken_one.py")], 120,
+         why="v3393 (#138) - A MACHINE THAT HAS NEVER RECORDED IS NOT A BROKEN MACHINE. His Windows "
+             "ALT box had never filmed (capture doors 0, No runs recorded yet) and its console "
+             "answered cannot read ...frames hist WinError 3, drew a 0x0 shelf and could not draw "
+             "the river - so an ORDINARY EMPTY STATE WAS DRESSED AS A FAILURE and he went hunting a "
+             "sync defect that does not exist. tv_diablo creates the tree inside _film_loop, so the "
+             "path is absent BY DESIGN until something films. Fixed at the SOURCE in "
+             "reel_retention.plan, which end_routes._safety forwards, so every consumer inherits "
+             "it. The distinction is the ERRNO, never the text of someone elses error, a genuine "
+             "failure still says cannot read, and NO PATH enters the new message because a Windows "
+             "profile can carry a non-ASCII character that crashes a cp1255 console mid-report."),
+    Gate("test_a_machine_establishes_its_own_tree",
+         [sys.executable, os.path.join(HERE, "test_a_machine_establishes_its_own_tree.py")], 120,
+         why="v3393 (#138) - A MACHINE ESTABLISHES ITS OWN TREE, AND NEVER GUESSES WHERE. His "
+             "Windows ALT box showed tv\\frames and tv\\frames\\hist MISSING while "
+             "d2r_ledger_backups existed and was WRITTEN that day: the machine provisions fine, "
+             "but the FRAME writers establish nothing (control_app 15 scattered makedirs, "
+             "frame_authority 0, reel_retention 0). His ruling was to fix any machine establishing "
+             "its own tree so Dean's PC is fixed BY PULLING. A third eye ranked the worst outcome "
+             "first: a tree built in the WRONG place turns the heart green and makes the fault "
+             "invisible. So every root declares its own anchor, a refused anchor yields NO path, "
+             "found requires a PROVEN WRITE, a frozen build refuses the repo anchor, and no path "
+             "reaches a message unsanitised. This gate checks the CONTRACT, never this machine - "
+             "a fresh machine is a legitimate state and the heart asks that question."),
     Gate("test_the_compare_columns_ask_one_question",
          [sys.executable, os.path.join(HERE, "test_the_compare_columns_ask_one_question.py")], 120,
          why="v3392 (#137) - THE CROSS-REFERENCE PANEL ASKS THE SAME THREE QUESTIONS FOR EVERY "

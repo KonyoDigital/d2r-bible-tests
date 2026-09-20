@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3392"   # THE CROSS-REFERENCE PANEL ASKS THE SAME THREE QUESTIONS FOR EVERY USER
+VERSION = "v3393"   # A MACHINE THAT HAS NEVER RECORDED IS NOT A BROKEN MACHINE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
