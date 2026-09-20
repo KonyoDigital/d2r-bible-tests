@@ -6957,10 +6957,40 @@ class TestV2283TheRosterMustNotSpendItselfToDeath(unittest.TestCase):
                       "the daily quota and took the whole roster down")
         self.assertIn("ageS >= REFRESH_S", self.js)
 
-    def test_the_durable_row_is_written_only_when_something_CHANGED(self):
-        self.assertIn("if (material) {", self.js,
-                      "lastseen is unconditional again — a heartbeat that says exactly what the "
-                      "last one said is not news and must not cost a write")
+    def test_the_durable_row_is_BOUNDED_not_unconditional(self):
+        """v3390 — THE LETTER CHANGED, THE LAW DID NOT, AND THE OLD NAME WAS THE MECHANISM.
+
+        This asserted `if (material) {` — the durable row written ONLY on a change. v3390 changed
+        it to `material || ageS >= REFRESH_S`, because an idle console left NO trace at all and
+        its row froze at the last CHANGE: Konyo watched Dean in the console app while the fleet
+        panel said 26 hours, and an idle repeat beacon against the real handler stored [].
+
+        ⚠ THE BUDGET IS STILL PROTECTED — BY THIS CLASS'S OWN ARITHMETIC. Its sibling
+        test_the_daily_write_budget_fits_UNDER_the_free_tier computes
+
+            worst = machines * (3600.0 / REFRESH_S) * 24 * 2   # both keys, every refresh, all day
+
+        and that `* 2` ALREADY assumes both keys are written every refresh — exactly what v3390
+        does. Four machines at REFRESH_S=900 is 768 writes/day against a 1,000/day ceiling.
+        v2283's root cause was two UNCONDITIONAL writes per ~4-minute heartbeat (~2,160/day);
+        REFRESH_S is what fixed that, never the material-only condition. The two are independent
+        and only one of them was ever the protection.
+
+        So the rule is BOUNDED, not once-per-change. The old name described the mechanism rather
+        than the law, and a name that states inverted behaviour has to be corrected rather than
+        left to mislead the next reader. [[regression-guard]] section 4
+        """
+        self.assertIn("if (material || ageS >= REFRESH_S) {", self.js,
+                      "the durable row is no longer bounded by REFRESH_S — it is either "
+                      "unconditional (the v2283 quota death, ~2,160 writes/day) or back to "
+                      "change-only (the v3390 frozen row)")
+        # ⚠ TWO sites carry that condition now — presence AND lastseen. Pinning the bare line
+        # would pass on the PRESENCE guard alone while lastseen was anything at all, so the
+        # anchor includes the kv.put beneath it. Measured: bare line matches 2, this matches 1.
+        self.assertIn("if (material || ageS >= REFRESH_S) {\n"
+                      "      await kv.put('lastseen:' + machine", self.js,
+                      "the REFRESH_S guard is on presence only; the durable row is not bounded "
+                      "by it")
 
     def test_the_TTL_outlives_TWO_missed_refreshes(self):
         """⚠ ORDER THE PAIR, not just each number. A TTL shorter than 2x the refresh interval
