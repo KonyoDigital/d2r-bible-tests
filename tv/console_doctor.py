@@ -5174,6 +5174,82 @@ def _check_a_fleet_refusal_names_an_action():
                 % (len(below), known, _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(below[:4]), tail))
 
 
+def _check_a_verdict_comes_from_a_declared_field():
+    """v3394 — IS THE EYE ACTUALLY DECLARING ITS VERDICT, OR IS THE PARSER STILL GUESSING?
+
+    v3376 built `_stated_verdict` so a DECLARED verdict line is read first and prose is never
+    matched. Its own comment claims the review prompt contains that line. IT DID NOT — COLD_FRAMING
+    never asked for it, so the reader had no writer and every answer fell through to the prose path.
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    MEASURED on the ledger: 35 rows from v2805 to v3391 DECLARE the change clean in prose
+    ("No defects found.", "No concrete defects.", "The change is correct.") and are filed as
+    FINDINGS. agreement(), the eagle rows and the heart are wrong on every one of them.
+
+    ⚠⚠ NO GATE CAN ASK THIS. test_the_eye_is_asked_for_the_verdict_it_is_read_for proves the prompt
+    ASKS and that the reader reads. It cannot know whether a real eye, on a real look, actually
+    emitted the line — only the ledger knows, and only after a look has been taken. A prompt that
+    asks and an answer that never complies is the same unjoined end one step further along.
+
+    ⚠ IT JUDGES ONLY LOOKS TAKEN SINCE THE ASK EXISTS. Rows recorded before v3394 could not have
+    carried the field, and counting them would make a true history look like a live fault.
+    [[stale-reading]]
+
+    FOUR STATES:
+      OK         -> every recent look carries a declared verdict; says how many
+      MISSING    -> recent looks carry none, so the parser is back to guessing — names how many
+      UNMEASURED -> no look has been taken since the ask existed; an absent question
+      UNKNOWN    -> the ledger could not be read. Never OK. [[zero-needs-a-denominator]]
+    """
+    import io as _io2          # ⚠ io is NOT module-level in this file - third invented helper
+    import json as _json
+    import re as _re2
+    try:
+        import second_eye_ledger as _L
+        import second_eye_run as _SE
+    except Exception as e:
+        return UNKNOWN, ("the second-eye modules could not be imported (%s), so whether a verdict "
+                         "is declared is unmeasured rather than fine" % e.__class__.__name__)
+    if "VERDICT:" not in getattr(_SE, "COLD_FRAMING", ""):
+        return MISSING, ("the review prompt does not ask for a VERDICT line, so _stated_verdict "
+                         "can never fire and every answer falls back to prose matching")
+    try:
+        # ⚠ LEDGER_PATH. I guessed LEDGER/PATH twice and got a confident "0 rows" both times —
+        # a wrong-key zero, while investigating a parser that mis-reads answers.
+        rows = []
+        with _io2.open(_L.LEDGER_PATH, encoding="utf-8") as fh:
+            for ln in fh:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    rows.append(_json.loads(ln))
+                except Exception:
+                    continue
+    except Exception as e:
+        return UNKNOWN, ("the second-eye ledger could not be read (%s), so nothing is known about "
+                         "how its verdicts were reached" % e.__class__.__name__)
+
+    # ⚠ THE NEWEST LOOKS, NOT THE NEWEST SUBJECTS. My first version keyed on the version
+    # being REVIEWED (>= 3394) and so reported UNMEASURED while a compliant look at v3393,
+    # taken after the ask existed, sat in the ledger. What matters is WHEN THE LOOK WAS
+    # TAKEN, not how old its subject is - a look at an ancient version taken today still
+    # carries the field. [[stale-reading]] [[label-outlived-referent]]
+    rows.sort(key=lambda r: str(r.get("ts") or ""))
+    fresh = [r for r in rows[-6:] if (r.get("answerFull") or r.get("answerHead"))]
+    if not fresh:
+        return UNMEASURED, ("no look carries a stored answer, so whether the eye declares its "
+                            "verdict is not yet knowable - an absent question, not a clean answer")
+    declared = [r for r in fresh
+                if _SE._stated_verdict(r.get("answerFull") or r.get("answerHead") or "")]
+    if len(declared) == len(fresh):
+        return OK, ("all %d of the most recent look(s) carry a DECLARED verdict, so the parser "
+                    "never had to guess from prose" % len(fresh))
+    return MISSING, ("%d of the %d most recent look(s) carry NO declared verdict, so the parser "
+                     "is back to matching prose on them - the shape that misfiled 35 rows from "
+                     "v2805 to v3391" % (len(fresh) - len(declared), len(fresh)))
+
+
 def _check_this_console_tree_is_established():
     """v3393 — DOES THIS MACHINE HAVE ITS OWN TREE, AND DID A WRITE ACTUALLY LAND IN IT?
 
@@ -5605,6 +5681,8 @@ CHECKS = [
      _check_the_compare_panel_can_name_a_difference),
     ("this console tree is established",
      _check_this_console_tree_is_established),
+    ("a verdict comes from a declared field",
+     _check_a_verdict_comes_from_a_declared_field),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
@@ -6102,6 +6180,7 @@ WATCHES = {
     "fleet can name what it counts": (),
     "the compare panel can name a difference": (),
     "this console tree is established": (),
+    "a verdict comes from a declared field": (),
     "river owes what its engine says": (),
     "stash bank":                  (),
     # ⚠ v3340 — DECLARED, NOT OMITTED, and it was omitted first. v3333 added `reel clocks` as

@@ -82,7 +82,27 @@ COLD_FRAMING = (
     "List concrete defects, ranked by severity, each with the specific scenario in which it "
     "fails. Include races, unreachable states, resource leaks, and any place a caller and a "
     "callee disagree about a contract. If you believe it is correct, say so plainly rather than "
-    "inventing a finding.\n"
+    "inventing a finding.\n\n"
+    # ⚠⚠ v3394 — THE READER EXISTED AND NOTHING ASKED FOR THE FIELD. v3376 built
+    # `_stated_verdict` to read a DECLARED verdict line precisely so prose would never have to
+    # be matched, and its own comment says "the review prompt itself contains the line
+    # 1. VERDICT: clean / findings" — but COLD_FRAMING never contained it. A reader with no
+    # writer. MEASURED: 35 of 659 findings-rows (v2805..v3391) are answers that DECLARE the
+    # change clean in prose and were filed as findings, so agreement(), the eagle rows and the
+    # heart are wrong on every one. [[the-unjoined-end]] [[plumbing-with-no-tap]]
+    # ⚠ THE ALTERNATIVE WAS REFUSED BY ITS OWN MEASUREMENT. A first-sentence prose rule moved
+    # 35 rows with 0 real findings eaten, but #76 measured that widening the prose matcher
+    # cannot be made safe and this file says in as many words that prose is never consulted
+    # here. Asking for the field is the fix the design already chose.
+    # ⚠ ONE verdict word per line: `_stated_verdict` ignores any line naming two or more as a
+    # MENU, so an instruction listing the options would defeat itself if echoed.
+    # ⚠ THE OPTIONS AND THE FIELD MUST NOT SHARE A LINE. _stated_verdict ignores any line
+    # naming two or more verdict words as a MENU, so "VERDICT: clean / findings" - or an
+    # instruction phrased that way and echoed back - is discarded. The law caught this on
+    # its first run, in the very instruction written to avoid the trap.
+    "Choose exactly one of these three words: clean, findings, cannot-tell.\n"
+    "Then end your answer with a line naming only that one word, like  VERDICT: <your "
+    "choice>  and put nothing else on that line.\n"
 )
 
 

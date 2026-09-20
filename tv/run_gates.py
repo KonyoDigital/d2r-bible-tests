@@ -1145,6 +1145,19 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_the_eye_is_asked_for_the_verdict_it_is_read_for",
+         [sys.executable, os.path.join(HERE, "test_the_eye_is_asked_for_the_verdict_it_is_read_for.py")], 120,
+         why="v3394 (#129) - THE EYE IS ASKED FOR THE VERDICT FIELD THE PARSER READS. v3376 built "
+             "_stated_verdict so a DECLARED verdict line would be read first and prose would never "
+             "be matched, and its comment claims the review prompt contains that line - it did "
+             "not. COLD_FRAMING never asked for it, so the reader had no writer. MEASURED on 906 "
+             "ledger rows: 35 from v2805 to v3391 DECLARE the change clean in prose and are filed "
+             "as findings, so agreement, the eagle rows and the heart are wrong on all 35. The "
+             "prose fix was REFUSED by this file own ruling - #76 measured that widening the prose "
+             "matcher cannot be made safe - so the fix is to ask for the field. ⚠ The options and "
+             "the field must not share a line: _stated_verdict ignores any line naming two or more "
+             "verdict words as a MENU, and this law caught that trap on its first run, in the very "
+             "instruction written to avoid it."),
     Gate("test_a_never_recorded_machine_is_not_a_broken_one",
          [sys.executable, os.path.join(HERE, "test_a_never_recorded_machine_is_not_a_broken_one.py")], 120,
          why="v3393 (#138) - A MACHINE THAT HAS NEVER RECORDED IS NOT A BROKEN MACHINE. His Windows "
