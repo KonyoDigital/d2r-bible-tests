@@ -1134,6 +1134,28 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_a_worker_read_has_a_deadline",
+         [sys.executable, os.path.join(HERE, "test_a_worker_read_has_a_deadline.py")], 180,
+         why="v3381 - THE SECOND WEDGE IN ONE SESSION, SAME CLASS AS THE FIRST. v3380 fixed a "
+             "browser launch that hung because subprocess.run could not reach the grandchildren "
+             "holding its pipe. The NEXT gate run hung again, elsewhere: tv/control_app.py 7668, "
+             "10572 and 10603 each did a bare wp.stdout.readline() on the OCR worker pipe, which "
+             "has no deadline - if ocr_mac --worker never emits a line the reader waits for ever. "
+             "MEASURED during the gate: worker pid 23192 held cumulative CPU FLAT at 3:19.05 to "
+             "3:19.25 over minutes while its child ocr_mac --worker (pid 24974) was alive 3:46 on "
+             "0:00.99 CPU - both idle - and the hook reported test_control HUNG killed after 1500s "
+             "on an IDLE machine (load 2.34). The bound was innocent for the second time: six "
+             "completed runs on this tree measure 507-564s against it, a 2.66x margin. THE CURE "
+             "EXISTED ONE FILE AWAY - tv_diablo.py OcrWorker.read() speaks the SAME protocol to the "
+             "SAME binary and is bounded (pump thread, monotonic deadline, q.get(timeout)); "
+             "control_app carried its own copy with none of it. One twin safe, the other not. Fix "
+             "is _ocr_ask(): one bounded reader, EOF turned into a value so a dead worker returns "
+             "promptly instead of costing its whole deadline. ⚠ MY OWN SWEEP WAS TOO NARROW - after "
+             "v3380 I swept browsers and lsof and found none of these three; the real class is A "
+             "READ FROM A SUBPROCESS WITH NO DEADLINE, and both wedges are instances. Pins behaviour "
+             "first: a deaf worker cannot hold the reader, a dying worker returns promptly, a "
+             "healthy worker still delivers its payload (the baseline that lets the timeout case "
+             "discriminate), and no bare readline returns to the file. 9 cases, 4 red-proofs."),
     Gate("test_a_browser_is_killed_by_its_group",
          [sys.executable, os.path.join(HERE, "test_a_browser_is_killed_by_its_group.py")], 180,
          why="v3380 - FIVE CONSECUTIVE PUSHES WERE REFUSED BY A HANG THAT EVERY BOUND THEORY "

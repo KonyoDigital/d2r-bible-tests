@@ -2339,6 +2339,7 @@ NO_JOINT_YET = {
     # v3380 - NO_JOINT_YET, not COVERED_BY. The row reads ONE source: the text of tv/*.py.
     # A real second witness would be a runtime observation that a launcher left no child
     # behind, and nothing records that today.
+    'a worker read has a deadline': 'the row reads one source, the text of tv/*.py; a real second witness would be a runtime observation that no caller ever waited past its deadline on a quiet worker, and nothing records that yet.',
     'no browser is launched unreaped': 'the row reads one source, the text of tv/*.py; a real second witness would be a runtime observation that a timed-out launcher left no surviving child, and nothing records that yet.',
     'fleet can name what it counts': 'the row compares the banked tally against the banked stores, both '
                           'written by the same board on the same beat; a real second source would be a '

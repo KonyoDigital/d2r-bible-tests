@@ -2792,6 +2792,11 @@ MINE = {
     # named fix; there is nothing here for him to rule on or authorise.
     # v3380 — MINE. A browser launched without its own session is a wiring defect with a named
     # fix; there is nothing here for him to rule on or authorise.
+    # v3381 — MINE. An unbounded pipe read is a wiring defect with a named fix.
+    "a worker read has a deadline":
+        "v3381 — a subprocess pipe read with no deadline is a wiring defect. The fix is code "
+        "and it is mine.",
+
     "no browser is launched unreaped":
         "v3380 — a launcher that can outlive its timeout is a wiring defect. The fix is code "
         "and it is mine.",
@@ -4374,6 +4379,106 @@ def _check_no_row_contradicts_its_own_stated_verdict():
                 % (len(mine), gen, older))
 
 
+def _check_a_worker_read_has_a_deadline():
+    """v3381 — IS ANY SUBPROCESS PIPE STILL READ WITHOUT A DEADLINE?
+
+    THE SECOND WEDGE IN ONE SESSION, AND THE ONE MY OWN SWEEP MISSED. v3380 fixed a browser
+    launch that hung because subprocess.run could not reach the grandchildren holding its pipe.
+    I then swept the class as "browsers" and as "lsof calls" — and the very next gate run hung
+    again, on three bare `wp.stdout.readline()` calls in control_app.py that neither sweep could
+    see. MEASURED: the suite's cumulative CPU went FLAT at 3:19 while an idle `ocr_mac --worker`
+    held the pipe, and the hook reported "test_control HUNG — killed after 1500s on an IDLE
+    machine (load 2.34)". The bound was innocent both times (2.66x margin).
+
+    So the class is neither browsers nor lsof. It is A READ FROM A SUBPROCESS WITH NO DEADLINE,
+    and this row watches exactly that, by the one pattern that is concrete enough to grade:
+    `.stdout.readline()` on a pipe.
+
+    ⚠⚠ NO GATE CAN ASK THIS. test_a_worker_read_has_a_deadline proves the three known sites are
+    bounded TODAY. This asks whether a FOURTH has appeared anywhere in tv/ — a failure that is
+    silent by construction, because an unbounded readline works perfectly until the day the
+    worker goes quiet, and then presents as a timeout in an unrelated gate. [[heart-first]] §2
+
+    FOUR STATES:
+      OK         -> no unbounded pipe read anywhere in tv/; says how many modules were read
+      MISSING    -> a bare .stdout.readline() exists — NAMES the file and line
+      UNMEASURED -> no module could be read at all
+      UNKNOWN    -> the scan itself failed. Never OK. [[zero-needs-a-denominator]]
+    """
+    import ast as _ast
+    import glob as _glob
+    import io as _io
+
+    def _code(src):
+        """Comments AND docstrings removed — a docstring is not a comment, and grading one as
+        code produced four false readings in a single session."""
+        out = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        try:
+            t = _ast.parse(src)
+        except Exception:
+            return out
+        L = out.split("\n")
+        for nd in _ast.walk(t):
+            if not isinstance(nd, (_ast.Module, _ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+                continue
+            b = getattr(nd, "body", None)
+            if not b:
+                continue
+            f = b[0]
+            if not (isinstance(f, _ast.Expr) and isinstance(getattr(f, "value", None), _ast.Constant)
+                    and isinstance(f.value.value, str)):
+                continue
+            for i in range(f.lineno - 1, min((getattr(f, "end_lineno", None) or f.lineno), len(L))):
+                L[i] = ""
+        return "\n".join(L)
+
+    try:
+        scanned, hits = 0, []
+        for path in sorted(_glob.glob(os.path.join(HERE, "*.py"))):
+            base = os.path.basename(path)
+            if base.startswith("test_") or base == "console_doctor.py":
+                continue
+            try:
+                src = _io.open(path, encoding="utf-8", errors="replace").read()
+            except Exception:
+                continue
+            scanned += 1
+            if ".stdout.readline()" not in src:
+                continue
+            # ⚠ AST CALL SITES, NOT TEXT. The text version's first run accused run_gates.py,
+            # whose only occurrence is a gate `why=` string quoting this very defect — prose read
+            # as code, for the fifth time in one session. Measured there: 0 real .readline() calls
+            # in the AST, 1 occurrence in raw text. Grading the parse tree is immune to prose
+            # anywhere, including a docstring, a comment, or a quoted example.
+            # [[source-reading-guard]]
+            try:
+                _t = _ast.parse(src)
+            except Exception:
+                continue
+            for _nd in _ast.walk(_t):
+                if not isinstance(_nd, _ast.Call):
+                    continue
+                f = _nd.func
+                if not (isinstance(f, _ast.Attribute) and f.attr == "readline"):
+                    continue
+                v = f.value
+                if isinstance(v, _ast.Attribute) and v.attr == "stdout" and not _nd.args:
+                    hits.append("%s:%d" % (base, getattr(_nd, "lineno", 0)))
+        if scanned == 0:
+            return ("UNKNOWN", "no module in tv/ could be read, so this is unmeasured rather than clean")
+        if hits:
+            return ("MISSING",
+                    "%d unbounded pipe read(s) — a bare .stdout.readline() waits for ever if the "
+                    "worker goes quiet, and surfaces as someone else's timeout: %s"
+                    % (len(hits), ", ".join(hits[:6])))
+        return ("OK",
+                "no unbounded .stdout.readline() anywhere in %d module(s) — every subprocess pipe "
+                "read carries a deadline, so a quiet worker cannot hold a caller for ever" % scanned)
+    except Exception as e:
+        return ("UNKNOWN", "the pipe-read scan did not run (%s), so this is unmeasured rather "
+                           "than clean" % (e.__class__.__name__,))
+
+
 def _check_no_browser_is_launched_unreaped():
     """v3380 — IS EVERY BROWSER LAUNCH IN tv/ STILL KILLED BY ITS GROUP?
 
@@ -4782,6 +4887,7 @@ CHECKS = [
     # v3379 (#128) — the FLEET half, and no gate can ask it: the gates prove the hand-over is
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
+    ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
     ("no browser is launched unreaped", _check_no_browser_is_launched_unreaped),
     ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
@@ -5253,6 +5359,8 @@ WATCHES = {
     # peer, so it owns no element of its own and the empty tuple is the honest answer.
     # v3380 — DECLARED, NOT OMITTED. It grades source text across tv/, so it owns no element
     # of its own and the empty tuple is the honest answer.
+    # v3381 — DECLARED, NOT OMITTED. It grades source text, so it owns no element of its own.
+    "a worker read has a deadline": (),
     "no browser is launched unreaped": (),
     "fleet can name what it counts": (),
     "river owes what its engine says": (),

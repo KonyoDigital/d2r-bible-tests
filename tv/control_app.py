@@ -57,6 +57,70 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # bare HERE. A helper that arrives after its callers is a rule that applies to whoever remembered.
 
 
+
+def _ocr_ask(wp, path, timeout=8.0):
+    """Ask the OCR worker about one frame, BOUNDED. Returns {} instead of blocking forever.
+
+    v3381 — the three call sites below used a bare `wp.stdout.readline()`, which has no deadline:
+    if the worker never emits a line the reader waits for ever. MEASURED 2026-09-20 during a
+    pre-push gate: the suite's cumulative CPU went FLAT at 3:19 while an idle `ocr_mac --worker`
+    child held the pipe (0:00.99 CPU over 3:46), and the gate reported it as a 1500s timeout —
+    blaming the bound for a hang, for the second time in one session.
+
+    tv_diablo.py's OcrWorker.read() already carries exactly this bound (pump thread, monotonic
+    deadline, q.get(timeout)). control_app had its own copy of the same protocol without it, so
+    one twin was safe and the other was not. [[copy-drift]] [[the-unjoined-end]]
+
+    The pump is attached ONCE per worker and owns the stream from then on: every read must go
+    through here, because a direct readline beside a running pump would race it for lines.
+    """
+    import json as _js
+    import queue as _qm
+    import threading as _th
+    import time as _tm
+    if wp is None:
+        return {}
+    q = getattr(wp, "_ocr_q", None)
+    if q is None:
+        q = _qm.Queue()
+
+        def _pump(proc, qq):
+            try:
+                for ln in proc.stdout:
+                    qq.put(ln)
+            except Exception:
+                pass
+            qq.put(None)          # EOF is a value, so the reader stops rather than waits
+
+        try:
+            setattr(wp, "_ocr_q", q)
+            _th.Thread(target=_pump, args=(wp, q), daemon=True,
+                       name="ocr-pump").start()
+        except Exception:
+            return {}
+    try:
+        wp.stdin.write(path + "\n")
+        wp.stdin.flush()
+    except Exception:
+        return {}
+    deadline = _tm.monotonic() + timeout       # monotonic, so an NTP step cannot extend the wait
+    while _tm.monotonic() < deadline:
+        try:
+            ln = q.get(timeout=max(0.05, deadline - _tm.monotonic()))
+        except Exception:
+            break
+        if ln is None:
+            return {}
+        ln = (ln or "").strip()
+        if not ln:
+            continue
+        try:
+            return _js.loads(ln)
+        except Exception:
+            continue
+    return {}
+
+
 def _fixture_root_for_state():
     """HERE, unless TV_HIST says this is a fixture's world — the v1867/v1869 rule, one call.
 
@@ -7664,9 +7728,7 @@ def _kai_tab_strip_refine(fp, ocr_cls, wp):
             if wp is None:
                 return {}
             try:
-                wp.stdin.write(p + "\n"); wp.stdin.flush()
-                line = wp.stdout.readline()
-                return json.loads(line) if line else {}
+                return _ocr_ask(wp, p)
             except Exception:
                 return {}
 
@@ -10568,9 +10630,7 @@ def _kai_closer_loop():
                     if not os.path.isfile(fp):
                         continue
                     try:
-                        wp.stdin.write(fp + "\n"); wp.stdin.flush()
-                        line = wp.stdout.readline()
-                        j = json.loads(line) if line else {}
+                        j = _ocr_ask(wp, fp)
                     except Exception:
                         break
                     scanned += 1
@@ -10599,9 +10659,7 @@ def _kai_closer_loop():
 
                         def _wp_read(p):
                             try:
-                                wp.stdin.write(p + "\n"); wp.stdin.flush()
-                                line = wp.stdout.readline()
-                                return json.loads(line) if line else {}
+                                return _ocr_ask(wp, p)
                             except Exception:
                                 return {}
 
@@ -30620,7 +30678,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3380",
+        "ver": "v3381",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
