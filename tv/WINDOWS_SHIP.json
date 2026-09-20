@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3394",
+  "ver": "v3395",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3394: v3376 built _stated_verdict so a declared verdict line would be read first and prose would never be matched, and its own comment claims the review prompt contains that line, but COLD_FRAMING never asked for it, so the reader had no writer and every answer fell through to the prose path; measured on 906 ledger rows, 35 from v2805 to v3391 declare the change clean in prose and are filed as findings, so agreement and the eagle rows and the heart are wrong on all 35; the prose fix was refused by this file own ruling that widening the prose matcher cannot be made safe, so the fix is to ask for the field, with the options kept off the VERDICT line because a line naming two or more verdict words is ignored as a menu",
+  "note": "v3395: the WIN-1 seat ran the queue drain on his Windows box and its reader thread died with a UnicodeDecodeError on cp1255, stdout came back empty with returncode 0, and the tool printed nothing new that is a measured zero not a failure to look, which was exactly a failure to look; the gh call decoded with the locale code page while the same file passes utf-8 at three other sites, and the class defect is that a dead reader hands back empty stdout which the code turned into a confident empty list, so since gh prints an empty array for a genuinely empty result a successful call that printed nothing now raises instead, with the write lane left open because a post may legitimately print nothing",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

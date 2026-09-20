@@ -42,12 +42,29 @@ def _gh(path, method=None, fields=None):
         cmd = ["gh", "api", "-X", method, path]
     for k, v in (fields or {}).items():
         cmd += ["-f", "%s=%s" % (k, v)]
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    # ⚠⚠ v3395 — `text=True` DECODES WITH THE LOCALE CODE PAGE, NOT UTF-8. On his Windows box
+    # (cp1255) a GitHub comment containing one non-ASCII byte killed the reader thread with
+    # UnicodeDecodeError, communicate() handed back EMPTY stdout with returncode 0, and this
+    # function returned [] — which the drain then printed as "nothing new. That is a measured
+    # zero, not a failure to look." It was exactly a failure to look.
+    # ⚠ This same file already passes encoding="utf-8" at three OTHER sites; the one call that
+    # talks to GitHub was the one that did not. [[copy-drift]] [[zero-needs-a-denominator]]
+    p = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace")
     if p.returncode != 0:
         raise RuntimeError((p.stderr or "").strip()[:300])
     body = (p.stdout or "").strip()
     if not body:
-        return []
+        # ⚠⚠ AN EMPTY STDOUT IS NOT AN EMPTY RESULT SET. `gh api` prints `[]` for a query that
+        # matches nothing, so a SUCCESSFUL call that printed nothing at all did not answer —
+        # the read failed. Returning [] here is what let a dead reader reach a sentence that
+        # ASSERTS it is not a failure to look. Fixing the decode above closes the known cause;
+        # this closes the CLASS, because any future reader failure lands here too.
+        if method:
+            return []          # a write (-X POST/PATCH) may legitimately print nothing
+        raise RuntimeError(
+            "gh exited 0 but printed nothing for %s — an empty stdout is not an empty result "
+            "set (gh prints [] for that), so this read FAILED and must not be reported as a "
+            "measured zero" % path)
     # ⚠ --paginate CONCATENATES JSON DOCUMENTS with no separator, and they may be pretty-printed,
     # so neither splitlines() nor a "][" replace is safe: a fragment can parse as a bare int and
     # sail through as a "row". That is exactly how the first cut produced

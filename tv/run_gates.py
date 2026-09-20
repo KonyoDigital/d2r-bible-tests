@@ -1145,6 +1145,20 @@ GATES = [
              "stored whole, that answerChars is the TRUE length so no stored field can claim to "
              "be complete when it is not, that the head is unchanged, and that all 898 older "
              "rows read UNKNOWN rather than handing a prefix to a re-judge."),
+    Gate("test_a_failed_read_never_reaches_a_zero_claim",
+         [sys.executable, os.path.join(HERE, "test_a_failed_read_never_reaches_a_zero_claim.py")], 120,
+         why="v3395 (#139) - A FAILED READ MUST NEVER REACH A SENTENCE CLAIMING A MEASURED ZERO. "
+             "The WIN-1 seat ran the queue drain on his Windows box; the reader thread died with "
+             "UnicodeDecodeError (cp1255, byte 0x9f) and the tool printed 0 new ... nothing new, "
+             "That is a measured zero, not a failure to look. It was exactly a failure to look, "
+             "and a reassurance on the failure path is worse than silence. TWO defects: the gh "
+             "call decoded with the LOCALE CODE PAGE while the same file passes utf-8 at three "
+             "other sites, and - the class - a dead reader hands back EMPTY stdout with returncode "
+             "0, which the code turned into a confident []. gh prints [] for an empty result, so "
+             "silence from a SUCCESSFUL call means the read FAILED and now raises. ⚠ A write may "
+             "still print nothing, so that lane stays open. ⚠ This law grades CODE not PROSE: the "
+             "comment explaining the fix contains the banned string and a raw count returns 1 "
+             "where the code-only count returns 0."),
     Gate("test_the_eye_is_asked_for_the_verdict_it_is_read_for",
          [sys.executable, os.path.join(HERE, "test_the_eye_is_asked_for_the_verdict_it_is_read_for.py")], 120,
          why="v3394 (#129) - THE EYE IS ASKED FOR THE VERDICT FIELD THE PARSER READS. v3376 built "

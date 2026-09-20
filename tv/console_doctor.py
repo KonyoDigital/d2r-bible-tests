@@ -5174,6 +5174,56 @@ def _check_a_fleet_refusal_names_an_action():
                 % (len(below), known, _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(below[:4]), tail))
 
 
+def _check_a_queue_zero_came_from_a_read_that_WORKED():
+    """v3395 — WHEN THE DRAIN SAYS "NOTHING NEW", DID ANYONE ACTUALLY LOOK?
+
+    FOUND BY THE WIN-1 SEAT on his Windows box. The drain's reader thread died with
+    UnicodeDecodeError (cp1255, byte 0x9f), stdout came back EMPTY with returncode 0, and the tool
+    printed "nothing new. That is a measured zero, not a failure to look." It was exactly a failure
+    to look, and the sentence asserting otherwise is what makes it worse than silence.
+
+    ⚠⚠ NO GATE CAN ASK THIS. test_a_failed_read_never_reaches_a_zero_claim proves the CODE refuses
+    an empty stdout and decodes as UTF-8. It cannot know whether `gh` is reachable, authenticated,
+    or rate-limited RIGHT NOW on THIS machine - and a drain that cannot run is exactly the state
+    that used to report itself as clean.
+
+    ⚠ IT ASKS THE CHEAPEST QUESTION THAT DISCRIMINATES: can the reader produce a parseable answer
+    at all? It does NOT drain the queue - that is the seat's job and it costs paid calls.
+
+    FOUR STATES:
+      OK         -> the reader answered and its output parsed
+      MISSING    -> the reader ran and produced NOTHING, which is the shape that lied
+      UNMEASURED -> gh is not installed on this machine, so there is no question to ask
+      UNKNOWN    -> the probe itself failed. Never OK. [[zero-needs-a-denominator]]
+    """
+    import json as _json
+    import subprocess as _sp
+    try:
+        p = _sp.run(["gh", "api", "rate_limit"], capture_output=True,
+                    encoding="utf-8", errors="replace", timeout=12)
+    except FileNotFoundError:
+        return UNMEASURED, ("gh is not installed on this machine, so whether a queue zero came "
+                            "from a working read is not a question that exists here")
+    except Exception as e:
+        return UNKNOWN, ("the reader probe did not run (%s), so whether a drain could look is "
+                         "unmeasured rather than fine" % e.__class__.__name__)
+    if p.returncode != 0:
+        return MISSING, ("the reader cannot reach GitHub (%s), so any drain right now would "
+                         "report nothing new WITHOUT HAVING LOOKED"
+                         % (p.stderr or "").strip().replace("\n", " ")[:90])
+    body = (p.stdout or "").strip()
+    if not body:
+        return MISSING, ("the reader exited 0 and printed NOTHING - the exact shape that made a "
+                         "dead decode read as a measured zero on his Windows box")
+    try:
+        _json.loads(body)
+    except Exception:
+        return MISSING, ("the reader answered but its output does not parse, so a drain would see "
+                         "no rows and could not tell that from an empty queue")
+    return OK, ("the queue reader answers and its output parses (%d bytes), so a zero from the "
+                "drain would be a measurement rather than a silence" % len(body))
+
+
 def _check_a_verdict_comes_from_a_declared_field():
     """v3394 — IS THE EYE ACTUALLY DECLARING ITS VERDICT, OR IS THE PARSER STILL GUESSING?
 
@@ -5683,6 +5733,8 @@ CHECKS = [
      _check_this_console_tree_is_established),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
+    ("a queue zero came from a read that worked",
+     _check_a_queue_zero_came_from_a_read_that_WORKED),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
     ("fault evidence", _check_a_ui_fault_keeps_its_evidence),
@@ -6181,6 +6233,7 @@ WATCHES = {
     "the compare panel can name a difference": (),
     "this console tree is established": (),
     "a verdict comes from a declared field": (),
+    "a queue zero came from a read that worked": (),
     "river owes what its engine says": (),
     "stash bank":                  (),
     # ⚠ v3340 — DECLARED, NOT OMITTED, and it was omitted first. v3333 added `reel clocks` as

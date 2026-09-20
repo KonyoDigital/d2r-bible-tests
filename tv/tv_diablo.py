@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3394"   # THE EYE IS ASKED FOR THE VERDICT FIELD THE PARSER READS
+VERSION = "v3395"   # A FAILED READ NEVER REACHES A SENTENCE CLAIMING A MEASURED ZERO
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
