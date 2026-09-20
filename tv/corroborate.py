@@ -2262,6 +2262,14 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # v3385 (#130) — the row reads the presence cache and greps control_ui for the helper. A
+    # genuine second source would be the RENDERED rail: the two label strings a reader actually
+    # sees for a shared nickname. No target captures that, so claiming coverage would claim the
+    # very thing this version was written to make visible.
+    'a fleet row identifies its machine':
+        'the row counts shared nicknames in the cached roster and checks the UI carries the '
+        'disambiguator; the second source would be the RENDERED rail labels, which no target '
+        'captures yet.',
     # v3384 (#128) — the row reads the PRESENCE CACHE and the capability helper. A genuine
     # second source would be the RENDERED panel: the sentence a reader actually sees under
     # "they have - you do not" for a peer below the bar. That is not built here, and claiming

@@ -103,7 +103,11 @@ class APeerRefusalNamesAnAction(unittest.TestCase):
             self.assertEqual(why, "", "an UNKNOWN peer must carry no accusation")
 
     def test_an_unparseable_version_is_UNKNOWN(self):
-        for bad in ("3342", "v3342-dirty", "vNNNN", "latest"):
+        """⚠ THE PADDED FORMS CAME FROM THE CROSS-FAMILY EYE on v3384. `^v(\\d+)$` accepted
+        "v03379" and int() turned it into 3379, so a MALFORMED version was parsed with confidence
+        and its owner declared capable. Every version this project stamps is unpadded, so
+        refusing the padded form costs nothing real. [[unknown-stays-unknown]]"""
+        for bad in ("3342", "v3342-dirty", "vNNNN", "latest", "v03379", "v0003379", "v007"):
             can, _ = CA.peer_can_publish_names(bad)
             self.assertIsNone(can, "%r was resolved to %r instead of UNKNOWN" % (bad, can))
 

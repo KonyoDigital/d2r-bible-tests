@@ -2794,6 +2794,10 @@ MINE = {
     # fix; there is nothing here for him to rule on or authorise.
     # v3381 — MINE. An unbounded pipe read is a wiring defect with a named fix.
     # v3384 — MINE. A refusal that names no action is a wiring defect with a named fix.
+    "a fleet row identifies its machine":
+        "v3385 - a label that cannot tell two machines apart is a wiring defect. The fix "
+        "is code and it is mine.",
+
     "a fleet refusal names an action":
         "v3384 — forwarding the peer version and preferring the actionable reason is code. "
         "The fix is mine.",
@@ -4599,6 +4603,78 @@ def _check_no_browser_is_launched_unreaped():
 
 
 
+def _check_a_fleet_row_identifies_its_machine():
+    """v3385 (#130) — CAN HE TELL TWO ROWS APART WHEN THEY SHARE A NICKNAME?
+
+    Konyo: *"two grokbot account si see in fleet"*. MEASURED the same minute — two REAL seats,
+    both belonging there, sharing one nickname AND one install id:
+        GrokBot  grok-bot-vm-346371813  v3383  install 1bba07477e40  online
+        GrokBot  cursor                 v3377  install 1bba07477e40  offline
+    Nothing may be merged; `machine` is the only field that differs.
+
+    ⚠ NO GATE CAN ASK THIS. The gate proves the helper is correct and wired TODAY. Whether his
+    roster CURRENTLY contains an ambiguous nickname moves on its own, as seats come and go, and
+    it is exactly what decides whether the rail is readable this minute.
+
+    ⚠ IT MATTERS BECAUSE OF v3384. The peer VERSION now decides whether item names can be
+    published, so two identical labels hide WHICH seat is the stale one.
+
+    ⚠ IT READS THE PRESENCE CACHE, NEVER THE NETWORK. [[a-gate-can-perturb-what-it-measures]]
+
+    FOUR STATES:
+      ok         -> either no nickname is shared, or the surface can disambiguate; names them
+      missing    -> a nickname is shared and control_ui carries no disambiguator - his screen
+      unmeasured -> no roster yet, so there is no pair to be ambiguous
+      unknown    -> the readers would not run. Never ok. [[zero-needs-a-denominator]]
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, "control_app will not import (%s), so fleet labels are unmeasured" % str(e)[:60]
+    try:
+        cache = _ca._FLEET_PRESENCE_CACHE
+    except Exception as e:
+        return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so this "
+                         "cannot see a single row" % type(e).__name__)
+    last = cache.get("d") if isinstance(cache, dict) else None
+    if not isinstance(last, dict):
+        return UNMEASURED, ("this console holds no fleet roster yet, so no two rows can be "
+                            "ambiguous - an absent question, not a clean answer")
+    rows = [r for r in ((last.get("online") or []) + (last.get("offline") or []))
+            if isinstance(r, dict)]
+    if not rows:
+        return UNMEASURED, "the roster is empty, so there is no label to be ambiguous"
+    by_nick = {}
+    for r in rows:
+        nick = str(r.get("nickname") or "").strip()
+        if nick:
+            by_nick.setdefault(nick, []).append(r)
+    shared = {k: v for k, v in by_nick.items() if len(v) > 1}
+    if not shared:
+        return OK, ("no nickname on the roster is claimed by more than one machine, so every "
+                    "row already identifies itself (%d row(s) read)" % len(rows))
+    try:
+        # ⚠ `io` IS NOT MODULE-LEVEL IN THIS FILE — every other reader imports it locally, and the
+        # first cut of this row did not, hit NameError, and was correctly reported as UNKNOWN by
+        # its own arm rather than as clean. The guard worked; the row was still wrong.
+        import io as _io
+        ui = _io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "control_ui.html"), encoding="utf-8").read()
+    except Exception as e:
+        return UNKNOWN, ("the console UI would not read (%s), so whether the shared nickname is "
+                         "disambiguated is unmeasured" % type(e).__name__)
+    if "_fleetName(" not in ui:
+        return MISSING, ("%d nickname(s) are claimed by more than one machine (%s) and the UI "
+                         "carries no disambiguator, so those rows draw identically"
+                         % (len(shared), ", ".join(sorted(shared))[:80]))
+    told = []
+    for k in sorted(shared):
+        vers = sorted(set(str(r.get("ver") or "?") for r in shared[k]))
+        told.append("%s x%d on %s" % (k, len(shared[k]), "/".join(vers)))
+    return OK, ("%d nickname(s) shared and each row is drawn with its machine: %s"
+                % (len(shared), "; ".join(told)[:140]))
+
+
 def _check_a_fleet_refusal_names_an_action():
     """v3384 (#128) — WHEN A PEER CANNOT PUBLISH NAMES, DOES THIS CONSOLE SAY WHAT WOULD FIX IT?
 
@@ -4979,6 +5055,7 @@ CHECKS = [
     # v3379 (#128) — the FLEET half, and no gate can ask it: the gates prove the hand-over is
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
+    ("a fleet row identifies its machine", _check_a_fleet_row_identifies_its_machine),
     ("a fleet refusal names an action", _check_a_fleet_refusal_names_an_action),
     ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
     ("no browser is launched unreaped", _check_no_browser_is_launched_unreaped),
@@ -5454,6 +5531,7 @@ WATCHES = {
     # of its own and the empty tuple is the honest answer.
     # v3381 — DECLARED, NOT OMITTED. It grades source text, so it owns no element of its own.
     # v3384 — DECLARED, NOT OMITTED. It reads the presence cache, not an element.
+    "a fleet row identifies its machine": (),
     "a fleet refusal names an action": (),
     "a worker read has a deadline": (),
     "no browser is launched unreaped": (),

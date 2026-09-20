@@ -29918,7 +29918,13 @@ def peer_can_publish_names(ver):
     raw = str(ver or "").strip()
     if not raw:
         return None, ""
-    m = _re.match(r"^v(\d+)$", raw)
+    # ⚠ CANONICAL FORM ONLY — v3385, found by the cross-family eye. `^v(\d+)$` accepted "v03379"
+    # and "v0003379" and int() turned both into 3379, so a MALFORMED version string was parsed
+    # with confidence and the peer was declared capable. This function's whole contract is that
+    # an unreadable version stays UNKNOWN rather than being resolved by guess; a zero-padded
+    # string is unreadable, not a number. Every version this project has ever stamped is
+    # unpadded, so nothing real is refused. [[unknown-stays-unknown]]
+    m = _re.match(r"^v(0|[1-9]\d*)$", raw)
     if not m:
         return None, ""
     n = int(m.group(1))
@@ -30742,7 +30748,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3384",
+        "ver": "v3385",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

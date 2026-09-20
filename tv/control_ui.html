@@ -23860,6 +23860,39 @@ function escC(s) {
   /* v2843 — WHICH SIDE, AND HOW OLD. Both defined HERE, beside _fleetSince, inside the same
      script block as _fleetRefresh: a helper declared in the other block is not in scope at call
      time and the render dies silently. That has cost four regressions. [[console-ui-two-script-blocks]] */
+  /* ⚠⚠ v3385 — A NICKNAME IS NOT AN IDENTITY, AND THE RAIL DREW TWO IDENTICAL ROWS.
+     Konyo, looking at THE FLEET: "two grokbot account si see in fleet". MEASURED on his live
+     console the same minute, and BOTH rows are real machines that should be there:
+         GrokBot  grok-bot-vm-346371813  v3383  install 1bba07477e40  online
+         GrokBot  cursor                 v3377  install 1bba07477e40  offline 03:37
+     the Linux native seat and the Cursor guest seat, named as separate seats in his own brief.
+     Nothing may be merged or pruned; the defect is that he CANNOT TELL WHICH IS WHICH.
+
+     ⚠ AND THE INSTALL ID IS IDENTICAL ON BOTH, so disambiguating by install would still draw
+     two identical lines. `machine` is the only field that actually differs.
+
+     That matters more since v3384: the VERSION is what decides whether a peer can publish item
+     names, and two rows reading "GrokBot" hide which one is the stale v3377. A label that does
+     not identify is [[label-outlived-referent]].
+
+     Four sites rendered this label independently, which is why one fix has to be a helper rather
+     than four edits. [[copy-drift]] */
+  var _fleetName = function (m, rows) {
+    var nick = ((m && m.nickname) || '').trim();
+    var mach = (m && m.machine) || '';
+    if (!nick) return mach || '?';          /* unnamed already falls back — unchanged */
+    var seen = 0;
+    for (var i = 0; i < ((rows && rows.length) || 0); i++) {
+      var r = rows[i];
+      if (r && ((r.nickname || '').trim() === nick)) seen++;
+    }
+    /* only the AMBIGUOUS case changes; a nickname owned by one machine renders exactly as before */
+    return (seen > 1 && mach) ? (nick + ' \u00b7 ' + mach) : nick;
+  };
+  var _fleetRows = function (j) {
+    return (((j && j.online) || []).concat(((j && j.offline) || [])));
+  };
+
   var _fleetBlame = function (raw) {
     var s = String(raw || '').toLowerCase();
     /* ⚠ A TIMEOUT DOES NOT NAME A SIDE, AND SAYING IT DOES WOULD BE INVENTED. From this console
@@ -23964,7 +23997,7 @@ function escC(s) {
               + ' — ' + _on.length + ' on, ' + _off.length + ' off, '
               + _all.length + ' known then. Remembered, not live:</div>'
               + '<div class="fleet-stale">' + _all.map(function (m) {
-                  return '<span class="fleet-stale-m">' + escC(m.nickname || m.machine || '?')
+                  return '<span class="fleet-stale-m">' + escC(_fleetName(m, _all))
                        + (m.ver ? ' <i>' + escC(m.ver) + '</i>' : '') + '</span>';
                 }).join('') + '</div>';
         } else {
@@ -24184,7 +24217,7 @@ function escC(s) {
           /* ⚠ v2875 — A MACHINE THAT REPORTED NOTHING IS `no report`, NEVER `unsynced`.
              Nothing was compared. This card has shipped the opposite defect once already
              ("UNIQUES SYNCED over 0/403"). [[unknown-stays-unknown]] */
-          return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
+          return '<div class="ftt"><div class="ftt-h">' + escC(_fleetName(m, _fleetRows(j)))
             + ' <span class="ftt-w ftts-unknown" title="this machine has sent no counts, so '
             + 'there is nothing to compare \u2014 UNMEASURED, not disagreement">no report</span>'
             + '</div><div class="ftt-none">nothing recorded'
@@ -24280,7 +24313,7 @@ function escC(s) {
             + '\u26a0 running on the OWNER\u2019S SEED \u00b7 these finds were inherited, not synced'
             + '</div>'
           : '';
-        return '<div class="ftt"><div class="ftt-h">' + escC((m.nickname || m.machine || '?'))
+        return '<div class="ftt"><div class="ftt-h">' + escC(_fleetName(m, _fleetRows(j)))
           + ' <span class="ftt-w ' + _mw.c + '" title="' + escC(_mw.t) + '">' + escC(_mw.w)
           + '</span></div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
           + _mwLine
@@ -24383,7 +24416,7 @@ function escC(s) {
       };
       window._fleetEye = _fleetEye;   /* exported so a gate can put every state to it */
       var _row = function (m, online) {
-        var nameFor = (m.nickname || '').trim() || m.machine || '?';
+        var nameFor = _fleetName(m, _fleetRows(j));
         var unpub = (_me && m.machine === _me && _pub && m.ver && m.ver !== _pub);
         /* v2254 — "PULLED, RESTART PENDING" IS NOT "NEVER PULLED", and the panel could not tell
            them apart. A console reports the version its PROCESS loaded at boot, so one that

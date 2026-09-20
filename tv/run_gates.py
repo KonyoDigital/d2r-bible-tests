@@ -1134,6 +1134,17 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_a_fleet_row_identifies_its_machine",
+         [sys.executable, os.path.join(HERE, "test_a_fleet_row_identifies_its_machine.py")], 180,
+         why="v3385 - A NICKNAME IS NOT AN IDENTITY. MEASURED on his live console: TWO rows both "
+             "read \"GrokBot\" - grok-bot-vm-346371813 on v3383 and cursor on v3377 - two real "
+             "seats that both belong there, sharing ONE install id, so machine is the only field "
+             "that differs and disambiguating by install would still draw two identical lines. "
+             "Since v3384 the peer VERSION decides whether names can be published, so two "
+             "identical labels hide which seat is stale. This RUNS the shipped helper in node "
+             "rather than re-implementing it, and pins that a shared nickname disambiguates, a "
+             "unique one is untouched, an unnamed row still falls back to its machine, and all "
+             "four label sites go through the one helper."),
     Gate("test_a_peer_refusal_names_an_action",
          [sys.executable, os.path.join(HERE, "test_a_peer_refusal_names_an_action.py")], 120,
          why="v3384 - THE FLEET REFUSAL NAMED NO ACTION. `maskWhy` is written by the OTHER "
