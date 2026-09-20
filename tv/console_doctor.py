@@ -2790,6 +2790,12 @@ MINE = {
     # decision he can make. Nothing here asks him to authorise or rule on anything.
     # v3379 (#128) — MINE. A console that counts and cannot name is a wiring defect with a
     # named fix; there is nothing here for him to rule on or authorise.
+    # v3380 — MINE. A browser launched without its own session is a wiring defect with a named
+    # fix; there is nothing here for him to rule on or authorise.
+    "no browser is launched unreaped":
+        "v3380 — a launcher that can outlive its timeout is a wiring defect. The fix is code "
+        "and it is mine.",
+
     "fleet can name what it counts":
         "#128 — a ledger publishing a count and no list is a cut hand-over, not a decision. "
         "The fix is code and it is mine.",
@@ -4368,6 +4374,121 @@ def _check_no_row_contradicts_its_own_stated_verdict():
                 % (len(mine), gen, older))
 
 
+def _check_no_browser_is_launched_unreaped():
+    """v3380 — IS EVERY BROWSER LAUNCH IN tv/ STILL KILLED BY ITS GROUP?
+
+    THE INCIDENT. Five consecutive pushes were refused as "test_control DID NOT FINISH in 1500s"
+    at load averages 9.44, 16.50 and 9.43 — two of the three a QUIET machine, which is what
+    finally killed the venue explanation. Two faulthandler dumps 120s apart named one frame:
+    js_syntax_gate.check -> subprocess.run -> communicate -> select. subprocess.run(browser,
+    timeout=T) kills the LAUNCHER and then drains the pipes again, but Chrome's renderer helpers
+    INHERIT the stdout pipe and at least one reparents to launchd (measured: a live pid with
+    PPID 1 while its launcher was gone), so that second drain never returns.
+
+    ⚠⚠ NO GATE CAN ASK THIS. test_a_browser_is_killed_by_its_group proves js_syntax_gate is
+    correct TODAY, at the one site it names. This asks a different question: has a NEW browser
+    launch appeared anywhere in tv/ without the discipline? That failure is silent by
+    construction — the new site works on every quiet machine, and surfaces weeks later as a push
+    that will not finish, with the bound taking the blame. The cure for this exact shape already
+    existed at test_control.py:129 (_reap, v1925) and js_syntax_gate referenced it ZERO times for
+    four hundred versions. One file knowing is not the codebase knowing. [[the-unjoined-end]]
+
+    WHAT IT ASKS, of the CODE and never of the prose: for every function in tv/ that launches a
+    subprocess AND mentions a browser, does that function also carry the reaping discipline —
+    its own session, a group kill, or a call to a named reaper?
+
+    FOUR STATES:
+      OK         -> every browser-launching function is group-reaped; says how many
+      MISSING    -> a function launches a browser with no reaping discipline — NAMES it
+      UNMEASURED -> no browser-launching function found at all, which is itself worth saying
+      UNKNOWN    -> the scan could not parse the tree. Never OK. [[zero-needs-a-denominator]]
+    """
+    import ast as _ast
+    import io as _io          # console_doctor does not import io at module scope; without this
+                              # every read raised NameError into the inner except and the scan
+                              # saw ZERO files — caught only because the UNKNOWN arm refuses to
+                              # report OK on an empty denominator. [[zero-needs-a-denominator]]
+
+    # ⚠⚠ STATED LIMIT, BECAUSE THE HONEST NARROW ROW BEATS THE DISHONEST WIDE ONE.
+    # Two wider designs were built and both were wrong, in opposite directions:
+    #   * per-FUNCTION browser hints could not see _run_browser_bounded at all — the helper takes
+    #     its argv as a parameter, so it carries no browser flag and the row watched ITSELF plus
+    #     one bystander while being blind to the very function the fix lives in;
+    #   * per-MODULE hints then flagged four `node --check` launches, which cannot wedge because
+    #     node forks no pipe-holding helpers. A row that reds on correct code gets deleted, and
+    #     tuning it further would have been fitting the rule to the answer.
+    # So this asks ONE reachable, true question instead: does js_syntax_gate still route its
+    # browser launch through a helper that carries BOTH halves of the discipline? A browser
+    # launcher added to some OTHER module is NOT covered by this row, and that gap is named here
+    # rather than hidden behind a green. [[source-reading-guard]] [[unknown-stays-unknown]]
+    GATE = os.path.join(HERE, "js_syntax_gate.py")
+    HELPER = "_run_browser_bounded"
+
+    try:
+        src = _io.open(GATE, encoding="utf-8", errors="replace").read()
+        tree = _ast.parse(src)
+        lines = src.split("\n")
+    except Exception as e:
+        return ("UNKNOWN", "js_syntax_gate.py could not be read or parsed (%s), so whether the "
+                           "browser launch is still group-reaped is unmeasured, not clean"
+                           % (e.__class__.__name__,))
+
+    def _body(name):
+        """The function's CODE — docstring and comments both removed.
+
+        ⚠ A DOCSTRING IS NOT A COMMENT. Stripping "#" leaves it untouched, and
+        _run_browser_bounded's docstring quotes _reap's line "ONE killpg reaches the renderer
+        grandchildren". So the first version of this row answered its own question out of its own
+        prose: deleting the real os.killpg call left the law GREEN. That is the same trap, for the
+        third time in one session — [[source-reading-guard]] section 4b, a positive assertion
+        satisfied by the sentence that explains it.
+        """
+        for n in _ast.walk(tree):
+            if isinstance(n, _ast.FunctionDef) and n.name == name:
+                end = getattr(n, "end_lineno", None) or n.lineno
+                start = n.lineno
+                b = n.body
+                if b and isinstance(b[0], _ast.Expr) and \
+                   isinstance(getattr(b[0], "value", None), _ast.Constant) and \
+                   isinstance(b[0].value.value, str):
+                    start = (getattr(b[0], "end_lineno", None) or b[0].lineno)
+                seg = "\n".join(lines[start:end]) if start >= n.lineno else \
+                      "\n".join(lines[n.lineno - 1:end])
+                return "\n".join(l.split("#", 1)[0] for l in seg.split("\n"))
+        return None
+
+    helper = _body(HELPER)
+    check = _body("check")
+    if helper is None:
+        return ("MISSING", "%s is gone from js_syntax_gate.py — the browser launch is no longer "
+                           "routed through a group-reaping helper, which is the v3380 wedge "
+                           "returning" % HELPER)
+    if check is None:
+        return ("UNKNOWN", "js_syntax_gate.check() could not be located, so its launch path is "
+                           "unmeasured rather than clean")
+
+    missing = []
+    if "start_new_session" not in helper:
+        missing.append("no own session (killpg would then signal THIS process's group)")
+    if "killpg" not in helper:
+        missing.append("no group kill (the pipe-holding grandchild survives and communicate() "
+                       "never returns)")
+    if HELPER + "(" not in check:
+        missing.append("check() no longer calls it, so the helper is inert")
+    if missing:
+        return ("MISSING",
+                "the browser launch in js_syntax_gate is not fully group-reaped: %s. That is the "
+                "v3380 wedge exactly — it passes every quiet run and then hangs a push, and the "
+                "1500s bound takes the blame for a hang it did not cause." % "; ".join(missing))
+    return ("OK",
+            "js_syntax_gate routes its browser launch through %s, which starts the launcher in "
+            "its own session and kills by GROUP on timeout — a launcher that outlives its "
+            "timeout cannot leave a pipe-holding grandchild behind. ⚠ This row watches that one "
+            "launcher; a browser started from another module is not covered." % HELPER)
+
+
+
+
 def _check_the_fleet_can_name_what_it_counts():
     """v3379 (#128) — DOES THIS CONSOLE PUBLISH A LIST FOR EVERY LEDGER IT PUBLISHES A COUNT FOR?
 
@@ -4661,6 +4782,7 @@ CHECKS = [
     # v3379 (#128) — the FLEET half, and no gate can ask it: the gates prove the hand-over is
     # correct today, this asks whether his running console is still BEING handed the stores.
     # A cut hand-over publishes a count for ever and a list never, silently.
+    ("no browser is launched unreaped", _check_no_browser_is_launched_unreaped),
     ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
     ("river owes what its engine says", _check_a_reel_owes_what_its_engine_says),
     ("item vocabulary", _check_the_item_vocabulary_can_name_his_loot),
@@ -5129,6 +5251,9 @@ WATCHES = {
     # and saying so is what keeps it out of the ABSENT column v3340 was carved over.
     # v3379 (#128) — DECLARED, NOT OMITTED. It grades what the fleet card already renders per
     # peer, so it owns no element of its own and the empty tuple is the honest answer.
+    # v3380 — DECLARED, NOT OMITTED. It grades source text across tv/, so it owns no element
+    # of its own and the empty tuple is the honest answer.
+    "no browser is launched unreaped": (),
     "fleet can name what it counts": (),
     "river owes what its engine says": (),
     "stash bank":                  (),

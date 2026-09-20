@@ -2336,6 +2336,10 @@ NO_JOINT_YET = {
     # same beat - one witness in two files, not two witnesses. A real second source would be a
     # live board read, which is precisely the thing a windowless console cannot do and this
     # whole version exists to work around.
+    # v3380 - NO_JOINT_YET, not COVERED_BY. The row reads ONE source: the text of tv/*.py.
+    # A real second witness would be a runtime observation that a launcher left no child
+    # behind, and nothing records that today.
+    'no browser is launched unreaped': 'the row reads one source, the text of tv/*.py; a real second witness would be a runtime observation that a timed-out launcher left no surviving child, and nothing records that yet.',
     'fleet can name what it counts': 'the row compares the banked tally against the banked stores, both '
                           'written by the same board on the same beat; a real second source would be a '
                           'live board read, which the console this protects cannot perform.',

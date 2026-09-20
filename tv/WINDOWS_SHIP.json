@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3379",
+  "ver": "v3380",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3379: A console with no native window could COUNT its items and never NAME one: the count rides a loopback POST with a disk fallback since v2188, the list needed JS evaluated inside a native window and board_mask had no fallback at all. The board now hands its raw stores over on the same POST and fleet_mask.encode mints the mask. Measured with no window: 131 of 135 in, 131 real names back. 492 gates, 17 cases, 8 red-proofs PROVEN",
+  "note": "v3380: Five pushes were refused as test_control DID NOT FINISH in 1500s at loads 9.44, 16.50 and 9.43 - two of three a QUIET machine, which killed the venue theory and every bound theory with it. Two faulthandler dumps 120s apart named one frame: js_syntax_gate.check to subprocess.run to communicate to select. subprocess.run(browser, timeout=T) does NOT bound a browser - its timeout path kills the LAUNCHER then drains the pipes again, but Chrome forks helpers that INHERIT the stdout pipe and one reparents to launchd (measured: a live pid with PPID 1 while its launcher was gone), so that second drain never returns. Four gate halts at 244,189-244,190 bytes and a standalone halt at 244,935 - the same place within 750 bytes at 0.0 percent CPU. THE BOUND WAS INNOCENT: six completed runs on this tree measure 507-564s against 1500s, a 2.66x margin, and raising it would have hidden a real hang. The cure already existed at test_control.py:129 _reap (v1925, ONE killpg reaches the renderer grandchildren that hold the stdout pipe open) and js_syntax_gate referenced it ZERO times. Fix is _run_browser_bounded: own session, communicate with timeout, killpg the GROUP but NEVER our own group, close our pipe ends, wait, and re-raise TimeoutExpired so v1808 node fallback still runs. Proven live: the same call went from never returning to ELAPSED 194s RC 0 with zero surviving children. 493 gates, 8 cases, 4 red-proofs PROVEN, heart row RED on all four sabotages.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

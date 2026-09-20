@@ -1134,6 +1134,35 @@ GATES = [
              "the one-defect case. Also: an adjective (no CONCRETE defects) defeated the "
              "pattern, and a sentence listing what the reviewer did NOT find was read as four "
              "findings."),
+    Gate("test_a_browser_is_killed_by_its_group",
+         [sys.executable, os.path.join(HERE, "test_a_browser_is_killed_by_its_group.py")], 180,
+         why="v3380 - FIVE CONSECUTIVE PUSHES WERE REFUSED BY A HANG THAT EVERY BOUND THEORY "
+             "MISREAD. The gate died as 'test_control DID NOT FINISH in 1500s' at load averages "
+             "9.44, 16.50 and 9.43 - two of the three a QUIET machine, which killed the 'he is "
+             "gaming' explanation and every ceiling argument built on it. Two faulthandler dumps "
+             "120s apart named the identical frame: js_syntax_gate.check -> subprocess.run -> "
+             "communicate -> select, under test_surfaces_parse_in_a_real_js_engine. "
+             "subprocess.run(browser, timeout=T) DOES NOT BOUND A BROWSER: its timeout path kills "
+             "the LAUNCHER and then calls communicate() a second time to drain the pipes, but "
+             "Chrome forks renderer/GPU/zygote helpers that INHERIT the stdout pipe and at least "
+             "one reparents to launchd - measured here as a live pid with PPID 1 while its "
+             "launcher was already gone. The write end never closes, so that second communicate() "
+             "blocks forever. Bounded on paper, unbounded in fact. Signature was identical four "
+             "times: the gate halted at 244,189-244,190 bytes and a standalone run at 244,935 - "
+             "the same place within 750 bytes, at 0.0% CPU. THE BOUND WAS INNOCENT: six completed "
+             "runs on this exact tree measure 507-564s against 1500s, a 2.66x margin, so raising "
+             "it would have hidden a real hang behind a bigger number. THE CURE ALREADY EXISTED "
+             "AND WAS NEVER JOINED - test_control.py:129 _reap() was written at v1925 for this "
+             "exact failure ('ONE killpg reaches the renderer grandchildren that hold the stdout "
+             "pipe open') and js_syntax_gate referenced it ZERO times. Fix is "
+             "_run_browser_bounded(): Popen(start_new_session=True), communicate(timeout), then "
+             "killpg the GROUP, close our pipe ends, wait, and RE-RAISE TimeoutExpired so v1808's "
+             "node fallback still runs and 'nobody could check' never reads as 'it is broken'. "
+             "Proven live: the same call went from never returning (10+ min at 0.0% CPU, an "
+             "orphaned helper at PPID 1) to ELAPSED=194s RC=0 with ZERO surviving children. Pins "
+             "behaviour first - a fake launcher that forks a pipe-holding child is killed by "
+             "group within the timeout - plus a baseline that a normal launcher still returns its "
+             "output, so the timeout case can discriminate. 8 cases, 4 red-proofs."),
     Gate("test_the_board_hands_its_stores_over",
          [sys.executable, os.path.join(HERE, "test_the_board_hands_its_stores_over.py")], 180,
          why="v3379 (#128) - A CONSOLE WITH NO NATIVE WINDOW COULD COUNT ITS ITEMS AND COULD "

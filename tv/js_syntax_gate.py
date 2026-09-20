@@ -327,6 +327,76 @@ def check_with_node(targets=None):
     return problems, None
 
 
+def _run_browser_bounded(cmd, timeout):
+    """v3380 — `subprocess.run(browser, timeout=T)` IS NOT BOUNDED, and this is the wedge that
+    blocked five consecutive pushes.
+
+    subprocess.run's timeout path kills the LAUNCHER and then calls communicate() again to drain
+    the pipes. Chrome always forks renderer/GPU/zygote helpers that INHERIT the stdout pipe, and
+    at least one of them reparents to launchd (measured: pid with PPID 1 alive while the launcher
+    was gone). Killing the launcher therefore never closes the write end, so that second
+    communicate() blocks forever — TimeoutExpired is raised in theory and never reached in practice.
+
+    MEASURED on this Mac, 2026-09-20: test_control sat at the same byte for 10+ minutes at 0.0%
+    CPU; two faulthandler dumps 120s apart named the identical frame — js_syntax_gate.check ->
+    subprocess.run -> communicate -> selectors.select, under
+    test_surfaces_parse_in_a_real_js_engine. Four pre-push gate runs had halted at 244,189-244,190
+    bytes, the same place within 750 bytes. The suite itself is healthy: 6 completed runs on this
+    exact tree measure 507-564s against a 1500s bound (2.66x margin), so the bound was never the
+    defect and must NOT be raised for this.
+
+    THE CURE ALREADY EXISTED AND WAS NEVER JOINED HERE. tv/test_control.py:129 `_reap()` was
+    written at v1925 for this precise failure and says so: "The launcher is started in its own
+    session, so ONE killpg reaches the renderer grandchildren that hold the stdout pipe open."
+    js_syntax_gate referenced it zero times. This is that discipline, applied at the launch site.
+
+    Raises subprocess.TimeoutExpired on timeout so the caller's existing v1808 fallback — node
+    stands in, and "nobody could check" never reads as "it is broken" — is untouched.
+    """
+    import signal as _signal
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, encoding="utf-8", errors="replace",
+        start_new_session=True,          # its own process group, so ONE killpg reaches the helpers
+    )
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Kill the GROUP, not the launcher: the grandchildren are what hold the pipe open.
+        #
+        # ⚠ BUT NEVER OUR OWN GROUP. If the launcher somehow shares this process's group — which
+        # is exactly what happens if start_new_session is ever lost — then killpg would SIGKILL
+        # the test runner, the shell and everything else in it. Found the honest way: the
+        # red-proof that flips start_new_session to False killed its own runner and returned no
+        # output at all, which is not a clean RED, it is a bomb. A launcher we cannot isolate is
+        # killed alone; that leaves the grandchild, which is the defect the behavioural case
+        # catches, and it catches it without taking the machine down.
+        try:
+            pgid = os.getpgid(proc.pid)
+            if pgid != os.getpgid(0):
+                os.killpg(pgid, _signal.SIGKILL)
+            else:
+                proc.kill()
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        # close our ends so no later wait can block on an fd a survivor still holds
+        for stream in (proc.stdout, proc.stderr):
+            try:
+                if stream is not None:
+                    stream.close()
+            except Exception:
+                pass
+        try:
+            proc.wait(timeout=10)
+        except Exception:
+            pass
+        raise
+    return subprocess.CompletedProcess(cmd, proc.returncode, out, err)
+
+
 def check(targets=None, timeout=90):
     """Return (problems, skipped_reason). problems == [] and reason is None when clean."""
     targets = targets or TARGETS
@@ -354,8 +424,9 @@ def check(targets=None, timeout=90):
                     "--dump-dom", f"http://127.0.0.1:{port}/{rel}",
                 ]
                 try:
-                    r = subprocess.run(cmd, capture_output=True, text=True,
-                                       encoding="utf-8", errors="replace", timeout=timeout)
+                    # v3380 — NOT subprocess.run(): its timeout path cannot reach the renderer
+                    # grandchildren that hold the stdout pipe, so it hangs instead of timing out.
+                    r = _run_browser_bounded(cmd, timeout)
                 except subprocess.TimeoutExpired:
                     # v1808 — A TIMEOUT IS NOT A SYNTAX VERDICT, and this line used to file one.
                     # It appended to `problems`, so a slow CI runner made the gate report
