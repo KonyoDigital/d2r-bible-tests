@@ -49,9 +49,23 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3404"   # A MACHINE PULLS ITSELF CURRENT
+VERSION = "v3405"   # THE WRITERS WALK THE ONE DOOR
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
+
+
+def _establish_footage():
+    """v3405 — the film/archive writers walk ONE door. Looking never provisions.
+
+    Cached on (TV_HIST, TV_FRAMES_DIR) so the film loop does not prove-write a probe
+    file on every frame. A harness that changed isolation mid-process gets a fresh call.
+    """
+    key = (os.environ.get("TV_HIST") or "", os.environ.get("TV_FRAMES_DIR") or "")
+    if globals().get("_FOOTAGE_ESTABLISHED") == key:
+        return
+    import machine_tree as _mt
+    _mt.establish()
+    globals()["_FOOTAGE_ESTABLISHED"] = key
 
 # ══ v2324 — THE LIVE FRAME IS NO LONGER A FILENAME, IT IS A QUESTION ═══════════════════════════
 # The capture path used to be spelled `live.bmp` in five places, which baked the FORMAT into the
@@ -1764,7 +1778,7 @@ def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
                 # dropping what we could not judge is how real footage goes missing.
                 globals()["_FOOTAGE_WARM"] = True
         hist_dir = HIST_DIR
-        os.makedirs(hist_dir, exist_ok=True)
+        _establish_footage()
         import shutil as _sh
         if _sh.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
             globals()["_FOOTAGE_WHY"] = "disk-full"
@@ -1891,7 +1905,7 @@ def _film_loop():
             if not WATCH_MODE and (_CAP_TARGET or {}).get("mode") == "waiting":
                 time.sleep(1.5)
                 continue
-            os.makedirs(FRAMES, exist_ok=True)
+            _establish_footage()
             wid = (_CAP_TARGET or {}).get("wid")
             if (_CAP_TARGET or {}).get("mode") == "waiting":
                 wid = None
@@ -2825,7 +2839,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
     ts_ms = ts_ms if ts_ms is not None else int(time.time() * 1000)
     fid = "%d_%d" % (int(n), int(ts_ms))
     try:
-        os.makedirs(HIST_DIR, exist_ok=True)
+        _establish_footage()
         dest = os.path.join(HIST_DIR, fid + ".jpg")
         src = os.path.abspath(src_path) if src_path else ""
         ok = False
@@ -3954,6 +3968,7 @@ TEXT_EYE_BACKLOG_CAP = max(4, int(os.environ.get("TV_TEXT_EYE_BACKLOG_CAP", "32"
 _settle_q_lock = threading.Lock()
 
 def _settle_queue_dir():
+    _establish_footage()
     d = os.path.join(FRAMES, "queue")
     try: os.makedirs(d, exist_ok=True)
     except Exception: pass
@@ -4638,7 +4653,7 @@ def _stash_tab_ocr_path(frame_path, model_tab=""):
         if not _OCR.available():
             return ""
         crop = os.path.join(HIST_DIR, ".tabstrip_ocr.jpg")
-        os.makedirs(HIST_DIR, exist_ok=True)
+        _establish_footage()
         use = _crop_left_tab_strip(frame_path, crop) or frame_path
         j = _OCR.read(use, timeout=1.5)
         return _tab_from_ocr_lines((j or {}).get("lines") or [])
@@ -6427,7 +6442,7 @@ def _verify_drain(worker=None, budget=1, timeout=75, deadline=None):
 
 def main():
     global _LIFECYCLE, _VISION_BUSY, SESSION_ID
-    os.makedirs(FRAMES, exist_ok=True)
+    _establish_footage()
     # v840 — clean stuck capture temps (live night left many live.bmp.tmp.* ghosts)
     try:
         for name in os.listdir(FRAMES):
@@ -7024,7 +7039,7 @@ def main():
                             if globals().get("_FOOTAGE_DUE") else _wnow + _wiv
                         import shutil as _shwz
                         _whd = HIST_DIR
-                        os.makedirs(_whd, exist_ok=True)
+                        _establish_footage()
                         if _shwz.disk_usage(_whd).free / 1e9 >= MIN_FREE_GB:
                             _FOOT_TIMES.append(_wnow)
                             globals()["_FOOTAGE_WHY"] = "win-eye-copy"

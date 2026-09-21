@@ -557,7 +557,16 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT):
 
     free_mb: stop once this much has been selected. None = report every eligible reel.
     """
-    hist = hist_dir or os.path.join(HERE, "frames", "hist")
+    if hist_dir:
+        hist = hist_dir
+    else:
+        try:
+            import machine_tree as _mt
+            hist = _mt.footage_hist()
+        except Exception:
+            hist = None
+        if not hist:
+            hist = os.path.join(HERE, "frames", "hist")
     unreadable = []
 
     def _pick(fn):

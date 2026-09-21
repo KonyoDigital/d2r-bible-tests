@@ -49,6 +49,25 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+
+def _hist_dir(hist_dir):
+    """Default hist comes from the one door. This module still creates nothing.
+
+    A caller that passed a path keeps it (fixtures, TV_HIST harnesses). Looking
+    at the live tree must not provision it — that is machine_tree.establish(),
+    which only the film/archive writers call.
+    """
+    if hist_dir:
+        return hist_dir
+    try:
+        import machine_tree as _mt
+        p = _mt.footage_hist()
+        if p:
+            return p
+    except Exception:
+        pass
+    return os.path.join(HERE, "frames", "hist")
+
 KEEP_RECENT = 8            # never touch the newest EIGHT reels, whatever any ledger says
 #: ⚠ v2875 — 5 -> 8 with reel_retention.KEEP_RECENT, on his instruction. These two MUST
 #: agree: one guards reels, the other the frames inside them, and a frame floor lower than
@@ -175,6 +194,7 @@ def _reel_ts(reel_dir):
 def recent_reels(hist_dir, keep=KEEP_RECENT):
     """The newest `keep` reel directories — held whatever the ledgers say, because the sweep that
     would extract them may simply not have run yet."""
+    hist_dir = _hist_dir(hist_dir)
     reels = [d for d in glob.glob(os.path.join(hist_dir, "reel_*")) if os.path.isdir(d)]
     return set(sorted(reels, key=_reel_ts)[-keep:]) if reels else set()
 
@@ -426,7 +446,7 @@ def evidence_held_reels(hist_dir=None):
     except Exception as e:
         return None, "reel_story could not be imported (%s)" % str(e)[:60]
     try:
-        st = _rs.story(hist_dir)
+        st = _rs.story(_hist_dir(hist_dir))
     except Exception as e:
         return None, "reel_story.story() raised (%s)" % str(e)[:60]
     if not isinstance(st, dict) or not st.get("ok"):
@@ -450,6 +470,7 @@ def plan_frames(hist_dir, root=None, keep=KEEP_RECENT, held_reels=None):
     Reporting rather than acting is deliberate: this replaces a deleter that ran automatically and
     was wrong, and the first thing its replacement should do is be readable.
     """
+    hist_dir = _hist_dir(hist_dir)
     sealed, seal_ok = sealed_sessions(root)
     wit = witness_index(root)
     recent = recent_reels(hist_dir, keep)

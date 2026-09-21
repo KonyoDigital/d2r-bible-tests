@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3404",
+  "ver": "v3405",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3404: The update lived in the launchers so a console started any other way never pulled, and the drift beat now makes the disk newer",
+  "note": "v3405: film and archive establish the tree through machine_tree.establish; planners still create nothing; the v3404 doctor check is declared; 1280x720 is on the page floor table",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

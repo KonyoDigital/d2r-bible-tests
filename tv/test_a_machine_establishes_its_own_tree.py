@@ -120,6 +120,54 @@ class AMachineEstablishesItsOwnTree(unittest.TestCase):
         self.assertIn("creation was not requested", SRC,
                       "ensure(create=False) no longer reports why it did not create")
 
+    def test_the_film_writer_walks_the_one_door(self):
+        """frame_authority and reel_retention PLAN; tv_diablo WRITES. The writers call establish()."""
+        with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
+            td = fh.read()
+        code = "\n".join(l.split("#", 1)[0] for l in td.split("\n"))
+        self.assertIn("def _establish_footage(", td)
+        self.assertEqual(code.count("_mt.establish()"), 1,
+                         "the film helper no longer calls machine_tree.establish()")
+        self.assertNotIn("os.makedirs(FRAMES", code,
+                         "the film loop grew a second door for the frames root")
+        self.assertNotIn("os.makedirs(HIST_DIR", code,
+                         "the archive path grew a second door for hist")
+        self.assertIn("_establish_footage()", code)
+
+    def test_the_planners_still_create_nothing(self):
+        """v3393 reporter law: plan/report only. Deletion needs --apply --yes."""
+        for name in ("frame_authority.py", "reel_retention.py"):
+            with io.open(os.path.join(HERE, name), encoding="utf-8") as fh:
+                raw = fh.read()
+            code = "\n".join(l.split("#", 1)[0] for l in raw.split("\n"))
+            self.assertNotIn("os.makedirs", code,
+                             "%s grew a makedirs — planners do not provision" % name)
+            self.assertIn("footage_hist", code,
+                          "%s never asks the door for the default hist" % name)
+
+    def test_establish_in_a_harness_does_not_call_the_live_door(self):
+        """TV_HIST set -> scratch only. A live ensure() from a harness plants his real tree."""
+        import tempfile
+        import shutil
+        scratch = tempfile.mkdtemp(prefix="mt-harness-")
+        hist = os.path.join(scratch, "hist")
+        old = os.environ.get("TV_HIST")
+        os.environ["TV_HIST"] = hist
+        try:
+            rows = MT.establish()
+            self.assertTrue(os.path.isdir(hist), "the scratch hist was not created")
+            self.assertTrue(rows, "establish() returned no rows for an isolated harness")
+            self.assertTrue(
+                all(r.get("anchor") == "env" for r in rows),
+                "establish() under TV_HIST still walked a live anchor: %r"
+                % [(r.get("root"), r.get("anchor")) for r in rows])
+        finally:
+            if old is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = old
+            shutil.rmtree(scratch, True)
+
 
 RED_PROOF = [
     {
@@ -144,6 +192,13 @@ RED_PROOF = [
         "file": "tv/machine_tree.py",
         "find": '    if not os.path.isdir(path):\n        return False, "it exists but is not a directory"',
         "replace": '    if not os.path.isdir(path):\n        return True, ""',
+        "matches": 1,
+    },
+    {
+        "why": "if establish() still calls ensure() under TV_HIST, a harness plants the live tree",
+        "file": "tv/machine_tree.py",
+        "find": "    if hist or frames:\n        rows = []",
+        "replace": "    if False:\n        rows = []",
         "matches": 1,
     },
 ]

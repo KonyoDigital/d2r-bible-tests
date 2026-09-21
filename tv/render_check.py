@@ -876,6 +876,11 @@ TARGETS = {
             "1440x1000": {"clipped": 1, "broken": None, "zero": 6},
             "1120x900":  {"clipped": 1, "broken": None, "zero": 6},
             "1120x628":  {"clipped": 1, "broken": None, "zero": 6},
+            # v3405 — WIDTHS gained 1280x720 (his ALT machine's real desktop) without a
+            # floor here, so the page target blocked the push for a missing KEY rather
+            # than for pixels. Clipped 1 is the TZ-tracker overflow measured on that
+            # box; the first live render may ratchet it. [[regression-guard]]
+            "1280x720":  {"clipped": 1, "broken": None, "zero": 6},
             # ⚠ v3215 — RATCHETED DOWN on a full clean run: 6 -> 4 and 55 -> 10, both the measured
             # values. The 375 floor was the loud one — 45 elements that USED to be cut off no
             # longer are, and until now 45 NEW ones could have appeared without this gate saying a

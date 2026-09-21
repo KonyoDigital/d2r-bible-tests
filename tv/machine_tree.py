@@ -182,6 +182,69 @@ def ensure(create=True):
     return rows
 
 
+def footage_frames():
+    """Where THIS machine's frames root lives. None means the repo anchor was refused.
+
+    TV_FRAMES_DIR wins, because a harness that set it owns a scratch tree and must not
+    be redirected onto the live one. [[feedback-fixtures-never-touch-live-data]]
+    """
+    env = os.environ.get("TV_FRAMES_DIR") or ""
+    if env:
+        return env
+    for r in resolve():
+        if r["root"] == "frames":
+            return r["path"]
+    return None
+
+
+def footage_hist():
+    """Where THIS machine's hist lives. Same rule as footage_frames: env first, then the door."""
+    env = os.environ.get("TV_HIST") or ""
+    if env:
+        return env
+    for r in resolve():
+        if r["root"] == "frames/hist":
+            return r["path"]
+    return None
+
+
+def establish():
+    """The door the WRITERS walk through. Looking uses ensure(create=False).
+
+    ⚠ A harness that set TV_HIST / TV_FRAMES_DIR owns a scratch tree. Creating THIS
+    machine's live roots from inside that harness would plant the tree in his real
+    directory while the test thought it was isolated — the third eye's risk 1,
+    arriving as a writer instead of a discoverer.
+    ⚠ Looking never provisions. Writing does. frame_authority and reel_retention
+    PLAN; they call footage_hist() and never this.
+    """
+    hist = os.environ.get("TV_HIST") or ""
+    frames = os.environ.get("TV_FRAMES_DIR") or ""
+    if hist or frames:
+        rows = []
+        for name, p in (("frames", frames), ("frames/hist", hist)):
+            if not p:
+                continue
+            existed = os.path.isdir(p)
+            try:
+                os.makedirs(p, exist_ok=True)
+            except Exception as e:
+                rows.append({"root": name, "anchor": "env", "path": p, "state": FAILED,
+                             "why": "could not be created (%s) at %s"
+                                    % (e.__class__.__name__, _ascii(p))})
+                continue
+            ok, why = _prove_write(p)
+            if not ok:
+                rows.append({"root": name, "anchor": "env", "path": p,
+                             "state": UNUSABLE, "why": why})
+            else:
+                rows.append({"root": name, "anchor": "env", "path": p,
+                             "state": CREATED if not existed else FOUND,
+                             "why": "scratch tree for an isolated harness"})
+        return rows
+    return ensure(create=True)
+
+
 def say(rows):
     """One ASCII line a human can act on. Never a bare count."""
     n = {}

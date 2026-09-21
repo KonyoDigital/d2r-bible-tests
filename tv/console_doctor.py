@@ -6591,6 +6591,10 @@ WATCHES = {
     "fleet can name what it counts": (),
     "the compare panel can name a difference": (),
     "this console tree is established": (),
+    # v3404 — DECLARED, NOT OMITTED. It reads git (behind + FETCH_HEAD age), not a screen
+    # element, so the empty tuple is the honest answer. Shipping the check without this
+    # line made the organ table claim ABSENT for a row nobody had described.
+    "this machine keeps itself current": (),
     "a verdict comes from a declared field": (),
     "a queue zero came from a read that worked": (),
     "river owes what its engine says": (),

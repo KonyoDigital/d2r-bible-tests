@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3404** | `(this commit)` | v3404 — The update lived in the launchers so a console started any other way never pulled, and the drift beat now makes the disk newer |
+| **v3405** | `(this commit)` | v3405 — film and archive establish the tree through machine_tree.establish; planners still create nothing; the v3404 doctor check is declared; 1280x720 is on the page floor table |
+| **v3404** | `fe868556` | v3404 — The update lived in the launchers so a console started any other way never pulled, and the drift beat now makes the disk newer |
 | **v3403** | `c69a5c67` | v3403 — An eye that says it could not judge the change no longer satisfies the ship gate, and the row is still recorded |
 | **v3402** | `976d9673` | v3402 — A bare W toggles his window, never with a modifier and never while he is typing, and the heart watches the key on the wire |
 | **v3401** | `316fce5b` | v3401 — browser_can_load_localhost falls back to a CDP probe when dump-dom times out and records WHICH path worked in LOOPBACK_PATH, and nothing ever read it: check asked only the boolean, so CDP works flattened into loopback works and licensed the dump-dom loads, a different mechanism. Measured on his Mac the probe returned True in 13.9s with path cdp, then each of two targets burned its full 90s and fell through to node anyway, about 180s a run against a 1500s pre-push ceiling; after the join check returns in 0.6s with the same verdict. One argv builder now serves the probe and the real load, a real timeout retires the cached verdict, and RESUME_HERE.md joins BLUEPRINT and HEART as a derived artefact that is refused when stale. |
