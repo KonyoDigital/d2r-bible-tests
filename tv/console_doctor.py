@@ -5042,6 +5042,35 @@ def _check_a_presence_reading_names_its_door():
                 % (len(joined), len(rows), len(withweb), len(webnewer), len(extra)))
 
 
+def fleet_label(m, rows):
+    """The label a fleet row ACTUALLY RENDERS — a Python twin of control_ui's `_fleetName`.
+
+    ⚠⚠ v3411 — AMBIGUITY IS A PROPERTY OF THE RENDERED STRING, NOT OF THE NICKNAME. His finding,
+    carried since v3385. The old row counted shared non-empty NICKNAMES, which misses two whole
+    populations: two rows whose nickname is EMPTY both render "?" and were skipped by
+    construction, and a shared nickname where the UI adds the machine is NOT ambiguous at all.
+    REPRODUCED on the shipped helper over a 5-row roster: two seats rendered the identical string
+    'GrokBot · vm-1' and two more rendered '?', while the row answered OK because it found the
+    disambiguator in control_ui.html. A FALSE OK on his screen.
+
+    ⚠⚠ THIS IS A SECOND COPY OF A RULE THAT LIVES IN JAVASCRIPT, which is [[copy-drift]] by
+    construction — so it is not left on trust. `test_two_seats_cannot_render_the_same_label`
+    executes the SHIPPED `_fleetName` in node over a 9-roster table and asserts this function
+    agrees on every row of every one. MEASURED before it shipped: rosters 9, AGREE 9, DIFFER 0,
+    including whitespace-padded nicknames, a shared nickname where one machine is empty, two
+    blank rows, a solo row with no machine, and an empty roster.
+    """
+    nick = str((m or {}).get("nickname") or "").strip()
+    mach = str((m or {}).get("machine") or "")
+    if not nick:
+        return mach or "?"
+    seen = 0
+    for r in (rows or ()):
+        if str((r or {}).get("nickname") or "").strip() == nick:
+            seen += 1
+    return (nick + " \u00b7 " + mach) if (seen > 1 and mach) else nick
+
+
 def _check_a_fleet_row_identifies_its_machine():
     """v3385 (#130) — CAN HE TELL TWO ROWS APART WHEN THEY SHARE A NICKNAME?
 
@@ -5083,15 +5112,6 @@ def _check_a_fleet_row_identifies_its_machine():
             if isinstance(r, dict)]
     if not rows:
         return UNMEASURED, "the roster is empty, so there is no label to be ambiguous"
-    by_nick = {}
-    for r in rows:
-        nick = str(r.get("nickname") or "").strip()
-        if nick:
-            by_nick.setdefault(nick, []).append(r)
-    shared = {k: v for k, v in by_nick.items() if len(v) > 1}
-    if not shared:
-        return OK, ("no nickname on the roster is claimed by more than one machine, so every "
-                    "row already identifies itself (%d row(s) read)" % len(rows))
     try:
         # ⚠ `io` IS NOT MODULE-LEVEL IN THIS FILE — every other reader imports it locally, and the
         # first cut of this row did not, hit NameError, and was correctly reported as UNKNOWN by
@@ -5100,18 +5120,25 @@ def _check_a_fleet_row_identifies_its_machine():
         ui = _io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    "control_ui.html"), encoding="utf-8").read()
     except Exception as e:
-        return UNKNOWN, ("the console UI would not read (%s), so whether the shared nickname is "
-                         "disambiguated is unmeasured" % type(e).__name__)
+        return UNKNOWN, ("the console UI would not read (%s), so what his rows actually RENDER "
+                         "is unmeasured" % type(e).__name__)
     if "_fleetName(" not in ui:
-        return MISSING, ("%d nickname(s) are claimed by more than one machine (%s) and the UI "
-                         "carries no disambiguator, so those rows draw identically"
-                         % (len(shared), ", ".join(sorted(shared))[:80]))
+        return MISSING, ("the UI carries no _fleetName rule at all, so every row draws its bare "
+                         "nickname and two seats sharing one cannot be told apart on his screen")
+    labels = {}
+    for r in rows:
+        labels.setdefault(fleet_label(r, rows), []).append(r)
+    collide = {k: v for k, v in labels.items() if len(v) > 1}
+    if not collide:
+        return OK, ("every row RENDERS a label no other row renders, so no two seats are "
+                    "indistinguishable on his screen (%d row(s) read)" % len(rows))
     told = []
-    for k in sorted(shared):
-        vers = sorted(set(str(r.get("ver") or "?") for r in shared[k]))
-        told.append("%s x%d on %s" % (k, len(shared[k]), "/".join(vers)))
-    return OK, ("%d nickname(s) shared and each row is drawn with its machine: %s"
-                % (len(shared), "; ".join(told)[:140]))
+    for k in sorted(collide):
+        vers = sorted(set(str(r.get("ver") or "?") for r in collide[k]))
+        told.append("%r x%d on %s" % (k, len(collide[k]), "/".join(vers)))
+    return MISSING, ("%d rendered label(s) are drawn by more than one seat, so those rows are "
+                     "INDISTINGUISHABLE on his screen: %s"
+                     % (len(collide), "; ".join(told)[:200]))
 
 
 def _check_a_fleet_refusal_names_an_action():

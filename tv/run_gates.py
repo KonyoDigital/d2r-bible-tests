@@ -1234,6 +1234,28 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_two_seats_cannot_render_the_same_label",
+         [sys.executable, os.path.join(HERE, "test_two_seats_cannot_render_the_same_label.py")], 90,
+         why="v3411 (#132) - HIS FINDING, CARRIED SINCE v3385: ambiguity must be measured on the "
+             "RENDERED LABEL, not the nickname. REPRODUCED ON THE SHIPPED HELPER over a 5-row "
+             "roster: two seats render the identical 'GrokBot - vm-1' and two more render '?', "
+             "while the OLD row counted shared non-empty NICKNAMES, found GrokBot, confirmed "
+             "control_ui carries the disambiguator and answered OK - a FALSE OK on his screen. "
+             "The '?' pair it never looked at at all, because empty nicknames were skipped by "
+             "construction. NOT HYPOTHETICAL: his two GrokBot seats already share a nickname AND "
+             "an install id; only `machine` differs (grok-bot-vm-346371813 vs cursor), so one "
+             "rename makes them indistinguishable. THE ROW NOW COUNTS DUPLICATES AMONG RENDERED "
+             "LABELS and answers MISSING naming the pair - 'two seats are indistinguishable on "
+             "your screen' is the honest sentence, not 'a disambiguator exists'. ⚠ AND THE FIX "
+             "SHIPS A SECOND COPY OF A RULE THAT LIVES IN JAVASCRIPT, which is copy-drift by "
+             "construction, so the copies are PINNED: the gate extracts _fleetName from "
+             "control_ui.html, runs it in NODE over a 9-roster table and asserts the python twin "
+             "agrees on every row of every one - MEASURED rosters 9, AGREE 9, DIFFER 0, including "
+             "a whitespace-padded nickname, a shared nickname where one machine is empty, two "
+             "blank rows, a solo row with no machine and an EMPTY roster. Without that join this "
+             "is two rules wearing one name. THREE BASELINE CASES stop the opposite failure: his "
+             "REAL pair, distinct names and a solo row must all stay clean, so a fix that called "
+             "everything ambiguous cannot pass. 10 cases, 3 red-proofs."),
     Gate("test_a_broken_tree_is_not_an_established_one",
          [sys.executable, os.path.join(HERE, "test_a_broken_tree_is_not_an_established_one.py")], 60,
          why="v3410 - BOTH LAWS NAMED BY THE CROSS-FAMILY REVIEW OF v3405, then verified and "
