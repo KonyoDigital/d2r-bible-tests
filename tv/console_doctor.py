@@ -6328,6 +6328,59 @@ def _check_the_resume_agrees_with_git_right_now():
     return OK, ("the resume's fingerprint matches git exactly (head=%s origin=%s), so the file a "
                 "resuming session reads first is telling it the truth" % (head, origin))
 
+def _check_the_chip_can_say_nobody_looked():
+    """v3414 - CAN THE HEART CHIP STILL TELL HIM NOBODY LOOKED?
+
+    THE DOCTOR HALF of v3414. The gate drives `_heartChipPaint` and proves the two faces differ;
+    this asks the question a gate cannot reach: on THIS console, right now, does the engine the
+    chip reads actually hand it a census - and if not, WHICH LINK BROKE.
+
+    The chip has exactly one scheduled read (`/api/heart`, deferred 4 s). Everything it can say
+    comes from that payload, so when `heart_state()` answers without counts the chip is stuck
+    reading `not taken` and nothing on his screen says why. That is the engine's fault, not the
+    chip's, and this row is the only place the difference is visible.
+
+    ⚠ THIS ROW CAN GO RED FOR A REAL REASON, which is the whole point of writing it: the census
+    walks the source and can refuse. When it does, `heart_state` carries its own `why`, and that
+    string is republished here rather than re-derived. [[heart-first]] §4 - a doctor names the
+    broken link instead of saying it does not work.
+
+    ⚠ PERIODIC on purpose. The census costs ~2.5 s cold (45 s memo), and the cheap subset is
+    already measured at 14,168 ms against a 9,000 ms budget (#150). A supervision row that pays
+    2.5 s on every eagle tick is the defect `poll-slower-than-its-interval` is carved over.
+    """
+    try:
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the console (%s), so whether the chip can be "
+                         "fed is UNKNOWN, not fine" % type(e).__name__)
+    fn = getattr(_ca, "heart_state", None)
+    if not callable(fn):
+        return MISSING, ("the console no longer exposes heart_state(), which is the chip's only "
+                         "source - the chip will read 'not taken' forever and say nothing about why")
+    try:
+        d = fn()
+    except Exception as e:
+        return UNKNOWN, ("the census refused to derive (%s: %s), so the chip has nothing to paint "
+                         "and this console cannot say whether that is new"
+                         % (type(e).__name__, str(e)[:70]))
+    if not isinstance(d, dict):
+        return MISSING, ("the census answered %s, not a payload - the chip reads no counts from "
+                         "that and falls back to 'not taken'" % type(d).__name__)
+    if not d.get("ok"):
+        return MISSING, ("the census answered NOT OK (%s) - his chip is showing 'not taken' and "
+                         "this is the reason" % (str(d.get("why") or "no reason given")[:90]))
+    c = d.get("counts")
+    if not isinstance(c, dict) or not c:
+        return MISSING, ("the census carries no counts, so the chip cannot tell a clean heart "
+                         "from one nobody took - it will read 'not taken' while the console is "
+                         "answering perfectly well")
+    return OK, ("the chip can be fed: %d flowing, %d watched, %d dark, %d unknown - and a census "
+                "that stopped answering would make it say 'not taken' rather than 'heart'"
+                % (c.get("FLOWING") or 0, c.get("WATCHED") or 0,
+                   c.get("DARK") or 0, c.get("UNKNOWN") or 0))
+
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6387,6 +6440,7 @@ CHECKS = [
     # v3413 (#160) — PERIODIC: it shells out to git twice, and the cheap subset is already
     # 14,168 ms against a 9,000 ms budget (#150).
     ("the resume agrees with git", _check_the_resume_agrees_with_git_right_now),
+    ("the chip can say nobody looked", _check_the_chip_can_say_nobody_looked),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -6628,7 +6682,9 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "a worker read has a deadline",
             "no git child steals his screen",
             "the door and the writers agree",
-            "the resume agrees with git")
+            "the resume agrees with git",
+            # v3414 - the census costs ~2.5 s cold; the chip reads it once, 4 s after boot.
+            "the chip can say nobody looked")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -6928,6 +6984,7 @@ WATCHES = {
     "the door and the writers agree": (),
     # v3413 — DECLARED, NOT OMITTED. It compares a generated file against git; no element.
     "the resume agrees with git": (),
+    "the chip can say nobody looked": ("heart-chip",),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody

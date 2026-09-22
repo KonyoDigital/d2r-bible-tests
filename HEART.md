@@ -14,13 +14,14 @@ may not fall without a human saying why in `heart_floor.json`.
 | | |
 |---|---|
 | surfaces the console paints | **359** |
-| of those, watched | **15** |
-| coverage | **4.2%** |
+| of those, watched | **16** |
+| coverage | **4.5%** |
 
 ## Watched
 
 - `bug`
 - `clock`
+- `heart-chip`
 - `hero`
 - `phase`
 - `sadv-sha`

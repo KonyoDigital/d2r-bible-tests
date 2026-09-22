@@ -1234,6 +1234,18 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_census_nobody_took_is_not_a_clean_one",
+         [sys.executable, os.path.join(HERE, "test_a_census_nobody_took_is_not_a_clean_one.py")], 90,
+         why="v3414 (#161) - FOUND BY MEASURING A DASH IN GROKBOT'S FOURTH VISUAL PASS. Every "
+             "pass signed `heart=-/20/0/0`, and chasing that leading dash into _heartChipPaint "
+             "found two branches painting IDENTICAL pixels: the not-derived branch set "
+             "textContent to 'heart' and removed data-dark, and a TAKEN, clean census set the "
+             "SAME text and removed the SAME attribute. Only el.title differed, and a title "
+             "needs a hover - so on his status bar a census nobody has ever taken read exactly "
+             "like a clean one. RESUME_HERE records the live symptom: his Mac console's eagle "
+             "answered rows:0 'not measured yet' and the chip could not tell him. This gate "
+             "DRIVES the shipped painter in node against a stub element and reads the verdict "
+             "off the ELEMENT, never off the source text or the title."),
     Gate("test_a_failed_git_cannot_say_the_tree_is_clean",
          [sys.executable, os.path.join(HERE, "test_a_failed_git_cannot_say_the_tree_is_clean.py")], 60,
          why="v3413 (#160) - FOUND BY READING CI AFTER THE PUSH. Routine M, the "

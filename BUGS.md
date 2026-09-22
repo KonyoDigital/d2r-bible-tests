@@ -7,6 +7,50 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1141 — the heart chip said the same word for a census nobody took and a clean one
+
+**v3414, 2026-09-22.** Found by measuring a dash. All four of GrokBot's native visual passes signed
+`heart=—/20/0/0`, and chasing that leading dash into `_heartChipPaint` (`tv/control_ui.html`) found
+two branches painting **identical pixels**:
+
+```js
+if (!d || !d.ok || !d.counts) {
+  nm.textContent = 'heart';                            // nobody took the census
+  el.removeAttribute('data-dark');
+...
+nm.textContent = dark ? (dark + ' dark') : 'heart';    // taken, and clean
+if (dark) el.setAttribute('data-dark','1'); else el.removeAttribute('data-dark');
+```
+
+Same text, same attribute, same element. The **only** difference was `el.title`, and a title needs a
+hover — so on his status bar a heart that had never been measured read exactly like a healthy one.
+`RESUME_HERE.md` records the live symptom from the other end: his Mac console's eagle answered
+`rows: 0, "not measured yet"` — every row on the machine he actually uses had never been asked, and
+the chip could not tell him.
+
+**And the feed was worse than the painter.** Two failure arms never reached the chip at all:
+
+| arm | what it did | what his screen showed |
+|---|---|---|
+| the deferred first read | `['catch'](function(){})` — empty | the chip kept whatever the markup said |
+| the overlay's fetch | printed `THE CONSOLE DID NOT ANSWER` | the chip beside it kept the last clean face |
+
+The overlay was already honest. The chip two centimetres away was not — two surfaces of one fact,
+disagreeing, with only one of them telling the truth.
+
+**Fixed:** the untaken state gets its own word (`not taken`), its own attribute (`data-untaken`) and
+its own colour (`#9aa6b2`, the console's existing UNKNOWN token); the chip boots wearing it; and
+**both** failure arms now repaint through `_heartChipPaint(null)` instead of swallowing.
+
+**Gate:** `tv/test_a_census_nobody_took_is_not_a_clean_one.py` — 14 cases, and it **drives the
+shipped painter in node** against a stub element rather than reading the source, so the verdict is
+read off the element and never off the title. 5 RED_PROOFs, all PROVEN.
+**Heart:** `console_doctor` row `the chip can say nobody looked` (PERIODIC — the census costs ~2.5 s
+cold) republishes `heart_state`'s own `why` when the engine refuses, so when the chip does read
+`not taken` his console says which link broke. All 7 branches driven, 5 of them non-OK.
+
+[[unknown-stays-unknown]] [[stale-reading]] [[the-unjoined-end]]
+
 ### REG-1140 — a roster arriving was filed as new debt, and the class fix was patched by name
 
 **v3328, 2026-09-18.** `_verdict` defines REFERENCE as a row with **no producer key and no clock**,

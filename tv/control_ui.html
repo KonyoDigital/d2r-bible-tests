@@ -6201,6 +6201,11 @@
   #heart-chip .hc-n { font-variant-numeric: tabular-nums; }
   /* a heart with DARK vessels beats quietly in his eyeline; a fully-flowing one does not need to */
   #heart-chip[data-dark="1"] { color: #6fa8ff; opacity: 1; animation: hc-beat 2.6s ease-in-out infinite; }
+  /* v3414 — NOBODY HAS TAKEN THE CENSUS YET, and that is not the same as a clean one. Before this
+     the chip read 'heart' in BOTH states and removed data-dark in both, so the only difference was a
+     title nobody hovers. #9aa6b2 is _HRT_COL.UNKNOWN — the colour this console already uses for
+     "nobody looked". [[unknown-stays-unknown]] */
+  #heart-chip[data-untaken="1"] { color: #9aa6b2; opacity: 1; }
   @keyframes hc-beat { 0%,72%,100% { opacity: 1; } 80% { opacity: .55; } 88% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { #heart-chip[data-dark="1"] { animation: none; } }
 
@@ -8508,7 +8513,7 @@ body[data-origin="shadow"] #stage::after {
            "not derived yet", never a zero, because "nothing runs unwatched" and "nobody has
            looked" are opposite facts. [[unknown-stays-unknown]] -->
       <span class="dot">·</span><button id="heart-chip" type="button" aria-haspopup="dialog"
-        title="♥ THE HEART — the console's own circulation, derived live. Click to open it.">♥ <span id="heart-chip-n" class="hc-n">heart</span></button>
+        title="♥ THE HEART — the console's own circulation, derived live. Click to open it." data-untaken="1">♥ <span id="heart-chip-n" class="hc-n">not taken</span></button>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -14890,6 +14895,11 @@ window._lockMark = function(isOpen, px, label){
       _heartChipPaint(d);
     })['catch'](function(e){
       /* a failed fetch is not an empty heart — say which it was */
+      /* v3414 — AND THE CHIP MUST NOT GO ON SAYING 'heart' BESIDE THIS. The overlay printed THE
+         CONSOLE DID NOT ANSWER while the chip two centimetres away still wore the last clean
+         census: two surfaces of one fact, disagreeing, with only the overlay telling the truth.
+         [[stale-reading]] [[unknown-stays-unknown]] */
+      _heartChipPaint(null);
       ov.innerHTML = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head"><b>♥ THE HEART</b>'
         + '<button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button></div>'
         + '<div class="fx-body"><div class="hrt-note"><b class="st-UNKNOWN">THE CONSOLE DID NOT ANSWER</b>'
@@ -14903,13 +14913,15 @@ window._lockMark = function(isOpen, px, label){
     var el = document.getElementById('heart-chip'), nm = document.getElementById('heart-chip-n');
     if (!el || !nm) return;
     if (!d || !d.ok || !d.counts) {
-      nm.textContent = 'heart';
+      nm.textContent = 'not taken';
       el.removeAttribute('data-dark');
+      el.setAttribute('data-untaken', '1');
       el.title = '♥ THE HEART — not derived yet. Click to take the census.';
       return;
     }
     var c = d.counts, dark = c.DARK || 0;
     nm.textContent = dark ? (dark + ' dark') : 'heart';
+    el.removeAttribute('data-untaken');
     if (dark) el.setAttribute('data-dark', '1'); else el.removeAttribute('data-dark');
     el.title = '♥ THE HEART — ' + (c.FLOWING || 0) + ' flowing · ' + (c.WATCHED || 0)
       + ' watched · ' + dark + ' DARK (nothing watches these) · ' + (c.UNKNOWN || 0)
@@ -14944,7 +14956,10 @@ window._lockMark = function(isOpen, px, label){
        the census walks the source and costs ~2.5s, and a 2.5s job on a few-second poll is how
        /api/sessions came to have fourteen walks always in flight. [[poll-slower-than-its-interval]] */
     setTimeout(function(){
-      fetch('/api/heart').then(function(r){ return r.json(); }).then(_heartChipPaint)['catch'](function(){});
+      /* v3414 — NOT AN EMPTY CATCH. This is the chip's ONLY scheduled read, so swallowing it
+         left the chip wearing whatever the markup happened to say, and the honesty of the face
+         then depended on boot HTML nothing here is joined to. [[the-unjoined-end]] */
+      fetch('/api/heart').then(function(r){ return r.json(); }).then(_heartChipPaint)['catch'](function(){ _heartChipPaint(null); });
     }, 4000);
   } catch (e) {}
 
