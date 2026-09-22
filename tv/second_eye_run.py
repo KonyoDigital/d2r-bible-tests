@@ -147,7 +147,16 @@ def _sh(args, timeout=60):
     try:
         out, err = p.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        # ⚠⚠ v3421 — kill() SIGNALS; IT DOES NOT REAP. Found by the second eye reviewing v3420,
+        # in the same session a zombie was traced to exactly this shape in the closer loop: the
+        # normal path reaps via communicate(), but on THIS path communicate() is what raised, so
+        # without a second call the child sits <defunct> for the life of the process. Python's own
+        # docs prescribe kill-then-communicate for precisely this.
         p.kill()
+        try:
+            p.communicate(timeout=10)
+        except Exception:
+            pass                      # it may already be gone; the reap is best-effort, not a bet
         return None, "timed out after %ss" % timeout
     if p.returncode != 0:
         return None, (err or b"").decode("utf-8", "replace")[:300]
@@ -947,7 +956,15 @@ def ask(prompt):
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=EYE_CWD)
         out, err = p.communicate(timeout=EYE_TIMEOUT_S)
     except subprocess.TimeoutExpired:
+        # ⚠⚠ v3421 — kill() SIGNALS; IT DOES NOT REAP. Same shape as the handler above and as the
+        # ocr worker in the closer loop: communicate() reaps on the normal path and is exactly what
+        # raised here, so the eye left one <defunct> child behind per timeout. Measured this
+        # session: the eye timed out repeatedly while the cap was still 9,000.
         p.kill()
+        try:
+            p.communicate(timeout=10)
+        except Exception:
+            pass                      # already gone is fine; what is not fine is never asking
         # ⚠ SAY HOW LONG IT ACTUALLY WAITED. "did not answer" with no number cannot be told apart
         # from "was never started", and the reader cannot judge whether the bound was the problem.
         return "", False, ("the eye did not answer within %.0fs (waited %.0fs) — an EMPTY SEAT, "

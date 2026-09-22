@@ -1234,6 +1234,14 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_broken_pipe_must_not_skip_the_reap",
+         [sys.executable, os.path.join(HERE, "test_a_broken_pipe_must_not_skip_the_reap.py")], 60,
+         why="v3421 (#166) - KILLING A CHILD IS NOT REAPING IT, AND A SILENT except HIDES "
+             "WHICH HALF FAILED. Caught with the zombie ALIVE: `ocr_mac --worker` pid 88160, parent gone, after four rounds of source reasoning could not choose between three Popen "
+             "sites. `wp.stdin.close()` shared one try with the reap under `except Exception: pass`, so a broken pipe - the NORMAL end of a worker whose stdin is closed - skipped the "
+             "wait() entirely and left one <defunct> per close. The second eye then named "
+             "the same shape in the eye's own timeout handlers, so this gate sweeps the "
+             "CLASS: every TimeoutExpired handler that kills must also reap."),
     Gate("test_a_constrained_verdict_is_not_a_parsed_one",
          [sys.executable, os.path.join(HERE, "test_a_constrained_verdict_is_not_a_parsed_one.py")], 60,
          why="v3420 (#169) - THE VERDICT IS A FIELD THE MODEL IS CONSTRAINED TO EMIT, NOT A WORD "

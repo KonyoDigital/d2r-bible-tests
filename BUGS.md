@@ -7,6 +7,50 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1148 - KILLING A CHILD IS NOT REAPING IT, AND A SILENT `except` HID WHICH HALF FAILED
+
+**v3421 - task #166.** He asked why his Mac had zombies. **12 `<defunct>` children of the console,
+22 h of uptime**, and v2352's reaper was supposed to have ended this class a thousand versions ago.
+
+**Four rounds of reading the source could not choose between three `Popen` sites.** What settled it
+was catching one ALIVE - `ocr_mac --worker` **pid 88160**, parent already gone - which named the
+site in a single step. The closer loop did:
+
+```python
+try:
+    wp.stdin.close()
+    wp.wait(timeout=5)          # <- same try, and stdin.close() raises on a broken pipe
+except Exception:
+    pass                        # <- and the reason is thrown away
+```
+
+Closing the stdin of a worker that has already noticed EOF raises `BrokenPipeError`, which is the
+**normal** end of that conversation, not a fault. It jumped straight past `wait()`, so every
+ordinary shutdown left a corpse - and the bare `except` meant no line anywhere said which of the
+two calls had failed.
+
+**Fixed as a class, not an instance.** `close_ocr_worker(wp, say=None)` now sits beside
+`_spawn_and_reap` with the three steps in three independent `try` blocks, and a reap that fails
+says so instead of vanishing. Then the second eye, reviewing v3420, named the same shape twice more
+in `second_eye_run.py`: both `TimeoutExpired` handlers called `p.kill()` and returned - and
+`communicate()`, the thing that reaps on the normal path, is exactly what had raised. Both now
+kill-then-communicate, as Python's own docs prescribe.
+
+**Gate** `test_a_broken_pipe_must_not_skip_the_reap` - 8 cases, **3/3 red-proofs PROVEN**. One case
+is an AST sweep of every `TimeoutExpired` handler in the eye, so the class cannot reopen through a
+handler nobody has written yet. Parsed structurally on purpose: an earlier grep-shaped sweep for
+this returned 7 hits of which 6 were `os.kill` and the 7th was an attribute reference.
+
+**Heart row** `nothing we started is a corpse` - and this is the half that could have found the
+original. The gate grades source, so it can only ever pin shapes somebody already thought of; the
+row walks our own subtree in the live process table and counts `<defunct>`. **Seen RED against a
+real planted corpse** (not a fixture): green, then `missing - 1 of our 2 live child process(es) are
+<defunct>`, then green again only after an actual `wait()`.
+
+⚠ **A zombie holds no memory and no CPU.** Nothing gets slower, nothing errors, nothing logs. It is
+a row in a table that accumulates for the life of a console he leaves up for days - so the first
+detector was him, looking at his own machine. That is the failure, not the leak.
+
 ### REG-1147 — the verdict was a word parsed out of prose, and the parser is a decade of patches
 
 **v3420, 2026-09-23.** His ruling: *"build the json-schema verdict first"*.

@@ -6558,6 +6558,68 @@ def _check_the_eye_cap_is_a_size_the_eye_has_finished():
                 % (cap, big))
 
 
+def _check_nothing_this_console_started_is_a_corpse_right_now():
+    """v3421 - IS THERE A DEAD CHILD ON THIS MACHINE THAT NOBODY COLLECTED?
+
+    THE DOCTOR HALF of v3421, and the ONLY half that could have found the original. The gate
+    grades the SOURCE - it proves the closer reaps and that no timeout handler kills without
+    reaping - and a gate can only ever pin the shapes somebody already thought of. This asks the
+    live question: on THIS machine, at THIS moment, how many of our own children are <defunct>.
+
+    ⚠ IT IS THE LIVE LOOK THAT SETTLED #166, NOT THE SOURCE. Four rounds of reading could not
+    choose between three Popen sites; catching `ocr_mac --worker` pid 88160 ALIVE, with its parent
+    already gone, named the site in one step. A zombie holds no memory and no cpu - it is a row in
+    a table - so nothing on his machine gets slower and nothing errors. It accumulates, silently,
+    for the life of a console he leaves up for days, and the only symptom is the process table
+    filling. He should never be the one who notices. [[i-own-everything-i-start]]
+
+    ⚠ ONLY OUR OWN. A zombie parented by something else is not ours to report, and a session-wide
+    count would turn a neighbour's housekeeping into our red.
+
+    ⚠ ZERO NEEDS A DENOMINATOR. "0 zombies" is worth nothing without how many children were
+    examined: a console with no children at all reads exactly the same as one reaping perfectly,
+    and only the second is evidence. [[zero-needs-a-denominator]]
+    """
+    import subprocess as _sp
+    try:
+        out = _sp.run(["ps", "-eo", "pid,ppid,stat,comm"], stdout=_sp.PIPE, stderr=_sp.DEVNULL,
+                      timeout=15).stdout.decode("utf-8", "replace")
+    except Exception as e:
+        return UNKNOWN, ("this machine's process table could not be read (%s), so whether a corpse "
+                         "is sitting in it is UNKNOWN - not clear" % type(e).__name__)
+    rows = []
+    for ln in out.splitlines()[1:]:
+        f = ln.split(None, 3)
+        if len(f) < 4:
+            continue
+        try:
+            rows.append((int(f[0]), int(f[1]), f[2], f[3]))
+        except ValueError:
+            continue
+    if not rows:
+        return UNKNOWN, ("the process table parsed to nothing, so the instrument is the suspect "
+                         "here and the answer is UNKNOWN")
+    me = os.getpid()
+    # ⚠ OUR OWN SUBTREE, not the machine. Walk parents so a grandchild still counts as ours.
+    ours, mine = {me}, True
+    while mine:
+        mine = False
+        for pid, ppid, _st, _c in rows:
+            if ppid in ours and pid not in ours:
+                ours.add(pid)
+                mine = True
+    kids = [r for r in rows if r[0] != me and r[0] in ours]
+    dead = [r for r in kids if r[2].startswith("Z")]
+    if dead:
+        return MISSING, ("%d of our %d live child process(es) are <defunct> - killed or exited and "
+                         "never collected: %s. A corpse costs nothing and accumulates forever; the "
+                         "closer or a timeout handler let go of one without waiting for it"
+                         % (len(dead), len(kids), ", ".join("%s(pid %d)" % (c, p)
+                                                            for p, _pp, _s, c in dead[:6])))
+    return OK, ("0 of %d process(es) in our own subtree are <defunct> - every child this console "
+                "has ended was collected" % (len(kids),))
+
+
 def _check_the_eye_is_still_answering_in_a_constrained_field():
     """v3420 - ARE THE EYE'S VERDICTS STILL BEING READ, OR HAVE THEY GONE BACK TO BEING GUESSED?
 
@@ -6671,6 +6733,7 @@ CHECKS = [
     ("the eye audit agrees with the gate", _check_the_eye_audit_agrees_with_the_ship_gate),
     ("the eye cap is a size it has finished", _check_the_eye_cap_is_a_size_the_eye_has_finished),
     ("the eye answers in a field", _check_the_eye_is_still_answering_in_a_constrained_field),
+    ("nothing we started is a corpse", _check_nothing_this_console_started_is_a_corpse_right_now),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -6917,7 +6980,18 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             "the chip can say nobody looked",
             # v3415 - 686 ms for the newest 80; the FULL compare is 9,234 ms, over the
             # whole cheap-subset budget. It can only change when an eye writes a row.
-            "the eye audit agrees with the gate")
+            "the eye audit agrees with the gate",
+            # ⚠ v3421 — MOVED ON MERIT, AND THE MERIT IS THE CADENCE, NOT THE COST.
+            # MEASURED 76 ms median / 115 ms worst at load 14 — small against the cheap
+            # subset, and NOT why test_control timed out (that was a 280%-CPU game in the
+            # foreground, four orders of magnitude away). So this is not a row hidden to
+            # get under a number. The honest question PERIODIC asks is whether a corpse
+            # must be caught within ten minutes: it must not. Zombies are the slowest
+            # possible signal — 22 HOURS of uptime produced 12 of them — they cost no
+            # memory and no cpu, and nothing downstream degrades while one waits an hour
+            # to be named. Forking `ps` every eagle tick to watch a thing that moves once
+            # an hour is the treadmill this tuple exists to refuse.
+            "nothing we started is a corpse")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -7221,6 +7295,7 @@ WATCHES = {
     "the eye audit agrees with the gate": (),
     "the eye cap is a size it has finished": (),
     "the eye answers in a field": (),
+    "nothing we started is a corpse": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody

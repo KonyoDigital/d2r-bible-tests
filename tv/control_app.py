@@ -10980,23 +10980,12 @@ def _kai_closer_loop():
                     })
                     time.sleep(0.08)   # peaceful — slightly faster; intake-style crops are small
             finally:
-                try:
-                    wp.stdin.close(); wp.terminate()
-                    # ⚠ terminate() SIGNALS; it does not REAP. Without a wait() the child sits
-                    # <defunct> forever, and this loop spawns one worker PER REEL off a backlog
-                    # that "can be dozens of reels deep" — so it leaked one zombie per tick.
-                    # Measured 2026-09-01: 12 defunct children, oldest 16.5h, while every other
-                    # parent on the machine had at most 1. This is the SAME defect v2352 already
-                    # fixed for the bare `open`/`xdg-open` Popens via _spawn_and_reap(); that fix
-                    # was never swept to this site. [[feedback-generalize-fixes]]
-                    #
-                    # ⚠ AND IT MUST NOT BLOCK. A bare wp.wait() here stalls the closer thread —
-                    # and therefore the whole reel backlog — if the worker ever ignores SIGTERM.
-                    # A daemon thread reaps whenever the child actually dies and never stalls.
-                    threading.Thread(target=wp.wait, daemon=True,
-                                     name="tvd-ocr-reap").start()
-                except Exception:
-                    pass
+                # v3421 — ONE ROUTINE, ONE HOME. The shutdown+reap used to be three statements
+                # sharing a single `try` here; it leaked a zombie per closer run for three weeks
+                # because stdin.close() raises when the worker already exited, skipping the reap
+                # in exactly the case that produces one. It now lives in close_ocr_worker(), which
+                # a gate can drive with a worker whose stdin refuses. [[copy-drift]] §7
+                close_ocr_worker(wp)
             # v948.7 RETRO CLUSTER PROMOTE — consecutive plain-stash stills get majority
             # grid/tabstrip tally vote so materials/gems/runes on film funnel even when
             # live deep never named that tab (Theatre has the pixels = recheck).
@@ -14875,6 +14864,46 @@ def _capture_is_live():
         return bool(pid and _pid_alive(pid))
     except Exception:
         return False    # cannot tell -> assume nothing, and the caller treats that as "do not act"
+
+
+def close_ocr_worker(wp, say=None):
+    """Shut down an ocr worker and REAP it. -> True if the reap thread started, else False.
+
+    v3421. This was three statements sharing one `try` inside `_kai_closer_loop`, and it leaked
+    for three weeks because of it: `wp.stdin.close()` raises BrokenPipeError when the worker has
+    ALREADY EXITED on its own — which is exactly the case that leaves a zombie. One raise and
+    `terminate()` never ran, the reaper thread never started, and `except Exception: pass` said
+    nothing. The guard was skipped in precisely the scenario it was written for.
+
+    MEASURED 2026-09-23: 14 defunct children of his console. A 95-minute catcher sampling every
+    second logged 81 children; exactly one later became defunct, and it had been caught ALIVE —
+    `tv/bin/ocr_mac --worker`, pid 88160, alive 23:36:21, <defunct> 70 minutes later. A zombie
+    carries no argv, so nothing but catching it alive could name the site.
+
+    ⚠ THREE INDEPENDENT STEPS. A failure in one may never skip the next.
+    ⚠ THE REAP MUST NOT BLOCK — a bare wait() here stalls the closer thread, and therefore the
+      whole reel backlog, if the worker ignores SIGTERM. A daemon thread reaps whenever the child
+      actually dies.
+    ⚠ AND A FAILED REAP IS NEVER SILENT: the one refusal that says nothing is the one that hides.
+    [[the-unjoined-end]] [[feedback-silence-is-not-evidence]] [[process-port-discipline]]
+    """
+    try:
+        if getattr(wp, "stdin", None) is not None:
+            wp.stdin.close()
+    except Exception:
+        pass                      # already dead or already closed — not a reason to skip the reap
+    try:
+        wp.terminate()
+    except Exception:
+        pass                      # it may have exited on its own; wait() still reaps it
+    try:
+        threading.Thread(target=wp.wait, daemon=True, name="tvd-ocr-reap").start()
+        return True
+    except Exception as _e:
+        msg = ("\U0001f9e0 KAI: \u26a0 ocr worker could NOT be reaped (%s) - it will sit <defunct>"
+               % type(_e).__name__)
+        (say or (lambda m: print(m, flush=True)))(msg)
+        return False
 
 
 def _spawn_and_reap(argv, **kw):
@@ -31160,7 +31189,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3420",
+        "ver": "v3421",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
