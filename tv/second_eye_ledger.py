@@ -394,7 +394,8 @@ def code_was_transmitted(sent):
 
 def record(version, model, verdict, findings=None, images=None, asked=None,
            answer_head=None, reached=True, path=None, seen_path=None, sent=None, sha=None,
-           head_cap=None, absent=None, absent_kinds=None, reach=None, stripped=None):
+           head_cap=None, absent=None, absent_kinds=None, reach=None, stripped=None,
+           verdict_from=None):
     """Append one look. Returns the row written.
 
     `verdict` is what the OTHER family concluded: "clean" | "findings" | "cannot-tell".
@@ -533,6 +534,17 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
         # assumed to be stamps; assuming would be the confident zero this field exists to refuse.
         "absentKind": _kinds_for(absent, absent_kinds, sha),
         "verdict": str(verdict or ""),
+        # ⚠⚠ v3420 — HOW THE VERDICT WAS OBTAINED, BECAUSE THE TWO ROUTES ARE NOT THE SAME
+        # EVIDENCE. "schema" means the transport CONSTRAINED the model to an enum and this field
+        # was read. "prose" means a regex inferred it from sentences — the route whose own
+        # docstrings in second_eye_run.py record a CLEAN look filed as `findings`, a fix that was
+        # "wrong in BOTH directions", and a review filed `findings` because the word after
+        # `defects` was `meeting`. A reader that cannot tell them apart cannot weight them apart.
+        #
+        # ⚠ THREE STATES: "schema" · "prose" · null. null is every row written before this
+        # version — nobody recorded how it was obtained, which is NOT the same as prose.
+        # [[unknown-stays-unknown]]
+        "verdictFrom": (str(verdict_from).strip() or None) if verdict_from else None,
         "findings": list(findings or []),
         "images": [os.path.basename(str(i)) for i in (images or [])],
         "asked": (str(asked or "")[:400]) or None,

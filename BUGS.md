@@ -7,6 +7,58 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1147 — the verdict was a word parsed out of prose, and the parser is a decade of patches
+
+**v3420, 2026-09-23.** His ruling: *"build the json-schema verdict first"*.
+
+`_verdict_for` and everything beneath it exists to decide, from sentences, what another model
+concluded. Its own docstrings are the receipts:
+
+| version | what the ledger recorded |
+|---|---|
+| v2808 | a CLEAN look filed as `findings` — *"the row said the eye had found something when it had said the opposite"* |
+| v3198 | that fix was **"wrong in BOTH directions"**: a declaration plus exactly ONE listed P1 gave `len(findings)==1`, not `>1`, so the declaration cleared it and a real P1 was filed clean |
+| — | a review saying NO DEFECTS filed `findings` because the word after `defects` was **`meeting`** |
+| — | an answer ending **`VERDICT: clean`** filed `findings` |
+
+Every patch was right about the case in front of it and wrong about the next, **because prose is
+not a field.** I hit the same thing on v3419 tonight: the eye's own answer ended `VERDICT: clean`
+while the row said `findings`, and I deliberately left it flagged rather than diagnosed, having
+already been wrong about that mismatch once.
+
+**MEASURED BEFORE BUILDING ON IT.** `grok --json-schema` returns an envelope carrying `text`,
+`thought`, `usage`, `modelUsage` and `structuredOutput` — and the model cannot emit a verdict
+outside the enum. Two live probes, 2026-09-23. ⚠ `grok-second-eye` §8 lists `--json-schema` among
+six flags **never measured against CLI 1.0.x**; this is that measurement.
+
+**Fixed:** the eye is asked with a schema (`verdict` ∈ {clean, findings, cannot-tell}, `findings[]`,
+`unseen`), `ask()` unwraps the envelope so every downstream guard still sees prose, and the verdict
+is **read** rather than inferred.
+
+⚠ **THE PROSE PATH IS NOT DELETED** — the MCP transport cannot constrain, and a look taken through
+it must still be recordable. What changes is that the row now carries **`verdictFrom`**: `schema`,
+`prose`, or `null` for every row written before this version. A forced enum and a guessed sentence
+are different evidential objects; `null` is neither, because nobody recorded how those were
+obtained. Collapsing any two of the three is how this ledger came to assert things the eye never
+said.
+
+**Also shipped, and it closes a live risk rather than a theoretical one:** the eye is now denied
+`Edit`, `Write` and `MultiEdit`, copied from the shipped `claude_vision.sh` pattern rather than
+re-derived. v3408 sandboxed the eye in an empty temp dir because *"a CLI eye is an AGENT with tools
+and pointed at this checkout it can EDIT IT"* — and Grok was caught writing to `tv/` mid-ship on
+2026-09-22. **An empty cwd is a hiding place, not a guard**; I proved that by accident the same
+night, running the CLI twice with the live checkout as its cwd. The tree happened to be clean
+afterwards. That is luck.
+
+**Gate:** `tv/test_a_constrained_verdict_is_not_a_parsed_one.py` — 11 cases, one a BASELINE proving
+the prose path still records a look. It repoints `SEL.LEDGER_PATH` at a temp file per case, so it
+never touches the live ledger; verified 0 `v9900` rows leaked. 3 RED_PROOFs, all PROVEN.
+**Heart:** `console_doctor` row `the eye answers in a field` — watches whether looks are still
+arriving constrained. ⚠ It exists because the fallback is **silent**: if `--json-schema` stops being
+accepted or the CLI is swapped, every look reverts to the parser and nothing errors. Live: UNKNOWN,
+11 ms — *"12 recent looks predate the route field entirely"*, which is the honest answer. All 6
+branches driven, 4 of them non-OK.
+
 ### REG-1146 — the guard that closed the split reopened it, and the join could not see either
 
 **v3419, 2026-09-22.** The second eye looked at v3417 at full reach and returned 7 findings. Five

@@ -1234,6 +1234,21 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_constrained_verdict_is_not_a_parsed_one",
+         [sys.executable, os.path.join(HERE, "test_a_constrained_verdict_is_not_a_parsed_one.py")], 60,
+         why="v3420 (#169) - THE VERDICT IS A FIELD THE MODEL IS CONSTRAINED TO EMIT, NOT A WORD "
+             "PARSED OUT OF ITS PROSE. `_verdict_for` and everything under it is a long line of "
+             "patches on reading sentences, and its own docstrings are the receipts: a CLEAN look "
+             "filed as findings (v2808); a fix that was wrong in BOTH directions, where a "
+             "declaration plus exactly ONE listed P1 cleared it (v3198); a review saying NO "
+             "DEFECTS filed findings because the word after defects was meeting; an answer ending "
+             "VERDICT: clean filed findings. Each patch was right about the case in front of it "
+             "and wrong about the next. MEASURED 2026-09-23: grok --json-schema returns an "
+             "envelope with structuredOutput and the model cannot emit a verdict outside the "
+             "enum. The prose path STAYS for transports that cannot constrain; what this pins is "
+             "that the row SAYS WHICH ROUTE produced it, because a forced enum and a guessed "
+             "sentence are different evidential objects. Never touches the live ledger - it "
+             "repoints SEL.LEDGER_PATH at a temp file per case."),
     Gate("test_a_cap_must_be_a_size_the_eye_has_finished",
          [sys.executable, os.path.join(HERE, "test_a_cap_must_be_a_size_the_eye_has_finished.py")], 60,
          why="v3418 - HIS RULING, 2026-09-22: raise the second-eye cap 9,000 -> 26,000, the call "

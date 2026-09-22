@@ -35,6 +35,7 @@ with reached=False and NO verdict. It is never silence-as-agreement.
 """
 import argparse
 import io
+import json
 import os
 import re
 import subprocess
@@ -887,13 +888,62 @@ def _model_from_transport():
     return ""                      # UNKNOWN transport -> stays unattributable, fails closed
 
 
+# ⚠⚠ v3420 — THE VERDICT IS A FIELD THE MODEL IS CONSTRAINED TO EMIT, NOT A WORD PARSED OUT OF
+# ITS PROSE. Everything below `_claims_a_defect` is a decade of patches on that one mistake, and
+# the docstrings there are the receipts: v2808 filed a CLEAN look as `findings`; v3198's fix was
+# "wrong in BOTH directions" and a declaration followed by exactly ONE listed P1 was filed CLEAN;
+# a review saying NO DEFECTS was filed `findings` because the word after `defects` was `meeting`;
+# an eye that ended its answer "VERDICT: clean" was filed `findings`. Each patch was correct about
+# the case it saw and wrong about the next one, because PROSE IS NOT A VERDICT FIELD.
+#
+# MEASURED before building on it (`grok --json-schema` probe, 2026-09-23): the CLI answers with an
+# envelope carrying `text`, `thought`, `usage` and `structuredOutput`, and structuredOutput is the
+# schema-constrained object. The model cannot emit a verdict outside the enum.
+#
+# ⚠ THE PROSE PARSER IS NOT DELETED. The MCP/API transport has no schema, and a look taken through
+# it must still be recordable. What changes is that the row now SAYS WHICH ROUTE PRODUCED ITS
+# VERDICT — `verdictFrom: "schema"` or `"prose"` — because a verdict the model was constrained to
+# emit and one inferred from its sentences are different evidential objects, and collapsing them
+# is how the ledger came to assert things the eye never said. [[unknown-stays-unknown]]
+EYE_VERDICT_SCHEMA = json.dumps({
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": ["clean", "findings", "cannot-tell"],
+                    "description": "clean = looked and it is fine. findings = real defects listed. "
+                                   "cannot-tell = you could NOT SEE enough of the change to judge "
+                                   "it. cannot-tell is NOT clean."},
+        "findings": {"type": "array", "items": {"type": "string"},
+                     "description": "one entry per concrete defect, each with the scenario in "
+                                    "which it fails. Empty when the verdict is clean."},
+        "unseen": {"type": "string",
+                   "description": "what you were NOT shown, in your own words. Empty if you "
+                                  "believe you saw the whole change."},
+    },
+    "required": ["verdict", "findings", "unseen"],
+})
+
+
 def ask(prompt):
-    """-> (answer, reached, why). An unreachable eye returns reached=False and NO verdict."""
+    """-> (answer, reached, why, structured). An unreachable eye returns reached=False, NO verdict.
+
+    `structured` is the schema-constrained object when the transport produced one, else None.
+    None is a THIRD STATE: it means nobody constrained this answer, not that the answer was bad.
+    """
     if not os.path.exists(EYE_CLI):
-        return "", False, "no eye at %s (set THIRD_EYE_CLI)" % EYE_CLI
+        return "", False, "no eye at %s (set THIRD_EYE_CLI)" % EYE_CLI, None
     _t0 = time.time()
     try:
-        p = subprocess.Popen([EYE_CLI, "-p", prompt],
+        # ⚠⚠ v3420 — READ-ONLY BY FLAG, NOT BY AN EMPTY FOLDER. v3408 put EYE_CWD outside the
+        # repo because "a CLI eye is an AGENT with tools, and pointed at this checkout it can
+        # EDIT IT" — and Grok WAS caught writing to tv/ mid-ship on 2026-09-22. An empty cwd is
+        # a hiding place, not a guard: nothing stops the agent walking to an absolute path.
+        # These three denials are the SHIPPED pattern from kai-achilles/tools/claude_vision.sh
+        # (--deny Edit --deny Write --deny MultiEdit), copied rather than re-derived, and they
+        # are what makes it safe to hand the eye real code in a later version. [[grok-second-eye]]
+        _argv = [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
+                 "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
+                 "--disable-web-search"]
+        p = subprocess.Popen(_argv,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=EYE_CWD)
         out, err = p.communicate(timeout=EYE_TIMEOUT_S)
     except subprocess.TimeoutExpired:
@@ -901,18 +951,41 @@ def ask(prompt):
         # ⚠ SAY HOW LONG IT ACTUALLY WAITED. "did not answer" with no number cannot be told apart
         # from "was never started", and the reader cannot judge whether the bound was the problem.
         return "", False, ("the eye did not answer within %.0fs (waited %.0fs) — an EMPTY SEAT, "
-                           "never agreement" % (EYE_TIMEOUT_S, time.time() - _t0))
+                           "never agreement" % (EYE_TIMEOUT_S, time.time() - _t0)), None
     except Exception as e:
-        return "", False, "the eye could not be run: %s" % type(e).__name__
-    ans = (out or b"").decode("utf-8", "replace").strip()
+        return "", False, "the eye could not be run: %s" % type(e).__name__, None
+    raw = (out or b"").decode("utf-8", "replace").strip()
     if p.returncode != 0:
-        return ans, False, ("the eye exited %d: %s"
-                            % (p.returncode, (err or b"").decode("utf-8", "replace")[:200]))
+        return raw, False, ("the eye exited %d: %s"
+                            % (p.returncode, (err or b"").decode("utf-8", "replace")[:200])), None
+    # ⚠⚠ v3420 — WITH A SCHEMA THE TRANSPORT RETURNS AN ENVELOPE, NOT PROSE, AND THE GUARDS BELOW
+    # WERE WRITTEN FOR PROSE. MEASURED shape (probe, 2026-09-23): a single JSON object carrying
+    # `text`, `thought`, `usage`, `modelUsage`, `total_cost_usd` and `structuredOutput`. The
+    # human-readable reply is `text`; `structuredOutput` is the schema-constrained object.
+    #
+    # So the envelope is UNWRAPPED here and everything downstream still sees prose. If it does not
+    # parse, that is not an error — it is an older transport, and `structured` stays None so the
+    # row records `prose` rather than claiming a constraint nobody applied. A fallback that
+    # silently pretends to be the real thing is the defect this whole file is a monument to.
+    ans, structured = raw, None
+    try:
+        _env = json.loads(raw)
+    except Exception:
+        _env = None
+    if isinstance(_env, dict):
+        _so = _env.get("structuredOutput")
+        if isinstance(_so, dict) and str(_so.get("verdict") or "").strip():
+            structured = _so
+        _txt = _env.get("text")
+        if isinstance(_txt, str) and _txt.strip():
+            ans = _txt.strip()
     # ⚠ EXIT 0 IS NOT AN ANSWER. This CLI has been measured exiting 0 on "Not signed in"; an empty
     # or near-empty body is an empty seat however clean the status code looked.
-    if len(ans) < 40:
-        return ans, False, "the eye answered %d chars — too little to be a look" % len(ans)
-    return ans, True, ""
+    # ⚠ AND THE LENGTH IS MEASURED ON THE UNWRAPPED REPLY, never on the envelope: a 2 KB envelope
+    # around a 12-character refusal would sail past a guard that counted the wrapper.
+    if len(ans) < 40 and not structured:
+        return ans, False, "the eye answered %d chars — too little to be a look" % len(ans), None
+    return ans, True, "", structured
 
 
 # ⚠⚠ v3198 — THE ADJECTIVE WAS THE WHOLE BUG, AND IT MADE THE LEDGER LIE IN THE DIRECTION
@@ -1313,7 +1386,7 @@ def _findings_from(answer):
 
 
 def record_answer(version, answer, sent, dropped="", prompt_text="", answer_model="",
-                  sha="", absent=None, reach=None, stripped=None):
+                  sha="", absent=None, reach=None, stripped=None, structured=None):
     """Record an answer obtained by ANY transport, with the payload's measured `sent`."""
     version = SEL.norm_version(version)
     answer = (answer or "").strip()
@@ -1371,13 +1444,40 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
     _model = _model_from_answer(answer) or answer_model or ""
     answer = _strip_echo(answer, prompt_text)
     findings = _findings_from(answer)
-    _verdict, findings = _verdict_for(answer, findings)
+    # ⚠⚠ v3420 — A CONSTRAINED FIELD BEATS A PARSED SENTENCE, AND THE ROW SAYS WHICH IT GOT.
+    # `_verdict_for` and everything it leans on is a decade of patches on reading prose, and its
+    # own docstrings are the receipts: a CLEAN look filed as `findings`; a fix that was "wrong in
+    # BOTH directions"; a declaration plus exactly ONE listed P1 filed CLEAN; a review saying NO
+    # DEFECTS filed `findings` because the word after `defects` was `meeting`. Each patch was right
+    # about the case in front of it and wrong about the next, because PROSE IS NOT A FIELD.
+    #
+    # When the transport constrained the model to a schema, the verdict is READ, not inferred. The
+    # prose path stays for transports that cannot constrain (the MCP door), and the row records
+    # `verdictFrom` so the two can never be mistaken for each other: a verdict the model was FORCED
+    # into an enum and a verdict a regex guessed from sentences are different evidential objects.
+    # Collapsing them is how this ledger came to assert things the eye never said.
+    # [[unknown-stays-unknown]] [[label-outlived-referent]]
+    _verdict_from = "prose"
+    if isinstance(structured, dict) and str(structured.get("verdict") or "").strip():
+        _v = str(structured["verdict"]).strip().lower()
+        if _v in ("clean", "findings", "cannot-tell"):
+            _verdict = _v
+            _sf = structured.get("findings")
+            findings = [str(x) for x in _sf if str(x).strip()] if isinstance(_sf, list) else []
+            _unseen = str(structured.get("unseen") or "").strip()
+            if _unseen:
+                # what it was NOT shown is part of the look, not a footnote — it is the only thing
+                # that separates a clean verdict from one taken through a keyhole.
+                findings = findings + ["NOT SHOWN (the eye's own words): " + _unseen]
+            _verdict_from = "schema"
+    if _verdict_from == "prose":
+        _verdict, findings = _verdict_for(answer, findings)
     SEL.record(version=version, model=_model,
                verdict=_verdict,
                findings=findings, images=[],
                asked=(COLD_FRAMING.strip() + (" [%s]" % dropped if dropped else ""))[:400],
                answer_head=answer, head_cap=400, reached=True, path=None, seen_path=None, sent=sent,
-               sha=sha, absent=absent, reach=reach, stripped=stripped)
+               sha=sha, absent=absent, reach=reach, stripped=stripped, verdict_from=_verdict_from)
     print("  %s: LOOKED — %d finding(s) recorded" % (version, len(findings)))
     return True
 
@@ -1442,7 +1542,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
                                  absent=absent, reach=reach, stripped=stripped)
     if dry:
         return True
-    answer, reached, awhy = ask(prompt)
+    answer, reached, awhy, structured = ask(prompt)
     if not reached:
         SEL.record(version=version, model=EYE_MODEL, verdict="", findings=[], images=[],
                    asked=COLD_FRAMING.strip()[:200],
@@ -1465,7 +1565,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     # record_answer prefers the model the answer's own bytes name.
     return record_answer(version, answer, sent, dropped, prompt_text=prompt,
                          answer_model=_model_from_transport(), absent=absent, reach=reach,
-                         stripped=stripped)
+                         stripped=stripped, structured=structured)
 
 
 def main(argv):

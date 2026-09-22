@@ -6558,6 +6558,56 @@ def _check_the_eye_cap_is_a_size_the_eye_has_finished():
                 % (cap, big))
 
 
+def _check_the_eye_is_still_answering_in_a_constrained_field():
+    """v3420 - ARE THE EYE'S VERDICTS STILL BEING READ, OR HAVE THEY GONE BACK TO BEING GUESSED?
+
+    THE DOCTOR HALF of v3420. The gate pins the LAW on a temp ledger; this asks the live question
+    a gate cannot: on THIS machine, are the looks actually arriving with a constrained verdict.
+
+    ⚠ WHY THIS CAN GO DARK SILENTLY, WHICH IS THE WHOLE REASON IT EXISTS. The fallback is
+    deliberate and correct - a transport that cannot constrain must still be recordable - so if
+    `--json-schema` stops being accepted, the envelope shape changes, or the CLI is swapped for one
+    that ignores it, EVERY look quietly reverts to the prose parser and nothing errors. The rows
+    keep arriving, the ship gate keeps passing, and the verdicts go back to being inferred by the
+    machinery whose own docstrings record a CLEAN look filed as `findings`. A lane that never
+    attempts never records a failure. [[heart-first]] 2 - ON is not WORKING.
+
+    ⚠ THREE STATES, and UNKNOWN is a real answer: a machine with no recent look cannot say whether
+    the constraint is being applied, and saying so is honest rather than fine.
+    """
+    try:
+        import second_eye_ledger as _sel
+    except Exception as e:
+        return UNKNOWN, ("this process cannot import the eye ledger (%s), so whether verdicts are "
+                         "constrained is UNKNOWN, not fine" % type(e).__name__)
+    try:
+        rows = [r for r in _sel._rows() if isinstance(r, dict) and r.get("reached") is True
+                and str(r.get("verdict") or "").strip()]
+    except Exception as e:
+        return UNKNOWN, ("the ledger refused to answer (%s), so the route its verdicts came by is "
+                         "UNKNOWN" % type(e).__name__)
+    recent = rows[-12:]
+    if not recent:
+        return UNKNOWN, ("no answered look is on record, so whether the eye is being constrained "
+                         "cannot be established - that is silence, not agreement")
+    schema = sum(1 for r in recent if str(r.get("verdictFrom") or "") == "schema")
+    prose = sum(1 for r in recent if str(r.get("verdictFrom") or "") == "prose")
+    silent = len(recent) - schema - prose
+    # ⚠ A ROW FROM BEFORE v3420 CARRIES NO verdictFrom AT ALL, and that is not "prose" - nobody
+    # recorded how it was obtained. Counting it either way would invent evidence.
+    if schema:
+        return OK, ("%d of the last %d answered look(s) carried a CONSTRAINED verdict (%d parsed "
+                    "from prose, %d predate the field and say nothing about their route)"
+                    % (schema, len(recent), prose, silent))
+    if prose:
+        return MISSING, ("the last %d answered look(s) were ALL parsed from prose and none was "
+                         "constrained - the schema stopped being applied, and the verdict is back "
+                         "to being inferred by the parser whose own history includes filing a "
+                         "clean look as findings" % prose)
+    return UNKNOWN, ("%d recent look(s) predate the route field entirely, so how their verdicts "
+                     "were obtained is unrecorded - not prose, not schema, unknown" % silent)
+
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6620,6 +6670,7 @@ CHECKS = [
     ("the chip can say nobody looked", _check_the_chip_can_say_nobody_looked),
     ("the eye audit agrees with the gate", _check_the_eye_audit_agrees_with_the_ship_gate),
     ("the eye cap is a size it has finished", _check_the_eye_cap_is_a_size_the_eye_has_finished),
+    ("the eye answers in a field", _check_the_eye_is_still_answering_in_a_constrained_field),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -7169,6 +7220,7 @@ WATCHES = {
     "the chip can say nobody looked": ("heart-chip",),
     "the eye audit agrees with the gate": (),
     "the eye cap is a size it has finished": (),
+    "the eye answers in a field": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody
