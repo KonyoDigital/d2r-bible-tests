@@ -201,6 +201,278 @@ def _attempt_reachraises(P):
     return len(rows), len(ok)
 
 
+def _station_refused(P, module, attr, station):
+    """One owner raises. The station it feeds must say UNKNOWN and say why."""
+    import importlib
+    mod = importlib.import_module(module)
+    with _Patch(mod, attr, _boom):
+        r = P.stream()
+    rows = r.get("rows") or []
+    if not rows:
+        why = str(r.get("why") or "")
+        return 1, (1 if r.get("state") == "UNKNOWN" and why.strip() else 0)
+    ok = []
+    for x in rows:
+        st = (x.get("stations") or {}).get(station) or {}
+        if str(st.get("say")) == "UNKNOWN" and _refused(st):
+            ok.append(x)
+    return len(rows), len(ok)
+
+
+def _attempt_templates_raise(P):
+    return _station_refused(P, "reel_templates", "templates", "template")
+
+
+def _attempt_routes_raise(P):
+    return _station_refused(P, "per_reel_routes", "routes", "route")
+
+
+def _attempt_gap_raise(P):
+    return _station_refused(P, "extract_gap", "gap", "extract")
+
+
+def _attempt_ledger_not_a_record(P):
+    cens = P._tombstone_census(["not", "a", "ledger"])
+    return 1, (1 if cens.get("reels") is None and cens.get("mb") is None else 0)
+
+
+def _attempt_ledger_rows_not_a_list(P):
+    cens = P._tombstone_census({"reels": "twelve"})
+    return 1, (1 if cens.get("reels") is None else 0)
+
+
+def _attempt_bool_megabytes_are_not_added(P):
+    cens = P._tombstone_census({"reels": [{"reel": "a", "mb": True}, {"reel": "b", "mb": 2}]})
+    return 1, (1 if cens.get("mb") == 2.0 and cens.get("reels") == 2 else 0)
+
+
+def _attempt_string_megabytes_are_not_added(P):
+    cens = P._tombstone_census({"reels": [{"reel": "a", "mb": "12"}, {"reel": "b", "mb": 1}]})
+    return 1, (1 if cens.get("mb") == 1.0 else 0)
+
+
+def _attempt_infinite_megabytes_are_not_added(P):
+    cens = P._tombstone_census({"reels": [{"reel": "a", "mb": float("inf")}, {"reel": "b", "mb": 3}]})
+    return 1, (1 if cens.get("mb") == 3.0 else 0)
+
+
+def _attempt_a_bool_is_not_a_reel_name(P):
+    rows, dropped = P._by_reel({"rows": [{"reel": True, "door": "x"}, {"reel": "real", "door": "y"}]})
+    return 1, (1 if list(rows) == ["real"] and dropped == 1 else 0)
+
+
+def _attempt_a_number_is_not_a_reel_name(P):
+    rows, dropped = P._by_reel({"rows": [{"reel": 7, "door": "x"}, {"reel": "real", "door": "y"}]})
+    return 1, (1 if "7" not in rows and "real" in rows and dropped == 1 else 0)
+
+
+def _attempt_a_blank_name_is_not_a_reel(P):
+    rows, dropped = P._by_reel({"rows": [{"reel": "   "}, {"reel": ""}, {"door": "only"}]})
+    return 1, (1 if rows == {} and dropped == 3 else 0)
+
+
+def _attempt_a_string_of_rows_is_not_a_shelf(P):
+    rows, dropped = P._by_reel({"rows": "reel_a"})
+    return 1, (1 if rows == {} and dropped == 1 else 0)
+
+
+def _attempt_a_list_is_not_an_owner_answer(P):
+    rows, dropped = P._by_reel(["reel_a"])
+    return 1, (1 if rows == {} else 0)
+
+
+def _attempt_non_dict_rows_are_counted_not_walked(P):
+    rows, dropped = P._by_reel({"rows": [1, None, "x", {"reel": "kept"}]})
+    return 1, (1 if list(rows) == ["kept"] and dropped == 3 else 0)
+
+
+def _attempt_duplicate_names_are_one_reel(P):
+    rows, _d = P._by_reel({"rows": [{"reel": "same", "door": "a"}, {"reel": "same", "door": "b"}]})
+    return 1, (1 if len(rows) == 1 and rows["same"]["door"] == "b" else 0)
+
+
+def _attempt_lock_raises(P):
+    import self_arming as SA
+    real = SA.may_on_merit
+    def _boom(lock):
+        raise RuntimeError("census unreadable")
+    SA.may_on_merit = _boom
+    try:
+        r = P.stream()
+    finally:
+        SA.may_on_merit = real
+    why = str(r.get("why") or "")
+    good = (r.get("state") == "UNKNOWN" and r.get("walked") == 0 and "stations" in r
+            and "could not be read" in why)
+    return 1, (1 if good else 0)
+
+
+def _attempt_no_such_reel_is_not_invented(P):
+    r = P.stream("___no_such_reel_wilson___")
+    names = [x.get("reel") for x in (r.get("rows") or [])]
+    return 1, (1 if names == [] and r.get("walked") in (0, None) or names == [] else 0)
+
+
+def _attempt_every_station_is_present(P):
+    r = P.stream()
+    rows = r.get("rows") or []
+    if not rows:
+        return 1, 0
+    want = set(P.STATIONS)
+    ok = all(set((x.get("stations") or {})) == want for x in rows)
+    return 1, (1 if ok else 0)
+
+
+def _attempt_no_station_says_the_word_None(P):
+    r = P.stream()
+    rows = r.get("rows") or []
+    if not rows:
+        return 1, 0
+    bad = []
+    for x in rows:
+        for cell in (x.get("stations") or {}).values():
+            if str((cell or {}).get("say")) == "None":
+                bad.append(x.get("reel"))
+    return 1, (1 if not bad else 0)
+
+
+def _attempt_counts_sum_to_the_walk(P):
+    r = P.stream()
+    rows = r.get("rows") or []
+    if not rows:
+        return 1, 0
+    counts = r.get("counts") or {}
+    ok = True
+    for st in P.STATIONS:
+        total = sum((counts.get(st) or {}).values())
+        if total != len(rows):
+            ok = False
+    return 1, (1 if ok else 0)
+
+
+def _attempt_unknown_shape_names_every_station(P):
+    import one_start_point as OSP
+    import reel_river as RR
+    with _Patch(OSP, "start_points", lambda *a, **k: {"rows": []}), \
+         _Patch(RR, "river", lambda *a, **k: {"rows": []}):
+        r = P.stream()
+    good = (r.get("state") == "UNKNOWN" and list(r.get("stations") or []) == list(P.STATIONS)
+            and r.get("walked") == 0 and str(r.get("why") or "").strip())
+    return 1, (1 if good else 0)
+
+
+def _attempt_a_template_only_reel_is_not_given_a_door(P):
+    import reel_templates as RT
+    real = RT.templates
+    def _extra(*a, **k):
+        got = real(*a, **k)
+        rows = list((got or {}).get("rows") or [])
+        rows.append({"reel": "___template_only___", "template": "invented"})
+        return dict(got or {}, rows=rows)
+    with _Patch(RT, "templates", _extra):
+        r = P.stream()
+    names = [x.get("reel") for x in (r.get("rows") or [])]
+    return 1, (1 if "___template_only___" not in names else 0)
+
+
+def _attempt_story_raising_does_not_invent_a_ladder(P):
+    import reel_story as RS
+    with _Patch(RS, "story", _boom):
+        try:
+            r = P.stream()
+        except Exception:
+            return 1, 0
+    good = isinstance(r, dict) and "stations" in r and r.get("state") in ("UNKNOWN", "OK", None) or isinstance(r, dict)
+    # it may still answer from the other owners; it must not raise and must not
+    # publish a walked count larger than the rows it actually returned
+    walked = r.get("walked")
+    rows = r.get("rows") or []
+    return 1, (1 if isinstance(r, dict) and walked == len(rows) else 0)
+
+
+def _attempt_gap_list_does_not_crash(P):
+    import extract_gap as EG
+    with _Patch(EG, "gap", lambda *a, **k: ["not", "rows"]):
+        try:
+            r = P.stream()
+        except Exception:
+            return 1, 0
+    return 1, (1 if isinstance(r, dict) and r.get("walked") == len(r.get("rows") or []) else 0)
+
+
+def _attempt_routes_list_does_not_crash(P):
+    import per_reel_routes as PRR
+    with _Patch(PRR, "routes", lambda *a, **k: ["not", "a", "map"]):
+        try:
+            r = P.stream()
+        except Exception:
+            return 1, 0
+    return 1, (1 if isinstance(r, dict) and "rows" in r else 0)
+
+
+def _attempt_nan_megabytes_are_not_added(P):
+    cens = P._tombstone_census({"reels": [{"reel": "a", "mb": float("nan")}, {"reel": "b", "mb": 4}]})
+    return 1, (1 if cens.get("mb") == 4.0 else 0)
+
+
+def _attempt_an_array_ledger_is_not_zero_reels(P):
+    """A JSON array used to become {} because [] is falsy, and every row then said 0 reels."""
+    import reel_retention as RR
+    import tempfile
+    caught = 0
+    bodies = ["[]", '[{"reel": "reel_s_1_1", "mb": 12}]']
+    for body in bodies:
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        try:
+            with _Patch(RR, "_tombstone_path", lambda p=path: p):
+                r = P.stream()
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        cens = r.get("tombstoned") or {}
+        says = [((x.get("stations") or {}).get("tombstone") or {}).get("say")
+                for x in (r.get("rows") or [])]
+        if cens.get("reels") is None and says and all(s == "UNKNOWN" for s in says):
+            caught += 1
+        elif not (r.get("rows") or []) and cens.get("reels") is None and r.get("state") == "UNKNOWN":
+            caught += 1
+    return len(bodies), caught
+
+
+def _attempt_a_missing_ledger_is_not_zero_reels(P):
+    import reel_retention as RR
+    def _missing():
+        return "/nope/not/a/tombstone.json"
+    with _Patch(RR, "_tombstone_path", _missing):
+        r = P.stream()
+    cens = r.get("tombstoned") or {}
+    return 1, (1 if cens.get("reels") is None else 0)
+
+
+def _attempt_a_row_with_no_megabytes_still_counts(P):
+    cens = P._tombstone_census({"reels": [{"reel": "a"}, {"reel": "b", "mb": 1.5}]})
+    return 1, (1 if cens.get("reels") == 2 and cens.get("mb") == 1.5 else 0)
+
+
+def _attempt_lock_shut(P):
+    import self_arming as SA
+    real = SA.may_on_merit
+    SA.may_on_merit = lambda lock: (False, "sabotage: the lock is shut")
+    try:
+        r = P.stream()
+    finally:
+        SA.may_on_merit = real
+    why = str(r.get("why") or "")
+    good = (r.get("state") == "UNKNOWN" and "LOCKED" in why and r.get("walked") == 0
+            and "stations" in r and "owners" in r)
+    return 1, (1 if good else 0)
+
+
 ATTEMPTS = (
     ("ownerraises", _attempt_ownerraises,
      "an owner raises — the station must say UNKNOWN and name what happened, never go absent"),
@@ -212,6 +484,66 @@ ATTEMPTS = (
      "a reel only one owner knows still carries all five stations"),
     ("reachraises", _attempt_reachraises,
      "printer_reach raises — EXTRACT is UNKNOWN, never permissive"),
+    ("templates", _attempt_templates_raise,
+     "reel_templates raises — the template station says UNKNOWN and names why"),
+    ("routes", _attempt_routes_raise,
+     "per_reel_routes raises — the route station says UNKNOWN and names why"),
+    ("gap", _attempt_gap_raise,
+     "extract_gap raises — the extract station does not invent a recoverable gap"),
+    ("locked", _attempt_lock_shut,
+     "a shut printer.stream returns the UNKNOWN shape, with the lock's reason, and walks nothing"),
+    ("ledger-shape", _attempt_ledger_not_a_record,
+     "a ledger that is not a record is UNKNOWN, not zero reels closed out"),
+    ("ledger-rows", _attempt_ledger_rows_not_a_list,
+     "a reel list that is a string is UNKNOWN, not a count of its characters"),
+    ("mb-bool", _attempt_bool_megabytes_are_not_added,
+     "True is not one megabyte of closed-out film"),
+    ("mb-str", _attempt_string_megabytes_are_not_added,
+     "a megabyte written as text is not added into the total"),
+    ("mb-inf", _attempt_infinite_megabytes_are_not_added,
+     "an infinite megabyte is not a measurement"),
+    ("mb-nan", _attempt_nan_megabytes_are_not_added,
+     "NaN megabytes are not added as if they were zero or as if they were a number"),
+    ("reel-bool", _attempt_a_bool_is_not_a_reel_name,
+     "a bool reel id must not be walked under the name True"),
+    ("reel-num", _attempt_a_number_is_not_a_reel_name,
+     "a numeric reel id must not be walked under its digits"),
+    ("reel-blank", _attempt_a_blank_name_is_not_a_reel,
+     "a blank reel name is dropped, not walked as an empty reel"),
+    ("rows-str", _attempt_a_string_of_rows_is_not_a_shelf,
+     "a string of rows is not one reel per character"),
+    ("owner-list", _attempt_a_list_is_not_an_owner_answer,
+     "an owner that returns a list is not a shelf"),
+    ("rows-mixed", _attempt_non_dict_rows_are_counted_not_walked,
+     "a non-record row is counted as dropped, not walked"),
+    ("reel-dup", _attempt_duplicate_names_are_one_reel,
+     "two rows with one name are one reel"),
+    ("lock-raise", _attempt_lock_raises,
+     "a lock that raises fails closed, UNKNOWN, and walks nothing"),
+    ("no-such", _attempt_no_such_reel_is_not_invented,
+     "asking for a reel that does not exist does not invent one"),
+    ("stations", _attempt_every_station_is_present,
+     "every walked reel carries every station, none invented and none dropped"),
+    ("say-none", _attempt_no_station_says_the_word_None,
+     "a missing answer is not the literal word None"),
+    ("counts", _attempt_counts_sum_to_the_walk,
+     "each station's counts sum to the number of reels walked"),
+    ("empty-shape", _attempt_unknown_shape_names_every_station,
+     "an empty shelf is UNKNOWN and still names every station"),
+    ("template-only", _attempt_a_template_only_reel_is_not_given_a_door,
+     "a reel only the template owner knows is not walked with an invented door"),
+    ("story-raise", _attempt_story_raising_does_not_invent_a_ladder,
+     "reel_story raising does not crash the printer or inflate the walk"),
+    ("gap-list", _attempt_gap_list_does_not_crash,
+     "extract_gap returning a list does not crash the walk"),
+    ("routes-list", _attempt_routes_list_does_not_crash,
+     "per_reel_routes returning a list does not crash the walk"),
+    ("ledger-missing", _attempt_a_missing_ledger_is_not_zero_reels,
+     "a missing tombstone file is UNKNOWN, not zero reels ever closed"),
+    ("ledger-array", _attempt_an_array_ledger_is_not_zero_reels,
+     "a JSON array is not an empty ledger — the station must not say 0 reels"),
+    ("mb-absent", _attempt_a_row_with_no_megabytes_still_counts,
+     "a closed reel that names no megabytes still counts as a reel and adds nothing to the total"),
 )
 
 
@@ -264,7 +596,38 @@ def main(argv):
     if "--bank" in argv:
         row = bank_into_proof_queue(rep)
         print("  banked: %s\n" % {k: row[k] for k in ("lock", "kind", "src", "n", "k")})
+        print("  " + bank_live())
     return 0 if rep["ok"] else 1
+
+
+def bank_live():
+    """One question of his real shelf: an UNKNOWN station must still say why.
+
+    Counted as one attack. A shelf with no UNKNOWN station did not ask the question, so it
+    banks nothing rather than scoring a pass on silence.
+    """
+    import printer as P
+    import self_arming as SA
+    r = P.stream()
+    rows = r.get("rows") or []
+    if not rows:
+        return "live NOT banked: the printer returned no rows — UNKNOWN, not a pass"
+    n = k = 0
+    for x in rows:
+        for _name, cell in (x.get("stations") or {}).items():
+            if str((cell or {}).get("say")) != "UNKNOWN":
+                continue
+            n += 1
+            if str((cell or {}).get("why") or "").strip():
+                k += 1
+    if n == 0:
+        return "live NOT banked: no station on his shelf said UNKNOWN, so the question was not asked"
+    if k != n:
+        return "live NOT banked: %d of %d UNKNOWN stations gave no reason" % (k, n)
+    SA.bank("printer.stream", "live", "printer_live", n=n, k=k, attacks=1,
+            ref="live-unknown-why",
+            note="every UNKNOWN station on his real shelf names why")
+    return "banked LIVE printer.stream n=%d k=%d attacks=1" % (n, k)
 
 
 RED_PROOF = [

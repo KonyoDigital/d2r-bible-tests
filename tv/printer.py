@@ -142,7 +142,15 @@ def _sources():
         _tp = getattr(_RRET, "_tombstone_path", None)
         _tf = _tp() if callable(_tp) else os.path.join(HERE, "reel_tombstones.json")
         with open(_tf, "r", encoding="utf-8") as _fh:
-            out["tombstones"] = json.load(_fh) or {}
+            _loaded = json.load(_fh)
+        # `[]` is falsy, so `or {}` turned a JSON array into an empty ledger and the
+        # station then reported "0 reel(s)". A non-record is unreadable, which is None.
+        if isinstance(_loaded, dict):
+            out["tombstones"] = _loaded
+        else:
+            out["tombstones"] = None
+            whys.append("the tombstone ledger is %s, not a record — UNKNOWN, not zero reels"
+                        % type(_loaded).__name__)
     except Exception as e:
         out["tombstones"] = None
         whys.append("the tombstone ledger could not be read (%s) — UNKNOWN, not 'nothing was ever "
@@ -237,17 +245,22 @@ def _by_reel(blob, key="rows"):
     `dead_field` two hours earlier: a row that vanishes with nothing counting it shrinks the shelf
     and nothing says so. Returns (rows, dropped).
     """
-    rows = (blob or {}).get(key) or []
+    if not isinstance(blob, dict):
+        return {}, (1 if blob else 0)
+    rows = blob.get(key) or []
+    if isinstance(rows, str) or not isinstance(rows, (list, tuple)):
+        return {}, 1
     out, dropped = {}, 0
     for r in rows:
         if not isinstance(r, dict):
             dropped += 1
             continue
-        nm = str(r.get("reel") or "").strip()
-        if not nm:
+        raw = r.get("reel")
+        # A bool is an int, and str(True) is "True". That is not a reel someone recorded.
+        if isinstance(raw, bool) or not isinstance(raw, str) or not raw.strip():
             dropped += 1
             continue
-        out[nm] = r
+        out[raw.strip()] = r
     return out, dropped
 
 
@@ -262,13 +275,27 @@ def _tombstone_census(blob):
     "nothing was ever closed out" are opposite facts and only one of them is safe to act on.
     [[unknown-stays-unknown]]
     """
-    if blob is None:
+    if not isinstance(blob, dict):
         return {"ok": False, "reels": None, "mb": None,
                 "why": "the ledger could not be read, so how many reels were ever closed out is "
                        "UNKNOWN — not zero"}
-    rows = (blob.get("reels") or []) if isinstance(blob, dict) else []
-    return {"ok": True, "reels": len(rows),
-            "mb": round(sum(float(r.get("mb") or 0) for r in rows if isinstance(r, dict)), 1),
+    rows = blob.get("reels") or []
+    if not isinstance(rows, list):
+        return {"ok": False, "reels": None, "mb": None,
+                "why": "the ledger's reel list is %s, so how many were closed out is UNKNOWN — "
+                       "not zero" % type(rows).__name__}
+    total = 0.0
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        mb = r.get("mb")
+        if isinstance(mb, bool) or not isinstance(mb, (int, float)):
+            continue
+        if mb != mb or abs(float(mb)) == float("inf"):
+            continue
+        total += float(mb)
+    return {"ok": True, "reels": len([r for r in rows if isinstance(r, dict)]),
+            "mb": round(total, 1),
             "why": ("%d reel(s) have been closed out. They are ABSENT from `rows` by definition — "
                     "every walk in this family enumerates reels on disk — so a station count of 0 "
                     "at the far end means 'none on this shelf', never 'none ever'" % len(rows))}
@@ -539,12 +566,14 @@ def stream(reel=None):
         # ⚠ A MISSING LEDGER IS UNKNOWN, NOT "NOTHING WAS EVER PRUNED". Those are opposite facts and
         # only one of them is safe to act on. [[unknown-stays-unknown]]
         _tomb = src.get("tombstones")
-        if _tomb is None:
+        if not isinstance(_tomb, dict):
             stations["tombstone"] = {"say": "UNKNOWN", "owner": "reel_retention",
                                      "why": "the tombstone ledger could not be read, so whether "
                                             "anything was ever closed out is UNKNOWN"}
         else:
-            _treels = (_tomb.get("reels") or []) if isinstance(_tomb, dict) else []
+            _treels = _tomb.get("reels") or []
+            if not isinstance(_treels, list):
+                _treels = []
             # the ledger keys by BOTH reel dir name and bare session id; match either, because
             # which one a row carries has varied across the versions that wrote them.
             _nm = str(name or "")
@@ -565,7 +594,13 @@ def stream(reel=None):
                     "say": "ON DISK", "owner": "reel_retention",
                     "why": "not closed out — still here. The ledger records %d reel(s) that were, "
                            "reclaiming %.1f MB; none of them is this one."
-                           % (len(_treels), sum(float(_t.get("mb") or 0) for _t in _treels))}
+                           % (len([_t for _t in _treels if isinstance(_t, dict)]),
+                              sum(float(_t.get("mb")) for _t in _treels
+                                  if isinstance(_t, dict)
+                                  and isinstance(_t.get("mb"), (int, float))
+                                  and not isinstance(_t.get("mb"), bool)
+                                  and _t.get("mb") == _t.get("mb")
+                                  and abs(float(_t.get("mb"))) != float("inf")))}
 
         rows.append({"reel": name, "stations": stations})
 

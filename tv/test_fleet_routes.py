@@ -20,6 +20,9 @@ class AMentionIsNotADefinition(unittest.TestCase):
         comments for months while bible.html defined it nowhere, and the total was null on every
         read. A check that greps for the NAME would have called that lane healthy."""
         self.assertFalse(FR._defines("// window._gSetRoster is asked for by the probe", "_gSetRoster"))
+        self.assertFalse(FR._defines("// window._gSetRoster = function(){ return []; }", "_gSetRoster"))
+        self.assertFalse(FR._defines("typeof window._gSetRoster === 'function'", "_gSetRoster"))
+        self.assertFalse(FR._defines("<!-- window._gSetRoster = function(){ return []; } -->", "_gSetRoster"))
         self.assertFalse(FR._defines("var x = window._gSetRoster && window._gSetRoster();", "_gSetRoster"))
         self.assertTrue(FR._defines("window._gSetRoster = function(){ return []; };", "_gSetRoster"))
 
@@ -251,7 +254,7 @@ RED_PROOF = [
     {
         'why': 'This is the whole reason the gate exists: `_defines()` must answer "is this getter DEFINED on window", not "is its name mentioned somewhere". `window._gSetRoster` was named in control_app.py and in prose for months while bible.html defined it nowhere, so the sets denominator was null on every read and the card printed a bare number with an indeterminate bar. The tamper strips the definition half of the regex (`window\\.` and the `=`), leaving a bare name search — exactly the mention-counting check that would have called the dark lane healthy. It is the real predicate, not a comment and not a string in a message; and it is not a shared constant — the definition-vs-mention law is asserted directly against `_defines` on three hand-written sources, so nothing on the other side of an agreement moves with it. Note the loosened regex still finds the real definitions, so test_every_declared_lane_has_its_getter_defined_on_the_board stays green: only the law that distinguishes a mention from a definition goes red, which is the precise behaviour being pinned.  MEASURED: untampered OK — `python3 tv/test_fleet_routes.py` ran 12 tests in 0.406s, "OK", no skips (n; tampered (all 1) FAILED (failures=1) — Ran 12 tests in 0.361s. Sole failure: AMentionIsNotADefini; reddened law test_fleet_routes.AMentionIsNotADefinition.test_naming_a_getter_in_pro; ALONE Fails alone. `python3 -m unittest test_fleet_routes.AMentionIsNotADefinition.test_naming_a_getter_in.',
         'file': 'fleet_routes.py',
-        'find': 'r"window\\.%s\\s*=" % re.escape(name)',
+        'find': 'r"window\\.%s\\s*=(?!=)" % re.escape(name)',
         'replace': 'r"%s" % re.escape(name)',
         'matches': 1,
     },

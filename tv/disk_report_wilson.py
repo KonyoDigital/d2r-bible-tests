@@ -143,6 +143,299 @@ def _attempt_more_than_the_corpus(n=8):
     return n, caught
 
 
+def _attempt_just_over_the_slack(n=4):
+    """The 15 GB attack still fails if the slack is widened to 2x. This one does not."""
+    corpus = 1024 * 1024
+    caught = 0
+    for i in range(n):
+        r = _row(free_gb=40.0, floor_gb=8, hist_bytes=corpus, reels=1, eligible_mb=0.0,
+                 pruned_mb=1.02 + i * 0.01)
+        if _refused(r) and "corpus" in str(r.get("prunedWhy") or ""):
+            caught += 1
+    return n, caught
+
+
+def _attempt_lock_shut(n=2):
+    import self_arming as SA
+    real = SA.may
+    SA.may = lambda lock: (False, "sabotage: the lock is shut")
+    try:
+        caught = 0
+        for _ in range(n):
+            r = _row(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000, reels=1,
+                     eligible_mb=0.0, pruned_mb=12.5)
+            if (_refused(r) and "LOCKED" in str(r.get("prunedWhy") or "")
+                    and r.get("freeGb") == 40.0):
+                caught += 1
+        return n, caught
+    finally:
+        SA.may = real
+
+
+def _attempt_lock_unreadable(n=2):
+    import self_arming as SA
+    real = SA.may
+    def _boom(lock):
+        raise RuntimeError("the lock could not be read")
+    SA.may = _boom
+    try:
+        caught = 0
+        for _ in range(n):
+            r = _row(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000, reels=1,
+                     eligible_mb=0.0, pruned_mb=12.5)
+            if _refused(r) and r.get("freeGb") == 40.0:
+                caught += 1
+        return n, caught
+    finally:
+        SA.may = real
+
+
+def _attempt_delta_ignores_a_refused_figure(n=2):
+    import control_app as ca
+    caught = 0
+    for _ in range(n):
+        d = tempfile.mkdtemp(prefix="diskrep_")
+        p = os.path.join(d, "h.jsonl")
+        ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
+                               reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
+        delta = ca.disk_delta(hours=24, path=p)
+        if delta.get("prunedMbInWindow") is None:
+            caught += 1
+    return n, caught
+
+
+def _attempt_a_good_row_does_not_inherit_a_refusal(n=2):
+    import control_app as ca
+    caught = 0
+    for _ in range(n):
+        d = tempfile.mkdtemp(prefix="diskrep_")
+        p = os.path.join(d, "h.jsonl")
+        ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
+                               reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
+        ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
+                               reels=1, eligible_mb=0.0, pruned_mb=12.5, path=p)
+        with io.open(p, encoding="utf-8") as fh:
+            rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+        if len(rows) >= 2 and rows[-1].get("prunedMb") == 12.5 and not rows[-1].get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _kept(hist_bytes):
+    r = _row(free_gb=40.0, floor_gb=8, hist_bytes=hist_bytes, reels=1, eligible_mb=0.0,
+             pruned_mb=12.5)
+    return isinstance(r, dict) and r.get("prunedMb") == 12.5 and not r.get("prunedWhy")
+
+
+def _attempt_a_negative_corpus_does_not_veto(n=2):
+    return n, sum(1 for _ in range(n) if _kept(-1))
+
+
+def _attempt_a_bool_corpus_does_not_veto(n=2):
+    return n, sum(1 for _ in range(n) if _kept(True))
+
+
+def _attempt_a_string_corpus_does_not_veto(n=2):
+    return n, sum(1 for _ in range(n) if _kept("9000000000"))
+
+
+def _attempt_a_nan_corpus_does_not_veto(n=2):
+    return n, sum(1 for _ in range(n) if _kept(float("nan")))
+
+
+def _attempt_a_list_corpus_does_not_veto(n=2):
+    return n, sum(1 for _ in range(n) if _kept([1024, 1024]))
+
+
+def _one(**kw):
+    base = dict(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000, reels=1, eligible_mb=0.0)
+    base.update(kw)
+    return _row(**base)
+
+
+def _attempt_nobody_measured(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(pruned_mb=None)
+        if isinstance(r, dict) and r.get("prunedMb") is None and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_measured_zero(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(pruned_mb=0)
+        if isinstance(r, dict) and r.get("prunedMb") == 0 and isinstance(r.get("prunedMb"), int) and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_zero_on_an_empty_corpus(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(hist_bytes=0, pruned_mb=0)
+        if isinstance(r, dict) and r.get("prunedMb") == 0 and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_the_slack_boundary_is_kept(n=2):
+    corpus = 1024 * 1024
+    caught = 0
+    for _ in range(n):
+        r = _one(hist_bytes=corpus, pruned_mb=1.01)
+        if isinstance(r, dict) and r.get("prunedMb") == 1.01 and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_why_does_not_collapse(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(hist_bytes=0, pruned_mb=1e-9)
+        why = str((r or {}).get("prunedWhy") or "")
+        if _refused(r) and "0.0 exceeds" not in why and "1e-09" in why:
+            caught += 1
+    return n, caught
+
+
+def _attempt_the_four_refusals_read_differently(n=2):
+    caught = 0
+    for _ in range(n):
+        rows = [
+            _one(pruned_mb=True),
+            _one(pruned_mb=float("nan")),
+            _one(pruned_mb=-1),
+            _one(hist_bytes=1024 * 1024, pruned_mb=50),
+        ]
+        whys = [str((r or {}).get("prunedWhy") or "") for r in rows]
+        if all(whys) and len(set(whys)) == 4:
+            caught += 1
+    return n, caught
+
+
+def _attempt_delta_sums_only_what_was_kept(n=2):
+    import control_app as ca
+    import time as _time
+    caught = 0
+    for _ in range(n):
+        d = tempfile.mkdtemp(prefix="diskrep_")
+        p = os.path.join(d, "h.jsonl")
+        now = int(_time.time() * 1000)
+        old = now - 25 * 3600 * 1000
+        rows = [
+            {"at": old, "freeGb": 40.0, "prunedMb": 1},
+            {"at": now, "freeGb": 39.0, "prunedMb": 12.5},
+            {"at": now, "freeGb": 39.0, "prunedMb": True},
+        ]
+        with io.open(p, "w", encoding="utf-8") as fh:
+            for r in rows:
+                fh.write(json.dumps(r) + "\n")
+        delta = ca.disk_delta(hours=24, path=p)
+        if delta.get("prunedMbInWindow") == 12.5:
+            caught += 1
+    return n, caught
+
+
+def _attempt_a_refused_prune_does_not_blank_the_free_space_delta(n=2):
+    import control_app as ca
+    caught = 0
+    for _ in range(n):
+        d = tempfile.mkdtemp(prefix="diskrep_")
+        p = os.path.join(d, "h.jsonl")
+        ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
+                               reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
+        ca.disk_history_append(free_gb=30.0, floor_gb=8, hist_bytes=9_000_000_000,
+                               reels=1, eligible_mb=0.0, pruned_mb=True, path=p)
+        # The series does not reach back 24h, so a 24h delta is UNKNOWN. Ask across 0 hours
+        # by reading the two freeGb values the rows actually stored.
+        with io.open(p, encoding="utf-8") as fh:
+            rows = [json.loads(l) for l in fh if l.strip()]
+        if [r.get("freeGb") for r in rows] == [40.0, 30.0] and all(r.get("prunedMb") is None for r in rows):
+            caught += 1
+    return n, caught
+
+
+def _attempt_an_infinite_corpus_does_not_veto(n=2):
+    return n, sum(1 for v in (float("inf"), float("-inf")) if _kept(v))
+
+
+def _attempt_no_corpus_does_not_invent_a_ceiling(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(hist_bytes=None, pruned_mb=5000)
+        if isinstance(r, dict) and r.get("prunedMb") == 5000 and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_free_space_is_not_a_bound(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(free_gb=1.0, pruned_mb=100)
+        if isinstance(r, dict) and r.get("prunedMb") == 100 and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_eligible_is_not_a_bound(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(eligible_mb=-5, pruned_mb=12.5)
+        if isinstance(r, dict) and r.get("prunedMb") == 12.5 and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_a_tiny_real_figure_is_kept(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(pruned_mb=1e-10)
+        if isinstance(r, dict) and r.get("prunedMb") == 1e-10 and not r.get("prunedWhy"):
+            caught += 1
+    return n, caught
+
+
+def _attempt_a_directory_is_not_a_history(n=2):
+    import control_app as ca
+    caught = 0
+    for _ in range(n):
+        d = tempfile.mkdtemp(prefix="diskrep_")
+        got = ca.disk_history_append(free_gb=40.0, floor_gb=8, pruned_mb=-5, path=d)
+        if got is None and not os.path.isfile(d):
+            caught += 1
+    return n, caught
+
+
+def _attempt_a_refusal_still_says_when(n=2):
+    caught = 0
+    for _ in range(n):
+        r = _one(pruned_mb=-3)
+        if _refused(r) and isinstance(r.get("at"), int) and r.get("at") > 0:
+            caught += 1
+    return n, caught
+
+
+def _attempt_two_refusals_keep_their_own_reasons(n=2):
+    import control_app as ca
+    caught = 0
+    for _ in range(n):
+        d = tempfile.mkdtemp(prefix="diskrep_")
+        p = os.path.join(d, "h.jsonl")
+        ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=9_000_000_000,
+                               reels=1, eligible_mb=0.0, pruned_mb=-2, path=p)
+        ca.disk_history_append(free_gb=40.0, floor_gb=8, hist_bytes=1024 * 1024,
+                               reels=1, eligible_mb=0.0, pruned_mb=80, path=p)
+        with io.open(p, encoding="utf-8") as fh:
+            rows = [json.loads(l) for l in fh if l.strip()]
+        if (len(rows) == 2 and "negative" in str(rows[0].get("prunedWhy"))
+                and "corpus" in str(rows[1].get("prunedWhy"))
+                and rows[0].get("prunedWhy") != rows[1].get("prunedWhy")):
+            caught += 1
+    return n, caught
+
+
 def _baseline_legitimate_figures_are_RECORDED():
     """⚠⚠ THE CONTROL, AND IT CAN ONLY WITHDRAW THE CLAIM. -> (ok, why)
 
@@ -178,6 +471,58 @@ CLAIMS = (
     ("overcorpus", _attempt_more_than_the_corpus,
      "a figure larger than the whole measured corpus was offered — his own v2229 question, "
      "15 GB claimed against an 8.9 GB reel store"),
+    ("slack", _attempt_just_over_the_slack,
+     "1.02 MB against a 1 MB corpus — pins the 1% slack, which a 15 GB claim does not"),
+    ("lockshut", _attempt_lock_shut,
+     "a credible figure is refused when prune.reports may() says no, and the free-space reading stays"),
+    ("lockblind", _attempt_lock_unreadable,
+     "a may() that raises fails closed — the figure is not published as if the lock had agreed"),
+    ("deltajoin", _attempt_delta_ignores_a_refused_figure,
+     "a refused figure does not come back as megabytes from disk_delta"),
+    ("nocarry", _attempt_a_good_row_does_not_inherit_a_refusal,
+     "a legitimate figure written after a refused one is recorded clean"),
+    ("negcorpus", _attempt_a_negative_corpus_does_not_veto,
+     "a negative hist_bytes is not a corpus, so it must not veto a real measurement"),
+    ("boolcorpus", _attempt_a_bool_corpus_does_not_veto,
+     "True is not one byte of corpus"),
+    ("strcorpus", _attempt_a_string_corpus_does_not_veto,
+     "a numeric string is not a measured corpus"),
+    ("nancorpus", _attempt_a_nan_corpus_does_not_veto,
+     "NaN corpus must not veto and must not be treated as a bound"),
+    ("listcorpus", _attempt_a_list_corpus_does_not_veto,
+     "a list of sizes is not a measured corpus and must not veto a real figure"),
+    ("nobody", _attempt_nobody_measured,
+     "pruned_mb None is nobody-measured, and must not wear a refusal sentence"),
+    ("zero", _attempt_measured_zero,
+     "integer 0 is a measurement that freed nothing, kept as an int"),
+    ("zeroempty", _attempt_zero_on_an_empty_corpus,
+     "freeing nothing from an empty corpus is a real zero, not an over-corpus claim"),
+    ("boundary", _attempt_the_slack_boundary_is_kept,
+     "a figure exactly at the 1% slack is kept; only past it is refused"),
+    ("whycollapse", _attempt_why_does_not_collapse,
+     "a tiny figure against a 0-byte corpus must not read as 0.0 exceeds 0.0"),
+    ("fourwhys", _attempt_the_four_refusals_read_differently,
+     "bool, NaN, negative and over-corpus each name a different reason"),
+    ("deltasum", _attempt_delta_sums_only_what_was_kept,
+     "disk_delta adds the kept figures and drops the refused ones"),
+    ("deltagb", _attempt_a_refused_prune_does_not_blank_the_free_space_delta,
+     "refusing the prune figure leaves the free-space readings in the series"),
+    ("infcorpus", _attempt_an_infinite_corpus_does_not_veto,
+     "an infinite corpus is not a bound, in either direction"),
+    ("noceiling", _attempt_no_corpus_does_not_invent_a_ceiling,
+     "with no corpus reading a large figure stays published — a made-up ceiling is not a measurement"),
+    ("freebound", _attempt_free_space_is_not_a_bound,
+     "freed may exceed free space, because footage can be written between the prune and the reading"),
+    ("eligible", _attempt_eligible_is_not_a_bound,
+     "eligible_mb is a different figure and must not veto prunedMb"),
+    ("tiny", _attempt_a_tiny_real_figure_is_kept,
+     "a tiny finite figure against a large corpus is a measurement"),
+    ("dirpath", _attempt_a_directory_is_not_a_history,
+     "a directory path publishes nothing, rather than a row beside the directory"),
+    ("whentime", _attempt_a_refusal_still_says_when,
+     "a refused figure still carries the time the reading was taken"),
+    ("twowhys", _attempt_two_refusals_keep_their_own_reasons,
+     "two refused rows in one series keep two reasons, not the first copied onto the second"),
 )
 
 
@@ -234,7 +579,48 @@ def main(argv):
     if "--bank" in argv:
         for line in bank_into_proof_queue(rep):
             print("  banked: %s" % line)
+        print("  " + bank_live())
     return 0 if rep["state"] == "PROVEN" else 1
+
+
+def bank_live():
+    """One check over his real series: every published figure is still one the writer would keep.
+
+    attacks=1 because a series is one question asked of many rows, not many questions.
+    A series that is missing, or that holds no numeric figure, banks nothing.
+    """
+    import control_app as ca
+    import self_arming as SA
+    p = ca._disk_history_path()
+    if not os.path.isfile(p):
+        return "live NOT banked: no disk history on this machine — UNKNOWN, not a pass"
+    n = k = 0
+    with io.open(p, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except Exception:
+                continue
+            if not isinstance(row, dict) or row.get("prunedMb") is None:
+                continue
+            n += 1
+            kept, _why = ca.credible_pruned_mb(row.get("prunedMb"), row.get("histBytes"))
+            published = row.get("prunedMb")
+            same = kept == published or (kept == 0 and published == 0)
+            if same:
+                k += 1
+    if n == 0:
+        return "live NOT banked: the series holds no numeric prunedMb — nothing to agree with"
+    if k != n:
+        return ("live NOT banked: %d of %d published figures fail credible_pruned_mb — "
+                "that disagreement is the finding" % (k, n))
+    SA.bank("prune.reports", "live", "disk_report_live", n=n, k=k, attacks=1,
+            ref="live-series",
+            note="every numeric prunedMb in his disk history is still a figure the writer would keep")
+    return "banked LIVE prune.reports n=%d k=%d attacks=1" % (n, k)
 
 
 RED_PROOF = [

@@ -433,9 +433,13 @@ PROVES = {
     # sweep: there is no attempt in it whose success path runs, because the door it guards spends
     # money.
     "sweep_wilson": ("vault.sweep_start",),
+    "sweep_live": ("vault.sweep_start",),
     #: 154 — the disk row's own refusals. It NEVER prunes: every attempt is a state in which the
     #: row must decline to name a freed figure, and nothing here deletes a byte.
     "disk_report_wilson": ("prune.reports",),
+    # The same reporter, read off his real disk_history series. One check over every
+    # numeric row, so it is one attack however many rows the series holds.
+    "disk_report_live": ("prune.reports",),
     # ⚠ THE SECOND KIND for prune.reports — attacks a different model family designed COLD, three
     # of which LANDED and were all mine (negative zero past a `< 0` check; a flat +1 MB tolerance
     # licensing 0.9 MB against a 0-byte corpus and 2.0 MB against a 1 MiB one). Confluence only
@@ -475,6 +479,7 @@ PROVES = {
     # exactly one function, printer.stream(), whose own docstring is "IT PRINTS NOTHING AND
     # DELETES NOTHING ... This is a REPORT." No os.remove, no apply_plan, no TV_AUTO_PRUNE.
     "printer_wilson": ("printer.stream",),
+    "printer_live": ("printer.stream",),
     # the same refusal asked of the RUNNING console over its own HTTP route — a different
     # KIND, not a second helping of the same one. vault.apply carries kinds_bar 1.3 exactly
     # so that one kind cannot open it.
@@ -505,12 +510,22 @@ PROVES = {
     # one pure predicate and counts refusals.
     "frame_release_wilson": ("frame.release",),
     "frame_release_live": ("frame.release",),
+    "frame_release_xfam": ("frame.release",),
     # ⚠ THE ROUTES. route_wilson removes what each lane CLAIMS TO HAVE FOUND — deletes the
     # artifact, deletes bible.html, blanks every mention of the roster stem, removes the file a
     # lane names — and counts whether the lane noticed. A lane that still says ok with its
     # evidence gone was decorative. It proves ONLY the routes, never a valve: evidence about a
     # thing that reports may not open a door that acts.
     "route_wilson": tuple(sorted(ROUTES)),
+    # Lane predicates attacked directly — the same functions routes() calls — so a
+    # mutation is one idea about one guard, not another copy of "delete the file".
+    "route_lane_wilson": tuple(sorted(ROUTES)),
+    "route_lane_live": tuple(sorted(ROUTES)),
+    # A recorded Claude verdict. The module refuses to bank unless the verdict file is a
+    # real answer from that family — an auth error or an empty file writes nothing.
+    "crossfamily_claude": (
+        "frame.release", "printer.stream", "vault.sweep_start",
+    ) + tuple(sorted(ROUTES)),
 }
 
 

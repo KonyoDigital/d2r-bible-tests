@@ -28,6 +28,12 @@ class AMentionIsNotADefinition(unittest.TestCase):
                                      "_gSetRoster"))
         self.assertFalse(RR._defines("// window._gSetRoster = function(){ return []; }",
                                      "_gSetRoster"))
+        self.assertFalse(RR._defines("typeof window._gSetRoster === 'function'",
+                                     "_gSetRoster"))
+        self.assertFalse(RR._declared("<!-- const RUNEWORDS = {\"Ancients Pledge\": 1}; -->\n",
+                                      "runeword"))
+        self.assertFalse(RR._declared("window.ITEM_VALUE = null;\n", "unique"))
+        self.assertFalse(RR._declared("const ITEM_SETS = JSON.parse(\"{}\");\n", "set"))
         self.assertFalse(RR._defines("var x = window._gSetRoster && window._gSetRoster();",
                                      "_gSetRoster"))
         self.assertTrue(RR._defines("window._gSetRoster = function(){ return []; };",

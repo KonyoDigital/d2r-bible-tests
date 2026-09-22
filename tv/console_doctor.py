@@ -5996,11 +5996,69 @@ def _check_his_window_can_be_measured():
                 "button's claim can still be checked against the frame it actually produced"
                 % (_w, _h))
 
+
+def _check_an_attack_can_still_reach_the_door_it_scores():
+    """v3406 — CAN THE SWEEP HARNESS STILL REACH THE DOOR IT CLAIMS TO HAVE PROVEN?
+
+    `chronicle_sweep_start` asks `self_arming.may("vault.sweep_start")` BEFORE it reads the lane
+    list. That lock FAILS CLOSED on a stale heart census — its state for the whole of any session
+    that has touched a gate file — so an attack aimed at a guard BELOW the lock gets back a
+    perfectly good ok:False that has nothing to do with the guard.
+
+    MEASURED 2026-09-22 in a sandbox: reverting the door's own lane guard left sweep_wilson GREEN
+    at exit 0, with lanesnone/lanesraise/lanesstr/lanesdict all still reading PROVEN. Four claims
+    were scoring a guard they could not see, and banking attacks=1 each into the very lock that
+    was answering them.
+
+    ⚠ ONE door call, with the worker stubbed by `_guarded`, so this costs a heart tick nothing and
+    spends no paid read. It asks the question the harness cannot ask about itself: not "did the
+    guard refuse" but "did the attack ARRIVE".
+
+    ⚠ SHUT IS NOT BROKEN. A closed lock is the system working; the row says UNKNOWN and names what
+    re-opens it, because a heart row that reds on a correct refusal is one someone silences.
+    [[zero-needs-a-denominator]] [[unknown-stays-unknown]] [[gate-blind-to-unexercised-input]]
+    """
+    import tempfile
+    try:
+        import sweep_wilson as _sw
+        import control_app as _ca
+    except Exception as e:
+        return UNKNOWN, ("the sweep harness would not import (%s), so whether its attacks reach "
+                         "the door is UNKNOWN, not fine" % type(e).__name__)
+    for _n in ("_lock_answered", "_tally", "_refused_quiet"):
+        if not hasattr(_sw, _n):
+            return FAIL, ("sweep_wilson has no %s, so a refusal issued by the LOCK is counted as a "
+                          "refusal by the DOOR again — the v3406 defect, restored" % _n)
+    d = tempfile.mkdtemp(prefix="heartlane_")
+    _real = _ca._chron_lanes
+    _ca._chron_lanes = lambda *a, **k: None
+    try:
+        verdict = _sw._refused_quiet(_ca, hist_dir=d, limit=1)
+    except Exception as e:
+        return FAIL, ("driving one lane attack raised %s, so the harness cannot answer for itself"
+                      % type(e).__name__)
+    finally:
+        _ca._chron_lanes = _real
+    if verdict is None:
+        return UNKNOWN, ("the sweep harness cannot currently REACH the door it scores — "
+                         "vault.sweep_start answers first, so its four lane claims are UNPROVEN, "
+                         "not passed. That lock fails closed on a stale heart census; "
+                         "`python3 tv/heart2.py --prove` is what lets those attacks arrive")
+    if verdict is True:
+        return OK, ("the lane attack REACHED the door and the door refused it, so lanesnone and "
+                    "its three siblings are scoring the guard they name")
+    return FAIL, ("the lane attack reached the door and the door ACCEPTED an unreadable lane "
+                  "list — a paid sweep would start with nothing to read with")
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
     # than hashing its own import.
     ("running code matches disk", _check_the_running_code_is_the_code_on_disk),
+    # v3406 (#152) — the harness that proves the paid sweep door can be answered by the
+    # LOCK instead of the door. One call, worker stubbed, and it distinguishes UNREACHED
+    # from refused. See the docstring for the sandbox measurement that found it.
+    ("sweep attack reaches its door", _check_an_attack_can_still_reach_the_door_it_scores),
     # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
     # still fires. A held relaunch looks pending right up until it expires unfired, so the only
     # way to see the release path die is to corroborate the register against the world.

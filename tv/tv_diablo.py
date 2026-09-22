@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3405"   # THE WRITERS WALK THE ONE DOOR
+VERSION = "v3406"   # AN ATTACK THE LOCK ANSWERED IS NOT AN ATTACK ON THE DOOR
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

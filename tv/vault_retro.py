@@ -359,10 +359,18 @@ def _count_of(v):
 
 
 def _conf_of(v, fallback=0.0):
+    # True is an int, and float(True) is 1.0, so a flag would clear the confidence floor.
+    # A numeric string is the same class of lie: the sighting did not carry a measured number.
+    # NaN survives float() and then fails every comparison, which used to take the PASS branch.
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return fallback
     try:
-        return max(0.0, min(1.0, float(v)))
+        x = float(v)
     except Exception:
         return fallback
+    if x != x or abs(x) == float("inf"):
+        return fallback
+    return max(0.0, min(1.0, x))
 
 
 def _max_count(a, b):

@@ -299,12 +299,15 @@ def seal_verdict(row, contract=EXTRACTION_CONTRACT):
         return UNEVIDENCED, why
 
     rows = row.get("rows")
+    # False == 0 and 0.0 == 0. A bool or a float is not a row count, and treating it as zero
+    # lets examinedEmpty release frames from a seal that never recorded an integer zero.
+    rows_zero = isinstance(rows, int) and not isinstance(rows, bool) and rows == 0
     declared = bool(row.get("examinedEmpty")) or ("nothing" in str(row.get("extractedWhy") or "").lower())
-    if rows == 0 and declared:
+    if rows_zero and declared:
         return EMPTY, ("this seal examined a session with 0 rows and recorded that there was "
                        "nothing to take. An empty examination is a MEASUREMENT, not a missing "
                        "one — it is not the same fact as a seal that never looked")
-    if rows == 0:
+    if rows_zero:
         return UNEVIDENCED, ("this seal covers 0 rows but never SAYS it examined an empty "
                              "session, so nothing distinguishes it from one that did not look")
     return UNEVIDENCED, ("this seal covers %s row(s) and took nothing from them, which is not an "

@@ -1669,7 +1669,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3405** | `(this commit)` | v3405 — film and archive establish the tree through machine_tree.establish; planners still create nothing; the v3404 doctor check is declared; 1280x720 is on the page floor table |
+| **v3406** | `(this commit)` | v3406 — chronicle_sweep_start asks self_arming.may for vault.sweep_start BEFORE it reads the lane list, and that lock fails closed on a stale heart census. So every sweep_wilson attack aimed at a guard BELOW the lock was answered by the LOCK and counted as a refusal by the DOOR. MEASURED in a sandbox: reverting the lane guard left the harness GREEN at exit 0 with four claims still reading PROVEN, and each was banking attacks=1 into the very lock that answered it. UNREACHED is now a third state landing in NEITHER number, banking nothing and named out loud; and a new gate stubs the lock OPEN and the worker shut to drive the lane states at the real door, which found two more - the word claude inside a STRING passes in, and so does a DICT with that key. 4 red-proofs PROVEN. |
+| **v3405** | `acf611be` | v3405 — film and archive establish the tree through machine_tree.establish; planners still create nothing; the v3404 doctor check is declared; 1280x720 is on the page floor table |
 | **v3404** | `fe868556` | v3404 — The update lived in the launchers so a console started any other way never pulled, and the drift beat now makes the disk newer |
 | **v3403** | `c69a5c67` | v3403 — An eye that says it could not judge the change no longer satisfies the ship gate, and the row is still recorded |
 | **v3402** | `976d9673` | v3402 — A bare W toggles his window, never with a modifier and never while he is typing, and the heart watches the key on the wire |

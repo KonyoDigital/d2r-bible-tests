@@ -190,6 +190,242 @@ CLAIMS = (
 )
 
 
+def _once(ca, proposal, needle):
+    """One caller-supplied body. Refused means ok is false and the needle never reached the board."""
+    restore, sent = _stub_board()
+    try:
+        try:
+            r = ca.vault_apply(proposal=proposal)
+        except Exception:
+            return 1, 0
+        js = sent.get("js") or ""
+        leaked = bool(needle) and needle in js
+        refused = isinstance(r, dict) and r.get("ok") is False and not leaked
+        return 1, (1 if refused else 0)
+    finally:
+        restore()
+
+
+def _dirty(name):
+    return {"name": name, "lane": "stash", "kind": "item", "count": 1, "evidence": []}
+
+
+def _clean(name):
+    return {"name": name, "lane": "stash", "kind": "item", "count": 1,
+            "evidence": [{"session": "s1", "witness": "s1#0", "conf": 0.9},
+                         {"session": "s2", "witness": "s2#0", "conf": 0.9}]}
+
+
+def _box(owned=None, unsure=None, throw=None):
+    return {"ok": True, "owned": owned or [], "unsure": unsure or [], "throwOut": throw or []}
+
+
+def _attempt_unsure_only(ca, n=1):
+    return _once(ca, _box(unsure=[_dirty("SABOTAGE unsure-only")]), "SABOTAGE unsure-only")
+
+
+def _attempt_mixed_owned(ca, n=1):
+    """A corroborated row must not carry an uncorroborated sibling into the write."""
+    return _once(ca, _box(owned=[_clean("decoy clean"), _dirty("SABOTAGE mixed-owned")]),
+                 "SABOTAGE mixed-owned")
+
+
+def _attempt_mixed_unsure(ca, n=1):
+    return _once(ca, _box(owned=[_clean("decoy clean")],
+                          unsure=[_dirty("SABOTAGE mixed-unsure")]),
+                 "SABOTAGE mixed-unsure")
+
+
+def _attempt_row_string(ca, n=1):
+    return _once(ca, _box(owned=["SABOTAGE row-string"]), "SABOTAGE row-string")
+
+
+def _attempt_row_none(ca, n=1):
+    return _once(ca, _box(owned=[None]), "SABOTAGE")
+
+
+def _attempt_evidence_string(ca, n=1):
+    row = _dirty("SABOTAGE evidence-string")
+    row["evidence"] = "s1,s2,s3"
+    return _once(ca, _box(owned=[row]), "SABOTAGE evidence-string")
+
+
+def _attempt_evidence_dict(ca, n=1):
+    row = _dirty("SABOTAGE evidence-dict")
+    row["evidence"] = {"session": "s1", "conf": 0.9}
+    return _once(ca, _box(owned=[row]), "SABOTAGE evidence-dict")
+
+
+def _attempt_evidence_int(ca, n=1):
+    row = _dirty("SABOTAGE evidence-int")
+    row["evidence"] = 3
+    return _once(ca, _box(owned=[row]), "SABOTAGE evidence-int")
+
+
+def _attempt_witnesses_string(ca, n=1):
+    row = {"name": "SABOTAGE witnesses-string", "lane": "stash", "kind": "item", "count": 1,
+           "witnesses": "s1 and s2"}
+    return _once(ca, _box(owned=[row]), "SABOTAGE witnesses-string")
+
+
+def _attempt_one_session(ca, n=1):
+    row = _dirty("SABOTAGE one-session")
+    # Same witness id twice. Two different witness ids are two looks, which the keep bar
+    # is allowed to count; one id repeated is one eye, and one eye is not enough.
+    row["evidence"] = [{"session": "s1", "witness": "s1", "conf": 0.99},
+                       {"session": "s1", "witness": "s1", "conf": 0.99}]
+    return _once(ca, _box(owned=[row]), "SABOTAGE one-session")
+
+
+def _attempt_low_conf(ca, n=1):
+    row = _dirty("SABOTAGE low-conf")
+    row["evidence"] = [{"session": "s1", "witness": "s1#0", "conf": 0.1},
+                       {"session": "s2", "witness": "s2#0", "conf": 0.1}]
+    return _once(ca, _box(owned=[row]), "SABOTAGE low-conf")
+
+
+def _attempt_conf_string(ca, n=1):
+    row = _dirty("SABOTAGE conf-string")
+    row["evidence"] = [{"session": "s1", "witness": "s1#0", "conf": "0.99"},
+                       {"session": "s2", "witness": "s2#0", "conf": "high"}]
+    return _once(ca, _box(owned=[row]), "SABOTAGE conf-string")
+
+
+def _attempt_conf_bool(ca, n=1):
+    row = _dirty("SABOTAGE conf-bool")
+    row["evidence"] = [{"session": "s1", "witness": "s1#0", "conf": True},
+                       {"session": "s2", "witness": "s2#0", "conf": True}]
+    return _once(ca, _box(owned=[row]), "SABOTAGE conf-bool")
+
+
+def _attempt_conf_nan(ca, n=1):
+    row = _dirty("SABOTAGE conf-nan")
+    row["evidence"] = [{"session": "s1", "witness": "s1#0", "conf": float("nan")},
+                       {"session": "s2", "witness": "s2#0", "conf": float("nan")}]
+    return _once(ca, _box(owned=[row]), "SABOTAGE conf-nan")
+
+
+def _attempt_cycle(ca, n=1):
+    row = _dirty("SABOTAGE cycle")
+    row["self"] = row
+    return _once(ca, _box(owned=[row]), "SABOTAGE cycle")
+
+
+def _attempt_items_liar(ca, n=1):
+    class LieMap(dict):
+        def items(self):
+            return [("ok", True), ("owned", [_dirty("SABOTAGE items-liar")]),
+                    ("unsure", []), ("throwOut", [])]
+        def get(self, k, default=None):
+            if k == "owned":
+                return [_clean("decoy the get path")]
+            return dict.get(self, k, default)
+    return _once(ca, LieMap(), "SABOTAGE items-liar")
+
+
+def _attempt_items_raise(ca, n=1):
+    class Boom(dict):
+        def items(self):
+            raise RuntimeError("items will not answer")
+    return _once(ca, Boom({"owned": [_dirty("SABOTAGE items-raise")]}), "SABOTAGE items-raise")
+
+
+def _attempt_proposal_list(ca, n=1):
+    return _once(ca, [_dirty("SABOTAGE proposal-list")], "SABOTAGE proposal-list")
+
+
+def _attempt_proposal_string(ca, n=1):
+    return _once(ca, '{"owned":[{"name":"SABOTAGE proposal-string","evidence":[]}]}',
+                 "SABOTAGE proposal-string")
+
+
+def _attempt_throw_only(ca, n=1):
+    return _once(ca, _box(throw=[_dirty("SABOTAGE throw-only")]), "SABOTAGE throw-only")
+
+
+def _attempt_owned_string(ca, n=1):
+    return _once(ca, {"ok": True, "owned": "SABOTAGE owned-string", "unsure": [], "throwOut": []},
+                 "SABOTAGE owned-string")
+
+
+def _attempt_depth(ca, n=1):
+    body = _dirty("SABOTAGE depth")
+    for _ in range(12):
+        body = {"wrap": body}
+    return _once(ca, _box(owned=[body]), "SABOTAGE depth")
+
+
+def _attempt_evidence_nondicts(ca, n=1):
+    row = _dirty("SABOTAGE evidence-nondicts")
+    row["evidence"] = ["s1", "s2", "s3"]
+    return _once(ca, _box(owned=[row]), "SABOTAGE evidence-nondicts")
+
+
+def _attempt_int_keys(ca, n=1):
+    return _once(ca, {1: [_dirty("SABOTAGE int-keys")], "unsure": [], "throwOut": []},
+                 "SABOTAGE int-keys")
+
+
+def _attempt_wrong_case_lane(ca, n=1):
+    return _once(ca, {"ok": True, "Owned": [_dirty("SABOTAGE wrong-case")],
+                      "unsure": [], "throwOut": []},
+                 "SABOTAGE wrong-case")
+
+
+CLAIMS = CLAIMS + (
+    ("unsure-only", "an uncorroborated row under unsure, with owned empty, must not reach the board",
+     _attempt_unsure_only),
+    ("mixed-owned", "one corroborated row must not carry an uncorroborated sibling into the write",
+     _attempt_mixed_owned),
+    ("mixed-unsure", "a dirty unsure row must refuse the proposal even when owned is clean",
+     _attempt_mixed_unsure),
+    ("row-string", "a row that is a string is not a record and must not be written",
+     _attempt_row_string),
+    ("row-none", "a None row must not be walked as a record",
+     _attempt_row_none),
+    ("evidence-string", "evidence that is a sentence is not a list of sightings",
+     _attempt_evidence_string),
+    ("evidence-dict", "one evidence object is not a list of sightings",
+     _attempt_evidence_dict),
+    ("evidence-int", "a count standing in for the evidence list is not evidence",
+     _attempt_evidence_int),
+    ("witnesses-string", "a witnesses string must not satisfy the gate in place of sightings",
+     _attempt_witnesses_string),
+    ("one-session", "two sightings from the SAME session are one witness, and one is not enough",
+     _attempt_one_session),
+    ("low-conf", "two sessions below the confidence floor are still unsure",
+     _attempt_low_conf),
+    ("conf-string", "a confidence written as text is not a confidence",
+     _attempt_conf_string),
+    ("conf-bool", "True is not a confidence of 1",
+     _attempt_conf_bool),
+    ("conf-nan", "NaN confidence is arithmetic that already lost its meaning",
+     _attempt_conf_nan),
+    ("cycle", "a self-referential row must refuse rather than recurse",
+     _attempt_cycle),
+    ("items-liar", "a mapping whose items() and get() disagree must be judged on items(), the inert copy",
+     _attempt_items_liar),
+    ("items-raise", "a mapping that will not yield items must not fall through to the last sweep",
+     _attempt_items_raise),
+    ("proposal-list", "a list is not a proposal record and must not fall through to the last sweep",
+     _attempt_proposal_list),
+    ("proposal-string", "a JSON string is not a record; the door must not parse it as a second path",
+     _attempt_proposal_string),
+    ("throw-only", "a proposal that is only throw-outs has nothing to register and must refuse",
+     _attempt_throw_only),
+    ("owned-string", "owned as a string is not a list of rows",
+     _attempt_owned_string),
+    ("depth", "a row buried past the inert depth cap must fail closed, not be recovered",
+     _attempt_depth),
+    ("evidence-nondicts", "a list of strings is not a list of sightings",
+     _attempt_evidence_nondicts),
+    ("int-keys", "integer keys are not the owned/unsure/throwOut lanes",
+     _attempt_int_keys),
+    ("wrong-case", "the lane Owned is not the lane owned",
+     _attempt_wrong_case_lane),
+)
+
+
 def score():
     try:
         import confidence

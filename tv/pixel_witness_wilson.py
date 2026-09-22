@@ -163,6 +163,35 @@ def attacks():
         return wid is None, "window belongs to ANOTHER pid -> %r" % (wid,)
     out.append(("must-be-unknown", "the only window belongs to a different pid", other_pid))
 
+    # ── three more, each a different way a non-measurement becomes a false BLANK ────────────
+    # Probed against the witness before the guard: bool True cleared the 0.98 bar because
+    # True == 1, distinct 0 took the ink path, and a share of 1.5 or "0.99" either read BLANK
+    # or raised. A raise is not a refusal — the rescue would see an exception, not UNKNOWN.
+    def bools_are_not_measurements():
+        share, _s = PW.verdict(_m(True, 177, 0.0394, 140))
+        bright, _b = PW.verdict(_m(0.50, True, 0.001, 9))
+        ok = share == PW.UNKNOWN and bright != PW.BLANK
+        return ok, "bool share -> %s, bool p99 -> %s" % (share, bright)
+    out.append(("false-blank", "a bool is not a fraction or a luminance",
+                bools_are_not_measurements))
+
+    def zero_count_is_not_a_window():
+        got, why = PW.verdict(_m(0.50, 10, 0.001, 0))
+        return got == PW.UNKNOWN, "distinct 0 -> %s :: %s" % (got, why[:60])
+    out.append(("must-be-unknown", "zero distinct luminances is a failed measurement",
+                zero_count_is_not_a_window))
+
+    def share_must_be_a_fraction():
+        over, _o = PW.verdict(_m(1.5, 200, 0.05, 9))
+        try:
+            text, _t = PW.verdict(_m("0.99", 10, 0.001, 9))
+        except Exception as e:
+            return False, "a non-numeric share THREW %s" % type(e).__name__
+        ok = over == PW.UNKNOWN and text == PW.UNKNOWN
+        return ok, "share 1.5 -> %s, share '0.99' -> %s" % (over, text)
+    out.append(("must-be-unknown", "a share that is not a fraction must not read BLANK",
+                share_must_be_a_fraction))
+
     return out
 
 

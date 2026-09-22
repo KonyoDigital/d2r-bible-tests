@@ -71,8 +71,32 @@ def _defines(src, name):
 
     ⚠ `_gSetRoster` was named in `control_app.py` and in prose for months while no definition
     existed. A mention is the thing this must not count. [[source-reading-guard]]
+
+    `===` and `==` are comparisons, not assignments. A hit after `//`, inside a block
+    comment, or inside an HTML comment is still a mention.
     """
-    return re.search(r"window\.%s\s*=" % re.escape(name), src) is not None
+    if not src or not name:
+        return False
+    rx = re.compile(r"window\.%s\s*=(?!=)" % re.escape(name))
+    for m in rx.finditer(src):
+        line_start = src.rfind("\n", 0, m.start()) + 1
+        if "//" in src[line_start:m.start()]:
+            continue
+        if _commented_out(src, m.start()):
+            continue
+        return True
+    return False
+
+
+def _commented_out(src, pos):
+    """Inside a /* */ block or an HTML comment? A line comment is handled by the caller."""
+    open_block = src.rfind("/*", 0, pos)
+    if open_block != -1 and src.find("*/", open_block, pos) == -1 and src.find("*/", open_block) > pos:
+        return True
+    html = src.rfind("<!--", 0, pos)
+    if html != -1 and src.find("-->", html, pos) == -1 and src.find("-->", html) > pos:
+        return True
+    return False
 
 
 # ⚠ MEASURED BEFORE IT SHIPPED: deriving this cost 6.1 s, and `heart_state()` — which runs on a

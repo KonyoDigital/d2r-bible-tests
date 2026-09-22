@@ -835,6 +835,26 @@ GATES = [
              "to 8/0 LEAKS while the empty-proposal claim stays PROVEN. It also REPORTS, rather "
              "than papers over, that vault.forget has no refusal path at all and therefore cannot "
              "be proven by sabotage."),
+    Gate("test_a_sweep_with_no_readable_lane_does_not_start",
+         [sys.executable, os.path.join(HERE, "test_a_sweep_with_no_readable_lane_does_not_start.py")], 90,
+         why="v3406 (#152) - AN ATTACK THE LOCK ANSWERED IS NOT AN ATTACK ON THE DOOR. "
+             "chronicle_sweep_start asks self_arming.may('vault.sweep_start') BEFORE it reads the "
+             "lane list, and that lock FAILS CLOSED on a stale heart census - its state for the "
+             "whole of any session that has touched a gate file. So every sweep_wilson attack "
+             "aimed at a guard BELOW the lock got a perfectly good ok:False and _refused_unstarted "
+             "called it caught. MEASURED 2026-09-22 in a sandbox: reverting the door's own lane "
+             "guard left sweep_wilson GREEN at exit 0 with lanesnone, lanesraise, lanesstr and "
+             "lanesdict all still PROVEN - the revert was real, its anchor matched exactly once, "
+             "the attack never arrived. Four claims scored a guard they could not see and banked "
+             "attacks=1 each into the very lock that was answering them. Two halves: the harness "
+             "now returns UNREACHED as a third state that lands in NEITHER number (0 of 0 is "
+             "UNPROVEN, never 0 of 2 which reads LEAKS and accuses working code) and banks "
+             "nothing; and this gate does what the harness cannot safely do - stubs the lock OPEN "
+             "and threading.Thread shut, so the lane states are driven at the REAL door for the "
+             "first time. It found two more: the WORD claude inside a STRING passed `in`, and so "
+             "did a DICT with that key. The BASELINE case asserts the door WOULD have started on "
+             "a real lane - without it a door jammed permanently shut passes every refusal. "
+             "4 red-proofs."),
     Gate("sweep-wilson", [sys.executable, os.path.join(HERE, "sweep_wilson.py")], 180,
          why="vault.sweep_start guards an action that SPENDS MONEY and no sabotage had ever been "
              "attempted against it, so it sat UNPROVEN at n=0 with nothing to move it. This "

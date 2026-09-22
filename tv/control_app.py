@@ -26291,6 +26291,13 @@ def vault_apply(proposal=None):
     # container and no row can answer the gate and the write differently. See _inert() above.
     if caller_supplied:
         proposal = _inert(proposal)
+        # A collapsed caller body must not fall through to the last sweep. _inert returns None
+        # when the object will not answer, and None is falsy, so `proposal or last_sweep` would
+        # apply a sweep the caller did not hand in.
+        if not isinstance(proposal, dict):
+            return {"ok": False,
+                    "why": "a caller-supplied proposal must be a record — it does not fall "
+                           "through to the last sweep"}
     prop = proposal or (st.get("result") if isinstance(st.get("result"), dict) else None)
     _gated = None        # set to the JUDGED rows on the caller-supplied path; see v3066 below
     if caller_supplied and isinstance(prop, dict):
@@ -28871,8 +28878,12 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
                                       "fails closed" % type(_sw_e).__name__)
         if not _sw_ok:
             return {"ok": False, "why": "vault.sweep_start is LOCKED — %s" % _sw_why}
-        lanes = _chron_lanes()
-        if "claude" not in lanes:
+        try:
+            lanes = _chron_lanes()
+        except Exception as _lane_e:
+            return {"ok": False, "why": "the lane list could not be read (%s) — a sweep with no "
+                                        "known reader does not start" % type(_lane_e).__name__}
+        if not isinstance(lanes, (list, tuple)) or "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
             # ⚠⚠ v3219 — AND THE REFUSAL SAYS WHICH KIND OF ABSENT. `_chron_lane_detail()` has
             # existed to answer exactly this and had NO production caller — its only reference in
@@ -31092,7 +31103,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3405",
+        "ver": "v3406",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

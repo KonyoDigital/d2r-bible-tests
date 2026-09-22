@@ -80,10 +80,12 @@ def _defines(src, name):
     """
     if not src or not name:
         return False
-    rx = re.compile(r"window\.%s\s*=" % re.escape(name))
+    rx = re.compile(r"window\.%s\s*=(?!=)" % re.escape(name))
     for m in rx.finditer(src):
         line_start = src.rfind("\n", 0, m.start()) + 1
         if "//" in src[line_start:m.start()]:
+            continue
+        if _in_comment(src, m.start()):
             continue
         return True
     return False
@@ -170,6 +172,9 @@ def _in_comment(src, pos):
     open_block = src.rfind("/*", 0, pos)
     if open_block != -1 and src.find("*/", open_block) > pos:
         return True
+    html = src.rfind("<!--", 0, pos)
+    if html != -1 and src.find("-->", html) > pos:
+        return True
     return False
 
 
@@ -183,7 +188,18 @@ def _has_body(src, pos):
     n = len(src)
     while i < n and src[i] in " \t\r\n=":
         i += 1
-    if i >= n or src[i] not in "[{":
+    if i >= n:
+        return True
+    word = src[i:i + 9]
+    if word.startswith("null") or word.startswith("undefined"):
+        end = i + (4 if word.startswith("null") else 9)
+        if end >= n or not (src[end].isalnum() or src[end] == "_"):
+            return False
+    if src.startswith("JSON.parse", i):
+        inner = src[i:i + 40]
+        if any(s in inner for s in ('"{}"', '"[]"', "'{}'", "'[]'", '"null"', "'null'")):
+            return False
+    if src[i] not in "[{":
         return True          # not a bracketed catalog — nothing to judge, do not invent a failure
     opench = src[i]
     closech = "]" if opench == "[" else "}"

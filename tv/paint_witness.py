@@ -321,6 +321,27 @@ def verdict(m):
     if not m or m.get("distinct") is None:
         return UNKNOWN, (m or {}).get("why") or "nothing was measured"
     d, share = m["distinct"], m["modalShare"]
+
+    def _measured(x):
+        # A bool is an int in Python, and True >= 0.98, so a flag would clear the blank bar.
+        return (isinstance(x, (int, float)) and not isinstance(x, bool)
+                and x == x and abs(float(x)) != float("inf"))
+
+    # A share that is not a fraction, or a count that is not a count, is a failed measurement.
+    # Calling it BLANK replaces the window he is looking at. UNKNOWN is the refusal.
+    if not _measured(share) or not (0.0 <= float(share) <= 1.0):
+        return UNKNOWN, ("modalShare is not a fraction of this window (%r), so BLANK is not "
+                         "sayable" % (share,))
+    if not _measured(d) or float(d) < 1:
+        return UNKNOWN, ("the distinct-luminance count is not a measurement (%r), so BLANK is "
+                         "not sayable" % (d,))
+    # True < 80, so a boolean brightness sits inside the ink bar and would call a window blank.
+    p99 = m.get("p99Luminance")
+    bright = m.get("brightShare")
+    if not _measured(p99):
+        p99 = None
+    if not _measured(bright):
+        bright = None
     # ⚠ ORDER MATTERS AND MY OWN GUARD CAUGHT IT. The single-colour test runs FIRST because it is
     # the more specific case and it owns its own sentence. With the ink test first, a genuinely
     # flat window (modal 99.5%, no ink) was caught by ink and told "the single-colour test cannot
@@ -354,25 +375,25 @@ def verdict(m):
     # window is BLANK-BY-INK only when its brightest 1% is dark AND almost nothing is bright.
     # ⚠ It reports a DISTINCT reason, never "one colour covers the window", because that sentence
     # would be false here and a wrong reason is how the last three attempts at this bug went.
-    if (m.get("p99Luminance") is not None and m.get("brightShare") is not None
+    if (p99 is not None and bright is not None
             and d is not None and d <= INK_MAX_DISTINCT
-            and m["p99Luminance"] < INK_P99_MAX and m["brightShare"] < INK_SHARE_MAX):
+            and p99 < INK_P99_MAX and bright < INK_SHARE_MAX):
         return BLANK, ("nothing is DRAWN on this window: its brightest 1%% of pixels start at "
                        "luminance %s (a painted console reads ~177) and only %.2f%% of it is "
                        "bright (~3.9%% when healthy). The commonest colour covers just %.1f%%, so "
                        "the single-colour test cannot see this fault at all — this console's "
                        "background is a gradient, not one flat colour"
-                       % (m["p99Luminance"], m["brightShare"] * 100.0, share * 100.0))
+                       % (p99, bright * 100.0, share * 100.0))
     if (d is not None and d > INK_MAX_DISTINCT
-            and m.get("p99Luminance") is not None and m.get("brightShare") is not None
-            and m["p99Luminance"] < INK_P99_MAX and m["brightShare"] < INK_SHARE_MAX):
+            and p99 is not None and bright is not None
+            and p99 < INK_P99_MAX and bright < INK_SHARE_MAX):
         # ⚠ SAY WHICH TEST DECLINED AND WHY — a right verdict under a wrong reason is how the last
         # three attempts at this bug went, and this window is dim enough that the ink bars alone
         # would have called it empty.
         return PAINTED, ("this window is DIM (brightest 1%% at luminance %s, %.2f%% bright) but it "
                          "is not empty: %d distinct luminance(s) are drawn on it, and a dead "
                          "renderer leaves ONE. The ink test is declined above %d distinct"
-                         % (m["p99Luminance"], m["brightShare"] * 100.0, d, INK_MAX_DISTINCT))
+                         % (p99, bright * 100.0, d, INK_MAX_DISTINCT))
     return PAINTED, ("the commonest colour covers %.1f%% of this window across %d distinct "
                      "luminance(s) - it has content on it (blank needs >= %.0f%%)"
                      % (share * 100.0, d, BLANK_MODAL_SHARE * 100.0))
