@@ -15,7 +15,57 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 ---
 
 
-## 📋 OPEN QUEUE — 2026-09-07 · 8 rows · viewer :17955 · GitHub #212-#219
+## 📋 OPEN QUEUE — 2026-09-23 · 14 open · 25 closed · viewer :17955
+
+> ⚠ **THIS FILE WAS TWO WEEKS STALE AND SAID SO NOWHERE.** Until now the only queue here was the
+> 2026-09-07 snapshot below, 8 rows against GitHub #212-#219, while the live board had moved on to
+> #150-#168 — none of which appeared anywhere in these 3,148 lines. `CLAUDE.md` names this file as
+> the authority, so an authority that had stopped tracking the work is the same defect this arc
+> keeps finding, in the list itself. The old snapshot is KEPT below, dated, because its analysis is
+> real; it is a record, not the queue.
+>
+> **The live surfaces are the viewer (:17955) and the session board. This section mirrors them.**
+
+### ⚙ IN FLIGHT — what is moving right now
+
+| # | what is moving, with the number |
+|---|---|
+| **#157** | a coverage floor pinned to a COUNT tracks the river, not the surface — river-strip 1440x1000 read **0 nodes, was 20** and refused the push; a full A/B on the SAME BYTES came back 🟢 clean, so the flake is proven on our own tree. Same run: shelf-cards 1440x1000 **STALE, floor 16, measured 48** — a floor I lowered 48→16 by hand tonight, swung back. Two targets, both directions. |
+| **#164** | `RESUME_HERE.md` is stale **by construction** — the bump writes the derived block before the commit containing it exists, so the fingerprint names the PARENT. Measured: the file said **1 unpushed** while git counted **2**. A design panel is running; the gate that catches this is RIGHT and is not being weakened. |
+| **#60** | the item DB. Vocabulary BUILT and green (magicPrefix 269 · magicSuffix 298 · rarePrefix 42 · rareSuffix 152 · baseType 690, from his own CASC). The gap is the pricing half: `vault_seen.json` holds **44 rows, ZERO carrying sockets/ethereal/quality**. His directive: full heart — corroborator, watchdog, eagle eye, doctor — plus a wilson pass, live reels, and fixtures the AI cross-references from. |
+| **#166** | 13 defunct children of his console, and every zombie on the Mac is one of them. Three of my own readings withdrawn (a total over uptime is not a rate; a 14-min window against a 10-70 min gap is not absence; a stale pid list against a live count is not a delta). A child-catcher is running, naming spawners while they are still alive. |
+
+### ⛔ WAITING ON HIM — nothing else is
+
+| # | what only he can settle |
+|---|---|
+| **#60** | one vault read under `vp3368` spends an AI call and moves `item facts captured` off UNKNOWN. Cost is his. |
+| **#141** | the session-1 pixel probe runs inside HIS interactive Windows session; last attempt photographed D2R because the game was foreground. Needs a moment when the console is. |
+| **#37** | one `window.D2R_BUILD.id` read **from the board window** (`/board`), not the console — GrokBot owes it and has acknowledged the trap. |
+
+### ⏸ PENDING — not in flight
+
+| # | what |
+|---|---|
+| **#165** | Routine I red on **every** run across 6 commits; failing spec set stable at **24**, one swapped, net zero — the redness itself is the finding. |
+| **#168** | `agreement()` calls a REACH difference an unsteady eye — 39% vs 100% on the two v3413 looks. Also: `fullCap` does NOT record the effective cap; audit by `sentCode.chars` and `reach`. |
+| **#150** | the cheap doctor subset sums to **14,168 ms** against a 9,000 ms budget. |
+| **#123** | CI prints **❌ 26**, not the 15 this board carried; 26 distinct names reconcile exactly (22 `test_*` + 4 non-test). Trajectory 18 → 23 → 26. |
+| **#159** | the seed baker answers **no drift** and leaves **no artefact**, so nothing can say when it last checked. ⛔ my planned fix was REFUTED by a comment above the function. |
+| **#145** | the silence is fixed; his console runs **with `--open`**, so nothing is observably headless. Only the supervisor's revive path is open. |
+| **#53** | ⚠ its stated blocker is REFUTED — `magic_roster`/`rare_roster` appear in **zero** files; they were never the design. Re-take readiness against the lexicon. |
+| **#32** | his ruling 2026-09-19: KEEP OPEN. Both of us remember a bridge; neither remembers the two ends. |
+| **#52** | ⛔ blocked AND explicitly last. Do not start, scope or design it. |
+
+**Closed this arc:** v3392-v3419 — see the version rows below and the viewer's COMPLETED column (25).
+
+---
+
+## 🗄 ARCHIVED SNAPSHOT — 2026-09-07 · 8 rows · GitHub #212-#219
+
+> Kept verbatim because the analysis under it is real and still worth reading. It is a record of
+> that day, **not the current queue** — the queue is the section above.
+
 
 > Filed during the live console session of 2026-09-07. **Every row is a GitHub issue as well as a
 > viewer card, so the list survives this session dying.** Status here is a snapshot; the viewer and

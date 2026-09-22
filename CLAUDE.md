@@ -87,7 +87,17 @@ The channel is GitHub, and it is **looped every 10 minutes leaving messages**. P
 | read the code, stores, journals · ship a gated fix | ✅ | ✗ |
 | **see his live console · act as him** | **✗** | ✅ |
 
-- `gh #179` — backend queue (`GB-B-n`) · `gh #180` — live/eyes queue (`GB-L-n`)
+- **THE TWO LIVE LANES, and every comment in this repo shows `KonyoDigital` as its author —
+  the TAG ON THE FIRST LINE is the only thing that identifies a seat.**
+  - `gh #230` — **GrokBot**: the live console. Screenshots, window ids, freeze samples, ASK
+    rows, anything driven or debugged on the real PC. Labels `GB-L`, `GB-L-MAC`, `GB-L-GUEST`.
+  - `gh #231` — **second eye (Grok CLI)**: cross-family review of a shipped version, one
+    comment per look, carrying version · sha · verdict · model · chars sent · reach · findings.
+    ⚠ `cannot-tell` is NOT `clean` — measured on v3413, the same eye on the same commit said
+    cannot-tell at 8,622 chars and returned 5 findings (3 real) at 25,074.
+  - ⚠ `gh #179` (backend `GB-B-n`) and `gh #180` (live/eyes `GB-L-n`) were rotated **CLOSED**
+    on 2026-09-18. GitHub still accepts comments on closed issues, so anything left there is
+    drained by `handoff.py` but never read as current. Do not post to them.
 - A brief must carry a **refutable claim**, keep observation separate from conclusion, and treat
   **UNKNOWN as a first-class answer**. Plus a don't-touch list, every time.
 - ⚠ The repo is **PUBLIC**. Never put install ids, hostnames, tokens or `/Users/konyo` paths in a brief.
