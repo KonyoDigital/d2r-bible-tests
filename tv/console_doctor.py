@@ -6297,29 +6297,53 @@ def _check_the_resume_agrees_with_git_right_now():
         return UNKNOWN, ("the derived block carries no fingerprint, so there is no claim to "
                          "check against git")
     said_head, said_origin = m.group(1), m.group(2)
-    if said_head == "UNKNOWN" or said_origin == "UNKNOWN":
-        return OK, ("the resume says UNKNOWN for what git could not answer, which is the honest "
-                    "reading — it is not claiming a measurement it does not have")
+    # ⚠⚠ v3416 — AN UNKNOWN FINGERPRINT IS NOT A BLANKET EXEMPTION, AND IT WAS ONE. This
+    # returned OK right here, BEFORE the all-clear sentence was ever looked at, so a file whose
+    # fingerprint git could not fill read fine forever no matter what the rest of it claimed —
+    # honest about the fingerprint, silent about the sentence beside it. The COMPARISON is still
+    # skipped below, because there is nothing to compare; the SENTENCE no longer is.
+    # Found by the second eye at full reach. [[unknown-stays-unknown]]
+    fp_unknown = (said_head == "UNKNOWN" or said_origin == "UNKNOWN")
     try:
         import git_quiet as _gq
         _h = _gq.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
                      capture_output=True, text=True, timeout=20)
         _o = _gq.run(["git", "rev-parse", "--short", "origin/main"], cwd=ROOT,
                      capture_output=True, text=True, timeout=20)
+        # ⚠⚠ v3416 — COUNT THE UNPUSHED COMMITS; THE HASHES WERE A PROXY AND THE PROXY WAS
+        # WRONG. "Nothing is waiting to be pushed" is a claim about UNPUSHED COMMITS, and
+        # derived() writes it whenever `origin/main..HEAD` is empty — which is ALSO true when
+        # HEAD is strictly BEHIND origin/main. So `head != origin` called a perfectly correct
+        # file a FALSE all-clear on every behind tree, and behind is the ordinary state here
+        # the moment the Windows box or the other family pushes before this machine pulls.
+        # Ask the question the sentence actually makes. [[feedback-verify-not-proxy]]
+        _a = _gq.run(["git", "rev-list", "--count", "origin/main..HEAD"], cwd=ROOT,
+                     capture_output=True, text=True, timeout=20)
     except Exception as e:
         return UNKNOWN, ("git could not be asked (%s), so whether the resume agrees with it is "
                          "UNKNOWN" % type(e).__name__)
-    if _h.returncode != 0 or _o.returncode != 0:
+    if _h.returncode != 0 or _o.returncode != 0 or _a.returncode != 0:
         return UNKNOWN, ("git exited non-zero, so the comparison could not be made — UNKNOWN, "
                          "never an agreement")
     head, origin = (_h.stdout or "").strip(), (_o.stdout or "").strip()
     # ⚠ THE FALSE ALL-CLEAR IS THE ONE THAT MATTERS. A resume claiming nothing is unpushed while
     # HEAD is ahead of origin is the exact sentence v3413 exists to stop being written falsely.
     claims_clear = "Nothing is waiting to be pushed" in txt
-    if claims_clear and head and origin and head != origin:
-        return MISSING, ("RESUME_HERE.md says nothing is waiting to be pushed, but git reads "
-                         "HEAD %s against origin/main %s — that is the false all-clear on the "
-                         "file a resuming session reads first" % (head, origin))
+    try:
+        ahead = int((_a.stdout or "").strip())
+    except Exception:
+        return UNKNOWN, ("git answered %r when asked how many commits are unpushed, which is "
+                         "not a count — so whether the all-clear is true is UNKNOWN, never "
+                         "assumed" % ((_a.stdout or "").strip()[:30],))
+    if claims_clear and ahead > 0:
+        return MISSING, ("RESUME_HERE.md says nothing is waiting to be pushed, but git counts "
+                         "%d unpushed commit(s) (HEAD %s against origin/main %s) — that is the "
+                         "false all-clear on the file a resuming session reads first"
+                         % (ahead, head, origin))
+    if fp_unknown:
+        return OK, ("the resume says UNKNOWN for what git could not answer, which is the honest "
+                    "reading — and its all-clear sentence was checked anyway: %d commit(s) are "
+                    "unpushed, so the sentence is true" % ahead)
     if said_head != head or said_origin != origin:
         return UNMEASURED, ("the resume was derived at head=%s origin=%s and git now reads "
                             "head=%s origin=%s — it is BEHIND, which is normal between a commit "
@@ -6375,10 +6399,18 @@ def _check_the_chip_can_say_nobody_looked():
         return MISSING, ("the census carries no counts, so the chip cannot tell a clean heart "
                          "from one nobody took - it will read 'not taken' while the console is "
                          "answering perfectly well")
-    return OK, ("the chip can be fed: %d flowing, %d watched, %d dark, %d unknown - and a census "
-                "that stopped answering would make it say 'not taken' rather than 'heart'"
-                % (c.get("FLOWING") or 0, c.get("WATCHED") or 0,
-                   c.get("DARK") or 0, c.get("UNKNOWN") or 0))
+    # ⚠⚠ v3417 - AN ABSENT KEY IS NOT A MEASURED ZERO, AND THIS ROW OF ALL ROWS PRINTED IT AS
+    # ONE. `c.get("FLOWING") or 0` rendered a missing key, a null and a real zero identically, so
+    # a census carrying only {"DARK": 2} reported as a full four-way count with three zeros in it.
+    # That is the defect this row exists to watch, committed by the row itself.
+    # [[unknown-stays-unknown]]
+    def _n(k):
+        v = c.get(k)
+        return str(v) if isinstance(v, int) and not isinstance(v, bool) else "?"
+    return OK, ("the chip can be fed: %s flowing, %s watched, %s dark, %s unknown (? = the census "
+                "carried no such key, which is not a zero) - and a census that stopped answering "
+                "would leave the chip on the last one it saw, never a clean face"
+                % (_n("FLOWING"), _n("WATCHED"), _n("DARK"), _n("UNKNOWN")))
 
 
 def _check_the_eye_audit_agrees_with_the_ship_gate():

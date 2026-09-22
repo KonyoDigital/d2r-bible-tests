@@ -53,7 +53,10 @@ RED_PROOF = [
                "minute - the derive timestamp and the fetch age both move - and a gate that is "
                "always red is ignored within a week",
         "file": "tv/resume_state.py",
-        "find": '    fp = "head=%s origin=%s ver=%s" % (head or "?", origin or "?", ver)',
+        # ⚠ v3416 — RE-ANCHORED. The writer moved from "?" to "UNKNOWN" in v3413 and this
+        # anchor was left behind, so it matched ZERO times: a red-proof that matches nothing
+        # proves nothing, and it reports INVALID rather than red. [[source-reading-guard]] 2
+        "find": '    fp = "head=%s origin=%s ver=%s" % (head or "UNKNOWN", origin or "UNKNOWN", ver)',
         "replace": '    fp = "t=%s" % time.time()',
         "matches": 1,
     },

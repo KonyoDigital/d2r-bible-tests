@@ -1234,6 +1234,19 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_behind_tree_is_not_a_false_all_clear",
+         [sys.executable, os.path.join(HERE, "test_a_behind_tree_is_not_a_false_all_clear.py")], 60,
+         why="v3416 (#163) - FOUND BY THE SECOND EYE AT FULL REACH, AND ONLY THERE. At the "
+             "shipped 9,000-char cap the same eye on the same commit answered cannot-tell with "
+             "0 findings; at 25,074 chars it returned 5, and three were real. Two are v3413s "
+             "own doctor row: (1) it judged the all-clear by hash inequality, but derived() "
+             "writes that sentence whenever origin/main..HEAD is empty - ALSO true when HEAD is "
+             "strictly BEHIND origin - so a correct file was called a false all-clear on every "
+             "behind tree; (2) an UNKNOWN fingerprint returned OK BEFORE the sentence was "
+             "examined, so a file git could not fingerprint read fine whatever else it claimed. "
+             "This gate BINDS console_doctor.ROOT to a temp tree and injects a fake git_quiet, "
+             "so it drives the shipped row through states this repo cannot be put into on "
+             "demand, and never reads his working tree."),
     Gate("test_the_audit_and_the_gate_read_one_row_one_way",
          [sys.executable, os.path.join(HERE, "test_the_audit_and_the_gate_read_one_row_one_way.py")], 60,
          why="v3415 (#162) - THE CONTRADICTION WAS THE FINDING. v3403 taught looked_at (and so "

@@ -8513,7 +8513,7 @@ body[data-origin="shadow"] #stage::after {
            "not derived yet", never a zero, because "nothing runs unwatched" and "nobody has
            looked" are opposite facts. [[unknown-stays-unknown]] -->
       <span class="dot">·</span><button id="heart-chip" type="button" aria-haspopup="dialog"
-        title="♥ THE HEART — the console's own circulation, derived live. Click to open it." data-untaken="1">♥ <span id="heart-chip-n" class="hc-n">not taken</span></button>
+        title="♥ THE HEART — not derived yet. Click to take the census." data-untaken="1">♥ <span id="heart-chip-n" class="hc-n">not taken</span></button>
       <span id="foot-ports">:17772<span class="dot">·</span>agent :17771</span>
     </footer>
 
@@ -14912,7 +14912,24 @@ window._lockMark = function(isOpen, px, label){
   function _heartChipPaint(d){
     var el = document.getElementById('heart-chip'), nm = document.getElementById('heart-chip-n');
     if (!el || !nm) return;
-    if (!d || !d.ok || !d.counts) {
+    /* ⚠⚠ v3417 — AN EMPTY `counts` OBJECT WAS A CLEAN HEART HERE AND A MISSING ROW IN THE
+       DOCTOR, ON THE SAME PAYLOAD. `{}` is TRUTHY in JS and FALSY in Python, so `!d.counts` let
+       `{"ok":true,"counts":{}}` through to the success branch and painted the clean face, while
+       `_check_the_chip_can_say_nobody_looked` called it MISSING and told him the chip was
+       reading 'not taken'. Both halves wrong, and it is v3414's own defect class reproduced
+       inside v3414. Count the keys, so the two languages answer alike. [[copy-drift]] */
+    var _cts = d && d.ok && d.counts;
+    var _hasCensus = !!(_cts && typeof _cts === 'object' && !(_cts instanceof Array)
+                        && Object.keys(_cts).length);
+    if (!_hasCensus) {
+      /* ⚠⚠ v3417 — A FAILURE MUST NOT UN-TAKE A CENSUS THAT WAS TAKEN. Two painters reach
+         this function with no ordering between them: the overlay's fetch and the deferred 4 s
+         read. Either can land second. Before this, an overlay census followed by a failing
+         deferred read flipped the chip back to 'not taken' while the overlay still showed the
+         census it had just drawn — the two surfaces disagreeing again, which is the exact thing
+         v3414 fixed. 'Not taken' is a claim about whether a census has EVER arrived, and once
+         one has, it has. The overlay still reports the current failure. [[stale-reading]] */
+      if (window._hrtSawCensus) return;
       nm.textContent = 'not taken';
       el.removeAttribute('data-dark');
       el.setAttribute('data-untaken', '1');
@@ -14921,6 +14938,7 @@ window._lockMark = function(isOpen, px, label){
     }
     var c = d.counts, dark = c.DARK || 0;
     nm.textContent = dark ? (dark + ' dark') : 'heart';
+    window._hrtSawCensus = true;
     el.removeAttribute('data-untaken');
     if (dark) el.setAttribute('data-dark', '1'); else el.removeAttribute('data-dark');
     el.title = '♥ THE HEART — ' + (c.FLOWING || 0) + ' flowing · ' + (c.WATCHED || 0)

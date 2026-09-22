@@ -57,6 +57,7 @@ def _fn_source():
 def _paint(censuses):
     """Paint each census onto ONE stub element, in order. -> the element's final face."""
     prog = (
+        "var window = {};\n"
         "var EL = { attrs: {}, title: '',"
         "  setAttribute: function(k, v){ this.attrs[k] = v; },"
         "  removeAttribute: function(k){ delete this.attrs[k]; } };\n"
@@ -149,16 +150,24 @@ class TestACensusNobodyTookIsNotACleanOne(unittest.TestCase):
         self.assertEqual(f["text"], "heart",
                          "the chip kept the never-taken WORD after the census came back")
 
-    def test_losing_the_census_restores_the_never_taken_face(self):
-        """And back again — a census that stops answering must stop claiming it was clean."""
+    def test_a_failure_AFTER_a_census_does_not_un_take_it(self):
+        """⚠ v3417 REVERSED v3414 HERE, DELIBERATELY. This used to assert the chip fell back to
+        'not taken' when a later read failed. The second eye showed why that is wrong: TWO
+        painters reach the chip with no ordering — the overlay's fetch and the deferred 4 s read
+        — so an overlay census followed by a failing deferred read flipped the chip to
+        'not taken' while the overlay still displayed the census it had just drawn. 'Not taken'
+        is a claim about whether a census has EVER arrived; once one has, it has. The overlay
+        reports the current failure. [[stale-reading]]"""
         f = _paint([CLEAN, None])
-        self.assertEqual(f["attrs"].get("data-untaken"), "1")
-        self.assertEqual(f["text"], "not taken")
+        self.assertNotIn("data-untaken", f["attrs"],
+                         "a failed read un-took a census that had already arrived")
+        self.assertEqual(f["text"], "heart")
 
-    def test_a_dark_census_then_silence_does_not_keep_the_dark_count(self):
+    def test_a_dark_census_then_silence_KEEPS_the_count_he_was_shown(self):
         f = _paint([DARKISH, None])
-        self.assertEqual(f["text"], "not taken")
-        self.assertNotIn("data-dark", f["attrs"])
+        self.assertEqual(f["text"], "3 dark",
+                         "a later failure erased a DARK count he had already been shown")
+        self.assertEqual(f["attrs"].get("data-dark"), "1")
 
     # ---- the two failure arms must REACH the chip ------------------------------------------
 
@@ -181,14 +190,75 @@ class TestACensusNobodyTookIsNotACleanOne(unittest.TestCase):
                       "the overlay says the console did not answer while the chip beside it still "
                       "wears the last clean face")
 
+    # ---- the two languages must split the SAME payload the same way -----------------------
+
+    def test_an_empty_counts_object_is_not_a_taken_census(self):
+        """`{}` is TRUTHY in JS and FALSY in Python. Before v3417 the chip painted the CLEAN face
+        for {"ok":true,"counts":{}} while the doctor row called the same payload MISSING and told
+        him the chip was reading 'not taken'. Both halves wrong."""
+        f = _paint([{"ok": True, "counts": {}}])
+        self.assertEqual(f["text"], "not taken",
+                         "an empty counts object painted a CLEAN heart — the chip is claiming a "
+                         "census that carried nothing")
+        self.assertEqual(f["attrs"].get("data-untaken"), "1")
+
+    def test_a_counts_that_is_a_list_is_not_a_census_either(self):
+        f = _paint([{"ok": True, "counts": []}])
+        self.assertEqual(f["text"], "not taken")
+
+    def test_THE_JOIN_the_chip_and_the_doctor_row_agree_on_every_payload(self):
+        """A CORROBORATOR ACROSS TWO LANGUAGES. The row says what his SCREEN shows, so a payload
+        the row calls un-feedable must be one the chip actually paints as un-taken, and one it
+        calls fine must be one the chip paints as a census. [[heart-first]] §1"""
+        import types
+        import console_doctor as _cd
+        row = dict(_cd.CHECKS)["the chip can say nobody looked"]
+        PAYLOADS = [
+            {"ok": True, "counts": {"FLOWING": 20, "WATCHED": 0, "DARK": 0, "UNKNOWN": 0}},
+            {"ok": True, "counts": {"DARK": 3}},
+            {"ok": True, "counts": {}},
+            {"ok": True, "counts": []},
+            {"ok": True},
+            {"ok": False, "why": "the census could not read the tree"},
+        ]
+        bad = []
+        for d in PAYLOADS:
+            m = types.ModuleType("control_app")
+            m.heart_state = (lambda _d=d: _d)
+            old = sys.modules.get("control_app")
+            sys.modules["control_app"] = m
+            try:
+                st, _why = row()
+            finally:
+                if old is not None:
+                    sys.modules["control_app"] = old
+                else:
+                    sys.modules.pop("control_app", None)
+            chip_untaken = _paint([d])["attrs"].get("data-untaken") == "1"
+            row_unfeedable = (st != _cd.OK)
+            if chip_untaken != row_unfeedable:
+                bad.append((d, "chip untaken=%s" % chip_untaken, "row=%s" % st))
+        self.assertEqual(bad, [], "the chip and the doctor row disagree about %d payload(s): %r "
+                                  "— the row is describing a screen that shows something else"
+                                  % (len(bad), bad))
+
     # ---- the two ends the painter cannot reach --------------------------------------------
 
     def test_the_stylesheet_can_actually_colour_it(self):
         """An attribute no rule selects is a flag nobody can see. [[the-unjoined-end]]"""
-        src = io.open(UI, encoding="utf-8", errors="replace").read()
-        self.assertIn('#heart-chip[data-untaken="1"]', src,
-                      "nothing in the stylesheet selects the never-taken chip, so the flag is set "
-                      "and painted identically anyway")
+        # ⚠ v3417 — GRADE THE CODE, NOT THE PROSE. This was a whole-file substring search, so a
+        # COMMENT mentioning the selector would satisfy it while the rule itself was gone — the
+        # [[source-reading-guard]] §4b shape, in my own gate. Block comments are stripped with a
+        # BOUNDED pattern; an unbounded /\*.*?\*/ over this 5-6 MB mixed file deletes a sixth of
+        # it. The eye reported the rule missing outright; that half was REFUTED — it is at line
+        # 6208 and the payload had simply stripped the comment block it sits in.
+        import re as _re
+        raw = io.open(UI, encoding="utf-8", errors="replace").read()
+        code = _re.sub(r"/\*.{0,4000}?\*/", lambda m: "\n" * m.group(0).count("\n"), raw,
+                       flags=_re.S)
+        self.assertIn('#heart-chip[data-untaken="1"]', code,
+                      "nothing in the stylesheet selects the never-taken chip OUTSIDE A COMMENT, "
+                      "so the flag is set and painted identically anyway")
 
     def test_the_chip_boots_untaken(self):
         """Before the first paint nobody has taken the census either."""
@@ -245,6 +315,26 @@ RED_PROOF = [
                "clean census - two surfaces of one fact, disagreeing.",
         "file": "control_ui.html",
         "find": "      _heartChipPaint(null);\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v3417 - THE TRUTHINESS SPLIT, RESTORED. `{}` is TRUTHY in JS and FALSY in Python, "
+               "so a bare truthiness test lets an EMPTY census paint the clean face here while "
+               "the doctor row calls the same payload MISSING and says the chip reads 'not "
+               "taken'. One payload, two surfaces, both wrong.",
+        "file": "control_ui.html",
+        "find": "    var _hasCensus = !!(_cts && typeof _cts === 'object' && !(_cts instanceof Array)\n                        && Object.keys(_cts).length);",
+        "replace": "    var _hasCensus = !!_cts;",
+        "matches": 1,
+    },
+    {
+        "why": "v3417 - THE RACE GUARD REMOVED. Two painters reach this function with no "
+               "ordering: the overlay fetch and the deferred 4 s read. Without the guard an "
+               "overlay census followed by a failing deferred read flips the chip to 'not taken' "
+               "while the overlay still shows the census it just drew.",
+        "file": "control_ui.html",
+        "find": '      if (window._hrtSawCensus) return;\n',
         "replace": "",
         "matches": 1,
     },

@@ -125,9 +125,15 @@ def derived():
     L = [BEGIN, "<!-- fp: %s -->" % fp, ""]
     L.append("| | |")
     L.append("|---|---|")
-    L.append("| HEAD | `%s` |" % (head or "?"))
-    L.append("| origin/main | `%s`  ⏱ *as known %s — this never fetches* |"
-             % (origin or "?", _fetch_age()))
+    # ⚠⚠ v3416 — ONE FAILED READ, ONE RENDERING. This block used to say a failed `rev-parse`
+    # THREE different ways at once: the fingerprint wrote `head=UNKNOWN`, these two cells wrote
+    # `?`, and the rows below wrote **UNKNOWN — git could not answer**. A reader comparing the
+    # cell against the fingerprint saw two different answers to one question. Found by the
+    # second eye at full reach. [[unknown-stays-unknown]] [[copy-drift]]
+    _UNK = "**UNKNOWN — git could not answer**"
+    L.append("| HEAD | %s |" % (("`%s`" % head) if head else _UNK))
+    L.append("| origin/main | %s  ⏱ *as known %s — this never fetches* |"
+             % ((("`%s`" % origin) if origin else _UNK), _fetch_age()))
     L.append("| **unpushed** | %s |"
              % ("**UNKNOWN — git could not answer**" if ahead is None
                 else "**%d commit(s)**" % len(ahead)))

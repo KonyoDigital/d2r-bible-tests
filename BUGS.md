@@ -7,6 +7,103 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1144 — v3414's own defect class, reproduced inside v3414, plus a race its fix created
+
+**v3417, 2026-09-22.** The second eye looked at v3414 **at full reach** and returned 6 findings.
+Four were real and are fixed here; one was refuted by measurement; one was a latent weakness in my
+own gate. At the shipped 9,000-char cap this look would have been impossible — `tv/control_ui.html`,
+the file the entire version is about, never reached the eye at all.
+
+**1 — an empty `counts` was a clean heart on screen and a MISSING row in the doctor (HIGH).**
+Measured on the identical payload `{"ok": true, "counts": {}}`:
+
+```
+JS  !d.counts -> false   => the chip takes the CLEAN branch, paints 'heart'
+PY  not c     -> True    => the doctor returns MISSING, saying the chip reads 'not taken'
+```
+
+`{}` is truthy in JavaScript and falsy in Python. So his chip showed a healthy heart while the row
+beside it reported a failure **and misdescribed what his screen said**. That is precisely the class
+v3414 was written to close, committed inside v3414. The chip now counts the keys, so the two
+languages split the payload the same way. [[copy-drift]]
+
+**2 — two painters, no ordering (MEDIUM), and v3414's fix made it worse.** The overlay's fetch and
+the deferred 4 s read both call `_heartChipPaint` and either can land second. v3414 added a third
+path (the catch → `null`), so an overlay census followed by a failing deferred read flipped the chip
+to `not taken` while the overlay still displayed the census it had just drawn. **"Not taken" is a
+claim about whether a census has EVER arrived**, and once one has, it has — the overlay reports the
+current failure. Guarded with `window._hrtSawCensus`. ⚠ This deliberately REVERSES a v3414 gate
+case, and that case now carries the reason. [[stale-reading]]
+
+**3 — the boot title promised a live census under a "not taken" label (LOW).** v3414 changed the
+label and the attribute and left the `title` saying *"derived live"*, and a fetch that never settles
+never reaches the catch, so the hover kept saying so indefinitely.
+
+**4 — an absent key printed as a measured zero (LOW), in the row whose whole subject is that
+mistake.** `c.get("FLOWING") or 0` rendered a missing key, a `null` and a real zero identically, so
+a census carrying only `{"DARK": 2}` reported as a full four-way count with three zeros in it. It
+now prints `?` for an absent key and says what `?` means. [[unknown-stays-unknown]]
+
+**REFUTED — the missing stylesheet rule.** The eye reported no declaration for
+`#heart-chip[data-untaken="1"]`. It is at `tv/control_ui.html:6208`. The payload strips comment-only
+added lines and the rule sits inside that comment block, so the eye could not see it. **Its
+structural half was real and is fixed:** the gate's check was a whole-file substring search, so a
+comment naming the selector would satisfy it while the rule was gone — [[source-reading-guard]] §4b,
+in my own gate. It now strips block comments with a BOUNDED pattern; an unbounded one deletes a
+sixth of this file.
+
+**Gate:** `test_a_census_nobody_took_is_not_a_clean_one` grows to 17 cases and **7 RED_PROOFs**,
+including `test_THE_JOIN_the_chip_and_the_doctor_row_agree_on_every_payload` — a corroborator that
+runs the shipped JS painter in node and the shipped Python row over the same six payloads and
+asserts they never disagree.
+
+### REG-1143 — the resume row asked hash-equality as a proxy for "is anything unpushed"
+
+**v3416, 2026-09-22.** Found by the second eye, and **only at full reach**. On the same commit the
+same eye answered `cannot-tell` with 0 findings against an 8,622-char payload, and returned **5
+findings** against 25,074 chars. Three were real, all in v3413's own doctor row.
+
+**1 — the proxy (HIGH).** `_check_the_resume_agrees_with_git_right_now` answered `MISSING` whenever
+the file said *"Nothing is waiting to be pushed"* and `head != origin`:
+
+```python
+claims_clear = "Nothing is waiting to be pushed" in txt
+if claims_clear and head and origin and head != origin:
+    return MISSING, (... "that is the false all-clear" ...)
+```
+
+But `derived()` writes that sentence whenever `git log --oneline origin/main..HEAD` is empty — and
+that range is **also** empty when HEAD is strictly **BEHIND** origin/main. So a perfectly correct
+file was called a false all-clear on every behind tree, which is the ordinary state here the moment
+the Windows box or the other family pushes before this machine pulls. The sentence is a claim about
+*unpushed commits*; the row now counts them with `git rev-list --count origin/main..HEAD`, and an
+unreadable count is UNKNOWN rather than zero. [[feedback-verify-not-proxy]]
+
+**2 — the blanket exemption (MEDIUM).** `if said_head == "UNKNOWN" ... return OK` returned **before**
+the all-clear was ever examined, so a file whose fingerprint git could not fill read fine forever no
+matter what else it claimed — honest about the fingerprint, silent about the sentence beside it. The
+*comparison* is still skipped (there is nothing to compare); the *sentence* no longer is, and the OK
+now says it checked. [[unknown-stays-unknown]]
+
+**3 — one failed read, three renderings (LOW).** The same failed `rev-parse` was written three ways
+inside one block: `fp: head=UNKNOWN`, the cells as `` `?` ``, and the rows below as
+**UNKNOWN — git could not answer**. The cells now use the same words as everything else.
+
+**Also repaired:** `test_the_resume_cannot_go_stale`'s second RED_PROOF anchored
+`fp = ... (head or "?", origin or "?", ver)`, which has matched **zero** times since v3413 moved the
+writer to `"UNKNOWN"`. A proof that matches nothing proves nothing — it reports INVALID, not red.
+[[source-reading-guard]] §2
+
+**Gate:** `tv/test_a_behind_tree_is_not_a_false_all_clear.py` — 11 cases, one a BASELINE proving the
+law still fires on the ahead tree it was written for. It binds `console_doctor.ROOT` to a temp tree
+and injects a fake `git_quiet`, so it drives the **shipped row** through states this repo cannot be
+put into on demand, and never touches his working tree. 3 RED_PROOFs.
+
+⚠ **NOT fixed here, and filed instead:** `RESUME_HERE.md` is stale **by construction** — the bump
+writes the derived block before the commit containing it exists, so the fingerprint necessarily
+names the parent. Measured: the file said `1 commit(s)` unpushed while git counted **2**. The gate
+that catches this is right and was not weakened.
+
 ### REG-1142 — one ledger row, two readings: --audit said OK where the ship gate said OWED
 
 **v3415, 2026-09-22.** v3403 taught `looked_at` — and therefore `owes_a_look`, and therefore the
