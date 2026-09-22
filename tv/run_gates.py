@@ -1234,6 +1234,27 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_failed_git_cannot_say_the_tree_is_clean",
+         [sys.executable, os.path.join(HERE, "test_a_failed_git_cannot_say_the_tree_is_clean.py")], 60,
+         why="v3413 (#160) - FOUND BY READING CI AFTER THE PUSH. Routine M, the "
+             "swallowed-exception ratchet, reported RANK 1 baseline 69 now 70 and NAMED the site: "
+             "resume_state.py:51, shape return-falsy, a failed run becomes EMPTY-STR. ⚠ AND IT IS "
+             "WORSE THAN RANK 1 SOUNDS because of what reads the result: _git returned '' and "
+             "derived() feeds that to three renderers that each treat empty as GOOD NEWS - "
+             "len(ahead) crashes, 'CLEAN' if not dirty says CLEAN, and the else arm prints "
+             "'Nothing is waiting to be pushed'. So a git that could not answer made "
+             "RESUME_HERE.md, the file a resuming session reads FIRST and the one carrying "
+             "'Nothing has shipped until origin/main equals HEAD', assert the opposite of the "
+             "truth. Two holes: the except swallowed into '', and returncode was NEVER read so a "
+             "git exiting 128 with empty stdout came back down the SUCCESS path - the same shape "
+             "as v3409's _pull_once finding, in a different file. None now travels all the way to "
+             "the page as UNKNOWN and the narrative arm says plainly that an absent list is not "
+             "an all-clear. ⚠ ATTRIBUTION CORRECTED BY MEASUREMENT: Routine M's first run EVER "
+             "was on this sha (502aa2b2 runs=0, bad246d5 runs=0), so the gate ARRIVED, it did not "
+             "go green-to-red, and the line dates to v3401. A gate's first run is not a "
+             "regression. TWO BASELINE cases stop the opposite failure: a working git must still "
+             "render the real counts and a genuinely clean tree must still read CLEAN, so a "
+             "generator hardwired to UNKNOWN cannot pass. 7 cases, 3 red-proofs."),
     Gate("test_two_seats_cannot_render_the_same_label",
          [sys.executable, os.path.join(HERE, "test_two_seats_cannot_render_the_same_label.py")], 90,
          why="v3411 (#132) - HIS FINDING, CARRIED SINCE v3385: ambiguity must be measured on the "

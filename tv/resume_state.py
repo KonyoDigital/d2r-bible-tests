@@ -44,12 +44,28 @@ END = "<!-- END DERIVED -->"
 
 
 def _git(*args):
+    """-> stdout, or None when git could not answer. NEVER "" for a failure.
+
+    ⚠⚠ v3413 — AN EMPTY STRING MADE THIS FILE TELL A NEW SESSION THE OPPOSITE OF THE TRUTH.
+    A failed run returned "", and `derived()` renders that as `working tree CLEAN` and
+    `✅ Nothing is waiting to be pushed` — a false all-clear on the ONE file a resuming session
+    trusts to say what has not shipped. Two holes: the except swallowed into "", and the
+    returncode was never read, so a git exiting non-zero with empty stdout came back down the
+    SUCCESS path. Same shape as v3409's _pull_once finding, in a different file.
+
+    Found by READING CI AFTER THE PUSH: Routine M (the swallowed-exception ratchet) reported
+    RANK 1, baseline 69 -> now 70, and named the site. ⚠ Its first run ever was on 0520ce20 —
+    502aa2b2 and bad246d5 have runs=0 — so this is a gate arriving, not a regression; the line
+    itself dates to v3401. [[unknown-stays-unknown]] [[sweep-dont-ask]]
+    """
     try:
         r = subprocess.run(["git"] + list(args), cwd=REPO, capture_output=True,
                            text=True, encoding="utf-8", errors="replace", timeout=20)
-        return (r.stdout or "").strip()
     except Exception:
-        return ""
+        return None
+    if r.returncode != 0:
+        return None
+    return (r.stdout or "").strip()
 
 
 def _fetch_age():
@@ -67,8 +83,13 @@ def _fetch_age():
 def derived():
     head = _git("rev-parse", "--short", "HEAD")
     origin = _git("rev-parse", "--short", "origin/main")
-    ahead = [l for l in _git("log", "--oneline", "origin/main..HEAD").split("\n") if l.strip()]
-    dirty = [l for l in _git("status", "--porcelain").split("\n") if l.strip()]
+    # ⚠ None means GIT COULD NOT ANSWER and must stay distinguishable from an empty result all
+    # the way to the page. `"".split()` yields [] and [] renders as "nothing unpushed" / "CLEAN",
+    # which is the false all-clear this version exists to kill.
+    _ahead_raw = _git("log", "--oneline", "origin/main..HEAD")
+    _dirty_raw = _git("status", "--porcelain")
+    ahead = None if _ahead_raw is None else [l for l in _ahead_raw.split("\n") if l.strip()]
+    dirty = None if _dirty_raw is None else [l for l in _dirty_raw.split("\n") if l.strip()]
     # ⚠ THE STAMP LIVES IN tv_diablo.py, NOT IN A VERSION FILE. The first cut read a
     # repo-root VERSION that does not exist and cheerfully printed "UNKNOWN" — a generator that
     # reports UNKNOWN for something knowable is worse than one that refuses, because UNKNOWN
@@ -100,16 +121,19 @@ def derived():
     # week, exactly like one that is always green. So staleness is judged on the DURABLE identity
     # of where we are: which commit, which origin, which version. `dirty` is deliberately OUT —
     # uncommitted files are normal mid-work and must not make the resume read as rotten.
-    fp = "head=%s origin=%s ver=%s" % (head or "?", origin or "?", ver)
+    fp = "head=%s origin=%s ver=%s" % (head or "UNKNOWN", origin or "UNKNOWN", ver)
     L = [BEGIN, "<!-- fp: %s -->" % fp, ""]
     L.append("| | |")
     L.append("|---|---|")
     L.append("| HEAD | `%s` |" % (head or "?"))
     L.append("| origin/main | `%s`  ⏱ *as known %s — this never fetches* |"
              % (origin or "?", _fetch_age()))
-    L.append("| **unpushed** | **%d commit(s)** |" % len(ahead))
+    L.append("| **unpushed** | %s |"
+             % ("**UNKNOWN — git could not answer**" if ahead is None
+                else "**%d commit(s)**" % len(ahead)))
     L.append("| working tree | %s |"
-             % ("CLEAN" if not dirty else "**%d file(s) uncommitted**" % len(dirty)))
+             % ("**UNKNOWN — git could not answer**" if dirty is None
+                else ("CLEAN" if not dirty else "**%d file(s) uncommitted**" % len(dirty))))
     L.append("| version stamp | %s |" % ver)
     L.append("| gates registered | %s |" % gates)
     L.append("")
@@ -125,6 +149,10 @@ def derived():
         L.append("⚠ **Nothing has shipped until `origin/main` equals `HEAD`.** Verify BY THE REF "
                  "(`git fetch -q origin && git rev-parse --short origin/main`), never by a push's "
                  "exit code — `git push | tail` reports tail's status.")
+    elif ahead is None:
+        L.append("⚠ **git could not be asked what is unpushed, so this says NOTHING about "
+                 "whether work is waiting.** Do not read the absence of a list as an all-clear — "
+                 "run `git fetch -q origin && git rev-parse --short origin/main` by hand.")
     else:
         L.append("✅ Nothing is waiting to be pushed — as of the fetch above.")
     L.append("")
