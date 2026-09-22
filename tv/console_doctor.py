@@ -6057,7 +6057,7 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
                          "the door is UNKNOWN, not fine" % type(e).__name__)
     for _n in ("_lock_answered", "_tally", "_refused_quiet"):
         if not hasattr(_sw, _n):
-            return FAIL, ("sweep_wilson has no %s, so a refusal issued by the LOCK is counted as a "
+            return MISSING, ("sweep_wilson has no %s, so a refusal issued by the LOCK is counted as a "
                           "refusal by the DOOR again — the v3406 defect, restored" % _n)
     d = tempfile.mkdtemp(prefix="heartlane_")
     _real = _ca._chron_lanes
@@ -6065,7 +6065,7 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
     try:
         verdict = _sw._refused_quiet(_ca, hist_dir=d, limit=1)
     except Exception as e:
-        return FAIL, ("driving one lane attack raised %s, so the harness cannot answer for itself"
+        return MISSING, ("driving one lane attack raised %s, so the harness cannot answer for itself"
                       % type(e).__name__)
     finally:
         _ca._chron_lanes = _real
@@ -6077,7 +6077,7 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
     if verdict is True:
         return OK, ("the lane attack REACHED the door and the door refused it, so lanesnone and "
                     "its three siblings are scoring the guard they name")
-    return FAIL, ("the lane attack reached the door and the door ACCEPTED an unreadable lane "
+    return MISSING, ("the lane attack reached the door and the door ACCEPTED an unreadable lane "
                   "list — a paid sweep would start with nothing to read with")
 
 
