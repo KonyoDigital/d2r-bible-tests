@@ -41,6 +41,8 @@ import re
 import subprocess
 import time
 import tempfile
+import shutil
+import atexit
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -71,7 +73,63 @@ EYE_TIMEOUT_S = float(os.environ.get("THIRD_EYE_TIMEOUT_S") or 1200)
 # ("i think grok might be editing now the repo so check to see"). The payload is a DIFF and the
 # prompt already says to judge only what is shown, so a working directory is not something the
 # review needs — it is only something a reviewer can damage. [[execs-the-working-tree]]
-EYE_CWD = os.environ.get("THIRD_EYE_CWD") or tempfile.mkdtemp(prefix="second_eye_")
+# ⚠⚠ v3422 — THIS WAS `tempfile.mkdtemp(...)` AND IT RAN AT **IMPORT**, NOT AT USE.
+# MEASURED 2026-09-23: three BARE imports — no look asked, no eye run — minted three directories.
+# THIRTY-ONE modules import this one (every gate that touches the eye, the ledger, corroborate,
+# console_doctor, run_gates), and each gate runs as its own subprocess, so ONE full gate run left
+# ~30 behind. 115 were on his Mac from two days, 33 of them that day. #170 filed this as "a temp
+# dir per look"; the measurement refutes that — the looks were never the cause, the import was.
+#
+# So EYE_CWD is now a PATH THAT IS COMPUTED, and the directory is created by the one function that
+# actually needs one, then removed. Computing a path allocates nothing, which is why this is the
+# fix rather than a reaper: the cheapest cleanup is not accumulating. [[process-port-discipline]]
+#
+# ⚠ IT MUST STAY AN ABSOLUTE PATH OUTSIDE THE REPO, and three readers depend on that being true of
+# the ATTRIBUTE, not of some inner variable: console_doctor's `the eye stands outside the repo`
+# row, v3408's gate, and `cwd=EYE_CWD` on the Popen — which v3408's red-proof pins as a literal.
+# ⚠ PER-PROCESS, because a fixed name would be shared by concurrent gate subprocesses and one
+# finishing would delete the directory another was still using.
+EYE_CWD = (os.environ.get("THIRD_EYE_CWD")
+           or os.path.join(tempfile.gettempdir(), "second_eye_%d" % os.getpid()))
+
+# Only a directory WE minted may be removed. A THIRD_EYE_CWD he set is his, and an override that
+# silently rmtree'd the folder he pointed at would be a far worse bug than the leak.
+_EYE_CWD_IS_OURS = not os.environ.get("THIRD_EYE_CWD")
+_EYE_CWD_MADE = False
+
+
+def _eye_cwd_ready():
+    """Create the eye's working directory, at the moment a look actually needs one.
+
+    ⚠ Returns the path either way. If it cannot be created the eye still runs — with its cwd
+    inherited, which v3408 argues is a risk, but a look refused for want of a scratch folder is a
+    SILENT EMPTY SEAT, and this file's whole subject is that silence reads as agreement.
+    """
+    global _EYE_CWD_MADE
+    try:
+        os.makedirs(EYE_CWD, exist_ok=True)
+        _EYE_CWD_MADE = True
+    except Exception:
+        pass
+    return EYE_CWD
+
+
+def eye_cwd_cleanup():
+    """Remove the scratch directory, if we are the ones who made it.
+
+    ⚠ REGISTERED WITH atexit AND CALLED IN A `finally`, because neither alone is enough: a
+    `finally` never runs when the process is killed (the eye is bounded and gets killed), and
+    atexit never runs on SIGKILL. Two ropes, one knot. [[i-own-everything-i-start]]
+    """
+    global _EYE_CWD_MADE
+    if not (_EYE_CWD_IS_OURS and _EYE_CWD_MADE):
+        return False
+    shutil.rmtree(EYE_CWD, ignore_errors=True)
+    _EYE_CWD_MADE = False
+    return True
+
+
+atexit.register(eye_cwd_cleanup)
 
 # A prompt has to fit. Truncation is allowed; SILENT truncation is not — what was dropped is
 # reported in the row, so a thin look can never read as a thorough one.
@@ -952,6 +1010,7 @@ def ask(prompt):
         _argv = [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
                  "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
                  "--disable-web-search"]
+        _eye_cwd_ready()          # v3422 — made HERE, at use, never at import
         p = subprocess.Popen(_argv,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=EYE_CWD)
         out, err = p.communicate(timeout=EYE_TIMEOUT_S)
@@ -971,6 +1030,12 @@ def ask(prompt):
                            "never agreement" % (EYE_TIMEOUT_S, time.time() - _t0)), None
     except Exception as e:
         return "", False, "the eye could not be run: %s" % type(e).__name__, None
+    finally:
+        # ⚠ v3422 — atexit IS NOT ENOUGH ON ITS OWN. It fires when the PROCESS ends, and the
+        # console is a process that stays up for days asking for look after look; relying on
+        # it there would leak one directory per look for the life of the window. This runs on
+        # every exit from the call, including the timeout and the failure paths.
+        eye_cwd_cleanup()
     raw = (out or b"").decode("utf-8", "replace").strip()
     if p.returncode != 0:
         return raw, False, ("the eye exited %d: %s"

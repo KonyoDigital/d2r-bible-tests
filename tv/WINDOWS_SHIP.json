@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3421",
+  "ver": "v3422",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3421: the closer let go of every ocr worker without waiting for it, because stdin.close() shares a try with the reap and a broken pipe is the NORMAL end; swept the class into both of the eye timeout handlers; a live heart row now counts corpses in our own subtree",
+  "note": "v3422: EYE_CWD was a module-level mkdtemp, so 31 importers minted one each and a full gate run left 30 behind; three BARE imports proved it with no look asked. It is now a computed per-process path, created at use and removed in a finally AND at atexit. The sweep behind it found 110,447 scratch dirs and 4.8 GB of ours on his Mac, oldest 20.6 days; 94,635 removed, the rest filed as 171",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

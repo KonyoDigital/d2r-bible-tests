@@ -6558,6 +6558,83 @@ def _check_the_eye_cap_is_a_size_the_eye_has_finished():
                 % (cap, big))
 
 
+def _check_nothing_we_made_is_still_on_his_disk_days_later():
+    """v3422 - IS OUR SCRATCH BEING COLLECTED, OR JUST ACCUMULATING?
+
+    THE CLASS BEHIND #170, WHICH WAS FILED AS ONE PREFIX AND IS NOT. Fixing `second_eye_run` took
+    the eye's 115 directories off the machine; MEASURED THE SAME HOUR, TMPDIR held **110,447
+    directories and 4.8 GB**, ours, over twenty days - `veto-` 2,580, `shape-` 1,984,
+    `tvd-gates-` 1,945, `board_sweep_gate.` 1,564, and 89,181 bare `mkdtemp()` calls with no
+    prefix at all to name their author. His free space was 12 GB against an 8 GB ON AIR floor,
+    so this is not tidiness; a console that cannot record is the symptom waiting at the end of it.
+
+    ⚠ THE LAW IS NOT A COUNT, AND THAT IS THE DESIGN DECISION WORTH READING. We mint roughly
+    15,000 a day, so ANY ceiling on the population is either always red or never red - a threshold
+    under the normal floor is an alarm nobody can act on, which is the same defect as one above
+    the ceiling. [[feedback-threshold-above-the-ceiling]] The rate-independent question is whether
+    anything ever COLLECTS them: nothing we make should still be here days later. macOS's own
+    policy is three days, and these had been sitting for twenty, so the OS is not doing it either.
+
+    ⚠ A COUNT WITH NO AGE WOULD ALSO HAVE READ FINE ON A FRESH MACHINE. The denominator is the
+    total; the finding is the old tail. [[zero-needs-a-denominator]]
+
+    ⚠⚠ AND IT COUNTS ONLY WHAT IT CAN ATTRIBUTE TO US, WHICH THE FIRST VERSION OF THIS ROW DID NOT.
+    Written to count every old directory, it read `missing` with 130 survivors after the sweep and
+    the sentence "they are made by us" — and all 130 were **macOS's own**: 69 `com.apple.*`, plus
+    `talagent`, `studentd`, `gamed`, `mobiletimerd` and twelve more daemon containers, every one
+    minted at boot 20 days ago and none of them litter. A row that can never go green is a row
+    nobody reads within a week, and this one would have shipped permanently red while blaming us
+    for Apple's directories. [[a-law-about-a-row-must-drive-the-row]] [[label-outlived-referent]]
+
+    So the population is named POSITIVELY. `tmp` is Python's default `mkdtemp` prefix and no system
+    daemon uses it — it alone covered 89,181 of the 110,447 found — and the rest are prefixes our
+    own code passes. An unknown new prefix escapes this, which is stated rather than hidden, and is
+    exactly what #171 fixes by making every call site name its author.
+    """
+    import tempfile as _tf
+    horizon = 3 * 86400.0
+    root = _tf.gettempdir()
+    # ⚠ MEASURED PREFIXES, not guessed ones — these are what the 2026-09-23 scan actually found.
+    MINE = ("tmp", "second_eye_", "veto-", "shape-", "tvd-", "board_sweep_gate.", "counterledger-",
+            "statepath", "isorule-", "isolaw-", "atomicwrite-", "framelabel.", "g5_", "frameref",
+            "diskrep_", "triage_", "heart2.", "TemporaryDirectory.")
+    now, total, old, oldest = time.time(), 0, 0, 0.0
+    try:
+        with os.scandir(root) as it:
+            for e in it:
+                if not e.name.startswith(MINE):
+                    continue          # somebody else's container; not ours to report on
+                # ⚠ BOUNDED. This runs on a machine he is using; a scan with no ceiling is the
+                # unbounded-search scar, and a partial answer with a stated reach beats a hang.
+                if total >= 400000:
+                    break
+                try:
+                    if not e.is_dir(follow_symlinks=False):
+                        continue
+                    age = now - e.stat(follow_symlinks=False).st_mtime
+                except Exception:
+                    continue
+                total += 1
+                if age > horizon:
+                    old += 1
+                    oldest = max(oldest, age)
+    except Exception as e:
+        return UNKNOWN, ("this machine's scratch directory could not be read (%s), so whether our "
+                         "litter is being collected is UNKNOWN, not fine" % type(e).__name__)
+    if not total:
+        # ⚠ NOT "clean". Zero attributable directories on a machine that runs gates every day means
+        # the prefix list has stopped matching what we make, which is the instrument failing.
+        return UNKNOWN, ("no directory under the scratch root matched any prefix this repo is "
+                         "known to create, so whether our litter is collected is UNKNOWN - on a "
+                         "machine that runs gates daily that points at the prefix list, not the disk")
+    if old:
+        return MISSING, ("%d of %d scratch director(ies) WE made are older than 3 days - oldest "
+                         "%.1f days. Nothing is collecting them; macOS's own policy is three days "
+                         "and it is not keeping up either" % (old, total, oldest / 86400.0))
+    return OK, ("0 of %d scratch director(ies) attributable to us are older than 3 days - what we "
+                "make is being collected" % (total,))
+
+
 def _check_nothing_this_console_started_is_a_corpse_right_now():
     """v3421 - IS THERE A DEAD CHILD ON THIS MACHINE THAT NOBODY COLLECTED?
 
@@ -6734,6 +6811,7 @@ CHECKS = [
     ("the eye cap is a size it has finished", _check_the_eye_cap_is_a_size_the_eye_has_finished),
     ("the eye answers in a field", _check_the_eye_is_still_answering_in_a_constrained_field),
     ("nothing we started is a corpse", _check_nothing_this_console_started_is_a_corpse_right_now),
+    ("our scratch is collected", _check_nothing_we_made_is_still_on_his_disk_days_later),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -6991,7 +7069,10 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # memory and no cpu, and nothing downstream degrades while one waits an hour
             # to be named. Forking `ps` every eagle tick to watch a thing that moves once
             # an hour is the treadmill this tuple exists to refuse.
-            "nothing we started is a corpse")
+            "nothing we started is a corpse",
+            # v3422 - it enumerates the whole scratch root (110,447 entries when
+            # found). A population that moves over DAYS does not need a ten-minute beat.
+            "our scratch is collected")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -7296,6 +7377,7 @@ WATCHES = {
     "the eye cap is a size it has finished": (),
     "the eye answers in a field": (),
     "nothing we started is a corpse": (),
+    "our scratch is collected": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody

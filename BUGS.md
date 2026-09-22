@@ -7,6 +7,61 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1149 - A DIRECTORY CREATED AT IMPORT IS CREATED BY EVERY READER, FOREVER
+
+**v3422 - task #170, whose own premise the measurement refuted.** The task read *"EYE_CWD makes a
+temp dir per look"*. It does not, and the looks were never the cause:
+
+```python
+EYE_CWD = os.environ.get("THIRD_EYE_CWD") or tempfile.mkdtemp(prefix="second_eye_")
+```
+
+That is at **module level**, so it runs on IMPORT. **Thirty-one modules import `second_eye_run`** -
+every gate that touches the eye, the ledger, `corroborate`, `console_doctor`, `run_gates` - and
+each gate runs as its own subprocess, so one full gate run left ~30 directories behind. **MEASURED:
+three BARE imports, no look asked and no eye run, minted three directories.** A handful of looks a
+day cannot produce the 33 counted that day. Reading the task title instead of measuring would have
+sent the fix to the runner while the import kept minting them.
+
+`EYE_CWD` is now a path that is **computed** (per-process, so concurrent gate subprocesses cannot
+delete each other's), created by the one function that needs one, and removed in a `finally` **and**
+at `atexit` - neither alone is enough: a `finally` never runs when the process is killed, and the
+eye is bounded so being killed is ordinary; `atexit` fires once, at process end, while his console
+stays up for days asking look after look.
+
+**Gate** `test_a_scratch_dir_is_not_made_by_reading_the_module` - 9 cases, **3/3 red-proofs
+PROVEN**. The law is driven in a REAL SUBPROCESS, because a second `import` in the test's own
+process is a no-op that passes whatever the code says. It also pins the two halves that are easy to
+get wrong: a directory **HE** supplied via `THIRD_EYE_CWD` is never removed (deleting the folder an
+operator pointed us at is a worse defect than the leak), and v3408's rule that the eye stands
+OUTSIDE the repo still holds.
+
+⚠ **AND THE SWEEP FOUND THE CLASS BEHIND IT.** With the eye's 115 gone, TMPDIR still held
+**110,447 directories and 4.8 GB** of our scratch, oldest **20.6 days**, on a machine with 12 GB
+free against his 8 GB ON AIR floor. 89,181 of them are bare `mkdtemp()` with **no prefix at all**,
+so nothing in the name says who made them. **94,635 removed (3.77 GB)** under three guards - at
+least 24 h old, not the cwd of any of 78 live processes, TMPDIR only and one level deep. 15,812
+were younger than a day, so the mint rate is ~15,000/day and the population returns in a week:
+filed as **#171**, because the sweep is a bandage and the call sites are the fix.
+
+**Heart row** `our scratch is collected` - **SEEN RED ON HIS REAL MACHINE**, not a fixture:
+`82,468 of 110,447 scratch director(ies) are older than 3 days - oldest 20.6 days`. ⚠ The law is
+deliberately NOT a count: at ~15,000/day any ceiling is either always red or never red. The
+rate-independent question is whether anything ever COLLECTS them, and macOS's own three-day policy
+was not doing it either.
+
+⚠⚠ **AND THE FIRST VERSION OF THAT ROW WOULD HAVE SHIPPED PERMANENTLY RED.** After the sweep it
+still read `missing`, with the sentence *"they are made by us"* - and **all 130 survivors were
+macOS's own**: 69 `com.apple.*` plus `talagent`, `studentd`, `gamed`, `mobiletimerd` and twelve
+more daemon containers, every one minted at boot 20 days ago. Counting "every old directory" was
+never the law anybody meant. The row now names its population POSITIVELY - `tmp` (Python's default
+`mkdtemp` prefix, which alone covered 89,181 of the 110,447, and which no system daemon uses) plus
+the prefixes our own code passes - and it reads **`0 of 11,906 attributable to us`**, green, in
+0.3 s instead of 3.6 s. An unknown new prefix escapes it; that is stated in the row rather than
+hidden, and is what #171 closes by making every call site name its author. Both directions are
+driven on REAL directories in the gate: a back-dated `tmp*` of ours turns it red and recovers, and
+a back-dated `com.apple.*` container must NOT. That second case is the shipped-red defect, pinned.
+
 ### REG-1148 - KILLING A CHILD IS NOT REAPING IT, AND A SILENT `except` HID WHICH HALF FAILED
 
 **v3421 - task #166.** He asked why his Mac had zombies. **12 `<defunct>` children of the console,

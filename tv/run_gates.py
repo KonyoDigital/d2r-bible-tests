@@ -1234,6 +1234,9 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_scratch_dir_is_not_made_by_reading_the_module",
+         [sys.executable, os.path.join(HERE, "test_a_scratch_dir_is_not_made_by_reading_the_module.py")], 90,
+         why="v3422 (#170) - A DIRECTORY CREATED AT IMPORT IS CREATED BY EVERY READER. `EYE_CWD = tempfile.mkdtemp(...)` sat at module level, so it ran on IMPORT rather than on use - and 31 modules import second_eye_run, each gate in its own subprocess, so one full gate run left ~30 behind. MEASURED: three BARE imports, no look asked and no eye run, minted three directories; 115 were on his Mac from two days, 33 of them that day. #170 filed it as a dir per LOOK and the measurement refutes its own premise - a handful of looks a day cannot make 33, and fixing the runner would have left the import minting them. The law is driven in a real subprocess, because a second import in this process is a no-op that passes whatever the code says. Also pins the two halves that are easy to get wrong: a directory HE supplied via THIRD_EYE_CWD is never removed, and v3408s rule that the eye stands OUTSIDE the repo still holds. 3 red-proofs."),
     Gate("test_a_broken_pipe_must_not_skip_the_reap",
          [sys.executable, os.path.join(HERE, "test_a_broken_pipe_must_not_skip_the_reap.py")], 60,
          why="v3421 (#166) - KILLING A CHILD IS NOT REAPING IT, AND A SILENT except HIDES "
