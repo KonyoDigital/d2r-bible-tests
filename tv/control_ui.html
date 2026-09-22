@@ -14929,21 +14929,36 @@ window._lockMark = function(isOpen, px, label){
          census it had just drawn — the two surfaces disagreeing again, which is the exact thing
          v3414 fixed. 'Not taken' is a claim about whether a census has EVER arrived, and once
          one has, it has. The overlay still reports the current failure. [[stale-reading]] */
-      if (window._hrtSawCensus) return;
+      /* ⚠⚠ v3419 — SILENCE AND AN EMPTY ANSWER ARE NOT THE SAME EVENT, AND v3417's LATCH
+         TREATED THEM ALIKE. `_hrtSawCensus` suppressed EVERY later non-census paint, so after one
+         real census a payload of {"ok":true,"counts":{}} left the clean face up while the doctor
+         row called that same payload MISSING — the cross-language split v3417 closed, reopened by
+         v3417's own guard. A failed FETCH (d is null) is silence and must not un-take a census
+         that arrived; a payload that CAME BACK carrying nothing is an ANSWER, and the answer is
+         that there is no census. [[unknown-stays-unknown]] */
+      if (!(d && typeof d === 'object') && window._hrtSawCensus) return;
       nm.textContent = 'not taken';
       el.removeAttribute('data-dark');
       el.setAttribute('data-untaken', '1');
       el.title = '♥ THE HEART — not derived yet. Click to take the census.';
       return;
     }
-    var c = d.counts, dark = c.DARK || 0;
-    nm.textContent = dark ? (dark + ' dark') : 'heart';
+    /* ⚠⚠ v3419 — AN ABSENT KEY IS NOT A MEASURED ZERO, AND THE CHIP STILL SAID IT WAS. On
+       {"ok":true,"counts":{"FLOWING":8}} the old `c.DARK || 0` coerced a MISSING key to zero and
+       painted the clean 'heart', while the doctor row printed `?` for that same key and said in
+       so many words that `?` is not a zero. Two surfaces, one payload, opposite claims — the
+       defect this whole arc is about, one level down. [[unknown-stays-unknown]] */
+    var c = d.counts;
+    var _n = function(v){ return (typeof v === 'number' && isFinite(v)) ? v : null; };
+    var dark = _n(c.DARK);
+    var _q = function(v){ var x = _n(v); return (x === null) ? '?' : String(x); };
+    nm.textContent = (dark === null) ? '? dark' : (dark ? (dark + ' dark') : 'heart');
     window._hrtSawCensus = true;
     el.removeAttribute('data-untaken');
     if (dark) el.setAttribute('data-dark', '1'); else el.removeAttribute('data-dark');
-    el.title = '♥ THE HEART — ' + (c.FLOWING || 0) + ' flowing · ' + (c.WATCHED || 0)
-      + ' watched · ' + dark + ' DARK (nothing watches these) · ' + (c.UNKNOWN || 0)
-      + ' unknown. Click to open it.';
+    el.title = '♥ THE HEART — ' + _q(c.FLOWING) + ' flowing · ' + _q(c.WATCHED)
+      + ' watched · ' + _q(c.DARK) + ' DARK (nothing watches these) · ' + _q(c.UNKNOWN)
+      + ' unknown (? = the census carried no such key, which is not a zero). Click to open it.';
   }
   window._heartOpen = _heartOpen;
   window._heartClose = _heartClose;

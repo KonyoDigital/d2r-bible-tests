@@ -6336,19 +6336,38 @@ def _check_the_resume_agrees_with_git_right_now():
                          "not a count — so whether the all-clear is true is UNKNOWN, never "
                          "assumed" % ((_a.stdout or "").strip()[:30],))
     if claims_clear and ahead > 0:
+        # ⚠ v3419 - AND SAY THAT THE THREE NUMBERS ARE THREE READS. `rev-parse HEAD`,
+        # `rev-parse origin/main` and `rev-list --count` are separate processes; a commit landing
+        # between them makes this sentence quote figures that were never simultaneously true. The
+        # verdict still stands (the count is the claim being judged), but the reader is told the
+        # three were not one snapshot rather than being left to assume they were. [[stale-reading]]
         return MISSING, ("RESUME_HERE.md says nothing is waiting to be pushed, but git counts "
-                         "%d unpushed commit(s) (HEAD %s against origin/main %s) — that is the "
-                         "false all-clear on the file a resuming session reads first"
-                         % (ahead, head, origin))
-    if fp_unknown:
-        return OK, ("the resume says UNKNOWN for what git could not answer, which is the honest "
-                    "reading — and its all-clear sentence was checked anyway: %d commit(s) are "
-                    "unpushed, so the sentence is true" % ahead)
-    if said_head != head or said_origin != origin:
+                         "%d unpushed commit(s) (HEAD %s against origin/main %s, three separate "
+                         "reads) — that is the false all-clear on the file a resuming session "
+                         "reads first" % (ahead, head, origin))
+    # ⚠⚠ v3419 - AN UNKNOWN FIELD EXEMPTS ITSELF, NOT THE WHOLE FINGERPRINT. v3416 moved
+    # this below the all-clear check but still returned OK for the WHOLE row the moment EITHER
+    # field read UNKNOWN - so a fingerprint of head=abc123 origin=UNKNOWN reported AGREEMENT even
+    # when the concrete stored head disagreed with git outright. A field nobody could measure is
+    # UNKNOWN; a field that WAS measured and differs is a difference, and one does not excuse the
+    # other. [[unknown-stays-unknown]]
+    _head_differs = (said_head != "UNKNOWN" and said_head != head)
+    _origin_differs = (said_origin != "UNKNOWN" and said_origin != origin)
+    if _head_differs or _origin_differs:
         return UNMEASURED, ("the resume was derived at head=%s origin=%s and git now reads "
                             "head=%s origin=%s — it is BEHIND, which is normal between a commit "
                             "and the next version bump, not a fault"
                             % (said_head, said_origin, head, origin))
+    if fp_unknown:
+        # ⚠ v3419 - AND THE REASON MUST NOT VOUCH FOR A SENTENCE THAT IS NOT THERE. This used
+        # to say "so the sentence is true" on EVERY path, including a file carrying no all-clear
+        # claim at all - a message asserting what it never checked. [[label-outlived-referent]]
+        return OK, ("the resume says UNKNOWN for what git could not answer, which is the honest "
+                    "reading — %s"
+                    % (("its all-clear sentence was checked anyway: %d commit(s) are unpushed, so "
+                        "that sentence is true" % ahead) if claims_clear
+                       else ("it makes no all-clear claim to check, and git counts %d unpushed "
+                             "commit(s)" % ahead)))
     return OK, ("the resume's fingerprint matches git exactly (head=%s origin=%s), so the file a "
                 "resuming session reads first is telling it the truth" % (head, origin))
 

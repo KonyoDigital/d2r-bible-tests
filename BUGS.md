@@ -7,6 +7,57 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1146 — the guard that closed the split reopened it, and the join could not see either
+
+**v3419, 2026-09-22.** The second eye looked at v3417 at full reach and returned 7 findings. Five
+were of substance; four are fixed here and one was refuted. **Two of them reopened the exact class
+v3417 had just closed** — which is the point worth keeping.
+
+**1 — silence and an empty answer are not the same event (HIGH).** v3417 added
+`window._hrtSawCensus` so a failed fetch could not un-take a census that had arrived. Correct, and
+too broad: it suppressed **every** later non-census paint. So after one real census a payload of
+`{"ok":true,"counts":{}}` left the clean face up, while `_check_the_chip_can_say_nobody_looked`
+called that same payload MISSING. The cross-language split, reopened by the guard written to close
+it. A failed FETCH (`d` is null) is **silence**; a payload that came back carrying nothing is an
+**answer**, and the answer is that there is no census.
+
+**2 — AND THE JOIN COULD NOT HAVE CAUGHT IT.** `test_THE_JOIN` drove each payload in a **fresh node
+process**, so the latched state was never reached — the join graded the stateless half and reported
+agreement. It now replays **sequences** (census, then payload). A corroborator that cannot reach the
+stateful path is a corroborator for the easy case. [[heart-first]] §1
+
+**3 — an absent key coerced back to a measured zero (MED).** `{"ok":true,"counts":{"FLOWING":8}}`
+passes the census test, and `c.DARK || 0` turned the MISSING key into a clean `heart` — while the
+doctor row printed `?` for the same key and said in words that `?` is not a zero. The chip now reads
+`? dark`. A real zero still reads `heart`; inverting that would be the same lie backwards.
+
+**4 — an UNKNOWN fingerprint field exempted the whole row (MED).** v3416 moved the exemption below
+the all-clear check but still returned OK the moment **either** field read UNKNOWN, so
+`head=abc123 origin=UNKNOWN` reported agreement while the concrete stored head disagreed with git
+outright. A field nobody could measure is UNKNOWN; a field that **was** measured and differs is a
+difference, and one does not excuse the other.
+
+**5 — the reason vouched for a sentence that was not there (MED).** The OK text always ended
+`"so the sentence is true"`, including on files carrying no all-clear claim at all — a message
+asserting what it never checked. [[label-outlived-referent]]
+
+**Also:** the false-all-clear verdict now says its three figures come from **three separate git
+reads**, and the stylesheet check strips block comments to 60,000 chars plus HTML and `//` forms —
+its 4,000 bound was itself a guess a longer comment could slip under.
+
+**REFUTED:** the eye reported the `#heart-chip[data-untaken="1"]` rule missing. It is at
+`control_ui.html:6208`; the payload strips comment-only added lines and the rule sits inside that
+block.
+
+**Gates:** `test_a_census_nobody_took_is_not_a_clean_one` 22 cases / **9 RED_PROOFs**;
+`test_a_behind_tree_is_not_a_false_all_clear` 17 cases / **5 RED_PROOFs**. All PROVEN.
+
+⚠ **heart2 refused one of my own proofs as INVALID — matched 0 times.** v3419 rewrote the very line
+an older proof anchored on, so it had silently stopped proving anything. **A red-proof drifts
+exactly when the code it guards improves**, and only the match count says so. Re-anchored; all nine
+now match exactly once. I then guessed the quoting when re-anchoring and the same guard refused me
+again. [[source-reading-guard]] §2
+
 ### REG-1145 — the cap was 9,000 on evidence that had expired, and nothing noticed
 
 **v3418, 2026-09-22.** Konyo's ruling: *"raise the cap to 26000"* — the call #143 had been waiting

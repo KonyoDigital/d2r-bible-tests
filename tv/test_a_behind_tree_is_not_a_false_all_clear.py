@@ -120,6 +120,46 @@ class TestABehindTreeIsNotAFalseAllClear(unittest.TestCase):
                       "the UNKNOWN arm does not say that it examined the sentence, so a reader "
                       "cannot tell an exemption from an inspection")
 
+    # ---- v3419: an UNKNOWN field exempts ITSELF, not the whole fingerprint ------------------
+
+    def test_an_UNKNOWN_origin_does_not_excuse_a_head_that_actually_differs(self):
+        """said_head is concrete and WRONG; only said_origin is unknowable. Reporting agreement
+        because one field was unmeasurable lets a measured disagreement ride out unnoticed."""
+        st, why = self._ask("aaa", "UNKNOWN", "zzz", "bbb", "0", clear=False)
+        self.assertEqual(st, cd.UNMEASURED,
+                         "an UNKNOWN origin exempted a concrete head that disagrees with git — "
+                         "a field nobody could measure must not excuse one that was measured")
+
+    def test_an_UNKNOWN_head_does_not_excuse_an_origin_that_actually_differs(self):
+        st, _ = self._ask("UNKNOWN", "bbb", "aaa", "zzz", "0", clear=False)
+        self.assertEqual(st, cd.UNMEASURED)
+
+    def test_an_UNKNOWN_field_beside_a_MATCHING_one_is_still_OK(self):
+        """The exemption must survive where it is legitimate, or this is just a stricter bug."""
+        st, why = self._ask("aaa", "UNKNOWN", "aaa", "bbb", "0", clear=False)
+        self.assertEqual(st, cd.OK)
+
+    # ---- v3419: the reason may not vouch for a sentence that is not in the file -------------
+
+    def test_the_OK_reason_does_not_claim_an_absent_sentence_is_true(self):
+        st, why = self._ask("UNKNOWN", "UNKNOWN", "aaa", "bbb", "5", clear=False)
+        self.assertEqual(st, cd.OK)
+        self.assertNotIn("that sentence is true", why,
+                         "the row vouched for an all-clear sentence the file does not contain — "
+                         "a message asserting what it never checked")
+        self.assertIn("no all-clear claim", why)
+
+    def test_the_OK_reason_DOES_vouch_when_the_sentence_is_really_there(self):
+        st, why = self._ask("UNKNOWN", "UNKNOWN", "aaa", "bbb", "0", clear=True)
+        self.assertEqual(st, cd.OK)
+        self.assertIn("that sentence is true", why)
+
+    def test_the_false_all_clear_admits_its_numbers_are_three_reads(self):
+        st, why = self._ask("aaa", "bbb", "aaa", "bbb", "2")
+        self.assertEqual(st, cd.MISSING)
+        self.assertIn("three separate", why,
+                      "the verdict quotes a count and two hashes as if they were one snapshot")
+
     # ---- a count that cannot be read is UNKNOWN, never zero --------------------------------
 
     def test_a_failed_count_is_UNKNOWN(self):
@@ -194,6 +234,27 @@ RED_PROOF = [
         # compiling statement that changes only the BEHAVIOUR under test.
         "find": '        ahead = int((_a.stdout or "").strip())',
         "replace": '        ahead = int((_a.stdout or "").strip()) if (_a.stdout or "").strip().isdigit() else 0',
+        "matches": 1,
+    },
+    {
+        "why": "v3419 - THE WHOLE-ROW EXEMPTION, RESTORED. Returning OK the moment EITHER "
+               "fingerprint field reads UNKNOWN lets a concrete stored hash that disagrees with "
+               "git be reported as agreement - a measured difference excused by an unmeasurable "
+               "neighbour.",
+        "file": "console_doctor.py",
+        "find": '    _head_differs = (said_head != "UNKNOWN" and said_head != head)',
+        "replace": '    if fp_unknown:\n        return OK, ("exempt")\n'
+                   '    _head_differs = (said_head != "UNKNOWN" and said_head != head)',
+        "matches": 1,
+    },
+    {
+        "why": "v3419 - THE REASON VOUCHING FOR AN ABSENT SENTENCE. Stating that the all-clear "
+               "is true on every path means the row says it checked a claim the file never made.",
+        "file": "console_doctor.py",
+        "find": '                       else ("it makes no all-clear claim to check, and git counts %d unpushed "\n'
+                '                             "commit(s)" % ahead)))',
+        "replace": '                       else ("its all-clear sentence was checked anyway: %d commit(s) are "\n'
+                   '                             "unpushed, so that sentence is true" % ahead)))',
         "matches": 1,
     },
 ]

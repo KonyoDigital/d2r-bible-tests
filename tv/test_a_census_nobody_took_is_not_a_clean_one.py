@@ -242,6 +242,75 @@ class TestACensusNobodyTookIsNotACleanOne(unittest.TestCase):
                                   "— the row is describing a screen that shows something else"
                                   % (len(bad), bad))
 
+    # ---- v3419: silence and an empty ANSWER are different events ---------------------------
+
+    def test_an_EMPTY_census_AFTER_a_real_one_still_paints_not_taken(self):
+        """⚠ THE DEFECT v3417's LATCH CREATED. `_hrtSawCensus` suppressed every later non-census
+        paint, so an empty census arriving after a real one left the clean face up while the
+        doctor row called that same payload MISSING. A failed FETCH is silence; a payload that
+        CAME BACK carrying nothing is an ANSWER, and the answer is that there is no census."""
+        f = _paint([CLEAN, {"ok": True, "counts": {}}])
+        self.assertEqual(f["text"], "not taken",
+                         "an empty census after a real one left the clean face up — the "
+                         "cross-language split, reopened by the guard that was meant to close it")
+        self.assertEqual(f["attrs"].get("data-untaken"), "1")
+
+    def test_a_refused_census_after_a_real_one_also_paints(self):
+        f = _paint([CLEAN, {"ok": False, "why": "the census could not read the tree"}])
+        self.assertEqual(f["text"], "not taken")
+
+    def test_a_PARTIAL_census_says_question_mark_not_a_zero(self):
+        """{FLOWING:8} has keys, so it IS a census — but DARK is absent, and `c.DARK || 0` used to
+        coerce that to a measured zero and paint the clean 'heart' while the doctor printed `?`
+        for the same key. [[unknown-stays-unknown]]"""
+        f = _paint([{"ok": True, "counts": {"FLOWING": 8}}])
+        self.assertEqual(f["text"], "? dark",
+                         "an absent DARK key was painted as a measured zero and read 'heart'")
+        self.assertNotIn("data-dark", f["attrs"])
+        self.assertIn("?", f["title"])
+
+    def test_a_census_with_a_real_zero_still_reads_heart(self):
+        """A measured zero must NOT become a question mark — that would be the same lie inverted."""
+        f = _paint([{"ok": True, "counts": {"FLOWING": 8, "WATCHED": 0, "DARK": 0, "UNKNOWN": 0}}])
+        self.assertEqual(f["text"], "heart")
+
+    def test_THE_JOIN_holds_over_SEQUENCES_not_just_single_payloads(self):
+        """⚠ WHY THIS EXISTS: the single-payload join could never have caught v3417's latch,
+        because every _paint() runs in a FRESH node process and the latched state is never
+        reached. A join that cannot see the stateful path is a join that grades the easy half."""
+        import types
+        import console_doctor as _cd
+        row = dict(_cd.CHECKS)["the chip can say nobody looked"]
+        ANSWERS = [
+            {"ok": True, "counts": {"FLOWING": 20, "WATCHED": 0, "DARK": 0, "UNKNOWN": 0}},
+            {"ok": True, "counts": {"DARK": 3}},
+            {"ok": True, "counts": {}},
+            {"ok": True, "counts": []},
+            {"ok": True},
+            {"ok": False, "why": "refused"},
+        ]
+        bad = []
+        for d in ANSWERS:
+            old = sys.modules.get("control_app")
+            m = types.ModuleType("control_app")
+            m.heart_state = (lambda _d=d: _d)
+            sys.modules["control_app"] = m
+            try:
+                st, _why = row()
+            finally:
+                if old is not None:
+                    sys.modules["control_app"] = old
+                else:
+                    sys.modules.pop("control_app", None)
+            # the REAL sequence on his console: a census lands, then this payload arrives
+            chip_untaken = _paint([CLEAN, d])["attrs"].get("data-untaken") == "1"
+            row_unfeedable = (st != _cd.OK)
+            if chip_untaken != row_unfeedable:
+                bad.append((d, "chip untaken=%s" % chip_untaken, "row=%s" % st))
+        self.assertEqual(bad, [], "AFTER A CENSUS, the chip and the doctor row disagree about %d "
+                                  "payload(s): %r — the row describes a screen showing something "
+                                  "else" % (len(bad), bad))
+
     # ---- the two ends the painter cannot reach --------------------------------------------
 
     def test_the_stylesheet_can_actually_colour_it(self):
@@ -254,8 +323,17 @@ class TestACensusNobodyTookIsNotACleanOne(unittest.TestCase):
         # 6208 and the payload had simply stripped the comment block it sits in.
         import re as _re
         raw = io.open(UI, encoding="utf-8", errors="replace").read()
-        code = _re.sub(r"/\*.{0,4000}?\*/", lambda m: "\n" * m.group(0).count("\n"), raw,
+        # ⚠ v3419 — 4,000 WAS ITSELF A GUESS, AND A LONGER COMMENT SLIPPED UNDER IT. A block
+        # comment of 4,001+ chars was left whole, so the selector could hide inside one with the
+        # live rule deleted and this would still pass. HTML comments and // lines were not
+        # stripped at all. The bound stays FINITE on purpose — an unbounded /\*.*?\*/ over this
+        # 5-6 MB mixed file deletes a sixth of it and 170 of its 444 id= declarations — but it is
+        # now far above any real comment here, and the other two comment forms are stripped too.
+        code = _re.sub(r"/\*.{0,60000}?\*/", lambda m: "\n" * m.group(0).count("\n"), raw,
                        flags=_re.S)
+        code = _re.sub(r"<!--.{0,60000}?-->", lambda m: "\n" * m.group(0).count("\n"), code,
+                       flags=_re.S)
+        code = "\n".join(_re.sub(r"(^|\s)//.*$", "", ln) for ln in code.split("\n"))
         self.assertIn('#heart-chip[data-untaken="1"]', code,
                       "nothing in the stylesheet selects the never-taken chip OUTSIDE A COMMENT, "
                       "so the flag is set and painted identically anyway")
@@ -334,8 +412,32 @@ RED_PROOF = [
                "overlay census followed by a failing deferred read flips the chip to 'not taken' "
                "while the overlay still shows the census it just drew.",
         "file": "control_ui.html",
-        "find": '      if (window._hrtSawCensus) return;\n',
+        # ⚠ v3419 — RE-ANCHORED, AND heart2 IS WHAT CAUGHT IT. v3419 rewrote this very line to
+        # separate silence from an empty answer, so the old anchor matched ZERO times and the
+        # proof reported INVALID rather than red. A red-proof whose anchor has drifted proves
+        # nothing — and it drifts exactly when the code it guards gets better.
+        # [[source-reading-guard]] §2 — print the match count, always.
+        "find": "      if (!(d && typeof d === 'object') && window._hrtSawCensus) return;\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "v3419 - THE STICKY LATCH, RESTORED. Suppressing every later non-census paint means "
+               "an EMPTY census arriving after a real one leaves the clean face up while the "
+               "doctor calls that same payload MISSING - the split v3417 closed, reopened by "
+               "v3417's own guard. Silence is not an empty answer.",
+        "file": "control_ui.html",
+        "find": "      if (!(d && typeof d === 'object') && window._hrtSawCensus) return;",
+        "replace": "      if (window._hrtSawCensus) return;",
+        "matches": 1,
+    },
+    {
+        "why": "v3419 - THE ABSENT KEY COERCED BACK TO ZERO. With `dark` falling back to 0 a "
+               "census carrying only {FLOWING:8} paints the clean 'heart' while the doctor prints "
+               "`?` for the very same missing key.",
+        "file": "control_ui.html",
+        "find": "    nm.textContent = (dark === null) ? '? dark' : (dark ? (dark + ' dark') : 'heart');",
+        "replace": "    nm.textContent = dark ? (dark + ' dark') : 'heart';",
         "matches": 1,
     },
 ]
