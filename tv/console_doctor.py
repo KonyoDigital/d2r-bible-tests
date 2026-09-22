@@ -6050,6 +6050,56 @@ def _check_an_attack_can_still_reach_the_door_it_scores():
     return FAIL, ("the lane attack reached the door and the door ACCEPTED an unreadable lane "
                   "list — a paid sweep would start with nothing to read with")
 
+
+def _check_no_git_child_can_steal_his_screen():
+    """v3407 — CAN A GIT SPAWN STILL POP A CONSOLE OVER THE GAME HE IS PLAYING?
+
+    MEASURED on the Windows box 2026-09-21: `git.exe` windows stealing focus 2-3 in a row, every
+    couple of minutes, while TV DIABLO sat idle. Parent was `pythonw control_app.py --open`. Git
+    for Windows' PATH git is a 46 KB CUI WRAPPER; `pythonw` owns no console, so a CUI child
+    ALLOCATES one — a real terminal on top of D2R.
+
+    ⚠ ONE OF THE TWO BURSTS WAS MINE. v3404 put `_pull_once()` in the drift beat at 300 s beside
+    the 120 s fleet cache — exactly the cadence he reported. A fix that keeps a machine current
+    must not cost him the window he is playing in.
+
+    ⚠ REACH IS STATED, NOT ASSUMED. The console-allocation half is Windows-only, so on a Mac this
+    row can never go red for it and must not imply otherwise — it grades the JOIN (every git argv
+    goes through the one door) on every platform, and says plainly that the rest is UNEXERCISED
+    here. A green that quietly means "not applicable" is the green that lies.
+    [[gate-blind-to-unexercised-input]] [[zero-needs-a-denominator]]
+    """
+    import re as _re
+    p = os.path.join(HERE, "control_app.py")
+    try:
+        with open(p, encoding="utf-8") as fh:
+            raw = fh.read()
+    except Exception as e:
+        return UNKNOWN, ("control_app.py could not be read (%s), so whether a git child can own a "
+                         "console is UNKNOWN, not fine" % type(e).__name__)
+    code = "\n".join(l.split("#", 1)[0] for l in raw.split("\n"))
+    if "def _git_run(" not in code:
+        return MISSING, ("_git_run is gone, so every git spawn is back to whatever flags its own call "
+                      "site remembered — on Windows that pops a console over his game")
+    loose = _re.findall(r'(?:subprocess\.run|subprocess\.Popen|subprocess\.check_output)\(\s*\n?\s*\[\s*"git"',
+                        code)
+    total = len(_re.findall(r'\(\s*\n?\s*\[\s*"git"', code))
+    if loose:
+        return MISSING, ("%d of %d git argv site(s) still spawn outside _git_run, so on Windows a CUI "
+                      "child allocates its own console and alt-tabs him off the game"
+                      % (len(loose), total))
+    if not sys.platform.startswith("win"):
+        return OK, ("all %d git argv site(s) go through the one door — but the console-allocation "
+                    "fault is Windows-only and is NOT EXERCISED on this machine, so this row "
+                    "grades the join here and the behaviour only there" % total)
+    if not os.path.isfile(r"C:\Program Files\Git\mingw64\bin\git.exe"):
+        return MISSING, ("all %d git argv site(s) go through _git_run, but mingw64 git is not at "
+                         "the expected path, so the redirect silently falls back to the PATH "
+                         "wrapper — the 46 KB CUI stub that spawns the real git without the flag"
+                         % total)
+    return OK, ("all %d git argv site(s) go through _git_run and mingw64 git is present, so no git "
+                "child allocates a console on this machine" % total)
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6059,6 +6109,9 @@ CHECKS = [
     # LOCK instead of the door. One call, worker stubbed, and it distinguishes UNREACHED
     # from refused. See the docstring for the sandbox measurement that found it.
     ("sweep attack reaches its door", _check_an_attack_can_still_reach_the_door_it_scores),
+    # v3407 (#155) — PERIODIC on purpose: it reads the whole of control_app.py, and the cheap
+    # subset runs on EVERY eagle tick and in the boot path of every console a test spawns.
+    ("no git child steals his screen", _check_no_git_child_can_steal_his_screen),
     # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
     # still fires. A held relaunch looks pending right up until it expires unfired, so the only
     # way to see the release path die is to corroborate the register against the world.
@@ -6335,7 +6388,8 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # the mirror gate passed the whole time. PERIODIC still runs on its own, every
             # PERIODIC_EVERY ticks.
             "item vocabulary",
-            "a worker read has a deadline")
+            "a worker read has a deadline",
+            "no git child steals his screen")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 

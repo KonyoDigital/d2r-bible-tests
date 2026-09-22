@@ -973,6 +973,41 @@ IS_WIN = sys.platform.startswith("win")
 # Windows: CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
 _WIN_CREATE = 0x00000200 | 0x08000000 if IS_WIN else 0
 
+# ⚠⚠ v3407 — GIT.EXE WINDOWS WERE ALT-TABBING HIM OFF THE GAME, EVERY COUPLE OF MINUTES.
+# MEASURED on the Windows box 2026-09-21: 2-3 console windows in a row stealing focus while
+# TV DIABLO sat idle, parent `pythonw control_app.py --open`. Git for Windows' PATH git
+# (`Git\cmd\git.exe`) is a 46 KB CUI wrapper, and `pythonw` has no console of its own — so a
+# CUI child ALLOCATES one, which is a real terminal on top of D2R.
+#
+# ⚠ CREATE_NO_WINDOW ON THE WRAPPER IS NOT ENOUGH: the wrapper spawns the real git WITHOUT the
+# flag, so the flag protects the 46 KB stub and nothing else. `headless-git.exe` is no better —
+# it is a GUI trampoline that still starts a CUI `git.exe` child (caught live:
+# git.exe -> headless-git.exe -> pythonw) and Windows Terminal then takes the focus.
+# Calling `mingw64\bin\git.exe` DIRECTLY is what makes CREATE_NO_WINDOW + SW_HIDE apply to the
+# binary that actually runs.
+#
+# ⚠ AND ONE OF THE TWO BURSTS IS MINE: v3404 put `_pull_once()` in the drift beat at 300 s
+# alongside the 120 s fleet cache, which is exactly the cadence he reported. A fix that makes a
+# machine keep itself current must not cost him the window he is playing in.
+_GIT_MINGW = r"C:\Program Files\Git\mingw64\bin\git.exe"
+
+
+def _git_run(argv, **kw):
+    """subprocess.run for git. On Windows the child must not own a console."""
+    argv = list(argv)
+    if IS_WIN:
+        if argv and argv[0] == "git" and os.path.isfile(_GIT_MINGW):
+            argv[0] = _GIT_MINGW
+        kw["creationflags"] = kw.get("creationflags", 0) | _WIN_CREATE
+        env = dict(kw.get("env") or os.environ)
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        kw["env"] = env
+        si = kw.get("startupinfo") or subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0
+        kw["startupinfo"] = si
+    return subprocess.run(argv, **kw)
+
 # v1418 — FLEET UNITY: how far is this install behind GitHub origin/main?
 # Cached so /api/status never blocks on a slow fetch every 12s poll.
 _FLEET_CACHE = {"t": 0.0, "val": None}
@@ -984,7 +1019,7 @@ _FLEET_LAST_FETCH = 0.0
 def _git_tracked_dirty():
     """True only when TRACKED files are modified (?? untracked does not count)."""
     try:
-        r = subprocess.run(
+        r = _git_run(
             ["git", "status", "--porcelain"],
             cwd=REPO, capture_output=True, text=True, timeout=8,
             creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1021,7 +1056,7 @@ def fleet_pull():
         if not os.path.isdir(os.path.join(REPO, ".git")):
             out["msg"] = "this install is not a git checkout — update it the way you installed it"
             return out
-        dirty = subprocess.run(
+        dirty = _git_run(
             ["git", "status", "--porcelain", "--untracked-files=no"],
             cwd=REPO, capture_output=True, text=True, timeout=15,
             creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1030,18 +1065,18 @@ def fleet_pull():
             out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
                           "Commit or stash them, then update.")
             return out
-        before = subprocess.run(
+        before = _git_run(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=REPO, capture_output=True, text=True, timeout=15,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
         out["before"] = (before.stdout or "").strip()
-        r = subprocess.run(
+        r = _git_run(
             ["git", "pull", "--ff-only"],
             cwd=REPO, capture_output=True, text=True, timeout=180,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
-        after = subprocess.run(
+        after = _git_run(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=REPO, capture_output=True, text=True, timeout=15,
             creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1199,13 +1234,13 @@ def fleet_origin_status(force_fetch=False):
         # network fetch (throttled)
         if force_fetch or (now - _FLEET_LAST_FETCH) >= _FLEET_FETCH_TTL_S:
             try:
-                subprocess.run(
+                _git_run(
                     ["git", "fetch", "origin", "main", "--quiet"],
                     cwd=REPO, capture_output=True, timeout=25,
                     creationflags=_WIN_CREATE if IS_WIN else 0,
                 )
                 _FLEET_LAST_FETCH = now
-                r = subprocess.run(
+                r = _git_run(
                     ["git", "rev-parse", "--short", "origin/main"],
                     cwd=REPO, capture_output=True, text=True, timeout=5,
                     creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1214,7 +1249,7 @@ def fleet_origin_status(force_fetch=False):
                     out["origin"] = (r.stdout or "").strip()
             except Exception:
                 pass
-        r = subprocess.run(
+        r = _git_run(
             ["git", "rev-list", "HEAD..origin/main", "--count"],
             cwd=REPO, capture_output=True, text=True, timeout=10,
             creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1237,7 +1272,7 @@ def fleet_origin_status(force_fetch=False):
         # nothing on screen said his own build was unpublished. A true number under a word that
         # implies something false. [[label-outlived-referent]]
         try:
-            ra = subprocess.run(
+            ra = _git_run(
                 ["git", "rev-list", "origin/main..HEAD", "--count"],
                 cwd=REPO, capture_output=True, text=True, timeout=10,
                 creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1252,7 +1287,7 @@ def fleet_origin_status(force_fetch=False):
         # number. The thing that matches his screen is the stamp itself: what does origin/main
         # actually publish? Read it from there, not derived from a commit count.
         try:
-            rp = subprocess.run(
+            rp = _git_run(
                 ["git", "show", "origin/main:tv/WINDOWS_SHIP.json"],
                 cwd=REPO, capture_output=True, text=True, timeout=10,
                 creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -1261,7 +1296,7 @@ def fleet_origin_status(force_fetch=False):
         except Exception:
             out["publishedVer"] = None
         if out["behind"] > 0:
-            r2 = subprocess.run(
+            r2 = _git_run(
                 ["git", "log", "origin/main", "-1", "--format=%s"],
                 cwd=REPO, capture_output=True, text=True, timeout=8,
                 creationflags=_WIN_CREATE if IS_WIN else 0,
@@ -18824,7 +18859,6 @@ def _pull_once():
     this lane stands down and says so. TV_NO_AUTO_PULL still turns it off entirely, the same
     switch both launchers honour.
     """
-    import subprocess as _sp
     now = int(time.time() * 1000)
 
     def _set(**kw):
@@ -18837,10 +18871,9 @@ def _pull_once():
     if not os.path.isdir(os.path.join(REPO, ".git")):
         _set(on=None, say="this tree is not a git checkout, so whether it is current is UNKNOWN")
         return None
-    _run = lambda a, t: _sp.run(a, cwd=REPO, capture_output=True, text=True, timeout=t,
-                                creationflags=_WIN_CREATE if IS_WIN else 0)
     try:
-        _dirty = (_run(["git", "status", "--porcelain", "--untracked-files=no"], 20).stdout or "").strip()
+        _dirty = (_git_run(["git", "status", "--porcelain", "--untracked-files=no"],
+                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
     except Exception as e:
         _set(on=True, say="could not read the working tree (%s), so this is UNMEASURED - not clean"
                           % type(e).__name__)
@@ -18850,10 +18883,14 @@ def _pull_once():
                            "commit or stash them to rejoin the fleet"))
         return False
     try:
-        before = (_run(["git", "rev-parse", "--short", "HEAD"], 20).stdout or "").strip()
-        _run(["git", "fetch", "origin", "main", "--quiet"], 45)
-        _run(["git", "merge", "--ff-only", "origin/main"], 45)
-        after = (_run(["git", "rev-parse", "--short", "HEAD"], 20).stdout or "").strip()
+        before = (_git_run(["git", "rev-parse", "--short", "HEAD"],
+                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
+        _git_run(["git", "fetch", "origin", "main", "--quiet"],
+                 cwd=REPO, capture_output=True, text=True, timeout=45)
+        _git_run(["git", "merge", "--ff-only", "origin/main"],
+                 cwd=REPO, capture_output=True, text=True, timeout=45)
+        after = (_git_run(["git", "rev-parse", "--short", "HEAD"],
+                          cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
     except Exception as e:
         _set(on=True, before=None, after=None, pulled=None,
              say="the pull did not complete (%s) - UNKNOWN, not up to date" % type(e).__name__)
@@ -19044,7 +19081,7 @@ def _tree_is_mid_edit(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_d
     """
     try:
         root = os.path.dirname(HERE) or "."
-        out = subprocess.run(["git", "-C", root, "status", "--porcelain", "--"] + list(paths),
+        out = _git_run(["git", "-C", root, "status", "--porcelain", "--"] + list(paths),
                              capture_output=True, timeout=8)
         if out.returncode != 0:
             return False, "git could not report on the tree - relaunch not blocked on that"
@@ -31103,7 +31140,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3406",
+        "ver": "v3407",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -31466,12 +31503,12 @@ def _published_ver():
         return _LIVE_VER_CACHE["v"], _LIVE_VER_CACHE["age"]
     ver, age = None, None
     try:
-        out = subprocess.run(["git", "show", "origin/main:tv/WINDOWS_SHIP.json"],
+        out = _git_run(["git", "show", "origin/main:tv/WINDOWS_SHIP.json"],
                              cwd=REPO, capture_output=True, timeout=20)
         if out.returncode == 0 and out.stdout:
             ver = (json.loads(out.stdout.decode("utf-8", "replace")) or {}).get("ver") or None
         # how old is the REF itself — the thing that can be stale, not this read
-        r2 = subprocess.run(["git", "log", "-1", "--format=%ct", "origin/main"],
+        r2 = _git_run(["git", "log", "-1", "--format=%ct", "origin/main"],
                             cwd=REPO, capture_output=True, timeout=20)
         if r2.returncode == 0 and r2.stdout.strip():
             age = int(now - int(r2.stdout.strip()))

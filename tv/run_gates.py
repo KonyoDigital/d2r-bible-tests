@@ -1234,6 +1234,26 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_windows_git_spawns_hide_the_console",
+         [sys.executable, os.path.join(HERE, "test_windows_git_spawns_hide_the_console.py")], 60,
+         why="v3407 (#155) - GIT.EXE WINDOWS WERE ALT-TABBING HIM OFF THE GAME. MEASURED on the "
+             "Windows box 2026-09-21: 2-3 console windows in a row stealing focus every couple of "
+             "minutes while TV DIABLO sat idle, parent pythonw control_app.py --open. Git for "
+             "Windows' PATH git (Git\\cmd\\git.exe) is a 46 KB CUI WRAPPER and pythonw owns no "
+             "console, so a CUI child ALLOCATES one - a real terminal on top of D2R. "
+             "CREATE_NO_WINDOW on the wrapper is not enough: it spawns the real git WITHOUT the "
+             "flag, so the flag protects the 46 KB stub and nothing else. headless-git.exe is no "
+             "better - a GUI trampoline that still starts a CUI git.exe child (caught live: "
+             "git.exe -> headless-git.exe -> pythonw) with Windows Terminal taking the focus. "
+             "_git_run calls mingw64\\bin\\git.exe DIRECTLY so CREATE_NO_WINDOW + SW_HIDE apply "
+             "to the binary that actually runs, and sets GIT_TERMINAL_PROMPT=0 so it cannot "
+             "prompt. ONE OF THE TWO BURSTS WAS MINE: v3404 put _pull_once in the drift beat at "
+             "300s beside the 120s fleet cache, which is exactly the cadence he reported - a fix "
+             "that keeps a machine current must not cost him the window he is playing in. The "
+             "guard reads control_app.py as an AST, not a character window, so it names the "
+             "OFFENDING LINE rather than passing because most sites are correct; it found 13 and "
+             "all 13 now route through _git_run. 3 red-proofs. Diagnosed and written on the "
+             "Windows box, brought over and re-proven here."),
     Gate("test_a_machine_pulls_itself_current",
          [sys.executable, os.path.join(HERE, "test_a_machine_pulls_itself_current.py")], 60,
          why="v3404 (#149) - THE UPDATE MECHANISM LIVED IN THE LAUNCHERS AND A MACHINE CAN BE "

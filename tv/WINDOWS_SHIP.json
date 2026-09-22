@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3406",
+  "ver": "v3407",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3406: chronicle_sweep_start asks self_arming.may for vault.sweep_start BEFORE it reads the lane list, and that lock fails closed on a stale heart census. So every sweep_wilson attack aimed at a guard BELOW the lock was answered by the LOCK and counted as a refusal by the DOOR. MEASURED in a sandbox: reverting the lane guard left the harness GREEN at exit 0 with four claims still reading PROVEN, and each was banking attacks=1 into the very lock that answered it. UNREACHED is now a third state landing in NEITHER number, banking nothing and named out loud; and a new gate stubs the lock OPEN and the worker shut to drive the lane states at the real door, which found two more - the word claude inside a STRING passes in, and so does a DICT with that key. 4 red-proofs PROVEN.",
+  "note": "v3407: Git for Windows PATH git is a 46 KB CUI wrapper and pythonw owns no console, so every git child ALLOCATED one - a real terminal on top of D2R. MEASURED on the Windows box 2026-09-21: 2-3 windows in a row, every couple of minutes, while the console sat idle. CREATE_NO_WINDOW on the wrapper is not enough because it spawns the real git without the flag, and headless-git.exe still starts a CUI child. _git_run calls mingw64 git DIRECTLY so the flag and SW_HIDE apply to the binary that runs. ONE OF THE TWO BURSTS WAS MINE - v3404 put _pull_once in the drift beat at 300s beside the 120s fleet cache, exactly the cadence he reported. 14 git argv sites now walk the one door. AND THE TWO CHECKS DISAGREED: the AST gate read 13 clean while the heart row found a 14th built by list concatenation, so the gate reach was widened to follow a BinOp. 3 red-proofs PROVEN. Diagnosed and written on the Windows box, brought over and re-proven here.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
