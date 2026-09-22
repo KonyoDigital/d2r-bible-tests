@@ -16,6 +16,11 @@ import os
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# ⚠ HIS WINDOWS CONSOLE IS cp1255: a bare print of ⚠ or an em dash crashes the script
+# WHILE REPORTING, so a clean tree exits non-zero for a reason unrelated to the check.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 SRC_PATH = os.path.join(HERE, "control_app.py")
 
 # ⚠⚠ v3409 — THE GATE READ ONE FILE AND THE FAULT LIVED IN TWO. The cross-family review of v3404

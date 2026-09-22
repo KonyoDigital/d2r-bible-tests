@@ -34,10 +34,35 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+# ⚠ HIS WINDOWS CONSOLE IS cp1255: a bare print of ⚠ or an em dash crashes the script
+# WHILE REPORTING, so a clean tree exits non-zero for a reason unrelated to the check.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 REPO = os.path.dirname(HERE)
 
 # The hosts that mean "a metered API key", as opposed to a signed-in CLI.
 API_HOSTS = ("api.x.ai", "api.openai.com", "api.anthropic.com")
+
+
+def _is_a_url_to(code, host):
+    """True when the host appears as a URL, not merely as a NAME.
+
+    ⚠⚠ TWO CUTS OF THIS LAW ACCUSED ITS OWN ENFORCEMENT BEFORE IT WORKED.
+      1. `host in code` flagged console_doctor, whose v3408 heart row lists all three hosts in a
+         loop that REFUSES them — the guard reading a ban as the crime. [[source-reading-guard]] §4
+      2. "names a host AND the file contains urlopen" flagged it again, because that module
+         legitimately calls urlopen against its OWN 127.0.0.1 loopback. File-level co-occurrence
+         is not a relationship between two things, it is two things in one file.
+
+    A ban list holds a BARE hostname. A call holds a URL — a scheme in front of it or a path
+    behind it. That is the distinction the law actually means.
+
+    ⚠ STATED REACH, not implied: a URL assembled at runtime from a bare host plus a separate path
+    would pass this. That shape does not exist in this tree today and the law says so rather than
+    claiming a completeness it does not have.
+    """
+    return ("//" + host) in code or (host + "/") in code
 
 
 def _code(path):
@@ -62,17 +87,47 @@ def _shipped_modules():
 
 class TestNoShippedModuleReachesAModelApiByKey(unittest.TestCase):
 
-    def test_no_module_names_a_model_API_HOST_in_code(self):
-        offenders = []
+    def test_no_module_REACHES_a_model_API_host(self):
+        """⚠⚠ NAMING A HOST IS NOT REACHING IT, AND THE FIRST CUT COULD NOT TELL THE DIFFERENCE.
+
+        It flagged `console_doctor.py -> api.x.ai / api.openai.com / api.anthropic.com` — the
+        v3408 heart row, whose entire body is a loop that REFUSES those hosts. The guard accused
+        the code that enforces it, which is [[source-reading-guard]] §4 in its purest form: a
+        negative assertion has to be true of the whole searched text, including the enforcement
+        you just wrote.
+
+        So the law asks the question it actually means: does this module both NAME a metered host
+        AND carry the means to call one? A ban list is a name with no call under it.
+        """
+        offenders, scanned = [], 0
         for p in _shipped_modules():
+            scanned += 1
             code = _code(p)
-            for host in API_HOSTS:
-                if host in code:
-                    offenders.append("%s -> %s" % (os.path.basename(p), host))
+            hit = [h for h in API_HOSTS if _is_a_url_to(code, h)]
+            if hit:
+                offenders.append("%s -> %s" % (os.path.basename(p), ", ".join(hit)))
         self.assertEqual(offenders, [],
-                         "a shipped module reaches a METERED API instead of his subscription CLI, "
+                         "a shipped module REACHES a metered API instead of his subscription CLI, "
                          "so the seat can answer 'out of credits' and block a ship: %s" % offenders)
-        print("modules scanned: %d, API hosts in code: 0" % len(list(_shipped_modules())))
+        print("modules scanned: %d, modules that reach a metered API: 0" % scanned)
+
+    def test_the_REACH_law_can_still_see_a_real_offender(self):
+        """⚠ A guard loosened to stop accusing its own ban must still catch the thing it bans.
+
+        Without this, narrowing the rule to "names a host AND can call one" could be narrowed
+        again to nothing and stay green forever. [[regression-guard]] §5 — assert the BASELINE.
+        """
+        planted = 'x = urlopen("https://api.x.ai/v1/chat")'
+        self.assertTrue([h for h in API_HOSTS if _is_a_url_to(planted, h)],
+                        "the law can no longer recognise a plain metered API call, so its green "
+                        "means nothing")
+        ban_only = 'for host in ("api.x.ai", "api.openai.com"):\n    if host in cli: return MISSING'
+        self.assertFalse([h for h in API_HOSTS if _is_a_url_to(ban_only, h)],
+                         "a ban list is still being read as a call — the guard accuses the code "
+                         "that enforces it")
+        loopback = 'r = urlopen("http://127.0.0.1:17772/api/status")'
+        self.assertFalse([h for h in API_HOSTS if _is_a_url_to(loopback, h)],
+                         "a module that calls its OWN loopback is not reaching a metered API")
 
     def test_the_vision_lane_STRIPS_every_api_secret_it_names(self):
         """g5_grok_eyes' own contract line is `NOT: XAI_API_KEY / api.x.ai Bearer calls`."""
