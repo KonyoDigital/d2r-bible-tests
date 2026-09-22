@@ -6176,6 +6176,57 @@ def _check_this_machine_can_get_a_second_opinion():
                 "— whether that seat is SIGNED IN is answered by a real look, never assumed here"
                 % (cli, float(getattr(_eye, "EYE_TIMEOUT_S", 0) or 0)))
 
+
+def _check_the_door_and_the_writers_name_the_same_tree():
+    """v3410 — DOES THE TREE THE DOOR ESTABLISHES EQUAL THE TREE THE WRITERS ACTUALLY USE?
+
+    Two INDEPENDENT sides, which is what makes this a corroborator rather than one number wearing
+    two names: `machine_tree.footage_hist()/footage_frames()` is what the PLANNERS ask
+    (frame_authority, reel_retention), and `tv_diablo.HIST_DIR/FRAMES` is what the WRITERS
+    actually open. Nothing had ever compared them.
+
+    MEASURED 2026-09-22 across all four env shapes: they agree in three. The one that diverges is
+    TV_FRAMES_DIR set with TV_HIST unset — exactly `replay.py:217` — where the door used to skip
+    the hist root entirely while tv_diablo still computed join(FRAMES, "hist"). v3410 makes the
+    door DERIVE that root instead of skipping it, and this row is what would notice if the two
+    sides ever part again.
+
+    ⚠ DIVERGENCE IS NOT AUTOMATICALLY A FAULT. A harness that deliberately isolates one root is a
+    legitimate state, so a mismatch is reported with BOTH paths named and left for a human, never
+    silently repaired — repairing it here would be this module's risk 1 arriving as a doctor.
+    [[heart-first]] §1 (two genuinely independent sides) [[unknown-stays-unknown]]
+    """
+    try:
+        import machine_tree as _mt
+        import tv_diablo as _td
+    except Exception as e:
+        return UNKNOWN, ("the footage door or its writer would not import (%s), so whether they "
+                         "name the same tree is UNKNOWN, not fine" % type(e).__name__)
+    pairs = []
+    try:
+        pairs.append(("frames", _mt.footage_frames(), getattr(_td, "FRAMES", None)))
+        pairs.append(("frames/hist", _mt.footage_hist(), getattr(_td, "HIST_DIR", None)))
+    except Exception as e:
+        return UNKNOWN, ("could not ask both sides for their path (%s) — UNKNOWN, never a "
+                         "measured agreement" % type(e).__name__)
+    bad = []
+    for name, planner, writer in pairs:
+        if not planner or not writer:
+            return UNKNOWN, ("the %s root has no path on one side (planner=%r writer=%r), so "
+                             "agreement cannot be measured" % (name, planner, writer))
+        if os.path.realpath(planner) != os.path.realpath(writer):
+            bad.append("%s: the planners read %s and the writers open %s"
+                       % (name, planner, writer))
+    if bad:
+        return MISSING, ("the door and the writers name DIFFERENT trees, so what retention plans "
+                         "is not what the film wrote — %s. If a harness set only one of "
+                         "TV_HIST / TV_FRAMES_DIR that is expected; both paths are named here "
+                         "rather than repaired, because provisioning the other half from inside "
+                         "an isolated harness is how a test plants a tree in the live one"
+                         % " · ".join(bad))
+    return OK, ("the door and the writers name the same tree at both roots (%s), so retention "
+                "plans exactly what the film wrote" % pairs[1][1])
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6229,6 +6280,9 @@ CHECKS = [
      _check_the_compare_panel_can_name_a_difference),
     ("this console tree is established",
      _check_this_console_tree_is_established),
+    # v3410 — its SIBLING, and a different question: that row asks whether the roots EXIST,
+    # this one asks whether the PLANNERS and the WRITERS are looking at the same ones.
+    ("the door and the writers agree", _check_the_door_and_the_writers_name_the_same_tree),
     ("a verdict comes from a declared field",
      _check_a_verdict_comes_from_a_declared_field),
     ("a queue zero came from a read that worked",
@@ -6468,7 +6522,8 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # PERIODIC_EVERY ticks.
             "item vocabulary",
             "a worker read has a deadline",
-            "no git child steals his screen")
+            "no git child steals his screen",
+            "the door and the writers agree")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
@@ -6764,6 +6819,8 @@ WATCHES = {
     "no git child steals his screen": (),
     # v3408 — it asks whether THIS machine has a CLI eye on disk; no element of its own.
     "this machine can get a second opinion": (),
+    # v3410 — DECLARED, NOT OMITTED. It compares two module paths; no element of its own.
+    "the door and the writers agree": (),
     # ⚠ v3190 — FILED WITH ITS CHECK, WHICH IS THE POINT OF THIS MAP. `check_stash_bank` shipped
     # into CHECKS with the vault_bank reader and was never declared here, so it read ABSENT in the
     # organ table for a version — a claim nobody made, indistinguishable from a check nobody

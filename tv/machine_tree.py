@@ -222,9 +222,39 @@ def establish():
     frames = os.environ.get("TV_FRAMES_DIR") or ""
     if hist or frames:
         rows = []
+        # ⚠⚠ v3410 — HALF A HARNESS IS NOT HALF A TREE, AND `continue` MADE THE MISSING HALF
+        # LOOK ESTABLISHED. With TV_FRAMES_DIR set and TV_HIST unset — which is exactly
+        # replay.py:217 spawning a tv_diablo child — this loop skipped the hist root and
+        # returned rows saying the one it DID make was created. Meanwhile tv_diablo.py:2345
+        # still computes `HIST_DIR = TV_HIST or join(FRAMES, "hist")`, so the writer aims at a
+        # directory the door never made. MEASURED: makedirs ['/tmp/SAND/frames'] only,
+        # HIST_DIR created False — then every _archive_footage_copy dies on
+        # shutil.disk_usage(HIST_DIR), is swallowed at tv_diablo.py:1840, and _FOOTAGE_WHY
+        # still reads 'grab', so the console shows no reason and no disk-full. Silent from boot.
+        #
+        # ⚠ THE TWO HALVES ARE NOT SYMMETRIC, AND THAT ASYMMETRY IS THE WHOLE CARE HERE.
+        #   frames set, hist empty -> DERIVE join(frames, "hist"). That is literally the
+        #     arithmetic tv_diablo.py:2345 does, and it stays INSIDE the harness's own scratch
+        #     tree, so it cannot reach his real footage.
+        #   hist set, frames empty -> the partner CANNOT be derived: frames would be the LIVE
+        #     tree, and provisioning that from inside an isolated harness is this module's
+        #     risk 1, arriving as a writer. So it is REFUSED and NAMED, never skipped.
+        # [[unknown-stays-unknown]] — a root nobody established must not read as one that was.
+        if frames and not hist:
+            hist = os.path.join(frames, "hist")
+            rows.append({"root": "frames/hist", "anchor": "env", "path": hist,
+                         "state": FOUND if os.path.isdir(hist) else CREATED,
+                         "why": "derived from TV_FRAMES_DIR, inside the harness's own tree"})
         for name, p in (("frames", frames), ("frames/hist", hist)):
             if not p:
+                rows.append({"root": name, "anchor": "env", "path": None, "state": REFUSED,
+                             "why": ("TV_HIST names a scratch tree but TV_FRAMES_DIR does not, "
+                                     "and this root cannot be derived from it without pointing "
+                                     "at the live tree — set both or neither")})
                 continue
+            if name == "frames/hist" and any(x.get("root") == name for x in rows):
+                # already derived above; make it and prove it, but do not double-report
+                pass
             existed = os.path.isdir(p)
             try:
                 os.makedirs(p, exist_ok=True)
@@ -237,7 +267,7 @@ def establish():
             if not ok:
                 rows.append({"root": name, "anchor": "env", "path": p,
                              "state": UNUSABLE, "why": why})
-            else:
+            elif not any(x.get("root") == name for x in rows):
                 rows.append({"root": name, "anchor": "env", "path": p,
                              "state": CREATED if not existed else FOUND,
                              "why": "scratch tree for an isolated harness"})

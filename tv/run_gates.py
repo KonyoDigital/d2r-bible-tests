@@ -1234,6 +1234,34 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_a_broken_tree_is_not_an_established_one",
+         [sys.executable, os.path.join(HERE, "test_a_broken_tree_is_not_an_established_one.py")], 60,
+         why="v3410 - BOTH LAWS NAMED BY THE CROSS-FAMILY REVIEW OF v3405, then verified and "
+             "adversarially refuted against the real source. (1) A FAILED CREATE WAS CACHED AS "
+             "DONE: machine_tree.establish() reports a create/prove-write failure as a ROW and "
+             "never raises, so _establish_footage stamping on the strength of it-returned "
+             "recorded a broken tree as established. MEASURED with TV_HIST=/dev/null/nope/hist - "
+             "establish() returned normally with a FAILED row, the stamp landed, call #2 was a "
+             "CACHE HIT, and nothing clears that global; _archive_footage_copy then hits "
+             "disk_usage on a missing dir, raises FileNotFoundError, and it is swallowed as "
+             "return False - every film frame dropped silently for the life of the process, "
+             "where v3404's per-frame makedirs used to heal on the next remount. (2) HALF A "
+             "HARNESS IS NOT HALF A TREE: with TV_FRAMES_DIR set and TV_HIST unset - exactly "
+             "replay.py:217 - the `if not p: continue` skipped the hist root and reported total "
+             "success while tv_diablo still computes HIST_DIR = join(FRAMES, hist). MEASURED: "
+             "makedirs [frames] only, HIST_DIR created False, and _FOOTAGE_WHY still read 'grab' "
+             "so the console showed no reason. THE ASYMMETRY IS THE CARE: frames-set/hist-empty "
+             "is DERIVED (it stays in the harness's own scratch tree); hist-set/frames-empty "
+             "CANNOT be, because frames would be the LIVE tree, so it is REFUSED and NAMED. "
+             "⚠ AND THE OBVIOUS FIX WAS THE DANGEROUS HALF, killed by the blast-radius skeptic "
+             "before it shipped: refusing to stamp on ANY bad row retries at FILM CADENCE and on "
+             "the live lane establish() walks all six roots - a prove-write storm per frame - "
+             "and a REFUSED anchor is not transient, so it would be retried forever. Hence THREE "
+             "states: FAILED/UNUSABLE do not stamp but are rate-limited, REFUSED stamps, "
+             "created/found stamp. ⚠ The review's THIRD finding was REFUTED by measurement: "
+             "resolve()'s frames path and tv_diablo.FRAMES are the same path byte for byte, and "
+             "routing HIST_DIR through footage_hist() would have redirected a replay child's "
+             "archive writes into his live footage. 10 cases incl. a BASELINE, 4 red-proofs."),
     Gate("test_a_failed_pull_is_not_a_pull_that_found_nothing",
          [sys.executable, os.path.join(HERE, "test_a_failed_pull_is_not_a_pull_that_found_nothing.py")], 60,
          why="v3409 - EVERY LAW HERE WAS NAMED BY THE CROSS-FAMILY REVIEW OF v3404, reading the "

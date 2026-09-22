@@ -49,9 +49,12 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3409"   # A PULL THAT FAILED IS NOT A PULL THAT FOUND NOTHING
+VERSION = "v3410"   # A BROKEN TREE IS NOT AN ESTABLISHED ONE
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
+
+
+_FOOTAGE_RETRY_S = 30.0   # v3410 — a broken tree is re-attempted at most this often, never per frame
 
 
 def _establish_footage():
@@ -63,8 +66,42 @@ def _establish_footage():
     key = (os.environ.get("TV_HIST") or "", os.environ.get("TV_FRAMES_DIR") or "")
     if globals().get("_FOOTAGE_ESTABLISHED") == key:
         return
+    # ⚠⚠ v3410 — A FAILED CREATE WAS CACHED AS DONE, AND THE FILM WENT SILENT FOR THE PROCESS.
+    # establish() reports a create/prove-write failure as a ROW and never raises
+    # (machine_tree.py FAILED / UNUSABLE), so stamping the cache on the strength of "it
+    # returned" recorded a broken tree as an established one. MEASURED: with
+    # TV_HIST=/dev/null/nope/hist, establish() returned normally with a FAILED row and the
+    # stamp landed anyway — call #2 was a CACHE HIT, and nothing in this tree ever clears the
+    # global. _archive_footage_copy then reaches shutil.disk_usage(hist_dir) on a directory
+    # that is not there, which raises FileNotFoundError, which is swallowed as `return False`:
+    # every film frame dropped, silently, for the life of the process. v3404's per-frame
+    # os.makedirs(hist_dir, exist_ok=True) used to heal that the moment a drive remounted.
+    #
+    # ⚠ THREE STATES, NOT TWO, AND THE THIRD IS WHY THIS IS NOT A ONE-LINER. Simply refusing to
+    # stamp on any bad row retries at FILM CADENCE, and on the live lane establish() falls
+    # through to ensure(create=True) which walks ALL SIX roots — a prove-write storm on every
+    # frame. So:
+    #   FAILED / UNUSABLE -> transient (a drive remounts, a permission clears). Do not stamp,
+    #                        but do not retry faster than _FOOTAGE_RETRY_S either.
+    #   REFUSED           -> NOT transient. Its anchor could not be established and will not
+    #                        become establishable by asking again, so it stamps. Retrying a
+    #                        refusal forever is the storm wearing a fix's clothes.
+    #   created / found   -> stamp, exactly as before.
+    # [[unknown-stays-unknown]] [[a-gate-can-perturb-what-it-measures]]
+    _now = time.time()
+    if globals().get("_FOOTAGE_BROKEN_KEY") == key:
+        if (_now - (globals().get("_FOOTAGE_LAST_TRY") or 0.0)) < _FOOTAGE_RETRY_S:
+            return
+    globals()["_FOOTAGE_LAST_TRY"] = _now
     import machine_tree as _mt
-    _mt.establish()
+    rows = _mt.establish() or []
+    _hurt = [r for r in rows
+             if r.get("root") in ("frames", "frames/hist")
+             and r.get("state") in (_mt.FAILED, _mt.UNUSABLE)]
+    if _hurt:
+        globals()["_FOOTAGE_BROKEN_KEY"] = key
+        return
+    globals()["_FOOTAGE_BROKEN_KEY"] = None
     globals()["_FOOTAGE_ESTABLISHED"] = key
 
 # ══ v2324 — THE LIVE FRAME IS NO LONGER A FILENAME, IT IS A QUESTION ═══════════════════════════
