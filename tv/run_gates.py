@@ -1234,6 +1234,26 @@ GATES = [
              "whose names are unknown is REFUSED with its reason, never swapped for an easier "
              "question. This law pins all three labels as invariant across BOTH arms of the "
              "ternary, and pins v3022's rule that neitherHas must not be coalesced."),
+    Gate("test_the_eye_is_a_cli_seat_outside_the_repo",
+         [sys.executable, os.path.join(HERE, "test_the_eye_is_a_cli_seat_outside_the_repo.py")], 60,
+         why="v3408 (#154) - EVERY EYE IS A CLI SEAT ON HIS OWN SUBSCRIPTION, AND IT STANDS "
+             "OUTSIDE THE REPO. His ruling 2026-09-22: Grok CLI secondary, Claude CLI primary, "
+             "and no API - there is bouncing regardless. THE TRIGGER, measured the same hour: an "
+             "API-key seat answered PERMISSION_DENIED, used all available credits, mid-ship while "
+             "the pre-push gate was demanding a second-eye look. An API seat that bounces is an "
+             "EMPTY SEAT, and an empty seat blocks a push while proving nothing. THE TREE WAS "
+             "ALREADY RIGHT AND THAT IS WHY THIS EXISTS: the sweep found ZERO shipped modules "
+             "calling a model API across 198 scanned - _claude_env strips ANTHROPIC_API_KEY, "
+             "g5_grok_eyes strips six API vars and publishes lane=subscription-cli, "
+             "second_eye_run spawns ~/.grok/bin/grok. Nothing needed repairing; what was missing "
+             "is the LAW, because a correct state nothing pins is a state that drifts. AND THE "
+             "SECOND HALF IS SAFETY, NOT BILLING: a CLI eye is an AGENT with tools, and pointed "
+             "at this checkout it can EDIT IT - witnessed 2026-09-22, a Grok CLI session writing "
+             "to tv/ while a ship was mid-flight, caught by Konyo rather than by any guard. The "
+             "eye now runs with cwd on a scratch dir, and its bound went 300s -> 1200s because "
+             "300 was MEASURED too short for a real answer (a 22,519-char payload ran past it and "
+             "was filed an empty seat, blocking a ship for a look nobody waited for). 6 laws, "
+             "3 red-proofs."),
     Gate("test_windows_git_spawns_hide_the_console",
          [sys.executable, os.path.join(HERE, "test_windows_git_spawns_hide_the_console.py")], 60,
          why="v3407 (#155) - GIT.EXE WINDOWS WERE ALT-TABBING HIM OFF THE GAME. MEASURED on the "

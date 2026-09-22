@@ -38,6 +38,8 @@ import io
 import os
 import re
 import subprocess
+import time
+import tempfile
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +56,21 @@ import second_eye_ledger as SEL  # noqa: E402
 # hardwired to one CLI and was therefore PERMANENTLY EMPTY on every machine but his.
 EYE_CLI = os.environ.get("THIRD_EYE_CLI") or os.path.expanduser("~/.grok/bin/grok")
 EYE_MODEL = os.environ.get("THIRD_EYE_MODEL") or "grok-4-1-fast-reasoning"
-EYE_TIMEOUT_S = float(os.environ.get("THIRD_EYE_TIMEOUT_S") or 300)
+# ⚠⚠ v3408 — 300 s WAS TOO SHORT, AND THE COST WAS A BLOCKED SHIP. The eye is a subscription
+# CLI, and a CLI is an AGENT: it reasons and calls tools, it does not stream a completion. MEASURED
+# 2026-09-22 on a 22,519-char v3404 payload — it ran past 300 s, was killed, and the ledger
+# correctly recorded an EMPTY SEAT. Correct, and useless: the pre-push gate then refused the ship
+# for want of a look the harness had not waited for. A bound below what the instrument actually
+# takes does not measure the instrument, it measures the bound. [[feedback-threshold-above-the-ceiling]]
+EYE_TIMEOUT_S = float(os.environ.get("THIRD_EYE_TIMEOUT_S") or 1200)
+
+# ⚠⚠ v3408 — THE EYE STANDS OUTSIDE THE REPO. A CLI eye is an AGENT with tools, and pointed at
+# this checkout it can EDIT IT. That is not hypothetical: on 2026-09-22 a Grok CLI session was
+# writing to tv/ while a ship was mid-flight, and Konyo had to be the one who noticed
+# ("i think grok might be editing now the repo so check to see"). The payload is a DIFF and the
+# prompt already says to judge only what is shown, so a working directory is not something the
+# review needs — it is only something a reviewer can damage. [[execs-the-working-tree]]
+EYE_CWD = os.environ.get("THIRD_EYE_CWD") or tempfile.mkdtemp(prefix="second_eye_")
 
 # A prompt has to fit. Truncation is allowed; SILENT truncation is not — what was dropped is
 # reported in the row, so a thin look can never read as a thorough one.
@@ -856,13 +872,17 @@ def ask(prompt):
     """-> (answer, reached, why). An unreachable eye returns reached=False and NO verdict."""
     if not os.path.exists(EYE_CLI):
         return "", False, "no eye at %s (set THIRD_EYE_CLI)" % EYE_CLI
+    _t0 = time.time()
     try:
         p = subprocess.Popen([EYE_CLI, "-p", prompt],
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=EYE_CWD)
         out, err = p.communicate(timeout=EYE_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         p.kill()
-        return "", False, "the eye did not answer within %ss" % EYE_TIMEOUT_S
+        # ⚠ SAY HOW LONG IT ACTUALLY WAITED. "did not answer" with no number cannot be told apart
+        # from "was never started", and the reader cannot judge whether the bound was the problem.
+        return "", False, ("the eye did not answer within %.0fs (waited %.0fs) — an EMPTY SEAT, "
+                           "never agreement" % (EYE_TIMEOUT_S, time.time() - _t0))
     except Exception as e:
         return "", False, "the eye could not be run: %s" % type(e).__name__
     ans = (out or b"").decode("utf-8", "replace").strip()

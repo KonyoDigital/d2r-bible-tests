@@ -6100,6 +6100,52 @@ def _check_no_git_child_can_steal_his_screen():
     return OK, ("all %d git argv site(s) go through _git_run and mingw64 git is present, so no git "
                 "child allocates a console on this machine" % total)
 
+
+def _check_this_machine_can_get_a_second_opinion():
+    """v3408 — CAN *THIS* PC REACH AN EYE AT ALL, AND DOES THAT EYE STAND OUTSIDE THE REPO?
+
+    His architecture ruling is that every console answers for ITS OWN machine, so "we have a second
+    eye" is not a fact about the fleet — it is a fact about one PC. His Mac has a signed-in Grok
+    CLI; a freshly-installed box has not, and that machine's looks are EMPTY SEATS whatever the
+    ledger's totals say.
+
+    ⚠ NO NETWORK, NO SPAWN. This runs on the eagle tick, so it asks only what can be answered from
+    disk: is there a binary where the eye is configured, and is its working directory outside this
+    checkout. Whether the seat is signed in is a different question and is answered by an actual
+    look, never guessed here.
+
+    ⚠ AN API KEY IS NOT A SEAT. A metered endpoint answers "out of credits" and blocks a ship while
+    proving nothing — measured 2026-09-22, mid-ship. [[feedback-silence-is-not-evidence]]
+    """
+    try:
+        import second_eye_run as _eye
+    except Exception as e:
+        return UNKNOWN, ("the second-eye lane would not import (%s), so whether this machine can "
+                         "get a cross-family look is UNKNOWN, not fine" % type(e).__name__)
+    cli = getattr(_eye, "EYE_CLI", "") or ""
+    cwd = os.path.abspath(getattr(_eye, "EYE_CWD", "") or "")
+    for host in ("api.x.ai", "api.openai.com", "api.anthropic.com"):
+        if host in cli:
+            return MISSING, ("the eye on this machine is a METERED API (%s), not a subscription "
+                             "CLI — it can answer 'out of credits' and block a ship while proving "
+                             "nothing" % host)
+    if not cli:
+        return MISSING, ("no eye is configured on this machine, so every version ships with an "
+                         "EMPTY SEAT rather than a cross-family look")
+    if not os.path.exists(cli):
+        return MISSING, ("the eye is configured at %s and there is no binary there, so this "
+                         "machine cannot get a second opinion — set THIRD_EYE_CLI or install it"
+                         % cli)
+    if not cwd:
+        return MISSING, ("the eye has no working directory of its own, so it inherits whatever "
+                         "directory the caller stood in — which can be this repo")
+    if cwd == os.path.abspath(ROOT) or cwd.startswith(os.path.abspath(ROOT) + os.sep):
+        return MISSING, ("the eye runs INSIDE this checkout (%s), and a CLI eye is an AGENT with "
+                         "tools — it can write to the tree it is grading" % cwd)
+    return OK, ("this machine has an eye at %s, standing outside the repo, with a %.0fs bound "
+                "— whether that seat is SIGNED IN is answered by a real look, never assumed here"
+                % (cli, float(getattr(_eye, "EYE_TIMEOUT_S", 0) or 0)))
+
 CHECKS = [
     # v2961 (#67) — the drift lane compares version LABELS; this compares the BYTES, which is the
     # only way an unstamped save can be seen. See the docstring for why it asks the console rather
@@ -6112,6 +6158,9 @@ CHECKS = [
     # v3407 (#155) — PERIODIC on purpose: it reads the whole of control_app.py, and the cheap
     # subset runs on EVERY eagle tick and in the boot path of every console a test spawns.
     ("no git child steals his screen", _check_no_git_child_can_steal_his_screen),
+    # v3408 (#154) — per MACHINE, not per fleet: a box with no signed-in CLI files empty seats
+    # however healthy the ledger totals look. Disk only, no network, no spawn.
+    ("this machine can get a second opinion", _check_this_machine_can_get_a_second_opinion),
     # v3301 (#38) — his ruling built a HOLD with a GREEN LIGHT; this asks whether the green light
     # still fires. A held relaunch looks pending right up until it expires unfired, so the only
     # way to see the release path die is to corroborate the register against the world.

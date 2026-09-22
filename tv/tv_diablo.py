@@ -49,7 +49,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3407"   # NO GIT CHILD STEALS THE SCREEN HE IS PLAYING ON
+VERSION = "v3408"   # THE EYE IS A CLI SEAT AND IT STANDS OUTSIDE THE REPO
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
