@@ -211,10 +211,7 @@ def _sh(args, timeout=60):
         # without a second call the child sits <defunct> for the life of the process. Python's own
         # docs prescribe kill-then-communicate for precisely this.
         p.kill()
-        try:
-            p.communicate(timeout=10)
-        except Exception:
-            pass                      # it may already be gone; the reap is best-effort, not a bet
+        _reap_after_kill(p)
         return None, "timed out after %ss" % timeout
     if p.returncode != 0:
         return None, (err or b"").decode("utf-8", "replace")[:300]
@@ -990,6 +987,38 @@ EYE_VERDICT_SCHEMA = json.dumps({
 })
 
 
+def _reap_after_kill(p, drain_s=10.0, reap_s=10.0):
+    """Collect a child we have just SIGKILLed. -> True if it was reaped.
+
+    ⚠⚠ v3424 - `kill()` THEN `communicate(timeout=N)` IS NOT A REAP, AND v3421 SHIPPED BELIEVING
+    IT WAS. The second eye found this reviewing v3421 and the claim was then MEASURED rather than
+    argued. On CPython 3.9 `Popen.communicate` runs its select loop FIRST and only reaches
+    `self.wait(...)` afterwards, so a second TimeoutExpired escapes before any wait() happens:
+
+        child forks a grandchild that inherits the stdout pipe, parent kills the child
+        -> communicate(timeout=4) TIMED OUT AGAIN after 4.0s
+        -> p.returncode is None,  ps says `Z    <defunct>`
+        -> an explicit p.wait(timeout=5) returns -9 and ps says <not in table - REAPED>
+
+    Python's own docs write `proc.kill(); proc.communicate()` with NO timeout, which never has this
+    hole - but an unbounded drain in a console that stays up for days is a hang, so the bound
+    stays and the wait is made UNCONDITIONAL instead. The drain is only there to release the pipes;
+    the wait is the reap, and it runs whether the drain worked, timed out, or raised.
+
+    ⚠ THE CHILD IS ALREADY SIGKILLed, so wait() returns immediately in every ordinary case. The
+    bound exists only for a process stuck in uninterruptible sleep, which no wait can help anyway.
+    """
+    try:
+        p.communicate(timeout=drain_s)      # release the pipes if the child will let us
+    except Exception:
+        pass                                # a failed DRAIN must never skip the REAP below
+    try:
+        p.wait(timeout=reap_s)
+        return True
+    except Exception:
+        return False                        # unkillable; there is nothing further a caller can do
+
+
 def ask(prompt):
     """-> (answer, reached, why, structured). An unreachable eye returns reached=False, NO verdict.
 
@@ -1020,10 +1049,7 @@ def ask(prompt):
         # raised here, so the eye left one <defunct> child behind per timeout. Measured this
         # session: the eye timed out repeatedly while the cap was still 9,000.
         p.kill()
-        try:
-            p.communicate(timeout=10)
-        except Exception:
-            pass                      # already gone is fine; what is not fine is never asking
+        _reap_after_kill(p)
         # ⚠ SAY HOW LONG IT ACTUALLY WAITED. "did not answer" with no number cannot be told apart
         # from "was never started", and the reader cannot judge whether the bound was the problem.
         return "", False, ("the eye did not answer within %.0fs (waited %.0fs) — an EMPTY SEAT, "

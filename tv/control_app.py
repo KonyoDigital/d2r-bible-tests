@@ -14887,11 +14887,26 @@ def close_ocr_worker(wp, say=None):
     ⚠ AND A FAILED REAP IS NEVER SILENT: the one refusal that says nothing is the one that hides.
     [[the-unjoined-end]] [[feedback-silence-is-not-evidence]] [[process-port-discipline]]
     """
-    try:
-        if getattr(wp, "stdin", None) is not None:
-            wp.stdin.close()
-    except Exception:
-        pass                      # already dead or already closed — not a reason to skip the reap
+    if getattr(wp, "stdin", None) is not None:
+        # ⚠⚠ v3424 — CLOSE THE FD, NOT THE BUFFER. The second eye found this reviewing v3421.
+        # The worker is spawned `text=True, bufsize=1`, so `wp.stdin` is a buffered
+        # TextIOWrapper and `.close()` FLUSHES first. If the worker has stopped reading and the
+        # pipe is full, that flush blocks — forever, and with no exception, so the `except`
+        # below never fires, `terminate()` never runs, the reap thread never starts, and
+        # _kai_closer_loop never returns. That stalls the whole reel backlog, which is the
+        # exact stall this function moves wait() off the caller thread to avoid: it would have
+        # hung one step earlier than the problem it was written for.
+        # `close(2)` on a pipe CANNOT block, and it still delivers EOF, so the worker still
+        # gets its graceful shutdown. Any bytes left in the Python-side buffer are dropped on
+        # purpose — we are shutting the worker down, not sending it more work.
+        try:
+            os.close(wp.stdin.fileno())
+        except Exception:
+            pass                  # already closed, or never had one
+        try:
+            wp.stdin.close()      # drop the object too; the fd is gone, so this cannot flush
+        except Exception:
+            pass                  # a stdin that will not close is NOT a reason to skip the reap
     try:
         wp.terminate()
     except Exception:
@@ -31189,7 +31204,7 @@ def status_payload():
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
-        "ver": "v3423",
+        "ver": "v3424",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

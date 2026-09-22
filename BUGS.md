@@ -7,6 +7,61 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-1151 - `kill()` THEN `communicate(timeout=N)` IS NOT A REAP, AND v3421 SHIPPED BELIEVING IT WAS
+
+**v3424 - the second eye reviewing v3421, at 95% reach, and it was right.** v3421 fixed the ocr
+worker's zombie and swept the class into the eye's two `TimeoutExpired` handlers as
+`p.kill()` + `p.communicate(timeout=10)`. **That does not reap.** On CPython 3.9 `Popen.communicate`
+runs its select loop first and only reaches `self.wait(...)` afterwards, so a second
+`TimeoutExpired` escapes before any wait happens.
+
+**MEASURED, not argued** - a child that forks a grandchild inheriting the stdout pipe cannot be
+drained, because the write end stays open after the child dies:
+
+```
+reap communicate TIMED OUT AGAIN after 4.0s
+p.returncode after the v3421 reap: None
+ps says: Z    <defunct>
+after an explicit wait(): returncode = -9      ps now: <not in table - REAPED>
+```
+
+Python's own docs write `proc.kill(); proc.communicate()` with **no timeout**, which has no hole -
+but an unbounded drain in a console that stays up for days is a hang. So the bound stays and the
+**wait became unconditional**: one door, `_reap_after_kill(p)`, where the drain is best-effort and
+the wait always runs.
+
+⚠⚠ **AND MY OWN GATE STAYED GREEN THROUGH IT.** v3421's AST law required a handler to contain calls
+named `kill` and `communicate`/`wait` - and `kill(); communicate(timeout=10)` satisfies that
+exactly. **A law shaped like the fix it was written beside will accept every wrong implementation
+that happens to use the same words.** The law is now ONE DOOR: a handler that kills must hand the
+child to `_reap_after_kill`. Re-implementing it per site is the copy-drift shape.
+
+**The eye's second finding, also real and also confirmed:** `close_ocr_worker` ran
+`wp.stdin.close()` on the caller thread. The worker is spawned `text=True, bufsize=1`, so
+`wp.stdin` is a buffered writer and `.close()` **flushes**. Against a worker that has stopped
+reading, with a full pipe and bytes still buffered, that flush blocks **forever, with no
+exception** - so the `except` never fires, `terminate()` never runs, the reap thread never starts,
+and `_kai_closer_loop` never returns. **It would have hung one step EARLIER than the stall the
+function was written to avoid.** Now `os.close(wp.stdin.fileno())`: `close(2)` on a pipe cannot
+block, still delivers EOF, and drops the pending buffer on purpose - we are shutting the worker
+down, not sending it more work.
+
+**Gate** `test_a_broken_pipe_must_not_skip_the_reap` - 10 cases, **5/5 red-proofs PROVEN**, 5.5 s.
+Two of the new cases are DRIVEN, not read: the grandchild zombie above, and a real worker with a
+stuffed pipe closed under a 20 s bound.
+
+⚠ **TWO INSTRUMENT FAILURES ON THE WAY, both caught by the count.** (1) A proof went **BLIND at
+match count 1** - the tell that the LAW is weak, not the sabotage wrong. It aimed at an outer
+`except` that this same version's restructure had just made **unreachable**, since the two inner
+handlers swallow everything; the dead branch is gone and the tamper now aims where the broken-pipe
+case actually reaches. (2) A proof went **INVALID at match count 0** because flattening that branch
+de-indented its anchor from 16 spaces to 12. **A tamper carries whitespace.**
+
+⚠ **AND THE SETUP OF ONE NEW CASE COST 60 s OF GATE TIME MEASURING NOTHING.** Writing past the pipe
+buffer to a child that never reads cannot return until the child dies - that is the state under
+test, so on the test's own thread it simply waited out the child. Moved to a daemon thread: **60.2 s
+-> 1.5 s**, and proof [4] going red confirms it still measures the flush.
+
 ### REG-1150 - A CHECK THAT ANSWERS ABOUT A POPULATION CANNOT DETECT A CHANGE
 
 **v3423 - the second eye's own finding on v3420, folded back in.** The row that watches whether the

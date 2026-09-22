@@ -32,6 +32,7 @@ sites call it.
 import io
 import os
 import sys
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,9 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
 import control_app as CA  # noqa: E402
+# ⚠ v3424 — importing this is now FREE. Until v3422 it minted a temp directory at import, and
+# this gate would have been the 32nd module doing so. [[the-unjoined-end]]
+import second_eye_run as R  # noqa: E402
 
 
 class _Stdin(object):
@@ -148,32 +152,120 @@ class TestABrokenPipeMustNotSkipTheReap(unittest.TestCase):
 
     # ---- the same class, swept: a timeout handler that kills must also reap -------------
 
-    def test_every_timeout_handler_in_the_eye_REAPS_what_it_kills(self):
-        """⚠ SWEPT BECAUSE THE CLASS WAS FOUND, NOT THE INSTANCE. The second eye reviewing v3420
-        named this while the ocr-worker leak was being fixed: `communicate()` reaps on the normal
-        path and is EXACTLY what raised on the timeout path, so `p.kill()` alone leaves a
-        <defunct> child per timeout. Parsed structurally — a grep for 'kill' would match prose,
-        and an AST sweep for kill-without-reap already produced 7 hits of which 6 were os.kill and
-        the 7th was a false positive on an attribute reference. [[sweep-dont-ask]] §1"""
+    def test_every_timeout_handler_in_the_eye_GOES_THROUGH_THE_ONE_REAP_DOOR(self):
+        """⚠⚠ v3424 — THIS CASE USED TO ACCEPT THE DEFECT, AND THE SECOND EYE SAID SO.
+
+        v3421 required only that a `TimeoutExpired` handler contain calls named `kill` and
+        `communicate`/`wait`. `kill(); communicate(timeout=10)` satisfies that and DOES NOT REAP:
+        on CPython 3.9 `communicate` runs its select loop first and only reaches `self.wait(...)`
+        afterwards, so a second timeout escapes before any wait happens. MEASURED, not argued — see
+        the behavioural case below. A law shaped like the fix it was written beside will accept
+        every wrong implementation that happens to use the same words.
+
+        So the law is now ONE DOOR: a handler that kills must hand the child to
+        `_reap_after_kill`, where the wait is unconditional. Re-implementing it per site is the
+        copy-drift shape — a rule that lands at three of four call sites is not a rule."""
         import ast
         src = io.open(os.path.join(HERE, "second_eye_run.py"),
                       encoding="utf-8", errors="replace").read()
-        tree = ast.parse(src)
         bad = []
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ExceptHandler):
+        for node in ast.walk(ast.parse(src)):
+            if not isinstance(node, ast.ExceptHandler) or node.type is None:
                 continue
-            names = {getattr(n, "attr", getattr(n, "id", "")) for n in ast.walk(node)
-                     if isinstance(n, (ast.Attribute, ast.Name))}
-            if "TimeoutExpired" not in str(ast.dump(node.type)) if node.type else True:
+            if "TimeoutExpired" not in ast.dump(node.type):
                 continue
             calls = {n.func.attr for n in ast.walk(node)
                      if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
-            if "kill" in calls and not (calls & {"communicate", "wait"}):
+            names = {n.func.id for n in ast.walk(node)
+                     if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+            if "kill" in calls and "_reap_after_kill" not in names:
                 bad.append(node.lineno)
-        self.assertEqual(bad, [], "timeout handler(s) at line(s) %r kill a child and never reap "
-                                  "it — one <defunct> per timeout, which is the same defect this "
-                                  "file was opened for" % (bad,))
+        self.assertEqual(bad, [], "timeout handler(s) at line(s) %r kill a child without handing "
+                                  "it to _reap_after_kill — so the reap depends on the drain "
+                                  "succeeding, which is exactly what just failed" % (bad,))
+
+    def test_kill_then_communicate_REALLY_DOES_leave_a_corpse_and_the_door_does_not(self):
+        """THE MEASUREMENT THAT SETTLED IT, kept as a case so nobody re-argues it from the docs.
+
+        A child that forks a grandchild inheriting the stdout pipe cannot be drained: the write end
+        stays open after the child dies. `kill()` then `communicate(timeout=N)` therefore times out
+        AGAIN, `returncode` stays None, and `ps` reports `Z <defunct>`. An explicit `wait()` reaps
+        it. Python's own docs write `kill(); communicate()` with no timeout, which has no hole —
+        but an unbounded drain in a console that is up for days is a hang, so the bound stays and
+        the WAIT is what became unconditional."""
+        import subprocess as sp
+        code = ("import os, time, sys\n"
+                "if os.fork() == 0:\n"
+                "    time.sleep(120)\n"
+                "    sys.exit(0)\n"
+                "time.sleep(120)\n")
+        p = sp.Popen([sys.executable, "-c", code], stdout=sp.PIPE, stderr=sp.PIPE)
+        try:
+            time.sleep(0.8)
+            p.kill()
+            # the v3421 shape, on its own
+            try:
+                p.communicate(timeout=2)
+            except Exception:
+                pass
+            self.assertIsNone(p.returncode,
+                              "the premise no longer holds on this interpreter: kill+communicate "
+                              "reaped the child, so this case is measuring nothing")
+            # the v3424 door, on the same child
+            self.assertTrue(R._reap_after_kill(p, drain_s=1.0, reap_s=10.0),
+                            "_reap_after_kill did not collect an already-SIGKILLed child")
+            self.assertIsNotNone(p.returncode, "the child is still uncollected after the door ran")
+        finally:
+            try:
+                p.kill()
+                p.wait(timeout=5)
+            except Exception:
+                pass
+
+    @staticmethod
+    def _fill(p):
+        """Stuff well past a 64 KiB pipe buffer. Blocks by design; runs on a daemon thread."""
+        try:
+            p.stdin.write("x" * (1024 * 1024))
+            p.stdin.flush()
+        except Exception:
+            pass
+
+    def test_closing_the_worker_stdin_CANNOT_BLOCK_THE_CALLER(self):
+        """⚠ v3424 — the other half the eye found. The worker is spawned `text=True, bufsize=1`, so
+        `wp.stdin` is a buffered writer and `.close()` FLUSHES. A worker that has stopped reading,
+        with a full pipe and bytes still buffered, makes that flush block forever — no exception,
+        so the `except` never fires, `terminate()` never runs, the reap thread never starts, and
+        the closer loop never returns. It would hang one step EARLIER than the stall the function
+        was written to avoid.
+
+        Driven, not grepped: a real child that never reads, a pipe stuffed past its capacity, and
+        a hard bound on how long the close may take."""
+        import subprocess as sp
+        import threading as th
+        p = sp.Popen([sys.executable, "-c", "import time; time.sleep(30)"],
+                     stdin=sp.PIPE, stdout=sp.PIPE, text=True, bufsize=1)
+        try:
+            # ⚠ THE FILL ITSELF BLOCKS, AND IT IS SETUP, NOT THE SUBJECT. Writing past the pipe
+            # buffer to a child that never reads is exactly the state under test, so the write
+            # cannot return until the child dies — done on the test's own thread it cost 60s of
+            # gate time and measured nothing. [[a-gate-can-perturb-what-it-measures]]
+            th.Thread(target=lambda: self._fill(p), daemon=True).start()
+            time.sleep(1.5)                        # long enough for the pipe to be full
+            done = []
+            t = th.Thread(target=lambda: (CA.close_ocr_worker(p), done.append(True)), daemon=True)
+            t.start()
+            t.join(20.0)
+            self.assertTrue(done, "close_ocr_worker BLOCKED for over 20s on a worker that stopped "
+                                  "reading — the caller thread, and the whole reel backlog, is "
+                                  "stalled with no exception and nothing in the log")
+        finally:
+            try:
+                p.kill()
+                p.wait(timeout=5)
+            except Exception:
+                pass
+
 
     # ---- the call site actually calls it --------------------------------------------------
 
@@ -198,8 +290,14 @@ RED_PROOF = [
         # ⚠ v3421 — SHORT AND EXACT. My first anchor pasted the whole three-step block and
         # matched ZERO times, because the comment carries an em dash and I typed a hyphen.
         # heart2 would have reported INVALID. [[source-reading-guard]] §2 — print the count.
-        "find": "        pass                      # already dead or already closed",
-        "replace": "        return False  # the shared-try defect: a broken pipe skips everything below",
+        # ⚠⚠ v3424 — AND THE SECOND ANCHOR WENT **BLIND AT MATCH COUNT 1**, which is the tell that
+        # the LAW is weak rather than the sabotage wrong. It aimed at an OUTER `except` that my own
+        # v3424 restructure had just made unreachable: the two inner handlers swallow everything,
+        # so returning from a branch nothing can enter changes nothing and the gate stayed green.
+        # The dead branch is now gone, and the tamper aims at the handler the broken-pipe case
+        # actually reaches. [[sabotage-is-usually-the-wrong-one]]
+        "find": "            pass                  # a stdin that will not close is NOT a reason to skip the reap",
+        "replace": "            return False  # the shared-try defect: a broken pipe skips everything below",
         "matches": 1,
     },
     {
@@ -212,13 +310,34 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "v3421 - A TIMEOUT THAT KILLS AND NEVER REAPS. communicate() reaps on the normal "
-               "path and is exactly what raised on the timeout path, so removing the second call "
-               "leaves one <defunct> child per timeout - the same defect the ocr worker had, in "
-               "the harness that reviews the fix.",
+        "why": "v3424 - THE REAP MADE CONDITIONAL AGAIN. This is the v3421 shape the second eye "
+               "refused and the measurement confirmed: kill() then communicate(timeout=N) does "
+               "NOT reap, because CPython runs the select loop before self.wait() and a second "
+               "TimeoutExpired escapes first. Measured: returncode None, ps says Z <defunct>.",
         "file": "second_eye_run.py",
-        "find": "            p.communicate(timeout=10)\n        except Exception:\n            pass                      # it may already be gone; the reap is best-effort, not a bet\n",
-        "replace": "            pass\n        except Exception:\n            pass\n",
+        "find": "    try:\n        p.wait(timeout=reap_s)\n        return True\n    except Exception:\n        return False",
+        "replace": "    try:\n        return p.returncode is not None\n    except Exception:\n        return False",
+        "matches": 1,
+    },
+    {
+        "why": "v3424 - THE ONE DOOR, BYPASSED. A handler that kills and re-implements the reap "
+               "inline is how the defect came back once already; the AST law must refuse it "
+               "whatever words the inline version happens to use.",
+        "file": "second_eye_run.py",
+        "find": "        p.kill()\n        _reap_after_kill(p)\n        return None, \"timed out after %ss\" % timeout",
+        "replace": "        p.kill()\n        try:\n            p.communicate(timeout=10)\n        except Exception:\n            pass\n        return None, \"timed out after %ss\" % timeout",
+        "matches": 1,
+    },
+    {
+        "why": "v3424 - THE BLOCKING FLUSH, RESTORED. wp.stdin is a buffered writer (text=True, "
+               "bufsize=1), so .close() FLUSHES; against a worker that stopped reading with a "
+               "full pipe that blocks forever, with no exception, so terminate() never runs and "
+               "the closer thread - and the whole reel backlog - stalls.",
+        "file": "control_app.py",
+        # ⚠ v3424 — this anchor was INVALID at match count 0 once, because flattening the dead
+        # outer try de-indented the line from 16 spaces to 12. A tamper carries whitespace.
+        "find": "            os.close(wp.stdin.fileno())",
+        "replace": "            pass",
         "matches": 1,
     },
 ]
